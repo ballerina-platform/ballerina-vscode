@@ -35,11 +35,12 @@ export interface FailedEvaluation {
 }
 
 function failedRows(runs: EvaluationRun[]): string[] {
-    return runs
-        .flatMap((run) => run.outcomes
-            .filter((outcome) => !outcome.passed)
-            .map((outcome) => `- run ${run.id}, ${outcomeLabel(outcome.id)}: ${outcome.errorMessage ?? "failed"}`))
-        .slice(0, MAX_FAILED_ROWS);
+    const rows = runs.flatMap((run) => run.outcomes
+        .filter((outcome) => !outcome.passed)
+        .map((outcome) => `- run ${run.id}, ${outcomeLabel(outcome.id)}: ${outcome.errorMessage ?? "failed"}`));
+    return rows.length > MAX_FAILED_ROWS
+        ? [...rows.slice(0, MAX_FAILED_ROWS), `- and ${rows.length - MAX_FAILED_ROWS} more failed rows`]
+        : rows;
 }
 
 function buildFixContext(evaluation: FailedEvaluation): string {
@@ -47,7 +48,7 @@ function buildFixContext(evaluation: FailedEvaluation): string {
     return [
         `The evaluation \`${evaluation.testName}\` in package \`${evaluation.projectName}\` failed with a pass rate ` +
             `of ${toPercent(evaluation.passRate)}; it needs ${toPercent(evaluation.minPassRate)}.`,
-        evaluation.history && `It passed ${evaluation.history.passed} of its last ${evaluation.history.runs} runs.`,
+        evaluation.history && `It passed ${evaluation.history.passed} of its ${evaluation.history.runs} recorded runs.`,
         evaluation.failureMessage && `Failure: ${evaluation.failureMessage}`,
         rows.length > 0 && `Failed rows:\n${rows.join("\n")}`,
         `You MUST call invoke_skill with skillName="agent-evals" and follow its "Debugging a failing evaluation" section.`,

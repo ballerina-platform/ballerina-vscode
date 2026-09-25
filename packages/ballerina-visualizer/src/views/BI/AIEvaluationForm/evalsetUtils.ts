@@ -74,6 +74,17 @@ const describeTemplate = (template: AvailableNode, options: EvaluationTemplateOp
     ].filter(Boolean).join('\n');
 };
 
+/** The path Copilot's file tools take: relative to the workspace root when the package is in a workspace. */
+export const copilotEvalsetPath = (filePath: string, projectPath: string, workspacePath?: string): string => {
+    const normalize = (value: string) => value.replace(/\\/g, '/').replace(/\/+$/, '');
+    const packageDir = normalize(projectPath);
+    const workspaceDir = workspacePath ? normalize(workspacePath) : '';
+    if (!workspaceDir || !packageDir.toLowerCase().startsWith(`${workspaceDir.toLowerCase()}/`)) {
+        return filePath;
+    }
+    return `${packageDir.slice(workspaceDir.length + 1)}/${filePath}`;
+};
+
 export const buildEvalsetPrompt = (agent: string, filePath: string, template?: AvailableNode,
     options: EvaluationTemplateOption[] = []): string => [
     `Create the evalset \`${filePath}\`, named \`${evalsetName(filePath)}\`, for the agent \`${agent}\`. Write only this file.`,

@@ -279,15 +279,17 @@ function QueriesInput({ field, optionFields, onGenerate }: QueriesInputProps) {
     const { form } = useFormContext();
     const [isGenerating, setIsGenerating] = useState(false);
 
+    const readQueries = () => ((form.getValues(field.key) as string[] | undefined) ?? [])
+        .filter(query => unwrapBallerinaString(query).trim());
+
     const generate = async () => {
-        const values = (form.getValues(field.key) as string[] | undefined) ?? [];
-        const existing = values.filter(query => unwrapBallerinaString(query).trim());
         const options = readTemplateOptions(form.getValues, optionFields);
         setIsGenerating(true);
         try {
-            const generated = await onGenerate(existing, options);
+            const generated = await onGenerate(readQueries(), options);
             if (generated.length > 0) {
-                form.setValue(field.key, [...existing, ...generated], { shouldDirty: true });
+                // Re-read, so queries typed while generating are kept.
+                form.setValue(field.key, [...readQueries(), ...generated], { shouldDirty: true });
             }
         } catch (error) {
             // The extension has already told the user why.

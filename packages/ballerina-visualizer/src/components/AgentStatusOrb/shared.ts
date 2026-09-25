@@ -594,8 +594,11 @@ const miniChatOpenListeners = new Set<(prompt: MiniChatPrompt) => void>();
 const IS_MAC = typeof navigator !== "undefined" && /Mac/i.test(navigator.userAgent);
 export const MINI_CHAT_SHORTCUT_LABEL = IS_MAC ? "⌘I" : "Ctrl+I";
 
-export const isMiniChatShortcut = (event: Pick<KeyboardEvent, "metaKey" | "ctrlKey" | "shiftKey" | "altKey" | "key">) =>
-    (IS_MAC ? event.metaKey : event.ctrlKey) && !event.shiftKey && !event.altKey && event.key.toLowerCase() === "i";
+// Matches the key labelled I, falling back to its position on non-Latin layouts, where the key isn't a letter.
+export const isMiniChatShortcut = (
+    event: Pick<KeyboardEvent, "metaKey" | "ctrlKey" | "shiftKey" | "altKey" | "key" | "code">
+) => (IS_MAC ? event.metaKey : event.ctrlKey) && !event.shiftKey && !event.altKey
+    && (event.key.toLowerCase() === "i" || (event.code === "KeyI" && !/^[a-z]$/i.test(event.key)));
 
 /**
  * Ask the ambient Copilot surface to open with a contextual prompt.

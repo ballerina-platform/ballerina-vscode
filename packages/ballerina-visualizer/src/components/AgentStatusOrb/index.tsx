@@ -442,11 +442,13 @@ export function AgentStatusOrb() {
             return;
         }
         const handleKeyDown = (event: KeyboardEvent) => {
-            if (isMiniChatShortcut(event)) {
-                event.preventDefault();
-                setMiniOpen(true);
-                setMiniFocusRequest((request) => request + 1);
+            // An editor that already handled the chord (e.g. Cmd+I for italic) keeps it.
+            if (event.defaultPrevented || event.repeat || !isMiniChatShortcut(event)) {
+                return;
             }
+            event.preventDefault();
+            setMiniOpen(true);
+            setMiniFocusRequest((request) => request + 1);
         };
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
