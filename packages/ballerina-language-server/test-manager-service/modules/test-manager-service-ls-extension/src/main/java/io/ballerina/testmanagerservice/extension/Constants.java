@@ -47,7 +47,7 @@ public class Constants {
     public static final String EVALSET_PROVIDER_VAR = "thread";
     public static final String QUERY_PROVIDER_VAR = "query";
     public static final String STRING_TYPE = "string";
-    public static final String STRING_ARRAY_2D_RETURN_TYPE = "string[][]|error";
+    public static final String QUERIES_MAP_RETURN_TYPE = "map<[string]>|error";
 
     public static final String TEST_ANNOTATION = "@test:";
     public static final String CONFIG_GROUPS = "groups";

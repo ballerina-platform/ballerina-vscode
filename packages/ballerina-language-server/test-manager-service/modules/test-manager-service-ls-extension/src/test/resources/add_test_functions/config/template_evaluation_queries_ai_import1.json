@@ -134,7 +134,7 @@
             "character": 22
           }
         },
-        "newText": "\n\nisolated function loadQueriesData() returns string[][]|error {\n\treturn [[string `What is 2 + 2?`]];\n}"
+        "newText": "\n\nisolated function loadQueriesData() returns map<[string]>|error {\n\tstring[] queries = [string `What is 2 + 2?`];\n\treturn map from string query in queries select [re `[\"\\\\]`.replaceAll(query, \"'\"), [query]];\n}"
       },
       {
         "range": {

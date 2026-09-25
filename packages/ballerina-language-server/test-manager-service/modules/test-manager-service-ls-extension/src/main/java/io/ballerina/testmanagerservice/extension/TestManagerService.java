@@ -419,8 +419,7 @@ public class TestManagerService implements ExtendedLanguageServerService {
                 throw new IllegalArgumentException("At least one query is required");
             }
             providerTemplate = name -> Utils.getQueriesDataProviderFunctionTemplate(name, queries);
-            patchInPlace = () -> Utils.findQueriesListLocation(provider.get()).ifPresent(range ->
-                    edits.add(new TextEdit(Utils.toRange(range), Utils.buildQueryExpressionArray(queries))));
+            patchInPlace = () -> Utils.queriesProviderEdit(provider.get(), queries).ifPresent(edits::add);
         } else {
             String evalSetFile = dataSource.has("evalSetFile") ? dataSource.get("evalSetFile").getAsString() : "";
             if (evalSetFile.isBlank()) {

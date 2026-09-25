@@ -46,6 +46,7 @@ import io.ballerina.compiler.syntax.tree.SpecificFieldNode;
 import io.ballerina.compiler.syntax.tree.StatementNode;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.compiler.syntax.tree.TemplateExpressionNode;
+import io.ballerina.compiler.syntax.tree.VariableDeclarationNode;
 import io.ballerina.testmanagerservice.extension.model.Annotation;
 import io.ballerina.testmanagerservice.extension.model.Codedata;
 import io.ballerina.testmanagerservice.extension.model.FunctionParameter;
@@ -56,6 +57,7 @@ import io.ballerina.tools.text.LinePosition;
 import io.ballerina.tools.text.LineRange;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
+import org.eclipse.lsp4j.TextEdit;
 
 import java.net.URI;
 import java.nio.file.Paths;
@@ -73,6 +75,10 @@ public class Utils {
 
     private static final String CONVERSATION_THREAD = "ConversationThread";
     private static final String STRING_ARRAY_2D = "string[][]";
+    private static final String QUERIES_MAP = "map<[string]>";
+    // The test report escapes neither `"` nor `\` in a row key, and either one breaks the whole report.
+    private static final String QUERIES_BY_KEY_RETURN =
+            "return map from string query in queries select [re `[\"\\\\]`.replaceAll(query, \"'\"), [query]];";
 
     private Utils() {
     }
@@ -697,42 +703,51 @@ public class Utils {
                         .startsWith(Constants.AI_EVAL_PREFIX + Constants.COLON);
     }
 
-    /** Builds the query data-provider rows from the string expressions produced by the TEXT_SET editor. */
+    /** Builds the query list from the string expressions produced by the TEXT_SET editor. */
     public static String buildQueryExpressionArray(List<String> queryExpressions) {
-        StringBuilder rows = new StringBuilder();
-        for (int i = 0; i < queryExpressions.size(); i++) {
-            if (i > 0) {
-                rows.append(Constants.COMMA).append(Constants.SPACE);
-            }
-            rows.append(Constants.OPEN_BRACKET)
-                    .append(validateQueryExpression(queryExpressions.get(i)))
-                    .append(Constants.CLOSE_BRACKET);
-        }
-        return Constants.OPEN_BRACKET + rows + Constants.CLOSE_BRACKET;
+        return queryExpressions.stream()
+                .map(Utils::validateQueryExpression)
+                .collect(Collectors.joining(Constants.COMMA + Constants.SPACE, Constants.OPEN_BRACKET,
+                        Constants.CLOSE_BRACKET));
     }
 
     public static String getQueriesDataProviderFunctionTemplate(String functionName, List<String> queries) {
         return Constants.LINE_SEPARATOR + Constants.LINE_SEPARATOR
                 + Constants.KEYWORD_ISOLATED + Constants.SPACE + Constants.KEYWORD_FUNCTION + Constants.SPACE
                 + functionName + Constants.OPEN_PARAM + Constants.CLOSED_PARAM + Constants.SPACE
-                + Constants.KEYWORD_RETURNS + Constants.SPACE + Constants.STRING_ARRAY_2D_RETURN_TYPE + Constants.SPACE
+                + Constants.KEYWORD_RETURNS + Constants.SPACE + Constants.QUERIES_MAP_RETURN_TYPE + Constants.SPACE
                 + Constants.OPEN_CURLY_BRACE + Constants.LINE_SEPARATOR + Constants.TAB_SEPARATOR
-                + "return " + buildQueryExpressionArray(queries) + ";"
+                + "string[] queries = " + buildQueryExpressionArray(queries) + ";"
+                + Constants.LINE_SEPARATOR + Constants.TAB_SEPARATOR + QUERIES_BY_KEY_RETURN
                 + Constants.LINE_SEPARATOR + Constants.CLOSE_CURLY_BRACE;
     }
 
     public enum DataProviderShape { EVALSET, QUERIES, UNKNOWN }
 
     public static DataProviderShape getDataProviderShape(FunctionDefinitionNode provider) {
-        String returnType = provider.functionSignature().returnTypeDesc()
-                .map(desc -> desc.type().toSourceCode().trim()).orElse("");
+        String returnType = compactReturnType(provider);
         if (returnType.contains(CONVERSATION_THREAD)) {
             return DataProviderShape.EVALSET;
         }
-        if (returnType.replace(Constants.SPACE, "").contains(STRING_ARRAY_2D)) {
+        if (returnType.contains(QUERIES_MAP) || returnType.contains(STRING_ARRAY_2D)) {
             return DataProviderShape.QUERIES;
         }
         return DataProviderShape.UNKNOWN;
+    }
+
+    /** Rewrites a query provider's list, or the whole provider while it still returns `string[][]`. */
+    public static Optional<TextEdit> queriesProviderEdit(FunctionDefinitionNode provider, List<String> queries) {
+        if (compactReturnType(provider).contains(STRING_ARRAY_2D)) {
+            String source = getQueriesDataProviderFunctionTemplate(provider.functionName().text().trim(), queries);
+            return Optional.of(new TextEdit(toRange(provider.lineRange()), source.stripLeading()));
+        }
+        return findQueriesListLocation(provider)
+                .map(range -> new TextEdit(toRange(range), buildQueryExpressionArray(queries)));
+    }
+
+    private static String compactReturnType(FunctionDefinitionNode provider) {
+        return provider.functionSignature().returnTypeDesc()
+                .map(desc -> desc.type().toSourceCode().replaceAll("\\s", "")).orElse("");
     }
 
     public static Optional<LineRange> findQueriesListLocation(FunctionDefinitionNode provider) {
@@ -764,8 +779,12 @@ public class Utils {
     private static Optional<ListConstructorExpressionNode> findQueriesList(FunctionBodyNode body) {
         if (body instanceof FunctionBodyBlockNode blockBody) {
             for (StatementNode statement : blockBody.statements()) {
-                if (statement instanceof ReturnStatementNode returnStmt
-                        && returnStmt.expression().orElse(null) instanceof ListConstructorExpressionNode list) {
+                Node value = switch (statement) {
+                    case VariableDeclarationNode declaration -> declaration.initializer().orElse(null);
+                    case ReturnStatementNode returnStmt -> returnStmt.expression().orElse(null);
+                    default -> null;
+                };
+                if (value instanceof ListConstructorExpressionNode list) {
                     return Optional.of(list);
                 }
             }
