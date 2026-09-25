@@ -36,6 +36,7 @@ import {
 import { EvaluationRunStatus, useAgentEvaluations } from "./useAgentEvaluations";
 import { Badge, TemplateSearch } from "../AIEvaluationForm/styles";
 import { formatTemplateKind, templateIconFor } from "../AIEvaluationForm/templateUtils";
+import { resolveEvalsetPath } from "../AIEvaluationForm/evalsetUtils";
 
 const AIEvaluationFormBody = lazy(() =>
     import("../AIEvaluationForm").then((module) => ({ default: module.AIEvaluationFormBody })));
@@ -44,7 +45,7 @@ const POPUP_MAX_WIDTH = 720;
 const GALLERY_MAX_WIDTH = 1000;
 const LIST_HEIGHT = "min(560px, 95vh)";
 
-type Step = "list" | "templates" | "create";
+type Step = "list" | "templates" | "create" | "edit";
 
 interface MenuAction {
     id: string;
@@ -62,6 +63,9 @@ const searchText = (evaluation: Evaluation, evalset?: EvalsetItem) => [
 ].join(" ").toLowerCase();
 
 const threadLabel = (count: number) => `${count} thread${count === 1 ? "" : "s"}`;
+
+const isControlClick = (event: MouseEvent<HTMLElement>) =>
+    Boolean((event.target as HTMLElement).closest("button, vscode-button"));
 
 const SearchBar = styled.div`
     padding: 12px 20px 0;
@@ -82,6 +86,7 @@ const Row = styled.div`
     gap: 10px;
     padding: 12px 8px;
     border-radius: 4px;
+    cursor: pointer;
     &:hover {
         background: var(--vscode-list-hoverBackground);
     }
@@ -350,6 +355,7 @@ function NewEvaluation(props: NewEvaluationProps) {
             serviceType="ADD_NEW_TEST"
             agentName={agentName}
             templatePicker={{ open: templatesOpen, onOpenChange: onTemplatesOpenChange, onChoose }}
+            embedded
             onSaved={onSaved}
         />
     );
@@ -369,6 +375,7 @@ export function AgentEvaluationsPopup({ projectPath, agentName, onClose }: Agent
     const [step, setStep] = useState<Step>("list");
     const [direction, setDirection] = useState<PopupModalStepDirection>("forward");
     const [choice, setChoice] = useState<string>();
+    const [editing, setEditing] = useState<Evaluation>();
     const [query, setQuery] = useState("");
     const [menu, setMenu] = useState<{ anchor: HTMLElement; actions: MenuAction[] }>();
     const text = query.trim().toLowerCase();
@@ -381,9 +388,19 @@ export function AgentEvaluationsPopup({ projectPath, agentName, onClose }: Agent
         setStep(next);
     };
     const createEvaluation = () => goTo("templates", "forward");
+    const editEvaluation = (evaluation: Evaluation) => {
+        setEditing(evaluation);
+        goTo("edit", "forward");
+    };
     // Gallery and form share one step and slide on their own, so only leaving the flow changes direction.
     const goBack = () => (step === "create" ? setStep("templates") : goTo("list", "backward"));
-    const title = { list: "Evaluations", templates: "New evaluation", create: choice }[step];
+    const title = { list: "Evaluations", templates: "New evaluation", create: choice, edit: editing?.functionName }[step];
+    const subtitle = {
+        list: `Evaluations that run ${agentName}`,
+        templates: `For ${agentName}`,
+        create: `For ${agentName}`,
+        edit: `Edit evaluation for ${agentName}`,
+    }[step];
     const handleSaved = () => {
         reload();
         goTo("list", "backward");
@@ -398,17 +415,24 @@ export function AgentEvaluationsPopup({ projectPath, agentName, onClose }: Agent
         location: { view: MACHINE_VIEW.EvalsetList, projectPath }
     });
 
-    const evaluationActions = (functionName: string): MenuAction[] => [
-        { id: "edit", label: "Edit", icon: "edit", onSelect: () => runAction(functionName, "edit") },
-        { id: "openFlow", label: "Open flow diagram", icon: "type-hierarchy", onSelect: () => runAction(functionName, "openFlow") },
-        {
-            id: "delete", label: "Delete", icon: "trash", disabled: Boolean(statusOf(functionName)),
-            onSelect: () => runAction(functionName, "delete"),
-        },
-    ];
+    const evaluationActions = (evaluation: Evaluation): MenuAction[] => {
+        const { functionName } = evaluation;
+        return [
+            { id: "edit", label: "Edit", icon: "edit", onSelect: () => editEvaluation(evaluation) },
+            { id: "openFlow", label: "Open flow diagram", icon: "type-hierarchy", onSelect: () => runAction(functionName, "openFlow") },
+            {
+                id: "delete", label: "Delete", icon: "trash", disabled: Boolean(statusOf(functionName)),
+                onSelect: () => runAction(functionName, "delete"),
+            },
+        ];
+    };
 
     const renderRow = (evaluation: Evaluation) => (
-        <Row key={evaluation.functionName}>
+        <Row
+            key={evaluation.functionName}
+            title="Edit evaluation"
+            onClick={(event) => !isControlClick(event) && editEvaluation(evaluation)}
+        >
             <RowIcon>
                 <Codicon name={evaluation.template
                     ? templateIconFor(evaluation.template.label, evaluation.template.kind)
@@ -435,7 +459,7 @@ export function AgentEvaluationsPopup({ projectPath, agentName, onClose }: Agent
                     onRun={() => run([evaluation.functionName])}
                     onStop={() => stop([evaluation.functionName])}
                 />
-                <MenuTrigger onOpen={(anchor) => toggleMenu(anchor, evaluationActions(evaluation.functionName))} />
+                <MenuTrigger onOpen={(anchor) => toggleMenu(anchor, evaluationActions(evaluation))} />
             </RowActions>
         </Row>
     );
@@ -512,7 +536,7 @@ export function AgentEvaluationsPopup({ projectPath, agentName, onClose }: Agent
             ariaLabelledBy="agent-evaluations-title"
         >
             {(close) => (
-                <PopupModalStep key={step === "list" ? "list" : "create"} $direction={direction}>
+                <PopupModalStep key={step === "templates" ? "create" : step} $direction={direction}>
                     <PopupHeader>
                         {step !== "list" && (
                             <BackButton
@@ -524,9 +548,7 @@ export function AgentEvaluationsPopup({ projectPath, agentName, onClose }: Agent
                         )}
                         <HeaderTitleContainer>
                             <PopupTitle variant="h2" id="agent-evaluations-title">{title}</PopupTitle>
-                            <PopupSubtitle variant="body2">
-                                {step === "list" ? `Evaluations that run ${agentName}` : `For ${agentName}`}
-                            </PopupSubtitle>
+                            <PopupSubtitle variant="body2">{subtitle}</PopupSubtitle>
                         </HeaderTitleContainer>
                         <HeaderActions>
                             {step === "list" && !isEmpty && (
@@ -574,14 +596,26 @@ export function AgentEvaluationsPopup({ projectPath, agentName, onClose }: Agent
                         </>
                     ) : (
                         <Suspense fallback={<PopupContent><RelativeLoader /></PopupContent>}>
-                            <NewEvaluation
-                                projectPath={projectPath}
-                                agentName={agentName}
-                                templatesOpen={step === "templates"}
-                                onTemplatesOpenChange={(open) => setStep(open ? "templates" : "create")}
-                                onChoose={setChoice}
-                                onSaved={handleSaved}
-                            />
+                            {step === "edit" ? (
+                                <AIEvaluationFormBody
+                                    projectPath={projectPath}
+                                    functionName={editing.functionName}
+                                    filePath={resolveEvalsetPath(projectPath, editing.lineRange.fileName)}
+                                    serviceType="UPDATE_TEST"
+                                    agentName={agentName}
+                                    embedded
+                                    onSaved={handleSaved}
+                                />
+                            ) : (
+                                <NewEvaluation
+                                    projectPath={projectPath}
+                                    agentName={agentName}
+                                    templatesOpen={step === "templates"}
+                                    onTemplatesOpenChange={(open) => setStep(open ? "templates" : "create")}
+                                    onChoose={setChoice}
+                                    onSaved={handleSaved}
+                                />
+                            )}
                         </Suspense>
                     )}
                 </PopupModalStep>

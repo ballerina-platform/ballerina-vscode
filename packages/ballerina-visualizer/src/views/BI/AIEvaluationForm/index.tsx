@@ -220,7 +220,9 @@ interface AIEvaluationFormBodyProps {
     agentName?: string;
     /** Shows the template catalog, with a custom option, in place of the form instead of in a dialog. */
     templatePicker?: { open: boolean; onOpenChange: (open: boolean) => void; onChoose: (title: string) => void };
-    /** Replaces opening the saved evaluation in the diagram, for evaluations built from a template. */
+    /** Lays the form out for a modal that already names the template and the agent. */
+    embedded?: boolean;
+    /** Replaces opening the saved evaluation in the diagram, except for a new custom evaluation. */
     onSaved?: () => void;
 }
 
@@ -269,7 +271,7 @@ export function AIEvaluationForm(props: TestFunctionDefProps) {
 }
 
 export function AIEvaluationFormBody(props: AIEvaluationFormBodyProps) {
-    const { projectPath, functionName, filePath, serviceType, agentName, templatePicker, onSaved } = props;
+    const { projectPath, functionName, filePath, serviceType, agentName, templatePicker, embedded, onSaved } = props;
     const { rpcClient } = useRpcContext();
     const [formFields, setFormFields] = useState<FormField[]>([]);
     const [testFunction, setTestFunction] = useState<TestFunction>();
@@ -658,7 +660,7 @@ export function AIEvaluationFormBody(props: AIEvaluationFormBodyProps) {
                 ...(evalTemplate && { evalTemplate })
             });
         }
-        if (onSaved && evalTemplate) {
+        if (onSaved && (evalTemplate || isEditing)) {
             onSaved();
             return;
         }
@@ -1290,7 +1292,7 @@ export function AIEvaluationFormBody(props: AIEvaluationFormBodyProps) {
                     onChange={handleFieldChange}
                     isSaving={isSaving}
                     disableSaveButton={isSaveDisabled}
-                    footerActionButton={Boolean(templatePicker)}
+                    footerActionButton={embedded}
                     injectedComponents={[
                         {
                             component: <>
@@ -1362,7 +1364,7 @@ export function AIEvaluationFormBody(props: AIEvaluationFormBodyProps) {
                                         </GrowingContent>
                                     </StatusRow>
                                 )}
-                                {isEditing && (editShape === 'custom' || editShape === 'ambiguous') && (
+                                {isEditing && (editShape === 'ambiguous' || (editShape === 'custom' && !embedded)) && (
                                     <StatusRow>
                                         <TemplateIconTile>
                                             <Icon name="bi-config" sx={{ fontSize: "20px", width: "20px", height: "20px" }} />
@@ -1379,7 +1381,7 @@ export function AIEvaluationFormBody(props: AIEvaluationFormBodyProps) {
                                 )}
                                 {isTemplateMode && editShape !== 'unresolvable' && (
                                     <TemplatePicker>
-                                        {!templatePicker && (
+                                        {!embedded && (
                                             <SectionLabel style={{ marginBottom: '8px' }}>
                                                 {selectedTemplate ? 'Evaluation template' : 'Choose an evaluation template'}
                                             </SectionLabel>
@@ -1403,7 +1405,8 @@ export function AIEvaluationFormBody(props: AIEvaluationFormBodyProps) {
                                                 onCreateEvalset={createEvalset}
                                                 onOpenEvalset={openEvalset}
                                                 onChangeTemplate={() => setShowTemplateCatalog(true)}
-                                                embedded={Boolean(templatePicker)}
+                                                embedded={embedded}
+                                                showTitle={embedded && isEditing}
                                             />
                                         ) : (
                                             <EmptyTemplateSlot type="button"
@@ -1452,19 +1455,24 @@ export function AIEvaluationFormBody(props: AIEvaluationFormBodyProps) {
         </FormContainer>
     );
 
-    return templatePicker ? (
-        <InlineTemplatePicker
-            open={templatePicker.open}
-            browser={<TemplateBrowser
-                templates={evalTemplates}
-                templateLoadError={templateLoadError}
-                onSelectTemplate={pickTemplate}
-                loading={isLoading}
-                onCustom={pickCustom}
-            />}
-        >
-            {form}
-        </InlineTemplatePicker>
+    if (templatePicker) {
+        return (
+            <InlineTemplatePicker
+                open={templatePicker.open}
+                browser={<TemplateBrowser
+                    templates={evalTemplates}
+                    templateLoadError={templateLoadError}
+                    onSelectTemplate={pickTemplate}
+                    loading={isLoading}
+                    onCustom={pickCustom}
+                />}
+            >
+                {form}
+            </InlineTemplatePicker>
+        );
+    }
+    return embedded ? (
+        <InlineFormContent>{form}</InlineFormContent>
     ) : (
         <>
             {form}
