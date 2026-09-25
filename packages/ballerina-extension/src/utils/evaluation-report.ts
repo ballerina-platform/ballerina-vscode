@@ -36,3 +36,30 @@ export function reportModuleStatus(report: any): any[] {
 export function reportTestNames(report: any): string[] {
     return reportModuleStatus(report).flatMap((status) => (status.tests ?? []).map((test: any) => test.name));
 }
+
+function recount(target: any, tests: any[]): void {
+    target.totalTests = tests.length;
+    target.passed = tests.filter((test) => test.status === 'PASSED').length;
+    target.skipped = tests.filter((test) => test.status === 'SKIPPED').length;
+    target.failed = target.totalTests - target.passed - target.skipped;
+}
+
+// Drops the tests and recounts every level of the report; false when no test is left.
+export function removeReportTests(report: any, testNames: Set<string>): boolean {
+    const containers: any[] = report.packages ?? [report];
+    for (const container of containers) {
+        for (const status of container.moduleStatus ?? []) {
+            status.tests = (status.tests ?? []).filter((test: any) => !testNames.has(test.name));
+            recount(status, status.tests);
+        }
+        recount(container, (container.moduleStatus ?? []).flatMap((status: any) => status.tests));
+    }
+    if (report.packages) {
+        recount(report, reportModuleStatus(report).flatMap((status) => status.tests));
+    }
+    return reportTestNames(report).length > 0;
+}
+
+// `bal test` writes `<timestamp>_index.html` beside each `<timestamp>_test_results.json`.
+export const reportHtmlPath = (jsonReportPath: string): string =>
+    jsonReportPath.replace(/_test_results\.json$/, '_index.html');

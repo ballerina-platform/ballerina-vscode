@@ -30,7 +30,7 @@ import { hasMultipleBallerinaPackages } from "../../utils/config";
 import { PROJECT_TYPE } from "../project";
 import { EvalsetTreeDataProvider } from "./evalset-tree-view";
 import { openView } from "../../stateMachine";
-import { EvalSet, EVENT_TYPE, MACHINE_VIEW } from "@wso2/ballerina-core";
+import { EvalSet, EvaluationHistoryFilter, EVENT_TYPE, MACHINE_VIEW } from "@wso2/ballerina-core";
 import * as fs from 'fs';
 import { EvaluationHistoryWebview } from '../../views/evaluation-history/webview';
 import { notifyEvalsetsChanged } from '../../RPCLayer';
@@ -90,7 +90,8 @@ export async function activate(ballerinaExtInstance: BallerinaExtension) {
 
     // Register command to open evaluation history summary webview
     // When invoked from the test explorer inline button, the TestItem is passed as the first arg.
-    const openEvalHistoryCommand = commands.registerCommand('ballerina.openEvaluationHistory', async (testItem?: any) => {
+    const openEvalHistoryCommand = commands.registerCommand('ballerina.openEvaluationHistory', async (testItem?: any,
+        filter?: EvaluationHistoryFilter) => {
         // Try to resolve the project path from the argument
         let projectPath: string | undefined;
         if (typeof testItem === 'string') {
@@ -108,7 +109,8 @@ export async function activate(ballerinaExtInstance: BallerinaExtension) {
             window.showErrorMessage('No workspace found');
             return;
         }
-        await EvaluationHistoryWebview.createOrShow(projectPath);
+        // Test Explorer actions pass the selected items as the second argument.
+        await EvaluationHistoryWebview.createOrShow(projectPath, Array.isArray(filter) ? undefined : filter);
     });
 
     // Register commands for creating evalsets and threads

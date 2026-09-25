@@ -40,6 +40,7 @@ import {
     GetEvalsetsResponse,
     EvalsetItem,
     GetEvaluationHistoryRequest,
+    DeleteEvaluationHistoryRequest,
     GetEvaluationHistoryResponse,
     OpenEvaluationReportRequest,
     EvaluationHistoryData,
@@ -62,11 +63,12 @@ import { updateSourceCode } from "../../utils/source-utils";
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { EvaluationReportWebview } from "../../views/evaluation-report/webview";
-import { getDiffStat, getDiffFull, objectExists, restoreToCheckpoint } from "../../utils/git-utils";
+import { getDiffStat, getDiffFull, objectExists, restoreToCheckpoint, unpinSnapshot } from "../../utils/git-utils";
 import { getTestFunctionNames } from "../../utils/test-discovery";
 import { refreshTestsForFile } from "../../features/test-explorer/activator";
 import { getEvaluationRunState, queueEvaluations, stopEvaluations } from "../../features/test-explorer/evaluation-queue";
-import { parseReportDate } from "../../utils/evaluation-report";
+import { parseReportDate, removeReportTests, reportHtmlPath, reportTestNames } from "../../utils/evaluation-report";
+import { notifyEvaluationHistoryUpdated } from "../../RPCLayer";
 import { ensureEvaluationFile, supportsAIEvaluation } from "../../features/test-explorer/commands";
 import { findEvaluationItem } from "../../features/test-explorer/runner";
 import { deleteEvalset } from "../../features/test-explorer/evalset-commands";
@@ -78,6 +80,46 @@ const EVALUATION_ACTION_COMMANDS: Record<EvaluationAction, string> = {
     openFlow: BI_COMMANDS.BI_EDIT_TEST_FUNCTION,
     delete: BI_COMMANDS.BI_DELETE_TEST_FUNCTION,
 };
+
+const REPORTS_DIR = path.join("tests", "evaluation-reports");
+
+interface LoadedReport {
+    path: string;
+    report: any;
+}
+
+const isInside = (dir: string, filePath: string): boolean => {
+    const relative = path.relative(dir, filePath);
+    return !!relative && !relative.startsWith("..") && !path.isAbsolute(relative);
+};
+
+function readReportsWithTests(params: DeleteEvaluationHistoryRequest, testNames: Set<string>): LoadedReport[] {
+    const reportsDir = path.join(params.projectPath, REPORTS_DIR);
+    const reportPaths = params.reportPaths
+        ?? (fs.existsSync(reportsDir) ? fs.readdirSync(reportsDir) : [])
+            .filter((file) => file.endsWith("_test_results.json"))
+            .map((file) => path.join(reportsDir, file));
+    return reportPaths.filter((reportPath) => isInside(reportsDir, reportPath)).flatMap((reportPath) => {
+        try {
+            const report = JSON.parse(fs.readFileSync(reportPath, "utf-8"));
+            return reportTestNames(report).some((name) => testNames.has(name)) ? [{ path: reportPath, report }] : [];
+        } catch {
+            return [];
+        }
+    });
+}
+
+async function confirmHistoryDeletion(params: DeleteEvaluationHistoryRequest, runCount: number): Promise<boolean> {
+    const subject = params.testNames.length === 1 ? params.testNames[0] : `${params.testNames.length} evaluations`;
+    const message = params.reportPaths ? `Delete this run of ${subject}?` : `Delete the run history of ${subject}?`;
+    const detail = `This removes the results from ${runCount} ${runCount === 1 ? "run" : "runs"}. `
+        + "Reports left empty go to the Trash, and the rest can't be restored.";
+    return await vscode.window.showWarningMessage(message, { modal: true, detail }, "Delete") === "Delete";
+}
+
+async function moveToTrash(filePath: string): Promise<void> {
+    await vscode.workspace.fs.delete(vscode.Uri.file(filePath), { useTrash: true });
+}
 
 export class TestServiceManagerRpcManager implements TestManagerServiceAPI {
 
@@ -267,6 +309,35 @@ export class TestServiceManagerRpcManager implements TestManagerServiceAPI {
                 resolve({ data: { tests: [], totalRunFiles: 0, projectNames: [] } });
             }
         });
+    }
+
+    async deleteEvaluationHistory(params: DeleteEvaluationHistoryRequest): Promise<void> {
+        const testNames = new Set<string>(params.testNames);
+        const reports = readReportsWithTests(params, testNames);
+        if (reports.length === 0 || !(await confirmHistoryDeletion(params, reports.length))) {
+            return;
+        }
+        const removedSnapshots: string[] = [];
+        try {
+            for (const { path: reportPath, report } of reports) {
+                // Our report view reads only the JSON, so a rewritten run's HTML would just be stale.
+                await moveToTrash(reportHtmlPath(reportPath)).catch(() => undefined);
+                if (removeReportTests(report, testNames)) {
+                    await fs.promises.writeFile(reportPath, JSON.stringify(report, null, 2));
+                } else {
+                    await moveToTrash(reportPath);
+                    removedSnapshots.push(report.gitState?.commitSha);
+                }
+            }
+        } catch (error) {
+            vscode.window.showErrorMessage(`Failed to delete the run history: ${error instanceof Error ? error.message : error}`);
+        }
+        const kept = new Set(this.loadReportData(path.join(params.projectPath, REPORTS_DIR)).tests
+            .flatMap((test) => test.runs.map((run) => run.gitState?.commitSha)));
+        for (const sha of removedSnapshots.filter((sha) => sha && !kept.has(sha))) {
+            await unpinSnapshot(params.projectPath, sha);
+        }
+        notifyEvaluationHistoryUpdated();
     }
 
     async openEvaluationReport(params: OpenEvaluationReportRequest): Promise<void> {

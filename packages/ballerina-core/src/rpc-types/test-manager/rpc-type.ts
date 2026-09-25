@@ -178,6 +178,26 @@ export interface GetEvaluationHistoryRequest {
     projectPath: string;
 }
 
+/** What the Evaluation History page first shows; every agent's evaluations when omitted. */
+export interface EvaluationHistoryFilter {
+    agents?: string[];
+    /** Shows the agents these evaluations run. */
+    testNames?: string[];
+    /** Scrolls to this evaluation and shows its runs. */
+    focus?: string;
+}
+
+export interface DeleteEvaluationHistoryRequest {
+    projectPath: string;
+    testNames: string[];
+    /** Only these runs; every run when omitted. */
+    reportPaths?: string[];
+}
+
+/** Removes the tests' results from past reports, after the user confirms. */
+export const deleteEvaluationHistory: RequestType<DeleteEvaluationHistoryRequest, void> =
+    { method: `${_preFix}/deleteEvaluationHistory` };
+
 export interface GetEvaluationHistoryResponse {
     data: EvaluationHistoryData;
 }

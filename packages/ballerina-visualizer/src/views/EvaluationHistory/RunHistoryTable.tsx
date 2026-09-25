@@ -21,7 +21,7 @@ import styled from "@emotion/styled";
 import { EvaluationRunDataPoint } from "./types";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { DiffViewer } from "./DiffViewer";
-import { Codicon } from "@wso2/ui-toolkit";
+import { Button, Codicon } from "@wso2/ui-toolkit";
 import { outcomeLabel } from "../../components/PassRatePill";
 
 function formatDate(isoDate: string): string {
@@ -217,6 +217,9 @@ const OutcomePill = styled.span<{ passed: boolean }>`
 `;
 
 const ViewBtn = styled.button`
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     font-size: 11px;
     padding: 3px 10px;
     border-radius: 4px;
@@ -235,6 +238,13 @@ const ViewBtn = styled.button`
             var(--vscode-list-hoverBackground)
         );
     }
+`;
+
+const ReportActions = styled.div`
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
 `;
 
 const NoReport = styled.span`
@@ -261,12 +271,17 @@ const StateLabel = styled.span<{ isDirty: boolean }>`
 interface RunHistoryTableProps {
     runs: EvaluationRunDataPoint[];
     projectPath?: string;
+    onDeleteRun?: (reportPath: string) => void;
+    /** Shows the runs even when there are many. */
+    defaultOpen?: boolean;
 }
 
-export function RunHistoryTable({ runs, projectPath }: RunHistoryTableProps) {
+export function RunHistoryTable({ runs, projectPath, onDeleteRun, defaultOpen }: RunHistoryTableProps) {
     const { rpcClient } = useRpcContext();
     const [expandedOutcomes, setExpandedOutcomes] = useState<Set<string>>(new Set());
     const [diffModal, setDiffModal] = useState<{ sha: string; full: string; isDirty: boolean } | null>(null);
+    // Fixed at mount: a later prop change must not close runs the user opened.
+    const [initiallyOpen] = useState(defaultOpen || runs.length <= 3);
     const reversedRuns = [...runs].reverse();
 
     const hasGitData = runs.some((r) => r.gitState?.commitSha);
@@ -301,7 +316,7 @@ export function RunHistoryTable({ runs, projectPath }: RunHistoryTableProps) {
 
     return (
         <>
-            <Details open={runs.length <= 3}>
+            <Details open={initiallyOpen}>
                 <Summary>
                     <SummaryLabel>Run history</SummaryLabel>
                     <SummaryCount>{runs.length} entries</SummaryCount>
@@ -315,7 +330,7 @@ export function RunHistoryTable({ runs, projectPath }: RunHistoryTableProps) {
                                 <th>Status</th>
                                 {hasGitData && <th>Code Changes</th>}
                                 <th>Outcomes</th>
-                                <th>Report</th>
+                                <th style={{ textAlign: "center" }}>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -377,7 +392,7 @@ export function RunHistoryTable({ runs, projectPath }: RunHistoryTableProps) {
                                                 }}
                                             >
                                                 <OutcomesSummary>
-                                                    {totalOutcomes} outcomes
+                                                    {totalOutcomes} {totalOutcomes === 1 ? "outcome" : "outcomes"}
                                                 </OutcomesSummary>
                                             </details>
                                             {expandedOutcomes.has(run.date) &&
@@ -431,15 +446,25 @@ export function RunHistoryTable({ runs, projectPath }: RunHistoryTableProps) {
                                         </OutcomesCell>
                                         <td>
                                             {run.jsonReportPath ? (
-                                                <ViewBtn
-                                                    onClick={() =>
-                                                        handleViewReport(
-                                                            run.jsonReportPath!
-                                                        )
-                                                    }
-                                                >
-                                                    View Report
-                                                </ViewBtn>
+                                                <ReportActions>
+                                                    <ViewBtn
+                                                        title="Open the report of this run"
+                                                        onClick={() =>
+                                                            handleViewReport(
+                                                                run.jsonReportPath!
+                                                            )
+                                                        }
+                                                    >
+                                                        <Codicon name="go-to-file" />
+                                                        Open report
+                                                    </ViewBtn>
+                                                    {onDeleteRun && (
+                                                        <Button appearance="icon" tooltip="Delete this run"
+                                                            onClick={() => onDeleteRun(run.jsonReportPath!)}>
+                                                            <Codicon name="trash" />
+                                                        </Button>
+                                                    )}
+                                                </ReportActions>
                                             ) : (
                                                 <NoReport>&mdash;</NoReport>
                                             )}
