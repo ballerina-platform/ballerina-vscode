@@ -134,7 +134,7 @@
             "character": 22
           }
         },
-        "newText": "\n\nisolated function loadQueriesData() returns map<[string]>|error {\n\tstring[] queries = [string `What is 2 + 2?`];\n\treturn map from string query in queries select [re `[\"\\\\]`.replaceAll(query, \"'\"), [query]];\n}"
+        "newText": "\n\nisolated function loadQueriesData() returns map<[string]>|error {\n\tstring[] queries = [string `What is 2 + 2?`];\n\tmap<[string]> rows = {};\n\tforeach string query in queries {\n\t\tstring key = re `[\"\\\\]`.replaceAll(query, \"'\");\n\t\trows[rows.hasKey(key) ? string `${key} #${rows.length() + 1}` : key] = [query];\n\t}\n\treturn rows;\n}"
       },
       {
         "range": {

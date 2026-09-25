@@ -77,9 +77,14 @@ public class Utils {
     private static final String CONVERSATION_THREAD = "ConversationThread";
     private static final String STRING_ARRAY_2D = "string[][]";
     private static final String QUERIES_MAP = "map<[string]>";
-    // The test report escapes neither `"` nor `\` in a row key, and either one breaks the whole report.
-    private static final String QUERIES_BY_KEY_RETURN =
-            "return map from string query in queries select [re `[\"\\\\]`.replaceAll(query, \"'\"), [query]];";
+    // Keys drop `"` and `\`, which break the test report, and a repeated key gets its position so no row is lost.
+    private static final List<String> QUERIES_BY_KEY_BODY = List.of(
+            "map<[string]> rows = {};",
+            "foreach string query in queries {",
+            "\tstring key = re `[\"\\\\]`.replaceAll(query, \"'\");",
+            "\trows[rows.hasKey(key) ? string `${key} #${rows.length() + 1}` : key] = [query];",
+            "}",
+            "return rows;");
 
     private Utils() {
     }
@@ -727,7 +732,9 @@ public class Utils {
                 + Constants.KEYWORD_RETURNS + Constants.SPACE + Constants.QUERIES_MAP_RETURN_TYPE + Constants.SPACE
                 + Constants.OPEN_CURLY_BRACE + Constants.LINE_SEPARATOR + Constants.TAB_SEPARATOR
                 + "string[] queries = " + buildQueryExpressionArray(queries) + ";"
-                + Constants.LINE_SEPARATOR + Constants.TAB_SEPARATOR + QUERIES_BY_KEY_RETURN
+                + QUERIES_BY_KEY_BODY.stream()
+                        .map(line -> Constants.LINE_SEPARATOR + Constants.TAB_SEPARATOR + line)
+                        .collect(Collectors.joining())
                 + Constants.LINE_SEPARATOR + Constants.CLOSE_CURLY_BRACE;
     }
 
