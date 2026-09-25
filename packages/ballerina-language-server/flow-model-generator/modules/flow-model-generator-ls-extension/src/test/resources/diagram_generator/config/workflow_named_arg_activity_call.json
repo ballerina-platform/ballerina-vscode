@@ -1,10 +1,10 @@
 {
   "start": {
-    "line": 43,
+    "line": 49,
     "offset": 0
   },
   "end": {
-    "line": 47,
+    "line": 53,
     "offset": 1
   },
   "source": "durable_agent_box.bal",
@@ -13,7 +13,7 @@
     "fileName": "durable_agent_box.bal",
     "nodes": [
       {
-        "id": "77966",
+        "id": "83918",
         "metadata": {
           "label": "Start",
           "data": {
@@ -32,11 +32,11 @@
           "lineRange": {
             "fileName": "durable_agent_box.bal",
             "startLine": {
-              "line": 44,
+              "line": 50,
               "offset": 80
             },
             "endLine": {
-              "line": 47,
+              "line": 53,
               "offset": 1
             }
           },
@@ -46,7 +46,7 @@
         "flags": 0
       },
       {
-        "id": "76630",
+        "id": "82582",
         "metadata": {
           "label": "lookupBooking",
           "description": "Look up a booking activity",
@@ -63,11 +63,11 @@
           "lineRange": {
             "fileName": "durable_agent_box.bal",
             "startLine": {
-              "line": 45,
+              "line": 51,
               "offset": 4
             },
             "endLine": {
-              "line": 45,
+              "line": 51,
               "offset": 122
             }
           },
@@ -200,6 +200,10 @@
                   {
                     "label": "Human Approval",
                     "value": "HumanApproval"
+                  },
+                  {
+                    "label": "From Expression",
+                    "value": "FromExpression"
                   }
                 ],
                 "selected": true
@@ -415,6 +419,26 @@
                   "advanced": false,
                   "hidden": false
                 }
+              },
+              "FromExpression": {
+                "approvalPolicyExpression": {
+                  "metadata": {
+                    "label": "Approval Policy Expression",
+                    "description": "A workflow:ApprovalPolicy value: a constant, a variable or a record literal. A literal reopens as the option it declares."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "workflow:ApprovalPolicy",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "optional": false,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                }
               }
             },
             "itemOptions": [
@@ -427,6 +451,11 @@
                 "id": "HumanApproval",
                 "content": "Human Approval",
                 "value": "HumanApproval"
+              },
+              {
+                "id": "FromExpression",
+                "content": "From Expression",
+                "value": "FromExpression"
               }
             ]
           },
@@ -602,6 +631,24 @@
             "advanced": false,
             "hidden": true
           },
+          "approvalPolicyExpression": {
+            "metadata": {
+              "label": "Approval Policy Expression",
+              "description": "A workflow:ApprovalPolicy value: a constant, a variable or a record literal. A literal reopens as the option it declares."
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "workflow:ApprovalPolicy",
+                "selected": true
+              }
+            ],
+            "value": "",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
           "retryPolicy": {
             "metadata": {
               "label": "Retry Policy",
@@ -626,6 +673,10 @@
                   {
                     "label": "Retry, then Review",
                     "value": "RetryBeforeReview"
+                  },
+                  {
+                    "label": "From Expression",
+                    "value": "FromExpression"
                   }
                 ],
                 "selected": true
@@ -1191,6 +1242,26 @@
                   "advanced": false,
                   "hidden": false
                 }
+              },
+              "FromExpression": {
+                "retryPolicyExpression": {
+                  "metadata": {
+                    "label": "Retry Policy Expression",
+                    "description": "A workflow:RetryPolicy value: a constant, a variable or a record literal. A literal reopens as the option it declares."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "workflow:RetryPolicy",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "optional": false,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                }
               }
             },
             "itemOptions": [
@@ -1213,6 +1284,11 @@
                 "id": "RetryBeforeReview",
                 "content": "Retry, then Review",
                 "value": "RetryBeforeReview"
+              },
+              {
+                "id": "FromExpression",
+                "content": "From Expression",
+                "value": "FromExpression"
               }
             ]
           },
@@ -1460,6 +1536,24 @@
             "advanced": false,
             "hidden": true
           },
+          "retryPolicyExpression": {
+            "metadata": {
+              "label": "Retry Policy Expression",
+              "description": "A workflow:RetryPolicy value: a constant, a variable or a record literal. A literal reopens as the option it declares."
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "workflow:RetryPolicy",
+                "selected": true
+              }
+            ],
+            "value": "",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
           "variable": {
             "metadata": {
               "label": "Variable Name",
@@ -1480,11 +1574,11 @@
               "lineRange": {
                 "fileName": "durable_agent_box.bal",
                 "startLine": {
-                  "line": 45,
+                  "line": 51,
                   "offset": 9
                 },
                 "endLine": {
-                  "line": 45,
+                  "line": 51,
                   "offset": 16
                 }
               }
@@ -1513,7 +1607,7 @@
         "flags": 1
       },
       {
-        "id": "77519",
+        "id": "83471",
         "metadata": {
           "label": "Return",
           "description": "Value of 'booking'"
@@ -1523,11 +1617,11 @@
           "lineRange": {
             "fileName": "durable_agent_box.bal",
             "startLine": {
-              "line": 46,
+              "line": 52,
               "offset": 4
             },
             "endLine": {
-              "line": 46,
+              "line": 52,
               "offset": 19
             }
           },

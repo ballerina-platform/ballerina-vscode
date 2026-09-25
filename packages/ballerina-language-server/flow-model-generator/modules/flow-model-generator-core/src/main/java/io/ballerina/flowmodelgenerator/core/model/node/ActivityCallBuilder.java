@@ -142,6 +142,15 @@ public class ActivityCallBuilder extends CallBuilder {
     public static final String RETRY_DELAY_KEY = "retryDelay";
     public static final String RETRY_BACKOFF_KEY = "retryBackoff";
     public static final String MAX_RETRY_DELAY_KEY = "maxRetryDelay";
+    // The dropdown's escape hatch: a RetryPolicy typed as source (a constant, a variable, a call or a
+    // literal), stored under this key and written back verbatim.
+    public static final String RETRY_POLICY_EXPRESSION_KEY = "retryPolicyExpression";
+    private static final String RETRY_POLICY_TYPE = "workflow:RetryPolicy";
+    private static final String RETRY_POLICY_EXPRESSION_LABEL = "Retry Policy Expression";
+    private static final String RETRY_POLICY_EXPRESSION_DOC = "A workflow:RetryPolicy value: a constant, a "
+            + "variable or a record literal. A literal reopens as the option it declares.";
+    private static final String NO_RETRY_EXPRESSION_MESSAGE =
+            "From Expression needs a value: fill in Retry Policy Expression";
     // Messages of the checks the form runs before writing a policy. Neither shape can be written
     // with the field missing, and filling it in silently would declare something nobody asked for:
     // a review nobody can decide, or an attempt count the author never chose.
@@ -847,19 +856,25 @@ public class ActivityCallBuilder extends CallBuilder {
                                                     String maxRetries, String retryDelay,
                                                     String retryBackoff, String maxRetryDelay,
                                                     ReviewFormValues review) {
-        String selectedValue = retryPolicyValue == null || retryPolicyValue.isBlank()
-                ? NO_RETRY_VALUE : retryPolicyValue;
-        List<Option> options = new ArrayList<>(List.of(
+        addRetryPolicyFormProperties(nodeBuilder, retryPolicyValue, maxRetries, retryDelay, retryBackoff,
+                maxRetryDelay, review, "");
+    }
+
+    public static void addRetryPolicyFormProperties(NodeBuilder nodeBuilder, String retryPolicyValue,
+                                                    String maxRetries, String retryDelay,
+                                                    String retryBackoff, String maxRetryDelay,
+                                                    ReviewFormValues review, String expression) {
+        List<Option> options = List.of(
                 new Option("No Retry", NO_RETRY_VALUE),
                 new Option("Auto Retry", AUTO_RETRY_VALUE),
                 new Option("Human Review", MANUAL_RETRY_VALUE),
-                new Option("Retry, then Review", RETRY_BEFORE_REVIEW_VALUE)));
-        // A policy the form cannot represent (a const or variable reference, say) is carried as its
-        // own option, so it renders as the selection and is written back verbatim on save.
-        boolean opaquePolicy = options.stream().noneMatch(option -> selectedValue.equals(option.value()));
-        if (opaquePolicy) {
-            options.add(new Option(selectedValue, selectedValue));
-        }
+                new Option("Retry, then Review", RETRY_BEFORE_REVIEW_VALUE),
+                FromExpressionOption.option());
+        String requested = retryPolicyValue == null || retryPolicyValue.isBlank() ? NO_RETRY_VALUE : retryPolicyValue;
+        // A caller still passing the policy source as the selection lands on the expression option.
+        boolean known = options.stream().anyMatch(option -> requested.equals(option.value()));
+        String selectedValue = known ? requested : FromExpressionOption.VALUE;
+        String expressionValue = known ? (expression == null ? "" : expression) : requested;
 
         // Sub-property definitions for the AutoRetry option. Empty values are intentional:
         // the UI reads real values from the root hidden properties with matching keys. Every
@@ -900,9 +915,9 @@ public class ActivityCallBuilder extends CallBuilder {
                 buildRetrySubProperty("Max Retries", MAX_RETRIES_DOC, "int", false));
         retryBeforeReviewFields.putAll(manualRetryFields);
         dynamicFields.put(RETRY_BEFORE_REVIEW_VALUE, retryBeforeReviewFields);
-        if (opaquePolicy) {
-            dynamicFields.put(selectedValue, Map.of());
-        }
+        dynamicFields.put(FromExpressionOption.VALUE, Map.of(RETRY_POLICY_EXPRESSION_KEY,
+                FromExpressionOption.subProperty(RETRY_POLICY_EXPRESSION_LABEL, RETRY_POLICY_EXPRESSION_DOC,
+                        RETRY_POLICY_TYPE)));
 
         nodeBuilder.properties().custom()
                 .metadata()
@@ -933,6 +948,8 @@ public class ActivityCallBuilder extends CallBuilder {
         addHiddenRetrySubFieldProperty(nodeBuilder, MAX_RETRY_DELAY_KEY,
                 "Max Retry Delay", MAX_RETRY_DELAY_DOC, "decimal", maxRetryDelay);
         addHiddenReviewProperties(nodeBuilder, RETRY_REVIEW_KEYS, review, RETRY_TITLE_DOC, RETRY_DESCRIPTION_DOC);
+        FromExpressionOption.addHiddenProperty(nodeBuilder, RETRY_POLICY_EXPRESSION_KEY,
+                RETRY_POLICY_EXPRESSION_LABEL, RETRY_POLICY_EXPRESSION_DOC, RETRY_POLICY_TYPE, expressionValue);
     }
 
     /**
@@ -1400,7 +1417,8 @@ public class ActivityCallBuilder extends CallBuilder {
         // ADVANCED_PARAM_KEY is the nested options group forms used to send; never an argument.
         Set<String> keys = new java.util.HashSet<>(Set.of(Property.VARIABLE_KEY, Property.TYPE_KEY,
                 Property.CHECK_ERROR_KEY, Property.ADVANCED_PARAM_KEY, STEP_ID_PARAM, RETRY_POLICY_PARAM,
-                MAX_RETRIES_KEY, RETRY_DELAY_KEY, RETRY_BACKOFF_KEY, MAX_RETRY_DELAY_KEY));
+                MAX_RETRIES_KEY, RETRY_DELAY_KEY, RETRY_BACKOFF_KEY, MAX_RETRY_DELAY_KEY,
+                RETRY_POLICY_EXPRESSION_KEY));
         keys.addAll(RETRY_REVIEW_KEYS.all());
         keys.addAll(ApprovalPolicyForm.PROPERTY_KEYS);
         return Set.copyOf(keys);
@@ -1499,7 +1517,9 @@ public class ActivityCallBuilder extends CallBuilder {
             // NO_RETRY is handled (and skipped) by populateRetryPolicyArg before reaching here.
             case MANUAL_RETRY_VALUE -> humanReviewRecordLiteral(properties);
             case RETRY_BEFORE_REVIEW_VALUE -> retryBeforeReviewRecordLiteral(properties);
-            // A policy expression the form could not represent: written back as it was read.
+            case FromExpressionOption.VALUE -> FromExpressionOption.expression(properties,
+                    RETRY_POLICY_EXPRESSION_KEY, NO_RETRY_EXPRESSION_MESSAGE);
+            // A policy an older form carried as its own option: written back as it was read.
             default -> value;
         };
     }

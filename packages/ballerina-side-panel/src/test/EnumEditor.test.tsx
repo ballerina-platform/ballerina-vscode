@@ -147,3 +147,41 @@ describe("EnumEditor", () => {
         expect(presented()).toBe('"responses"');
     });
 });
+
+// A select whose value is an expression rather than one of its members — a workflow event cardinality
+// named by a constant, say. The value is the field's own source and the form writes it back as it
+// stands; what matters here is that the dropdown does not present it AS one of the members, which
+// would tell the user their policy is something it is not.
+describe("EnumEditor with a value that is not one of the members", () => {
+    const cardinalityItems = [
+        { id: "MULTI_EVENT", content: "MULTI_EVENT", value: "MULTI_EVENT" },
+        { id: "SINGLE_EVENT", content: "SINGLE_EVENT", value: "SINGLE_EVENT" }
+    ];
+    const cardinalityField = {
+        key: "cardinality",
+        label: "Cardinality",
+        type: "SINGLE_SELECT",
+        optional: true,
+        editable: true,
+        enabled: true,
+        documentation: ""
+    } as unknown as FormField;
+
+    const selectedFor = (value: string) => {
+        const { container } = render(
+            <EnumEditor value={value} field={cardinalityField} onChange={jest.fn()} items={cardinalityItems} />
+        );
+        const dropdown = container.querySelector("vscode-dropdown") as HTMLElement & { value?: string };
+        return dropdown?.value ?? dropdown?.getAttribute("value");
+    };
+
+    it("INVARIANT: does not present a constant naming a member as that member", () => {
+        const selected = selectedFor("ONE_SHOT");
+        expect(selected).not.toBe("SINGLE_EVENT");
+        expect(selected).not.toBe("MULTI_EVENT");
+    });
+
+    it("still presents a member given by name", () => {
+        expect(selectedFor("SINGLE_EVENT")).toBe("SINGLE_EVENT");
+    });
+});

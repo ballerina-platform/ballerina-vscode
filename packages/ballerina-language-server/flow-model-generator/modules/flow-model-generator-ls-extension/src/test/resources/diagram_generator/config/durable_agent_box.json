@@ -1,10 +1,10 @@
 {
   "start": {
-    "line": 37,
+    "line": 43,
     "offset": 0
   },
   "end": {
-    "line": 41,
+    "line": 47,
     "offset": 1
   },
   "source": "durable_agent_box.bal",
@@ -13,7 +13,7 @@
     "fileName": "durable_agent_box.bal",
     "nodes": [
       {
-        "id": "69906",
+        "id": "75858",
         "metadata": {
           "label": "Start",
           "data": {
@@ -28,11 +28,11 @@
           "lineRange": {
             "fileName": "durable_agent_box.bal",
             "startLine": {
-              "line": 37,
+              "line": 43,
               "offset": 43
             },
             "endLine": {
-              "line": 41,
+              "line": 47,
               "offset": 1
             }
           },
@@ -42,7 +42,7 @@
         "flags": 0
       },
       {
-        "id": "69664",
+        "id": "75616",
         "metadata": {
           "label": "Configure Agent",
           "description": "Configure the agent's role, instructions, model and reasoning limit",
@@ -66,11 +66,11 @@
                 "lineRange": {
                   "fileName": "durable_agent_box.bal",
                   "startLine": {
-                    "line": 24,
+                    "line": 28,
                     "offset": 8
                   },
                   "endLine": {
-                    "line": 24,
+                    "line": 28,
                     "offset": 130
                   }
                 },
@@ -79,6 +79,30 @@
                   "retryPolicy": "AutoRetry",
                   "maxRetries": "2",
                   "retryDelay": "1.5",
+                  "bindings.api": "deskApi"
+                }
+              },
+              {
+                "name": "lookupByPolicy",
+                "type": "activity",
+                "lineRange": {
+                  "fileName": "durable_agent_box.bal",
+                  "startLine": {
+                    "line": 29,
+                    "offset": 8
+                  },
+                  "endLine": {
+                    "line": 29,
+                    "offset": 142
+                  }
+                },
+                "values": {
+                  "activity": "lookupBooking",
+                  "name": "\"lookupByPolicy\"",
+                  "retryPolicy": "FromExpression",
+                  "retryPolicyExpression": "STANDARD_RETRY",
+                  "approvalPolicy": "FromExpression",
+                  "approvalPolicyExpression": "FINANCE_GATE",
                   "bindings.api": "deskApi"
                 }
               }
@@ -90,11 +114,11 @@
                 "lineRange": {
                   "fileName": "durable_agent_box.bal",
                   "startLine": {
-                    "line": 30,
+                    "line": 36,
                     "offset": 8
                   },
                   "endLine": {
-                    "line": 30,
+                    "line": 36,
                     "offset": 88
                   }
                 },
@@ -113,11 +137,11 @@
                 "lineRange": {
                   "fileName": "durable_agent_box.bal",
                   "startLine": {
-                    "line": 27,
+                    "line": 32,
                     "offset": 8
                   },
                   "endLine": {
-                    "line": 27,
+                    "line": 32,
                     "offset": 63
                   }
                 },
@@ -125,6 +149,26 @@
                   "name": "\"hotelResults\"",
                   "requestType": "json",
                   "responseType": "string"
+                }
+              },
+              {
+                "name": "flightResults",
+                "type": "event",
+                "lineRange": {
+                  "fileName": "durable_agent_box.bal",
+                  "startLine": {
+                    "line": 33,
+                    "offset": 8
+                  },
+                  "endLine": {
+                    "line": 33,
+                    "offset": 69
+                  }
+                },
+                "values": {
+                  "name": "\"flightResults\"",
+                  "requestType": "json",
+                  "cardinality": "ONE_SHOT"
                 }
               }
             ],
@@ -135,11 +179,11 @@
                 "lineRange": {
                   "fileName": "durable_agent_box.bal",
                   "startLine": {
-                    "line": 33,
+                    "line": 39,
                     "offset": 8
                   },
                   "endLine": {
-                    "line": 33,
+                    "line": 39,
                     "offset": 177
                   }
                 },
@@ -152,11 +196,11 @@
             "declaration": {
               "fileName": "durable_agent_box.bal",
               "startLine": {
-                "line": 19,
+                "line": 23,
                 "offset": 0
               },
               "endLine": {
-                "line": 35,
+                "line": 41,
                 "offset": 3
               }
             }
@@ -173,11 +217,11 @@
           "lineRange": {
             "fileName": "durable_agent_box.bal",
             "startLine": {
-              "line": 38,
+              "line": 44,
               "offset": 4
             },
             "endLine": {
-              "line": 38,
+              "line": 44,
               "offset": 100
             }
           },
@@ -359,11 +403,11 @@
               "lineRange": {
                 "fileName": "durable_agent_box.bal",
                 "startLine": {
-                  "line": 38,
+                  "line": 44,
                   "offset": 11
                 },
                 "endLine": {
-                  "line": 38,
+                  "line": 44,
                   "offset": 21
                 }
               }
@@ -392,7 +436,7 @@
         "flags": 1
       },
       {
-        "id": "70674",
+        "id": "76626",
         "metadata": {
           "label": "Send Agent Data Event",
           "description": "Send a data event to a running durable agent and read its answer for that turn",
@@ -414,11 +458,11 @@
           "lineRange": {
             "fileName": "durable_agent_box.bal",
             "startLine": {
-              "line": 39,
+              "line": 45,
               "offset": 4
             },
             "endLine": {
-              "line": 39,
+              "line": 45,
               "offset": 118
             }
           },
@@ -515,11 +559,11 @@
               "lineRange": {
                 "fileName": "durable_agent_box.bal",
                 "startLine": {
-                  "line": 39,
+                  "line": 45,
                   "offset": 11
                 },
                 "endLine": {
-                  "line": 39,
+                  "line": 45,
                   "offset": 16
                 }
               }
@@ -548,7 +592,7 @@
         "flags": 1
       },
       {
-        "id": "71644",
+        "id": "77596",
         "metadata": {
           "label": "Get Data Event Result",
           "description": "Read the agent's answer for a sent data event by its correlation token",
@@ -570,11 +614,11 @@
           "lineRange": {
             "fileName": "durable_agent_box.bal",
             "startLine": {
-              "line": 40,
+              "line": 46,
               "offset": 4
             },
             "endLine": {
-              "line": 40,
+              "line": 46,
               "offset": 96
             }
           },
@@ -670,11 +714,11 @@
               "lineRange": {
                 "fileName": "durable_agent_box.bal",
                 "startLine": {
-                  "line": 40,
+                  "line": 46,
                   "offset": 11
                 },
                 "endLine": {
-                  "line": 40,
+                  "line": 46,
                   "offset": 17
                 }
               }

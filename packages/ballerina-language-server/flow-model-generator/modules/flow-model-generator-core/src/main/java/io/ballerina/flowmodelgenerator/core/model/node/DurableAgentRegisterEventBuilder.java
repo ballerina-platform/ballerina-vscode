@@ -66,6 +66,7 @@ public class DurableAgentRegisterEventBuilder extends CallBuilder {
             + "SINGLE_EVENT is consumed exactly once per run";
     public static final String MULTI_EVENT = "MULTI_EVENT";
     public static final String SINGLE_EVENT = "SINGLE_EVENT";
+    private static final String CARDINALITY_TYPE = "workflow:EventCardinality";
 
     private static final String STRING_TYPE = "string";
     private static final String DEFAULT_REQUEST_TYPE = "string";
@@ -161,11 +162,19 @@ public class DurableAgentRegisterEventBuilder extends CallBuilder {
                     .label(CARDINALITY_LABEL)
                     .description(CARDINALITY_DOC)
                     .stepOut()
+                // Pick a member, or switch to the expression mode and name one: the same two modes
+                // the audience fields carry, and the only escape hatch the UI renders for a select
+                // that already lists its options.
                 .type()
                     .fieldType(Property.ValueType.SINGLE_SELECT)
                     .options(List.of(new Option(MULTI_EVENT, MULTI_EVENT),
                             new Option(SINGLE_EVENT, SINGLE_EVENT)))
                     .selected(true)
+                    .stepOut()
+                .type()
+                    .fieldType(Property.ValueType.EXPRESSION)
+                    .ballerinaType(CARDINALITY_TYPE)
+                    .selected(false)
                     .stepOut()
                 .codedata()
                     .kind(ParameterData.Kind.DEFAULTABLE.name())
@@ -204,9 +213,15 @@ public class DurableAgentRegisterEventBuilder extends CallBuilder {
         if (!responseType.isBlank()) {
             entry.append(", response: ").append(responseType);
         }
-        // MULTI_EVENT is the module default; only a SINGLE_EVENT opt-in is written out.
+        // The two member names are the select's own values and are written out qualified, MULTI_EVENT
+        // being the module default and so left out. Anything else is an expression naming a member —
+        // a constant, say — and is written through untouched. Decided by the value rather than by the
+        // field's mode on purpose: a capability's values reach this form as plain strings with no
+        // mode beside them, and a reference dropped for want of one is the bug this guards.
         if (SINGLE_EVENT.equals(cardinality)) {
             entry.append(", cardinality: ").append(WORKFLOW_MODULE).append(":").append(SINGLE_EVENT);
+        } else if (!cardinality.isBlank() && !MULTI_EVENT.equals(cardinality)) {
+            entry.append(", cardinality: ").append(cardinality);
         }
         entry.append("}");
         return WorkflowUtil.upsertAgentCapabilityEntry(sourceBuilder, "events", entry.toString());

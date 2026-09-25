@@ -15,6 +15,8 @@
             <class name="io.ballerina.flowmodelgenerator.core.HumanTaskFallbackArgumentsTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.PackageUtilConcurrencyTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.RetryPolicyRoundTripTest"/>
+            <class name="io.ballerina.flowmodelgenerator.core.RetryPolicyOptionRoundTripTest"/>
+            <class name="io.ballerina.flowmodelgenerator.core.RetryPolicyTypeResolutionTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.type.IntersectionNormalizerTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.copilot.CopilotUiSchemaIsolationTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.copilot.central.CentralLibrarySearchAccessorTest"/>
@@ -26,6 +28,7 @@
             <class name="io.ballerina.flowmodelgenerator.core.copilot.service.SpecMajorGateTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.copilot.util.LibraryModelConverterTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.model.node.HumanReviewLiteralTest"/>
+            <class name="io.ballerina.flowmodelgenerator.core.model.node.FromExpressionOptionTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.model.node.HumanTaskFormTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.model.node.HumanTaskKeyFallbackTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.utils.WorkflowUtilLiteralTest"/>

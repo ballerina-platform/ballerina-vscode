@@ -17,15 +17,21 @@ function lookupBooking(http:Client api, string bookingId) returns json|error {
     return api->get("/bookings/" + bookingId);
 }
 
+final readonly & workflow:AutoRetry STANDARD_RETRY = {maxRetries: 4, retryDelay: 2.0};
+final readonly & workflow:ReviewTaskDefinition FINANCE_GATE = {userRoles: "finance"};
+final workflow:EventCardinality ONE_SHOT = workflow:SINGLE_EVENT;
+
 final workflow:DurableAgent travelAgent = check new ({
     systemPrompt: {role: "Travel assistant", instructions: "Plan trips end to end."},
     model: deskModel,
     inputType: TripInput,
     activities: [
-        {activity: lookupBooking, requiresApproval: true, retryPolicy: {maxRetries: 2, retryDelay: 1.5}, bindings: {api: deskApi}}
+        {activity: lookupBooking, requiresApproval: true, retryPolicy: {maxRetries: 2, retryDelay: 1.5}, bindings: {api: deskApi}},
+        {activity: lookupBooking, name: "lookupByPolicy", retryPolicy: STANDARD_RETRY, approvalPolicy: FINANCE_GATE, bindings: {api: deskApi}}
     ],
     events: [
-        {name: "hotelResults", request: json, response: string}
+        {name: "hotelResults", request: json, response: string},
+        {name: "flightResults", request: json, cardinality: ONE_SHOT}
     ],
     humanTasks: [
         {name: "approveItinerary", roles: "travel-lead", title: "Approve the itinerary"}

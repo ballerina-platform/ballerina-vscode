@@ -212,3 +212,72 @@ describe("DropdownChoiceForm group branch on an existing node", () => {
         expect(getForm().getValues("maxRetries")).toBe("5");
     });
 });
+
+// The escape hatch the workflow policy dropdowns carry: an option whose one sub-field takes the
+// value as an expression, for a policy the dropdown itself cannot show (a const or a variable).
+// These pin what the LS side depends on — that selecting the option reveals the field, and that the
+// field reads and writes under its own key, which is the root property source generation reads.
+const policyField = (value: string): FormField =>
+    ({
+        key: "retryPolicy",
+        label: "Retry Policy",
+        type: "DROPDOWN_CHOICE",
+        value,
+        optional: false,
+        editable: true,
+        enabled: true,
+        documentation: "",
+        itemOptions: [
+            { id: "NoRetry", content: "No Retry", value: "NoRetry" },
+            { id: "AutoRetry", content: "Auto Retry", value: "AutoRetry" },
+            { id: "FromExpression", content: "From Expression", value: "FromExpression" },
+        ],
+        dynamicFormFields: {
+            NoRetry: [],
+            AutoRetry: [],
+            FromExpression: [
+                {
+                    key: "retryPolicyExpression",
+                    label: "Retry Policy Expression",
+                    type: "STRING",
+                    types: [{ fieldType: "STRING", selected: true }],
+                    value: "",
+                    optional: false,
+                    editable: true,
+                    enabled: true,
+                    documentation: "A workflow:RetryPolicy value",
+                } as unknown as FormField,
+            ],
+        },
+    } as unknown as FormField);
+
+describe("DropdownChoiceForm From Expression option", () => {
+    it("offers the option beside the shapes the form can edit", () => {
+        const { container } = renderWithForm(<DropdownChoiceForm field={policyField("NoRetry")} />, {
+            defaultValues: { retryPolicy: "NoRetry" },
+        });
+        expect(container.textContent ?? "").toContain("From Expression");
+    });
+
+    it("INVARIANT: selecting it reveals the expression field", () => {
+        const { container } = renderWithForm(<DropdownChoiceForm field={policyField("FromExpression")} />, {
+            defaultValues: { retryPolicy: "FromExpression", retryPolicyExpression: "" },
+        });
+        expect(container.textContent ?? "").toContain("Retry Policy Expression");
+    });
+
+    it("keeps the expression field out of the options the form can edit", () => {
+        const { container } = renderWithForm(<DropdownChoiceForm field={policyField("AutoRetry")} />, {
+            defaultValues: { retryPolicy: "AutoRetry" },
+        });
+        expect(container.textContent ?? "").not.toContain("Retry Policy Expression");
+    });
+
+    it("carries the expression under its own key, which is the property source generation reads", () => {
+        const { getForm } = renderWithForm(<DropdownChoiceForm field={policyField("FromExpression")} />, {
+            defaultValues: { retryPolicy: "FromExpression", retryPolicyExpression: "STANDARD_RETRY" },
+        });
+        expect(getForm().getValues("retryPolicy")).toBe("FromExpression");
+        expect(getForm().getValues("retryPolicyExpression")).toBe("STANDARD_RETRY");
+    });
+});
