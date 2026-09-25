@@ -984,6 +984,8 @@ export interface Generation {
     codeContext?: CodeContext;
     /** Post-turn follow-up suggestions; runtime-only, not persisted across a restart */
     followupSuggestions?: FollowupSuggestion[];
+    /** Summary of this turn published to the Devant console (cloud editor only); runtime-only, not persisted across a restart */
+    consoleSummary?: string;
     /** Generation metadata */
     metadata: GenerationMetadata;
 }
