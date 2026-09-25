@@ -44,7 +44,8 @@ const usageLabel = (users: string[]) =>
 export function EvalsetList({ projectPath }: { projectPath: string }) {
     const { rpcClient } = useRpcContext();
     const [evalsets, setEvalsets] = useState<EvalsetItem[]>();
-    const [evaluations, setEvaluations] = useState<Evaluation[]>([]);
+    // Unknown until discovery succeeds, so a failed lookup never reads as "not used".
+    const [evaluations, setEvaluations] = useState<Evaluation[]>();
     const [isCreating, setIsCreating] = useState(false);
     const [loadCount, setLoadCount] = useState(0);
     const testManager = rpcClient.getTestManagerRpcClient();
@@ -58,7 +59,7 @@ export function EvalsetList({ projectPath }: { projectPath: string }) {
         });
         rpcClient.getTestManagerRpcClient().getEvaluations({ projectPath }).then((response) => {
             if (active) {
-                setEvaluations(response.evaluations ?? []);
+                setEvaluations(response.errorMsg ? undefined : response.evaluations ?? []);
             }
         });
         return () => {
@@ -68,7 +69,9 @@ export function EvalsetList({ projectPath }: { projectPath: string }) {
 
     const reload = () => setLoadCount((count) => count + 1);
 
-    const usersOf = (filePath: string) => evaluations
+    useEffect(() => rpcClient.onEvalsetsChanged(reload), [rpcClient]);
+
+    const usersOf = (filePath: string) => (evaluations ?? [])
         .filter((evaluation) => isSameEvalset(evaluation.evalSetFile, filePath))
         .map((evaluation) => evaluation.functionName);
 
@@ -116,7 +119,7 @@ export function EvalsetList({ projectPath }: { projectPath: string }) {
                             <EvalsetName><CardIcon name="collection" />{evalset.name}</EvalsetName>
                             <EvalsetMeta>
                                 <div>{plural(evalset.threadCount, "thread")}</div>
-                                <div title={users.join(", ")}>{usageLabel(users)}</div>
+                                {evaluations && <div title={users.join(", ")}>{usageLabel(users)}</div>}
                             </EvalsetMeta>
                         </EvalsetCard>
                     );
