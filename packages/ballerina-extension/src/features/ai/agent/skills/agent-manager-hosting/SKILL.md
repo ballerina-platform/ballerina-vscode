@@ -1,15 +1,49 @@
 ---
 name: agent-manager-hosting
-description: Makes Ballerina AI agents and durable agents hostable as platform-hosted agents on WSO2 Agent Manager: the Chat Agent or Custom API entry point, build, tracing and configuration rules, runtime limits, and reaching a workflow server. Use only when the user says the agent will be deployed or hosted on WSO2 Agent Manager.
+description: Connects Ballerina AI agents and durable agents to WSO2 Agent Manager, as externally hosted agents (tracing setup) or platform-hosted agents (Chat Agent or Custom API entry point, build, tracing and configuration rules, runtime limits, reaching a workflow server). Use only when the user says the agent will be deployed on, hosted on or observed by WSO2 Agent Manager.
 ---
 
 # Agent Manager Hosting
 
-These rules describe WSO2 Agent Manager 1.0. Agent Manager builds the project from Git with the
-Ballerina buildpack and runs it in a locked-down container. If the user reports platform behaviour
-that differs from a rule here, trust the platform and say which rule no longer holds.
+These rules describe WSO2 Agent Manager 1.0. If the user reports platform behaviour that differs
+from a rule here, trust the platform and say which rule no longer holds.
 
-## Entry point
+An agent joins Agent Manager in one of two ways; ask which when the user has not said:
+
+- **Externally hosted**: the user runs the agent wherever they like, and it only sends traces to
+  Agent Manager.
+- **Platform-hosted**: Agent Manager builds the project from Git with the Ballerina buildpack and
+  runs it in a locked-down container.
+
+## Externally hosted agents
+
+The agent code stays as it is. Add tracing:
+
+1. `import ballerinax/amp as _;`
+2. In `Ballerina.toml`, `[build-options]` gets `observabilityIncluded = true`.
+3. In `Config.toml`:
+
+   ```toml
+   [ballerina.observe]
+   tracingEnabled = true
+   tracingProvider = "amp"
+   ```
+
+   This replaces any other `tracingProvider`, such as `idetraceprovider`; tell the user the IDE
+   trace view stops receiving this agent's traces.
+4. The user registers the agent in Agent Manager, which issues an OTEL endpoint and an API key.
+   They go in as `BAL_CONFIG_VAR_BALLERINAX_AMP_OTELENDPOINT` and
+   `BAL_CONFIG_VAR_BALLERINAX_AMP_APIKEY` environment variables, never in committed files.
+
+- Use the endpoint exactly as Agent Manager shows it (it ends at `/otel`); the module appends the
+  traces path itself.
+- Re-creating the agent issues a new API key; the old one stops working.
+- None of the platform-hosted rules below apply. A durable agent can use any workflow server it
+  reaches.
+
+## Platform-hosted agents
+
+### Entry point
 
 A chat agent becomes a Chat Agent: replace the `ai:Listener` trigger with this exact contract
 (`POST /chat` on port 8000). It shows in the diagram as an HTTP service.
@@ -35,7 +69,7 @@ service / on new http:Listener(8000) {
 Keep `ChatRequest` open; the platform also sends `context`. Any other agent becomes a Custom API
 Agent: keep its HTTP service, and the user registers the port, base path and an OpenAPI file.
 
-## Rules
+### Rules
 
 - Pin `distribution = "<version>"` in `Ballerina.toml` and commit `Dependencies.toml`.
 - Add `import ballerinax/amp as _;`. The platform injects `BAL_CONFIG_VAR_BALLERINAX_AMP_*` for
@@ -52,7 +86,7 @@ Agent: keep its HTTP service, and the user registers the port, base path and an 
   private hosts and workflow servers are blocked by default; tell the user when the agent needs one.
 - The gateway times out a request after 30 seconds.
 
-## Durable agents
+### Durable agents
 
 - Use workflow mode `SELF_HOSTED` or `CLOUD`; `IN_MEMORY` loses every run on each redeploy.
 - Agent Manager runs no workflow server and blocks port 7233. Tell the user the server must answer
