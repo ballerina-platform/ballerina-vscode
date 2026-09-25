@@ -60,7 +60,7 @@ export function activateEditBiTest(ballerinaExtInstance: BallerinaExtension) {
             return;
         }
 
-        const fileName = entry.id.split(":")[2];
+        const [fileName] = entry.id.split(":").slice(-2);
         const fileUri = path.resolve(projectPath, `tests`, fileName);
         if (fileUri) {
             const range = entry.range;
@@ -191,8 +191,8 @@ export function activateEditBiTest(ballerinaExtInstance: BallerinaExtension) {
             return;
         }
 
-        const fileName = idParts[2];
-        const functionName = idParts[3];
+        // projectPath may contain ':' on Windows, so read from the end.
+        const [fileName, functionName] = idParts.slice(-2);
         const fileUri = path.resolve(projectPath, `tests`, fileName);
 
         // Determine test type for confirmation message

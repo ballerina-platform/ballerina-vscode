@@ -76,7 +76,6 @@ import { EVALSET_EXCLUDE, EVALSET_GLOB } from "../../features/test-explorer/eval
 import { extension } from "../../BalExtensionContext";
 
 const EVALUATION_ACTION_COMMANDS: Record<EvaluationAction, string> = {
-    edit: BI_COMMANDS.BI_EDIT_TEST_FUNCTION_DEF,
     openFlow: BI_COMMANDS.BI_EDIT_TEST_FUNCTION,
     delete: BI_COMMANDS.BI_DELETE_TEST_FUNCTION,
 };
@@ -111,9 +110,9 @@ function readReportsWithTests(params: DeleteEvaluationHistoryRequest, testNames:
 
 async function confirmHistoryDeletion(params: DeleteEvaluationHistoryRequest, runCount: number): Promise<boolean> {
     const subject = params.testNames.length === 1 ? params.testNames[0] : `${params.testNames.length} evaluations`;
-    const message = params.reportPaths ? `Delete this run of ${subject}?` : `Delete the run history of ${subject}?`;
+    const message = params.reportPaths?.length === 1 ? `Delete this run of ${subject}?` : `Delete the run history of ${subject}?`;
     const detail = `This removes the results from ${runCount} ${runCount === 1 ? "run" : "runs"}. `
-        + "Reports left empty go to the Trash, and the rest can't be restored.";
+        + "Runs that contain only these evaluations go to the Trash. Results removed from other runs can't be restored.";
     return await vscode.window.showWarningMessage(message, { modal: true, detail }, "Delete") === "Delete";
 }
 

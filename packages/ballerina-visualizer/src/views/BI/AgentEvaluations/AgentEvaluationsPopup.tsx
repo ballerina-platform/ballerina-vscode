@@ -51,7 +51,7 @@ interface MenuAction {
     id: string;
     label: string;
     icon: string;
-    disabled?: boolean;
+    disabledReason?: string;
     onSelect: () => void;
 }
 
@@ -370,7 +370,8 @@ interface AgentEvaluationsPopupProps {
 export function AgentEvaluationsPopup({ projectPath, agentName, onClose }: AgentEvaluationsPopupProps) {
     const { rpcClient } = useRpcContext();
     const {
-        evaluations, error, run, stop, statusOf, isBusy, reload, runAction, evalsetOf, openEvalset,
+        evaluations, error, run, stop, statusOf, isBusy, isAgentBusy, functionNames, reload, runAction,
+        evalsetsLoaded, evalsetOf, openEvalset,
     } = useAgentEvaluations(projectPath, agentName);
     const [step, setStep] = useState<Step>("list");
     const [direction, setDirection] = useState<PopupModalStepDirection>("forward");
@@ -422,7 +423,8 @@ export function AgentEvaluationsPopup({ projectPath, agentName, onClose }: Agent
             { id: "openFlow", label: "Open flow diagram", icon: "type-hierarchy", onSelect: () => runAction(functionName, "openFlow") },
             { id: "history", label: "View history", icon: "history", onSelect: () => openHistory(functionName) },
             {
-                id: "delete", label: "Delete", icon: "trash", disabled: Boolean(statusOf(functionName)),
+                id: "delete", label: "Delete", icon: "trash",
+                disabledReason: statusOf(functionName) ? "Stop the run to delete" : undefined,
                 onSelect: () => runAction(functionName, "delete"),
             },
         ];
@@ -450,7 +452,9 @@ export function AgentEvaluationsPopup({ projectPath, agentName, onClose }: Agent
                     ) : (
                         <Badge>Custom</Badge>
                     )}
-                    {evaluation.evalSetFile && <EvalsetTag evalset={evalsetOf(evaluation)} onOpen={openEvalset} />}
+                    {evaluation.evalSetFile && evalsetsLoaded && (
+                        <EvalsetTag evalset={evalsetOf(evaluation)} onOpen={openEvalset} />
+                    )}
                 </RowTags>
             </RowText>
             <RowActions>
@@ -479,15 +483,20 @@ export function AgentEvaluationsPopup({ projectPath, agentName, onClose }: Agent
             {menu.actions.map((action) => (
                 <MenuItem
                     key={action.id}
-                    sx={action.disabled ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
+                    sx={action.disabledReason ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
                     item={{
                         id: action.id,
-                        label: <MenuLabel><Codicon name={action.icon} />{action.label}</MenuLabel>,
+                        label: (
+                            <MenuLabel title={action.disabledReason}>
+                                <Codicon name={action.icon} />{action.label}
+                            </MenuLabel>
+                        ),
                         onClick: () => {
-                            setMenu(undefined);
-                            if (!action.disabled) {
-                                action.onSelect();
+                            if (action.disabledReason) {
+                                return;
                             }
+                            setMenu(undefined);
+                            action.onSelect();
                         },
                     }}
                 />
@@ -535,6 +544,7 @@ export function AgentEvaluationsPopup({ projectPath, agentName, onClose }: Agent
             height={step === "list" ? LIST_HEIGHT : "95vh"}
             maxWidth={step === "templates" ? GALLERY_MAX_WIDTH : POPUP_MAX_WIDTH}
             ariaLabelledBy="agent-evaluations-title"
+            dismissOnEscape={step === "list"}
         >
             {(close) => (
                 <PopupModalStep key={step === "templates" ? "create" : step} $direction={direction}>
@@ -543,6 +553,7 @@ export function AgentEvaluationsPopup({ projectPath, agentName, onClose }: Agent
                             <BackButton
                                 appearance="icon"
                                 onClick={goBack}
+                                aria-label="Back"
                             >
                                 <Codicon name="chevron-left" />
                             </BackButton>
@@ -554,14 +565,14 @@ export function AgentEvaluationsPopup({ projectPath, agentName, onClose }: Agent
                         <HeaderActions>
                             {step === "list" && !isEmpty && (
                                 <ListActions
-                                    isBusy={isBusy}
+                                    isBusy={isAgentBusy}
                                     canRunAll={evaluations?.length > 0}
                                     onCreateEvaluation={createEvaluation}
-                                    onRunAll={() => run(evaluations.map((evaluation) => evaluation.functionName))}
-                                    onStopAll={() => stop()}
+                                    onRunAll={() => run(functionNames)}
+                                    onStopAll={() => stop(functionNames)}
                                 />
                             )}
-                            <CloseButton appearance="icon" onClick={close}>
+                            <CloseButton appearance="icon" onClick={close} aria-label="Close">
                                 <Codicon name="close" />
                             </CloseButton>
                         </HeaderActions>

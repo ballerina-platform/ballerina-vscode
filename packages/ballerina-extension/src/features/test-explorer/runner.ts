@@ -18,7 +18,7 @@
  */
 
 import { spawn } from 'child_process';
-import { CancellationToken, TestRunRequest, TestMessage, TestRun, TestItem, debug, Uri, WorkspaceFolder, DebugConfiguration, workspace, TestRunProfileKind, commands, window } from 'vscode';
+import { CancellationToken, CancellationTokenSource, TestRunRequest, TestMessage, TestRun, TestItem, debug, Uri, WorkspaceFolder, DebugConfiguration, workspace, TestRunProfileKind, commands, window } from 'vscode';
 import { EVALUATION_GROUP, testController } from './activator';
 import { isSamePath } from '@wso2/ballerina-core';
 import { StateMachine } from "../../stateMachine";
@@ -239,6 +239,11 @@ async function executeRun(request: TestRunRequest, token: CancellationToken): Pr
         return [];
     }
 
+    // Test Results' Stop cancels run.token, which the caller's token does not cover.
+    const cancellation = new CancellationTokenSource();
+    const cancelListeners = [token, run.token].map((source) => source.onCancellationRequested(() => cancellation.cancel()));
+    const runToken = cancellation.token;
+
     // Match the run/debug flow: clean up unused imports before invoking `bal test`.
     const projectPaths = new Set<string>();
     include.forEach((test) => {
@@ -250,7 +255,7 @@ async function executeRun(request: TestRunRequest, token: CancellationToken): Pr
     const langClient = extension.ballerinaExtInstance.langClient;
     const unconfiguredProjectPaths = new Set<string>();
     for (const projectPath of projectPaths) {
-        if (token.isCancellationRequested) {
+        if (runToken.isCancellationRequested) {
             break;
         }
         if (!(await refreshDefaultProviderToken(projectPath))) {
@@ -268,7 +273,7 @@ async function executeRun(request: TestRunRequest, token: CancellationToken): Pr
     const errors: string[] = [];
     const pending: Promise<string | undefined>[] = [];
     include.forEach((test) => {
-        if (token.isCancellationRequested) {
+        if (runToken.isCancellationRequested) {
             run.skipped(test);
             return;
         }
@@ -315,7 +320,7 @@ async function executeRun(request: TestRunRequest, token: CancellationToken): Pr
             });
 
             command = buildTestCommand(test, executor, testCaseNames.length > 0 ? testCaseNames : undefined);
-            pending.push(executeTests(run, test, testItems, command, projectPath, false, token));
+            pending.push(executeTests(run, test, testItems, command, projectPath, false, runToken));
         } else if (isTestGroupItem(test)) {
             let testCaseNames: string[] = [];
             let testItems: TestItem[] = [];
@@ -329,7 +334,7 @@ async function executeRun(request: TestRunRequest, token: CancellationToken): Pr
             });
 
             command = buildTestCommand(test, executor, testCaseNames);
-            pending.push(executeTests(run, test, testItems, command, projectPath, false, token));
+            pending.push(executeTests(run, test, testItems, command, projectPath, false, runToken));
         } else if (isTestFunctionItem(test)) {
             command = buildTestCommand(test, executor, [test.label]);
 
@@ -343,12 +348,14 @@ async function executeRun(request: TestRunRequest, token: CancellationToken): Pr
                 });
             }
 
-            pending.push(executeTests(run, test, testItems, command, projectPath, true, token));
+            pending.push(executeTests(run, test, testItems, command, projectPath, true, runToken));
         }
     });
 
     const results = await Promise.all(pending);
     run.end();
+    cancelListeners.forEach((listener) => listener.dispose());
+    cancellation.dispose();
     return [...errors, ...results.filter((error): error is string => !!error)];
 }
 

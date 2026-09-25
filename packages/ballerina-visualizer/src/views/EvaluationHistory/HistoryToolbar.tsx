@@ -174,9 +174,21 @@ export function HistoryToolbar({ query, onChange, agents, deletedCount, onDelete
                 setPickerOpen(false);
             }
         };
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key === "Escape") {
+                setPickerOpen(false);
+            }
+        };
         document.addEventListener("mousedown", onPointerDown);
-        return () => document.removeEventListener("mousedown", onPointerDown);
+        document.addEventListener("keydown", onKeyDown);
+        return () => {
+            document.removeEventListener("mousedown", onPointerDown);
+            document.removeEventListener("keydown", onKeyDown);
+        };
     }, [pickerOpen]);
+
+    // A preselected agent with no runs in range must stay listed so it can be unchecked.
+    const listedAgents = [...new Set([...agents, ...(query.agents ?? [])])].sort();
 
     const toggleAgent = (agent: string) => {
         const current = query.agents ?? [];
@@ -197,7 +209,7 @@ export function HistoryToolbar({ query, onChange, agents, deletedCount, onDelete
             <Dropdown id="history-status" aria-label="Status" items={STATUS_ITEMS} value={query.status}
                 onValueChange={(status) => update({ status: status as HistoryStatus })} />
             <AgentPicker ref={pickerRef}>
-                <PickerButton aria-expanded={pickerOpen} onClick={() => setPickerOpen(!pickerOpen)}>
+                <PickerButton aria-haspopup="true" aria-expanded={pickerOpen} onClick={() => setPickerOpen(!pickerOpen)}>
                     <Icon name="bi-ai-agent" sx={{ width: 14, height: 14 }} iconSx={{ fontSize: "14px" }} />
                     {agentsLabel(query.agents, query.includeDeleted)}
                     <Codicon name="chevron-down" />
@@ -207,7 +219,7 @@ export function HistoryToolbar({ query, onChange, agents, deletedCount, onDelete
                         <MenuItem>
                             <CheckBox label="All agents" checked={!query.agents} onChange={() => update({ agents: undefined })} />
                         </MenuItem>
-                        {agents.map((agent) => (
+                        {listedAgents.map((agent) => (
                             <MenuItem key={agent}>
                                 <CheckBox label={agent} checked={!!query.agents?.includes(agent)}
                                     onChange={() => toggleAgent(agent)} />

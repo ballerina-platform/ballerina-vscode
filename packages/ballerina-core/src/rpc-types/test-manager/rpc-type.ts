@@ -67,7 +67,7 @@ export interface RunEvaluationsRequest {
 export const runEvaluations: RequestType<RunEvaluationsRequest, void> =
     { method: `${_preFix}/runEvaluations` };
 
-export type EvaluationAction = "edit" | "openFlow" | "delete";
+export type EvaluationAction = "openFlow" | "delete";
 
 export interface EvaluationActionRequest {
     projectPath: string;
@@ -75,7 +75,7 @@ export interface EvaluationActionRequest {
     action: EvaluationAction;
 }
 
-/** Runs the Testing view's edit, open-flow or delete command on the evaluation. */
+/** Runs the Testing view's open-flow or delete command on the evaluation. */
 export const runEvaluationAction: RequestType<EvaluationActionRequest, void> =
     { method: `${_preFix}/runEvaluationAction` };
 
@@ -181,7 +181,7 @@ export interface GetEvaluationHistoryRequest {
 /** What the Evaluation History page first shows; every agent's evaluations when omitted. */
 export interface EvaluationHistoryFilter {
     agents?: string[];
-    /** Shows the agents these evaluations run. */
+    /** Preselects the agents these evaluations run. */
     testNames?: string[];
     /** Scrolls to this evaluation and shows its runs. */
     focus?: string;
@@ -190,7 +190,7 @@ export interface EvaluationHistoryFilter {
 export interface DeleteEvaluationHistoryRequest {
     projectPath: string;
     testNames: string[];
-    /** Only these runs; every run when omitted. */
+    /** Only these runs, as absolute paths under tests/evaluation-reports; every run when omitted. */
     reportPaths?: string[];
 }
 

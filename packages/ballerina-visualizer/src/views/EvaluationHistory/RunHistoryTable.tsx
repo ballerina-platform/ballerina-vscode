@@ -349,8 +349,8 @@ export function RunHistoryTable({ runs, projectPath, onDeleteRun, defaultOpen }:
                                         <td>
                                             <RateBadge isPassed={isPassed}>
                                                 {pct}%
-                                            </RateBadge>{" "}
-                                            <RateTarget>(needs {targetPct}%)</RateTarget>
+                                            </RateBadge>
+                                            {!isPassed && <>{" "}<RateTarget>(needs {targetPct}%)</RateTarget></>}
                                         </td>
                                         <td>
                                             <StatusChip isPassed={isPassed}>

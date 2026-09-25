@@ -57,6 +57,8 @@ export function useAgentEvaluations(projectPath: string, agentName: string) {
         };
     }, [rpcClient, projectPath, loadCount]);
 
+    useEffect(() => rpcClient.onEvalsetsChanged(() => setLoadCount((count) => count + 1)), [rpcClient]);
+
     const evaluations = useMemo(() => allEvaluations?.filter((evaluation) =>
         evaluation.agents.some((agent) => agent.name === agentName)), [allEvaluations, agentName]);
 
@@ -76,6 +78,8 @@ export function useAgentEvaluations(projectPath: string, agentName: string) {
     const statusOf = (functionName: string) =>
         STATUS_PRECEDENCE.find((status) => runState[status].includes(functionName));
     const isBusy = STATUS_PRECEDENCE.some((status) => runState[status].length > 0);
+    const functionNames = evaluations?.map((evaluation) => evaluation.functionName) ?? [];
+    const isAgentBusy = functionNames.some((functionName) => statusOf(functionName));
 
     const reload = () => setLoadCount((count) => count + 1);
 
@@ -91,6 +95,7 @@ export function useAgentEvaluations(projectPath: string, agentName: string) {
     const openEvalset = (filePath: string) => testManager.runEvalsetAction({ projectPath, filePath, action: "open" });
 
     return {
-        evaluations, error, run, stop, statusOf, isBusy, reload, runAction, evalsetOf, openEvalset,
+        evaluations, error, run, stop, statusOf, isBusy, isAgentBusy, functionNames, reload, runAction,
+        evalsetsLoaded: evalsets !== undefined, evalsetOf, openEvalset,
     };
 }

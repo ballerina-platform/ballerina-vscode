@@ -240,6 +240,12 @@ const initialQuery = (filter: EvaluationHistoryFilter, evaluations: EvaluationsB
     };
 };
 
+// Outside "All time", deletes cover only the runs the range shows.
+const runsInRange = (tests: EvaluationTestHistory[], query: HistoryQuery): string[] | undefined =>
+    query.range === "all" ? undefined : tests.flatMap((test) => test.runs
+        .map((run) => run.jsonReportPath)
+        .filter((path): path is string => !!path));
+
 const countRuns = (tests: EvaluationTestHistory[]): number =>
     new Set(tests.flatMap((test) => test.runs.map((run) => run.jsonReportPath ?? run.date))).size;
 
@@ -308,6 +314,7 @@ export function EvaluationHistory() {
     const view = useMemo(() => applyHistoryQuery(data?.tests ?? [], evaluations, query), [data, evaluations, query]);
 
     const changeQuery = (next: HistoryQuery) => {
+        filterAppliedRef.current = true;
         setQuery(next);
         remember(projectPath, next);
     };
@@ -341,7 +348,7 @@ export function EvaluationHistory() {
                         onChange={changeQuery}
                         agents={view.agents}
                         deletedCount={view.deleted.length}
-                        onDeleteDeletedHistory={() => deleteHistory([...deletedNames])}
+                        onDeleteDeletedHistory={() => deleteHistory([...deletedNames], runsInRange(view.deleted, query))}
                     />
                     <SummaryBar data={{ ...data, tests: view.visible, totalRunFiles: countRuns(view.visible) }} />
                     {view.visible.map((test) => (
@@ -352,7 +359,8 @@ export function EvaluationHistory() {
                             deleted={deletedNames.has(test.testName)}
                             focused={focus === test.testName}
                             rowMatches={view.rowMatches.get(test.testName)}
-                            onDeleteHistory={(reportPaths) => deleteHistory([test.testName], reportPaths)}
+                            onDeleteHistory={(reportPaths) =>
+                                deleteHistory([test.testName], reportPaths ?? runsInRange([test], query))}
                         />
                     ))}
                     {view.visible.length === 0 && (
