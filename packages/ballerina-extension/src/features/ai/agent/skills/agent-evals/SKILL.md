@@ -1,12 +1,12 @@
 ---
 name: agent-evals
-description: Writes, fixes and debugs evaluations (evals) of Ballerina AI agents in the form the Agent Builder can list and edit - `@test:Config` functions in the `evaluations` group, `ballerina/ai.eval` template calls, custom evals and evalset files. Use when the user asks to evaluate, benchmark or regression-test an `ai:Agent`, to create an evalset, or to fix a failing eval. Not for ordinary unit tests.
+description: Writes, fixes and debugs evaluations (evals) of Ballerina AI agents in the form the Evaluations list and AI Evaluation form can read — `@test:Config` functions in the `evaluations` group, `ballerina/ai.eval` template calls, custom evals and evalset files. Use when the user asks to evaluate, benchmark or regression-test an `ai:Agent`, to create an evalset, or to fix a failing eval. Not for ordinary unit tests.
 ---
 
 # Agent evaluations
 
-The Agent Builder's Evaluations list and AI Evaluation form parse evals from `tests/tests.bal`. An eval
-that compiles but breaks a rule here is missing from the list, opens as a plain test, or loses its
+The Evaluations list and AI Evaluation form parse evals from the files in `tests/`. An eval that
+compiles but breaks a rule here is missing from the list, opens as a plain test, or loses its
 settings when saved from the form. `<...>` marks a placeholder; never emit it literally.
 
 ## Eval function
@@ -18,17 +18,18 @@ is listed under the agent it names.
 ```ballerina
 @test:Config {
     groups: ["evaluations"],
-    minPassRate: 0.8,
+    minPassRate: 0.9,
     runs: 3,
     dataProvider: <loadFunction>
 }
 function evaluate<Agent><Aspect>(<parameter>) returns error? {
 ```
 
-- `minPassRate`: always set, 0 to 1, `0.8` unless the user gives one. Without it the report has no pass
+- `minPassRate`: always set, 0 to 1, `0.9` unless the user gives one. Without it the report has no pass
   rate and shows each row as a separate test.
 - `runs`: 3 to 5 when an LLM judges the answer, otherwise leave it out.
-- No other fields or annotations: the form rewrites the annotation on save.
+- Add `dependsOn`, `before`, `after` or more `groups` only when the user asks. No other fields or
+  annotations: the form drops them on save.
 - One aspect per eval.
 
 ## Data providers
@@ -52,10 +53,11 @@ isolated function <loadFunction>() returns map<[string]>|error {
 }
 ```
 
-- Evalset: the path is a string literal, not a constant or variable. Copy it from the `<evalsets>`
-  listing and `file_read` the file for its turns and tool calls. If the user means an evalset that is
-  not listed, ask. The eval takes `ai:ConversationThread thread`; each thread is one row.
-- Queries: keep the loop as shown, it names each row after its query and keeps repeated queries. The
+- Evalset: the path is a string literal, not a constant or variable, and relative to the package, where
+  `bal test` runs. Copy it from the `<evalsets>` listing without the leading package directory in a
+  workspace, and `file_read` the listed path for its turns and tool calls. If the user means an evalset
+  that is not listed, ask. The eval takes `ai:ConversationThread thread`; each thread is one row.
+- Queries: keep the loop as shown; it names each row after its query and keeps repeated queries. The
   eval takes `string query`.
 - No provider: a custom eval with one hard-coded query.
 
@@ -63,10 +65,10 @@ isolated function <loadFunction>() returns map<[string]>|error {
 
 Prefer an `ai.eval` template when one measures what the user asked for. Ask the Librarian about
 `ballerina/ai.eval` for its templates, which ones need an evalset, and their options and defaults. Use
-only templates the report names.
+only templates the Librarian names.
 
-The body is exactly one statement with named arguments, `targetAgent` first and the data argument
-last. Any other statement makes the form treat it as a custom eval.
+The body is one `eval:` call with named arguments, `targetAgent` first and the data argument last. A
+second `eval:` call makes the form treat it as a custom eval.
 
 ```ballerina
 check eval:<template>(targetAgent = <agent>Agent, judgeModel = check ai:getDefaultModelProvider(), <option> = <value>, <dataParam> = <thread-or-query>);
@@ -99,7 +101,7 @@ function evaluate<Agent><Aspect>(ai:ConversationThread thread) returns error? {
 
 Evalsets live at `tests/resources/evalsets/<evalset-name>.evalset.json`. If the user has real
 sessions, suggest exporting them from the trace view. `ai:loadConversationThreads` rejects the whole
-file if a field is missing or a trace has an extra one:
+file if a field is missing or a trace has an extra field:
 
 ```json
 {
@@ -124,12 +126,13 @@ file if a field is missing or a trace has an extra one:
 ```
 
 One trace per user turn, in order. Omit `toolCalls` when no tool should run. `iterations` and `tools`
-stay `[]`.
+stay `[]`. Give each thread a short kebab-case id that names its scenario: the report lists rows by
+thread id.
 
 ### Expected values
 
-Find out how the eval compares them, from the template's docs or your own assertion. Then write each
-value so that every reply that follows the agent's instructions and data passes, and a wrong reply
+First check how the eval compares values (in the template's docs, or in your own assertion). Then write
+each value so that every reply that follows the agent's instructions and data passes, and a wrong reply
 fails:
 
 - Expect only what the instructions require. Unless they demand exact wording, expect the key fact (a
@@ -147,8 +150,8 @@ The report gives each failed row's message, and for an LLM judge its score and r
 record the agent's answer, tool calls or tool results, so diagnose from a replay, not from the message:
 
 1. **Replay.** Add this test to `tests/tests.bal` with `import ballerina/io;`, one loop per failing
-   thread. Tell the user it calls the model once per turn, run only `probeFailingRows` with `runTests`,
-   then remove the test and the import. This is not a rerun of the eval.
+   thread. Tell the user it runs the agent with its model and real tools once per turn, run only
+   `probeFailingRows` with `runTests`, then remove the test and the import. This is not a rerun of the eval.
 
    ```ballerina
    @test:Config {}
@@ -164,9 +167,10 @@ record the agent's answer, tool calls or tool results, so diagnose from a replay
    ```
 
 2. **Classify.** Compare the replay with the expected value and the agent's instructions:
-   - Test environment: a tool returned nothing or an error. `bal test` starts no `main`, service or
-     automation, and reads `tests/Config.toml`. Move setup such as knowledge-base ingestion into a
-     `@test:BeforeSuite` function, and check configuration with `ConfigCollector` in check mode.
+   - Test environment: a tool returned nothing or an error. `bal test` starts the package's services
+     but runs no `main` or automation, and reads `tests/Config.toml`. Call setup such as knowledge-base
+     ingestion from a `@test:BeforeSuite` function too, keep it in `main`, and check configuration with
+     `ConfigCollector` in check mode.
    - Agent: it broke its instructions or data (skipped or misused a tool, a tool returned wrong data),
      or its instructions do not cover the case.
    - Eval: the agent followed its instructions and data and still failed. The expected value asks for

@@ -585,7 +585,7 @@ const FooterInput = styled.input`
     &::placeholder {
         color: var(--vscode-input-placeholderForeground);
     }
-    &:disabled {
+    &:read-only {
         opacity: 0.6;
         cursor: not-allowed;
     }
@@ -1072,7 +1072,7 @@ export function MiniChat({ anchor, focusRequest, onClose, takeInitialPrompt }: M
             role="dialog"
             aria-label={`${assistantName} mini chat`}
             onKeyDown={(event) => {
-                if (event.defaultPrevented) {
+                if (event.defaultPrevented || event.repeat) {
                     return;
                 }
                 if (event.key === "Escape" || isMiniChatShortcut(event)) {
@@ -1157,7 +1157,8 @@ export function MiniChat({ anchor, focusRequest, onClose, takeInitialPrompt }: M
                                 : "What should we work on?"
                     }
                     aria-label={`Message ${assistantName}`}
-                    disabled={runActive}
+                    // Read-only rather than disabled, so focus and the close keys stay in the panel during a run.
+                    readOnly={runActive}
                 />
                 {runActive ? (
                     <SendButton title="Stop" aria-label="Stop generating" onClick={stop}>

@@ -34,7 +34,7 @@ import { RelativeLoader } from "../../../components/RelativeLoader";
 import { TemplateBrowser, TemplateModal } from "./TemplateModal";
 import { TemplateConfigCard } from "./TemplateConfigCard";
 import { EvalsetFileControl } from "./EvalsetFileControl";
-import { buildEvalsetPrompt, newEvalsetPath, resolveEvalsetPath } from "./evalsetUtils";
+import { buildEvalsetPrompt, copilotEvalsetPath, newEvalsetPath, resolveEvalsetPath } from "./evalsetUtils";
 import { submitPromptToCopilot } from "../../../components/AgentStatusOrb/copilotPanel";
 import { suggestEvaluationName } from "./evaluationName";
 import { PopupContent } from "../Connection/styles";
@@ -296,10 +296,12 @@ function useCopilotGenerators(input: CopilotGeneratorsInput): {
     const onGenerateEvalset = (options: EvaluationTemplateOption[] = []): string => {
         const filePath = newEvalsetPath(`${agent}-${template?.metadata.label ?? 'evalset'}`,
             input.evalsetOptions.map(option => option.value));
-        void submitPromptToCopilot(rpcClient, `Create an evalset for ${agent}`, {
-            hiddenContext: buildEvalsetPrompt(agent, filePath, template, options),
-            newThread: true,
-        });
+        void rpcClient.getVisualizerLocation().then(({ workspacePath }) =>
+            submitPromptToCopilot(rpcClient, `Create an evalset for ${agent}`, {
+                hiddenContext: buildEvalsetPrompt(agent, copilotEvalsetPath(filePath, input.projectPath, workspacePath),
+                    template, options),
+                newThread: true,
+            }));
         return filePath;
     };
 
