@@ -22,6 +22,7 @@ import { EvaluationRunDataPoint } from "./types";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { DiffViewer } from "./DiffViewer";
 import { Codicon } from "@wso2/ui-toolkit";
+import { outcomeLabel } from "../../components/PassRatePill";
 
 function formatDate(isoDate: string): string {
     return new Date(isoDate).toLocaleString(undefined, {
@@ -419,7 +420,7 @@ export function RunHistoryTable({ runs, projectPath }: RunHistoryTableProps) {
                                                                                     "Failed"
                                                                             }
                                                                         >
-                                                                            {o.id}
+                                                                            {outcomeLabel(o.id)}
                                                                         </OutcomePill>
                                                                     )
                                                                 )}
