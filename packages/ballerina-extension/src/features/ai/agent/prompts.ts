@@ -30,6 +30,7 @@ import { formatActiveFileReminder } from "./activeFileReminder";
 import { DATA_BINDING_CODING_RULES } from "./data-binding-rules";
 import { getRequirementAnalysisCodeGenPrefix, getRequirementAnalysisTestGenPrefix } from "./np/prompts";
 import { CONCURRENCY_CODING_RULES } from "./concurrency-rules";
+import { ERROR_HANDLING_CODING_RULES } from "./error-handling-rules";
 import { extractResourceDocumentContent, flattenProjectToFiles } from "../utils/ai-utils";
 import { BALLERINA_RUN_TOOL_NAME } from "./tools/ballerina-run";
 import { BALLERINA_STOP_TOOL_NAME } from "./tools/ballerina-stop";
@@ -240,6 +241,8 @@ ${DATA_BINDING_CODING_RULES}
 ${MODULE_INIT_CODING_RULES}
 
 ${CONCURRENCY_CODING_RULES}
+
+${ERROR_HANDLING_CODING_RULES}
 
 ## File modifications
 - You must apply changes to the existing source code using the provided ${[
