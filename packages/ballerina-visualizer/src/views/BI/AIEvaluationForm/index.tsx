@@ -21,7 +21,7 @@ import { Codicon, Icon, RadioButtonGroup, ThemeColors, Typography, View, ViewCon
 import styled from "@emotion/styled";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { FormField, FormImports, FormValues, Parameter } from "@wso2/ballerina-side-panel";
-import { LineRange, FunctionParameter, TestFunction, ValueProperty, Annotation, getPrimaryInputType, EvalsetItem, AvailableNode, FlowNode, Property as FlowProperty, AddOrUpdateTestFunctionRequest, isEvalTemplateCall } from "@wso2/ballerina-core";
+import { LineRange, FunctionParameter, TestFunction, ValueProperty, Annotation, getPrimaryInputType, EvalsetItem, AvailableNode, FlowNode, Property as FlowProperty, AddOrUpdateTestFunctionRequest, isEvalTemplateCall, unwrapBallerinaString, EvaluationTemplateOption } from "@wso2/ballerina-core";
 import { EVENT_TYPE } from "@wso2/ballerina-core";
 import { TitleBar } from "../../../components/TitleBar";
 import { TopNavigationBar } from "../../../components/TopNavigationBar";
@@ -34,7 +34,8 @@ import { RelativeLoader } from "../../../components/RelativeLoader";
 import { TemplateBrowser, TemplateModal } from "./TemplateModal";
 import { TemplateConfigCard } from "./TemplateConfigCard";
 import { EvalsetFileControl } from "./EvalsetFileControl";
-import { resolveEvalsetPath } from "./evalsetUtils";
+import { buildEvalsetPrompt, newEvalsetPath, resolveEvalsetPath } from "./evalsetUtils";
+import { submitPromptToCopilot } from "../../../components/AgentStatusOrb/copilotPanel";
 import { suggestEvaluationName } from "./evaluationName";
 import { PopupContent } from "../Connection/styles";
 import { PopupModalStep } from "../../../components/PopupModal";
@@ -45,7 +46,8 @@ import {
 import {
     DataSourceMode, DataSourceParam, EVALSET_FIELD_KEY, QUERIES_FIELD_KEY, TEMPLATE_FIELD_PREFIX,
     buildQueriesField, carryOverArguments, findAgentArgument, findDataSourceParam,
-    generateTemplateFields, isDataSourceSatisfied, isTemplateField, templateNeedsEvalset, withDefaultAgent
+    generateTemplateFields, getTemplateKind, isDataSourceSatisfied, isTemplateField, templateNeedsEvalset,
+    toQueryExpression, withDefaultAgent
 } from "./templateUtils";
 
 const FormContainer = styled.div`
@@ -268,6 +270,60 @@ export function AIEvaluationForm(props: TestFunctionDefProps) {
             </ViewContent>
         </View>
     );
+}
+
+interface CopilotGeneratorsInput {
+    projectPath: string;
+    agentValue: string;
+    agentName?: string;
+    selectedTemplate?: AvailableNode;
+    isTemplateMode: boolean;
+    evalsetOptions: Array<{ value: string; content: string }>;
+}
+
+/** Copilot-backed test data for the agent under test, or nothing while no agent is chosen. */
+function useCopilotGenerators(input: CopilotGeneratorsInput): {
+    onGenerateEvalset?: (options?: EvaluationTemplateOption[]) => string;
+    onGenerateQueries?: (existing: string[], options: EvaluationTemplateOption[]) => Promise<string[]>;
+} {
+    const { rpcClient } = useRpcContext();
+    const agent = input.agentValue || input.agentName;
+    if (!agent) {
+        return {};
+    }
+    const template = input.isTemplateMode ? input.selectedTemplate : undefined;
+
+    const onGenerateEvalset = (options: EvaluationTemplateOption[] = []): string => {
+        const filePath = newEvalsetPath(`${agent}-${template?.metadata.label ?? 'evalset'}`,
+            input.evalsetOptions.map(option => option.value));
+        void submitPromptToCopilot(rpcClient, `Create an evalset for ${agent}`, {
+            hiddenContext: buildEvalsetPrompt(agent, filePath, template, options),
+            newThread: true,
+        });
+        return filePath;
+    };
+
+    const onGenerateQueries = async (existing: string[], options: EvaluationTemplateOption[]): Promise<string[]> => {
+        const aiPanel = rpcClient.getAiPanelRpcClient();
+        if (!await aiPanel.isUserAuthenticated()) {
+            aiPanel.promptForLogin();
+            return [];
+        }
+        const res = await rpcClient.getTestManagerRpcClient().generateEvaluationQueries({
+            projectPath: input.projectPath,
+            agentName: agent,
+            template: template && {
+                label: template.metadata.label,
+                description: template.metadata.description,
+                kind: getTemplateKind(template),
+                options,
+            },
+            existingQueries: existing.map(unwrapBallerinaString),
+        });
+        return res.queries.map(toQueryExpression);
+    };
+
+    return { onGenerateEvalset, onGenerateQueries };
 }
 
 export function AIEvaluationFormBody(props: AIEvaluationFormBodyProps) {
@@ -525,6 +581,10 @@ export function AIEvaluationFormBody(props: AIEvaluationFormBodyProps) {
         });
         await refreshEvalsets();
     };
+
+    const copilotGenerators = useCopilotGenerators({
+        projectPath, agentValue, agentName, selectedTemplate, isTemplateMode, evalsetOptions
+    });
 
     const detectTemplateFromSource = async (fn: TestFunction, templates: AvailableNode[]): Promise<{
         shape: EditShape;
@@ -1348,6 +1408,7 @@ export function AIEvaluationFormBody(props: AIEvaluationFormBodyProps) {
                                                     }}
                                                     onCreateEvalset={createEvalset}
                                                     onOpenEvalset={openEvalset}
+                                                    onGenerateEvalset={copilotGenerators.onGenerateEvalset}
                                                 />
                                             </FormSection>
                                         )}
@@ -1412,6 +1473,8 @@ export function AIEvaluationFormBody(props: AIEvaluationFormBodyProps) {
                                                 selectedEvalsetFile={selectedEvalsetFile}
                                                 onCreateEvalset={createEvalset}
                                                 onOpenEvalset={openEvalset}
+                                                onGenerateEvalset={copilotGenerators.onGenerateEvalset}
+                                                onGenerateQueries={copilotGenerators.onGenerateQueries}
                                                 onChangeTemplate={() => setShowTemplateCatalog(true)}
                                                 embedded={embedded}
                                                 showTitle={embedded && isEditing}

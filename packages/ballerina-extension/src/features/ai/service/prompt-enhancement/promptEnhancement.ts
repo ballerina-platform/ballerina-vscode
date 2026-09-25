@@ -66,42 +66,43 @@ export async function enhancePrompt(
         };
     } catch (error: any) {
         console.error("Error during prompt enhancement:", error);
-
-        // Handle specific error types
-        if (error.name === "UsageLimitError" || error.statusCode === 429 ||
-            error.statusCode === 400 && error.message?.includes("usage limit")) {
-            const errorMsg = error.message?.match(/You .+UTC\./)
-                ? error.message.match(/You .+UTC\./)[0]
-                : "Usage limit exceeded. Please try again later or set your own API key.";
-            window.showErrorMessage(errorMsg);
-            throw new Error(errorMsg);
-        }
-
-        if (error.message?.includes("TOKEN_EXPIRED") || error.message?.includes("Unsupported login method")) {
-            window.showWarningMessage(LOGIN_REQUIRED_WARNING, SIGN_IN_BI_COPILOT).then(selection => {
-                if (selection === SIGN_IN_BI_COPILOT) {
-                    AIStateMachine.service().send(AIMachineEventType.LOGIN);
-                }
-            });
-            const errorMsg = error.message?.includes("Unsupported login method")
-                ? "Unsupported login method. Please use a supported sign-in method."
-                : "Authentication expired. Please log in again.";
-            throw new Error(errorMsg);
-        }
-
-        if (error.message?.includes("Network") || error.message?.includes("timeout") || error.message?.includes("Cannot connect to API")) {
-            const errorMsg = "Network error. Please check your connection and try again.";
-            window.showErrorMessage(errorMsg);
-            throw new Error(errorMsg);
-        }
-
-        // Generic error
-        const errorMsg = params.isGeneration
+        throw toAIRequestError(error, params.isGeneration
             ? "Failed to generate prompt. Please try again."
-            : "Failed to enhance prompt. Please try again.";
-        window.showErrorMessage(errorMsg);
-        throw new Error(errorMsg);
+            : "Failed to enhance prompt. Please try again.");
     }
+}
+
+/** Shows the user why a one-shot model call failed and returns the error to rethrow. */
+export function toAIRequestError(error: any, fallbackMessage: string): Error {
+    if (error.name === "UsageLimitError" || error.statusCode === 429 ||
+        error.statusCode === 400 && error.message?.includes("usage limit")) {
+        const errorMsg = error.message?.match(/You .+UTC\./)
+            ? error.message.match(/You .+UTC\./)[0]
+            : "Usage limit exceeded. Please try again later or set your own API key.";
+        window.showErrorMessage(errorMsg);
+        return new Error(errorMsg);
+    }
+
+    if (error.message?.includes("TOKEN_EXPIRED") || error.message?.includes("Unsupported login method")) {
+        window.showWarningMessage(LOGIN_REQUIRED_WARNING, SIGN_IN_BI_COPILOT).then(selection => {
+            if (selection === SIGN_IN_BI_COPILOT) {
+                AIStateMachine.service().send(AIMachineEventType.LOGIN);
+            }
+        });
+        const errorMsg = error.message?.includes("Unsupported login method")
+            ? "Unsupported login method. Please use a supported sign-in method."
+            : "Authentication expired. Please log in again.";
+        return new Error(errorMsg);
+    }
+
+    if (error.message?.includes("Network") || error.message?.includes("timeout") || error.message?.includes("Cannot connect to API")) {
+        const errorMsg = "Network error. Please check your connection and try again.";
+        window.showErrorMessage(errorMsg);
+        return new Error(errorMsg);
+    }
+
+    window.showErrorMessage(fallbackMessage);
+    return new Error(fallbackMessage);
 }
 
 /**

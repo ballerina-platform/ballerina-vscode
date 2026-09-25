@@ -27,6 +27,8 @@ import {
     EvaluationAction,
     EvaluationActionRequest,
     EvalsetActionRequest,
+    GenerateEvaluationQueriesRequest,
+    GenerateEvaluationQueriesResponse,
     BI_COMMANDS,
     GetEvaluationsResponse,
     EvaluationFileResponse,
@@ -74,6 +76,8 @@ import { findEvaluationItem } from "../../features/test-explorer/runner";
 import { deleteEvalset } from "../../features/test-explorer/evalset-commands";
 import { EVALSET_EXCLUDE, EVALSET_GLOB } from "../../features/test-explorer/evalset-utils";
 import { extension } from "../../BalExtensionContext";
+import { generateEvaluationQueries as generateEvaluationQueriesService }
+    from "../../features/ai/service/evaluation-queries/evaluationQueries";
 
 const EVALUATION_ACTION_COMMANDS: Record<EvaluationAction, string> = {
     edit: BI_COMMANDS.BI_EDIT_TEST_FUNCTION_DEF,
@@ -241,6 +245,10 @@ export class TestServiceManagerRpcManager implements TestManagerServiceAPI {
         }
         // Opened from the agent page, so back must return there.
         await vscode.commands.executeCommand(EVALUATION_ACTION_COMMANDS[params.action], item, { keepHistory: true });
+    }
+
+    async generateEvaluationQueries(params: GenerateEvaluationQueriesRequest): Promise<GenerateEvaluationQueriesResponse> {
+        return generateEvaluationQueriesService(params);
     }
 
     async runEvalsetAction(params: EvalsetActionRequest): Promise<void> {
