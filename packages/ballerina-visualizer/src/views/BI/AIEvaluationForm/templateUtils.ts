@@ -188,3 +188,7 @@ export const generateTemplateFields = (node: FlowNode, dsParamName?: string): Fo
         }));
 
 export const isTemplateField = (field: FormField): boolean => field.key.startsWith(TEMPLATE_FIELD_PREFIX);
+
+/** Wraps generated text as the string template the queries editor stores, keeping `` ` `` and `${` literal. */
+export const toQueryExpression = (text: string): string =>
+    `string \`${text.replace(/\$\{/g, () => '${"${"}').replace(/`/g, () => '${"`"}')}\``;

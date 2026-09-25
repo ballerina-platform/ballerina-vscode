@@ -16,9 +16,10 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { keywords, SkillCommand } from '@wso2/ballerina-core';
+import { keywords, ProductMode, SkillCommand } from '@wso2/ballerina-core';
 import { Skill } from './types';
 import { parseSkillMd } from './utils';
+import { getProductMode } from '../../../../utils/config';
 
 // Webpack inlines '.md' as raw source (webpack.config.js); tsc-compiled test builds have no
 // such loader, so fall back to reading the SKILL.md next to the compiled module.
@@ -33,6 +34,10 @@ const dataMapMd = loadSkillMd(() => require('./data-map/SKILL.md'), 'data-map');
 const skillCreatorMd = loadSkillMd(() => require('./skill-creator/SKILL.md'), 'skill-creator');
 const agentBuilderMd = loadSkillMd(() => require('./agent-builder/SKILL.md'), 'agent-builder');
 const workflowBuilderMd = loadSkillMd(() => require('./workflow-builder/SKILL.md'), 'workflow-builder');
+const agentEvalsMd = loadSkillMd(() => require('./agent-evals/SKILL.md'), 'agent-evals');
+const agentManagerHostingMd = loadSkillMd(() => require('./agent-manager-hosting/SKILL.md'), 'agent-manager-hosting');
+
+const isAgentBuilderMode = getProductMode() === ProductMode.AGENT_BUILDER;
 
 // data-map skill
 const dataMap = parseSkillMd(dataMapMd);
@@ -95,7 +100,21 @@ export const agentBuilderSkill: Skill = {
     name: agentBuilder.name,
     trigger: agentBuilder.description,
     content: agentBuilder.body,
-    optional: true,
+    optional: !isAgentBuilderMode,
+    default: true,
+};
+
+// agent-evals skill
+const agentEvals = parseSkillMd(agentEvalsMd);
+if (!agentEvals.name || !agentEvals.description) {
+    throw new Error(`[agent-evals] SKILL.md is missing required frontmatter fields (name="${agentEvals.name}", description="${agentEvals.description}")`);
+}
+
+export const agentEvalsSkill: Skill = {
+    name: agentEvals.name,
+    trigger: agentEvals.description,
+    content: agentEvals.body,
+    optional: !isAgentBuilderMode,
     default: true,
 };
 
@@ -113,9 +132,25 @@ export const workflowBuilderSkill: Skill = {
     default: true,
 };
 
+// agent-manager-hosting skill
+const agentManagerHosting = parseSkillMd(agentManagerHostingMd);
+if (!agentManagerHosting.name || !agentManagerHosting.description) {
+    throw new Error(`[agent-manager-hosting] SKILL.md is missing required frontmatter fields (name="${agentManagerHosting.name}", description="${agentManagerHosting.description}")`);
+}
+
+export const agentManagerHostingSkill: Skill = {
+    name: agentManagerHosting.name,
+    trigger: agentManagerHosting.description,
+    content: agentManagerHosting.body,
+    optional: !isAgentBuilderMode,
+    default: true,
+};
+
 export const REGISTERED_SKILLS: Skill[] = [
     dataMapSkill,
     skillCreatorSkill,
     agentBuilderSkill,
+    agentEvalsSkill,
     workflowBuilderSkill,
+    agentManagerHostingSkill,
 ];

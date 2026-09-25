@@ -542,7 +542,7 @@ async function promptToConfigureDefaultProvider(projectPath: string): Promise<bo
 
 // Refreshes the token if used, removes the stale entry if not, or offers to configure it if never set up.
 // Returns false when the provider is needed but unconfigured, so callers can skip the run. Never throws.
-export async function refreshDefaultProviderToken(projectPath: string): Promise<boolean> {
+export async function refreshDefaultProviderToken(projectPath: string, promptIfUnconfigured = true): Promise<boolean> {
     try {
         // Single-file projects report the .bal file as their path; nothing to scan or refresh.
         if (!fs.existsSync(projectPath) || !fs.statSync(projectPath).isDirectory()) {
@@ -552,7 +552,7 @@ export async function refreshDefaultProviderToken(projectPath: string): Promise<
         const isReferenced = await isDefaultProviderReferencedInSource(projectPath);
 
         if (!hasConfiguredProviderToken(projectPath)) {
-            return !isReferenced || await promptToConfigureDefaultProvider(projectPath);
+            return !isReferenced || (promptIfUnconfigured && await promptToConfigureDefaultProvider(projectPath));
         }
 
         if (!isReferenced) {

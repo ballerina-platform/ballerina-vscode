@@ -93,6 +93,27 @@ export interface EvalsetActionRequest {
 export const runEvalsetAction: RequestType<EvalsetActionRequest, void> =
     { method: `${_preFix}/runEvalsetAction` };
 
+export interface EvaluationTemplateOption {
+    name: string;
+    description?: string;
+    value?: string;
+}
+
+export interface GenerateEvaluationQueriesRequest {
+    projectPath: string;
+    agentName: string;
+    template?: { label: string; description?: string; kind?: string; options?: EvaluationTemplateOption[] };
+    existingQueries?: string[];
+}
+
+export interface GenerateEvaluationQueriesResponse {
+    queries: string[];
+}
+
+export const generateEvaluationQueries:
+    RequestType<GenerateEvaluationQueriesRequest, GenerateEvaluationQueriesResponse> =
+    { method: `${_preFix}/generateEvaluationQueries` };
+
 export interface StopEvaluationsRequest {
     projectPath: string;
     /** Stops every running and queued evaluation when omitted. */

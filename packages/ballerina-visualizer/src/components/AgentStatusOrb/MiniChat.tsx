@@ -20,10 +20,11 @@ import React, { useEffect, useRef, useState } from "react";
 import styled from "@emotion/styled";
 import { keyframes } from "@emotion/react";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { AgentRunStatus, ChatNotify, GetRunStatusResponse, UIChatMessage, shortAssistantName } from "@wso2/ballerina-core";
+import { AgentRunStatus, ChatNotify, GetRunStatusResponse, ThreadSummary, UIChatMessage, shortAssistantName } from "@wso2/ballerina-core";
 import { Codicon, Icon } from "@wso2/ui-toolkit";
 import MarkdownRenderer from "../../views/AIPanel/components/MarkdownRenderer";
 import CodeContextCard from "../../views/AIPanel/components/CodeContextCard";
+import { SessionHistoryDropdown } from "../../views/AIPanel/components/SessionHistory";
 import { StreamItem } from "../../views/AIPanel/components/AgentStreamView/types";
 import { upsertToolResult,
     serializeStream,
@@ -46,6 +47,7 @@ import {
     subscribeAgentRunStatus,
     subscribeCopilotChatNotify,
     awaitingInputLabel,
+    isMiniChatShortcut,
 } from "./shared";
 import {
     buildFullChatHandoffPrompt,
@@ -583,7 +585,7 @@ const FooterInput = styled.input`
     &::placeholder {
         color: var(--vscode-input-placeholderForeground);
     }
-    &:disabled {
+    &:read-only {
         opacity: 0.6;
         cursor: not-allowed;
     }
@@ -682,8 +684,75 @@ function renderTranscript(msgs: MiniMsg[], streaming: boolean): React.ReactNode[
     return nodes;
 }
 
+interface ChatSessionsButtonProps {
+    readOnly: boolean;
+    onThreadChange: () => void;
+}
+
+function ChatSessionsButton({ readOnly, onThreadChange }: ChatSessionsButtonProps) {
+    const { rpcClient } = useRpcContext();
+    const [open, setOpen] = useState(false);
+    const [threads, setThreads] = useState<ThreadSummary[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const client = rpcClient?.getAiPanelRpcClient();
+    const fail = (e: unknown) => console.error("[MiniChat] Chat session action failed:", e);
+
+    const loadThreads = () => {
+        setLoading(true);
+        setError(null);
+        client?.listThreads()
+            .then(setThreads)
+            .catch(() => setError("Could not load chat sessions."))
+            .finally(() => setLoading(false));
+    };
+
+    const toggle = () => {
+        if (!open) {
+            loadThreads();
+        }
+        setOpen(!open);
+    };
+
+    const switchThread = (threadId: string) => {
+        client?.switchThread({ threadId }).then((switched) => switched && onThreadChange()).catch(fail);
+    };
+
+    const deleteThread = (threadId: string) => {
+        const wasActive = threads.some((thread) => thread.id === threadId && thread.isActive);
+        client?.deleteThread({ threadId }).then(wasActive ? onThreadChange : loadThreads).catch(fail);
+    };
+
+    const renameThread = (threadId: string, name: string) => {
+        client?.renameThread({ threadId, name }).then(loadThreads).catch(fail);
+    };
+
+    return (
+        <div style={{ position: "relative" }}>
+            <HeaderButton title="Chats" aria-label="Chat sessions" aria-expanded={open} onClick={toggle}>
+                <Codicon name="comment-discussion" />
+            </HeaderButton>
+            {open && (
+                <SessionHistoryDropdown
+                    threads={threads}
+                    loading={loading}
+                    error={error}
+                    readOnly={readOnly}
+                    onNewChat={() => client?.clearChat().then(onThreadChange).catch(fail)}
+                    onSwitch={switchThread}
+                    onDelete={deleteThread}
+                    onRename={renameThread}
+                    onClose={() => setOpen(false)}
+                />
+            )}
+        </div>
+    );
+}
+
 interface MiniChatProps {
     anchor: Anchor;
+    /** Each change, and the first render, moves focus to the input. */
+    focusRequest?: number;
     onClose: () => void;
     /**
      * One-shot accessor for an orb or diagram launch prompt. The source clears
@@ -692,7 +761,7 @@ interface MiniChatProps {
     takeInitialPrompt?: () => MiniChatPrompt | undefined;
 }
 
-export function MiniChat({ anchor, onClose, takeInitialPrompt }: MiniChatProps) {
+export function MiniChat({ anchor, focusRequest, onClose, takeInitialPrompt }: MiniChatProps) {
     const { rpcClient } = useRpcContext();
     const assistantName = useAssistantName();
     const productMode = useProductMode();
@@ -704,8 +773,10 @@ export function MiniChat({ anchor, onClose, takeInitialPrompt }: MiniChatProps) 
     const [input, setInput] = useState("");
     const [draftPrompt, setDraftPrompt] = useState<MiniChatPrompt>(() => createMiniChatPrompt());
     const [streaming, setStreaming] = useState(false);
+    const [threadVersion, setThreadVersion] = useState(0);
     const [status, setStatus] = useState<AgentRunStatus | null>(null);
     const bodyRef = useRef<HTMLDivElement | null>(null);
+    const inputRef = useRef<HTMLInputElement | null>(null);
     /**
      * Replay/live high-water mark, scoped per generation: the run-event store
      * resets `seq` to 0 on every new run, so a cross-run mark would silently
@@ -857,6 +928,12 @@ export function MiniChat({ anchor, onClose, takeInitialPrompt }: MiniChatProps) 
             return;
         }
         let disposed = false;
+        seqRef.current = 0;
+        generationRef.current = undefined;
+        replayDoneRef.current = false;
+        pendingRef.current = [];
+        setTail([]);
+        setStreaming(false);
         // Subscribe before loading so no live event is lost; queue until the
         // history load / replay establishes the seq high-water mark, then drain.
         const unsubscribe = subscribeCopilotChatNotify(rpcClient, (msg) => {
@@ -949,7 +1026,7 @@ export function MiniChat({ anchor, onClose, takeInitialPrompt }: MiniChatProps) 
             disposed = true;
             unsubscribe();
         };
-    }, [rpcClient]);
+    }, [rpcClient, threadVersion]);
 
     useEffect(() => {
         const body = bodyRef.current;
@@ -978,13 +1055,38 @@ export function MiniChat({ anchor, onClose, takeInitialPrompt }: MiniChatProps) 
         sendPrompt(prompt);
     };
 
+    const stop = () => {
+        rpcClient?.getAiPanelRpcClient().abortAIGeneration({});
+        setStreaming(false);
+    };
+
+    useEffect(() => {
+        inputRef.current?.focus();
+    }, [focusRequest]);
+
     const transcript = renderTranscript(msgs, streaming);
 
     return (
-        <Panel style={panelPosition(anchor)} role="dialog" aria-label={`${assistantName} mini chat`}>
+        <Panel
+            style={panelPosition(anchor)}
+            role="dialog"
+            aria-label={`${assistantName} mini chat`}
+            onKeyDown={(event) => {
+                if (event.defaultPrevented || event.repeat) {
+                    return;
+                }
+                if (event.key === "Escape" || isMiniChatShortcut(event)) {
+                    // Keeps a form behind the mini chat and the orb's shortcut listener from handling it too.
+                    event.preventDefault();
+                    event.stopPropagation();
+                    onClose();
+                }
+            }}
+        >
             <Header>
                 <Icon name="bi-ai-chat" sx={{ width: 16, height: 16, flex: "none" }} iconSx={{ fontSize: "16px" }} />
                 <HeaderTitle>{assistantName}</HeaderTitle>
+                <ChatSessionsButton readOnly={runActive} onThreadChange={() => setThreadVersion((version) => version + 1)} />
                 <HeaderButton title="Open full chat" aria-label={`Open the full ${shortName} chat`} onClick={openFullChat}>
                     <Codicon name="screen-full" />
                 </HeaderButton>
@@ -1039,6 +1141,7 @@ export function MiniChat({ anchor, onClose, takeInitialPrompt }: MiniChatProps) 
             )}
             <Footer>
                 <FooterInput
+                    ref={inputRef}
                     value={input}
                     onChange={(event) => setInput(event.target.value)}
                     onKeyDown={(event) => {
@@ -1054,11 +1157,18 @@ export function MiniChat({ anchor, onClose, takeInitialPrompt }: MiniChatProps) 
                                 : "What should we work on?"
                     }
                     aria-label={`Message ${assistantName}`}
-                    disabled={runActive}
+                    // Read-only rather than disabled, so focus and the close keys stay in the panel during a run.
+                    readOnly={runActive}
                 />
-                <SendButton title="Send" aria-label="Send message" onClick={send} disabled={runActive || !input.trim()}>
-                    <Codicon name="send" />
-                </SendButton>
+                {runActive ? (
+                    <SendButton title="Stop" aria-label="Stop generating" onClick={stop}>
+                        <Codicon name="stop-circle" />
+                    </SendButton>
+                ) : (
+                    <SendButton title="Send" aria-label="Send message" onClick={send} disabled={!input.trim()}>
+                        <Codicon name="send" />
+                    </SendButton>
+                )}
             </Footer>
         </Panel>
     );

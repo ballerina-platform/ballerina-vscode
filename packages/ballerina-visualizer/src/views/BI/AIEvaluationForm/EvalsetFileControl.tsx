@@ -17,9 +17,9 @@
  */
 
 import styled from "@emotion/styled";
-import type { ReactNode } from "react";
-import { FieldFactory, FormField } from "@wso2/ballerina-side-panel";
-import { Codicon, LinkButton } from "@wso2/ui-toolkit";
+import { useEffect, useState, type ReactNode } from "react";
+import { FieldFactory, FormField, useFormContext } from "@wso2/ballerina-side-panel";
+import { Codicon, Icon, LinkButton } from "@wso2/ui-toolkit";
 import { HintText, NoticeBox, NoticeTitle } from "./styles";
 
 const Selection = styled.div`
@@ -37,6 +37,11 @@ const Actions = styled.div`
     justify-content: space-between;
 `;
 
+const CreateLinks = styled.div`
+    display: flex;
+    align-items: center;
+`;
+
 export interface EvalsetEmptyState {
     icon: ReactNode;
     title: string;
@@ -51,11 +56,30 @@ interface EvalsetFileControlProps {
     emptyState?: EvalsetEmptyState;
     onCreateEvalset: () => void;
     onOpenEvalset: (evalsetFile: string) => void;
+    /** Asks Copilot to write a new evalset and returns the path it will write. */
+    onGenerateEvalset?: () => string;
 }
 
 export function EvalsetFileControl({
-    field, hasEvalsets, selectedEvalsetFile, emptyState, onCreateEvalset, onOpenEvalset
+    field, hasEvalsets, selectedEvalsetFile, emptyState, onCreateEvalset, onOpenEvalset, onGenerateEvalset
 }: EvalsetFileControlProps) {
+    const { form } = useFormContext();
+    const [pendingEvalset, setPendingEvalset] = useState<string>();
+
+    useEffect(() => {
+        if (field && pendingEvalset && field.itemOptions?.some(option => option.value === pendingEvalset)) {
+            form.setValue(field.key, pendingEvalset, { shouldDirty: true });
+            setPendingEvalset(undefined);
+        }
+    }, [field, pendingEvalset]);
+
+    const generateLink = onGenerateEvalset && (
+        <LinkButton onClick={() => setPendingEvalset(onGenerateEvalset())} sx={{ fontSize: 12, gap: 4, padding: '0 8px' }}>
+            <Icon name="bi-ai-chat" sx={{ width: 12, height: 12 }} iconSx={{ fontSize: '12px' }} />
+            Generate with Copilot
+        </LinkButton>
+    );
+
     if (!hasEvalsets && !selectedEvalsetFile) {
         if (!emptyState) {
             return null;
@@ -68,10 +92,12 @@ export function EvalsetFileControl({
                 </NoticeTitle>
                 <HintText>{emptyState.description}</HintText>
                 {emptyState.canCreate && (
-                    <LinkButton onClick={onCreateEvalset}
-                        sx={{ alignSelf: 'flex-start', fontSize: 12, marginTop: 2, padding: 8, gap: 4 }}>
-                        Create empty evalset
-                    </LinkButton>
+                    <CreateLinks>
+                        <LinkButton onClick={onCreateEvalset} sx={{ fontSize: 12, marginTop: 2, padding: 8, gap: 4 }}>
+                            Create empty evalset
+                        </LinkButton>
+                        {generateLink}
+                    </CreateLinks>
                 )}
             </NoticeBox>
         );
@@ -89,9 +115,12 @@ export function EvalsetFileControl({
         <Selection>
             <FieldFactory field={{ ...field, hidden: false }} />
             <Actions>
-                <LinkButton onClick={onCreateEvalset} sx={{ fontSize: 12, padding: '0 8px' }}>
-                    Create empty evalset
-                </LinkButton>
+                <CreateLinks>
+                    <LinkButton onClick={onCreateEvalset} sx={{ fontSize: 12, padding: '0 8px' }}>
+                        Create empty evalset
+                    </LinkButton>
+                    {generateLink}
+                </CreateLinks>
                 <LinkButton onClick={() => onOpenEvalset(selectedEvalsetFile)}
                     sx={{ fontSize: 12, gap: 4, padding: '0 8px' }}>
                     <Codicon name="go-to-file" iconSx={{ fontSize: 12 }} sx={{ height: 12 }} />
