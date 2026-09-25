@@ -115,7 +115,7 @@ export async function checkCompilationErrors(
                 diagnostics: [{ message: reason }],
                 message: `<CRITICAL_ERROR> The Ballerina package failed to compile, so diagnostics could not be produced.
 Reason: ${reason}
-This is an environment/dependency problem, not something to fix with code edits. Do not attempt further code changes for it. Inform the user that the project currently fails to compile with the reason above, and suggest running 'bal build' in the project to refresh its dependency resolution (Dependencies.toml) if the reason mentions a module or dependency.
+This is an environment/dependency problem, not something to fix with code edits. Do not attempt further code changes for it. Inform the user that the project currently fails to compile with the reason above, and suggest running 'bal build --sticky=false' in the project to refresh its dependency resolution (Dependencies.toml) if the reason mentions a module or dependency; a plain 'bal build' keeps the versions a sticky project has locked, such as ones from before the Java 25 distribution.
 </CRITICAL_ERROR>`,
             };
         }

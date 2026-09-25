@@ -38,6 +38,7 @@ import { chatStateStorage } from "../ai-panel/chatStateStorage";
 import { isAiTouchedFile } from "../../rpc-managers/diagram-validity";
 import { setCompanionVisualizer } from "../ai-panel/activeFileContext";
 import { getStartupIntegrationProgress } from "../../features/bi/startup-progress";
+import { showEarlierVersionGuideFromPanel, updateDependenciesFromPanel } from "../../features/project/dependency-compatibility";
 
 /** Escapes text interpolated into the startup screen's HTML (integration names are user input). */
 function escapeHtml(value: string): string {
@@ -56,6 +57,15 @@ function toInlineJson(value: unknown): string {
     return JSON.stringify(value ?? null).replace(/</g, "\\u003c");
 }
 
+export interface DependencyUpdateRequiredInfo {
+    /** The package, or the workspace whose members are checked together. */
+    rootPath: string;
+    /** Which packages are outdated and why. */
+    summary: string;
+    /** The two ways out, worded for the app or the extension. */
+    choice: string;
+}
+
 export class VisualizerWebview {
     public static currentPanel: VisualizerWebview | undefined;
     public static readonly viewType = "ballerina.visualizer";
@@ -63,6 +73,8 @@ export class VisualizerWebview {
     public static readonly biTitle = "WSO2 Integrator";
     /** Set when the JRE is too old to start the server; the panel then explains why. */
     public static jdkIncompatibility: { ballerinaVersion: string; jdkMajorVersion: number; requiredJdkMajorVersion: number; requiredBallerinaVersion: string; } | undefined;
+    /** Set while a Dependencies.toml of the open project predates Java 25; the panel then offers the update. */
+    public static dependencyUpdateRequired: DependencyUpdateRequiredInfo | undefined;
     private _panel: vscode.WebviewPanel | undefined;
     private _disposables: vscode.Disposable[] = [];
     private _pendingProjectInfoRefresh = false;
@@ -71,6 +83,8 @@ export class VisualizerWebview {
         this._panel = VisualizerWebview.createWebview();
         agentStatusManager.setVisualizerVisible(this._panel.visible);
         this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
+        // A reopened panel loads the app again; the compatibility check re-blocks it if still needed.
+        this._panel.onDidDispose(() => { VisualizerWebview.dependencyUpdateRequired = undefined; }, null, this._disposables);
         this._panel.webview.html = this.getWebviewContent(this._panel.webview);
         RPCLayer.create(this._panel);
         // Attach the BI migrated-forms WS-manager bridge (proxy mode) to this panel,
@@ -85,6 +99,10 @@ export class VisualizerWebview {
                 await vscode.commands.executeCommand('ballerina.update-ballerina-visually');
             } else if (message?.command === 'jdkIncompatibility.installPreviousVersion') {
                 await vscode.commands.executeCommand('extension.open', EXTENSION_ID);
+            } else if (message?.command === 'dependencyUpdate.update') {
+                await updateDependenciesFromPanel();
+            } else if (message?.command === 'dependencyUpdate.useEarlierVersion') {
+                await showEarlierVersionGuideFromPanel();
             }
         }));
 
@@ -253,6 +271,24 @@ export class VisualizerWebview {
         requiredBallerinaVersion: string;
     }): void {
         VisualizerWebview.jdkIncompatibility = info;
+        VisualizerWebview.rerender();
+    }
+
+    public static showDependencyUpdateRequired(info: DependencyUpdateRequiredInfo): void {
+        VisualizerWebview.dependencyUpdateRequired = info;
+        VisualizerWebview.rerender();
+    }
+
+    /** Re-renders the app in place of the blocked panel; the caller waits for it to report ready. */
+    public static clearDependencyUpdateRequired(): void {
+        if (!VisualizerWebview.dependencyUpdateRequired) {
+            return;
+        }
+        VisualizerWebview.dependencyUpdateRequired = undefined;
+        VisualizerWebview.rerender();
+    }
+
+    private static rerender(): void {
         const current = VisualizerWebview.currentPanel;
         const panel = current?.getWebview();
         if (current && panel) {
@@ -281,6 +317,7 @@ export class VisualizerWebview {
             ? escapeHtml(creationCopy.subtitle)
             : "Your project is being prepared. This may take a few moments.";
         const incompatibility = VisualizerWebview.jdkIncompatibility;
+        const dependencyUpdate = VisualizerWebview.dependencyUpdateRequired;
         const body = incompatibility
             ? `<div class="container" id="jdk-incompatibility-container">
                 <div class="loader-wrapper">
@@ -309,6 +346,33 @@ export class VisualizerWebview {
                     vscodeApi.postMessage({ command: 'jdkIncompatibility.updateBallerina' }));
                 document.getElementById('install-previous').addEventListener('click', () =>
                     vscodeApi.postMessage({ command: 'jdkIncompatibility.installPreviousVersion' }));
+            </script>`
+            : dependencyUpdate
+            ? `<div class="container" id="dependency-update-container">
+                <div class="loader-wrapper">
+                    <div class="welcome-content">
+                        <h1 class="welcome-title">Dependencies need to be updated</h1>
+                        <p class="welcome-subtitle">
+                            ${escapeHtml(dependencyUpdate.summary)}
+                            <br><br>
+                            ${escapeHtml(dependencyUpdate.choice)}
+                        </p>
+                        <div class="action-row">
+                            <button class="action-button" id="update-dependencies">Update Dependencies</button>
+                            <button class="action-button secondary" id="use-earlier-version">Use an Earlier Version</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <script>
+                const vscodeApi = acquireVsCodeApi();
+                const updateButton = document.getElementById('update-dependencies');
+                updateButton.addEventListener('click', () => {
+                    updateButton.disabled = true; // re-rendered on failure
+                    vscodeApi.postMessage({ command: 'dependencyUpdate.update' });
+                });
+                document.getElementById('use-earlier-version').addEventListener('click', () =>
+                    vscodeApi.postMessage({ command: 'dependencyUpdate.useEarlierVersion' }));
             </script>`
             : `<div class="container" id="webview-container">
                 <div class="loader-wrapper">
@@ -398,6 +462,10 @@ export class VisualizerWebview {
             }
             .action-button.secondary:hover {
                 background-color: var(--vscode-button-secondaryHoverBackground);
+            }
+            .action-button:disabled {
+                opacity: 0.5;
+                cursor: default;
             }
             .welcome-title {
                 color: var(--vscode-foreground);
