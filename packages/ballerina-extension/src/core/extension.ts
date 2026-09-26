@@ -85,12 +85,11 @@ import path from 'path';
 import * as glob from 'glob';
 import { RPCLayer } from "../RPCLayer";
 import { VisualizerWebview } from "../views/visualizer/webview";
+import { REQUIRED_BALLERINA_VERSION } from "../features/project/dependency-lock";
 
 const SWAN_LAKE_REGEX = /(s|S)wan( |-)(l|L)ake/g;
 
 export const EXTENSION_ID = 'wso2.ballerina';
-// Shown to the user, not compared against.
-const REQUIRED_BALLERINA_VERSION = '2201.14.0';
 const PREV_EXTENSION_ID = 'ballerina.ballerina';
 export enum LANGUAGE {
     BALLERINA = 'ballerina',

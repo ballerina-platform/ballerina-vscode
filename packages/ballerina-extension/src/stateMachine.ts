@@ -47,12 +47,14 @@ import { extension } from './BalExtensionContext';
 import { AIStateMachine, openAIPanelWithPrompt } from './views/ai-panel/aiMachine';
 import { chatStateStorage } from './views/ai-panel/chatStateStorage';
 import { StateMachinePopup } from './stateMachinePopup';
-import { checkIsBallerinaPackage, checkIsBI, fetchScope, getOrgPackageName, UndoRedoManager, getProjectTomlValues, getOrgAndPackageName, checkIsBallerinaWorkspace, isInWI, isInDevant } from './utils';
+import { checkIsBallerinaPackage, checkIsBI, fetchScope, getOrgPackageName, UndoRedoManager, getProjectTomlValues, getOrgAndPackageName, checkIsBallerinaWorkspace, isInWI, isInDevant, quoteShellPath } from './utils';
 import { activateDevantFeatures } from './features/devant/activator';
 import { buildProjectsStructure } from './utils/project-artifacts';
 import { runCommandWithOutput } from './utils/runCommand';
 import { buildOutputChannel } from './utils/logger';
 import { checkAndPromptConnectorUpgrades } from './features/project/connector-upgrade';
+import { checkDependencyCompatibility } from './features/project/dependency-compatibility';
+import { createDependencyCheckTransitions, getVisualizerCheckRoot, needsDependencyCheck } from './features/project/dependency-check-transitions';
 import { closeOrphanWebviewTabs } from './views/closeOrphanWebviewTabs';
 import { getEnclosingProjectStatus } from './utils/bi';
 
@@ -71,6 +73,7 @@ interface MachineContext extends VisualizerLocation {
     errorCode: string | null;
     dependenciesResolved?: boolean;
     connectorUpgradesCheckedPaths?: Set<string>;
+    dependencyCompatibleRoots?: Set<string>;
     isInDevant: boolean;
     isViewUpdateTransition?: boolean;
 }
@@ -97,6 +100,7 @@ const stateMachine = createMachine<MachineContext>(
             view: MACHINE_VIEW.PackageOverview,
             dependenciesResolved: false,
             connectorUpgradesCheckedPaths: new Set(),
+            dependencyCompatibleRoots: new Set(),
             isInDevant: isInDevant()
         },
         on: {
@@ -386,6 +390,10 @@ const stateMachine = createMachine<MachineContext>(
                             src: 'openWebView',
                             onDone: [
                                 {
+                                    target: "checkDependencyCompatibility",
+                                    cond: needsDependencyCheck
+                                },
+                                {
                                     target: "resolveMissingDependencies",
                                     cond: (context) => !context.dependenciesResolved
                                 },
@@ -397,6 +405,12 @@ const stateMachine = createMachine<MachineContext>(
                                     target: "webViewLoading"
                                 }
                             ]
+                        }
+                    },
+                    checkDependencyCompatibility: {
+                        invoke: {
+                            src: 'checkDependencyCompatibility',
+                            onDone: createDependencyCheckTransitions<MachineContext>()
                         }
                     },
                     resolveMissingDependencies: {
@@ -633,6 +647,7 @@ const stateMachine = createMachine<MachineContext>(
         // Startup render: must NOT block on the webview — gating LS activation on the
         // bundle would delay startup and stall the machine if it never loads.
         openInitialWebView: (context, event) => openVisualizerPanel(context, false),
+        checkDependencyCompatibility: (context) => checkDependencyCompatibility(getVisualizerCheckRoot(context), { promptOnce: true }),
         resolveMissingDependencies: (context, event) => {
             return new Promise(async (resolve, reject) => {
                 if (context?.projectPath) {
@@ -656,14 +671,8 @@ const stateMachine = createMachine<MachineContext>(
                         return;
                     }
 
-                    // Construct the build command
-                    let buildCommand = 'bal build';
-
-                    const config = workspace.getConfiguration('ballerina');
-                    const ballerinaHome = config.get<string>('home');
-                    if (ballerinaHome) {
-                        buildCommand = path.join(ballerinaHome, 'bin', buildCommand);
-                    }
+                    // getBallerinaCmd honours ballerina.home and the Integrator app's bundled distribution
+                    const buildCommand = `${quoteShellPath(extension.ballerinaExtInstance.getBallerinaCmd())} build`;
 
                     try {
                         // Execute the build command with output streaming
@@ -899,6 +908,12 @@ const stateMachine = createMachine<MachineContext>(
 
 /** Resolves when the visualizer panel on screen has reported `webviewReady`; reassigned per panel. */
 let visualizerWebviewReady: Promise<void> = Promise.resolve();
+let markVisualizerWebviewReady: () => void = () => { };
+
+/** Expects a fresh `webviewReady`: for a new panel, or the app re-rendered into an existing one. */
+function armVisualizerWebviewReady(): void {
+    visualizerWebviewReady = new Promise<void>((ready) => { markVisualizerWebviewReady = ready; });
+}
 
 /**
  * How long `openVisualizerPanel` waits for `webviewReady` before giving up and proceeding
@@ -918,8 +933,7 @@ let visualizerPanelCreation: Promise<void> | undefined;
 /** Creates the panel and wires its `webviewReady` handler. Only ever run one at a time — see {@link visualizerPanelCreation}. */
 async function createVisualizerPanel(context: MachineContext): Promise<void> {
     await closeOrphanWebviewTabs([VisualizerWebview.viewType]);
-    let markReady: () => void = () => { };
-    visualizerWebviewReady = new Promise<void>((ready) => { markReady = ready; });
+    armVisualizerWebviewReady();
     VisualizerWebview.currentPanel = new VisualizerWebview();
     const webviewPanel = VisualizerWebview.currentPanel.getWebview();
     // `_messenger` is a single instance shared across every panel this extension ever
@@ -937,7 +951,7 @@ async function createVisualizerPanel(context: MachineContext): Promise<void> {
                 dark: Uri.file(path.join(extension.context.extensionPath, 'resources', 'icons', biExtension ? 'wso2-light.svg' : 'ballerina-inverse.svg'))
             };
         }
-        markReady();
+        markVisualizerWebviewReady();
     });
     webviewPanel?.onDidDispose(() => webviewReadyDisposable.dispose());
 }
@@ -967,18 +981,7 @@ async function openVisualizerPanel(context: MachineContext, waitForReady: boolea
             await visualizerPanelCreation;
         }
         if (waitForReady) {
-            let timer: ReturnType<typeof setTimeout>;
-            const timedOut = await Promise.race([
-                visualizerWebviewReady.then(() => false),
-                new Promise<boolean>((r) => { timer = setTimeout(() => r(true), VISUALIZER_WEBVIEW_READY_TIMEOUT_MS); }),
-            ]);
-            clearTimeout(timer);
-            if (timedOut) {
-                // Proceed rather than stall — same principle `openInitialWebView` already
-                // applies to startup. A genuinely-late notification, if it ever arrives, is
-                // a harmless no-op via `markReady()` above.
-                console.warn(`Timed out after ${VISUALIZER_WEBVIEW_READY_TIMEOUT_MS}ms waiting for the visualizer webview to report ready; continuing.`);
-            }
+            await waitForVisualizerWebviewReady();
         }
         return true;
     } catch (e) {
@@ -987,6 +990,34 @@ async function openVisualizerPanel(context: MachineContext, waitForReady: boolea
         console.error("Failed to open the visualizer webview panel.", e);
         throw e;
     }
+}
+
+async function waitForVisualizerWebviewReady(): Promise<void> {
+    let timer: ReturnType<typeof setTimeout>;
+    const timedOut = await Promise.race([
+        visualizerWebviewReady.then(() => false),
+        new Promise<boolean>((r) => { timer = setTimeout(() => r(true), VISUALIZER_WEBVIEW_READY_TIMEOUT_MS); }),
+    ]);
+    clearTimeout(timer);
+    if (timedOut) {
+        // Proceed rather than stall — same principle `openInitialWebView` already
+        // applies to startup. A genuinely-late notification, if it ever arrives, is
+        // a harmless no-op via `markVisualizerWebviewReady()` above.
+        console.warn(`Timed out after ${VISUALIZER_WEBVIEW_READY_TIMEOUT_MS}ms waiting for the visualizer webview to report ready; continuing.`);
+    }
+}
+
+/**
+ * Swaps the blocked dependency-update panel back to the app and waits for it to report ready,
+ * since `stateChanged` notifications sent while it loads are dropped.
+ */
+export async function reloadVisualizerApp(): Promise<void> {
+    if (!VisualizerWebview.dependencyUpdateRequired) {
+        return;
+    }
+    armVisualizerWebviewReady();
+    VisualizerWebview.clearDependencyUpdateRequired();
+    await waitForVisualizerWebviewReady();
 }
 
 // Create a service to interpret the machine

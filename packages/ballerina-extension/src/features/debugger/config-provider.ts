@@ -73,6 +73,7 @@ import * as fs from 'fs';
 import { findHighestVersionJdk } from '../../utils/server/server';
 import { PlatformExtRpcManager } from '../../rpc-managers/platform-ext/rpc-manager';
 import { confirmAndStopActiveRun, markTaskRunStarted, FORCE_START_PROMPT, RUN_CONFLICT_PROMPT } from '../project/integration-runner-state';
+import { ensureDependenciesCompatible } from '../project/dependency-compatibility';
 
 const BALLERINA_COMMAND = "ballerina.command";
 const EXTENDED_CLIENT_CAPABILITIES = "capabilities";
@@ -99,6 +100,11 @@ class DebugConfigProvider implements DebugConfigurationProvider {
             await handleMainFunctionParams(config);
         }
         const configs = await getModifiedConfigs(_folder, config);
+
+        // Old locked packages fail on Java 25; offer the update before building on them.
+        if (!configs.notebookDebug && !await ensureDependenciesCompatible(configs.script)) {
+            return undefined;
+        }
 
         // Per-integration restart guard (#1012): integrations run
         // concurrently, but a single integration has at most one running

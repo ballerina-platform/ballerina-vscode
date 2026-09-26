@@ -29,6 +29,7 @@ import { StateMachine } from "../../../stateMachine";
 import { VisualizerWebview } from "../../../views/visualizer/webview";
 import { requiresPackageSelection } from "../../../utils/command-utils";
 import { confirmAndStopActiveRun } from "../integration-runner-state";
+import { ensureDependenciesCompatible } from "../dependency-compatibility";
 
 function activateRunCmdCommand() {
 
@@ -140,6 +141,9 @@ function activateRunCmdCommand() {
             // }
 
             if (currentProject.kind !== PROJECT_TYPE.SINGLE_FILE) {
+                if (!await ensureDependenciesCompatible(currentProject.path!)) {
+                    return;
+                }
                 // Per-integration restart guard (#1012): integrations run
                 // concurrently; only re-running this same project prompts to
                 // restart it. (No-op when invoked right after

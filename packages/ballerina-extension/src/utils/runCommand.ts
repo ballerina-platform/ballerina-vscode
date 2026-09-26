@@ -44,15 +44,16 @@ export async function runBackgroundTerminalCommand(command: string) {
  * @param cwd Working directory for the command
  * @param outputChannel VSCode output channel to stream output to
  * @param onProgress Optional callback to report progress (e.g., module being pulled)
- * @returns Promise that resolves with success status and exit code
+ * @returns Promise that resolves with success status, exit code and the combined stdout/stderr
  */
 export function runCommandWithOutput(
     command: string,
     cwd: string,
     outputChannel: vscode.OutputChannel,
     onProgress?: (message: string) => void
-): Promise<{ success: boolean; exitCode: number | null }> {
+): Promise<{ success: boolean; exitCode: number | null; output: string }> {
     return new Promise((resolve) => {
+        let output = '';
         console.log(`[runCommandWithOutput] Executing: ${command} in ${cwd}`);
         
         // Show the output channel
@@ -71,6 +72,7 @@ export function runCommandWithOutput(
         // Handle stdout
         proc.stdout?.on('data', (data: Buffer) => {
             const text = data.toString();
+            output += text;
             outputChannel.append(text);
             
             // Parse module names from output for progress reporting
@@ -94,9 +96,10 @@ export function runCommandWithOutput(
         // Handle stderr
         proc.stderr?.on('data', (data: Buffer) => {
             const text = data.toString();
+            output += text;
             outputChannel.append(text);
             console.log(`[runCommandWithOutput] stderr: ${text}`);
-            onProgress(`Something went wrong. check the output for more details.`);
+            onProgress?.(`Something went wrong. check the output for more details.`);
         });
 
         // Handle process errors
@@ -104,8 +107,8 @@ export function runCommandWithOutput(
             const errorMsg = `Process error: ${error.message}`;
             outputChannel.appendLine(errorMsg);
             console.error(`[runCommandWithOutput] ${errorMsg}`, error);
-            onProgress(`Something went wrong. check the output for more details.`);
-            resolve({ success: false, exitCode: null });
+            onProgress?.(`Something went wrong. check the output for more details.`);
+            resolve({ success: false, exitCode: null, output });
         });
 
         // Handle process exit
@@ -116,11 +119,11 @@ export function runCommandWithOutput(
             
             const success = code === 0;
             if (success) {
-                onProgress(`All dependencies pulled successfully`);
+                onProgress?.(`All dependencies pulled successfully`);
             } else {
-                onProgress(`Something went wrong. check the output for more details.`);
+                onProgress?.(`Something went wrong. check the output for more details.`);
             }
-            resolve({ success, exitCode: code });
+            resolve({ success, exitCode: code, output });
         });
     });
 }
