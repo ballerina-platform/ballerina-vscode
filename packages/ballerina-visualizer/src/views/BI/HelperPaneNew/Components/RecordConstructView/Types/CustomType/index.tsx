@@ -58,6 +58,8 @@ export default function CustomType(props: TypeProps) {
                         {...(requiredParam && { disabled: true })}
                         onClick={toggleParamCheck}
                         className={helperStyleClass.parameterCheckbox}
+                        aria-label={param.name}
+                        data-testid={`record-field-checkbox-${param.name}`}
                     />
                     <Typography
                         variant="body3"
