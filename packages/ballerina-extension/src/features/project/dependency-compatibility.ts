@@ -347,7 +347,7 @@ async function showEarlierVersionGuide(outdated: OutdatedPackage[]): Promise<voi
             {
                 modal: true,
                 detail: 'Earlier versions bundle the Ballerina version these dependencies were locked with, so the '
-                    + 'integration opens unchanged. Update the dependencies when you move to this version again.'
+                    + 'integration opens unchanged, with no dependency update needed.'
             },
             OPEN_RELEASES
         );
