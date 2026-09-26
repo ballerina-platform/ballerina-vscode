@@ -62,6 +62,105 @@ const POST_FAILURE_CLEANUP_TIMEOUT_MS = Number(process.env.BI_E2E_POST_FAILURE_C
  * Race `operation` against a timer. If the timer wins, throw with the provided
  * message so the caller can fall back to a recovery path instead of hanging.
  */
+const ELECTRON_EXIT_WAIT_MS = Number(process.env.BI_E2E_ELECTRON_EXIT_WAIT_MS ?? 5000);
+const TASKKILL_TIMEOUT_MS = Number(process.env.BI_E2E_TASKKILL_TIMEOUT_MS ?? 15000);
+
+/**
+ * Windows only, diagnostics only: lists VS Code and language-server processes still
+ * running after a kill. A survivor is what holds the handle that makes the next rmdir
+ * fail, so naming it here beats inferring it from an EBUSY two log lines later.
+ *
+ * Off by default — set BI_E2E_LOG_SURVIVORS=true to enable. Survivors are currently
+ * always present, so left on it spawns three `tasklist` processes per teardown and warns
+ * on every run about a condition nobody is acting on. Turn it on when an EBUSY needs
+ * attributing. Never throws.
+ */
+function logSurvivingVSCodeProcesses(): void {
+    if (process.platform !== 'win32' || process.env.BI_E2E_LOG_SURVIVORS !== 'true') {
+        return;
+    }
+    // Not just Code.exe: the extension starts the language server through bal.bat, which
+    // is a JVM, so a java.exe can hold the project folder too and would be invisible here
+    // if we only asked about the editor.
+    const IMAGES = ['Code.exe', 'java.exe', 'bal.exe'];
+    try {
+        for (const image of IMAGES) {
+            const out = execFileSync('tasklist', ['/FI', `IMAGENAME eq ${image}`, '/NH'], {
+                stdio: 'pipe',
+                timeout: TASKKILL_TIMEOUT_MS,
+            }).toString();
+            const survivors = out.split('\n').filter((l) => l.toLowerCase().includes(image.toLowerCase()));
+            if (survivors.length) {
+                console.warn(`  ⚠️  ${survivors.length} ${image} process(es) survived the kill:`);
+                survivors.forEach((l) => console.warn(`     ${l.trim()}`));
+            }
+        }
+    } catch {
+        // diagnostics only — never fail a test over this
+    }
+}
+
+/**
+ * Kills the VS Code Electron process and clears the module-level handles, so the
+ * next `initTest` takes the fresh-launch branch. Extracted from test.list.ts's
+ * afterAll, which was the only caller until Windows needed it mid-run too — see
+ * `initTest` for why. Never throws: a failure here must not mask the test result.
+ */
+export async function terminateVSCode(): Promise<void> {
+    if (!vscode) {
+        return;
+    }
+    console.log('🛑 Terminating VS Code Electron app...');
+    try {
+        const electronProcess = vscode.process?.();
+        if (electronProcess && !electronProcess.killed) {
+            await new Promise<void>((resolve) => {
+                let settled = false;
+                const done = () => {
+                    if (settled) return;
+                    settled = true;
+                    clearTimeout(timer);
+                    resolve();
+                };
+                const timer = setTimeout(done, ELECTRON_EXIT_WAIT_MS);
+                electronProcess.once('exit', done);
+                try {
+                    if (process.platform === 'win32' && electronProcess.pid) {
+                        // SIGKILL maps to TerminateProcess on a single PID, which the
+                        // process Playwright holds obeys in ~10ms while the renderer,
+                        // GPU, utility and language-server processes it spawned keep
+                        // running — and keep handles on the project folder, so the next
+                        // rmdir fails with EBUSY. /T is load-bearing, not belt-and-braces:
+                        // reverting just this line to SIGKILL, with the rmSync retries in
+                        // initTest left in place, took EBUSY failures from 2 back to 12 and
+                        // cost 18 passing tests. Both variants leave a similar count of
+                        // unrelated Code.exe alive, so survivor count is not the signal —
+                        // /T kills the descendants that actually hold the workspace.
+                        execFileSync('taskkill', ['/PID', String(electronProcess.pid), '/T', '/F'], {
+                            stdio: 'pipe',
+                            timeout: TASKKILL_TIMEOUT_MS,
+                        });
+                    } else {
+                        electronProcess.kill('SIGKILL');
+                    }
+                } catch {
+                    // taskkill exits 128 when the tree is already gone; either way there
+                    // is nothing left to wait for.
+                    done();
+                }
+            });
+            console.log('✅ VS Code Electron app terminated');
+            logSurvivingVSCodeProcesses();
+        } else {
+            console.log('ℹ️  No live Electron process to terminate');
+        }
+    } catch (err) {
+        console.warn(`⚠️  Failed to terminate Electron: ${(err as Error).message}`);
+    }
+    vscode = undefined;
+    page = undefined as unknown as ExtendedPage;
+}
+
 async function withTimeout<T>(operation: Promise<T>, timeoutMs: number, timeoutMessage: string): Promise<T> {
     let timeoutHandle: NodeJS.Timeout | undefined;
     try {
@@ -219,11 +318,28 @@ async function prepareExtensionsForLaunch(profileName: string): Promise<string> 
  * `bal pull` is idempotent - a package that's already cached prints "Package already exists."
  * and exits 0 - so this is a fast no-op on a warm developer cache.
  */
+// Named explicitly rather than relying on cmd.exe's PATHEXT lookup to turn `bal` into
+// `bal.bat`. Functionally either works now that the call goes through a shell; this
+// matches how the extension itself resolves it (src/core/extension.ts appends `.bat` on
+// win32) and keeps the platform difference visible at the call site.
+const BAL_COMMAND = process.platform === 'win32' ? 'bal.bat' : 'bal';
+
 export function executeBallPullCommand(modules: string[] = ['ballerina/task:2.7.0']): void {
     for (const module of modules) {
         console.log(`Executing bal pull ${module}...`);
         try {
-            execFileSync('bal', ['pull', module], { stdio: 'pipe', timeout: 180000 });
+            // Windows ships `bal.bat`, and Node refuses to spawn .bat/.cmd without
+            // `shell: true` (the CVE-2024-27980 fix, in every Node since 18.20.2) — so
+            // the bare name gives ENOENT and the explicit `bal.bat` gives EINVAL. Both
+            // land in the catch below as a warning, leaving the Central cache cold and
+            // the language server slow to resolve the packages this call exists to warm.
+            // `module` is a literal from the caller, never external input, so routing
+            // through a shell here does not widen anything.
+            execFileSync(BAL_COMMAND, ['pull', module], {
+                stdio: 'pipe',
+                timeout: 180000,
+                shell: process.platform === 'win32',
+            });
             console.log(`✓ Successfully executed bal pull ${module}`);
         } catch (err) {
             const details = err as { stdout?: unknown; stderr?: unknown; message?: string };
@@ -514,11 +630,26 @@ export function initTest(newProject: boolean = true, skipProjectCreation: boolea
 
         const wipeAndRecreateDataFolder = (): void => {
             if (fs.existsSync(dataFolder)) {
-                fs.rmSync(dataFolder, { recursive: true, force: true });
+                // maxRetries/retryDelay: Node retries EBUSY/EPERM on Windows, where a
+                // handle can outlive the process that held it by a short margin. Covers
+                // the gap after the tree kill, and anything /T did not reach. No-op on
+                // Linux, which does not raise either error here.
+                fs.rmSync(dataFolder, { recursive: true, force: true, maxRetries: 10, retryDelay: 250 });
             }
             // Read/write/execute for all files and folders in the data folder
             fs.mkdirSync(dataFolder, { recursive: true, mode: 0o777 });
         };
+
+        // Windows cannot delete a directory that a running process holds open, so the
+        // reuse branch below — which wipes dataFolder while VS Code still has the
+        // workspace open — fails with `EBUSY: resource busy or locked, rmdir`. Linux
+        // unlinks open files happily, which is why this only shows up on Windows.
+        // Closing VS Code first costs a relaunch (~2 min) but is the branch that
+        // already passes there; the reuse optimisation is kept for Linux.
+        if (process.platform === 'win32' && vscode) {
+            console.log('  🪟 Windows: closing VS Code before wiping the data folder');
+            await terminateVSCode();
+        }
 
         if (!vscode || !page) {
             wipeAndRecreateDataFolder();
