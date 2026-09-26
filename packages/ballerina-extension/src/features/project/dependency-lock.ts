@@ -109,7 +109,10 @@ export interface OutdatedPackage {
     lockedVersion?: string;
 }
 
-/** Absolute member paths when `root` is a workspace (each member keeps its own Dependencies.toml). */
+/**
+ * Absolute member paths when `root` is a workspace (each member keeps its own Dependencies.toml). Members that
+ * resolve outside the workspace are dropped: the update builds in, and edits, each member's folder.
+ */
 export function getWorkspacePackagePaths(root: string): string[] | undefined {
     try {
         const workspaceTable = parse(fs.readFileSync(path.join(root, BALLERINA_TOML), 'utf8')).workspace as
@@ -119,7 +122,11 @@ export function getWorkspacePackagePaths(root: string): string[] | undefined {
             return undefined;
         }
         return packages.filter((member): member is string => typeof member === 'string')
-            .map((member) => path.resolve(root, member));
+            .map((member) => path.resolve(root, member))
+            .filter((member) => {
+                const relative = path.relative(root, member);
+                return !!relative && !relative.startsWith('..') && !path.isAbsolute(relative);
+            });
     } catch {
         return undefined;
     }

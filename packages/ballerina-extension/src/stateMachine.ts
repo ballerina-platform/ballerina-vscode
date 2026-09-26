@@ -53,7 +53,8 @@ import { buildProjectsStructure } from './utils/project-artifacts';
 import { runCommandWithOutput } from './utils/runCommand';
 import { buildOutputChannel } from './utils/logger';
 import { checkAndPromptConnectorUpgrades } from './features/project/connector-upgrade';
-import { checkDependencyCompatibility, getVisualizerCheckRoot } from './features/project/dependency-compatibility';
+import { checkDependencyCompatibility } from './features/project/dependency-compatibility';
+import { createDependencyCheckTransitions, getVisualizerCheckRoot, needsDependencyCheck } from './features/project/dependency-check-transitions';
 import { closeOrphanWebviewTabs } from './views/closeOrphanWebviewTabs';
 import { getEnclosingProjectStatus } from './utils/bi';
 
@@ -85,15 +86,6 @@ let scaffoldPromptTriggered = false;
 // pending-artifact resolution firing close together) would otherwise each fetch project info
 // independently. Share one in-flight fetch instead of one per trigger.
 let projectInfoRefreshInFlight: Promise<void> | null = null;
-
-/** Remembers a root whose locks passed or were just updated, so later navigations skip the check. */
-const markDependenciesCompatible = assign<MachineContext, any>({
-    dependencyCompatibleRoots: (context) => {
-        const compatibleRoots = new Set(context.dependencyCompatibleRoots ?? []);
-        compatibleRoots.add(getVisualizerCheckRoot(context));
-        return compatibleRoots;
-    }
-});
 
 const stateMachine = createMachine<MachineContext>(
     {
@@ -399,9 +391,7 @@ const stateMachine = createMachine<MachineContext>(
                             onDone: [
                                 {
                                     target: "checkDependencyCompatibility",
-                                    // The workspace when there is one, so the overview and every member are covered.
-                                    cond: (context) => !!getVisualizerCheckRoot(context)
-                                        && !context.dependencyCompatibleRoots?.has(getVisualizerCheckRoot(context))
+                                    cond: needsDependencyCheck
                                 },
                                 {
                                     target: "resolveMissingDependencies",
@@ -417,43 +407,10 @@ const stateMachine = createMachine<MachineContext>(
                             ]
                         }
                     },
-                    // Before the startup build: a sticky `bal build` of an outdated lock would pull the very versions
-                    // that fail on Java 25. A blocked project skips both that build and the connector upgrade prompt.
                     checkDependencyCompatibility: {
                         invoke: {
                             src: 'checkDependencyCompatibility',
-                            onDone: [
-                                {
-                                    target: "webViewLoading",
-                                    cond: (context, event) => event.data === 'blocked'
-                                },
-                                {
-                                    // The update's own build already pulled every missing module.
-                                    target: "checkConnectorUpgrades",
-                                    cond: (context, event) => event.data === 'updated'
-                                        && !context.connectorUpgradesCheckedPaths?.has(context.projectPath),
-                                    actions: [markDependenciesCompatible, assign({ dependenciesResolved: true })]
-                                },
-                                {
-                                    target: "webViewLoading",
-                                    cond: (context, event) => event.data === 'updated',
-                                    actions: [markDependenciesCompatible, assign({ dependenciesResolved: true })]
-                                },
-                                {
-                                    target: "resolveMissingDependencies",
-                                    cond: (context) => !context.dependenciesResolved,
-                                    actions: markDependenciesCompatible
-                                },
-                                {
-                                    target: "checkConnectorUpgrades",
-                                    cond: (context) => !context.connectorUpgradesCheckedPaths?.has(context.projectPath),
-                                    actions: markDependenciesCompatible
-                                },
-                                {
-                                    target: "webViewLoading",
-                                    actions: markDependenciesCompatible
-                                }
-                            ]
+                            onDone: createDependencyCheckTransitions<MachineContext>()
                         }
                     },
                     resolveMissingDependencies: {

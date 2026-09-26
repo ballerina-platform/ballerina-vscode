@@ -20,7 +20,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { commands, env, ProgressLocation, Range, TextDocument, Uri, window, workspace, WorkspaceEdit } from 'vscode';
-import { EVENT_TYPE, MACHINE_VIEW, isSamePath } from '@wso2/ballerina-core';
+import { EVENT_TYPE, MACHINE_VIEW, isSamePath, normalizeProjectPath } from '@wso2/ballerina-core';
 import { StateMachine, openView, reloadVisualizerApp } from '../../stateMachine';
 import { VisualizerWebview } from '../../views/visualizer/webview';
 import { runCommandWithOutput } from '../../utils/runCommand';
@@ -43,22 +43,20 @@ import {
     pickRollbackDistribution,
     readManifestDistribution
 } from './dependency-lock';
+import { DependencyCheckResult, getVisualizerCheckRoot } from './dependency-check-transitions';
 
-/**
- * Integrations are created with `sticky = true`, so a project written on a Java 21 distribution keeps its locked
- * package versions after moving to 2201.14.0, and never picks up the releases that fixed them for Java 25. This
- * detects such a lock from Dependencies.toml and offers to re-resolve it, or to go back to a matching version.
- *
- * A root is a package or a workspace; a workspace is checked and updated as a whole, one lock per member.
- */
-export type DependencyCheckResult = 'compatible' | 'updated' | 'blocked';
+// Integrations are created with `sticky = true`, so a project written on a Java 21 distribution keeps its locked
+// package versions after moving to 2201.14.0, and never picks up the releases that fixed them for Java 25. This
+// detects such a lock from Dependencies.toml and offers to re-resolve it, or to go back to a matching version.
+// A root is a package or a workspace; a workspace is checked and updated as a whole, one lock per member.
 
 const WI_RELEASES_URL = 'https://github.com/wso2/product-integrator/releases';
 const UPDATE_DEPENDENCIES = 'Update Dependencies';
 const USE_EARLIER_VERSION = 'Use an Earlier Version';
 
-/** Roots already prompted this session; later visits block the panel without another modal. */
+/** Roots already prompted this session; later visits block the panel without another modal. Normalized keys. */
 const promptedRoots = new Set<string>();
+/** Normalized keys, so the panel, Run and Debug reaching one root by different spellings share one update. */
 const updatesInFlight = new Map<string, Promise<boolean>>();
 
 /** The Integrator app bundles its own distribution, so going back means an older app. */
@@ -87,22 +85,25 @@ function findOutdated(root: string | undefined): OutdatedPackage[] {
 
 /**
  * Prompts when a package under `root` has a Dependencies.toml older than {@link REQUIRED_BALLERINA_VERSION}. With
- * `promptOnce`, a root already prompted this session is blocked without asking again. Fails open.
+ * `promptOnce`, a root already prompted this session is blocked without asking again. Detection fails open; once
+ * an outdated lock is known, a failure blocks rather than letting Run build on it.
  */
 export async function checkDependencyCompatibility(
     root: string | undefined,
     options: { promptOnce: boolean }
 ): Promise<DependencyCheckResult> {
+    let outdated: OutdatedPackage[] = [];
     try {
-        const outdated = findOutdated(root);
+        outdated = findOutdated(root);
         if (outdated.length === 0) {
             return 'compatible';
         }
-        if (options.promptOnce && promptedRoots.has(root)) {
+        const key = normalizeProjectPath(root);
+        if (options.promptOnce && promptedRoots.has(key)) {
             blockPanel(root, outdated);
             return 'blocked';
         }
-        promptedRoots.add(root);
+        promptedRoots.add(key);
 
         const selection = await window.showWarningMessage(
             outdated.length > 1 || isWorkspace(root)
@@ -122,7 +123,7 @@ export async function checkDependencyCompatibility(
         return 'blocked';
     } catch (error) {
         console.error('>>> Error checking dependency compatibility', error);
-        return 'compatible';
+        return outdated.length > 0 ? 'blocked' : 'compatible';
     }
 }
 
@@ -175,11 +176,6 @@ function describeChoice(): string {
         + `${productName()}.`;
 }
 
-/** The root the visualizer is showing: its workspace when there is one, so every member is covered. */
-export function getVisualizerCheckRoot(context: { workspacePath?: string; projectPath?: string }): string | undefined {
-    return context.workspacePath || context.projectPath;
-}
-
 /** Only the root the panel is showing; a panel that does not exist yet loads the app as usual. */
 function blockPanel(root: string, outdated: OutdatedPackage[]): void {
     if (!VisualizerWebview.currentPanel || !isSamePath(getVisualizerCheckRoot(StateMachine.context()), root)) {
@@ -212,12 +208,13 @@ async function refreshBlockedPanel(): Promise<void> {
 
 /** True when every package in `outdated` ended up current. */
 function updateDependencies(root: string, outdated: OutdatedPackage[]): Promise<boolean> {
-    const inFlight = updatesInFlight.get(root);
+    const key = normalizeProjectPath(root);
+    const inFlight = updatesInFlight.get(key);
     if (inFlight) {
         return inFlight;
     }
-    const update = runDependencyUpdate(outdated).finally(() => updatesInFlight.delete(root));
-    updatesInFlight.set(root, update);
+    const update = runDependencyUpdate(outdated).finally(() => updatesInFlight.delete(key));
+    updatesInFlight.set(key, update);
     return update;
 }
 

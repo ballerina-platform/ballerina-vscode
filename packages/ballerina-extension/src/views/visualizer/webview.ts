@@ -505,7 +505,7 @@ export class VisualizerWebview {
 
             function loadedScript() {
                 // Mounting the app here would replace the explanation with an endless loader.
-                if (${incompatibility ? 'true' : 'false'}) {
+                if (${incompatibility || dependencyUpdate ? 'true' : 'false'}) {
                     return;
                 }
                 function renderDiagrams() {

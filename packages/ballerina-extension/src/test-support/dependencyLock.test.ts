@@ -198,6 +198,11 @@ describe('workspaces', () => {
         expect(getWorkspacePackagePaths(makePackage(path.join(root, 'orders')))).toBeUndefined();
     });
 
+    it('drops members that resolve outside the workspace', () => {
+        makeWorkspace(['orders', '../elsewhere', '.', path.join(os.tmpdir(), 'absolute')]);
+        expect(getWorkspacePackagePaths(root)).toEqual([path.join(root, 'orders')]);
+    });
+
     it('checks every member, since the root has no lock of its own', () => {
         makeWorkspace(['teststicky', 'untitled', 'legacy', 'apps/billing']);
         makePackage(path.join(root, 'teststicky'), '2201.14.0-20260917-124200-7f273e6a');
