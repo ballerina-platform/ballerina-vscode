@@ -30,6 +30,7 @@ public abstract class AbstractServiceModelResponse {
     private String errorMsg;
     private String stacktrace;
     private ModelResolutionIssue issue;
+    private ModelResolutionError resolutionError;
 
     public void setError(Throwable e) {
         this.errorMsg = e.getLocalizedMessage();
@@ -38,6 +39,10 @@ public abstract class AbstractServiceModelResponse {
 
     public void setIssue(ModelResolutionIssue issue) {
         this.issue = issue;
+    }
+
+    public void setResolutionError(ModelResolutionError resolutionError) {
+        this.resolutionError = resolutionError;
     }
 
     public String errorMsg() {
@@ -50,5 +55,9 @@ public abstract class AbstractServiceModelResponse {
 
     public ModelResolutionIssue issue() {
         return issue;
+    }
+
+    public ModelResolutionError resolutionError() {
+        return resolutionError;
     }
 }

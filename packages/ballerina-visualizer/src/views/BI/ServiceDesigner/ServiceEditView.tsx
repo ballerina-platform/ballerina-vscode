@@ -17,9 +17,10 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { ServiceModel, NodePosition, LineRange, EVENT_TYPE, ValidationResult, hasBlockingValidationErrors } from '@wso2/ballerina-core';
+import { ServiceModel, NodePosition, LineRange, EVENT_TYPE, ValidationResult, hasBlockingValidationErrors, ModelResolutionError } from '@wso2/ballerina-core';
 import { useRpcContext } from '@wso2/ballerina-rpc-client';
 import ServiceConfigForm from './Forms/ServiceConfigForm';
+import { ServiceModelError } from './ServiceModelError';
 export interface ServiceEditViewProps {
     filePath: string;
     position: NodePosition;
@@ -32,20 +33,41 @@ export function ServiceEditView(props: ServiceEditViewProps) {
     const { filePath, position, onChange, onDirtyChange, onValidityChange } = props;
     const { rpcClient } = useRpcContext();
     const [serviceModel, setServiceModel] = useState<ServiceModel>(undefined);
+    const [resolutionError, setResolutionError] = useState<ModelResolutionError>(undefined);
+    const [isLoading, setIsLoading] = useState(true);
 
     const [saving, setSaving] = useState<boolean>(false);
     const [serverValidationErrors, setServerValidationErrors] = useState<ValidationResult[]>([]);
 
     const isMountedRef = useRef(true);
 
+    const loadServiceModel = async () => {
+        setIsLoading(true);
+        setServiceModel(undefined);
+        setResolutionError(undefined);
+        const lineRange: LineRange = { startLine: { line: position.startLine, offset: position.startColumn }, endLine: { line: position.endLine, offset: position.endColumn } };
+        try {
+            const res = await rpcClient.getServiceDesignerRpcClient().getServiceModelFromCode({ filePath, codedata: { lineRange } });
+            if (isMountedRef.current) {
+                if (res?.service) {
+                    setServiceModel(res.service);
+                } else {
+                    setResolutionError(res?.resolutionError);
+                }
+                setIsLoading(false);
+            }
+        } catch (error) {
+            console.error("Error fetching service model:", error);
+            if (isMountedRef.current) {
+                setIsLoading(false);
+                setResolutionError(undefined);
+            }
+        }
+    };
+
     useEffect(() => {
         isMountedRef.current = true;
-        const lineRange: LineRange = { startLine: { line: position.startLine, offset: position.startColumn }, endLine: { line: position.endLine, offset: position.endColumn } };
-        rpcClient.getServiceDesignerRpcClient().getServiceModelFromCode({ filePath, codedata: { lineRange } }).then(res => {
-            if (isMountedRef.current) {
-                setServiceModel(res.service);
-            }
-        })
+        loadServiceModel();
         return () => {
             isMountedRef.current = false;
         };
@@ -87,6 +109,7 @@ export function ServiceEditView(props: ServiceEditViewProps) {
 
     return (
         <>
+            {!serviceModel && !isLoading && <ServiceModelError error={resolutionError} onRetry={loadServiceModel} />}
             {serviceModel && <ServiceConfigForm serviceModel={serviceModel} onSubmit={onSubmit} formSubmitText={saving ? "Saving..." : "Save"} isSaving={saving} onChange={handleServiceChange} onDirtyChange={handleServiceDirtyChange} onValidityChange={onValidityChange} serverValidationErrors={serverValidationErrors} />}
         </>
     );

@@ -22,6 +22,7 @@ import {
     FunctionModel,
     LineRange,
     MACHINE_VIEW,
+    ModelResolutionError,
     ProjectStructureArtifactResponse,
     PropertyModel,
     ServiceModel,
@@ -31,6 +32,7 @@ import {
     isSamePath,
 } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
+import { ServiceModelError } from "../BI/ServiceDesigner/ServiceModelError";
 import {
     Button,
     Codicon,
@@ -182,6 +184,7 @@ export function GraphqlServiceEditor(props: GraphqlServiceEditorProps) {
 
     const [isSaving, setIsSaving] = useState<boolean>(false);
     const [serviceModel, setServiceModel] = useState<ServiceModel>(undefined);
+    const [serviceResolutionError, setServiceResolutionError] = useState<ModelResolutionError>(undefined);
     const [projectListeners, setProjectListeners] = useState<ProjectStructureArtifactResponse[]>([]);
     const [functionModel, setFunctionModel] = useState<FunctionModel>(undefined);
     // const [showForm, setShowForm] = useState<boolean>(false);
@@ -234,6 +237,7 @@ export function GraphqlServiceEditor(props: GraphqlServiceEditorProps) {
     };
 
     const fetchServiceModel = async (newFilePath?: string, linePosition?: NodePosition) => {
+        setServiceResolutionError(undefined);
         const reqLineRange: LineRange = linePosition
             ? {
                 startLine: {
@@ -266,11 +270,18 @@ export function GraphqlServiceEditor(props: GraphqlServiceEditorProps) {
             // operations whose ranges point at nothing - onDeleteFunction edits at
             // `model.codedata.lineRange`, and a stale one would delete the wrong text.
             setServiceModel(res.service);
+            if (!res?.service) {
+                setServiceResolutionError(res?.resolutionError);
+            }
         } catch (error) {
             // The request itself failed, which says nothing about whether the service is still
             // there. Keep the model we have rather than rejecting into nothing: nothing awaits
             // this call, so a rejection escaping here would take down the webview.
             console.error("Error fetching the service model:", error);
+            setServiceResolutionError({
+                code: "SERVICE_NOT_FOUND",
+                message: "Unable to load the service model.",
+            });
         }
         await getProjectListeners();
     };
@@ -629,10 +640,13 @@ export function GraphqlServiceEditor(props: GraphqlServiceEditorProps) {
             {!isNewForm && !isEdit && (
                 <PanelContainer title={"GraphQL Operations"} show={true} onClose={onClose} onBack={onClose} width={400}>
                     <ServiceContainer>
-                        {!serviceModel && (
+                        {!serviceModel && !serviceResolutionError && (
                             <LoadingContainer>
                                 <ProgressRing />
                             </LoadingContainer>
+                        )}
+                        {!serviceModel && serviceResolutionError && (
+                            <ServiceModelError error={serviceResolutionError} onRetry={() => fetchServiceModel()} />
                         )}
                         {serviceModel && renderOperations()}
                     </ServiceContainer>

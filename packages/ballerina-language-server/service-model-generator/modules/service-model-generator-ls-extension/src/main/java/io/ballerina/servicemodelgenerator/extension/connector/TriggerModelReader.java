@@ -40,6 +40,7 @@ import io.ballerina.projects.PackageDescriptor;
 import io.ballerina.servicemodelgenerator.extension.model.Codedata;
 import io.ballerina.servicemodelgenerator.extension.model.Listener;
 import io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel;
+import io.ballerina.servicemodelgenerator.extension.model.response.ModelResolutionError;
 import io.ballerina.servicemodelgenerator.extension.util.ListenerUtil;
 
 import java.lang.reflect.Type;
@@ -65,6 +66,7 @@ public class TriggerModelReader {
             "id", "displayName", "description", "orgName", "packageName", "moduleName", "version", "type", "icon");
 
     private static final int MAX_CACHE_SIZE = 3;
+    private static final List<String> DEDICATED_MODULES = List.of("http", "graphql", "ai", "tcp");
 
     private final Gson gson = new Gson();
     /** Static counterpart of {@link #gson}, for the init-form derivation that runs before binding. */
@@ -150,6 +152,47 @@ public class TriggerModelReader {
     public boolean hasSchemaDrivenModel(String orgName, String moduleName, String version,
                                         boolean isLocalRepository) {
         return getSchemaDrivenTriggerModel(orgName, moduleName, version, isLocalRepository).isPresent();
+    }
+
+    /**
+     * Explains why a schema-driven connector did not produce a model. Dedicated service builders do not
+     * use trigger metadata, so they deliberately return no diagnostic here.
+     */
+    public Optional<ModelResolutionError> getSchemaDrivenResolutionError(String orgName, String packageName,
+                                                                          String moduleName, String version,
+                                                                          boolean isLocalRepository) {
+        if (moduleName == null || DEDICATED_MODULES.contains(moduleName)) {
+            return Optional.empty();
+        }
+        ModuleInfo moduleInfo = new ModuleInfo(orgName, packageName, moduleName, version);
+        LibraryMetadataReader.MetadataStatus status = LibraryMetadataReader.getInstance()
+                .inspectMetadata(moduleInfo, isLocalRepository);
+        if (!status.packageResolved()) {
+            return Optional.of(error(ModelResolutionError.PACKAGE_NOT_RESOLVED,
+                    "The package " + orgName + "/" + packageName + " could not be resolved.",
+                    orgName, packageName, moduleName));
+        }
+        if (!status.metadataPresent()) {
+            return Optional.of(error(ModelResolutionError.TRIGGER_METADATA_NOT_FOUND,
+                    "The package does not contain metadata/trigger-metadata.json.",
+                    orgName, packageName, moduleName));
+        }
+        if (!status.metadataValid()) {
+            return Optional.of(error(ModelResolutionError.TRIGGER_METADATA_INVALID,
+                    "The package contains an invalid or unsupported metadata/trigger-metadata.json.",
+                    orgName, packageName, moduleName));
+        }
+        if (!hasSchemaDrivenModel(orgName, moduleName, version, isLocalRepository)) {
+            return Optional.of(error(ModelResolutionError.SERVICE_NOT_FOUND,
+                    "The trigger metadata could not be converted into a service form.",
+                    orgName, packageName, moduleName));
+        }
+        return Optional.empty();
+    }
+
+    private static ModelResolutionError error(String code, String message, String orgName, String packageName,
+                                               String moduleName) {
+        return new ModelResolutionError(code, message, orgName, packageName, moduleName);
     }
 
     /** The connector's {@link TriggerUISchemaModel}, synthesized from L1 with L2 applied as an overlay. */

@@ -18,21 +18,25 @@
 
 package io.ballerina.servicemodelgenerator.extension.model.response;
 
+import io.ballerina.servicemodelgenerator.extension.connector.ModelResolutionException;
 import io.ballerina.servicemodelgenerator.extension.model.Service;
 
 import java.util.Arrays;
 
-public record ServiceFromSourceResponse(Service service, String errorMsg, String stacktrace) {
+public record ServiceFromSourceResponse(Service service, String errorMsg, String stacktrace,
+                                        ModelResolutionError resolutionError) {
 
     public ServiceFromSourceResponse() {
-        this(null, null, null);
+        this(null, null, null, null);
     }
 
     public ServiceFromSourceResponse(Service service) {
-        this(service, null, null);
+        this(service, null, null, null);
     }
 
     public ServiceFromSourceResponse(Throwable e) {
-        this(null, e.toString(), Arrays.toString(e.getStackTrace()));
+        this(null, e.toString(), Arrays.toString(e.getStackTrace()),
+                e instanceof ModelResolutionException ex
+                        ? ex.error() : null);
     }
 }

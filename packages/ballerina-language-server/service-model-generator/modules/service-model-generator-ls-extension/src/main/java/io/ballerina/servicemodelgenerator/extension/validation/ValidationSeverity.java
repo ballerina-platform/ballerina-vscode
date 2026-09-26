@@ -18,6 +18,15 @@
 
 package io.ballerina.servicemodelgenerator.extension.validation;
 
+import com.google.gson.JsonDeserializationContext;
+import com.google.gson.JsonDeserializer;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonPrimitive;
+import com.google.gson.JsonSerializationContext;
+import com.google.gson.JsonSerializer;
+
+import java.lang.reflect.Type;
+
 /**
  * How a rule failure is treated: {@link #ERROR} blocks source generation, {@link #WARNING} is
  * reported alongside the generated edits.
@@ -34,5 +43,24 @@ public enum ValidationSeverity {
             return ERROR;
         }
         return WARNING.name().equalsIgnoreCase(severity.trim()) ? WARNING : ERROR;
+    }
+
+    /**
+     * Keeps the wire value the enum name ({@code "ERROR"}/{@code "WARNING"}) the client compares
+     * against. Without it, lsp4j's registered enum adapter writes the ordinal, so an ERROR reaches
+     * the client as {@code 0} and a refused save looks like an empty success.
+     */
+    public static final class WireAdapter implements JsonSerializer<ValidationSeverity>,
+            JsonDeserializer<ValidationSeverity> {
+
+        @Override
+        public JsonElement serialize(ValidationSeverity severity, Type type, JsonSerializationContext context) {
+            return new JsonPrimitive(severity.name());
+        }
+
+        @Override
+        public ValidationSeverity deserialize(JsonElement json, Type type, JsonDeserializationContext context) {
+            return fromWire(json == null || json.isJsonNull() ? null : json.getAsString());
+        }
     }
 }

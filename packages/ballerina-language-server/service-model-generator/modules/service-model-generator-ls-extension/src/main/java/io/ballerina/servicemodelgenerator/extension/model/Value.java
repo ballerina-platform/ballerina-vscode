@@ -114,6 +114,7 @@ public class Value {
         NUMBER,
         RECORD_MAP_EXPRESSION,
         SERVICE_PATH,
+        STRING_LITERAL,
         CHOICE,
         FORM,
         HEADER_SET,

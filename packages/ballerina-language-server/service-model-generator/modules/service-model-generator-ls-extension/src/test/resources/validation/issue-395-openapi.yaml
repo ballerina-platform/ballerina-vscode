@@ -1,0 +1,26 @@
+openapi: 3.0.1
+info:
+  title: Weather API
+  version: 1.0.0
+paths:
+  /weather:
+    get:
+      responses:
+        '200':
+          description: Current weather
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Weather'
+components:
+  schemas:
+    Weather:
+      type: object
+      properties:
+        temperature:
+          type: number
+    weather-data:
+      type: object
+      properties:
+        humidity:
+          type: number

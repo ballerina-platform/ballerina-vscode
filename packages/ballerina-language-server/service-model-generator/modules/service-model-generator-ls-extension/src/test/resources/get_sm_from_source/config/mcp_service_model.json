@@ -124,7 +124,17 @@
         "value": "{\n    info: {\n        name: \"MCP Weather Server\",\n        version: \"1.0.0\"\n    },\n    sessionMode: mcp:AUTO\n}",
         "types": [
           {
-            "fieldType": "EXPRESSION",
+            "fieldType": "RECORD_MAP_EXPRESSION",
+            "ballerinaType": "mcp:ServiceConfiguration",
+            "typeMembers": [
+              {
+                "type": "ServiceConfiguration",
+                "packageInfo": "ballerina:mcp:1.3.0",
+                "packageName": "mcp",
+                "kind": "RECORD_TYPE",
+                "selected": true
+              }
+            ],
             "selected": true
           }
         ],

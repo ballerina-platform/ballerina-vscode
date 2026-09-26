@@ -30,6 +30,7 @@ import io.ballerina.compiler.api.symbols.TypeDescKind;
 import io.ballerina.compiler.api.symbols.TypeSymbol;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
 import io.ballerina.compiler.syntax.tree.SyntaxTree;
+import io.ballerina.compiler.syntax.tree.TypeDefinitionNode;
 import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.openapi.core.generators.common.GeneratorUtils;
 import io.ballerina.openapi.core.generators.common.SingleFileGenerator;
@@ -129,6 +130,7 @@ public class OpenApiServiceGenerator {
 
         List<Diagnostic> diagnostics = new ArrayList<>();
         GenSrcFile serviceTypeFile = generateServiceType(openAPIContractPath, typeName, filter, diagnostics);
+        rejectGeneratedTypeNameCollision(serviceTypeFile, typeName);
         List<String> errorMessages = new ArrayList<>();
         for (Diagnostic diagnostic : diagnostics) {
             DiagnosticSeverity severity = diagnostic.diagnosticInfo().severity();
@@ -176,6 +178,26 @@ public class OpenApiServiceGenerator {
         textEditsMap.put(projectPath.resolve(serviceTypeFile.getFileName()).toAbsolutePath().toString(),
                 List.of(new TextEdit(Utils.toRange(LinePosition.from(0, 0)), updatedSyntaxTree)));
         return textEditsMap;
+    }
+
+    /**
+     * Keep the generator safe for callers that do not go through the service-model validation gate.
+     * The OpenAPI generator emits the service object and schema types into the same file, so a
+     * duplicate declaration for the selected service type name would make references ambiguous.
+     */
+    private static void rejectGeneratedTypeNameCollision(GenSrcFile serviceTypeFile, String typeName)
+            throws BallerinaOpenApiException {
+        SyntaxTree syntaxTree = SyntaxTree.from(TextDocuments.from(serviceTypeFile.getContent()));
+        ModulePartNode modulePartNode = (ModulePartNode) syntaxTree.rootNode();
+        long matchingTypeCount = modulePartNode.members().stream()
+                .filter(TypeDefinitionNode.class::isInstance)
+                .map(TypeDefinitionNode.class::cast)
+                .filter(typeDefinition -> typeName.equals(typeDefinition.typeName().text()))
+                .count();
+        if (matchingTypeCount > 1) {
+            throw new BallerinaOpenApiException("Service type name '%s' conflicts with a type generated from the "
+                    .formatted(typeName) + "OpenAPI specification");
+        }
     }
 
     private static String modifyContractMethodNamesWithErrorReturn(GenSrcFile serviceTypeFile) {

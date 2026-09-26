@@ -238,7 +238,8 @@ export const EditorFactory = (props: FormFieldEditorProps) => {
         return <ReadonlyField field={field} />;
     } else if (fieldInputType.fieldType === "IDENTIFIER" && field.editable) {
         return <IdentifierField field={field} handleOnFieldFocus={handleOnFieldFocus} autoFocus={autoFocus} onBlur={onBlur} />;
-    } else if (fieldInputType.fieldType === "SERVICE_PATH" || fieldInputType.fieldType === "ACTION_PATH") {
+    } else if (fieldInputType.fieldType === "SERVICE_PATH" || fieldInputType.fieldType === "ACTION_PATH"
+        || fieldInputType.fieldType === "STRING_LITERAL") {
         return <PathEditor field={field} handleOnFieldFocus={handleOnFieldFocus} autoFocus={autoFocus} />;
     } else if (fieldInputType.fieldType === "CONDITIONAL_FIELDS" && field.editable) {
         // Conditional fields is a group of fields which are conditionally shown based on a checkbox field

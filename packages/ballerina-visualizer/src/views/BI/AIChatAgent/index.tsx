@@ -107,6 +107,10 @@ export function AIAgentDesigner(props: AIAgentDesignerProps) {
                 setIsSaving(false);
                 const name = res.service?.properties?.["stringLiteral"]?.value || "";
                 setServiceName(name.replace(/^"|"$/g, ""));
+            })
+            .catch((error) => {
+                console.error("Error fetching service model: ", error);
+                setIsSaving(false);
             });
         getProjectListeners();
     };

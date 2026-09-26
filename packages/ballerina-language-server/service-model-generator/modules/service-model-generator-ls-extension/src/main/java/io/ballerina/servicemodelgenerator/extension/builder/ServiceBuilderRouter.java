@@ -31,6 +31,7 @@ import io.ballerina.servicemodelgenerator.extension.builder.service.HttpServiceB
 import io.ballerina.servicemodelgenerator.extension.builder.service.McpOpenApiSchemaDrivenServiceBuilder;
 import io.ballerina.servicemodelgenerator.extension.builder.service.SchemaDrivenServiceBuilder;
 import io.ballerina.servicemodelgenerator.extension.builder.service.TCPServiceBuilder;
+import io.ballerina.servicemodelgenerator.extension.connector.ModelResolutionException;
 import io.ballerina.servicemodelgenerator.extension.connector.TriggerModelReader;
 import io.ballerina.servicemodelgenerator.extension.model.Service;
 import io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel;
@@ -42,6 +43,7 @@ import io.ballerina.servicemodelgenerator.extension.model.context.GetServiceInit
 import io.ballerina.servicemodelgenerator.extension.model.context.ModelFromSourceContext;
 import io.ballerina.servicemodelgenerator.extension.model.context.UpdateModelContext;
 import io.ballerina.servicemodelgenerator.extension.model.request.ServiceModelRequest;
+import io.ballerina.servicemodelgenerator.extension.model.response.ModelResolutionError;
 import io.ballerina.servicemodelgenerator.extension.util.ServiceModelUtils;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceManager;
 import org.eclipse.lsp4j.TextEdit;
@@ -123,7 +125,9 @@ public class ServiceBuilderRouter {
         ServiceMetadata serviceMetadata = ServiceModelUtils.deriveServiceType(
                 (ServiceDeclarationNode) node, semanticModel);
         if (Objects.isNull(serviceMetadata.moduleId())) {
-            return null;
+            throw new ModelResolutionException(new ModelResolutionError(
+                    ModelResolutionError.SERVICE_NOT_FOUND,
+                    "The service type could not be resolved from source.", null, null, null));
         }
         ModuleID moduleID = serviceMetadata.moduleId();
 
@@ -133,10 +137,32 @@ public class ServiceBuilderRouter {
         ModelFromSourceContext context = new ModelFromSourceContext(node, project, semanticModel,
                 workspaceManager, filePath, serviceMetadata.serviceType(), moduleID.orgName(),
                 moduleID.packageName(), moduleID.moduleName(), moduleID.version());
-        Service service = serviceBuilder.getModelFromSource(context);
-        if (service != null) {
-            service.getProperties().forEach((k, v) -> v.setAdvanced(false));
+        Service service;
+        try {
+            service = serviceBuilder.getModelFromSource(context);
+        } catch (Throwable e) {
+            TriggerModelReader.getInstance().getSchemaDrivenResolutionError(
+                    moduleID.orgName(), moduleID.packageName(), moduleID.moduleName(), moduleID.version(), false)
+                    .ifPresent(error -> {
+                        throw new ModelResolutionException(error);
+                    });
+            if (e instanceof RuntimeException runtimeException) {
+                throw runtimeException;
+            }
+            throw new RuntimeException(e);
         }
+        if (service == null) {
+            TriggerModelReader.getInstance().getSchemaDrivenResolutionError(
+                    moduleID.orgName(), moduleID.packageName(), moduleID.moduleName(), moduleID.version(), false)
+                    .ifPresent(error -> {
+                        throw new ModelResolutionException(error);
+                    });
+            throw new ModelResolutionException(new ModelResolutionError(
+                    ModelResolutionError.SERVICE_NOT_FOUND,
+                    "The service model could not be resolved from the selected source range.",
+                    moduleID.orgName(), moduleID.packageName(), moduleID.moduleName()));
+        }
+        service.getProperties().forEach((k, v) -> v.setAdvanced(false));
         return service;
     }
 

@@ -22,10 +22,14 @@ import com.google.gson.Gson;
 import com.google.gson.stream.JsonReader;
 import io.ballerina.centralconnector.CentralAPI;
 import io.ballerina.centralconnector.RemoteCentral;
+import io.ballerina.compiler.api.ModuleID;
 import io.ballerina.compiler.api.SemanticModel;
+import io.ballerina.compiler.api.symbols.AnnotationAttachmentSymbol;
+import io.ballerina.compiler.api.symbols.AnnotationSymbol;
 import io.ballerina.compiler.api.symbols.Symbol;
 import io.ballerina.compiler.api.symbols.TypeDefinitionSymbol;
 import io.ballerina.compiler.api.symbols.TypeReferenceTypeSymbol;
+import io.ballerina.compiler.api.symbols.TypeSymbol;
 import io.ballerina.compiler.syntax.tree.AnnotationNode;
 import io.ballerina.compiler.syntax.tree.BasicLiteralNode;
 import io.ballerina.compiler.syntax.tree.DefaultableParameterNode;
@@ -71,6 +75,7 @@ import io.ballerina.servicemodelgenerator.extension.model.FunctionReturnType;
 import io.ballerina.servicemodelgenerator.extension.model.MetaData;
 import io.ballerina.servicemodelgenerator.extension.model.Parameter;
 import io.ballerina.servicemodelgenerator.extension.model.PropertyType;
+import io.ballerina.servicemodelgenerator.extension.model.PropertyTypeMemberInfo;
 import io.ballerina.servicemodelgenerator.extension.model.Service;
 import io.ballerina.servicemodelgenerator.extension.model.ServiceClass;
 import io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel;
@@ -536,6 +541,16 @@ public final class Utils {
 
     public static void updateAnnotationAttachmentProperty(ServiceDeclarationNode serviceNode,
                                                           Service service) {
+        updateAnnotationAttachmentProperty(serviceNode, service, null);
+    }
+
+    /**
+     * Same as {@link #updateAnnotationAttachmentProperty(ServiceDeclarationNode, Service)}, but when the
+     * model has no property for an annotation found in source, the {@code semanticModel} (if given) is
+     * used to type the property that gets created, rather than leaving it a bare expression.
+     */
+    public static void updateAnnotationAttachmentProperty(ServiceDeclarationNode serviceNode,
+                                                          Service service, SemanticModel semanticModel) {
         Optional<MetadataNode> metadata = serviceNode.metadata();
         if (metadata.isEmpty()) {
             return;
@@ -583,13 +598,53 @@ public final class Utils {
                         .metadata(annotName, annotName)
                         .setCodedata(codedata)
                         .value(getAnnotationValue(annotationNode))
-                        .types(List.of(PropertyType.types(Value.FieldType.EXPRESSION)))
+                        .types(List.of(annotationPropertyType(semanticModel, annotationNode, prefix)))
                         .enabled(true)
                         .editable(true)
                         .build();
                 service.getProperties().put(propertyName, value);
             }
         });
+    }
+
+    /**
+     * The type of an annotation property created from source: a {@code RECORD_MAP_EXPRESSION} over the
+     * annotation's record type when the semantic model resolves it, else a plain {@code EXPRESSION}.
+     */
+    private static PropertyType annotationPropertyType(SemanticModel semanticModel, AnnotationNode annotationNode,
+                                                       String prefix) {
+        PropertyType fallback = PropertyType.types(Value.FieldType.EXPRESSION);
+        if (semanticModel == null) {
+            return fallback;
+        }
+        Optional<Symbol> symbol;
+        try {
+            symbol = semanticModel.symbol(annotationNode);
+        } catch (RuntimeException e) {
+            return fallback;
+        }
+        AnnotationSymbol annotSymbol;
+        if (symbol.isPresent() && symbol.get() instanceof AnnotationAttachmentSymbol attachment) {
+            annotSymbol = attachment.typeDescriptor();
+        } else if (symbol.isPresent() && symbol.get() instanceof AnnotationSymbol annot) {
+            annotSymbol = annot;
+        } else {
+            return fallback;
+        }
+        Optional<TypeSymbol> typeDesc = annotSymbol.typeDescriptor();
+        if (typeDesc.isEmpty() || !(typeDesc.get() instanceof TypeReferenceTypeSymbol typeRef)
+                || typeRef.getName().isEmpty() || typeRef.getModule().isEmpty()) {
+            return fallback;
+        }
+        String typeName = typeRef.getName().get();
+        ModuleID moduleId = typeRef.getModule().get().id();
+        String packageInfo = moduleId.orgName() + COLON + moduleId.packageName() + COLON + moduleId.version();
+        return new PropertyType.Builder()
+                .fieldType(Value.FieldType.RECORD_MAP_EXPRESSION)
+                .ballerinaType(prefix.isEmpty() ? typeName : prefix + COLON + typeName)
+                .setMembers(List.of(new PropertyTypeMemberInfo(typeName, packageInfo, moduleId.packageName(),
+                        "RECORD_TYPE", true)))
+                .build();
     }
 
     /**

@@ -35,6 +35,9 @@ public class ServiceInitModelResponse extends AbstractServiceModelResponse {
 
     public ServiceInitModelResponse(Throwable error) {
         super.setError(error);
+        if (error instanceof io.ballerina.servicemodelgenerator.extension.connector.ModelResolutionException ex) {
+            super.setResolutionError(ex.error());
+        }
     }
 
     public ServiceInitModelResponse(ModelResolutionIssue issue) {

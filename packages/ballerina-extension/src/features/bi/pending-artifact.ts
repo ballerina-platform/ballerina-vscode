@@ -21,6 +21,7 @@ import * as path from "path";
 import { ProgressLocation, window } from "vscode";
 import {
     EVENT_TYPE,
+    hasBlockingValidationErrors,
     INTEGRATION_ARTIFACT_LABELS,
     IntegrationComponentLabel,
     isPathInside,
@@ -298,11 +299,14 @@ async function generatePendingArtifact(
             }
             // Target the new package explicitly (`<projectRoot>/main.bal`) so it works
             // both standalone and when the package lives inside an opened workspace.
-            await new ServiceDesignerRpcManager().createServiceAndListener({
+            const result = await new ServiceDesignerRpcManager().createServiceAndListener({
                 filePath: "",
                 projectPath: projectRoot,
                 serviceInitModel: payload.serviceInitModel,
             });
+            if (hasBlockingValidationErrors(result.validationErrors)) {
+                throw new Error(result.validationErrors.map((validationError) => validationError.message).join(" "));
+            }
             return;
         }
         case "AUTOMATION":

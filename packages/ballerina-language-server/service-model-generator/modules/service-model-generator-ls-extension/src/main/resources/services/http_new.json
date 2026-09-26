@@ -125,7 +125,15 @@
               "types": [
                 {
                   "fieldType": "IDENTIFIER",
-                  "selected": true
+                  "selected": true,
+                  "validations": [
+                    {
+                      "rule": "common.validate.required"
+                    },
+                    {
+                      "rule": "common.validate.identifier"
+                    }
+                  ]
                 }
               ],
               "isType": false,

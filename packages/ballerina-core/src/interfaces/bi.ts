@@ -221,6 +221,7 @@ export type FormFieldInputType = "TEXT" |
     "ACTION_EXPRESSION" |
     "VIEW" |
     "SERVICE_PATH" |
+    "STRING_LITERAL" |
     "ACTION_PATH" |
     "NUMBER" |
     "REPEATABLE_LIST" |

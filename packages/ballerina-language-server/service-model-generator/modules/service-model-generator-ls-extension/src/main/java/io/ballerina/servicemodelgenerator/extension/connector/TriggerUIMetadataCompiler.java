@@ -42,6 +42,7 @@ import java.util.Map;
 
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.CD_TYPE_PAYLOAD_TYPE;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.CD_TYPE_PAYLOAD_TYPE_INCLUDED_RECORD;
+import static io.ballerina.servicemodelgenerator.extension.util.Constants.CD_TYPE_STRING_LITERAL;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.DATA_BINDING;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.PROP_KEY_CODEDATA;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.PROP_KEY_IDENTIFIER;
@@ -1226,7 +1227,31 @@ final class TriggerUIMetadataCompiler {
         if (!field.has("types")) {
             field.add("types", inferTypes(authored.defaultValue()));
         }
+        normalizeStringLiteralWidget(field);
         return field;
+    }
+
+    /**
+     * A string-literal service attach point (e.g. {@code service "QueueName" on ...}) is authored with the
+     * base-path widget, which accepts values that aren't valid there. Retype it as {@code STRING_LITERAL}
+     * so the editor only accepts a double-quoted string literal.
+     */
+    private static void normalizeStringLiteralWidget(JsonObject field) {
+        if (!field.has(PROP_KEY_CODEDATA) || !field.get(PROP_KEY_CODEDATA).isJsonObject()
+                || !CD_TYPE_STRING_LITERAL.equals(string(field.getAsJsonObject(PROP_KEY_CODEDATA), "type"))
+                || !field.has("types") || !field.get("types").isJsonArray()) {
+            return;
+        }
+        for (JsonElement element : field.getAsJsonArray("types")) {
+            if (!element.isJsonObject()) {
+                continue;
+            }
+            JsonObject type = element.getAsJsonObject();
+            if (!"SERVICE_PATH".equals(string(type, "fieldType"))) {
+                continue;
+            }
+            type.addProperty("fieldType", "STRING_LITERAL");
+        }
     }
 
     private static JsonObject serviceAnnotationChildCodedata(JsonObject parent, String key, String parentKey) {

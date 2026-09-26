@@ -571,7 +571,7 @@ public abstract class AbstractServiceBuilder implements ServiceNodeBuilder {
         // Populate additional service properties
         populateListenerInfo(serviceModel, serviceNode);
         updateServiceDocs(serviceNode, serviceModel);
-        updateAnnotationAttachmentProperty(serviceNode, serviceModel);
+        updateAnnotationAttachmentProperty(serviceNode, serviceModel, context.semanticModel());
         updateListenerItems(context.moduleName(), context.semanticModel(), context.project(), serviceModel);
         updateReadOnlyMetadataWithAnnotations(serviceModel, serviceNode, context);
     }

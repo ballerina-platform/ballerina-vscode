@@ -133,7 +133,7 @@
         "value": "\"queueName\"",
         "types": [
           {
-            "fieldType": "SERVICE_PATH",
+            "fieldType": "STRING_LITERAL",
             "selected": true
           }
         ],

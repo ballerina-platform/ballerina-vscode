@@ -20,6 +20,7 @@ package io.ballerina.servicemodelgenerator.extension.connector;
 
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerUISchemaModel;
 import io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel;
+import io.ballerina.servicemodelgenerator.extension.model.response.ModelResolutionError;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -80,5 +81,21 @@ public class TriggerModelReaderSchemaDrivenTest {
         Optional<TriggerUISchemaModel> unknown = TriggerModelReader.getInstance()
                 .getSchemaDrivenTriggerModel("no-such-org", "no-such-module");
         Assert.assertTrue(unknown.isEmpty());
+    }
+
+    @Test
+    public void testUnknownConnectorProvidesActionableResolutionError() {
+        Optional<ModelResolutionError> error = TriggerModelReader.getInstance()
+                .getSchemaDrivenResolutionError("no-such-org", "no-such-package", "no-such-module", null, false);
+        Assert.assertTrue(error.isPresent());
+        Assert.assertEquals(error.get().code(), ModelResolutionError.PACKAGE_NOT_RESOLVED);
+        Assert.assertTrue(error.get().message().contains("no-such-org/no-such-package"));
+    }
+
+    @Test
+    public void testDedicatedServiceDoesNotRequireTriggerMetadata() {
+        Optional<ModelResolutionError> error = TriggerModelReader.getInstance()
+                .getSchemaDrivenResolutionError("ballerina", "http", "http", null, false);
+        Assert.assertTrue(error.isEmpty());
     }
 }

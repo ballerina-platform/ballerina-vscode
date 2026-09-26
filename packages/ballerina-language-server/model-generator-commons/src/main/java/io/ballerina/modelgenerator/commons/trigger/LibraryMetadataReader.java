@@ -133,6 +133,30 @@ public final class LibraryMetadataReader {
     }
 
     /**
+     * Returns enough information for callers to distinguish an absent package/resource from invalid
+     * metadata. The normal model accessors intentionally retain their Optional-based API for callers
+     * where a missing metadata file is a valid fallback.
+     */
+    public MetadataStatus inspectMetadata(ModuleInfo moduleInfo, boolean localRepository) {
+        Optional<Path> root = localRepository ? localPackageRoot(moduleInfo) : packageRoot(moduleInfo);
+        if (root.isEmpty()) {
+            return new MetadataStatus(false, false, false, false, false);
+        }
+        Path packageRoot = root.get();
+        Path metadata = packageRoot.resolve(TRIGGER_METADATA_RESOURCE_PATH);
+        Path uiMetadata = packageRoot.resolve(TRIGGER_UI_METADATA_RESOURCE_PATH);
+        boolean metadataPresent = Files.isRegularFile(metadata);
+        boolean uiMetadataPresent = Files.isRegularFile(uiMetadata);
+        boolean metadataValid = metadataPresent && readTriggerMetadataModel(packageRoot).isPresent();
+        boolean uiMetadataValid = !uiMetadataPresent || readTriggerUIMetadataModel(packageRoot).isPresent();
+        return new MetadataStatus(true, metadataPresent, metadataValid, uiMetadataPresent, uiMetadataValid);
+    }
+
+    public record MetadataStatus(boolean packageResolved, boolean metadataPresent, boolean metadataValid,
+                                 boolean uiMetadataPresent, boolean uiMetadataValid) {
+    }
+
+    /**
      * The connector's own {@code metadata/trigger-metadata.json}, resolved from the Ballerina
      * <b>local</b> repository rather than Central.
      */
@@ -216,7 +240,7 @@ public final class LibraryMetadataReader {
             try {
                 TriggerMetadataModel model = TriggerMetadataGson.instance().fromJson(json, TriggerMetadataModel.class);
                 return requireSupportedVersion(model, packageRoot.resolve(TRIGGER_METADATA_RESOURCE_PATH).toString());
-            } catch (JsonParseException e) {
+            } catch (RuntimeException e) {
                 return Optional.empty();
             }
         });

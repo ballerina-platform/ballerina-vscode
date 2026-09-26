@@ -82,7 +82,21 @@ import { generateExamplePayload } from "../../features/ai/payload-generator/payl
  * refused to generate source; WARNINGs accompany a successful generation and must not block it.
  */
 function getBlockingValidationErrors(validationErrors?: ValidationResult[]): ValidationResult[] {
-    return (validationErrors ?? []).filter((error) => error.severity === "ERROR");
+    return normalizeValidationSeverities(validationErrors).filter((error) => error.severity === "ERROR");
+}
+
+/**
+ * Older language servers serialize the severity enum by ordinal (0 = ERROR, 1 = WARNING) rather
+ * than by name; map those back so a refused save is never mistaken for an empty success.
+ */
+function normalizeValidationSeverities(validationErrors?: ValidationResult[]): ValidationResult[] {
+    return (validationErrors ?? []).map((error) => {
+        const severity: unknown = error.severity;
+        if (typeof severity !== "number") {
+            return error;
+        }
+        return { ...error, severity: severity === 1 ? "WARNING" : "ERROR" };
+    });
 }
 
 /**
@@ -91,7 +105,7 @@ function getBlockingValidationErrors(validationErrors?: ValidationResult[]): Val
  * rather than being dropped once the ERROR check passes.
  */
 function getValidationWarnings(validationErrors?: ValidationResult[]): ValidationResult[] {
-    return (validationErrors ?? []).filter((error) => error.severity !== "ERROR");
+    return normalizeValidationSeverities(validationErrors).filter((error) => error.severity !== "ERROR");
 }
 
 export class ServiceDesignerRpcManager implements ServiceDesignerAPI {

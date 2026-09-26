@@ -312,7 +312,8 @@ class FunctionSearchCommand extends SearchCommand {
         List<String> functionNames = POPULAR_BALLERINA_FUNCTIONS.values().stream()
                 .flatMap(List::stream)
                 .toList();
-        return Map.of(FETCH_KEY, dbManager.searchFunctionsByPackages(popularModules, functionNames, limit, offset));
+        return Map.of(FETCH_KEY, dbManager.searchFunctionsByPackages(popularModules, functionNames,
+                Integer.MAX_VALUE, 0));
     }
 
     /**

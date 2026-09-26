@@ -34,6 +34,7 @@ import {
 import { BiWsClient } from "../../../wsManager/WsClient";
 import { PullingStatus, useServiceInitModel } from "../../hooks/useServiceInitModel";
 import { ArtifactCard } from "../../artifactCatalog";
+import { ServiceModelError } from "../../../ServiceDesigner/ServiceModelError";
 
 const StatusContainer = styled.div`
     flex: 1;
@@ -104,7 +105,7 @@ interface ServiceConfigureFormProps {
  */
 export function ServiceConfigureForm({ wsClient, projectRoot, selection, isSubmitting, cachedModel, onModelLoaded, onSubmit }: ServiceConfigureFormProps) {
     const { org, packageName, moduleName } = selection.artifactInfo;
-    const { model, pullingStatus } = useServiceInitModel({
+    const { model, pullingStatus, resolutionError, retry } = useServiceInitModel({
         wsClient,
         projectRoot,
         orgName: org,
@@ -163,12 +164,10 @@ export function ServiceConfigureForm({ wsClient, projectRoot, selection, isSubmi
                         </StatusCard>
                     )}
                     {pullingStatus === PullingStatus.ERROR && (
-                        <StatusCard>
-                            <Icon name="bi-error" sx={{ color: ThemeColors.ERROR, fontSize: "18px" }} />
-                            <Typography variant="body2">
-                                Failed to load the {packageName} package. Please go back and try again.
-                            </Typography>
-                        </StatusCard>
+                        <ServiceModelError
+                            error={resolutionError}
+                            onRetry={retry}
+                        />
                     )}
                 </StatusContainer>
             )}

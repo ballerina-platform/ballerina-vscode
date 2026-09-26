@@ -473,6 +473,35 @@ public class TriggerModelSynthesizerTest {
                         + "despite its own declared presence being \"optional\"");
     }
 
+    /** A string-literal identifier is rendered as a {@code STRING_LITERAL} field, not a plain identifier. */
+    @Test
+    public void testStringLiteralIdentifierUsesStringLiteralField() {
+        IdentifierSpec identifier = new IdentifierSpec(
+                IdentifierSpec.PRESENCE_REQUIRED, List.of(IdentifierSpec.FORM_STRING_LITERAL));
+        TriggerMetadataModel.Listener listener = new TriggerMetadataModel.Listener(
+                "$listener", "Listens for events.", new TypeRef("Listener", null), null,
+                List.of("$service"), false, null, null, null);
+        TriggerMetadataModel.ServiceType serviceType = new TriggerMetadataModel.ServiceType(
+                "$service", "A service.", new TypeRef("Service", null), null, false, false,
+                null, identifier, null, null);
+        TriggerMetadataModel authoring = new TriggerMetadataModel(
+                "v1.0", List.of(listener), List.of(serviceType), null, null);
+
+        TriggerLibraryFacts.Listener listenerFacts = new TriggerLibraryFacts.Listener("Listener", List.of());
+        TriggerLibraryFacts facts = new TriggerLibraryFacts(List.of(listenerFacts), List.of(), List.of());
+        Listener listenerModel = listenerModel(Map.of());
+
+        TriggerUISchemaModel model = TriggerModelSynthesizer.synthesize(authoring, facts, listenerModel, "1",
+                "RabbitMQ", null, "event", "ballerinax", "rabbitmq", "rabbitmq", "3.6.0").orElseThrow();
+
+        TriggerUISchemaModel.Property property = model.initProperties().get("identifier");
+        Assert.assertNotNull(property, "a required identifier must be rendered in the init form");
+        TriggerUISchemaModel.PropertyType type = property.types().get(0);
+        Assert.assertEquals(type.fieldType(), "STRING_LITERAL");
+        Assert.assertEquals(property.metadata().label(), "Service Identifier");
+        Assert.assertEquals(property.placeholder(), "\"\"");
+    }
+
     @Test
     public void testDottedModuleNameAnnotationUsesNaturalPrefix() {
         TriggerMetadataModel.Listener listener = new TriggerMetadataModel.Listener(
