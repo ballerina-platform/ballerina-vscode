@@ -19,13 +19,15 @@
 import React, { ReactNode, useState } from "react";
 import styled from "@emotion/styled";
 import { useQuery } from "@tanstack/react-query";
-import { ProjectStructure, isSamePath, BI_COMMANDS } from "@wso2/ballerina-core";
+import { ProjectStructure, isSamePath, BI_COMMANDS, ProductMode } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Typography, Codicon, ProgressRing, Button, Divider, CheckBox, ThemeColors } from "@wso2/ui-toolkit";
 import { VSCodeLink } from "@vscode/webview-ui-toolkit/react";
 import { WICommandIds } from "@wso2/wso2-platform-core";
 import { usePlatformExtContext } from "../../providers/platform-ext-ctx-provider";
 import { DeploymentControlState } from "../../hooks/useDeploymentControl";
+import { AgentManagerSection } from "./AgentManagerSection";
+import { useProductMode } from "../../hooks/useProductMode";
 
 const Title = styled(Typography)`
     margin: 8px 0;
@@ -379,30 +381,6 @@ function WorkflowManagement({ enabled, handleWorkflowManagement }: WorkflowManag
     );
 }
 
-interface AgentManagerTracingProps {
-    enabled: boolean;
-    handleAmpTracing: (checked: boolean) => void;
-}
-
-function AgentManagerTracing({ enabled, handleAmpTracing }: AgentManagerTracingProps) {
-    return (
-        <div>
-            <Title variant="h3">Agent Manager</Title>
-            <p>
-                {"Publish agent traces to WSO2 Agent Manager. Enabling it instruments this "
-                    + "integration to send traces to Agent Manager."}
-            </p>
-            <div style={{ paddingLeft: 10 }}>
-                <CheckBox
-                    checked={enabled}
-                    onChange={handleAmpTracing}
-                    label="Enable Agent Manager instrumentation"
-                />
-            </div>
-        </div>
-    );
-}
-
 const LocalICPBody = styled.div<DeploymentBodyProps>`
     max-height: ${(props: DeploymentBodyProps) => props.isExpanded ? '400px' : '0'};
     visibility: ${(props: DeploymentBodyProps) => props.isExpanded ? 'visible' : 'hidden'};
@@ -643,10 +621,21 @@ export function DeploymentPanel({
     handleJarBuild,
     goToDevant,
 }: DeploymentPanelProps) {
+    const productMode = useProductMode();
+    const agentManagerFirst = hasAgents && productMode === ProductMode.AGENT_BUILDER;
+    const agentManager = (
+        <AgentManagerSection projectPath={projectPath} ampTracingEnabled={ampTracingEnabled} handleAmpTracing={handleAmpTracing} />
+    );
     return (
         <>
             {!isInDevant && (
                 <>
+                    {agentManagerFirst && (
+                        <>
+                            {agentManager}
+                            <Divider sx={{ margin: "16px 0" }} />
+                        </>
+                    )}
                     <DeploymentOptions
                         handleDockerBuild={handleDockerBuild}
                         handleJarBuild={handleJarBuild}
@@ -664,10 +653,10 @@ export function DeploymentPanel({
                             </div>
                         </>
                     )}
-                    {hasAgents && (
+                    {hasAgents && !agentManagerFirst && (
                         <>
                             <Divider sx={{ margin: "16px 0" }} />
-                            <AgentManagerTracing enabled={ampTracingEnabled} handleAmpTracing={handleAmpTracing} />
+                            {agentManager}
                         </>
                     )}
                     {hasWorkflows && (

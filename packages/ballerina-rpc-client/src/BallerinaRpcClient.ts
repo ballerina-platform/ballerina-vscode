@@ -93,6 +93,7 @@ import { TestManagerServiceRpcClient } from "./rpc-clients";
 import { AiAgentRpcClient } from "./rpc-clients/ai-agent/rpc-client";
 import { ICPServiceRpcClient } from "./rpc-clients/icp-service/rpc-client";
 import { WorkflowManagementServiceRpcClient } from "./rpc-clients/workflow-management-service/rpc-client";
+import { AgentManagerRpcClient } from "./rpc-clients/agent-manager/rpc-client";
 import { AgentChatRpcClient } from "./rpc-clients/agent-chat/rpc-client";
 import { PlatformExtRpcClient } from "./rpc-clients/platform-ext/platform-ext-client";
 
@@ -117,6 +118,7 @@ export class BallerinaRpcClient {
     private _aiAgent: AiAgentRpcClient;
     private _icpManager: ICPServiceRpcClient;
     private _workflowManagementManager: WorkflowManagementServiceRpcClient;
+    private _agentManager: AgentManagerRpcClient;
     private _agentChat: AgentChatRpcClient;
     private _platformExt: PlatformExtRpcClient;
     private _identifierUpdatedCallbacks = new Set<(response: ProjectStructureArtifactResponse[]) => void>();
@@ -148,6 +150,7 @@ export class BallerinaRpcClient {
         this._aiAgent = new AiAgentRpcClient(this.messenger);
         this._icpManager = new ICPServiceRpcClient(this.messenger);
         this._workflowManagementManager = new WorkflowManagementServiceRpcClient(this.messenger);
+        this._agentManager = new AgentManagerRpcClient(this.messenger);
         this._agentChat = new AgentChatRpcClient(this.messenger);
         this._platformExt = new PlatformExtRpcClient(this.messenger);
         this.messenger.onNotification(onIdentifierUpdated, (response: ProjectStructureArtifactResponse[]) => {
@@ -183,6 +186,10 @@ export class BallerinaRpcClient {
 
     getWorkflowManagementRpcClient(): WorkflowManagementServiceRpcClient {
         return this._workflowManagementManager;
+    }
+
+    getAgentManagerRpcClient(): AgentManagerRpcClient {
+        return this._agentManager;
     }
 
     getConnectorWizardRpcClient(): ConnectorWizardRpcClient {

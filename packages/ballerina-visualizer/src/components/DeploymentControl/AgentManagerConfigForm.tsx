@@ -1,0 +1,178 @@
+/**
+ * Copyright (c) 2026, WSO2 LLC. (https://www.wso2.com) All Rights Reserved.
+ *
+ * WSO2 LLC. licenses this file to you under the Apache License,
+ * Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+import React, { useEffect, useState } from "react";
+import styled from "@emotion/styled";
+import { AgentManagerConfigField, AgentManagerConfigForm as ConfigFormData } from "@wso2/ballerina-core";
+import { useRpcContext } from "@wso2/ballerina-rpc-client";
+import { Button, CheckBox, ProgressRing, TextField } from "@wso2/ui-toolkit";
+
+const Form = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+`;
+
+const Group = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+`;
+
+const GroupTitle = styled.span`
+    font-weight: 600;
+`;
+
+const Muted = styled.span`
+    color: var(--vscode-descriptionForeground);
+    font-size: 12px;
+`;
+
+const ErrorText = styled.span`
+    color: var(--vscode-errorForeground);
+    word-break: break-word;
+`;
+
+const Actions = styled.div`
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+`;
+
+interface AgentManagerConfigFormProps {
+    projectPath: string;
+    action: "hostOnPlatform" | "saveConfig";
+    submitLabel: string;
+    onDone: () => void;
+    onCancel: () => void;
+}
+
+function groupFields(fields: AgentManagerConfigField[]): [string, AgentManagerConfigField[]][] {
+    const groups = new Map<string, AgentManagerConfigField[]>();
+    fields.forEach((field) => groups.set(field.group, [...(groups.get(field.group) ?? []), field]));
+    return [...groups.entries()];
+}
+
+function placeholder(field: AgentManagerConfigField): string {
+    if (field.saved) {
+        return field.target === "env" ? "Saved in Agent Manager. Leave empty to keep it." : "Saved in Agent Manager's Config.toml.";
+    }
+    return field.required ? "Required" : "Optional";
+}
+
+export function AgentManagerConfigForm({ projectPath, action, submitLabel, onDone, onCancel }: AgentManagerConfigFormProps) {
+    const { rpcClient } = useRpcContext();
+    const [form, setForm] = useState<ConfigFormData | undefined>();
+    const [values, setValues] = useState<Record<string, string>>({});
+    const [secrets, setSecrets] = useState<Record<string, boolean>>({});
+    const [submitting, setSubmitting] = useState(false);
+    const [error, setError] = useState<string | undefined>();
+
+    const submit = async (config = { values, secrets }) => {
+        setSubmitting(true);
+        setError(undefined);
+        try {
+            const response = await rpcClient.getAgentManagerRpcClient().runAgentManagerAction({ projectPath, action, config });
+            response.success ? onDone() : setError(response.message);
+        } catch (err) {
+            setError(String(err));
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    useEffect(() => {
+        const failed = (err: unknown): ConfigFormData => ({ fields: [], fileSaved: false, error: String(err) });
+        rpcClient.getAgentManagerRpcClient().getAgentManagerConfigForm({ projectPath }).catch(failed).then((loaded) => {
+            const initial = Object.fromEntries(loaded.fields.filter((f) => f.localValue && !f.saved).map((f) => [f.id, f.localValue!]));
+            setValues(initial);
+            setSecrets(Object.fromEntries(loaded.fields.map((f) => [f.id, f.secret])));
+            setForm(loaded);
+            if (loaded.fields.length === 0 && !loaded.error && action === "hostOnPlatform") {
+                submit({ values: {}, secrets: {} });
+            }
+        });
+    }, [projectPath]);
+
+    if (!form || (form.fields.length === 0 && submitting)) {
+        return <ProgressRing />;
+    }
+    const fileFields = form.fields.some((f) => f.target === "file" && !f.unsupported);
+    return (
+        <Form>
+            {form.error && <ErrorText>Couldn't read this agent's configurables: {form.error}</ErrorText>}
+            {form.fields.length === 0 && !form.error && <Muted>This agent has no configurables to set.</Muted>}
+            {groupFields(form.fields).map(([group, fields]) => (
+                <Group key={group}>
+                    <GroupTitle>{group}</GroupTitle>
+                    {fields.map((field) => (
+                        <ConfigFieldInput
+                            key={field.id}
+                            field={field}
+                            value={values[field.id] ?? ""}
+                            secret={secrets[field.id] ?? field.secret}
+                            onValue={(value) => setValues({ ...values, [field.id]: value })}
+                            onSecret={(secret) => setSecrets({ ...secrets, [field.id]: secret })}
+                        />
+                    ))}
+                </Group>
+            ))}
+            {fileFields && form.fileSaved && (
+                <Muted>Library and record values are saved together as a Config.toml file. Saving any of them replaces that file.</Muted>
+            )}
+            {error && <ErrorText>{error}</ErrorText>}
+            <Actions>
+                <Button appearance="primary" disabled={submitting} onClick={() => submit()}>{submitLabel}</Button>
+                <Button appearance="secondary" disabled={submitting} onClick={onCancel}>Cancel</Button>
+            </Actions>
+        </Form>
+    );
+}
+
+interface ConfigFieldInputProps {
+    field: AgentManagerConfigField;
+    value: string;
+    secret: boolean;
+    onValue: (value: string) => void;
+    onSecret: (secret: boolean) => void;
+}
+
+function ConfigFieldInput({ field, value, secret, onValue, onSecret }: ConfigFieldInputProps) {
+    const label = `${field.label}${field.required ? " *" : ""}`;
+    if (field.unsupported) {
+        return (
+            <Group>
+                <span>{label}</span>
+                <Muted>{field.type} · {field.unsupported}</Muted>
+            </Group>
+        );
+    }
+    return (
+        <Group>
+            <TextField
+                label={label}
+                description={field.type}
+                value={value}
+                placeholder={placeholder(field)}
+                type={secret ? "password" : "text"}
+                onTextChange={onValue}
+            />
+            <CheckBox checked={secret} onChange={onSecret} label="Store as a secret" />
+        </Group>
+    );
+}

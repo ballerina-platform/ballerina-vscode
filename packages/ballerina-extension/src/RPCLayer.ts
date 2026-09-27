@@ -43,6 +43,7 @@ import { registerDataMapperRpcHandlers } from './rpc-managers/data-mapper/rpc-ha
 import { registerTestManagerRpcHandlers } from './rpc-managers/test-manager/rpc-handler';
 import { registerIcpServiceRpcHandlers } from './rpc-managers/icp-service/rpc-handler';
 import { registerWorkflowManagementServiceRpcHandlers } from './rpc-managers/workflow-management-service/rpc-handler';
+import { registerAgentManagerRpcHandlers } from './rpc-managers/agent-manager/rpc-handler';
 import { extension } from './BalExtensionContext';
 import { isICPSupported } from './utils/config';
 import { registerAgentChatRpcHandlers } from './rpc-managers/agent-chat/rpc-handler';
@@ -138,6 +139,7 @@ export class RPCLayer {
         registerAiAgentRpcHandlers(RPCLayer._messenger);
         registerIcpServiceRpcHandlers(RPCLayer._messenger);
         registerWorkflowManagementServiceRpcHandlers(RPCLayer._messenger);
+        registerAgentManagerRpcHandlers(RPCLayer._messenger);
         registerAgentChatRpcHandlers(RPCLayer._messenger);
         registerPlatformExtRpcHandlers(RPCLayer._messenger);
 
