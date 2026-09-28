@@ -209,7 +209,7 @@ public class AiUtils {
     private static final String AGENT_TOOL_ANNOT = "AgentTool";
     private static final String REQUIRES_APPROVAL = "requiresApproval";
     private static final String DISPLAY_ANNOT = "display";
-    private static final String GROUP_ANNOT = "Group";
+    private static final String DISPLAY_GROUPS = "groups";
     public static final String AI_GROUP_PATH_KEY = "aiGroupPath";
     private static final String SYSTEM_PROMPT_ROLE = "role";
     private static final String SYSTEM_PROMPT_INSTRUCTIONS = "instructions";
@@ -1322,9 +1322,9 @@ public class AiUtils {
 
     private static List<GroupSegment> getGroupPath(ClassSymbol classSymbol) {
         for (AnnotationAttachmentSymbol annot : classSymbol.annotAttachments()) {
-            if (!isAiAnnotation(annot, GROUP_ANNOT) || annot.attachmentValue().isEmpty()
-                    || !(unwrapConstant(annot.attachmentValue().get()) instanceof Map<?, ?> group)
-                    || !(unwrapConstant(group.get("path")) instanceof List<?> path)) {
+            if (!annot.typeDescriptor().nameEquals(DISPLAY_ANNOT) || annot.attachmentValue().isEmpty()
+                    || !(unwrapConstant(annot.attachmentValue().get()) instanceof Map<?, ?> display)
+                    || !(unwrapConstant(display.get(DISPLAY_GROUPS)) instanceof List<?> path)) {
                 continue;
             }
             List<GroupSegment> segments = new ArrayList<>();
@@ -1890,12 +1890,9 @@ public class AiUtils {
     }
 
     private static boolean hasAiAnnotation(List<AnnotationAttachmentSymbol> annotations, String annotName) {
-        return annotations.stream().anyMatch(annot -> isAiAnnotation(annot, annotName));
-    }
-
-    private static boolean isAiAnnotation(AnnotationAttachmentSymbol annot, String annotName) {
-        return annot.typeDescriptor().nameEquals(annotName) && annot.typeDescriptor().getModule().map(ModuleSymbol::id)
-                .filter(id -> CommonUtils.isAiModule(id.orgName(), id.packageName())).isPresent();
+        return annotations.stream().anyMatch(annot -> annot.typeDescriptor().nameEquals(annotName)
+                && annot.typeDescriptor().getModule().map(ModuleSymbol::id)
+                .filter(id -> CommonUtils.isAiModule(id.orgName(), id.packageName())).isPresent());
     }
 
     public static String getToolDisplayIcon(MethodSymbol method) {

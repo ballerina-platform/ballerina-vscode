@@ -108,7 +108,7 @@ public class AiUtilsGroupingTest {
         }
     }
 
-    @Test(description = "Nests leaves under @ai:Group paths, collapsing single-leaf groups only.")
+    @Test(description = "Nests leaves under their @display group paths, collapsing single-leaf groups only.")
     public void testNestedGroupTree() {
         AvailableNode root = component("AWS Default", "ai.aws", "AwsDefault");
         AvailableNode sonnet = grouped("Claude Sonnet", "AwsSonnet",
