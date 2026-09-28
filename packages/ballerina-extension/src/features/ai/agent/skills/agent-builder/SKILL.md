@@ -223,7 +223,6 @@ isolated class <Toolkit> {
             *mcp:StreamableHttpClientTransportConfig config) returns ai:Error? {
         do {
             self.mcpClient = check new mcp:StreamableHttpClient(serverUrl, config);
-            // Exposes every tool the server has; no supported way here to select only specific ones (known gap).
             self.tools = check ai:getPermittedMcpToolConfigs(self.mcpClient, info, self.callTool).cloneReadOnly();
         } on fail error e {
             return error ai:Error("Failed to initialize MCP toolkit", e);
@@ -238,6 +237,10 @@ isolated class <Toolkit> {
     }
 }
 ```
+
+To expose only some of the server's tools, pass a `map<ai:FunctionTool>` in place of
+`self.callTool`, keyed by MCP tool name (quoted when it is not an identifier), with one dispatcher
+method shaped like `callTool` per tool.
 
 Construct it with the server's URL and list it in `tools` like any other toolkit:
 
@@ -293,6 +296,78 @@ final ai:Agent <agent>Agent = check new (
     tools = [sumTool, multiplyTool, <toolkitVar>]
 );
 ```
+
+### Agent identity (Agent ID)
+
+Only when the user asks for agent identity (an Agent ID) or per-tool scopes: it needs an agent and
+an application registered with an identity provider, and the program does not start until they are
+configured. For any other protected API or MCP server, use the connection's own `auth` and mention
+Agent ID as an option. Requires `ballerina/ai` 1.11.0 or later.
+
+Give the agent a credential:
+
+```ballerina
+configurable string <agent>AgentId = ?;
+configurable string <agent>AgentSecret = ?;
+
+// in the ai:Agent constructor
+credential = {id: <agent>AgentId, secret: <agent>AgentSecret}
+```
+
+A protected tool declares its authorization server and scopes, and sends the token itself:
+
+```ballerina
+@ai:AgentTool {
+    auth: {baseAuthUrl: <authUrl>, clientId: <clientId>, redirectUri: <redirectUri>, scopes: ["<scope>"], isPkceEnabled: true}
+}
+isolated function <toolName>(ai:Context ctx, <params>) returns <Type>|error {
+    string token = check ctx.getAccessToken("<toolName>");
+    <Type> result = check <clientVar>->get(<path>, {"Authorization": string `Bearer ${token}`});
+    return result;
+}
+```
+
+For an MCP toolkit, change the class above in three places: take
+`*ai:StreamableHttpClientTransportConfig config`, split its `auth` in `init`, and put the scopes on
+each dispatcher:
+
+```ballerina
+        do {
+            ai:StreamableHttpClientTransportConfig{auth, ...configs} = config;
+            mcp:StreamableHttpClientTransportConfig mcpConfig = {...configs};
+            ai:AgentIdAuthConfig? agentIdAuth = ();
+            if auth is http:ClientAuthConfig {
+                mcpConfig.auth = auth;
+            } else {
+                agentIdAuth = auth;
+            }
+            self.mcpClient = check new mcp:StreamableHttpClient(serverUrl, mcpConfig);
+            self.tools = check ai:getPermittedMcpToolConfigs(self.mcpClient, info, <permittedTools>, agentIdAuth).cloneReadOnly();
+        } on fail error e {
+            return error ai:Error("Failed to initialize MCP toolkit", e);
+        }
+
+    @ai:AgentTool {auth: {scopes: ["<scope>"]}}
+    public isolated function <dispatcher>(ai:Context ctx, mcp:CallToolParams params) returns mcp:CallToolResult|error {
+        return self.mcpClient->callTool(params, headers = {"Authorization": string `Bearer ${check ctx.getAccessToken(params.name)}`});
+    }
+```
+
+Construct it with `auth = {baseAuthUrl: <authUrl>, clientId: <clientId>, redirectUri: <redirectUri>,
+isPkceEnabled: true}`; the scopes stay on the dispatchers.
+
+**Gotchas**
+
+- The runtime gets each token but never attaches it; the tool must send it. `getAccessToken` takes
+  the tool's name: the function name, the annotation's `name`, or `params.name` for MCP.
+- Default to `isPkceEnabled: true` with no `clientSecret`; add `clientSecret` only for a confidential
+  client. Keep every value in a `configurable`.
+- The identity provider must run the authorization code flow over its API alone, without a browser,
+  and issue JWT access tokens with a `scope` claim. Tell the user.
+- A tool whose scope is missing from the token does not run, and the user gets an authorization
+  error.
+- The agent acts only as itself, never on behalf of the signed-in user.
+- An MCP server used with Agent ID must not use stateful sessions.
 
 ## No expression-bodied functions
 

@@ -85,6 +85,9 @@ Agent: keep its HTTP service, and the user registers the port, base path and an 
 - Outbound calls reach only public hosts on ports 80 and 443, and the platform gateway. Databases,
   private hosts and workflow servers are blocked by default; tell the user when the agent needs one.
 - The gateway times out a request after 30 seconds.
+- The `AMP_AGENTID_*` variables are not the agent's `credential`: they log in to the platform's own
+  MCP proxies. Read them with `os:getEnv` into the toolkit's `auth` as `{tokenUrl, clientId,
+  clientSecret, scopes, optionalParams: {"resource": <proxy URL>}}`.
 
 ### Durable agents
 
