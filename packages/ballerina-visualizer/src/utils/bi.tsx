@@ -280,7 +280,7 @@ export function convertAgentCategoriesToSidePanelCategories(categories: Category
 export function convertModelProviderCategoriesToSidePanelCategories(categories: Category[]): PanelCategory[] {
     return convertCategoriesToSidePanelCategoriesWithIcon(categories, (codedata, iconUrl) => (
         <AIModelIcon type={codedata?.module === "ai" ? codedata.object : codedata?.module} codedata={codedata} iconUrl={iconUrl} />
-    ));
+    ), true);
 }
 
 export function convertVectorStoreCategoriesToSidePanelCategories(categories: Category[]): PanelCategory[] {
@@ -305,7 +305,8 @@ export function convertKnowledgeBaseCategoriesToSidePanelCategories(categories: 
 
 export function convertCategoriesToSidePanelCategoriesWithIcon(
     categories: Category[],
-    iconFactory: IconFactory
+    iconFactory: IconFactory,
+    useClassBadges = false
 ): PanelCategory[] {
     const panelCategories = categories.map((category) => convertDiagramCategoryToSidePanelCategory(category));
     panelCategories.forEach((category, index) => {
@@ -315,7 +316,8 @@ export function convertCategoriesToSidePanelCategoriesWithIcon(
                 const iconUrl = (item as PanelNode)?.metadata?.metadata?.icon;
                 item.icon = iconFactory(codedata, iconUrl);
             } else if ((item as PanelCategory).items) {
-                applyGroupedChildIcons(item as PanelCategory, categories[index]?.items as any[], iconFactory);
+                applyGroupedChildIcons(item as PanelCategory, categories[index]?.items as any[], iconFactory,
+                    useClassBadges);
             }
         });
     });

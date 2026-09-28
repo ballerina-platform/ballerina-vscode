@@ -21,7 +21,7 @@
 import * as React from "react";
 import { Category as PanelCategory, Node as PanelNode } from "@wso2/ballerina-side-panel";
 import { NodeIcon, ConnectorIcon, AIModelIcon } from "@wso2/bi-diagram";
-import { getAIModuleIcon } from "@wso2/ui-toolkit";
+import { Codicon, getAIModuleIcon } from "@wso2/ui-toolkit";
 
 export type IconFactory = (codedata: any, iconUrl?: string) => React.ReactElement;
 
@@ -50,13 +50,13 @@ export function resolveChildBadgeIcon(codedata: any, iconUrl?: string): React.Re
     );
 }
 
-// Class/provider badges are Model/Embedding Provider-only; other grouped lists use the plain node icon.
+// Class/provider badges are opt-in (model/embedding providers); other grouped lists use the plain node icon.
 export function shouldUseClassIcon(
-    hasGroupIconFactory: boolean,
+    useClassBadges: boolean,
     childIconUrl: string | undefined,
     packageIconUrl: string | undefined
 ): boolean {
-    return !hasGroupIconFactory && Boolean(childIconUrl) && childIconUrl !== packageIconUrl;
+    return useClassBadges && Boolean(childIconUrl) && childIconUrl !== packageIconUrl;
 }
 
 export function dataLoaderIconFactory(codedata: any, iconUrl?: string): React.ReactElement {
@@ -80,11 +80,29 @@ export function vectorStoreIconFactory(codedata: any, iconUrl?: string): React.R
     return <AIModelIcon type={codedata?.module} codedata={codedata} iconUrl={iconUrl} />;
 }
 
+function findRawGroup(rawItems: any[] | undefined, title: string): any {
+    return rawItems?.find((r) => r && !("codedata" in r) && r.metadata?.label === title);
+}
+
+const SUBGROUP_ICON_STYLE = { width: "18px", height: "18px", fontSize: "18px" };
+
+// Falls back to the package icon, then a neutral group glyph, when an image is missing or fails to load.
+export function subgroupIcon(iconUrl?: string, packageIconUrl?: string): React.ReactElement {
+    const genericIcon = <Codicon name="layers" sx={{ fontSize: 18, width: 18, height: 18 }} />;
+    const packageIcon = packageIconUrl && packageIconUrl !== iconUrl ? (
+        <ConnectorIcon url={packageIconUrl} style={SUBGROUP_ICON_STYLE} fallbackIcon={genericIcon} />
+    ) : genericIcon;
+    return iconUrl ? <ConnectorIcon url={iconUrl} style={SUBGROUP_ICON_STYLE} fallbackIcon={packageIcon} /> : packageIcon;
+}
+
 // Keeps the package icon on the group header and gives each child its own @display icon.
-export function applyGroupedChildIcons(group: PanelCategory, rawItems: any[], groupIconFactory?: IconFactory): void {
-    const rawGroup = rawItems?.find(
-        (r) => r && !("codedata" in r) && r.metadata?.label === group.title
-    );
+export function applyGroupedChildIcons(
+    group: PanelCategory,
+    rawItems: any[],
+    groupIconFactory?: IconFactory,
+    useClassBadges = false
+): void {
+    const rawGroup = findRawGroup(rawItems, group.title);
     const packageIconUrl: string | undefined = rawGroup?.metadata?.icon;
     const firstChild = group.items?.at(0) as PanelNode | undefined;
 
@@ -97,13 +115,48 @@ export function applyGroupedChildIcons(group: PanelCategory, rawItems: any[], gr
         group.icon = groupIconFactory(firstChild?.metadata?.codedata, firstChild?.metadata?.metadata?.icon);
     }
 
+    applyChildIcons(group, rawGroup?.items, packageIconUrl, useClassBadges, [packageIconUrl]);
+}
+
+// The nearest enclosing group whose icon differs from the leaf's own, so the badge never repeats the main icon.
+export function findContextIconUrl(ancestorIconUrls: (string | undefined)[], ownIconUrl?: string): string | undefined {
+    return [...ancestorIconUrls].reverse().find((url) => url && url !== ownIconUrl);
+}
+
+function applyChildIcons(
+    group: PanelCategory,
+    rawItems: any[] | undefined,
+    packageIconUrl: string | undefined,
+    useClassBadges: boolean,
+    ancestorIconUrls: (string | undefined)[]
+): void {
+    const isNested = ancestorIconUrls.length > 1;
     group.items?.forEach((child) => {
+        const subgroup = child as PanelCategory;
+        if (subgroup.items) {
+            const rawSubgroup = findRawGroup(rawItems, subgroup.title);
+            const subgroupIconUrl: string | undefined = rawSubgroup?.metadata?.icon;
+            subgroup.icon = subgroupIcon(subgroupIconUrl, packageIconUrl);
+            applyChildIcons(subgroup, rawSubgroup?.items, packageIconUrl, useClassBadges,
+                [...ancestorIconUrls, subgroupIconUrl]);
+            return;
+        }
         const childNode = child as PanelNode;
         const codedata = childNode.metadata?.codedata;
         const childIconUrl: string | undefined = childNode.metadata?.metadata?.icon;
-        const hasClassIcon = shouldUseClassIcon(Boolean(groupIconFactory), childIconUrl, packageIconUrl);
-        child.icon = hasClassIcon ? (
-            resolveChildBadgeIcon(codedata, childIconUrl)
+        const ownIconUrl = shouldUseClassIcon(useClassBadges, childIconUrl, packageIconUrl) ? childIconUrl : undefined;
+        const contextIconUrl = findContextIconUrl(ancestorIconUrls, ownIconUrl);
+
+        if (ownIconUrl && !contextIconUrl) {
+            childNode.contextIcon = resolveChildBadgeIcon(codedata, ownIconUrl);
+            childNode.icon = undefined;
+            return;
+        }
+        if (isNested && contextIconUrl) {
+            childNode.contextIcon = subgroupIcon(contextIconUrl, packageIconUrl);
+        }
+        child.icon = ownIconUrl ? (
+            resolveChildBadgeIcon(codedata, ownIconUrl)
         ) : (
             <NodeIcon type={codedata?.node} size={14} />
         );

@@ -21,7 +21,7 @@
 // listed by its label; the group title renders.
 
 import React from "react";
-import { render } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import CardList from "../components/CardList";
 
 const categories: any[] = [
@@ -56,5 +56,125 @@ describe("CardList", () => {
             <CardList categories={[]} title="Nodes" onSelect={jest.fn()} onSearch={undefined as any} />
         );
         expect(container).toBeTruthy();
+    });
+
+    describe("nested groups", () => {
+        const leaf = (id: string) => ({ id, label: id, description: id + " description" });
+        const nested: any[] = [{
+            title: "Model Providers",
+            items: [{
+                title: "AWS Model Providers",
+                description: "aws",
+                items: [
+                    leaf("AWS Default"),
+                    {
+                        title: "Bedrock",
+                        description: "bedrock",
+                        items: [{ title: "Anthropic", description: "anthropic", items: [leaf("Sonnet"), leaf("Haiku")] }, leaf("Titan")],
+                    },
+                ],
+            }],
+        }];
+        const renderNested = () => render(<CardList categories={nested} title="Nodes" onSelect={jest.fn()} />);
+
+        it("shows subgroups as rows with a leaf count instead of expanding them inline", () => {
+            renderNested();
+            fireEvent.click(screen.getByText("AWS Model Providers"));
+            expect(screen.getByText("Bedrock")).toBeTruthy();
+            expect(screen.getByText("3 options")).toBeTruthy();
+            expect(screen.queryByText("Sonnet")).toBeNull();
+        });
+
+        it("drills into a subgroup, naming the current level and the parent to go back to", () => {
+            renderNested();
+            fireEvent.click(screen.getByText("AWS Model Providers"));
+            fireEvent.click(screen.getByText("Bedrock"));
+            fireEvent.click(screen.getByText("Anthropic"));
+            expect(document.activeElement?.textContent).toContain("Sonnet");
+            expect(screen.getByRole("heading", { name: "Anthropic" })).toBeTruthy();
+            expect(screen.getByRole("button", { name: "Back to Bedrock" }).getAttribute("title")).toBe("AWS › Bedrock › Anthropic");
+            expect(screen.getByText("Sonnet")).toBeTruthy();
+            expect(screen.queryByText("Titan")).toBeNull();
+        });
+
+        it("steps back one level at a time, returning to the accordion from the top", () => {
+            renderNested();
+            fireEvent.click(screen.getByText("AWS Model Providers"));
+            fireEvent.click(screen.getByText("Bedrock"));
+            fireEvent.click(screen.getByText("Anthropic"));
+            fireEvent.click(screen.getByRole("button", { name: "Back to Bedrock" }));
+            expect(screen.getByText("Titan")).toBeTruthy();
+            fireEvent.click(screen.getByRole("button", { name: "Back to AWS" }));
+            expect(screen.queryByRole("heading", { name: "Bedrock" })).toBeNull();
+            expect(screen.getByText("AWS Default")).toBeTruthy();
+        });
+
+        it("restores a drilled-in group from a controlled expanded id", () => {
+            render(
+                <CardList
+                    categories={nested}
+                    title="Nodes"
+                    onSelect={jest.fn()}
+                    expandedGroupId={"AWS Model Providers:aws\u001fBedrock:bedrock"}
+                    onExpandedGroupChange={jest.fn()}
+                />
+            );
+            expect(screen.getByText("Titan")).toBeTruthy();
+            expect(screen.getByRole("heading", { name: "Bedrock" })).toBeTruthy();
+        });
+
+        it("falls back to the accordion when the expanded id no longer matches a group", () => {
+            render(
+                <CardList
+                    categories={nested}
+                    title="Nodes"
+                    onSelect={jest.fn()}
+                    expandedGroupId={"AWS Model Providers:aws\u001fGone:gone"}
+                    onExpandedGroupChange={jest.fn()}
+                />
+            );
+            expect(screen.queryByRole("button", { name: /^Back to/ })).toBeNull();
+            expect(screen.getByText("AWS Model Providers")).toBeTruthy();
+        });
+
+        it("steps back one level with Backspace or Alt+Left from inside the list", () => {
+            renderNested();
+            fireEvent.click(screen.getByText("AWS Model Providers"));
+            fireEvent.click(screen.getByText("Bedrock"));
+            fireEvent.click(screen.getByText("Anthropic"));
+            fireEvent.keyDown(document.activeElement as Element, { key: "Backspace" });
+            expect(screen.getByRole("heading", { name: "Bedrock" })).toBeTruthy();
+            fireEvent.keyDown(document.activeElement as Element, { key: "ArrowLeft", altKey: true });
+            expect(screen.getByText("AWS Default")).toBeTruthy();
+        });
+
+        it("merges a single-subgroup chain into one row and one level", () => {
+            const chained: any[] = [{
+                title: "Model Providers",
+                items: [{
+                    title: "AWS Model Providers",
+                    description: "aws",
+                    items: [
+                        leaf("AWS Default"),
+                        {
+                            title: "SageMaker",
+                            description: "sm",
+                            items: [{
+                                title: "JumpStart",
+                                description: "js",
+                                items: [{ title: "Hugging Face", description: "hf", items: [leaf("Falcon"), leaf("Mixtral")] }],
+                            }],
+                        },
+                    ],
+                }],
+            }];
+            render(<CardList categories={chained} title="Nodes" onSelect={jest.fn()} />);
+            fireEvent.click(screen.getByText("AWS Model Providers"));
+            fireEvent.click(screen.getByText("SageMaker › JumpStart › Hugging Face"));
+            expect(screen.getByText("Falcon")).toBeTruthy();
+            expect(screen.getByRole("heading", { name: "SageMaker › JumpStart › Hugging Face" })).toBeTruthy();
+            fireEvent.click(screen.getByRole("button", { name: "Back to AWS" }));
+            expect(screen.getByText("AWS Default")).toBeTruthy();
+        });
     });
 });

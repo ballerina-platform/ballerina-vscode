@@ -40,6 +40,8 @@ export type Node = {
     label: string;
     description: string;
     icon?: JSX.Element;
+    // Main icon for a grouped child; `icon` becomes its badge.
+    contextIcon?: JSX.Element;
     enabled?: boolean;
     metadata?: any;
 };

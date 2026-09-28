@@ -23,16 +23,20 @@ jest.mock('@wso2/bi-diagram', () => ({
     AIModelIcon: (props: any) => ({ type: 'AIModelIcon', props }),
 }), { virtual: true });
 jest.mock('@wso2/ui-toolkit', () => ({
+    Codicon: (props: any) => ({ type: 'Codicon', props }),
     getAIModuleIcon: jest.fn((): undefined => undefined),
 }), { virtual: true });
 
 import { NodeIcon, ConnectorIcon, AIModelIcon } from "@wso2/bi-diagram";
+import { Codicon } from "@wso2/ui-toolkit";
 import {
     applyGroupedChildIcons,
     chunkerIconFactory,
     dataLoaderIconFactory,
     getPackageKeyFromIconUrl,
+    findContextIconUrl,
     shouldUseClassIcon,
+    subgroupIcon,
     vectorStoreIconFactory,
 } from "./group-icons";
 
@@ -40,12 +44,12 @@ import {
 
 describe("shouldUseClassIcon", () => {
     it.each([
-        ["group has an icon factory (data loader/chunker/vector store/knowledge base)", true, "https://icons/a.png", "https://icons/pkg.png", false],
-        ["group has no icon factory (model/embedding provider) and child icon differs from package icon", false, "https://icons/a.png", "https://icons/pkg.png", true],
-        ["group has no icon factory but child icon matches the package icon", false, "https://icons/pkg.png", "https://icons/pkg.png", false],
-        ["group has no icon factory and the child has no icon", false, undefined, "https://icons/pkg.png", false],
-    ])("%s", (_name, hasGroupIconFactory, childIconUrl, packageIconUrl, expected) => {
-        expect(shouldUseClassIcon(hasGroupIconFactory, childIconUrl, packageIconUrl)).toBe(expected);
+        ["class badges are off (data loader/chunker/vector store/knowledge base)", false, "https://icons/a.png", "https://icons/pkg.png", false],
+        ["class badges are on (model/embedding provider) and child icon differs from package icon", true, "https://icons/a.png", "https://icons/pkg.png", true],
+        ["class badges are on but child icon matches the package icon", true, "https://icons/pkg.png", "https://icons/pkg.png", false],
+        ["class badges are on and the child has no icon", true, undefined, "https://icons/pkg.png", false],
+    ])("%s", (_name, useClassBadges, childIconUrl, packageIconUrl, expected) => {
+        expect(shouldUseClassIcon(useClassBadges, childIconUrl, packageIconUrl)).toBe(expected);
     });
 });
 
@@ -153,7 +157,7 @@ describe("applyGroupedChildIcons", () => {
         expect(group.icon).toBeUndefined();
     });
 
-    it("gives a child its own class badge when the group has no icon factory (model/embedding provider)", () => {
+    it("gives a child its own class badge when class badges are on (model/embedding provider)", () => {
         const group: any = {
             title: "My Group",
             items: [
@@ -163,13 +167,14 @@ describe("applyGroupedChildIcons", () => {
                 },
             ],
         };
-        applyGroupedChildIcons(group, rawItems);
+        applyGroupedChildIcons(group, rawItems, undefined, true);
         const childIcon: any = group.items[0].icon;
         expect(childIcon.type).toBe(ConnectorIcon);
         expect(childIcon.props.url).toBe("https://icons/openai.png");
+        expect(group.items[0].contextIcon).toBeUndefined();
     });
 
-    it("gives every child the plain node icon when the group has an icon factory (data loader/chunker/vector store/knowledge base)", () => {
+    it("gives every child the plain node icon when class badges are off (data loader/chunker/vector store/knowledge base)", () => {
         const group: any = {
             title: "My Group",
             items: [
@@ -195,9 +200,98 @@ describe("applyGroupedChildIcons", () => {
                 },
             ],
         };
-        applyGroupedChildIcons(group, rawItems);
+        applyGroupedChildIcons(group, rawItems, undefined, true);
         const childIcon: any = group.items[0].icon;
         expect(childIcon.type).toBe(NodeIcon);
         expect(childIcon.props.type).toBe("CLASS_INIT");
+    });
+
+    it("recurses into subgroups, giving each its own icon", () => {
+        const leaf = { id: "1", metadata: { codedata: { node: "MODEL_PROVIDER" }, metadata: { icon: "https://icons/pkg.png" } } };
+        const group: any = { title: "AWS", items: [{ title: "Bedrock", items: [{ title: "Meta", items: [leaf] }] }] };
+        const raw = [{
+            metadata: { label: "AWS", icon: "https://icons/pkg.png" },
+            items: [{
+                metadata: { label: "Bedrock", icon: "https://icons/bedrock.png" },
+                items: [{ metadata: { label: "Meta", icon: "https://icons/meta.png" }, items: [leaf] }],
+            }],
+        }];
+
+        applyGroupedChildIcons(group, raw, undefined, true);
+
+        const bedrock = group.items[0];
+        expect(bedrock.icon.type).toBe(ConnectorIcon);
+        expect(bedrock.icon.props.url).toBe("https://icons/bedrock.png");
+        expect(bedrock.icon.props.fallbackIcon.props.url).toBe("https://icons/pkg.png");
+        expect(bedrock.items[0].icon.props.url).toBe("https://icons/meta.png");
+        expect(bedrock.items[0].items[0].icon.type).toBe(NodeIcon);
+        expect(bedrock.items[0].items[0].contextIcon.props.url).toBe("https://icons/meta.png");
+    });
+
+    const nestedTree = (leafIconUrl: string) => ({
+        group: {
+            title: "AWS",
+            items: [{
+                title: "Bedrock",
+                items: [{
+                    title: "Anthropic",
+                    items: [{ id: "1", metadata: { codedata: { node: "MODEL_PROVIDER" }, metadata: { icon: leafIconUrl } } }],
+                }],
+            }],
+        } as any,
+        raw: [{
+            metadata: { label: "AWS", icon: "https://icons/pkg.png" },
+            items: [{
+                metadata: { label: "Bedrock", icon: "https://icons/bedrock.png" },
+                items: [{ metadata: { label: "Anthropic", icon: "https://icons/anthropic.png" }, items: [] as any[] }],
+            }],
+        }],
+    });
+
+    it("uses the nearest group with a different icon as a nested leaf's main icon and its own icon as the badge", () => {
+        const { group, raw } = nestedTree("https://icons/anthropic.png");
+        applyGroupedChildIcons(group, raw, undefined, true);
+        const leaf = group.items[0].items[0].items[0];
+        expect(leaf.contextIcon.props.url).toBe("https://icons/bedrock.png");
+        expect(leaf.icon.props.url).toBe("https://icons/anthropic.png");
+    });
+
+    it("keeps nested leaves on the node badge and the nearest group icon when class badges are off", () => {
+        const { group, raw } = nestedTree("https://icons/anthropic.png");
+        applyGroupedChildIcons(group, raw);
+        const leaf = group.items[0].items[0].items[0];
+        expect(leaf.contextIcon.props.url).toBe("https://icons/anthropic.png");
+        expect(leaf.icon.type).toBe(NodeIcon);
+    });
+});
+
+describe("findContextIconUrl", () => {
+    it.each([
+        ["nearest ancestor differs", ["pkg", "bedrock", "anthropic"], "meta", "anthropic"],
+        ["skips an ancestor that matches the leaf", ["pkg", "bedrock", "anthropic"], "anthropic", "bedrock"],
+        ["skips ancestors without an icon", ["pkg", undefined], "meta", "pkg"],
+        ["no ancestor differs", ["meta", "meta"], "meta", undefined],
+    ])("%s", (_name, ancestors, own, expected) => {
+        expect(findContextIconUrl(ancestors as (string | undefined)[], own as string)).toBe(expected);
+    });
+});
+
+describe("subgroupIcon", () => {
+    it("falls back from the subgroup icon to the package icon to the generic group glyph", () => {
+        const icon: any = subgroupIcon("https://icons/bedrock.png", "https://icons/pkg.png");
+        expect(icon.props.url).toBe("https://icons/bedrock.png");
+        expect(icon.props.fallbackIcon.props.url).toBe("https://icons/pkg.png");
+        expect(icon.props.fallbackIcon.props.fallbackIcon.type).toBe(Codicon);
+    });
+
+    it("uses the generic group glyph when neither icon exists", () => {
+        const icon: any = subgroupIcon(undefined, undefined);
+        expect(icon.type).toBe(Codicon);
+        expect(icon.props.name).toBe("layers");
+    });
+
+    it("does not repeat the package icon as its own fallback", () => {
+        const icon: any = subgroupIcon("https://icons/pkg.png", "https://icons/pkg.png");
+        expect(icon.props.fallbackIcon.type).toBe(Codicon);
     });
 });
