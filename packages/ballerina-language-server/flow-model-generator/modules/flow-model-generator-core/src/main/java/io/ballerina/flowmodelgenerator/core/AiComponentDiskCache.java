@@ -49,7 +49,7 @@ import java.util.logging.Logger;
 class AiComponentDiskCache {
 
     private static final Logger LOGGER = Logger.getLogger(AiComponentDiskCache.class.getName());
-    private static final int SCHEMA_VERSION = 2;
+    private static final int SCHEMA_VERSION = 3;
     private static final String CACHE_DIR_NAME = "ballerina-ls-ai-component-cache";
 
     private final Path cacheDirectory;
@@ -160,7 +160,7 @@ class AiComponentDiskCache {
     }
 
     record CachedComponent(String className, String label, String description,
-                           String category, String symbol, String icon) {
+                           String category, String symbol, String icon, List<AiUtils.GroupSegment> groupPath) {
     }
 
     private record ModuleCache(int schemaVersion, List<CachedComponent> components) {
