@@ -34,6 +34,7 @@ import {
     OpenAPISpec,
 } from "@wso2/ballerina-core";
 import { getSession, signIn, signOut } from "./auth";
+import { offerCopilotMcp } from "./copilot";
 import { buildConfigFields, CONFIG_FILE, readPackage, splitConfig, SplitConfig } from "./configurables";
 import {
     ensureGitIgnored, inspectSource, isExposed, LOCAL_ONLY_FILES, openCommitView, Preparation, readFacts, renameRemote,
@@ -149,6 +150,9 @@ function deployedCommit(imageId?: string): string | undefined {
 const ACTIONS: Record<AgentManagerAction, (projectPath: string, config?: AgentManagerConfigInput) => Promise<string | void>> = {
     signIn: async () => {
         const session = await signIn();
+        if (session) {
+            void offerCopilotMcp();
+        }
         return session && `Signed in to Agent Manager (${session.org}).`;
     },
     signOut: async () => signOut(),
@@ -173,6 +177,7 @@ const ACTIONS: Record<AgentManagerAction, (projectPath: string, config?: AgentMa
     saveConfig,
     openBuildLogs,
     openRuntimeLogs,
+    setRepoAccess,
     unlink: async (projectPath) => removeLink(projectPath),
 };
 
@@ -337,8 +342,11 @@ async function hostOnPlatform(projectPath: string, config?: AgentManagerConfigIn
             env: split.env,
             file: split.file && { ...CONFIG_FILE, ...split.file },
         });
-    } else if (config) {
-        await saveConfigFor(projectPath, link, config);
+    } else {
+        await ensureAgentRepoAccess(link, git);
+        if (config) {
+            await saveConfigFor(projectPath, link, config);
+        }
     }
     writeLink(projectPath, link);
     return `'${link.agent}' created in Agent Manager. Building from ${git.branch}@${git.commit.slice(0, 7)}.`;
@@ -366,7 +374,7 @@ async function switchBranchIfNeeded(link: AgentManagerLink, branch: string): Pro
         { modal: true, detail: `'${link.agent}' builds from '${agentBranch}'. Switching makes future builds use '${branch}'.` },
         switchAction
     ));
-    await api.setBranch(link, agent, branch);
+    await api.updateRepository(link, agent, { branch });
 }
 
 export async function getConfigForm(projectPath: string): Promise<AgentManagerConfigForm> {
@@ -567,16 +575,59 @@ async function prepareProject(projectPath: string): Promise<string> {
 }
 
 async function ensureRepoAccess(git: GitHubSource): Promise<string | undefined> {
-    const repoPath = git.repository;
-    if (!git.isPrivate) {
-        return undefined;
+    return await isPrivateRepo(git) ? chooseGitSecret(git.repository) : undefined;
+}
+
+async function ensureAgentRepoAccess(link: AgentManagerLink, git: GitHubSource): Promise<void> {
+    const agent = await api.getAgent(link);
+    const secretRef = agent.provisioning?.repository?.secretRef ? undefined : await ensureRepoAccess(git);
+    if (secretRef) {
+        await api.updateRepository(link, agent, { secretRef });
     }
-    if ((await getSession())?.cloud) {
-        throw new Error(`${repoPath} is private. Agent Manager in WSO2 Cloud builds public repositories only for now.`);
+}
+
+async function setRepoAccess(projectPath: string): Promise<string> {
+    const link = await requireLink(projectPath);
+    const git = await requireGitHubSource(projectPath);
+    const secretRef = await chooseGitSecret(git.repository);
+    await api.updateRepository(link, await api.getAgent(link), { secretRef });
+    return `'${link.agent}' now clones ${git.repository} with the token ${secretRef}.`;
+}
+
+async function isPrivateRepo(git: GitHubSource): Promise<boolean> {
+    if (git.isPrivate !== undefined) {
+        return git.isPrivate;
     }
+    const isPrivate = "Private";
+    const choice = required(await vscode.window.showWarningMessage(
+        `Couldn't check whether ${git.repository} is private.`,
+        { modal: true, detail: "Agent Manager needs a read-only token to clone a private repository." },
+        isPrivate,
+        "Public"
+    ));
+    return choice === isPrivate;
+}
+
+async function chooseGitSecret(repository: string): Promise<string> {
+    const name = toResourceName(`${repository.replace("/", "-")}-git`);
+    const exists = await api.hasGitSecret(name);
+    const reuse = "Use Existing Token";
+    if (exists && required(await vscode.window.showInformationMessage(
+        `Agent Manager already has a token for ${repository}.`, { modal: true }, reuse, "Replace Token")) === reuse) {
+        return name;
+    }
+    const { username, token } = await askGitCredentials(repository);
+    if (exists) {
+        await api.deleteGitSecret(name);
+    }
+    await api.createGitSecret(name, username, token);
+    return name;
+}
+
+async function askGitCredentials(repository: string): Promise<{ username: string; token: string }> {
     const username = required(await vscode.window.showInputBox({
         title: "Private repository: GitHub username",
-        prompt: `${repoPath} is private. Agent Manager needs a read-only token to clone it.`,
+        prompt: `Agent Manager needs a read-only token to clone ${repository}.`,
         ignoreFocusOut: true,
     }));
     const token = required(await vscode.window.showInputBox({
@@ -585,9 +636,7 @@ async function ensureRepoAccess(git: GitHubSource): Promise<string | undefined> 
         password: true,
         ignoreFocusOut: true,
     }));
-    const secretName = toResourceName(`${repoPath.split("/")[1]}-git`);
-    await api.createGitSecret(secretName, username, token);
-    return secretName;
+    return { username, token };
 }
 
 // ---- Deriving the agent from the package -------------------------------------------------------
@@ -602,7 +651,7 @@ function hasAmpImport(projectPath: string): boolean {
 }
 
 function toResourceName(value: string): string {
-    return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 63);
+    return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+/, "").slice(0, 63).replace(/-+$/, "");
 }
 
 function readBalSources(projectPath: string): string {

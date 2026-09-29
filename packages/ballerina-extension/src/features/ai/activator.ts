@@ -312,6 +312,7 @@ function setupMcp(): Promise<void> {
     const workspacePath = resolveProjectRootPath() || undefined;
     const workspaceTrusted = vscodeWorkspace.isTrusted;
     const manager = initMcpClientManager(overrides, workspacePath, workspaceTrusted);
+    manager.onDidChange = () => pushMcpUpdate(manager);
     // Trust changes and file edits both flow through reevaluate()'s single reconciler
     // below, which keeps an already-running manager's trust flag and config in sync —
     // no separate trust listener needed here.

@@ -33,6 +33,7 @@ export type AgentManagerAction =
     | "saveConfig"
     | "openBuildLogs"
     | "openRuntimeLogs"
+    | "setRepoAccess"
     | "unlink";
 
 export interface AgentManagerLink {
@@ -139,8 +140,27 @@ export interface AgentManagerActionResponse {
     message?: string;
 }
 
+export interface AgentManagerMcpServerOption {
+    id: string;
+    label: string;
+    description: string;
+    added: boolean;
+}
+
+export interface AgentManagerMcpOffer {
+    signedIn: boolean;
+    instance?: string;
+    servers: AgentManagerMcpServerOption[];
+}
+
+export interface AddAgentManagerMcpServersRequest {
+    ids: string[];
+}
+
 export interface AgentManagerAPI {
     getAgentManagerStatus: (params: AgentManagerStatusRequest) => Promise<AgentManagerStatus>;
     runAgentManagerAction: (params: AgentManagerActionRequest) => Promise<AgentManagerActionResponse>;
     getAgentManagerConfigForm: (params: AgentManagerStatusRequest) => Promise<AgentManagerConfigForm>;
+    getAgentManagerMcpOffer: () => Promise<AgentManagerMcpOffer>;
+    addAgentManagerMcpServers: (params: AddAgentManagerMcpServersRequest) => Promise<AgentManagerActionResponse>;
 }

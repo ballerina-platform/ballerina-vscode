@@ -18,9 +18,11 @@
 
 import { RequestType } from "vscode-messenger-common";
 import {
+    AddAgentManagerMcpServersRequest,
     AgentManagerActionRequest,
     AgentManagerActionResponse,
     AgentManagerConfigForm,
+    AgentManagerMcpOffer,
     AgentManagerStatus,
     AgentManagerStatusRequest,
 } from ".";
@@ -32,3 +34,7 @@ export const runAgentManagerAction: RequestType<AgentManagerActionRequest, Agent
     { method: `${_preFix}/runAgentManagerAction` };
 export const getAgentManagerConfigForm: RequestType<AgentManagerStatusRequest, AgentManagerConfigForm> =
     { method: `${_preFix}/getAgentManagerConfigForm` };
+export const getAgentManagerMcpOffer: RequestType<void, AgentManagerMcpOffer> =
+    { method: `${_preFix}/getAgentManagerMcpOffer` };
+export const addAgentManagerMcpServers: RequestType<AddAgentManagerMcpServersRequest, AgentManagerActionResponse> =
+    { method: `${_preFix}/addAgentManagerMcpServers` };

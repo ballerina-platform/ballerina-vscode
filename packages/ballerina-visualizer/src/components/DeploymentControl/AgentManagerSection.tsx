@@ -17,6 +17,7 @@
  */
 
 import React, { useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import styled from "@emotion/styled";
 import { useQuery } from "@tanstack/react-query";
 import { AgentManagerAction, AgentManagerBuild, AgentManagerSource, AgentManagerStatus } from "@wso2/ballerina-core";
@@ -24,6 +25,8 @@ import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Button, CheckBox, Codicon, ContextMenu, ProgressRing, Typography } from "@wso2/ui-toolkit";
 import { VSCodeLink } from "@vscode/webview-ui-toolkit/react";
 import { AgentManagerConfigForm } from "./AgentManagerConfigForm";
+import { PopupModal, PopupModalStep } from "../PopupModal";
+import { CloseButton, HeaderTitleContainer, PopupHeader, PopupSubtitle, PopupTitle } from "../../views/BI/Connection/styles";
 
 const SLOW_START_MS = 3 * 60 * 1000;
 
@@ -150,24 +153,6 @@ export function AgentManagerSection({ projectPath, ampTracingEnabled, handleAmpT
         if (isLoading) {
             return <ProgressRing />;
         }
-        if (formAction && status?.signedIn) {
-            const deploying = formAction === "hostOnPlatform";
-            return (
-                <Card>
-                    <Section>
-                        <b>{deploying ? "Configure before deploying" : `Configuration for ${status.displayName ?? status.link?.agent}`}</b>
-                        <Detail>Values for this agent's configurables in Agent Manager ({status.link?.environment ?? "first environment"}).</Detail>
-                    </Section>
-                    <AgentManagerConfigForm
-                        projectPath={projectPath}
-                        action={formAction}
-                        submitLabel={deploying ? "Deploy" : "Save"}
-                        onDone={closeForm}
-                        onCancel={closeForm}
-                    />
-                </Card>
-            );
-        }
         if (!status?.signedIn) {
             return (
                 <>
@@ -197,6 +182,32 @@ export function AgentManagerSection({ projectPath, ampTracingEnabled, handleAmpT
         <div>
             <Title variant="h3">Agent Manager</Title>
             {renderBody()}
+            {formAction && status?.signedIn && createPortal(
+                <PopupModal onClose={closeForm} autoHeight maxWidth={560} dismissOnEscape>
+                    {(close) => (
+                        <PopupModalStep>
+                            <PopupHeader>
+                                <HeaderTitleContainer>
+                                    <PopupTitle variant="h2">{formAction === "hostOnPlatform" ? "Configure Before Deploying" : "Configuration"}</PopupTitle>
+                                    <PopupSubtitle variant="body2">{status.displayName ?? status.link?.agent ?? "Agent Manager"}</PopupSubtitle>
+                                </HeaderTitleContainer>
+                                <CloseButton appearance="icon" onClick={close}>
+                                    <Codicon name="close" />
+                                </CloseButton>
+                            </PopupHeader>
+                            <AgentManagerConfigForm
+                                projectPath={projectPath}
+                                description={`Values for this agent's configurables in Agent Manager (${status.link?.environment ?? "first environment"}).`}
+                                action={formAction}
+                                submitLabel={formAction === "hostOnPlatform" ? "Deploy" : "Save"}
+                                onDone={close}
+                                onCancel={close}
+                            />
+                        </PopupModalStep>
+                    )}
+                </PopupModal>,
+                document.body
+            )}
         </div>
     );
 }
@@ -299,15 +310,15 @@ function LinkedAgentCard({ status, pending, run, ampTracingEnabled, handleAmpTra
     const link = status.link!;
     const internal = link.mode === "internal";
     const item = (id: AgentManagerAction, label: string) => ({ id, label, onClick: () => run(id) });
+    const repoAccess = status.source?.isPrivate !== false ? [item("setRepoAccess", "Repository Access")] : [];
     const menuItems = [
         ...(internal
-            ? [item("pushAndRebuild", "Rebuild"), item("openBuildLogs", "Build Logs"), item("openRuntimeLogs", "Runtime Logs")]
+            ? [item("pushAndRebuild", "Rebuild"), item("openRuntimeLogs", "Logs"), item("saveConfig", "Configuration"), ...repoAccess]
             : [item("regenerateToken", "Regenerate Token")]),
         item("openInConsole", "Open in Console"),
-        ...(internal ? [item("saveConfig", "Configuration"), item("openDeploymentSettings", "Deployment Settings")] : []),
         ...(status.deployment?.endpointUrl ? [copyEndpointItem(status.deployment.endpointUrl)] : []),
         item("unlink", "Unlink"),
-        item("signOut", `Sign Out of ${instanceLabel(status.instanceUrl!)}`),
+        item("signOut", "Sign Out"),
     ];
     const commit = status.build?.commitId?.slice(0, 7);
 
@@ -545,8 +556,7 @@ function stepLabel(type: string): string {
 }
 
 function instanceLabel(instanceUrl: string): string {
-    const host = new URL(instanceUrl).host;
-    return host.endsWith(".cloud.wso2.com") ? "WSO2 Cloud" : host;
+    return new URL(instanceUrl).host;
 }
 
 function timeAgo(iso: string): string {

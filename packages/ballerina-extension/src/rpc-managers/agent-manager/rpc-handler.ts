@@ -17,17 +17,23 @@
  */
 
 import {
+    AddAgentManagerMcpServersRequest,
+    addAgentManagerMcpServers,
     AgentManagerActionRequest,
     AgentManagerStatusRequest,
     getAgentManagerConfigForm,
+    getAgentManagerMcpOffer,
     getAgentManagerStatus,
     runAgentManagerAction,
 } from "@wso2/ballerina-core";
 import { Messenger } from "vscode-messenger";
+import { addMcpServers, getMcpOffer } from "../../features/agent-manager/copilot";
 import { getConfigForm, getStatus, runAction } from "../../features/agent-manager/flows";
 
 export function registerAgentManagerRpcHandlers(messenger: Messenger) {
     messenger.onRequest(getAgentManagerStatus, (args: AgentManagerStatusRequest) => getStatus(args.projectPath));
     messenger.onRequest(runAgentManagerAction, (args: AgentManagerActionRequest) => runAction(args.projectPath, args.action, args.config));
     messenger.onRequest(getAgentManagerConfigForm, (args: AgentManagerStatusRequest) => getConfigForm(args.projectPath));
+    messenger.onRequest(getAgentManagerMcpOffer, () => getMcpOffer());
+    messenger.onRequest(addAgentManagerMcpServers, (args: AddAgentManagerMcpServersRequest) => addMcpServers(args.ids));
 }

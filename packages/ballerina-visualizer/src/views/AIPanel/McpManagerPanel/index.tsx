@@ -26,6 +26,7 @@ import { AIChatView, DangerActionButton, PrimaryActionButton, SecondaryActionBut
 import AddMcpServerModal from "../components/AIChatInput/AddMcpServerModal";
 import { ExperimentalTag } from "../components/ExperimentalTag";
 import { Loader } from "../components/Loader";
+import { AgentManagerMcpSuggestions } from "./AgentManagerMcpSuggestions";
 
 interface Props {
     onClose: () => void;
@@ -885,6 +886,7 @@ export const McpManagerPanel: React.FC<Props> = ({ onClose, backTooltip }) => {
                         )}
                     </>
                 )}
+                {!togglePending && <AgentManagerMcpSuggestions servers={servers} />}
                 {!mcpToolsEnabled ? (
                     <EmptyHint>
                         MCP support is off.

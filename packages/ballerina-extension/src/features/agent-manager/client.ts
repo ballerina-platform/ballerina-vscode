@@ -19,7 +19,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import { AgentManagerBuild, AgentManagerLink } from "@wso2/ballerina-core";
-import { CLOUD_API_URL, CLOUD_CONSOLE_URL, getAccessToken, getJson, getSession, httpRequest, parseJson } from "./auth";
+import { getAccessToken, getJson, getSession, httpRequest, parseJson } from "./auth";
 
 const LINK_FILE = path.join(".wso2", "agent-manager.json");
 
@@ -130,6 +130,20 @@ export const api = {
         }),
     createGitSecret: (name: string, username: string, password: string) =>
         request("POST", "/git-secrets", { name, type: "basic", credentials: { username, password } }),
+    deleteGitSecret: (name: string) => request("DELETE", `/git-secrets/${name}`),
+    hasGitSecret: async (name: string) => {
+        const pageSize = 50;
+        for (let offset = 0; ; offset += pageSize) {
+            const page = await request<{ secrets: { name: string }[]; total: number }>(
+                "GET", `/git-secrets?limit=${pageSize}&offset=${offset}`);
+            if (page.secrets.some((secret) => secret.name === name)) {
+                return true;
+            }
+            if (page.secrets.length < pageSize || offset + pageSize >= page.total) {
+                return false;
+            }
+        }
+    },
     generateToken: (link: AgentManagerLink, expiresIn: string) =>
         request<{ token: string; expires_at: number }>(
             "POST", `/projects/${link.project}/agents/${link.agent}/token?environment=${link.environment}`,
@@ -162,8 +176,8 @@ export const api = {
     },
     getAgent: (link: AgentManagerLink) =>
         request<any>("GET", `/projects/${link.project}/agents/${link.agent}`),
-    setBranch: (link: AgentManagerLink, agent: any, branch: string) => {
-        const repository = { ...agent.provisioning.repository, branch };
+    updateRepository: (link: AgentManagerLink, agent: any, changes: { branch?: string; secretRef?: string }) => {
+        const repository = { ...agent.provisioning.repository, ...changes };
         return request("PUT", `/projects/${link.project}/agents/${link.agent}/build-parameters`, {
             provisioning: { ...agent.provisioning, repository },
             agentType: agent.agentType,
@@ -227,10 +241,7 @@ async function getConfigItems(link: AgentManagerLink): Promise<{ env: ConfigItem
 
 async function queryObserver(logPath: string, params: Record<string, string>): Promise<string> {
     const { session, token } = await authorize();
-    const { observerBaseUrl } = await getJson(`${session.instanceUrl}/api/v1/config`);
-    if (!isSameSite(observerBaseUrl, session.instanceUrl)) {
-        throw new Error(`Refusing to send your Agent Manager token to ${observerBaseUrl}: it isn't part of ${session.instanceUrl}.`);
-    }
+    const observerBaseUrl = await getObserverBaseUrl(session.instanceUrl);
     const query = new URLSearchParams({ organization: session.org, ...params });
     const body = await getJson(`${observerBaseUrl}/api/v1/${logPath}?${query}`, { Authorization: `Bearer ${token}` });
     return (body.logs ?? []).map((entry: { log: string; timestamp: string }) => `${entry.timestamp}  ${entry.log}`).join("\n");
@@ -253,6 +264,14 @@ export function getRuntimeLogs(link: AgentManagerLink, sinceMinutes: number): Pr
     });
 }
 
+export async function getObserverBaseUrl(instanceUrl: string): Promise<string> {
+    const { observerBaseUrl } = await getJson(`${instanceUrl}/api/v1/config`);
+    if (!isSameSite(observerBaseUrl, instanceUrl)) {
+        throw new Error(`Refusing to trust the observer at ${observerBaseUrl}: it isn't part of ${instanceUrl}.`);
+    }
+    return String(observerBaseUrl).replace(/\/+$/, "");
+}
+
 // Same registrable domain (last two labels) and protocol, e.g. traces.amp.localhost next to api.amp.localhost.
 function isSameSite(candidate: string, trusted: string): boolean {
     try {
@@ -268,8 +287,7 @@ export function consoleUrl(link: AgentManagerLink): string {
     // Prototype assumption: a self-hosted console sits next to the API as console.<domain>.
     const url = new URL(link.instanceUrl);
     url.hostname = url.hostname.replace(/^api\./, "console.");
-    const origin = link.instanceUrl === CLOUD_API_URL ? CLOUD_CONSOLE_URL : url.origin;
-    return `${origin}/org/${link.org}/project/${link.project}/agents/${link.agent}`;
+    return `${url.origin}/org/${link.org}/project/${link.project}/agents/${link.agent}`;
 }
 
 const RESOURCE_NAME = /^(?!\.{1,2}$)[A-Za-z0-9][A-Za-z0-9._-]*$/;

@@ -19,9 +19,7 @@
 import * as crypto from "crypto";
 import * as http from "http";
 import * as vscode from "vscode";
-import { WICommandIds } from "@wso2/wso2-platform-core";
 import { extension } from "../../BalExtensionContext";
-import { getPlatformStsToken } from "../../utils/ai/auth";
 
 // Prototype only: borrows amctl's public client and its fixed loopback redirect.
 const CLIENT_ID = "amctl";
@@ -30,13 +28,10 @@ const REDIRECT_URI = `http://127.0.0.1:${CALLBACK_PORT}/callback`;
 const SESSION_KEY = "ballerina.agentManager.session";
 const DEFAULT_INSTANCE_URL = "http://api.amp.localhost:8080";
 const LOGIN_TIMEOUT_MS = 5 * 60 * 1000;
-export const CLOUD_API_URL = "https://production-wso2cloud.gateway.cloud.wso2.com/agent-manager-service-agent-manager-api";
-export const CLOUD_CONSOLE_URL = "https://console.agent-manager.cloud.wso2.com";
 
 export interface AgentManagerSession {
     instanceUrl: string;
     org: string;
-    cloud?: boolean;
     tokenEndpoint: string;
     accessToken: string;
     refreshToken?: string;
@@ -71,9 +66,6 @@ export async function getAccessToken(): Promise<string | undefined> {
     if (!session) {
         return undefined;
     }
-    if (session.cloud) {
-        return getPlatformStsToken();
-    }
     if (session.expiresAt - 60_000 > Date.now()) {
         return session.accessToken;
     }
@@ -107,48 +99,6 @@ async function refresh(session: AgentManagerSession): Promise<string | undefined
 }
 
 export async function signIn(): Promise<AgentManagerSession | undefined> {
-    const cloud = "WSO2 Cloud";
-    const choice = await vscode.window.showQuickPick(
-        [
-            { label: cloud, description: "Uses your WSO2 Cloud sign-in (same as Devant and Copilot)" },
-            { label: "Self-hosted instance", description: "Sign in through the instance's identity provider" },
-        ],
-        { title: "Connect to Agent Manager", ignoreFocusOut: true }
-    );
-    if (!choice) {
-        return undefined;
-    }
-    return choice.label === cloud ? signInWithWso2Cloud() : signInToSelfHosted();
-}
-
-async function signInWithWso2Cloud(): Promise<AgentManagerSession | undefined> {
-    const token = await getPlatformStsToken();
-    if (!token) {
-        const signInAction = "Sign in to WSO2 Cloud";
-        if (await vscode.window.showWarningMessage("Sign in to WSO2 Cloud first.", signInAction) === signInAction) {
-            await vscode.commands.executeCommand(WICommandIds.SignIn);
-        }
-        return undefined;
-    }
-    const org = await pickOrg(CLOUD_API_URL, token, `Token ${describeToken(token)}.`);
-    if (!org) {
-        return undefined;
-    }
-    const session: AgentManagerSession = { instanceUrl: CLOUD_API_URL, org, cloud: true, tokenEndpoint: "", accessToken: "", expiresAt: 0 };
-    await saveSession(session);
-    return session;
-}
-
-function describeToken(token: string): string {
-    try {
-        const claims = JSON.parse(Buffer.from(token.split(".")[1], "base64url").toString());
-        return `iss=${claims.iss}, aud=${JSON.stringify(claims.aud)}`;
-    } catch {
-        return "is not a JWT";
-    }
-}
-
-async function signInToSelfHosted(): Promise<AgentManagerSession | undefined> {
     const previous = await getSession();
     const instanceUrl = await vscode.window.showInputBox({
         title: "Connect to Agent Manager",
@@ -221,11 +171,10 @@ async function discover(baseUrl: string) {
     };
 }
 
-async function pickOrg(baseUrl: string, accessToken: string, rejectedHint = ""): Promise<string | undefined> {
+async function pickOrg(baseUrl: string, accessToken: string): Promise<string | undefined> {
     const response = await httpRequest(`${baseUrl}/api/v1/orgs`, { headers: { Authorization: `Bearer ${accessToken}` } });
     if (!response.ok) {
-        throw new Error(`Agent Manager rejected the sign-in (${response.status}): `
-            + `${response.text.slice(0, 200) || "(empty body)"}. ${rejectedHint}`.trim());
+        throw new Error(`Agent Manager rejected the sign-in (${response.status}): ${response.text.slice(0, 200) || "(empty body)"}.`);
     }
     const orgs: string[] = (parseJson(`${baseUrl}/api/v1/orgs`, response.text).organizations ?? []).map((org: { name: string }) => org.name);
     if (orgs.length === 0) {
@@ -307,7 +256,7 @@ export async function httpRequest(
     init: { method?: string; headers?: Record<string, string>; body?: string } = {}
 ): Promise<HttpResponse> {
     try {
-        // The WSO2 Cloud gateway rejects requests without a User-Agent.
+        // Some gateways reject requests without a User-Agent.
         const response = await fetch(url, { ...init, headers: { "User-Agent": "wso2-integrator-vscode", ...init.headers } });
         return { ok: response.ok, status: response.status, text: await response.text() };
     } catch (error) {

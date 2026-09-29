@@ -21,12 +21,7 @@ import styled from "@emotion/styled";
 import { AgentManagerConfigField, AgentManagerConfigForm as ConfigFormData } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Button, CheckBox, ProgressRing, TextField } from "@wso2/ui-toolkit";
-
-const Form = styled.div`
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-`;
+import { PopupContent, PopupFooter } from "../../views/BI/Connection/styles";
 
 const Group = styled.div`
     display: flex;
@@ -48,14 +43,9 @@ const ErrorText = styled.span`
     word-break: break-word;
 `;
 
-const Actions = styled.div`
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-`;
-
 interface AgentManagerConfigFormProps {
     projectPath: string;
+    description: string;
     action: "hostOnPlatform" | "saveConfig";
     submitLabel: string;
     onDone: () => void;
@@ -70,12 +60,12 @@ function groupFields(fields: AgentManagerConfigField[]): [string, AgentManagerCo
 
 function placeholder(field: AgentManagerConfigField): string {
     if (field.saved) {
-        return field.target === "env" ? "Saved in Agent Manager. Leave empty to keep it." : "Saved in Agent Manager's Config.toml.";
+        return field.target === "env" ? "Saved. Enter a new value to replace it." : "Saved in Agent Manager's Config.toml.";
     }
     return field.required ? "Required" : "Optional";
 }
 
-export function AgentManagerConfigForm({ projectPath, action, submitLabel, onDone, onCancel }: AgentManagerConfigFormProps) {
+export function AgentManagerConfigForm({ projectPath, description, action, submitLabel, onDone, onCancel }: AgentManagerConfigFormProps) {
     const { rpcClient } = useRpcContext();
     const [form, setForm] = useState<ConfigFormData | undefined>();
     const [values, setValues] = useState<Record<string, string>>({});
@@ -110,37 +100,40 @@ export function AgentManagerConfigForm({ projectPath, action, submitLabel, onDon
     }, [projectPath]);
 
     if (!form || (form.fields.length === 0 && submitting)) {
-        return <ProgressRing />;
+        return <PopupContent><ProgressRing /></PopupContent>;
     }
     const fileFields = form.fields.some((f) => f.target === "file" && !f.unsupported);
     return (
-        <Form>
-            {form.error && <ErrorText>Couldn't read this agent's configurables: {form.error}</ErrorText>}
-            {form.fields.length === 0 && !form.error && <Muted>This agent has no configurables to set.</Muted>}
-            {groupFields(form.fields).map(([group, fields]) => (
-                <Group key={group}>
-                    <GroupTitle>{group}</GroupTitle>
-                    {fields.map((field) => (
-                        <ConfigFieldInput
-                            key={field.id}
-                            field={field}
-                            value={values[field.id] ?? ""}
-                            secret={secrets[field.id] ?? field.secret}
-                            onValue={(value) => setValues({ ...values, [field.id]: value })}
-                            onSecret={(secret) => setSecrets({ ...secrets, [field.id]: secret })}
-                        />
-                    ))}
-                </Group>
-            ))}
-            {fileFields && form.fileSaved && (
-                <Muted>Library and record values are saved together as a Config.toml file. Saving any of them replaces that file.</Muted>
-            )}
-            {error && <ErrorText>{error}</ErrorText>}
-            <Actions>
-                <Button appearance="primary" disabled={submitting} onClick={() => submit()}>{submitLabel}</Button>
+        <>
+            <PopupContent>
+                <Muted>{description}</Muted>
+                {form.error && <ErrorText>Couldn't read this agent's configurables: {form.error}</ErrorText>}
+                {form.fields.length === 0 && !form.error && <Muted>This agent has no configurables to set.</Muted>}
+                {groupFields(form.fields).map(([group, fields]) => (
+                    <Group key={group}>
+                        <GroupTitle>{group}</GroupTitle>
+                        {fields.map((field) => (
+                            <ConfigFieldInput
+                                key={field.id}
+                                field={field}
+                                value={values[field.id] ?? ""}
+                                secret={secrets[field.id] ?? field.secret}
+                                onValue={(value) => setValues({ ...values, [field.id]: value })}
+                                onSecret={(secret) => setSecrets({ ...secrets, [field.id]: secret })}
+                            />
+                        ))}
+                    </Group>
+                ))}
+                {fileFields && form.fileSaved && (
+                    <Muted>Library and record values are saved together as a Config.toml file. Saving any of them replaces that file.</Muted>
+                )}
+                {error && <ErrorText>{error}</ErrorText>}
+            </PopupContent>
+            <PopupFooter>
                 <Button appearance="secondary" disabled={submitting} onClick={onCancel}>Cancel</Button>
-            </Actions>
-        </Form>
+                <Button appearance="primary" disabled={submitting} onClick={() => submit()}>{submitLabel}</Button>
+            </PopupFooter>
+        </>
     );
 }
 

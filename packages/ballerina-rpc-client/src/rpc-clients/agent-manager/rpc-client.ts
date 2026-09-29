@@ -17,13 +17,17 @@
  */
 
 import {
+    AddAgentManagerMcpServersRequest,
+    addAgentManagerMcpServers,
     AgentManagerAPI,
     AgentManagerActionRequest,
     AgentManagerActionResponse,
     AgentManagerConfigForm,
+    AgentManagerMcpOffer,
     AgentManagerStatus,
     AgentManagerStatusRequest,
     getAgentManagerConfigForm,
+    getAgentManagerMcpOffer,
     getAgentManagerStatus,
     runAgentManagerAction,
 } from "@wso2/ballerina-core";
@@ -47,5 +51,13 @@ export class AgentManagerRpcClient implements AgentManagerAPI {
 
     getAgentManagerConfigForm(params: AgentManagerStatusRequest): Promise<AgentManagerConfigForm> {
         return this._messenger.sendRequest(getAgentManagerConfigForm, HOST_EXTENSION, params);
+    }
+
+    getAgentManagerMcpOffer(): Promise<AgentManagerMcpOffer> {
+        return this._messenger.sendRequest(getAgentManagerMcpOffer, HOST_EXTENSION);
+    }
+
+    addAgentManagerMcpServers(params: AddAgentManagerMcpServersRequest): Promise<AgentManagerActionResponse> {
+        return this._messenger.sendRequest(addAgentManagerMcpServers, HOST_EXTENSION, params);
     }
 }

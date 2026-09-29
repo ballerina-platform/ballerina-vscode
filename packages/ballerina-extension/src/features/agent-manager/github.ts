@@ -55,7 +55,7 @@ export interface Preparation {
 
 interface RepoInfo {
     fullName?: string;
-    isPrivate: boolean;
+    isPrivate?: boolean;
     fetchedAt: number;
 }
 
@@ -134,7 +134,7 @@ async function repoInfo(repository: string): Promise<RepoInfo> {
             info = { fullName: body.full_name, isPrivate: body.private, fetchedAt: Date.now() };
         }
     } catch {
-        info = { isPrivate: false, fetchedAt: Date.now() };
+        info = { fetchedAt: Date.now() };
     }
     repoInfoCache.set(repository, info);
     return info;
