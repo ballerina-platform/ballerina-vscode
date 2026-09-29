@@ -407,16 +407,6 @@ const AgentItemName = styled.span`
     min-width: 0;
 `;
 
-const AgentItemPath = styled.span`
-    color: var(--vscode-descriptionForeground);
-    font-size: 11px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 50%;
-    flex-shrink: 1;
-`;
-
 // ---------- WARNING POPUP ----------
 const ModalBackdrop = styled.div({
     position: 'fixed',
@@ -502,14 +492,8 @@ const ClearChatWarningPopup: React.FC<ClearChatWarningPopupProps> = ({ isOpen, o
     );
 };
 
-function toDisplayName(name: string): string {
-    return name
-        .replace(/\\/g, '')
-        .replace(/[-_]/g, ' ')
-        .replace(/([a-z])([A-Z])/g, '$1 $2')
-        .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
-        .replace(/\b\w/g, c => c.toUpperCase())
-        .replace("Agent Chat/", "");
+function cleanBasePath(basePath: string): string {
+    return basePath.replace(/\\/g, '');
 }
 
 function toChatMessage(msg: ChatHistoryMessage): ChatMessage {
@@ -996,11 +980,13 @@ const ChatInterface: React.FC = () => {
                             title="Switch agent"
                         >
                             <Icon
-                                name="bi-ai-agent"
+                                name="bi-globe"
                                 sx={{ width: 14, height: 14, flexShrink: 0 }}
-                                iconSx={{ fontSize: "14px", color: "var(--vscode-terminal-ansiBrightCyan)" }}
+                                iconSx={{ fontSize: "14px", color: "var(--vscode-foreground)" }}
                             />
-                            <AgentSelectorName>{toDisplayName(activeAgentName)}</AgentSelectorName>
+                            <AgentSelectorName>
+                                {cleanBasePath(availableAgents.find((a) => a.name === activeAgentName)?.basePath ?? activeAgentName)}
+                            </AgentSelectorName>
                             <span className="codicon codicon-chevron-down" style={{ fontSize: 10, flexShrink: 0 }} />
                         </AgentSelectorButton>
                         {showAgentDropdown && (
@@ -1012,17 +998,16 @@ const ChatInterface: React.FC = () => {
                                         onClick={() => handleSwitchAgent(agent.name)}
                                     >
                                         <Icon
-                                            name="bi-ai-agent"
+                                            name="bi-globe"
                                             sx={{ width: 14, height: 14, flexShrink: 0 }}
                                             iconSx={{
                                                 fontSize: "14px",
                                                 color: agent.name === activeAgentName
                                                     ? "var(--vscode-list-activeSelectionForeground)"
-                                                    : "var(--vscode-terminal-ansiBrightCyan)"
+                                                    : "var(--vscode-foreground)"
                                             }}
                                         />
-                                        <AgentItemName>{toDisplayName(agent.name)}</AgentItemName>
-                                        <AgentItemPath>{agent.basePath.replace(/\\/g, '')}</AgentItemPath>
+                                        <AgentItemName>{cleanBasePath(agent.basePath)}</AgentItemName>
                                     </AgentDropdownItem>
                                 ))}
                             </AgentDropdown>
