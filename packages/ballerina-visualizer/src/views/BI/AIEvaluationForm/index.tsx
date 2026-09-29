@@ -46,8 +46,8 @@ import {
 import {
     DataSourceMode, DataSourceParam, EVALSET_FIELD_KEY, QUERIES_FIELD_KEY, TEMPLATE_FIELD_PREFIX,
     buildQueriesField, carryOverArguments, findAgentArgument, findDataSourceParam,
-    generateTemplateFields, getTemplateKind, isDataSourceSatisfied, isTemplateField, templateNeedsEvalset,
-    toQueryExpression, withDefaultAgent
+    generateTemplateFields, getTemplateKind, isDataSourceSatisfied, isTemplateField, templateArgumentSource,
+    templateNeedsEvalset, toQueryExpression, withDefaultAgent
 } from "./templateUtils";
 
 const FormContainer = styled.div`
@@ -692,7 +692,7 @@ export function AIEvaluationFormBody(props: AIEvaluationFormBodyProps) {
                 return;
             }
             const originalName = templateProperty.codedata?.originalName || key;
-            parameters[originalName] = String(data[`${TEMPLATE_FIELD_PREFIX}${key}`] ?? templateProperty.value ?? '');
+            parameters[originalName] = templateArgumentSource(data[`${TEMPLATE_FIELD_PREFIX}${key}`] ?? templateProperty.value);
         });
         const dataSource = dataSourceParam ? {
             paramName: dataSourceParam.paramName,

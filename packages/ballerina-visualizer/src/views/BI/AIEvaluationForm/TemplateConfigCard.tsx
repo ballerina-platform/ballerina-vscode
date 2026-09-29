@@ -22,7 +22,9 @@ import { Button, Codicon, Icon, LinkButton, ProgressRing, RadioButtonGroup, Them
 import { FieldFactory, FormField, useFormContext } from "@wso2/ballerina-side-panel";
 import { AvailableNode, EvaluationTemplateOption, unwrapBallerinaString } from "@wso2/ballerina-core";
 import { Badge, HintText, SectionLabel, TemplateIconTile, TitleRow } from "./styles";
-import { DataSourceMode, DataSourceParam, getTemplateIcon, getTemplateKind, partitionTemplateFields } from "./templateUtils";
+import {
+    DataSourceMode, DataSourceParam, getTemplateIcon, getTemplateKind, partitionTemplateFields, templateArgumentSource
+} from "./templateUtils";
 import { EvalsetFileControl } from "./EvalsetFileControl";
 
 const Card = styled.div`
@@ -265,7 +267,7 @@ const readTemplateOptions = (getValues: (key: string) => unknown, fields: FormFi
     fields.map(field => ({
         name: field.label,
         description: field.documentation,
-        value: String(getValues(field.key) ?? ''),
+        value: templateArgumentSource(getValues(field.key)),
     }));
 
 interface QueriesInputProps {
