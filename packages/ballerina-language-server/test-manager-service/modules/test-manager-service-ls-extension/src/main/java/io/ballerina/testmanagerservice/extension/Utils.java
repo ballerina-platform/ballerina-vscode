@@ -18,6 +18,7 @@
 
 package io.ballerina.testmanagerservice.extension;
 
+import com.google.gson.JsonElement;
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.api.symbols.AnnotationSymbol;
 import io.ballerina.compiler.syntax.tree.AnnotationNode;
@@ -76,9 +77,14 @@ public class Utils {
     private static final String CONVERSATION_THREAD = "ConversationThread";
     private static final String STRING_ARRAY_2D = "string[][]";
     private static final String QUERIES_MAP = "map<[string]>";
-    // The test report escapes neither `"` nor `\` in a row key, and either one breaks the whole report.
-    private static final String QUERIES_BY_KEY_RETURN =
-            "return map from string query in queries select [re `[\"\\\\]`.replaceAll(query, \"'\"), [query]];";
+    // Keys drop `"` and `\`, which break the test report, and a repeated key gets its position so no row is lost.
+    private static final List<String> QUERIES_BY_KEY_BODY = List.of(
+            "map<[string]> rows = {};",
+            "foreach string query in queries {",
+            "\tstring key = re `[\"\\\\]`.replaceAll(query, \"'\");",
+            "\trows[rows.hasKey(key) ? string `${key} #${rows.length() + 1}` : key] = [query];",
+            "}",
+            "return rows;");
 
     private Utils() {
     }
@@ -567,6 +573,14 @@ public class Utils {
         return isModuleImportExists(node, Constants.MODULE_AI_EVAL);
     }
 
+    /** Imports `ballerina/ai` when a template argument uses the default model provider. */
+    public static Optional<TextEdit> defaultModelImportEdit(JsonElement parameters, ModulePartNode node) {
+        if (isAiModuleImportExists(node) || !String.valueOf(parameters).contains(Constants.DEFAULT_MODEL_PROVIDER)) {
+            return Optional.empty();
+        }
+        return Optional.of(new TextEdit(toRange(node.lineRange().startLine()), Constants.IMPORT_AI_STMT));
+    }
+
     /**
      * Get a field value from the Config annotation of a test function.
      *
@@ -718,7 +732,9 @@ public class Utils {
                 + Constants.KEYWORD_RETURNS + Constants.SPACE + Constants.QUERIES_MAP_RETURN_TYPE + Constants.SPACE
                 + Constants.OPEN_CURLY_BRACE + Constants.LINE_SEPARATOR + Constants.TAB_SEPARATOR
                 + "string[] queries = " + buildQueryExpressionArray(queries) + ";"
-                + Constants.LINE_SEPARATOR + Constants.TAB_SEPARATOR + QUERIES_BY_KEY_RETURN
+                + QUERIES_BY_KEY_BODY.stream()
+                        .map(line -> Constants.LINE_SEPARATOR + Constants.TAB_SEPARATOR + line)
+                        .collect(Collectors.joining())
                 + Constants.LINE_SEPARATOR + Constants.CLOSE_CURLY_BRACE;
     }
 
@@ -735,14 +751,23 @@ public class Utils {
         return DataProviderShape.UNKNOWN;
     }
 
-    /** Rewrites a query provider's list, or the whole provider while it still returns `string[][]`. */
+    /** Rewrites a query provider's list, or migrates a generated `string[][]` provider to the map shape. */
     public static Optional<TextEdit> queriesProviderEdit(FunctionDefinitionNode provider, List<String> queries) {
-        if (compactReturnType(provider).contains(STRING_ARRAY_2D)) {
-            String source = getQueriesDataProviderFunctionTemplate(provider.functionName().text().trim(), queries);
-            return Optional.of(new TextEdit(toRange(provider.lineRange()), source.stripLeading()));
+        if (!compactReturnType(provider).contains(STRING_ARRAY_2D)) {
+            return findQueriesListLocation(provider)
+                    .map(range -> new TextEdit(toRange(range), buildQueryExpressionArray(queries)));
         }
-        return findQueriesListLocation(provider)
-                .map(range -> new TextEdit(toRange(range), buildQueryExpressionArray(queries)));
+        if (!returnsOnlyListLiteral(provider)) {
+            return Optional.empty();
+        }
+        String source = getQueriesDataProviderFunctionTemplate(provider.functionName().text().trim(), queries);
+        return Optional.of(new TextEdit(toRange(provider.lineRange()), source.stripLeading()));
+    }
+
+    private static boolean returnsOnlyListLiteral(FunctionDefinitionNode provider) {
+        return provider.functionBody() instanceof FunctionBodyBlockNode body && body.statements().size() == 1
+                && body.statements().get(0) instanceof ReturnStatementNode returnStmt
+                && returnStmt.expression().orElse(null) instanceof ListConstructorExpressionNode;
     }
 
     private static String compactReturnType(FunctionDefinitionNode provider) {
