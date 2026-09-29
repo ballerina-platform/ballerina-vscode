@@ -102,7 +102,7 @@ export function TemplateBrowser(props: TemplateBrowserProps) {
         <CustomEvaluationPrompt>
             Need a check that isn't listed?
             <LinkButton onClick={onCustom} sx={{ fontSize: 12, padding: 0 }}>
-                Write a custom evaluation
+                Write a Custom Evaluation
             </LinkButton>
         </CustomEvaluationPrompt>
     );

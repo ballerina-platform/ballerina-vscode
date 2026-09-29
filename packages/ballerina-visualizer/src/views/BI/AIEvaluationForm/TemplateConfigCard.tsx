@@ -18,7 +18,7 @@
 
 import styled from "@emotion/styled";
 import { useState } from "react";
-import { Button, Codicon, Icon, LinkButton, ProgressRing, RadioButtonGroup, ThemeColors } from "@wso2/ui-toolkit";
+import { Codicon, Icon, LinkButton, ProgressRing, RadioButtonGroup, ThemeColors } from "@wso2/ui-toolkit";
 import { FieldFactory, FormField, useFormContext } from "@wso2/ballerina-side-panel";
 import { AvailableNode, EvaluationTemplateOption, unwrapBallerinaString } from "@wso2/ballerina-core";
 import { Badge, HintText, SectionLabel, TemplateIconTile, TitleRow } from "./styles";
@@ -80,10 +80,15 @@ const TestInputControls = styled.div`
     }
 `;
 
-const GenerateQueriesRow = styled.div`
-    display: flex;
-    justify-content: flex-end;
-    margin-top: 8px;
+const QueriesField = styled.div`
+    position: relative;
+`;
+
+// On the field's label row, which is always its first line.
+const GenerateQueriesAction = styled.div`
+    position: absolute;
+    top: 0;
+    right: 0;
 `;
 
 const OptionalSettings = styled.div`
@@ -302,19 +307,21 @@ function QueriesInput({ field, optionFields, onGenerate }: QueriesInputProps) {
     };
 
     return (
-        <>
+        <QueriesField>
             <FieldFactory field={{ ...field, hidden: false }} />
             {onGenerate && (
-                <GenerateQueriesRow>
-                    <Button appearance="secondary" disabled={isGenerating} onClick={generate}>
+                <GenerateQueriesAction>
+                    <LinkButton
+                        onClick={isGenerating ? undefined : generate}
+                        sx={{ fontSize: 12, gap: 4, padding: '0 8px', ...(isGenerating && { opacity: 0.6, cursor: 'default' }) }}
+                    >
                         {isGenerating
-                            ? <ProgressRing sx={{ width: 14, height: 14, marginRight: 6 }} />
-                            : <Icon name="wand-magic-sparkles-solid" sx={{ width: 14, height: 14, marginRight: 6 }}
-                                iconSx={{ fontSize: '14px' }} />}
-                        {isGenerating ? 'Generating queries…' : 'Generate queries'}
-                    </Button>
-                </GenerateQueriesRow>
+                            ? <ProgressRing sx={{ width: 12, height: 12 }} />
+                            : <Icon name="wand-magic-sparkles-solid" sx={{ width: 12, height: 12 }} iconSx={{ fontSize: '12px' }} />}
+                        {isGenerating ? 'Generating Queries…' : 'Generate Queries'}
+                    </LinkButton>
+                </GenerateQueriesAction>
             )}
-        </>
+        </QueriesField>
     );
 }

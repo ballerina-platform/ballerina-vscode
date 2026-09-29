@@ -94,7 +94,7 @@ export function EvalsetFileControl({
                 {emptyState.canCreate && (
                     <CreateLinks>
                         <LinkButton onClick={onCreateEvalset} sx={{ fontSize: 12, marginTop: 2, padding: 8, gap: 4 }}>
-                            Create empty evalset
+                            Create Empty Evalset
                         </LinkButton>
                         {generateLink}
                     </CreateLinks>
@@ -117,14 +117,14 @@ export function EvalsetFileControl({
             <Actions>
                 <CreateLinks>
                     <LinkButton onClick={onCreateEvalset} sx={{ fontSize: 12, padding: '0 8px' }}>
-                        Create empty evalset
+                        Create Empty Evalset
                     </LinkButton>
                     {generateLink}
                 </CreateLinks>
                 <LinkButton onClick={() => onOpenEvalset(selectedEvalsetFile)}
                     sx={{ fontSize: 12, gap: 4, padding: '0 8px' }}>
                     <Codicon name="go-to-file" iconSx={{ fontSize: 12 }} sx={{ height: 12 }} />
-                    Open evalset
+                    Open Evalset
                 </LinkButton>
             </Actions>
         </Selection>

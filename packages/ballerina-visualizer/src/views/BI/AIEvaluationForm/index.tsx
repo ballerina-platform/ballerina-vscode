@@ -1340,7 +1340,7 @@ export function AIEvaluationFormBody(props: AIEvaluationFormBodyProps) {
 
     const pickCustom = () => {
         handleCardSelectorChange('custom');
-        templatePicker?.onChoose('Custom evaluation');
+        templatePicker?.onChoose('Custom Evaluation');
     };
 
     const form = (
