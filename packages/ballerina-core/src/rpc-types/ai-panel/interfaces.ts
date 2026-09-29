@@ -32,7 +32,7 @@ export type AIPanelView = 'settings' | 'mcp' | 'skills';
 
 export type AIPanelPrompt =
     | { type: 'command-template'; command: Command; templateId: TemplateId; text?: string; params?: Record<string, string>; metadata?: Record<string, any>; hiddenContext?: string }
-    | { type: 'text'; text: string; planMode: boolean; codeContext?: CodeContext; autoSubmit?: boolean; hiddenContext?: string; suggestedCommandTemplates?: AIPanelPrompt[];    inputPlaceholder?:string; attachments?: Attachment[]; newThread?: boolean; }
+    | { type: 'text'; text: string; planMode: boolean; codeContext?: CodeContext; autoSubmit?: boolean; hiddenContext?: string; suggestedCommandTemplates?: AIPanelPrompt[];    inputPlaceholder?:string; attachments?: Attachment[]; newThread?: boolean; threadKey?: string; }
     | { type: 'skill'; skillId: string; skillName: string; args?: string; tagParams?: Record<string, string>; autoSubmit?: boolean; hiddenContext?: string }
     /** Opens the panel straight onto one of its surfaces, or onto an existing thread. */
     | { type: 'view'; view: AIPanelView }
@@ -636,6 +636,15 @@ export interface ThreadSummary {
 
 export interface SwitchThreadRequest {
     threadId: string;
+}
+
+export interface PrepareKeyedThreadRequest {
+    key: string;
+}
+
+/** `busy` when a run or checkpoint restore is in progress, so nothing was switched or created. */
+export interface PrepareKeyedThreadResponse {
+    status: "reused" | "created" | "busy";
 }
 
 export interface DeleteThreadRequest {

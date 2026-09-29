@@ -61,7 +61,7 @@ export function FixEvaluationButton({ evaluation }: { evaluation: FailedEvaluati
     const fix = () => {
         void submitPromptToCopilot(rpcClient, `Fix the failing evaluation ${evaluation.testName}`, {
             hiddenContext: buildFixContext(evaluation),
-            newThread: true,
+            threadKey: `fix-evaluation:${evaluation.projectName}:${evaluation.testName}`,
         });
     };
 

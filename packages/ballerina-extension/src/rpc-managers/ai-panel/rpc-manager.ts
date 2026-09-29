@@ -28,6 +28,8 @@ import {
     Command,
     GetRunStatusRequest,
     GetRunStatusResponse,
+    PrepareKeyedThreadRequest,
+    PrepareKeyedThreadResponse,
     DocGenerationRequest,
     GenerateAgentCodeRequest,
     GenerateOpenAPIRequest,
@@ -204,6 +206,10 @@ const CONNECTION_FAILURE_MESSAGE: Record<ConnectionSettleReason, string> = {
     cancelled: "Connection cancelled.",
     superseded: "Connection cancelled — a newer connection attempt was started.",
 };
+
+const KEYED_THREADS_STATE = "copilot.keyedThreads";
+// Past this, a keyed request starts a new thread: the old one likely no longer matches the code.
+const KEYED_THREAD_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 /**
  * A run owns the active thread until it ends, so reparenting it mid-turn would strand the
@@ -866,6 +872,25 @@ User reverted the last made changes. The files have been restored to the state b
         if (refuseWhileBusy(projectRootPath, 'switchThread')) { return false; }
         chatStateStorage.switchToThread(projectRootPath, params.threadId);
         return true;
+    }
+
+    async prepareKeyedThread(params: PrepareKeyedThreadRequest): Promise<PrepareKeyedThreadResponse> {
+        const projectRootPath = resolveProjectRootPath();
+        if (refuseWhileBusy(projectRootPath, 'prepareKeyedThread')) {
+            window.showInformationMessage('Copilot is still working on another request. Try again when it finishes.');
+            return { status: 'busy' };
+        }
+        const mapKey = `${projectRootPath}::${params.key}`;
+        const keyed = extension.context.workspaceState.get<Record<string, string>>(KEYED_THREADS_STATE, {});
+        const thread = chatStateStorage.listThreadsSummary(projectRootPath).find((summary) => summary.id === keyed[mapKey]);
+        if (thread && Date.now() - thread.updatedAt < KEYED_THREAD_MAX_AGE_MS) {
+            chatStateStorage.switchToThread(projectRootPath, thread.id);
+            return { status: 'reused' };
+        }
+        const threadId = chatStateStorage.createNewThread(projectRootPath);
+        clearCompactionDisabledWarning(projectRootPath, threadId);
+        await extension.context.workspaceState.update(KEYED_THREADS_STATE, { ...keyed, [mapKey]: threadId });
+        return { status: 'created' };
     }
 
     async deleteThread(params: DeleteThreadRequest): Promise<void> {
