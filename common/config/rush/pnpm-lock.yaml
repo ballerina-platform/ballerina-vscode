@@ -27,7 +27,7 @@ overrides:
   http-proxy: 1.18.1
   http-proxy-middleware@>=2 <3: 2.0.10
   immutable@3: 4.3.9
-  ip-address@10: 10.3.1
+  ip-address@10: 10.5.1
   joi@>=17 <18: 17.13.4
   joi@>=18 <19: 18.2.5
   js-yaml: 4.3.2
@@ -43,8 +43,8 @@ overrides:
   serialize-javascript: 7.0.5
   shell-quote: 1.9.0
   tmp: 0.2.7
-  undici@>=5 <6: 6.28.0
-  undici@>=7 <8: 7.29.0
+  undici@>=5 <6: 6.28.1
+  undici@>=7 <8: 7.29.1
   uuid@8: 11.1.1
   uuid@>=11 <11.1.1: 11.1.1
   webpack-dev-server@>=5 <6: 5.2.6
@@ -11425,8 +11425,8 @@ packages:
   invariant@2.2.4:
     resolution: {integrity: sha512-phJfQVBuaJM5raOpJjSfkiD6BpbCE4Ns//LaXl6wGYtUBY83nWS6Rf9tXm2e8VaK60JEjYldbPif/A2B1C2gNA==}
 
-  ip-address@10.3.1:
-    resolution: {integrity: sha512-1e9d3kb97NHJTIJDZW9rKqW2h6+dFa50Dy0fpPSMQp2ADje5gvKsXmdiK6dwY5t76TaTt5+P5N1Y/LoToIxP6g==}
+  ip-address@10.5.1:
+    resolution: {integrity: sha512-EXujUp9jyOI/chPgtqk6uy7fDq8AeCB/WlfEuPg9LN0fN9lzKAKfuDYi60SMhHwgUiEhZvVYsbGZN+RUU1INiA==}
     engines: {node: '>= 12'}
 
   ip-regex@4.3.0:
@@ -16230,8 +16230,8 @@ packages:
     resolution: {integrity: sha512-LIY910g9TI13YS95lrMFrs8Rm/u/irgHeTWoKCoteeJ04CUJ92eEfj0rVn+7VKMPBpUPiUoBKfhNyLI23EE/KA==}
     engines: {node: '>=18.17'}
 
-  undici@7.29.0:
-    resolution: {integrity: sha512-IDxfleLmmbSskfWSUATiN1nfn2rDuvnMOqb5CWR92iIfojA0Ud+ulOAAEQ57LPr9rWmsreUyf5lwyao+7GNNVw==}
+  undici@7.29.1:
+    resolution: {integrity: sha512-RYONW2MeafgYlkVOKYKkA/Ag7BmXqgIWCa8t1m0JcxrQg9pI9lEqRhAOruOBCbAohOa/gkCF+iPi9hrgvTzu6Q==}
     engines: {node: '>=20.18.1'}
 
   unfetch@4.2.0:
@@ -28318,7 +28318,7 @@ snapshots:
       parse5: 7.3.0
       parse5-htmlparser2-tree-adapter: 7.1.0
       parse5-parser-stream: 7.1.2
-      undici: 7.29.0
+      undici: 7.29.1
       whatwg-mimetype: 4.0.0
 
   chokidar@2.1.8:
@@ -30008,7 +30008,7 @@ snapshots:
   express-rate-limit@8.5.2(express@5.2.1):
     dependencies:
       express: 5.2.1
-      ip-address: 10.3.1
+      ip-address: 10.5.1
 
   express@4.22.1:
     dependencies:
@@ -31597,7 +31597,7 @@ snapshots:
     dependencies:
       loose-envify: 1.4.0
 
-  ip-address@10.3.1: {}
+  ip-address@10.5.1: {}
 
   ip-regex@4.3.0: {}
 
@@ -36829,7 +36829,7 @@ snapshots:
 
   socks@2.8.9:
     dependencies:
-      ip-address: 10.3.1
+      ip-address: 10.5.1
       smart-buffer: 4.2.0
 
   sorted-array-functions@1.3.0: {}
@@ -38326,7 +38326,7 @@ snapshots:
 
   undici@6.28.0: {}
 
-  undici@7.29.0: {}
+  undici@7.29.1: {}
 
   unfetch@4.2.0: {}
 

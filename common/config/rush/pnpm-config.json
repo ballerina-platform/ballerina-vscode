@@ -146,9 +146,9 @@
       // dependency, not declared directly by any workspace package). Narrow
       // the selector if a consumer needs the v3 Record API.
       "immutable@3": "4.3.9",
-      // Security fix: 10.3.1 is the first release covering all three flagged
-      // advisories.
-      "ip-address@10": "10.3.1",
+      // Security fix: 10.5.1 covers CVE-2026-101910 and CVE-2026-101913 on top
+      // of the three earlier advisories.
+      "ip-address@10": "10.5.1",
       "joi@>=17 <18": "17.13.4",
       // Security fix: rename() prototype set and a prototype pollution
       // advisory. ballerina-low-code-diagram pins 18.2.5 directly; keep
@@ -178,10 +178,11 @@
       "shell-quote": "1.9.0",
       "tmp": "0.2.7",
       // No 5.x release fixes the flagged advisories, so the transitive 5.x copy
-      // (@ai-sdk/provider-utils) has to move up a major; 6.28.0 covers all of them.
-      "undici@>=5 <6": "6.28.0",
-      // 7.29.0 is the 7.x fix line covering all flagged undici advisories.
-      "undici@>=7 <8": "7.29.0",
+      // (@ai-sdk/provider-utils) has to move up a major; 6.28.1 covers all of them
+      // including CVE-2026-85024.
+      "undici@>=5 <6": "6.28.1",
+      // 7.29.1 is the 7.x fix line covering all flagged undici advisories.
+      "undici@>=7 <8": "7.29.1",
       // uuid 8.x has no in-line fix; bump to 11.1.1 (fix line for v11). Revert
       // if this breaks consumers that strictly need uuid v8 API.
       "uuid@8": "11.1.1",
