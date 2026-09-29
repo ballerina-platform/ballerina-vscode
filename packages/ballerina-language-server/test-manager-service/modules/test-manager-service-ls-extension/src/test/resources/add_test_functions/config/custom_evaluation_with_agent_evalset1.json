@@ -1,6 +1,6 @@
 {
   "filePath": "sample_minpassrate/tests/test1.bal",
-  "description": "A queries-mode LLM-judge template evaluation adds the ai import its judgeModel argument needs",
+  "description": "Custom evaluation that runs the target agent over an evalset",
   "function": {
     "metadata": {
       "label": "Test Function",
@@ -25,7 +25,7 @@
         "description": "Test function"
       },
       "valueType": "IDENTIFIER",
-      "value": "evaluateMathAgentClarity",
+      "value": "customEvalsetEvaluation",
       "optional": false,
       "editable": true,
       "advanced": false
@@ -88,54 +88,51 @@
             "optional": true,
             "editable": true,
             "advanced": false
+          },
+          {
+            "metadata": {
+              "label": "Data Provider",
+              "description": "Data provider function"
+            },
+            "valueType": "EXPRESSION",
+            "originalName": "dataProvider",
+            "value": "",
+            "optional": true,
+            "editable": true,
+            "advanced": false
+          },
+          {
+            "metadata": {
+              "label": "Data Provider Mode",
+              "description": "Mode of data provider (function or evalSet)"
+            },
+            "valueType": "EXPRESSION",
+            "originalName": "dataProviderMode",
+            "value": "evalSet",
+            "optional": true,
+            "editable": true,
+            "advanced": false
+          },
+          {
+            "metadata": {
+              "label": "Evalset File",
+              "description": "Path to the evalset data file"
+            },
+            "valueType": "EXPRESSION",
+            "originalName": "evalSetFile",
+            "value": "tests/resources/evalsets/math.evalset.json",
+            "optional": true,
+            "editable": true,
+            "advanced": false
           }
         ]
       }
     ],
     "editable": true
   },
-  "evalTemplate": {
-    "symbol": "evaluateClarity",
-    "parameters": {
-      "targetAgent": "mathAgent",
-      "judgeModel": "check ai:getDefaultModelProvider()"
-    },
-    "dataSource": {
-      "mode": "queries",
-      "paramName": "queries",
-      "queries": [
-        "string `What is 2 + 2?`"
-      ]
-    }
-  },
+  "targetAgent": "mathAgent",
   "output": {
     "sample_minpassrate/tests/test1.bal": [
-      {
-        "range": {
-          "start": {
-            "line": 0,
-            "character": 0
-          },
-          "end": {
-            "line": 0,
-            "character": 0
-          }
-        },
-        "newText": "import ballerina/ai.eval;"
-      },
-      {
-        "range": {
-          "start": {
-            "line": 1,
-            "character": 22
-          },
-          "end": {
-            "line": 1,
-            "character": 22
-          }
-        },
-        "newText": "\n\nisolated function loadQueriesData() returns map<[string]>|error {\n\tstring[] queries = [string `What is 2 + 2?`];\n\tmap<[string]> rows = {};\n\tforeach string query in queries {\n\t\tstring key = re `[\"\\\\]`.replaceAll(query, \"'\");\n\t\trows[rows.hasKey(key) ? string `${key} #${rows.length() + 1}` : key] = [query];\n\t}\n\treturn rows;\n}"
-      },
       {
         "range": {
           "start": {
@@ -160,7 +157,20 @@
             "character": 22
           }
         },
-        "newText": "@test:Config{\ngroups: [\"evaluations\"],\nminPassRate: 80\n}\nfunction evaluateMathAgentClarity(string query) returns error? {\n\tcheck eval:evaluateClarity(targetAgent = mathAgent, judgeModel = check ai:getDefaultModelProvider(), queries = query);\n}"
+        "newText": "\n\nisolated function loadEvalsetData() returns map<[ai:ConversationThread]>|error {\n\treturn ai:loadConversationThreads(\"tests/resources/evalsets/math.evalset.json\");\n}"
+      },
+      {
+        "range": {
+          "start": {
+            "line": 1,
+            "character": 22
+          },
+          "end": {
+            "line": 1,
+            "character": 22
+          }
+        },
+        "newText": "@test:Config{\ngroups: [\"evaluations\"],\nminPassRate: 80,\ndataProvider: loadEvalsetData\n}\nfunction customEvalsetEvaluation(ai:ConversationThread thread) returns error? {\n    foreach ai:Trace trace in thread.traces {\n        string response = check mathAgent.run(trace.userMessage.content.toString(), thread.id);\n        test:assertFail(string `Replace this with the checks for the evaluation. The agent responded: ${response}`);\n    }\n}"
       }
     ]
   }

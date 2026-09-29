@@ -27,7 +27,7 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * An {@code ballerina/ai.eval} function annotated with {@code @EvalTemplate}.
+ * A {@code ballerina/ai.eval} function annotated with {@code @EvalTemplate}.
  *
  * @param symbol       The template function name.
  * @param label        The display label.

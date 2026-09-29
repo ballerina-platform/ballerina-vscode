@@ -82,8 +82,6 @@ import java.util.stream.Collectors;
 @JsonSegment("testManagerService")
 public class TestManagerService implements ExtendedLanguageServerService {
 
-    private static final String DEFAULT_MODEL_PROVIDER = "ai:getDefaultModelProvider()";
-
     private WorkspaceManager workspaceManager;
 
     @Override
@@ -307,10 +305,7 @@ public class TestManagerService implements ExtendedLanguageServerService {
             }
             Set<String> visibleSymbolNames = visibleSymbolNames(semanticModel, document, modulePartNode);
             if (Constants.DATA_SOURCE_MODE_QUERIES.equals(mode)) {
-                boolean usesDefaultModel = String.valueOf(template.get("parameters")).contains(DEFAULT_MODEL_PROVIDER);
-                if (usesDefaultModel && !Utils.isAiModuleImportExists(modulePartNode)) {
-                    edits.add(new TextEdit(Utils.toRange(lineRange.startLine()), Constants.IMPORT_AI_STMT));
-                }
+                Utils.defaultModelImportEdit(template.get("parameters"), modulePartNode).ifPresent(edits::add);
                 List<String> queries = readQueries(dataSource);
                 if (queries.isEmpty()) {
                     throw new IllegalArgumentException("At least one query is required");
@@ -418,6 +413,7 @@ public class TestManagerService implements ExtendedLanguageServerService {
             if (queries.isEmpty()) {
                 throw new IllegalArgumentException("At least one query is required");
             }
+            Utils.defaultModelImportEdit(template.get("parameters"), modulePartNode).ifPresent(edits::add);
             providerTemplate = name -> Utils.getQueriesDataProviderFunctionTemplate(name, queries);
             patchInPlace = () -> Utils.queriesProviderEdit(provider.get(), queries).ifPresent(edits::add);
         } else {

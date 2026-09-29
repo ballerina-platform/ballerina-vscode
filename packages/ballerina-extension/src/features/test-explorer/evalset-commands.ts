@@ -189,7 +189,7 @@ export async function deleteEvalset(evalsetFileNode?: any, usedBy: string[] = []
 
         // Confirm deletion
         const usage = usedBy.length > 0
-            ? ` ${usedBy.join(', ')} ${usedBy.length === 1 ? 'uses' : 'use'} it and will fail until they load another evalset.`
+            ? ` It is used by ${usedBy.join(', ')}, which will fail until they load another evalset.`
             : '';
         const confirmation = await vscode.window.showWarningMessage(
             `Are you sure you want to delete "${fileName}"?${usage} This action cannot be undone.`,

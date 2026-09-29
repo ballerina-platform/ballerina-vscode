@@ -108,8 +108,9 @@ export class EvaluationHistoryWebview {
         const escapedPath = escapeAttribute(workspaceRoot);
         const escapedFilter = escapeAttribute(JSON.stringify(filter ?? {}));
 
+        // VS Code ignores an unchanged html string, so the timestamp makes a repeated filter reload the page.
         const body = `<div class="container" id="webview-container" data-project-path="${escapedPath}"
-                data-filter="${escapedFilter}">
+                data-filter="${escapedFilter}" data-opened-at="${Date.now()}">
                 <div class="loader-wrapper">
                     <div class="loader" /></div>
                 </div>
