@@ -196,6 +196,20 @@ const EVALUATION_GROUP = 'evaluations';
 const extraGroups = (groups: unknown): string[] => (Array.isArray(groups) ? groups : [])
     .filter(group => String(group).replace(/"/g, '').trim() !== EVALUATION_GROUP);
 
+const toRunsField = (field: FormField): FormField => {
+    const isCount = /^\d*$/.test(String(field.value ?? '').trim());
+    return {
+        ...field,
+        documentation: "Number of times to execute this evaluation",
+        type: 'NUMBER',
+        advanced: false,
+        types: [
+            { fieldType: 'NUMBER', ballerinaType: 'int', selected: isCount },
+            { fieldType: 'EXPRESSION', ballerinaType: 'int', selected: !isCount }
+        ]
+    };
+};
+
 type EvalTemplatePayload = NonNullable<AddOrUpdateTestFunctionRequest['evalTemplate']>;
 
 type EditShape = 'template' | 'template-with-custom' | 'custom' | 'ambiguous' | 'unresolvable';
@@ -819,6 +833,11 @@ export function AIEvaluationFormBody(props: AIEvaluationFormBodyProps) {
                     });
                 }
 
+                const runsField = configAnnotation.fields.find(f => f.originalName === 'runs');
+                if (runsField) {
+                    fields.push(toRunsField(generateFieldFromProperty('runs', runsField)));
+                }
+
                 const evalSetFileField = configAnnotation.fields.find(f => f.originalName === 'evalSetFile');
                 if (evalSetFileField) {
                     const generatedField = generateFieldFromProperty('evalSetFile', evalSetFileField);
@@ -835,6 +854,7 @@ export function AIEvaluationFormBody(props: AIEvaluationFormBodyProps) {
                 for (const field of configAnnotation.fields) {
                     if (field.originalName === 'dataProviderMode' ||
                         field.originalName === 'minPassRate' ||
+                        field.originalName === 'runs' ||
                         field.originalName === 'evalSetFile' ||
                         field.originalName === 'queries') {
                         continue;
@@ -853,7 +873,7 @@ export function AIEvaluationFormBody(props: AIEvaluationFormBodyProps) {
 
                     // Special handling for expression fields - ensure they use EXPRESSION type
                     if (field.originalName === 'before' || field.originalName === 'after' ||
-                        field.originalName === 'runs' || field.originalName === 'dataProvider') {
+                        field.originalName === 'dataProvider') {
                         fields.push({
                             ...generateFieldFromProperty(field.originalName, field),
                             type: 'EXPRESSION',
@@ -1189,7 +1209,7 @@ export function AIEvaluationFormBody(props: AIEvaluationFormBodyProps) {
                         {
                             metadata: {
                                 label: "Runs",
-                                description: "Number of times to execute this test"
+                                description: "Number of times to execute this evaluation"
                             },
                             types: [{ fieldType: "EXPRESSION", selected: false }],
                             originalName: "runs",
