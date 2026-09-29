@@ -33,8 +33,8 @@ const queriesSchema = z.object({
 });
 
 const SYSTEM_PROMPT = `You write test queries for evaluating an AI agent. Each query is one message that a real user of the agent would send.
-- Base every query on the agent's instructions and tools.
-- Make the queries differ: use different tools, mix simple and multi-step requests, and include one request the agent should decline or cannot fully answer.
+- Write only requests the agent can fully handle with its tools as they are, within what its instructions say it is for. Check each request against what the tools do: never ask for a search, filter, topic, date range or data that no tool provides.
+- Make the queries differ: use different tools, and mix simple and multi-step requests.
 - When an evaluation criterion is given, write queries whose answers show whether the agent meets it.
 - Never repeat or rephrase a query the user already has.
 - Write only the message text, without numbering, quotes or explanations.`;
