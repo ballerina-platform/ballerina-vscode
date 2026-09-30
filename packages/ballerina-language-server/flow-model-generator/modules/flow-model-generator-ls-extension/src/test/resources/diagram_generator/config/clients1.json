@@ -1168,7 +1168,10 @@
               "offset": 45
             }
           },
-          "sourceCode": "MyClient myExplicitModuleCl = new MyClient();"
+          "sourceCode": "MyClient myExplicitModuleCl = new MyClient();",
+          "data": {
+            "explicitNew": true
+          }
         },
         "returning": false,
         "properties": {
