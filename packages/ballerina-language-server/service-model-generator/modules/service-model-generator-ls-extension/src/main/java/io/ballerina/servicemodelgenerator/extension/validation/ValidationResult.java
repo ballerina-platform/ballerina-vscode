@@ -18,6 +18,8 @@
 
 package io.ballerina.servicemodelgenerator.extension.validation;
 
+import com.google.gson.annotations.JsonAdapter;
+
 /**
  * A single rule failure. {@code propertyPath} is the dot path from the model root through
  * {@code properties}/{@code choices} keys, matching how the client maps it back onto the field.
@@ -28,7 +30,8 @@ package io.ballerina.servicemodelgenerator.extension.validation;
  * @param severity     ERROR blocks generation; WARNING does not
  * @since 1.8.0
  */
-public record ValidationResult(String propertyPath, String rule, String message, ValidationSeverity severity) {
+public record ValidationResult(String propertyPath, String rule, String message,
+                               @JsonAdapter(ValidationSeverity.WireAdapter.class) ValidationSeverity severity) {
 
     public boolean isError() {
         return severity == ValidationSeverity.ERROR;

@@ -25,16 +25,15 @@ import { DIRECTORY_MAP, ProjectStructureArtifactResponse, ProjectStructureRespon
 import { SCOPE, ArtifactData, DataMapperMetadata } from "./interfaces/shared-types";
 import { DiagnosticEntry, DocumentationGeneratorIntermediaryState, SourceFile, CodeContext, FileAttatchment, SkillEnableStage } from "./rpc-types/ai-panel/interfaces";
 
-/**
- * Which product the extension is running inside. Set by the host app's own environment
- * (the WSO2 Integrator app exports `WSO2_PRODUCT_MODE`), so the extension inherits it.
- */
+/** Which product the extension is running inside. Resolved by the host; see `getProductMode`. */
 export enum ProductMode {
+    BALLERINA = 'ballerina',
     INTEGRATOR = 'integrator',
     AGENT_BUILDER = 'agent-builder'
 }
 
 const ASSISTANT_NAMES: Record<ProductMode, string> = {
+    [ProductMode.BALLERINA]: 'Ballerina Copilot',
     [ProductMode.INTEGRATOR]: 'WSO2 Integrator Copilot',
     [ProductMode.AGENT_BUILDER]: 'WSO2 Agent Builder Copilot'
 };
@@ -44,6 +43,7 @@ export function assistantName(mode: ProductMode): string {
 }
 
 const SHORT_ASSISTANT_NAMES: Record<ProductMode, string> = {
+    [ProductMode.BALLERINA]: 'Ballerina Copilot',
     [ProductMode.INTEGRATOR]: 'Integrator Copilot',
     [ProductMode.AGENT_BUILDER]: 'Agent Builder Copilot'
 };
@@ -53,12 +53,34 @@ export function shortAssistantName(mode: ProductMode): string {
 }
 
 const ASSISTANT_TAGLINES: Record<ProductMode, string> = {
+    [ProductMode.BALLERINA]: 'Your AI pair programmer for Ballerina development',
     [ProductMode.INTEGRATOR]: 'Your AI pair programmer for integration development',
     [ProductMode.AGENT_BUILDER]: 'Your AI partner for building agents'
 };
 
 export function assistantTagline(mode: ProductMode): string {
     return ASSISTANT_TAGLINES[mode];
+}
+
+/**
+ * The mode the host seeded into this webview's HTML, so a panel names the assistant on its first
+ * paint instead of flashing the wrong name. Undefined outside a seeded webview.
+ */
+export function seededProductMode(): ProductMode | undefined {
+    if (typeof window === 'undefined') {
+        return undefined;
+    }
+    const seed = (window as unknown as { productMode?: string }).productMode;
+    return Object.values(ProductMode).includes(seed as ProductMode) ? seed as ProductMode : undefined;
+}
+
+/**
+ * The assistant's name for a webview with no RPC client of its own. Unseeded falls back to
+ * BALLERINA, matching `getProductMode()` — naming a product the user may not have installed is
+ * the worse of the two wrong answers, and these callers have no way to correct it later.
+ */
+export function webviewAssistantName(): string {
+    return assistantName(seededProductMode() ?? ProductMode.BALLERINA);
 }
 
 export type MachineStateValue =
@@ -988,6 +1010,8 @@ export interface Generation {
     codeContext?: CodeContext;
     /** Post-turn follow-up suggestions; runtime-only, not persisted across a restart */
     followupSuggestions?: FollowupSuggestion[];
+    /** Summary of this turn published to the WSO2 Integration Platform console (cloud editor only). Persisted, so a revert after a reload can still remove it */
+    consoleSummary?: string;
     /** Generation metadata */
     metadata: GenerationMetadata;
 }
@@ -1004,6 +1028,8 @@ export interface ChatThread {
     generations: Generation[];
     /** Session ID for backend correlation */
     sessionId?: string;
+    /** The console plan this cloud editor session was opened with started this thread; only its turns publish console summaries */
+    consoleOrigin?: boolean;
     /** Thread creation timestamp */
     createdAt: number;
     /** Last update timestamp */

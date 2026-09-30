@@ -280,7 +280,9 @@ export type FormFieldInputType = "TEXT" |
     "ACTION_EXPRESSION" |
     "VIEW" |
     "SERVICE_PATH" |
+    "STRING_LITERAL" |
     "ACTION_PATH" |
+    "RESOURCE_PATH" |
     "NUMBER" |
     "REPEATABLE_LIST" |
     "CONDITIONAL_FIELDS" |
@@ -403,7 +405,7 @@ export type CodeData = {
     id?: string;
     kind?: string;
     originalName?: string;
-    dependentProperty?: string[];
+    dependentProperty?: string;
     data?: { [key: string]: CodeDataValue };
 };
 
@@ -762,6 +764,8 @@ export type NodeKind =
     | "CHILD_WORKFLOW_SEND_DATA"
     | "WORKFLOW_CURRENT_TIME"
     | "WORKFLOW_IS_REPLAYING"
+    | "WORKFLOW_LAST_HUMAN_TASK_COMPLETION"
+    | "WORKFLOW_LAST_REVIEW_DECISION"
     | "WORKFLOW_GET_ID"
     | "WORKFLOW_GET_TYPE"
     | "DURABLE_AGENT"

@@ -235,6 +235,30 @@ export function isInWI(): boolean {
 }
 
 /**
+ * The product this extension is running inside. The Integrator app exports `WSO2_PRODUCT_MODE`;
+ * outside it we go by whether the Integrator extension is installed alongside us, so a plain
+ * Ballerina install never claims the Integrator branding.
+ *
+ * Not cached: the Integrator extension can be installed from the login panel without a reload.
+ */
+export function getProductMode(): ProductMode {
+    const declared = process.env.WSO2_PRODUCT_MODE;
+    if (Object.values(ProductMode).includes(declared as ProductMode)) {
+        return declared as ProductMode;
+    }
+    return isInWI() ? ProductMode.INTEGRATOR : ProductMode.BALLERINA;
+}
+
+/** The assistant's user-facing name, e.g. "Ballerina Copilot". */
+export function copilotName(): string {
+    return assistantName(getProductMode());
+}
+
+export function copilotShortName(): string {
+    return shortAssistantName(getProductMode());
+}
+
+/**
  * ICP (Integration Control Plane) ships inside the WSO2 Integrator installation, so it is only
  * offered when the Integrator extension is present. Users running the Ballerina extension on its
  * own get no ICP commands, status bar item, or ICP sections in the overview webviews.
@@ -245,27 +269,6 @@ export function isICPSupported(): boolean {
 
 export function isInDevant(): boolean {
     return !!process.env.CLOUD_STS_TOKEN;
-}
-
-/**
- * Derived from the environment, which is fixed before the host starts — so this is safe to
- * call from anywhere, including at module load, and does not need the state machine to be
- * running. `StateMachine.productMode()` returns the same value from the machine context and
- * is the more natural read from inside a state-machine flow. Anything other than agent
- * builder is the ordinary Integrator experience.
- */
-export function getProductMode(): ProductMode {
-    return process.env.WSO2_PRODUCT_MODE === ProductMode.AGENT_BUILDER
-        ? ProductMode.AGENT_BUILDER
-        : ProductMode.INTEGRATOR;
-}
-
-export function aiAssistantName(): string {
-    return assistantName(getProductMode());
-}
-
-export function aiAssistantShortName(): string {
-    return shortAssistantName(getProductMode());
 }
 
 export async function checkIsBallerinaPackage(uri: Uri): Promise<boolean> {

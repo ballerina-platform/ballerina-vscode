@@ -1,0 +1,50 @@
+{
+  "source": "workflow_context_functions.bal",
+  "position": {
+    "line": 4,
+    "offset": 4
+  },
+  "description": "Is Replaying template: the replay flag bound to a variable",
+  "codedata": {
+    "node": "WORKFLOW_IS_REPLAYING",
+    "org": "ballerina",
+    "module": "workflow",
+    "object": "Context"
+  },
+  "output": {
+    "id": "31",
+    "metadata": {
+      "label": "Is Replaying",
+      "description": "Whether the workflow is currently replaying recorded history"
+    },
+    "codedata": {
+      "node": "WORKFLOW_IS_REPLAYING",
+      "org": "ballerina",
+      "module": "workflow",
+      "object": "Context",
+      "symbol": "isReplaying",
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "variable": {
+        "metadata": {
+          "label": "Variable Name",
+          "description": "Variable name to receive the value."
+        },
+        "types": [
+          {
+            "fieldType": "IDENTIFIER",
+            "selected": true
+          }
+        ],
+        "value": "replaying",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      }
+    },
+    "flags": 0
+  }
+}

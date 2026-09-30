@@ -46,7 +46,9 @@ import {
 export const LAYOUT_ID_VARIANT = "$variant";
 /** The handler's own documentation blurb. */
 export const LAYOUT_ID_DESCRIPTION = "$description";
-/** The renamable-handler name field. */
+/** The pickable resource accessor field. */
+export const LAYOUT_ID_ACCESSOR = "$accessor";
+/** The renamable-handler name field (a resource's path). */
 export const LAYOUT_ID_NAME = "$name";
 /** The editable doc-comment field. */
 export const LAYOUT_ID_DOCUMENTATION = "$documentation";
@@ -68,6 +70,7 @@ export const LAYOUT_ID_REST = "*rest";
  * parameters named `headers` (mcp) and `parameters` (sap.jco), which bare ids would collide with.
  */
 const ARTIFACT_FIELD_KEY_BY_ID: Record<string, string> = {
+    [LAYOUT_ID_ACCESSOR]: "accessor",
     [LAYOUT_ID_NAME]: "name",
     [LAYOUT_ID_DOCUMENTATION]: "documentation",
     [LAYOUT_ID_PARAMETERS]: "parameters",

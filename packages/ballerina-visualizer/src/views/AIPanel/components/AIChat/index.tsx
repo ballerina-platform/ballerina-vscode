@@ -504,6 +504,8 @@ const AIChat: React.FC = () => {
     const currentDiagnosticsRef = useRef<DiagnosticEntry[]>([]);
     const codeContextRef = useRef<CodeContext | undefined>(undefined);
     const hiddenContextRef = useRef<string | undefined>(undefined);
+    // Set only for the auto-submitted console scaffold turn; taken by the next agent request.
+    const consoleScaffoldRef = useRef(false);
     const functionsRef = useRef<any>([]);
     const lastAttatchmentsRef = useRef<any>([]);
     const aiChatInputRef = useRef<AIChatInputRef>(null);
@@ -710,6 +712,9 @@ const AIChat: React.FC = () => {
                                     await handleClearChat().catch((): void => { /* best-effort: still submit */ });
                                     setAgentMode(defaultPrompt.planMode ? AgentMode.Plan : AgentMode.Edit);
                                 }
+                                // Set here, past the done-marker check, so a skipped scaffold
+                                // can't leave it behind for the user's next message.
+                                consoleScaffoldRef.current = !!textPrompt.consoleScaffold;
                                 void handleSend({
                                     input: [{ content: defaultPrompt.text }],
                                     attachments: defaultPrompt.attachments ?? [],
@@ -2369,11 +2374,13 @@ const AIChat: React.FC = () => {
         const currentCodeContext = codeContextRef.current;
         const currentHiddenContext = hiddenContextRef.current;
         hiddenContextRef.current = undefined;
+        const consoleScaffold = consoleScaffoldRef.current;
+        consoleScaffoldRef.current = false;
         console.log("Submitting agent prompt:", { useCase, agentMode: agentModeRef.current, codeContext: currentCodeContext, operationType, fileAttatchments });
         await rpcClient.getAiPanelRpcClient().generateAgent({
             generationId: activeRunGenerationIdRef.current,
             promptSource: 'ai-panel',
-            usecase: useCase, hiddenContext: currentHiddenContext, isPlanMode: agentModeRef.current === AgentMode.Plan, codeContext: currentCodeContext, operationType, fileAttachmentContents: fileAttatchments, webSearchEnabled: isWebToolsEnabled
+            usecase: useCase, hiddenContext: currentHiddenContext, consoleScaffold, isPlanMode: agentModeRef.current === AgentMode.Plan, codeContext: currentCodeContext, operationType, fileAttachmentContents: fileAttatchments, webSearchEnabled: isWebToolsEnabled
         });
     }
 
