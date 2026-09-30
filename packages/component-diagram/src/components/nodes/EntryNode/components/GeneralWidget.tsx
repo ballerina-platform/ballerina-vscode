@@ -18,7 +18,7 @@
 
 import React, { useState } from "react";
 import { PortWidget } from "@projectstorm/react-diagrams-core";
-import { CDAutomation, CDService, CDWorkflow, CDWorkflowEvent, CDWorkflowHumanTask, toIconDescriptor, toThemedSvgDataUri } from "@wso2/ballerina-core";
+import { CDAutomation, CDService, CDWorkflow, CDWorkflowEvent, CDWorkflowHumanTask, resolveBrandIcon, toIconDescriptor, toThemedSvgDataUri } from "@wso2/ballerina-core";
 import { Item, Menu, MenuItem, Popover, ImageWithFallback, Icon } from "@wso2/ui-toolkit";
 import { DurableAgentIcon } from "@wso2/bi-diagram";
 import { useDiagramContext } from "../../../DiagramContext";
@@ -104,23 +104,42 @@ export function getColorByMethod(method: string) {
 const HTTP_SERVICE_TYPE = "http:Service";
 
 /**
+ * The last-resort icon once a service's descriptor images are missing or fail to load: the bundled
+ * HTTP glyph for any `http:` service type, the module's brand glyph (e.g. `grpc`) when it has one,
+ * else a generic globe.
+ */
+function getServiceFallbackIcon(service: CDService) {
+    const moduleName = service.type?.split(":")[0];
+    if (moduleName === "http") {
+        return <HttpIcon />;
+    }
+    const brand = resolveBrandIcon(moduleName);
+    return (
+        <Icon
+            name={brand?.glyph ?? "bi-globe"}
+            sx={{ fontSize: 24, width: 24, height: 24, ...(brand?.color ? { color: brand.color } : {}) }}
+        />
+    );
+}
+
+/**
  * Renders a service's icon following the descriptor's representation order: the theme-specific SVG
- * pair first, then the single `url` image, then the generic HTTP glyph. Each step falls through on a
- * load failure, so a connector shipping an SVG the browser refuses still gets its `url` image rather
- * than an empty icon slot.
+ * pair first, then the single `url` image, then {@link getServiceFallbackIcon}. Each step falls
+ * through on a load failure, so a connector shipping an SVG the browser refuses still gets its `url`
+ * image rather than an empty icon slot.
  *
  * HTTP is drawn with the diagram's own bundled glyph rather than the descriptor, the way `ai` and
  * `graphql` get their own widgets in {@link EntryNodeWidget}: it's the diagram's most common node
  * and the one the canvas already has an icon designed for, so it should not depend on a remote
  * package image that the theme can't follow and the webview may not be able to reach.
  */
-function getServiceIcon(service: CDService) {
+export function getServiceIcon(service: CDService) {
     if (service.type === HTTP_SERVICE_TYPE) {
         return <HttpIcon />;
     }
     const descriptor = toIconDescriptor(service.icon);
     const svgDataUri = toThemedSvgDataUri(descriptor);
-    const urlIcon = <ImageWithFallback imageUrl={descriptor?.url ?? ""} fallbackEl={<HttpIcon />} />;
+    const urlIcon = <ImageWithFallback imageUrl={descriptor?.url ?? ""} fallbackEl={getServiceFallbackIcon(service)} />;
     if (svgDataUri) {
         return <ImageWithFallback imageUrl={svgDataUri} fallbackEl={urlIcon} />;
     }

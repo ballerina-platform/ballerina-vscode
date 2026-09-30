@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { ValidationRule, ValidationSeverity } from "@wso2/ballerina-core";
+import { keywords, ValidationRule, ValidationSeverity } from "@wso2/ballerina-core";
 import { FormField } from "./types";
 
 /**
@@ -77,20 +77,7 @@ export interface ClientValidationFailure {
     severity: ValidationSeverity;
 }
 
-// Reserved words rejected by `common.validate.identifier`. The language server re-checks with the
-// real lexer at save time (`ls.validate.identifier`); this list only needs to catch the common
-// mistakes while typing.
-const BALLERINA_RESERVED_WORDS = new Set([
-    "abstract", "annotation", "any", "anydata", "as", "boolean", "break", "byte", "catch", "channel",
-    "check", "checkpanic", "client", "commit", "const", "continue", "decimal", "distinct", "do",
-    "else", "enum", "error", "external", "fail", "false", "final", "finally", "float", "flush",
-    "fork", "function", "future", "handle", "if", "import", "in", "int", "is", "isolated", "join",
-    "json", "let", "limit", "listener", "lock", "map", "match", "never", "new", "null", "object",
-    "on", "outer", "panic", "parameterized", "private", "public", "readonly", "record", "remote",
-    "resource", "retry", "return", "returns", "rollback", "service", "start", "stream", "string",
-    "table", "transaction", "transactional", "trap", "true", "type", "typedesc", "typeof", "var",
-    "wait", "while", "worker", "xml", "xmlns",
-]);
+const BALLERINA_RESERVED_WORDS = new Set(keywords);
 
 const IDENTIFIER_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 
@@ -400,13 +387,7 @@ function isValidServicePath(path: string): boolean {
         return true;
     }
     const segments = path.replace(/^\//, "").split("/");
-    return segments.every((segment) => {
-        if (segment === "") {
-            return false;
-        }
-        const bare = isQuotedIdentifier(segment) ? segment.slice(1) : segment;
-        return IDENTIFIER_PATTERN.test(bare);
-    });
+    return segments.every(isValidPathSegment);
 }
 
 /** As a service path, but segments may also be path params — `[string id]`. */
@@ -423,12 +404,16 @@ function isValidResourcePath(path: string): boolean {
             return false;
         }
         const pathParam = segment.match(/^\[\s*([a-zA-Z_][a-zA-Z0-9_:]*)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\]$/);
-        if (pathParam) {
-            return true;
-        }
-        const bare = isQuotedIdentifier(segment) ? segment.slice(1) : segment;
-        return IDENTIFIER_PATTERN.test(bare);
+        return !!pathParam || isValidPathSegment(segment);
     });
+}
+
+/** A plain path segment: an identifier that is not reserved unless quoted (`'service`). */
+function isValidPathSegment(segment: string): boolean {
+    if (isQuotedIdentifier(segment)) {
+        return IDENTIFIER_PATTERN.test(segment.slice(1));
+    }
+    return IDENTIFIER_PATTERN.test(segment) && !BALLERINA_RESERVED_WORDS.has(segment);
 }
 
 /**

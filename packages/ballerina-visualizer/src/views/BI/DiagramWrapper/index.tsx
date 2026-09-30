@@ -205,17 +205,22 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
                                 },
                             })
                             .then((serviceModel) => {
+                                if (!serviceModel?.service) {
+                                    console.error("Unable to resolve service model", serviceModel?.resolutionError);
+                                    return;
+                                }
                                 setServicePosition({
-                                    startLine: serviceModel.service?.codedata.lineRange.startLine.line,
-                                    startColumn: serviceModel.service?.codedata.lineRange.startLine.offset,
-                                    endLine: serviceModel.service?.codedata.lineRange.endLine.line,
-                                    endColumn: serviceModel.service?.codedata.lineRange.endLine.offset,
+                                    startLine: serviceModel.service.codedata.lineRange.startLine.line,
+                                    startColumn: serviceModel.service.codedata.lineRange.startLine.offset,
+                                    endLine: serviceModel.service.codedata.lineRange.endLine.line,
+                                    endColumn: serviceModel.service.codedata.lineRange.endLine.offset,
                                 });
-                                setServiceType(serviceModel.service?.type);
-                                setServiceName(serviceModel.service?.name ?? "");
-                                setBasePath(serviceModel.service?.properties?.basePath?.value?.trim());
-                                setListener(serviceModel.service?.properties?.listener?.value?.trim());
-                            });
+                                setServiceType(serviceModel.service.type);
+                                setServiceName(serviceModel.service.name ?? "");
+                                setBasePath(serviceModel.service.properties?.basePath?.value?.trim());
+                                setListener(serviceModel.service.properties?.listener?.value?.trim());
+                            })
+                            .catch((error) => console.error("Error fetching service model: ", error));
                     }
                 });
         });

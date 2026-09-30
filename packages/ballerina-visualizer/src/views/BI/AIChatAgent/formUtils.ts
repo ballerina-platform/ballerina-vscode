@@ -366,8 +366,8 @@ export function createRequiresApprovalField(
                         metadata: {
                             label: "Approval Function",
                             description: allowCreate
-                                ? "Optional. Decides per call whether approval is needed. Pick one of your functions, or type a name to create one."
-                                : "Optional. Decides per call whether approval is needed. Pick one of your existing functions.",
+                                ? "Optional. Decides per call whether approval is needed. Pick a compatible approval function, or type a name to create one."
+                                : "Optional. Decides per call whether approval is needed. Pick an existing compatible approval function.",
                         },
                         // AUTOCOMPLETE (not EXPRESSION): the annotation slot takes a function *reference*
                         // (a bare name), never a call expression. `items` are injected at runtime once the

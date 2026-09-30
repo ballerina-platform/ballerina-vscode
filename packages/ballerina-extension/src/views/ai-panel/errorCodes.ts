@@ -17,10 +17,14 @@
  */
 
 import { ErrorCode } from "@wso2/ballerina-core";
+import { copilotName } from "../../utils/config";
 
+// `message` is a getter so the assistant's name is read when the error surfaces, not at load.
 export const NOT_LOGGED_IN: ErrorCode = {
     code: 1,
-    message: "You need to be logged in to use WSO2 Integrator Copilot Features. Please login and try again."
+    get message() {
+        return `You need to be logged in to use ${copilotName()} features. Please login and try again.`;
+    }
 };
 
 export const TIMEOUT: ErrorCode = {
@@ -35,7 +39,9 @@ export const PARSING_ERROR: ErrorCode = {
 
 export const UNKNOWN_ERROR: ErrorCode = {
     code: 4,
-    message: "An unknown error occurred while generating code. Try login again to WSO2 Integrator Copilot"
+    get message() {
+        return `An unknown error occurred while generating code. Try login again to ${copilotName()}`;
+    }
 };
 
 export const MODIFIYING_ERROR: ErrorCode = {

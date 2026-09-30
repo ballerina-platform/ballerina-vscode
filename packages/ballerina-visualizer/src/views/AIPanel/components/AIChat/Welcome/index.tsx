@@ -22,6 +22,7 @@ import { Icon, Typography } from "@wso2/ui-toolkit";
 import React from "react";
 import { CopilotOrb } from "../../../../../components/AgentStatusOrb/CopilotOrb";
 import { useOrbColors } from "../../../../../components/AgentStatusOrb/orbTheme";
+import { useAssistantName } from "../../../../../hooks/useProductMode";
 
 const WELCOME_ORB_SIZE = 58;
 
@@ -124,13 +125,14 @@ interface WelcomeMessageProps {
 const WelcomeMessage: React.FC<WelcomeMessageProps> = ({ isOnboarding = false }) => {
     const { rpcClient } = useRpcContext();
     const idleColors = useOrbColors("idle");
+    const assistantName = useAssistantName();
 
     return (
         <PanelWrapper>
             <TopSpacer />
             <Content>
                 <WelcomeOrbHalo>
-                    <WelcomeOrb role="img" aria-label="WSO2 Integrator Copilot">
+                    <WelcomeOrb role="img" aria-label={assistantName}>
                         <CopilotOrb state="idle" colors={idleColors} size={WELCOME_ORB_SIZE} iconSize={24} />
                     </WelcomeOrb>
                 </WelcomeOrbHalo>
@@ -142,7 +144,7 @@ const WelcomeMessage: React.FC<WelcomeMessageProps> = ({ isOnboarding = false })
                         margin: "12px 0",
                     }}
                 >
-                    WSO2 Integrator Copilot
+                    {assistantName}
                 </Typography>
                 <Typography
                     variant="body1"

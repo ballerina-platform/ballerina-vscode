@@ -25,6 +25,7 @@ import React from "react";
 import { Banner } from "../../../components/Banner";
 import { CopilotOrb } from "../../../components/AgentStatusOrb/CopilotOrb";
 import { useOrbColors } from "../../../components/AgentStatusOrb/orbTheme";
+import { useAssistantName, useAssistantTagline } from "../../../hooks/useProductMode";
 
 const LOGIN_ORB_SIZE = 58;
 
@@ -282,6 +283,8 @@ const InstallButton = styled.button`
 const LoginPanel: React.FC = () => {
     const { rpcClient } = useRpcContext();
     const idleColors = useOrbColors("idle");
+    const assistantName = useAssistantName();
+    const tagline = useAssistantTagline();
 
     const { data: isPlatformAvailable, refetch: refetchPlatformAvailability } = useQuery({
         queryKey: ["platform-availability"],
@@ -322,11 +325,11 @@ const LoginPanel: React.FC = () => {
             <TopSpacer />
             <HeaderContent>
                 <WelcomeOrbHalo>
-                    <WelcomeOrb role="img" aria-label="WSO2 Integrator Copilot">
+                    <WelcomeOrb role="img" aria-label={assistantName}>
                         <CopilotOrb state="idle" colors={idleColors} size={LOGIN_ORB_SIZE} iconSize={24} />
                     </WelcomeOrb>
                 </WelcomeOrbHalo>
-                <Title>Welcome to WSO2 Integrator Copilot</Title>
+                <Title>Welcome to {assistantName}</Title>
                 <Typography
                     variant="body1"
                     sx={{
@@ -336,7 +339,7 @@ const LoginPanel: React.FC = () => {
                         fontSize: 14,
                     }}
                 >
-                    Your AI pair programmer for integration development
+                    {tagline}
                 </Typography>
             </HeaderContent>
 
@@ -354,7 +357,7 @@ const LoginPanel: React.FC = () => {
                 ) : (
                     <InstallingContainer>
                         <Typography variant="body2" sx={{ textAlign: "center", color: "var(--vscode-descriptionForeground)" }}>
-                            Install the WSO2 Integrator extension to sign in and use WSO2 Integrator Copilot.
+                            Install the WSO2 Integrator extension to sign in with your WSO2 account.
                         </Typography>
                         <InstallButton
                             disabled={isInstallingExtension}

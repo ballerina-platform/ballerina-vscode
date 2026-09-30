@@ -365,7 +365,7 @@ select a different LS: a
 prebuilt jar from elsewhere could not carry this repo's version, so a VSIX built around
 one would ship an extension and a server claiming different versions.
 
-Consequence: building the extension requires being able to build the LS — JDK 21 and
+Consequence: building the extension requires being able to build the LS — JDK 25 and
 GitHub Packages credentials (`packageUser` / `packagePAT`). If the exact versioned jar is
 missing, the copy command fails rather than silently substituting one.
 

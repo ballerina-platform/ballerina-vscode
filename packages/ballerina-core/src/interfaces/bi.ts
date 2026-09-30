@@ -121,6 +121,8 @@ export type NodeMetadata = {
     module?: string;
     type?: string;
     agentInfo?: AgentNodeInfo;
+    // The workflow context method a palette node stands for, e.g. "awaitHumanTask"; shown in its tooltip
+    method?: string;
 };
 
 export type ParentMetadata = {
@@ -221,7 +223,9 @@ export type FormFieldInputType = "TEXT" |
     "ACTION_EXPRESSION" |
     "VIEW" |
     "SERVICE_PATH" |
+    "STRING_LITERAL" |
     "ACTION_PATH" |
+    "RESOURCE_PATH" |
     "NUMBER" |
     "REPEATABLE_LIST" |
     "CONDITIONAL_FIELDS" |
@@ -344,7 +348,7 @@ export type CodeData = {
     id?: string;
     kind?: string;
     originalName?: string;
-    dependentProperty?: string[];
+    dependentProperty?: string;
     data?: { [key: string]: CodeDataValue };
 };
 

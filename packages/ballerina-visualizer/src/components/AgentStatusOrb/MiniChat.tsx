@@ -52,6 +52,7 @@ import {
     createMiniChatPrompt,
     MiniChatPrompt,
 } from "./promptHandoff";
+import { useAssistantName } from "../../hooks/useProductMode";
 
 /**
  * Minimized Copilot chat — a compact overlay opened by clicking the floating
@@ -575,8 +576,17 @@ const FooterInput = styled.input`
     font-size: 13px;
     font-family: var(--vscode-font-family);
     outline: none;
-    &:focus {
+    /* Outranks the webview default focus outline. */
+    &:focus,
+    &:focus-visible {
+        outline: none;
         border-color: var(--vscode-focusBorder);
+    }
+    @media (forced-colors: active) {
+        &:focus-visible {
+            outline: 1px solid Highlight;
+            outline-offset: 1px;
+        }
     }
     &::placeholder {
         color: var(--vscode-input-placeholderForeground);
@@ -692,6 +702,7 @@ interface MiniChatProps {
 
 export function MiniChat({ anchor, onClose, takeInitialPrompt }: MiniChatProps) {
     const { rpcClient } = useRpcContext();
+    const assistantName = useAssistantName();
     // The transcript, in the persisted store's own shape (ground truth).
     const [msgs, setMsgs] = useState<MiniMsg[]>([]);
     // Transient run signals (stop/error/review) that aren't part of the store.
@@ -976,10 +987,10 @@ export function MiniChat({ anchor, onClose, takeInitialPrompt }: MiniChatProps) 
     const transcript = renderTranscript(msgs, streaming);
 
     return (
-        <Panel style={panelPosition(anchor)} role="dialog" aria-label="WSO2 Integrator Copilot mini chat">
+        <Panel style={panelPosition(anchor)} role="dialog" aria-label={`${assistantName} mini chat`}>
             <Header>
                 <Icon name="bi-ai-chat" sx={{ width: 16, height: 16, flex: "none" }} iconSx={{ fontSize: "16px" }} />
-                <HeaderTitle>WSO2 Integrator Copilot</HeaderTitle>
+                <HeaderTitle>{assistantName}</HeaderTitle>
                 <HeaderButton title="Open full chat" aria-label="Open the full Copilot chat" onClick={openFullChat}>
                     <Codicon name="screen-full" />
                 </HeaderButton>
@@ -1048,7 +1059,7 @@ export function MiniChat({ anchor, onClose, takeInitialPrompt }: MiniChatProps) 
                                 ? "What should I add here?"
                                 : "What should we work on?"
                     }
-                    aria-label="Message WSO2 Integrator Copilot"
+                    aria-label={`Message ${assistantName}`}
                     disabled={runActive}
                 />
                 <SendButton title="Send" aria-label="Send message" onClick={send} disabled={runActive || !input.trim()}>

@@ -34,6 +34,7 @@ import {
 } from "../../../resources/constants";
 import { useDiagramContext } from "../../DiagramContext";
 import AddCommentPopup from "../../AddCommentPopup";
+import { webviewAssistantName } from "@wso2/ballerina-core";
 
 namespace S {
     export const Node = styled.div<{ readOnly: boolean }>`
@@ -225,7 +226,7 @@ export function EmptyNodeWidget(props: EmptyNodeWidgetProps) {
                                 cursor: ${isUserAuthenticated ? "pointer" : "not-allowed"};
                             `}
                         >
-                            {!isUserAuthenticated && <title>You need to be logged into WSO2 Integrator Copilot to access AI features</title>}
+                            {!isUserAuthenticated && <title>{`You need to be logged into ${webviewAssistantName()} to access AI features`}</title>}
                             <path
                                 fill={ADD_BUTTON_BG_COLOR}
                                 d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"

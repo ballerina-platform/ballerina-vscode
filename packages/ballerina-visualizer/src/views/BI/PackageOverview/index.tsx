@@ -26,6 +26,7 @@ import {
     BuildMode,
     BI_COMMANDS,
     DIRECTORY_MAP,
+    hasWorkflowArtifacts,
     isSamePath,
 } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
@@ -697,10 +698,7 @@ function WorkflowManagement({ enabled, handleWorkflowManagement }: WorkflowManag
         <div>
             <Title variant="h3">Workflow</Title>
             <p>
-                {"Expose the workflow management REST API from this integration — to list, inspect and act on "
-                    + "workflow instances, human tasks and reviews. Enabling it imports "
-                    + "ballerina/workflow.management.rest in main.bal; the API's port, TLS and CORS settings "
-                    + "are configured in the configuration editor."}
+                {"Enable the workflow management REST API to manage workflow instances, human tasks and reviews in this integration."}
             </p>
             <div style={{ paddingLeft: 10 }}>
                 <CheckBox
@@ -840,16 +838,16 @@ function DevantDashboard({ projectStructure, handleDeploy, goToDevant }: { proje
         rpcClient.getCommonRpcClient().executeCommand({ commands: [BI_COMMANDS.DEVANT_PUSH_TO_CLOUD] });
     }
 
-    // Check if integration has automation or service.
-    const hasAutomationOrService = projectStructure?.directoryMap && (
+    // Anything that can be deployed: an automation, a service, or a workflow (a durable agent included).
+    const hasDeployableArtifact = (projectStructure?.directoryMap && (
         (projectStructure.directoryMap.AUTOMATION && projectStructure.directoryMap.AUTOMATION.length > 0) ||
         (projectStructure.directoryMap.SERVICE && projectStructure.directoryMap.SERVICE.length > 0)
-    );
+    )) || hasWorkflowArtifacts(projectStructure);
 
     return (
         <React.Fragment>
             {platformExtState?.selectedComponent ? <Title variant="h3">Deployed in WSO2 Cloud</Title> : <Title variant="h3">Deploy to WSO2 Cloud</Title>}
-            {!hasAutomationOrService ? (
+            {!hasDeployableArtifact ? (
                 <Typography sx={{ color: "var(--vscode-descriptionForeground)" }}>
                     Before you can deploy your integration to WSO2 Cloud, please add an artifact (such as a Service or Automation) to your integration.
                 </Typography>
@@ -1437,7 +1435,7 @@ export function PackageOverview(props: PackageOverviewProps) {
                                             </div>
                                         </>
                                     )}
-                                    {(projectStructure?.directoryMap?.[DIRECTORY_MAP.WORKFLOW]?.length ?? 0) > 0 && (
+                                    {hasWorkflowArtifacts(projectStructure) && (
                                         <>
                                             <Divider sx={{ margin: "16px 0" }} />
                                             <WorkflowManagement

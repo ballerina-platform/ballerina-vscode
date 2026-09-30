@@ -28,7 +28,7 @@ import { sendVisualizerMigrationNotification, sendAIPanelNotification, getErrorM
 import { getEnhancementStages, getPerProjectEnhancementStages, getWorkspaceValidationStage, getResumePreamble, EnhancementStage } from "./prompts";
 import { MigrationDebugLogger } from "./debug-logger";
 import { TranscriptWriter } from "./transcript-writer";
-import { getWorkspaceTomlValues } from "../../../utils";
+import { copilotName, getWorkspaceTomlValues } from "../../../utils";
 import { setMigrationEnhancementActive } from "../../../utils/source-utils";
 import { buildMigrationCodebaseMap, extractPreviousStageWorkPlan } from "./project-map";
 
@@ -44,8 +44,8 @@ import {
     AI_MIGRATION_DIR,
     ActiveMigrationSessionLocal,
     EnhanceTomlData,
+    LEGACY_MIGRATION_PROJECT_ROOT_KEY,
     MigrationContext,
-    MIGRATION_PROJECT_ROOT_KEY,
     PackageEnhancementResult,
     PENDING_ENHANCEMENT_TTL_MS,
     PENDING_MIGRATION_ENHANCEMENT_KEY,
@@ -322,9 +322,6 @@ export function scheduleMigrationEnhancement(
         sourcePath,
     };
     extension.context.globalState.update(PENDING_MIGRATION_ENHANCEMENT_KEY, entry);
-    // Also persist the project root without expiry so getActiveMigrationSessionState
-    // can always resolve the toml even if the webview beats checkAndRunPendingEnhancement.
-    extension.context.globalState.update(MIGRATION_PROJECT_ROOT_KEY, projectRoot);
     console.log(`[MigrationEnhancement] Scheduled enhancement (aiFeatureUsed=${aiFeatureUsed}) for project: ${projectRoot}`);
 }
 
@@ -339,9 +336,15 @@ export function scheduleMigrationEnhancement(
  * - `aiFeatureUsed = false` → project opened without AI; session + notification shown
  * - `fullyEnhanced = true` → nothing to do
  *
- * Safe to call on every activation – a no-op when there is no pending entry.
+ * Safe to call on every activation – a no-op when there is no pending entry, apart
+ * from clearing the legacy project-root key once from installs that still hold it.
  */
 export async function checkAndRunPendingEnhancement(): Promise<void> {
+    // Earlier builds kept the last migrated project root here; nothing reads it any more.
+    if (extension.context.globalState.get(LEGACY_MIGRATION_PROJECT_ROOT_KEY) !== undefined) {
+        await extension.context.globalState.update(LEGACY_MIGRATION_PROJECT_ROOT_KEY, undefined);
+    }
+
     const stored = extension.context.globalState.get<PendingMigrationEnhancement>(
         PENDING_MIGRATION_ENHANCEMENT_KEY
     );
@@ -378,12 +381,13 @@ export async function checkAndRunPendingEnhancement(): Promise<void> {
         // Set session state so other parts of the extension know about the migration
         _activeSession = { isActive: false, aiFeatureUsed: true, fullyEnhanced: false };
 
+        const openCopilot = `Open ${copilotName()}`;
         const action = await window.showInformationMessage(
-            "Migration AI enhancement was paused. You can resume it from 'WSO2 Integrator Copilot'.",
-            "Open WSO2 Integrator Copilot"
+            `Migration AI enhancement was paused. You can resume it from '${copilotName()}'.`,
+            openCopilot
         );
 
-        if (action === "Open WSO2 Integrator Copilot") {
+        if (action === openCopilot) {
             openAIPanelWithPrompt();
         }
     } else {
@@ -391,11 +395,12 @@ export async function checkAndRunPendingEnhancement(): Promise<void> {
         // a "Start AI Enhancement" button, and notify the user.
         _activeSession = { isActive: false, aiFeatureUsed: false, fullyEnhanced: false };
         console.log("[MigrationEnhancement] AI not enabled at wizard – notification shown.");
+        const openCopilot = `Open ${copilotName()}`;
         const action = await window.showInformationMessage(
-            "Your migrated project is ready. Open 'WSO2 Integrator Copilot' to run AI enhancement — it can resolve TODOs, fix build errors, and refine tests.",
-            "Open WSO2 Integrator Copilot"
+            `Your migrated project is ready. Open '${copilotName()}' to run AI enhancement — it can resolve TODOs, fix build errors, and refine tests.`,
+            openCopilot
         );
-        if (action === "Open WSO2 Integrator Copilot") {
+        if (action === openCopilot) {
             openAIPanelWithPrompt();
         }
     }
@@ -850,7 +855,7 @@ function createStageAbortController(userSignal: AbortSignal): { controller: Abor
 }
 
 /** Module-level selected model ID (set by the UI's model selector). */
-let _selectedModelId: string = "wso2"; // default to WSO2 Integrator Copilot
+let _selectedModelId: string = "wso2"; // default to the WSO2-hosted Copilot model
 
 /**
  * Update the selected model ID from the webview.
@@ -871,8 +876,7 @@ export function setMigrationModelId(modelId: string): void {
  */
 export async function runMigrationAgent(): Promise<void> {
     // Determine the project root (workspace folder)
-    const projectRoot = _resolveCurrentProjectRoot()
-        ?? workspace.workspaceFolders?.[0]?.uri.fsPath;
+    const projectRoot = _resolveCurrentProjectRoot();
 
     if (!projectRoot) {
         window.showErrorMessage("Migration enhancement: unable to determine project root.");
@@ -1123,7 +1127,7 @@ async function ensureAuthenticated(): Promise<boolean> {
     }
 
     // Tell the wizard UI we're signing in
-    const signingInMsg = { type: "content_block" as const, content: "Signing in to WSO2 Integrator Copilot...\n\n" };
+    const signingInMsg = { type: "content_block" as const, content: `Signing in to ${copilotName()}...\n\n` };
     sendVisualizerMigrationNotification(signingInMsg);
     _wizardChatEmitter.fire(signingInMsg);
 
@@ -1193,7 +1197,7 @@ export function isAIAuthenticated(): boolean {
 }
 
 /**
- * Triggers the WSO2 Integrator Copilot browser sign-in flow and waits until the user is
+ * Triggers the Copilot browser sign-in flow and waits until the user is
  * authenticated, cancels, or the 2-minute timeout elapses.
  *
  * Unlike `ensureAuthenticated`, this function does NOT emit any messages to a
@@ -1455,7 +1459,7 @@ export async function runWizardMigrationEnhancement(): Promise<void> {
     if (!isAuthenticated) {
         eventHandler({
             type: "error",
-            content: "Please sign in to WSO2 Integrator Copilot to use AI enhancement. Please retry the AI Enhancement step.",
+            content: `Please sign in to ${copilotName()} to use AI enhancement. Please retry the AI Enhancement step.`,
         });
         return;
     }
@@ -1737,38 +1741,56 @@ export function openMigratedProject(): void {
 // Internal helpers
 // ===========================================================================
 
+/** `true` when `candidate` is `folder` itself or lies inside it. */
+function _isInFolder(candidate: string, folder: string): boolean {
+    const relative = path.relative(folder, candidate);
+    const escapes = relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative);
+    return !escapes;
+}
+
 function _resolveCurrentProjectRoot(): string | undefined {
-    // Build a list of candidate paths to check for the toml file.
+    // Build a list of candidate paths to check for the toml file. Only paths of the
+    // open project qualify: a remembered path from an earlier migration would leak
+    // that project's enhancement state into unrelated projects.
     const candidates: string[] = [];
+    const addCandidate = (candidate: string | undefined) => {
+        if (candidate && !candidates.includes(candidate)) {
+            candidates.push(candidate);
+        }
+    };
 
-    const folders = workspace.workspaceFolders;
-    if (folders && folders.length > 0) {
-        candidates.push(folders[0].uri.fsPath);
-    }
-
-    // Also check the project root stored persistently at migration time.
-    const stored = extension.context.globalState.get<string>(MIGRATION_PROJECT_ROOT_KEY);
-    console.log("[MigrationEnhancement] stored MIGRATION_PROJECT_ROOT_KEY:", stored);
-    if (stored && !candidates.includes(stored)) {
-        candidates.push(stored);
-    }
-
-    // Also check the active Ballerina project path from the state machine —
-    // this is the most reliable source when the panel is opened manually
-    // without going through the migration wizard first.
+    // When the state machine has loaded a project, that project is the one the user
+    // is working in, so only its own paths qualify: the package, its Ballerina
+    // workspace, and the open folder holding it (a migration writes the toml at the
+    // workspace root, above the package). Another open folder's migration must not
+    // stand in for it. The state machine's paths are not refreshed when workspace
+    // folders change and can come from a file opened outside the workspace, so only
+    // those inside an open folder qualify.
+    const folders = workspace.workspaceFolders ?? [];
     try {
         const smCtx = StateMachine.context();
         const smProjectPath = smCtx?.projectPath;
         const smWorkspacePath = smCtx?.workspacePath;
-        if (smProjectPath && !candidates.includes(smProjectPath)) {
-            candidates.push(smProjectPath);
-        }
-        if (smWorkspacePath && !candidates.includes(smWorkspacePath)) {
-            candidates.push(smWorkspacePath);
+        for (const smPath of [smProjectPath, smWorkspacePath]) {
+            const containing = smPath ? folders.filter((folder) => _isInFolder(smPath, folder.uri.fsPath)) : [];
+            if (containing.length === 0) {
+                continue;
+            }
+            addCandidate(smPath);
+            containing.forEach((folder) => addCandidate(folder.uri.fsPath));
         }
         console.log("[MigrationEnhancement] StateMachine candidates:", smProjectPath, smWorkspacePath);
     } catch {
         // StateMachine may not be initialized yet — ignore
+    }
+
+    // With no project loaded, every open workspace folder qualifies, in order. With
+    // several Ballerina projects open in a multi-root workspace the state machine
+    // loads none of them, and the migrated project need not be the first folder.
+    if (candidates.length === 0) {
+        for (const folder of folders) {
+            addCandidate(folder.uri.fsPath);
+        }
     }
 
     // Return the first candidate that actually contains the toml file.
@@ -1781,7 +1803,8 @@ function _resolveCurrentProjectRoot(): string | undefined {
         }
     }
 
-    // No toml found in any candidate – still return the workspace folder so
-    // the caller can decide (it will get null from readEnhanceToml and fall back).
+    // No toml found in any candidate – still return the loaded project (or, with
+    // none loaded, the first workspace folder) so the caller can decide (it will
+    // get null from readEnhanceToml and fall back).
     return candidates[0];
 }

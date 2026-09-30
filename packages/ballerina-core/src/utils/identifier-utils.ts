@@ -18,6 +18,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { ComponentInfo } from "../interfaces/ballerina";
+import { DIRECTORY_MAP, ProjectStructure } from "../interfaces/bi";
 import { BallerinaProjectComponents } from "../interfaces/extended-lang-client";
 import { SCOPE } from "../interfaces/shared-types";
 
@@ -101,6 +102,20 @@ export function findScope(triggerKind: string | undefined, moduleName: string | 
         return KIND_TO_SCOPE[triggerKind];
     }
     return moduleName ? findScopeByModule(moduleName) : undefined;
+}
+
+/**
+ * Whether the project runs on the workflow engine. A durable agent does, so it counts here even
+ * though it is listed under AGENT — the explorer renders it in the Agents section and keeps what
+ * it is in `kind`.
+ */
+export function hasWorkflowArtifacts(projectStructure: ProjectStructure | undefined): boolean {
+    const directoryMap = projectStructure?.directoryMap;
+    if (!directoryMap) {
+        return false;
+    }
+    return (directoryMap[DIRECTORY_MAP.WORKFLOW]?.length ?? 0) > 0
+        || (directoryMap[DIRECTORY_MAP.AGENT] ?? []).some(agent => agent.kind === DIRECTORY_MAP.DURABLE_AGENT);
 }
 
 export function getAllVariablesForAiFrmProjectComponents(projectComponents: BallerinaProjectComponents): { [key: string]: any } {

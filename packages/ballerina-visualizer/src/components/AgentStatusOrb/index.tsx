@@ -42,6 +42,7 @@ import {
     useAmbientCopilotPresence,
 } from "./shared";
 import { createMiniChatPrompt, MiniChatPrompt } from "./promptHandoff";
+import { useAssistantName } from "../../hooks/useProductMode";
 
 /**
  * Floating ambient indicator for the Copilot agent's background run.
@@ -155,10 +156,12 @@ interface InviteVisibility {
  * travelling from the orb to the input never counts as having left the widget. The negative
  * margin hands the padding back to the layout, leaving the box where it was. Only while the
  * box is showing: hidden, it must neither catch a hover nor swallow a click meant for the
- * diagram beneath.
+ * diagram beneath. While the orb is dragged or snapping, the drag position is the orb's own, so
+ * the hidden box must leave the flow or it pushes the orb away from the pointer.
  */
-const InviteHitBridge = styled.div<InviteVisibility>`
+const InviteHitBridge = styled.div<InviteVisibility & { floating: boolean }>`
     display: flex;
+    ${(props: { floating: boolean }) => (props.floating ? "position: absolute;" : "")}
     padding: ${WIDGET_GAP}px;
     margin: -${WIDGET_GAP}px;
     pointer-events: ${(props: InviteVisibility) => (props.visible ? "auto" : "none")};
@@ -216,6 +219,17 @@ const InviteInput = styled.input`
     font-size: 12px;
     font-family: var(--vscode-font-family);
     outline: none;
+    /* Outranks the webview default focus outline. */
+    &:focus,
+    &:focus-visible {
+        outline: none;
+    }
+    @media (forced-colors: active) {
+        &:focus-visible {
+            outline: 1px solid Highlight;
+            outline-offset: 1px;
+        }
+    }
     &::placeholder {
         color: var(--vscode-input-placeholderForeground);
     }
@@ -329,6 +343,7 @@ export function AgentStatusOrb() {
     // Resolve orb colors before any early return so the hook order stays stable
     // across renders (status is null while the orb is hidden).
     const colors = useOrbColors(status?.state ?? "idle");
+    const assistantName = useAssistantName();
 
     useAmbientCopilotPresence(!orbHidden);
 
@@ -494,7 +509,7 @@ export function AgentStatusOrb() {
             onMouseLeave={() => setHovered(false)}
         >
             {inviteHosted && (
-                <InviteHitBridge visible={inviteVisible}>
+                <InviteHitBridge visible={inviteVisible} floating={dragPos !== null}>
                     <InviteShell visible={inviteVisible} data-testid="invite-shell">
                             <AmbientFrame $state={state}>
                             <InviteBox>
@@ -512,7 +527,7 @@ export function AgentStatusOrb() {
                                     onFocus={() => setInviteFocused(true)}
                                     onBlur={() => setInviteFocused(false)}
                                     placeholder="How can I help?"
-                                    aria-label="Message WSO2 Integrator Copilot"
+                                    aria-label={`Message ${assistantName}`}
                                 />
                                 {inviteText.length > 0 && (
                                     <InviteClear
@@ -541,8 +556,8 @@ export function AgentStatusOrb() {
                 onPointerUp={handlePointerUp}
                 onFocus={() => setOrbFocused(true)}
                 onBlur={() => setOrbFocused(false)}
-                title={label ? `WSO2 Integrator Copilot — ${label}` : "WSO2 Integrator Copilot"}
-                aria-label={label ? `WSO2 Integrator Copilot: ${label}. Click to open the mini chat, double-click for the chat panel.` : "Click to open the WSO2 Integrator Copilot mini chat, double-click for the chat panel"}
+                title={label ? `${assistantName} — ${label}` : assistantName}
+                aria-label={label ? `${assistantName}: ${label}. Click to open the mini chat, double-click for the chat panel.` : `Click to open the ${assistantName} mini chat, double-click for the chat panel`}
             >
                 <OrbGlow className={ORB_GLOW_CLASS}>
                     <CopilotOrb state={state} colors={colors} size={ORB_SIZE} />

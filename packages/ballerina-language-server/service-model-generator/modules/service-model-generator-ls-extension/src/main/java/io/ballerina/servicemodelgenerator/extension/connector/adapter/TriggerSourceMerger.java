@@ -47,6 +47,7 @@ import static io.ballerina.servicemodelgenerator.extension.util.Constants.CD_TYP
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.CD_TYPE_PAYLOAD_MODIFIER;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.CD_TYPE_PAYLOAD_TYPE;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.CD_TYPE_PAYLOAD_TYPE_INCLUDED_RECORD;
+import static io.ballerina.servicemodelgenerator.extension.util.Constants.KIND_RESOURCE;
 
 /**
  * Folds the functions parsed from the user's source into a schema-driven trigger template
@@ -59,6 +60,8 @@ import static io.ballerina.servicemodelgenerator.extension.util.Constants.CD_TYP
 public final class TriggerSourceMerger {
 
     private static final String TYPE_PLACEHOLDER = "{{type}}";
+
+    private static final String STREAM_TYPE_PREFIX = "stream<";
 
     private static final Gson GSON = new Gson();
 
@@ -89,14 +92,10 @@ public final class TriggerSourceMerger {
                 continue;
             }
             Function template = match.template();
-            // A name-editable handler can be re-added under another name, so its template stays in the
-            // catalog and the source function enriches a copy instead.
-            Function enriched = Boolean.TRUE.equals(template.getNameEditable()) ? copyOf(template) : template;
+            Repeatable repeatable = match.effective();
+            Function enriched = repeatable.staysAddable() ? copyOf(template) : template;
             if (enriched == template) {
-                Repeatable repeatable = match.effective();
-                if (!repeatable.staysAddable()) {
-                    catalog.remove(template);
-                }
+                catalog.remove(template);
                 if (repeatable.isGroupExclusive()) {
                     consumedExclusiveGroups.add(template.getGroup());
                 }
@@ -140,7 +139,9 @@ public final class TriggerSourceMerger {
     /**
      * Matches by emitted name (and accessor for resources) first; a name-editable, repeat-always
      * template (e.g. MCP's {@code Tool}) has no fixed name once renamed, so falls back to matching
-     * any same-kind/accessor source function not already claimed.
+     * any same-kind/accessor source function not already claimed. Either way a template pinned to
+     * the source's accessor beats one merely listing it, and among name-editable remotes the one whose
+     * stream shape (stream parameter, stream return) agrees with the source wins; ties keep the first.
      */
     private static TemplateMatch findTemplate(List<Function> templates, Function source) {
         String sourceName = valueOf(source.getName());
@@ -148,35 +149,94 @@ public final class TriggerSourceMerger {
             return null;
         }
         String sourceAccessor = valueOf(source.getAccessor());
+        Function best = null;
+        int bestScore = 0;
         for (Function template : templates) {
             if (!sourceName.equals(valueOf(template.getName()))) {
                 continue;
             }
-            String templateAccessor = valueOf(template.getAccessor());
-            if (sourceAccessor == null || templateAccessor == null
-                    || sourceAccessor.equals(templateAccessor)) {
-                return new TemplateMatch(template,
-                        Repeatable.orDefault(template.getRepeatable()).effective(template.getGroup()));
+            int score = accessorScore(template, sourceAccessor);
+            if (score > bestScore) {
+                best = template;
+                bestScore = score;
             }
+        }
+        if (best != null) {
+            return new TemplateMatch(best, Repeatable.orDefault(best.getRepeatable()).effective(best.getGroup()));
         }
         for (Function template : templates) {
             if (!Boolean.TRUE.equals(template.getNameEditable())) {
                 continue;
             }
             Repeatable effective = Repeatable.orDefault(template.getRepeatable()).effective(template.getGroup());
-            if (!effective.staysAddable()) {
+            boolean resource = KIND_RESOURCE.equals(template.getKind());
+            if (!effective.staysAddable() && !resource) {
                 continue;
             }
             if (!Objects.equals(source.getKind(), template.getKind())) {
                 continue;
             }
-            String templateAccessor = valueOf(template.getAccessor());
-            if (sourceAccessor == null || templateAccessor == null
-                    || sourceAccessor.equals(templateAccessor)) {
-                return new TemplateMatch(template, effective);
+            int accessorScore = accessorScore(template, sourceAccessor);
+            if (accessorScore == 0) {
+                continue;
+            }
+            int score = accessorScore * 3 + (resource ? 0 : streamShapeScore(template, source));
+            if (score > bestScore) {
+                best = template;
+                bestScore = score;
             }
         }
-        return null;
+        return best == null ? null
+                : new TemplateMatch(best, Repeatable.orDefault(best.getRepeatable()).effective(best.getGroup()));
+    }
+
+    /**
+     * How well a template's accessor fits the source's: 2 when pinned to it (or either side has none),
+     * 1 when it is a pick-list offering it, 0 when it cannot serve it.
+     */
+    private static int accessorScore(Function template, String sourceAccessor) {
+        Value accessor = template.getAccessor();
+        String templateAccessor = valueOf(accessor);
+        if (sourceAccessor == null || templateAccessor == null) {
+            return 2;
+        }
+        if (offersAccessor(template, sourceAccessor)) {
+            return 1;
+        }
+        return sourceAccessor.equals(templateAccessor) ? 2 : 0;
+    }
+
+    /** Whether the template's accessor is a pick-list that includes {@code accessor}. */
+    private static boolean offersAccessor(Function template, String accessor) {
+        Value templateAccessor = template.getAccessor();
+        if (templateAccessor == null || !templateAccessor.isEditable() || templateAccessor.getTypes() == null) {
+            return false;
+        }
+        return templateAccessor.getTypes().stream()
+                .filter(type -> type.options() != null)
+                .flatMap(type -> type.options().stream())
+                .anyMatch(option -> accessor.equals(option.value()));
+    }
+
+    /**
+     * How many of the two stream traits -- a stream-typed parameter, a stream return -- the template and
+     * the source agree on. Tells apart sibling remotes that differ only by calling convention (e.g.
+     * gRPC's unary/server/client/bidi streaming handlers, all unnamed).
+     */
+    private static int streamShapeScore(Function template, Function source) {
+        return (hasStreamParameter(template) == hasStreamParameter(source) ? 1 : 0)
+                + (returnsStream(template) == returnsStream(source) ? 1 : 0);
+    }
+
+    private static boolean hasStreamParameter(Function function) {
+        return function.getParameters() != null && function.getParameters().stream()
+                .map(TriggerSourceMerger::typeOf)
+                .anyMatch(type -> type != null && type.startsWith(STREAM_TYPE_PREFIX));
+    }
+
+    private static boolean returnsStream(Function function) {
+        String type = valueOf(function.getReturnType());
+        return type != null && type.contains(STREAM_TYPE_PREFIX);
     }
 
     private static Function copyOf(Function template) {
@@ -195,6 +255,10 @@ public final class TriggerSourceMerger {
         }
         if (template.getName() != null && source.getName() != null) {
             template.getName().setValue(source.getName().getValue());
+        }
+        String sourceAccessor = valueOf(source.getAccessor());
+        if (template.getAccessor() != null && sourceAccessor != null && !sourceAccessor.isBlank()) {
+            template.getAccessor().setValue(sourceAccessor);
         }
         if (template.getReturnType() != null && source.getReturnType() != null
                 && source.getReturnType().getValue() != null && !source.getReturnType().getValue().isBlank()) {

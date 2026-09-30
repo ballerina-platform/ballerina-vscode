@@ -42,6 +42,10 @@ export interface GetMigrationToolsResponse {
 
 export interface MigrationToolPullRequest {
     toolName: string;
+    /**
+     * Minimum tool version the migration needs (the tool's `requiredVersion`). The newest version
+     * compatible with the Ballerina distribution is pulled; this is the floor the active tool must meet.
+     */
     version: string;
 }
 

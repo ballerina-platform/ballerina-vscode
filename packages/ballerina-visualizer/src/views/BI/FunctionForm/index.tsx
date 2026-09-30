@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { FunctionNode, LineRange, NodeKind, NodeProperties, NodePropertyKey, DIRECTORY_MAP, EVENT_TYPE, getPrimaryInputType, isTemplateType, RecordTypeField } from "@wso2/ballerina-core";
 import { Button, Codicon, Icon, ThemeColors, Typography, View, ViewContent } from "@wso2/ui-toolkit";
 import styled from "@emotion/styled";
@@ -369,6 +369,8 @@ export function FunctionForm(props: FunctionFormProps) {
             // unresolvable-version path. Surface it instead of leaving the loader up forever.
             console.error(`>>> Error fetching the ${kind} node template`, error);
             if (isCurrentLoad(seq)) {
+                // Drop the previously loaded node so a stale form cannot render under the error card.
+                setFunctionNode(undefined);
                 setLoadError(true);
             }
         } finally {
@@ -379,61 +381,73 @@ export function FunctionForm(props: FunctionFormProps) {
     }
 
     const getExistingFunctionNode = async () => {
-        // Claims the load, superseding any in-flight create-path one so its result cannot land on
-        // top of this one's. Rejection handling is deliberately left as it was: only the create
-        // path, where the package pull happens, reports failures.
+        // Claims the load, superseding any in-flight create-path one so its result cannot land
+        // on top of this one's.
         const seq = ++loadSeqRef.current;
         setIsLoading(true);
-        const res = await rpcClient
-            .getBIDiagramRpcClient()
-            .getFunctionNode({
-                functionName,
-                fileName,
-                projectPath
-            });
-        let flowNode = hideTypeDescriptionField(res.functionDefinition);
-        if (isNpFunction) {
-            /* 
-            * TODO: Remove this once the LS is updated
-            * HACK: Add the advanced fields under parameters.advanceProperties
-            */
-            // Get all the advanced fields
-            let properties = flowNode.properties as NodeProperties;
-            const advancedProperties = Object.fromEntries(
-                Object.entries(properties).filter(([_, property]) => property.advanced)
-            );
-            // Remove the advanced fields from properties
-            properties = Object.fromEntries(
-                Object.entries(properties).filter(([_, property]) => !property.advanced)
-            );
-            flowNode.properties = properties;
+        setLoadError(false);
+        try {
+            const res = await rpcClient
+                .getBIDiagramRpcClient()
+                .getFunctionNode({
+                    functionName,
+                    fileName,
+                    projectPath
+                });
+            let flowNode = hideTypeDescriptionField(res.functionDefinition);
+            if (isNpFunction) {
+                /* 
+                * TODO: Remove this once the LS is updated
+                * HACK: Add the advanced fields under parameters.advanceProperties
+                */
+                // Get all the advanced fields
+                let properties = flowNode.properties as NodeProperties;
+                const advancedProperties = Object.fromEntries(
+                    Object.entries(properties).filter(([_, property]) => property.advanced)
+                );
+                // Remove the advanced fields from properties
+                properties = Object.fromEntries(
+                    Object.entries(properties).filter(([_, property]) => !property.advanced)
+                );
+                flowNode.properties = properties;
 
-            // Add the all the advanced fields to advanceProperties
-            flowNode.properties.parameters = {
-                ...flowNode.properties.parameters,
-                advanceProperties: advancedProperties
+                // Add the all the advanced fields to advanceProperties
+                flowNode.properties.parameters = {
+                    ...flowNode.properties.parameters,
+                    advanceProperties: advancedProperties
+                }
+            }
+
+            // Override the node kind so the correct builder (WorkflowBuilder / ActivityBuilder)
+            // is used when generating source code for an existing workflow or activity function.
+            // ModuleNodeAnalyzer returns FUNCTION_DEFINITION for these; using the wrong kind causes
+            // the artifact-update subscription to filter for FUNCTION instead of WORKFLOW/ACTIVITY,
+            // resulting in a 10-second timeout and incorrect source generation (e.g. adds `public`).
+            if (isWorkflow) {
+                flowNode = { ...flowNode, codedata: { ...flowNode.codedata, node: 'WORKFLOW' as NodeKind } };
+            } else if (isDurableAgent) {
+                flowNode = { ...flowNode, codedata: { ...flowNode.codedata, node: 'DURABLE_AGENT' as NodeKind } };
+            } else if (isActivity) {
+                flowNode = { ...flowNode, codedata: { ...flowNode.codedata, node: 'ACTIVITY' as NodeKind } };
+            }
+
+            if (!isCurrentLoad(seq)) {
+                return;
+            }
+            setFunctionNode(flowNode);
+            console.log("Existing Function Node: ", flowNode);
+        } catch (error) {
+            console.error(">>> Error fetching the existing function node", error);
+            if (isCurrentLoad(seq)) {
+                // Drop the previously loaded node so a stale form cannot render under the error card.
+                setFunctionNode(undefined);
+                setLoadError(true);
+            }
+        } finally {
+            if (isCurrentLoad(seq)) {
+                setIsLoading(false);
             }
         }
-
-        // Override the node kind so the correct builder (WorkflowBuilder / ActivityBuilder)
-        // is used when generating source code for an existing workflow or activity function.
-        // ModuleNodeAnalyzer returns FUNCTION_DEFINITION for these; using the wrong kind causes
-        // the artifact-update subscription to filter for FUNCTION instead of WORKFLOW/ACTIVITY,
-        // resulting in a 10-second timeout and incorrect source generation (e.g. adds `public`).
-        if (isWorkflow) {
-            flowNode = { ...flowNode, codedata: { ...flowNode.codedata, node: 'WORKFLOW' as NodeKind } };
-        } else if (isDurableAgent) {
-            flowNode = { ...flowNode, codedata: { ...flowNode.codedata, node: 'DURABLE_AGENT' as NodeKind } };
-        } else if (isActivity) {
-            flowNode = { ...flowNode, codedata: { ...flowNode.codedata, node: 'ACTIVITY' as NodeKind } };
-        }
-
-        if (!isCurrentLoad(seq)) {
-            return;
-        }
-        setFunctionNode(flowNode);
-        setIsLoading(false);
-        console.log("Existing Function Node: ", flowNode);
     }
 
     // Writes the WSO2 default provider's Config.toml entry (service URL + token) after an

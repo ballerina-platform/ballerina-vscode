@@ -19,10 +19,14 @@
 package io.ballerina.servicemodelgenerator.extension.connector;
 
 import io.ballerina.modelgenerator.commons.trigger.models.Repeatable;
+import io.ballerina.modelgenerator.commons.trigger.models.TriggerMetadataModel;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerUISchemaModel;
+import io.ballerina.modelgenerator.commons.trigger.models.TypeRef;
+import io.ballerina.modelgenerator.commons.trigger.models.ValueSpec;
 import io.ballerina.servicemodelgenerator.extension.connector.adapter.TriggerServiceAdapter;
 import io.ballerina.servicemodelgenerator.extension.connector.adapter.TriggerSourceMerger;
 import io.ballerina.servicemodelgenerator.extension.model.Function;
+import io.ballerina.servicemodelgenerator.extension.model.FunctionReturnType;
 import io.ballerina.servicemodelgenerator.extension.model.Parameter;
 import io.ballerina.servicemodelgenerator.extension.model.Service;
 import io.ballerina.servicemodelgenerator.extension.model.Value;
@@ -193,6 +197,104 @@ public class TriggerSourceMergerTest {
         Assert.assertTrue(event.isEnabled(), "the watch-event parameter is matched despite the readonly gap");
         Assert.assertEquals(event.getName().getValue(), "fileEvent",
                 "the matched parameter takes the source's actual identifier");
+    }
+
+    /** A resource read back under a pick-list template keeps the accessor it is declared with. */
+    @Test
+    public void testResourceAccessorSurvivesReadBack() {
+        Service service = templateOf(List.of(resourceOption("chat", List.of("get", "post"))));
+        TriggerSourceMerger.mergeSource(service, List.of(sourceResource("post", "chat")));
+
+        Function chat = findFunction(service, "chat");
+        Assert.assertEquals(chat.getAccessor().getValue(), "post", "the source's accessor is the one in effect");
+    }
+
+    /** A template pinned to the source's accessor wins over an earlier one that merely lists it. */
+    @Test
+    public void testPinnedAccessorTemplateWinsOverListedOne() {
+        Service service = templateOf(List.of(
+                resourceOption("any", List.of("get", "post")),
+                resourceOption("fetch", List.of("get"))));
+        TriggerSourceMerger.mergeSource(service, List.of(sourceResource("get", "chat")));
+
+        Assert.assertEquals(findFunction(service, "chat").getMetadata().label(), "fetch");
+    }
+
+    /** A path-editable resource that is not "many" (websocket's upgrade `get`) is consumed once present. */
+    @Test
+    public void testFixedMethodResourceLeavesCatalogOncePresent() {
+        Service service = templateOf(List.of(resourceOption("get", List.of("get"))));
+        TriggerSourceMerger.mergeSource(service, List.of(sourceResource("get", "chat")));
+
+        Assert.assertEquals(findFunction(service, "chat").getAccessor().getValue(), "get");
+        Assert.assertTrue(service.getSchemaFunctions().isEmpty(), "the single get is no longer addable");
+    }
+
+    /** Unnamed remotes that differ only by stream shape (gRPC) bind to the template of their own shape. */
+    @Test
+    public void testUnnamedRemotesBindByStreamShape() {
+        TypeRef message = new TypeRef("anydata", null, true, null, null, null, null);
+        TypeRef stream = new TypeRef(null, null, TypeRef.SHAPE_STREAM, List.of(message), null);
+        Service service = templateOf(List.of(
+                remoteManyOption("unary", List.of(message), List.of(message)),
+                remoteManyOption("serverStreaming", List.of(message), List.of(stream)),
+                remoteManyOption("clientStreaming", List.of(stream), List.of(message)),
+                remoteManyOption("bidiStreaming", List.of(stream), List.of(stream))));
+        TriggerSourceMerger.mergeSource(service, List.of(
+                sourceRemote("sayHello", "string", "string"),
+                sourceRemote("lotsOfReplies", "string", "stream<string, error?>"),
+                sourceRemote("lotsOfGreetings", "stream<string, error?>", "string"),
+                sourceRemote("chat", "stream<string, error?>", "stream<string, error?>")));
+
+        Assert.assertEquals(findFunction(service, "sayHello").getMetadata().label(), "Unary");
+        Assert.assertEquals(findFunction(service, "lotsOfReplies").getMetadata().label(), "Server Streaming");
+        Assert.assertEquals(findFunction(service, "lotsOfGreetings").getMetadata().label(), "Client Streaming");
+        Assert.assertEquals(findFunction(service, "chat").getMetadata().label(), "Bidi Streaming");
+        Assert.assertEquals(service.getSchemaFunctions().size(), 4, "many handlers stay addable");
+    }
+
+    private static Service templateOf(List<TriggerMetadataModel.ServiceType.HandlerOption> options) {
+        return TriggerServiceAdapter.toServiceTemplate(TriggerModelSynthesizerTest.synthesizeModel(options),
+                "Service", "testorg", "triggerfixture", "triggerfixture");
+    }
+
+    private static TriggerMetadataModel.ServiceType.HandlerOption resourceOption(String name, List<String> accessors) {
+        return new TriggerMetadataModel.ServiceType.HandlerOption("$service." + name, name, "resource", null,
+                name, null, "optional", null, List.of(), null, new ValueSpec("required", accessors),
+                new ValueSpec("required", null), null);
+    }
+
+    private static TriggerMetadataModel.ServiceType.HandlerOption remoteManyOption(String id, List<TypeRef> param,
+                                                                                   List<TypeRef> returns) {
+        TriggerMetadataModel.ServiceType.Param request = new TriggerMetadataModel.ServiceType.Param(
+                "$service." + id + ".request", "request", null, null, param, "required", null, null, null);
+        return new TriggerMetadataModel.ServiceType.HandlerOption("$service." + id, "*", "remote", "many", null,
+                null, null, null, List.of(request),
+                new TriggerMetadataModel.ServiceType.ReturnSpec("$service." + id + ".returns", returns, null, null),
+                null, null, null);
+    }
+
+    private static Function sourceResource(String accessor, String path) {
+        return new Function.FunctionBuilder()
+                .kind("RESOURCE")
+                .name(new Value.ValueBuilder().value(path).build())
+                .accessor(new Value.ValueBuilder().value(accessor).build())
+                .parameters(List.of())
+                .build();
+    }
+
+    private static Function sourceRemote(String name, String paramType, String returnType) {
+        Parameter request = new Parameter.Builder()
+                .type(new Value.ValueBuilder().value(paramType).build())
+                .name(new Value.ValueBuilder().value("request").build())
+                .build();
+        return new Function.FunctionBuilder()
+                .kind("REMOTE")
+                .name(new Value.ValueBuilder().value(name).build())
+                .accessor(new Value.ValueBuilder().value("").build())
+                .parameters(List.of(request))
+                .returnType(new FunctionReturnType(new Value.ValueBuilder().value(returnType).build()))
+                .build();
     }
 
     private static List<String> catalogNames(Service service) {

@@ -16,19 +16,23 @@
  * under the License.
  */
 
+import { copilotName } from '../../utils/config';
+
 export const WI_EXTENSION_ID = 'wso2.wso2-integrator';
 
 export const CONFIG_FILE_NAME = "Config.toml";
 export const CONFIGURE_DEFAULT_MODEL_COMMAND = "ballerina.configureWso2DefaultModelProvider";
 
 export const CLOSE_AI_PANEL_COMMAND = "ballerina.close.ai.panel";
-export const SIGN_IN_BI_COPILOT = "Sign in to WSO2 Integrator Copilot";
+// Functions, not constants: the assistant's name depends on the product, which isn't known at
+// module load.
+export const signInToCopilot = () => `Sign in to ${copilotName()}`;
 export const PROGRESS_BAR_MESSAGE_FROM_WSO2_DEFAULT_MODEL = "Fetching and saving access token for WSO2 default model provider.";
 export const PROGRESS_BAR_MESSAGE_FROM_WSO2_DEFAULT_EMBEDDING = "Fetching and saving access token for WSO2 default embedding provider.";
 export const ERROR_NO_BALLERINA_SOURCES = "No Ballerina sources";
-export const LOGIN_REQUIRED_WARNING = "Please sign in to WSO2 Integrator Copilot to use this feature.";
-export const LOGIN_REQUIRED_WARNING_FOR_DEFAULT_MODEL = "Please sign in to WSO2 Integrator Copilot to configure the WSO2 default model provider.";
-export const LOGIN_REQUIRED_WARNING_FOR_DEFAULT_EMBEDDING = "Please sign in to WSO2 Integrator Copilot to configure the WSO2 default embedding provider.";
+export const loginRequiredWarning = () => `Please sign in to ${copilotName()} to use this feature.`;
+export const loginRequiredWarningForDefaultModel = () => `Please sign in to ${copilotName()} to configure the WSO2 default model provider.`;
+export const loginRequiredWarningForDefaultEmbedding = () => `Please sign in to ${copilotName()} to configure the WSO2 default embedding provider.`;
 export const DEFAULT_PROVIDER_ADDED = "WSO2 default model provider configuration values were added to the Config.toml file.";
 export const DEFAULT_EMBEDDING_PROVIDER_ADDED = "WSO2 default embedding provider configuration values were added to the Config.toml file.";
 export const DEFAULT_PROVIDER_TOKEN_REFRESH_FAILED = "Could not refresh the WSO2 default model provider access token. The integration may fail with invalid credentials.";

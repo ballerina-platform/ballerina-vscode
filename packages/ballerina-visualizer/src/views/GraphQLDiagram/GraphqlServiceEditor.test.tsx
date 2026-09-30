@@ -234,7 +234,9 @@ describe("GraphqlServiceEditor delete", () => {
 
         expect(rejections).toEqual([]);
         expect(container.querySelector('[data-testid="delete-we"]')).toBeNull();
-        expect(container.querySelector('[data-testid="progress-ring"]')).toBeTruthy();
+        // A gone service is reported rather than left on an endless spinner.
+        expect(container.querySelector('[data-testid="progress-ring"]')).toBeNull();
+        expect(container.textContent).toContain("Unable to load the service model.");
     });
 
     it("contains a refresh that fails and keeps showing the fields it has", async () => {

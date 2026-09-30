@@ -411,7 +411,7 @@
               "kind": "DEFAULTABLE",
               "originalName": "host"
             },
-            "defaultValue": "\"\""
+            "defaultValue": "\"localhost\""
           },
           "user": {
             "metadata": {
@@ -439,7 +439,7 @@
               "kind": "DEFAULTABLE",
               "originalName": "user"
             },
-            "defaultValue": "()"
+            "defaultValue": "\"root\""
           },
           "password": {
             "metadata": {
@@ -523,7 +523,7 @@
               "kind": "DEFAULTABLE",
               "originalName": "port"
             },
-            "defaultValue": "0"
+            "defaultValue": "3306"
           },
           "options": {
             "metadata": {

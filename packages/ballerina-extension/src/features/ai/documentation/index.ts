@@ -41,19 +41,12 @@ export async function generateDocumentationCore(
     const systemPrompt = getDocumentationGenerationSystemPrompt();
     const userMessages: ModelMessage[] = createDocumentationGenMessages(params);
 
-    const allMessages: ModelMessage[] = [
-        {
-            role: "system",
-            content: systemPrompt,
-        },
-        ...userMessages
-    ];
-
     const { fullStream } = streamText({
         model: await getAnthropicClient(ANTHROPIC_SONNET),
         maxOutputTokens: 16384,
         providerOptions: await getProviderModelOptions(),
-        messages: allMessages,
+        system: systemPrompt,
+        messages: userMessages,
         abortSignal: abortController.signal,
     });
 

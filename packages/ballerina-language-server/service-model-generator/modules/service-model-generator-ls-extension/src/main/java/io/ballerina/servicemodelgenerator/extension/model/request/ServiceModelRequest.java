@@ -48,4 +48,9 @@ public record ServiceModelRequest(String filePath, String orgName, String pkgNam
                                String listenerName) {
         this(filePath, orgName, pkgName, moduleName, listenerName, null, false);
     }
+
+    public ServiceModelRequest withVersion(String newVersion) {
+        return new ServiceModelRequest(filePath, orgName, pkgName, moduleName, listenerName, newVersion,
+                isLocalRepository);
+    }
 }

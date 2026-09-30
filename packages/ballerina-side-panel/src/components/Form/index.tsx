@@ -999,6 +999,7 @@ export const Form = forwardRef((props: FormProps, _ref) => {
             unregister,
             setError,
             clearErrors,
+            trigger,
             formState: { isValidating, errors },
         },
         expressionEditor: {
@@ -1094,17 +1095,15 @@ export const Form = forwardRef((props: FormProps, _ref) => {
             .some((diagnostic) => diagnostic.severity === "ERROR");
     };
 
+    const errorCount = Object.keys(errors).length;
+    const formIsValid = isValid && formStateIsValid && !isValidating && errorCount === 0 && !hasIncompleteRequiredFields &&
+        (!concertMessage || !concertRequired || isUserConcert) && !isIdentifierEditing && !isSubComponentEnabled &&
+        !hasBlockingLiveErrors && !isLiveValidating;
+
     // Call onValidityChange when form validity changes
     useEffect(() => {
-        if (onValidityChange) {
-            // formStateIsValid captures errors from PathEditor and other validators (setError)
-            const formIsValid = isValid && formStateIsValid && !isValidating && Object.keys(errors).length === 0 && !hasIncompleteRequiredFields &&
-                (!concertMessage || !concertRequired || isUserConcert) && !isIdentifierEditing && !isSubComponentEnabled &&
-                !hasBlockingLiveErrors && !isLiveValidating;
-            onValidityChange(formIsValid);
-        }
-    }, [isValid, formStateIsValid, isValidating, errors, hasIncompleteRequiredFields, concertMessage, concertRequired,
-        isUserConcert, isIdentifierEditing, isSubComponentEnabled, hasBlockingLiveErrors, isLiveValidating, onValidityChange]);
+        onValidityChange?.(formIsValid);
+    }, [formIsValid, onValidityChange]);
 
     const handleIdentifierEditingStateChange = (isEditing: boolean) => {
         setIsIdentifierEditing(isEditing);

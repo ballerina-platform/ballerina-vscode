@@ -72,7 +72,11 @@ import * as path from 'path';
 import { window, workspace } from "vscode";
 import { extension } from "../../BalExtensionContext";
 import { StateMachine } from "../../stateMachine";
-import { pullAndBumpConnectors } from "../../features/project/connector-upgrade";
+import {
+    getPendingReloadConnectors,
+    upgradeConnectors,
+    upgradeProjectConnectors
+} from "../../features/project/connector-upgrade";
 import { writeBallerinaFileDidOpen } from "../../utils/modification";
 import { updateSourceCode } from "../../utils/source-utils";
 import { generateExamplePayload } from "../../features/ai/payload-generator/payload_json";
@@ -82,7 +86,21 @@ import { generateExamplePayload } from "../../features/ai/payload-generator/payl
  * refused to generate source; WARNINGs accompany a successful generation and must not block it.
  */
 function getBlockingValidationErrors(validationErrors?: ValidationResult[]): ValidationResult[] {
-    return (validationErrors ?? []).filter((error) => error.severity === "ERROR");
+    return normalizeValidationSeverities(validationErrors).filter((error) => error.severity === "ERROR");
+}
+
+/**
+ * Older language servers serialize the severity enum by ordinal (0 = ERROR, 1 = WARNING) rather
+ * than by name; map those back so a refused save is never mistaken for an empty success.
+ */
+function normalizeValidationSeverities(validationErrors?: ValidationResult[]): ValidationResult[] {
+    return (validationErrors ?? []).map((error) => {
+        const severity: unknown = error.severity;
+        if (typeof severity !== "number") {
+            return error;
+        }
+        return { ...error, severity: severity === 1 ? "WARNING" : "ERROR" };
+    });
 }
 
 /**
@@ -91,7 +109,7 @@ function getBlockingValidationErrors(validationErrors?: ValidationResult[]): Val
  * rather than being dropped once the ERROR check passes.
  */
 function getValidationWarnings(validationErrors?: ValidationResult[]): ValidationResult[] {
-    return (validationErrors ?? []).filter((error) => error.severity !== "ERROR");
+    return normalizeValidationSeverities(validationErrors).filter((error) => error.severity !== "ERROR");
 }
 
 export class ServiceDesignerRpcManager implements ServiceDesignerAPI {
@@ -490,7 +508,7 @@ export class ServiceDesignerRpcManager implements ServiceDesignerAPI {
                 await this.ensureFileExists(targetFile);
                 params.filePath = targetFile;
                 const res: ConnectorUpgradeAdviceResponse = await context.langClient.getConnectorUpgradeAdvice(params);
-                resolve(res);
+                resolve({ ...res, pendingReload: getPendingReloadConnectors(StateMachine.context().projectPath) });
             } catch (error) {
                 console.log(error);
                 reject(error);
@@ -508,8 +526,10 @@ export class ServiceDesignerRpcManager implements ServiceDesignerAPI {
             minSupportedVersion: params.targetVersion,
             breaking: false,
         };
-        const { succeeded } = await pullAndBumpConnectors([advice], projectPath);
-        return { success: succeeded.length > 0 };
+        const success = params.promptReload
+            ? await upgradeProjectConnectors(advice, projectPath)
+            : await upgradeConnectors([advice], projectPath, false);
+        return { success };
     }
 
     async createServiceAndListener(params: ServiceInitSourceRequest): Promise<UpdatedArtifactsResponse> {
