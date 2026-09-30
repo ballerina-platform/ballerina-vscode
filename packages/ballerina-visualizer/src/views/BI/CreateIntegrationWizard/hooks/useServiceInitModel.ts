@@ -17,8 +17,9 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { ServiceInitModel } from "@wso2/ballerina-core";
+import { ModelResolutionError, ServiceInitModel } from "@wso2/ballerina-core";
 import { BiWsClient } from "../../wsManager/WsClient";
+import { disambiguateFormKeys } from "../../ServiceDesigner/serviceInitModelUtils";
 
 /** Mirrors ServiceCreationView's package-pulling status machine. */
 export enum PullingStatus {
@@ -49,6 +50,8 @@ export function useServiceInitModel({ wsClient, projectRoot, orgName, packageNam
     const [pullingStatus, setPullingStatus] = useState<PullingStatus | undefined>(
         cachedModel ? undefined : PullingStatus.FETCHING
     );
+    const [resolutionError, setResolutionError] = useState<ModelResolutionError | undefined>(undefined);
+    const [retryCount, setRetryCount] = useState(0);
     // Re-entering the Configure step with the same selection must reuse the model rather than
     // refetch (and re-pull the package), so key the fetch by module identity.
     //
@@ -75,40 +78,43 @@ export function useServiceInitModel({ wsClient, projectRoot, orgName, packageNam
         const fetchModel = async () => {
             setModel(null);
             setPullingStatus(PullingStatus.FETCHING);
+            setResolutionError(undefined);
 
-            const promise = wsClient.getServiceInitModel({
-                filePath: "",
-                orgName,
-                pkgName: packageName,
-                moduleName,
-                listenerName: "",
-                projectPath: projectRoot,
-            });
-
-            // Wait up to 3 seconds for a fast response before showing the
-            // "pulling the package" status (same UX as ServiceCreationView).
-            const timer = setTimeout(() => {
-                if (!cancelled) {
-                    setPullingStatus(PullingStatus.PULLING);
-                }
-            }, 3000);
-
+            let timer: ReturnType<typeof setTimeout> | undefined;
             try {
+                const promise = wsClient.getServiceInitModel({
+                    filePath: "",
+                    orgName,
+                    pkgName: packageName,
+                    moduleName,
+                    listenerName: "",
+                    projectPath: projectRoot,
+                });
+
+                timer = setTimeout(() => {
+                    if (!cancelled) {
+                        setPullingStatus(PullingStatus.PULLING);
+                    }
+                }, 3000);
+
                 const res = await promise;
                 clearTimeout(timer);
                 if (cancelled) {
                     return;
                 }
                 if (res?.serviceInitModel) {
-                    setModel(res.serviceInitModel);
+                    setModel(disambiguateFormKeys(res.serviceInitModel));
                     setPullingStatus(undefined);
                 } else {
+                    fetchedForRef.current = null;
+                    setResolutionError(res?.resolutionError);
                     setPullingStatus(PullingStatus.ERROR);
                 }
             } catch (error) {
                 clearTimeout(timer);
                 console.error(">>> Error fetching service init model", error);
                 if (!cancelled) {
+                    fetchedForRef.current = null;
                     setPullingStatus(PullingStatus.ERROR);
                 }
             }
@@ -118,7 +124,7 @@ export function useServiceInitModel({ wsClient, projectRoot, orgName, packageNam
         return () => {
             cancelled = true;
         };
-    }, [wsClient, projectRoot, orgName, packageName, moduleName]);
+    }, [wsClient, projectRoot, orgName, packageName, moduleName, retryCount]);
 
-    return { model, pullingStatus };
+    return { model, pullingStatus, resolutionError, retry: () => setRetryCount((count) => count + 1) };
 }

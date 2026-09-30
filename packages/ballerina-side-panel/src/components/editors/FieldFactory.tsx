@@ -20,7 +20,7 @@ import React, { useRef } from "react";
 import { useEffect, useState, useMemo, useCallback } from "react";
 import styled from '@emotion/styled';
 import { EditorFactory, FormField, InputMode, useFormContext, Provider as FormContextProvider, FormValues } from "../..";
-import { Imports, InputType, ExpressionProperty, getPrimaryInputType } from "@wso2/ballerina-core";
+import { Imports, InputType, ExpressionProperty, getPrimaryInputType, carryTextArrayValue } from "@wso2/ballerina-core";
 import { NodeKind, NodeProperties, RecordTypeField, SubPanel, SubPanelView } from "@wso2/ballerina-core";
 import { CompletionItem } from "@wso2/ui-toolkit";
 import { getInputModeFromTypes } from "./MultiModeExpressionEditor/ChipExpressionEditor/utils";
@@ -245,6 +245,14 @@ export const FieldFactory = (props: FieldFactoryProps) => {
 
         const currentValues = form.getValues();
         const currentFieldValue = currentValues[props.field.key];
+        // A list of text and the expression for it are two shapes of one value: carry it across
+        // the switch, so nothing typed is lost and the new mode has something to show.
+        const carried = carryTextArrayValue(mode === InputMode.TEXT_ARRAY, currentFieldValue);
+        if (carried !== undefined) {
+            form.setValue(props.field.key, carried, { shouldDirty: true });
+            props.handleFormValidation?.({ ...currentValues, [props.field.key]: carried }, true);
+            return;
+        }
         if (typeof currentFieldValue === 'string' && currentFieldValue !== '') {
             try {
                 const config = getEditorConfiguration(mode);

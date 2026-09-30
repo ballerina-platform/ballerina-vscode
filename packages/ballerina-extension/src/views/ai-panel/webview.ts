@@ -26,7 +26,7 @@ import { AIStateMachine } from './aiMachine';
 import { AIMachineEventType } from '@wso2/ballerina-core';
 import { approvalManager } from '../../features/ai/state/ApprovalManager';
 import { agentStatusManager } from '../../features/ai/state/AgentStatusManager';
-import { aiAssistantName } from "../../utils/config";
+import { copilotName } from '../../utils/config';
 
 export class AiPanelWebview {
     public static currentPanel: AiPanelWebview | undefined;
@@ -51,7 +51,7 @@ export class AiPanelWebview {
     private static createWebview(): vscode.WebviewPanel {
         const panel = vscode.window.createWebviewPanel(
             AiPanelWebview.viewType,
-            aiAssistantName(),
+            copilotName(),
             ViewColumn.Beside,
             {
                 enableScripts: true,

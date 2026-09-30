@@ -36,12 +36,14 @@ import io.ballerina.servicemodelgenerator.extension.model.Value;
 
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.CD_TYPE_PAYLOAD_TYPE;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.CD_TYPE_PAYLOAD_TYPE_INCLUDED_RECORD;
+import static io.ballerina.servicemodelgenerator.extension.util.Constants.CD_TYPE_STRING_LITERAL;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.DATA_BINDING;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.PROP_KEY_CODEDATA;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.PROP_KEY_IDENTIFIER;
@@ -1226,7 +1228,31 @@ final class TriggerUIMetadataCompiler {
         if (!field.has("types")) {
             field.add("types", inferTypes(authored.defaultValue()));
         }
+        normalizeStringLiteralWidget(field);
         return field;
+    }
+
+    /**
+     * A string-literal service attach point (e.g. {@code service "QueueName" on ...}) is authored with the
+     * base-path widget, which accepts values that aren't valid there. Retype it as {@code STRING_LITERAL}
+     * so the editor only accepts a double-quoted string literal.
+     */
+    static void normalizeStringLiteralWidget(JsonObject field) {
+        if (!field.has(PROP_KEY_CODEDATA) || !field.get(PROP_KEY_CODEDATA).isJsonObject()
+                || !CD_TYPE_STRING_LITERAL.equals(string(field.getAsJsonObject(PROP_KEY_CODEDATA), "type"))
+                || !field.has("types") || !field.get("types").isJsonArray()) {
+            return;
+        }
+        for (JsonElement element : field.getAsJsonArray("types")) {
+            if (!element.isJsonObject()) {
+                continue;
+            }
+            JsonObject type = element.getAsJsonObject();
+            if (!"SERVICE_PATH".equals(string(type, "fieldType"))) {
+                continue;
+            }
+            type.addProperty("fieldType", "STRING_LITERAL");
+        }
     }
 
     private static JsonObject serviceAnnotationChildCodedata(JsonObject parent, String key, String parentKey) {
@@ -1503,6 +1529,8 @@ final class TriggerUIMetadataCompiler {
                     : target == null ? null
                     : target.name() != null ? target.name() : lastSegment(target.id());
             List<JsonObject> matches = new ArrayList<>();
+            List<JsonObject> pinnedAccessorMatches = new ArrayList<>();
+            List<JsonObject> listedAccessorMatches = new ArrayList<>();
             for (String key : List.of("functions", PROP_KEY_SCHEMA_FUNCTIONS)) {
                 if (!service.has(key)) {
                     continue;
@@ -1512,10 +1540,21 @@ final class TriggerUIMetadataCompiler {
                     if (("*".equals(name) && Boolean.TRUE.equals(bool(function, "nameEditable")))
                             || name != null && name.equals(string(function, "name"))) {
                         matches.add(function);
+                    } else if (name != null && "RESOURCE".equals(string(function, "kind"))
+                            && offersAccessor(string(function, "accessor"), name)) {
+                        (name.equals(string(function, "accessor").trim())
+                                ? pinnedAccessorMatches : listedAccessorMatches).add(function);
                     }
                 }
             }
+            matches.addAll(pinnedAccessorMatches.isEmpty() ? listedAccessorMatches : pinnedAccessorMatches);
             return matches;
+        }
+
+        /** Whether a (possibly comma-separated) accessor list includes {@code accessor}. */
+        private static boolean offersAccessor(String accessors, String accessor) {
+            return accessors != null && Arrays.stream(accessors.split(",")).map(String::trim)
+                    .anyMatch(accessor::equals);
         }
 
         private JsonObject parameter(JsonArray params, TriggerUIMetadataModel.Target target, int ordinal) {

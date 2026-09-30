@@ -104,7 +104,10 @@ export const EnumEditor = (props: EnumEditorProps) => {
             items={itemsList}
             onChange={handleChange}
             sx={{ width: "100%" }}
-            containerSx={{ width: "100%" }}
+            containerSx={{
+                width: "100%",
+                "& vscode-dropdown::part(listbox)": { zIndex: 2000 }
+            }}
         />
     )
 }

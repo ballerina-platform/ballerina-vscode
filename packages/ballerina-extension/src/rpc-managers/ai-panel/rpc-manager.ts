@@ -103,7 +103,7 @@ import * as fs from 'fs';
 import path from "path";
 import * as vscode from 'vscode';
 import { window, workspace } from 'vscode';
-import { LOGIN_REQUIRED_WARNING, SIGN_IN_BI_COPILOT } from '../../features/ai/constants';
+import { loginRequiredWarning, signInToCopilot } from '../../features/ai/constants';
 // TODO(auto-memory): temporarily disabled for this release.
 // import {
 //     getGlobalMemoryDir,
@@ -120,6 +120,7 @@ import { extension } from "../../BalExtensionContext";
 import { openChatWindowWithCommand } from "../../features/ai/data-mapper/index";
 import { generateDocumentationForService } from "../../features/ai/documentation/generator";
 import { generateOpenAPISpec } from "../../features/ai/openapi/index";
+import { removeConsoleSummary } from "../../features/ai/agent/console-summary";
 import { BACKEND_URL } from "../../features/ai/utils";
 import { fetchWithAuth } from "../../features/ai/utils/ai-client";
 import { sendSaveChatNotification, sendSkillEnableNotification } from "../../features/ai/utils/ai-utils";
@@ -492,8 +493,9 @@ export class AiPanelRpcManager implements AIPanelAPI {
     }
 
     promptForLogin(): void {
-        window.showWarningMessage(LOGIN_REQUIRED_WARNING, SIGN_IN_BI_COPILOT).then(selection => {
-            if (selection === SIGN_IN_BI_COPILOT) {
+        const signIn = signInToCopilot();
+        window.showWarningMessage(loginRequiredWarning(), signIn).then(selection => {
+            if (selection === signIn) {
                 AIStateMachine.service().send(AIMachineEventType.LOGIN);
             }
         });
@@ -604,6 +606,11 @@ User reverted the last made changes. The files have been restored to the state b
 
             chatStateStorage.revertLastGeneration(projectRootPath, threadId);
             console.log(`[Review Actions] Reverted generation: ${doneGeneration.id}`);
+            // consoleSummary is persisted, so this also holds after a reload.
+            if (doneGeneration.consoleSummary) {
+                removeConsoleSummary(doneGeneration.id);
+                chatStateStorage.updateGeneration(projectRootPath, threadId, doneGeneration.id, { consoleSummary: undefined });
+            }
 
             // Drop the manager's cached review for this generation so a queued/late
             // navigation cannot reopen the just-reverted diff.
@@ -832,6 +839,13 @@ User reverted the last made changes. The files have been restored to the state b
                 throw new Error('Restoring the workspace from the checkpoint failed; the conversation was not rewound.');
             }
 
+            // Every turn the truncation drops has its changes undone, so collect the ones
+            // that were published to the console before they are gone.
+            const publishedIds = chatStateStorage
+                .getGenerationsFromCheckpoint(projectRootPath, threadId, params.checkpointId)
+                .filter(generation => generation.consoleSummary)
+                .map(generation => generation.id);
+
             // 2. Truncate thread history to this checkpoint
             const restored = chatStateStorage.restoreThreadToCheckpoint(
                 projectRootPath,
@@ -842,6 +856,8 @@ User reverted the last made changes. The files have been restored to the state b
             if (!restored) {
                 throw new Error('Failed to restore thread to checkpoint');
             }
+
+            publishedIds.forEach(id => removeConsoleSummary(id));
         } finally {
             endRestore(projectRootPath);
         }
