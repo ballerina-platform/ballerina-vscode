@@ -15,57 +15,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-// tslint:disable: jsx-no-multiline-js
 
-import { ParseResult, processSegment, splitSegments, processParam } from "@wso2/ballerina-side-panel";
+import { ParseResult, parseResourceFunctionPath } from "@wso2/ballerina-side-panel";
 
+/** The HTTP resource form applies the same resource-path rules as every other resource handler. */
 export function parseResourcePath(input: string): ParseResult {
-    const result: ParseResult = {
-        valid: false,
-        errors: [],
-        segments: []
-    };
-
-    // Path cannot start with a / character
-    if (input.startsWith('/')) {
-        result.errors.push({ position: 0, message: 'Path cannot start with a slash (/)' });
-        return result;
-    }
-
-    if (!input || input === '') {
-        result.valid = false;
-        result.errors.push({ position: 0, message: 'Path cannot be empty' });
-        return result;
-    }
-
-    if (input === '.') {
-        result.segments.push({ type: 'dot', start: 0, end: 0 });
-        result.valid = result.errors.length === 0;
-        if (!result.valid) {
-            result.errors.push({ position: 0, message: 'Cannot have characters after dot (.)' });
-        }
-        return result;
-    }
-
-    if (input.includes('//')) {
-        result.errors.push({ position: 0, message: 'Cannot have two consecutive slashes (//)' });
-        return result;
-    }
-
-    if (input.length > 1 && input.endsWith('/')) {
-        result.errors.push({ position: input.length - 1, message: 'Path cannot end with a slash (/)' });
-        return result;
-    }
-
-    const segments = splitSegments(input);
-    for (const segment of segments) {
-        if (segment.value.startsWith('[') || segment.value.endsWith(']')) {
-            processParam(segment, result);
-        } else {
-            processSegment(segment, result);
-        }
-    }
-
-    result.valid = result.errors.length === 0;
-    return result;
+    return parseResourceFunctionPath(input);
 }

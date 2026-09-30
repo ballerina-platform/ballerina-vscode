@@ -37,7 +37,7 @@ import {
 } from '../../utils/ai/auth';
 import { AIStateMachine } from '../../views/ai-panel/aiMachine';
 import { AIMachineEventType } from '@wso2/ballerina-core/lib/state-machine-types';
-import { CONFIG_FILE_NAME, CONFIGURE_DEFAULT_PROVIDER_ACTION, DEFAULT_PROVIDER_ADDED, DEFAULT_PROVIDER_NOT_CONFIGURED_PROMPT, DEFAULT_PROVIDER_TOKEN_REFRESH_FAILED, ERROR_NO_BALLERINA_SOURCES, LLM_API_BASE_PATH, LOGIN_REQUIRED_WARNING_FOR_DEFAULT_MODEL, PROGRESS_BAR_MESSAGE_FROM_WSO2_DEFAULT_EMBEDDING, PROGRESS_BAR_MESSAGE_FROM_WSO2_DEFAULT_MODEL, RUN_CANCELLED_DEFAULT_PROVIDER_NOT_CONFIGURED, SIGN_IN_BI_COPILOT } from './constants';
+import { CONFIG_FILE_NAME, CONFIGURE_DEFAULT_PROVIDER_ACTION, DEFAULT_PROVIDER_ADDED, DEFAULT_PROVIDER_NOT_CONFIGURED_PROMPT, DEFAULT_PROVIDER_TOKEN_REFRESH_FAILED, ERROR_NO_BALLERINA_SOURCES, LLM_API_BASE_PATH, loginRequiredWarningForDefaultModel, PROGRESS_BAR_MESSAGE_FROM_WSO2_DEFAULT_EMBEDDING, PROGRESS_BAR_MESSAGE_FROM_WSO2_DEFAULT_MODEL, RUN_CANCELLED_DEFAULT_PROVIDER_NOT_CONFIGURED, signInToCopilot } from './constants';
 import { getCurrentBallerinaProjectFromContext } from '../config-generator/configGenerator';
 import { BallerinaProject, LoginMethod, DefaultProviderKind, GET_DEFAULT_MODEL_PROVIDER, GET_DEFAULT_EMBEDDING_PROVIDER } from '@wso2/ballerina-core';
 import { BallerinaExtension } from 'src/core';
@@ -468,8 +468,10 @@ const AUTH_SUBSCRIPTION_TIMEOUT_MS = 5 * 60 * 1000;
 
 // Prompts to sign in, then runs onAuthenticated() once login completes (or times out).
 export function promptSignInAndRetry(loginWarning: string, onAuthenticated: () => void): void {
-    vscode.window.showWarningMessage(loginWarning, SIGN_IN_BI_COPILOT).then(selection => {
-        if (selection !== SIGN_IN_BI_COPILOT) {
+    // Resolved once: the label offered and the label compared against must be the same string.
+    const signIn = signInToCopilot();
+    vscode.window.showWarningMessage(loginWarning, signIn).then(selection => {
+        if (selection !== signIn) {
             return;
         }
 
@@ -527,7 +529,7 @@ async function promptToConfigureDefaultProvider(projectPath: string): Promise<bo
         if (!isNotLoggedInError(error)) {
             throw error;
         }
-        promptSignInAndRetry(LOGIN_REQUIRED_WARNING_FOR_DEFAULT_MODEL, () => {
+        promptSignInAndRetry(loginRequiredWarningForDefaultModel(), () => {
             addConfigFile(projectPath, "model", { signOutOnFailure: false }).then(configured => {
                 if (configured) {
                     vscode.window.showInformationMessage(DEFAULT_PROVIDER_ADDED);

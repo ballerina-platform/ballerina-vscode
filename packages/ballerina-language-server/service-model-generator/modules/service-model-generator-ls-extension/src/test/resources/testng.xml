@@ -42,6 +42,7 @@ under the License.
             <class name="io.ballerina.servicemodelgenerator.extension.GetTypeListTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.GetFunctionModelFromSourceTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.GetServiceInitModelTest"/>
+            <class name="io.ballerina.servicemodelgenerator.extension.ServiceModelResolutionErrorTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.AddServiceAndListenerTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.UpdateListenerTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.TriggerModelSynthesizerTest"/>
@@ -72,6 +73,7 @@ under the License.
             <class name="io.ballerina.servicemodelgenerator.extension.connector.TriggerSourceMergerTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.connector.TriggerFunctionExpansionTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.builder.service.ListenerChoiceSelectionTest"/>
+            <class name="io.ballerina.servicemodelgenerator.extension.builder.function.SchemaDrivenFunctionBuilderTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.core.McpOpenApiServiceGeneratorTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.core.McpOpenApiServiceGeneratorFixtureTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.connector.ExistingListenerResolverTest"/>
@@ -79,7 +81,12 @@ under the License.
             <class name="io.ballerina.servicemodelgenerator.extension.connector.LocalDependencyEditUtilTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.connector.PlatformDependencyEditUtilTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.validation.ValidationEngineTest"/>
+            <class name="io.ballerina.servicemodelgenerator.extension.connector.ModelResolutionErrorTest"/>
+            <class name="io.ballerina.servicemodelgenerator.extension.core.OpenApiServiceTypeNameCollisionTest"/>
+            <class name="io.ballerina.servicemodelgenerator.extension.util.StringLiteralPropertyTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.validation.LsRuleValidatorsTest"/>
+            <class name="io.ballerina.servicemodelgenerator.extension.validation.OpenApiServiceTypeNameValidatorTest"/>
+            <class name="io.ballerina.servicemodelgenerator.extension.validation.ValidationResultSerializationTest"/>
         </classes>
     </test>
 </suite>

@@ -230,6 +230,7 @@ const TextLinkButton = styled.button`
     font-size: 12px;
     cursor: pointer;
     padding: 0;
+    align-self: flex-start;
 
     &:hover:not(:disabled) {
         text-decoration: underline;

@@ -1,0 +1,50 @@
+{
+  "source": "workflow_context_functions.bal",
+  "position": {
+    "line": 4,
+    "offset": 4
+  },
+  "description": "Get Current Time template: a deterministic clock read bound to a variable",
+  "codedata": {
+    "node": "WORKFLOW_CURRENT_TIME",
+    "org": "ballerina",
+    "module": "workflow",
+    "object": "Context"
+  },
+  "output": {
+    "id": "31",
+    "metadata": {
+      "label": "Get Current Time",
+      "description": "Deterministic current time, safe to use inside workflow logic"
+    },
+    "codedata": {
+      "node": "WORKFLOW_CURRENT_TIME",
+      "org": "ballerina",
+      "module": "workflow",
+      "object": "Context",
+      "symbol": "currentTime",
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "variable": {
+        "metadata": {
+          "label": "Variable Name",
+          "description": "Variable name to receive the value."
+        },
+        "types": [
+          {
+            "fieldType": "IDENTIFIER",
+            "selected": true
+          }
+        ],
+        "value": "now",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      }
+    },
+    "flags": 0
+  }
+}

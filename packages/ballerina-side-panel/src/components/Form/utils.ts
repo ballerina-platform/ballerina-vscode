@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { NodeKind, getPrimaryInputType } from "@wso2/ballerina-core";
+import { NodeKind, PropertyModel, getPrimaryInputType } from "@wso2/ballerina-core";
 import { FormField, FormImports } from "../..";
 
 // This function allows us to format strings by adding indentation as tabs to the lines
@@ -161,11 +161,22 @@ export function isDefaultModelProvider(formFields: FormField[]): boolean {
 }
 
 /**
- * Every field key reachable in the form, including the nested groups (`advanceProps`) and the
- * per-option branches (`dynamicFormFields`) that render their leaves with the leaf's own key.
+ * Every field key reachable in the form, including the nested groups (`advanceProps`), the
+ * per-option branches (`dynamicFormFields`) and the CHOICE options' properties — all of which
+ * render their leaves with the leaf's own key.
  */
 export function collectFieldKeys(fields: FormField[]): Set<string> {
     const keys = new Set<string>();
+    const visitProperties = (properties?: { [key: string]: PropertyModel }) => {
+        Object.entries(properties ?? {}).forEach(([key, property]) => {
+            if (!property) {
+                return;
+            }
+            keys.add(key);
+            visitProperties(property.properties);
+            property.choices?.forEach((choice) => visitProperties(choice?.properties));
+        });
+    };
     const visit = (candidates: FormField[]) => {
         candidates?.forEach((field) => {
             if (!field) {
@@ -174,6 +185,7 @@ export function collectFieldKeys(fields: FormField[]): Set<string> {
             keys.add(field.key);
             visit(field.advanceProps);
             Object.values(field.dynamicFormFields ?? {}).forEach(visit);
+            field.choices?.forEach((choice) => visitProperties(choice?.properties));
         });
     };
     visit(fields);

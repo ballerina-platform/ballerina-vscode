@@ -10,5 +10,6 @@
         "offset": 0
     },
     "originalName": "/second",
-    "response": null
+    "response": null,
+    "resolutionErrorCode": "SERVICE_NOT_FOUND"
 }
