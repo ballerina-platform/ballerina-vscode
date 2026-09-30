@@ -80,7 +80,7 @@ public class ModelProviderBuilder extends CallBuilder {
         if (sourceBuilder.flowNode.codedata().symbol().equals(GET_DEFAULT_MODEL_PROVIDER_FUNCTION_NAME)) {
             sourceBuilder.token().name(methodCallWithModulePrefix(sourceBuilder));
         } else {
-            sourceBuilder.newExpression();
+            sourceBuilder.token().keyword(SyntaxKind.NEW_KEYWORD);
         }
         sourceBuilder.functionParameters(sourceBuilder.flowNode,
                 Set.of(Property.VARIABLE_KEY, Property.TYPE_KEY, Property.SCOPE_KEY, Property.CHECK_ERROR_KEY));

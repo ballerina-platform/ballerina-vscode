@@ -52,7 +52,6 @@ public class CodeGenerationTest extends AbstractLSTest {
                 {Path.of("code_generation_with_deepseek_model_provider.json")},
                 {Path.of("code_generation_with_ollama_model_provider.json")},
                 {Path.of("code_generation_with_anthropic_model_provider.json")},
-                {Path.of("code_generation_with_explicit_new_model_provider.json")},
         };
     }
 

@@ -46,7 +46,6 @@ public class Constants {
 
     // Codedata data keys
     public static final String FILE_PATH_KEY = "filePath";
-    public static final String EXPLICIT_NEW_KEY = "explicitNew";
 
     // Constants used for Natural functions
     public static final class NaturalFunctions {

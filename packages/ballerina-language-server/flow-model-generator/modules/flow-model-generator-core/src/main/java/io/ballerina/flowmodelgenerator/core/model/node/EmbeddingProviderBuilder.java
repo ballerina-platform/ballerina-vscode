@@ -81,7 +81,7 @@ public class EmbeddingProviderBuilder extends CallBuilder {
         if (GET_DEFAULT_EMBEDDING_PROVIDER_FUNCTION_NAME.equals(sourceBuilder.flowNode.codedata().symbol())) {
             sourceBuilder.token().name(methodCallWithModulePrefix(sourceBuilder));
         } else {
-            sourceBuilder.newExpression();
+            sourceBuilder.token().keyword(SyntaxKind.NEW_KEYWORD);
         }
         sourceBuilder.functionParameters(sourceBuilder.flowNode,
                 Set.of(Property.VARIABLE_KEY, Property.TYPE_KEY, Property.SCOPE_KEY, Property.CHECK_ERROR_KEY));

@@ -65,10 +65,7 @@
               "offset": 77
             }
           },
-          "sourceCode": "http:Client localHttpCl = check new http:Client(\"http://localhost:8080\");",
-          "data": {
-            "explicitNew": true
-          }
+          "sourceCode": "http:Client localHttpCl = check new http:Client(\"http://localhost:8080\");"
         },
         "returning": false,
         "properties": {
@@ -927,10 +924,7 @@
               "offset": 57
             }
           },
-          "sourceCode": "redis:Client localRedisCl = check new redis:Client();",
-          "data": {
-            "explicitNew": true
-          }
+          "sourceCode": "redis:Client localRedisCl = check new redis:Client();"
         },
         "returning": false,
         "properties": {
@@ -1539,10 +1533,7 @@
               "offset": 76
             }
           },
-          "sourceCode": "http:Client moduleHttpExCl = check new http:Client(\"http://localhost:9090\");",
-          "data": {
-            "explicitNew": true
-          }
+          "sourceCode": "http:Client moduleHttpExCl = check new http:Client(\"http://localhost:9090\");"
         },
         "returning": false,
         "properties": {
@@ -2650,10 +2641,7 @@
               "offset": 56
             }
           },
-          "sourceCode": "redis:Client moduleRedisExCl = check new redis:Client();",
-          "data": {
-            "explicitNew": true
-          }
+          "sourceCode": "redis:Client moduleRedisExCl = check new redis:Client();"
         },
         "returning": false,
         "properties": {
