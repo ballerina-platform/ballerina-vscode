@@ -408,7 +408,7 @@ public class ServiceModelUtils {
                 .setCodedata(new Codedata("STRING_LITERAL"))
                 .value(value)
                 .setValues(new ArrayList<>())
-                .types(List.of(PropertyType.types(Value.FieldType.SERVICE_PATH)))
+                .types(List.of(PropertyType.types(Value.FieldType.STRING_LITERAL)))
                 .enabled(true)
                 .editable(true);
 
@@ -422,7 +422,7 @@ public class ServiceModelUtils {
                 .setCodedata(new Codedata("STRING_LITERAL"))
                 .value("")
                 .setValues(new ArrayList<>())
-                .types(List.of(PropertyType.types(Value.FieldType.SERVICE_PATH)))
+                .types(List.of(PropertyType.types(Value.FieldType.STRING_LITERAL)))
                 .setPlaceholder(template.stringLiteralDefaultValue())
                 .optional(false)
                 .setAdvanced(false)

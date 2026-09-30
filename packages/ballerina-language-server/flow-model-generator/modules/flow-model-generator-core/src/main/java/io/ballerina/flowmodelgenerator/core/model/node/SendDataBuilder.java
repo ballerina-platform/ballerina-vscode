@@ -18,8 +18,6 @@
 
 package io.ballerina.flowmodelgenerator.core.model.node;
 
-import io.ballerina.compiler.api.symbols.FunctionSymbol;
-import io.ballerina.compiler.api.symbols.SymbolKind;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Option;
@@ -36,7 +34,6 @@ import io.ballerina.projects.Package;
 import org.eclipse.lsp4j.TextEdit;
 
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -197,22 +194,9 @@ public class SendDataBuilder extends FunctionCall {
      * @return List of options containing workflow function names
      */
     public static List<Option> getAvailableWorkflowFunctions(TemplateContext context) {
-        List<Option> options = new ArrayList<>();
         Package currentPackage = PackageUtil.loadProject(context.workspaceManager(), context.filePath())
                 .currentPackage();
         PackageUtil.getCompilation(currentPackage);
-        currentPackage.modules().forEach(module -> {
-            module.getCompilation().getSemanticModel().moduleSymbols().stream()
-                    .filter(symbol -> symbol.kind() == SymbolKind.FUNCTION)
-                    .map(symbol -> (FunctionSymbol) symbol)
-                    .filter(WorkflowUtil::isWorkflowFunction)
-                    .forEach(funcSymbol -> {
-                        String funcName = funcSymbol.getName().orElse("");
-                        if (!funcName.isEmpty()) {
-                            options.add(new Option(funcName, funcName));
-                        }
-                    });
-        });
-        return options;
+        return WorkflowUtil.workflowFunctionOptions(currentPackage);
     }
 }

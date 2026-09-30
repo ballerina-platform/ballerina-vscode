@@ -18,6 +18,7 @@
 
 import React, { useState } from "react";
 import styled from "@emotion/styled";
+import { PortWidget } from "@projectstorm/react-diagrams-core";
 import { AI_CHAT_RESOURCE_NAME, AI_DECISION_RESOURCE_NAME, CDService } from "@wso2/ballerina-core";
 import { Item, Menu, MenuItem, Popover, Icon, ThemeColors } from "@wso2/ui-toolkit";
 import { useDiagramContext } from "../../../DiagramContext";
@@ -35,8 +36,6 @@ import {
     Description,
     IconWrapper,
     MenuButton,
-    TopPortWidget,
-    BottomPortWidget,
 } from "./styles";
 
 type NodeStyleProp = { hovered: boolean };
@@ -146,7 +145,9 @@ export function AIServiceWidget({ model, engine }: BaseNodeWidgetProps) {
 
     return (
         <Node>
-            <TopPortWidget port={model.getPort("in")!} engine={engine} />
+            {/* PortWidget itself renders a bare, zero-height div - see GeneralWidget.tsx's "in"
+                port for the full anchor-alignment rationale. */}
+            <PortWidget port={model.getPort("in")!} engine={engine} />
             <BoxComponent hovered={isHovered}>
                 <ServiceBox
                     onMouseEnter={() => !readonly && setIsHovered(true)}
@@ -201,7 +202,7 @@ export function AIServiceWidget({ model, engine }: BaseNodeWidgetProps) {
                 </Menu>
             </Popover>
 
-            <BottomPortWidget port={model.getPort("out")!} engine={engine} />
+            <PortWidget port={model.getPort("out")!} engine={engine} />
             {/* Every resource now has a visible row carrying its own inline PortWidget, so there is
                 no anonymous chat port here — registering the same port twice would conflict. */}
         </Node>

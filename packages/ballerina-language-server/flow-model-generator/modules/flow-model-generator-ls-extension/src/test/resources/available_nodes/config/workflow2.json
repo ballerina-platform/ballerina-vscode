@@ -118,6 +118,26 @@
                 "node": "WORKFLOW_GET_TYPE"
               },
               "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "Get Last Human Task Completion",
+                "description": "The completion of the most recently completed human task, with who completed it"
+              },
+              "codedata": {
+                "node": "WORKFLOW_LAST_HUMAN_TASK_COMPLETION"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "Get Last Review Decision",
+                "description": "The decision of the most recent review task, with who decided it"
+              },
+              "codedata": {
+                "node": "WORKFLOW_LAST_REVIEW_DECISION"
+              },
+              "enabled": true
             }
           ]
         },

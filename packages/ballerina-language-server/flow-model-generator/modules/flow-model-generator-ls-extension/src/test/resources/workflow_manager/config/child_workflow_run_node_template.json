@@ -1,0 +1,136 @@
+{
+  "source": "workflow_function/functions.bal",
+  "position": {
+    "line": 16,
+    "offset": 4
+  },
+  "description": "Child Workflow Run node template",
+  "codedata": {
+    "node": "CHILD_WORKFLOW_RUN",
+    "symbol": "orderWorkflow"
+  },
+  "output": {
+    "id": "31",
+    "metadata": {
+      "label": "orderWorkflow",
+      "description": "Start a child workflow and continue without waiting for its result"
+    },
+    "codedata": {
+      "node": "CHILD_WORKFLOW_RUN",
+      "org": "ballerina",
+      "module": "workflow",
+      "symbol": "orderWorkflow",
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "workflow": {
+        "metadata": {
+          "label": "Child Workflow",
+          "description": "The workflow to start as a child of this one"
+        },
+        "types": [
+          {
+            "fieldType": "SINGLE_SELECT",
+            "options": [
+              {
+                "label": "orderWorkflow",
+                "value": "orderWorkflow"
+              }
+            ],
+            "selected": true
+          }
+        ],
+        "value": "orderWorkflow",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED"
+        }
+      },
+      "input": {
+        "metadata": {
+          "label": "Input",
+          "description": "Input data for the child workflow"
+        },
+        "types": [
+          {
+            "fieldType": "RECORD_MAP_EXPRESSION",
+            "ballerinaType": "OrderInput",
+            "typeMembers": [
+              {
+                "type": "OrderInput",
+                "packageInfo": "test:workflow_function:0.1.0",
+                "packageName": "workflow_function",
+                "kind": "RECORD_TYPE",
+                "selected": false
+              }
+            ],
+            "selected": false
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "OrderInput",
+            "selected": false
+          }
+        ],
+        "value": "",
+        "placeholder": "",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "dependentProperty": "workflow"
+        }
+      },
+      "variable": {
+        "metadata": {
+          "label": "Child Workflow ID Variable Name",
+          "description": "Variable name to receive the started child workflow ID."
+        },
+        "types": [
+          {
+            "fieldType": "IDENTIFIER",
+            "selected": false
+          }
+        ],
+        "value": "childWorkflowId",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "stepId": {
+        "metadata": {
+          "label": "Step Id",
+          "description": "Identity of this step within the workflow, matching a node of the descriptor graph. A constant string; defaults to one the compiler generates"
+        },
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "ballerinaType": "string",
+            "selected": true
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string?",
+            "selected": false
+          }
+        ],
+        "value": "",
+        "placeholder": "",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false,
+        "codedata": {
+          "originalName": "stepId"
+        }
+      }
+    },
+    "flags": 0
+  }
+}

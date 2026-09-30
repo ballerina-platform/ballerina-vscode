@@ -1328,7 +1328,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "connection"
             },
-            "defaultValue": "\"\""
+            "defaultValue": "\"redis://localhost:6379\""
           },
           "connectionPooling": {
             "metadata": {
@@ -1577,7 +1577,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "connection"
             },
-            "defaultValue": "\"\""
+            "defaultValue": "\"redis://localhost:6379\""
           },
           "connectionPooling": {
             "metadata": {
@@ -2685,7 +2685,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "connection"
             },
-            "defaultValue": "\"\""
+            "defaultValue": "\"redis://localhost:6379\""
           },
           "connectionPooling": {
             "metadata": {

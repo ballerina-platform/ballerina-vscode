@@ -220,7 +220,7 @@
           ],
           "enabled": true,
           "editable": false,
-          "optional": true,
+          "optional": false,
           "advanced": false
         },
         "enabled": true,
@@ -341,7 +341,7 @@
           ],
           "enabled": true,
           "editable": false,
-          "optional": true,
+          "optional": false,
           "advanced": false
         },
         "enabled": true,
@@ -462,7 +462,7 @@
           ],
           "enabled": true,
           "editable": false,
-          "optional": true,
+          "optional": false,
           "advanced": false
         },
         "enabled": true,
@@ -583,7 +583,7 @@
           ],
           "enabled": true,
           "editable": false,
-          "optional": true,
+          "optional": false,
           "advanced": false
         },
         "enabled": true,
@@ -704,7 +704,7 @@
           ],
           "enabled": true,
           "editable": false,
-          "optional": true,
+          "optional": false,
           "advanced": false
         },
         "enabled": true,
@@ -825,7 +825,7 @@
           ],
           "enabled": true,
           "editable": false,
-          "optional": true,
+          "optional": false,
           "advanced": false
         },
         "enabled": true,
@@ -946,7 +946,7 @@
           ],
           "enabled": true,
           "editable": false,
-          "optional": true,
+          "optional": false,
           "advanced": false
         },
         "enabled": true,
@@ -1069,7 +1069,7 @@
           ],
           "enabled": true,
           "editable": false,
-          "optional": true,
+          "optional": false,
           "advanced": false
         },
         "enabled": false,
@@ -1179,7 +1179,7 @@
           ],
           "enabled": true,
           "editable": false,
-          "optional": true,
+          "optional": false,
           "advanced": false
         },
         "enabled": false,
@@ -1289,7 +1289,7 @@
           ],
           "enabled": true,
           "editable": false,
-          "optional": true,
+          "optional": false,
           "advanced": false
         },
         "enabled": false,
@@ -1399,7 +1399,7 @@
           ],
           "enabled": true,
           "editable": false,
-          "optional": true,
+          "optional": false,
           "advanced": false
         },
         "enabled": false,
@@ -1509,7 +1509,7 @@
           ],
           "enabled": true,
           "editable": false,
-          "optional": true,
+          "optional": false,
           "advanced": false
         },
         "enabled": false,
@@ -1619,7 +1619,7 @@
           ],
           "enabled": true,
           "editable": false,
-          "optional": true,
+          "optional": false,
           "advanced": false
         },
         "enabled": false,
@@ -1729,7 +1729,7 @@
           ],
           "enabled": true,
           "editable": false,
-          "optional": true,
+          "optional": false,
           "advanced": false
         },
         "enabled": false,
@@ -1839,7 +1839,7 @@
           ],
           "enabled": true,
           "editable": false,
-          "optional": true,
+          "optional": false,
           "advanced": false
         },
         "enabled": false,
@@ -1949,7 +1949,7 @@
           ],
           "enabled": true,
           "editable": false,
-          "optional": true,
+          "optional": false,
           "advanced": false
         },
         "enabled": false,
@@ -2059,7 +2059,7 @@
           ],
           "enabled": true,
           "editable": false,
-          "optional": true,
+          "optional": false,
           "advanced": false
         },
         "enabled": false,
@@ -2169,7 +2169,7 @@
           ],
           "enabled": true,
           "editable": false,
-          "optional": true,
+          "optional": false,
           "advanced": false
         },
         "enabled": false,

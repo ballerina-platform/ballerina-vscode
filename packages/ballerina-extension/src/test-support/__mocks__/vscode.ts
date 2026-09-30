@@ -137,6 +137,12 @@ export class EventEmitter<T = unknown> {
     dispose() {}
 }
 
+/** Installed-extension lookup; tests add ids to `installed` to stand in for a present extension. */
+export const extensions = {
+    installed: new Set<string>(),
+    getExtension: (id: string) => (extensions.installed.has(id) ? { id, isActive: true } : undefined),
+};
+
 export const env = { openExternal: () => Promise.resolve(true) };
 
 export default {

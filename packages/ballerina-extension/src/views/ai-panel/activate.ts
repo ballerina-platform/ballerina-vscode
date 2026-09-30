@@ -35,7 +35,7 @@ import { setCompanionTextEditor, setCompanionVisualizer } from './activeFileCont
 import { chatStateStorage } from './chatStateStorage';
 import { sendGenerationStatusNotification } from '../../features/ai/utils/ai-utils';
 import { approvalViewManager } from '../../features/ai/state/ApprovalViewManager';
-import { aiAssistantName } from "../../utils/config";
+import { copilotName } from "../../utils/config";
 
 export function activateAiPanel(ballerinaExtInstance: BallerinaExtension) {
     setCompanionTextEditor(vscode.window.activeTextEditor);
@@ -81,7 +81,7 @@ export function activateAiPanel(ballerinaExtInstance: BallerinaExtension) {
     //
     // // Status bar for auto-dream visibility
     // const dreamStatusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 99);
-    // dreamStatusBar.tooltip = `${aiAssistantName()} memory consolidation`;
+    // dreamStatusBar.tooltip = `${copilotName()} memory consolidation`;
     // ballerinaExtInstance.context.subscriptions.push(dreamStatusBar);
     //
     // let dreamHideTimeout: ReturnType<typeof setTimeout> | undefined;

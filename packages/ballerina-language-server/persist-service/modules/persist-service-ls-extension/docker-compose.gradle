@@ -20,6 +20,16 @@
 // This file provides centralized Docker Compose management for database testing
 
 import org.apache.tools.ant.taskdefs.condition.Os
+import javax.inject.Inject
+import org.gradle.process.ExecOperations
+
+// Gradle 9 removed Project.exec(); ExecOperations has to be injected instead.
+interface InjectedDockerExecOps {
+    @Inject
+    ExecOperations getExecOps()
+}
+
+ext.dockerExecOps = objects.newInstance(InjectedDockerExecOps).execOps
 
 ext {
     dockerComposeFile = "${projectDir}/src/test/resources/docker/docker-compose.test.yml"
@@ -29,7 +39,7 @@ def getDockerComposeCommand() {
     // For Unix-like systems, try to detect available command
     if (!Os.isFamily(Os.FAMILY_WINDOWS)) {
         try {
-            def result = exec {
+            def result = dockerExecOps.exec {
                 ignoreExitValue = true
                 commandLine 'sh', '-c', 'command -v docker-compose'
                 standardOutput = new ByteArrayOutputStream()
@@ -56,7 +66,7 @@ task dockerComposeUp {
         }
 
         def composeCmd = getDockerComposeCommand()
-        exec {
+        dockerExecOps.exec {
             commandLine 'sh', '-c', "${composeCmd} -f ${dockerComposeFile} up -d"
         }
         println('Started all test database services')
@@ -73,7 +83,7 @@ task dockerComposeDown {
         }
 
         def composeCmd = getDockerComposeCommand()
-        exec {
+        dockerExecOps.exec {
             ignoreExitValue = true
             commandLine 'sh', '-c', "${composeCmd} -f ${dockerComposeFile} down"
         }
@@ -91,7 +101,7 @@ task dockerComposeClean {
         }
 
         def composeCmd = getDockerComposeCommand()
-        exec {
+        dockerExecOps.exec {
             ignoreExitValue = true
             commandLine 'sh', '-c', "${composeCmd} -f ${dockerComposeFile} down -v --remove-orphans"
         }
@@ -109,7 +119,7 @@ task dockerComposeStatus {
         }
 
         def composeCmd = getDockerComposeCommand()
-        exec {
+        dockerExecOps.exec {
             commandLine 'sh', '-c', "${composeCmd} -f ${dockerComposeFile} ps"
         }
     }
@@ -125,7 +135,7 @@ task dockerComposeLogs {
         }
 
         def composeCmd = getDockerComposeCommand()
-        exec {
+        dockerExecOps.exec {
             commandLine 'sh', '-c', "${composeCmd} -f ${dockerComposeFile} logs -f"
         }
     }
@@ -139,7 +149,7 @@ def checkServiceHealth(String service) {
     try {
         def composeCmd = getDockerComposeCommand()
         def output = new ByteArrayOutputStream()
-        def result = exec {
+        def result = dockerExecOps.exec {
             ignoreExitValue = true
             commandLine 'sh', '-c', "${composeCmd} -f ${dockerComposeFile} ps -q ${service} | xargs docker inspect --format='{{.State.Health.Status}}'"
             standardOutput = output
@@ -212,7 +222,7 @@ gradle.buildFinished {
     if (!Os.isFamily(Os.FAMILY_WINDOWS)) {
         try {
             def composeCmd = getDockerComposeCommand()
-            exec {
+            dockerExecOps.exec {
                 ignoreExitValue = true
                 commandLine 'sh', '-c', "${composeCmd} -f ${dockerComposeFile} down"
             }
