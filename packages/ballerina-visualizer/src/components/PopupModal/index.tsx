@@ -56,7 +56,7 @@ const Box = styled(PopupContainer) <BoxProps>`
     max-width: ${(props: BoxProps) => props.$maxWidth ? `${props.$maxWidth}px` : props.$expanded ? "1000px" : "800px"};
     transition: max-height 180ms ease, max-width 180ms ease;
     height: ${(props: BoxProps) => props.$autoHeight ? "auto" : props.$expanded ? "90vh" : "80vh"};
-    max-height: ${(props: BoxProps) => props.$autoHeight ? "80vh" : props.$expanded ? "none" : "800px"};
+    max-height: ${(props: BoxProps) => props.$autoHeight ? "90vh" : props.$expanded ? "none" : "800px"};
     min-height: ${(props: BoxProps) => props.$autoHeight ? "0" : "480px"};
     animation: ${popIn} ${ENTER_MS}ms cubic-bezier(0.16, 1, 0.3, 1) both;
     &.closing {

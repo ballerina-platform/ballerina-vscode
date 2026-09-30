@@ -29,16 +29,32 @@ import { getColorByMethod } from "../../../utils/utils";
 import { applyFormValuesToModel, mapPropertiesToFormFields } from "./serviceInitModelUtils";
 import { BODY_FONT_SIZE, CONTENT_INSET, HeaderWrapper, NestedFormWrapper, StatusCard, StatusText } from "./ServiceCreationLayout";
 
-const SelectionContainer = styled.div`
-    padding-bottom: 100px;
+// In a dialog only the step body scrolls, so the actions stay below the scrollbar.
+const SelectionContainer = styled.div<{ inModal?: boolean }>`
+    ${({ inModal }: { inModal?: boolean }) => inModal ? `
+        flex: 1;
+        height: 100%;
+        min-height: 0;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    ` : `
+        padding-bottom: 100px;
+    `}
 `;
 
-const SelectionBody = styled.div`
+const SelectionBody = styled.div<{ inModal?: boolean }>`
     display: flex;
     flex-direction: column;
     gap: 12px;
     padding: 0 ${CONTENT_INSET}px;
     margin-top: 16px;
+    ${({ inModal }: { inModal?: boolean }) => inModal && `
+        flex: 1 1 0;
+        min-height: 0;
+        overflow-y: auto;
+        padding-bottom: 16px;
+    `}
 `;
 
 const ImportStepperWrapper = styled.div`
@@ -170,11 +186,17 @@ const EmptyMessage = styled.div`
     color: ${ThemeColors.ON_SURFACE_VARIANT};
 `;
 
-const SelectionActions = styled.div`
+const SelectionActions = styled.div<{ inModal?: boolean }>`
     display: flex;
-    justify-content: flex-end;
-    gap: 10px;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
     margin-top: 8px;
+    ${({ inModal }: { inModal?: boolean }) => inModal && `
+        margin-top: 0;
+        padding: 16px ${CONTENT_INSET}px;
+        border-top: 1px solid var(--vscode-panel-border);
+    `}
 `;
 
 interface McpImportConfiguration {
@@ -221,11 +243,13 @@ export interface McpOpenApiImportWizardProps {
     /** Return to the Source step, discarding this wizard's in-progress state. */
     onBack: () => void;
     onCreate: (model: ServiceInitModel) => void | Promise<void>;
+    /** Lays the wizard out for a fixed-height dialog. */
+    inModal?: boolean;
 }
 
 export function McpOpenApiImportWizard(props: McpOpenApiImportWizardProps) {
     const { initialModel, specPath, filePath, targetLineRange, recordTypeFields, isSaving, serverValidationErrors,
-        onBack, onCreate } = props;
+        onBack, onCreate, inModal } = props;
     const { rpcClient } = useRpcContext();
 
     const [step, setStep] = useState<WizardStep>("configure");
@@ -327,7 +351,7 @@ export function McpOpenApiImportWizard(props: McpOpenApiImportWizardProps) {
     );
 
     return (
-        <SelectionContainer>
+        <SelectionContainer inModal={inModal}>
             <ImportStepperWrapper>
                 <Stepper steps={IMPORT_STEPS} currentStep={step === "configure" ? 0 : 1} alignment="flex-start" />
             </ImportStepperWrapper>
@@ -349,13 +373,15 @@ export function McpOpenApiImportWizard(props: McpOpenApiImportWizardProps) {
                             <Button appearance="secondary" onClick={onBack}>Back</Button>
                         </StatusCard>
                     ) : (
-                        <NestedFormWrapper>
+                        <NestedFormWrapper inModal={inModal}>
                             <ArtifactForm
                                 fileName={filePath}
                                 targetLineRange={targetLineRange}
                                 fields={formFields.filter((field) => field.key !== "designApproach")}
                                 isSaving={false}
-                                nestedForm={true}
+                                nestedForm={!inModal}
+                                footerActionButton={inModal}
+                                footerCancelButton={inModal}
                                 onSubmit={handleConfigSubmit}
                                 onBack={onBack}
                                 cancelText="Back"
@@ -384,7 +410,7 @@ export function McpOpenApiImportWizard(props: McpOpenApiImportWizardProps) {
                             <StatusText variant="body2">{endpointError}</StatusText>
                         </StatusCard>
                     ) : (
-                        <SelectionBody>
+                        <SelectionBody inModal={inModal}>
                             <Toolbar>
                                 <TextField
                                     placeholder="Search operations..."
@@ -447,17 +473,24 @@ export function McpOpenApiImportWizard(props: McpOpenApiImportWizardProps) {
                                     </StatusText>
                                 </StatusCard>
                             )}
-                            <SelectionActions>
-                                <Button appearance="secondary" onClick={() => setStep("configure")} disabled={isSaving}>Back</Button>
-                                <Button appearance="primary" onClick={handleConfirmSelection} disabled={isSaving || selectedTools.size === 0}>
-                                    {isSaving ? (
-                                        <Typography variant="progress">Creating...</Typography>
-                                    ) : (
-                                        `Create with ${selectedTools.size} tool${selectedTools.size === 1 ? "" : "s"}`
-                                    )}
-                                </Button>
-                            </SelectionActions>
                         </SelectionBody>
+                    )}
+                    {!loadingEndpoints && !endpointError && (
+                        <SelectionActions inModal={inModal}>
+                            <Button appearance="secondary" onClick={() => setStep("configure")} disabled={isSaving} buttonSx={{ height: "35px" }}>Back</Button>
+                            <Button
+                                appearance="primary"
+                                onClick={handleConfirmSelection}
+                                disabled={isSaving || selectedTools.size === 0}
+                                buttonSx={{ width: "100%", minWidth: 0, height: "35px" }}
+                            >
+                                {isSaving ? (
+                                    <Typography variant="progress">Creating...</Typography>
+                                ) : (
+                                    `Create with ${selectedTools.size} tool${selectedTools.size === 1 ? "" : "s"}`
+                                )}
+                            </Button>
+                        </SelectionActions>
                     )}
                 </>
             )}
