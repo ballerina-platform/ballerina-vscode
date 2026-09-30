@@ -312,7 +312,13 @@ class FunctionSearchCommand extends SearchCommand {
         List<String> functionNames = POPULAR_BALLERINA_FUNCTIONS.values().stream()
                 .flatMap(List::stream)
                 .toList();
-        return Map.of(FETCH_KEY, dbManager.searchFunctionsByPackages(popularModules, functionNames, limit, offset));
+        // The popular functions are a small, fixed curated list, not a page of a larger result set - defaultView()
+        // adds every one of them unconditionally rather than slicing by the request's own limit/offset. Fetching the
+        // whole set here (rather than this.limit/this.offset) keeps that true regardless of which request happens to
+        // populate DefaultViewHolder's cache first; a request with a small limit would otherwise permanently cap
+        // what every other request sees for the lifetime of the cache.
+        return Map.of(FETCH_KEY,
+                dbManager.searchFunctionsByPackages(popularModules, functionNames, Integer.MAX_VALUE, 0));
     }
 
     /**

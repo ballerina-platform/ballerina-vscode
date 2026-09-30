@@ -18,43 +18,47 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { type BallerinaRpcClient, useRpcContext } from "@wso2/ballerina-rpc-client";
-import { ProductMode, assistantName, assistantTagline, shortAssistantName } from "@wso2/ballerina-core";
+import { ProductMode, assistantName, assistantTagline, seededProductMode, shortAssistantName } from "@wso2/ballerina-core";
 
-function seededMode(): ProductMode | undefined {
-    const seed = (window as unknown as { productMode?: string }).productMode;
-    return seed === ProductMode.AGENT_BUILDER || seed === ProductMode.INTEGRATOR ? seed : undefined;
-}
-
-/** One fetch per webview; the setting needs a reload to change. */
-let cached: ProductMode | undefined = seededMode();
+/** Answer for a webview that loaded without the seed; the mode can't change without a reload. */
+let cached: ProductMode | undefined;
 let inFlight: Promise<ProductMode> | undefined;
 
 /** The mode for callers outside a component, sharing the one fetch with the hook. */
 export function fetchProductMode(rpcClient: BallerinaRpcClient): Promise<ProductMode> {
-    if (cached !== undefined) {
-        return Promise.resolve(cached);
+    const resolved = seededProductMode() ?? cached;
+    if (resolved !== undefined) {
+        return Promise.resolve(resolved);
     }
-    inFlight ??= rpcClient
-        .getCommonRpcClient()
-        .agentBuilderModeEnabled()
-        .then((isEnabled) => {
-            const result = isEnabled ? ProductMode.AGENT_BUILDER : ProductMode.INTEGRATOR;
+    // Called inside the chain so a missing client or method rejects instead of throwing at the
+    // call site, where nothing would catch it.
+    inFlight ??= Promise.resolve()
+        .then(() => rpcClient.getCommonRpcClient().agentBuilderModeEnabled())
+        .then(async (isAgentBuilder) => {
+            if (isAgentBuilder) {
+                return ProductMode.AGENT_BUILDER;
+            }
+            const isAvailable = await rpcClient.getAiPanelRpcClient().isPlatformExtensionAvailable();
+            return isAvailable ? ProductMode.INTEGRATOR : ProductMode.BALLERINA;
+        })
+        .then((result) => {
             cached = result;
             return result;
         })
         .catch(() => {
             inFlight = undefined;
-            return ProductMode.INTEGRATOR;
+            return ProductMode.BALLERINA;
         });
     return inFlight;
 }
 
 export function useProductMode(): ProductMode {
     const { rpcClient } = useRpcContext();
-    const [mode, setMode] = useState<ProductMode>(cached ?? ProductMode.INTEGRATOR);
+    const resolved = seededProductMode() ?? cached;
+    const [mode, setMode] = useState<ProductMode>(resolved ?? ProductMode.BALLERINA);
 
     useEffect(() => {
-        if (cached !== undefined || !rpcClient) {
+        if (resolved !== undefined || !rpcClient) {
             return;
         }
         let active = true;
@@ -66,9 +70,9 @@ export function useProductMode(): ProductMode {
         return () => {
             active = false;
         };
-    }, [rpcClient]);
+    }, [resolved, rpcClient]);
 
-    return mode;
+    return resolved ?? mode;
 }
 
 export function useAssistantName(): string {
@@ -77,6 +81,10 @@ export function useAssistantName(): string {
 
 export function useShortAssistantName(): string {
     return shortAssistantName(useProductMode());
+}
+
+export function useAssistantTagline(): string {
+    return assistantTagline(useProductMode());
 }
 
 export const AGENT_MANAGER_TRACING_PROVIDER = "amp";
@@ -143,8 +151,4 @@ export function useTracingStatus(rpcClient: BallerinaRpcClient, projectPath: str
     }, [setProvider]);
 
     return { isTracingEnabled, ampTracingEnabled, isToggling, toggleTracing, setAmpTracingEnabled };
-}
-
-export function useAssistantTagline(): string {
-    return assistantTagline(useProductMode());
 }

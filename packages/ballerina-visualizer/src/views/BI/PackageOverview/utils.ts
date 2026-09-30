@@ -25,7 +25,8 @@ import {
     ProjectScopeMapping,
     WorkspaceDevantMetadata,
     findScopeByModule,
-    findScope
+    findScope,
+    hasWorkflowArtifacts
 } from "@wso2/ballerina-core";
 export { validateComponentName } from "../ProjectForm/utils";
 export { findScopeByModule, findScope };

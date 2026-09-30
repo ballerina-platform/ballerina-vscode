@@ -273,15 +273,13 @@ public class HumanTaskBuilder extends CallBuilder {
                 .stepOut()
                 .addProperty(TASK_NAME_KEY);
 
-        nodeBuilder.properties().custom()
+        WorkflowUtil.addRoleFieldTypes(nodeBuilder.properties().custom()
                 .metadata()
                     .label(USER_ROLES_LABEL)
                     .description(USER_ROLES_DOC)
                     .stepOut()
-                .type().fieldType(Property.ValueType.EXPRESSION).ballerinaType("string|string[]").selected(true)
-                    .stepOut()
-                .codedata().kind(ParameterData.Kind.INCLUDED_FIELD.name()).originalName(USER_ROLES_KEY).stepOut()
-                .value(values.get(USER_ROLES_KEY))
+                .codedata().kind(ParameterData.Kind.INCLUDED_FIELD.name()).originalName(USER_ROLES_KEY).stepOut(),
+                WorkflowUtil.roleFieldValue(values.get(USER_ROLES_KEY)))
                 .editable(true)
                 .stepOut()
                 .addProperty(USER_ROLES_KEY);
@@ -381,6 +379,11 @@ public class HumanTaskBuilder extends CallBuilder {
 
         relabel(properties, TASK_NAME_KEY, TASK_NAME_LABEL, TASK_NAME_DOC);
         relabel(properties, USER_ROLES_KEY, USER_ROLES_LABEL, USER_ROLES_DOC);
+        // The signature splits `string|string[]` into a text box and an expression; a role field
+        // offers a list instead, here as on every other form that names roles.
+        WorkflowUtil.restyleRoleProperties(properties, USER_ROLES_KEY, WorkflowUtil.USERS_KEY,
+                WorkflowUtil.EXCLUDED_USERS_KEY, WorkflowUtil.EXCLUDED_ROLES_KEY,
+                WorkflowUtil.ADMINISTRATOR_ROLES_KEY, WorkflowUtil.ADMINISTRATOR_USERS_KEY);
         relabel(properties, TASK_INPUT_KEY, TASK_INPUT_LABEL, TASK_INPUT_DOC);
         // The pinned workflow bala still names this parameter `payload`; a resolved-signature
         // form therefore carries that key, and the emitted argument keeps the module's own
@@ -444,6 +447,14 @@ public class HumanTaskBuilder extends CallBuilder {
                         .build());
             }
         }
+    }
+
+    private static final Set<String> ROLE_KEYS = Set.of(USER_ROLES_KEY, WorkflowUtil.USERS_KEY,
+            WorkflowUtil.EXCLUDED_USERS_KEY, WorkflowUtil.EXCLUDED_ROLES_KEY, WorkflowUtil.ADMINISTRATOR_ROLES_KEY,
+            WorkflowUtil.ADMINISTRATOR_USERS_KEY);
+
+    private static String argName(Property prop, String key) {
+        return prop.codedata() != null && prop.codedata().originalName() != null ? prop.codedata().originalName() : key;
     }
 
     // Keeps the property but takes it out of the form: not offered, not editable, still emitted
@@ -525,7 +536,7 @@ public class HumanTaskBuilder extends CallBuilder {
                         "A task name is required for the human task. Provide a value for '"
                                 + TASK_NAME_LABEL + "'."));
         sourceBuilder.getProperty(USER_ROLES_KEY)
-                .filter(p -> p.value() != null && !p.value().toString().isEmpty())
+                .filter(p -> !WorkflowUtil.isRoleBlank(p))
                 .orElseThrow(() -> new IllegalStateException(
                         "At least one user role is required for the human task. Provide a value for '"
                                 + USER_ROLES_LABEL + "'."));
@@ -577,15 +588,21 @@ public class HumanTaskBuilder extends CallBuilder {
             if (excludedKeys.contains(key) || prop.value() == null || prop.value().toString().isEmpty()) {
                 continue;
             }
+            // A role field holds a list of names or an expression; roleSource writes either.
+            if (ROLE_KEYS.contains(key)) {
+                String roles = WorkflowUtil.roleSource(prop);
+                if (!roles.isBlank()) {
+                    callArgs.add(argName(prop, key) + " = " + roles);
+                }
+                continue;
+            }
             String kind = prop.codedata() != null ? prop.codedata().kind() : null;
             if (ParameterData.Kind.PARAM_FOR_TYPE_INFER.name().equals(kind)
                     || ParameterData.Kind.INCLUDED_RECORD.name().equals(kind)
                     || ParameterData.Kind.INCLUDED_RECORD_REST.name().equals(kind)) {
                 continue;
             }
-            String argName = prop.codedata() != null && prop.codedata().originalName() != null
-                    ? prop.codedata().originalName() : key;
-            callArgs.add(argName + " = " + prop.toSourceCode());
+            callArgs.add(argName(prop, key) + " = " + prop.toSourceCode());
         }
 
         sourceBuilder.token()

@@ -278,6 +278,67 @@ export function isConstantLiteral(value: string): boolean {
 }
 
 
+/**
+ * Validates a string-literal service attach point (e.g. `service "QueueName" on ...`). Only a double-quoted
+ * Ballerina string literal is valid there, so bare identifiers, constants and paths are rejected. An empty
+ * value is left to the field's `required` rule.
+ */
+export function parseServiceStringLiteral(input: string): ParseResult {
+    const result: ParseResult = {
+        valid: false,
+        errors: [],
+        segments: []
+    };
+
+    if (!input || input === '') {
+        result.valid = true;
+        return result;
+    }
+
+    if (!input.startsWith('"')) {
+        result.errors.push({ position: 0, message: 'value must be enclosed in double quotes' });
+        return result;
+    }
+
+    if (input.length < 2 || !input.endsWith('"')) {
+        result.errors.push({ position: input.length, message: 'value must end with a double quote' });
+        return result;
+    }
+
+    const content = input.slice(1, -1);
+    for (let i = 0; i < content.length; i++) {
+        const c = content[i];
+        const position = i + 1;
+        if (c === '\n' || c === '\r') {
+            result.errors.push({ position, message: 'value cannot span multiple lines' });
+            return result;
+        }
+        if (c === '"') {
+            result.errors.push({ position, message: 'double quotes inside the value must be escaped' });
+            return result;
+        }
+        if (c === '\\') {
+            const escape = content.slice(i + 1).match(/^(?:[nrt\\"]|u\{([0-9A-Fa-f]+)\})/);
+            if (!escape) {
+                const sequence = i + 1 < content.length ? `\\${content[i + 1]}` : '\\';
+                result.errors.push({ position, message: `invalid escape sequence "${sequence}"` });
+                return result;
+            }
+            if (escape[1] !== undefined) {
+                const codePoint = parseInt(escape[1], 16);
+                if (codePoint > 0x10FFFF || (codePoint >= 0xD800 && codePoint <= 0xDFFF)) {
+                    result.errors.push({ position, message: `invalid code point in escape sequence "\\${escape[0]}"` });
+                    return result;
+                }
+            }
+            i += escape[0].length;
+        }
+    }
+
+    result.valid = true;
+    return result;
+}
+
 export function parseBasePath(input: string): ParseResult {
     const result: ParseResult = {
         valid: false,
@@ -370,6 +431,68 @@ export function parseResourceActionPath(input: string): ParseResult {
                 message: `usage of reserved keyword "${segment.value}"`
             });
             return result;
+        }
+    }
+
+    result.valid = result.errors.length === 0;
+    return result;
+}
+
+/**
+ * Validates a service resource function's path (e.g. `chat/[string room]`), the same rules the HTTP
+ * resource form applies: no leading slash, `.` for the service root, and bracketed path params.
+ */
+export function parseResourceFunctionPath(input: string): ParseResult {
+    const result: ParseResult = {
+        valid: false,
+        errors: [],
+        segments: []
+    };
+
+    if (!input || input === '') {
+        result.errors.push({ position: 0, message: 'path cannot be empty' });
+        return result;
+    }
+
+    if (input === '.') {
+        result.segments.push({ type: 'dot', start: 0, end: 0 });
+        result.valid = true;
+        return result;
+    }
+
+    if (input.startsWith('/')) {
+        result.errors.push({ position: 0, message: 'path cannot start with a slash (/)' });
+        return result;
+    }
+
+    if (input.includes('//')) {
+        result.errors.push({ position: 0, message: 'cannot have two consecutive slashes (//)' });
+        return result;
+    }
+
+    if (input.endsWith('/')) {
+        result.errors.push({ position: input.length - 1, message: 'path cannot end with a slash (/)' });
+        return result;
+    }
+
+    for (const segment of splitSegments(input)) {
+        const opens = segment.value.startsWith('[');
+        const closes = segment.value.endsWith(']');
+        if (opens !== closes) {
+            result.errors.push({
+                position: opens ? segment.end : segment.start,
+                message: `path parameter is missing its ${opens ? 'closing (])' : 'opening ([)'} bracket`
+            });
+        } else if (opens) {
+            processParam(segment, result);
+        } else {
+            processSegment(segment, result);
+            if (keywords.includes(segment.value)) {
+                result.errors.push({
+                    position: segment.start,
+                    message: `usage of reserved keyword "${segment.value}"`
+                });
+            }
         }
     }
 

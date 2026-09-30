@@ -177,10 +177,12 @@ interface InviteVisibility {
  * travelling from the orb to the input never counts as having left the widget. The negative
  * margin hands the padding back to the layout, leaving the box where it was. Only while the
  * box is showing: hidden, it must neither catch a hover nor swallow a click meant for the
- * diagram beneath.
+ * diagram beneath. While the orb is dragged or snapping, the drag position is the orb's own, so
+ * the hidden box must leave the flow or it pushes the orb away from the pointer.
  */
-const InviteHitBridge = styled.div<InviteVisibility>`
+const InviteHitBridge = styled.div<InviteVisibility & { floating: boolean }>`
     display: flex;
+    ${(props: { floating: boolean }) => (props.floating ? "position: absolute;" : "")}
     padding: ${WIDGET_GAP}px;
     margin: -${WIDGET_GAP}px;
     pointer-events: ${(props: InviteVisibility) => (props.visible ? "auto" : "none")};
@@ -238,6 +240,17 @@ const InviteInput = styled.input`
     font-size: 12px;
     font-family: var(--vscode-font-family);
     outline: none;
+    /* Outranks the webview default focus outline. */
+    &:focus,
+    &:focus-visible {
+        outline: none;
+    }
+    @media (forced-colors: active) {
+        &:focus-visible {
+            outline: 1px solid Highlight;
+            outline-offset: 1px;
+        }
+    }
     &::placeholder {
         color: var(--vscode-input-placeholderForeground);
     }
@@ -597,7 +610,7 @@ export function AgentStatusOrb() {
                 onMouseLeave={() => setHovered(false)}
             >
                 {inviteHosted && (
-                    <InviteHitBridge visible={inviteVisible}>
+                    <InviteHitBridge visible={inviteVisible} floating={dragPos !== null}>
                         <InviteShell visible={inviteVisible} data-testid="invite-shell">
                             <AmbientFrame $state={state}>
                                 <InviteBox>

@@ -96,9 +96,9 @@ jest.mock("../features/ai/utils/ai-utils", () => ({
 
 // Cut the import chains that reach the webview / language-server layers.
 jest.mock("../BalExtensionContext", () => ({
-    extension: { context: { globalState: { get: () => mockProjectRoot, update: jest.fn() } } },
+    extension: { context: { globalState: { get: () => undefined, update: jest.fn() } } },
 }));
-jest.mock("../stateMachine", () => ({ StateMachine: { context: () => ({}) } }));
+jest.mock("../stateMachine", () => ({ StateMachine: { context: () => ({ projectPath: mockProjectRoot }) } }));
 jest.mock("../views/ai-panel/aiMachine", () => ({
     AIStateMachine: {
         state: () => "Authenticated",
@@ -113,6 +113,7 @@ jest.mock("../utils", () => ({
 }));
 jest.mock("../utils/source-utils", () => ({ setMigrationEnhancementActive: jest.fn() }));
 
+import { Uri, workspace } from "./__mocks__/vscode";
 import {
     abortMigrationAgent,
     readEnhanceToml,
@@ -145,6 +146,8 @@ function emittedText(): string {
 
 beforeEach(() => {
     mockProjectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "migration-loop-"));
+    // The migration panel runs inside the migrated project's window, so that project is the open one.
+    workspace.workspaceFolders = [{ uri: Uri.file(mockProjectRoot) }];
     mockWorkspacePackages = [...PACKAGES];
     mockAgentCalls = [];
     mockEvents = [];

@@ -24,6 +24,7 @@ import io.ballerina.modelgenerator.commons.AbstractLSTest;
 import io.ballerina.servicemodelgenerator.extension.model.Codedata;
 import io.ballerina.servicemodelgenerator.extension.model.Service;
 import io.ballerina.servicemodelgenerator.extension.model.request.CommonModelFromSourceRequest;
+import io.ballerina.servicemodelgenerator.extension.model.response.ModelResolutionError;
 import io.ballerina.servicemodelgenerator.extension.model.response.ServiceFromSourceResponse;
 import io.ballerina.tools.text.LinePosition;
 import io.ballerina.tools.text.LineRange;
@@ -68,10 +69,17 @@ public class GetServiceModelFromSourceTest extends AbstractLSTest {
         if (!actualServiceModelJson.equals(testConfig.response())) {
             GetServiceModelFromSourceTest.TestConfig updatedConfig =
                     new GetServiceModelFromSourceTest.TestConfig(testConfig.filePath(), testConfig.description(),
-                            testConfig.start(), testConfig.end(), testConfig.originalName(), actualServiceModelJson);
+                            testConfig.start(), testConfig.end(), testConfig.originalName(), actualServiceModelJson,
+                            testConfig.resolutionErrorCode());
 //            updateConfig(configJsonPath, updatedConfig);
             compareJsonElements(jsonMap, testConfig.response());
             Assert.fail(String.format("Failed test: '%s' (%s)", testConfig.description(), configJsonPath));
+        }
+        if (testConfig.resolutionErrorCode() != null) {
+            ModelResolutionError resolutionError = serviceFromSourceResponse.resolutionError();
+            Assert.assertEquals(resolutionError == null ? null : resolutionError.code(),
+                    testConfig.resolutionErrorCode(),
+                    String.format("Failed test: '%s' (%s)", testConfig.description(), configJsonPath));
         }
     }
 
@@ -114,9 +122,10 @@ public class GetServiceModelFromSourceTest extends AbstractLSTest {
      * @param end          The end position of the service declaration node
      * @param originalName The service's attach point, when the request names the service it is editing
      * @param response     The expected response
+     * @param resolutionErrorCode The expected resolution error code, when the service is expected to be absent
      */
     private record TestConfig(String filePath, String description, LinePosition start, LinePosition end,
-                              String originalName, JsonElement response) {
+                              String originalName, JsonElement response, String resolutionErrorCode) {
 
         public String description() {
             return description == null ? "" : description;

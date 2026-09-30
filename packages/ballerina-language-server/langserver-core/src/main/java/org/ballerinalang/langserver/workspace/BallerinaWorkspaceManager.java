@@ -116,11 +116,13 @@ import static io.ballerina.runtime.api.constants.RuntimeConstants.MODULE_INIT_CL
 public class BallerinaWorkspaceManager implements WorkspaceManager {
 
     // workspace run related constants
-    private static final String JAVA_COMMAND = "java.command";
-    private static final String USER_DIR = System.getProperty("user.dir");
     private static final String HEAP_DUMP_FLAG = "-XX:+HeapDumpOnOutOfMemoryError";
     private static final String HEAP_DUMP_PATH_FLAG = "-XX:HeapDumpPath=";
     private static final String DEBUG_ARGS = "-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=*:";
+    // The output streams are read back as UTF-8, so the program has to write UTF-8. Without these the JVM encodes
+    // its output with the platform's native encoding, which is not UTF-8 on Windows.
+    private static final String STDOUT_ENCODING_FLAG = "-Dstdout.encoding=UTF-8";
+    private static final String STDERR_ENCODING_FLAG = "-Dstderr.encoding=UTF-8";
 
     /**
      * Cache mapping of document path to source root.
@@ -685,7 +687,7 @@ public class BallerinaWorkspaceManager implements WorkspaceManager {
         JBallerinaBackend jBallerinaBackend = execBackend(projectContext, pkg.getCompilation());
         JarResolver jarResolver = jBallerinaBackend.jarResolver();
 
-        List<String> commands = prepareExecutionCommands(context, executableModule, jarResolver);
+        List<String> commands = prepareExecutionCommands(context, project.sourceRoot(), executableModule, jarResolver);
         ProcessBuilder pb = new ProcessBuilder(commands);
         pb.environment().putAll(context.env());
 
@@ -698,18 +700,21 @@ public class BallerinaWorkspaceManager implements WorkspaceManager {
             }
 
             Process ps = pb.start();
-            projectContext.setProcess(ps);
+            projectContext.setProcess(ps, commands);
             return Optional.of(ps);
         } finally {
             lock.unlock();
         }
     }
 
-    private List<String> prepareExecutionCommands(RunContext context, Module module, JarResolver jarResolver) {
+    private List<String> prepareExecutionCommands(RunContext context, Path projectRoot, Module module,
+                                                  JarResolver jarResolver) throws IOException {
         List<String> commands = new ArrayList<>();
         commands.add(context.javaCmd());
         commands.add(HEAP_DUMP_FLAG);
-        commands.add(HEAP_DUMP_PATH_FLAG + USER_DIR);
+        commands.add(getHeapDumpPathArgument(projectRoot));
+        commands.add(STDOUT_ENCODING_FLAG);
+        commands.add(STDERR_ENCODING_FLAG);
         if (context.debugPort() > 0) {
             commands.add(DEBUG_ARGS + context.debugPort());
         }
@@ -728,11 +733,16 @@ public class BallerinaWorkspaceManager implements WorkspaceManager {
         return commands;
     }
 
+    private static String getHeapDumpPathArgument(Path projectRoot) throws IOException {
+        Path workingDirectory = Files.isRegularFile(projectRoot) ? projectRoot.getParent() : projectRoot;
+        return HEAP_DUMP_PATH_FLAG + workingDirectory.toRealPath();
+    }
+
     private static JBallerinaBackend execBackend(ProjectContext projectContext,
                                                  PackageCompilation packageCompilation) {
         Lock lock = projectContext.lockAndGet();
         try {
-            JBallerinaBackend jBallerinaBackend = JBallerinaBackend.from(packageCompilation, JvmTarget.JAVA_21, false);
+            JBallerinaBackend jBallerinaBackend = JBallerinaBackend.from(packageCompilation, JvmTarget.JAVA_25, false);
             Package pkg = projectContext.project.currentPackage();
             for (Module module : pkg.modules()) {
                 for (DocumentId id : module.documentIds()) {
@@ -1702,6 +1712,7 @@ public class BallerinaWorkspaceManager implements WorkspaceManager {
         private boolean compilationCrashed;
 
         private Process process;
+        private List<String> launchCommand = Collections.emptyList();
 
         private boolean projectCrashed;
 
@@ -1799,10 +1810,21 @@ public class BallerinaWorkspaceManager implements WorkspaceManager {
         /**
          * Set the process associated with the project. Project lock should be acquired before calling.
          *
-         * @param process Process to be associated with the project.
+         * @param process       Process to be associated with the project.
+         * @param launchCommand Command line the process was launched with.
          */
-        public void setProcess(Process process) {
+        public void setProcess(Process process, List<String> launchCommand) {
             this.process = process;
+            this.launchCommand = List.copyOf(launchCommand);
+        }
+
+        /**
+         * Returns the command line the currently associated process was launched with.
+         *
+         * @return Launch command, or an empty list if no process has been started.
+         */
+        public List<String> launchCommand() {
+            return this.launchCommand;
         }
 
         /**
@@ -1810,6 +1832,7 @@ public class BallerinaWorkspaceManager implements WorkspaceManager {
          */
         public void removeProcess() {
             this.process = null;
+            this.launchCommand = Collections.emptyList();
         }
     }
 

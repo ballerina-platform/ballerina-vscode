@@ -51,6 +51,7 @@ import io.ballerina.servicemodelgenerator.extension.builder.ServiceBuilderRouter
 import io.ballerina.servicemodelgenerator.extension.builder.service.agent.AgentTriggerChannels;
 import io.ballerina.servicemodelgenerator.extension.connector.ConnectorUpgradeAdvisor;
 import io.ballerina.servicemodelgenerator.extension.connector.ConnectorVersionResolver;
+import io.ballerina.servicemodelgenerator.extension.connector.ModelResolutionException;
 import io.ballerina.servicemodelgenerator.extension.connector.PlatformDependencyEditUtil;
 import io.ballerina.servicemodelgenerator.extension.connector.TriggerModelReader;
 import io.ballerina.servicemodelgenerator.extension.connector.TriggerPropertiesRegistry;
@@ -97,6 +98,7 @@ import io.ballerina.servicemodelgenerator.extension.model.response.FunctionModel
 import io.ballerina.servicemodelgenerator.extension.model.response.ListenerDiscoveryResponse;
 import io.ballerina.servicemodelgenerator.extension.model.response.ListenerFromSourceResponse;
 import io.ballerina.servicemodelgenerator.extension.model.response.ListenerModelResponse;
+import io.ballerina.servicemodelgenerator.extension.model.response.ModelResolutionError;
 import io.ballerina.servicemodelgenerator.extension.model.response.ModelResolutionIssue;
 import io.ballerina.servicemodelgenerator.extension.model.response.OpenApiEndpointsResponse;
 import io.ballerina.servicemodelgenerator.extension.model.response.ServiceClassModelResponse;
@@ -114,6 +116,7 @@ import io.ballerina.servicemodelgenerator.extension.util.TriggerSearchUtil;
 import io.ballerina.servicemodelgenerator.extension.util.TypeCompletionGenerator;
 import io.ballerina.servicemodelgenerator.extension.util.Utils;
 import io.ballerina.servicemodelgenerator.extension.validation.GenerationRefusedException;
+import io.ballerina.servicemodelgenerator.extension.validation.OpenApiServiceTypeNameValidator;
 import io.ballerina.servicemodelgenerator.extension.validation.SaveTimeValidator;
 import io.ballerina.servicemodelgenerator.extension.validation.ValidationContext;
 import io.ballerina.servicemodelgenerator.extension.validation.ValidationEngine;
@@ -636,28 +639,33 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
             }
 
             if (Objects.isNull(project) || document.isEmpty() || semanticModelOp.isEmpty()) {
-                return new ServiceFromSourceResponse();
+                return new ServiceFromSourceResponse(new ModelResolutionError(
+                        ModelResolutionError.DOCUMENT_NOT_AVAILABLE,
+                        "The source document or semantic model is not available.", null, null, null));
             }
-            NonTerminalNode node = findNonTerminalNode(request.codedata(), document.get());
-            ServiceDeclarationNode serviceNode;
-            if (node instanceof ServiceDeclarationNode serviceDeclarationNode) {
-                serviceNode = serviceDeclarationNode;
-            } else {
-                // Editing a service moves its end but never its start, so a client refreshing after its own
-                // edit sends a range whose end has gone stale. Fall back to the service it started from
-                // rather than reporting that the service it is looking at no longer exists.
-                Optional<ServiceDeclarationNode> enclosingService =
-                        findServiceContaining(request.codedata(), document.get());
-                if (enclosingService.isEmpty() || !isRequestedService(request.codedata(), enclosingService.get())) {
-                    return new ServiceFromSourceResponse();
+            try {
+                NonTerminalNode node = findNonTerminalNode(request.codedata(), document.get());
+                ServiceDeclarationNode serviceNode;
+                if (node instanceof ServiceDeclarationNode serviceDeclarationNode) {
+                    serviceNode = serviceDeclarationNode;
+                } else {
+                    Optional<ServiceDeclarationNode> enclosingService =
+                            findServiceContaining(request.codedata(), document.get());
+                    if (enclosingService.isEmpty() || !isRequestedService(request.codedata(), enclosingService.get())) {
+                        return new ServiceFromSourceResponse(new ModelResolutionError(
+                                ModelResolutionError.SERVICE_NOT_FOUND,
+                                "No service was found at the selected source range.", null, null, null));
+                    }
+                    serviceNode = enclosingService.get();
                 }
-                serviceNode = enclosingService.get();
+                SemanticModel semanticModel = semanticModelOp.get();
+                Service service = ServiceBuilderRouter.getServiceFromSource(serviceNode, project, semanticModel,
+                        workspaceManager, request.filePath());
+                FunctionBadge.stamp(service);
+                return new ServiceFromSourceResponse(service);
+            } catch (ModelResolutionException e) {
+                return new ServiceFromSourceResponse(e);
             }
-            SemanticModel semanticModel = semanticModelOp.get();
-            Service service = ServiceBuilderRouter.getServiceFromSource(serviceNode, project, semanticModel,
-                    workspaceManager, request.filePath());
-            FunctionBadge.stamp(service);
-            return new ServiceFromSourceResponse(service);
         });
     }
 
@@ -1240,13 +1248,13 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                 if (document.isEmpty() || semanticModel.isEmpty()) {
                     throw new IllegalStateException("Failed to load the document or semantic model");
                 }
-                String existingVersion = request.isLocalRepository() ? null
-                        : ConnectorVersionResolver.resolve(project, request.orgName(), request.moduleName(),
-                                request.version());
+                ServiceModelRequest resolvedRequest = request.isLocalRepository() ? request
+                        : request.withVersion(resolveInitModelVersion(project, request));
+                String existingVersion = request.isLocalRepository() ? null : resolvedRequest.version();
 
-                Utils.resolveModule(request.orgName(), request.pkgName(), request.moduleName(),
-                        request.version(), request.isLocalRepository(), lsClientLogger);
-                ServiceInitModel serviceInitModel = ServiceBuilderRouter.getServiceInitModel(request,
+                Utils.resolveModule(resolvedRequest.orgName(), resolvedRequest.pkgName(), resolvedRequest.moduleName(),
+                        resolvedRequest.version(), resolvedRequest.isLocalRepository(), lsClientLogger);
+                ServiceInitModel serviceInitModel = ServiceBuilderRouter.getServiceInitModel(resolvedRequest,
                         project, semanticModel.get(), document.get());
                 if (serviceInitModel == null && existingVersion != null) {
                     Optional<ModelResolutionIssue> issue = ConnectorUpgradeAdvisor.checkResolvedVersion(
@@ -1255,11 +1263,51 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                         return new ServiceInitModelResponse(issue.get());
                     }
                 }
+                if (serviceInitModel == null) {
+                    Optional<ModelResolutionError> error = ServiceBuilderRouter.initResolutionError(request);
+                    if (error.isPresent()) {
+                        throw new ModelResolutionException(error.get());
+                    }
+                    throw new ModelResolutionException(new ModelResolutionError(
+                            ModelResolutionError.SERVICE_NOT_FOUND,
+                            "The service initialization model could not be generated.",
+                            request.orgName(), request.pkgName(), request.moduleName()));
+                }
                 return new ServiceInitModelResponse(serviceInitModel);
             } catch (Throwable e) {
+                if (!(e instanceof ModelResolutionException)) {
+                    Optional<ModelResolutionError> resolutionError = ServiceBuilderRouter.initResolutionError(request);
+                    if (resolutionError.isPresent()) {
+                        return new ServiceInitModelResponse(new ModelResolutionException(resolutionError.get(), e));
+                    }
+                }
                 return new ServiceInitModelResponse(e);
             }
         });
+    }
+
+    /**
+     * The version to build the service init model against: the version the project already resolves for the
+     * connector, else the version selected for a new dependency. A package bundled with the distribution keeps
+     * the requested version.
+     */
+    private String resolveInitModelVersion(Project project, ServiceModelRequest request) {
+        Optional<String> projectVersion = ConnectorVersionResolver.projectVersion(project, request.orgName(),
+                request.pkgName());
+        if (projectVersion.isPresent()) {
+            return projectVersion.get();
+        }
+        if (Utils.isDistributionModule(request.orgName(), request.pkgName())) {
+            // Bundled with the distribution, so no Central lookup is needed to select a version.
+            return request.version();
+        }
+        String minSupportedVersion = TriggerPropertiesRegistry.getInstance()
+                .forModule(request.orgName(), request.pkgName())
+                .map(TriggerProperty::minSupportedVersion)
+                .orElse(request.version());
+        String resolvedVersion = ConnectorVersionResolver.resolveForNewDependency(request.orgName(),
+                request.pkgName(), minSupportedVersion).version();
+        return resolvedVersion != null ? resolvedVersion : request.version();
     }
 
     /**
@@ -1280,10 +1328,11 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                     return new CommonSourceResponse();
                 }
                 // Save-time gate: an ERROR here means no edits are generated at all.
-                List<ValidationResult> validations = SaveTimeValidator.validate(
+                List<ValidationResult> validations = new ArrayList<>(SaveTimeValidator.validate(
                         request.serviceInitModel().getProperties(),
                         SaveTimeValidator.context(semanticModel.get(), project, document.get(),
-                                request.serviceInitModel().getModuleName()));
+                                request.serviceInitModel().getModuleName())));
+                validations.addAll(OpenApiServiceTypeNameValidator.validate(request.serviceInitModel()));
                 if (SaveTimeValidator.blocksGeneration(validations)) {
                     return CommonSourceResponse.validationFailure(validations);
                 }
