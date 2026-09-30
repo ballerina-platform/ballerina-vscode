@@ -21,6 +21,8 @@ import { act, render } from "@testing-library/react";
 import type { FormField } from "../components/Form/types";
 import { EnumEditor } from "../components/editors/MultiModeExpressionEditor/EnumEditor/EnumEditor";
 
+const NONE_SELECTED = "__none__";
+
 // The empty-selection option must never read as a chosen value: a required enum whose
 // placeholder is the connector's default literal (e.g. "\"codex-mini-latest\"") looked
 // selected while the form value was still empty, so Save stayed disabled.
@@ -92,8 +94,6 @@ describe("EnumEditor empty selection", () => {
 // parameter in `placeholder` (or clears it when the default resolves to none of
 // the members), which is the contract these tests pin down.
 describe("EnumEditor", () => {
-    const NONE_SELECTED = "__none__";
-
     const items = [
         { id: '"chat_completions"', content: "CHAT_COMPLETIONS", value: '"chat_completions"' },
         { id: '"responses"', content: "RESPONSES", value: '"responses"' }
