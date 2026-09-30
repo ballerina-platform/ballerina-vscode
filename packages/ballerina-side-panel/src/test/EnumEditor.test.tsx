@@ -21,6 +21,8 @@ import { act, render } from "@testing-library/react";
 import type { FormField } from "../components/Form/types";
 import { EnumEditor } from "../components/editors/MultiModeExpressionEditor/EnumEditor/EnumEditor";
 
+const NONE_SELECTED = "__none__";
+
 // The empty-selection option must never read as a chosen value: a required enum whose
 // placeholder is the connector's default literal (e.g. "\"codex-mini-latest\"") looked
 // selected while the form value was still empty, so Save stayed disabled.
@@ -92,8 +94,6 @@ describe("EnumEditor empty selection", () => {
 // parameter in `placeholder` (or clears it when the default resolves to none of
 // the members), which is the contract these tests pin down.
 describe("EnumEditor", () => {
-    const NONE_SELECTED = "__none__";
-
     const items = [
         { id: '"chat_completions"', content: "CHAT_COMPLETIONS", value: '"chat_completions"' },
         { id: '"responses"', content: "RESPONSES", value: '"responses"' }
@@ -209,5 +209,43 @@ describe("EnumEditor", () => {
         expect(presented()).toBe(NONE_SELECTED);
         pick('"responses"');
         expect(presented()).toBe('"responses"');
+    });
+});
+
+// A select whose value is an expression rather than one of its members — a workflow event cardinality
+// named by a constant, say. The value is the field's own source and the form writes it back as it
+// stands; what matters here is that the dropdown does not present it AS one of the members, which
+// would tell the user their policy is something it is not.
+describe("EnumEditor with a value that is not one of the members", () => {
+    const cardinalityItems = [
+        { id: "MULTI_EVENT", content: "MULTI_EVENT", value: "MULTI_EVENT" },
+        { id: "SINGLE_EVENT", content: "SINGLE_EVENT", value: "SINGLE_EVENT" }
+    ];
+    const cardinalityField: FormField = {
+        key: "cardinality",
+        label: "Cardinality",
+        type: "SINGLE_SELECT",
+        types: [],
+        value: "",
+        optional: true,
+        editable: true,
+        enabled: true,
+        documentation: ""
+    };
+
+    const selectedFor = (value: string) => {
+        const { container } = render(
+            <EnumEditor value={value} field={cardinalityField} onChange={jest.fn()} items={cardinalityItems} />
+        );
+        const dropdown = container.querySelector("vscode-dropdown") as HTMLElement & { value?: string };
+        return dropdown?.value ?? dropdown?.getAttribute("value");
+    };
+
+    it("INVARIANT: does not present a constant naming a member as that member", () => {
+        expect(selectedFor("ONE_SHOT")).toBe(NONE_SELECTED);
+    });
+
+    it("still presents a member given by name", () => {
+        expect(selectedFor("SINGLE_EVENT")).toBe("SINGLE_EVENT");
     });
 });

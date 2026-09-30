@@ -22,7 +22,7 @@ export const followupSuggestionsSchema = z.object({
     suggestions: z
         .array(
             z.object({
-                label: z.string().describe("Short imperative chip text, at most ~4 words (e.g. \"Add tests\")."),
+                label: z.string().describe("Short imperative chip text, at most 4 words."),
                 prompt: z.string().describe("The first-person message sent to Copilot when the chip is clicked."),
             })
         )

@@ -21,25 +21,39 @@ import { exec } from "child_process";
 import { extension } from "../BalExtensionContext";
 import { debug } from "./logger";
 import { quoteShellPath } from "./config";
+import { decideMigrationToolPullOutcome } from "./migration-tool-pull-outcome";
 
 const PROGRESS_COMPLETE = 100;
+// A busy or unresponsive language server must not leave the wizard on "Finalizing...".
+const LS_CHECK_TIMEOUT_MS = 10000;
 
 /**
- * Executes the `bal tool pull` command and sends progress notifications to the webview client via RPC.
- * Includes 5-minute timeout.
+ * Executes `bal tool pull <tool>` without a version, so the newest version compatible with the
+ * Ballerina distribution is pulled and activated, and sends progress notifications to the webview
+ * client via RPC. Includes 5-minute timeout.
+ *
+ * Whether the wizard may continue is decided after the command exits, from the language server's
+ * check of the active tool against `requiredVersion` (see `decideMigrationToolPullOutcome`).
  *
  * @param migrationToolName The alias for the Ballerina tool to pull (e.g., "migrate-tibco", "migrate-mule").
- * @param version The version of the tool to pull (e.g., "1.1.1").
+ * @param requiredVersion The minimum tool version the language server accepts (e.g., "1.2.13").
+ * @param isActiveToolCompatible Asks the language server whether the active tool meets `requiredVersion`;
+ *        resolves to undefined when that cannot be determined. Treated as undefined if it takes longer
+ *        than `LS_CHECK_TIMEOUT_MS`.
  * @returns A promise that resolves when the operation is complete or rejects on failure.
  */
-export async function pullMigrationTool(migrationToolName: string, version: string): Promise<void> {
+export async function pullMigrationTool(
+    migrationToolName: string,
+    requiredVersion: string,
+    isActiveToolCompatible: () => Promise<boolean | undefined>
+): Promise<void> {
     // 1. Initial validation and command mapping
     if (!migrationToolName) {
         const errorMessage = "Migration tool name is required";
         return Promise.reject(new Error(errorMessage));
     }
 
-    if (!version) {
+    if (!requiredVersion) {
         const errorMessage = "Migration tool version is required";
         return Promise.reject(new Error(errorMessage));
     }
@@ -52,7 +66,7 @@ export async function pullMigrationTool(migrationToolName: string, version: stri
     }
 
     const ballerinaCmd = extension.ballerinaExtInstance.getBallerinaCmd();
-    const command = `${quoteShellPath(ballerinaCmd)} tool pull ${migrationToolName}:${version}`;
+    const command = `${quoteShellPath(ballerinaCmd)} tool pull ${migrationToolName}`;
     debug(`Executing migration tool pull command: ${command}`);
 
     // 2. This function now returns a promise that wraps the exec lifecycle
@@ -60,6 +74,21 @@ export async function pullMigrationTool(migrationToolName: string, version: stri
         // Helper to send notifications to the webview and fire the VSCode-style event
         const sendProgress = (progress: DownloadProgress) => {
             extension.ballerinaExtInstance.notifyDownloadProgress(progress);
+        };
+
+        // The outcome is reported once: either the process could not run, or it exited.
+        let settled = false;
+        const fail = (message: string, error: Error = new Error(message)) => {
+            if (settled) {
+                return;
+            }
+            settled = true;
+            sendProgress({
+                message,
+                success: false,
+                step: -1,
+            });
+            reject(error);
         };
 
         // Send initial progress update
@@ -76,6 +105,7 @@ export async function pullMigrationTool(migrationToolName: string, version: stri
         });
 
         let accumulatedStdout = "";
+        let lastStderrLine = "";
         let progressReported = 0;
 
         // 3. Process the command's standard output with carriage return handling
@@ -88,15 +118,16 @@ export async function pullMigrationTool(migrationToolName: string, version: stri
             const lines = output.split('\r');
             const lastLine = lines[lines.length - 1] || lines[lines.length - 2] || '';
 
-            // Case A: Tool is already installed (high-priority check)
+            // Case A: Tool is already downloaded. The CLI may still be activating it, so success
+            // is reported only after the process exits.
             if (accumulatedStdout.includes("is already available locally")) {
                 if (progressReported < PROGRESS_COMPLETE) {
                     progressReported = PROGRESS_COMPLETE;
                     sendProgress({
-                        message: "Tool is already installed.",
+                        message: "Tool is already downloaded. Finalizing...",
                         percentage: PROGRESS_COMPLETE,
-                        success: true,
-                        step: 3,
+                        success: false,
+                        step: 2,
                     });
                 }
             }
@@ -163,98 +194,69 @@ export async function pullMigrationTool(migrationToolName: string, version: stri
             }
         });
 
-        // 4. Handle standard error output with improved filtering
+        // 4. Keep standard error for the final message. A failed pull is not fatal on its own:
+        // an already installed compatible tool still lets the migration run.
         childProcess.stderr?.on("data", (data: Buffer) => {
             const errorOutput = data.toString().trim();
             debug(`Tool pull stderr: ${errorOutput}`);
-
-            // Filter out non-critical messages that shouldn't cause failure
-            const nonCriticalPatterns = [
-                /is already active/i,
-                /warning:/i,
-                /deprecated/i
-            ];
-
-            const isNonCritical = nonCriticalPatterns.some(pattern => pattern.test(errorOutput));
-
-            if (isNonCritical) {
-                debug(`Ignoring non-critical stderr: ${errorOutput}`);
-                return;
-            }
-
-            // Only treat as error if it's a real error message
             if (errorOutput.length > 0) {
-                sendProgress({
-                    message: `Error: ${errorOutput}`,
-                    success: false,
-                    step: -1,
-                });
-                reject(new Error(errorOutput));
+                lastStderrLine = errorOutput.split(/\r?\n/).pop() ?? errorOutput;
             }
         });
 
-        // 5. Handle the definitive end of the process
-        childProcess.on("close", (code) => {
-            debug(`Tool pull command exited with code ${code}`);
-
-            // Success conditions: code 0, or code 1 with "already available" message
-            const isAlreadyInstalled = accumulatedStdout.includes("is already available locally");
-            const isSuccessfulDownload = accumulatedStdout.includes("pulled from central successfully") ||
-                accumulatedStdout.includes("successfully set as the active version");
-
-            if (code === 0 || (code === 1 && isAlreadyInstalled)) {
-                let finalMessage: string;
-
-                if (isAlreadyInstalled) {
-                    finalMessage = `Tool '${migrationToolName}' is already installed.`;
-                } else if (isSuccessfulDownload) {
-                    finalMessage = `Successfully pulled '${migrationToolName}'.`;
-                } else {
-                    finalMessage = `Tool pull completed with code ${code}. Please check the logs for more details.`;
-                }
-
-                sendProgress({
-                    message: finalMessage,
-                    percentage: PROGRESS_COMPLETE,
-                    success: true,
-                    step: 3,
-                });
-                resolve();
-            } else {
-                const errorMessage = `Tool pull failed with exit code ${code}. Check logs for details.`;
-                sendProgress({
-                    message: errorMessage,
-                    success: false,
-                    step: -1,
-                });
-                reject(new Error(errorMessage));
+        // 5. Handle the definitive end of the process (also reached when the timeout kills it)
+        childProcess.on("close", async (code, signal) => {
+            debug(`Tool pull command exited with code ${code}${signal ? ` (signal ${signal})` : ""}`);
+            if (settled) {
+                return;
             }
+
+            const isAlreadyInstalled = accumulatedStdout.includes("is already available locally");
+            const pullSucceeded = code === 0 || (code === 1 && isAlreadyInstalled);
+            const pullError = signal === "SIGTERM" ? "Download timed out after 5 minutes." : lastStderrLine;
+
+            let timer: ReturnType<typeof setTimeout> | undefined;
+            const activeToolCompatible = await Promise.race([
+                isActiveToolCompatible().catch((error) => {
+                    debug(`Could not check the installed '${migrationToolName}' version: ${error}`);
+                    return undefined;
+                }),
+                new Promise<undefined>((resolveTimeout) => {
+                    timer = setTimeout(() => {
+                        debug(`Checking the installed '${migrationToolName}' version timed out after ${LS_CHECK_TIMEOUT_MS} ms`);
+                        resolveTimeout(undefined);
+                    }, LS_CHECK_TIMEOUT_MS);
+                }),
+            ]);
+            clearTimeout(timer);
+
+            const outcome = decideMigrationToolPullOutcome({
+                toolName: migrationToolName,
+                requiredVersion,
+                pullSucceeded,
+                activeToolCompatible,
+                pullError,
+            });
+            debug(`Migration tool pull outcome: ${outcome.message}`);
+
+            if (!outcome.success) {
+                fail(outcome.message);
+                return;
+            }
+            settled = true;
+            sendProgress({
+                message: outcome.message,
+                percentage: PROGRESS_COMPLETE,
+                success: true,
+                step: 3,
+            });
+            resolve();
         });
 
         // Handle process execution errors (e.g., command not found)
         childProcess.on("error", (error) => {
             debug(`Tool pull process error: ${error.message}`);
-
-            const errorMessage = `Failed to execute command: ${error.message}`;
-            sendProgress({
-                message: errorMessage,
-                success: false,
-                step: -1,
-            });
-            reject(new Error(errorMessage));
-        });
-
-        // Handle timeout from exec options
-        childProcess.on("timeout", () => {
-            debug("Tool pull process timed out after 5 minutes");
-
-            const errorMessage = "Download timed out after 5 minutes";
-            sendProgress({
-                message: errorMessage,
-                success: false,
-                step: -1,
-            });
-            reject(new Error("Migration tool pull timed out after 5 minutes"));
+            fail(`Failed to execute command: ${error.message}`);
         });
     });
 }

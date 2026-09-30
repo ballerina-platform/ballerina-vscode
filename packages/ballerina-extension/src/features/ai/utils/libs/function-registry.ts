@@ -315,7 +315,6 @@ Now, based on the provided libraries and the user query, please filter and retur
 `;
 
     const messages: ModelMessage[] = [
-        { role: "system", content: getLibSystemPrompt },
         { role: "user", content: getLibUserPrompt },
     ];
     try {
@@ -323,6 +322,7 @@ Now, based on the provided libraries and the user query, please filter and retur
             model: await getAnthropicClient(ANTHROPIC_HAIKU),
             maxOutputTokens: SELECTION_MAX_OUTPUT_TOKENS,
             temperature: 0,
+            system: getLibSystemPrompt,
             messages: messages,
             schema: getFunctionsResponseSchema,
             abortSignal,
@@ -1150,7 +1150,6 @@ Think step-by-step to choose the required types in order to solve the given ques
     const getLibUserPrompt = "QUESTION\n```\n" + prompt + "\n```";
 
     const messages: ModelMessage[] = [
-        { role: "system", content: getLibSystemPrompt },
         { role: "user", content: getLibUserPrompt },
     ];
     try {
@@ -1158,6 +1157,7 @@ Think step-by-step to choose the required types in order to solve the given ques
             model: await getAnthropicClient(ANTHROPIC_HAIKU),
             maxOutputTokens: SELECTION_MAX_OUTPUT_TOKENS,
             temperature: 0,
+            system: getLibSystemPrompt,
             messages: messages,
             schema: getTypesResponseSchema,
             abortSignal,

@@ -73,7 +73,7 @@ export const CONNECTION_SPECIAL_CONFIGS: Record<string, ConnectionSpecialConfig>
         infoMessage: {
             text: "Using the default WSO2 Model Provider will automatically add the necessary configuration values to Config.toml.",
             description: "This can also be done using the VSCode command palette command:",
-            codeCommand: "> Ballerina: Configure default WSO2 model provider"
+            codeCommand: "> WSO2 Integrator: Configure default WSO2 model provider"
         },
         shouldShowInfo: (symbol: string) => symbol === GET_DEFAULT_MODEL_PROVIDER
     }

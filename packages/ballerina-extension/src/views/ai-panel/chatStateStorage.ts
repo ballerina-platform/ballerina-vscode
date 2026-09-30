@@ -38,6 +38,12 @@ import {
     PersistedCodeContext,
 } from '@wso2/copilot-utilities/chat-persistence';
 
+// Console-summary fields persisted alongside the shared schema. They are optional
+// additions, so no schema version bump: the store writes the object as-is, and
+// migrations spread every field through.
+type StoredGeneration = PersistedGeneration & { consoleSummary?: string };
+type StoredThread = PersistedThread & { consoleOrigin?: boolean };
+
 const THREAD_NAME_MAX_LENGTH = 60;
 const UNNAMED_THREAD_NAME = 'New Chat';
 
@@ -120,7 +126,7 @@ function toPersistedCodeContext(ctx: NonNullable<Generation['codeContext']>): Pe
     };
 }
 
-function toPersistedGeneration(gen: Generation): PersistedGeneration {
+function toPersistedGeneration(gen: Generation): StoredGeneration {
     return {
         id: gen.id,
         userPrompt: gen.userPrompt,
@@ -148,6 +154,8 @@ function toPersistedGeneration(gen: Generation): PersistedGeneration {
         plan: gen.plan ? toPersistedPlan(gen.plan) : undefined,
         fileAttachments: gen.fileAttachments?.map(f => ({ fileName: f.fileName, content: f.content })),
         codeContext: gen.codeContext ? toPersistedCodeContext(gen.codeContext) : undefined,
+        // Kept across a reload so a later revert or restore can still take it off the console.
+        consoleSummary: gen.consoleSummary,
     };
 }
 
@@ -160,7 +168,7 @@ export function isRevertible(generation: Generation | undefined): boolean {
     return generation?.reviewState.status === 'done' && !!generation.reviewState.reviewView;
 }
 
-function fromPersistedGeneration(pg: PersistedGeneration): Generation {
+function fromPersistedGeneration(pg: StoredGeneration): Generation {
     return {
         id: pg.id,
         userPrompt: pg.userPrompt,
@@ -212,25 +220,28 @@ function fromPersistedGeneration(pg: PersistedGeneration): Generation {
             : undefined,
         fileAttachments: pg.fileAttachments as Generation['fileAttachments'],
         codeContext: pg.codeContext as Generation['codeContext'],
+        consoleSummary: typeof pg.consoleSummary === 'string' ? pg.consoleSummary : undefined,
     };
 }
 
-function toPersistedThread(thread: ChatThread): Omit<PersistedThread, 'schemaVersion'> {
+function toPersistedThread(thread: ChatThread): Omit<StoredThread, 'schemaVersion'> {
     return {
         id: thread.id,
         name: thread.name,
         sessionId: thread.sessionId,
+        consoleOrigin: thread.consoleOrigin,
         createdAt: thread.createdAt,
         updatedAt: thread.updatedAt,
         generations: thread.generations.map(toPersistedGeneration),
     };
 }
 
-function fromPersistedThread(pt: PersistedThread): ChatThread {
+function fromPersistedThread(pt: StoredThread): ChatThread {
     return {
         id: pt.id,
         name: pt.name,
         sessionId: pt.sessionId,
+        consoleOrigin: pt.consoleOrigin === true ? true : undefined,
         createdAt: pt.createdAt,
         updatedAt: pt.updatedAt,
         generations: pt.generations.map(fromPersistedGeneration),
@@ -1210,6 +1221,30 @@ export class ChatStateStorage {
         thread.updatedAt = Date.now();
         // Persist thread with updated checkpoint flags
         this.flushThread(projectRootPath, threadId);
+    }
+
+    /**
+     * Mark a thread as the one the console plan started. Persisted: the scaffold turn
+     * is auto-submitted once per session, so nothing would mark the thread again after
+     * a reload. Read-only lookup, so a thread deleted meanwhile is not recreated.
+     */
+    markConsoleOrigin(projectRootPath: string, threadId: string): void {
+        const thread = this.getWorkspaceState(projectRootPath)?.threads.get(threadId);
+        if (!thread || thread.consoleOrigin) {
+            return;
+        }
+        thread.consoleOrigin = true;
+        this.flushThread(projectRootPath, threadId);
+    }
+
+    /**
+     * The generations restoreThreadToCheckpoint would remove for this checkpoint:
+     * the one holding it and every later one. Read-only; empty when not found.
+     */
+    getGenerationsFromCheckpoint(projectRootPath: string, threadId: string, checkpointId: string): Generation[] {
+        const generations = this.getWorkspaceState(projectRootPath)?.threads.get(threadId)?.generations ?? [];
+        const index = generations.findIndex(g => g.checkpoint?.id === checkpointId);
+        return index === -1 ? [] : generations.slice(index);
     }
 
     /**

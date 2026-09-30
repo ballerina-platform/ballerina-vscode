@@ -15,7 +15,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { aiAssistantName } from "../../utils/config";
+import { copilotName } from "../../utils/config";
 
 export const API_DOCS_DRIFT_CHECK_TYPE = "CODE_AND_APIDOCS";
 export const PROJECT_DOCUMENTATION_DRIFT_CHECK_TYPE = "CODE_AND_DOCUMENTATION";
@@ -28,11 +28,12 @@ export const REQUIREMENT_DOC_PREFIX = "requirements.";
 export const REQUIREMENT_TEXT_DOCUMENT = `${REQUIREMENT_DOC_PREFIX}txt`;
 export const REQUIREMENT_MD_DOCUMENT = `${REQUIREMENT_DOC_PREFIX}md`;
 export const README_FILE_NAME_LOWERCASE = "readme.md";
+
 export const COMMAND_SHOW_TEXT = "extension.showTextOptions";
 export const DRIFT_DIAGNOSTIC_ID = "NLE001";
 export const PROGRESS_BAR_MESSAGE_FOR_DRIFT = "Checking the drift between code and documentation...";
 export const PROGRESS_BAR_MESSAGE_FOR_NP_TOKEN = "Fetching and saving access token for natural functions";
-export const WARNING_MESSAGE = `You need to sign up for ${aiAssistantName()} to detect drift between code and documentation.`;
+export const warningMessage = () => `You need to sign up for ${copilotName()} to detect drift between code and documentation.`;
 export const WARNING_MESSAGE_DEFAULT = "Failed to detect drift between code and documentation. Please try again";
 export const LACK_OF_API_DOCUMENTATION_WARNING = "lacks api documentation";
 export const DOES_NOT_HAVE_ANY_API_DOCUMENTATION = "does not have any api documentation";
@@ -48,4 +49,4 @@ export const MONITERED_EXTENSIONS = [
 export const CONFIG_FILE_NAME = "Config.toml";
 export const DEFAULT_MODULE = "DEFAULT_MODULE";
 export const ERROR_NO_BALLERINA_SOURCES = "No Ballerina sources";
-export const LOGIN_REQUIRED_WARNING = `Please sign in to ${aiAssistantName()} to use this feature.`;
+export const loginRequiredWarning = () => `Please sign in to ${copilotName()} to use this feature.`;

@@ -23,7 +23,7 @@ import { TitleBar } from "../../../components/TitleBar";
 import { isBetaModule } from "../ComponentListView/componentListUtils";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { FormField, FormImports, FormValues } from "@wso2/ballerina-side-panel";
-import { AgentEventChannel, AgentKind, DIRECTORY_MAP, EVENT_TYPE, FunctionModel, hasBlockingValidationErrors, isSamePath, LineRange, ModelResolutionIssue, ParameterModel, ProjectStructureArtifactResponse, PropertyModel, RecordTypeField, ServiceInitModel, ValidationResult } from "@wso2/ballerina-core";
+import { AgentEventChannel, AgentKind, DIRECTORY_MAP, EVENT_TYPE, FunctionModel, hasBlockingValidationErrors, isSamePath, LineRange, ModelResolutionError, ModelResolutionIssue, ParameterModel, ProjectStructureArtifactResponse, PropertyModel, RecordTypeField, ServiceInitModel, ValidationResult } from "@wso2/ballerina-core";
 import { FormHeader } from "../../../components/FormHeader";
 import ArtifactForm from "../Forms/ArtifactForm";
 import { AgentEndpointFields, PromptContinuation } from "./Forms/AgentEndpointFields";
@@ -36,8 +36,11 @@ import { McpOpenApiImportWizard } from "./McpOpenApiImportWizard";
 import { HeaderWrapper, NestedFormWrapper, StatusCard, StatusText } from "./ServiceCreationLayout";
 import {
     applyFormValuesToModel,
+    disambiguateFormKeys,
     collectRecordTypeFields,
     mapPropertiesToFormFields,
+    restoreFormKeys,
+    toFormValidationErrors,
     updateChoiceInModel,
 } from "./serviceInitModelUtils";
 
@@ -127,6 +130,7 @@ enum PullingStatus {
     SUCCESS = "success",
     ERROR = "error",
     UNSUPPORTED_VERSION = "unsupported_version",
+    NO_SUPPORTED_VERSION = "no_supported_version",
     UPDATING = "updating",
 }
 
@@ -169,6 +173,11 @@ function untakenPath(seed: string, taken: string[]): string {
     }
 }
 
+enum ModelResolutionIssueCode {
+    UNSUPPORTED_CONNECTOR_VERSION = "UNSUPPORTED_CONNECTOR_VERSION",
+    NO_SUPPORTED_VERSION_AVAILABLE = "NO_SUPPORTED_VERSION_AVAILABLE",
+}
+
 /** The design approach choice's properties for whichever option is currently selected (e.g. manual vs. import-from-spec). */
 function getEnabledDesignApproachProperties(model: ServiceInitModel) {
     return model?.properties.designApproach?.choices?.find((choice) => choice.enabled)?.properties;
@@ -179,15 +188,17 @@ interface PackagePullingStatusProps {
     isLocalRepository?: boolean;
     packageName: string;
     upgradeIssue?: ModelResolutionIssue;
+    resolutionError?: ModelResolutionError;
     onRetry: () => void;
     onUpdateNow: () => void;
 }
 
-function PackagePullingStatus({ status, isLocalRepository, packageName, upgradeIssue, onRetry, onUpdateNow }: PackagePullingStatusProps) {
+function PackagePullingStatus({ status, isLocalRepository, packageName, upgradeIssue, resolutionError, onRetry, onUpdateNow }: PackagePullingStatusProps) {
     switch (status) {
         case PullingStatus.FETCHING:
             return <RelativeLoader message="Loading package..." />;
         case PullingStatus.PULLING:
+        case PullingStatus.UPDATING:
             return (
                 <StatusCard>
                     {isLocalRepository ? (
@@ -217,9 +228,9 @@ function PackagePullingStatus({ status, isLocalRepository, packageName, upgradeI
                 <StatusCard>
                     <Icon name="bi-error" sx={{ color: ThemeColors.ERROR, fontSize: "18px" }} />
                     <StatusText variant="body2">
-                        {isLocalRepository
+                        {resolutionError?.message || (isLocalRepository
                             ? "Failed to load the package from your local repository. Please try again."
-                            : "Failed to pull the package. Please try again."}
+                            : "Failed to pull the package. Please try again.")}
                     </StatusText>
                     <Button appearance="secondary" onClick={onRetry}>Retry</Button>
                 </StatusCard>
@@ -229,18 +240,19 @@ function PackagePullingStatus({ status, isLocalRepository, packageName, upgradeI
                 <StatusCard>
                     <Icon name="bi-error" sx={{ color: ThemeColors.ERROR, fontSize: "18px" }} />
                     <StatusText variant="body2">
-                        A newer version is required to use this feature..
+                        A newer version of the {packageName} package is required to use this feature.
                     </StatusText>
                     <Button appearance="primary" onClick={onUpdateNow}>Update Now</Button>
                 </StatusCard>
             ) : null;
-        case PullingStatus.UPDATING:
+        case PullingStatus.NO_SUPPORTED_VERSION:
             return (
                 <StatusCard>
-                    <Icon name="bi-spinner" sx={{ color: ThemeColors.ON_SURFACE, fontSize: "18px" }} />
+                    <Icon name="bi-error" sx={{ color: ThemeColors.ERROR, fontSize: "18px" }} />
                     <StatusText variant="body2">
-                        {`Updating ${packageName}...`}
+                        {`No supported version of the ${packageName} package is available yet.`}
                     </StatusText>
+                    <Button appearance="secondary" onClick={onRetry}>Retry</Button>
                 </StatusCard>
             );
         default:
@@ -260,6 +272,7 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
 
     const [pullingStatus, setPullingStatus] = useState<PullingStatus>(PullingStatus.FETCHING);
     const [upgradeIssue, setUpgradeIssue] = useState<ModelResolutionIssue | undefined>(undefined);
+    const [resolutionError, setResolutionError] = useState<ModelResolutionError | undefined>(undefined);
     const [filePath, setFilePath] = useState<string>("");
     const [targetLineRange, setTargetLineRange] = useState<LineRange>();
     const [isSaving, setIsSaving] = useState<boolean>(false);
@@ -273,6 +286,7 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
 
     const fetchData = async () => {
         setPullingStatus(PullingStatus.FETCHING);
+        setResolutionError(undefined);
 
         try {
             const promise = rpcClient
@@ -314,11 +328,16 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
 
             const initModel = res?.serviceInitModel;
             if (!initModel) {
-                if (res?.issue?.code === "UNSUPPORTED_CONNECTOR_VERSION") {
+                if (res?.issue?.code === ModelResolutionIssueCode.UNSUPPORTED_CONNECTOR_VERSION) {
                     setUpgradeIssue(res.issue);
                     setPullingStatus(PullingStatus.UNSUPPORTED_VERSION);
                     return;
                 }
+                if (res?.issue?.code === ModelResolutionIssueCode.NO_SUPPORTED_VERSION_AVAILABLE) {
+                    setPullingStatus(PullingStatus.NO_SUPPORTED_VERSION);
+                    return;
+                }
+                setResolutionError(res?.resolutionError);
                 setPullingStatus(PullingStatus.ERROR);
                 return;
             }
@@ -347,8 +366,9 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
             }
 
             setHeaderInfo({ title: initModel.displayName, moduleName: initModel.moduleName });
-            setServiceInitModel(initModel);
-            setFormFields(mapPropertiesToFormFields(initModel.properties));
+            const formModel = disambiguateFormKeys(initModel);
+            setServiceInitModel(formModel);
+            setFormFields(mapPropertiesToFormFields(formModel.properties));
             setFilePath(target.filePath);
             setTargetLineRange({ startLine: endOfFile, endLine: endOfFile });
             setPullingStatus(undefined);
@@ -515,14 +535,14 @@ function withEventResponse(seeded: FunctionModel, event: AgentEventChannel): Fun
         setIsSaving(true);
         const res = await rpcClient
             .getServiceDesignerRpcClient()
-            .createServiceAndListener({ filePath: "", serviceInitModel: serviceModel });
+            .createServiceAndListener({ filePath: "", serviceInitModel: restoreFormKeys(serviceModel) });
 
         if (!isMountedRef.current) {
             return;
         }
 
         if (hasBlockingValidationErrors(res.validationErrors)) {
-            setServerValidationErrors(res.validationErrors);
+            setServerValidationErrors(toFormValidationErrors(serviceModel, res.validationErrors));
             setIsSaving(false);
             return;
         }
@@ -563,6 +583,7 @@ function withEventResponse(seeded: FunctionModel, event: AgentEventChannel): Fun
                 isLocalRepository={isLocalRepository}
                 packageName={packageName}
                 upgradeIssue={upgradeIssue}
+                resolutionError={resolutionError}
                 onRetry={fetchData}
                 onUpdateNow={handleUpdateNow}
             />

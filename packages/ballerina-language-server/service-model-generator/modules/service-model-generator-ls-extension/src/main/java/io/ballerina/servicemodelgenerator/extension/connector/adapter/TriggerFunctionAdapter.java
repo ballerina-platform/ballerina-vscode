@@ -26,6 +26,7 @@ import io.ballerina.servicemodelgenerator.extension.model.Function;
 import io.ballerina.servicemodelgenerator.extension.model.FunctionReturnType;
 import io.ballerina.servicemodelgenerator.extension.model.LayoutSection;
 import io.ballerina.servicemodelgenerator.extension.model.MetaData;
+import io.ballerina.servicemodelgenerator.extension.model.Option;
 import io.ballerina.servicemodelgenerator.extension.model.Parameter;
 import io.ballerina.servicemodelgenerator.extension.model.PropertyType;
 import io.ballerina.servicemodelgenerator.extension.model.Value;
@@ -93,11 +94,14 @@ public final class TriggerFunctionAdapter {
         String nameDescription = model.nameMetadata() != null && notBlank(model.nameMetadata().description())
                 ? model.nameMetadata().description() : description;
 
+        boolean resource = KIND_RESOURCE.equalsIgnoreCase(model.kind());
+        boolean nameEditable = Boolean.TRUE.equals(model.nameEditable());
+        Value.FieldType nameFieldType = resource && nameEditable
+                ? Value.FieldType.RESOURCE_PATH : Value.FieldType.IDENTIFIER;
         Function.FunctionBuilder builder = new Function.FunctionBuilder()
                 .setMetadata(new MetaData(label, description, notice, null, badge))
                 .kind(wireKind(model.kind()))
-                .name(identifierValue(functionName, nameLabel, nameDescription,
-                        Boolean.TRUE.equals(model.nameEditable())))
+                .name(nameValue(functionName, nameLabel, nameDescription, nameEditable, nameFieldType))
                 .parameters(toParameters(model.parameters(), variantParameter, variant))
                 .returnType(toReturnType(model.returnType()))
                 .enabled(model.enabled())
@@ -106,14 +110,16 @@ public final class TriggerFunctionAdapter {
                 .canAddParameters(Boolean.TRUE.equals(model.canAddParameters()));
 
         // Do NOT copy `qualifiers` — the source emitter derives the keyword from `kind`.
-        if (KIND_RESOURCE.equalsIgnoreCase(model.kind()) && model.accessor() != null) {
-            builder.accessor(identifierValue(model.accessor(), model.accessor(), description));
+        if (resource && model.defaultAccessor() != null) {
+            builder.accessor(accessorValue(model));
         }
         if (model.documentationSchema() != null) {
             builder.documentation(PropertyValueAdapter.toValue(model.documentationSchema()));
         }
         Function function = builder.build();
-        function.setGroup(notBlank(model.group()) ? model.group() : model.name());
+        String group = notBlank(model.group()) ? model.group()
+                : notBlank(model.name()) ? model.name() : label(model.metadata(), "Handler");
+        function.setGroup(group);
         function.setVariantLabel(variantLabel);
         function.setAddLabel(model.metadata() == null ? null : model.metadata().addLabel());
         function.setAddDescription(model.metadata() == null ? null : model.metadata().addDescription());
@@ -436,18 +442,33 @@ public final class TriggerFunctionAdapter {
     }
 
     private static Value identifierValue(String value, String label, String description) {
-        return identifierValue(value, label, description, false);
+        return nameValue(value, label, description, false, Value.FieldType.IDENTIFIER);
     }
 
-    /** {@code editable} marks the function-name identifier user-renamable (see {@code nameEditable}). */
-    private static Value identifierValue(String value, String label, String description, boolean editable) {
+    private static Value nameValue(String value, String label, String description, boolean editable,
+                                   Value.FieldType fieldType) {
         return new Value.ValueBuilder()
                 .metadata(label, description)
                 .value(value)
-                .types(List.of(PropertyType.types(Value.FieldType.IDENTIFIER)))
+                .types(List.of(PropertyType.types(fieldType)))
                 .setPlaceholder(value)
                 .enabled(true)
                 .editable(editable)
+                .build();
+    }
+
+    /** A pickable accessor when the model lists several (comma-separated), else the one fixed accessor. */
+    private static Value accessorValue(TriggerUISchemaModel.FunctionModel model) {
+        List<String> options = model.accessors();
+        if (options.size() < 2) {
+            return identifierValue(model.defaultAccessor(), "Accessor", "The accessor of this resource.");
+        }
+        return new Value.ValueBuilder()
+                .metadata("Accessor", "The accessor of this resource.")
+                .value(model.defaultAccessor())
+                .types(List.of(PropertyType.types(Value.FieldType.SINGLE_SELECT, Option.of(options))))
+                .enabled(true)
+                .editable(true)
                 .build();
     }
 

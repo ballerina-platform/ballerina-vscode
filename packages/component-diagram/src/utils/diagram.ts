@@ -40,6 +40,13 @@ import {
     LISTENER_NODE_HEIGHT,
     CON_NODE_WIDTH,
     CON_NODE_HEIGHT,
+    NODE_BORDER_WIDTH,
+    NODE_PADDING,
+    ENTRY_ROW_GAP,
+    ENTRY_ROW_CONTENT_HEIGHT,
+    ENTRY_HEADER_CONTENT_HEIGHT,
+    WORKFLOW_PLAY_BUTTON_TOP,
+    WORKFLOW_PLAY_BUTTON_SIZE,
 } from "../resources/constants";
 import { ListenerNodeModel } from "../components/nodes/ListenerNode";
 import { ConnectionNodeModel } from "../components/nodes/ConnectionNode";
@@ -109,21 +116,11 @@ export function autoDistribute(engine: DiagramEngine) {
     // Separate listeners into connected and unconnected
     const connectedListeners: ListenerNodeModel[] = [];
     const unconnectedListeners: ListenerNodeModel[] = [];
-
     listenerNodes.forEach((node) => {
         const listenerNode = node as ListenerNodeModel;
-        const attachedServices = listenerNode.node.attachedServices;
-
-        // Find the attached service nodes
-        const serviceNodes = entryNodes.filter((n) => attachedServices.includes(n.getID()));
-
-        if (serviceNodes.length > 0) {
-            // Has attached services - position at average Y of services
-            const avgY = serviceNodes.reduce((sum, n) => sum + n.getY(), 0) / serviceNodes.length;
-            listenerNode.setPosition(listenerX, avgY);
+        if (listenerNode.node.attachedServices.some((id) => entryNodes.some((n) => n.getID() === id))) {
             connectedListeners.push(listenerNode);
         } else {
-            // No attached services - will position later
             unconnectedListeners.push(listenerNode);
         }
     });
@@ -134,36 +131,49 @@ export function autoDistribute(engine: DiagramEngine) {
         entryNode.setPosition(entryX, entryNode.getY());
     });
 
-    // Position workflow nodes near the entry points that trigger them or send them data,
-    // stacking downwards to avoid overlaps
-    const workflowsWithDesiredY = workflowNodes.map((node) => {
-        const workflowNode = node as EntryNodeModel;
-        const workflow = workflowNode.node as CDWorkflow;
-        const senderIds = new Set([...(workflow.attachedServices ?? []), ...(workflow.attachedFunctions ?? [])]);
-        workflow.events?.forEach((event) => {
-            event.attachedServices?.forEach((uuid) => senderIds.add(uuid));
-            event.attachedFunctions?.forEach((uuid) => senderIds.add(uuid));
-        });
-        const senderNodes = entryNodes.filter((n) => senderIds.has(n.getID()));
-        const desiredY =
-            senderNodes.length > 0
-                ? senderNodes.reduce((sum, n) => sum + n.getY(), 0) / senderNodes.length
-                : node.getY();
-        return { node: workflowNode, desiredY };
-    });
-    workflowsWithDesiredY.sort((a, b) => a.desiredY - b.desiredY);
-    let workflowBottom = -Infinity;
-    workflowsWithDesiredY.forEach(({ node, desiredY }) => {
-        const y = Math.max(desiredY, workflowBottom + NODE_GAP_Y / 2);
-        node.setPosition(workflowX, y);
-        workflowBottom = y + (node.height || ENTRY_NODE_HEIGHT);
+    // Every real link in the model, bucketed once by endpoint (self-loops excluded, same as every
+    // filter below used to apply inline) so positionColumnByIncomingLinks/refineNodesByAllLinks -
+    // each called several times across both rounds - look a node's links up in O(1) instead of
+    // re-scanning the full link array per node, per call.
+    const links = model.getLinks().filter((linkModel): linkModel is NodeLinkModel => linkModel instanceof NodeLinkModel);
+    const incomingLinksByNode = new Map<NodeModel, NodeLinkModel[]>();
+    const outgoingLinksByNode = new Map<NodeModel, NodeLinkModel[]>();
+    const addToBucket = (map: Map<NodeModel, NodeLinkModel[]>, node: NodeModel, link: NodeLinkModel) => {
+        const bucket = map.get(node);
+        if (bucket) {
+            bucket.push(link);
+        } else {
+            map.set(node, [link]);
+        }
+    };
+    links.forEach((link) => {
+        if (!link.sourceNode || !link.targetNode || link.sourceNode === link.targetNode) {
+            return;
+        }
+        addToBucket(outgoingLinksByNode, link.sourceNode, link);
+        addToBucket(incomingLinksByNode, link.targetNode, link);
     });
 
-    // Position connection nodes
-    connectionNodes.forEach((node, index) => {
-        const connectionNode = node as ConnectionNodeModel;
-        connectionNode.setPosition(connectionX, node.getY());
-    });
+    // Round 1: position everything downstream of entry nodes from their current (creation-order)
+    // Y, exactly as before this round existed.
+    connectedListeners.forEach((listenerNode) => positionConnectedListener(listenerNode, entryNodes as NodeModel[], listenerX));
+    positionColumnByIncomingLinks(workflowNodes as NodeModel[], incomingLinksByNode, workflowX, ENTRY_NODE_HEIGHT);
+    positionColumnByIncomingLinks(connectionNodes as NodeModel[], incomingLinksByNode, connectionX, CON_NODE_HEIGHT);
+
+    // Round 2: entry and workflow nodes sit *between* two neighbors (a listener/entry node on one
+    // side, a workflow/connection on the other) that round 1 only let pull on whichever side comes
+    // later in the pass - a service could move to match its listener, but never the reverse, so a
+    // listener sitting above a tall service's real center could only ever "win" one direction.
+    // Refining both middle columns against everything now real on both sides, without either call
+    // reordering beyond each column's own CURRENT vertical order - entry nodes' is still the source
+    // file's (nothing before this point has touched their Y), while workflow nodes' is whatever
+    // round 1's free reorder already settled it to - lets a plain, unbranched chain settle dead
+    // straight end to end, and gives a branching one the smallest total disturbance instead of
+    // always favoring whichever neighbor happened to move first.
+    refineNodesByAllLinks(entryNodes as NodeModel[], incomingLinksByNode, outgoingLinksByNode);
+    refineNodesByAllLinks(workflowNodes as NodeModel[], incomingLinksByNode, outgoingLinksByNode);
+    connectedListeners.forEach((listenerNode) => positionConnectedListener(listenerNode, entryNodes as NodeModel[], listenerX));
+    positionColumnByIncomingLinks(connectionNodes as NodeModel[], incomingLinksByNode, connectionX, CON_NODE_HEIGHT);
 
     // Position unconnected listeners below all other nodes
     if (unconnectedListeners.length > 0) {
@@ -190,6 +200,222 @@ export function autoDistribute(engine: DiagramEngine) {
     engine.repaintCanvas();
 }
 
+/**
+ * The `{ item, desiredCenter, height }` that `positionColumnByIncomingLinks` and
+ * `refineNodesByAllLinks` both build for a node before handing it to `resolveMinGapPositions` -
+ * factored out so their shared row-offset math (see the class doc below) only needs fixing in one
+ * place; the two callers differ only in which links they consider "relevant" (incoming-only vs.
+ * every link touching the node) and what they do with the result afterward.
+ *
+ * `node`'s desired center is the average, across `relevantLinks`, of the center that would put
+ * *this* node's own end of that link exactly on the other end's real anchor - each computed via
+ * its own row offset from `getPortAnchorY`, so a link landing on a specific row (not a generic
+ * port) pulls correctly rather than assuming the node's plain center. A node nothing relevant
+ * touches keeps its own current center.
+ */
+function computeDesiredCenterItem(
+    node: NodeModel,
+    relevantLinks: NodeLinkModel[],
+    defaultHeight: number
+): { item: NodeModel; desiredCenter: number; height: number } {
+    const height = node.height || defaultHeight;
+    // Both branches below derive "current center" from the same real box rather than one of them
+    // reaching for `node.getY() + height / 2` directly - that only agreed with
+    // `getNodeBoundingBox`'s own center because every caller's `defaultHeight` happens to match the
+    // type-based default `getNodeBoundingBox` falls back to on its own; deriving both from the box
+    // means they can't quietly diverge if that ever stops being true.
+    const nodeBox = getNodeBoundingBox(node);
+    const currentCenter = (nodeBox.top + nodeBox.bottom) / 2;
+    if (relevantLinks.length === 0) {
+        return { item: node, desiredCenter: currentCenter, height };
+    }
+    const desiredCenter =
+        relevantLinks.reduce((sum, link) => {
+            const isSource = link.sourceNode === node;
+            const ownPort = isSource ? link.getSourcePort() : link.getTargetPort();
+            const otherNode = isSource ? link.targetNode : link.sourceNode;
+            const otherPort = isSource ? link.getTargetPort() : link.getSourcePort();
+            // How far this link's own row sits from the node's current center - 0 for a generic
+            // in/out port, some real row offset for a specific function/event port.
+            const rowOffset = getPortAnchorY(node, ownPort, nodeBox) - currentCenter;
+            // The center that would put *this* row exactly on the other end's anchor.
+            return sum + (getPortAnchorY(otherNode, otherPort) - rowOffset);
+        }, 0) / relevantLinks.length;
+    return { item: node, desiredCenter, height };
+}
+
+/**
+ * Centers every node in `nodes` on the average real anchor Y of whatever links target it (falling
+ * back to its current center when nothing does), then stacks them downward wherever two desired
+ * centers would otherwise overlap - the same technique `autoDistribute` already uses for
+ * listeners, generalized to any column and to fan-in (a node reached by several links lands on
+ * their combined average, same as `avgCenterY` does above for one link per node).
+ *
+ * Reading real anchors off the actual links - rather than, say, a workflow's own
+ * `attachedServices`/`attachedFunctions` lists - is what makes this correct even when a link
+ * attaches to a *specific* row port rather than a node's generic one (e.g. a single function
+ * calling `workflow:run`, or a GraphQL group's own port): the position that matters is wherever
+ * that particular link actually leaves its source, not the source node's center. The same goes
+ * for where it *arrives*: a workflow with both a generic trigger (from automation, landing at its
+ * center) and a specific event port (from another workflow's output, landing well below center)
+ * has two incoming links that don't agree on what "this node's center" should even mean unless
+ * each is first translated through its own arrival row's offset - averaging their raw source
+ * anchors without that would silently target neither row correctly.
+ *
+ * Nodes with nothing pointing at them keep their existing center exactly. Siblings that end up
+ * wanting the same (or too-close) center - e.g. two connections both fed solely by the same
+ * automation node - settle symmetrically around that shared center rather than one keeping it
+ * outright and the other being shoved aside; see `resolveMinGapPositions`.
+ */
+function positionColumnByIncomingLinks(
+    nodes: NodeModel[],
+    incomingLinksByNode: Map<NodeModel, NodeLinkModel[]>,
+    x: number,
+    defaultHeight: number
+) {
+    const items = nodes.map((node) => {
+        const incomingLinks = incomingLinksByNode.get(node) ?? [];
+        return computeDesiredCenterItem(node, incomingLinks, defaultHeight);
+    });
+    // Free to reorder: a workflow/connection's vertical sequence carries no meaning of its own,
+    // so sorting by desired center first is what lets crossing-minimization actually happen (two
+    // nodes trying to swap places to both go straight, rather than being forced to keep whichever
+    // order they happened to be created in).
+    items.sort((a, b) => a.desiredCenter - b.desiredCenter);
+    const finalCenters = resolveMinGapPositions(items, NODE_GAP_Y / 2);
+    items.forEach(({ item: node, height }) => {
+        node.setPosition(x, finalCenters.get(node)! - height / 2);
+    });
+}
+
+/**
+ * Resolves final centers for `items` (each already carrying its own independently-desired center
+ * and real height), processed in the given order, so that adjacent items end up at least `gap`
+ * apart - via isotonic regression (the "pool adjacent violators" algorithm): whenever two
+ * neighbors' desired centers are too close to fit `gap` between them, they merge into one block
+ * sharing their (weighted) average desired center, which may then also violate distance from ITS
+ * neighbor and merge further, repeating until every remaining block boundary is compliant. A
+ * block's members are then packed tightly (own heights + gap) around that shared center, in the
+ * same relative order they were given in.
+ *
+ * This is what makes colliding siblings settle SYMMETRICALLY around a shared desired center (two
+ * items both wanting center 100, needing 50 between them, land at 75 and 125) instead of a naive
+ * "stack downward from the first one" pass, which would leave the first exactly at 100 and push
+ * the second down to 150 - silently favoring whichever item happens to come first in `items`.
+ * Callers decide what "first" means: sorted by desired center (allowing reorder) or left in
+ * existing order (preserving it) - this function only ever merges adjacent entries, never reorders.
+ */
+function resolveMinGapPositions<T>(items: Array<{ item: T; desiredCenter: number; height: number }>, gap: number): Map<T, number> {
+    interface Block {
+        sumDesired: number;
+        count: number;
+        members: Array<{ item: T; height: number }>;
+        totalHeight: number;
+        // Sum, over this block's members, of each one's own packed center as measured from the
+        // block's own top edge (a lone member's is just its half-height; packing another member in
+        // after it shifts that one's offset by "height + gap"). `sumOffset / count` is then the
+        // block's real top extent - `totalHeight - that` its real bottom extent - which only equal
+        // `totalHeight / 2` when every member in the block is the same height. Kept incrementally
+        // through merges (rather than re-summed from scratch) so the merge test just below and the
+        // final packing step always agree on the same real edges, instead of the merge test
+        // assuming a symmetric block that the packing step (correctly) doesn't produce.
+        sumOffset: number;
+    }
+    const blocks: Block[] = [];
+    items.forEach(({ item, desiredCenter, height }) => {
+        blocks.push({ sumDesired: desiredCenter, count: 1, members: [{ item, height }], totalHeight: height, sumOffset: height / 2 });
+        while (blocks.length >= 2) {
+            const curr = blocks[blocks.length - 1];
+            const prev = blocks[blocks.length - 2];
+            const prevBottomExtent = prev.totalHeight - prev.sumOffset / prev.count;
+            const currTopExtent = curr.sumOffset / curr.count;
+            const minDistance = prevBottomExtent + gap + currTopExtent;
+            if (curr.sumDesired / curr.count - prev.sumDesired / prev.count >= minDistance) {
+                break;
+            }
+            // curr's members end up packed right after prev's own extent plus this gap, so their
+            // offsets (measured from curr's own top edge) shift by that same amount in the merged
+            // block's frame.
+            prev.sumOffset += curr.sumOffset + curr.count * (prev.totalHeight + gap);
+            prev.sumDesired += curr.sumDesired;
+            prev.count += curr.count;
+            prev.totalHeight += curr.totalHeight + gap;
+            prev.members.push(...curr.members);
+            blocks.pop();
+        }
+    });
+
+    const result = new Map<T, number>();
+    blocks.forEach((block) => {
+        const blockCenter = block.sumDesired / block.count;
+        let cursor = blockCenter - block.sumOffset / block.count;
+        block.members.forEach(({ item, height }) => {
+            result.set(item, cursor + height / 2);
+            cursor += height + gap;
+        });
+    });
+    return result;
+}
+
+/**
+ * Centers `listenerNode` on the average real in-port Y of its attached services (see
+ * getPortAnchorY: their vertical center, since createNodesLink always attaches to a service's
+ * generic "in" port) - not their box top. A listener with exactly one service then lands on a
+ * dead-straight line instead of being offset by however far short of its center a tall service's
+ * top happens to sit. No-ops if none of `entryNodes` match an attached service ID.
+ */
+function positionConnectedListener(listenerNode: ListenerNodeModel, entryNodes: NodeModel[], listenerX: number): void {
+    const attachedServices = listenerNode.node.attachedServices;
+    const serviceNodes = entryNodes.filter((n) => attachedServices.includes(n.getID()));
+    if (serviceNodes.length === 0) {
+        return;
+    }
+    const avgCenterY =
+        serviceNodes.reduce((sum, n) => {
+            const entryNode = n as EntryNodeModel;
+            return sum + getPortAnchorY(entryNode, entryNode.getInPort());
+        }, 0) / serviceNodes.length;
+    const listenerHeight = listenerNode.height || LISTENER_NODE_HEIGHT;
+    listenerNode.setPosition(listenerX, avgCenterY - listenerHeight / 2);
+}
+
+/**
+ * Nudges every node in `nodes` toward the combined pull of *every* link touching it - both the
+ * ones feeding into it and the ones it sends out - without changing their relative order (unlike
+ * `positionColumnByIncomingLinks`, which is free to reorder since a workflow/connection's vertical
+ * sequence carries no meaning of its own; reordering an entry or workflow node here, past whatever
+ * order it already holds when this runs, would make it confusing for no benefit).
+ *
+ * A node linked from only one side (e.g. a service with no listener, or a connection with several
+ * senders that already settled the service's other neighbor) is exactly
+ * `positionColumnByIncomingLinks`'s one-sided average. What this adds is the *other* direction: a
+ * link leaving from a specific row (say, a function two rows down) contributes the node-center
+ * that would put *that row*, not the node's top or center, on the target's anchor - so a node
+ * pulled from both sides settles wherever best serves both, not just whichever neighbor happened
+ * to already have a real position when it was this node's turn.
+ */
+function refineNodesByAllLinks(
+    nodes: NodeModel[],
+    incomingLinksByNode: Map<NodeModel, NodeLinkModel[]>,
+    outgoingLinksByNode: Map<NodeModel, NodeLinkModel[]>
+): void {
+    const items = nodes.map((node) => {
+        const neighborLinks = [...(incomingLinksByNode.get(node) ?? []), ...(outgoingLinksByNode.get(node) ?? [])];
+        return computeDesiredCenterItem(node, neighborLinks, ENTRY_NODE_HEIGHT);
+    });
+
+    // Kept in the nodes' EXISTING vertical order (not re-sorted by desiredCenter), so a node
+    // never leapfrogs another - only its own Y shifts. Ordering by center (not `getY()`, the top
+    // edge) matters once heights differ: two nodes can disagree on which one is "first" by top
+    // edge alone while agreeing by center, and center is the space everything else here (desired
+    // centers, resolveMinGapPositions) already works in.
+    items.sort((a, b) => (a.item.getY() + a.height / 2) - (b.item.getY() + b.height / 2));
+    const finalCenters = resolveMinGapPositions(items, NODE_GAP_Y / 2);
+    items.forEach(({ item: node, height }) => {
+        node.setPosition(node.getX(), finalCenters.get(node)! - height / 2);
+    });
+}
+
 /** Minimum clearance kept between a rerouted link and the edge of the node it detours around. */
 export const LINK_DETOUR_MARGIN = 16;
 
@@ -203,11 +429,28 @@ export const LINK_DETOUR_MARGIN = 16;
  * `calculateGraphQLNodeHeight`/`computeGraphQLPortOffsets` further down, since `GraphQLServiceWidget`
  * renders its function and "show more" rows with these exact same styled components (see the
  * comment above `GQL_BASE_HEIGHT`), not a GraphQL-specific size of its own.
+ *
+ * These are real rendered pixel measurements, not a "content + padding" guess - `ROW_PADDING`,
+ * `ENTRY_HEADER_CONTENT_HEIGHT` and `ENTRY_ROW_CONTENT_HEIGHT` are themselves imported from
+ * `resources/constants`, the same module `styles.ts` imports its `Box`/`ServiceBox`/
+ * `StyledServiceBox` CSS values from, so the two can't drift apart the way a bare number (or the
+ * same formula) restated in both places could. `Box` and `StyledServiceBox` are declared
+ * `box-sizing: border-box`, so a row's declared height already includes its own border - it does
+ * not add on top of it. Confirmed against the real production webview DOM (not jsdom, which never
+ * lays out real pixel sizes).
  */
-const ROW_PADDING = 8;
-const ENTRY_HEADER_HEIGHT = 64 + ROW_PADDING;
-const ENTRY_ROW_HEIGHT = 40 + ROW_PADDING;
-const ENTRY_VIEW_ALL_BUTTON_HEIGHT = 40;
+const ROW_PADDING = ENTRY_ROW_GAP; // gap between stacked rows - `Box`'s own `gap`
+// `Box`'s own border + padding: the inset between a node's outer edge and its first/last row,
+// counted once at the top and once at the bottom. Border-box sizing doesn't apply here since Box
+// has no explicit width/height of its own (it's sized by its content), so this is added on top
+// regardless.
+const BOX_INSET = NODE_BORDER_WIDTH + NODE_PADDING; // 1.5 + 8 = 9.5
+// Offset from a node's own top edge to the top of its first row: the node's own top inset, then
+// the header, then the gap before row 0.
+const ENTRY_HEADER_HEIGHT = BOX_INSET + ENTRY_HEADER_CONTENT_HEIGHT + ROW_PADDING; // 9.5+56+8=73.5
+// Distance from one row's top to the next row's top (a row's own height plus the gap after it).
+const ENTRY_ROW_HEIGHT = ROW_PADDING + ENTRY_ROW_CONTENT_HEIGHT; // 8+40=48
+const ENTRY_VIEW_ALL_BUTTON_HEIGHT = 40; // ViewAllButton carries no border at rest - unchanged.
 
 export interface BoundingBox {
     left: number;
@@ -273,6 +516,20 @@ export function getPortAnchorY(node: NodeModel, port: PortModel | null | undefin
         return center;
     }
 
+    if (node.type === "workflow" && port === node.getInPort()) {
+        // Unlike other entry nodes, a workflow's "in" port renders inside its play button
+        // (PlayButtonCircle), pinned near the header rather than centered on the box - so it
+        // needs its own anchor instead of falling into the generic center case below.
+        //
+        // `top: WORKFLOW_PLAY_BUTTON_TOP` on PlayButtonCircle resolves against Box's PADDING edge
+        // (Box is `position: relative`), so it lands one Box-border-width below `box.top`. And
+        // PlayButtonCircle itself has no `box-sizing: border-box`, so its declared
+        // WORKFLOW_PLAY_BUTTON_SIZE is content height, not the true (border-included) height its
+        // own center sits at the middle of - add its own border-width once more to reach that
+        // center. Both borders are the same NODE_BORDER_WIDTH.
+        return box.top + NODE_BORDER_WIDTH + WORKFLOW_PLAY_BUTTON_TOP + NODE_BORDER_WIDTH + WORKFLOW_PLAY_BUTTON_SIZE / 2;
+    }
+
     if (port === node.getInPort() || port === node.getOutPort()) {
         return center;
     }
@@ -283,7 +540,7 @@ export function getPortAnchorY(node: NodeModel, port: PortModel | null | undefin
         if (eventIndex === -1) {
             return center; // workflow nodes have no other row-level ports
         }
-        return box.top + ENTRY_HEADER_HEIGHT + eventIndex * ENTRY_ROW_HEIGHT + ENTRY_ROW_HEIGHT / 2;
+        return box.top + ENTRY_HEADER_HEIGHT + eventIndex * ENTRY_ROW_HEIGHT + ENTRY_ROW_CONTENT_HEIGHT / 2;
     }
 
     const service = node.node as CDService;
@@ -323,7 +580,7 @@ export function getPortAnchorY(node: NodeModel, port: PortModel | null | undefin
                 : -1;
         return rowIndex === -1
             ? center
-            : box.top + ENTRY_HEADER_HEIGHT + rowIndex * ENTRY_ROW_HEIGHT + ENTRY_ROW_HEIGHT / 2;
+            : box.top + ENTRY_HEADER_HEIGHT + rowIndex * ENTRY_ROW_HEIGHT + ENTRY_ROW_CONTENT_HEIGHT / 2;
     }
 
     if (port === node.getViewAllResourcesPort()) {
@@ -339,7 +596,7 @@ export function getPortAnchorY(node: NodeModel, port: PortModel | null | undefin
     // the node's out-ports - after the leading generic "out" port - is exactly its row index.
     const rowIndex = node.getOutPorts().indexOf(port as NodePortModel) - 1;
     if (rowIndex >= 0) {
-        return box.top + ENTRY_HEADER_HEIGHT + rowIndex * ENTRY_ROW_HEIGHT + ENTRY_ROW_HEIGHT / 2;
+        return box.top + ENTRY_HEADER_HEIGHT + rowIndex * ENTRY_ROW_HEIGHT + ENTRY_ROW_CONTENT_HEIGHT / 2;
     }
 
     return center;
@@ -392,10 +649,10 @@ export interface LinkAnchors {
 }
 
 /**
- * Where a link's two ends actually attach: every node widget renders its "in" port as the first
- * child of a row layout and its "out"/function ports as the last (see e.g. `LeftPortWidget`/
- * `RightPortWidget` in ConnectionNodeWidget.tsx and ListenerNodeWidget.tsx, and the analogous
- * `TopPortWidget`/`BottomPortWidget` pairing for entry nodes) - so a link's source always attaches
+ * Where a link's two ends actually attach: every node widget renders its "in" port's `PortWidget`
+ * as the first child of a row layout and its "out"/function ports' as the last (see
+ * ConnectionNodeWidget.tsx, ListenerNodeWidget.tsx, and the entry-node widgets in
+ * `nodes/EntryNode/components`) - so a link's source always attaches
  * on its own node's right edge and its target always on its own node's left edge, regardless of
  * which of the two nodes happens to sit further left on canvas. Comparing box positions to decide
  * which edge to use would be wrong the moment a link ever ran against the layout's usual
@@ -1187,17 +1444,25 @@ export const getModelId = (nodeId: string) => {
 
 // calculate entry node height based on number of functions
 export const calculateEntryNodeHeight = (numFunctions: number, isExpanded: boolean) => {
+    // Every case is Box's own top+bottom inset, its header, then N rows - optionally followed by
+    // one more "row" (the view-all button, plus the gap before it) when a button shows. Note this
+    // is not `ENTRY_HEADER_HEIGHT + N*ENTRY_ROW_HEIGHT + ROW_PADDING`: that shape double-counts
+    // Box's bottom inset once inside ENTRY_HEADER_HEIGHT's own gap-to-row-0 term and again here -
+    // harmless while every row was assumed border-less, but not once ENTRY_ROW_HEIGHT accounts for
+    // each row's own border too (see the comment above these constants).
     if (isExpanded) {
-        return ENTRY_HEADER_HEIGHT + numFunctions * ENTRY_ROW_HEIGHT + ROW_PADDING + ENTRY_VIEW_ALL_BUTTON_HEIGHT;
+        return 2 * BOX_INSET + ENTRY_HEADER_CONTENT_HEIGHT + numFunctions * ENTRY_ROW_HEIGHT
+            + ROW_PADDING + ENTRY_VIEW_ALL_BUTTON_HEIGHT;
     }
 
     // Matches GeneralWidget's own visibleFunctions/hasMoreFunctions split: at or under the
     // threshold every row shows with no button, same shape as the isExpanded case above.
     if (numFunctions <= SHOW_ALL_THRESHOLD) {
-        return ENTRY_HEADER_HEIGHT + numFunctions * ENTRY_ROW_HEIGHT + ROW_PADDING;
+        return 2 * BOX_INSET + ENTRY_HEADER_CONTENT_HEIGHT + numFunctions * ENTRY_ROW_HEIGHT;
     }
 
-    return ENTRY_HEADER_HEIGHT + visibleRowCountWhenCollapsed() * ENTRY_ROW_HEIGHT + ROW_PADDING + ENTRY_VIEW_ALL_BUTTON_HEIGHT;
+    return 2 * BOX_INSET + ENTRY_HEADER_CONTENT_HEIGHT + visibleRowCountWhenCollapsed() * ENTRY_ROW_HEIGHT
+        + ROW_PADDING + ENTRY_VIEW_ALL_BUTTON_HEIGHT;
 };
 
 /**
@@ -1295,7 +1560,7 @@ function computeGraphQLPortOffsets(
         if (visibleItems.length > 0) {
             offset += GQL_HEADER_HEIGHT;
             visibleItems.forEach((func, index) => {
-                functionOffsets.set(func, offset + index * ENTRY_ROW_HEIGHT + ENTRY_ROW_HEIGHT / 2);
+                functionOffsets.set(func, offset + index * ENTRY_ROW_HEIGHT + ENTRY_ROW_CONTENT_HEIGHT / 2);
             });
             offset += visibleItems.length * ENTRY_ROW_HEIGHT;
         }
@@ -1327,5 +1592,7 @@ export const getWorkflowEventPortName = (event: CDWorkflowEvent) => {
 
 // calculate workflow node height based on the number of event and human task rows
 export const calculateWorkflowNodeHeight = (numRows: number) => {
-    return ENTRY_HEADER_HEIGHT + numRows * ENTRY_ROW_HEIGHT + (numRows > 0 ? ROW_PADDING : 0);
+    // Same shape as calculateEntryNodeHeight's no-button case (workflows never show a view-all
+    // button) - naturally correct at numRows=0 too, with no special case needed.
+    return 2 * BOX_INSET + ENTRY_HEADER_CONTENT_HEIGHT + numRows * ENTRY_ROW_HEIGHT;
 };
