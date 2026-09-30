@@ -907,27 +907,13 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
                     }
                 } else if (matchingValueType == ValueType.REPEATABLE_LIST) {
                     handleListValue(typeSymbol, moduleInfo, builder, value, semanticModel, diagnosticHandler);
+                } else if (selectMatchingOption(builder, value, semanticModel)) {
+                    return this;
                 } else if (matchingValueType == ValueType.EXPRESSION) {
-                    boolean foundMatch = false;
-                    PropertyType expressionPropType = null;
-                    for (PropertyType propType : builder.types) {
-                        if (propType.fieldType() == ValueType.SINGLE_SELECT) {
-                            String valueStr = value.toSourceCode().trim();
-                            for (Option option : propType.options()) {
-                                if (option.value().equals(valueStr)) {
-                                    propType.selected(true);
-                                    foundMatch = true;
-                                    break;
-                                }
-                            }
-                        }
-                        if (propType.fieldType() == ValueType.EXPRESSION) {
-                            expressionPropType = propType;
-                        }
-                    }
-                    if (!foundMatch && expressionPropType != null) {
-                        expressionPropType.selected(true);
-                    }
+                    builder.types.stream()
+                            .filter(propType -> propType.fieldType() == ValueType.EXPRESSION)
+                            .reduce((first, last) -> last)
+                            .ifPresent(propType -> propType.selected(true));
                 } else {
                     ValueType finalMatchingValueType = matchingValueType;
                     builder.types.stream()
@@ -1396,6 +1382,35 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
                 case LIST_BINDING_PATTERN, LIST_CONSTRUCTOR -> ValueType.REPEATABLE_LIST;
                 default -> ValueType.EXPRESSION;
             };
+        }
+
+        private static boolean selectMatchingOption(Builder<?> builder, Node value, SemanticModel semanticModel) {
+            for (PropertyType propType : builder.types) {
+                if (propType.fieldType() != ValueType.SINGLE_SELECT) {
+                    continue;
+                }
+                Optional<Option> option = findSelectedOption(propType.options(), value, semanticModel);
+                if (option.isPresent()) {
+                    propType.selected(true);
+                    builder.value(option.get().value());
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // A constant or enum member (e.g. `openai:GPT_4O_MINI`) selects the option holding its value.
+        private static Optional<Option> findSelectedOption(List<Option> options, Node value,
+                                                           SemanticModel semanticModel) {
+            String valueStr = value.toSourceCode().trim();
+            Optional<String> constantValue = semanticModel == null ? Optional.empty()
+                    : semanticModel.symbol(value)
+                            .filter(ConstantSymbol.class::isInstance)
+                            .map(symbol -> ((ConstantSymbol) symbol).typeDescriptor().signature());
+            return options.stream()
+                    .filter(option -> option.value().equals(valueStr)
+                            || constantValue.filter(option.value()::equals).isPresent())
+                    .findFirst();
         }
 
         /**
