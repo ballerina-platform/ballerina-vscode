@@ -18,9 +18,14 @@
 
 package io.ballerina.testmanagerservice.extension;
 
+import com.google.gson.JsonObject;
+import io.ballerina.compiler.syntax.tree.FunctionDefinitionNode;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
 import io.ballerina.compiler.syntax.tree.SyntaxTree;
 import io.ballerina.tools.text.TextDocuments;
+import org.eclipse.lsp4j.Position;
+import org.eclipse.lsp4j.Range;
+import org.eclipse.lsp4j.TextEdit;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -36,13 +41,53 @@ public class UtilsTest {
     @Test
     public void testQueryExpressionRoundTrip() {
         List<String> queries = List.of("string `hello`", "string `Hello ${name}`", "\"legacy literal\"");
-        String source = "isolated function loadQueriesData() returns string[][]|error { return "
-                + Utils.buildQueryExpressionArray(queries) + "; }";
-        ModulePartNode modulePartNode = SyntaxTree.from(TextDocuments.from(source)).rootNode();
+        ModulePartNode modulePartNode = parse(Utils.getQueriesDataProviderFunctionTemplate("loadQueriesData", queries));
 
         Assert.assertEquals(Utils.buildQueryExpressionArray(queries),
-                "[[string `hello`], [string `Hello ${name}`], [\"legacy literal\"]]");
+                "[string `hello`, string `Hello ${name}`, \"legacy literal\"]");
         Assert.assertEquals(Utils.extractQueryExpressionsFromDataProvider(modulePartNode, "loadQueriesData"), queries);
+    }
+
+    @Test
+    public void testLegacyQueryProviderIsRewrittenAsMap() {
+        String source = "isolated function loadQueriesData() returns string[][]|error { "
+                + "return [[string `hello`], [\"hi\"]]; }";
+        ModulePartNode modulePartNode = parse(source);
+        List<String> queries = List.of("string `hello`", "\"bye\"");
+        FunctionDefinitionNode provider = Utils.findFunctionByName(modulePartNode, "loadQueriesData").orElseThrow();
+
+        Assert.assertEquals(Utils.extractQueryExpressionsFromDataProvider(modulePartNode, "loadQueriesData"),
+                List.of("string `hello`", "\"hi\""));
+        TextEdit edit = Utils.queriesProviderEdit(provider, queries).orElseThrow();
+        Assert.assertEquals(edit.getRange(), new Range(new Position(0, 0), new Position(0, source.length())));
+        Assert.assertEquals(edit.getNewText(),
+                Utils.getQueriesDataProviderFunctionTemplate("loadQueriesData", queries).stripLeading());
+        Assert.assertEquals(Utils.extractQueryExpressionsFromDataProvider(parse(edit.getNewText()), "loadQueriesData"),
+                queries);
+    }
+
+    @Test
+    public void testHandWrittenLegacyQueryProviderIsLeftAlone() {
+        ModulePartNode modulePartNode = parse("isolated function loadQueriesData() returns string[][]|error { "
+                + "string[][] rows = []; foreach string line in check io:fileReadLines(\"queries.csv\") { "
+                + "rows.push([line]); } return rows; }");
+        FunctionDefinitionNode provider = Utils.findFunctionByName(modulePartNode, "loadQueriesData").orElseThrow();
+
+        Assert.assertTrue(Utils.queriesProviderEdit(provider, List.of("\"bye\"")).isEmpty());
+    }
+
+    @Test
+    public void testDefaultModelImportEdit() {
+        JsonObject judged = new JsonObject();
+        judged.addProperty("judgeModel", "check ai:getDefaultModelProvider()");
+        JsonObject ruleBased = new JsonObject();
+        ruleBased.addProperty("targetAgent", "mathAgent");
+
+        TextEdit edit = Utils.defaultModelImportEdit(judged, parse("import ballerina/test;")).orElseThrow();
+        Assert.assertEquals(edit.getNewText(), "import ballerina/ai;");
+        Assert.assertEquals(edit.getRange(), new Range(new Position(0, 0), new Position(0, 0)));
+        Assert.assertTrue(Utils.defaultModelImportEdit(judged, parse("import ballerina/ai;")).isEmpty());
+        Assert.assertTrue(Utils.defaultModelImportEdit(ruleBased, parse("import ballerina/test;")).isEmpty());
     }
 
     @Test
@@ -51,5 +96,9 @@ public class UtilsTest {
                 () -> Utils.buildQueryExpressionArray(List.of("42")));
         Assert.expectThrows(IllegalArgumentException.class,
                 () -> Utils.buildQueryExpressionArray(List.of("string `unterminated")));
+    }
+
+    private static ModulePartNode parse(String source) {
+        return SyntaxTree.from(TextDocuments.from(source)).rootNode();
     }
 }

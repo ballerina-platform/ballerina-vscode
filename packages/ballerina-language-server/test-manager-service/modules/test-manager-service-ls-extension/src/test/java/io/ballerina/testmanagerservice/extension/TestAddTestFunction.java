@@ -53,7 +53,7 @@ public class TestAddTestFunction extends AbstractLSTest {
         TestConfig testConfig = gson.fromJson(Files.newBufferedReader(configJsonPath), TestConfig.class);
 
         AddTestFunctionRequest request = new AddTestFunctionRequest(sourceDir.resolve(testConfig.filePath()).toString(),
-                testConfig.function());
+                testConfig.function(), testConfig.evalTemplate(), testConfig.targetAgent());
         JsonObject jsonMap = getResponse(request).getAsJsonObject("textEdits");
 
         Map<String, List<TextEdit>> actualTextEdits = gson.fromJson(jsonMap, TEXT_EDIT_LIST_TYPE);
@@ -84,7 +84,7 @@ public class TestAddTestFunction extends AbstractLSTest {
         if (assertFailure) {
             TestConfig updatedConfig =
                     new TestConfig(testConfig.filePath(), testConfig.description(),
-                            testConfig.function(), newMap);
+                            testConfig.function(), testConfig.targetAgent(), testConfig.evalTemplate(), newMap);
             updateConfig(configJsonPath, updatedConfig);
             Assert.fail(String.format("Failed test: '%s' (%s)", testConfig.description(), configJsonPath));
         }
@@ -113,13 +113,15 @@ public class TestAddTestFunction extends AbstractLSTest {
     /**
      * Represents the test configuration for the source generator test.
      *
-     * @param filePath    The path to the source file.
-     * @param description The description of the test.
-     * @param function    The function to be updated.
-     * @param output      The expected output.
+     * @param filePath     The path to the source file.
+     * @param description  The description of the test.
+     * @param function     The function to be updated.
+     * @param targetAgent  The agent a custom evaluation runs.
+     * @param evalTemplate The template call a template evaluation generates.
+     * @param output       The expected output.
      */
-    private record TestConfig(String filePath, String description, TestFunction function,
-                              Map<String, List<TextEdit>> output) {
+    private record TestConfig(String filePath, String description, TestFunction function, String targetAgent,
+                              JsonObject evalTemplate, Map<String, List<TextEdit>> output) {
 
         public String description() {
             return description == null ? "" : description;

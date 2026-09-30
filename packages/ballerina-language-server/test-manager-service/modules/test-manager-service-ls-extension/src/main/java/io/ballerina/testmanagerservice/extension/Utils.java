@@ -18,6 +18,7 @@
 
 package io.ballerina.testmanagerservice.extension;
 
+import com.google.gson.JsonElement;
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.api.symbols.AnnotationSymbol;
 import io.ballerina.compiler.syntax.tree.AnnotationNode;
@@ -46,6 +47,7 @@ import io.ballerina.compiler.syntax.tree.SpecificFieldNode;
 import io.ballerina.compiler.syntax.tree.StatementNode;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.compiler.syntax.tree.TemplateExpressionNode;
+import io.ballerina.compiler.syntax.tree.VariableDeclarationNode;
 import io.ballerina.testmanagerservice.extension.model.Annotation;
 import io.ballerina.testmanagerservice.extension.model.Codedata;
 import io.ballerina.testmanagerservice.extension.model.FunctionParameter;
@@ -56,6 +58,7 @@ import io.ballerina.tools.text.LinePosition;
 import io.ballerina.tools.text.LineRange;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
+import org.eclipse.lsp4j.TextEdit;
 
 import java.net.URI;
 import java.nio.file.Paths;
@@ -73,6 +76,15 @@ public class Utils {
 
     private static final String CONVERSATION_THREAD = "ConversationThread";
     private static final String STRING_ARRAY_2D = "string[][]";
+    private static final String QUERIES_MAP = "map<[string]>";
+    // Keys drop `"` and `\`, which break the test report, and a repeated key gets its position so no row is lost.
+    private static final List<String> QUERIES_BY_KEY_BODY = List.of(
+            "map<[string]> rows = {};",
+            "foreach string query in queries {",
+            "\tstring key = re `[\"\\\\]`.replaceAll(query, \"'\");",
+            "\trows[rows.hasKey(key) ? string `${key} #${rows.length() + 1}` : key] = [query];",
+            "}",
+            "return rows;");
 
     private Utils() {
     }
@@ -240,8 +252,8 @@ public class Utils {
         return builder.build();
     }
 
-    private static String extractEvalSetFileFromDataProvider(ModulePartNode modulePartNode,
-                                                             String dataProviderFunctionName) {
+    public static String extractEvalSetFileFromDataProvider(ModulePartNode modulePartNode,
+                                                            String dataProviderFunctionName) {
         // Find the data provider function
         Optional<FunctionDefinitionNode> dataProviderFunc =
                 findFunctionByName(modulePartNode, dataProviderFunctionName);
@@ -340,7 +352,7 @@ public class Utils {
         return "";
     }
 
-    public static String getTestFunctionTemplate(TestFunction function) {
+    public static String getTestFunctionTemplate(TestFunction function, String body) {
         StringBuilder builder = new StringBuilder();
 
         // build annotations
@@ -355,8 +367,28 @@ public class Utils {
         builder.append(Constants.SPACE)
                 .append(Constants.OPEN_CURLY_BRACE)
                 .append(Constants.LINE_SEPARATOR)
+                .append(body)
                 .append(Constants.CLOSE_CURLY_BRACE);
         return builder.toString();
+    }
+
+    // Runs the agent so the evaluation is linked to it; the placeholder check fails until the author replaces it.
+    public static String getAgentEvaluationBody(String agent, boolean usesEvalSet) {
+        if (agent == null || agent.isBlank()) {
+            return "";
+        }
+        String placeholder = "test:assertFail(string `Replace this with the checks for the evaluation. "
+                + "The agent responded: ${response}`);";
+        if (!usesEvalSet) {
+            return "    string response = check " + agent + ".run(\"Replace with a test query\");"
+                    + Constants.LINE_SEPARATOR + "    " + placeholder + Constants.LINE_SEPARATOR;
+        }
+        String thread = Constants.EVALSET_PROVIDER_VAR;
+        return "    foreach ai:Trace trace in " + thread + ".traces {" + Constants.LINE_SEPARATOR
+                + "        string response = check " + agent + ".run(trace.userMessage.content.toString(), "
+                + thread + ".id);" + Constants.LINE_SEPARATOR
+                + "        " + placeholder + Constants.LINE_SEPARATOR
+                + "    }" + Constants.LINE_SEPARATOR;
     }
 
     public static String buildFunctionSignature(TestFunction function) {
@@ -541,6 +573,14 @@ public class Utils {
         return isModuleImportExists(node, Constants.MODULE_AI_EVAL);
     }
 
+    /** Imports `ballerina/ai` when a template argument uses the default model provider. */
+    public static Optional<TextEdit> defaultModelImportEdit(JsonElement parameters, ModulePartNode node) {
+        if (isAiModuleImportExists(node) || !String.valueOf(parameters).contains(Constants.DEFAULT_MODEL_PROVIDER)) {
+            return Optional.empty();
+        }
+        return Optional.of(new TextEdit(toRange(node.lineRange().startLine()), Constants.IMPORT_AI_STMT));
+    }
+
     /**
      * Get a field value from the Config annotation of a test function.
      *
@@ -677,42 +717,62 @@ public class Utils {
                         .startsWith(Constants.AI_EVAL_PREFIX + Constants.COLON);
     }
 
-    /** Builds the query data-provider rows from the string expressions produced by the TEXT_SET editor. */
+    /** Builds the query list from the string expressions produced by the TEXT_SET editor. */
     public static String buildQueryExpressionArray(List<String> queryExpressions) {
-        StringBuilder rows = new StringBuilder();
-        for (int i = 0; i < queryExpressions.size(); i++) {
-            if (i > 0) {
-                rows.append(Constants.COMMA).append(Constants.SPACE);
-            }
-            rows.append(Constants.OPEN_BRACKET)
-                    .append(validateQueryExpression(queryExpressions.get(i)))
-                    .append(Constants.CLOSE_BRACKET);
-        }
-        return Constants.OPEN_BRACKET + rows + Constants.CLOSE_BRACKET;
+        return queryExpressions.stream()
+                .map(Utils::validateQueryExpression)
+                .collect(Collectors.joining(Constants.COMMA + Constants.SPACE, Constants.OPEN_BRACKET,
+                        Constants.CLOSE_BRACKET));
     }
 
     public static String getQueriesDataProviderFunctionTemplate(String functionName, List<String> queries) {
         return Constants.LINE_SEPARATOR + Constants.LINE_SEPARATOR
                 + Constants.KEYWORD_ISOLATED + Constants.SPACE + Constants.KEYWORD_FUNCTION + Constants.SPACE
                 + functionName + Constants.OPEN_PARAM + Constants.CLOSED_PARAM + Constants.SPACE
-                + Constants.KEYWORD_RETURNS + Constants.SPACE + Constants.STRING_ARRAY_2D_RETURN_TYPE + Constants.SPACE
+                + Constants.KEYWORD_RETURNS + Constants.SPACE + Constants.QUERIES_MAP_RETURN_TYPE + Constants.SPACE
                 + Constants.OPEN_CURLY_BRACE + Constants.LINE_SEPARATOR + Constants.TAB_SEPARATOR
-                + "return " + buildQueryExpressionArray(queries) + ";"
+                + "string[] queries = " + buildQueryExpressionArray(queries) + ";"
+                + QUERIES_BY_KEY_BODY.stream()
+                        .map(line -> Constants.LINE_SEPARATOR + Constants.TAB_SEPARATOR + line)
+                        .collect(Collectors.joining())
                 + Constants.LINE_SEPARATOR + Constants.CLOSE_CURLY_BRACE;
     }
 
     public enum DataProviderShape { EVALSET, QUERIES, UNKNOWN }
 
     public static DataProviderShape getDataProviderShape(FunctionDefinitionNode provider) {
-        String returnType = provider.functionSignature().returnTypeDesc()
-                .map(desc -> desc.type().toSourceCode().trim()).orElse("");
+        String returnType = compactReturnType(provider);
         if (returnType.contains(CONVERSATION_THREAD)) {
             return DataProviderShape.EVALSET;
         }
-        if (returnType.replace(Constants.SPACE, "").contains(STRING_ARRAY_2D)) {
+        if (returnType.contains(QUERIES_MAP) || returnType.contains(STRING_ARRAY_2D)) {
             return DataProviderShape.QUERIES;
         }
         return DataProviderShape.UNKNOWN;
+    }
+
+    /** Rewrites a query provider's list, or migrates a generated `string[][]` provider to the map shape. */
+    public static Optional<TextEdit> queriesProviderEdit(FunctionDefinitionNode provider, List<String> queries) {
+        if (!compactReturnType(provider).contains(STRING_ARRAY_2D)) {
+            return findQueriesListLocation(provider)
+                    .map(range -> new TextEdit(toRange(range), buildQueryExpressionArray(queries)));
+        }
+        if (!returnsOnlyListLiteral(provider)) {
+            return Optional.empty();
+        }
+        String source = getQueriesDataProviderFunctionTemplate(provider.functionName().text().trim(), queries);
+        return Optional.of(new TextEdit(toRange(provider.lineRange()), source.stripLeading()));
+    }
+
+    private static boolean returnsOnlyListLiteral(FunctionDefinitionNode provider) {
+        return provider.functionBody() instanceof FunctionBodyBlockNode body && body.statements().size() == 1
+                && body.statements().get(0) instanceof ReturnStatementNode returnStmt
+                && returnStmt.expression().orElse(null) instanceof ListConstructorExpressionNode;
+    }
+
+    private static String compactReturnType(FunctionDefinitionNode provider) {
+        return provider.functionSignature().returnTypeDesc()
+                .map(desc -> desc.type().toSourceCode().replaceAll("\\s", "")).orElse("");
     }
 
     public static Optional<LineRange> findQueriesListLocation(FunctionDefinitionNode provider) {
@@ -744,8 +804,12 @@ public class Utils {
     private static Optional<ListConstructorExpressionNode> findQueriesList(FunctionBodyNode body) {
         if (body instanceof FunctionBodyBlockNode blockBody) {
             for (StatementNode statement : blockBody.statements()) {
-                if (statement instanceof ReturnStatementNode returnStmt
-                        && returnStmt.expression().orElse(null) instanceof ListConstructorExpressionNode list) {
+                Node value = switch (statement) {
+                    case VariableDeclarationNode declaration -> declaration.initializer().orElse(null);
+                    case ReturnStatementNode returnStmt -> returnStmt.expression().orElse(null);
+                    default -> null;
+                };
+                if (value instanceof ListConstructorExpressionNode list) {
                     return Optional.of(list);
                 }
             }

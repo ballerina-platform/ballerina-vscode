@@ -9,11 +9,9 @@
 package io.ballerina.flowmodelgenerator.core.search;
 
 import io.ballerina.compiler.api.SemanticModel;
-import io.ballerina.compiler.api.symbols.AnnotationAttachmentSymbol;
 import io.ballerina.compiler.api.symbols.FunctionSymbol;
 import io.ballerina.compiler.api.symbols.Qualifier;
 import io.ballerina.compiler.api.symbols.Symbol;
-import io.ballerina.compiler.api.values.ConstantValue;
 import io.ballerina.flowmodelgenerator.core.Constants;
 import io.ballerina.flowmodelgenerator.core.model.AvailableNode;
 import io.ballerina.flowmodelgenerator.core.model.Category;
@@ -21,6 +19,7 @@ import io.ballerina.flowmodelgenerator.core.model.Codedata;
 import io.ballerina.flowmodelgenerator.core.model.Item;
 import io.ballerina.flowmodelgenerator.core.model.Metadata;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
+import io.ballerina.modelgenerator.commons.EvalTemplate;
 import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.modelgenerator.commons.SearchResult;
 import io.ballerina.projects.Module;
@@ -40,7 +39,6 @@ import java.util.Optional;
 /** Searches the configured AI evaluation package for public functions annotated with {@code @EvalTemplate}. */
 public class EvalTemplateSearchCommand extends SearchCommand {
 
-    private static final String TEMPLATE_ANNOTATION = "EvalTemplate";
     private static final String TEMPLATE_PACKAGE = "ai.eval";
 
     public EvalTemplateSearchCommand(Project project, LineRange position, Map<String, String> queryMap) {
@@ -81,11 +79,9 @@ public class EvalTemplateSearchCommand extends SearchCommand {
                         || !functionSymbol.qualifiers().contains(Qualifier.PUBLIC)) {
                     continue;
                 }
-                metadata(functionSymbol).ifPresent(info -> {
-                    if (matches(info, functionSymbol.getName().get(), filter)) {
-                        templates.add(toNode(functionSymbol.getName().get(), info, version));
-                    }
-                });
+                EvalTemplate.from(functionSymbol)
+                        .filter(template -> matches(template, filter))
+                        .ifPresent(template -> templates.add(toNode(template, version)));
             }
         }
         templates.sort(Comparator.comparing(item -> ((AvailableNode) item).metadata().label()));
@@ -96,49 +92,21 @@ public class EvalTemplateSearchCommand extends SearchCommand {
                 "Prebuilt AI evaluation functions", null, null, null, null, null, null), templates));
     }
 
-    private boolean matches(TemplateInfo info, String functionName, String filter) {
+    private boolean matches(EvalTemplate template, String filter) {
         String searchTerm = filter == null ? "" : filter.toLowerCase(Locale.ROOT);
-        return searchTerm.isBlank() || (info.label + " " + info.description + " " + info.kind + " " + functionName)
-                .toLowerCase(Locale.ROOT).contains(searchTerm);
+        return searchTerm.isBlank() || (template.label() + " " + template.description() + " " + template.kind()
+                + " " + template.symbol()).toLowerCase(Locale.ROOT).contains(searchTerm);
     }
 
-    private AvailableNode toNode(String functionName, TemplateInfo info, String version) {
+    private AvailableNode toNode(EvalTemplate template, String version) {
         Codedata codedata = new Codedata(NodeKind.EVAL_TEMPLATE, Constants.Ai.BALLERINA_ORG,
-                TEMPLATE_PACKAGE, TEMPLATE_PACKAGE, null, functionName,
+                TEMPLATE_PACKAGE, TEMPLATE_PACKAGE, null, template.symbol(),
                 version, null, null, null, null, null, true, false, null,
-                Map.of("label", info.label, "description", info.description, "kind", info.kind,
-                        "needsEvalset", info.needsEvalset));
-        Metadata metadata = new Metadata(info.label, info.description, List.of(info.kind,
-                info.needsEvalset ? "Uses evalset" : "No evalset"), null, null,
-                Map.of("kind", info.kind, "needsEvalset", info.needsEvalset), null, null);
+                Map.of("label", template.label(), "description", template.description(), "kind", template.kind(),
+                        "needsEvalset", template.needsEvalset()));
+        Metadata metadata = new Metadata(template.label(), template.description(), List.of(template.kind(),
+                template.needsEvalset() ? "Uses evalset" : "No evalset"), null, null,
+                Map.of("kind", template.kind(), "needsEvalset", template.needsEvalset()), null, null);
         return new AvailableNode(metadata, codedata, true);
-    }
-
-    private Optional<TemplateInfo> metadata(FunctionSymbol function) {
-        for (AnnotationAttachmentSymbol attachment : function.annotAttachments()) {
-            if (!TEMPLATE_ANNOTATION.equals(attachment.typeDescriptor().getName().orElse(null))) {
-                continue;
-            }
-            Object value = attachment.attachmentValue().map(ConstantValue::value).orElse(null);
-            if (!(value instanceof Map<?, ?> fields)) {
-                return Optional.empty();
-            }
-            String label = value(fields.get("label"), function.getName().orElse("Evaluation template"));
-            String description = value(fields.get("description"), "");
-            String kind = value(fields.get("kind"), "RULE_BASED");
-            boolean needsEvalset = Boolean.parseBoolean(value(fields.get("needsEvalset"), "false"));
-            return Optional.of(new TemplateInfo(label, description, kind, needsEvalset));
-        }
-        return Optional.empty();
-    }
-
-    private String value(Object value, String defaultValue) {
-        if (value instanceof ConstantValue constantValue) {
-            value = constantValue.value();
-        }
-        return value == null ? defaultValue : String.valueOf(value).replace("\"", "");
-    }
-
-    private record TemplateInfo(String label, String description, String kind, boolean needsEvalset) {
     }
 }
