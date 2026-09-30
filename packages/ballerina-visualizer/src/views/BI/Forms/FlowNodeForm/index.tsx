@@ -360,7 +360,6 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     }, [baseFields, props.fieldOverrides]);
 
     /* Expression editor related state and ref variables */
-    const assistantName = useAssistantName();
     const prevCompletionFetchText = useRef<string>("");
     const [completions, setCompletions] = useState<CompletionItem[]>([]);
     const completionsRef = useRef<CompletionItem[]>([]);

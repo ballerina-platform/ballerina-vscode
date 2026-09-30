@@ -274,7 +274,6 @@ const ModeCardDesc = styled.div`
 export function MigrationPanel() {
     const assistantName = useAssistantName();
     const { rpcClient } = useRpcContext();
-    const assistantName = useAssistantName();
     const messageEndRef = useRef<HTMLDivElement>(null);
     // Guard to ensure migrationPanelReady is only called once per mount
     const readySignalSent = useRef(false);

@@ -35,7 +35,6 @@ const Container = styled.div`
 export const DisabledWindow = () => {
     const assistantName = useAssistantName();
     const { rpcClient } = useRpcContext();
-    const assistantName = useAssistantName();
 
     const Retry = () => {
         rpcClient.sendAIStateEvent(AIMachineEventType.RETRY);

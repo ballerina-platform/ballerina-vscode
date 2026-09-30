@@ -61,6 +61,7 @@ jest.mock("../Forms/ArtifactForm", () => ({
 }));
 
 jest.mock("../../../components/TitleBar", () => ({ __esModule: true, TitleBar: (): null => null }));
+jest.mock("../../../components/ConnectionSelector/useCreateNode", () => ({ __esModule: true, useCreateNode: (): (() => void) => () => undefined }));
 jest.mock("../../../components/TopNavigationBar", () => ({ __esModule: true, TopNavigationBar: (): null => null }));
 jest.mock("../../../components/FormHeader", () => ({ __esModule: true, FormHeader: (): null => null }));
 jest.mock("../../../components/DownloadIcon", () => ({ __esModule: true, DownloadIcon: (): null => null }));

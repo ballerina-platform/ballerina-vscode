@@ -92,7 +92,7 @@ describe("deployment scope extraction", () => {
     it("keeps the workflow scope for a package whose only workflow is a durable agent", () => {
         const project = projectWithServices([]);
         project.directoryMap[DIRECTORY_MAP.AGENT] = [
-            { id: "claimAgent", name: "claimAgent", path: "/sample/agents.bal", type: DIRECTORY_MAP.AGENT, moduleName: "workflow" },
+            { id: "claimAgent", name: "claimAgent", path: "/sample/agents.bal", type: DIRECTORY_MAP.AGENT, moduleName: "workflow", kind: DIRECTORY_MAP.DURABLE_AGENT },
         ];
         expect(getIntegrationTypes(project)).toEqual([SCOPE.WORKFLOW]);
     });

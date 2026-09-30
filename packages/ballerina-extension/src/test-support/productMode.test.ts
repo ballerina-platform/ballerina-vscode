@@ -66,7 +66,7 @@ describe('product mode', () => {
     });
 
     it('ignores a declared mode it does not recognise', () => {
-        process.env.WSO2_PRODUCT_MODE = 'agent-builder';
+        process.env.WSO2_PRODUCT_MODE = 'unknown-product';
 
         expect(getProductMode()).toBe(ProductMode.BALLERINA);
 

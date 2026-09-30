@@ -337,6 +337,7 @@ export class VisualizerWebview {
         // Check if devant.editor extension is active
         const isDevantEditor = vscode.commands.executeCommand('getContext', 'devant.editor') !== undefined;
 
+        const biExtension = isInWI() || vscode.extensions.getExtension('wso2.ballerina-integrator');
         // After a wizard submit this HTML is the first frame post-reload, so it continues
         // the wizard's "Creating <name>" screen (also handed to the React app below).
         const startupProgress = getStartupIntegrationProgress(
