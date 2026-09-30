@@ -2308,7 +2308,7 @@ public class AiUtils {
                 CommonUtils.generateIcon(id.orgName(), id.packageName(), id.version()), iconType);
     }
 
-    private static TypeSymbol getComponentType(SemanticModel semanticModel, Project project, Symbol symbol) {
+    static TypeSymbol getComponentType(SemanticModel semanticModel, Project project, Symbol symbol) {
         if (symbol instanceof VariableSymbol variable) {
             return CommonUtils.getConstructedType(semanticModel, getModulePart(project, variable), variable);
         }

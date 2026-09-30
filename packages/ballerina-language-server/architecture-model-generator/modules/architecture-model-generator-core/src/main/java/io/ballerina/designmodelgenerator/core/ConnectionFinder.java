@@ -426,7 +426,7 @@ public class ConnectionFinder {
 
     private void setMemory(Connection connection, ExpressionNode expression) {
         ExpressionNode expr = unwrapCheck(expression);
-        Optional<TypeSymbol> type = this.semanticModel.typeOf(expr);
+        Optional<TypeSymbol> type = constructedTypeOf(expr);
         if (type.isEmpty()) {
             return;
         }
@@ -446,10 +446,7 @@ public class ConnectionFinder {
             connection.setModelProvider(new Connection.ModelProvider(null, WSO2_MODEL_PROVIDER, null));
             return;
         }
-        Optional<TypeSymbol> type = this.semanticModel.symbol(expr)
-                .filter(VariableSymbol.class::isInstance)
-                .map(symbol -> getConstructedType((VariableSymbol) symbol))
-                .or(() -> this.semanticModel.typeOf(expr));
+        Optional<TypeSymbol> type = constructedTypeOf(expr);
         if (type.isEmpty()) {
             return;
         }
@@ -460,6 +457,13 @@ public class ConnectionFinder {
         String symbol = expr instanceof SimpleNameReferenceNode varRef ? varRef.name().text() : null;
         connection.setModelProvider(new Connection.ModelProvider(symbol, CommonUtils.getTypeName(rawType),
                 CommonUtils.generateIcon(rawType)));
+    }
+
+    private Optional<TypeSymbol> constructedTypeOf(ExpressionNode expr) {
+        return this.semanticModel.symbol(expr)
+                .filter(VariableSymbol.class::isInstance)
+                .map(symbol -> getConstructedType((VariableSymbol) symbol))
+                .or(() -> this.semanticModel.typeOf(expr));
     }
 
     private TypeSymbol getConstructedType(VariableSymbol variable) {
