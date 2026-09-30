@@ -29,7 +29,10 @@
               "offset": 103
             }
           },
-          "sourceCode": "final ai:ModelProvider literalModel = check new openai:ModelProvider(apiKey, \"gpt-4o-mini-2024-07-18\");"
+          "sourceCode": "final ai:ModelProvider literalModel = check new openai:ModelProvider(apiKey, \"gpt-4o-mini-2024-07-18\");",
+          "data": {
+            "explicitNew": true
+          }
         },
         "returning": false,
         "properties": {
@@ -1437,7 +1440,10 @@
               "offset": 77
             }
           },
-          "sourceCode": "final ai:ModelProvider newsAgentModel = check new openai:ModelProvider(\n    apiKey, openai:GPT_4O_MINI, serviceUrl = \"https://openrouter.ai/api/v1\");"
+          "sourceCode": "final ai:ModelProvider newsAgentModel = check new openai:ModelProvider(\n    apiKey, openai:GPT_4O_MINI, serviceUrl = \"https://openrouter.ai/api/v1\");",
+          "data": {
+            "explicitNew": true
+          }
         },
         "returning": false,
         "properties": {
@@ -2613,7 +2619,10 @@
               "offset": 97
             }
           },
-          "sourceCode": "final ai:ShortTermMemoryStore newsAgentMemoryStore = check new ai:InMemoryShortTermMemoryStore();"
+          "sourceCode": "final ai:ShortTermMemoryStore newsAgentMemoryStore = check new ai:InMemoryShortTermMemoryStore();",
+          "data": {
+            "explicitNew": true
+          }
         },
         "returning": false,
         "properties": {
