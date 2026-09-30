@@ -18,8 +18,13 @@
 import {
     addTestFunction, getTestFunction, GetTestFunctionRequest,
     getTestFunctionNames, GetTestFunctionNamesRequest,
+    getEvaluations, EvaluationsRequest, getEvaluationFile,
+    runEvaluations, RunEvaluationsRequest,
+    stopEvaluations, StopEvaluationsRequest, getEvaluationRunState,
+    runEvaluationAction, EvaluationActionRequest,
+    runEvalsetAction, EvalsetActionRequest,
     AddOrUpdateTestFunctionRequest, updateTestFunction, getEvalsets, GetEvalsetsRequest,
-    getEvaluationHistory, GetEvaluationHistoryRequest,
+    getEvaluationHistory, GetEvaluationHistoryRequest, deleteEvaluationHistory, DeleteEvaluationHistoryRequest,
     openEvaluationReport, OpenEvaluationReportRequest,
     getEvaluationReport, GetEvaluationReportRequest,
     getGitDiff, GitDiffRequest,
@@ -34,8 +39,17 @@ export function registerTestManagerRpcHandlers(messenger: Messenger) {
     messenger.onRequest(addTestFunction, (args: AddOrUpdateTestFunctionRequest) => rpcManger.addTestFunction(args));
     messenger.onRequest(updateTestFunction, (args: AddOrUpdateTestFunctionRequest) => rpcManger.updateTestFunction(args));
     messenger.onRequest(getTestFunctionNames, (args: GetTestFunctionNamesRequest) => rpcManger.getTestFunctionNames(args));
+    messenger.onRequest(getEvaluations, (args: EvaluationsRequest) => rpcManger.getEvaluations(args));
+    messenger.onRequest(getEvaluationFile, (args: EvaluationsRequest) => rpcManger.getEvaluationFile(args));
+    messenger.onRequest(runEvaluations, (args: RunEvaluationsRequest) => rpcManger.runEvaluations(args));
+    messenger.onRequest(stopEvaluations, (args: StopEvaluationsRequest) => rpcManger.stopEvaluations(args));
+    messenger.onRequest(getEvaluationRunState, (args: EvaluationsRequest) => rpcManger.getEvaluationRunState(args));
+    messenger.onRequest(runEvaluationAction, (args: EvaluationActionRequest) => rpcManger.runEvaluationAction(args));
+    messenger.onRequest(runEvalsetAction, (args: EvalsetActionRequest) => rpcManger.runEvalsetAction(args));
     messenger.onRequest(getEvalsets, (args: GetEvalsetsRequest) => rpcManger.getEvalsets(args));
     messenger.onRequest(getEvaluationHistory, (args: GetEvaluationHistoryRequest) => rpcManger.getEvaluationHistory(args));
+    messenger.onRequest(deleteEvaluationHistory,
+        (args: DeleteEvaluationHistoryRequest) => rpcManger.deleteEvaluationHistory(args));
     messenger.onRequest(openEvaluationReport, (args: OpenEvaluationReportRequest) => rpcManger.openEvaluationReport(args));
     messenger.onRequest(getEvaluationReport, (args: GetEvaluationReportRequest) => rpcManger.getEvaluationReport(args));
     messenger.onRequest(getGitDiff, (args: GitDiffRequest) => rpcManger.getGitDiff(args));

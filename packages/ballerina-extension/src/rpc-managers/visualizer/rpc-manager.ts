@@ -114,6 +114,13 @@ export class VisualizerRpcManager implements VisualizerAPI {
         updateView(false, undefined, { userInitiated: true });
     }
 
+    mergeHistoryLocation(location: VisualizerLocation): void {
+        const current = history.get().at(-1);
+        if (current) {
+            history.updateCurrentEntry({ ...current, location: { ...current.location, ...location } });
+        }
+    }
+
     addToHistory(entry: HistoryEntry): void {
         history.push(entry);
         updateView(false, undefined, { userInitiated: true });

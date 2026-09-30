@@ -32,8 +32,10 @@ export const EVALSET_FIELD_KEY = 'evalSetFile';
 
 export type TemplateFilterKind = 'all' | 'rule-based' | 'llm-as-judge' | 'uses-evalset' | 'no-evalset';
 
-export const getTemplateKind = (template: AvailableNode): string => {
-    const kind = String(template.codedata.data?.kind || 'RULE_BASED').toUpperCase();
+export const getTemplateKind = (template: AvailableNode): string => formatTemplateKind(template.codedata.data?.kind);
+
+export const formatTemplateKind = (value?: unknown): string => {
+    const kind = String(value || 'RULE_BASED').toUpperCase();
     if (kind.includes('LLM')) {
         return 'LLM-as-Judge';
     }
@@ -59,8 +61,11 @@ const TEMPLATE_ICON_RULES: Array<[RegExp, string]> = [
     [/complete|coverage|instruction|follow|checklist/, 'checklist'],
 ];
 
-export const getTemplateIcon = (template?: AvailableNode): string => {
-    const text = `${template?.metadata.label || ''} ${String(template?.codedata.data?.kind || '')}`.toLowerCase();
+export const getTemplateIcon = (template?: AvailableNode): string =>
+    templateIconFor(template?.metadata.label, template?.codedata.data?.kind);
+
+export const templateIconFor = (label?: string, kind?: unknown): string => {
+    const text = `${label || ''} ${String(kind || '')}`.toLowerCase();
     for (const [pattern, icon] of TEMPLATE_ICON_RULES) {
         if (pattern.test(text)) {
             return icon;
@@ -109,6 +114,15 @@ export const findAgentArgument = (node?: FlowNode): { key: string; value: string
         }
     }
     return undefined;
+};
+
+export const withDefaultAgent = (node: FlowNode, agentName?: string): FlowNode => {
+    const agent = findAgentArgument(node);
+    if (!agentName || !agent || agent.value) {
+        return node;
+    }
+    const property = (node.properties as Record<string, FlowProperty>)[agent.key];
+    return { ...node, properties: { ...node.properties, [agent.key]: { ...property, value: agentName } } } as FlowNode;
 };
 
 const CONVERSATION_THREAD_TYPE = 'ConversationThread';
