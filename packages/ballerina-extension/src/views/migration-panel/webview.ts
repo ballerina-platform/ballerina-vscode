@@ -21,7 +21,7 @@ import * as path from "path";
 import { WebViewOptions, getComposerWebViewOptions, getLibraryWebViewContent } from "../../utils/webview-utils";
 import { extension } from "../../BalExtensionContext";
 import { RPCLayer } from "../../RPCLayer";
-import { aiAssistantName } from "../../utils/config";
+import { copilotName } from "../../utils/config";
 
 /**
  * Standalone Migration Enhancement Panel.

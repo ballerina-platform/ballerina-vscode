@@ -20,6 +20,7 @@ package io.ballerina.flowmodelgenerator.core;
 
 import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.node.ActivityCallBuilder;
+import io.ballerina.flowmodelgenerator.core.model.node.FromExpressionOption;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -101,6 +102,46 @@ public class RetryPolicyRoundTripTest {
                 reviewTextProperty("Approve the order", false));
         Assert.assertEquals(ActivityCallBuilder.humanReviewRecordLiteral(properties),
                 "{userRoles: \"ops\", title: \"Approve the order\"}");
+    }
+
+    @Test(description = "A policy the dropdown cannot show — a constant, a variable, a call — opens under the "
+            + "expression option holding the source, and is written back as it stands")
+    public void testReferenceOpensAsExpression() {
+        for (String expression : new String[]{"STANDARD_RETRY", "policies.standard", "retryPolicyFor(order)",
+                "defaultNoRetryPolicy"}) {
+            CodeAnalyzer.RetryPolicyForm form = CodeAnalyzer.normalizeRetryPolicy(expression);
+            Assert.assertEquals(form.dropdownValue(), FromExpressionOption.VALUE, expression);
+            Assert.assertEquals(form.expression(), expression, "read back as source");
+
+            Map<String, Property> properties = new LinkedHashMap<>();
+            properties.put(ActivityCallBuilder.RETRY_POLICY_PARAM, property(form.dropdownValue()));
+            properties.put(ActivityCallBuilder.RETRY_POLICY_EXPRESSION_KEY, property(form.expression()));
+            Assert.assertEquals(ActivityCallBuilder.retryPolicyEntryValue(properties), expression,
+                    "the expression is the policy, quoted or reshaped by nothing");
+        }
+    }
+
+    @Test(description = "A record literal typed under the expression option reopens as the option it declares")
+    public void testLiteralTypedAsExpressionReopensAsForm() {
+        Map<String, Property> properties = new LinkedHashMap<>();
+        properties.put(ActivityCallBuilder.RETRY_POLICY_PARAM, property(FromExpressionOption.VALUE));
+        properties.put(ActivityCallBuilder.RETRY_POLICY_EXPRESSION_KEY, property("{maxRetries: 4, retryDelay: 2.0}"));
+        String written = ActivityCallBuilder.retryPolicyEntryValue(properties);
+        Assert.assertEquals(written, "{maxRetries: 4, retryDelay: 2.0}");
+
+        CodeAnalyzer.RetryPolicyForm reopened = CodeAnalyzer.normalizeRetryPolicy(written);
+        Assert.assertEquals(reopened.dropdownValue(), ActivityCallBuilder.AUTO_RETRY_VALUE);
+        Assert.assertEquals(reopened.maxRetries(), "4");
+        Assert.assertEquals(reopened.expression(), "");
+    }
+
+    @Test(description = "The expression option with nothing typed refuses to save instead of writing nothing",
+            expectedExceptions = UserFacingException.class)
+    public void testEmptyExpressionRefused() {
+        Map<String, Property> properties = new LinkedHashMap<>();
+        properties.put(ActivityCallBuilder.RETRY_POLICY_PARAM, property(FromExpressionOption.VALUE));
+        properties.put(ActivityCallBuilder.RETRY_POLICY_EXPRESSION_KEY, property(""));
+        ActivityCallBuilder.retryPolicyEntryValue(properties);
     }
 
     // The record the form writes from the values it holds — the save side of the same node.

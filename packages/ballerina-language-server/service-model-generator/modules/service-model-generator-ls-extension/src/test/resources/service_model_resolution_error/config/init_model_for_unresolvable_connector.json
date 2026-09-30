@@ -1,0 +1,9 @@
+{
+  "description": "an init model for a connector that cannot be resolved names the unresolved package",
+  "api": "getServiceInitModel",
+  "filePath": "unresolved_listener/main.bal",
+  "orgName": "ballerinax",
+  "pkgName": "nosuchconnector",
+  "moduleName": "nosuchconnector",
+  "resolutionErrorCode": "PACKAGE_NOT_RESOLVED"
+}

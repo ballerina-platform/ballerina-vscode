@@ -29,7 +29,8 @@ import java.util.Map;
  *
  * @param kind              The kind of the property
  * @param originalName      The original name of the property
- * @param dependentProperty The property that is dependent for this property to be enabled
+ * @param dependentProperty   Another property this one follows: its value decides whether this
+ *                            property is enabled, or what type it takes
  * @param lineRange         The line range of the property
  * @param searchNodesKind   For {@link Property.ValueType#CONNECTION} properties, the connection
  *                          category id (e.g., {@code "HTTP"}) used by the UI to filter the

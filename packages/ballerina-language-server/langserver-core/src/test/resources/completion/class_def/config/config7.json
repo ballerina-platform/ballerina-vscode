@@ -173,6 +173,10 @@
     },
     {
       "label": "listener1",
+      "labelDetails": {
+        "detail": " $UndefinedType$",
+        "description": "Listener"
+      },
       "kind": "Variable",
       "detail": "module1:Listener",
       "sortText": "G",
@@ -249,6 +253,9 @@
     },
     {
       "label": "TEST_FUTURE_INT",
+      "labelDetails": {
+        "detail": " future<int>"
+      },
       "kind": "Variable",
       "detail": "future<int>",
       "sortText": "G",
@@ -257,6 +264,9 @@
     },
     {
       "label": "GLOBAL_VAR",
+      "labelDetails": {
+        "detail": " int"
+      },
       "kind": "Variable",
       "detail": "int",
       "sortText": "AC",
