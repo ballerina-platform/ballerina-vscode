@@ -4833,7 +4833,7 @@ public class CodeAnalyzer extends NodeVisitor {
     }
 
     private ModelData getModelIconUrl(ExpressionNode expressionNode) {
-        return AiUtils.getModelIconUrl(semanticModel, expressionNode);
+        return AiUtils.getModelIconUrl(semanticModel, project, expressionNode);
     }
 
     private MemoryManagerData getMemoryData(ExpressionNode memory) {
@@ -4843,14 +4843,14 @@ public class CodeAnalyzer extends NodeVisitor {
         if (memory.kind() == SyntaxKind.EXPLICIT_NEW_EXPRESSION) {
             ExplicitNewExpressionNode newExpr = (ExplicitNewExpressionNode) memory;
             SeparatedNodeList<FunctionArgumentNode> arguments = newExpr.parenthesizedArgList().arguments();
-            ModelData store = AiUtils.getMemoryStoreData(semanticModel, arguments);
+            ModelData store = AiUtils.getMemoryStoreData(semanticModel, project, arguments);
             String size = store == null && arguments.size() == 1 ? arguments.get(0).toSourceCode() : "";
             return new MemoryManagerData(newExpr.typeDescriptor().toSourceCode(), size, store);
         }
         if (memory.kind() == SyntaxKind.SIMPLE_NAME_REFERENCE) {
             ModelData store = getInstanceNewExpr(memory)
                     .flatMap(ImplicitNewExpressionNode::parenthesizedArgList)
-                    .map(argList -> AiUtils.getMemoryStoreData(semanticModel, argList.arguments()))
+                    .map(argList -> AiUtils.getMemoryStoreData(semanticModel, project, argList.arguments()))
                     .orElse(null);
             return semanticModel.typeOf(memory)
                     .map(typeSymbol -> new MemoryManagerData(typeSymbol.getName().orElse("Memory Not Configured"),

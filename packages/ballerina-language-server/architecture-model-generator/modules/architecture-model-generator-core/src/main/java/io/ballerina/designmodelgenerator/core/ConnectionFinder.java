@@ -446,7 +446,10 @@ public class ConnectionFinder {
             connection.setModelProvider(new Connection.ModelProvider(null, WSO2_MODEL_PROVIDER, null));
             return;
         }
-        Optional<TypeSymbol> type = this.semanticModel.typeOf(expr);
+        Optional<TypeSymbol> type = this.semanticModel.symbol(expr)
+                .filter(VariableSymbol.class::isInstance)
+                .map(symbol -> getConstructedType((VariableSymbol) symbol))
+                .or(() -> this.semanticModel.typeOf(expr));
         if (type.isEmpty()) {
             return;
         }
@@ -457,6 +460,13 @@ public class ConnectionFinder {
         String symbol = expr instanceof SimpleNameReferenceNode varRef ? varRef.name().text() : null;
         connection.setModelProvider(new Connection.ModelProvider(symbol, CommonUtils.getTypeName(rawType),
                 CommonUtils.generateIcon(rawType)));
+    }
+
+    private TypeSymbol getConstructedType(VariableSymbol variable) {
+        ModulePartNode modulePart = variable.getLocation()
+                .map(location -> documentMap.get(location.lineRange().fileName()))
+                .orElse(null);
+        return io.ballerina.modelgenerator.commons.CommonUtils.getConstructedType(semanticModel, modulePart, variable);
     }
 
     private boolean isDefaultModelProviderCall(FunctionCallExpressionNode call) {
