@@ -31,6 +31,7 @@ import {
     isSamePath,
     MigrateRequest,
     NodePosition,
+    ProductMode,
     ProjectMigrationResult,
     ProjectRequest,
     STModification,
@@ -46,7 +47,7 @@ import { ModulePart, STKindChecker } from "@wso2/syntax-tree";
 import { URI } from "vscode-uri";
 import { debug } from "./logger";
 import { parse } from "@iarna/toml";
-import { getProjectTomlValues, VALIDATOR_PACKAGE_NAME } from "./config";
+import { getProductMode, getProjectTomlValues, VALIDATOR_PACKAGE_NAME } from "./config";
 import { extension } from "../BalExtensionContext";
 import { scheduleMigrationEnhancement, writeEnhanceToml } from "../features/ai/migration/orchestrator";
 // Imported from `startup-progress` rather than `pending-artifact`: that module pulls in the
@@ -1522,15 +1523,19 @@ export async function getSuggestedProjectDefaults(isInProject: boolean): Promise
     }
 }
 
-const DEFAULT_CREATION_DIRNAME = "WSO2Integrator";
+const DEFAULT_CREATION_DIRNAMES: Record<ProductMode, string> = {
+    [ProductMode.INTEGRATOR]: "WSO2Integrator",
+    [ProductMode.AGENT_BUILDER]: "WSO2AgentBuilder",
+};
 
 /** Default directory new projects are created under when no path is chosen. */
 export function getDefaultCreationPath(): string {
-    const dir = path.join(os.homedir(), DEFAULT_CREATION_DIRNAME);
+    const dir = path.join(os.homedir(), DEFAULT_CREATION_DIRNAMES[getProductMode()]);
     if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
     }
-    return dir;
+    // Case-insensitive filesystems can match a differently-cased existing folder; return its real casing.
+    return fs.realpathSync.native(dir);
 }
 
 /** Scaffolds the project/workspace, then opens it. */
