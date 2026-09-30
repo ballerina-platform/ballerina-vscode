@@ -240,6 +240,62 @@ public class TriggerImportTest {
                 "an already-imported aliased module must not be re-emitted: " + allText);
     }
 
+    /** A kafka trigger whose handler takes an {@code http:Request} and returns {@code http:Response}. */
+    private String generateWithHttpHandler(ModulePartNode root, String importStatements) {
+        TriggerUISchemaModel trigger = gson.fromJson(("""
+                { "schemaVersion":"1.0","displayName":"Kafka","description":"d","orgName":"ballerinax",
+                  "packageName":"kafka","moduleName":"kafka","version":"1.0.0","type":"kafka","icon":"i",
+                  "importStatements":[%s],
+                  "serviceTypes":[{"name":"kafka:Service","enabled":true,"schemaFunctions":[],
+                    "codedata":{"type":"SERVICE_TYPE_DESCRIPTOR"},
+                    "functions":[{"name":"onRequest","kind":"REMOTE","enabled":true,"optional":false,
+                      "qualifiers":["remote"],
+                      "codedata":{"type":"FUNCTION","originalName":"onRequest"},
+                      "parameters":[{"kind":"REQUIRED",
+                        "type":{"value":"http:Request","types":[{"fieldType":"TYPE","selected":true}],
+                          "enabled":true,"editable":false,"optional":false,"advanced":false,
+                          "codedata":{"originalName":"Request","orgName":"ballerina","moduleName":"http",
+                            "packageName":"http"}},
+                        "name":{"value":"req","types":[{"fieldType":"IDENTIFIER","selected":true}],
+                          "enabled":true,"editable":false,"optional":false,"advanced":false},
+                        "enabled":true,"editable":false,"optional":false,"advanced":false}],
+                      "returnType":{"type":"http:Response","enabled":true,"hasError":true,
+                        "optional":false}}]}]}""").formatted(importStatements), TriggerUISchemaModel.class);
+        return SchemaDrivenSourceGenerator.buildAddServiceEditsForTrigger(
+                initFor("ballerinax", "kafka"), trigger, root, "svc.bal").get("svc.bal").stream()
+                .map(TextEdit::getNewText).reduce("", String::concat);
+    }
+
+    @Test
+    public void testHandlerTypesFollowExistingAliasedImport() {
+        // The file already binds ballerina/http to `h`, so no second import is added and the handler's
+        // `http:` types must use `h:` or they would not resolve.
+        String src = generateWithHttpHandler(rootOf("import ballerina/http as h;\n"), "");
+
+        Assert.assertFalse(src.contains("import ballerina/http"), "http is already imported: " + src);
+        Assert.assertTrue(src.contains("onRequest(h:Request req) returns h:Response|error"),
+                "handler types must use the existing import's prefix: " + src);
+        Assert.assertFalse(src.contains("http:"), "no reference may keep the unbound prefix: " + src);
+    }
+
+    @Test
+    public void testAdditionalImportTypesFollowExistingAliasedImport() {
+        String src = generateWithHttpHandler(rootOf("import ballerina/http as h;\n"), "\"ballerina/http\"");
+
+        Assert.assertFalse(src.contains("import ballerina/http"), "http is already imported: " + src);
+        Assert.assertTrue(src.contains("onRequest(h:Request req) returns h:Response|error"),
+                "handler types must use the existing import's prefix: " + src);
+    }
+
+    @Test
+    public void testHandlerTypesKeepNaturalPrefixWhenImportIsAdded() {
+        String src = generateWithHttpHandler(emptyRoot(), "");
+
+        Assert.assertTrue(src.contains("import ballerina/http;"), "http import must be added: " + src);
+        Assert.assertTrue(src.contains("onRequest(http:Request req) returns http:Response|error"),
+                "handler types keep the natural prefix: " + src);
+    }
+
     @Test
     public void testCdcServiceTypeKeepsItsOwnModuleIdentity() {
         // The mssql.cdc connector owns the listener, while the service object is declared by the

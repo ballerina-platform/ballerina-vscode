@@ -116,6 +116,36 @@
         },
         "returning": false,
         "properties": {
+          "workflow": {
+            "metadata": {
+              "label": "Workflow",
+              "description": "The workflow to start"
+            },
+            "types": [
+              {
+                "fieldType": "SINGLE_SELECT",
+                "options": [
+                  {
+                    "label": "orderWorkflow",
+                    "value": "orderWorkflow"
+                  },
+                  {
+                    "label": "reviewedOrderWorkflow",
+                    "value": "reviewedOrderWorkflow"
+                  }
+                ],
+                "selected": true
+              }
+            ],
+            "value": "orderWorkflow",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "REQUIRED"
+            }
+          },
           "input": {
             "metadata": {
               "label": "Input",
@@ -147,7 +177,10 @@
             "optional": false,
             "editable": true,
             "advanced": false,
-            "hidden": false
+            "hidden": false,
+            "codedata": {
+              "dependentProperty": "workflow"
+            }
           },
           "checkError": {
             "metadata": {
@@ -375,25 +408,32 @@
         "properties": {
           "workflow": {
             "metadata": {
-              "label": "Workflow",
-              "description": "The workflow function (must have `@Workflow`)"
+              "label": "Workflow Name",
+              "description": "The workflow function to send the data to"
             },
             "types": [
               {
-                "fieldType": "EXPRESSION",
-                "ballerinaType": "function",
+                "fieldType": "SINGLE_SELECT",
+                "options": [
+                  {
+                    "label": "orderWorkflow",
+                    "value": "orderWorkflow"
+                  },
+                  {
+                    "label": "reviewedOrderWorkflow",
+                    "value": "reviewedOrderWorkflow"
+                  }
+                ],
                 "selected": true
               }
             ],
             "value": "orderWorkflow",
-            "placeholder": "",
             "optional": false,
             "editable": true,
             "advanced": false,
             "hidden": false,
             "codedata": {
-              "kind": "REQUIRED",
-              "originalName": "workflow"
+              "kind": "REQUIRED"
             }
           },
           "workflowId": {

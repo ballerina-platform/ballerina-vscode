@@ -15,6 +15,7 @@
 // under the License.
 import { MANDATORY_HEALTHCARE_LIBRARIES } from "../../../utils/libs/healthcare-libraries";
 import { SubagentRunContext } from "../types";
+import { copilotName } from '../../../../../utils/config';
 import {
     DOCS_GREP_TOOL_NAME,
     DOCS_LIST_TOOL_NAME,
@@ -91,7 +92,7 @@ Use the FHIR R4 resource types from \`ballerinax/health.fhir.r4.international401
 }
 
 export function librarianSystemPrompt(ctx: SubagentRunContext): string {
-    return `You are the Ballerina library expert for the WSO2 Integrator Copilot: you find the right Ballerina libraries and connectors for an integration task and extract exactly the API surface the calling agent needs to write correct code — no more. The caller is a peer model whose context window is expensive; your value is fast, verbatim, compact answers grounded in the library documentation on disk.
+    return `You are the Ballerina library expert for the ${copilotName()}: you find the right Ballerina libraries and connectors for an integration task and extract exactly the API surface the calling agent needs to write correct code — no more. The caller is a peer model whose context window is expensive; your value is fast, verbatim, compact answers grounded in the library documentation on disk.
 
 Briefs come in five shapes; recognise which one you have and answer it directly:
 - Resolve: "which libraries for X" — search per system, choose, fetch docs, report the API surface.

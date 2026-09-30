@@ -44,6 +44,20 @@ public class LibraryMetadataReaderTest {
 
     private static final LibraryMetadataReader READER = LibraryMetadataReader.getInstance();
 
+    private static final String MINIMAL_METADATA = """
+            {
+              "version": "v1.0",
+              "listeners": [{ "type": { "name": "Listener" }, "services": ["$service"] }],
+              "serviceTypes": [{
+                "id": "$service",
+                "type": { "name": "Service" },
+                "concrete": false,
+                "multipleListenersAllowed": false,
+                "handlers": { "backedByConcreteType": false, "options": [] }
+              }]
+            }
+            """;
+
     @Test
     public void testGetTriggerMetadataModelNullModuleInfo() {
         Assert.assertTrue(READER.getTriggerMetadataModel(null).isEmpty());
@@ -126,19 +140,7 @@ public class LibraryMetadataReaderTest {
 
     @Test
     public void testAShippedDocumentIsRead() throws IOException {
-        Path root = shipping("""
-                {
-                  "version": "v1.0",
-                  "listeners": [{ "type": { "name": "Listener" }, "services": ["$service"] }],
-                  "serviceTypes": [{
-                    "id": "$service",
-                    "type": { "name": "Service" },
-                    "concrete": false,
-                    "multipleListenersAllowed": false,
-                    "handlers": { "backedByConcreteType": false, "options": [] }
-                  }]
-                }
-                """);
+        Path root = shipping(MINIMAL_METADATA);
         Optional<TriggerMetadataModel> read = READER.readTriggerMetadataModel(root);
         Assert.assertTrue(read.isPresent());
         Assert.assertEquals(read.get().serviceTypes().size(), 1);
@@ -165,6 +167,48 @@ public class LibraryMetadataReaderTest {
         // under it cannot describe a document either way. Must not throw.
         Path notADirectory = Files.createTempFile("not-a-package", ".txt");
         Assert.assertTrue(READER.readTriggerMetadataModel(notADirectory).isEmpty());
+    }
+
+    // ---- inspecting a resolved package (inspectMetadata) -----------------------------------
+
+    @Test
+    public void testInspectUnresolvableModuleReportsUnresolved() {
+        ModuleInfo moduleInfo = new ModuleInfo("no-such-org", "no-such-module", "no-such-module", null);
+        Assert.assertFalse(READER.inspectMetadata(moduleInfo, false).packageResolved());
+    }
+
+    @Test
+    public void testInspectPackageShippingNoDocument() throws IOException {
+        LibraryMetadataReader.MetadataStatus status = READER.inspectMetadata(Files.createTempDirectory("bare"));
+
+        Assert.assertTrue(status.packageResolved());
+        Assert.assertFalse(status.metadataPresent());
+        Assert.assertFalse(status.metadataValid());
+        Assert.assertFalse(status.uiMetadataPresent());
+        // An absent L2 overlay is optional, so it never makes the package invalid.
+        Assert.assertTrue(status.uiMetadataValid());
+    }
+
+    @Test
+    public void testInspectPackageShippingAValidDocument() throws IOException {
+        LibraryMetadataReader.MetadataStatus status = READER.inspectMetadata(shipping(MINIMAL_METADATA));
+
+        Assert.assertTrue(status.metadataPresent());
+        Assert.assertTrue(status.metadataValid());
+    }
+
+    @Test
+    public void testInspectPackageShippingMalformedDocuments() throws IOException {
+        Path root = shipping("{ \"version\": \"v1.0\", \"listeners\": [ ");
+        Files.writeString(root.resolve("metadata").resolve("trigger-ui-metadata.json"), "{ ",
+                StandardCharsets.UTF_8);
+
+        LibraryMetadataReader.MetadataStatus status = READER.inspectMetadata(root);
+
+        Assert.assertTrue(status.metadataPresent());
+        Assert.assertFalse(status.metadataValid());
+        Assert.assertTrue(status.uiMetadataPresent());
+        Assert.assertFalse(status.uiMetadataValid());
     }
 
     // ---- the L2 shipped-document path (readTriggerUIMetadataModel) ------------------------

@@ -178,10 +178,16 @@ async function renderAndCheckSnapshot(model: CDModel, testName: string) {
         <Diagram project={model} {...mockProps} />
     );
 
-    // Wait for diagram to render
+    // Wait for diagram to render. `Diagram`'s own drawDiagram defers removing its loading overlay
+    // (OverlayLayerModel, a <vscode-progress-ring>) and running zoomToFitNodes behind a real
+    // `setTimeout(..., 200)` - checking only for *some* diagram element isn't enough, since that's
+    // true from the very first render (the loading overlay is itself one), well before that timeout
+    // fires. Snapshotting then races that timeout: this asserts the overlay is gone too, so the
+    // wait actually spans it instead of sometimes capturing the pre-zoom loading state.
     await waitFor(() => {
         const diagramElements = dom.container.querySelectorAll('[class*="diagram"], svg, canvas');
         expect(diagramElements.length).toBeGreaterThan(0);
+        expect(dom.container.querySelector('vscode-progress-ring')).toBeNull();
     }, { timeout: 10000 });
 
     // Extract Emotion CSS styles relevant to this render

@@ -20,7 +20,7 @@ import { ANTHROPIC_HAIKU, getAnthropicClient } from "../../utils/ai-client";
 import { PromptMode, AIMachineEventType } from "@wso2/ballerina-core";
 import { window } from "vscode";
 import { AIStateMachine } from "../../../../views/ai-panel/aiMachine";
-import { LOGIN_REQUIRED_WARNING, SIGN_IN_BI_COPILOT } from "../../constants";
+import { loginRequiredWarning, signInToCopilot } from "../../constants";
 
 export interface PromptEnhancementRequest {
     originalPrompt: string;
@@ -48,11 +48,8 @@ export async function enhancePrompt(
             model: await getAnthropicClient(ANTHROPIC_HAIKU),
             maxOutputTokens: 4000,
             temperature: 0,
+            system: systemPrompt,
             messages: [
-                {
-                    role: "system",
-                    content: systemPrompt,
-                },
                 {
                     role: "user",
                     content: userPrompt,
@@ -84,8 +81,9 @@ export function toAIRequestError(error: any, fallbackMessage: string): Error {
     }
 
     if (error.message?.includes("TOKEN_EXPIRED") || error.message?.includes("Unsupported login method")) {
-        window.showWarningMessage(LOGIN_REQUIRED_WARNING, SIGN_IN_BI_COPILOT).then(selection => {
-            if (selection === SIGN_IN_BI_COPILOT) {
+        const signIn = signInToCopilot();
+        window.showWarningMessage(loginRequiredWarning(), signIn).then(selection => {
+            if (selection === signIn) {
                 AIStateMachine.service().send(AIMachineEventType.LOGIN);
             }
         });

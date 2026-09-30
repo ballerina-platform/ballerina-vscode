@@ -564,12 +564,18 @@ public class AgentTriggerGenerationTest {
     }
 
     private String generateForAgentChat(String basePath, String existingSource) {
+        return generateForAgentChat(basePath, existingSource, Map.of());
+    }
+
+    private String generateForAgentChat(String basePath, String existingSource, Map<String, String> formValues) {
         AgentTriggerChannel channel = channel("ballerina", "ai");
         ServiceInitModel form = channel.initModel(new GetServiceInitModelContext("ballerina", "ai", "ai",
                 "1.0.0", null, null, null, false, "mathTutorAgent", null)).orElseThrow();
         form.addProperty(AGENT_NAME_PROPERTY, new Value.ValueBuilder()
                 .enabled(true).editable(false).value("mathTutorAgent").build());
         form.getProperties().get("basePath").setValue(basePath);
+        formValues.forEach((key, value) -> form.addProperty(key,
+                new Value.ValueBuilder().enabled(true).value(value).build()));
         return render(AgentTriggerServiceBuilder.buildEdits(form, null, channel,
                 rootOf(existingSource), "main.bal"));
     }
@@ -623,6 +629,32 @@ public class AgentTriggerGenerationTest {
     public void testAgentChatPathIsAlwaysAbsolute() {
         Assert.assertTrue(generateForAgentChat("support", "\n").contains("service /support on"),
                 "a path typed without a leading slash must not emit invalid source");
+    }
+
+    @Test
+    public void testAgentChatCreatesACustomPortListener() {
+        String src = generateForAgentChat("/math", "\n",
+                Map.of("port", "9091", ServiceInitModel.KEY_LISTENER_VAR_NAME, "mathTutorListener"));
+
+        Assert.assertTrue(src.contains("listener ai:Listener mathTutorListener = new (listenOn = 9091);"),
+                "a chosen port should produce its own ai:Listener, not the default one: " + src);
+        Assert.assertTrue(src.contains("service /math on mathTutorListener"),
+                "the service should attach to the custom listener: " + src);
+    }
+
+    @Test
+    public void testAgentChatCustomPortOverridesAnExistingListener() {
+        String src = generateForAgentChat("/support", """
+                import ballerina/ai;
+
+                listener ai:Listener sharedChatListener = new (listenOn = check http:getDefaultListener());
+                """,
+                Map.of("port", "9091", ServiceInitModel.KEY_LISTENER_VAR_NAME, "supportListener"));
+
+        Assert.assertTrue(src.contains("listener ai:Listener supportListener = new (listenOn = 9091);"),
+                "an explicit port is a deliberate choice and must not be silently folded into an unrelated "
+                        + "listener: " + src);
+        Assert.assertTrue(src.contains("service /support on supportListener"));
     }
 
     private ServiceInitModel httpForm(String basePath, String instructions) {

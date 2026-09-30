@@ -18,6 +18,7 @@
 
 package io.ballerina.servicemodelgenerator.extension.connector;
 
+import io.ballerina.modelgenerator.commons.trigger.models.Repeatable;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerUISchemaModel;
 import io.ballerina.servicemodelgenerator.extension.connector.adapter.TriggerFunctionAdapter;
 import io.ballerina.servicemodelgenerator.extension.model.Function;
@@ -28,6 +29,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Unit test for {@link TriggerFunctionAdapter}: the {@code bindingGroup} carried by a CDC
@@ -115,6 +117,21 @@ public class TriggerFunctionAdapterTest {
                 withLayout(schemaFunction(model("kafka"), "onConsumerRecord"), null);
         Assert.assertNull(TriggerFunctionAdapter.toFunction(authored).getLayout(),
                 "a null layout must not become an empty list");
+    }
+
+    @Test
+    public void testUnnamedRepeatableHandlerFallsBackToMetadataLabelForGroup() {
+        TriggerUISchemaModel.FunctionModel authored = new TriggerUISchemaModel.FunctionModel(
+                new TriggerUISchemaModel.Metadata("Handler", "An RPC handler.", null, null, null,
+                        "Add Handler", null, null, null, null),
+                "", true, null, "REMOTE", null, List.of(), null, null, false, true, false, false,
+                Repeatable.TRUE, null, null, List.of(), null, Map.of(), null, null, null, null);
+
+        Function wire = TriggerFunctionAdapter.toFunction(authored);
+
+        Assert.assertEquals(wire.getGroup(), "Handler");
+        Assert.assertEquals(wire.getName().getValue(), "");
+        Assert.assertTrue(wire.getName().isEditable());
     }
 
     /** An authored layout must survive the schema -> wire hop intact. */

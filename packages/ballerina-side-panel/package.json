@@ -33,7 +33,7 @@
         "@wso2/ballerina-rpc-client": "workspace:*",
         "@wso2/ui-toolkit": "workspace:*",
         "lodash": "4.17.23",
-        "markdown-it": "14.2.0",
+        "markdown-it": "14.3.1",
         "prosemirror-commands": "1.7.1",
         "prosemirror-gapcursor": "1.4.0",
         "prosemirror-history": "1.5.0",

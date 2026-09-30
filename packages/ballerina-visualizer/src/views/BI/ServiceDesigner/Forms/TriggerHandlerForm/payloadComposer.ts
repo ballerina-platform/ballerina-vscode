@@ -128,7 +128,8 @@ export function withAddedParameters(
  * e.g. right after a handler is added, before the model is refetched:
  *
  *   - a present ONE_OF_GROUP handler hides every sibling of its group (mutually exclusive);
- *   - a present handler that is not TRUE hides its own (same-name) catalog entry (add-once);
+ *   - a present handler that is not TRUE hides its own (same-name) catalog entry (add-once), unless
+ *     that entry is `nameEditable` (its name is only a placeholder);
  *   - a present LEGACY handler hides every NON-LEGACY catalog entry, ignoring group (mutually
  *     incompatible with the "modern" catalog, not just its own group);
  *   - distinct LEGACY entries are independent of each other: none is hidden by another being
@@ -173,7 +174,8 @@ export function addableCatalogOf(serviceModel: ServiceModel): FunctionModel[] {
         if (group && exclusiveGroups.has(group)) {
             return false;
         }
-        if (behavior !== RepeatBehavior.TRUE && fn.name?.value && consumedNames.has(fn.name.value)) {
+        if (behavior !== RepeatBehavior.TRUE && !fn.nameEditable && fn.name?.value
+            && consumedNames.has(fn.name.value)) {
             return false;
         }
         return true;
@@ -500,5 +502,5 @@ export function functionSignatureKey(fn: FunctionModel): string {
     const params = (fn.parameters ?? []).map((p) =>
         [p.kind ?? "", p.name?.value ?? "", p.type?.value ?? "", p.enabled ?? false].join("|")
     );
-    return [fn.name?.value ?? "", ...params].join(";");
+    return [fn.accessor?.value ?? "", fn.name?.value ?? "", ...params].join(";");
 }

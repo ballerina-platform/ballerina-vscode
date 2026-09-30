@@ -31,7 +31,7 @@ import {
 import { join, sep } from 'path';
 import { exec, spawnSync, execSync } from 'child_process';
 import { LanguageClientOptions, State as LS_STATE, RevealOutputChannelOn, ServerOptions } from "vscode-languageclient/node";
-import { getServerOptions } from '../utils/server/server';
+import { getServerOptions, getJdkMajorVersion, resolveLanguageServerJdkDir, usesBundledLanguageServer, REQUIRED_JDK_MAJOR_VERSION } from '../utils/server/server';
 import { ExtendedLangClient } from './extended-language-client';
 import {
     debug,
@@ -85,11 +85,17 @@ import path from 'path';
 import * as glob from 'glob';
 import { RPCLayer } from "../RPCLayer";
 import { VisualizerWebview } from "../views/visualizer/webview";
+import { REQUIRED_BALLERINA_VERSION } from "../features/project/dependency-lock";
 
 const SWAN_LAKE_REGEX = /(s|S)wan( |-)(l|L)ake/g;
 
 export const EXTENSION_ID = 'wso2.ballerina';
 const PREV_EXTENSION_ID = 'ballerina.ballerina';
+
+/** Arguments to `ballerina.update-ballerina-visually`; omitted, it runs `bal dist update`. */
+export interface BallerinaUpdateOptions {
+    version?: string;
+}
 export enum LANGUAGE {
     BALLERINA = 'ballerina',
     TOML = 'toml'
@@ -426,8 +432,8 @@ export class BallerinaExtension {
                 });
                 debug("[INIT] Update Ballerina command registered");
 
-                commands.registerCommand('ballerina.update-ballerina-visually', () => {
-                    this.updateBallerinaVisually();
+                commands.registerCommand('ballerina.update-ballerina-visually', (options?: BallerinaUpdateOptions) => {
+                    return this.updateBallerinaVisually(options);
                 });
                 debug("[INIT] Update Ballerina visually command registered");
             } catch (error) {
@@ -553,6 +559,17 @@ export class BallerinaExtension {
                 } catch (error) {
                     debug(`[INIT] Error checking version compatibility: ${error}`);
                     throw error;
+                }
+
+                // Stop before spawning a JVM that could only die with UnsupportedClassVersionError.
+                try {
+                    if (!await this.checkLanguageServerJdkCompatibility()) {
+                        debug("[INIT] Returning early: distribution JRE cannot run the bundled language server");
+                        return;
+                    }
+                } catch (error) {
+                    // Never block startup on the check itself; let the server attempt to start.
+                    debug(`[INIT] Error checking language server JDK compatibility: ${error}`);
                 }
 
                 // Set up and start Language Server
@@ -740,14 +757,24 @@ export class BallerinaExtension {
         });
     }
 
-    async updateBallerinaVisually() {
+    /**
+     * With `version`, pulls that exact distribution instead of `bal dist update`, whose target isn't pinned.
+     * Resolves false only when the command is known to have failed.
+     */
+    async updateBallerinaVisually(options?: BallerinaUpdateOptions): Promise<boolean> {
         try {
             await commands.executeCommand(SHARED_COMMANDS.SETUP_BALLERINA);
         } catch (error) {
             console.warn("[SETUP] Failed to open setup flow", error);
         }
         const realPath = this.ballerinaHome ? fs.realpathSync.native(this.ballerinaHome) : "";
-        this.executeCommandWithProgress(realPath.includes("ballerina-home") ? 'bal dist update' : 'sudo bal dist update');
+        const command = options?.version ? `bal dist pull ${options.version}` : 'bal dist update';
+        const elevated = !realPath.includes("ballerina-home");
+        const run = this.executeCommandWithProgress(elevated ? `sudo ${command}` : command);
+        if (elevated) {
+            return true; // runs in a terminal or a detached UAC process, which report no outcome
+        }
+        return run.then(() => true, () => false);
     }
 
     private async executeCommandWithProgress(command: string) {
@@ -958,7 +985,7 @@ export class BallerinaExtension {
             let supportedJreVersion;
             try {
                 if (this.updateToolServerUrl.includes('staging')) {
-                    supportedJreVersion = "jdk-21.0.5+11-jre";
+                    supportedJreVersion = "jdk-25.0.3+9-jre"; // staging has no /distributions to query
                     debug(`[SETUP] Supported JRE version: ${supportedJreVersion}`);
                 } else {
                     // Get supported jre version
@@ -1676,6 +1703,49 @@ export class BallerinaExtension {
         } else {
             this.sdkVersion.text = text;
         }
+    }
+
+    /** False when the user has been told the JRE cannot load the bundled server. */
+    private async checkLanguageServerJdkCompatibility(): Promise<boolean> {
+        if (!usesBundledLanguageServer(this)) {
+            return true;
+        }
+
+        // A configured jar's Java version is the user's own concern.
+        if (this.getConfiguredLangServerPath()?.trim()) {
+            debug('[INIT] Custom language server path configured; skipping the JDK check');
+            return true;
+        }
+
+        const jdkDir = resolveLanguageServerJdkDir(this);
+        if (!jdkDir) {
+            // getServerOptions raises a clearer error for this.
+            return true;
+        }
+
+        const jdkMajorVersion = getJdkMajorVersion(jdkDir);
+        if (jdkMajorVersion === null) {
+            // Version could not be determined; do not block on a guess.
+            debug(`[INIT] Could not determine the Java version of ${jdkDir}; continuing`);
+            return true;
+        }
+
+        debug(`[INIT] Language server JDK: ${jdkDir} (Java ${jdkMajorVersion})`);
+        if (jdkMajorVersion >= REQUIRED_JDK_MAJOR_VERSION) {
+            return true;
+        }
+
+        const message = `Your Ballerina ${this.ballerinaVersion} is incompatible with the current extension.`;
+        sendTelemetryEvent(this, TM_EVENT_EXTENSION_INI_FAILED, CMP_EXTENSION_CORE, getMessageObject(message));
+
+        // No popup: the visualizer screen explains, and offers updating Ballerina or the earlier-version docs.
+        VisualizerWebview.showJdkIncompatibility({
+            ballerinaVersion: this.ballerinaVersion,
+            jdkMajorVersion,
+            requiredJdkMajorVersion: REQUIRED_JDK_MAJOR_VERSION,
+            requiredBallerinaVersion: REQUIRED_BALLERINA_VERSION
+        });
+        return false;
     }
 
     showPluginActivationError(): any {

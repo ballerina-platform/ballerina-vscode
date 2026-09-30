@@ -24,7 +24,6 @@ import { McpLoadErrorsDTO, McpMutableScope, McpScope, McpServerConfigDTO, McpSer
 
 import { AIChatView, DangerActionButton, PrimaryActionButton, SecondaryActionButton } from "../styles";
 import AddMcpServerModal from "../components/AIChatInput/AddMcpServerModal";
-import { ExperimentalTag } from "../components/ExperimentalTag";
 import { Loader } from "../components/Loader";
 
 interface Props {
@@ -836,7 +835,6 @@ export const McpManagerPanel: React.FC<Props> = ({ onClose, backTooltip }) => {
                 </Button>
                 <TitleGroup>
                     <PanelTitle>MCP Servers</PanelTitle>
-                    <ExperimentalTag size="sm" label="Preview" tooltip="MCP tool support is in preview and may change." />
                     <HeaderInlineToggle
                         type="button"
                         role="switch"
