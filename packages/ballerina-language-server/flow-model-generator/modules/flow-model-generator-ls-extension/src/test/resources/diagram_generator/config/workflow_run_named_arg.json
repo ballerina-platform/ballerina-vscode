@@ -70,6 +70,36 @@
         },
         "returning": false,
         "properties": {
+          "workflow": {
+            "metadata": {
+              "label": "Workflow",
+              "description": "The workflow to start"
+            },
+            "types": [
+              {
+                "fieldType": "SINGLE_SELECT",
+                "options": [
+                  {
+                    "label": "orderWorkflow",
+                    "value": "orderWorkflow"
+                  },
+                  {
+                    "label": "reviewedOrderWorkflow",
+                    "value": "reviewedOrderWorkflow"
+                  }
+                ],
+                "selected": true
+              }
+            ],
+            "value": "orderWorkflow",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "REQUIRED"
+            }
+          },
           "input": {
             "metadata": {
               "label": "Input",
@@ -101,7 +131,10 @@
             "optional": false,
             "editable": true,
             "advanced": false,
-            "hidden": false
+            "hidden": false,
+            "codedata": {
+              "dependentProperty": "workflow"
+            }
           },
           "checkError": {
             "metadata": {

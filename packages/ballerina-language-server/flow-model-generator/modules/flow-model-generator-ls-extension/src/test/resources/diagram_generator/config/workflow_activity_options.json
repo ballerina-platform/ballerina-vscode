@@ -194,6 +194,10 @@
                   {
                     "label": "Human Approval",
                     "value": "HumanApproval"
+                  },
+                  {
+                    "label": "From Expression",
+                    "value": "FromExpression"
                   }
                 ],
                 "selected": true
@@ -214,9 +218,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -237,9 +241,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -260,9 +264,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -283,9 +287,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -306,9 +310,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -329,9 +333,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -409,6 +413,26 @@
                   "advanced": false,
                   "hidden": false
                 }
+              },
+              "FromExpression": {
+                "approvalPolicyExpression": {
+                  "metadata": {
+                    "label": "Approval Policy Expression",
+                    "description": "A workflow:ApprovalPolicy value: a constant, a variable or a record literal. A literal reopens as the option it declares."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "workflow:ApprovalPolicy",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "optional": false,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                }
               }
             },
             "itemOptions": [
@@ -421,6 +445,11 @@
                 "id": "HumanApproval",
                 "content": "Human Approval",
                 "value": "HumanApproval"
+              },
+              {
+                "id": "FromExpression",
+                "content": "From Expression",
+                "value": "FromExpression"
               }
             ]
           },
@@ -431,12 +460,19 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "\"finance\"",
+            "value": [
+              "finance"
+            ],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -449,12 +485,19 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "\"alice\"",
+            "value": [
+              "alice"
+            ],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -467,12 +510,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -485,12 +533,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -503,12 +556,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -521,12 +579,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -596,6 +659,24 @@
             "advanced": false,
             "hidden": true
           },
+          "approvalPolicyExpression": {
+            "metadata": {
+              "label": "Approval Policy Expression",
+              "description": "A workflow:ApprovalPolicy value: a constant, a variable or a record literal. A literal reopens as the option it declares."
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "workflow:ApprovalPolicy",
+                "selected": true
+              }
+            ],
+            "value": "",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
           "retryPolicy": {
             "metadata": {
               "label": "Retry Policy",
@@ -620,6 +701,10 @@
                   {
                     "label": "Retry, then Review",
                     "value": "RetryBeforeReview"
+                  },
+                  {
+                    "label": "From Expression",
+                    "value": "FromExpression"
                   }
                 ],
                 "selected": true
@@ -714,9 +799,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -737,9 +822,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -760,9 +845,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -783,9 +868,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -806,9 +891,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -829,9 +914,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -990,9 +1075,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -1013,9 +1098,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -1036,9 +1121,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -1059,9 +1144,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -1082,9 +1167,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -1105,9 +1190,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -1185,6 +1270,26 @@
                   "advanced": false,
                   "hidden": false
                 }
+              },
+              "FromExpression": {
+                "retryPolicyExpression": {
+                  "metadata": {
+                    "label": "Retry Policy Expression",
+                    "description": "A workflow:RetryPolicy value: a constant, a variable or a record literal. A literal reopens as the option it declares."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "workflow:RetryPolicy",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "optional": false,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                }
               }
             },
             "itemOptions": [
@@ -1207,6 +1312,11 @@
                 "id": "RetryBeforeReview",
                 "content": "Retry, then Review",
                 "value": "RetryBeforeReview"
+              },
+              {
+                "id": "FromExpression",
+                "content": "From Expression",
+                "value": "FromExpression"
               }
             ]
           },
@@ -1289,12 +1399,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -1307,12 +1422,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -1325,12 +1445,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -1343,12 +1468,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -1361,12 +1491,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -1379,12 +1514,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -1445,6 +1585,24 @@
               {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "workflow:Duration",
+                "selected": true
+              }
+            ],
+            "value": "",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "retryPolicyExpression": {
+            "metadata": {
+              "label": "Retry Policy Expression",
+              "description": "A workflow:RetryPolicy value: a constant, a variable or a record literal. A literal reopens as the option it declares."
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "workflow:RetryPolicy",
                 "selected": true
               }
             ],

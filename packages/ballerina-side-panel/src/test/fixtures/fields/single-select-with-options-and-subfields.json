@@ -1,0 +1,33 @@
+{
+    "description": "A SINGLE_SELECT carrying options AND per-option sub-fields goes to DropdownChoiceForm, which renders the chosen option's sub-fields. An agent event trigger's service type picks the event that runs the agent this way.",
+    "expectedEditor": "DropdownChoiceForm",
+    "fieldInputType": { "fieldType": "SINGLE_SELECT", "options": [{ "label": "IssuesService", "value": "IssuesService" }, { "label": "PullRequestService", "value": "PullRequestService" }] },
+    "field": {
+        "key": "serviceType",
+        "label": "Service Type",
+        "type": "SINGLE_SELECT",
+        "optional": false,
+        "editable": true,
+        "documentation": "",
+        "value": "IssuesService",
+        "types": [
+            { "fieldType": "SINGLE_SELECT", "options": [{ "label": "IssuesService", "value": "IssuesService" }, { "label": "PullRequestService", "value": "PullRequestService" }], "selected": true }
+        ],
+        "dynamicFormFields": {
+            "IssuesService": [
+                {
+                    "key": "handler",
+                    "label": "Event",
+                    "type": "SINGLE_SELECT",
+                    "types": [{ "fieldType": "SINGLE_SELECT", "options": [{ "label": "onOpened", "value": "onOpened" }], "selected": true }],
+                    "value": "onOpened",
+                    "editable": true,
+                    "enabled": true,
+                    "documentation": ""
+                }
+            ],
+            "PullRequestService": []
+        },
+        "enabled": true
+    }
+}

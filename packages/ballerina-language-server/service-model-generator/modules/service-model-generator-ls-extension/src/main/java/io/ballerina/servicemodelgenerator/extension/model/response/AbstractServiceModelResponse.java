@@ -18,6 +18,8 @@
 
 package io.ballerina.servicemodelgenerator.extension.model.response;
 
+import io.ballerina.servicemodelgenerator.extension.connector.ModelResolutionException;
+
 import java.util.Arrays;
 
 /**
@@ -30,14 +32,19 @@ public abstract class AbstractServiceModelResponse {
     private String errorMsg;
     private String stacktrace;
     private ModelResolutionIssue issue;
+    private ModelResolutionError resolutionError;
 
     public void setError(Throwable e) {
         this.errorMsg = e.getLocalizedMessage();
-        this.stacktrace = Arrays.toString(e.getStackTrace());
+        this.stacktrace = Arrays.toString(ModelResolutionException.originStackTrace(e));
     }
 
     public void setIssue(ModelResolutionIssue issue) {
         this.issue = issue;
+    }
+
+    public void setResolutionError(ModelResolutionError resolutionError) {
+        this.resolutionError = resolutionError;
     }
 
     public String errorMsg() {
@@ -50,5 +57,9 @@ public abstract class AbstractServiceModelResponse {
 
     public ModelResolutionIssue issue() {
         return issue;
+    }
+
+    public ModelResolutionError resolutionError() {
+        return resolutionError;
     }
 }

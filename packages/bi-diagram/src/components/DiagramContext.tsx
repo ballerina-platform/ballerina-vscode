@@ -19,7 +19,7 @@
 import React, { useState, useSyncExternalStore, RefObject } from "react";
 import { Flow, FlowNode, Branch, LineRange, ToolData } from "../utils/types";
 import { CompletionItem, FormExpressionEditorRef, HelperPaneHeight } from "@wso2/ui-toolkit";
-import { ExpressionProperty, JoinProjectPathRequest, JoinProjectPathResponse, RecordTypeField, TextEdit, VisualizerLocation, ProductMode, assistantName } from "@wso2/ballerina-core";
+import { ExpressionProperty, JoinProjectPathRequest, JoinProjectPathResponse, RecordTypeField, TextEdit, VisualizerLocation, webviewAssistantName } from "@wso2/ballerina-core";
 import { HelperpaneOnChangeOptions, InputMode } from "@wso2/ballerina-side-panel";
 import { AgentNodeActions } from "./AgentNodeActions";
 
@@ -174,7 +174,7 @@ export const DiagramContext = React.createContext<DiagramContextState>({
         getFunctionLocation: () => Promise.resolve(undefined),
     },
     readOnly: false,
-    aiAssistantName: assistantName(ProductMode.INTEGRATOR),
+    aiAssistantName: webviewAssistantName(),
     lockCanvas: false,
     setLockCanvas: (_lock: boolean) => { },
     isUserAuthenticated: false,

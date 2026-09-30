@@ -34,6 +34,8 @@ import org.eclipse.lsp4j.LogTraceParams;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
@@ -189,12 +191,13 @@ public class RunExecutor implements LSCommandExecutor {
     }
 
     private static void listenOutput(ExtendedLanguageClient client, Supplier<InputStream> inSupplier, String channel) {
-        try (InputStream in = inSupplier.get()) {
-            byte[] buffer = new byte[1024];
+        // Decode the stream rather than each read: a UTF-8 character split across two reads only completes once the
+        // reader carries its leading bytes over into the next one.
+        try (Reader in = new InputStreamReader(inSupplier.get(), StandardCharsets.UTF_8)) {
+            char[] buffer = new char[1024];
             int count;
             while ((count = in.read(buffer)) >= 0) {
-                String str = new String(buffer, 0, count, StandardCharsets.UTF_8);
-                client.logTrace(new LogTraceParams(str, channel));
+                client.logTrace(new LogTraceParams(new String(buffer, 0, count), channel));
             }
         } catch (IOException ignored) {
             // ignore

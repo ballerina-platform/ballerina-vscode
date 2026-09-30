@@ -227,6 +227,9 @@ public abstract class NodeBuilder implements DiagnosticHandler.DiagnosticCapable
         put(NodeKind.CHILD_WORKFLOW_SEND_DATA, ChildWorkflowSendDataBuilder::new);
         put(NodeKind.WORKFLOW_CURRENT_TIME, WorkflowContextFunctionBuilder.CurrentTime::new);
         put(NodeKind.WORKFLOW_IS_REPLAYING, WorkflowContextFunctionBuilder.IsReplaying::new);
+        put(NodeKind.WORKFLOW_LAST_HUMAN_TASK_COMPLETION,
+                WorkflowContextFunctionBuilder.LastHumanTaskCompletion::new);
+        put(NodeKind.WORKFLOW_LAST_REVIEW_DECISION, WorkflowContextFunctionBuilder.LastReviewDecision::new);
         put(NodeKind.WORKFLOW_GET_ID, WorkflowContextFunctionBuilder.GetWorkflowId::new);
         put(NodeKind.WORKFLOW_GET_TYPE, WorkflowContextFunctionBuilder.GetWorkflowType::new);
         put(NodeKind.DURABLE_AGENT, DurableAgentBuilder::new);

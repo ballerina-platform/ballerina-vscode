@@ -38,7 +38,7 @@ All 27 projects in `rush.json` are reachable from `ballerina-extension`, so
 `rush build` and `rush build --to ballerina` build the same set. Either form
 requires:
 
-- Java 21 on `JAVA_HOME`
+- Java 25 on `JAVA_HOME`
 - `packageUser`/`packagePAT` in `~/.gradle/gradle.properties` (or the env)
 
 If you don't have those set up, skip the LS by building one of its dependents

@@ -371,7 +371,7 @@ const LoginPanel: React.FC<{ embedded?: boolean; subtitle?: React.ReactNode }> =
                 ) : (
                     <InstallingContainer>
                         <Typography variant="body2" sx={{ textAlign: "center", color: "var(--vscode-descriptionForeground)" }}>
-                            Install the WSO2 Integrator extension to sign in and use {assistantName}.
+                            Install the WSO2 Integrator extension to sign in with your WSO2 account.
                         </Typography>
                         <InstallButton
                             disabled={isInstallingExtension}

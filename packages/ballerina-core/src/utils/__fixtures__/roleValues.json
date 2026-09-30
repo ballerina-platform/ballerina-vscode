@@ -1,0 +1,20 @@
+[
+  { "note": "one name", "source": "\"finance\"", "items": ["finance"] },
+  { "note": "several names", "source": "[\"finance\", \"manager\"]", "items": ["finance", "manager"] },
+  { "note": "a trailing comma", "source": "[\"finance\",]", "items": ["finance"] },
+  { "note": "an escaped quote", "source": "\"He said \\\"hi\\\"\"", "items": ["He said \"hi\""] },
+  { "note": "a numeric escape, which a re-encode cannot reproduce", "source": "\"grin \\u{1F600}\"", "items": ["grin 😀"] },
+  { "note": "a numeric escape mid-string", "source": "[\"\\u{41}BC\"]", "items": ["ABC"] },
+  { "note": "an out-of-range code point stays as written", "source": "\"\\u{110000}\"", "items": ["\\u{110000}"] },
+  { "note": "a lone surrogate stays as written", "source": "\"\\u{D800}\"", "items": ["\\u{D800}"] },
+  { "note": "nil names nobody", "source": "()", "items": [] },
+  { "note": "an empty list names nobody", "source": "[]", "items": [] },
+  { "note": "nothing names nobody", "source": "", "items": [] },
+  { "note": "a reference belongs to the expression mode", "source": "financeRoles", "items": null },
+  { "note": "a list holding a reference belongs to the expression mode", "source": "[\"finance\", lead]", "items": null },
+  { "note": "a call belongs to the expression mode", "source": "roles(\"finance\")", "items": null },
+  { "note": "an expression joining literals belongs to the expression mode", "source": "\"a\" + \"b\"", "items": null },
+  { "note": "a list holding such an expression belongs to the expression mode", "source": "[\"a\" + \"b\"]", "items": null },
+  { "note": "a literal whose closing quote is escaped never ends", "source": "\"a\\\"", "items": null },
+  { "note": "an escaped backslash before the closing quote still ends it", "source": "\"a\\\\\"", "items": ["a\\"] }
+]

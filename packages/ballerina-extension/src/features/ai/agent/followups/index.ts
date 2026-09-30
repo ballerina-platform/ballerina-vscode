@@ -22,8 +22,9 @@ import { workspace } from "vscode";
 import { chatStateStorage } from "../../../../views/ai-panel/chatStateStorage";
 import { CopilotEventHandler } from "../../utils/events";
 import { ANTHROPIC_HAIKU, getAnthropicClient } from "../../utils/ai-client";
-import { buildFollowupMessages, FollowupPromptInput, FollowupSituation, RecentExchange } from "./prompt";
+import { buildFollowupPrompt, FollowupPromptInput, FollowupSituation, RecentExchange } from "./prompt";
 import { followupSuggestionsSchema, GeneratedFollowupSuggestion } from "./schema";
+import { extractAssistantText } from "../message-text";
 
 export { FollowupSituation } from "./prompt";
 
@@ -163,7 +164,7 @@ async function generateSuggestions(
             model: await getAnthropicClient(ANTHROPIC_HAIKU),
             maxOutputTokens: 1024,
             temperature: 0.3,
-            messages: buildFollowupMessages(input),
+            ...buildFollowupPrompt(input),
             schema: followupSuggestionsSchema,
             // The turn's signal is tripped on the interrupted paths, so fall back to a timeout.
             abortSignal: interrupted ? AbortSignal.timeout(TIMEOUT_MS) : turnSignal,
@@ -208,26 +209,6 @@ function sanitize(
         }
     }
     return out;
-}
-
-/** Concatenates the assistant's text output from a set of model messages. */
-function extractAssistantText(messages: any[]): string {
-    const parts: string[] = [];
-    for (const message of messages ?? []) {
-        if (message?.role !== "assistant") {
-            continue;
-        }
-        if (typeof message.content === "string") {
-            parts.push(message.content);
-        } else if (Array.isArray(message.content)) {
-            for (const item of message.content) {
-                if (item?.type === "text" && typeof item.text === "string") {
-                    parts.push(item.text);
-                }
-            }
-        }
-    }
-    return parts.join("\n").trim();
 }
 
 /**
