@@ -167,6 +167,9 @@ import {
     listThreads,
     switchThread,
     SwitchThreadRequest,
+    prepareKeyedThread,
+    PrepareKeyedThreadRequest,
+    PrepareKeyedThreadResponse,
     deleteThread,
     DeleteThreadRequest,
     renameThread,
@@ -516,6 +519,10 @@ export class AiPanelRpcClient implements AIPanelAPI {
 
     switchThread(params: SwitchThreadRequest): Promise<boolean> {
         return this._messenger.sendRequest(switchThread, HOST_EXTENSION, params);
+    }
+
+    prepareKeyedThread(params: PrepareKeyedThreadRequest): Promise<PrepareKeyedThreadResponse> {
+        return this._messenger.sendRequest(prepareKeyedThread, HOST_EXTENSION, params);
     }
 
     deleteThread(params: DeleteThreadRequest): Promise<void> {

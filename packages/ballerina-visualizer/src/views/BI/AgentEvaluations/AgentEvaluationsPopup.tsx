@@ -297,18 +297,18 @@ function ListActions({ isBusy, canRunAll, onCreateEvaluation, onRunAll, onStopAl
         <>
             <Button appearance="primary" onClick={onCreateEvaluation}>
                 <Codicon name="add" sx={{ marginRight: 4 }} />
-                New evaluation
+                New Evaluation
             </Button>
             {isBusy && (
                 <Button appearance="secondary" onClick={onStopAll}>
                     <Codicon name="debug-stop" sx={{ marginRight: 4 }} />
-                    Stop all
+                    Stop All
                 </Button>
             )}
             {!isBusy && canRunAll && (
                 <Button appearance="secondary" onClick={onRunAll}>
                     <Codicon name="play" sx={{ marginRight: 4 }} />
-                    Run all
+                    Run All
                 </Button>
             )}
         </>
@@ -395,7 +395,7 @@ export function AgentEvaluationsPopup({ projectPath, agentName, onClose }: Agent
     };
     // Gallery and form share one step and slide on their own, so only leaving the flow changes direction.
     const goBack = () => (step === "create" ? setStep("templates") : goTo("list", "backward"));
-    const title = { list: "Evaluations", templates: "New evaluation", create: choice, edit: editing?.functionName }[step];
+    const title = { list: "Evaluations", templates: "New Evaluation", create: choice, edit: editing?.functionName }[step];
     const subtitle = {
         list: `Evaluations that run ${agentName}`,
         templates: `For ${agentName}`,
@@ -420,8 +420,8 @@ export function AgentEvaluationsPopup({ projectPath, agentName, onClose }: Agent
         const { functionName } = evaluation;
         return [
             { id: "edit", label: "Edit", icon: "edit", onSelect: () => editEvaluation(evaluation) },
-            { id: "openFlow", label: "Open flow diagram", icon: "type-hierarchy", onSelect: () => runAction(functionName, "openFlow") },
-            { id: "history", label: "View history", icon: "history", onSelect: () => openHistory(functionName) },
+            { id: "openFlow", label: "Open Flow Diagram", icon: "type-hierarchy", onSelect: () => runAction(functionName, "openFlow") },
+            { id: "history", label: "View History", icon: "history", onSelect: () => openHistory(functionName) },
             {
                 id: "delete", label: "Delete", icon: "trash",
                 disabledReason: statusOf(functionName) ? "Stop the run to delete" : undefined,
@@ -522,7 +522,7 @@ export function AgentEvaluationsPopup({ projectPath, agentName, onClose }: Agent
                     </EmptyText>
                     <Button appearance="primary" onClick={createEvaluation}>
                         <Codicon name="add" sx={{ marginRight: 4 }} />
-                        Create evaluation
+                        Create Evaluation
                     </Button>
                 </EmptyState>
             );
@@ -598,11 +598,11 @@ export function AgentEvaluationsPopup({ projectPath, agentName, onClose }: Agent
                             <PopupFooter>
                                 <Button appearance="secondary" onClick={openEvalsets}>
                                     <Codicon name="collection" sx={{ marginRight: 6 }} />
-                                    View evalsets
+                                    View Evalsets
                                 </Button>
                                 <Button appearance="secondary" onClick={() => openHistory()}>
                                     <Codicon name="history" sx={{ marginRight: 4 }} />
-                                    View history
+                                    View History
                                 </Button>
                             </PopupFooter>
                         </>
