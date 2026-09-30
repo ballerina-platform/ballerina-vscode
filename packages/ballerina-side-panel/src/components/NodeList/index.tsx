@@ -175,7 +175,7 @@ namespace S {
         padding: 5px;
         border: 1px solid ${ThemeColors.OUTLINE_VARIANT};
         border-radius: 5px;
-        height: 36px;
+        min-height: 36px;
         cursor: ${({ enabled }) => (enabled ? "pointer" : "not-allowed")};
         font-size: 14px;
         min-width: 160px;
@@ -191,14 +191,17 @@ namespace S {
         }
     `;
 
+    // Long node names wrap onto a second line instead of being cut: two columns of a side
+    // panel are too narrow for names like "Send Data to Child Workflow" on one line.
     export const ComponentTitle = styled.div`
-        white-space: nowrap;
         flex: 1;
         min-width: 0;
+        line-height: 1.25;
         overflow: hidden;
-        text-overflow: ellipsis;
-        display: block;
-        word-break: break-word;
+        overflow-wrap: anywhere;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
     `;
 
     export const IconContainer = styled.div`
@@ -678,15 +681,11 @@ export function NodeList(props: NodeListProps) {
                                         onClick={() => handleAddNode(node, parentCategoryTitle)}
                                     >
                                         <S.IconContainer>{node.icon || <LogIcon />}</S.IconContainer>
-                                        <S.ComponentTitle
-                                            ref={(el) => {
-                                                if (el && el.scrollWidth > el.clientWidth) {
-                                                    el.style.fontSize = "13px";
-                                                    el.style.wordBreak = "break-word";
-                                                    el.style.whiteSpace = "nowrap";
-                                                }
-                                            }}
-                                        >
+                                        {/* The row carries one tooltip and no more: the styled one
+                                            when the node describes itself, the browser's own with
+                                            the name when it does not, so a name clipped at two
+                                            lines can still be read. */}
+                                        <S.ComponentTitle title={node.description ? undefined : node.label}>
                                             {node.label}
                                         </S.ComponentTitle>
                                     </S.Component>

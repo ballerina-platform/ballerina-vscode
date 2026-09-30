@@ -29,6 +29,7 @@ import {
     ProjectStructureArtifactResponse,
     PropertyModel,
     isSamePath,
+    ModelResolutionError,
 } from "@wso2/ballerina-core";
 import { Codicon, Icon, LinkButton, Typography, View } from "@wso2/ui-toolkit";
 import styled from "@emotion/styled";
@@ -36,6 +37,7 @@ import { VSCodeButton } from "@vscode/webview-ui-toolkit/react";
 import { TopNavigationBar } from "../../../components/TopNavigationBar";
 import { TitleBar } from "../../../components/TitleBar";
 import { LoadingRing } from "../../../components/Loader";
+import { ServiceModelError } from "../ServiceDesigner/ServiceModelError";
 
 const LoadingContainer = styled.div`
     display: flex;
@@ -77,6 +79,8 @@ export function AIAgentDesigner(props: AIAgentDesignerProps) {
     const { projectPath, filePath, position } = props;
     const { rpcClient } = useRpcContext();
     const [serviceModel, setServiceModel] = useState<ServiceModel>(undefined);
+    const [resolutionError, setResolutionError] = useState<ModelResolutionError>(undefined);
+    const [isLoading, setIsLoading] = useState<boolean>(true);
     const [serviceName, setServiceName] = useState<string>("");
 
     const [functionModel, setFunctionModel] = useState<FunctionModel>(undefined);
@@ -98,15 +102,26 @@ export function AIAgentDesigner(props: AIAgentDesignerProps) {
             startLine: { line: position.startLine, offset: position.startColumn },
             endLine: { line: position.endLine, offset: position.endColumn },
         };
+        setIsLoading(true);
+        setResolutionError(undefined);
         rpcClient
             .getServiceDesignerRpcClient()
             .getServiceModelFromCode({ filePath, codedata: { lineRange } })
             .then((res) => {
                 console.log("Service Model =======: ", res.service);
                 setServiceModel(res.service);
+                if (!res.service) {
+                    setResolutionError(res.resolutionError);
+                }
+                setIsLoading(false);
                 setIsSaving(false);
                 const name = res.service?.properties?.["stringLiteral"]?.value || "";
                 setServiceName(name.replace(/^"|"$/g, ""));
+            })
+            .catch((error) => {
+                console.error("Error fetching service model: ", error);
+                setIsLoading(false);
+                setIsSaving(false);
             });
         getProjectListeners();
     };
@@ -244,10 +259,13 @@ export function AIAgentDesigner(props: AIAgentDesignerProps) {
                 }
             />
             <ServiceContainer>
-                {!serviceModel && (
+                {!serviceModel && isLoading && (
                     <LoadingContainer>
                         <LoadingRing message="Loading Service..." />
                     </LoadingContainer>
+                )}
+                {!serviceModel && !isLoading && (
+                    <ServiceModelError error={resolutionError} onRetry={fetchService} />
                 )}
                 {isSaving && (
                     <LoadingContainer>

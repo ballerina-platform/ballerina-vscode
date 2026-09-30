@@ -38,7 +38,10 @@ jest.mock("@wso2/ballerina-core", () => {
     };
     return {
         SCOPE,
-        DIRECTORY_MAP: { SERVICE: "SERVICE", AUTOMATION: "AUTOMATION", WORKFLOW: "WORKFLOW" },
+        // Real enum and real helper: what counts as a workflow artifact is behaviour under test here.
+        DIRECTORY_MAP: jest.requireActual("../../../../../ballerina-core/src/interfaces/bi").DIRECTORY_MAP,
+        hasWorkflowArtifacts: jest.requireActual(
+            "../../../../../ballerina-core/src/utils/identifier-utils").hasWorkflowArtifacts,
         findScope: (triggerKind?: string, moduleName?: string) =>
             (triggerKind && byKind[triggerKind]) ?? (moduleName && byModule[moduleName]),
         findScopeByModule: (moduleName: string) => byModule[moduleName],
@@ -89,7 +92,7 @@ describe("deployment scope extraction", () => {
     it("keeps the workflow scope for a package whose only workflow is a durable agent", () => {
         const project = projectWithServices([]);
         project.directoryMap[DIRECTORY_MAP.AGENT] = [
-            { id: "claimAgent", name: "claimAgent", path: "/sample/agents.bal", type: DIRECTORY_MAP.AGENT, moduleName: "workflow" },
+            { id: "claimAgent", name: "claimAgent", path: "/sample/agents.bal", type: DIRECTORY_MAP.AGENT, moduleName: "workflow", kind: DIRECTORY_MAP.DURABLE_AGENT },
         ];
         expect(getIntegrationTypes(project)).toEqual([SCOPE.WORKFLOW]);
     });

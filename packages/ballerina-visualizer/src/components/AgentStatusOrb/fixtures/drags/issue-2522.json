@@ -1,0 +1,23 @@
+{
+    "description": "#2522: dragging the idle orb must keep it under the pointer; the hidden invite ahead of it in the row pushed it ~250px to the right",
+    "drags": [
+        {
+            "name": "invite hidden",
+            "hover": false,
+            "draft": "",
+            "path": [[400, 300], [500, 300], [700, 120], [20, 600]]
+        },
+        {
+            "name": "pointer on the orb, so the invite was showing",
+            "hover": true,
+            "draft": "",
+            "path": [[900, 700], [880, 690], [300, 400], [1200, 40]]
+        },
+        {
+            "name": "unsent draft holding the invite",
+            "hover": false,
+            "draft": "summarize this service",
+            "path": [[600, 500], [620, 520], [60, 60]]
+        }
+    ]
+}

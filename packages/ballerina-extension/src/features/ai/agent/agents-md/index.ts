@@ -37,12 +37,12 @@ import type { AgentsMdFileInfoDTO, ChatThread } from '@wso2/ballerina-core';
 import { notifyAgentsMdFileInfoChanged } from '../../../../RPCLayer';
 import { chatStateStorage } from '../../../../views/ai-panel/chatStateStorage';
 import { FILE_READ_TOOL_NAME } from '../tools/text-editor';
-import { aiAssistantName } from "../../../../utils/config";
+import { copilotName } from '../../../../utils/config';
 
 const AGENTS_MD_FILENAME = 'AGENTS.md';
 const MAX_LINES_IN_BLOCK = 200;
 
-const STARTER_TEMPLATE = `# Project instructions for the ${aiAssistantName()}
+const starterTemplate = () => `# Project instructions for the ${copilotName()}
 `;
 
 /** Stored on a generation after a REMOVAL_NOTE. Non-hex so it can't collide with a SHA-1. */
@@ -256,7 +256,7 @@ export async function openOrCreateAgentsMd(): Promise<void> {
         exists = false;
     }
     if (!exists) {
-        await workspace.fs.writeFile(fileUri, Buffer.from(STARTER_TEMPLATE, 'utf8'));
+        await workspace.fs.writeFile(fileUri, Buffer.from(starterTemplate(), 'utf8'));
         notifyAgentsMdFileInfoChanged(await getAgentsMdFileInfo());
     }
     await window.showTextDocument(fileUri, { preview: false });

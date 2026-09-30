@@ -1,0 +1,19 @@
+{
+    "description": "A SINGLE_SELECT carrying options and no per-option sub-fields goes to the expression editor, NOT DropdownChoiceForm: isDropDownType makes it multi-mode, and the DropdownChoiceForm branch is guarded by !showWithExpressionEditor.",
+    "expectedEditor": "ContextAwareExpressionEditor",
+    "fieldInputType": { "fieldType": "SINGLE_SELECT", "options": [{ "label": "MULTI_EVENT", "value": "MULTI_EVENT" }, { "label": "SINGLE_EVENT", "value": "SINGLE_EVENT" }] },
+    "field": {
+        "key": "cardinality",
+        "label": "Cardinality",
+        "type": "SINGLE_SELECT",
+        "optional": true,
+        "editable": true,
+        "documentation": "",
+        "value": "",
+        "types": [
+            { "fieldType": "SINGLE_SELECT", "options": [{ "label": "MULTI_EVENT", "value": "MULTI_EVENT" }, { "label": "SINGLE_EVENT", "value": "SINGLE_EVENT" }], "selected": true },
+            { "fieldType": "EXPRESSION", "ballerinaType": "workflow:EventCardinality", "selected": false }
+        ],
+        "enabled": true
+    }
+}

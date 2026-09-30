@@ -145,9 +145,9 @@ describe("useAgentRunState", () => {
 });
 
 describe("activeStateLabel", () => {
-    // The orb tooltip and the extension's status bar both render "<product> — <label>",
-    // so a label that names the product again stutters: "WSO2 Integrator Copilot —
-    // WSO2 Integrator Copilot needs your input".
+    // The orb tooltip and the extension's status bar both render "<assistant> — <label>",
+    // so a label that names the assistant again stutters: "Ballerina Copilot —
+    // Ballerina Copilot needs your input".
     it.each(["completed", "running", "awaiting-input", "error", "idle"] as const)(
         "leaves the product name to the surface showing it (%s)",
         (state) => {

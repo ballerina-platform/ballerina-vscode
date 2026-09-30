@@ -59,11 +59,6 @@ export async function getSelectedLibraries(prompt: string, libraryType: Generati
     const cacheOptions = await getProviderCacheControl();
     const messages: ModelMessage[] = [
         {
-            role: "system",
-            content: getSystemPrompt(allLibraries),
-            providerOptions: cacheOptions,
-        },
-        {
             role: "user",
             content: getUserPrompt(prompt),
         },
@@ -75,6 +70,7 @@ export async function getSelectedLibraries(prompt: string, libraryType: Generati
         model: await getAnthropicClient(ANTHROPIC_SONNET),
         maxOutputTokens: 4096,
         providerOptions: await getProviderModelOptions(),
+        system: { role: "system", content: getSystemPrompt(allLibraries), providerOptions: cacheOptions },
         messages: messages,
         schema: LibraryListSchema,
         abortSignal: new AbortController().signal,

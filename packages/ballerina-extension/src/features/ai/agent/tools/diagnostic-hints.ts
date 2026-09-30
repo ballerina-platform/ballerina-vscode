@@ -148,13 +148,16 @@ export const DIAGNOSTIC_HINTS: Readonly<Record<string, string>> = {
     "BCE3959": "A value leaving a lock that protects an isolated variable or `self` (via `return` or assignment to an outer " +
         "variable) must not alias the protected state. Return/assign a copy: `return m[k].clone();` (or `.cloneReadOnly()` " +
         "when an immutable result is acceptable). Alternatively declare the protected storage's member type as `T & readonly` " +
-        "so reads are already immutable. A single isolated object (a client, a caller) may leave as-is; an ARRAY or MAP of them " +
+        "so reads are already immutable — but then `.clone()` on a read returns the same immutable value, so use " +
+        "`check m[k].cloneWithType()` if the caller needs to mutate it. A single isolated object (a client, a caller) " +
+        "may leave as-is; an ARRAY or MAP of them " +
         "may not — copy the keys (`m.keys().clone()`) and fetch one element per lock instead.",
 
     // "invalid attempt to transfer a value into a 'lock' statement with restricted variable usage"
     "BCE3960": "A mutable value defined outside this lock must not be referenced inside it in a non-isolated expression " +
         "(storing it — or even aliasing it to a local — could create an outside alias to protected state). Use a copy " +
-        "instead: `m[k] = v.clone();`, or declare the incoming parameter/variable as `readonly & T` so it is immutable.",
+        "instead: `m[k] = v.clone();`, or declare the incoming parameter/variable as `readonly & T` so it is immutable " +
+        "(note `.clone()` on a `readonly & T` value returns the same immutable value, so the stored member stays immutable).",
 
     // "invalid invocation of a non-isolated function in a 'lock' statement with restricted variable usage"
     "BCE3961": "Only `isolated` functions may be called inside a lock that accesses an isolated variable or `self` of an " +
