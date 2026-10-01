@@ -1385,32 +1385,49 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
         }
 
         private static boolean selectMatchingOption(Builder<?> builder, Node value, SemanticModel semanticModel) {
-            for (PropertyType propType : builder.types) {
+            String valueStr = value.toSourceCode().trim();
+            for (int i = 0; i < builder.types.size(); i++) {
+                PropertyType propType = builder.types.get(i);
                 if (propType.fieldType() != ValueType.SINGLE_SELECT) {
                     continue;
                 }
-                Optional<Option> option = findSelectedOption(propType.options(), value, semanticModel);
+                Optional<Option> option = findSelectedOption(propType.options(), value, valueStr, semanticModel);
                 if (option.isPresent()) {
-                    propType.selected(true);
-                    builder.value(option.get().value());
+                    builder.types.set(i, withOptionValue(propType, option.get(), valueStr));
+                    if (option.get().value().equals(builder.placeholder)) {
+                        builder.placeholder = valueStr;
+                    }
                     return true;
                 }
             }
             return false;
         }
 
-        // A constant or enum member (e.g. `openai:GPT_4O_MINI`) selects the option holding its value.
-        private static Optional<Option> findSelectedOption(List<Option> options, Node value,
+        // The matched option takes the source text, so an enum member reference is kept as written on save.
+        private static PropertyType withOptionValue(PropertyType propType, Option selected, String value) {
+            List<Option> options = propType.options().stream()
+                    .map(option -> option == selected ? new Option(option.label(), value) : option)
+                    .toList();
+            return new PropertyType(propType.fieldType(), propType.ballerinaType(), propType.scope(), options,
+                    propType.template(), propType.typeMembers(), propType.recordSelectorType(), true);
+        }
+
+        private static Optional<Option> findSelectedOption(List<Option> options, Node value, String valueStr,
                                                            SemanticModel semanticModel) {
-            String valueStr = value.toSourceCode().trim();
-            Optional<String> constantValue = semanticModel == null ? Optional.empty()
+            Optional<ConstantSymbol> member = semanticModel == null ? Optional.empty()
                     : semanticModel.symbol(value)
                             .filter(ConstantSymbol.class::isInstance)
-                            .map(symbol -> ((ConstantSymbol) symbol).typeDescriptor().signature());
+                            .map(ConstantSymbol.class::cast);
             return options.stream()
                     .filter(option -> option.value().equals(valueStr)
-                            || constantValue.filter(option.value()::equals).isPresent())
+                            || member.filter(constant -> isMemberOf(constant, option)).isPresent())
                     .findFirst();
+        }
+
+        // An option stands for an enum member by its name, so a user constant holding the same value is not one.
+        private static boolean isMemberOf(ConstantSymbol constant, Option option) {
+            return constant.getName().filter(option.label()::equals).isPresent()
+                    && constant.typeDescriptor().signature().equals(option.value());
         }
 
         /**
