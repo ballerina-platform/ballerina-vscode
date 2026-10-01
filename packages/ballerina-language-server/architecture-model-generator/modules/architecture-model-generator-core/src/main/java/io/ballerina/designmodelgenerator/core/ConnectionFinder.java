@@ -459,7 +459,11 @@ public class ConnectionFinder {
                 CommonUtils.generateIcon(rawType)));
     }
 
+    // Only a simple name is declared in the default module, which is all documentMap holds.
     private Optional<TypeSymbol> constructedTypeOf(ExpressionNode expr) {
+        if (!(expr instanceof SimpleNameReferenceNode)) {
+            return this.semanticModel.typeOf(expr);
+        }
         return this.semanticModel.symbol(expr)
                 .filter(VariableSymbol.class::isInstance)
                 .map(symbol -> getConstructedType((VariableSymbol) symbol))
