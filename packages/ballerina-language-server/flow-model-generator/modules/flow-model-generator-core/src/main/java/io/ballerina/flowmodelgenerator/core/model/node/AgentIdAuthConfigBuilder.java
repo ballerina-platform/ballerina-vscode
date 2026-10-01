@@ -49,6 +49,7 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 
 import static io.ballerina.flowmodelgenerator.core.Constants.Ai;
@@ -140,10 +141,14 @@ public class AgentIdAuthConfigBuilder extends NodeBuilder {
 
     // The project already compiles ballerina/ai; the PackageUtil fallback loads and compiles a second copy.
     private static Optional<Symbol> resolveAgentIdAuthConfigType(TemplateContext context, ModuleInfo aiModuleInfo) {
-        Optional<Symbol> fromProject = findAgentIdAuthConfigType(
-                FileSystemUtils.getSemanticModel(context.workspaceManager(), context.filePath()));
-        if (fromProject.isPresent()) {
-            return fromProject;
+        try {
+            Optional<Symbol> fromProject = findAgentIdAuthConfigType(
+                    FileSystemUtils.getSemanticModel(context.workspaceManager(), context.filePath()));
+            if (fromProject.isPresent()) {
+                return fromProject;
+            }
+        } catch (NoSuchElementException e) {
+            // The project is not loaded yet, e.g. the target file does not exist
         }
         return PackageUtil.getSemanticModel(aiModuleInfo)
                 .flatMap(AgentIdAuthConfigBuilder::findAgentIdAuthConfigType);
