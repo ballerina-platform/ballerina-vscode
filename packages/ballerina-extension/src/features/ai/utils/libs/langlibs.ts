@@ -76,7 +76,9 @@ json result = person.toJson();
 string jsonText = person.toJsonString();
 \`\`\`
 
-When you need to copy data, use clone() to make a modifiable copy:
+When you need to copy mutable data, use clone() to make a modifiable copy.
+On an already-readonly value clone() returns the same immutable value, so use cloneWithType() with a non-readonly target type instead.
+clone() also preserves readonly subtrees: cloning a mutable container whose members are readonly leaves those members readonly, and updating them still panics.
 \`\`\`ballerina
 int[] original = [1, 2, 3];
 int[] copy = original.clone();

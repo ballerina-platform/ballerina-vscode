@@ -17,7 +17,7 @@
  */
 
 apply from: "$rootDir/gradle/javaProject.gradle"
-apply plugin: "com.github.johnrengelman.shadow"
+apply plugin: "com.gradleup.shadow"
 apply plugin: "java"
 
 configurations.all {
@@ -40,6 +40,10 @@ dependencies {
     implementation "com.github.zafarkhaja:java-semver:${javaSemverVersion}"
 
     testImplementation "org.testng:testng:${testngVersion}"
+}
+
+test {
+    useTestNG() // without this Gradle defaults to JUnit and silently discovers no tests
 }
 
 ext.moduleName = 'io.ballerina.language-server-commons.extension'

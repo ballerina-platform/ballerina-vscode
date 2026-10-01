@@ -41,7 +41,7 @@ import { InitVisitor } from "../visitors/InitVisitor";
 import { LinkTargetVisitor } from "../visitors/LinkTargetVisitor";
 import { NodeTypes } from "../resources/constants";
 import Controls from "./Controls";
-import { CurrentBreakpointsResponse as BreakpointInfo, JoinProjectPathRequest, JoinProjectPathResponse, traverseFlow, VisualizerLocation, ProductMode, assistantName } from "@wso2/ballerina-core";
+import { CurrentBreakpointsResponse as BreakpointInfo, JoinProjectPathRequest, JoinProjectPathResponse, traverseFlow, VisualizerLocation, webviewAssistantName } from "@wso2/ballerina-core";
 import { BreakpointVisitor } from "../visitors/BreakpointVisitor";
 import { BaseNodeModel } from "./nodes/BaseNode";
 import { useAgentFocusFit } from "./nodes/AgentWidget/useAgentFocusFit";
@@ -357,7 +357,7 @@ export function Diagram(props: DiagramProps) {
         project: project,
         readOnly: onAddNode === undefined || onDeleteNode === undefined || onNodeSelect === undefined || readOnly,
         isUserAuthenticated: isUserAuthenticated,
-        aiAssistantName: aiAssistantName ?? assistantName(ProductMode.INTEGRATOR),
+        aiAssistantName: aiAssistantName ?? webviewAssistantName(),
         nodeComments: nodeComments,
         expressionContext: expressionContext || {
             completions: [],

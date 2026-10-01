@@ -35,12 +35,8 @@ export async function generateOpenAPISpecCore(
         model: await getAnthropicClient(ANTHROPIC_HAIKU),
         maxOutputTokens: 8192,
         temperature: 0,
+        system: { role: "system", content: getSystemPrompt(), providerOptions: cacheOptions },
         messages: [
-            {
-                role: "system",
-                content: getSystemPrompt(),
-                providerOptions: cacheOptions
-            },
             ...historyMessages,
             {
                 role: "user",
