@@ -271,7 +271,7 @@
             "placeholder": "[]",
             "optional": true,
             "editable": true,
-            "advanced": false,
+            "advanced": true,
             "hidden": true,
             "codedata": {
               "kind": "INCLUDED_FIELD",
@@ -309,7 +309,7 @@
             "placeholder": "\"INFER_TOOL_COUNT\"",
             "optional": true,
             "editable": true,
-            "advanced": false,
+            "advanced": true,
             "hidden": false,
             "codedata": {
               "kind": "INCLUDED_FIELD",
@@ -337,7 +337,7 @@
             "placeholder": "false",
             "optional": true,
             "editable": true,
-            "advanced": false,
+            "advanced": true,
             "hidden": false,
             "codedata": {
               "kind": "INCLUDED_FIELD",
@@ -397,7 +397,7 @@
             "placeholder": "\"NO_FILTER\"",
             "optional": true,
             "editable": true,
-            "advanced": false,
+            "advanced": true,
             "hidden": false,
             "codedata": {
               "kind": "INCLUDED_FIELD",
@@ -425,7 +425,7 @@
             "placeholder": "false",
             "optional": true,
             "editable": true,
-            "advanced": false,
+            "advanced": true,
             "hidden": false,
             "codedata": {
               "kind": "INCLUDED_FIELD",
@@ -903,7 +903,7 @@
             "placeholder": "[]",
             "optional": true,
             "editable": true,
-            "advanced": false,
+            "advanced": true,
             "hidden": true,
             "codedata": {
               "kind": "INCLUDED_FIELD",
@@ -941,7 +941,7 @@
             "placeholder": "\"INFER_TOOL_COUNT\"",
             "optional": true,
             "editable": true,
-            "advanced": false,
+            "advanced": true,
             "hidden": false,
             "codedata": {
               "kind": "INCLUDED_FIELD",
@@ -969,7 +969,7 @@
             "placeholder": "false",
             "optional": true,
             "editable": true,
-            "advanced": false,
+            "advanced": true,
             "hidden": false,
             "codedata": {
               "kind": "INCLUDED_FIELD",
@@ -1029,7 +1029,7 @@
             "placeholder": "\"NO_FILTER\"",
             "optional": true,
             "editable": true,
-            "advanced": false,
+            "advanced": true,
             "hidden": false,
             "codedata": {
               "kind": "INCLUDED_FIELD",
@@ -1057,7 +1057,7 @@
             "placeholder": "false",
             "optional": true,
             "editable": true,
-            "advanced": false,
+            "advanced": true,
             "hidden": false,
             "codedata": {
               "kind": "INCLUDED_FIELD",

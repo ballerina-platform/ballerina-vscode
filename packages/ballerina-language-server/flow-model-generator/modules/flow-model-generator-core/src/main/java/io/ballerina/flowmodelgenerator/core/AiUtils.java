@@ -502,6 +502,11 @@ public class AiUtils {
         return trimmed.startsWith("`") || trimmed.matches("(?s)^string\\s*`.*`$");
     }
 
+    public static void setOptionalPropertiesAdvanced(NodeBuilder nodeBuilder) {
+        nodeBuilder.properties().build().replaceAll((key, property) -> property.optional() && !property.advanced()
+                ? Property.Builder.copyFrom(property).advanced(true).build() : property);
+    }
+
     /**
      * Adds a property to a NodeBuilder by copying all attributes from an existing property with an optional custom
      * value.
