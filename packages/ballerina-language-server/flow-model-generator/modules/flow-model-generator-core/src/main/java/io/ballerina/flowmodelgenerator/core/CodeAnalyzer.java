@@ -5147,6 +5147,8 @@ public class CodeAnalyzer extends NodeVisitor {
                     .orElse(null);
             return semanticModel.symbol(memory)
                     .map(symbol -> AiUtils.getComponentType(semanticModel, project, symbol))
+                    .filter(typeSymbol -> CommonUtils.getRawType(typeSymbol) instanceof ClassSymbol)
+                    .or(() -> semanticModel.typeOf(memory))
                     .map(typeSymbol -> new MemoryManagerData(typeSymbol.getName().orElse("Memory Not Configured"),
                             AiUtils.MEMORY_DEFAULT_VALUE, store))
                     .orElse(null);
