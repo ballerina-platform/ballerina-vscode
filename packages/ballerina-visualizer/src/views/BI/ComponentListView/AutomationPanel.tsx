@@ -54,7 +54,7 @@ export function AutomationPanel(props: AutomationPanelProps) {
         ? OutOfScopeComponentTooltip
         : automationExists
             ? AutomationAlreadyExistsTooltip
-            : "";
+            : AUTOMATION_CARD.tooltip;
 
     const handleClick = async () => {
         await rpcClient.getVisualizerRpcClient().openView({
