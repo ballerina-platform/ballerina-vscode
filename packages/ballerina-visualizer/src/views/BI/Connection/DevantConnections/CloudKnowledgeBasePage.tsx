@@ -43,9 +43,7 @@ export function CloudKnowledgeBasePage(props: CloudKnowledgeBasePageProps) {
 
     const isSignedIn = !!platformExtState?.isLoggedIn && !!platformExtState?.selectedContext?.project;
 
-    // Unlike the connections list (which needs to EXCLUDE KBs, an operation the marketplace API's
-    // tags filter can't do), this page only needs to INCLUDE KBs, so the API's tags filter - which
-    // is include-only - can do the filtering server-side. No over-fetch/trim workaround needed.
+    // Use the API's tags filter to filter for knowledge base services.
     const getMarketPlaceParams: GetMarketplaceItemsParams = {
         limit: 24,
         offset: 0,
