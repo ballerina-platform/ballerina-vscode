@@ -24,7 +24,7 @@ import ButtonCard from "../../../../components/ButtonCard";
 import { BodyTinyInfo } from "../../../styles";
 import { usePlatformExtContext } from "../../../../providers/platform-ext-ctx-provider";
 import { ConnectorsGrid, Section, SectionHeader, SectionTitle } from "../AddConnectionPopup/styles";
-import { isKnowledgeBaseService, ProgressWrap } from "./utils";
+import { KB_SERVICE_TAG, ProgressWrap } from "./utils";
 
 interface CloudKnowledgeBasePageProps {
     // Opens a blank CloudKnowledgeBase create form (manual entry, no Devant service pre-selected).
@@ -43,6 +43,9 @@ export function CloudKnowledgeBasePage(props: CloudKnowledgeBasePageProps) {
 
     const isSignedIn = !!platformExtState?.isLoggedIn && !!platformExtState?.selectedContext?.project;
 
+    // Unlike the connections list (which needs to EXCLUDE KBs, an operation the marketplace API's
+    // tags filter can't do), this page only needs to INCLUDE KBs, so the API's tags filter - which
+    // is include-only - can do the filtering server-side. No over-fetch/trim workaround needed.
     const getMarketPlaceParams: GetMarketplaceItemsParams = {
         limit: 24,
         offset: 0,
@@ -50,6 +53,7 @@ export function CloudKnowledgeBasePage(props: CloudKnowledgeBasePageProps) {
         networkVisibilityprojectId: platformExtState?.selectedContext?.project?.id,
         sortBy: "createdTime",
         searchContent: false,
+        tags: KB_SERVICE_TAG,
     };
 
     const { data: knowledgeBases, isLoading } = useQuery({
@@ -64,7 +68,6 @@ export function CloudKnowledgeBasePage(props: CloudKnowledgeBasePageProps) {
                 request: getMarketPlaceParams,
             }),
         enabled: isSignedIn,
-        select: (data) => ({ ...data, data: (data?.data || []).filter(isKnowledgeBaseService) }),
     });
 
     const items: MarketplaceItem[] = knowledgeBases?.data || [];
