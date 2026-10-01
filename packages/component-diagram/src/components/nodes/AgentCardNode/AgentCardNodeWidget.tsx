@@ -371,6 +371,11 @@ function chipGlyph(chip: ToolChip): React.ReactNode {
     if (url.includes("mcp")) {
         return <Icon name="bi-mcp" sx={iconSx} iconSx={{ fontSize: GLYPH_SIZE }} />;
     }
+    // The bundled provider SVGs stay visible in dark mode, unlike Central's monochrome PNGs.
+    const aiModuleIcon = getAIModuleIcon(resolveModuleFromIconUrl(url), GLYPH_SIZE);
+    if (aiModuleIcon) {
+        return aiModuleIcon;
+    }
     const brand = resolveBrandIconFromUrl(url);
     if (brand) {
         const color = brand.color ? { color: brand.color } : {};
