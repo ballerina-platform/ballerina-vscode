@@ -17,9 +17,9 @@
  */
 
 import * as crypto from "crypto";
-import * as http from "http";
 import * as vscode from "vscode";
 import { extension } from "../../BalExtensionContext";
+import { waitForAuthCode } from "../ai/agent/mcp/oauth";
 
 // Prototype only: borrows amctl's public client and its fixed loopback redirect.
 const CLIENT_ID = "amctl";
@@ -27,7 +27,6 @@ const CALLBACK_PORT = 10325;
 const REDIRECT_URI = `http://127.0.0.1:${CALLBACK_PORT}/callback`;
 const SESSION_KEY = "ballerina.agentManager.session";
 const DEFAULT_INSTANCE_URL = "http://api.amp.localhost:8080";
-const LOGIN_TIMEOUT_MS = 5 * 60 * 1000;
 
 export interface AgentManagerSession {
     instanceUrl: string;
@@ -126,7 +125,7 @@ export async function signIn(): Promise<AgentManagerSession | undefined> {
 
     const code = await vscode.window.withProgress(
         { location: vscode.ProgressLocation.Notification, title: "Signing in to Agent Manager in your browser...", cancellable: true },
-        (_progress, cancel) => waitForCallback(state, authUrl.toString(), cancel)
+        (_progress, cancel) => waitForAuthCode(CALLBACK_PORT, state, authUrl.toString(), cancel, "Agent Manager")
     );
     const token = await postToken(discovery.tokenEndpoint, {
         grant_type: "authorization_code",
@@ -183,38 +182,6 @@ async function pickOrg(baseUrl: string, accessToken: string): Promise<string | u
     return orgs.length === 1
         ? orgs[0]
         : vscode.window.showQuickPick(orgs, { title: "Select an Agent Manager organization", ignoreFocusOut: true });
-}
-
-function waitForCallback(state: string, authUrl: string, cancel: vscode.CancellationToken): Promise<string> {
-    return new Promise((resolve, reject) => {
-        const server = http.createServer((req, res) => {
-            const url = new URL(req.url ?? "/", REDIRECT_URI);
-            if (url.pathname !== "/callback") {
-                res.writeHead(404).end();
-                return;
-            }
-            const error = url.searchParams.get("error");
-            const code = url.searchParams.get("code");
-            const ok = !error && code && url.searchParams.get("state") === state;
-            res.writeHead(ok ? 200 : 400, { "Content-Type": "text/html; charset=utf-8" });
-            res.end(ok
-                ? "<h3>Signed in to Agent Manager. You can close this tab and return to VS Code.</h3>"
-                : "<h3>Sign-in failed. Return to VS Code and try again.</h3>");
-            finish(ok ? undefined : new Error(url.searchParams.get("error_description") ?? error ?? "Sign-in failed."), code ?? "");
-        });
-        const timer = setTimeout(() => finish(new Error("Sign-in timed out.")), LOGIN_TIMEOUT_MS);
-        const cancelListener = cancel.onCancellationRequested(() => finish(new Error("Sign-in cancelled.")));
-        function finish(error?: Error, code?: string) {
-            clearTimeout(timer);
-            cancelListener.dispose();
-            server.close();
-            error ? reject(error) : resolve(code!);
-        }
-        server.on("error", (err: NodeJS.ErrnoException) => finish(err.code === "EADDRINUSE"
-            ? new Error(`Port ${CALLBACK_PORT} is busy. Close any running 'amctl login' and try again.`)
-            : err));
-        server.listen(CALLBACK_PORT, "127.0.0.1", () => vscode.env.openExternal(vscode.Uri.parse(authUrl)));
-    });
 }
 
 async function postToken(tokenEndpoint: string, body: Record<string, string>): Promise<TokenResponse> {

@@ -115,14 +115,15 @@ export class McpOAuthProvider {
         }
         const run = signInQueue.then(() => vscode.window.withProgress(
             { location: vscode.ProgressLocation.Notification, title: `Signing in to MCP server '${serverName}' in your browser...`, cancellable: true },
-            (_progress, cancel) => waitForCode(this.oauth.callbackPort, this.expectedState, authUrl, cancel)
+            (_progress, cancel) => waitForAuthCode(this.oauth.callbackPort, this.expectedState, authUrl.toString(), cancel, `MCP server '${serverName}'`)
         ));
         signInQueue = run.catch(() => undefined);
         return run;
     }
 }
 
-function waitForCode(port: number, state: string, authUrl: URL, cancel: vscode.CancellationToken): Promise<string> {
+/** Serves the loopback redirect, opens the browser, and resolves with the authorization code. */
+export function waitForAuthCode(port: number, state: string, authUrl: string, cancel: vscode.CancellationToken, service: string): Promise<string> {
     return new Promise((resolve, reject) => {
         const server = http.createServer((req, res) => {
             const url = new URL(req.url ?? "/", `http://127.0.0.1:${port}`);
@@ -132,10 +133,10 @@ function waitForCode(port: number, state: string, authUrl: URL, cancel: vscode.C
             }
             const code = url.searchParams.get("code");
             const ok = !!code && url.searchParams.get("state") === state;
-            res.writeHead(ok ? 200 : 400, { "Content-Type": "text/html; charset=utf-8" });
-            res.end(ok ? "<h3>Signed in. You can close this tab and return to VS Code.</h3>" : "<h3>Sign-in failed. Return to VS Code and try again.</h3>");
-            const error = url.searchParams.get("error_description") ?? url.searchParams.get("error") ?? "Sign-in failed.";
-            finish(ok ? undefined : new Error(error), code ?? "");
+            const error = ok ? undefined : url.searchParams.get("error_description") ?? url.searchParams.get("error") ?? "Sign-in failed.";
+            res.writeHead(ok ? 200 : 400, { "Content-Type": "text/html; charset=utf-8", "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'" });
+            res.end(callbackPage(service, error));
+            finish(error === undefined ? undefined : new Error(error), code ?? "");
         });
         const timer = setTimeout(() => finish(new Error("Sign-in timed out.")), SIGN_IN_TIMEOUT_MS);
         const cancelListener = cancel.onCancellationRequested(() => finish(new Error("Sign-in cancelled.")));
@@ -146,8 +147,31 @@ function waitForCode(port: number, state: string, authUrl: URL, cancel: vscode.C
             error ? reject(error) : resolve(code!);
         }
         server.on("error", (err: NodeJS.ErrnoException) => finish(err.code === "EADDRINUSE"
-            ? new Error(`Port ${port} is in use, likely by another MCP client signing in. Try again when it finishes.`)
+            ? new Error(`Port ${port} is in use, likely by another sign-in. Try again when it finishes.`)
             : err));
-        server.listen(port, "127.0.0.1", () => vscode.env.openExternal(vscode.Uri.parse(authUrl.toString())));
+        server.listen(port, "127.0.0.1", () => vscode.env.openExternal(vscode.Uri.parse(authUrl)));
     });
+}
+
+function escapeHtml(text: string): string {
+    return text.replace(/[&<>"']/g, (ch) => `&#${ch.charCodeAt(0)};`);
+}
+
+function callbackPage(service: string, error?: string): string {
+    const title = error ? "Sign-in failed" : "You're signed in";
+    const body = error
+        ? `${escapeHtml(error)}<br>Return to VS Code and try again.`
+        : `${escapeHtml(service)} is connected. You can close this tab and return to VS Code.`;
+    const icon = error
+        ? '<path d="M15 9l-6 6M9 9l6 6"/>'
+        : '<path d="M8 12.5l2.5 2.5L16 9.5"/>';
+    return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${title}</title>
+<style>
+:root{--bg:#f3f3f3;--card:#fff;--fg:#1f1f1f;--muted:#616161;--border:#e0e0e0;--accent:${error ? "#c72e2e" : "#2e7d32"}}
+@media (prefers-color-scheme:dark){:root{--bg:#1e1e1e;--card:#252526;--fg:#e6e6e6;--muted:#a0a0a0;--border:#3c3c3c;--accent:${error ? "#f14c4c" : "#4caf50"}}}
+body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);color:var(--fg);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+main{max-width:420px;margin:16px;padding:32px;text-align:center;background:var(--card);border:1px solid var(--border);border-radius:10px}
+svg{width:48px;height:48px;stroke:var(--accent);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+h1{font-size:20px;margin:12px 0 8px}p{margin:0;color:var(--muted)}
+</style></head><body><main><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/>${icon}</svg><h1>${title}</h1><p>${body}</p></main></body></html>`;
 }
