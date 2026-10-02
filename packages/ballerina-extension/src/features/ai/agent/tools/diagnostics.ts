@@ -1,8 +1,9 @@
 import { tool } from 'ai';
 import { z } from 'zod';
-import { checkCompilationErrors, DiagnosticsCheckResult } from './diagnostics-utils';
+import { checkCompilationErrorsWithRaw, DiagnosticsCheckResult } from './diagnostics-utils';
 import { resolvePackageBasePath } from './path-utils';
 import { CopilotEventHandler } from '../../utils/events';
+import { EditDiagnosticsReporter, resolveWithin } from './edit-diagnostics';
 
 export const DIAGNOSTICS_TOOL_NAME = "getCompilationErrors";
 
@@ -29,16 +30,16 @@ const DiagnosticsInputSchema = z.object({
  */
 export function createDiagnosticsTool(
     tempProjectPath: string,
-    eventHandler: CopilotEventHandler
+    eventHandler: CopilotEventHandler,
+    editDiagnostics?: EditDiagnosticsReporter
 ) {
     return tool({
         description: `Checks the compilation errors in the current Ballerina package.
 
-Use this tool when:
-// before you mark a task as completed, use this tool to check diagnostics.
-- You have completed a significant portion of a task and want to verify the code compiles
-- You want to catch errors early before marking a task as complete
-- You need detailed diagnostics with resolving hints for any compilation issues
+File edits already report the compiler errors they newly introduce, so this tool is not needed after every change. Use it when:
+- An edit result says its compiler errors were not checked
+- An error reports a module that cannot be resolved: this tool pulls missing dependencies and checks again
+- You need the package's full current list of errors with resolving hints
 
 For workspace projects, you MUST call this tool separately for each modified package, providing the packagePath parameter.
 For single-package projects, omit the packagePath parameter.
@@ -88,12 +89,12 @@ The tool analyzes the entire Ballerina package and returns:
                     "You may call this tool again later to recheck.",
             };
 
-            const result = await Promise.race([
-                checkCompilationErrors(targetPath),
-                new Promise<DiagnosticsCheckResult>((resolve) =>
-                    setTimeout(() => resolve(timeoutResult), DIAGNOSTICS_TIMEOUT_MS)
-                ),
-            ]);
+            const outcome = await resolveWithin(checkCompilationErrorsWithRaw(targetPath), DIAGNOSTICS_TIMEOUT_MS);
+            // What this returns is in front of the model, so the next edit must not repeat it.
+            if (outcome?.raw) {
+                editDiagnostics?.recordDelivered(outcome.raw, targetPath);
+            }
+            const result = outcome?.result ?? timeoutResult;
 
             // Emit tool_result event to visualizer (shows result in UI)
             eventHandler({

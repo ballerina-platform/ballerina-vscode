@@ -38,7 +38,6 @@ import { Input, SkillBadgeInput, stringifyInputArray } from "./utils/inputUtils"
 import SuggestionsList from "./SuggestionsList";
 import ModeToggle, { AgentMode } from "./ModeToggle";
 import AutoApproveChip from "./AutoApproveChip";
-import WebSearchToggle from "./WebSearchToggle";
 import { CommandTemplates } from "../../commandTemplates/data/commandTemplates.const";
 import { Tag } from "../../commandTemplates/models/tag.model";
 import { getFirstOccurringPlaceholder, matchCommandTemplate } from "./utils/utils";
@@ -146,8 +145,6 @@ interface AIChatInputProps {
     onChangeAgentMode?: (mode: AgentMode) => void;
     isAutoApproveEnabled?: boolean;
     onDisableAutoApprove?: () => void;
-    isWebToolsEnabled?: boolean;
-    onToggleWebSearch?: () => void;
     disabled?: boolean;
     contextUsage?: { inputTokens: number; percentage: number; breakdown?: { systemInstructions: number; toolDefinitions: number; reservedOutput: number; files: number; messages: number; toolResults: number } } | null;
     mcpToolsEnabled?: boolean;
@@ -171,8 +168,6 @@ const AIChatInput = forwardRef<AIChatInputRef, AIChatInputProps>(
             onChangeAgentMode,
             isAutoApproveEnabled = false,
             onDisableAutoApprove,
-            isWebToolsEnabled = false,
-            onToggleWebSearch,
             disabled,
             contextUsage,
             mcpToolsEnabled = false,
@@ -737,9 +732,6 @@ const AIChatInput = forwardRef<AIChatInputRef, AIChatInputProps>(
                                     )}
                                     {isAutoApproveEnabled && onDisableAutoApprove && (
                                         <AutoApproveChip onToggle={onDisableAutoApprove} />
-                                    )}
-                                    {onToggleWebSearch && (
-                                        <WebSearchToggle isActive={isWebToolsEnabled} onToggle={onToggleWebSearch} />
                                     )}
                                     {contextUsage && (
                                         <ContextUsageWidget

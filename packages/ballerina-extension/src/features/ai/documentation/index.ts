@@ -44,7 +44,7 @@ export async function generateDocumentationCore(
     const { fullStream } = streamText({
         model: await getAnthropicClient(ANTHROPIC_SONNET),
         maxOutputTokens: 16384,
-        providerOptions: await getProviderModelOptions(),
+        providerOptions: await getProviderModelOptions('low'),
         system: systemPrompt,
         messages: userMessages,
         abortSignal: abortController.signal,

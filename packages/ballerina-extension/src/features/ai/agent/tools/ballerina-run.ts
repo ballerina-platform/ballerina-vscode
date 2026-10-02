@@ -46,7 +46,7 @@ export function createBallerinaRunTool(
     return tool({
         description: `Runs a Ballerina package using \`bal run\`.
 
-**Prerequisites:** The project must compile cleanly. Always run \`${DIAGNOSTICS_TOOL_NAME}\` first and resolve all compilation errors before invoking this tool.
+**Prerequisites:** The project must compile cleanly. Fix the compiler errors your edits reported first; if an edit's errors were not checked, run \`${DIAGNOSTICS_TOOL_NAME}\` first.
 
 **Modes:**
 - \`service\`: Starts a long-running service. Returns immediately with a \`taskId\`. Use \`${BALLERINA_GET_LOGS_TOOL_NAME}\` to check output and \`${BALLERINA_STOP_TOOL_NAME}\` to stop it.

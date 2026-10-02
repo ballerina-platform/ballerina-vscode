@@ -205,6 +205,7 @@ const COPILOT_CONFIG_SECTION = 'ballerina.copilot';
 /** Mirrors the defaults declared for these settings in package.json. */
 const COPILOT_TOGGLE_DEFAULTS: CopilotToggleSettings = {
     followupSuggestions: true,
+    enableWebSearch: true,
 };
 
 // Shown when a flow ends without a connection id. "cancelled" and "superseded" are dropped by the

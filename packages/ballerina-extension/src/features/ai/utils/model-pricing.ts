@@ -26,6 +26,7 @@ export interface ModelPricing {
 // Cache-write rates are the 5-minute-TTL tier, matching getProviderCacheControl().
 // Per-million-token pricing by model
 const MODEL_PRICING: Record<string, ModelPricing> = {
+    'claude-sonnet-5-5':            { input: 2,  cacheWrite: 2.50, cacheRead: 0.20, output: 10 },
     'claude-sonnet-5':              { input: 2,  cacheWrite: 2.50, cacheRead: 0.20, output: 10 },
     'claude-sonnet-4-6':            { input: 3,  cacheWrite: 3.75, cacheRead: 0.30, output: 15 },
     'claude-haiku-4-5-20251001':    { input: 1,  cacheWrite: 1.25, cacheRead: 0.10, output: 5  },

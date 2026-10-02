@@ -40,6 +40,10 @@ const rates = (model: string) => ({
 });
 
 describe('the pricing table', () => {
+    it('prices claude-sonnet-5-5 at its published rates', () => {
+        expect(rates('claude-sonnet-5-5')).toEqual({ input: 2, output: 10, cacheWrite: 2.5, cacheRead: 0.2 });
+    });
+
     it('prices claude-sonnet-5 at its published rates', () => {
         expect(rates('claude-sonnet-5')).toEqual({ input: 2, output: 10, cacheWrite: 2.5, cacheRead: 0.2 });
     });
@@ -69,7 +73,7 @@ describe('rates do not depend on the wall clock', () => {
         'well after the cancelled cutover': Date.parse('2027-01-01T00:00:00Z'),
     };
 
-    for (const model of ['claude-sonnet-5', 'claude-sonnet-4-6', 'claude-haiku-4-5-20251001']) {
+    for (const model of ['claude-sonnet-5-5', 'claude-sonnet-5', 'claude-sonnet-4-6', 'claude-haiku-4-5-20251001']) {
         it(`prices ${model} identically at every instant`, () => {
             const expected = rates(model);
             expect(expected.input).toBeGreaterThan(0);

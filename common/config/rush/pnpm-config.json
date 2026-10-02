@@ -97,18 +97,17 @@
       "brace-expansion@>=1 <2": "1.1.21",
       "brace-expansion@>=2 <3": "2.1.7",
       "brace-expansion@>=5.0.0 <6": "5.0.12",
-      // Claude Sonnet 5 must be sent `thinking: {"type": "disabled"}` explicitly,
-      // because an absent `thinking` field means adaptive reasoning is ON. Only
-      // @ai-sdk/anthropic >= 3.0.104 serializes that value — earlier 3.x releases
-      // accept it and then silently drop it from the request body. Forcing keeps
-      // google-vertex and anthropic-aws on the same copy. The selector stays inside 3.x: the 4.x line implements the v4 model spec,
+      // Claude Sonnet 5.5 needs @ai-sdk/anthropic >= 3.0.125: earlier 3.x releases
+      // treat `claude-sonnet-5-5` as Claude Sonnet 5 and forward the `disabled`
+      // thinking and forced tool choice it rejects. Forcing keeps google-vertex,
+      // amazon-bedrock and anthropic-aws on the same copy. The selector stays inside 3.x: the 4.x line implements the v4 model spec,
       // which the pinned ai@6 core cannot consume.
-      "@ai-sdk/anthropic@>=3 <4": "3.0.122",
+      "@ai-sdk/anthropic@>=3 <4": "3.0.125",
       // Security fix: uncontrolled resource consumption, fixed at 4.0.33,
-      // but @ai-sdk/anthropic@3.0.122 pins 4.0.54 exactly and imports its
-      // (unexported-until-4.0.41) `secureJsonParse` helper, so force 4.0.54
-      // rather than the bare fix version.
-      "@ai-sdk/provider-utils@>=4 <5": "4.0.54",
+      // but @ai-sdk/anthropic@3.0.125 and ai@6.0.296 pin 4.0.56 exactly and
+      // import its (unexported-until-4.0.41) `secureJsonParse` helper, so force
+      // 4.0.56 rather than the bare fix version.
+      "@ai-sdk/provider-utils@>=4 <5": "4.0.56",
       // Security overrides — keep in sync with trivy findings. Bump to the
       // first fix version listed for each CVE. If a bump breaks workspace
       // consumers, narrow the selector (e.g. "pkg@<x.y.z": "x.y.z").

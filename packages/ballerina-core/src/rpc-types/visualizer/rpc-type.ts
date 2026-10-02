@@ -45,7 +45,3 @@ export const reviewModeClosed: NotificationType<void> = { method: `${_preFix}/re
 export const handleApprovalPopupClose: NotificationType<HandleApprovalPopupCloseRequest> = { method: `${_preFix}/handleApprovalPopupClose` };
 export const reopenApprovalView: NotificationType<ReopenApprovalViewRequest> = { method: `${_preFix}/reopenApprovalView` };
 export const saveEvalThread: RequestType<SaveEvalThreadRequest, SaveEvalThreadResponse> = { method: `${_preFix}/saveEvalThread` };
-export interface WebToolToggle {
-    active: boolean;
-}
-export const webToolToggle: NotificationType<WebToolToggle> = { method: `${_preFix}/webToolToggle` };

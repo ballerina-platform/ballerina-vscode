@@ -317,7 +317,6 @@ export interface GenerateAgentCodeRequest {
     threadId?: string; //TODO: Make this required once we support threads in UI
     isPlanMode: boolean;
     codeContext?: CodeContext;
-    webSearchEnabled?: boolean;
     /** Identifies the UI surface so the host can resolve the correct ambient file context. */
     promptSource?: 'ai-panel' | 'mini-chat';
     /** Host-validated workspace-relative Ballerina file currently associated with the prompt surface. */
@@ -948,7 +947,7 @@ export interface SetCopilotOrbVisibleRequest {
     visible: boolean;
 }
 /** Boolean `ballerina.copilot.*` settings the Copilot settings panel toggles, keyed relative to that section. */
-export type CopilotToggleSetting = 'followupSuggestions';
+export type CopilotToggleSetting = 'followupSuggestions' | 'enableWebSearch';
 export type CopilotToggleSettings = Record<CopilotToggleSetting, boolean>;
 export interface SetCopilotToggleSettingRequest {
     key: CopilotToggleSetting;

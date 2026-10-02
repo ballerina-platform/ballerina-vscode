@@ -20,15 +20,25 @@ import { AICommandExecutor, AICommandConfig, AIExecutionResult } from '../execut
 import { Command, GenerateAgentCodeRequest, ProjectSource, ExecutionContext, SemanticDiff, ReviewModeData, PROJECT_KIND, LoginMethod } from '@wso2/ballerina-core';
 import { StateMachine } from '../../../stateMachine';
 import { FinishReason, LanguageModelUsage, ModelMessage, stepCountIs, SystemModelMessage, streamText, TextStreamPart } from 'ai';
-import { getAnthropicClient, getProviderCacheControl, getProviderModelOptions, addCacheControlToMessages, ANTHROPIC_SONNET } from '../utils/ai-client';
+import { getAnthropicClient, getProviderCacheControl, addCacheControlToMessages, ANTHROPIC_SONNET } from '../utils/ai-client';
+import { AnthropicEffort, resolveProviderModelOptions } from '../utils/provider-model-options';
 import { populateHistoryForAgent, getErrorMessage, getErrorCode, buildChatError } from '../utils/ai-utils';
 import { seedAiBaselines } from '../utils/project/ls-schema-notifications';
 import { mapWithConcurrency } from '../utils/concurrency';
 import { getSystemPrompt, getUserPrompt } from './prompts';
+import { isWebSearchEnabled } from './tools/web-search-setting';
 import { shouldFailForMissingCompaction } from './compaction-gate';
+import {
+    buildCompactionContinuation,
+    findCompactionSummary,
+    isCompactionPause,
+    MAX_COMPACTION_RESTARTS,
+} from './compaction-restart';
+import { COMPACT_SYSTEM_REMINDER_AUTO_TRIGGERED } from './compaction-prompt';
+import { createModelRefusalError, MODEL_REFUSAL_ERROR_NAME, RefusalStopDetails } from './model-refusal';
 import { FollowupSituation, startFollowupSuggestions } from './followups';
 import { startConsoleSummary } from './console-summary';
-import { prepareAgentsMdForTurn } from './agents-md';
+import { AgentsMdTurnPrep, prepareAgentsMdForRestart, prepareAgentsMdForTurn } from './agents-md';
 import { resolveChatStoreKey } from './chatStoreKey';
 // TODO(auto-memory): temporarily disabled for this release.
 // import { executeAutoDream, isMemoryEnabled } from '../memory/autoDream';
@@ -57,8 +67,6 @@ import { approvalViewManager } from '../state/ApprovalViewManager';
 import {
     detectAppliedCompaction,
     estimateFloorTokens,
-    extractCompactionSummary,
-    stripAnalysisFromCompactionBlocks,
     COMPACTION_BLOCK_PREFIX,
     SUMMARIZATION_PROMPT,
 } from '@wso2/copilot-utilities/context-management';
@@ -80,14 +88,15 @@ import { workspace } from 'vscode';
 import { runningServicesManager } from './tools/running-service-manager';
 
 
-/** Per-response output cap, and what the context-usage widget reports as reserved. */
+/** Per-response output cap, and what the context-usage widget reports as reserved. Thinking counts against it. */
 const RESERVED_OUTPUT_TOKENS = 64_000;
 
-// The SDK records response messages apart from the live step messages, so the prepareStep strip never reaches them.
-function toPersisted<T>(messages: T[]): T[] {
-    stripAnalysisFromCompactionBlocks(messages);
-    return messages;
-}
+/**
+ * `high`, not `medium`: on integration-design requests Sonnet 5.5 at `medium` skipped rate-limit
+ * retries and batching that it handled at `high`, for about the same cost (cache reads dominate
+ * input). `low` risks reporting changes done without checking them.
+ */
+const AGENT_EFFORT: AnthropicEffort = 'high';
 
 /** Built once; the tool names come from the registry so the advice cannot go stale. */
 const TRUNCATION_RECOVERY_NOTE = buildTruncationRecoveryNote(
@@ -114,6 +123,15 @@ function supportsCompaction(loginMethod: LoginMethod): boolean {
 }
 
 /**
+ * Whether compaction pauses after its block so the turn restarts from its own summary
+ * (see compaction-restart.ts). Verified live on the Anthropic API and through the WSO2 proxy;
+ * Vertex AI and Claude Platform on AWS keep the block in history verbatim until verified.
+ */
+function supportsCompactionPause(loginMethod: LoginMethod): boolean {
+    return loginMethod === LoginMethod.ANTHROPIC_KEY || loginMethod === LoginMethod.BI_INTEL;
+}
+
+/**
  * Server-side compaction trigger, in input tokens. Higher than MI's 200K because BI re-sends
  * the whole project source each turn; 500K sits well within Claude Sonnet's 1M window.
  */
@@ -128,6 +146,9 @@ function buildCompactionProviderOptions(loginMethod: LoginMethod, floorTokens: n
     // Disable when the fixed per-turn floor (system prompt + whole-codebase dump) already
     // exceeds the trigger — compaction would otherwise fire every turn against empty history.
     if (floorTokens >= COMPACT_TRIGGER_TOKENS) { return undefined; }
+    // Only a pausing provider restarts the turn with its context rebuilt, so only there may the
+    // summary leave that context out. The field is omitted elsewhere rather than sent as false.
+    const pause = supportsCompactionPause(loginMethod);
     return {
         anthropic: {
             contextManagement: {
@@ -135,7 +156,8 @@ function buildCompactionProviderOptions(loginMethod: LoginMethod, floorTokens: n
                     {
                         type: 'compact_20260112' as const,
                         trigger: { type: 'input_tokens' as const, value: COMPACT_TRIGGER_TOKENS },
-                        instructions: SUMMARIZATION_PROMPT,
+                        ...(pause ? { pauseAfterCompaction: true } : {}),
+                        instructions: pause ? COMPACT_SYSTEM_REMINDER_AUTO_TRIGGERED : SUMMARIZATION_PROMPT,
                     },
                 ],
             },
@@ -296,6 +318,12 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
     /** Tracks in-flight tool-call start times keyed by toolCallId for duration logging. */
     private readonly _pendingToolCalls = new Map<string, number>();
 
+    /**
+     * Reasoning blocks that got `thinking_start` but no `thinking_end` yet. Instance state because the
+     * abort, error and finish paths that must close them are separate methods.
+     */
+    private readonly _openThinkingIds = new Set<string>();
+
     /** A turn can reach both the finish and abort paths; suggestions must be scheduled once. */
     private _followupsScheduled = false;
 
@@ -392,26 +420,29 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
             const model = await getAnthropicClient(ANTHROPIC_SONNET);
 
             const projectRootPath = this.config.executionContext.workspacePath || this.config.executionContext.projectPath || '';
-            const agentsMd = await prepareAgentsMdForTurn(workspaceId || '', threadId);
-            if (agentsMd.hashToPersist !== undefined) {
-                const generation = chatStateStorage.getGeneration(this.chatStoreKey, threadId, this.config.generationId);
-                if (generation) {
-                    chatStateStorage.updateGeneration(this.chatStoreKey, threadId, this.config.generationId, {
-                        metadata: {
-                            ...generation.metadata,
-                            agentsMdLastReadHash: agentsMd.hashToPersist,
-                        },
-                    });
-                }
-            }
-
             const { allDisabled, projectSkills, userSkills, disabledSkillMetas } =
                 loadSkillsContext(projectRootPath || null);
 
-            const userMessageContent = getUserPrompt(params, tempProjectPath, projects, projectSkills, agentsMd.text, {
-                omitCodebaseDump: this.config.toolOptions?.omitCodebaseDump,
-                codebaseMapText: this.config.toolOptions?.codebaseMapText,
-            });
+            const webSearchEnabled = isWebSearchEnabled();
+            // The turn's user message, built here and again on every compaction restart.
+            const buildTurnPrompt = (turnProjects: ProjectSource[], agentsMd: AgentsMdTurnPrep) => {
+                if (agentsMd.hashToPersist !== undefined) {
+                    const generation = chatStateStorage.getGeneration(this.chatStoreKey, threadId, this.config.generationId);
+                    if (generation) {
+                        chatStateStorage.updateGeneration(this.chatStoreKey, threadId, this.config.generationId, {
+                            metadata: {
+                                ...generation.metadata,
+                                agentsMdLastReadHash: agentsMd.hashToPersist,
+                            },
+                        });
+                    }
+                }
+                return getUserPrompt(params, tempProjectPath, turnProjects, projectSkills, webSearchEnabled, agentsMd.text, {
+                    omitCodebaseDump: this.config.toolOptions?.omitCodebaseDump,
+                    codebaseMapText: this.config.toolOptions?.codebaseMapText,
+                });
+            };
+            const userMessageContent = buildTurnPrompt(projects, await prepareAgentsMdForTurn(workspaceId || '', threadId));
 
             // Estimate fixed overhead (system prompt + codebase) to decide if compaction is viable
             // TODO(auto-memory): memory-augmented prompt disabled for this release — using base system prompt.
@@ -430,7 +461,9 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
             if (supportsCompaction(loginMethod) && compactionOptions === undefined) {
                 warnCompactionDisabledOnce(projectRootPath, this.config.eventHandler);
             }
-            const modelOptions = await getProviderModelOptions('xhigh');
+            // `summarized` streams reasoning summaries and the progress notes written between tool
+            // calls; under the default `omitted` both arrive empty and a long turn looks silent.
+            const modelOptions = resolveProviderModelOptions(loginMethod === LoginMethod.AWS_BEDROCK, AGENT_EFFORT, 'summarized');
             const providerOptions = compactionOptions
                 ? { anthropic: { ...(modelOptions as { anthropic?: object }).anthropic, ...compactionOptions.anthropic } }
                 : modelOptions;
@@ -480,7 +513,7 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
                 threadId,
                 migrationSourcePath: this.config.toolOptions?.migrationSourcePath,
                 runningServices: runningServicesManager,
-                webSearchEnabled: params.webSearchEnabled ?? false,
+                webSearchEnabled,
                 ctx: this.config.executionContext,
                 // TODO(auto-memory): temporarily disabled for this release.
                 // autoMemoryEnabled: isMemoryEnabled(),
@@ -497,7 +530,6 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
             const useContentBasedDetection = false;
             let isCompactionBlock = false;
             let compactionContent = '';
-            let cleanedCompactionSummary: string | undefined;
             // Counts compactions in this turn so each renders as its own card (upsertComponent
             // keys by id), instead of a raw <compaction> text block that would show as literal text.
             let compactionCount = 0;
@@ -520,6 +552,7 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
             const carriedMessages: ModelMessage[] = [];
             let carriedUsage: LanguageModelUsage | undefined;
             let truncationRetries = 0;
+            let compactionRestarts = 0;
 
             // `response`/`totalUsage` belong to one streamText call, so they are reassigned
             // per attempt below, before any handler reads them.
@@ -545,11 +578,8 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
             // calls or text), with a stream-end fallback for a block left open at stream end.
             const flushCompactionBlock = () => {
                 isCompactionBlock = false;
-                const summary = extractCompactionSummary(compactionContent);
-                cleanedCompactionSummary = summary || compactionContent;
                 streamContext.wasCompactionTurn = true;
-                // The summary stays internal (kept only in cleanedCompactionSummary for prepareStep);
-                // it is never forwarded to the webview or the persisted transcript.
+                // The summary stays internal: it is never forwarded to the webview.
                 this.config.eventHandler({ type: 'compaction_end' });
                 // Reset context widget to near-zero after compaction
                 this.config.eventHandler({
@@ -575,14 +605,14 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
                         abortSignal: this.config.abortController.signal,
                         providerOptions: providerOptions as any,
 
-                        // Strip <analysis> blocks from compaction entries before each subsequent step
-                        // to avoid re-sending thousands of reasoning tokens.
-                        // Also apply incremental cache control to the last message so Anthropic caches the
+                        // Never edit the compaction block or any earlier assistant content here: Claude
+                        // Sonnet 5.5 binds each thinking block to the conversation before it, from the latest
+                        // compaction block on, and an edited prefix gets the thinking dropped or the request
+                        // rejected. That is why the compaction summary's <analysis> is no longer stripped;
+                        // Sonnet 5.5 summaries carry none.
+                        // Applies incremental cache control to the last message so Anthropic caches the
                         // growing conversation history on each step.
                         prepareStep: async ({ messages: stepMessages }) => {
-                            if (cleanedCompactionSummary) {
-                                stripAnalysisFromCompactionBlocks(stepMessages);
-                            }
                             // Anthropic requires tool_use.input to be an object; an unparseable or schema-invalid
                             // streamed input is left as a non-object on the tool-call part and 400s every later request.
                             sanitizeMessages(stepMessages);
@@ -607,9 +637,11 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
                                 console.log(`[AgentExecutor] Server cleared ${appliedCompaction.clearedToolUses} tool uses`);
                             }
 
-                            // Persist partial modelMessages after each step so chat is recoverable mid-stream
+                            // Persist partial modelMessages after each step so chat is recoverable mid-stream.
+                            // A compaction pause is skipped: the restart replaces this history at once.
+                            const compactionPaused = isCompactionPause(step.rawFinishReason);
                             const stepMessages = step.response?.messages ?? [];
-                            if (stepMessages.length > 0) {
+                            if (stepMessages.length > 0 && !compactionPaused) {
                                 // `stepMessages` is this attempt's share only; count what is
                                 // actually written, or a resume looks like it lost history.
                                 const savedCount = 1 + carriedMessages.length + stepMessages.length;
@@ -619,14 +651,16 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
                                 console.log(`[AgentExecutor] Step ${step.stepNumber} saving ${savedCount} message(s) to chat storage${carriedNote}`);
                                 chatStateStorage.updateGeneration(this.chatStoreKey, threadId, this.config.generationId, {
                                     modelMessages: [
-                                        { role: "user", content: userMessageContent },
-                                        ...toPersisted([...carriedMessages, ...stepMessages]),
+                                        { role: "user", content: streamContext.userMessageContent },
+                                        ...carriedMessages, ...stepMessages,
                                     ],
                                 });
                                 updateAndSaveChat(this.config.generationId, Command.Agent, this.config.eventHandler);
                             }
 
-                            if (step.usage) {
+                            // A compaction pause's usage is the summarized request; the meter stays at
+                            // the reset the compaction block made until the restarted request reports.
+                            if (step.usage && !compactionPaused) {
                                 const inputTokens = step.usage.inputTokens || 0;
                                 const cacheReadTokens = step.usage.inputTokenDetails?.cacheReadTokens || 0;
                                 const cacheWriteTokens = step.usage.inputTokenDetails?.cacheWriteTokens || 0;
@@ -647,7 +681,7 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
                                         cacheReadInputTokens: cacheReadTokens,
                                         outputTokens,
                                     },
-                                    breakdown: computeTokenBreakdown([systemMessage, ...allMessages], tools, accToolCallChars, accToolResultChars, inputTokens, (userMessageContent[0] as any)?.text?.length ?? 0),
+                                    breakdown: computeTokenBreakdown([systemMessage, ...allMessages], tools, accToolCallChars, accToolResultChars, inputTokens, (streamContext.userMessageContent[0] as any)?.text?.length ?? 0),
                                 });
                             }
                         },
@@ -660,6 +694,7 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
 
                     let attemptFinishReason: FinishReason | undefined;
                     let attemptRawFinishReason: string | undefined;
+                    let attemptStopDetails: RefusalStopDetails | undefined;
 
                     for await (const part of fullStream) {
                         // Handle compaction block detection inline (text-start/text-delta)
@@ -709,6 +744,11 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
                             continue;
                         }
 
+                        // The refusal category and explanation ride on the step's provider metadata.
+                        if (part.type === 'finish-step') {
+                            attemptStopDetails = (part.providerMetadata?.anthropic?.stopDetails as RefusalStopDetails | undefined) ?? attemptStopDetails;
+                        }
+
                         await this.handleStreamPart(part, streamContext);
                     }
 
@@ -727,8 +767,57 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
                         throw abortError;
                     }
 
+                    // A decline (stop_reason "refusal") is not a finished turn: end it as an error so
+                    // the reason shows in the chat, partial work is kept, and no follow-ups run.
+                    if (attemptFinishReason === 'content-filter') {
+                        const refusal = createModelRefusalError(attemptStopDetails);
+                        console.warn(`[AgentExecutor] ${refusal.message}`);
+                        await this.handleStreamError(refusal, streamContext);
+                        throw refusal;
+                    }
+
                     const attemptResponse = await response;
                     const attemptMessages = (attemptResponse.messages ?? []) as ModelMessage[];
+
+                    // Compaction paused after its block. Restart the turn from our own message holding
+                    // the summary: the model's thinking from here on is signed against a conversation
+                    // that starts at that message, which is replayed unchanged on every later request.
+                    if (isCompactionPause(attemptRawFinishReason)) {
+                        const summary = findCompactionSummary(attemptMessages);
+                        if (!summary || compactionRestarts >= MAX_COMPACTION_RESTARTS) {
+                            const error = new Error(!summary
+                                ? 'Context compaction returned no summary, so this request cannot continue. Start a new chat to continue the work.'
+                                : `Context was compacted ${MAX_COMPACTION_RESTARTS} times in one request and is still too large. Start a new chat to continue the work.`);
+                            // The last step save holds the history before the pause; the paused block is not kept.
+                            await this.handleStreamError(error, streamContext, { savePartialResponse: false });
+                            throw error;
+                        }
+                        compactionRestarts++;
+                        console.log(`[AgentExecutor] Compaction paused the turn; restarting from its summary (${compactionRestarts}/${MAX_COMPACTION_RESTARTS})`);
+                        carriedUsage = addUsage(carriedUsage, await totalUsage);
+                        // The summary leaves out the turn's context blocks (the compaction prompt says
+                        // they come back), so rebuild the turn's prompt from the workspace as it is now.
+                        const [restartAgentsMd, currentProjects] = await Promise.all([
+                            prepareAgentsMdForRestart(workspaceId || ''),
+                            // The prompt reads no project source when the dump is off.
+                            this.config.toolOptions?.omitCodebaseDump
+                                ? projects
+                                : getProjectSource(params.operationType, this.config.executionContext),
+                        ]);
+                        const continuation = buildCompactionContinuation(summary, buildTurnPrompt(currentProjects, restartAgentsMd));
+                        carriedMessages.length = 0;
+                        allMessages.length = 0;
+                        allMessages.push(continuation);
+                        accToolCallChars = 0;
+                        accToolResultChars = 0;
+                        streamContext.userMessageContent = continuation.content;
+                        // Saved before the next request, so an abort in between keeps the restarted shape.
+                        chatStateStorage.updateGeneration(this.chatStoreKey, threadId, this.config.generationId, {
+                            modelMessages: [continuation],
+                            restartedFromSummary: true,
+                        });
+                        continue;
+                    }
 
                     // A truncated attempt never ran its last tool call, so the change it
                     // carried is missing while earlier ones are already on disk. Hand the
@@ -765,6 +854,8 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
                 // Handle abort specifically
                 if (error.name === 'AbortError' || this.config.abortController.signal.aborted) {
                     console.log("[AgentExecutor] Aborted by user.");
+                    // Close open thinking rows before the partial transcript is saved.
+                    this.flushOpenThinkingBlocks();
 
                     // Get partial messages from SDK
                     let partialLLMMessages: any[] = [];
@@ -780,7 +871,7 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
                         chatStateStorage.updateGeneration(projectRootPath, threadId, this.config.generationId, {
                             modelMessages: [
                                 { role: "user", content: streamContext.userMessageContent },
-                                ...toPersisted(partialLLMMessages),
+                                ...partialLLMMessages,
                                 {
                                     role: "user",
                                     content: `<abort_notification>
@@ -865,6 +956,7 @@ Generation stopped by user. The last in-progress task was not saved. Any complet
                 this.config.abortController.abort();
             }
 
+            this.flushOpenThinkingBlocks();
             this.config.eventHandler(buildChatError(error));
 
             // For other errors, return result with error
@@ -912,6 +1004,23 @@ Generation stopped by user. The last in-progress task was not saved. Any complet
                 }
                 break;
 
+            // Reasoning summaries and the progress notes written between tool calls.
+            case "reasoning-start":
+                this._openThinkingIds.add(part.id);
+                context.eventHandler({ type: "thinking_start", thinkingId: part.id, timestamp: Date.now() });
+                break;
+
+            case "reasoning-delta":
+                if (part.text) {
+                    context.eventHandler({ type: "thinking_delta", thinkingId: part.id, content: part.text });
+                }
+                break;
+
+            case "reasoning-end":
+                this._openThinkingIds.delete(part.id);
+                context.eventHandler({ type: "thinking_end", thinkingId: part.id, timestamp: Date.now() });
+                break;
+
             case "tool-error": {
                 // A tool whose execute() throws never reaches its own
                 // emitFileToolResult/eventHandler call, because tools emit their
@@ -955,11 +1064,23 @@ Generation stopped by user. The last in-progress task was not saved. Any complet
     }
 
     /**
+     * Sends `thinking_end` for every reasoning block that never got one (abort, stream error, or a
+     * provider that omits `reasoning-end`), so no thinking row stays loading forever.
+     */
+    private flushOpenThinkingBlocks(): void {
+        for (const id of this._openThinkingIds) {
+            this.config.eventHandler({ type: "thinking_end", thinkingId: id, timestamp: Date.now() });
+        }
+        this._openThinkingIds.clear();
+    }
+
+    /**
      * Handles stream errors with cleanup.
      * Clears review state to prevent stale data.
      */
-    private async handleStreamError(error: Error, context: StreamContext): Promise<void> {
+    private async handleStreamError(error: Error, context: StreamContext, { savePartialResponse = true } = {}): Promise<void> {
         console.error("[Agent] Stream error:", error);
+        this.flushOpenThinkingBlocks();
 
         const tempProjectPath = context.ctx.tempProjectPath!;
 
@@ -1007,18 +1128,20 @@ Generation stopped by user. The last in-progress task was not saved. Any complet
 
         // Save partial LLM messages to storage and emit save_chat (mirrors abort path)
         let messagesToSave: any[] = [];
-        try {
-            const partialResponse = await context.response;
-            messagesToSave = [...(context.carriedMessages ?? []), ...(partialResponse.messages || [])];
-        } catch (e) {
-            console.warn("[AgentExecutor] Could not retrieve partial response messages on error:", e);
+        if (savePartialResponse) {
+            try {
+                const partialResponse = await context.response;
+                messagesToSave = [...(context.carriedMessages ?? []), ...(partialResponse.messages || [])];
+            } catch (e) {
+                console.warn("[AgentExecutor] Could not retrieve partial response messages on error:", e);
+            }
         }
 
         if (messagesToSave.length > 0) {
             chatStateStorage.updateGeneration(projectRootPath, threadId, context.messageId, {
                 modelMessages: [
                     { role: "user", content: context.userMessageContent },
-                    ...toPersisted(messagesToSave),
+                    ...messagesToSave,
                 ],
             });
             updateAndSaveChat(context.messageId, Command.Agent, context.eventHandler);
@@ -1026,6 +1149,10 @@ Generation stopped by user. The last in-progress task was not saved. Any complet
 
         // A quota failure gets a Continue chip with no model call — the webview keeps it hidden
         // until the limit resets, so the user can pick the work back up then.
+        // A decline gets no follow-ups: a retry chip would send the same request back.
+        if (error.name === MODEL_REFUSAL_ERROR_NAME) {
+            return;
+        }
         const situation: FollowupSituation = getErrorCode(error) === 'usage_limit' ? 'usage_limit' : 'error';
         this.maybeScheduleFollowups(context, messagesToSave, situation, getErrorMessage(error));
     }
@@ -1049,6 +1176,8 @@ Generation stopped by user. The last in-progress task was not saved. Any complet
         },
     ): Promise<void> {
         const { turnMessages, turnUsage, finishReason, rawFinishReason, truncationRetries = 0 } = turn;
+        // reasoning-end normally closes every block before the stream finishes.
+        this.flushOpenThinkingBlocks();
         // 'length' covers both max_tokens and model_context_window_exceeded. Typed as the
         // SDK's `FinishReason`, not `string`: the provider hands up a `{ unified, raw }`
         // object that the SDK flattens, and an upgrade that stopped flattening it would make
@@ -1240,7 +1369,7 @@ Generation stopped by user. The last in-progress task was not saved. Any complet
         chatStateStorage.updateGeneration(projectRootPath, threadId, context.messageId, {
             modelMessages: [
                 { role: "user", content: context.userMessageContent },
-                ...toPersisted(assistantMessages),
+                ...assistantMessages,
             ],
         });
 

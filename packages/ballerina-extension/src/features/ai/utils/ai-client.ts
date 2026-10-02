@@ -24,9 +24,10 @@ import { AIStateMachine } from "../../../views/ai-panel/aiMachine";
 import { BACKEND_URL } from "../utils";
 import { LLM_API_BASE_PATH } from "../constants";
 import { AIMachineEventType, AnthropicKeySecrets, AnthropicAwsSecrets, LoginMethod, BIIntelSecrets } from "@wso2/ballerina-core";
+import { AnthropicEffort, resolveProviderModelOptions, ThinkingDisplay } from "./provider-model-options";
 
 export const ANTHROPIC_HAIKU = "claude-haiku-4-5-20251001";
-export const ANTHROPIC_SONNET = "claude-sonnet-5";
+export const ANTHROPIC_SONNET = "claude-sonnet-5-5";
 
 export const USAGE_LIMIT_EXCEEDED_MESSAGE = "Usage limit exceeded.";
 
@@ -204,7 +205,7 @@ export const getAnthropicClient = async (model: AnthropicModel): Promise<any> =>
             // Map Anthropic model names to AWS Bedrock model IDs (base models without region prefix)
             const baseModelMap: Record<AnthropicModel, string> = {
                 [ANTHROPIC_HAIKU]: "anthropic.claude-haiku-4-5-20251001-v1:0",
-                [ANTHROPIC_SONNET]: "anthropic.claude-sonnet-5",
+                [ANTHROPIC_SONNET]: "anthropic.claude-sonnet-5-5",
             };
             
             const baseModelId = baseModelMap[model];
@@ -233,7 +234,7 @@ export const getAnthropicClient = async (model: AnthropicModel): Promise<any> =>
 
             const vertexModelMap: Record<AnthropicModel, string> = {
                 [ANTHROPIC_HAIKU]: "claude-haiku-4-5@20251001",
-                [ANTHROPIC_SONNET]: "claude-sonnet-5",
+                [ANTHROPIC_SONNET]: "claude-sonnet-5-5",
             };
 
             const vertexModelId = vertexModelMap[model];
@@ -296,30 +297,11 @@ export const getProviderCacheControl = async (ttl?: CacheTtl): Promise<ProviderC
     }
 };
 
-export type AnthropicEffort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+export type { AnthropicEffort } from "./provider-model-options";
 
-export type ProviderModelOptions =
-    | { anthropic: { thinking: { type: 'disabled' }; effort?: AnthropicEffort } }
-    | { bedrock: { additionalModelRequestFields: { thinking: { type: 'disabled' } } } };
-
-/**
- * Sonnet 5 enables adaptive thinking when `thinking` is omitted, and reasoning shares
- * `maxOutputTokens` with the response — omitting it truncates answers. Bedrock ignores the
- * `anthropic` namespace and reads `providerOptions.bedrock`.
- *
- * On Bedrock the field goes through `additionalModelRequestFields`, not `reasoningConfig`:
- * the provider only serializes `reasoningConfig` when reasoning is enabled or adaptive, so a
- * `disabled` value there is silently dropped. Bedrock also requires reasoning to be off
- * alongside a forced `tool_choice`, which web-tools uses.
- */
-export const getProviderModelOptions = async (effort?: AnthropicEffort): Promise<ProviderModelOptions> => {
-    const loginMethod = await getLoginMethod();
-
-    if (loginMethod === LoginMethod.AWS_BEDROCK) {
-        return { bedrock: { additionalModelRequestFields: { thinking: { type: 'disabled' } } } };
-    }
-    return { anthropic: { thinking: { type: 'disabled' }, ...(effort ? { effort } : {}) } };
-};
+/** Adaptive thinking at `effort` for the current login method; see `resolveProviderModelOptions`. */
+export const getProviderModelOptions = async (effort: AnthropicEffort, display?: ThinkingDisplay) =>
+    resolveProviderModelOptions(await getLoginMethod() === LoginMethod.AWS_BEDROCK, effort, display);
 
 function isAnthropicModel(model: LanguageModel): boolean {
     if (typeof model === 'string') {
