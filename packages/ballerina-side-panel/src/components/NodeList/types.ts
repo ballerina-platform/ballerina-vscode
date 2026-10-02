@@ -42,6 +42,8 @@ export type Node = {
     // The context method the node stands for, shown under the description in the tooltip
     method?: string;
     icon?: JSX.Element;
+    // Main icon for a grouped child; `icon` becomes its badge.
+    contextIcon?: JSX.Element;
     enabled?: boolean;
     metadata?: any;
 };
