@@ -191,9 +191,7 @@ public final class TriggerLibraryIntrospector {
             }
             functions.add(extractFunction(e.getKey(), m, remote ? "REMOTE" : "RESOURCE", moduleInfo));
         }
-        List<String> quals = new ArrayList<>();
-        obj.qualifiers().forEach(q -> quals.add(q.getValue()));
-        return new TriggerLibraryFacts.ServiceType(name, doc(typeDef), functions, quals);
+        return new TriggerLibraryFacts.ServiceType(name, doc(typeDef), functions);
     }
 
     private static TriggerLibraryFacts.Function extractFunction(String name, MethodSymbol m, String kind,

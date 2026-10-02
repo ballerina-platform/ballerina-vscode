@@ -96,7 +96,6 @@ public class Constants {
 
     public static final String PARAMETER = "parameter";
     public static final String SERVICE = "service";
-    public static final String ISOLATED = "isolated";
     public static final String SERVICE_TYPE = "Service";
     public static final String RESOURCE = "resource";
     public static final String REMOTE = "remote";

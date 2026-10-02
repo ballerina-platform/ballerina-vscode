@@ -369,21 +369,5 @@
     "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure.storage.files_1.0.2.png",
     "kind": "file",
     "minSupportedVersion": "1.0.2"
-  },
-  "26": {
-    "name": "ai.wso2.integration",
-    "orgName": "ballerinax",
-    "packageName": "ai.wso2.integration",
-    "keywords": [
-      "voice",
-      "ai",
-      "agent",
-      "websocket"
-    ],
-    "triggerName": "Voice Agent Service",
-    "version": "1.1.0",
-    "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.wso2.integration_1.1.0.png",
-    "kind": "ai",
-    "minSupportedVersion": "1.1.0"
   }
 }

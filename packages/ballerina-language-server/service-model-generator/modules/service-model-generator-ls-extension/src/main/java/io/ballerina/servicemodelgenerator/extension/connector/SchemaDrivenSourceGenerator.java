@@ -73,7 +73,6 @@ import static io.ballerina.servicemodelgenerator.extension.util.Constants.ON;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.OPEN_BRACE;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.REMOTE;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.RESOURCE;
-import static io.ballerina.servicemodelgenerator.extension.util.Constants.ISOLATED;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.SERVICE;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.SPACE;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.TAB;
@@ -303,11 +302,6 @@ public final class SchemaDrivenSourceGenerator {
         }
         for (String annotation : buildServiceAnnotations(filledInitForm, selfPrefix, emitAlias)) {
             builder.append(annotation).append(NEW_LINE);
-        }
-        TriggerUISchemaModel.ServiceTypeModel selectedType = selectServiceType(filledInitForm, triggerModel);
-        if (selectedType != null && selectedType.codedata() != null
-                && ISOLATED.equals(selectedType.codedata().modifier())) {
-            builder.append(ISOLATED).append(SPACE);
         }
         builder.append(SERVICE).append(SPACE).append(descriptor).append(SPACE);
         if (!basePath.isEmpty()) {

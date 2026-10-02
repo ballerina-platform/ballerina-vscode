@@ -59,7 +59,6 @@ import static io.ballerina.servicemodelgenerator.extension.util.Constants.DATA_B
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.DEFAULT_LISTENER_TYPE;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.DB_KIND_OPTIONAL;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.FIELD_TYPE_FLAG;
-import static io.ballerina.servicemodelgenerator.extension.util.Constants.ISOLATED;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.KIND_REQUIRED;
 
 /**
@@ -314,10 +313,9 @@ public final class TriggerModelSynthesizer {
     }
 
     private static TriggerUISchemaModel.Codedata cdServiceType(String originalName, String moduleName,
-                                                        String orgName, String packageName, String modifier) {
+                                                        String orgName, String packageName) {
         return TriggerUISchemaModel.Codedata.builder().type(ARG_TYPE_SERVICE_TYPE_DESCRIPTOR)
-                .originalName(originalName).moduleName(moduleName).orgName(orgName).packageName(packageName)
-                .modifier(modifier).build();
+                .originalName(originalName).moduleName(moduleName).orgName(orgName).packageName(packageName).build();
     }
 
     private static TriggerUISchemaModel.Codedata cdAnnotation(String codedataType, String originalName,
@@ -715,17 +713,13 @@ public final class TriggerModelSynthesizer {
             }
         }
 
-        TriggerLibraryFacts.ServiceType typeFacts = facts == null ? null : findServiceType(typeName, facts);
-        String modifier = typeFacts != null && typeFacts.qualifiers() != null
-                && typeFacts.qualifiers().contains(ISOLATED) ? ISOLATED : null;
-
         String description = trimmedDoc(serviceType.doc());
         return new TriggerUISchemaModel.ServiceTypeModel(
                 new TriggerUISchemaModel.Metadata(humanize(stripId(serviceType.id())), description,
                         serviceType.deprecated(), null, null, null, null, null,
                         serviceType.deprecated() == null ? null : true, null),
                 qualifiedTypeName, description, isPrimary, editable, properties, functions, schemaFunctions,
-                cdServiceType(typeName, serviceTypeModule, serviceTypeOrg, serviceTypePackage, modifier));
+                cdServiceType(typeName, serviceTypeModule, serviceTypeOrg, serviceTypePackage));
     }
 
     private static TriggerLibraryFacts.ServiceType findServiceType(String name, TriggerLibraryFacts facts) {
