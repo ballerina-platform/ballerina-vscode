@@ -77,14 +77,18 @@ export const filterCategoriesLocally = (categories: any[], searchText: string): 
 
     const lowerSearchText = searchText.toLowerCase();
 
+    // A node is found by its label, the method it stands for, or a search-only keyword such as
+    // the name it used to have. Descriptions stay out: nearly every one contains "workflow".
+    const itemMatchesSearch = (item: any): boolean => {
+        const terms: string[] = [item.title || item.label, item.method, ...(item.keywords ?? [])];
+        return terms.some((term) => typeof term === "string" && term.toLowerCase().includes(lowerSearchText));
+    };
+
     const filterItemsRecursively = (items: any[]): any[] => {
         if (!items) return [];
 
         return items.map((item: any) => {
-            // Check if this item matches the search
-            const label = item.title || item.label;
-            const itemMatches = label.toLowerCase().includes(lowerSearchText);
-            if (itemMatches) {
+            if (itemMatchesSearch(item)) {
                 return item;
             }
             // If this item has nested items (subcategory), recursively filter them

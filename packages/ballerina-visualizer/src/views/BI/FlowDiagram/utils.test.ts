@@ -38,7 +38,33 @@ describe("filterCategoriesLocally", () => {
             title: "Vector Stores",
             items: [{ title: "Pinecone Store", items: undefined }],
         },
+        {
+            title: "Workflow",
+            items: [
+                {
+                    title: "Steps",
+                    items: [
+                        {
+                            id: "HUMAN_TASK",
+                            label: "Human Task",
+                            description: "Create a human task and wait for a human to complete it",
+                            method: "awaitHumanTask",
+                            keywords: ["Await Human Task", "Await Task"],
+                        },
+                        {
+                            id: "SLEEP",
+                            label: "Sleep",
+                            description: "Pause workflow execution for a specified duration",
+                            method: "sleep",
+                        },
+                    ],
+                },
+            ],
+        },
     ];
+
+    const workflowSteps = (result: any[]) =>
+        result.find((c: any) => c.title === "Workflow")?.items.find((i: any) => i.title === "Steps")?.items ?? [];
 
     it("returns the categories unchanged for an empty query", () => {
         expect(filterCategoriesLocally(categories, "")).toEqual(categories);
@@ -65,6 +91,25 @@ describe("filterCategoriesLocally", () => {
     it("drops a category with no matches anywhere in its subtree", () => {
         const result = filterCategoriesLocally(categories, "pinecone");
         expect(result.map((c: any) => c.title)).toEqual(["Vector Stores"]);
+    });
+
+    it("finds a node by the name it used to have, through its keywords", () => {
+        expect(workflowSteps(filterCategoriesLocally(categories, "await task")).map((n: any) => n.label))
+            .toEqual(["Human Task"]);
+    });
+
+    it("finds a node by the context method it stands for", () => {
+        expect(workflowSteps(filterCategoriesLocally(categories, "awaitHuman")).map((n: any) => n.label))
+            .toEqual(["Human Task"]);
+    });
+
+    it("does not match on the description", () => {
+        expect(filterCategoriesLocally(categories, "duration")).toEqual([]);
+    });
+
+    it("treats a node without keywords or method as label-only", () => {
+        expect(workflowSteps(filterCategoriesLocally(categories, "sleep")).map((n: any) => n.label))
+            .toEqual(["Sleep"]);
     });
 
     it("returns no categories for a query that matches nothing", () => {

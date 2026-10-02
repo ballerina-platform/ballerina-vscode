@@ -128,6 +128,7 @@ function convertAvailableNodeToPanelNode(
         label: node.metadata.label,
         description: node.metadata.description,
         method: (node.metadata.data as NodeMetadata)?.method,
+        keywords: node.metadata.keywords,
         enabled: node.enabled,
         metadata: node,
         // A workflow accessor function (currentTime, sleep, ...) gets its own icon ahead of whatever
