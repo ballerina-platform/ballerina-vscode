@@ -445,7 +445,7 @@ export function AgentBuilderOverview({ projectPath, agentFocus, isInDevant, isIC
                 />
                 {!compactHeader && "Configure"}
             </Button>
-            {agents.length > 0 && (
+            {hasContent && (
                 <>
                     <Button
                         appearance="icon"
@@ -576,7 +576,7 @@ export function AgentBuilderOverview({ projectPath, agentFocus, isInDevant, isIC
                             )}
                         </Stage>
                     </Panel>
-                    {agents.length > 0 && (
+                    {hasContent && (
                         <SidePanel collapsed={deployCollapsed} aria-hidden={deployCollapsed}>
                             <DeploymentPanel
                                 projectPath={projectPath}
