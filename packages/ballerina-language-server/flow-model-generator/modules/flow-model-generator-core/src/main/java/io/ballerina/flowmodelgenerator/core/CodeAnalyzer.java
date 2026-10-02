@@ -4176,7 +4176,7 @@ public class CodeAnalyzer extends NodeVisitor {
             }
         }
         if (kind == NodeKind.MCP_TOOL_KIT) {
-            McpToolKitBuilder.setOptionalPropertiesAdvanced(nodeBuilder);
+            AiUtils.setOptionalPropertiesAdvanced(nodeBuilder);
         }
 
         ClassSymbol clientClassSymbol = getClientClassSymbol(semanticModel, functionData, name)
@@ -4200,6 +4200,7 @@ public class CodeAnalyzer extends NodeVisitor {
             } else {
                 genAgentData(newExpressionNode, argumentNodes, classSymbol, new HashMap<>(), false);
             }
+            AiUtils.setOptionalPropertiesAdvanced(nodeBuilder);
         }
 
         if (kind == NodeKind.TYPED_AGENT) {
