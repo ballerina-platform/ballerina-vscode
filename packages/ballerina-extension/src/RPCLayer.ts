@@ -186,7 +186,10 @@ async function getContext(): Promise<VisualizerLocation> {
                 isICPSupported: isICPSupported(),
                 haveLS: StateMachine.langClient() && true,
                 recordFilePath: context.projectPath ? path.join(context.projectPath, "types.bal") : undefined,
-                enableSequenceDiagram: extension.ballerinaExtInstance.enableSequenceDiagramView(),
+                // The state machine turns the diagram off for views that have none (workflows, durable
+                // agents); the global setting only applies where it left the choice open.
+                enableSequenceDiagram: context.metadata?.enableSequenceDiagram
+                    ?? extension.ballerinaExtInstance.enableSequenceDiagramView(),
                 target: context.metadata?.target,
                 featureSupport: context.metadata?.featureSupport
             },

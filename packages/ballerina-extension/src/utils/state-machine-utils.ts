@@ -383,7 +383,10 @@ async function getViewBySTRange(documentUri: string, position: NodePosition, pro
                     documentUri: documentUri,
                     position: node.syntaxTree.position,
                     metadata: {
-                        enableSequenceDiagram: extension.ballerinaExtInstance.enableSequenceDiagramView(),
+                        // Opened from a position rather than an artifact: a workflow function is
+                        // told apart by its annotation.
+                        enableSequenceDiagram: extension.ballerinaExtInstance.enableSequenceDiagramView()
+                            && !isWorkflowFunction(node.syntaxTree),
                     }
                 },
                 dataMapperDepth: 0
@@ -531,10 +534,6 @@ function findViewByArtifact(
                 };
             case DIRECTORY_MAP.AUTOMATION:
             case DIRECTORY_MAP.FUNCTION:
-            case DIRECTORY_MAP.WORKFLOW:
-            // A durable agentic workflow artifact opens as a BI diagram at the declaration's
-            // range, where the flow model renders the agent model canvas.
-            case DIRECTORY_MAP.DURABLE_AGENT:
             case DIRECTORY_MAP.ACTIVITY:
             case DIRECTORY_MAP.REMOTE:
                 return {
@@ -550,6 +549,25 @@ function findViewByArtifact(
                     },
                     dataMapperDepth: 0
                 };
+            case DIRECTORY_MAP.WORKFLOW:
+            // A durable agentic workflow artifact opens as a BI diagram at the declaration's
+            // range, where the flow model renders the agent model canvas. Neither kind offers the
+            // sequence diagram: its generator knows nothing of the workflow model and draws a
+            // wrong picture rather than an unsupported one.
+            case DIRECTORY_MAP.DURABLE_AGENT:
+                return {
+                    location: {
+                        view: MACHINE_VIEW.BIDiagram,
+                        documentUri: currentDocumentUri,
+                        identifier: dir.name,
+                        position: dir.position,
+                        artifactType: dir.type,
+                        metadata: {
+                            enableSequenceDiagram: false,
+                        }
+                    },
+                    dataMapperDepth: 0
+                };
             case DIRECTORY_MAP.AGENT:
                 // A durable agent shares the Agents section but opens its own model canvas.
                 if (dir.kind === DIRECTORY_MAP.DURABLE_AGENT) {
@@ -561,7 +579,7 @@ function findViewByArtifact(
                             position: dir.position,
                             artifactType: DIRECTORY_MAP.DURABLE_AGENT,
                             metadata: {
-                                enableSequenceDiagram: extension.ballerinaExtInstance.enableSequenceDiagramView(),
+                                enableSequenceDiagram: false,
                             }
                         },
                         dataMapperDepth: 0
@@ -735,4 +753,16 @@ function getSTByRangeReq(documentUri: string, position: NodePosition) {
             }
         }
     };
+}
+
+/**
+ * Whether a function definition carries `@workflow:Workflow`. The sequence diagram generator
+ * knows nothing of the workflow model, so such a function must not offer the toggle.
+ */
+export function isWorkflowFunction(syntaxTree: any): boolean {
+    const annotations: any[] = syntaxTree?.metadata?.annotations ?? [];
+    return annotations.some((annotation) => {
+        const reference = annotation?.annotReference;
+        return reference?.identifier?.value === "Workflow" && reference?.modulePrefix?.value !== undefined;
+    });
 }
