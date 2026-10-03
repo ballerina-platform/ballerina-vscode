@@ -17,11 +17,12 @@
  */
 
 // Re-export from setup
-export { 
-    page, 
-    vscode, 
+export {
+    page,
+    vscode,
     lastTestFailed,
-    resourcesFolder, 
+    resourcesFolder,
+    dataFolder,
     newProjectPath,
     extensionsFolder,
     initTest,
