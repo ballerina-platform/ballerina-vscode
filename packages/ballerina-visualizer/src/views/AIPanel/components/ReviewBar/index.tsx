@@ -263,6 +263,7 @@ const MethodBadge = styled.span<{ $color: string }>`
 const NODE_KIND_FUNCTION = NodeKindEnum.MODULE_FUNCTION;
 const NODE_KIND_RESOURCE = NodeKindEnum.OBJECT_FUNCTION;
 const NODE_KIND_TYPE = NodeKindEnum.TYPE_DEFINITION;
+const NODE_KIND_DATA_MAPPER = NodeKindEnum.DATA_MAPPING_FUNCTION;
 
 interface DiffEntry {
     symbol: string;
@@ -449,6 +450,7 @@ function buildGroupsWithOffset(semanticDiffs: SemanticDiff[], startIndex: number
     const serviceGroups: Record<string, DiffEntry[]> = {};
     const functionEntries: DiffEntry[] = [];
     const typeEntries: DiffEntry[] = [];
+    const dataMapperEntries: DiffEntry[] = [];
     // Non-diagram construct kinds (constants, module vars, listeners, classes, enums, imports)
     const declarationEntries: DiffEntry[] = [];
     let hasTypeView = false;
@@ -484,6 +486,8 @@ function buildGroupsWithOffset(semanticDiffs: SemanticDiff[], startIndex: number
         } else if (diff.nodeKind === NODE_KIND_FUNCTION || diff.nodeKind === NODE_KIND_RESOURCE) {
             // Plain functions, and class methods (OBJECT_FUNCTION without a service path)
             functionEntries.push(entry);
+        } else if (diff.nodeKind === NODE_KIND_DATA_MAPPER) {
+            dataMapperEntries.push(entry);
         } else if (isType) {
             typeEntries.push(entry);
         } else {
@@ -498,6 +502,9 @@ function buildGroupsWithOffset(semanticDiffs: SemanticDiff[], startIndex: number
     }
     if (functionEntries.length > 0) {
         groups.push({ groupLabel: "functions", entries: functionEntries });
+    }
+    if (dataMapperEntries.length > 0) {
+        groups.push({ groupLabel: "data mappers", entries: dataMapperEntries });
     }
     if (typeEntries.length > 0) {
         groups.push({ groupLabel: "types", entries: typeEntries });
@@ -644,16 +651,19 @@ const CollapsibleGroupList: React.FC<{
             {groups.map((group, gi) => {
                 const isService = group.groupLabel.startsWith("service ");
                 const isFunctions = group.groupLabel === "functions";
+                const isDataMappers = group.groupLabel === "data mappers";
                 const isTypes = group.groupLabel === "types";
                 const isDesign = group.groupLabel === "design";
                 const isDeclarations = group.groupLabel === "declarations";
-                const isCollapsible = isService || isFunctions || isDeclarations;
+                const isCollapsible = isService || isFunctions || isDataMappers || isDeclarations;
                 const isCollapsed = !!collapsed[gi];
 
                 const displayLabel = isService
                     ? group.groupLabel.slice("service ".length)
                     : isDeclarations
                     ? "declarations"
+                    : isDataMappers
+                    ? "data mappers"
                     : "functions";
 
                 return (
@@ -669,6 +679,9 @@ const CollapsibleGroupList: React.FC<{
                                 )}
                                 {isFunctions && (
                                     <span className="codicon codicon-symbol-method" style={{ fontSize: "11px", color: "var(--vscode-descriptionForeground)" }} />
+                                )}
+                                {isDataMappers && (
+                                    <span className="codicon codicon-arrow-swap" style={{ fontSize: "11px", color: "var(--vscode-descriptionForeground)" }} />
                                 )}
                                 {isDeclarations && (
                                     <span className="codicon codicon-symbol-variable" style={{ fontSize: "11px", color: "var(--vscode-descriptionForeground)" }} />

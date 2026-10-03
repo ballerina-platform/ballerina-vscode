@@ -24,6 +24,7 @@ import { ReadonlyComponentDiagram } from "./ReadonlyComponentDiagram";
 import { ExpectedFlowMetadata, ReadonlyFlowDiagram, ReviewViewMode } from "./ReadonlyFlowDiagram";
 import { diffBelongsToPackage } from "./path-utils";
 import { ReadonlyTypeDiagram } from "./ReadonlyTypeDiagram";
+import { ReadonlyDataMapperDiagram } from "./ReadonlyDataMapperDiagram";
 import { ReadonlySourceDiff } from "./ReadonlySourceDiff";
 import { getNodeKindLabel, SOURCE_VIEW_KINDS } from "./nodeKindLabels";
 import { getVersionsForChangeType, prefetchReviewView, ReviewModelCache } from "./reviewModelCache";
@@ -154,6 +155,7 @@ enum DiagramType {
     FLOW = "flow",
     TYPE = "type",
     SOURCE = "source",
+    DATA_MAPPER = "dataMapper",
 }
 
 interface ReviewView {
@@ -167,6 +169,7 @@ interface ReviewView {
     expectedMetadata?: ExpectedFlowMetadata;
     /** Construct name + before/after source, for SOURCE views (carried in diff metadata). */
     sourceMeta?: { name?: string; oldSource?: string; newSource?: string };
+    name?: string;
 }
 
 // Map numeric changeType to string
@@ -186,6 +189,9 @@ function getChangeTypeString(changeType: number): string {
 function getDiagramType(nodeKind: number): DiagramType {
     if (nodeKind === NodeKindEnum.TYPE_DEFINITION) {
         return DiagramType.TYPE;
+    }
+    if (nodeKind === NodeKindEnum.DATA_MAPPING_FUNCTION) {
+        return DiagramType.DATA_MAPPER;
     }
     if (SOURCE_VIEW_KINDS.has(nodeKind)) {
         return DiagramType.SOURCE;
@@ -237,6 +243,7 @@ function convertToReviewView(diff: SemanticDiff, projectPath: string, packageNam
             diagramType === DiagramType.SOURCE
                 ? { name: metadata?.name, oldSource: metadata?.oldSource, newSource: metadata?.newSource }
                 : undefined,
+        name: diagramType === DiagramType.DATA_MAPPER ? metadata?.name : undefined,
     };
 }
 
@@ -564,6 +571,20 @@ export function ReviewMode(): JSX.Element {
                         filePath={currentView.filePath}
                         onModelLoaded={handleModelLoaded}
                         useFileSchema={effectiveViewMode === "old"}
+                        modelCache={modelCacheRef.current}
+                    />
+                );
+            case "dataMapper":
+                return (
+                    <ReadonlyDataMapperDiagram
+                        key={diagramKey}
+                        projectPath={currentView.projectPath || projectPath}
+                        filePath={currentView.filePath}
+                        position={currentView.position}
+                        name={currentView.name}
+                        onModelLoaded={handleModelLoaded}
+                        useFileSchema={effectiveViewMode === "old"}
+                        changeType={currentView.changeType}
                         modelCache={modelCacheRef.current}
                     />
                 );

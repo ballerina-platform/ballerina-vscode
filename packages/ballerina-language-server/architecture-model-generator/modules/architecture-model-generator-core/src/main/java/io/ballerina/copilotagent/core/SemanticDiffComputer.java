@@ -57,6 +57,7 @@ import io.ballerina.projects.Document;
 import io.ballerina.projects.Module;
 import io.ballerina.projects.Project;
 import io.ballerina.tools.text.LineRange;
+import org.ballerinalang.langserver.commons.BallerinaCompilerApi;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -450,7 +451,7 @@ public class SemanticDiffComputer {
                 FunctionDefinitionNode originalFunction = entry.getValue();
                 LineRange lineRange = originalFunction.lineRange();
                 Map<String, String> metadata = buildFunctionMetadata(functionName);
-                SemanticDiff diff = new SemanticDiff(ChangeType.DELETION, NodeKind.MODULE_FUNCTION,
+                SemanticDiff diff = new SemanticDiff(ChangeType.DELETION, functionNodeKind(originalFunction),
                         resolveUri(lineRange.fileName()), lineRange, metadata);
                 this.semanticDiffs.add(diff);
                 continue;
@@ -465,10 +466,26 @@ public class SemanticDiffComputer {
             FunctionDefinitionNode functionDefinitionNode = entry.getValue();
             LineRange lineRange = functionDefinitionNode.lineRange();
             Map<String, String> metadata = buildFunctionMetadata(entry.getKey());
-            SemanticDiff diff = new SemanticDiff(ChangeType.ADDITION, NodeKind.MODULE_FUNCTION,
+            SemanticDiff diff = new SemanticDiff(ChangeType.ADDITION, functionNodeKind(functionDefinitionNode),
                     resolveUri(lineRange.fileName()), lineRange, metadata);
             this.semanticDiffs.add(diff);
         }
+    }
+
+    /**
+     * Classifies a function by its body: an expression-bodied function is a data mapper, unless it is a
+     * natural-expression (NP) function. Mirrors the rule the artifact generator applies when it fills the
+     * "Data Mappers" section, so the review UI groups and renders these the same way the explorer tree does.
+     *
+     * @param functionDefinitionNode the function to classify
+     * @return the node kind to report for this function
+     */
+    private static NodeKind functionNodeKind(FunctionDefinitionNode functionDefinitionNode) {
+        if (functionDefinitionNode.functionBody() instanceof ExpressionFunctionBodyNode expressionBody
+                && !BallerinaCompilerApi.getInstance().isNaturalExpressionBody(expressionBody)) {
+            return NodeKind.DATA_MAPPING_FUNCTION;
+        }
+        return NodeKind.MODULE_FUNCTION;
     }
 
     /**
