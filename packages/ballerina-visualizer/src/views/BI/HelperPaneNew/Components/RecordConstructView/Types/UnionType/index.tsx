@@ -209,6 +209,7 @@ export default function UnionType(props: TypeProps) {
                         {...(requiredParam && { disabled: true })}
                         onClick={toggleParamCheck}
                         className={helperStyleClass.parameterCheckbox}
+                        aria-label={param.name}
                         data-testid="arg-check"
                     />
                     <Typography
