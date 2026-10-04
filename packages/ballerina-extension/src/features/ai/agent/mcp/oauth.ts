@@ -123,7 +123,7 @@ export class McpOAuthProvider {
 }
 
 /** Serves the loopback redirect, opens the browser, and resolves with the authorization code. */
-export function waitForAuthCode(port: number, state: string, authUrl: string, cancel: vscode.CancellationToken, service: string): Promise<string> {
+function waitForAuthCode(port: number, state: string, authUrl: string, cancel: vscode.CancellationToken, service: string): Promise<string> {
     return new Promise((resolve, reject) => {
         const server = http.createServer((req, res) => {
             const url = new URL(req.url ?? "/", `http://127.0.0.1:${port}`);

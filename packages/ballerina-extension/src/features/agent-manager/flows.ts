@@ -20,7 +20,8 @@ import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
 import { parse } from "@iarna/toml";
-import { stringify as stringifyYaml } from "yaml";
+import { isDeepStrictEqual } from "util";
+import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 import {
     AgentManagerAction,
     AgentManagerActionResponse,
@@ -33,20 +34,20 @@ import {
     AgentManagerStatus,
     OpenAPISpec,
 } from "@wso2/ballerina-core";
-import { getSession, signIn, signOut } from "./auth";
+import { AgentManagerApiError } from "./amctl";
+import { clearSessionCache, getSession, signIn, signOut } from "./auth";
 import { offerCopilotMcp } from "./copilot";
 import { buildConfigFields, CONFIG_FILE, readPackage, splitConfig, SplitConfig } from "./configurables";
 import {
-    ensureGitIgnored, inspectSource, isExposed, LOCAL_ONLY_FILES, openCommitView, Preparation, readFacts, renameRemote,
+    ensureGitIgnored, inspectSource, isExposed, isIgnored, LOCAL_ONLY_FILES, openCommitView, Preparation, readFacts, renameRemote,
     SourceStepId, suggestCommitMessage, untrack,
 } from "./github";
 import {
-    AgentManagerApiError,
     api,
     consoleUrl,
     getBuildLogs,
     getRuntimeLogs,
-    readTrustedLink,
+    readLink,
     removeLink,
     writeLink,
     writeProjectFile,
@@ -63,6 +64,11 @@ const AMP_IMPORT_FILE = "agent_manager.bal";
 
 let logChannel: vscode.OutputChannel | undefined;
 
+function outputChannel(): vscode.OutputChannel {
+    logChannel ??= vscode.window.createOutputChannel("Agent Manager");
+    return logChannel;
+}
+
 class UserCancelled extends Error { }
 
 function required<T>(value: T | undefined): T {
@@ -78,22 +84,35 @@ export async function getStatus(projectPath: string): Promise<AgentManagerStatus
         return { signedIn: false };
     }
     const status: AgentManagerStatus = { signedIn: true, instanceUrl: session.instanceUrl, org: session.org };
-    const { link, foreign } = await readTrustedLink(projectPath);
-    if (!link) {
-        const error = foreign && `This integration is linked to ${foreign.agent} on ${foreign.instanceUrl} (${foreign.org}), `
-            + "not the Agent Manager you're signed in to. Deploying links it to this one instead.";
-        return { ...status, source: await sourceStatus(projectPath), error };
-    }
-    status.link = link;
     try {
+        const link = await readLink(projectPath);
+        if (!link) {
+            return { ...status, source: await sourceStatus(projectPath) };
+        }
+        status.link = link;
         Object.assign(status, link.mode === "internal" ? await platformStatus(projectPath, link) : {});
     } catch (error) {
         if (error instanceof AgentManagerApiError && error.status === 401) {
+            clearSessionCache();
             return { signedIn: false };
         }
-        status.error = error instanceof Error ? error.message : String(error);
+        status.unavailable = true;
+        status.error = describeStatusError(error, session.instanceUrl);
     }
     return status;
+}
+
+let lastStatusError: string | undefined;
+
+function describeStatusError(error: unknown, instanceUrl: string): string {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message !== lastStatusError) {
+        lastStatusError = message;
+        outputChannel().appendLine(`[status] ${message}`);
+    }
+    return error instanceof AgentManagerApiError && error.status === 503
+        ? `Can't reach Agent Manager at ${new URL(instanceUrl).host}. Check that it's running.`
+        : message;
 }
 
 async function platformStatus(projectPath: string, link: AgentManagerLink): Promise<Partial<AgentManagerStatus>> {
@@ -203,7 +222,7 @@ export async function runAction(
 }
 
 async function requireLink(projectPath: string): Promise<AgentManagerLink> {
-    const { link } = await readTrustedLink(projectPath);
+    const link = await readLink(projectPath);
     if (!link) {
         throw new Error("This integration is not linked to an Agent Manager agent.");
     }
@@ -220,7 +239,8 @@ async function newLink(projectPath: string, mode: AgentManagerHostingMode) {
         project,
         agent: agent.name,
         mode,
-        environment: await api.getLowestEnvironment(project),
+        // amctl links always use the default environment.
+        environment: "default",
     };
     return { link, displayName: agent.displayName, existing: agent.existing };
 }
@@ -285,7 +305,7 @@ async function issueExternalToken(projectPath: string, link: AgentManagerLink): 
         api.getOtelEndpoint(link.environment),
     ]);
     writeAmpConfig(projectPath, otelEndpoint, token.token);
-    writeLink(projectPath, { ...link, tokenExpiresAt: token.expires_at });
+    await writeLink(projectPath, link);
 }
 
 function writeAmpConfig(projectPath: string, otelEndpoint: string, apiKey: string): void {
@@ -348,7 +368,7 @@ async function hostOnPlatform(projectPath: string, config?: AgentManagerConfigIn
             await saveConfigFor(projectPath, link, config);
         }
     }
-    writeLink(projectPath, link);
+    await writeLink(projectPath, link);
     return `'${link.agent}' created in Agent Manager. Building from ${git.branch}@${git.commit.slice(0, 7)}.`;
 }
 
@@ -379,7 +399,7 @@ async function switchBranchIfNeeded(link: AgentManagerLink, branch: string): Pro
 
 export async function getConfigForm(projectPath: string): Promise<AgentManagerConfigForm> {
     try {
-        return await loadConfigFields(projectPath, (await readTrustedLink(projectPath)).link);
+        return await loadConfigFields(projectPath, await readLink(projectPath));
     } catch (error) {
         return { fields: [], fileSaved: false, error: error instanceof Error ? error.message : String(error) };
     }
@@ -443,7 +463,7 @@ async function openBuildLogs(projectPath: string): Promise<void> {
     if (!build) {
         throw new Error("No builds yet.");
     }
-    showLogs(`Build ${build.name} (${build.status})`, await getBuildLogs(build.name));
+    showLogs(`Build ${build.name} (${build.status})`, await getBuildLogs(link, build.name));
 }
 
 async function openRuntimeLogs(projectPath: string): Promise<void> {
@@ -452,11 +472,11 @@ async function openRuntimeLogs(projectPath: string): Promise<void> {
 }
 
 function showLogs(title: string, logs: string): void {
-    logChannel ??= vscode.window.createOutputChannel("Agent Manager");
-    logChannel.clear();
-    logChannel.appendLine(`# ${title}`);
-    logChannel.appendLine(logs || "No log lines yet. Try again in a few seconds.");
-    logChannel.show(true);
+    const channel = outputChannel();
+    channel.clear();
+    channel.appendLine(`# ${title}`);
+    channel.appendLine(logs || "No log lines yet. Try again in a few seconds.");
+    channel.show(true);
 }
 
 // Auto-instrumentation injects ballerinax.amp config vars; Ballerina exits on unused config vars unless the module is imported.
@@ -485,13 +505,13 @@ interface GitHubSource {
 }
 
 async function sourceStatus(projectPath: string): Promise<AgentManagerSource> {
-    const { facts, ...source } = await inspectSource(projectPath, readPreparation(projectPath));
+    const { facts, ...source } = await inspectSource(projectPath, await readPreparation(projectPath));
     return source;
 }
 
 // Deploys build what is on GitHub, so the commit is the upstream one, not local HEAD.
 async function requireGitHubSource(projectPath: string): Promise<GitHubSource> {
-    const source = await inspectSource(projectPath, readPreparation(projectPath));
+    const source = await inspectSource(projectPath, await readPreparation(projectPath));
     if (source.step?.blocking) {
         throw new Error(`${source.step.message} Resolve it in the Agent Manager panel, then deploy.`);
     }
@@ -506,38 +526,69 @@ async function requireGitHubSource(projectPath: string): Promise<GitHubSource> {
     };
 }
 
-function readPreparation(projectPath: string): Preparation {
+async function readPreparation(projectPath: string): Promise<Preparation> {
     const inRepo = !!readFacts(projectPath).root;
     return {
         ampImport: !hasAmpImport(projectPath),
         openApiSpec: !fs.existsSync(path.join(projectPath, OPENAPI_FILE)),
         exposedFiles: LOCAL_ONLY_FILES.filter((file) => isExposed(projectPath, file, inRepo)),
-        gitignore: !fs.existsSync(path.join(projectPath, ".gitignore")),
+        gitignore: LOCAL_ONLY_FILES.some((file) => !isIgnored(projectPath, file, inRepo)),
+        buildFiles: [AMP_IMPORT_FILE, OPENAPI_FILE].filter((file) => fs.existsSync(path.join(projectPath, file))),
+        staleSpec: await isSpecStale(projectPath),
     };
 }
+
+const specCache = new Map<string, { key: string; stale: boolean }>();
+
+// Generating the spec is a language-server call, so it reruns only when a .bal file or the spec changes.
+async function isSpecStale(projectPath: string): Promise<boolean> {
+    const specPath = path.join(projectPath, OPENAPI_FILE);
+    if (!fs.existsSync(specPath)) {
+        return false;
+    }
+    const key = [OPENAPI_FILE, ...balFiles(projectPath)].map((file) => `${file}:${fs.statSync(path.join(projectPath, file)).mtimeMs}`).join("|");
+    const cached = specCache.get(projectPath);
+    if (cached?.key === key) {
+        return cached.stale;
+    }
+    let stale = false;
+    try {
+        const generated = JSON.parse(JSON.stringify((await detectInterface(projectPath)).spec));
+        stale = !isDeepStrictEqual(parseYaml(fs.readFileSync(specPath, "utf-8")), generated);
+    } catch {
+        stale = false;
+    }
+    specCache.set(projectPath, { key, stale });
+    return stale;
+}
+
+function writeOpenApiSpec(projectPath: string, spec: object): void {
+    writeProjectFile(projectPath, path.join(projectPath, OPENAPI_FILE), stringifyYaml(spec));
+    specCache.delete(projectPath);
+}
+
+const reviewAndCommit = (projectPath: string) => openCommitView(projectPath, suggestCommitMessage(projectPath));
+const runCommand = (command: string) => async () => {
+    await vscode.commands.executeCommand(command);
+};
 
 const SOURCE_FIXES: Record<SourceStepId, (projectPath: string) => Promise<string | void>> = {
     gitMissing: async () => {
         await vscode.env.openExternal(vscode.Uri.parse("https://git-scm.com/downloads"));
     },
     prepare: prepareProject,
-    publishRepo: async () => {
-        await vscode.commands.executeCommand("github.publish");
-    },
+    publishRepo: runCommand("github.publish"),
     nonGitHub: async () => undefined,
-    detached: async () => {
-        await vscode.commands.executeCommand("git.checkout");
-    },
-    commitFirst: async (projectPath) => openCommitView(projectPath, suggestCommitMessage(projectPath)),
-    publishBranch: async () => {
-        await vscode.commands.executeCommand("git.publish");
-    },
-    commit: async (projectPath) => openCommitView(projectPath, suggestCommitMessage(projectPath)),
-    push: async () => {
-        await vscode.commands.executeCommand("git.push");
-    },
-    pull: async () => {
-        await vscode.commands.executeCommand("git.pull");
+    detached: runCommand("git.checkout"),
+    commitFirst: reviewAndCommit,
+    publishBranch: runCommand("git.publish"),
+    commit: reviewAndCommit,
+    push: runCommand("git.push"),
+    pull: runCommand("git.pull"),
+    syncGitHub: (projectPath) => (readFacts(projectPath).dirty > 0 ? reviewAndCommit(projectPath) : runCommand("git.push")()),
+    refreshSpec: async (projectPath) => {
+        writeOpenApiSpec(projectPath, (await detectInterface(projectPath)).spec);
+        return "Updated openapi.yaml. Commit and push it so Try It shows the current API.";
     },
     moved: async (projectPath) => {
         await renameRemote(projectPath, readFacts(projectPath));
@@ -546,27 +597,27 @@ const SOURCE_FIXES: Record<SourceStepId, (projectPath: string) => Promise<string
 };
 
 async function fixSource(projectPath: string): Promise<string | void> {
-    const { step } = await inspectSource(projectPath, readPreparation(projectPath));
+    const { step } = await inspectSource(projectPath, await readPreparation(projectPath));
     return step && SOURCE_FIXES[step.id as SourceStepId](projectPath);
 }
 
 const STANDARD_GITIGNORE = ["target/", "generated/", ...LOCAL_ONLY_FILES];
 
 async function prepareProject(projectPath: string): Promise<string> {
-    const prep = readPreparation(projectPath);
+    const prep = await readPreparation(projectPath);
     const added: string[] = [];
     if (prep.ampImport && ensureAmpInstrumentation(projectPath)) {
         added.push(AMP_IMPORT_FILE);
     }
     if (prep.openApiSpec) {
-        writeProjectFile(projectPath, path.join(projectPath, OPENAPI_FILE), stringifyYaml((await detectInterface(projectPath)).spec));
+        writeOpenApiSpec(projectPath, (await detectInterface(projectPath)).spec);
         added.push(OPENAPI_FILE);
     }
-    const gitignorePath = path.join(projectPath, ".gitignore");
-    const current = fs.existsSync(gitignorePath) ? fs.readFileSync(gitignorePath, "utf-8") : "";
-    const missing = STANDARD_GITIGNORE.filter((entry) => !current.split("\n").map((line) => line.trim()).includes(entry));
-    const wanted = prep.gitignore ? missing : missing.filter((entry) => LOCAL_ONLY_FILES.includes(entry));
+    const inRepo = !!readFacts(projectPath).root;
+    const wanted = STANDARD_GITIGNORE.filter((entry) => !isIgnored(projectPath, entry, inRepo));
     if (wanted.length > 0) {
+        const gitignorePath = path.join(projectPath, ".gitignore");
+        const current = fs.existsSync(gitignorePath) ? fs.readFileSync(gitignorePath, "utf-8") : "";
         writeProjectFile(projectPath, gitignorePath, `${current.trimEnd()}${current ? "\n" : ""}${wanted.join("\n")}\n`);
         added.push(".gitignore");
     }
@@ -654,9 +705,12 @@ function toResourceName(value: string): string {
     return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+/, "").slice(0, 63).replace(/-+$/, "");
 }
 
+function balFiles(projectPath: string): string[] {
+    return fs.readdirSync(projectPath).filter((file) => file.endsWith(".bal") && file !== DEV_TRACE_FILE);
+}
+
 function readBalSources(projectPath: string): string {
-    return fs.readdirSync(projectPath)
-        .filter((file) => file.endsWith(".bal") && file !== DEV_TRACE_FILE)
+    return balFiles(projectPath)
         .map((file) => fs.readFileSync(path.join(projectPath, file), "utf-8"))
         .join("\n");
 }

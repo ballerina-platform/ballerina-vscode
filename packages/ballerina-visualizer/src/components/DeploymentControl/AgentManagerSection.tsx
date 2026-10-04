@@ -121,7 +121,7 @@ function isBusy(status?: AgentManagerStatus): boolean {
 export function AgentManagerSection({ projectPath, ampTracingEnabled, handleAmpTracing }: AgentManagerSectionProps) {
     const { rpcClient } = useRpcContext();
     const [pending, setPending] = useState<AgentManagerAction | undefined>();
-    const { data: status, isLoading, refetch } = useQuery({
+    const { data: status, isLoading, isFetching, refetch } = useQuery({
         queryKey: ["agentManagerStatus", projectPath],
         queryFn: () => rpcClient.getAgentManagerRpcClient().getAgentManagerStatus({ projectPath }),
         refetchInterval: (query) => (isBusy(query.state.data) ? 4000 : query.state.data?.source?.step ? 5000 : 20000),
@@ -174,6 +174,8 @@ export function AgentManagerSection({ projectPath, ampTracingEnabled, handleAmpT
                 run={run}
                 ampTracingEnabled={ampTracingEnabled}
                 handleAmpTracing={handleAmpTracing}
+                refreshing={isFetching}
+                onRefresh={() => refetch()}
             />
         );
     };
@@ -304,9 +306,11 @@ function SourceStep({ status, pending, run }: ActionProps) {
 interface LinkedAgentCardProps extends ActionProps {
     ampTracingEnabled: boolean;
     handleAmpTracing: (checked: boolean) => void;
+    refreshing: boolean;
+    onRefresh: () => void;
 }
 
-function LinkedAgentCard({ status, pending, run, ampTracingEnabled, handleAmpTracing }: LinkedAgentCardProps) {
+function LinkedAgentCard({ status, pending, run, ampTracingEnabled, handleAmpTracing, refreshing, onRefresh }: LinkedAgentCardProps) {
     const link = status.link!;
     const internal = link.mode === "internal";
     const item = (id: AgentManagerAction, label: string) => ({ id, label, onClick: () => run(id) });
@@ -327,17 +331,22 @@ function LinkedAgentCard({ status, pending, run, ampTracingEnabled, handleAmpTra
             <Section>
                 <Header>
                     <span>{status.displayName ?? link.agent}</span>
-                    {pending ? <ProgressRing sx={{ height: 14, width: 14 }} /> : <ContextMenu menuItems={menuItems} position="bottom-left" />}
+                    <Row>
+                        <Button appearance="icon" tooltip="Refresh" disabled={refreshing} onClick={onRefresh}>
+                            <Codicon name="refresh" />
+                        </Button>
+                        {pending ? <ProgressRing sx={{ height: 14, width: 14 }} /> : <ContextMenu menuItems={menuItems} position="bottom-left" />}
+                    </Row>
                 </Header>
                 {internal && status.branch && (
                     <Row><Codicon name="git-branch" sx={{ fontSize: 12 }} /><Detail>{status.branch}{commit && ` · ${commit}`}</Detail></Row>
                 )}
             </Section>
-            {internal ? (
+            {!status.unavailable && (internal ? (
                 <PlatformState status={status} pending={pending} run={run} />
             ) : (
                 <ExternalState tokenExpiresAt={link.tokenExpiresAt} environment={link.environment} enabled={ampTracingEnabled} onChange={handleAmpTracing} />
-            )}
+            ))}
             {status.error && <ErrorText>{status.error}</ErrorText>}
         </Card>
     );

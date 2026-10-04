@@ -29,7 +29,7 @@ export const LOCAL_ONLY_FILES = ["Config.toml", "trace_enabled.bal"];
 
 export type SourceStepId =
     | "gitMissing" | "prepare" | "publishRepo" | "nonGitHub" | "detached"
-    | "commitFirst" | "publishBranch" | "commit" | "push" | "pull" | "moved";
+    | "commitFirst" | "publishBranch" | "commit" | "push" | "pull" | "moved" | "syncGitHub" | "refreshSpec";
 
 export interface SourceFacts {
     root?: string;
@@ -51,6 +51,9 @@ export interface Preparation {
     openApiSpec: boolean;
     exposedFiles: string[];
     gitignore: boolean;
+    /** Local files the build needs from GitHub, such as openapi.yaml. */
+    buildFiles: string[];
+    staleSpec: boolean;
 }
 
 interface RepoInfo {
@@ -98,13 +101,13 @@ export function readFacts(projectPath: string): SourceFacts {
     const [behind, ahead] = (out(projectPath, ["rev-list", "--left-right", "--count", "@{u}...HEAD"]) ?? "0 0").split(/\s+/).map(Number);
     facts.ahead = ahead || 0;
     facts.behind = behind || 0;
-    facts.dirty = changedFiles(facts.root).length;
+    facts.dirty = changedFiles(projectPath).length;
     return facts;
 }
 
-// Counts the whole repository, file by file, so the number matches the Source Control view.
-function changedFiles(root: string): string[] {
-    return (out(root, ["status", "--porcelain", "-uall", "--", ".", ":(exclude,glob)**/.wso2/**"]) ?? "")
+// Only this package's folder counts: in a workspace, other packages' changes don't reach this agent's build.
+function changedFiles(packagePath: string): string[] {
+    return (out(packagePath, ["status", "--porcelain", "-uall", "--", "."]) ?? "")
         .split("\n").filter(Boolean).map((line) => line.slice(3).trim());
 }
 
@@ -112,12 +115,17 @@ export function isExposed(projectPath: string, file: string, inRepo: boolean): b
     if (!fs.existsSync(path.join(projectPath, file))) {
         return false;
     }
-    if (inRepo) {
-        return git(projectPath, ["check-ignore", "-q", file]).status !== 0;
-    }
+    return inRepo ? git(projectPath, ["check-ignore", "-q", file]).status !== 0 : !listedInGitignore(projectPath, file);
+}
+
+export function isIgnored(projectPath: string, entry: string, inRepo: boolean): boolean {
+    return inRepo ? git(projectPath, ["check-ignore", "-q", "--no-index", entry]).status === 0 : listedInGitignore(projectPath, entry);
+}
+
+function listedInGitignore(projectPath: string, entry: string): boolean {
     const gitignore = path.join(projectPath, ".gitignore");
     const lines = fs.existsSync(gitignore) ? fs.readFileSync(gitignore, "utf-8").split("\n").map((line) => line.trim()) : [];
-    return !lines.includes(file) && !lines.includes(`/${file}`);
+    return lines.includes(entry) || lines.includes(`/${entry}`);
 }
 
 // The unauthenticated API is enough to tell public from private and to spot a renamed repository.
@@ -156,9 +164,31 @@ function preparationStep(prep: Preparation): AgentManagerSourceStep | undefined 
     return { id: "prepare", message: `${parts.join(". ")}.`, actionLabel: "Prepare Project", blocking: true };
 }
 
+// Deploys build the upstream commit, so the files the build needs (and must not see) are checked there, not on disk.
+function gitHubStep(projectPath: string, facts: SourceFacts, prep: Preparation): AgentManagerSourceStep | undefined {
+    const commit = facts.remoteCommit;
+    const inCommit = (file: string) => !!commit && git(projectPath, ["cat-file", "-e", `${commit}:./${file}`]).status === 0;
+    const missing = prep.buildFiles.filter((file) => !inCommit(file));
+    const leaked = LOCAL_ONLY_FILES.filter(inCommit);
+    if (!commit || (missing.length === 0 && leaked.length === 0)) {
+        return undefined;
+    }
+    const parts = [
+        missing.length > 0 && `GitHub doesn't have ${missing.join(" or ")} yet`,
+        leaked.length > 0 && `${leaked.join(" and ")} is still on GitHub`,
+    ].filter(Boolean);
+    const commitFirst = facts.dirty > 0;
+    return {
+        id: "syncGitHub",
+        message: `${parts.join(", and ")}. ${commitFirst ? "Commit and push" : "Push"} your changes before deploying.`,
+        actionLabel: commitFirst ? "Review and Commit" : "Push",
+        blocking: true,
+    };
+}
+
 type StepRule = [boolean, AgentManagerSourceStep];
 
-function sourceSteps(facts: SourceFacts, prep: Preparation, renamedTo?: string): StepRule[] {
+function sourceSteps(projectPath: string, facts: SourceFacts, prep: Preparation, renamedTo?: string): StepRule[] {
     const onGitHub = !!facts.upstreamBranch;
     return [
         [facts.gitMissing, { id: "gitMissing", message: "Git isn't installed. It's needed to put this code on GitHub.", actionLabel: "Download Git", blocking: true }],
@@ -168,7 +198,9 @@ function sourceSteps(facts: SourceFacts, prep: Preparation, renamedTo?: string):
         [!facts.branch, { id: "detached", message: "Not on a branch.", actionLabel: "Check Out a Branch", blocking: true }],
         [!onGitHub && facts.dirty > 0, { id: "commitFirst", message: `${plural(facts.dirty, "change")} to commit before publishing.`, actionLabel: "Review and Commit", blocking: true }],
         [!onGitHub, { id: "publishBranch", message: `${facts.branch} isn't on GitHub yet.`, actionLabel: "Publish Branch", blocking: true }],
+        [true, gitHubStep(projectPath, facts, prep)!],
         [!!renamedTo, { id: "moved", message: `This repository moved to ${renamedTo}.`, actionLabel: "Update Remote", blocking: false }],
+        [prep.staleSpec, { id: "refreshSpec", message: "openapi.yaml no longer matches the service.", actionLabel: "Update API Spec", blocking: false }],
         [facts.dirty > 0, { id: "commit", message: `${plural(facts.dirty, "uncommitted change")} won't be deployed.`, actionLabel: "Review and Commit", blocking: false }],
         [facts.ahead > 0, { id: "push", message: `${plural(facts.ahead, "commit")} not pushed.`, actionLabel: "Push", blocking: false }],
         [facts.behind > 0, { id: "pull", message: `GitHub has ${plural(facts.behind, "newer commit")}.`, actionLabel: "Pull", blocking: false }],
@@ -179,7 +211,7 @@ export async function inspectSource(projectPath: string, prep: Preparation): Pro
     const facts = readFacts(projectPath);
     const info = facts.repository ? await repoInfo(facts.repository) : undefined;
     const renamedTo = info?.fullName && info.fullName.toLowerCase() !== facts.repository!.toLowerCase() ? info.fullName : undefined;
-    const step = sourceSteps(facts, prep, renamedTo).find(([applies, candidate]) => applies && candidate)?.[1];
+    const step = sourceSteps(projectPath, facts, prep, renamedTo).find(([applies, candidate]) => applies && candidate)?.[1];
     return {
         facts,
         repository: facts.repository,
@@ -232,8 +264,7 @@ export function suggestCommitMessage(projectPath: string): string {
         "openapi.yaml": "Add OpenAPI spec for Agent Manager",
         ".gitignore": "Keep local config out of Git",
     };
-    const root = out(projectPath, ["rev-parse", "--show-toplevel"]);
-    const changed = root ? changedFiles(root).map((file) => path.basename(file)) : [];
+    const changed = changedFiles(projectPath).map((file) => path.basename(file));
     if (!out(projectPath, ["rev-parse", "HEAD"])) {
         return "Initial commit";
     }

@@ -18,42 +18,17 @@
 
 import * as fs from "fs";
 import * as path from "path";
-import { AgentManagerBuild, AgentManagerLink } from "@wso2/ballerina-core";
-import { getAccessToken, getJson, getSession, httpRequest, parseJson } from "./auth";
-
-const LINK_FILE = path.join(".wso2", "agent-manager.json");
-
-export class AgentManagerApiError extends Error {
-    constructor(public readonly status: number, message: string) {
-        super(message);
-    }
-}
-
-async function authorize() {
-    const session = await getSession();
-    const token = await getAccessToken();
-    if (!session || !token) {
-        throw new AgentManagerApiError(401, "Not signed in to Agent Manager.");
-    }
-    return { session, token };
-}
+import { parse } from "@iarna/toml";
+import { AgentManagerBuild, AgentManagerHostingMode, AgentManagerLink } from "@wso2/ballerina-core";
+import { AgentManagerApiError, amctlApi, amctlJson } from "./amctl";
+import { getSession } from "./auth";
 
 async function request<T>(method: string, apiPath: string, body?: unknown): Promise<T> {
-    const { session, token } = await authorize();
-    const response = await httpRequest(`${session.instanceUrl}/api/v1/orgs/${session.org}${apiPath}`, {
-        method,
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", Accept: "application/json" },
-        body: body === undefined ? undefined : JSON.stringify(body),
-    });
-    const { text } = response;
-    if (!response.ok) {
-        let message = text;
-        try {
-            message = JSON.parse(text).message ?? text;
-        } catch { /* plain-text error */ }
-        throw new AgentManagerApiError(response.status, `${method} ${apiPath} failed (${response.status}): ${message}`);
+    const session = await getSession();
+    if (!session) {
+        throw new AgentManagerApiError(401, "Not signed in to Agent Manager.");
     }
-    return (text ? parseJson(apiPath, text) : undefined) as T;
+    return amctlApi<T>(method, `/orgs/${session.org}${apiPath}`, body);
 }
 
 export interface EnvironmentVariable {
@@ -98,11 +73,6 @@ export const api = {
     listAgents: async (project: string) =>
         (await request<{ agents: { name: string; provisioning: { type: string } }[] }>(
             "GET", `/projects/${project}/agents?limit=100`)).agents,
-    getLowestEnvironment: async (project: string) => {
-        const pipeline = await request<{ promotionPaths: { sourceEnvironmentRef: string }[] }>(
-            "GET", `/projects/${project}/deployment-pipeline`);
-        return pipeline.promotionPaths[0]?.sourceEnvironmentRef ?? "default";
-    },
     createExternalAgent: (project: string, name: string, displayName: string) =>
         request("POST", `/projects/${project}/agents`, {
             name,
@@ -239,29 +209,17 @@ async function getConfigItems(link: AgentManagerLink): Promise<{ env: ConfigItem
     return { env: config.configurations?.env ?? [], files: config.configurations?.files ?? [] };
 }
 
-async function queryObserver(logPath: string, params: Record<string, string>): Promise<string> {
-    const { session, token } = await authorize();
-    const observerBaseUrl = await getObserverBaseUrl(session.instanceUrl);
-    const query = new URLSearchParams({ organization: session.org, ...params });
-    const body = await getJson(`${observerBaseUrl}/api/v1/${logPath}?${query}`, { Authorization: `Bearer ${token}` });
-    return (body.logs ?? []).map((entry: { log: string; timestamp: string }) => `${entry.timestamp}  ${entry.log}`).join("\n");
+function formatLogs(body: { logs?: { log: string; timestamp: string }[] }): string {
+    return (body.logs ?? []).map((entry) => `${entry.timestamp}  ${entry.log}`).join("\n");
 }
 
-export function getBuildLogs(buildName: string): Promise<string> {
-    return queryObserver("build-logs", { buildName });
+export async function getBuildLogs(link: AgentManagerLink, buildName: string): Promise<string> {
+    return formatLogs(await amctlJson(["agent", "build", "logs", link.agent, buildName, "--project", link.project, "--org", link.org]));
 }
 
-export function getRuntimeLogs(link: AgentManagerLink, sinceMinutes: number): Promise<string> {
-    const endTime = new Date();
-    const startTime = new Date(endTime.getTime() - sinceMinutes * 60_000);
-    return queryObserver("logs", {
-        project: link.project,
-        agent: link.agent,
-        environment: link.environment,
-        startTime: startTime.toISOString(),
-        endTime: endTime.toISOString(),
-        sortOrder: "asc",
-    });
+export async function getRuntimeLogs(link: AgentManagerLink, sinceMinutes: number): Promise<string> {
+    return formatLogs(await amctlJson(["agent", "logs", link.agent, "--project", link.project, "--org", link.org,
+        "--env", link.environment, "--since", `${sinceMinutes}m`, "--sort", "asc"]));
 }
 
 export async function getObserverBaseUrl(instanceUrl: string): Promise<string> {
@@ -270,6 +228,23 @@ export async function getObserverBaseUrl(instanceUrl: string): Promise<string> {
         throw new Error(`Refusing to trust the observer at ${observerBaseUrl}: it isn't part of ${instanceUrl}.`);
     }
     return String(observerBaseUrl).replace(/\/+$/, "");
+}
+
+async function getJson(url: string): Promise<any> {
+    let response: Response;
+    try {
+        response = await fetch(url, { headers: { Accept: "application/json" } });
+    } catch (error) {
+        const host = new URL(url).hostname;
+        if (host.endsWith(".localhost") && (error as { cause?: { code?: string } }).cause?.code === "ENOTFOUND") {
+            throw new Error(`Cannot resolve ${host}. Add "127.0.0.1 ${host}" to your hosts file.`);
+        }
+        throw error;
+    }
+    if (!response.ok) {
+        throw new Error(`GET ${url} failed (${response.status}).`);
+    }
+    return response.json();
 }
 
 // Same registrable domain (last two labels) and protocol, e.g. traces.amp.localhost next to api.amp.localhost.
@@ -290,41 +265,72 @@ export function consoleUrl(link: AgentManagerLink): string {
     return `${url.origin}/org/${link.org}/project/${link.project}/agents/${link.agent}`;
 }
 
-const RESOURCE_NAME = /^(?!\.{1,2}$)[A-Za-z0-9][A-Za-z0-9._-]*$/;
+interface AmctlLink {
+    org: string;
+    project?: string;
+    agent?: string;
+    environment?: string;
+}
 
-// The link file is committed with the repo, so it is untrusted input.
-export function readLink(projectPath: string): AgentManagerLink | undefined {
-    const file = path.join(projectPath, LINK_FILE);
-    if (!fs.existsSync(file)) {
+const agentModes = new Map<string, AgentManagerHostingMode>();
+
+/** The agent amctl links this folder (or a parent) to; amctl drops links when the user switches instance. */
+export async function readLink(projectPath: string): Promise<AgentManagerLink | undefined> {
+    const session = await getSession();
+    const linked = session && (await amctlJson<{ linked?: AmctlLink }>(["context", "show"], projectPath).catch(() => undefined))?.linked;
+    if (!session || !linked?.project || !linked.agent) {
         return undefined;
     }
-    let link: AgentManagerLink;
+    const link: AgentManagerLink = {
+        instanceUrl: session.instanceUrl,
+        org: linked.org,
+        project: linked.project,
+        agent: linked.agent,
+        environment: linked.environment || "default",
+        mode: "internal",
+    };
+    const mode = await agentMode(link);
+    if (!mode) {
+        return undefined;
+    }
+    link.mode = mode;
+    link.tokenExpiresAt = mode === "external" ? apiKeyExpiry(projectPath) : undefined;
+    return link;
+}
+
+async function agentMode(link: AgentManagerLink): Promise<AgentManagerHostingMode | undefined> {
+    const key = `${link.instanceUrl}/${link.org}/${link.project}/${link.agent}`;
+    if (!agentModes.has(key)) {
+        const agent = await api.getAgent(link).catch((error) => {
+            if (error instanceof AgentManagerApiError && error.status === 404) {
+                return undefined;
+            }
+            throw error;
+        });
+        if (!agent) {
+            return undefined;
+        }
+        agentModes.set(key, agent.provisioning?.type === "external" ? "external" : "internal");
+    }
+    return agentModes.get(key);
+}
+
+function apiKeyExpiry(projectPath: string): number | undefined {
     try {
-        link = JSON.parse(fs.readFileSync(file, "utf-8"));
+        const config: any = parse(fs.readFileSync(path.join(projectPath, "Config.toml"), "utf-8"));
+        const payload = String(config.ballerinax?.amp?.apiKey ?? "").split(".")[1];
+        return payload ? JSON.parse(Buffer.from(payload, "base64url").toString()).exp : undefined;
     } catch {
         return undefined;
     }
-    const names = [link?.org, link?.project, link?.agent, link?.environment];
-    const valid = names.every((name) => typeof name === "string" && RESOURCE_NAME.test(name))
-        && typeof link.instanceUrl === "string" && (link.mode === "internal" || link.mode === "external");
-    return valid ? link : undefined;
 }
 
-// A link only counts for the instance and org the user is signed in to.
-export async function readTrustedLink(projectPath: string): Promise<{ link?: AgentManagerLink; foreign?: AgentManagerLink }> {
-    const link = readLink(projectPath);
-    const session = await getSession();
-    if (!link || !session) {
-        return {};
-    }
-    const trusted = link.instanceUrl === session.instanceUrl && link.org === session.org;
-    return trusted ? { link } : { foreign: link };
+export async function writeLink(projectPath: string, link: AgentManagerLink): Promise<void> {
+    await amctlJson(["context", "link", "--org", link.org, "--project", link.project, "--agent", link.agent], projectPath);
 }
 
-export function writeLink(projectPath: string, link: AgentManagerLink): void {
-    const file = path.join(projectPath, LINK_FILE);
-    fs.mkdirSync(path.dirname(file), { recursive: true });
-    writeProjectFile(projectPath, file, JSON.stringify(link, null, 2) + "\n");
+export async function removeLink(projectPath: string): Promise<void> {
+    await amctlJson(["context", "unlink"], projectPath);
 }
 
 // A repo can commit symlinks, so a write could land in a tracked file elsewhere; refuse to follow them.
@@ -335,8 +341,4 @@ export function writeProjectFile(projectPath: string, file: string, content: str
         }
     }
     (append ? fs.appendFileSync : fs.writeFileSync)(file, content, "utf-8");
-}
-
-export function removeLink(projectPath: string): void {
-    fs.rmSync(path.join(projectPath, LINK_FILE), { force: true });
 }

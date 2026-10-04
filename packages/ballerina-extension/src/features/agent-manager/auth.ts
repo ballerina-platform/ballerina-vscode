@@ -16,83 +16,37 @@
  * under the License.
  */
 
-import * as crypto from "crypto";
 import * as vscode from "vscode";
-import { extension } from "../../BalExtensionContext";
-import { waitForAuthCode } from "../ai/agent/mcp/oauth";
+import { amctlEnvelope, amctlJson } from "./amctl";
 
-// Prototype only: borrows amctl's public client and its fixed loopback redirect.
-const CLIENT_ID = "amctl";
-const CALLBACK_PORT = 10325;
-const REDIRECT_URI = `http://127.0.0.1:${CALLBACK_PORT}/callback`;
-const SESSION_KEY = "ballerina.agentManager.session";
 const DEFAULT_INSTANCE_URL = "http://api.amp.localhost:8080";
+const SESSION_CACHE_MS = 30_000;
 
+/** The active amctl instance and org; amctl keeps the tokens, so the IDE and the terminal share one sign-in. */
 export interface AgentManagerSession {
+    name: string;
     instanceUrl: string;
     org: string;
-    tokenEndpoint: string;
-    accessToken: string;
-    refreshToken?: string;
-    expiresAt: number;
 }
 
-class TokenRejected extends Error { }
+let cached: { at: number; session: Promise<AgentManagerSession | undefined> } | undefined;
 
-interface TokenResponse {
-    access_token: string;
-    refresh_token?: string;
-    expires_in?: number;
-}
-
-export async function getSession(): Promise<AgentManagerSession | undefined> {
-    const raw = await extension.context.secrets.get(SESSION_KEY);
-    return raw ? JSON.parse(raw) : undefined;
-}
-
-async function saveSession(session: AgentManagerSession): Promise<void> {
-    await extension.context.secrets.store(SESSION_KEY, JSON.stringify(session));
-}
-
-export async function signOut(): Promise<void> {
-    await extension.context.secrets.delete(SESSION_KEY);
-}
-
-let refreshing: Promise<string | undefined> | undefined;
-
-export async function getAccessToken(): Promise<string | undefined> {
-    const session = await getSession();
-    if (!session) {
-        return undefined;
+export function getSession(): Promise<AgentManagerSession | undefined> {
+    if (!cached || Date.now() - cached.at > SESSION_CACHE_MS) {
+        cached = { at: Date.now(), session: readSession() };
     }
-    if (session.expiresAt - 60_000 > Date.now()) {
-        return session.accessToken;
-    }
-    // Status polls call this in parallel; one refresh keeps a rotated refresh token from being reused.
-    refreshing ??= refresh(session).finally(() => {
-        refreshing = undefined;
-    });
-    return refreshing;
+    return cached.session;
 }
 
-async function refresh(session: AgentManagerSession): Promise<string | undefined> {
-    if (!session.refreshToken) {
-        await signOut();
-        return undefined;
-    }
+export function clearSessionCache(): void {
+    cached = undefined;
+}
+
+async function readSession(): Promise<AgentManagerSession | undefined> {
     try {
-        const token = await postToken(session.tokenEndpoint, {
-            grant_type: "refresh_token",
-            refresh_token: session.refreshToken,
-            client_id: CLIENT_ID,
-        });
-        await saveSession({ ...session, ...toSessionTokens(token, session.refreshToken) });
-        return token.access_token;
-    } catch (error) {
-        if (!(error instanceof TokenRejected)) {
-            throw error;
-        }
-        await signOut();
+        const { instance, data } = await amctlEnvelope<{ url: string; org?: string }>(["context", "show"]);
+        return instance && data?.org ? { name: instance, instanceUrl: data.url.replace(/\/+$/, ""), org: data.org } : undefined;
+    } catch {
         return undefined;
     }
 }
@@ -108,133 +62,35 @@ export async function signIn(): Promise<AgentManagerSession | undefined> {
     if (!instanceUrl) {
         return undefined;
     }
-    const baseUrl = instanceUrl.replace(/\/+$/, "");
-    const discovery = await discover(baseUrl);
-    const verifier = base64Url(crypto.randomBytes(32));
-    const state = base64Url(crypto.randomBytes(32));
-    const authUrl = new URL(discovery.authorizationEndpoint);
-    authUrl.search = new URLSearchParams({
-        response_type: "code",
-        client_id: CLIENT_ID,
-        redirect_uri: REDIRECT_URI,
-        scope: discovery.scopes.join(" "),
-        state,
-        code_challenge: base64Url(crypto.createHash("sha256").update(verifier).digest()),
-        code_challenge_method: "S256",
-    }).toString();
-
-    const code = await vscode.window.withProgress(
+    await vscode.window.withProgress(
         { location: vscode.ProgressLocation.Notification, title: "Signing in to Agent Manager in your browser...", cancellable: true },
-        (_progress, cancel) => waitForAuthCode(CALLBACK_PORT, state, authUrl.toString(), cancel, "Agent Manager")
+        (_progress, cancel) => amctlEnvelope(["login", "--url", instanceUrl.replace(/\/+$/, "")], { cancel })
     );
-    const token = await postToken(discovery.tokenEndpoint, {
-        grant_type: "authorization_code",
-        code,
-        redirect_uri: REDIRECT_URI,
-        client_id: CLIENT_ID,
-        code_verifier: verifier,
-    });
-    const org = await pickOrg(baseUrl, token.access_token);
-    if (!org) {
-        return undefined;
+    clearSessionCache();
+    if (!(await getSession())) {
+        await pickOrg();
+        clearSessionCache();
     }
-    const session: AgentManagerSession = {
-        instanceUrl: baseUrl,
-        org,
-        tokenEndpoint: discovery.tokenEndpoint,
-        ...toSessionTokens(token),
-    };
-    await saveSession(session);
-    return session;
+    return getSession();
 }
 
-function toSessionTokens(token: TokenResponse, previousRefresh?: string) {
-    return {
-        accessToken: token.access_token,
-        refreshToken: token.refresh_token ?? previousRefresh,
-        expiresAt: Date.now() + (token.expires_in ?? 3600) * 1000,
-    };
-}
-
-async function discover(baseUrl: string) {
-    const resource = await getJson(`${baseUrl}/.well-known/oauth-protected-resource`);
-    const authServer: string | undefined = resource.authorization_servers?.[0];
-    if (!authServer) {
-        throw new Error(`${baseUrl} does not advertise an authorization server.`);
-    }
-    const metadata = await getJson(`${authServer.replace(/\/+$/, "")}/.well-known/oauth-authorization-server`);
-    return {
-        authorizationEndpoint: metadata.authorization_endpoint as string,
-        tokenEndpoint: metadata.token_endpoint as string,
-        scopes: (resource.scopes_supported ?? []) as string[],
-    };
-}
-
-async function pickOrg(baseUrl: string, accessToken: string): Promise<string | undefined> {
-    const response = await httpRequest(`${baseUrl}/api/v1/orgs`, { headers: { Authorization: `Bearer ${accessToken}` } });
-    if (!response.ok) {
-        throw new Error(`Agent Manager rejected the sign-in (${response.status}): ${response.text.slice(0, 200) || "(empty body)"}.`);
-    }
-    const orgs: string[] = (parseJson(`${baseUrl}/api/v1/orgs`, response.text).organizations ?? []).map((org: { name: string }) => org.name);
-    if (orgs.length === 0) {
+async function pickOrg(): Promise<void> {
+    const { organizations = [] } = await amctlJson<{ organizations?: { name: string }[] }>(["context", "org", "list"]);
+    if (organizations.length === 0) {
         throw new Error("Your account has no Agent Manager organization. Open the Agent Manager console once to create one.");
     }
-    return orgs.length === 1
-        ? orgs[0]
-        : vscode.window.showQuickPick(orgs, { title: "Select an Agent Manager organization", ignoreFocusOut: true });
-}
-
-async function postToken(tokenEndpoint: string, body: Record<string, string>): Promise<TokenResponse> {
-    const response = await httpRequest(tokenEndpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
-        body: new URLSearchParams(body).toString(),
-    });
-    if (!response.ok) {
-        throw new TokenRejected(`Token request failed (${response.status}): ${response.text}`);
-    }
-    return parseJson(tokenEndpoint, response.text) as TokenResponse;
-}
-
-export async function getJson(url: string, headers: Record<string, string> = {}): Promise<any> {
-    const response = await httpRequest(url, { headers: { Accept: "application/json", ...headers } });
-    if (!response.ok) {
-        throw new Error(`GET ${url} failed (${response.status}).`);
-    }
-    return parseJson(url, response.text);
-}
-
-export function parseJson(url: string, text: string): any {
-    try {
-        return JSON.parse(text);
-    } catch {
-        throw new Error(`Unexpected response from ${url}: ${text.slice(0, 200) || "(empty body)"}`);
+    const org = await vscode.window.showQuickPick(organizations.map((item) => item.name),
+        { title: "Select an Agent Manager organization", ignoreFocusOut: true });
+    if (org) {
+        await amctlJson(["context", "org", "use", org]);
     }
 }
 
-export interface HttpResponse {
-    ok: boolean;
-    status: number;
-    text: string;
-}
-
-export async function httpRequest(
-    url: string,
-    init: { method?: string; headers?: Record<string, string>; body?: string } = {}
-): Promise<HttpResponse> {
-    try {
-        // Some gateways reject requests without a User-Agent.
-        const response = await fetch(url, { ...init, headers: { "User-Agent": "wso2-integrator-vscode", ...init.headers } });
-        return { ok: response.ok, status: response.status, text: await response.text() };
-    } catch (error) {
-        const host = new URL(url).hostname;
-        if (host.endsWith(".localhost") && (error as { cause?: { code?: string } }).cause?.code === "ENOTFOUND") {
-            throw new Error(`Cannot resolve ${host}. Add "127.0.0.1 ${host}" to your hosts file.`);
-        }
-        throw error;
+/** Removes the instance from amctl, which signs the terminal out too. */
+export async function signOut(): Promise<void> {
+    const session = await getSession();
+    if (session) {
+        await amctlJson(["context", "instance", "remove", session.name, "--yes"]);
     }
-}
-
-function base64Url(buffer: Buffer): string {
-    return buffer.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    clearSessionCache();
 }

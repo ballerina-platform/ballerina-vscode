@@ -98,6 +98,7 @@ export interface AgentManagerStatus {
     missingConfig?: string[];
     build?: AgentManagerBuild;
     deployment?: AgentManagerDeployment;
+    unavailable?: boolean;
     error?: string;
 }
 
