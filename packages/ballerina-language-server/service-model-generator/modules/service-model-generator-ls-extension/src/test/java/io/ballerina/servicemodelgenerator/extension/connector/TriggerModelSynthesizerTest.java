@@ -151,6 +151,10 @@ public class TriggerModelSynthesizerTest {
     }
 
     private TriggerLibraryFacts libraryFacts() {
+        return libraryFacts(List.of("service"));
+    }
+
+    private TriggerLibraryFacts libraryFacts(List<String> serviceTypeQualifiers) {
         TriggerLibraryFacts.Param groupId = new TriggerLibraryFacts.Param(
                 "groupId", "string", false, "RECORD_FIELD", "", List.of());
         TriggerLibraryFacts.Param pollingInterval = new TriggerLibraryFacts.Param(
@@ -176,7 +180,7 @@ public class TriggerModelSynthesizerTest {
                 "onError", List.of("remote"), "REMOTE", "error?", true, "Handles a processing error.",
                 List.of(errorParam));
         TriggerLibraryFacts.ServiceType serviceType = new TriggerLibraryFacts.ServiceType(
-                "Service", "", List.of(onMessage, onError));
+                "Service", "", List.of(onMessage, onError), serviceTypeQualifiers);
 
         // The annotation's own name is "ServiceConfig"; its backing record is "ServiceConfigData" with
         // one optional "topic" field -- the exact SMB-shaped mismatch this fixture targets.
@@ -199,7 +203,11 @@ public class TriggerModelSynthesizerTest {
     }
 
     private TriggerUISchemaModel synthesize() {
-        return TriggerModelSynthesizer.synthesize(authoringModel(), libraryFacts(), fixtureListenerModel(),
+        return synthesize(libraryFacts());
+    }
+
+    private TriggerUISchemaModel synthesize(TriggerLibraryFacts facts) {
+        return TriggerModelSynthesizer.synthesize(authoringModel(), facts, fixtureListenerModel(),
                 "999", "Trigger Fixture", "https://example.test/icon.png", "event",
                 "testorg", MODULE, MODULE, "0.1.0").orElseThrow();
     }
@@ -316,6 +324,8 @@ public class TriggerModelSynthesizerTest {
         Assert.assertTrue(block.contains("listener triggerfixture:Listener"), "listener decl emitted: " + block);
         Assert.assertTrue(block.contains("\"localhost\""), "host value should appear: " + block);
         Assert.assertTrue(block.contains("service triggerfixture:Service on "), "service descriptor: " + block);
+        Assert.assertFalse(block.contains("isolated service"),
+                "a non-isolated service type yields a non-isolated service: " + block);
         Assert.assertTrue(block.contains("remote function onMessage"), "onMessage handler emitted: " + block);
         Assert.assertTrue(block.contains("remote function onError"), "onError handler emitted: " + block);
         // The init-form's own SERVICE_ANNOTATION copy (see testSynthesizedModelShape) starts with no
@@ -324,6 +334,15 @@ public class TriggerModelSynthesizerTest {
                 "an unfilled annotation must not be emitted from the init form: " + block);
     }
 
+    @Test
+    public void testIsolatedServiceTypeEmitsIsolatedService() {
+        TriggerUISchemaModel model = synthesize(libraryFacts(List.of("isolated", "service")));
+        Assert.assertEquals(model.serviceTypes().get(0).codedata().modifier(), "isolated");
+
+        String block = SchemaDrivenSourceGenerator.buildServiceBlockForTrigger(toServiceInitModel(model), model);
+        Assert.assertTrue(block.contains("isolated service triggerfixture:Service on "),
+                "service declaration carries the type's isolated qualifier: " + block);
+    }
 
     @Test
     public void testCdcCrossModuleServiceTypeAndRealListenerType() {

@@ -11,7 +11,7 @@
   "output": {
     "id": "31",
     "metadata": {
-      "label": "Await Human Task",
+      "label": "Human Task",
       "description": "Create a human task and wait for a human to complete it"
     },
     "codedata": {

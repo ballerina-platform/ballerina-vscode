@@ -19,7 +19,7 @@
 // A capability form is a fresh template seeded with source. These pin the half that was missing:
 // putting each value in the right mode, so a reference is not written back as a literal.
 
-import { capabilityValueText, seedCapabilityValue, SeedableProperty } from "./capabilityFieldValues";
+import { capabilityValueText, revealActivityIdentity, seedCapabilityValue, SeedableProperty } from "./capabilityFieldValues";
 // The same table core's `parseTextArraySource` is held to, so this copy of the parser cannot
 // drift from it without one of the two suites failing.
 import corpus from "../../../../../ballerina-core/src/utils/__fixtures__/roleValues.json";
@@ -215,5 +215,52 @@ describe("seedCapabilityValue", () => {
         expect(capabilityValueText("descriptionVar")).toBe("descriptionVar");
         expect(capabilityValueText(undefined)).toBeUndefined();
         expect(capabilityValueText("")).toBe("");
+    });
+
+    // The text box writes what was typed as a `string `...`` template, so a name saved that way
+    // must read back as text on the canvas and in the box (wso2/product-integrator#2623).
+    it("reads a template the text box wrote as text, and an interpolating one as source", () => {
+        expect(capabilityValueText("string `Lookup bill`")).toBe("Lookup bill");
+        // A template keeps its backslashes, so its body reads back exactly as written.
+        expect(capabilityValueText('string `Say \\"hi\\"`')).toBe('Say \\"hi\\"');
+        expect(capabilityValueText('string `C:\\temp`')).toBe('C:\\temp');
+        expect(capabilityValueText("string ``")).toBe("");
+        expect(capabilityValueText("string `Bill ${id}`")).toBe("string `Bill ${id}`");
+
+        const name = dualMode();
+        seedCapabilityValue(name, "string `Lookup bill`");
+        expect(name.value).toBe("Lookup bill");
+        expect(modeOf(name)).toBe("TEXT");
+
+        const computed = dualMode();
+        seedCapabilityValue(computed, "string `Bill ${id}`");
+        expect(computed.value).toBe("string `Bill ${id}`");
+        expect(modeOf(computed)).toBe("EXPRESSION");
+    });
+});
+
+// The add template hides an activity entry's name and description (wso2/product-integrator#2622);
+// the edit form is where they are set, so the reveal must touch exactly those two.
+describe("revealActivityIdentity", () => {
+    const hiddenTemplate = () => ({
+        activity: { value: "lookupBill", hidden: true } as SeedableProperty,
+        name: { value: "", hidden: true } as SeedableProperty,
+        description: { value: "", hidden: true } as SeedableProperty,
+        "bindings.api": { value: "", hidden: false } as SeedableProperty,
+    });
+
+    it("shows the name and description and nothing else", () => {
+        const properties = hiddenTemplate();
+        revealActivityIdentity(properties);
+        expect(properties.name.hidden).toBe(false);
+        expect(properties.description.hidden).toBe(false);
+        expect(properties.activity.hidden).toBe(true);
+        expect(properties["bindings.api"].hidden).toBe(false);
+    });
+
+    it("tolerates a template without them", () => {
+        const properties = { activity: { value: "lookupBill", hidden: true } as SeedableProperty };
+        expect(() => revealActivityIdentity(properties)).not.toThrow();
+        expect(() => revealActivityIdentity(undefined)).not.toThrow();
     });
 });

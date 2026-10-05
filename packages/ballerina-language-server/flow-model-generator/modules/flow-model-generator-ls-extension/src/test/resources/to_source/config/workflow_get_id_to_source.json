@@ -1,10 +1,10 @@
 {
   "source": "workflow_function/functions.bal",
-  "description": "Get Workflow ID writes a checked call, because reading the id can fail",
+  "description": "Workflow ID writes a checked call, because reading the id can fail",
   "diagram": {
     "id": "31",
     "metadata": {
-      "label": "Get Workflow ID",
+      "label": "Workflow ID",
       "description": "The unique ID of this workflow instance"
     },
     "codedata": {

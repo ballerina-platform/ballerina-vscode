@@ -82,7 +82,7 @@ public class ChildWorkflowSendDataBuilder extends NodeBuilder {
         properties().custom()
                 .metadata()
                     .label("Child Workflow ID")
-                    .description("The child workflow ID returned by Run Child Workflow.")
+                    .description("The child workflow ID returned by Run Child.")
                     .stepOut()
                 .type().fieldType(Property.ValueType.EXPRESSION).ballerinaType("string").selected(true).stepOut()
                 .placeholder("childWorkflowId")

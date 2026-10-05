@@ -37,6 +37,7 @@ import {
     getNodeByName,
     getNodeByUid,
     getView,
+    pickClosestArtifact,
     releaseCreateLanding,
     resolveCreateLandingOverride,
     resolveSingleIntegrationOverride,
@@ -459,6 +460,7 @@ const stateMachine = createMachine<MachineContext>(
                                     view: (context, event) => event.data.view,
                                     identifier: (context, event) => event.data.identifier,
                                     parentIdentifier: (context, event) => event.data.parentIdentifier,
+                                    navigationKey: (context, event) => event.data.navigationKey,
                                     position: (context, event) => event.data.position,
                                     syntaxTree: (context, event) => event.data.syntaxTree,
                                     focusFlowDiagramView: (context, event) => event.data.focusFlowDiagramView,
@@ -756,6 +758,7 @@ const stateMachine = createMachine<MachineContext>(
                     const view = await getView(context.documentUri, context.position, context?.projectPath);
                     view.location.package = packageName || context.package;
                     view.location.projectPath = context.projectPath;
+                    view.location.navigationKey = toNavigationKey(view.location.documentUri, view.location.position);
                     history.push(view);
                     return resolve();
                 } else {
@@ -767,6 +770,7 @@ const stateMachine = createMachine<MachineContext>(
                             position: context.position,
                             identifier: context.identifier,
                             parentIdentifier: context.parentIdentifier,
+                            navigationKey: toNavigationKey(context.documentUri, context.position),
                             artifactType: context.artifactType,
                             focusFlowDiagramView: context?.focusFlowDiagramView,
                             org: orgName || context.org,
@@ -804,7 +808,7 @@ const stateMachine = createMachine<MachineContext>(
                 // Get updated location and identifier if transition was from VIEW_UPDATE event
                 if (context.isViewUpdateTransition && selectedEntry.location.view !== MACHINE_VIEW.ReviewMode) {
                     const updatedView = await getView(selectedEntry.location.documentUri, selectedEntry.location.position, context?.projectPath);
-                    return updatedView.location;
+                    return { ...updatedView.location, navigationKey: selectedEntry.location.navigationKey };
                 }
                 return selectedEntry.location;
             }
@@ -906,6 +910,22 @@ const stateMachine = createMachine<MachineContext>(
         }
     }
 });
+
+/**
+ * Builds the navigation key of a view opened at `position` in `documentUri`. The key is set only when a view is opened
+ * and is kept unchanged across later view updates, so saving does not remount the diagram. Re-opening the artifact already on screen reuses its key, since that key may still hold the position from before an edit.
+ */
+function toNavigationKey(documentUri?: string, position?: NodePosition): string | undefined {
+    if (!documentUri || !position || position.startLine === undefined) {
+        return undefined;
+    }
+    const current = getLastHistory()?.location;
+    if (current?.navigationKey && isSamePath(current.documentUri, documentUri)
+        && current.position?.startLine === position.startLine && current.position?.startColumn === position.startColumn) {
+        return current.navigationKey;
+    }
+    return `${documentUri}:${position.startLine}:${position.startColumn}`;
+}
 
 /** Resolves when the visualizer panel on screen has reported `webviewReady`; reassigned per panel. */
 let visualizerWebviewReady: Promise<void> = Promise.resolve();
@@ -1161,7 +1181,7 @@ export function updateView(refreshTreeView?: boolean, updatedIdentifier?: string
     if (lastView && lastView.location?.artifactType && lastView.location?.identifier) {
         newLocation = { ...lastView.location };
         const currentIdentifier = lastView.location?.identifier;
-        let currentArtifact: ProjectStructureArtifactResponse;
+        const candidates: ProjectStructureArtifactResponse[] = [];
         let targetedArtifactType = lastView.location?.artifactType;
 
         if (targetedArtifactType === DIRECTORY_MAP.RESOURCE || targetedArtifactType === DIRECTORY_MAP.REMOTE) {
@@ -1173,18 +1193,22 @@ export function updateView(refreshTreeView?: boolean, updatedIdentifier?: string
         const project = StateMachine.context().projectStructure?.projects.find(project => isSamePath(project.projectPath, projectPath));
 
         // These changes will be revisited in the revamp
+        const matchesIdentifier = (artifact: ProjectStructureArtifactResponse) =>
+            artifact.id === currentIdentifier || artifact.name === currentIdentifier || artifact.id === updatedIdentifier || artifact.name === updatedIdentifier;
+
         project?.directoryMap[targetedArtifactType]?.forEach((artifact: ProjectStructureArtifactResponse) => {
-            if (artifact.id === currentIdentifier || artifact.name === currentIdentifier || artifact.id === updatedIdentifier || artifact.name === updatedIdentifier) {
-                currentArtifact = artifact;
+            if (matchesIdentifier(artifact)) {
+                candidates.push(artifact);
             }
             // Check if artifact has resources and find within those
             if (artifact.resources && artifact.resources.length > 0) {
-                const resource = artifact.resources.find((resource: ProjectStructureArtifactResponse) => resource.id === currentIdentifier || resource.name === currentIdentifier || resource.id === updatedIdentifier || resource.name === updatedIdentifier);
+                const resource = artifact.resources.find(matchesIdentifier);
                 if (resource) {
-                    currentArtifact = resource;
+                    candidates.push(resource);
                 }
             }
         });
+        const currentArtifact = pickClosestArtifact(candidates, lastView.location.documentUri, lastView.location.position);
 
         const newPosition = currentArtifact?.position || lastView.location.position;
         newLocation = { ...lastView.location, position: newPosition };

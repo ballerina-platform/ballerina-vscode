@@ -225,6 +225,12 @@
                     "default": "animated",
                     "description": "Copilot orb style."
                 },
+                "ballerina.copilot.showOrb": {
+                    "type": "boolean",
+                    "default": true,
+                    "scope": "application",
+                    "description": "Show the floating Copilot orb. When off, open Copilot from the title bar."
+                },
                 "ballerina.enableNotebookDebug": {
                     "type": "boolean",
                     "default": false,
@@ -1157,7 +1163,7 @@
                 {
                     "command": "ballerina.open.ai.panel",
                     "group": "navigation@1",
-                    "when": "(resourceLangId == ballerina || isBallerinaDiagram || (isBalVisualizerActive && isBIProject && !ballerina.copilotAmbientPresent)) && !ballerina.aiPanelVisible",
+                    "when": "(resourceLangId == ballerina || isBallerinaDiagram || (isBalVisualizerActive && !ballerina.copilotAmbientPresent)) && !ballerina.aiPanelVisible",
                     "title": "Open Copilot"
                 },
                 {
@@ -1620,7 +1626,7 @@
         "@types/vscode": "1.100.0",
         "@types/vscode-notebook-renderer": "1.72.2",
         "adm-zip": "0.5.16",
-        "axios": "1.18.0",
+        "axios": "1.20.0",
         "chai": "4.3.10",
         "copyfiles": "2.4.1",
         "cross-env": "7.0.3",

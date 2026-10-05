@@ -72,7 +72,7 @@
         "optional": true,
         "editable": true,
         "advanced": false,
-        "hidden": false
+        "hidden": true
       },
       "description": {
         "metadata": {
@@ -90,7 +90,7 @@
         "optional": true,
         "editable": true,
         "advanced": false,
-        "hidden": false
+        "hidden": true
       },
       "approvalPolicy": {
         "metadata": {
