@@ -208,6 +208,7 @@ import io.ballerina.projects.Document;
 import io.ballerina.projects.Module;
 import io.ballerina.projects.Package;
 import io.ballerina.projects.Project;
+import io.ballerina.projects.ResolvedPackageDependency;
 import io.ballerina.tools.diagnostics.DiagnosticSeverity;
 import io.ballerina.tools.diagnostics.Location;
 import io.ballerina.tools.text.LinePosition;
@@ -695,6 +696,17 @@ public class CodeAnalyzer extends NodeVisitor {
                     : WorkflowUtil.workflowFunctionOptions(project.currentPackage());
         }
         return workflowOptions;
+    }
+
+    // The agent's forms (memory, model, tools) build their templates from the project's ballerina/ai.
+    private void prewarmAgentLibrary() {
+        project.currentPackage().getResolution().dependencyGraph().getNodes().stream()
+                .map(ResolvedPackageDependency::packageInstance)
+                .filter(pkg -> pkg.packageOrg().value().equals(Constants.Ai.BALLERINA_ORG)
+                        && pkg.packageName().value().equals(Constants.Ai.AI_PACKAGE))
+                .findFirst()
+                .ifPresent(pkg -> PackageUtil.prewarm(Constants.Ai.BALLERINA_ORG, Constants.Ai.AI_PACKAGE,
+                        pkg.packageVersion().toString()));
     }
 
     private void populateAgentMetaData(ExpressionNode expressionNode, ClassSymbol classSymbol) {
@@ -4114,6 +4126,7 @@ public class CodeAnalyzer extends NodeVisitor {
         if (kind == NodeKind.AGENT) {
             nodeBuilder.properties().reserveProperty(AgentCallBuilder.ROLE)
                     .reserveProperty(AgentCallBuilder.INSTRUCTIONS);
+            prewarmAgentLibrary();
         }
         Optional<MethodSymbol> optMethodSymbol = classSymbol.initMethod();
         FunctionDataBuilder functionDataBuilder = new FunctionDataBuilder()

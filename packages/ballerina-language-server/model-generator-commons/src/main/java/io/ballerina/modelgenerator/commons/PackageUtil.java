@@ -53,6 +53,7 @@ import org.ballerinalang.langserver.commons.workspace.WorkspaceManager;
 import org.eclipse.lsp4j.MessageType;
 
 import java.io.IOException;
+import java.lang.ref.SoftReference;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -62,6 +63,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
@@ -157,8 +160,8 @@ public class PackageUtil {
      * trade-off is that a "latest version" lookup or a transient network failure sticks for the
      * LS session.
      *
-     * Caches the resolved bala path rather than the loaded package, which would retain that
-     * package's syntax trees and symbols for the session.
+     * Caches the resolved bala path; the loaded package is cached separately and softly in
+     * {@link #BALA_PACKAGES}.
      */
     private static final ConcurrentHashMap<String, Optional<Path>> SAMPLE_RESOLUTION_CACHE =
             new ConcurrentHashMap<>();
@@ -204,11 +207,38 @@ public class PackageUtil {
                 + ":" + (repository == null ? "" : repository);
     }
 
+    // A bala never changes, so its compilation is reusable; soft references let the GC reclaim it under pressure.
+    private static final ConcurrentHashMap<Path, SoftReference<Package>> BALA_PACKAGES = new ConcurrentHashMap<>();
+
+    private static final Set<String> PREWARMED = ConcurrentHashMap.newKeySet();
+
     private static Optional<Package> loadBalaPackage(Path balaPath) {
-        ProjectEnvironmentBuilder defaultBuilder = ProjectEnvironmentBuilder.getDefaultBuilder();
-        defaultBuilder.addCompilationCacheFactory(TempDirCompilationCache::from);
-        BalaProject balaProject = BalaProject.loadProject(defaultBuilder, balaPath, balaBuildOptions());
-        return Optional.ofNullable(balaProject.currentPackage());
+        Package[] balaPackage = new Package[1];
+        BALA_PACKAGES.compute(balaPath, (path, cached) -> {
+            balaPackage[0] = cached == null ? null : cached.get();
+            if (balaPackage[0] != null) {
+                return cached;
+            }
+            ProjectEnvironmentBuilder defaultBuilder = ProjectEnvironmentBuilder.getDefaultBuilder();
+            defaultBuilder.addCompilationCacheFactory(TempDirCompilationCache::from);
+            balaPackage[0] = BalaProject.loadProject(defaultBuilder, path, balaBuildOptions()).currentPackage();
+            return new SoftReference<>(balaPackage[0]);
+        });
+        return Optional.of(balaPackage[0]);
+    }
+
+    /**
+     * Compiles a library package in the background so the node templates that need it later find it cached.
+     *
+     * @param org         The organization name of the package
+     * @param packageName The name of the package
+     * @param version     The version of the package
+     */
+    public static void prewarm(String org, String packageName, String version) {
+        if (PREWARMED.add(org + "/" + packageName + ":" + version)) {
+            CompletableFuture.runAsync(() -> resolveModulePackage(org, packageName, version)
+                    .ifPresent(PackageUtil::getCompilation));
+        }
     }
 
     /**
