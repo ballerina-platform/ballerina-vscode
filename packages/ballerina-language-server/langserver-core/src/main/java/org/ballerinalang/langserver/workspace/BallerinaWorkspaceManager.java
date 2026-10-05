@@ -1468,6 +1468,15 @@ public class BallerinaWorkspaceManager implements WorkspaceManager {
         // Lock Project Instance
         Lock lock = projectContext.lockAndGet();
         try {
+            // Reloading from disk is only needed to pick up a new file; it also discards the loaded compilation.
+            Optional<Document> loadedDocument = document(filePath, projectContext.project(), null);
+            if (loadedDocument.isPresent()) {
+                if (!loadedDocument.get().textDocument().toString().equals(content)) {
+                    projectContext.setProject(
+                            loadedDocument.get().modify().withContent(content).apply().module().project());
+                }
+                return;
+            }
             Optional<ProjectContext> newProjectContext =
                     createProjectContext(filePath, LSContextOperation.TXT_DID_OPEN.getName());
             if (newProjectContext.isEmpty()) {
