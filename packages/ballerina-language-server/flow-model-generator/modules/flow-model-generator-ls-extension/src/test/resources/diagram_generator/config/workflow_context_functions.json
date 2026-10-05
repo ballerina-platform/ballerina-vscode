@@ -47,7 +47,7 @@
       {
         "id": "39841",
         "metadata": {
-          "label": "Get Current Time",
+          "label": "Current Time",
           "description": "Deterministic current time, safe to use inside workflow logic"
         },
         "codedata": {
@@ -141,7 +141,7 @@
       {
         "id": "41838",
         "metadata": {
-          "label": "Get Workflow ID",
+          "label": "Workflow ID",
           "description": "The unique ID of this workflow instance"
         },
         "codedata": {
@@ -188,7 +188,7 @@
       {
         "id": "42834",
         "metadata": {
-          "label": "Get Workflow Type",
+          "label": "Workflow Type",
           "description": "The type name of this workflow"
         },
         "codedata": {
@@ -235,7 +235,7 @@
       {
         "id": "43849",
         "metadata": {
-          "label": "Get Last Human Task Completion",
+          "label": "Last Completion",
           "description": "The completion of the most recently completed human task, with who completed it"
         },
         "codedata": {
@@ -305,7 +305,7 @@
       {
         "id": "44848",
         "metadata": {
-          "label": "Get Last Review Decision",
+          "label": "Last Decision",
           "description": "The decision of the most recent review task, with who decided it"
         },
         "codedata": {
@@ -467,7 +467,7 @@
       {
         "id": "46801",
         "metadata": {
-          "label": "Get Last Review Decision",
+          "label": "Last Decision",
           "description": "The decision of the most recent review task, with who decided it"
         },
         "codedata": {

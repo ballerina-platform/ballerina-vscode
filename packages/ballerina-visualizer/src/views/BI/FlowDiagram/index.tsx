@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { capabilityValueText, seedCapabilityValue, SeedableProperty } from "./capabilityFieldValues";
+import { capabilityValueText, revealActivityIdentity, seedCapabilityValue, SeedableProperty } from "./capabilityFieldValues";
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import styled from "@emotion/styled";
@@ -3924,6 +3924,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                     // so a reference stays an expression instead of being quoted into a literal on save.
                     seedCapabilityValue(nodeProps[key], value);
                 }
+            }
+            if (capability?.type === "activity") {
+                revealActivityIdentity(nodeProps);
             }
             node.codedata.lineRange = lineRange;
             node.codedata.isNew = false;
