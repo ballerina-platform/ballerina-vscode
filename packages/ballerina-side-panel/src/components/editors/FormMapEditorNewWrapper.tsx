@@ -16,27 +16,34 @@
  * under the License.
  */
 
-import React from "react";
-import { Controller } from "react-hook-form";
+import React, { useMemo } from "react";
+import { useController } from "react-hook-form";
 import { useFormContext } from "../../context";
 import { FormMapEditorNew } from "./FormMapEditorNew";
 import { FormFieldEditorProps } from "./EditorFactory";
+import { buildRequiredRepeatableRule, useRepeatableRequiredError } from "./utils";
 
 export const FormMapEditorWrapper = (props: FormFieldEditorProps) => {
-       const { form } = useFormContext();
-       const { control } = form;
+    const { form } = useFormContext();
+    const { control } = form;
+
+    const validateRequired = useMemo(
+        () => buildRequiredRepeatableRule({ isRequired: !props.field.optional, label: props.field.label }),
+        [props.field.optional, props.field.label]
+    );
+    const { field, fieldState } = useController({
+        name: props.field.key,
+        control,
+        rules: { validate: validateRequired },
+    });
+    const error = useRepeatableRequiredError(field.value, fieldState.error?.message, validateRequired);
 
     return (
-        <Controller
-            name={props.field.key}
-            control={control}
-            render={({ field }) => (
-                <FormMapEditorNew
-                    {...props}
-                    value={field.value}
-                    onChange={field.onChange}
-                />
-            )}
+        <FormMapEditorNew
+            {...props}
+            value={field.value}
+            onChange={field.onChange}
+            error={error}
         />
     );
 }

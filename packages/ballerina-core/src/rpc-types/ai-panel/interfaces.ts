@@ -944,6 +944,16 @@ export interface DeleteMcpServerRequest {
 export interface SetMcpToolsEnabledRequest {
     enabled: boolean;
 }
+export interface SetCopilotOrbVisibleRequest {
+    visible: boolean;
+}
+/** Boolean `ballerina.copilot.*` settings the Copilot settings panel toggles, keyed relative to that section. */
+export type CopilotToggleSetting = 'followupSuggestions';
+export type CopilotToggleSettings = Record<CopilotToggleSetting, boolean>;
+export interface SetCopilotToggleSettingRequest {
+    key: CopilotToggleSetting;
+    value: boolean;
+}
 /** Per-scope parse / read errors for `mcp.json` files. Both fields are optional — missing means OK. */
 export interface McpLoadErrorsDTO {
     user?: string;

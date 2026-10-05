@@ -20,7 +20,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import { Checkpoint } from '@wso2/ballerina-core/lib/state-machine-types';
-import { isPathInside } from '@wso2/ballerina-core/lib/utils/path-utils';
+import { isPathInside, isSamePath } from '@wso2/ballerina-core/lib/utils/path-utils';
 import { getCheckpointConfig } from './checkpointConfig';
 import { ArtifactUpdateWait, startArtifactUpdateWait } from '../../../utils/project-artifacts-handler';
 import { VisualizerRpcManager } from '../../../rpc-managers/visualizer/rpc-manager';
@@ -44,11 +44,39 @@ function isLosslessUtf8(bytes: Buffer): boolean {
     return Buffer.from(bytes.toString('utf8'), 'utf8').equals(bytes);
 }
 
+// Returns null when the path cannot be resolved for any reason other than not existing yet.
+// Walking up past an EACCES or ELOOP would rejoin the rest of the path as a plain string, which is
+// exactly the lexical comparison the callers resolve symlinks to avoid — so that case fails closed.
+function realPathOfNearestAncestor(target: string): string | null {
+    let current = target;
+    for (;;) {
+        try {
+            return path.join(fs.realpathSync(current), path.relative(current, target));
+        } catch (error) {
+            if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+                return null;
+            }
+            const parent = path.dirname(current);
+            if (parent === current) {
+                return null;
+            }
+            current = parent;
+        }
+    }
+}
+
 // Snapshot keys are relative paths from a previous session, so they are only as trustworthy as the
-// file they were persisted in: resolve first, then refuse anything that lands outside the workspace.
+// file they were persisted in. Both sides are resolved through their real paths before comparing:
+// a lexical check alone passes a path that leaves the workspace through a directory symlink, and
+// resolving only the target would reject legitimate roots, which are themselves often symlinked.
 function resolveInsideWorkspace(workspaceRoot: vscode.Uri, filePath: string): vscode.Uri | null {
     const target = path.resolve(workspaceRoot.fsPath, filePath);
-    return isPathInside(workspaceRoot.fsPath, target) ? vscode.Uri.file(target) : null;
+    const realRoot = realPathOfNearestAncestor(workspaceRoot.fsPath);
+    const realTarget = realPathOfNearestAncestor(target);
+    if (!realRoot || !realTarget) {
+        return null;
+    }
+    return isPathInside(realRoot, realTarget) ? vscode.Uri.file(target) : null;
 }
 
 function openDocumentText(fileUri: vscode.Uri): string | undefined {
@@ -94,7 +122,7 @@ export async function captureWorkspaceSnapshot(messageId: string): Promise<Check
                     return { fileUri, bytes: Buffer.from(fileContent) };
                 } catch (error) {
                     console.error(`[Checkpoint] Failed to read file ${fileUri.fsPath}:`, error);
-                    return null;
+                    return { fileUri, bytes: null };
                 }
             }));
 
@@ -102,6 +130,12 @@ export async function captureWorkspaceSnapshot(messageId: string): Promise<Check
                 if (!entry) { continue; }
                 const relativePath = path.relative(workspaceRoot.fsPath, entry.fileUri.fsPath).split(path.sep).join('/');
                 fileList.push(relativePath);
+
+                // Unreadable at capture — locked by another process, or permission denied. Listing it
+                // without snapshotting it is what stops the restore deleting a file it never held.
+                if (!entry.bytes) {
+                    continue;
+                }
 
                 // Listed but not snapshotted: a snapshot holds strings, so bytes that do not survive
                 // a UTF-8 round trip cannot be reproduced. Being in fileList keeps a restore from
@@ -133,7 +167,9 @@ export async function captureWorkspaceSnapshot(messageId: string): Promise<Check
             timestamp: Date.now(),
             workspaceSnapshot,
             fileList,
-            snapshotSize: totalSize
+            snapshotSize: totalSize,
+            workspaceRoot: workspaceRoot.fsPath,
+            ignorePatterns: config.ignorePatterns
         };
 
         return checkpoint;
@@ -157,6 +193,20 @@ export async function restoreWorkspaceSnapshot(checkpoint: Checkpoint, skipArtif
     }
 
     const workspaceRoot = workspaceFolders[0].uri;
+
+    // Paths in a snapshot mean nothing without the root they were taken against: re-rooting one
+    // into a different workspace rewrites files that never belonged to it and deletes everything
+    // the snapshot does not list. Checkpoints captured before the root was recorded carry none,
+    // and are let through rather than making every existing one unrevertible.
+    const capturedRoot = checkpoint.workspaceRoot && realPathOfNearestAncestor(checkpoint.workspaceRoot);
+    const currentRoot = realPathOfNearestAncestor(workspaceRoot.fsPath);
+    if (checkpoint.workspaceRoot && (!capturedRoot || !currentRoot || !isSamePath(capturedRoot, currentRoot))) {
+        const reason = `This checkpoint was taken in a different workspace (${checkpoint.workspaceRoot}), so it cannot be restored here.`;
+        console.error(`[Checkpoint] Refusing a cross-root restore: ${reason}`);
+        vscode.window.showErrorMessage(`Cannot restore checkpoint: ${reason}`);
+        return false;
+    }
+
     let artifactWait: ArtifactUpdateWait | undefined;
     const notRestored: string[] = [];
 
@@ -168,8 +218,10 @@ export async function restoreWorkspaceSnapshot(checkpoint: Checkpoint, skipArtif
         }, async (progress) => {
             progress.report({ message: 'Reading current workspace...' });
 
-            const config = getCheckpointConfig();
-            const currentFiles = await getAllWorkspaceFiles(workspaceRoot, config.ignorePatterns);
+            // The patterns the snapshot was taken under, not today's: a pattern removed since would
+            // turn everything it used to hide into "not in the snapshot", and delete it.
+            const ignorePatterns = checkpoint.ignorePatterns ?? getCheckpointConfig().ignorePatterns;
+            const currentFiles = await getAllWorkspaceFiles(workspaceRoot, ignorePatterns);
             const currentFilePaths = new Set(
                 currentFiles.map(uri => path.relative(workspaceRoot.fsPath, uri.fsPath).split(path.sep).join('/'))
             );
@@ -228,6 +280,43 @@ export async function restoreWorkspaceSnapshot(checkpoint: Checkpoint, skipArtif
                 }
             }
 
+            // Asked before anything is written, because this is the irreversible half: the snapshot
+            // holds no copy of a file it never captured, so the trash is the only way back.
+            const useTrash = vscode.workspace.getConfiguration('files').get<boolean>('enableTrash', true);
+            const deleteCount = balFilesToDelete.length + nonBalFilesToDelete.length;
+            if (deleteCount > 0) {
+                const names = [...balFilesToDelete, ...nonBalFilesToDelete.map(f => f.fileUri)]
+                    .slice(0, 5)
+                    .map(uri => path.relative(workspaceRoot.fsPath, uri.fsPath))
+                    .join(', ');
+                const more = deleteCount > 5 ? ` and ${deleteCount - 5} more` : '';
+                // The prompt has to name the outcome the setting actually produces: with the trash
+                // off these deletions are permanent, and the snapshot holds no copy to undo them with.
+                const removeLabel = useTrash ? 'Move to Trash' : 'Delete Permanently';
+                const consequence = useTrash
+                    ? 'They can be recovered from the trash.'
+                    : 'They cannot be recovered — the trash is disabled in your settings.';
+                const choice = await vscode.window.showWarningMessage(
+                    `Restoring this checkpoint removes ${deleteCount} file(s) it does not contain: ${names}${more}. ${consequence}`,
+                    { modal: true },
+                    removeLabel,
+                    'Keep Them'
+                );
+                if (choice === undefined) {
+                    throw new Error('cancelled');
+                }
+                if (choice === 'Keep Them') {
+                    for (const fileUri of balFilesToDelete) {
+                        notRestored.push(path.relative(workspaceRoot.fsPath, fileUri.fsPath));
+                    }
+                    for (const { filePath } of nonBalFilesToDelete) {
+                        notRestored.push(filePath);
+                    }
+                    balFilesToDelete.length = 0;
+                    nonBalFilesToDelete.length = 0;
+                }
+            }
+
             progress.report({ message: 'Applying workspace changes...' });
 
             // Armed before the edits: the notification has no replay, so a Language Server that
@@ -246,10 +335,8 @@ export async function restoreWorkspaceSnapshot(checkpoint: Checkpoint, skipArtif
                 // WorkspaceEdit.replace() silently no-ops on a file with no open TextDocument,
                 // which is never true for .bal files but always true for the rest.
                 // Each file is isolated: one unwritable path must not abandon the rest half-restored.
-                // The snapshot holds no copy of a file it never captured, so this deletion is the
-                // user's only copy. Which is why it follows their own trash setting rather than a
-                // hardcoded choice — the same setting WorkspaceEdit honours for the .bal deletions.
-                const useTrash = vscode.workspace.getConfiguration('files').get<boolean>('enableTrash', true);
+                // Follows the user's own trash setting rather than a hardcoded choice — the same
+                // setting WorkspaceEdit honours for the .bal deletions, and the one the prompt named.
                 for (const { fileUri, filePath } of nonBalFilesToDelete) {
                     if (!fs.existsSync(fileUri.fsPath)) {
                         continue;
@@ -341,6 +428,10 @@ export async function restoreWorkspaceSnapshot(checkpoint: Checkpoint, skipArtif
         return true;
     } catch (error) {
         artifactWait?.cancel();
+        if ((error as Error).message === 'cancelled') {
+            console.log('[Checkpoint] Restore cancelled at the deletion prompt');
+            return false;
+        }
         console.error('[Checkpoint] Failed to restore workspace snapshot:', error);
         vscode.window.showErrorMessage('Failed to restore checkpoint: ' + (error as Error).message);
         return false;

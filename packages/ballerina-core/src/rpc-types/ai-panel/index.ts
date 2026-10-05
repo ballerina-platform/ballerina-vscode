@@ -77,6 +77,9 @@ import {
     UpdateMcpServerRequest,
     DeleteMcpServerRequest,
     SetMcpToolsEnabledRequest,
+    SetCopilotOrbVisibleRequest,
+    CopilotToggleSettings,
+    SetCopilotToggleSettingRequest,
     McpLoadErrorsDTO,
     AgentsMdFileInfoDTO,
     ThreadSummary,
@@ -205,6 +208,10 @@ export interface AIPanelAPI {
     deleteMcpServer: (params: DeleteMcpServerRequest) => Promise<AddMcpServerResponse>;
     setMcpToolsEnabled: (params: SetMcpToolsEnabledRequest) => Promise<void>;
     getMcpToolsEnabled: () => Promise<boolean>;
+    setCopilotOrbVisible: (params: SetCopilotOrbVisibleRequest) => Promise<void>;
+    getCopilotOrbVisible: () => Promise<boolean>;
+    getCopilotToggleSettings: () => Promise<CopilotToggleSettings>;
+    setCopilotToggleSetting: (params: SetCopilotToggleSettingRequest) => Promise<void>;
     getMcpWorkspaceContext: () => Promise<McpWorkspaceContextResponse>;
     getMcpLoadErrors: () => Promise<McpLoadErrorsDTO>;
     getAgentsMdFileInfo: () => Promise<AgentsMdFileInfoDTO>;

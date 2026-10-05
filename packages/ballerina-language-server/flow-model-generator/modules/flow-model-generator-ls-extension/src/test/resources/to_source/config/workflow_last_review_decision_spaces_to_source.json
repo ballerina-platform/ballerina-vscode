@@ -4,7 +4,7 @@
   "diagram": {
     "id": "31",
     "metadata": {
-      "label": "Get Last Review Decision",
+      "label": "Last Decision",
       "description": "The decision of the most recent review task, with who decided it"
     },
     "codedata": {

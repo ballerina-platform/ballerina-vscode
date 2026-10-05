@@ -28,7 +28,10 @@
             {
               "metadata": {
                 "label": "Call Activity",
-                "description": "Call a workflow activity function"
+                "description": "Call a workflow activity function",
+                "data": {
+                  "method": "callActivity"
+                }
               },
               "codedata": {
                 "node": "ACTIVITY_CALL"
@@ -37,8 +40,11 @@
             },
             {
               "metadata": {
-                "label": "Await Human Task",
-                "description": "Create a human task and wait for a human to complete it"
+                "label": "Human Task",
+                "description": "Create a human task and wait for a human to complete it",
+                "data": {
+                  "method": "awaitHumanTask"
+                }
               },
               "codedata": {
                 "node": "HUMAN_TASK"
@@ -47,8 +53,11 @@
             },
             {
               "metadata": {
-                "label": "Await Data Event",
-                "description": "Wait for a data event from outside the workflow"
+                "label": "Await Data",
+                "description": "Wait for a data event from outside the workflow",
+                "data": {
+                  "method": "await"
+                }
               },
               "codedata": {
                 "node": "WAIT_DATA"
@@ -58,7 +67,10 @@
             {
               "metadata": {
                 "label": "Sleep",
-                "description": "Pause workflow execution for a specified duration"
+                "description": "Pause workflow execution for a specified duration",
+                "data": {
+                  "method": "sleep"
+                }
               },
               "codedata": {
                 "node": "SLEEP"
@@ -81,8 +93,11 @@
           "items": [
             {
               "metadata": {
-                "label": "Get Current Time",
-                "description": "Deterministic current time, safe to use inside workflow logic"
+                "label": "Current Time",
+                "description": "Deterministic current time, safe to use inside workflow logic",
+                "data": {
+                  "method": "currentTime"
+                }
               },
               "codedata": {
                 "node": "WORKFLOW_CURRENT_TIME"
@@ -92,7 +107,10 @@
             {
               "metadata": {
                 "label": "Is Replaying",
-                "description": "Whether the workflow is currently replaying recorded history"
+                "description": "Whether the workflow is currently replaying recorded history",
+                "data": {
+                  "method": "isReplaying"
+                }
               },
               "codedata": {
                 "node": "WORKFLOW_IS_REPLAYING"
@@ -101,8 +119,11 @@
             },
             {
               "metadata": {
-                "label": "Get Workflow ID",
-                "description": "The unique ID of this workflow instance"
+                "label": "Workflow ID",
+                "description": "The unique ID of this workflow instance",
+                "data": {
+                  "method": "getWorkflowId"
+                }
               },
               "codedata": {
                 "node": "WORKFLOW_GET_ID"
@@ -111,8 +132,11 @@
             },
             {
               "metadata": {
-                "label": "Get Workflow Type",
-                "description": "The type name of this workflow"
+                "label": "Workflow Type",
+                "description": "The type name of this workflow",
+                "data": {
+                  "method": "getWorkflowType"
+                }
               },
               "codedata": {
                 "node": "WORKFLOW_GET_TYPE"
@@ -121,8 +145,11 @@
             },
             {
               "metadata": {
-                "label": "Get Last Human Task Completion",
-                "description": "The completion of the most recently completed human task, with who completed it"
+                "label": "Last Completion",
+                "description": "The completion of the most recently completed human task, with who completed it",
+                "data": {
+                  "method": "lastHumanTaskCompletion"
+                }
               },
               "codedata": {
                 "node": "WORKFLOW_LAST_HUMAN_TASK_COMPLETION"
@@ -131,8 +158,11 @@
             },
             {
               "metadata": {
-                "label": "Get Last Review Decision",
-                "description": "The decision of the most recent review task, with who decided it"
+                "label": "Last Decision",
+                "description": "The decision of the most recent review task, with who decided it",
+                "data": {
+                  "method": "lastReviewDecision"
+                }
               },
               "codedata": {
                 "node": "WORKFLOW_LAST_REVIEW_DECISION"
@@ -154,8 +184,11 @@
           "items": [
             {
               "metadata": {
-                "label": "Run Child Workflow",
-                "description": "Start a child workflow and continue without waiting for its result"
+                "label": "Run Child",
+                "description": "Start a child workflow and continue without waiting for its result",
+                "data": {
+                  "method": "runChildWorkflow"
+                }
               },
               "codedata": {
                 "node": "CHILD_WORKFLOW_RUN"
@@ -164,8 +197,11 @@
             },
             {
               "metadata": {
-                "label": "Call Child Workflow",
-                "description": "Run a child workflow and durably wait for its result"
+                "label": "Call Child",
+                "description": "Run a child workflow and durably wait for its result",
+                "data": {
+                  "method": "callWorkflow"
+                }
               },
               "codedata": {
                 "node": "CHILD_WORKFLOW_CALL"
@@ -174,8 +210,11 @@
             },
             {
               "metadata": {
-                "label": "Wait for Child Workflow",
-                "description": "Durably wait for a started child workflow's result"
+                "label": "Await Child",
+                "description": "Durably wait for a started child workflow's result",
+                "data": {
+                  "method": "waitForChildWorkflow"
+                }
               },
               "codedata": {
                 "node": "CHILD_WORKFLOW_WAIT"
@@ -184,8 +223,11 @@
             },
             {
               "metadata": {
-                "label": "Send Data to Child Workflow",
-                "description": "Send a data event to a running child workflow"
+                "label": "Send to Child",
+                "description": "Send a data event to a running child workflow",
+                "data": {
+                  "method": "sendDataToChildWorkflow"
+                }
               },
               "codedata": {
                 "node": "CHILD_WORKFLOW_SEND_DATA"

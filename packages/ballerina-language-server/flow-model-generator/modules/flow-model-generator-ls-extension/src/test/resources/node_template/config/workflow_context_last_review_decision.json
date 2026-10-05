@@ -4,7 +4,7 @@
     "line": 4,
     "offset": 4
   },
-  "description": "Get Last Review Decision template: an optional decision record and an optional task name",
+  "description": "Review Decision template: an optional decision record and an optional task name",
   "codedata": {
     "node": "WORKFLOW_LAST_REVIEW_DECISION",
     "org": "ballerina",
@@ -14,7 +14,7 @@
   "output": {
     "id": "31",
     "metadata": {
-      "label": "Get Last Review Decision",
+      "label": "Last Decision",
       "description": "The decision of the most recent review task, with who decided it"
     },
     "codedata": {

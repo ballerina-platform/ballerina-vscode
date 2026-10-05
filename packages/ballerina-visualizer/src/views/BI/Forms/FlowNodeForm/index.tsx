@@ -133,7 +133,7 @@ import { SidePanelView } from "../../FlowDiagram/PanelManager";
 import { ConnectionKind, useCreateNode } from "../../../../components/ConnectionSelector";
 import { getFilteredTypesByKind } from "../../TypeEditor/utils";
 import { useModalStack } from "../../../../Context";
-import { getArraySubFormFieldFromTypes, stringToRawArrayElements, stringToRawObjectEntries } from "@wso2/ballerina-side-panel/lib/components/editors/utils";
+import { getArrayElementValues, getArraySubFormFieldFromTypes, stringToRawArrayElements, stringToRawObjectEntries } from "@wso2/ballerina-side-panel/lib/components/editors/utils";
 import { useAssistantName } from "../../../../hooks/useProductMode";
 
 interface FlowNodeTypeEditorState {
@@ -699,6 +699,8 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         formImportsRef.current = getImportsForFormFields(sortedFields);
     };
 
+    const diagnosticsRequestRef = useRef(0);
+
     const setDiagnosticsToFields = (data: FormValues, nodeWithDiagnostics: FlowNode) => {
         setFormDiagnostics(nodeWithDiagnostics?.diagnostics?.diagnostics ?? []);
         const updatedFields = fields.map((field) => {
@@ -715,16 +717,17 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
 
             // Update value from current form data and update diagnostics
             if (data[field.key] !== undefined) {
-                if (isContainingRepeatableList && Array.isArray(nodeProperties?.[field.key]?.value)) {
+                if ((isContainingRepeatableList || isContainingRepeatableMap) && data[field.key] === "") {
+                    updatedField.value = "";
+                }
+                else if (isContainingRepeatableList && Array.isArray(nodeProperties?.[field.key]?.value)) {
                     if (selectedInputType?.fieldType === "REPEATABLE_LIST") {
                         let initialValues: string[];
                         if (typeof data[field.key] === 'string') {
                             initialValues = stringToRawArrayElements(data[field.key]);
                         } else {
                             // When the value is an array (from FormArrayEditor), extract values directly
-                            initialValues = (data[field.key] as any[]).map((val: any) =>
-                                typeof val === 'string' ? val : String(val?.value ?? '')
-                            );
+                            initialValues = getArrayElementValues(data[field.key] as any[]);
                         }
                         const initialFields = initialValues.map((val, index) => {
                             const key = crypto.randomUUID();
@@ -776,8 +779,11 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             // level so that the exp mode also can show the diagnostics. Property-level diagnostics don't have a
             // `range`, so use a simple message-based dedupe and provide explicit typing to satisfy TypeScript.
             if (isRepeatableList && !(Array.isArray(propertyDiagnostics) && propertyDiagnostics.length > 0)) {
+                const repeatableListValue = nodeProperties?.[field.key]?.value;
                 const collectedDiagnostics = (
-                    nodeProperties?.[field.key]?.value?.map((val: any) => val?.diagnostics?.diagnostics) ?? []
+                    Array.isArray(repeatableListValue)
+                        ? repeatableListValue.map((val: any) => val?.diagnostics?.diagnostics)
+                        : []
                 ).flat().filter(Boolean) as Array<{ message?: string; severity?: string }>;
 
                 propertyDiagnostics = collectedDiagnostics.filter((d, i, arr) =>
@@ -891,8 +897,11 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             const validationData = buildValidationData(data);
 
             const updatedNode = mergeFormDataWithFlowNode(validationData, targetLineRange, dirtyFields);
+            const requestId = ++diagnosticsRequestRef.current;
             const nodeWithDiagnostics = await getFormWithDiagnostics(updatedNode);
-            setDiagnosticsToFields(data, nodeWithDiagnostics!);
+            if (requestId === diagnosticsRequestRef.current) {
+                setDiagnosticsToFields(data, nodeWithDiagnostics!);
+            }
         }
     };
 
@@ -1346,7 +1355,9 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             let diagnostics: DiagnosticMessage[] = [];
             if (property?.types?.length === 1 && getPrimaryInputType(property.types)?.fieldType === "REPEATABLE_LIST") {
                 // For repeatable list, check diagnostics for each element in the list
-                const valueDiagnostics = (property.value as any[])?.map((val) => val?.diagnostics?.diagnostics ?? []).flat() ?? [];
+                const valueDiagnostics = Array.isArray(property.value)
+                    ? property.value.map((val: any) => val?.diagnostics?.diagnostics ?? []).flat()
+                    : [];
                 diagnostics = [...diagnostics, ...valueDiagnostics];
             } else if (property?.types?.some(t => t.fieldType === "REPEATABLE_MAP") && typeof property.value === 'object' && property.value !== null && !Array.isArray(property.value)) {
                 // For repeatable map, check diagnostics for each entry in the map
@@ -1376,8 +1387,11 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         if (node && targetLineRange && !skipFormValidation) {
             const validationData = buildValidationData(data);
             const updatedNode = mergeFormDataWithFlowNode(validationData, targetLineRange, dirtyFields);
+            const requestId = ++diagnosticsRequestRef.current;
             const nodeWithDiagnostics = await getFormWithDiagnostics(updatedNode);
-            setDiagnosticsToFields(data, nodeWithDiagnostics!);
+            if (requestId === diagnosticsRequestRef.current) {
+                setDiagnosticsToFields(data, nodeWithDiagnostics!);
+            }
 
             // HACK: Ignore top-level hasDiagnostics when LS does not send property-level diagnostic messages.
             if (nodeWithDiagnostics?.diagnostics?.hasDiagnostics && hasPropertyDiagnosticMessages(nodeWithDiagnostics)) {

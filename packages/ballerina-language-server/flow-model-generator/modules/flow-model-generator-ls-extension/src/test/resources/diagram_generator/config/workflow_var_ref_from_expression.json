@@ -5257,7 +5257,7 @@
       {
         "id": "63688",
         "metadata": {
-          "label": "Await Human Task",
+          "label": "Human Task",
           "description": "Create a human task and wait for a human to complete it",
           "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.10.0.png"
         },

@@ -33,6 +33,7 @@ interface FieldType {
 export interface SeedableProperty {
     value?: unknown;
     types?: FieldType[];
+    hidden?: boolean;
 }
 
 // The modes that hold text rather than source. A doc box is one of them: it is a single mode, but a
@@ -64,7 +65,33 @@ function stringLiteral(source: string): boolean {
  * The text a string literal denotes, with the escapes it carries resolved. Read in one pass: an
  * escaped backslash consumes the character after it, so `"C:\\new"` is a path and not a line break.
  */
+const TEMPLATE_PREFIX = "string `";
+
+/**
+ * The body of a `string `...`` template that interpolates nothing: what the text box writes, and
+ * what it should read back. A template with an interpolation is an expression.
+ */
+function plainTemplateBody(source: string): string | undefined {
+    const trimmed = source.trim();
+    if (trimmed.length < TEMPLATE_PREFIX.length + 1 || !trimmed.startsWith(TEMPLATE_PREFIX) || !trimmed.endsWith("`")) {
+        return undefined;
+    }
+    const body = trimmed.slice(TEMPLATE_PREFIX.length, -1);
+    return body.includes("${") || body.includes("`") ? undefined : body;
+}
+
+/** Whether the source is text the form can show as it is meant: a string literal or a plain template. */
+function textSource(source: string): boolean {
+    return stringLiteral(source) || plainTemplateBody(source) !== undefined;
+}
+
+/** The text a literal or a plain template denotes: a literal is unescaped, a template's body is taken as written. */
 function literalText(source: string): string {
+    const template = plainTemplateBody(source);
+    if (template !== undefined) {
+        // Ballerina keeps a template's backslashes: `string \`C:\\temp\`` is the seven characters C:\temp.
+        return template;
+    }
     const body = source.slice(1, -1);
     let text = "";
     for (let i = 0; i < body.length; i++) {
@@ -114,7 +141,7 @@ export function capabilityValueText(source: string | undefined): string | undefi
     if (!source) {
         return source;
     }
-    return stringLiteral(source) ? literalText(source) : source;
+    return textSource(source) ? literalText(source) : source;
 }
 
 /**
@@ -147,7 +174,7 @@ export function seedCapabilityValue(property: SeedableProperty, source: string):
         }
     }
 
-    if (textMode && stringLiteral(source)) {
+    if (textMode && textSource(source)) {
         property.value = literalText(source);
         select(types, textMode);
         return;
@@ -221,4 +248,24 @@ function select(types: FieldType[], chosen: FieldType): void {
     types.forEach((type) => {
         type.selected = type === chosen;
     });
+}
+
+// The entry fields the add template hides: registering asks for the bindings and the policies alone.
+// They are DurableAgentAddActivityBuilder.ACTIVITY_NAME_KEY / ACTIVITY_DESCRIPTION_KEY on the language
+// server; a rename there must be mirrored here, or the edit form silently stops showing them.
+const ACTIVITY_IDENTITY_KEYS = ["name", "description"];
+
+/**
+ * Shows an activity entry's name and description on its edit form. The add template hides both,
+ * and an existing entry is where they are set.
+ *
+ * @param properties the template's properties, edited in place
+ */
+export function revealActivityIdentity(properties: Record<string, SeedableProperty> | undefined): void {
+    for (const key of ACTIVITY_IDENTITY_KEYS) {
+        const property = properties?.[key];
+        if (property) {
+            property.hidden = false;
+        }
+    }
 }

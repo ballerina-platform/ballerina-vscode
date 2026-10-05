@@ -1313,6 +1313,7 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
                                 <g onClick={readOnly ? undefined : () => onCapabilityClick(item)} css={capabilityHitStyle(!readOnly)}>
                                     <rect x={hasSenders ? 196 : 40} y="2" width={hasSenders ? 48 : 203} height={hasSenders ? 64 : 44} fill="transparent" style={{ pointerEvents: "all" }} />
                                     <circle
+                                        data-testid={`durable-agent-capability-${item.kind}-${sanitizeId(itemName)}`}
                                         className="capability-circle"
                                         cx="220"
                                         cy="24"
@@ -1582,6 +1583,7 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
                             <g onClick={clickable ? () => onCapabilityClick(item) : undefined} css={capabilityHitStyle(clickable)}>
                                 <rect x="58" y="2" width={sideSvgWidth - 58} height="44" fill="transparent" style={{ pointerEvents: "all" }} />
                                 <circle
+                                    data-testid={`durable-agent-capability-${item.kind}-${sanitizeId(itemName)}`}
                                     className="capability-circle"
                                     cx="80"
                                     cy="24"
