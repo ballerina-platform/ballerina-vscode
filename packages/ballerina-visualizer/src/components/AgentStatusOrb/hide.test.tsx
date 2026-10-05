@@ -33,10 +33,11 @@ jest.mock("@wso2/ballerina-core", () => ({
         OPEN_AI_PANEL: "ballerina.open.ai.panel",
         HIDE_COPILOT_ORB: "ballerina.copilot.hideOrb",
     },
-    ProductMode: { BALLERINA: "ballerina", INTEGRATOR: "integrator" },
+    ProductMode: { BALLERINA: "ballerina", INTEGRATOR: "integrator", AGENT_BUILDER: "agent-builder" },
     // Seeded, so the orb never goes asking the host for the product mid-test.
     seededProductMode: () => "integrator",
     assistantName: () => "WSO2 Integrator Copilot",
+    shortAssistantName: () => "Integrator Copilot",
     assistantTagline: () => "",
 }));
 
@@ -47,6 +48,7 @@ jest.mock("@wso2/ballerina-rpc-client", () => ({
 }));
 
 jest.mock("./CopilotOrb", () => ({ CopilotOrb: (): null => null }));
+jest.mock("@wso2/ui-toolkit", () => ({ Icon: (): null => null }));
 jest.mock("./MiniChat", () => ({
     MiniChat: () => {
         const react = jest.requireActual<typeof React>("react");

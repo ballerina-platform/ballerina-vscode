@@ -35,6 +35,11 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 jest.mock("@wso2/ballerina-core", () => ({
     __esModule: true,
     AIMachineEventType: { LOGOUT: "LOGOUT" },
+    ProductMode: { BALLERINA: "ballerina", INTEGRATOR: "integrator", AGENT_BUILDER: "agent-builder" },
+    seededProductMode: () => "integrator",
+    assistantName: () => "WSO2 Integrator Copilot",
+    shortAssistantName: () => "Integrator Copilot",
+    assistantTagline: () => "",
 }));
 
 jest.mock("@wso2/ballerina-rpc-client", () => {
@@ -169,6 +174,6 @@ describe("SettingsPanel General toggles", () => {
         await render(makeRpcClient(true).client);
 
         const headers = Array.from(container.querySelectorAll("h3"), (h) => h.textContent);
-        expect(headers).toEqual(["Customize Copilot", "General", "Integrations", "Account"]);
+        expect(headers).toEqual(["Customize Integrator Copilot", "General", "Integrations", "Account"]);
     });
 });
