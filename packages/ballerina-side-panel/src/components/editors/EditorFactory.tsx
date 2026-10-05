@@ -20,7 +20,7 @@ import React from "react";
 
 import { Imports, InputType, isDropDownType, isTemplateType, NodeKind, NodeProperties, RecordTypeField, SubPanel, SubPanelView } from "@wso2/ballerina-core";
 
-import { FormField } from "../Form/types";
+import { FormField, FormValues } from "../Form/types";
 import { MultiSelectEditor } from "./MultiSelectEditor";
 import { TextEditor } from "./TextEditor";
 import { TypeEditor } from "./TypeEditor";
@@ -75,6 +75,7 @@ export interface FormFieldEditorProps {
     isContextTypeEditorSupported?: boolean;
     openFormTypeEditor?: (open: boolean, newType?: string) => void;
     updateImports?: (key: string, imports: Imports) => void;
+    handleFormValidation?: (formData?: FormValues, forceValidation?: boolean) => Promise<boolean>;
 }
 
 export const EditorFactory = (props: FormFieldEditorProps) => {

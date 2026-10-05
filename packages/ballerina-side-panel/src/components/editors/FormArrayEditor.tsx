@@ -17,20 +17,35 @@
  */
 
 import React, { useEffect, useRef, useState } from "react";
+import { isEqual } from "lodash";
 import { FormDiagnostics, InputType, Property } from "@wso2/ballerina-core";
 import { Form, FormField, FormFieldEditorProps, FormValues, S, useFormContext, useModeSwitcherContext } from "../..";
+import { ErrorBanner, RequiredFormInput } from "@wso2/ui-toolkit";
 import { Codicon } from "@wso2/ui-toolkit/lib/components/Codicon/Codicon";
 import { ScrollableList, ScrollableListRef } from "@wso2/ui-toolkit/lib/components/ScrollableList/ScrollableList";
 import ModeSwitcher from "../ModeSwitcher";
-import { getArraySubFormFieldFromTypes, stringToRawArrayElements, buildStringArray, getRecordTypeFields, mapDiagnosticsServerityToFormSeverity, getPropertyFromFormField } from "./utils";
+import { getArrayElementValues, getArraySubFormFieldFromTypes, normalizeDiagnostics, getRepeatableErrorMessages, stringToRawArrayElements, buildStringArray, getRecordTypeFields, mapDiagnosticsServerityToFormSeverity, getPropertyFromFormField } from "./utils";
 import { InputMode } from "./MultiModeExpressionEditor/ChipExpressionEditor/types";
 import { getInputModeFromTypes } from "./MultiModeExpressionEditor/ChipExpressionEditor/utils";
 
 export const FormArrayEditor = (props: FormFieldEditorProps & {
     onChange: (value: any) => void;
     value: any;
+    error?: string;
 }) => {
     const [repeatableFields, setRepeatableFields] = useState<FormField[]>([]);
+    const [fieldDiagnostics, setFieldDiagnostics] = useState(props.field.diagnostics);
+
+    useEffect(() => {
+        const serverValue = props.field.value;
+        const currentValue = props.value;
+        const valuesMatch = Array.isArray(serverValue) && Array.isArray(currentValue)
+            ? isEqual(getArrayElementValues(serverValue), getArrayElementValues(currentValue))
+            : serverValue === currentValue;
+        if (!valuesMatch) return;
+        setFieldDiagnostics(props.field.diagnostics);
+    }, [props.field.diagnostics, props.field.value, props.value]);
+
     const { expressionEditor } = useFormContext();
     const elementDiagnosticsRef = useRef<FormDiagnostics[]>([]);
     const prevDiagnosticsRef = useRef<Record<string, string>>({});
@@ -39,10 +54,14 @@ export const FormArrayEditor = (props: FormFieldEditorProps & {
     const modeSwitcherContext = useModeSwitcherContext();
 
     const handleAddNewItem = () => {
+        setFieldDiagnostics([]);
         const key = crypto.randomUUID();
         if (!(props.field.types[0] as any).template) return;
         const newField = getArraySubFormFieldFromTypes(key, (props.field.types[0] as any).template.types as InputType[])
-        setRepeatableFields(prev => [...prev, newField]);
+        const newRepeatableFields = [...repeatableFields, newField];
+        setRepeatableFields(newRepeatableFields);
+        props.onChange(newRepeatableFields);
+        props.handleFormValidation?.(undefined, true);
         // Wait for the dom update
         setTimeout(() => {
             scrollableListRef.current?.scrollToBottom();
@@ -50,6 +69,7 @@ export const FormArrayEditor = (props: FormFieldEditorProps & {
     }
 
     const handleFormOnChange = (_fieldKey: string, value: any, _allValues: FormValues, parentKey: string) => {
+        setFieldDiagnostics([]);
         const newRepeatableFields = repeatableFields.map((formField) => {
             if (formField.key === parentKey) {
                 return { ...formField, value };
@@ -66,9 +86,11 @@ export const FormArrayEditor = (props: FormFieldEditorProps & {
     }
 
     const handleDeleteItem = (keyToDelete: string) => {
+        setFieldDiagnostics([]);
         const newRepeatableFields = repeatableFields.filter((formField) => formField.key !== keyToDelete);
         setRepeatableFields(newRepeatableFields);
-        props.onChange(newRepeatableFields);
+        props.onChange(newRepeatableFields.length > 0 ? newRepeatableFields : "");
+        props.handleFormValidation?.(undefined, true);
     };
 
     const handleSetDiagnosticsInfoChange = (diagnostics: FormDiagnostics) => {
@@ -149,9 +171,39 @@ export const FormArrayEditor = (props: FormFieldEditorProps & {
         props.onChange(newRepeatableFields);
     }, [props.value]);
 
+    /**
+     * Loads the element diagnostics the language server returns with refreshed fields onto the existing elements.
+     * The server checked the same values the elements hold, so its result replaces each element's diagnostics,
+     * including clearing them when it reports none. The elements are kept as they are, so a refresh does not
+     * remount them.
+     */
+    useEffect(() => {
+        if (!Array.isArray(props.field.value) || props.field.value.length === 0) return;
+        if (props.field.value.length !== repeatableFields.length) return;
+        if (!isEqual(getArrayElementValues(props.field.value), getArrayElementValues(repeatableFields))) return;
+        const serverDiagnostics: FormDiagnostics[] = repeatableFields.map((field, index) => ({
+            key: field.key,
+            diagnostics: normalizeDiagnostics((props.field.value as any[])[index]?.diagnostics)
+        }));
+        const serverKeys = new Set(serverDiagnostics.map(diag => diag.key));
+        elementDiagnosticsRef.current = [
+            ...elementDiagnosticsRef.current.filter(diag => !serverKeys.has(diag.key)),
+            ...serverDiagnostics
+        ];
+        const applied = repeatableFields.map(applyDiagnosticsToField);
+        prevDiagnosticsRef.current = applied.reduce((acc: Record<string, string>, f) => {
+            acc[f.key] = makeDiagnosticsKey(f.diagnostics as any[]);
+            return acc;
+        }, {});
+        setRepeatableFields(applied);
+    }, [props.field.value]);
+
     useEffect(() => {
         if (!props.value) return;
-        if (JSON.stringify(props.value) === JSON.stringify(repeatableFields)) return;
+        if (Array.isArray(props.value) &&
+            isEqual(getArrayElementValues(props.value), getArrayElementValues(repeatableFields))) {
+            return;
+        }
         const keyArray: string[] = [];
         if (Array.isArray(props.value)) {
             const initialDioagnostics: FormDiagnostics[] = props.value.map((val: any) => {
@@ -159,17 +211,10 @@ export const FormArrayEditor = (props: FormFieldEditorProps & {
                 keyArray.push(key);
                 return {
                     key: `ar-elm-${key}`,
-                    diagnostics: Array.isArray(val.diagnostics)
-                        ? val.diagnostics.map((diag: any) => ({
-                            message: diag.message,
-                            severity: mapDiagnosticsServerityToFormSeverity(diag.severity),
-                        }))
-                        : Array.isArray(val.diagnostics?.diagnostics)
-                            ? val.diagnostics.diagnostics.map((diag: any) => ({
-                                message: diag.message,
-                                severity: mapDiagnosticsServerityToFormSeverity(diag.severity),
-                            }))
-                            : []
+                    diagnostics: normalizeDiagnostics(val?.diagnostics).map((diag: any) => ({
+                        message: diag.message,
+                        severity: mapDiagnosticsServerityToFormSeverity(diag.severity),
+                    })) as any[]
                 }
             });
             elementDiagnosticsRef.current = initialDioagnostics;
@@ -177,7 +222,7 @@ export const FormArrayEditor = (props: FormFieldEditorProps & {
         // An array holds the elements already, so the values are read from it directly. Building a string out of it
         // and splitting it back apart loses an element that contains a comma, such as a string template.
         const initialValues: string[] = Array.isArray(props.value)
-            ? props.value.map((val: any) => (typeof val === "string" ? val : String(val?.value ?? "")))
+            ? getArrayElementValues(props.value)
             : stringToRawArrayElements(buildStringArray(props.value));
         if (!Array.isArray(props.value)) {
             initialValues.forEach((val: any, index: number) => {
@@ -211,6 +256,8 @@ export const FormArrayEditor = (props: FormFieldEditorProps & {
 
     }, [props.value, props.field.types]);
 
+    const errorMessages = getRepeatableErrorMessages(fieldDiagnostics, props.error);
+
     return (
         <S.Container>
             <S.Header>
@@ -219,6 +266,7 @@ export const FormArrayEditor = (props: FormFieldEditorProps & {
                         <S.HeaderContainer>
                             <S.LabelContainer>
                                 <S.Label>{props.field.label}</S.Label>
+                                {!props.field.optional && <RequiredFormInput />}
                             </S.LabelContainer>
                         </S.HeaderContainer>
                         <S.EditorMdContainer>
@@ -285,6 +333,7 @@ export const FormArrayEditor = (props: FormFieldEditorProps & {
 
                     ))}
             </ScrollableList>
+            {errorMessages.length > 0 && <ErrorBanner errorMsg={errorMessages.join("\n")} />}
             <S.AddNewButton
                 onClick={handleAddNewItem}
                 appearance="icon"

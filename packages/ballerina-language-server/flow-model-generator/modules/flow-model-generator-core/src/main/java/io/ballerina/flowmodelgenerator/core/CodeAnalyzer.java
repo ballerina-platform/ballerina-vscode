@@ -4188,6 +4188,9 @@ public class CodeAnalyzer extends NodeVisitor {
                 }
             }
         }
+        if (kind == NodeKind.MCP_TOOL_KIT) {
+            McpToolKitBuilder.setOptionalPropertiesAdvanced(nodeBuilder);
+        }
 
         ClassSymbol clientClassSymbol = getClientClassSymbol(semanticModel, functionData, name)
                 .orElse(classSymbol);

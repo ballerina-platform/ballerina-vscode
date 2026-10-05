@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { traverseFlow } from "@wso2/ballerina-core";
+import { traverseFlow, type FlowNode } from "@wso2/ballerina-core";
 
 import {
     HUMAN_TASK_ROLES_LABEL_WIDTH,
@@ -65,6 +65,16 @@ const createFlowNode = (id: string, nodeKind: string): TestFlowNode => ({
 });
 
 const createFlow = (nodes: TestFlowNode[]) => ({ nodes } as any);
+
+// A `workflow:<symbol>()` call as the language server emits it before a dedicated node kind exists.
+const workflowModuleCall = (symbol: string): FlowNode => ({
+    id: symbol,
+    codedata: { node: "EXPRESSION", org: "ballerina", module: "workflow", symbol } as FlowNode["codedata"],
+    metadata: { label: `workflow:${symbol}`, description: "" },
+    properties: {},
+    branches: [],
+    returning: false,
+});
 
 describe("Workflow Nodes", () => {
     it("maps workflow node kinds to workflow node types", () => {
@@ -205,12 +215,22 @@ describe("Workflow Nodes", () => {
         });
 
         it("titles a generic workflow module call to sleep as Sleep", () => {
-            const node = {
-                codedata: { node: "EXPRESSION", org: "ballerina", module: "workflow", symbol: "sleep" },
-                metadata: { label: "workflow:sleep" },
-                properties: {},
-            } as any;
-            expect(getNodeTitle(node)).toBe("Sleep");
+            expect(getNodeTitle(workflowModuleCall("sleep"))).toBe("Sleep");
+        });
+    });
+
+    // The palette titles these context reads by what they return, and the canvas must say the same
+    // thing for a call the language server still emits as a generic workflow module statement.
+    describe("context function titles", () => {
+        it.each([
+            ["currentTime", "Current Time"],
+            ["getWorkflowId", "Workflow ID"],
+            ["getWorkflowType", "Workflow Type"],
+            ["isReplaying", "Is Replaying"],
+            ["lastHumanTaskCompletion", "Last Completion"],
+            ["lastReviewDecision", "Last Decision"],
+        ])("titles a generic workflow module call to %s as %s", (symbol, title) => {
+            expect(getNodeTitle(workflowModuleCall(symbol))).toBe(title);
         });
     });
 });
