@@ -1523,19 +1523,17 @@ export async function getSuggestedProjectDefaults(isInProject: boolean): Promise
     }
 }
 
-const DEFAULT_CREATION_DIRNAMES: Record<ProductMode, string> = {
-    [ProductMode.INTEGRATOR]: "WSO2Integrator",
-    [ProductMode.AGENT_BUILDER]: "WSO2AgentBuilder",
-};
-
 /** Default directory new projects are created under when no path is chosen. */
 export function getDefaultCreationPath(): string {
-    const dir = path.join(os.homedir(), DEFAULT_CREATION_DIRNAMES[getProductMode()]);
+    const dirName = getProductMode() === ProductMode.AGENT_BUILDER ? "WSO2AgentBuilder" : "WSO2Integrator";
+    const dir = path.join(os.homedir(), dirName);
     if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
     }
     // Case-insensitive filesystems can match a differently-cased existing folder; return its real casing.
-    return fs.realpathSync.native(dir);
+    const entries = fs.readdirSync(os.homedir());
+    const actual = entries.includes(dirName) ? dirName : entries.find((entry) => entry.toLowerCase() === dirName.toLowerCase());
+    return actual ? path.join(os.homedir(), actual) : dir;
 }
 
 /** Scaffolds the project/workspace, then opens it. */
