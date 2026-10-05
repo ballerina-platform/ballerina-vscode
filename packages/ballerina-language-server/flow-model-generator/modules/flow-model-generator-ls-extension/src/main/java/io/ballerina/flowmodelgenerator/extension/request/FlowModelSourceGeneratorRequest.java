@@ -27,6 +27,10 @@ import com.google.gson.JsonElement;
  * @param flowNode diagram node
  * @since 1.0.0
  */
-public record FlowModelSourceGeneratorRequest(String filePath, JsonElement flowNode) {
+public record FlowModelSourceGeneratorRequest(String filePath, JsonElement flowNode, boolean formatted) {
+
+    public FlowModelSourceGeneratorRequest(String filePath, JsonElement flowNode) {
+        this(filePath, flowNode, false);
+    }
 
 }

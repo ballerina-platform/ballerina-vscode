@@ -27,6 +27,9 @@ import com.google.gson.JsonElement;
  * @param flowNode flow node
  * @since 1.0.0
  */
-public record FlowNodeDeleteRequest(String filePath, JsonElement flowNode) {
+public record FlowNodeDeleteRequest(String filePath, JsonElement flowNode, boolean formatted) {
 
+    public FlowNodeDeleteRequest(String filePath, JsonElement flowNode) {
+        this(filePath, flowNode, false);
+    }
 }

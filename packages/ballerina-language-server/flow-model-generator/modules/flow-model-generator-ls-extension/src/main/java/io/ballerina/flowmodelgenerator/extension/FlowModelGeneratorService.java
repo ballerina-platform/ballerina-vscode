@@ -22,6 +22,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.reflect.TypeToken;
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
 import io.ballerina.flowmodelgenerator.core.AgentsGenerator;
@@ -101,6 +102,7 @@ import org.eclipse.lsp4j.services.LanguageServer;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -287,7 +289,15 @@ public class FlowModelGeneratorService implements ExtendedLanguageServerService 
             try {
                 SourceGenerator sourceGenerator =
                         new SourceGenerator(this.workspaceManagerProxy.get(), Path.of(request.filePath()));
-                response.setTextEdits(sourceGenerator.toSourceCode(request.flowNode(), lsClientLogger));
+                if (request.formatted()) {
+                    SourceGenerator.FormattedSource source =
+                            sourceGenerator.toFormattedSourceCode(request.flowNode(), lsClientLogger);
+                    response.setFormatted(source.textEdits() != null);
+                    response.setTextEdits(source.textEdits() != null ? source.textEdits() : source.sourceEdits());
+                    response.setSourceEdits(source.sourceEdits());
+                } else {
+                    response.setTextEdits(sourceGenerator.toSourceCode(request.flowNode(), lsClientLogger));
+                }
             } catch (Throwable e) {
                 response.setError(e);
             }
@@ -569,13 +579,25 @@ public class FlowModelGeneratorService implements ExtendedLanguageServerService 
                 if (semanticModel.isEmpty() || document.isEmpty()) {
                     return response;
                 }
-                response.setTextEdits(
-                        deleteNodeHandler.getTextEditsToDeletedNode(document.get(), project));
+                JsonElement textEdits = deleteNodeHandler.getTextEditsToDeletedNode(document.get(), project);
+                Optional<JsonElement> formattedEdits = request.formatted()
+                        ? new SourceGenerator(workspaceManager, filePath).formatTextEdits(toEditsByPath(textEdits))
+                        : Optional.empty();
+                response.setFormatted(formattedEdits.isPresent());
+                response.setTextEdits(formattedEdits.orElse(textEdits));
             } catch (Throwable e) {
                 response.setError(e);
             }
             return response;
         });
+    }
+
+    private static Map<Path, List<org.eclipse.lsp4j.TextEdit>> toEditsByPath(JsonElement textEdits) {
+        Map<String, List<org.eclipse.lsp4j.TextEdit>> editsByFile = new Gson().fromJson(textEdits,
+                new TypeToken<Map<String, List<org.eclipse.lsp4j.TextEdit>>>() { }.getType());
+        Map<Path, List<org.eclipse.lsp4j.TextEdit>> editsByPath = new LinkedHashMap<>();
+        editsByFile.forEach((file, edits) -> editsByPath.put(Path.of(file), edits));
+        return editsByPath;
     }
 
     @JsonRequest
