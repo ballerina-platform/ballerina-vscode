@@ -4,7 +4,7 @@
   "diagram": {
     "id": "31",
     "metadata": {
-      "label": "Get Last Human Task Completion",
+      "label": "Last Completion",
       "description": "The completion of the most recently completed human task, with who completed it"
     },
     "codedata": {

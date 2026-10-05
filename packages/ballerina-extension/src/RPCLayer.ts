@@ -175,6 +175,7 @@ async function getContext(): Promise<VisualizerLocation> {
             view: context.view,
             identifier: context.identifier,
             parentIdentifier: context.parentIdentifier,
+            navigationKey: context.navigationKey,
             artifactType: context.artifactType,
             position: context.position,
             syntaxTree: context.syntaxTree,
