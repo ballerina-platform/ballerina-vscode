@@ -92,7 +92,8 @@ export function activateAIFeatures(ballerinaExternalInstance: BallerinaExtension
             commands.registerCommand(
                 SHARED_COMMANDS.SET_COPILOT_AMBIENT_PRESENT,
                 (present: boolean) => commands.executeCommand('setContext', 'ballerina.copilotAmbientPresent', !!present)
-            )
+            ),
+            commands.registerCommand(SHARED_COMMANDS.HIDE_COPILOT_ORB, () => agentStatusManager.setOrbHidden(true))
         );
     }
 

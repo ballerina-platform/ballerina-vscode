@@ -37,6 +37,7 @@ import { RelativeLoader } from "../../../components/RelativeLoader";
 import { LoaderContainer } from "../../../components/RelativeLoader/styles";
 import { ConnectionListItem } from "@wso2/wso2-platform-core";
 import { ConnectorErrorView } from "./components/ErrorContainer";
+import { formBackAvailable } from "./formBack";
 import { NewActivityFromConnection } from "./NewActivityFromConnection";
 import { ADD_TOOL_TITLE, addToolTitle } from "../AIChatAgent/AddTool";
 import { AgentEditorPanelContent } from "../AIChatAgent/AgentEditorPanelContent";
@@ -726,7 +727,7 @@ export function PanelManager(props: PanelManagerProps) {
             case SidePanelView.CONNECTION_CREATE:
                 return onBack;
             case SidePanelView.FORM:
-                return !showEditForm ? onBack : undefined;
+                return formBackAvailable(showEditForm, canGoBack, selectedNode) ? onBack : undefined;
             default:
                 return undefined;
         }

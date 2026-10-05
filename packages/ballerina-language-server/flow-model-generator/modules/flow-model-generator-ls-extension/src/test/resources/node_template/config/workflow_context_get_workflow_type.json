@@ -4,7 +4,7 @@
     "line": 4,
     "offset": 4
   },
-  "description": "Get Workflow Type template: the workflow's type name, checked because the call can fail",
+  "description": "Workflow Type template: the workflow's type name, checked because the call can fail",
   "codedata": {
     "node": "WORKFLOW_GET_TYPE",
     "org": "ballerina",
@@ -14,7 +14,7 @@
   "output": {
     "id": "31",
     "metadata": {
-      "label": "Get Workflow Type",
+      "label": "Workflow Type",
       "description": "The type name of this workflow"
     },
     "codedata": {

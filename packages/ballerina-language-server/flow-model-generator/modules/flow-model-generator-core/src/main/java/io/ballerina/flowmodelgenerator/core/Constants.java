@@ -129,30 +129,30 @@ public class Constants {
         public static final String AWAIT_METHOD_NAME = "await";
         public static final String CALL_ACTIVITY_LABEL = "Call Activity";
         public static final String CALL_ACTIVITY_DESCRIPTION = "Call a workflow activity function";
-        public static final String WAIT_DATA_LABEL = "Await Data Event";
+        public static final String WAIT_DATA_LABEL = "Await Data";
         public static final String WAIT_DATA_DESCRIPTION = "Wait for a data event from outside the workflow";
 
         // Child workflow composition (Context remote methods)
         public static final String RUN_CHILD_WORKFLOW_METHOD_NAME = "runChildWorkflow";
-        public static final String RUN_CHILD_WORKFLOW_LABEL = "Run Child Workflow";
+        public static final String RUN_CHILD_WORKFLOW_LABEL = "Run Child";
         public static final String RUN_CHILD_WORKFLOW_DESCRIPTION =
                 "Start a child workflow and continue without waiting for its result";
         public static final String CALL_CHILD_WORKFLOW_METHOD_NAME = "callWorkflow";
-        public static final String CALL_CHILD_WORKFLOW_LABEL = "Call Child Workflow";
+        public static final String CALL_CHILD_WORKFLOW_LABEL = "Call Child";
         public static final String CALL_CHILD_WORKFLOW_DESCRIPTION =
                 "Run a child workflow and durably wait for its result";
         public static final String WAIT_CHILD_WORKFLOW_METHOD_NAME = "waitForChildWorkflow";
-        public static final String WAIT_CHILD_WORKFLOW_LABEL = "Wait for Child Workflow";
+        public static final String WAIT_CHILD_WORKFLOW_LABEL = "Await Child";
         public static final String WAIT_CHILD_WORKFLOW_DESCRIPTION =
                 "Durably wait for a started child workflow's result";
         public static final String SEND_DATA_CHILD_WORKFLOW_METHOD_NAME = "sendDataToChildWorkflow";
-        public static final String SEND_DATA_CHILD_WORKFLOW_LABEL = "Send Data to Child Workflow";
+        public static final String SEND_DATA_CHILD_WORKFLOW_LABEL = "Send to Child";
         public static final String SEND_DATA_CHILD_WORKFLOW_DESCRIPTION =
                 "Send a data event to a running child workflow";
 
         // Workflow context utility functions
         public static final String CURRENT_TIME_METHOD_NAME = "currentTime";
-        public static final String CURRENT_TIME_LABEL = "Get Current Time";
+        public static final String CURRENT_TIME_LABEL = "Current Time";
         public static final String CURRENT_TIME_DESCRIPTION =
                 "Deterministic current time, safe to use inside workflow logic";
         public static final String IS_REPLAYING_METHOD_NAME = "isReplaying";
@@ -160,20 +160,22 @@ public class Constants {
         public static final String IS_REPLAYING_DESCRIPTION =
                 "Whether the workflow is currently replaying recorded history";
         public static final String GET_WORKFLOW_ID_METHOD_NAME = "getWorkflowId";
-        public static final String GET_WORKFLOW_ID_LABEL = "Get Workflow ID";
+        public static final String GET_WORKFLOW_ID_LABEL = "Workflow ID";
         public static final String GET_WORKFLOW_ID_DESCRIPTION = "The unique ID of this workflow instance";
         public static final String GET_WORKFLOW_TYPE_METHOD_NAME = "getWorkflowType";
-        public static final String GET_WORKFLOW_TYPE_LABEL = "Get Workflow Type";
+        public static final String GET_WORKFLOW_TYPE_LABEL = "Workflow Type";
         public static final String GET_WORKFLOW_TYPE_DESCRIPTION = "The type name of this workflow";
         public static final String LAST_HUMAN_TASK_COMPLETION_METHOD_NAME = "lastHumanTaskCompletion";
-        public static final String LAST_HUMAN_TASK_COMPLETION_LABEL = "Get Last Human Task Completion";
+        public static final String LAST_HUMAN_TASK_COMPLETION_LABEL = "Last Completion";
         public static final String LAST_HUMAN_TASK_COMPLETION_DESCRIPTION =
                 "The completion of the most recently completed human task, with who completed it";
         public static final String LAST_REVIEW_DECISION_METHOD_NAME = "lastReviewDecision";
-        public static final String LAST_REVIEW_DECISION_LABEL = "Get Last Review Decision";
+        public static final String LAST_REVIEW_DECISION_LABEL = "Last Decision";
         public static final String LAST_REVIEW_DECISION_DESCRIPTION =
                 "The decision of the most recent review task, with who decided it";
         public static final String CONTEXT_TASK_NAME_KEY = "taskName";
+        // Metadata key carrying the context method a palette node stands for, e.g. "awaitHumanTask"
+        public static final String METHOD_KEY = "method";
         public static final String CONTEXT_ASSIGNS_EXISTING_KEY = "assignsExisting";
         public static final String CONTEXT_TASK_NAME_LABEL = "Task Name";
         public static final String CONTEXT_TASK_NAME_DESCRIPTION =
@@ -200,7 +202,7 @@ public class Constants {
         public static final String BUILTIN_EMAIL_FUNCTION = "sendEmail";
 
         public static final String CALL_HUMAN_TASK_METHOD_NAME = "awaitHumanTask";
-        public static final String HUMAN_TASK_LABEL = "Await Human Task";
+        public static final String HUMAN_TASK_LABEL = "Human Task";
         public static final String HUMAN_TASK_DESCRIPTION = "Create a human task and wait for a human to complete it";
 
         public static final String SLEEP_METHOD_NAME = "sleep";

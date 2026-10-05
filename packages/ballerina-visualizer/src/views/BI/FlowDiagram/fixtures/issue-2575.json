@@ -1,0 +1,16 @@
+{
+  "description": "wso2/product-integrator#2575: node kinds whose add form opens from the durable agent box versus the node list",
+  "declarationForms": [
+    { "codedata": { "node": "DURABLE_AGENT_HUMAN_TASK", "lineRange": { "fileName": "agent.bal", "startLine": { "line": 12, "offset": 4 }, "endLine": { "line": 12, "offset": 4 } } } },
+    { "codedata": { "node": "DURABLE_AGENT_REGISTER_EVENT", "lineRange": { "fileName": "agent.bal", "startLine": { "line": 13, "offset": 4 }, "endLine": { "line": 13, "offset": 4 } } } }
+  ],
+  "otherForms": [
+    { "codedata": { "node": "DURABLE_AGENT_ADD_ACTIVITY" } },
+    { "codedata": { "node": "KNOWLEDGE_BASE" } },
+    { "codedata": { "node": "HUMAN_TASK" } },
+    { "codedata": { "node": "ACTIVITY_CALL" } },
+    { "codedata": { "node": "WAIT_DATA" } },
+    { "codedata": { "node": "VARIABLE" } },
+    { "codedata": { "node": "REMOTE_ACTION_CALL", "org": "ballerina", "module": "http" } }
+  ]
+}

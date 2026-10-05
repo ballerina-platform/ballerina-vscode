@@ -3290,7 +3290,7 @@
       {
         "id": "96440",
         "metadata": {
-          "label": "Run Child Workflow",
+          "label": "Run Child",
           "description": "childFlow",
           "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.10.0.png"
         },

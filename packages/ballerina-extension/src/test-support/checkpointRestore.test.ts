@@ -63,6 +63,14 @@ const ORIGINAL_CONFIG = 'greeting = "before the generation"\n';
 const RAW_BYTES = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0xff, 0xfe, 0x00, 0x80]);
 const ORIGINAL_BAL = "// before the generation\n";
 
+/** Answers the deletion modal by taking its first button, as a click would. */
+function answerDeletionPrompt(choice = 0): void {
+    window.showWarningMessage = ((_message: string, ...rest: unknown[]) => {
+        const isModal = typeof rest[0] === "object" && rest[0] !== null;
+        return Promise.resolve(isModal ? (rest[1 + choice] as string) : undefined);
+    }) as never;
+}
+
 /** Lets the restore's promise chain run to its next timer-bound step under fake timers. */
 async function settle(): Promise<void> {
     for (let i = 0; i < 50; i++) {
@@ -93,6 +101,7 @@ describe("checkpoint restore outcome vs. the artifact-update notification", () =
         dataMapper.context = {};
         dataMapper.refresh = () => Promise.resolve();
         workspace.textDocuments = [];
+        answerDeletionPrompt();
         root = fs.mkdtempSync(path.join(os.tmpdir(), "checkpoint-restore-"));
         fs.writeFileSync(path.join(root, "main.bal"), "// the generation's edit\n");
         fs.writeFileSync(path.join(root, "Config.toml"), 'greeting = "the generation\'s edit"\n');
@@ -175,6 +184,8 @@ describe("checkpoint restore outcome vs. the artifact-update notification", () =
     });
 });
 
+const realDelete = workspace.fs.delete;
+
 describe("what a checkpoint restore is allowed to touch", () => {
     let root: string;
     let checkpoint: Checkpoint;
@@ -191,6 +202,7 @@ describe("what a checkpoint restore is allowed to touch", () => {
         workspace.textDocuments = [];
         applied = [];
         warnings = [];
+        workspace.fs.delete = realDelete;
 
         root = fs.mkdtempSync(path.join(os.tmpdir(), "checkpoint-touch-"));
         fs.writeFileSync(at("main.bal"), "// the generation's edit\n");
@@ -213,10 +225,11 @@ describe("what a checkpoint restore is allowed to touch", () => {
             return Promise.resolve(true);
         };
         workspace.saveAll = () => Promise.resolve(true);
-        window.showWarningMessage = (message: string) => {
-            warnings.push(message);
-            return Promise.resolve(undefined);
-        };
+        window.showWarningMessage = ((message: string, ...rest: unknown[]) => {
+            const isModal = typeof rest[0] === "object" && rest[0] !== null;
+            if (!isModal) { warnings.push(message); }
+            return Promise.resolve(isModal ? (rest[1] as string) : undefined);
+        }) as never;
     });
 
     afterEach(() => {
@@ -379,6 +392,195 @@ describe("what a checkpoint restore is allowed to touch", () => {
 
         expect(fs.readFileSync(at("Config.toml"), "utf8")).toBe(ORIGINAL_CONFIG);
     });
+    it("asks before removing files the checkpoint does not contain", async () => {
+        fs.writeFileSync(at("added-by-hand.csv"), "id,name\n1,ada\n");
+        const prompts: string[] = [];
+        window.showWarningMessage = ((message: string, ...rest: unknown[]) => {
+            const isModal = typeof rest[0] === "object" && rest[0] !== null;
+            if (isModal) { prompts.push(message); }
+            return Promise.resolve(isModal ? (rest[1] as string) : undefined);
+        }) as never;
+
+        await expect(restoreWorkspaceSnapshot(checkpoint, true)).resolves.toBe(true);
+
+        expect(prompts).toHaveLength(1);
+        expect(prompts[0]).toContain("added-by-hand.csv");
+        expect(fs.existsSync(at("added-by-hand.csv"))).toBe(false);
+    });
+
+    it("does not promise the trash when the trash is switched off", async () => {
+        fs.writeFileSync(at("added-by-hand.csv"), "id,name\n1,ada\n");
+        const prompts: string[] = [];
+        const buttons: string[] = [];
+        window.showWarningMessage = ((message: string, ...rest: unknown[]) => {
+            const isModal = typeof rest[0] === "object" && rest[0] !== null;
+            if (isModal) {
+                prompts.push(message);
+                buttons.push(...(rest.slice(1) as string[]));
+            }
+            return Promise.resolve(isModal ? (rest[1] as string) : undefined);
+        }) as never;
+        const originalGetConfiguration = workspace.getConfiguration;
+        workspace.getConfiguration = ((section?: string) => ({
+            get: (key: string, defaultValue?: unknown) =>
+                section === "files" && key === "enableTrash" ? false : defaultValue,
+            update: () => Promise.resolve(),
+            inspect: () => undefined,
+        })) as never;
+
+        try {
+            await expect(restoreWorkspaceSnapshot(checkpoint, true)).resolves.toBe(true);
+
+            expect(buttons).toContain("Delete Permanently");
+            expect(buttons).not.toContain("Move to Trash");
+            expect(prompts[0]).toContain("cannot be recovered");
+        } finally {
+            workspace.getConfiguration = originalGetConfiguration;
+        }
+    });
+
+    it("keeps the files and still restores the rest when the prompt is declined", async () => {
+        fs.writeFileSync(at("added-by-hand.csv"), "id,name\n1,ada\n");
+        window.showWarningMessage = ((_message: string, ...rest: unknown[]) => {
+            const isModal = typeof rest[0] === "object" && rest[0] !== null;
+            return Promise.resolve(isModal ? "Keep Them" : undefined);
+        }) as never;
+
+        await expect(restoreWorkspaceSnapshot(checkpoint, true)).resolves.toBe(true);
+
+        expect(fs.existsSync(at("added-by-hand.csv"))).toBe(true);
+        expect(fs.readFileSync(at("Config.toml"), "utf8")).toBe(ORIGINAL_CONFIG);
+    });
+
+    it("writes nothing when the prompt is dismissed", async () => {
+        fs.writeFileSync(at("added-by-hand.csv"), "id,name\n1,ada\n");
+        window.showWarningMessage = (() => Promise.resolve(undefined)) as never;
+
+        await expect(restoreWorkspaceSnapshot(checkpoint, true)).resolves.toBe(false);
+
+        expect(fs.existsSync(at("added-by-hand.csv"))).toBe(true);
+        expect(fs.readFileSync(at("Config.toml"), "utf8")).not.toBe(ORIGINAL_CONFIG);
+        expect(applied).toEqual([]);
+    });
+
+    it("lists a file it could not read at capture, without snapshotting it", async () => {
+        fs.writeFileSync(at("locked.txt"), "held by another process\n");
+        const realReadFile = workspace.fs.readFile;
+        workspace.fs.readFile = (uri: { fsPath: string }) =>
+            uri.fsPath.endsWith("locked.txt")
+                ? Promise.reject(new Error("EBUSY"))
+                : realReadFile(uri);
+
+        try {
+            const captured: any = await captureWorkspaceSnapshot("msg-1");
+
+            // Listed so a restore leaves it alone; unsnapshotted because there is no content for it.
+            expect(captured.fileList).toContain("locked.txt");
+            expect(Object.keys(captured.workspaceSnapshot)).not.toContain("locked.txt");
+        } finally {
+            workspace.fs.readFile = realReadFile;
+        }
+    });
+
+    it("does not delete a file the capture could not read", async () => {
+        fs.writeFileSync(at("locked.txt"), "held by another process\n");
+        checkpoint.fileList.push("locked.txt");
+
+        await expect(restoreWorkspaceSnapshot(checkpoint, true)).resolves.toBe(true);
+
+        expect(fs.existsSync(at("locked.txt"))).toBe(true);
+    });
+
+    it("scans with the patterns recorded at capture, not the ones configured now", async () => {
+        const excludes: string[] = [];
+        workspace.findFiles = (_include?: unknown, exclude?: { pattern?: string }) => {
+            if (exclude?.pattern) { excludes.push(exclude.pattern); }
+            return Promise.resolve(["main.bal", "Config.toml"].map(name => Uri.file(at(name))));
+        };
+        checkpoint.ignorePatterns = ["**/captured-under-this/**"];
+
+        await expect(restoreWorkspaceSnapshot(checkpoint, true)).resolves.toBe(true);
+
+        expect(excludes.join(" ")).toContain("captured-under-this");
+    });
+
+    it("records the root it captured against", async () => {
+        const captured: any = await captureWorkspaceSnapshot("msg-1");
+
+        expect(captured.workspaceRoot).toBe(root);
+    });
+
+    it("refuses a checkpoint captured against a different workspace root", async () => {
+        checkpoint.workspaceRoot = path.join(path.dirname(root), "some-other-workspace");
+
+        await expect(restoreWorkspaceSnapshot(checkpoint, true)).resolves.toBe(false);
+
+        // Nothing was touched: the paths in it describe a tree this workspace does not own.
+        expect(fs.readFileSync(at("Config.toml"), "utf8")).not.toBe(ORIGINAL_CONFIG);
+        expect(applied).toEqual([]);
+    });
+
+    it("restores when the recorded root is the same directory reached through a symlink", async () => {
+        // VS Code can report /tmp/ws one session and /private/tmp/ws the next; same directory.
+        const linkedRoot = path.join(path.dirname(root), `${path.basename(root)}-link`);
+        fs.symlinkSync(root, linkedRoot, "dir");
+        checkpoint.workspaceRoot = linkedRoot;
+
+        try {
+            await expect(restoreWorkspaceSnapshot(checkpoint, true)).resolves.toBe(true);
+            expect(fs.readFileSync(at("Config.toml"), "utf8")).toBe(ORIGINAL_CONFIG);
+        } finally {
+            fs.rmSync(linkedRoot, { force: true });
+        }
+    });
+
+    it("refuses a path it cannot resolve, rather than falling back to a string compare", async () => {
+        // Running as root defeats the permission bits, so the EACCES this asserts on never happens.
+        if (process.getuid?.() === 0) {
+            return;
+        }
+        const dir = at("unreadable-dir");
+        fs.mkdirSync(dir);
+        fs.writeFileSync(path.join(dir, "secret.txt"), "original\n");
+        fs.chmodSync(dir, 0o000);
+        // Listed, so the deletion pass leaves it alone and the write is what gets tested.
+        checkpoint.fileList.push("unreadable-dir", "unreadable-dir/secret.txt");
+        checkpoint.workspaceSnapshot["unreadable-dir/secret.txt"] = "should not be written\n";
+
+        try {
+            await expect(restoreWorkspaceSnapshot(checkpoint, true)).resolves.toBe(true);
+        } finally {
+            fs.chmodSync(dir, 0o755);
+        }
+
+        expect(fs.readFileSync(path.join(dir, "secret.txt"), "utf8")).toBe("original\n");
+    });
+
+    it("still restores a checkpoint captured before the root was recorded", async () => {
+        delete checkpoint.workspaceRoot;
+
+        await expect(restoreWorkspaceSnapshot(checkpoint, true)).resolves.toBe(true);
+
+        expect(fs.readFileSync(at("Config.toml"), "utf8")).toBe(ORIGINAL_CONFIG);
+    });
+
+    it("refuses a snapshot path that leaves the workspace through a directory symlink", async () => {
+        const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), "checkpoint-outside-"));
+        fs.writeFileSync(path.join(outsideDir, "secret.txt"), "not the checkpoint's business\n");
+        fs.symlinkSync(outsideDir, at("linked"), "dir");
+        // Listed, so the deletion pass leaves the link itself alone and the write is what gets tested.
+        checkpoint.fileList.push("linked", "linked/secret.txt");
+        checkpoint.workspaceSnapshot["linked/secret.txt"] = "written through a symlink\n";
+
+        try {
+            await expect(restoreWorkspaceSnapshot(checkpoint, true)).resolves.toBe(true);
+            expect(fs.readFileSync(path.join(outsideDir, "secret.txt"), "utf8"))
+                .toBe("not the checkpoint's business\n");
+        } finally {
+            fs.rmSync(outsideDir, { recursive: true, force: true });
+        }
+    });
+
     it("refuses a snapshot path that resolves outside the workspace", async () => {
         const outside = path.join(path.dirname(root), "outside-the-workspace.txt");
         fs.writeFileSync(outside, "not the checkpoint's business\n");
