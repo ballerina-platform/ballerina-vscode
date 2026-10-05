@@ -422,7 +422,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     }, [breakpointState]);
 
     useEffect(() => {
-        rpcClient.onProjectContentUpdated(() => {
+        const unsubscribeProjectContent = rpcClient.onProjectContentUpdated(() => {
             debouncedGetFlowModel();
         })
         rpcClient.onParentPopupSubmitted((parent: ParentPopupData) => {
@@ -477,6 +477,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 setIsUserAuthenticated(false);
             });
 
+        return () => unsubscribeProjectContent();
     }, [rpcClient]);
 
     useEffect(() => {
@@ -519,10 +520,11 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         setTargetLineRange(range);
     }
 
+    // Leading edge: a single save refreshes at once; only bursts (e.g. Copilot live edits) wait out the delay.
     const debouncedGetFlowModel = useCallback(
         debounce(() => {
             getFlowModel();
-        }, DIAGRAM_REFRESH_DEBOUNCE_MS),
+        }, DIAGRAM_REFRESH_DEBOUNCE_MS, { leading: true, trailing: true }),
         [hasDraft]
     );
 
@@ -1285,7 +1287,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         );
     };
 
-    const closeSidePanelAndFetchUpdatedFlowModel = () => {
+    const closeSidePanelAndFetchUpdatedFlowModel = (afterCapabilityWrite = false) => {
         resetNodeSelectionStates();
         clearRefreshTimers();
         // Fetch the updated flow model
@@ -1293,7 +1295,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         // Capability writes on the agent declaration are raw text edits with no artifact
         // event: the fetch above can race the recompile (which runs to seconds on projects
         // importing ai/mcp), so refresh a few more times on a backoff ladder.
-        scheduleFlowModelRefreshes(1500, 4000, 8000);
+        if (afterCapabilityWrite) {
+            scheduleFlowModelRefreshes(1500, 4000, 8000);
+        }
         if (hasDraft) {
             // completeDraft();
             setSuggestedModel(undefined);
@@ -3988,7 +3992,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             await rpcClient.getBIDiagramRpcClient().getSourceCode({ filePath: model?.fileName, flowNode: node });
             // The entry removal is a raw text edit on the declaration — no artifact event
             // follows, so refresh the canvas explicitly.
-            closeSidePanelAndFetchUpdatedFlowModel();
+            closeSidePanelAndFetchUpdatedFlowModel(true);
         } finally {
             setShowProgressIndicator(false);
             durableAgentObjectVarRef.current = null;

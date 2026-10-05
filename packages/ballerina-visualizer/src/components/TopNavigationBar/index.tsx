@@ -151,7 +151,7 @@ export function TopNavigationBar(props: TopNavigationBarProps) {
         refreshCurrentLocation();
 
         // Then keep breadcrumbs in sync with backend updates.
-        rpcClient.onProjectContentUpdated(() => {
+        const unsubscribeProjectContent = rpcClient.onProjectContentUpdated(() => {
             refreshHistory();
             refreshCurrentLocation();
         });
@@ -161,6 +161,7 @@ export function TopNavigationBar(props: TopNavigationBarProps) {
         });
 
         return () => {
+            unsubscribeProjectContent();
             unsubscribeIdentifierUpdated?.();
         };
     }, [rpcClient, projectPath]);
