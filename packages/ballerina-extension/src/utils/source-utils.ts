@@ -48,6 +48,7 @@ export interface UpdateSourceCodeRequest {
     skipPayloadCheck?: boolean; // This is used to skip the payload check because the payload data might become empty as a result of a change. Example: Deleting a component.
     isRenameOperation?: boolean; // This is used to identify if the update is a rename operation.
     skipUpdateViewOnTomlUpdate?: boolean; // This is used to skip updating the view on toml updates in certain scenarios.
+    preformatted?: boolean; // The language server already formatted the edits, so they are applied once without a format pass.
 }
 
 export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCodeRequest, isChangeFromHelperPane?: boolean): Promise<ProjectStructureArtifactResponse[]> {
@@ -170,8 +171,10 @@ export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCode
             // Capture IDs of newly added artifacts so we can re-apply isNew on the formatted edit notification.
             const handler = ArtifactNotificationHandler.getInstance();
             let newArtifactIds: Set<string> | undefined;
+            // Pre-formatted edits are final, so their single notification goes to the final subscriber below.
+            const preformatted = updateSourceCodeRequest.preformatted;
             let rawEditTimedOut = false;
-            const rawEditNotification = new Promise<void>((resolve) => {
+            const rawEditNotification = preformatted ? Promise.resolve() : new Promise<void>((resolve) => {
                 // Pull-aware: the raw edit's first compile can wait on a module pull it triggered.
                 const timeout = startPullAwareTimeout(() => { rawEditTimedOut = true; unsub(); resolve(); }, 10000);
                 const unsub = handler.subscribe(
@@ -195,7 +198,7 @@ export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCode
 
             // <-------- Format the document after applying all changes using the native formatting API-------->
             const formattedWorkspaceEdit = new vscode.WorkspaceEdit();
-            for (const [fileUriString, request] of Object.entries(modificationRequests)) {
+            for (const [fileUriString, request] of preformatted ? [] : Object.entries(modificationRequests)) {
                 const fileUri = Uri.file(request.filePath);
                 const formattedSources: { newText: string, range: { start: { line: number, character: number }, end: { line: number, character: number } } }[] = await StateMachine.langClient().sendRequest("textDocument/formatting", {
                     textDocument: { uri: fileUriString },
@@ -220,11 +223,19 @@ export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCode
                 }
             }
 
+            if (preformatted && !skipUndoRedoStack) {
+                for (const request of Object.values(modificationRequests)) {
+                    const formattedText = request.modifications[0]?.config.STATEMENT ?? "";
+                    batchManager?.addFileToBatch(request.filePath, formattedText, formattedText);
+                }
+            }
             if (!skipUndoRedoStack) {
                 batchManager?.commitBatchOperation(updateSourceCodeRequest.description ? updateSourceCodeRequest.description : (updateSourceCodeRequest.artifactData ? `Change in ${updateSourceCodeRequest.artifactData?.artifactType} ${updateSourceCodeRequest.artifactData?.identifier}` : "Update Source Code"));
             }
 
-            await workspace.applyEdit(formattedWorkspaceEdit);
+            if (!preformatted) {
+                await workspace.applyEdit(formattedWorkspaceEdit);
+            }
 
             // Handle missing dependencies after all changes are applied
             if (updateSourceCodeRequest.resolveMissingDependencies) {

@@ -32,6 +32,8 @@ public class FlowModelSourceGeneratorResponse extends AbstractFlowModelResponse 
     private static final String GENERIC_ERROR_MSG = "the operation could not be applied. Please try again.";
 
     private JsonElement textEdits;
+    private boolean formatted;
+    private JsonElement sourceEdits;
 
     @Override
     public void setError(Throwable e) {
@@ -51,5 +53,13 @@ public class FlowModelSourceGeneratorResponse extends AbstractFlowModelResponse 
 
     public JsonElement textEdits() {
         return textEdits;
+    }
+
+    public void setFormatted(boolean formatted) {
+        this.formatted = formatted;
+    }
+
+    public void setSourceEdits(JsonElement sourceEdits) {
+        this.sourceEdits = sourceEdits;
     }
 }
