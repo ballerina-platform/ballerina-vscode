@@ -34,8 +34,7 @@ import {
     AgentManagerStatus,
     OpenAPISpec,
 } from "@wso2/ballerina-core";
-import { AgentManagerApiError } from "./amctl";
-import { clearSessionCache, getSession, signIn, signOut } from "./auth";
+import { getSession, signIn, signOut } from "./auth";
 import { offerCopilotMcp } from "./copilot";
 import { buildConfigFields, CONFIG_FILE, readPackage, splitConfig, SplitConfig } from "./configurables";
 import {
@@ -43,6 +42,7 @@ import {
     SourceStepId, suggestCommitMessage, untrack,
 } from "./github";
 import {
+    AgentManagerApiError,
     api,
     consoleUrl,
     getRuntimeLogs,
@@ -93,7 +93,7 @@ export async function getStatus(projectPath: string): Promise<AgentManagerStatus
         Object.assign(status, link.mode === "internal" ? await platformStatus(projectPath, link) : {});
     } catch (error) {
         if (error instanceof AgentManagerApiError && error.status === 401) {
-            clearSessionCache();
+            await signOut();
             return { signedIn: false };
         }
         status.unavailable = true;
@@ -120,10 +120,11 @@ function describeError(error: unknown, instanceUrl?: string): string {
 }
 
 async function describeActionError(error: unknown): Promise<string> {
+    const instanceUrl = (await getSession())?.instanceUrl;
     if (error instanceof AgentManagerApiError && error.status === 401) {
-        clearSessionCache();
+        await signOut();
     }
-    return describeError(error, (await getSession())?.instanceUrl);
+    return describeError(error, instanceUrl);
 }
 
 async function platformStatus(projectPath: string, link: AgentManagerLink): Promise<Partial<AgentManagerStatus>> {
@@ -264,7 +265,7 @@ async function newLink(projectPath: string, mode: AgentManagerHostingMode) {
         project,
         agent: agent.name,
         mode,
-        // amctl links always use the default environment.
+        // Agent Manager deploys to the pipeline's first environment, which self-hosted AMP names 'default'.
         environment: "default",
     };
     return { link, displayName: agent.displayName, existing: agent.existing };

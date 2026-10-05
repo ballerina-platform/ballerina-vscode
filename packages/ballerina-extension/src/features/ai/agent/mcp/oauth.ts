@@ -19,7 +19,9 @@
 import * as crypto from "crypto";
 import * as http from "http";
 import * as vscode from "vscode";
+import { productName } from "@wso2/ballerina-core";
 import { extension } from "../../../../BalExtensionContext";
+import { getProductMode } from "../../../../utils/config";
 import { McpOAuthConfig } from "./types";
 
 const SIGN_IN_TIMEOUT_MS = 5 * 60 * 1000;
@@ -129,7 +131,7 @@ export class McpOAuthProvider {
 }
 
 /** Serves the loopback redirect, opens the browser, and resolves with the authorization code. */
-function waitForAuthCode(port: number, state: string, authUrl: string, cancel: vscode.CancellationToken, service: string): Promise<string> {
+export function waitForAuthCode(port: number, state: string, authUrl: string, cancel: vscode.CancellationToken, service: string): Promise<string> {
     return new Promise((resolve, reject) => {
         const server = http.createServer((req, res) => {
             const url = new URL(req.url ?? "/", `http://127.0.0.1:${port}`);
@@ -163,21 +165,21 @@ function escapeHtml(text: string): string {
     return text.replace(/[&<>"']/g, (ch) => `&#${ch.charCodeAt(0)};`);
 }
 
+// Follows the Agent Manager console's Acrylic Orange theme, as amctl's own sign-in page does.
 function callbackPage(service: string, error?: string): string {
     const title = error ? "Sign-in failed" : "You're signed in";
-    const body = error
-        ? `${escapeHtml(error)}<br>Return to VS Code and try again.`
-        : `${escapeHtml(service)} is connected. You can close this tab and return to VS Code.`;
-    const icon = error
-        ? '<path d="M15 9l-6 6M9 9l6 6"/>'
-        : '<path d="M8 12.5l2.5 2.5L16 9.5"/>';
+    const message = error ? escapeHtml(error) : `${escapeHtml(service)} is connected. You can close this tab.`;
+    const glyph = error ? '<path d="M18 6 6 18M6 6l12 12"/>' : '<path d="M20 6 9 17l-5-5"/>';
+    const appName = productName(getProductMode());
     return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${title}</title>
 <style>
-:root{--bg:#f3f3f3;--card:#fff;--fg:#1f1f1f;--muted:#616161;--border:#e0e0e0;--accent:${error ? "#c72e2e" : "#2e7d32"}}
-@media (prefers-color-scheme:dark){:root{--bg:#1e1e1e;--card:#252526;--fg:#e6e6e6;--muted:#a0a0a0;--border:#3c3c3c;--accent:${error ? "#f14c4c" : "#4caf50"}}}
-body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);color:var(--fg);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-main{max-width:420px;margin:16px;padding:32px;text-align:center;background:var(--card);border:1px solid var(--border);border-radius:10px}
-svg{width:48px;height:48px;stroke:var(--accent);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-h1{font-size:20px;margin:12px 0 8px}p{margin:0;color:var(--muted)}
-</style></head><body><main><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/>${icon}</svg><h1>${title}</h1><p>${body}</p></main></body></html>`;
+:root{color-scheme:light dark}*{margin:0;box-sizing:border-box}
+body{min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:'Inter Variable',Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background-color:#f5f5f5;color:#40404b;background-image:radial-gradient(circle at 65% 30%,rgba(255,116,0,.10) 10%,rgba(255,255,255,0) 40%),radial-gradient(circle at 15% 50%,rgba(74,41,165,.10) 1%,rgba(255,255,255,0) 40%);background-attachment:fixed}
+main{background:rgba(255,255,255,.77);border:1px solid rgba(0,0,0,.07);border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.06);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);padding:48px 56px;margin:16px;text-align:center;max-width:420px}
+.icon{width:56px;height:56px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;margin-bottom:20px;color:#fff;background:${error ? "#d3302f" : "linear-gradient(90deg,#f47b20 0%,#ef4223 100%)"}}
+.icon svg{width:28px;height:28px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+h1{font-size:1.25rem;font-weight:600;margin-bottom:8px}p{font-size:.875rem;color:#6b6b76;line-height:1.5;overflow-wrap:break-word}
+a{display:inline-block;margin-top:24px;padding:8px 20px;border-radius:6px;color:#fff;background:linear-gradient(90deg,#f47b20 0%,#ef4223 100%);font-size:.875rem;font-weight:500;text-decoration:none}
+@media (prefers-color-scheme:dark){body{background-color:#000;color:#efefef;background-image:radial-gradient(circle at 65% 30%,rgba(255,116,0,.13) 10%,rgba(0,0,0,0) 60%),radial-gradient(circle at 15% 50%,rgba(132,40,0,.18) 1%,rgba(0,0,0,0) 40%)}main{background:rgba(0,0,0,.77);border-color:rgba(255,255,255,.09)}p{color:#d0d3e2}}
+</style></head><body><main><div class="icon"><svg viewBox="0 0 24 24">${glyph}</svg></div><h1>${title}</h1><p>${message}</p><a href="${vscode.env.uriScheme}://">${error ? `Return to ${appName}` : `Open ${appName}`}</a></main></body></html>`;
 }

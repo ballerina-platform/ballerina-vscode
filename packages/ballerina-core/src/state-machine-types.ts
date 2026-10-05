@@ -42,6 +42,10 @@ export function assistantName(mode: ProductMode): string {
     return ASSISTANT_NAMES[mode];
 }
 
+export function productName(mode: ProductMode): string {
+    return mode === ProductMode.AGENT_BUILDER ? 'WSO2 Agent Builder' : 'WSO2 Integrator';
+}
+
 const SHORT_ASSISTANT_NAMES: Record<ProductMode, string> = {
     [ProductMode.BALLERINA]: 'Ballerina Copilot',
     [ProductMode.INTEGRATOR]: 'Integrator Copilot',
