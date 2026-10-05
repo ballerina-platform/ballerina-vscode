@@ -104,7 +104,7 @@ export function ServiceClassDesigner(props: ServiceClassDesignerProps) {
     }, [position]);
 
     useEffect(() => {
-        rpcClient.onProjectContentUpdated((state: boolean) => {
+        return rpcClient.onProjectContentUpdated((state: boolean) => {
             console.log(">>> ServiceClassDesigner: project content updated", state);
             getServiceClassModel();
         });

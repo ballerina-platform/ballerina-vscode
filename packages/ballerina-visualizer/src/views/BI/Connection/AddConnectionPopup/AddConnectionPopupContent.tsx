@@ -151,7 +151,7 @@ export function AddConnectionPopupContent(props: Props) {
     }, [filterType, fetchConnectors]);
 
     useEffect(() => {
-        rpcClient?.onProjectContentUpdated((state: boolean) => {
+        return rpcClient?.onProjectContentUpdated((state: boolean) => {
             if (state) {
                 fetchConnectors();
             }

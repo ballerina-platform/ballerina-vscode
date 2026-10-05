@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
     Type,
     NodePosition,
@@ -202,12 +202,12 @@ export function GraphQLDiagram(props: GraphQLDiagramProps) {
         enabled: !!filePath && !!rpcClient,
     });
 
-    rpcClient?.onProjectContentUpdated((state: boolean) => {
+    useEffect(() => rpcClient?.onProjectContentUpdated((state: boolean) => {
         if (state) {
             // Instead of calling getGraphqlDesignModel directly, invalidate the query
             queryClient.invalidateQueries({ queryKey: ["graphqlTypeModel"] });
         }
-    });
+    }), [rpcClient, queryClient]);
 
     const handleOnGoToSource = (node: Type) => {
         if (!rpcClient || !node.codedata.lineRange) {

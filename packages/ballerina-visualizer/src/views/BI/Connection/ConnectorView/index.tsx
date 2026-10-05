@@ -129,11 +129,11 @@ export function ConnectorView(props: ConnectorViewProps) {
         getConnectors();
     }, []);
 
-    rpcClient?.onProjectContentUpdated((state: boolean) => {
+    useEffect(() => rpcClient?.onProjectContentUpdated((state: boolean) => {
         if (state) {
             getConnectors();
         }
-    });
+    }), [rpcClient]);
 
     const getConnectors = (filter?: boolean) => {
         setFetchingInfo(true);
