@@ -149,6 +149,10 @@ import {
     deleteMcpServer,
     setMcpToolsEnabled,
     getMcpToolsEnabled,
+    setCopilotOrbVisible,
+    getCopilotOrbVisible,
+    getCopilotToggleSettings,
+    setCopilotToggleSetting,
     getMcpWorkspaceContext,
     getMcpLoadErrors,
     getAgentsMdFileInfo,
@@ -162,6 +166,9 @@ import {
     UpdateMcpServerRequest,
     DeleteMcpServerRequest,
     SetMcpToolsEnabledRequest,
+    SetCopilotOrbVisibleRequest,
+    CopilotToggleSettings,
+    SetCopilotToggleSettingRequest,
     McpLoadErrorsDTO,
     AgentsMdFileInfoDTO,
     listThreads,
@@ -495,6 +502,22 @@ export class AiPanelRpcClient implements AIPanelAPI {
 
     getMcpToolsEnabled(): Promise<boolean> {
         return this._messenger.sendRequest(getMcpToolsEnabled, HOST_EXTENSION);
+    }
+
+    setCopilotOrbVisible(params: SetCopilotOrbVisibleRequest): Promise<void> {
+        return this._messenger.sendRequest(setCopilotOrbVisible, HOST_EXTENSION, params);
+    }
+
+    getCopilotOrbVisible(): Promise<boolean> {
+        return this._messenger.sendRequest(getCopilotOrbVisible, HOST_EXTENSION);
+    }
+
+    getCopilotToggleSettings(): Promise<CopilotToggleSettings> {
+        return this._messenger.sendRequest(getCopilotToggleSettings, HOST_EXTENSION);
+    }
+
+    setCopilotToggleSetting(params: SetCopilotToggleSettingRequest): Promise<void> {
+        return this._messenger.sendRequest(setCopilotToggleSetting, HOST_EXTENSION, params);
     }
 
     getMcpWorkspaceContext(): Promise<McpWorkspaceContextResponse> {

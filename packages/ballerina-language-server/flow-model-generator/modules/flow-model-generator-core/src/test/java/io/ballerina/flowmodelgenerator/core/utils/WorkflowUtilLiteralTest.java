@@ -172,4 +172,17 @@ public class WorkflowUtilLiteralTest {
         Assert.assertEquals(WorkflowUtil.quoteIfPlain("string `t`"), "string `t`");
         Assert.assertEquals(WorkflowUtil.quoteIfPlain("tab\there"), "\"tab\\there\"");
     }
+
+    @Test(description = "A template the text box wrote names the capability by its text, like a literal does; "
+            + "one that interpolates stays source (wso2/product-integrator#2623)")
+    public void testCapabilityNameReadsPlainTemplate() {
+        Assert.assertEquals(WorkflowUtil.capabilityName("string `Lookup bill`"), "Lookup bill");
+        // A template keeps its backslashes, so its body reads back as written.
+        Assert.assertEquals(WorkflowUtil.capabilityName("string `Say \\\"hi\\\"`"), "Say \\\"hi\\\"");
+        Assert.assertEquals(WorkflowUtil.capabilityName("string `C:\\temp`"), "C:\\temp");
+        Assert.assertEquals(WorkflowUtil.capabilityName("\"Lookup bill\""), "Lookup bill");
+        Assert.assertEquals(WorkflowUtil.capabilityName("string `Bill ${id}`"), "string `Bill ${id}`");
+        Assert.assertEquals(WorkflowUtil.capabilityName("string ``"), "");
+        Assert.assertEquals(WorkflowUtil.capabilityName("lookupBill"), "lookupBill");
+    }
 }

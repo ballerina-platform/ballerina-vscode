@@ -29,7 +29,8 @@ export const SHARED_COMMANDS = {
     CLOSE_AI_PANEL: 'ballerina.close.ai.panel',
     OPEN_AGENT_CHAT: 'ballerina.open.agent.chat',
     SET_COPILOT_INLINE_STATUS: 'ballerina.copilot.setInlineStatusActive',
-    SET_COPILOT_AMBIENT_PRESENT: 'ballerina.copilot.setAmbientPresent'
+    SET_COPILOT_AMBIENT_PRESENT: 'ballerina.copilot.setAmbientPresent',
+    HIDE_COPILOT_ORB: 'ballerina.copilot.hideOrb'
 }
 
 export const BI_COMMANDS = {

@@ -67,13 +67,19 @@ import { createMiniChatPrompt, MiniChatPrompt } from "./promptHandoff";
  * mini chat overlay (the full panel is one more click away via its maximize
  * button); typing into the idle invite starts the conversation in the mini.
  * Draggable: released anywhere, it snaps to the nearest corner and the
- * corner is remembered across reloads.
+ * corner is remembered across reloads. Right-click offers to hide it, which
+ * turns off `ballerina.copilot.showOrb`; the editor title bar's Copilot button
+ * then opens the chat panel, and the Copilot settings toggle brings the orb back.
  */
 
 const DRAG_THRESHOLD = 5;
 const SNAP_ANIMATION_MS = 250;
 const WIDGET_GAP = 10;
 const INVITE_FADE_MS = 160;
+/** Keeps the context menu this far inside the viewport edges. */
+const MENU_EDGE_MARGIN = 8;
+const MENU_WIDTH = 180;
+const MENU_HEIGHT = 36;
 
 const ANCHOR_CSS: Record<Anchor, React.CSSProperties> = {
     "top-left": { top: EDGE_MARGIN, left: EDGE_MARGIN },
@@ -372,6 +378,49 @@ const SpinArc = styled.div`
     }
 `;
 
+const OrbMenu = styled.div`
+    position: fixed;
+    /* Above the orb wrapper so the menu never sits under its own trigger. */
+    z-index: 1801;
+    min-width: ${MENU_WIDTH}px;
+    padding: 4px;
+    border: 1px solid var(--vscode-editorWidget-border, var(--vscode-panel-border));
+    border-radius: 6px;
+    background-color: var(--vscode-editorWidget-background);
+    box-shadow: 0 4px 14px var(--vscode-widget-shadow, transparent);
+`;
+
+const OrbMenuItem = styled.button`
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 5px 8px;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--vscode-foreground);
+    font-family: var(--vscode-font-family);
+    font-size: 12px;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover,
+    &:focus-visible {
+        background-color: var(--vscode-list-hoverBackground);
+    }
+`;
+
+/** Places the menu at the pointer, flipped inward where it would run off the viewport. */
+function menuPosition(x: number, y: number): { left: number; top: number } {
+    const maxLeft = window.innerWidth - MENU_WIDTH - MENU_EDGE_MARGIN;
+    const maxTop = window.innerHeight - MENU_HEIGHT - MENU_EDGE_MARGIN;
+    return {
+        left: Math.max(MENU_EDGE_MARGIN, Math.min(x, maxLeft)),
+        top: Math.max(MENU_EDGE_MARGIN, y > maxTop ? y - MENU_HEIGHT : y),
+    };
+}
+
 export function AgentStatusOrb() {
     const productMode = useProductMode();
     const assistantName = useAssistantName();
@@ -405,6 +454,10 @@ export function AgentStatusOrb() {
     const [webglFailed, setWebglFailed] = useState(false);
     const handleWebglFailed = useCallback(() => setWebglFailed(true), []);
 
+    /** Right-click menu position; null while closed. */
+    const [menuPos, setMenuPos] = useState<{ left: number; top: number } | null>(null);
+    const menuRef = useRef<HTMLDivElement>(null);
+    const orbButtonRef = useRef<HTMLButtonElement>(null);
     useEffect(() => {
         if (!rpcClient) {
             return;
@@ -419,9 +472,10 @@ export function AgentStatusOrb() {
 
     useEffect(() => {
         return subscribeMiniChatOpen((prompt) => {
-            // If the full panel is already visible, update it in place. Otherwise
-            // keep this interaction ambient and open the contextual mini chat.
-            if (statusRef.current?.aiPanelOpen && rpcClient) {
+            // If the full panel is already visible, update it in place; with the orb
+            // turned off there is no mini chat to host the prompt, so the panel takes it
+            // too. Otherwise keep this interaction ambient and open the contextual mini chat.
+            if ((statusRef.current?.aiPanelOpen || statusRef.current?.orbHidden) && rpcClient) {
                 void rpcClient.getAiPanelRpcClient().openAIPanel(prompt);
                 return;
             }
@@ -433,6 +487,37 @@ export function AgentStatusOrb() {
 
     useEffect(() => subscribeOrbSuppressed(setOrbSuppressed), []);
 
+    // `ballerina.copilot.showOrb` is off: the editor title bar's Copilot button stands in.
+    const orbHiddenByUser = !!status?.orbHidden;
+
+    useEffect(() => {
+        if (!menuPos) {
+            return;
+        }
+        const close = () => setMenuPos(null);
+        const onPointerDown = (event: PointerEvent) => {
+            if (!menuRef.current?.contains(event.target as Node)) {
+                close();
+            }
+        };
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key === "Escape") {
+                close();
+                orbButtonRef.current?.focus();
+            }
+        };
+        document.addEventListener("pointerdown", onPointerDown);
+        document.addEventListener("keydown", onKeyDown);
+        window.addEventListener("blur", close);
+        window.addEventListener("resize", close);
+        return () => {
+            document.removeEventListener("pointerdown", onPointerDown);
+            document.removeEventListener("keydown", onKeyDown);
+            window.removeEventListener("blur", close);
+            window.removeEventListener("resize", close);
+        };
+    }, [menuPos]);
+
     useEffect(() => () => clearTimeout(snapTimerRef.current), []);
 
     // The orb hides without unmounting, so mini-chat state outlives it. Left alone,
@@ -440,10 +525,11 @@ export function AgentStatusOrb() {
     // returns — the full panel closing, or navigating off a view that opts out.
     // A prompt queued by `subscribeMiniChatOpen` is discarded for the same reason:
     // MiniChat cannot mount while hidden, so it is never taken, only left to go stale.
-    const orbHidden = !status || status.aiPanelOpen || orbSuppressed;
+    const orbHidden = !status || status.aiPanelOpen || orbHiddenByUser || orbSuppressed;
     useEffect(() => {
         if (orbHidden) {
             setMiniOpen(false);
+            setMenuPos(null);
             miniPromptRef.current = undefined;
             setHovered(false);
             setOrbFocused(false);
@@ -598,6 +684,23 @@ export function AgentStatusOrb() {
         setMiniOpen((open) => !open);
     };
 
+    const handleContextMenu = (event: React.MouseEvent<HTMLButtonElement>) => {
+        event.preventDefault();
+        if (dragPos !== null) {
+            return;
+        }
+        // A keyboard-invoked menu (Shift+F10, the menu key) reports no pointer position.
+        const rect = event.currentTarget.getBoundingClientRect();
+        const fromKeyboard = event.clientX === 0 && event.clientY === 0;
+        setMiniOpen(false);
+        setMenuPos(menuPosition(fromKeyboard ? rect.left : event.clientX, fromKeyboard ? rect.bottom : event.clientY));
+    };
+
+    const hideOrb = () => {
+        setMenuPos(null);
+        rpcClient?.getCommonRpcClient().executeCommand({ commands: [SHARED_COMMANDS.HIDE_COPILOT_ORB] });
+    };
+
     const handleDoubleClick = () => {
         if (dragPos !== null || !rpcClient) {
             return;
@@ -640,6 +743,20 @@ export function AgentStatusOrb() {
                         return prompt;
                     }}
                 />
+            )}
+            {menuPos && (
+                <OrbMenu ref={menuRef} role="menu" style={menuPos} onContextMenu={(event) => event.preventDefault()}>
+                    <OrbMenuItem
+                        type="button"
+                        role="menuitem"
+                        autoFocus
+                        onClick={hideOrb}
+                        title="Show it again from Copilot settings."
+                    >
+                        <span className="codicon codicon-eye-closed" />
+                        Hide the Copilot orb
+                    </OrbMenuItem>
+                </OrbMenu>
             )}
             <Wrapper
                 style={{ ...wrapperStyle, flexDirection }}
@@ -691,17 +808,19 @@ export function AgentStatusOrb() {
                 )}
                 {showLabel && label && <LabelPill onClick={() => setMiniOpen(true)}>{label}</LabelPill>}
                 <OrbButton
+                    ref={orbButtonRef}
                     state={state}
                     agentBuilder={agentBuilder}
                     onClick={handleClick}
                     onDoubleClick={handleDoubleClick}
+                    onContextMenu={handleContextMenu}
                     onPointerDown={handlePointerDown}
                     onPointerMove={handlePointerMove}
                     onPointerUp={handlePointerUp}
                     onFocus={() => setOrbFocused(true)}
                     onBlur={() => setOrbFocused(false)}
                     title={`${label ? `${assistantName} — ${label}` : assistantName} (${MINI_CHAT_SHORTCUT_LABEL})`}
-                    aria-label={label ? `${assistantName}: ${label}. Click to open the mini chat, double-click for the chat panel.` : `Click to open the ${assistantName} mini chat, double-click for the chat panel`}
+                    aria-label={label ? `${assistantName}: ${label}. Click to open the mini chat, double-click for the chat panel, right-click to hide the orb.` : `Click to open the ${assistantName} mini chat, double-click for the chat panel, right-click to hide the orb`}
                 >
                     {(state === "running" || state === "awaiting-input") && <Halo colors={colors} />}
                     <Aura colors={colors} state={state} />

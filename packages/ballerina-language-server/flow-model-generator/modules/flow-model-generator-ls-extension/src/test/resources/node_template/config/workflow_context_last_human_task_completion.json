@@ -4,7 +4,7 @@
     "line": 4,
     "offset": 4
   },
-  "description": "Get Last Human Task Completion template: an optional completion record and an optional task name",
+  "description": "Task Completion template: an optional completion record and an optional task name",
   "codedata": {
     "node": "WORKFLOW_LAST_HUMAN_TASK_COMPLETION",
     "org": "ballerina",
@@ -14,7 +14,7 @@
   "output": {
     "id": "31",
     "metadata": {
-      "label": "Get Last Human Task Completion",
+      "label": "Last Completion",
       "description": "The completion of the most recently completed human task, with who completed it"
     },
     "codedata": {

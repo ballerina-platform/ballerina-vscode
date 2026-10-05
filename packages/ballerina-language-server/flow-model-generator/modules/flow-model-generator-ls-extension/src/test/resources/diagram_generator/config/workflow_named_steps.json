@@ -164,7 +164,7 @@
       {
         "id": "80566",
         "metadata": {
-          "label": "Run Child Workflow",
+          "label": "Run Child",
           "description": "auditClaim",
           "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.10.0.png"
         },

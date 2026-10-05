@@ -225,8 +225,8 @@ public class DurableAgentAddActivityBuilder extends CallBuilder {
         return options;
     }
 
-    // The declaration's optional name/description: the model's view of the activity, and an entry
-    // declared with them in source must round-trip through an edit-save.
+    // The declaration's optional name/description. Registering an activity asks nothing beyond the policies,
+    // so they stay hidden; the designer reveals them when an existing entry is edited, and values round-trip.
     private void addActivityIdentityProperties() {
         properties().custom()
                 .metadata()
@@ -241,6 +241,7 @@ public class DurableAgentAddActivityBuilder extends CallBuilder {
                 .value("")
                 .editable(true)
                 .optional(true)
+                .hidden(true)
                 .stepOut()
                 .addProperty(ACTIVITY_NAME_KEY);
         properties().custom()
@@ -256,6 +257,7 @@ public class DurableAgentAddActivityBuilder extends CallBuilder {
                 .value("")
                 .editable(true)
                 .optional(true)
+                .hidden(true)
                 .stepOut()
                 .addProperty(ACTIVITY_DESCRIPTION_KEY);
     }
