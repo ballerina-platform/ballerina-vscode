@@ -21,6 +21,7 @@ export type AgentManagerHostingMode = "internal" | "external";
 export type AgentManagerAction =
     | "signIn"
     | "signOut"
+    | "chooseDeployTarget"
     | "hostOnPlatform"
     | "setupExternal"
     | "fixSource"
@@ -122,6 +123,7 @@ export interface AgentManagerConfigField {
 export interface AgentManagerConfigForm {
     fields: AgentManagerConfigField[];
     fileSaved: boolean;
+    agentName?: string;
     error?: string;
 }
 

@@ -22,7 +22,7 @@ import styled from "@emotion/styled";
 import { useQuery } from "@tanstack/react-query";
 import { AgentManagerAction, AgentManagerBuild, AgentManagerSource, AgentManagerStatus } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { Button, CheckBox, Codicon, ContextMenu, ProgressRing, Typography } from "@wso2/ui-toolkit";
+import { Button, CheckBox, Codicon, ContextMenu, ProgressRing } from "@wso2/ui-toolkit";
 import { VSCodeLink } from "@vscode/webview-ui-toolkit/react";
 import { AgentManagerConfigForm } from "./AgentManagerConfigForm";
 import { PopupModal, PopupModalStep } from "../PopupModal";
@@ -30,23 +30,14 @@ import { CloseButton, HeaderTitleContainer, PopupHeader, PopupSubtitle, PopupTit
 
 const SLOW_START_MS = 3 * 60 * 1000;
 
-const Title = styled(Typography)`
-    margin: 8px 0 12px;
-`;
-
 const Muted = styled.span`
     color: var(--vscode-descriptionForeground);
 `;
 
-const Card = styled.div`
-    border: 1px solid var(--vscode-welcomePage-tileBorder);
-    background: var(--vscode-welcomePage-tileBackground);
-    border-radius: 6px;
-    padding: 12px;
-    margin: 8px 0;
+const Stack = styled.div`
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 12px;
 `;
 
 const Section = styled.div`
@@ -109,6 +100,8 @@ type Run = (action: AgentManagerAction) => Promise<void>;
 
 interface AgentManagerSectionProps {
     projectPath: string;
+    /** Deploy hosts the agent on Agent Manager; Monitor sends traces from an agent that runs elsewhere. */
+    part: "deploy" | "monitor";
     ampTracingEnabled: boolean;
     handleAmpTracing: (checked: boolean) => void;
 }
@@ -118,20 +111,33 @@ function isBusy(status?: AgentManagerStatus): boolean {
     return phase === "building" || phase === "starting";
 }
 
-export function AgentManagerSection({ projectPath, ampTracingEnabled, handleAmpTracing }: AgentManagerSectionProps) {
+export function useAgentManagerStatus(projectPath: string, enabled = true) {
     const { rpcClient } = useRpcContext();
-    const [pending, setPending] = useState<AgentManagerAction | undefined>();
-    const { data: status, isLoading, isFetching, refetch } = useQuery({
+    return useQuery({
         queryKey: ["agentManagerStatus", projectPath],
         queryFn: () => rpcClient.getAgentManagerRpcClient().getAgentManagerStatus({ projectPath }),
         refetchInterval: (query) => (isBusy(query.state.data) ? 4000 : query.state.data?.source?.step ? 5000 : 20000),
-        enabled: !!projectPath,
+        enabled: enabled && !!projectPath,
     });
+}
 
+export function isRunningOnAgentManager(status?: AgentManagerStatus): boolean {
+    return status?.link?.mode === "internal" && platformPhase(status).kind === "live";
+}
+
+export function AgentManagerSection({ projectPath, part, ampTracingEnabled, handleAmpTracing }: AgentManagerSectionProps) {
+    const { rpcClient } = useRpcContext();
+    const [pending, setPending] = useState<AgentManagerAction | undefined>();
+    const { data: status, isLoading, isFetching, refetch } = useAgentManagerStatus(projectPath);
     const [formAction, setFormAction] = useState<"hostOnPlatform" | "saveConfig" | undefined>();
+    const [formAgentName, setFormAgentName] = useState<string | undefined>();
 
     const run: Run = async (action) => {
-        if (action === "hostOnPlatform" || action === "saveConfig") {
+        if (action === "hostOnPlatform") {
+            await deploy();
+            return;
+        }
+        if (action === "saveConfig") {
             setFormAction(action);
             return;
         }
@@ -144,46 +150,91 @@ export function AgentManagerSection({ projectPath, ampTracingEnabled, handleAmpT
         }
     };
 
+    const deploy = async () => {
+        const client = rpcClient.getAgentManagerRpcClient();
+        setPending("chooseDeployTarget");
+        try {
+            if (!(await client.runAgentManagerAction({ projectPath, action: "chooseDeployTarget" })).success) {
+                return;
+            }
+            const form = await client.getAgentManagerConfigForm({ projectPath });
+            if (form.fields.length > 0 || form.error) {
+                setFormAction("hostOnPlatform");
+                return;
+            }
+            setPending("hostOnPlatform");
+            await client.runAgentManagerAction({ projectPath, action: "hostOnPlatform", config: { values: {}, secrets: {} } });
+            refetch();
+        } finally {
+            setPending(undefined);
+        }
+    };
+
     const closeForm = () => {
         setFormAction(undefined);
+        setFormAgentName(undefined);
         refetch();
     };
 
-    const renderBody = () => {
-        if (isLoading) {
-            return <ProgressRing />;
-        }
+    const linked = (
+        <LinkedAgent
+            status={status!}
+            pending={pending}
+            run={run}
+            ampTracingEnabled={ampTracingEnabled}
+            handleAmpTracing={handleAmpTracing}
+            refreshing={isFetching}
+            onRefresh={() => refetch()}
+        />
+    );
+
+    const renderDeploy = () => {
         if (!status?.signedIn) {
             return (
-                <>
-                    <p>Host this agent on WSO2 Agent Manager, or send its traces there from wherever it runs.</p>
-                    <Button appearance="primary" disabled={!!pending} onClick={() => run("signIn")}>Connect to Agent Manager</Button>
-                    <div style={{ marginTop: 12 }}>
-                        <CheckBox checked={ampTracingEnabled} onChange={handleAmpTracing} label="Configure instrumentation manually" />
-                    </div>
-                </>
+                <Stack>
+                    <p style={{ margin: 0 }}>Deploy this agent on WSO2 Agent Manager. Sign in to your Agent Manager instance to continue.</p>
+                    <Actions><Button appearance="primary" disabled={!!pending} onClick={() => run("signIn")}>Connect to Agent Manager</Button></Actions>
+                </Stack>
             );
         }
-        if (!status.link) {
-            return <ChooseHosting status={status} pending={pending} run={run} />;
+        return (
+            <Stack>
+                {status.link?.mode === "internal" ? linked : <HostAgent status={status} pending={pending} run={run} refreshing={isFetching} onRefresh={() => refetch()} />}
+                <SignedInFooter status={status} run={run} />
+            </Stack>
+        );
+    };
+
+    const renderMonitor = () => {
+        if (status?.link?.mode === "external") {
+            return linked;
+        }
+        if (status?.link?.mode === "internal") {
+            return (
+                <p style={{ margin: 0 }}>
+                    Traces from the Agent Manager deployment are collected automatically.{" "}
+                    <VSCodeLink onClick={() => run("openInConsole")}>Open in Console</VSCodeLink>
+                </p>
+            );
         }
         return (
-            <LinkedAgentCard
-                status={status}
-                pending={pending}
-                run={run}
-                ampTracingEnabled={ampTracingEnabled}
-                handleAmpTracing={handleAmpTracing}
-                refreshing={isFetching}
-                onRefresh={() => refetch()}
-            />
+            <Stack>
+                <p style={{ margin: 0 }}>Send traces to Agent Manager from deployments you host yourself, such as Docker or a virtual machine.</p>
+                <Actions>
+                    {status?.signedIn
+                        ? <Button appearance="secondary" disabled={!!pending} onClick={() => run("setupExternal")}>Send Traces</Button>
+                        : <Button appearance="secondary" disabled={!!pending} onClick={() => run("signIn")}>Connect to Agent Manager</Button>}
+                </Actions>
+                {!status?.signedIn && (
+                    <CheckBox checked={ampTracingEnabled} onChange={handleAmpTracing} label="Configure Instrumentation Manually" />
+                )}
+            </Stack>
         );
     };
 
     return (
         <div>
-            <Title variant="h3">Agent Manager</Title>
-            {renderBody()}
+            {isLoading ? <ProgressRing /> : part === "deploy" ? renderDeploy() : renderMonitor()}
             {formAction && status?.signedIn && createPortal(
                 <PopupModal onClose={closeForm} autoHeight maxWidth={560} dismissOnEscape>
                     {(close) => (
@@ -191,7 +242,7 @@ export function AgentManagerSection({ projectPath, ampTracingEnabled, handleAmpT
                             <PopupHeader>
                                 <HeaderTitleContainer>
                                     <PopupTitle variant="h2">{formAction === "hostOnPlatform" ? "Configure Before Deploying" : "Configuration"}</PopupTitle>
-                                    <PopupSubtitle variant="body2">{status.displayName ?? status.link?.agent ?? "Agent Manager"}</PopupSubtitle>
+                                    <PopupSubtitle variant="body2">{formAgentName ?? status.displayName ?? status.link?.agent ?? "Agent Manager"}</PopupSubtitle>
                                 </HeaderTitleContainer>
                                 <CloseButton appearance="icon" onClick={close}>
                                     <Codicon name="close" />
@@ -199,11 +250,12 @@ export function AgentManagerSection({ projectPath, ampTracingEnabled, handleAmpT
                             </PopupHeader>
                             <AgentManagerConfigForm
                                 projectPath={projectPath}
-                                description={`Values for this agent's configurables in Agent Manager (${status.link?.environment ?? "first environment"}).`}
+                                description="Values for this agent's configurables in Agent Manager."
                                 action={formAction}
                                 submitLabel={formAction === "hostOnPlatform" ? "Deploy" : "Save"}
                                 onDone={close}
                                 onCancel={close}
+                                onAgentName={setFormAgentName}
                             />
                         </PopupModalStep>
                     )}
@@ -220,27 +272,23 @@ interface ActionProps {
     run: Run;
 }
 
-function ChooseHosting({ status, pending, run }: ActionProps) {
+function HostAgent({ status, pending, run, refreshing, onRefresh }: ActionProps & Pick<LinkedAgentProps, "refreshing" | "onRefresh">) {
     return (
         <>
-            <Muted>
-                Connected to {status.org} on {instanceLabel(status.instanceUrl!)} ·{" "}
-                <VSCodeLink onClick={() => run("signOut")}>Sign out</VSCodeLink>
-            </Muted>
-            {status.error && <ErrorText style={{ display: "block", marginTop: 8 }}>{status.error}</ErrorText>}
-            <Card>
-                <Section>
-                    <b>Host on Agent Manager</b>
-                    <Muted>Agent Manager builds the agent from your GitHub repository and runs it.</Muted>
-                </Section>
-                <SourceStep status={status} pending={pending} run={run} />
-            </Card>
-            <Card>
-                <b>Run it elsewhere</b>
-                <Muted>Agent Manager receives traces from wherever the agent runs.</Muted>
-                <Row><Button appearance="secondary" disabled={!!pending} onClick={() => run("setupExternal")}>Send Traces</Button></Row>
-            </Card>
+            {status.error && <ErrorText>{status.error}</ErrorText>}
+            {status.unavailable
+                ? <Actions><Button appearance="secondary" disabled={refreshing} onClick={onRefresh}>Try Again</Button></Actions>
+                : <SourceStep status={status} pending={pending} run={run} />}
         </>
+    );
+}
+
+function SignedInFooter({ status, run }: Pick<ActionProps, "status" | "run">) {
+    return (
+        <Detail style={{ borderTop: "1px solid var(--vscode-welcomePage-tileBorder)", paddingTop: 10 }}>
+            Signed in to {new URL(status.instanceUrl!).host} ·{" "}
+            <VSCodeLink onClick={() => run("signOut")}>Sign Out</VSCodeLink>
+        </Detail>
     );
 }
 
@@ -263,10 +311,10 @@ function SourceHint({ source, pending, run }: { source?: AgentManagerSource; pen
         return null;
     }
     return (
-        <>
-            <Detail>{step.message}</Detail>
-            {step.actionLabel && <VSCodeLink onClick={() => !pending && run("fixSource")}>{step.actionLabel}</VSCodeLink>}
-        </>
+        <Detail>
+            {step.message}
+            {step.actionLabel && <> <VSCodeLink onClick={() => !pending && run("fixSource")}>{step.actionLabel}</VSCodeLink></>}
+        </Detail>
     );
 }
 
@@ -303,14 +351,14 @@ function SourceStep({ status, pending, run }: ActionProps) {
     );
 }
 
-interface LinkedAgentCardProps extends ActionProps {
+interface LinkedAgentProps extends ActionProps {
     ampTracingEnabled: boolean;
     handleAmpTracing: (checked: boolean) => void;
     refreshing: boolean;
     onRefresh: () => void;
 }
 
-function LinkedAgentCard({ status, pending, run, ampTracingEnabled, handleAmpTracing, refreshing, onRefresh }: LinkedAgentCardProps) {
+function LinkedAgent({ status, pending, run, ampTracingEnabled, handleAmpTracing, refreshing, onRefresh }: LinkedAgentProps) {
     const link = status.link!;
     const internal = link.mode === "internal";
     const item = (id: AgentManagerAction, label: string) => ({ id, label, onClick: () => run(id) });
@@ -322,12 +370,11 @@ function LinkedAgentCard({ status, pending, run, ampTracingEnabled, handleAmpTra
         item("openInConsole", "Open in Console"),
         ...(status.deployment?.endpointUrl ? [copyEndpointItem(status.deployment.endpointUrl)] : []),
         item("unlink", "Unlink"),
-        item("signOut", "Sign Out"),
     ];
     const commit = status.build?.commitId?.slice(0, 7);
 
     return (
-        <Card>
+        <Stack>
             <Section>
                 <Header>
                     <span>{status.displayName ?? link.agent}</span>
@@ -348,7 +395,7 @@ function LinkedAgentCard({ status, pending, run, ampTracingEnabled, handleAmpTra
                 <ExternalState tokenExpiresAt={link.tokenExpiresAt} environment={link.environment} enabled={ampTracingEnabled} onChange={handleAmpTracing} />
             ))}
             {status.error && <ErrorText>{status.error}</ErrorText>}
-        </Card>
+        </Stack>
     );
 }
 
@@ -432,24 +479,24 @@ function phaseStatus(phase: Phase, status: AgentManagerStatus, slowStart: boolea
         case "building":
             return <BuildProgress build={phase.build} onLogs={onBuildLogs} />;
         case "buildFailed":
-            return <Row><Dot color="var(--vscode-errorForeground)" /><span>Build failed ·</span>{logsLink("openBuildLogs", "View build logs")}</Row>;
+            return <Row><Dot color="var(--vscode-errorForeground)" /><span>Build Failed ·</span>{logsLink("openBuildLogs", "View Build Logs")}</Row>;
         case "starting":
             return (
                 <>
                     <Row><ProgressRing sx={{ height: 12, width: 12 }} /><span>Starting</span></Row>
-                    {status.crash && <Detail>Keeps restarting: {status.crash.reason} · {logsLink("openRuntimeLogs", "View runtime logs")}</Detail>}
-                    {!status.crash && slowStart && <Detail>Taking longer than usual · {logsLink("openRuntimeLogs", "View runtime logs")}</Detail>}
+                    {status.crash && <Detail>Keeps restarting: {status.crash.reason} · {logsLink("openRuntimeLogs", "View Runtime Logs")}</Detail>}
+                    {!status.crash && slowStart && <Detail>Taking longer than usual · {logsLink("openRuntimeLogs", "View Runtime Logs")}</Detail>}
                 </>
             );
         case "crashed":
             return (
                 <>
-                    <Row><Dot color="var(--vscode-errorForeground)" /><span>Crashed ·</span>{logsLink("openRuntimeLogs", "View runtime logs")}</Row>
+                    <Row><Dot color="var(--vscode-errorForeground)" /><span>Crashed ·</span>{logsLink("openRuntimeLogs", "View Runtime Logs")}</Row>
                     {status.crash && <Detail>{status.crash.reason}</Detail>}
                 </>
             );
         case "notDeployed":
-            return <Row><Dot color="var(--vscode-descriptionForeground)" /><span>Not deployed</span></Row>;
+            return <Row><Dot color="var(--vscode-descriptionForeground)" /><span>Not Deployed</span></Row>;
         default:
             return (
                 <>
@@ -521,7 +568,7 @@ function BuildProgress({ build, onLogs }: { build: AgentManagerBuild; onLogs: ()
                 {steps.length > 0 && <Muted style={{ marginLeft: "auto" }}>{done} of {steps.length}</Muted>}
             </Row>
             <ProgressTrack><ProgressFill percent={build.percent ?? 0} /></ProgressTrack>
-            <VSCodeLink onClick={onLogs}>View build logs</VSCodeLink>
+            <VSCodeLink onClick={onLogs}>View Build Logs</VSCodeLink>
         </>
     );
 }
@@ -546,26 +593,21 @@ function ExternalState({ tokenExpiresAt, environment, enabled, onChange }: Exter
                 Sends traces to {environment}
                 {expires && <> · <span style={expiringSoon ? { color: "var(--vscode-errorForeground)" } : undefined}>token expires {expires.toLocaleDateString()}</span></>}
             </Muted>
-            <CheckBox checked={enabled} onChange={onChange} label="Send traces when the integration runs" />
+            <CheckBox checked={enabled} onChange={onChange} label="Send Traces to Agent Manager" />
         </>
     );
 }
 
 const STEP_LABELS: Record<string, string> = {
     BuildInitiated: "Queued",
-    BuildTriggered: "Cloning source",
-    BuildRunning: "Building image",
-    BuildCompleted: "Publishing image",
+    BuildTriggered: "Cloning Source",
+    BuildRunning: "Building Image",
+    BuildCompleted: "Publishing Image",
     WorkloadUpdated: "Deploying",
 };
 
 function stepLabel(type: string): string {
-    const words = type.replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase();
-    return STEP_LABELS[type] ?? words.charAt(0).toUpperCase() + words.slice(1);
-}
-
-function instanceLabel(instanceUrl: string): string {
-    return new URL(instanceUrl).host;
+    return STEP_LABELS[type] ?? type.replace(/([a-z])([A-Z])/g, "$1 $2");
 }
 
 function timeAgo(iso: string): string {

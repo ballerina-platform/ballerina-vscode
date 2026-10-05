@@ -387,8 +387,9 @@ export class McpClientManager {
             if (client) {
                 client.close().catch(() => { /* ignore */ });
             }
-            state.status = "failed";
-            state.error = err?.message ?? String(err);
+            const signingIn = this.signingIn.has(keyOf(state.scope, state.name));
+            state.status = signingIn ? "connecting" : "failed";
+            state.error = signingIn ? undefined : err?.message ?? String(err);
             state.client = undefined;
             state.tools = [];
             console.warn(`[mcp] Failed to connect to '${state.scope}:${state.name}':`, state.error);
@@ -424,6 +425,9 @@ export class McpClientManager {
             this.onDidChange?.();
         } catch (err: any) {
             this.signInPrompted.delete(key);
+            state.status = "failed";
+            state.error = "Sign-in required.";
+            this.onDidChange?.();
             vscode.window.showErrorMessage(`Couldn't sign in to MCP server '${state.name}': ${err?.message ?? err}. Refresh the MCP servers to try again.`);
         } finally {
             this.signingIn.delete(key);

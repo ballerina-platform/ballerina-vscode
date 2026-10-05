@@ -20,8 +20,9 @@ import React, { useEffect, useState } from "react";
 import styled from "@emotion/styled";
 import { AgentManagerConfigField, AgentManagerConfigForm as ConfigFormData } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { Button, CheckBox, ProgressRing, TextField } from "@wso2/ui-toolkit";
+import { Button, CheckBox, ProgressRing } from "@wso2/ui-toolkit";
 import { PopupContent, PopupFooter } from "../../views/BI/Connection/styles";
+import { ConfigField } from "../../views/AIPanel/components/ConfigurationCollector";
 
 const Group = styled.div`
     display: flex;
@@ -50,6 +51,7 @@ interface AgentManagerConfigFormProps {
     submitLabel: string;
     onDone: () => void;
     onCancel: () => void;
+    onAgentName?: (name?: string) => void;
 }
 
 function groupFields(fields: AgentManagerConfigField[]): [string, AgentManagerConfigField[]][] {
@@ -65,7 +67,7 @@ function placeholder(field: AgentManagerConfigField): string {
     return field.required ? "Required" : "Optional";
 }
 
-export function AgentManagerConfigForm({ projectPath, description, action, submitLabel, onDone, onCancel }: AgentManagerConfigFormProps) {
+export function AgentManagerConfigForm({ projectPath, description, action, submitLabel, onDone, onCancel, onAgentName }: AgentManagerConfigFormProps) {
     const { rpcClient } = useRpcContext();
     const [form, setForm] = useState<ConfigFormData | undefined>();
     const [values, setValues] = useState<Record<string, string>>({});
@@ -73,11 +75,11 @@ export function AgentManagerConfigForm({ projectPath, description, action, submi
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | undefined>();
 
-    const submit = async (config = { values, secrets }) => {
+    const submit = async () => {
         setSubmitting(true);
         setError(undefined);
         try {
-            const response = await rpcClient.getAgentManagerRpcClient().runAgentManagerAction({ projectPath, action, config });
+            const response = await rpcClient.getAgentManagerRpcClient().runAgentManagerAction({ projectPath, action, config: { values, secrets } });
             response.success ? onDone() : setError(response.message);
         } catch (err) {
             setError(String(err));
@@ -93,13 +95,11 @@ export function AgentManagerConfigForm({ projectPath, description, action, submi
             setValues(initial);
             setSecrets(Object.fromEntries(loaded.fields.map((f) => [f.id, f.secret])));
             setForm(loaded);
-            if (loaded.fields.length === 0 && !loaded.error && action === "hostOnPlatform") {
-                submit({ values: {}, secrets: {} });
-            }
+            onAgentName?.(loaded.agentName);
         });
     }, [projectPath]);
 
-    if (!form || (form.fields.length === 0 && submitting)) {
+    if (!form) {
         return <PopupContent><ProgressRing /></PopupContent>;
     }
     const fileFields = form.fields.some((f) => f.target === "file" && !f.unsupported);
@@ -111,7 +111,7 @@ export function AgentManagerConfigForm({ projectPath, description, action, submi
                 {form.fields.length === 0 && !form.error && <Muted>This agent has no configurables to set.</Muted>}
                 {groupFields(form.fields).map(([group, fields]) => (
                     <Group key={group}>
-                        <GroupTitle>{group}</GroupTitle>
+                        {group && <GroupTitle>{group}</GroupTitle>}
                         {fields.map((field) => (
                             <ConfigFieldInput
                                 key={field.id}
@@ -146,6 +146,7 @@ interface ConfigFieldInputProps {
 }
 
 function ConfigFieldInput({ field, value, secret, onValue, onSecret }: ConfigFieldInputProps) {
+    const [visible, setVisible] = useState(false);
     const label = `${field.label}${field.required ? " *" : ""}`;
     if (field.unsupported) {
         return (
@@ -157,13 +158,14 @@ function ConfigFieldInput({ field, value, secret, onValue, onSecret }: ConfigFie
     }
     return (
         <Group>
-            <TextField
-                label={label}
-                description={field.type}
+            <ConfigField
+                variable={{ name: label, type: field.type, secret }}
                 value={value}
                 placeholder={placeholder(field)}
-                type={secret ? "password" : "text"}
-                onTextChange={onValue}
+                isVisible={visible}
+                onToggleVisibility={() => setVisible(!visible)}
+                onChange={(_, next) => onValue(next)}
+                onKeyDown={() => undefined}
             />
             <CheckBox checked={secret} onChange={onSecret} label="Store as a secret" />
         </Group>

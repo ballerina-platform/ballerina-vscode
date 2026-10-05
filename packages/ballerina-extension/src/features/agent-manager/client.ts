@@ -213,10 +213,6 @@ function formatLogs(body: { logs?: { log: string; timestamp: string }[] }): stri
     return (body.logs ?? []).map((entry) => `${entry.timestamp}  ${entry.log}`).join("\n");
 }
 
-export async function getBuildLogs(link: AgentManagerLink, buildName: string): Promise<string> {
-    return formatLogs(await amctlJson(["agent", "build", "logs", link.agent, buildName, "--project", link.project, "--org", link.org]));
-}
-
 export async function getRuntimeLogs(link: AgentManagerLink, sinceMinutes: number): Promise<string> {
     return formatLogs(await amctlJson(["agent", "logs", link.agent, "--project", link.project, "--org", link.org,
         "--env", link.environment, "--since", `${sinceMinutes}m`, "--sort", "asc"]));

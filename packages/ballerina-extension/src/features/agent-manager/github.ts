@@ -201,7 +201,7 @@ function sourceSteps(projectPath: string, facts: SourceFacts, prep: Preparation,
         [true, gitHubStep(projectPath, facts, prep)!],
         [!!renamedTo, { id: "moved", message: `This repository moved to ${renamedTo}.`, actionLabel: "Update Remote", blocking: false }],
         [prep.staleSpec, { id: "refreshSpec", message: "openapi.yaml no longer matches the service.", actionLabel: "Update API Spec", blocking: false }],
-        [facts.dirty > 0, { id: "commit", message: `${plural(facts.dirty, "uncommitted change")} won't be deployed.`, actionLabel: "Review and Commit", blocking: false }],
+        [facts.dirty > 0, { id: "commit", message: `${plural(facts.dirty, "uncommitted change")} won't be deployed.`, actionLabel: "Review", blocking: false }],
         [facts.ahead > 0, { id: "push", message: `${plural(facts.ahead, "commit")} not pushed.`, actionLabel: "Push", blocking: false }],
         [facts.behind > 0, { id: "pull", message: `GitHub has ${plural(facts.behind, "newer commit")}.`, actionLabel: "Pull", blocking: false }],
     ];

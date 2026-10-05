@@ -402,6 +402,7 @@ function getEmptyFieldNames(
 interface ConfigFieldProps {
     variable: { name: string; description?: string; type?: string; secret?: boolean };
     value: string;
+    placeholder?: string;
     error?: string;
     isVisible: boolean;
     onToggleVisibility: () => void;
@@ -409,8 +410,8 @@ interface ConfigFieldProps {
     onKeyDown: (e: React.KeyboardEvent) => void;
 }
 
-const ConfigField: React.FC<ConfigFieldProps> = ({
-    variable, value, error, isVisible, onToggleVisibility, onChange, onKeyDown,
+export const ConfigField: React.FC<ConfigFieldProps> = ({
+    variable, value, placeholder, error, isVisible, onToggleVisibility, onChange, onKeyDown,
 }) => {
     const config = getFieldConfig(variable.type);
     const isSecret = variable.secret === true;
@@ -438,7 +439,7 @@ const ConfigField: React.FC<ConfigFieldProps> = ({
             <FieldInputWrapper>
                 <FieldInput
                     type={htmlInputType}
-                    placeholder={config.placeholder}
+                    placeholder={placeholder ?? config.placeholder}
                     value={value}
                     onChange={(e) => onChange(variable.name, e.target.value)}
                     onKeyDown={onKeyDown}

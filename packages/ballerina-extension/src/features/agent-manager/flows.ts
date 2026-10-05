@@ -45,7 +45,6 @@ import {
 import {
     api,
     consoleUrl,
-    getBuildLogs,
     getRuntimeLogs,
     readLink,
     removeLink,
@@ -87,6 +86,7 @@ export async function getStatus(projectPath: string): Promise<AgentManagerStatus
     try {
         const link = await readLink(projectPath);
         if (!link) {
+            await api.listProjects();
             return { ...status, source: await sourceStatus(projectPath) };
         }
         status.link = link;
@@ -97,22 +97,33 @@ export async function getStatus(projectPath: string): Promise<AgentManagerStatus
             return { signedIn: false };
         }
         status.unavailable = true;
-        status.error = describeStatusError(error, session.instanceUrl);
+        status.error = describeError(error, session.instanceUrl);
     }
     return status;
 }
 
 let lastStatusError: string | undefined;
 
-function describeStatusError(error: unknown, instanceUrl: string): string {
+function describeError(error: unknown, instanceUrl?: string): string {
     const message = error instanceof Error ? error.message : String(error);
     if (message !== lastStatusError) {
         lastStatusError = message;
-        outputChannel().appendLine(`[status] ${message}`);
+        outputChannel().appendLine(message);
     }
-    return error instanceof AgentManagerApiError && error.status === 503
-        ? `Can't reach Agent Manager at ${new URL(instanceUrl).host}. Check that it's running.`
-        : message;
+    if (!(error instanceof AgentManagerApiError)) {
+        return message;
+    }
+    if (error.status === 503) {
+        return `Can't reach Agent Manager${instanceUrl ? ` at ${new URL(instanceUrl).host}` : ""}. Check that it's running and try again.`;
+    }
+    return error.status === 401 ? "Your Agent Manager session has expired. Sign in again to continue." : message;
+}
+
+async function describeActionError(error: unknown): Promise<string> {
+    if (error instanceof AgentManagerApiError && error.status === 401) {
+        clearSessionCache();
+    }
+    return describeError(error, (await getSession())?.instanceUrl);
 }
 
 async function platformStatus(projectPath: string, link: AgentManagerLink): Promise<Partial<AgentManagerStatus>> {
@@ -175,6 +186,9 @@ const ACTIONS: Record<AgentManagerAction, (projectPath: string, config?: AgentMa
         return session && `Signed in to Agent Manager (${session.org}).`;
     },
     signOut: async () => signOut(),
+    chooseDeployTarget: async (projectPath) => {
+        deployTargets.set(projectPath, await chooseDeployTarget(projectPath));
+    },
     hostOnPlatform,
     fixSource,
     setupExternal,
@@ -215,7 +229,7 @@ export async function runAction(
         if (error instanceof UserCancelled) {
             return { success: false };
         }
-        const message = error instanceof Error ? error.message : String(error);
+        const message = await describeActionError(error);
         vscode.window.showErrorMessage(`Agent Manager: ${message}`);
         return { success: false, message };
     }
@@ -339,11 +353,22 @@ async function ensureDevTracingOff(projectPath: string): Promise<void> {
     TracerMachine.disable(projectPath);
 }
 
-async function hostOnPlatform(projectPath: string, config?: AgentManagerConfigInput): Promise<string> {
+type DeployTarget = Awaited<ReturnType<typeof newLink>> & { git: GitHubSource };
+
+// Chosen before the config popup opens, so the quick picks never run behind it.
+const deployTargets = new Map<string, DeployTarget>();
+
+async function chooseDeployTarget(projectPath: string): Promise<DeployTarget> {
     const git = await requireGitHubSource(projectPath);
     await ensureDevTracingOff(projectPath);
     await warnIfDefaultModelProvider(projectPath);
-    const { link, displayName, existing } = await newLink(projectPath, "internal");
+    return { ...(await newLink(projectPath, "internal")), git };
+}
+
+async function hostOnPlatform(projectPath: string, config?: AgentManagerConfigInput): Promise<string> {
+    const target = deployTargets.get(projectPath) ?? await chooseDeployTarget(projectPath);
+    deployTargets.delete(projectPath);
+    const { link, displayName, existing, git } = target;
     if (!existing) {
         const iface = await prepareHttpInterface(projectPath);
         const split = resolveConfig((await loadConfigFields(projectPath)).fields, config);
@@ -399,9 +424,12 @@ async function switchBranchIfNeeded(link: AgentManagerLink, branch: string): Pro
 
 export async function getConfigForm(projectPath: string): Promise<AgentManagerConfigForm> {
     try {
-        return await loadConfigFields(projectPath, await readLink(projectPath));
+        const linked = await readLink(projectPath);
+        const target = linked ? undefined : deployTargets.get(projectPath);
+        const link = linked ?? (target?.existing ? target.link : undefined);
+        return { ...(await loadConfigFields(projectPath, link)), agentName: target?.displayName };
     } catch (error) {
-        return { fields: [], fileSaved: false, error: error instanceof Error ? error.message : String(error) };
+        return { fields: [], fileSaved: false, error: await describeActionError(error) };
     }
 }
 
@@ -463,7 +491,8 @@ async function openBuildLogs(projectPath: string): Promise<void> {
     if (!build) {
         throw new Error("No builds yet.");
     }
-    showLogs(`Build ${build.name} (${build.status})`, await getBuildLogs(link, build.name));
+    const query = new URLSearchParams({ selectedBuild: build.name, panel: "logs" });
+    await vscode.env.openExternal(vscode.Uri.parse(`${consoleUrl(link)}/build?${query}`));
 }
 
 async function openRuntimeLogs(projectPath: string): Promise<void> {

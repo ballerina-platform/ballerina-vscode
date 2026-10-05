@@ -46,7 +46,7 @@ interface VariableContext {
     section: string[];
     group: string;
     rootModule: boolean;
-    local: Record<string, unknown>;
+    ownConfig: boolean;
     envKeys: string[];
     fileSaved: boolean;
 }
@@ -66,24 +66,25 @@ export function readPackage(projectPath: string): { org: string; name: string; t
 }
 
 // Prefill only from the user's own Config.toml; one committed to the repo could carry someone else's values.
-export function readLocalConfig(projectPath: string): Record<string, unknown> {
-    const configPath = path.join(projectPath, "Config.toml");
+function isOwnConfig(projectPath: string): boolean {
     const inWorkTree = git(projectPath, ["rev-parse", "--is-inside-work-tree"]).stdout?.trim() === "true";
     // Exit 1 means "not tracked"; anything else (no repo, no git) can't prove the file is the user's own.
-    const untracked = inWorkTree && git(projectPath, ["ls-files", "--error-unmatch", "Config.toml"]).status === 1;
-    if (!untracked || !fs.existsSync(configPath)) {
-        return {};
-    }
-    try {
-        return parse(fs.readFileSync(configPath, "utf-8")) as Record<string, unknown>;
-    } catch {
-        return {};
-    }
+    return inWorkTree && git(projectPath, ["ls-files", "--error-unmatch", "Config.toml"]).status === 1;
 }
 
-function lookup(table: unknown, keys: string[]): string | undefined {
-    const value = keys.reduce<unknown>((node, key) => (node && typeof node === "object" ? (node as any)[key] : undefined), table);
-    return ["string", "number", "boolean"].includes(typeof value) ? String(value) : undefined;
+// The language server returns Config.toml values as Ballerina literals; only simple ones are prefilled.
+function literalValue(raw: unknown): string | undefined {
+    if (typeof raw !== "string" || !raw || raw.startsWith("{") || raw.startsWith("[")) {
+        return undefined;
+    }
+    if (!raw.startsWith("\"")) {
+        return raw;
+    }
+    try {
+        return JSON.parse(raw);
+    } catch {
+        return raw.slice(1, -1);
+    }
 }
 
 // Ballerina reads dotted module names as nested tables: [org.pkg.sub], never [org."pkg.sub"].
@@ -114,7 +115,7 @@ async function recordFields(projectPath: string, variable: ConfigVariable): Prom
     return fields?.every((field) => SIMPLE_TYPES.has(baseType(field.typeName ?? ""))) ? fields : undefined;
 }
 
-function field(ctx: VariableContext, keys: string[], label: string, type: string, required: boolean): AgentManagerConfigField {
+function field(ctx: VariableContext, keys: string[], label: string, type: string, required: boolean, localValue?: string): AgentManagerConfigField {
     // Names that don't map to a clean env key (quoted or non-ASCII identifiers) go in the file instead.
     const target = ctx.rootModule && keys.length === 1 && ENV_SAFE_NAME.test(keys[0]) ? "env" : "file";
     const fullPath = [...ctx.section, ...keys];
@@ -126,7 +127,7 @@ function field(ctx: VariableContext, keys: string[], label: string, type: string
         required,
         secret: SENSITIVE_NAME.test(keys[keys.length - 1]),
         target,
-        localValue: lookup(ctx.local, ctx.rootModule ? keys : fullPath) ?? lookup(ctx.local, fullPath),
+        localValue,
         saved: target === "env" ? ctx.envKeys.includes(configEnvKey(keys[0])) : ctx.fileSaved,
     };
 }
@@ -137,7 +138,7 @@ async function variableFields(ctx: VariableContext, variable: ConfigVariable): P
     const type = baseType(String(props?.type?.value ?? ""));
     const required = !props?.defaultValue?.value;
     if (SIMPLE_TYPES.has(type)) {
-        return [field(ctx, [name], name, type, required)];
+        return [field(ctx, [name], name, type, required, ctx.ownConfig ? literalValue(props?.configValue?.value) : undefined)];
     }
     const members = await recordFields(ctx.projectPath, variable).catch((): undefined => undefined);
     if (members) {
@@ -152,7 +153,7 @@ export async function buildConfigFields(projectPath: string, envKeys: string[], 
     const rootKey = `${pkg.org}/${pkg.name}`;
     const response = await StateMachine.langClient().getConfigVariablesV2({ projectPath, includeLibraries: true }) as any;
     const configMap: ConfigMap = response?.configVariables ?? {};
-    const local = readLocalConfig(projectPath);
+    const ownConfig = isOwnConfig(projectPath);
     const fields: AgentManagerConfigField[] = [];
     for (const [pkgKey, modules] of Object.entries(configMap)) {
         if (PLATFORM_MANAGED.some((managed) => pkgKey === managed || pkgKey.startsWith(`${managed}.`))) {
@@ -160,8 +161,8 @@ export async function buildConfigFields(projectPath: string, envKeys: string[], 
         }
         for (const [moduleName, variables] of Object.entries(modules)) {
             const rootModule = pkgKey === rootKey && !moduleName;
-            const group = rootModule ? "This agent" : `${pkgKey}${moduleName ? `/${moduleName}` : ""}`;
-            const ctx = { projectPath, section: sectionFor(pkgKey, moduleName), group, rootModule, local, envKeys, fileSaved };
+            const group = rootModule ? "" : `${pkgKey}${moduleName ? `/${moduleName}` : ""}`;
+            const ctx = { projectPath, section: sectionFor(pkgKey, moduleName), group, rootModule, ownConfig, envKeys, fileSaved };
             for (const variable of variables.filter((v) => !(v.codedata as any)?.data?.isTestConfig)) {
                 const candidates = await variableFields(ctx, variable);
                 fields.push(...candidates.filter((f) => pkgKey === rootKey || f.required || f.localValue !== undefined));

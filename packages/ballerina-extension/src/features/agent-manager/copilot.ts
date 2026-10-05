@@ -61,7 +61,7 @@ export async function addMcpServers(ids: string[]): Promise<AgentManagerActionRe
     try {
         const session = await getSession();
         if (!session) {
-            return { success: false, message: "Connect to Agent Manager from the Deployment panel first." };
+            return { success: false, message: "Connect to Agent Manager from the Deploy panel first." };
         }
         const existing = userServerNames();
         for (const server of MCP_SERVERS.filter((candidate) => ids.includes(candidate.id))) {

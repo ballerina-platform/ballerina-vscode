@@ -539,19 +539,19 @@ export function PackageOverview(props: PackageOverviewProps) {
         });
     };
 
-    // Labelled only while the panel is hidden; expanded, its own "Deployment Options" heading names it.
+    // Labelled only while the panel is hidden; expanded, its own "Deploy" heading names it.
     const deployPanelToggle = (
         <Button
             appearance="icon"
             onClick={handleToggleDeployPanel}
-            tooltip={deployCollapsed ? "Show deployment panel" : "Hide deployment panel"}
-            aria-label={deployCollapsed ? "Show deployment panel" : "Hide deployment panel"}
+            tooltip={deployCollapsed ? "Show Deploy Panel" : "Hide Deploy Panel"}
+            aria-label={deployCollapsed ? "Show Deploy Panel" : "Hide Deploy Panel"}
             aria-expanded={!deployCollapsed}
             buttonSx={{ padding: "4px 8px" }}
         >
             <Codicon name={deployCollapsed ? "layout-sidebar-right-off" : "layout-sidebar-right"} />
             <DeployToggleLabel ref={deployLabelRef} shown={deployCollapsed} textWidth={deployLabelWidth}>
-                Deployment
+                Deploy
             </DeployToggleLabel>
         </Button>
     );
