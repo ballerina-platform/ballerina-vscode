@@ -313,11 +313,16 @@ public class Type {
     }
 
     public static Type fromSemanticSymbol(Symbol symbol, SemanticModel semanticModel) {
-        return fromSemanticSymbol(symbol, new HashMap<>(), semanticModel, null);
+        return fromSemanticSymbol(symbol, semanticModel, null);
     }
 
     public static Type fromSemanticSymbol(Symbol symbol, SemanticModel semanticModel, String packageName) {
-        return fromSemanticSymbol(symbol, new HashMap<>(), semanticModel, packageName);
+        // The visited map only guards recursion within one traversal; callers mutate the nodes it holds.
+        try {
+            return fromSemanticSymbol(symbol, new HashMap<>(), semanticModel, packageName);
+        } finally {
+            clearVisitedTypeMap();
+        }
     }
 
 
