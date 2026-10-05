@@ -1,0 +1,6 @@
+[package]
+org = "ballerina"
+name = "agent_listener_sample"
+version = "0.1.0"
+
+bi = true

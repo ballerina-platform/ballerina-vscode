@@ -18,6 +18,7 @@
 
 package io.ballerina.modelgenerator.commons.trigger.models;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -288,7 +289,9 @@ public record TriggerUISchemaModel(
      * @param nameMetadata        display metadata for the name field when {@code nameEditable} is
      *                            {@code true}; falls back to {@code metadata} when absent
      * @param kind                this function's handler kind (e.g. resource/remote)
-     * @param accessor            the resource accessor, when {@code kind} is resource-based
+     * @param accessor            the resource accessor, when {@code kind} is resource-based; a
+     *                            comma-separated list (e.g. {@code get,post}) offers a choice, the first
+     *                            being the default
      * @param qualifiers          the function's qualifiers (e.g. {@code isolated}, {@code remote})
      * @param group               the logical group this function is listed under
      * @param variantLabel        the label shown when this function is one of several variants
@@ -334,6 +337,20 @@ public record TriggerUISchemaModel(
             List<LayoutSection> layout,
             Codedata codedata,
             List<ValidationRule> validations) {
+
+        /** The accessors this resource offers: {@code accessor} split on commas, empty when absent. */
+        public List<String> accessors() {
+            if (accessor == null || accessor.isBlank()) {
+                return List.of();
+            }
+            return Arrays.stream(accessor.split(",")).map(String::trim).filter(a -> !a.isEmpty()).toList();
+        }
+
+        /** The accessor a resource starts with (and is emitted with): the first of {@link #accessors()}. */
+        public String defaultAccessor() {
+            List<String> accessors = accessors();
+            return accessors.isEmpty() ? null : accessors.get(0);
+        }
     }
 
     /**

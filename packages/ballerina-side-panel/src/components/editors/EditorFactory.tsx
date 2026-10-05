@@ -20,7 +20,7 @@ import React from "react";
 
 import { Imports, InputType, isDropDownType, isTemplateType, NodeKind, NodeProperties, RecordTypeField, SubPanel, SubPanelView } from "@wso2/ballerina-core";
 
-import { FormField } from "../Form/types";
+import { FormField, FormValues } from "../Form/types";
 import { MultiSelectEditor } from "./MultiSelectEditor";
 import { TextEditor } from "./TextEditor";
 import { TypeEditor } from "./TypeEditor";
@@ -75,6 +75,7 @@ export interface FormFieldEditorProps {
     isContextTypeEditorSupported?: boolean;
     openFormTypeEditor?: (open: boolean, newType?: string) => void;
     updateImports?: (key: string, imports: Imports) => void;
+    handleFormValidation?: (formData?: FormValues, forceValidation?: boolean) => Promise<boolean>;
 }
 
 export const EditorFactory = (props: FormFieldEditorProps) => {
@@ -239,7 +240,8 @@ export const EditorFactory = (props: FormFieldEditorProps) => {
         return <ReadonlyField field={field} />;
     } else if (fieldInputType.fieldType === "IDENTIFIER" && field.editable) {
         return <IdentifierField field={field} handleOnFieldFocus={handleOnFieldFocus} autoFocus={autoFocus} onBlur={onBlur} />;
-    } else if (fieldInputType.fieldType === "SERVICE_PATH" || fieldInputType.fieldType === "ACTION_PATH") {
+    } else if (fieldInputType.fieldType === "SERVICE_PATH" || fieldInputType.fieldType === "ACTION_PATH"
+        || fieldInputType.fieldType === "RESOURCE_PATH" || fieldInputType.fieldType === "STRING_LITERAL") {
         return <PathEditor field={field} handleOnFieldFocus={handleOnFieldFocus} autoFocus={autoFocus} />;
     } else if (fieldInputType.fieldType === "CONDITIONAL_FIELDS" && field.editable) {
         // Conditional fields is a group of fields which are conditionally shown based on a checkbox field

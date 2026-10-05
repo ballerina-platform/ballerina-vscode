@@ -33,6 +33,7 @@ import { getHashedProjectId } from "../../telemetry/common/project-id";
 import { runEventStore } from "../utils/run-event-store";
 import { sendSaveChatNotification } from "../utils/ai-utils";
 import { finalizeRevertibleGeneration, finalizeRevertibleGenerationsAllThreads } from "../utils/generation-response";
+import { markConsoleOriginThread } from "./console-summary/origin";
 
 // ==================================
 // Agent Generation Functions
@@ -178,6 +179,9 @@ export async function generateAgent(params: GenerateAgentCodeRequest): Promise<b
             },
             config.generationId
         );
+        // The console plan's scaffold turn marks its thread as the one that publishes
+        // console summaries. Before the run, so the flag is in place when it finishes.
+        markConsoleOriginThread(projectRootPath, threadId, params.consoleScaffold);
         chatStateStorage.setActiveExecution(projectRootPath, threadId, {
             generationId: config.generationId,
             abortController: config.abortController,

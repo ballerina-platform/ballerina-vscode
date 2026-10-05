@@ -21,12 +21,19 @@ import { AgentRunStatus, AgentRunState, ChatNotify, agentRunStatusChanged, SHARE
 import { RPCLayer } from '../../../RPCLayer';
 import { VisualizerWebview } from '../../../views/visualizer/webview';
 import { describeToolCall, describeToolResultProgress } from './toolLabels';
-import { aiAssistantName, aiAssistantShortName } from "../../../utils/config";
+import { copilotName, copilotShortName } from '../../../utils/config';
 
 /** How long a terminal (completed/error) status stays visible before resetting to idle. */
 const TERMINAL_STATE_RESET_MS = 20000;
 /** Max length of the label rendered in the status bar (tooltip shows the full label). */
 const STATUS_BAR_LABEL_MAX = 40;
+/** Application-scoped setting (`ballerina.copilot.showOrb`) toggling the floating orb. */
+const COPILOT_CONFIG_SECTION = 'ballerina.copilot';
+const SHOW_ORB_SETTING = 'showOrb';
+
+function isOrbVisibleInSettings(): boolean {
+    return vscode.workspace.getConfiguration(COPILOT_CONFIG_SECTION).get<boolean>(SHOW_ORB_SETTING, true);
+}
 
 /**
  * Derives a compact, ambient-UI-friendly status for the Copilot agent's
@@ -59,8 +66,16 @@ class AgentStatusManager {
         if (this.statusBarItem) {
             return;
         }
+        this.status = { ...this.status, orbHidden: !isOrbVisibleInSettings() };
+        // Follows the setting wherever it changes: the Copilot settings toggle, the orb's
+        // menu, or a hand edit of settings.json.
+        context.subscriptions.push(vscode.workspace.onDidChangeConfiguration((event) => {
+            if (event.affectsConfiguration(`${COPILOT_CONFIG_SECTION}.${SHOW_ORB_SETTING}`)) {
+                this.applyOrbHidden(!isOrbVisibleInSettings());
+            }
+        }));
         this.statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 98);
-        this.statusBarItem.name = aiAssistantName();
+        this.statusBarItem.name = copilotName();
         this.statusBarItem.command = SHARED_COMMANDS.OPEN_AI_PANEL;
         context.subscriptions.push(this.statusBarItem, new vscode.Disposable(() => this.clearResetTimer()));
         this.render();
@@ -142,6 +157,28 @@ class AgentStatusManager {
         }
         this.status = { ...this.status, aiPanelOpen: open, timestamp: Date.now() };
         this.render();
+        this.broadcast();
+    }
+
+    isOrbVisible(): boolean {
+        return isOrbVisibleInSettings();
+    }
+
+    /**
+     * Hiding the floating orb hands Copilot to the editor title bar's Copilot button.
+     * Stored in user settings, so it holds across windows, workspaces and reloads; the
+     * configuration listener in `init` applies it.
+     */
+    async setOrbHidden(hidden: boolean): Promise<void> {
+        await vscode.workspace.getConfiguration(COPILOT_CONFIG_SECTION)
+            .update(SHOW_ORB_SETTING, !hidden, vscode.ConfigurationTarget.Global);
+    }
+
+    private applyOrbHidden(hidden: boolean): void {
+        if (!!this.status.orbHidden === hidden) {
+            return;
+        }
+        this.status = { ...this.status, orbHidden: hidden, timestamp: Date.now() };
         this.broadcast();
     }
 
@@ -229,25 +266,25 @@ class AgentStatusManager {
         const label = truncate(this.status.label, STATUS_BAR_LABEL_MAX);
         switch (this.status.state) {
             case 'running':
-                this.statusBarItem.text = `$(loading~spin) ${label ?? aiAssistantName()}`;
+                this.statusBarItem.text = `$(loading~spin) ${label ?? copilotName()}`;
                 this.statusBarItem.backgroundColor = undefined;
                 break;
             case 'awaiting-input':
-                this.statusBarItem.text = `$(bi-ai-chat) ${aiAssistantShortName()} needs your input`;
+                this.statusBarItem.text = `$(bi-ai-chat) ${copilotShortName()} needs your input`;
                 this.statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
                 break;
             case 'completed':
-                this.statusBarItem.text = `$(check) ${aiAssistantShortName()} finished`;
+                this.statusBarItem.text = `$(check) ${copilotShortName()} finished`;
                 this.statusBarItem.backgroundColor = undefined;
                 break;
             case 'error':
-                this.statusBarItem.text = `$(error) ${aiAssistantShortName()} error`;
+                this.statusBarItem.text = `$(error) ${copilotShortName()} error`;
                 this.statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.errorBackground');
                 break;
         }
         const tooltip = new vscode.MarkdownString();
-        tooltip.appendMarkdown(`**${aiAssistantName()}**${this.status.label ? ` — ${this.status.label}` : ''}\n\n`);
-        tooltip.appendMarkdown(`Click to open the ${aiAssistantShortName()} chat.`);
+        tooltip.appendMarkdown(`**${copilotName()}**${this.status.label ? ` — ${this.status.label}` : ''}\n\n`);
+        tooltip.appendMarkdown(`Click to open the ${copilotShortName()} chat.`);
         this.statusBarItem.tooltip = tooltip;
         this.statusBarItem.show();
     }

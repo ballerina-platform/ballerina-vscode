@@ -27,7 +27,6 @@ import io.ballerina.flowmodelgenerator.core.model.node.ActivityCallBuilder.Revie
 import io.ballerina.flowmodelgenerator.core.model.node.ActivityCallBuilder.ReviewText;
 import io.ballerina.flowmodelgenerator.core.utils.WorkflowUtil;
 
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -61,6 +60,14 @@ public final class ApprovalPolicyForm {
     public static final String EXCLUDED_ROLES_KEY = "approvalExcludedRoles";
     public static final String ADMINISTRATOR_ROLES_KEY = "approvalAdministratorRoles";
     public static final String ADMINISTRATOR_USERS_KEY = "approvalAdministratorUsers";
+    // The dropdown's escape hatch: an ApprovalPolicy typed as source, written back verbatim.
+    public static final String EXPRESSION_KEY = "approvalPolicyExpression";
+    private static final String POLICY_TYPE = "workflow:ApprovalPolicy";
+    private static final String EXPRESSION_LABEL = "Approval Policy Expression";
+    private static final String EXPRESSION_DOC = "A workflow:ApprovalPolicy value: a constant, a variable or a "
+            + "record literal. A literal reopens as the option it declares.";
+    private static final String NO_EXPRESSION_MESSAGE =
+            "From Expression needs a value: fill in Approval Policy Expression";
     public static final ReviewKeys REVIEW_KEYS = new ReviewKeys(USER_ROLES_KEY, USERS_KEY, EXCLUDED_USERS_KEY,
             EXCLUDED_ROLES_KEY, ADMINISTRATOR_ROLES_KEY, ADMINISTRATOR_USERS_KEY, WorkflowUtil.APPROVAL_TITLE_KEY,
             WorkflowUtil.APPROVAL_DESCRIPTION_KEY, WorkflowUtil.APPROVAL_TIMEOUT_KEY);
@@ -68,6 +75,8 @@ public final class ApprovalPolicyForm {
     public static final Set<String> PROPERTY_KEYS = propertyKeys();
 
     private static final String USER_ROLES_FIELD = "userRoles";
+    // The module's name for the one record member of ApprovalPolicy.
+    private static final String REVIEW_MEMBER = "ReviewTaskDefinition";
 
     private ApprovalPolicyForm() {
     }
@@ -75,16 +84,18 @@ public final class ApprovalPolicyForm {
     /**
      * The dropdown's decomposition of an {@code approvalPolicy} source value.
      *
-     * @param dropdownValue the selected option, or the source itself when the form cannot edit it
+     * @param dropdownValue the selected option
      * @param review        the review fields, empty unless a review definition was read
+     * @param expression    the policy source under the expression option, empty otherwise
      */
-    public record Form(String dropdownValue, ReviewFormValues review) {
+    public record Form(String dropdownValue, ReviewFormValues review, String expression) {
     }
 
     private static Set<String> propertyKeys() {
         Set<String> keys = new LinkedHashSet<>();
         keys.add(KEY);
         keys.addAll(REVIEW_KEYS.all());
+        keys.add(EXPRESSION_KEY);
         return Set.copyOf(keys);
     }
 
@@ -114,23 +125,36 @@ public final class ApprovalPolicyForm {
      */
     public static void addFormProperties(NodeBuilder nodeBuilder, String dropdownValue, ReviewFormValues review,
                                          boolean dualModeText) {
-        String selectedValue = dropdownValue == null || dropdownValue.isBlank() ? NO_APPROVAL_VALUE : dropdownValue;
-        List<Option> options = new ArrayList<>(List.of(
+        addFormProperties(nodeBuilder, dropdownValue, review, dualModeText, "");
+    }
+
+    /**
+     * Adds the dropdown, its per-option review fields, the expression option's field and the hidden
+     * root properties that hold their values.
+     *
+     * @param nodeBuilder   the form being built
+     * @param dropdownValue the selected option
+     * @param review        the review fields to seed
+     * @param dualModeText  whether the title and description offer a text box beside the expression editor
+     * @param expression    the policy source to seed under the expression option
+     */
+    public static void addFormProperties(NodeBuilder nodeBuilder, String dropdownValue, ReviewFormValues review,
+                                         boolean dualModeText, String expression) {
+        List<Option> options = List.of(
                 new Option("No Approval", NO_APPROVAL_VALUE),
-                new Option("Human Approval", HUMAN_APPROVAL_VALUE)));
-        // A policy the form cannot represent (a const or variable) is carried as its own option, so it
-        // renders as the selection and is written back verbatim on save.
-        boolean opaquePolicy = options.stream().noneMatch(option -> selectedValue.equals(option.value()));
-        if (opaquePolicy) {
-            options.add(new Option(selectedValue, selectedValue));
-        }
+                new Option("Human Approval", HUMAN_APPROVAL_VALUE),
+                FromExpressionOption.option());
+        String requested = dropdownValue == null || dropdownValue.isBlank() ? NO_APPROVAL_VALUE : dropdownValue;
+        // A caller still passing the policy source as the selection lands on the expression option.
+        boolean known = options.stream().anyMatch(option -> requested.equals(option.value()));
+        String selectedValue = known ? requested : FromExpressionOption.VALUE;
+        String expressionValue = known ? (expression == null ? "" : expression) : requested;
         Map<String, Map<String, Property>> dynamicFields = new LinkedHashMap<>();
         dynamicFields.put(NO_APPROVAL_VALUE, Map.of());
         dynamicFields.put(HUMAN_APPROVAL_VALUE,
                 ActivityCallBuilder.reviewSubProperties(REVIEW_KEYS, TITLE_DOC, DESCRIPTION_DOC, dualModeText));
-        if (opaquePolicy) {
-            dynamicFields.put(selectedValue, Map.of());
-        }
+        dynamicFields.put(FromExpressionOption.VALUE, Map.of(EXPRESSION_KEY,
+                FromExpressionOption.subProperty(EXPRESSION_LABEL, EXPRESSION_DOC, POLICY_TYPE)));
         nodeBuilder.properties().custom()
                 .metadata()
                     .label(LABEL)
@@ -149,6 +173,8 @@ public final class ApprovalPolicyForm {
                 .addProperty(KEY);
         ActivityCallBuilder.addHiddenReviewProperties(nodeBuilder, REVIEW_KEYS, review, TITLE_DOC, DESCRIPTION_DOC,
                 dualModeText);
+        FromExpressionOption.addHiddenProperty(nodeBuilder, EXPRESSION_KEY, EXPRESSION_LABEL, EXPRESSION_DOC,
+                POLICY_TYPE, expressionValue);
     }
 
     /**
@@ -170,6 +196,10 @@ public final class ApprovalPolicyForm {
         if (HUMAN_APPROVAL_VALUE.equals(value)) {
             return "{" + String.join(", ", ActivityCallBuilder.reviewRecordFields(properties, REVIEW_KEYS)) + "}";
         }
+        if (FromExpressionOption.isSelected(value)) {
+            return FromExpressionOption.expression(properties, EXPRESSION_KEY, NO_EXPRESSION_MESSAGE);
+        }
+        // A policy an older form carried as its own option: written back as it was read.
         return value;
     }
 
@@ -180,11 +210,28 @@ public final class ApprovalPolicyForm {
      * @return the form's view of it
      */
     public static Form normalize(String rawValue) {
+        return normalize(rawValue, null);
+    }
+
+    /**
+     * Reads an {@code approvalPolicy} source value into the dropdown selection and review fields.
+     *
+     * @param rawValue       the source, possibly {@code null}
+     * @param resolvedMember the union member the compiler resolved a record literal to, or
+     *                       {@code null} when it could not be resolved
+     * @return the form's view of it
+     */
+    public static Form normalize(String rawValue, String resolvedMember) {
         if (rawValue == null || rawValue.isBlank()) {
-            return new Form(NO_APPROVAL_VALUE, ReviewFormValues.empty());
+            return new Form(NO_APPROVAL_VALUE, ReviewFormValues.empty(), "");
         }
         String trimmed = rawValue.trim();
         if (trimmed.startsWith("{")) {
+            // The union has one record member, so an unresolved literal is still a review; a literal
+            // the compiler names as something else is a shape this form has no option for.
+            if (resolvedMember != null && !REVIEW_MEMBER.equals(resolvedMember)) {
+                return new Form(FromExpressionOption.VALUE, ReviewFormValues.empty(), trimmed);
+            }
             Map<String, String> fields = WorkflowUtil.parseRecordLiteral(trimmed);
             return new Form(HUMAN_APPROVAL_VALUE, new ReviewFormValues(
                     nilAsBlank(fields.getOrDefault(USER_ROLES_FIELD, "")),
@@ -195,14 +242,16 @@ public final class ApprovalPolicyForm {
                     fields.getOrDefault(WorkflowUtil.ADMINISTRATOR_USERS_KEY, ""),
                     ReviewText.fromSource(fields.get("title")),
                     ReviewText.fromSource(fields.get("description")),
-                    fields.getOrDefault("timeout", "")));
+                    fields.getOrDefault("timeout", "")), "");
         }
         // `NoApproval` is `()` in the module, so a declaration may hold either spelling and both
         // mean the same absence of a gate.
         if (NIL_VALUE.equals(trimmed) || WorkflowUtil.stripModulePrefix(trimmed).equals(NO_APPROVAL_VALUE)) {
-            return new Form(NO_APPROVAL_VALUE, ReviewFormValues.empty());
+            return new Form(NO_APPROVAL_VALUE, ReviewFormValues.empty(), "");
         }
-        return new Form(trimmed, ReviewFormValues.empty());
+        // Any other expression — a const, a variable, a call — is read into the expression option
+        // and written back as it stands.
+        return new Form(FromExpressionOption.VALUE, ReviewFormValues.empty(), trimmed);
     }
 
     // `userRoles: ()` says the users alone decide; the form shows that as an empty roles field.

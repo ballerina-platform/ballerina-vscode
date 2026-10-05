@@ -37,6 +37,7 @@ import {
     getNodeByName,
     getNodeByUid,
     getView,
+    pickClosestArtifact,
     releaseCreateLanding,
     resolveCreateLandingOverride,
     resolveSingleIntegrationOverride,
@@ -47,12 +48,14 @@ import { extension } from './BalExtensionContext';
 import { AIStateMachine, openAIPanelWithPrompt } from './views/ai-panel/aiMachine';
 import { chatStateStorage } from './views/ai-panel/chatStateStorage';
 import { StateMachinePopup } from './stateMachinePopup';
-import { checkIsBallerinaPackage, checkIsBI, fetchScope, getOrgPackageName, UndoRedoManager, getProjectTomlValues, getOrgAndPackageName, checkIsBallerinaWorkspace, isInWI, isInDevant, getProductMode, ProductMode } from './utils';
+import { checkIsBallerinaPackage, checkIsBI, fetchScope, getOrgPackageName, UndoRedoManager, getProjectTomlValues, getOrgAndPackageName, checkIsBallerinaWorkspace, isInWI, isInDevant, getProductMode, ProductMode, quoteShellPath } from './utils';
 import { activateDevantFeatures } from './features/devant/activator';
 import { buildProjectsStructure } from './utils/project-artifacts';
 import { runCommandWithOutput } from './utils/runCommand';
 import { buildOutputChannel } from './utils/logger';
 import { checkAndPromptConnectorUpgrades } from './features/project/connector-upgrade';
+import { checkDependencyCompatibility } from './features/project/dependency-compatibility';
+import { createDependencyCheckTransitions, getVisualizerCheckRoot, needsDependencyCheck } from './features/project/dependency-check-transitions';
 import { closeOrphanWebviewTabs } from './views/closeOrphanWebviewTabs';
 import { getEnclosingProjectStatus } from './utils/bi';
 
@@ -388,6 +391,10 @@ const stateMachine = createMachine<MachineContext>(
                             src: 'openWebView',
                             onDone: [
                                 {
+                                    target: "checkDependencyCompatibility",
+                                    cond: needsDependencyCheck
+                                },
+                                {
                                     target: "resolveMissingDependencies",
                                     cond: (context) => !context.dependenciesResolved
                                 },
@@ -399,6 +406,12 @@ const stateMachine = createMachine<MachineContext>(
                                     target: "webViewLoading"
                                 }
                             ]
+                        }
+                    },
+                    checkDependencyCompatibility: {
+                        invoke: {
+                            src: 'checkDependencyCompatibility',
+                            onDone: createDependencyCheckTransitions<MachineContext>()
                         }
                     },
                     resolveMissingDependencies: {
@@ -447,6 +460,7 @@ const stateMachine = createMachine<MachineContext>(
                                     view: (context, event) => event.data.view,
                                     identifier: (context, event) => event.data.identifier,
                                     parentIdentifier: (context, event) => event.data.parentIdentifier,
+                                    navigationKey: (context, event) => event.data.navigationKey,
                                     position: (context, event) => event.data.position,
                                     syntaxTree: (context, event) => event.data.syntaxTree,
                                     focusFlowDiagramView: (context, event) => event.data.focusFlowDiagramView,
@@ -474,13 +488,14 @@ const stateMachine = createMachine<MachineContext>(
                                 const scaffoldPrompt = process.env.INITIAL_SCAFFOLD_PROMPT;
                                 const scaffoldSteps = process.env.INITIAL_SCAFFOLD_STEPS;
                                 if (scaffoldPrompt && scaffoldSteps) {
+                                    const planStepsWithInfoMessage = `Implementing Proposed Steps\n\n${scaffoldSteps}`;
                                     scaffoldPromptTriggered = true;
                                     openAIPanelWithPrompt({
                                         type: 'text',
-                                        text: scaffoldPrompt,
-                                        planMode: true,
-                                        autoSubmit: true,
-                                        hiddenContext: scaffoldSteps
+                                        text: `${planStepsWithInfoMessage}`,
+                                        planMode: false,
+                                        consoleScaffold: true,
+                                        autoSubmit: true
                                     });
                                 }
                             }
@@ -635,6 +650,7 @@ const stateMachine = createMachine<MachineContext>(
         // Startup render: must NOT block on the webview — gating LS activation on the
         // bundle would delay startup and stall the machine if it never loads.
         openInitialWebView: (context, event) => openVisualizerPanel(context, false),
+        checkDependencyCompatibility: async (context) => checkDependencyCompatibility(getVisualizerCheckRoot(context)),
         resolveMissingDependencies: (context, event) => {
             return new Promise(async (resolve, reject) => {
                 if (context?.projectPath) {
@@ -658,14 +674,8 @@ const stateMachine = createMachine<MachineContext>(
                         return;
                     }
 
-                    // Construct the build command
-                    let buildCommand = 'bal build';
-
-                    const config = workspace.getConfiguration('ballerina');
-                    const ballerinaHome = config.get<string>('home');
-                    if (ballerinaHome) {
-                        buildCommand = path.join(ballerinaHome, 'bin', buildCommand);
-                    }
+                    // getBallerinaCmd honours ballerina.home and the Integrator app's bundled distribution
+                    const buildCommand = `${quoteShellPath(extension.ballerinaExtInstance.getBallerinaCmd())} build`;
 
                     try {
                         // Execute the build command with output streaming
@@ -748,6 +758,7 @@ const stateMachine = createMachine<MachineContext>(
                     const view = await getView(context.documentUri, context.position, context?.projectPath);
                     view.location.package = packageName || context.package;
                     view.location.projectPath = context.projectPath;
+                    view.location.navigationKey = toNavigationKey(view.location.documentUri, view.location.position);
                     history.push(view);
                     return resolve();
                 } else {
@@ -759,6 +770,7 @@ const stateMachine = createMachine<MachineContext>(
                             position: context.position,
                             identifier: context.identifier,
                             parentIdentifier: context.parentIdentifier,
+                            navigationKey: toNavigationKey(context.documentUri, context.position),
                             artifactType: context.artifactType,
                             focusFlowDiagramView: context?.focusFlowDiagramView,
                             org: orgName || context.org,
@@ -796,7 +808,7 @@ const stateMachine = createMachine<MachineContext>(
                 // Get updated location and identifier if transition was from VIEW_UPDATE event
                 if (context.isViewUpdateTransition && selectedEntry.location.view !== MACHINE_VIEW.ReviewMode) {
                     const updatedView = await getView(selectedEntry.location.documentUri, selectedEntry.location.position, context?.projectPath);
-                    return updatedView.location;
+                    return { ...updatedView.location, navigationKey: selectedEntry.location.navigationKey };
                 }
                 return selectedEntry.location;
             }
@@ -899,8 +911,30 @@ const stateMachine = createMachine<MachineContext>(
     }
 });
 
+/**
+ * Builds the navigation key of a view opened at `position` in `documentUri`. The key is set only when a view is opened
+ * and is kept unchanged across later view updates, so saving does not remount the diagram. Re-opening the artifact already on screen reuses its key, since that key may still hold the position from before an edit.
+ */
+function toNavigationKey(documentUri?: string, position?: NodePosition): string | undefined {
+    if (!documentUri || !position || position.startLine === undefined) {
+        return undefined;
+    }
+    const current = getLastHistory()?.location;
+    if (current?.navigationKey && isSamePath(current.documentUri, documentUri)
+        && current.position?.startLine === position.startLine && current.position?.startColumn === position.startColumn) {
+        return current.navigationKey;
+    }
+    return `${documentUri}:${position.startLine}:${position.startColumn}`;
+}
+
 /** Resolves when the visualizer panel on screen has reported `webviewReady`; reassigned per panel. */
 let visualizerWebviewReady: Promise<void> = Promise.resolve();
+let markVisualizerWebviewReady: () => void = () => { };
+
+/** Expects a fresh `webviewReady`: for a new panel, or the app re-rendered into an existing one. */
+function armVisualizerWebviewReady(): void {
+    visualizerWebviewReady = new Promise<void>((ready) => { markVisualizerWebviewReady = ready; });
+}
 
 /**
  * How long `openVisualizerPanel` waits for `webviewReady` before giving up and proceeding
@@ -920,8 +954,7 @@ let visualizerPanelCreation: Promise<void> | undefined;
 /** Creates the panel and wires its `webviewReady` handler. Only ever run one at a time — see {@link visualizerPanelCreation}. */
 async function createVisualizerPanel(context: MachineContext): Promise<void> {
     await closeOrphanWebviewTabs([VisualizerWebview.viewType]);
-    let markReady: () => void = () => { };
-    visualizerWebviewReady = new Promise<void>((ready) => { markReady = ready; });
+    armVisualizerWebviewReady();
     VisualizerWebview.currentPanel = new VisualizerWebview();
     const webviewPanel = VisualizerWebview.currentPanel.getWebview();
     // `_messenger` is a single instance shared across every panel this extension ever
@@ -939,7 +972,7 @@ async function createVisualizerPanel(context: MachineContext): Promise<void> {
                 dark: Uri.file(path.join(extension.context.extensionPath, 'resources', 'icons', biExtension ? 'wso2-light.svg' : 'ballerina-inverse.svg'))
             };
         }
-        markReady();
+        markVisualizerWebviewReady();
     });
     webviewPanel?.onDidDispose(() => webviewReadyDisposable.dispose());
 }
@@ -969,18 +1002,7 @@ async function openVisualizerPanel(context: MachineContext, waitForReady: boolea
             await visualizerPanelCreation;
         }
         if (waitForReady) {
-            let timer: ReturnType<typeof setTimeout>;
-            const timedOut = await Promise.race([
-                visualizerWebviewReady.then(() => false),
-                new Promise<boolean>((r) => { timer = setTimeout(() => r(true), VISUALIZER_WEBVIEW_READY_TIMEOUT_MS); }),
-            ]);
-            clearTimeout(timer);
-            if (timedOut) {
-                // Proceed rather than stall — same principle `openInitialWebView` already
-                // applies to startup. A genuinely-late notification, if it ever arrives, is
-                // a harmless no-op via `markReady()` above.
-                console.warn(`Timed out after ${VISUALIZER_WEBVIEW_READY_TIMEOUT_MS}ms waiting for the visualizer webview to report ready; continuing.`);
-            }
+            await waitForVisualizerWebviewReady();
         }
         return true;
     } catch (e) {
@@ -989,6 +1011,34 @@ async function openVisualizerPanel(context: MachineContext, waitForReady: boolea
         console.error("Failed to open the visualizer webview panel.", e);
         throw e;
     }
+}
+
+async function waitForVisualizerWebviewReady(): Promise<void> {
+    let timer: ReturnType<typeof setTimeout>;
+    const timedOut = await Promise.race([
+        visualizerWebviewReady.then(() => false),
+        new Promise<boolean>((r) => { timer = setTimeout(() => r(true), VISUALIZER_WEBVIEW_READY_TIMEOUT_MS); }),
+    ]);
+    clearTimeout(timer);
+    if (timedOut) {
+        // Proceed rather than stall — same principle `openInitialWebView` already
+        // applies to startup. A genuinely-late notification, if it ever arrives, is
+        // a harmless no-op via `markVisualizerWebviewReady()` above.
+        console.warn(`Timed out after ${VISUALIZER_WEBVIEW_READY_TIMEOUT_MS}ms waiting for the visualizer webview to report ready; continuing.`);
+    }
+}
+
+/**
+ * Swaps the blocked dependency-update panel back to the app and waits for it to report ready,
+ * since `stateChanged` notifications sent while it loads are dropped.
+ */
+export async function reloadVisualizerApp(): Promise<void> {
+    if (!VisualizerWebview.dependencyUpdateRequired) {
+        return;
+    }
+    armVisualizerWebviewReady();
+    VisualizerWebview.clearDependencyUpdateRequired();
+    await waitForVisualizerWebviewReady();
 }
 
 // Create a service to interpret the machine
@@ -1131,7 +1181,7 @@ export function updateView(refreshTreeView?: boolean, updatedIdentifier?: string
     if (lastView && lastView.location?.artifactType && lastView.location?.identifier) {
         newLocation = { ...lastView.location };
         const currentIdentifier = lastView.location?.identifier;
-        let currentArtifact: ProjectStructureArtifactResponse;
+        const candidates: ProjectStructureArtifactResponse[] = [];
         let targetedArtifactType = lastView.location?.artifactType;
 
         if (targetedArtifactType === DIRECTORY_MAP.RESOURCE || targetedArtifactType === DIRECTORY_MAP.REMOTE) {
@@ -1143,18 +1193,22 @@ export function updateView(refreshTreeView?: boolean, updatedIdentifier?: string
         const project = StateMachine.context().projectStructure?.projects.find(project => isSamePath(project.projectPath, projectPath));
 
         // These changes will be revisited in the revamp
+        const matchesIdentifier = (artifact: ProjectStructureArtifactResponse) =>
+            artifact.id === currentIdentifier || artifact.name === currentIdentifier || artifact.id === updatedIdentifier || artifact.name === updatedIdentifier;
+
         project?.directoryMap[targetedArtifactType]?.forEach((artifact: ProjectStructureArtifactResponse) => {
-            if (artifact.id === currentIdentifier || artifact.name === currentIdentifier || artifact.id === updatedIdentifier || artifact.name === updatedIdentifier) {
-                currentArtifact = artifact;
+            if (matchesIdentifier(artifact)) {
+                candidates.push(artifact);
             }
             // Check if artifact has resources and find within those
             if (artifact.resources && artifact.resources.length > 0) {
-                const resource = artifact.resources.find((resource: ProjectStructureArtifactResponse) => resource.id === currentIdentifier || resource.name === currentIdentifier || resource.id === updatedIdentifier || resource.name === updatedIdentifier);
+                const resource = artifact.resources.find(matchesIdentifier);
                 if (resource) {
-                    currentArtifact = resource;
+                    candidates.push(resource);
                 }
             }
         });
+        const currentArtifact = pickClosestArtifact(candidates, lastView.location.documentUri, lastView.location.position);
 
         const newPosition = currentArtifact?.position || lastView.location.position;
         newLocation = { ...lastView.location, position: newPosition };

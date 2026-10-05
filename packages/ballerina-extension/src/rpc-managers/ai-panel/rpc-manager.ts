@@ -79,6 +79,10 @@ import {
     UpdateMcpServerRequest,
     DeleteMcpServerRequest,
     SetMcpToolsEnabledRequest,
+    SetCopilotOrbVisibleRequest,
+    CopilotToggleSetting,
+    CopilotToggleSettings,
+    SetCopilotToggleSettingRequest,
     McpLoadErrorsDTO,
     AgentsMdFileInfoDTO,
     ThreadSummary,
@@ -103,7 +107,7 @@ import * as fs from 'fs';
 import path from "path";
 import * as vscode from 'vscode';
 import { window, workspace } from 'vscode';
-import { LOGIN_REQUIRED_WARNING, SIGN_IN_BI_COPILOT } from '../../features/ai/constants';
+import { loginRequiredWarning, signInToCopilot } from '../../features/ai/constants';
 // TODO(auto-memory): temporarily disabled for this release.
 // import {
 //     getGlobalMemoryDir,
@@ -120,6 +124,7 @@ import { extension } from "../../BalExtensionContext";
 import { openChatWindowWithCommand } from "../../features/ai/data-mapper/index";
 import { generateDocumentationForService } from "../../features/ai/documentation/generator";
 import { generateOpenAPISpec } from "../../features/ai/openapi/index";
+import { removeConsoleSummary } from "../../features/ai/agent/console-summary";
 import { BACKEND_URL } from "../../features/ai/utils";
 import { fetchWithAuth } from "../../features/ai/utils/ai-client";
 import { sendSaveChatNotification, sendSkillEnableNotification } from "../../features/ai/utils/ai-utils";
@@ -155,6 +160,7 @@ import {
 import { clearCompactionDisabledWarning } from '../../features/ai/agent/AgentExecutor';
 import { LLM_API_BASE_PATH, WI_EXTENSION_ID } from "../../features/ai/constants";
 import { ContextTypesExecutor } from '../../features/ai/executors/datamapper/ContextTypesExecutor';
+import { agentStatusManager } from '../../features/ai/state/AgentStatusManager';
 import { approvalManager } from '../../features/ai/state/ApprovalManager';
 import { approvalViewManager } from '../../features/ai/state/ApprovalViewManager';
 import { chatStateStorage, isRevertible } from '../../views/ai-panel/chatStateStorage';
@@ -194,6 +200,12 @@ function getActiveThreadId(projectRootPath?: string): string {
 }
 
 const OAUTH_CALLBACK_TIMEOUT_MS = 3 * 60 * 1_000;
+
+const COPILOT_CONFIG_SECTION = 'ballerina.copilot';
+/** Mirrors the defaults declared for these settings in package.json. */
+const COPILOT_TOGGLE_DEFAULTS: CopilotToggleSettings = {
+    followupSuggestions: true,
+};
 
 // Shown when a flow ends without a connection id. "cancelled" and "superseded" are dropped by the
 // webview's run-id guard, so those only reach the log.
@@ -492,8 +504,9 @@ export class AiPanelRpcManager implements AIPanelAPI {
     }
 
     promptForLogin(): void {
-        window.showWarningMessage(LOGIN_REQUIRED_WARNING, SIGN_IN_BI_COPILOT).then(selection => {
-            if (selection === SIGN_IN_BI_COPILOT) {
+        const signIn = signInToCopilot();
+        window.showWarningMessage(loginRequiredWarning(), signIn).then(selection => {
+            if (selection === signIn) {
                 AIStateMachine.service().send(AIMachineEventType.LOGIN);
             }
         });
@@ -604,6 +617,11 @@ User reverted the last made changes. The files have been restored to the state b
 
             chatStateStorage.revertLastGeneration(projectRootPath, threadId);
             console.log(`[Review Actions] Reverted generation: ${doneGeneration.id}`);
+            // consoleSummary is persisted, so this also holds after a reload.
+            if (doneGeneration.consoleSummary) {
+                removeConsoleSummary(doneGeneration.id);
+                chatStateStorage.updateGeneration(projectRootPath, threadId, doneGeneration.id, { consoleSummary: undefined });
+            }
 
             // Drop the manager's cached review for this generation so a queued/late
             // navigation cannot reopen the just-reverted diff.
@@ -832,6 +850,13 @@ User reverted the last made changes. The files have been restored to the state b
                 throw new Error('Restoring the workspace from the checkpoint failed; the conversation was not rewound.');
             }
 
+            // Every turn the truncation drops has its changes undone, so collect the ones
+            // that were published to the console before they are gone.
+            const publishedIds = chatStateStorage
+                .getGenerationsFromCheckpoint(projectRootPath, threadId, params.checkpointId)
+                .filter(generation => generation.consoleSummary)
+                .map(generation => generation.id);
+
             // 2. Truncate thread history to this checkpoint
             const restored = chatStateStorage.restoreThreadToCheckpoint(
                 projectRootPath,
@@ -842,6 +867,8 @@ User reverted the last made changes. The files have been restored to the state b
             if (!restored) {
                 throw new Error('Failed to restore thread to checkpoint');
             }
+
+            publishedIds.forEach(id => removeConsoleSummary(id));
         } finally {
             endRestore(projectRootPath);
         }
@@ -1580,6 +1607,36 @@ User reverted the last made changes. The files have been restored to the state b
     async setMcpToolsEnabled(params: SetMcpToolsEnabledRequest): Promise<void> {
         await workspace.getConfiguration('ballerina')
             .update(MCP_ENABLE_SETTING, !!params?.enabled, ConfigurationTarget.Global);
+    }
+
+    async getCopilotOrbVisible(): Promise<boolean> {
+        return agentStatusManager.isOrbVisible();
+    }
+
+    async setCopilotOrbVisible(params: SetCopilotOrbVisibleRequest): Promise<void> {
+        await agentStatusManager.setOrbHidden(!params?.visible);
+    }
+
+    async getCopilotToggleSettings(): Promise<CopilotToggleSettings> {
+        const config = workspace.getConfiguration(COPILOT_CONFIG_SECTION);
+        const settings = { ...COPILOT_TOGGLE_DEFAULTS };
+        for (const key of Object.keys(COPILOT_TOGGLE_DEFAULTS) as CopilotToggleSetting[]) {
+            settings[key] = config.get<boolean>(key, COPILOT_TOGGLE_DEFAULTS[key]);
+        }
+        return settings;
+    }
+
+    async setCopilotToggleSetting(params: SetCopilotToggleSettingRequest): Promise<void> {
+        if (!params || !Object.prototype.hasOwnProperty.call(COPILOT_TOGGLE_DEFAULTS, params.key)) {
+            throw new Error(`Unknown Copilot setting: ${params?.key}`);
+        }
+        const config = workspace.getConfiguration(COPILOT_CONFIG_SECTION);
+        // These are resource-scoped: a workspace value would shadow a global write and the
+        // toggle would seem to do nothing, so write where the effective value comes from.
+        const target = config.inspect<boolean>(params.key)?.workspaceValue !== undefined
+            ? ConfigurationTarget.Workspace
+            : ConfigurationTarget.Global;
+        await config.update(params.key, !!params.value, target);
     }
 
     async getAgentsMdFileInfo(): Promise<AgentsMdFileInfoDTO> {

@@ -109,7 +109,9 @@ const NODE_COLOR_GROUPS = {
         "WORKFLOW_CURRENT_TIME",
         "WORKFLOW_IS_REPLAYING",
         "WORKFLOW_GET_ID",
-        "WORKFLOW_GET_TYPE"
+        "WORKFLOW_GET_TYPE",
+        "WORKFLOW_LAST_HUMAN_TASK_COMPLETION",
+        "WORKFLOW_LAST_REVIEW_DECISION"
     ],
     
     // AI/NP function group - cyan variants
@@ -179,6 +181,8 @@ const WORKFLOW_MODULE_FUNCTION_ICONS: Record<string, string> = {
     getWorkflowId: "bi-key",
     getWorkflowType: "bi-type",
     sleep: "bi-clock",
+    lastHumanTaskCompletion: "bi-user",
+    lastReviewDecision: "bi-check",
 };
 
 // Exported so callers building their own icon (e.g. the side panel, which picks an icon before
@@ -378,6 +382,8 @@ const NODE_ICONS: Record<NodeKind, React.FC<{ size: number; color: string; isDBC
     WORKFLOW_IS_REPLAYING: ({ size, color }) => <Icon name="bi-redo" sx={{ fontSize: size, width: size, height: size, color }} />,
     WORKFLOW_GET_ID: ({ size, color }) => <Icon name="bi-key" sx={{ fontSize: size, width: size, height: size, color }} />,
     WORKFLOW_GET_TYPE: ({ size, color }) => <Icon name="bi-type" sx={{ fontSize: size, width: size, height: size, color }} />,
+    WORKFLOW_LAST_HUMAN_TASK_COMPLETION: ({ size, color }) => <Icon name="bi-user" sx={{ fontSize: size, width: size, height: size, color }} />,
+    WORKFLOW_LAST_REVIEW_DECISION: ({ size, color }) => <Icon name="bi-check" sx={{ fontSize: size, width: size, height: size, color }} />,
     ACTIVITY_CALL: ({ size, color }) => <Icon name="bi-task" sx={{ fontSize: size, width: size, height: size, color }} />,
     CONNECTION_ACTIVITY_CALL: ({ size, color }) => <Icon name="bi-task" sx={{ fontSize: size, width: size, height: size, color }} />,
     // Sending a data event into a workflow: the send icon, matching the receive-side bi-import.

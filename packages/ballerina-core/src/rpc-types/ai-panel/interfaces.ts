@@ -32,7 +32,7 @@ export type AIPanelView = 'settings' | 'mcp' | 'skills';
 
 export type AIPanelPrompt =
     | { type: 'command-template'; command: Command; templateId: TemplateId; text?: string; params?: Record<string, string>; metadata?: Record<string, any>; hiddenContext?: string }
-    | { type: 'text'; text: string; planMode: boolean; codeContext?: CodeContext; autoSubmit?: boolean; hiddenContext?: string; suggestedCommandTemplates?: AIPanelPrompt[];    inputPlaceholder?:string; attachments?: Attachment[]; newThread?: boolean; }
+    | { type: 'text'; text: string; planMode: boolean; codeContext?: CodeContext; autoSubmit?: boolean; hiddenContext?: string; suggestedCommandTemplates?: AIPanelPrompt[];    inputPlaceholder?:string; attachments?: Attachment[]; newThread?: boolean; consoleScaffold?: boolean; }
     | { type: 'skill'; skillId: string; skillName: string; args?: string; tagParams?: Record<string, string>; autoSubmit?: boolean; hiddenContext?: string }
     /** Opens the panel straight onto one of its surfaces, or onto an existing thread. */
     | { type: 'view'; view: AIPanelView }
@@ -322,6 +322,8 @@ export interface GenerateAgentCodeRequest {
     promptSource?: 'ai-panel' | 'mini-chat';
     /** Host-validated workspace-relative Ballerina file currently associated with the prompt surface. */
     activeFilePath?: string;
+    /** The scaffold turn auto-submitted from a WSO2 Integration Platform console plan. Its thread publishes console summaries. */
+    consoleScaffold?: boolean;
 }
 
 export type LibraryMode = "CORE" | "HEALTHCARE" | "ALL";
@@ -941,6 +943,16 @@ export interface DeleteMcpServerRequest {
 }
 export interface SetMcpToolsEnabledRequest {
     enabled: boolean;
+}
+export interface SetCopilotOrbVisibleRequest {
+    visible: boolean;
+}
+/** Boolean `ballerina.copilot.*` settings the Copilot settings panel toggles, keyed relative to that section. */
+export type CopilotToggleSetting = 'followupSuggestions';
+export type CopilotToggleSettings = Record<CopilotToggleSetting, boolean>;
+export interface SetCopilotToggleSettingRequest {
+    key: CopilotToggleSetting;
+    value: boolean;
 }
 /** Per-scope parse / read errors for `mcp.json` files. Both fields are optional — missing means OK. */
 export interface McpLoadErrorsDTO {

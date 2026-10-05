@@ -28,7 +28,8 @@ import {
     UseFormSetError,
     UseFormClearErrors,
     FieldErrors,
-    UseFormGetValues
+    UseFormGetValues,
+    UseFormTrigger
 } from 'react-hook-form';
 import { FormExpressionEditorProps } from '../components/Form/types';
 
@@ -42,6 +43,7 @@ export interface FormContext {
         unregister: UseFormUnregister<FieldValues>;
         setError: UseFormSetError<FieldValues>;
         clearErrors: UseFormClearErrors<FieldValues>;
+        trigger?: UseFormTrigger<FieldValues>;
         formState: { isValidating: boolean; errors: FieldErrors<FieldValues> };
     };
     expressionEditor?: FormExpressionEditorProps;
