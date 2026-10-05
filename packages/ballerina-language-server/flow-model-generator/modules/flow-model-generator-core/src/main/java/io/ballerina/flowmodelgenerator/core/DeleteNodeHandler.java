@@ -145,6 +145,47 @@ public class DeleteNodeHandler {
         int startTextPosition = textDocument.textPositionFrom(lineRange.startLine());
         int endTextPosition = textDocument.textPositionFrom(lineRange.endLine());
 
+        List<TextEdit> textEdits = deletesModuleReference(document, startTextPosition, endTextPosition)
+                ? unusedImportEdits(textDocument, startTextPosition, endTextPosition, document, project)
+                : new ArrayList<>();
+
+        LineRange nodeRangeToDelete = checkElseToDelete(document, startTextPosition, endTextPosition);
+        if (nodeRangeToDelete == null) {
+            nodeRangeToDelete = lineRange;
+        }
+        TextEdit textEdit = new TextEdit(CommonUtils.toRange(nodeRangeToDelete), "");
+        textEdits.add(textEdit);
+        Map<Path, List<TextEdit>> textEditsMap = new HashMap<>();
+        textEditsMap.put(filePath, textEdits);
+        return gson.toJsonTree(textEditsMap);
+    }
+
+    // An import can only become unused when the deleted code referred to a module (`prefix:name`).
+    private static boolean deletesModuleReference(Document document, int start, int end) {
+        ModulePartNode root = document.syntaxTree().rootNode();
+        return containsModuleReference(root.findNode(TextRange.from(start, end - start)), start, end);
+    }
+
+    private static boolean containsModuleReference(Node node, int start, int end) {
+        TextRange range = node.textRange();
+        if (range.endOffset() <= start || range.startOffset() >= end) {
+            return false;
+        }
+        if (node.kind() == SyntaxKind.QUALIFIED_NAME_REFERENCE) {
+            return true;
+        }
+        if (node instanceof NonTerminalNode nonTerminalNode) {
+            for (Node child : nonTerminalNode.children()) {
+                if (containsModuleReference(child, start, end)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static List<TextEdit> unusedImportEdits(TextDocument textDocument, int startTextPosition,
+                                                    int endTextPosition, Document document, Project project) {
         io.ballerina.tools.text.TextEdit te = io.ballerina.tools.text.TextEdit.from(TextRange.from(startTextPosition,
                 endTextPosition - startTextPosition), "");
         TextDocument apply = textDocument
@@ -197,16 +238,7 @@ public class DeleteNodeHandler {
                 }
             }
         }
-
-        LineRange nodeRangeToDelete = checkElseToDelete(document, startTextPosition, endTextPosition);
-        if (nodeRangeToDelete == null) {
-            nodeRangeToDelete = lineRange;
-        }
-        TextEdit textEdit = new TextEdit(CommonUtils.toRange(nodeRangeToDelete), "");
-        textEdits.add(textEdit);
-        Map<Path, List<TextEdit>> textEditsMap = new HashMap<>();
-        textEditsMap.put(filePath, textEdits);
-        return gson.toJsonTree(textEditsMap);
+        return textEdits;
     }
 
     private static LineRange getNodeLineRange(JsonElement node) {
