@@ -44,6 +44,9 @@ public class ArtifactGenerationDebouncer {
     // Map to hold scheduled tasks
     private final ConcurrentHashMap<String, ScheduledTaskHolder> delayedMap;
 
+    // When each key last scheduled a task, to tell a single change from a burst
+    private final ConcurrentHashMap<String, Long> lastScheduledAt = new ConcurrentHashMap<>();
+
     // Map to track project to file relationships
     private final ConcurrentHashMap<String, List<String>> projectFileMap;
 
@@ -81,6 +84,11 @@ public class ArtifactGenerationDebouncer {
      */
     public void debounce(String key, Runnable task, long delay) {
         CompletableFuture<Void> promise = new CompletableFuture<>();
+        // Leading edge: a change after a quiet period publishes at once; only a burst waits for the delay.
+        long now = System.currentTimeMillis();
+        Long lastScheduled = lastScheduledAt.put(key, now);
+        long effectiveDelay = !delayedMap.containsKey(key) && (lastScheduled == null || now - lastScheduled >= delay)
+                ? 0 : delay;
 
         // Schedule the task to run after the specified delay.
         Future<?> scheduledFuture = scheduler.schedule(() -> {
@@ -93,7 +101,7 @@ public class ArtifactGenerationDebouncer {
                 delayedMap.remove(key);
                 executeQueuedTasks(key);
             }
-        }, delay, TIME_UNIT);
+        }, effectiveDelay, TIME_UNIT);
 
         // Replace any existing scheduled task with the new one.
         ScheduledTaskHolder prev = delayedMap.put(key, new ScheduledTaskHolder(promise, scheduledFuture));

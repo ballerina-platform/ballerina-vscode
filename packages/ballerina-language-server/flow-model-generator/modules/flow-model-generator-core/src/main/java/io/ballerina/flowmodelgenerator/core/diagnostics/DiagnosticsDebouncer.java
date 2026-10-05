@@ -41,8 +41,8 @@ public class DiagnosticsDebouncer {
     // Time unit for the delay
     private static final TimeUnit TIME_UNIT = TimeUnit.MILLISECONDS;
 
-    // Default delay for diagnostics debouncing (in milliseconds)
-    private static final long DELAY = 300;
+    // Requests come from blur and submit, not keystrokes; queued requests are still coalesced on the single thread.
+    private static final long DELAY = 0;
 
     // Map to hold scheduled diagnostics tasks
     private final ConcurrentHashMap<String, ScheduledDiagnosticsTaskHolder<?>> delayedMap;
@@ -88,8 +88,8 @@ public class DiagnosticsDebouncer {
         ScheduledDiagnosticsTaskHolder<JsonElement> prev =
                 (ScheduledDiagnosticsTaskHolder<JsonElement>) delayedMap.put(key,
                         new ScheduledDiagnosticsTaskHolder<>(promise, scheduledFuture));
-        if (prev != null) {
-            prev.future().cancel(true);
+        // A request that already started runs to completion; interrupting it mid-compilation helps nobody.
+        if (prev != null && prev.future().cancel(false)) {
             prev.promise().completeExceptionally(new CancellationException("Debounced by a new diagnostics request"));
         }
         return promise;
