@@ -4,7 +4,7 @@
     "line": 4,
     "offset": 4
   },
-  "description": "Get Workflow ID template: the instance id, checked because the call can fail",
+  "description": "Workflow ID template: the instance id, checked because the call can fail",
   "codedata": {
     "node": "WORKFLOW_GET_ID",
     "org": "ballerina",
@@ -14,7 +14,7 @@
   "output": {
     "id": "31",
     "metadata": {
-      "label": "Get Workflow ID",
+      "label": "Workflow ID",
       "description": "The unique ID of this workflow instance"
     },
     "codedata": {

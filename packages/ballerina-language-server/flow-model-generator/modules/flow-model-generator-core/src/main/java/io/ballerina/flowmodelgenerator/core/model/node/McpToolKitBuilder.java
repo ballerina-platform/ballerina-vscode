@@ -130,6 +130,7 @@ public class McpToolKitBuilder extends NodeBuilder {
                 .object(functionData.name()).version(functionData.version());
 
         setParameterProperties(functionData);
+        setOptionalPropertiesAdvanced(this);
 
         // Hide permittedTools property (toolScopes is optional and only added when sent by the frontend)
         functionData.parameters().remove(PERMITTED_TOOLS_PROPERTY);
@@ -150,6 +151,11 @@ public class McpToolKitBuilder extends NodeBuilder {
                 .metadata().label(TOOL_KIT_NAME_PROPERTY_LABEL).description(TOOL_KIT_NAME_DESCRIPTION).stepOut()
                 .typeWithScope(ValueType.IDENTIFIER, GLOBAL_SCOPE).value(toolKitName)
                 .editable().stepOut().addProperty(TOOL_KIT_NAME_PROPERTY);
+    }
+
+    public static void setOptionalPropertiesAdvanced(NodeBuilder nodeBuilder) {
+        nodeBuilder.properties().build().replaceAll((key, property) -> property.optional() && !property.advanced()
+                ? Property.Builder.copyFrom(property).advanced(true).build() : property);
     }
 
     public static void setPermittedToolsProperty(NodeBuilder nodeBuilder, String permittedTools) {

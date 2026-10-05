@@ -119,7 +119,7 @@
       // shipped in the built extension.
       "@hono/node-server": "2.0.10",
       "@tootallnate/once": "3.0.1",
-      "axios@<1.18.0": "1.18.0",
+      "axios@<1.20.0": "1.20.0",
       "body-parser@>=1 <2": "1.20.6",
       "braces": "3.0.3",
       // Security fix: 4.28.7 is the 4.x fix. The 4.14.2 transitive is not
@@ -127,7 +127,7 @@
       "browserslist@4.28.4": "4.28.7",
       // Security fix: bump past the previous override version, which is now
       // itself flagged.
-      "dompurify": "3.4.13",
+      "dompurify": "3.4.16",
       // Security fix: 3.1.7 is the current 3.x line fix. Bump past the
       // previous override version, which is now itself flagged.
       "fast-uri": "3.1.8",
@@ -136,8 +136,9 @@
       "handlebars": "4.7.9",
       // Security fix: ReDoS in the CORS middleware, fixed in 4.12.34.
       // Bumped again to 4.13.5 for a follow-up set of advisories (query-parser
-      // cache-key confusion, parseBody() memory exhaustion, toSSG() path fix).
-      "hono@>=4 <5": "4.13.5",
+      // cache-key confusion, parseBody() memory exhaustion, toSSG() path fix),
+      // and to 4.13.7 for the hono/jsx XSS (CVE-2026-93981).
+      "hono@>=4 <5": "4.13.7",
       "http-proxy": "1.18.1",
       // CVE-2026-55602: stay on the 2.x line (first 2.x fix is 2.0.10). The
       // 0.17.x transitive is not flagged, so leave it untouched.
