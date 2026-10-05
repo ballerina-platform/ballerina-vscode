@@ -217,12 +217,12 @@ public class SourceBuilder {
         return newVariable(Property.TYPE_KEY);
     }
 
-    // Keeps an explicit `new pkg:Class(...)`: a generic declared type (e.g. `ai:ModelProvider`) cannot infer it.
+    // Keeps an explicit `new pkg:Class(...)` as written; a generic declared type cannot infer the class.
     public SourceBuilder newExpression() {
         tokenBuilder.keyword(SyntaxKind.NEW_KEYWORD);
         Map<String, Object> data = flowNode.codedata() == null ? null : flowNode.codedata().data();
-        if (data != null && Boolean.TRUE.equals(data.get(Constants.EXPLICIT_NEW_KEY))) {
-            tokenBuilder.name(importQualifier() + flowNode.codedata().object());
+        if (data != null && data.get(Constants.EXPLICIT_NEW_TYPE_KEY) instanceof String explicitType) {
+            tokenBuilder.name(explicitType);
         }
         return this;
     }

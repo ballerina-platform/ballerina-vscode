@@ -16,7 +16,7 @@
       "symbol": "init",
       "isNew": true,
       "data": {
-        "explicitNew": true
+        "explicitNewType": "openai:ModelProvider"
       }
     },
     "returning": false,

@@ -67,7 +67,7 @@
           },
           "sourceCode": "http:Client localHttpCl = check new http:Client(\"http://localhost:8080\");",
           "data": {
-            "explicitNew": true
+            "explicitNewType": "http:Client"
           }
         },
         "returning": false,
@@ -929,7 +929,7 @@
           },
           "sourceCode": "redis:Client localRedisCl = check new redis:Client();",
           "data": {
-            "explicitNew": true
+            "explicitNewType": "redis:Client"
           }
         },
         "returning": false,
@@ -1541,7 +1541,7 @@
           },
           "sourceCode": "http:Client moduleHttpExCl = check new http:Client(\"http://localhost:9090\");",
           "data": {
-            "explicitNew": true
+            "explicitNewType": "http:Client"
           }
         },
         "returning": false,
@@ -2652,7 +2652,7 @@
           },
           "sourceCode": "redis:Client moduleRedisExCl = check new redis:Client();",
           "data": {
-            "explicitNew": true
+            "explicitNewType": "redis:Client"
           }
         },
         "returning": false,
