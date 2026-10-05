@@ -44,6 +44,8 @@ public final class Main {
         Logger globalLogger = Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);
         globalLogger.setLevel(Level.OFF);
         startServer(System.in, System.out);
+        // The client closed the connection; non-daemon worker threads would otherwise keep the JVM alive.
+        System.exit(0);
     }
 
     public static void startServer(InputStream in, OutputStream out)
