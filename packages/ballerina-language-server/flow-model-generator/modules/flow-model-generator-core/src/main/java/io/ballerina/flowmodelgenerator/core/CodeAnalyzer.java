@@ -3272,16 +3272,12 @@ public class CodeAnalyzer extends NodeVisitor {
                                        RemoteMethodCallActionNode remoteMethodCallActionNode,
                                        MethodSymbol functionSymbol, String objName,
                                        Map<String, Object> metadataData) {
-        Optional<Package> resolvedPackage = moduleInfo != null ?
-                PackageUtil.resolveModulePackage(moduleInfo.org(), moduleInfo.packageName(), moduleInfo.version()) :
-                Optional.empty();
-
         FunctionDataBuilder functionDataBuilder = new FunctionDataBuilder()
                 .name(functionName)
                 .functionSymbol(functionSymbol)
                 .semanticModel(semanticModel)
                 .userModuleInfo(moduleInfo)
-                .resolvedPackage(resolvedPackage.orElse(null));
+                .resolvedPackage(calleePackage(functionSymbol).orElse(null));
         FunctionData functionData = functionDataBuilder.build();
 
         nodeBuilder
@@ -3298,6 +3294,21 @@ public class CodeAnalyzer extends NodeVisitor {
                 .properties().callConnection(expressionNode, Property.CONNECTION_KEY, metadataData);
         processFunctionSymbol(remoteMethodCallActionNode, remoteMethodCallActionNode.arguments(), functionSymbol,
                 functionData);
+    }
+
+    // Default values are read from the callee's source: the current package for a local client, its bala otherwise.
+    private Optional<Package> calleePackage(MethodSymbol functionSymbol) {
+        Optional<ModuleID> calleeModule = functionSymbol.getModule().map(ModuleSymbol::id);
+        if (calleeModule.isEmpty()) {
+            return Optional.empty();
+        }
+        ModuleID id = calleeModule.get();
+        Package currentPackage = project.currentPackage();
+        if (currentPackage.packageOrg().value().equals(id.orgName())
+                && currentPackage.packageName().value().equals(id.packageName())) {
+            return Optional.of(currentPackage);
+        }
+        return PackageUtil.resolveModulePackage(id.orgName(), id.packageName(), id.version());
     }
 
     private String getDefaultMemoryManagerName(ClassSymbol classSymbol) {
