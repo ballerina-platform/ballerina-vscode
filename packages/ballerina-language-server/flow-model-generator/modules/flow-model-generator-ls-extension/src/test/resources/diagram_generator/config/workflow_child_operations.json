@@ -48,7 +48,7 @@
       {
         "id": "55744",
         "metadata": {
-          "label": "Run Child Workflow",
+          "label": "Run Child",
           "description": "auditClaim",
           "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.10.0.png"
         },
@@ -228,7 +228,7 @@
       {
         "id": "56734",
         "metadata": {
-          "label": "Send Data to Child Workflow",
+          "label": "Send to Child",
           "description": "auditClaim",
           "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.10.0.png"
         },
@@ -374,7 +374,7 @@
       {
         "id": "57722",
         "metadata": {
-          "label": "Wait for Child Workflow",
+          "label": "Await Child",
           "description": "auditClaim",
           "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.10.0.png"
         },
@@ -484,7 +484,7 @@
       {
         "id": "58707",
         "metadata": {
-          "label": "Call Child Workflow",
+          "label": "Call Child",
           "description": "settleClaim",
           "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.10.0.png"
         },

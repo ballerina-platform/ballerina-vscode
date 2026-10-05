@@ -618,7 +618,32 @@ public class WorkflowUtil {
         if (source.length() >= 2 && source.startsWith("\"") && source.endsWith("\"")) {
             return unescapeLiteralBody(source.substring(1, source.length() - 1));
         }
+        // A template keeps its backslashes as written, so its body is the text itself.
+        String template = plainTemplateBody(source);
+        if (template != null) {
+            return template;
+        }
         return source.startsWith("'") ? source.substring(1) : source;
+    }
+
+    private static final String TEMPLATE_PREFIX = "string `";
+
+    /**
+     * The body of a {@code string `...`} template that interpolates nothing, which is how the
+     * designer's text fields write what was typed. One with an interpolation is an expression and
+     * reads as source.
+     *
+     * @param source the value as written
+     * @return the template's text, or {@code null} when the source is not such a template
+     */
+    static String plainTemplateBody(String source) {
+        String trimmed = source.trim();
+        if (trimmed.length() < TEMPLATE_PREFIX.length() + 1 || !trimmed.startsWith(TEMPLATE_PREFIX)
+                || !trimmed.endsWith("`")) {
+            return null;
+        }
+        String body = trimmed.substring(TEMPLATE_PREFIX.length(), trimmed.length() - 1);
+        return body.contains("${") || body.contains("`") ? null : body;
     }
 
     /**

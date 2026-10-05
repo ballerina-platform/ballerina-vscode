@@ -1,0 +1,6 @@
+{
+    "ballerina.isBI": true,
+    "files.saveConflictResolution": "overwriteFileOnDisk",
+    "files.hotExit": "off",
+    "files.autoSave": "off"
+}

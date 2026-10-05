@@ -16,6 +16,7 @@
  * under the License.
  */
 
+import { useRef } from "react";
 import { startCase } from "lodash";
 import { FormField } from "../Form/types";
 import { ExpressionProperty, getPrimaryInputType, InputType, RecordTypeField } from "@wso2/ballerina-core";
@@ -75,6 +76,91 @@ export const buildRequiredRule = ({ isRequired, label, message }: RequiredRuleOp
         value: true,
         message: message ?? `${label ?? "This field"} is required`,
     };
+};
+
+/**
+ * Builds the rule that keeps a required repeatable list or map from being left empty. The editor holds its
+ * value as an array of elements, an object of entries, or the source text after a mode switch, so each of
+ * those shapes is checked for at least one entry.
+ */
+export const buildRequiredRepeatableRule = ({ isRequired, label }: RequiredRuleOptions) => {
+    return (value: unknown) => {
+        if (!isRequired) {
+            return true;
+        }
+        let hasEntries = false;
+        if (Array.isArray(value)) {
+            hasEntries = value.length > 0;
+        } else if (isRecord(value)) {
+            hasEntries = Object.keys(value).length > 0;
+        } else if (typeof value === "string") {
+            const compact = value.replace(/\s/g, "");
+            hasEntries = compact !== "";
+        }
+        return hasEntries || `${label ?? "This field"} is required`;
+    };
+};
+
+/**
+ * Reads the element values of a repeatable list held as an array of elements, so two lists can be compared by
+ * what they hold regardless of the keys and diagnostics attached to each element.
+ */
+export const getArrayElementValues = (elements: unknown[]): string[] => {
+    return elements.map((element: any) => (typeof element === "string" ? element : String(element?.value ?? "")));
+};
+
+/**
+ * Reads the key and value of each entry of a repeatable map held as the entries object the editor emits, so two
+ * maps can be compared by what they hold regardless of the keys and diagnostics attached to each entry.
+ */
+export const getMapEntryValues = (entries: Record<string, unknown>): [string, string][] => {
+    return Object.entries(entries).map(([entryKey, entry]: [string, any]) => [entryKey, String(entry?.value ?? "")]);
+};
+
+/**
+ * Reads a list of diagnostics the language server attached to a field or an element, which arrive either as a
+ * flat list or wrapped in a `{ hasDiagnostics, diagnostics }` object.
+ */
+export const normalizeDiagnostics = (rawDiagnostics: unknown): any[] => {
+    if (Array.isArray(rawDiagnostics)) {
+        return rawDiagnostics;
+    }
+    const diagnostics = (rawDiagnostics as { diagnostics?: unknown })?.diagnostics;
+    return Array.isArray(diagnostics) ? diagnostics : [];
+};
+
+/**
+ * Returns the error to show for a required repeatable list or map. The form clears its errors whenever it resets
+ * on refreshed fields, and does not validate the field again until the next submit. Hence, once the form has
+ * reported an error for the field, the rule is evaluated on the current value so the error stays until an entry
+ * is added.
+ */
+export const useRepeatableRequiredError = (
+    value: unknown,
+    fieldError: string | undefined,
+    validateRequired: (value: unknown) => true | string
+): string | undefined => {
+    const hasReportedErrorRef = useRef(false);
+    if (fieldError) {
+        hasReportedErrorRef.current = true;
+        return fieldError;
+    }
+    if (!hasReportedErrorRef.current) {
+        return undefined;
+    }
+    const result = validateRequired(value);
+    return result === true ? undefined : result;
+};
+
+/**
+ * Collects the messages to show under a repeatable list or map: the form's own error for the field and the
+ * diagnostics the language server attached to the field as a whole. The form joins several diagnostics into one
+ * error with new lines, so the error is split back into its messages before the duplicates are removed.
+ */
+export const getRepeatableErrorMessages = (fieldDiagnostics: unknown, error?: string): string[] => {
+    const diagnostics: { message?: string }[] = normalizeDiagnostics(fieldDiagnostics);
+    const errorMessages = error ? error.split("\n") : [];
+    return [...new Set([...errorMessages, ...diagnostics.map((diagnostic) => diagnostic?.message)].filter(Boolean))];
 };
 
 /**
