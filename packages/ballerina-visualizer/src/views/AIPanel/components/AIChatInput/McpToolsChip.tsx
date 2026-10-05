@@ -335,6 +335,9 @@ function transportLabel(s: McpServerStatusDTO): string {
     if (s.shadowed) {
         return `${transport} · shadowed by project`;
     }
+    if (s.signInRequired) {
+        return `${transport} · not signed in`;
+    }
     if (s.status === "failed" && s.error) {
         return `Failed: ${s.error}`;
     }
@@ -346,6 +349,10 @@ function transportLabel(s: McpServerStatusDTO): string {
     }
     const n = s.tools.length;
     return `${transport} · ${n} tool${n === 1 ? "" : "s"}`;
+}
+
+function dotStatus(s: McpServerStatusDTO): McpServerStatusDTO["status"] {
+    return s.signInRequired ? "disconnected" : s.status;
 }
 
 export const McpToolsChip: React.FC<McpToolsChipProps> = ({ mcpToolsEnabled, onOpenMcpManager }) => {
@@ -592,7 +599,7 @@ export const McpToolsChip: React.FC<McpToolsChipProps> = ({ mcpToolsEnabled, onO
                                             const rowPending = pendingToggle.has(rowKey);
                                             return (
                                             <ServerRow key={rowKey}>
-                                                <StatusDot status={s.status} />
+                                                <StatusDot status={dotStatus(s)} />
                                                 <ServerMeta>
                                                     <ServerName title={s.name}>{s.name}</ServerName>
                                                     <ServerSubline title={transportLabel(s)}>{transportLabel(s)}</ServerSubline>

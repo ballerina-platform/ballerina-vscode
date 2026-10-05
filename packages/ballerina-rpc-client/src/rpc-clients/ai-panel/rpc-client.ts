@@ -143,6 +143,7 @@ import {
     ParseSkillFileResponse,
     listMcpServers,
     setMcpServerEnabled,
+    signInMcpServer,
     openMcpConfig,
     addMcpServer,
     updateMcpServer,
@@ -155,6 +156,7 @@ import {
     openOrCreateAgentsMd,
     McpServerStatusDTO,
     SetMcpServerEnabledRequest,
+    SignInMcpServerRequest,
     AddMcpServerRequest,
     AddMcpServerResponse,
     OpenMcpConfigRequest,
@@ -468,6 +470,10 @@ export class AiPanelRpcClient implements AIPanelAPI {
 
     setMcpServerEnabled(params: SetMcpServerEnabledRequest): Promise<void> {
         return this._messenger.sendRequest(setMcpServerEnabled, HOST_EXTENSION, params);
+    }
+
+    signInMcpServer(params: SignInMcpServerRequest): Promise<void> {
+        return this._messenger.sendRequest(signInMcpServer, HOST_EXTENSION, params);
     }
 
     openMcpConfig(params: OpenMcpConfigRequest): Promise<void> {

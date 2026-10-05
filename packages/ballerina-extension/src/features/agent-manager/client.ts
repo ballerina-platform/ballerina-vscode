@@ -49,6 +49,7 @@ export interface InternalAgentSpec {
     secretRef?: string;
     env: EnvironmentVariable[];
     file?: FileMountInput;
+    autoInstrumentation: boolean;
 }
 
 export interface FileMountInput {
@@ -96,7 +97,7 @@ export const api = {
                 basePath: spec.basePath,
                 ...(spec.schemaPath ? { schema: { path: spec.schemaPath } } : {}),
             },
-            configurations: { env: spec.env, files: spec.file ? [spec.file] : undefined, enableAutoInstrumentation: true },
+            configurations: { env: spec.env, files: spec.file ? [spec.file] : undefined, enableAutoInstrumentation: spec.autoInstrumentation },
         }),
     createGitSecret: (name: string, username: string, password: string) =>
         request("POST", "/git-secrets", { name, type: "basic", credentials: { username, password } }),
@@ -162,12 +163,13 @@ export const api = {
             "GET", `/projects/${link.project}/agents/${link.agent}/deployments`);
         return deployments[link.environment];
     },
+    getAutoInstrumentation: async (link: AgentManagerLink) => (await getConfigItems(link)).autoInstrumentation === true,
     getConfigState: async (link: AgentManagerLink, mountPath: string) => {
         const { env, files } = await getConfigItems(link);
         return { envKeys: env.map((item) => item.key), fileSaved: files.some((file) => file.mountPath === mountPath) };
     },
     // The PUT replaces whole sets, so everything else goes back as read: secrets by reference, system vars dropped (the server re-adds them).
-    updateConfigurations: async (link: AgentManagerLink, env: EnvironmentVariable[], file?: FileMountInput) => {
+    updateConfigurations: async (link: AgentManagerLink, env: EnvironmentVariable[], file?: FileMountInput, autoInstrumentation?: boolean) => {
         const current = await getConfigItems(link);
         const addedKeys = new Set(env.map((item) => item.key));
         const keptEnv = current.env.filter((item) => !item.isSystem && !addedKeys.has(item.key));
@@ -182,6 +184,7 @@ export const api = {
         }
         await request("PUT", `/projects/${link.project}/agents/${link.agent}/configurations`, {
             environmentName: link.environment,
+            enableAutoInstrumentation: autoInstrumentation ?? current.autoInstrumentation,
             env: [...keptEnv.map(roundTrip), ...env],
             ...(file ? { files: [...keptFiles.map((item) => ({ ...roundTrip(item), mountPath: item.mountPath! })), file] } : {}),
         });
@@ -203,10 +206,10 @@ function roundTrip(item: ConfigItem) {
     return item.isSensitive ? { key: item.key, isSensitive: true, secretRef: item.secretRef } : { key: item.key, value: item.value };
 }
 
-async function getConfigItems(link: AgentManagerLink): Promise<{ env: ConfigItem[]; files: ConfigItem[] }> {
-    const config = await request<{ configurations?: { env?: ConfigItem[]; files?: ConfigItem[] } }>(
+async function getConfigItems(link: AgentManagerLink): Promise<{ env: ConfigItem[]; files: ConfigItem[]; autoInstrumentation?: boolean }> {
+    const config = await request<{ configurations?: { env?: ConfigItem[]; files?: ConfigItem[] }; enableAutoInstrumentation?: boolean }>(
         "GET", `/projects/${link.project}/agents/${link.agent}/configurations?environment=${link.environment}`);
-    return { env: config.configurations?.env ?? [], files: config.configurations?.files ?? [] };
+    return { env: config.configurations?.env ?? [], files: config.configurations?.files ?? [], autoInstrumentation: config.enableAutoInstrumentation };
 }
 
 function formatLogs(body: { logs?: { log: string; timestamp: string }[] }): string {

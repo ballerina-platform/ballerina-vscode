@@ -135,6 +135,7 @@ async function platformStatus(projectPath: string, link: AgentManagerLink): Prom
     const newCommit = source.remoteCommit && !(deployed && source.remoteCommit.startsWith(deployed)) ? source.remoteCommit : undefined;
     return {
         displayName: agent.displayName,
+        ampTracing: hasAmpImport(projectPath),
         branch: agent.provisioning?.repository?.branch,
         source,
         newCommit,
@@ -177,7 +178,11 @@ function deployedCommit(imageId?: string): string | undefined {
     return imageId?.match(/:v\d+-([0-9a-f]{7,40})$/)?.[1];
 }
 
-const ACTIONS: Record<AgentManagerAction, (projectPath: string, config?: AgentManagerConfigInput) => Promise<string | void>> = {
+interface ActionOptions {
+    ampTracing?: boolean;
+}
+
+const ACTIONS: Record<AgentManagerAction, (projectPath: string, config?: AgentManagerConfigInput, options?: ActionOptions) => Promise<string | void>> = {
     signIn: async () => {
         const session = await signIn();
         if (session) {
@@ -190,6 +195,7 @@ const ACTIONS: Record<AgentManagerAction, (projectPath: string, config?: AgentMa
         deployTargets.set(projectPath, await chooseDeployTarget(projectPath));
     },
     hostOnPlatform,
+    enableAmpTracing,
     fixSource,
     setupExternal,
     pushAndRebuild,
@@ -201,6 +207,10 @@ const ACTIONS: Record<AgentManagerAction, (projectPath: string, config?: AgentMa
     openTryIt: async (projectPath) => {
         const link = await requireLink(projectPath);
         await vscode.env.openExternal(vscode.Uri.parse(`${consoleUrl(link)}/environment/${link.environment}/tryOut`));
+    },
+    openTraces: async (projectPath) => {
+        const link = await requireLink(projectPath);
+        await vscode.env.openExternal(vscode.Uri.parse(`${consoleUrl(link)}/environment/${link.environment}/observability/traces`));
     },
     openDeploymentSettings: async (projectPath) => {
         const link = await requireLink(projectPath);
@@ -217,10 +227,11 @@ const ACTIONS: Record<AgentManagerAction, (projectPath: string, config?: AgentMa
 export async function runAction(
     projectPath: string,
     action: AgentManagerAction,
-    config?: AgentManagerConfigInput
+    config?: AgentManagerConfigInput,
+    options?: ActionOptions
 ): Promise<AgentManagerActionResponse> {
     try {
-        const message = await ACTIONS[action](projectPath, config);
+        const message = await ACTIONS[action](projectPath, config, options);
         if (message) {
             vscode.window.showInformationMessage(message);
         }
@@ -264,12 +275,12 @@ async function pickProject(): Promise<string> {
     const projects = await api.listProjects();
     const choice = required(await vscode.window.showQuickPick(
         [...projects.map((p) => ({ label: p.name, description: p.displayName })), { label: createNew }],
-        { title: "Agent Manager project", ignoreFocusOut: true }
+        { title: "Select Agent Manager Project (1/2)", ignoreFocusOut: true }
     ));
     if (choice.label !== createNew) {
         return choice.label;
     }
-    const displayName = required(await vscode.window.showInputBox({ title: "New project name", ignoreFocusOut: true }));
+    const displayName = required(await vscode.window.showInputBox({ title: "New Project Name (1/2)", ignoreFocusOut: true }));
     const name = toResourceName(displayName);
     await api.createProject(name, displayName);
     return name;
@@ -278,7 +289,7 @@ async function pickProject(): Promise<string> {
 async function pickAgentName(projectPath: string, project: string, mode: AgentManagerHostingMode) {
     const agents = await api.listAgents(project);
     const displayName = required(await vscode.window.showInputBox({
-        title: "Agent name in Agent Manager",
+        title: "Agent Name (2/2)",
         value: readPackageTitle(projectPath),
         validateInput: (value) => (toResourceName(value) ? undefined : "Use at least one letter or digit"),
         ignoreFocusOut: true,
@@ -353,42 +364,47 @@ async function ensureDevTracingOff(projectPath: string): Promise<void> {
     TracerMachine.disable(projectPath);
 }
 
-type DeployTarget = Awaited<ReturnType<typeof newLink>> & { git: GitHubSource };
+type DeployTarget = Awaited<ReturnType<typeof newLink>> & { git: GitHubSource; iface?: HttpInterface; secretRef?: string };
 
-// Chosen before the config popup opens, so the quick picks never run behind it.
+// Every prompt runs here, before the config popup opens, so nothing pops up behind it.
 const deployTargets = new Map<string, DeployTarget>();
 
 async function chooseDeployTarget(projectPath: string): Promise<DeployTarget> {
     const git = await requireGitHubSource(projectPath);
     await ensureDevTracingOff(projectPath);
     await warnIfDefaultModelProvider(projectPath);
-    return { ...(await newLink(projectPath, "internal")), git };
+    const target = { ...(await newLink(projectPath, "internal")), git };
+    if (!target.existing) {
+        return { ...target, iface: await prepareHttpInterface(projectPath), secretRef: await ensureRepoAccess(git) };
+    }
+    const agent = await api.getAgent(target.link);
+    return { ...target, secretRef: agent.provisioning?.repository?.secretRef ? undefined : await ensureRepoAccess(git) };
 }
 
 async function hostOnPlatform(projectPath: string, config?: AgentManagerConfigInput): Promise<string> {
     const target = deployTargets.get(projectPath) ?? await chooseDeployTarget(projectPath);
     deployTargets.delete(projectPath);
-    const { link, displayName, existing, git } = target;
+    const { link, displayName, existing, git, iface, secretRef } = target;
     if (!existing) {
-        const iface = await prepareHttpInterface(projectPath);
         const split = resolveConfig((await loadConfigFields(projectPath)).fields, config);
-        const secretRef = await ensureRepoAccess(git);
-        await confirmCreate(link, git, iface, split);
         await api.createInternalAgent(link.project, {
             name: link.agent,
             displayName,
             repoUrl: git.repoUrl,
             branch: git.branch,
             appPath: git.appPath,
-            port: iface.port,
-            basePath: iface.basePath,
-            schemaPath: iface.schemaPath,
+            port: iface!.port,
+            basePath: iface!.basePath,
+            schemaPath: iface!.schemaPath,
             secretRef,
+            autoInstrumentation: hasAmpImport(projectPath),
             env: split.env,
             file: split.file && { ...CONFIG_FILE, ...split.file },
         });
     } else {
-        await ensureAgentRepoAccess(link, git);
+        if (secretRef) {
+            await api.updateRepository(link, await api.getAgent(link), { secretRef });
+        }
         if (config) {
             await saveConfigFor(projectPath, link, config);
         }
@@ -427,7 +443,8 @@ export async function getConfigForm(projectPath: string): Promise<AgentManagerCo
         const linked = await readLink(projectPath);
         const target = linked ? undefined : deployTargets.get(projectPath);
         const link = linked ?? (target?.existing ? target.link : undefined);
-        return { ...(await loadConfigFields(projectPath, link)), agentName: target?.displayName };
+        const summary = target && { agentName: target.displayName, project: target.link.project, repository: target.git.repository, branch: target.git.branch, existing: target.existing, tracing: hasAmpImport(projectPath) };
+        return { ...(await loadConfigFields(projectPath, link)), target: summary };
     } catch (error) {
         return { fields: [], fileSaved: false, error: await describeActionError(error) };
     }
@@ -601,7 +618,7 @@ const runCommand = (command: string) => async () => {
     await vscode.commands.executeCommand(command);
 };
 
-const SOURCE_FIXES: Record<SourceStepId, (projectPath: string) => Promise<string | void>> = {
+const SOURCE_FIXES: Record<SourceStepId, (projectPath: string, options?: ActionOptions) => Promise<string | void>> = {
     gitMissing: async () => {
         await vscode.env.openExternal(vscode.Uri.parse("https://git-scm.com/downloads"));
     },
@@ -625,17 +642,26 @@ const SOURCE_FIXES: Record<SourceStepId, (projectPath: string) => Promise<string
     },
 };
 
-async function fixSource(projectPath: string): Promise<string | void> {
+async function fixSource(projectPath: string, _config?: AgentManagerConfigInput, options?: ActionOptions): Promise<string | void> {
     const { step } = await inspectSource(projectPath, await readPreparation(projectPath));
-    return step && SOURCE_FIXES[step.id as SourceStepId](projectPath);
+    return step && SOURCE_FIXES[step.id as SourceStepId](projectPath, options);
+}
+
+async function enableAmpTracing(projectPath: string): Promise<string | void> {
+    const added = ensureAmpInstrumentation(projectPath);
+    const link = await readLink(projectPath);
+    if (link?.mode === "internal" && !(await api.getAutoInstrumentation(link))) {
+        await api.updateConfigurations(link, [], undefined, true);
+    }
+    return added ? "Auto-instrumentation is on. Commit and push the change, then rebuild to collect traces." : undefined;
 }
 
 const STANDARD_GITIGNORE = ["target/", "generated/", ...LOCAL_ONLY_FILES];
 
-async function prepareProject(projectPath: string): Promise<string> {
+async function prepareProject(projectPath: string, options?: ActionOptions): Promise<string> {
     const prep = await readPreparation(projectPath);
     const added: string[] = [];
-    if (prep.ampImport && ensureAmpInstrumentation(projectPath)) {
+    if (prep.ampImport && options?.ampTracing !== false && ensureAmpInstrumentation(projectPath)) {
         added.push(AMP_IMPORT_FILE);
     }
     if (prep.openApiSpec) {
@@ -656,14 +682,6 @@ async function prepareProject(projectPath: string): Promise<string> {
 
 async function ensureRepoAccess(git: GitHubSource): Promise<string | undefined> {
     return await isPrivateRepo(git) ? chooseGitSecret(git.repository) : undefined;
-}
-
-async function ensureAgentRepoAccess(link: AgentManagerLink, git: GitHubSource): Promise<void> {
-    const agent = await api.getAgent(link);
-    const secretRef = agent.provisioning?.repository?.secretRef ? undefined : await ensureRepoAccess(git);
-    if (secretRef) {
-        await api.updateRepository(link, agent, { secretRef });
-    }
 }
 
 async function setRepoAccess(projectPath: string): Promise<string> {
@@ -895,20 +913,3 @@ async function warnIfMissingDependenciesToml(projectPath: string): Promise<void>
     ));
 }
 
-async function confirmCreate(
-    link: AgentManagerLink,
-    git: GitHubSource,
-    iface: HttpInterface,
-    config: SplitConfig
-): Promise<void> {
-    const create = "Create and Deploy";
-    const detail = [
-        `Project: ${link.project}   Environment: ${link.environment}`,
-        `Source: ${git.repoUrl} (${git.branch}, ${git.appPath})`,
-        `Port ${iface.port}, base path ${iface.basePath}, API spec ${iface.schemaPath}`,
-        config.env.length || config.file
-            ? `Config: ${config.env.length} environment variable(s)${config.file ? " and a Config.toml file" : ""}`
-            : "No configuration values",
-    ].join("\n");
-    required(await vscode.window.showInformationMessage(`Host '${link.agent}' on Agent Manager?`, { modal: true, detail }, create));
-}

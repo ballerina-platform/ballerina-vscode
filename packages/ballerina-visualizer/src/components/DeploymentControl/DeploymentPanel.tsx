@@ -577,6 +577,9 @@ export interface DeploymentPanelProps extends DeploymentControlState {
 
 type ItemId = "agentManager" | "cloud" | "docker" | "vm" | "agentManagerTracing" | "icp" | "devTracing" | "workflow";
 type ItemFactory = (id: ItemId, title: string, tag: string | undefined, body: ReactNode) => ReactNode;
+type Section = "deploy" | "monitor";
+const MONITOR_ITEMS = new Set<ItemId>(["agentManagerTracing", "icp", "devTracing", "workflow"]);
+const sectionOf = (id: ItemId): Section => (MONITOR_ITEMS.has(id) ? "monitor" : "deploy");
 
 const enabledTag = (enabled: boolean) => (enabled ? "Enabled" : undefined);
 
@@ -586,13 +589,14 @@ interface MonitorItemsOptions extends Pick<DeploymentPanelProps,
     noun: string;
     agentMode: boolean;
     linkMode?: "internal" | "external";
+    hostedTracing?: boolean;
     tracingBody: ReactNode;
 }
 
 function monitorItems(options: MonitorItemsOptions): ReactNode[] {
     const { item, noun, devTracing, linkMode } = options;
-    const tracing = options.hasAgents && item("agentManagerTracing", "Agent Manager Tracing",
-        enabledTag(linkMode === "internal" || (linkMode === "external" && options.ampTracingEnabled)), options.tracingBody);
+    const tracing = options.hasAgents && item("agentManagerTracing", "Agent Manager Observability",
+        enabledTag(linkMode === "internal" ? !!options.hostedTracing : linkMode === "external" && options.ampTracingEnabled), options.tracingBody);
     const icp = options.isICPSupported && item("icp", "Integration Control Plane", enabledTag(options.icpEnabled), (
         <>
             <p>Monitor and manage integration deployments from a central console.<LearnMore url={ICP_DOCS} /></p>
@@ -645,17 +649,21 @@ export function DeploymentPanel({
     const noun = agentMode ? "agent" : "integration";
     const cloud = useWso2Cloud(projectPath);
     const { data: agentManager } = useAgentManagerStatus(projectPath, hasAgents);
-    const [open, setOpen] = useState<ItemId | undefined>(agentMode ? "agentManager" : "cloud");
+    const [open, setOpen] = useState<Partial<Record<Section, ItemId>>>({ deploy: agentMode ? "agentManager" : "cloud" });
 
     if (isInDevant) {
         return <DevantDashboard projectStructure={projectStructure} handleDeploy={handleDeploy} goToDevant={goToDevant} />;
     }
 
-    const item: ItemFactory = (id, title, tag, body) => (
-        <DrawerItem key={id} title={title} tag={tag} isExpanded={open === id} onToggle={() => setOpen(open === id ? undefined : id)}>
-            {body}
-        </DrawerItem>
-    );
+    const item: ItemFactory = (id, title, tag, body) => {
+        const section = sectionOf(id);
+        const isExpanded = open[section] === id;
+        return (
+            <DrawerItem key={id} title={title} tag={tag} isExpanded={isExpanded} onToggle={() => setOpen({ ...open, [section]: isExpanded ? undefined : id })}>
+                {body}
+            </DrawerItem>
+        );
+    };
     const agentManagerSection = (part: "deploy" | "monitor") => (
         <AgentManagerSection projectPath={projectPath} part={part} ampTracingEnabled={ampTracingEnabled} handleAmpTracing={handleAmpTracing} />
     );
@@ -675,7 +683,7 @@ export function DeploymentPanel({
 
     const deployItems = agentMode ? [agentManagerItem, cloudItem, dockerItem, vmItem] : [cloudItem, dockerItem, vmItem, agentManagerItem];
     const monitor = monitorItems({
-        item, noun, agentMode, linkMode, devTracing, hasAgents, isICPSupported, hasWorkflows, icpEnabled, handleICP,
+        item, noun, agentMode, linkMode, hostedTracing: agentManager?.ampTracing, devTracing, hasAgents, isICPSupported, hasWorkflows, icpEnabled, handleICP,
         workflowMgmtEnabled, handleWorkflowManagement, ampTracingEnabled, tracingBody: agentManagerSection("monitor"),
     });
 

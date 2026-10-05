@@ -70,6 +70,7 @@ import {
     SkillTier,
     McpServerStatusDTO,
     SetMcpServerEnabledRequest,
+    SignInMcpServerRequest,
     AddMcpServerRequest,
     AddMcpServerResponse,
     OpenMcpConfigRequest,
@@ -199,6 +200,7 @@ export interface AIPanelAPI {
     // ==================================
     listMcpServers: () => Promise<McpServerStatusDTO[]>;
     setMcpServerEnabled: (params: SetMcpServerEnabledRequest) => Promise<void>;
+    signInMcpServer: (params: SignInMcpServerRequest) => Promise<void>;
     openMcpConfig: (params: OpenMcpConfigRequest) => Promise<void>;
     addMcpServer: (params: AddMcpServerRequest) => Promise<AddMcpServerResponse>;
     updateMcpServer: (params: UpdateMcpServerRequest) => Promise<AddMcpServerResponse>;

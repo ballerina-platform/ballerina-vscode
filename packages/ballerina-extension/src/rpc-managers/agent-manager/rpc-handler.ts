@@ -32,7 +32,7 @@ import { getConfigForm, getStatus, runAction } from "../../features/agent-manage
 
 export function registerAgentManagerRpcHandlers(messenger: Messenger) {
     messenger.onRequest(getAgentManagerStatus, (args: AgentManagerStatusRequest) => getStatus(args.projectPath));
-    messenger.onRequest(runAgentManagerAction, (args: AgentManagerActionRequest) => runAction(args.projectPath, args.action, args.config));
+    messenger.onRequest(runAgentManagerAction, (args: AgentManagerActionRequest) => runAction(args.projectPath, args.action, args.config, { ampTracing: args.ampTracing }));
     messenger.onRequest(getAgentManagerConfigForm, (args: AgentManagerStatusRequest) => getConfigForm(args.projectPath));
     messenger.onRequest(getAgentManagerMcpOffer, () => getMcpOffer());
     messenger.onRequest(addAgentManagerMcpServers, (args: AddAgentManagerMcpServersRequest) => addMcpServers(args.ids));

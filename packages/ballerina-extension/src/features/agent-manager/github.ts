@@ -153,7 +153,7 @@ function plural(count: number, noun: string): string {
 }
 
 function preparationStep(prep: Preparation): AgentManagerSourceStep | undefined {
-    const files = [prep.ampImport && "agent_manager.bal", prep.openApiSpec && "openapi.yaml", prep.gitignore && ".gitignore"].filter(Boolean);
+    const files = [prep.openApiSpec && "openapi.yaml", prep.gitignore && ".gitignore"].filter(Boolean);
     if (files.length === 0 && prep.exposedFiles.length === 0) {
         return undefined;
     }
@@ -161,7 +161,7 @@ function preparationStep(prep: Preparation): AgentManagerSourceStep | undefined 
         files.length > 0 && `Agent Manager needs ${files.join(", ")}`,
         prep.exposedFiles.length > 0 && `${prep.exposedFiles.join(" and ")} must stay out of Git`,
     ].filter(Boolean);
-    return { id: "prepare", message: `${parts.join(". ")}.`, actionLabel: "Prepare Project", blocking: true };
+    return { id: "prepare", message: `${parts.join(". ")}.`, actionLabel: "Prepare Project", blocking: true, tracingChoice: prep.ampImport };
 }
 
 // Deploys build the upstream commit, so the files the build needs (and must not see) are checked there, not on disk.
@@ -260,7 +260,7 @@ export async function openCommitView(projectPath: string, message: string): Prom
 
 export function suggestCommitMessage(projectPath: string): string {
     const labels: Record<string, string> = {
-        "agent_manager.bal": "Add Agent Manager tracing",
+        "agent_manager.bal": "Enable Agent Manager auto-instrumentation",
         "openapi.yaml": "Add OpenAPI spec for Agent Manager",
         ".gitignore": "Keep local config out of Git",
     };

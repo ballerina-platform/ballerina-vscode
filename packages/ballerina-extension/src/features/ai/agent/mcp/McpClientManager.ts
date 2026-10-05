@@ -18,7 +18,7 @@
 
 import * as vscode from "vscode";
 import { BUILT_IN_MCP_SERVERS } from "./builtIns";
-import { McpOAuthProvider, takeInteractiveSignIn } from "./oauth";
+import { McpOAuthProvider, SignInCancelled, signInOnNextConnect, takeInteractiveSignIn } from "./oauth";
 import { loadMcpConfig, McpLoadErrors } from "./configLoader";
 import {
     McpConnectionStatus,
@@ -184,7 +184,6 @@ export class McpClientManager {
     private disposed = false;
     // Kept across reconnects so a PKCE verifier survives until the browser redirect comes back.
     private oauthProviders = new Map<string, McpOAuthProvider>();
-    private signInPrompted = new Set<string>();
     // A reconnect mid-sign-in would replace the PKCE verifier the browser redirect is waiting to redeem.
     private signingIn = new Set<string>();
     /** Called when a server connects outside refresh(), e.g. after an OAuth sign-in. */
@@ -381,7 +380,6 @@ export class McpClientManager {
             state.tools = filtered;
             state.status = "connected";
             state.error = undefined;
-            this.signInPrompted.delete(keyOf(state.scope, state.name));
         } catch (err: any) {
             // Close a half-open client so a timed-out stdio child / socket doesn't leak.
             if (client) {
@@ -403,19 +401,26 @@ export class McpClientManager {
         if (!(err instanceof UnauthorizedError) || !provider?.authorizationUrl) {
             throw err;
         }
-        const interactive = takeInteractiveSignIn((state.config as McpHttpServerConfig).url);
-        if (interactive || !this.signInPrompted.has(key)) {
-            this.signInPrompted.add(key);
-            void this.promptSignIn(state, provider, transport, interactive);
+        // Background reconnects stay quiet; the MCP page offers Sign In on the row instead.
+        if (takeInteractiveSignIn((state.config as McpHttpServerConfig).url)) {
+            void this.promptSignIn(state, provider, transport);
         }
         throw new Error("Sign-in required.");
     }
 
-    private async promptSignIn(state: ServerState, provider: McpOAuthProvider, transport: StreamableHttpTransport, interactive: boolean): Promise<void> {
-        const signIn = "Sign In";
-        if (!interactive && await vscode.window.showInformationMessage(`Copilot MCP server '${state.name}' needs you to sign in.`, signIn) !== signIn) {
+    /** Starts a browser sign-in for a server that is waiting for one. */
+    async signIn(scope: McpScope, name: string): Promise<void> {
+        const state = this.servers.get(keyOf(scope, name));
+        if (!state || state.status === "connected" || this.signingIn.has(keyOf(scope, name))) {
             return;
         }
+        signInOnNextConnect((state.config as McpHttpServerConfig).url);
+        state.status = "connecting";
+        state.error = undefined;
+        await this.connect(state);
+    }
+
+    private async promptSignIn(state: ServerState, provider: McpOAuthProvider, transport: StreamableHttpTransport): Promise<void> {
         const key = keyOf(state.scope, state.name);
         this.signingIn.add(key);
         try {
@@ -424,11 +429,12 @@ export class McpClientManager {
             await this.connect(state);
             this.onDidChange?.();
         } catch (err: any) {
-            this.signInPrompted.delete(key);
             state.status = "failed";
             state.error = "Sign-in required.";
             this.onDidChange?.();
-            vscode.window.showErrorMessage(`Couldn't sign in to MCP server '${state.name}': ${err?.message ?? err}. Refresh the MCP servers to try again.`);
+            if (!(err instanceof SignInCancelled)) {
+                vscode.window.showErrorMessage(`Couldn't sign in to MCP server '${state.name}'. ${err?.message ?? err} Use Sign In on the MCP Servers page to try again.`);
+            }
         } finally {
             this.signingIn.delete(key);
         }
@@ -522,6 +528,7 @@ export class McpClientManager {
                 enabled: this.isServerEnabled(state.scope, state.name, state.config),
                 status: state.status,
                 error: state.error,
+                signInRequired: state.status === "failed" && !!this.oauthProviders.get(keyOf(state.scope, state.name))?.authorizationUrl,
                 tools: state.tools.map<McpToolSummary>(t => ({ name: t.name, description: t.description })),
                 config: normaliseConfigForDto(state.config, state.transport),
                 shadowed,

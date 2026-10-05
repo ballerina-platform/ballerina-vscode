@@ -23,6 +23,7 @@ export type AgentManagerAction =
     | "signOut"
     | "chooseDeployTarget"
     | "hostOnPlatform"
+    | "enableAmpTracing"
     | "setupExternal"
     | "fixSource"
     | "pushAndRebuild"
@@ -30,6 +31,7 @@ export type AgentManagerAction =
     | "regenerateToken"
     | "openInConsole"
     | "openTryIt"
+    | "openTraces"
     | "openDeploymentSettings"
     | "saveConfig"
     | "openBuildLogs"
@@ -76,6 +78,7 @@ export interface AgentManagerSourceStep {
     message: string;
     actionLabel?: string;
     blocking: boolean;
+    tracingChoice?: boolean;
 }
 
 export interface AgentManagerSource {
@@ -90,6 +93,7 @@ export interface AgentManagerStatus {
     signedIn: boolean;
     instanceUrl?: string;
     org?: string;
+    ampTracing?: boolean;
     link?: AgentManagerLink;
     source?: AgentManagerSource;
     displayName?: string;
@@ -123,8 +127,17 @@ export interface AgentManagerConfigField {
 export interface AgentManagerConfigForm {
     fields: AgentManagerConfigField[];
     fileSaved: boolean;
-    agentName?: string;
+    target?: AgentManagerDeployTarget;
     error?: string;
+}
+
+export interface AgentManagerDeployTarget {
+    agentName: string;
+    project: string;
+    repository: string;
+    branch: string;
+    existing: boolean;
+    tracing: boolean;
 }
 
 export interface AgentManagerConfigInput {
@@ -136,6 +149,7 @@ export interface AgentManagerActionRequest {
     projectPath: string;
     action: AgentManagerAction;
     config?: AgentManagerConfigInput;
+    ampTracing?: boolean;
 }
 
 export interface AgentManagerActionResponse {

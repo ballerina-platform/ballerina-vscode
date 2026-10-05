@@ -68,6 +68,7 @@ export interface McpServerStatus {
     enabled: boolean;
     status: McpConnectionStatus;
     error?: string;
+    signInRequired?: boolean;
     tools: McpToolSummary[];
     /** Raw config as stored on disk — used by the Edit dialog to pre-fill fields. */
     config: NormalisedMcpServerConfig;

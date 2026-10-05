@@ -96,7 +96,7 @@ const ErrorText = styled.span`
     word-break: break-word;
 `;
 
-type Run = (action: AgentManagerAction) => Promise<void>;
+type Run = (action: AgentManagerAction, ampTracing?: boolean) => Promise<void>;
 
 interface AgentManagerSectionProps {
     projectPath: string;
@@ -132,7 +132,7 @@ export function AgentManagerSection({ projectPath, part, ampTracingEnabled, hand
     const [formAction, setFormAction] = useState<"hostOnPlatform" | "saveConfig" | undefined>();
     const [formAgentName, setFormAgentName] = useState<string | undefined>();
 
-    const run: Run = async (action) => {
+    const run: Run = async (action, ampTracing) => {
         if (action === "hostOnPlatform") {
             await deploy();
             return;
@@ -143,7 +143,7 @@ export function AgentManagerSection({ projectPath, part, ampTracingEnabled, hand
         }
         setPending(action);
         try {
-            await rpcClient.getAgentManagerRpcClient().runAgentManagerAction({ projectPath, action });
+            await rpcClient.getAgentManagerRpcClient().runAgentManagerAction({ projectPath, action, ampTracing });
         } finally {
             setPending(undefined);
             refetch();
@@ -151,23 +151,10 @@ export function AgentManagerSection({ projectPath, part, ampTracingEnabled, hand
     };
 
     const deploy = async () => {
-        const client = rpcClient.getAgentManagerRpcClient();
         setPending("chooseDeployTarget");
-        try {
-            if (!(await client.runAgentManagerAction({ projectPath, action: "chooseDeployTarget" })).success) {
-                return;
-            }
-            const form = await client.getAgentManagerConfigForm({ projectPath });
-            if (form.fields.length > 0 || form.error) {
-                setFormAction("hostOnPlatform");
-                return;
-            }
-            setPending("hostOnPlatform");
-            await client.runAgentManagerAction({ projectPath, action: "hostOnPlatform", config: { values: {}, secrets: {} } });
-            refetch();
-        } finally {
-            setPending(undefined);
-        }
+        const chosen = await rpcClient.getAgentManagerRpcClient().runAgentManagerAction({ projectPath, action: "chooseDeployTarget" })
+            .finally(() => setPending(undefined));
+        chosen.success && setFormAction("hostOnPlatform");
     };
 
     const closeForm = () => {
@@ -209,12 +196,20 @@ export function AgentManagerSection({ projectPath, part, ampTracingEnabled, hand
         if (status?.link?.mode === "external") {
             return linked;
         }
-        if (status?.link?.mode === "internal") {
+        if (status?.link?.mode === "internal" && status.ampTracing) {
             return (
                 <p style={{ margin: 0 }}>
-                    Traces from the Agent Manager deployment are collected automatically.{" "}
-                    <VSCodeLink onClick={() => run("openInConsole")}>Open in Console</VSCodeLink>
+                    Agent Manager auto-instruments this agent, so its traces appear under Observability.{" "}
+                    <VSCodeLink onClick={() => run("openTraces")}>View Traces</VSCodeLink>
                 </p>
+            );
+        }
+        if (status?.link?.mode === "internal") {
+            return (
+                <Stack>
+                    <p style={{ margin: 0 }}>Auto-instrumentation is off for this agent. Enable it to see the agent's traces under Observability.</p>
+                    <Actions><Button appearance="secondary" disabled={!!pending} onClick={() => run("enableAmpTracing")}>Enable Auto Instrumentation</Button></Actions>
+                </Stack>
             );
         }
         return (
@@ -241,7 +236,7 @@ export function AgentManagerSection({ projectPath, part, ampTracingEnabled, hand
                         <PopupModalStep>
                             <PopupHeader>
                                 <HeaderTitleContainer>
-                                    <PopupTitle variant="h2">{formAction === "hostOnPlatform" ? "Configure Before Deploying" : "Configuration"}</PopupTitle>
+                                    <PopupTitle variant="h2">{formAction === "hostOnPlatform" ? "Deploy to Agent Manager" : "Configuration"}</PopupTitle>
                                     <PopupSubtitle variant="body2">{formAgentName ?? status.displayName ?? status.link?.agent ?? "Agent Manager"}</PopupSubtitle>
                                 </HeaderTitleContainer>
                                 <CloseButton appearance="icon" onClick={close}>
@@ -253,6 +248,7 @@ export function AgentManagerSection({ projectPath, part, ampTracingEnabled, hand
                                 description="Values for this agent's configurables in Agent Manager."
                                 action={formAction}
                                 submitLabel={formAction === "hostOnPlatform" ? "Deploy" : "Save"}
+                                busyLabel={formAction === "hostOnPlatform" ? "Deploying…" : "Saving…"}
                                 onDone={close}
                                 onCancel={close}
                                 onAgentName={setFormAgentName}
@@ -320,15 +316,17 @@ function SourceHint({ source, pending, run }: { source?: AgentManagerSource; pen
 
 function BlockingStep({ source, pending, run }: { source?: AgentManagerSource; pending?: AgentManagerAction; run: Run }) {
     const step = source?.step!;
+    const [tracing, setTracing] = useState(true);
     return (
         <>
             <Section>
                 <SourceLine source={source} />
                 <Detail>{step.message}</Detail>
             </Section>
+            {step.tracingChoice && <CheckBox checked={tracing} onChange={setTracing} label="Enable Auto Instrumentation" />}
             {step.actionLabel && (
                 <Actions>
-                    <Button appearance="primary" disabled={!!pending} onClick={() => run("fixSource")}>{step.actionLabel}</Button>
+                    <Button appearance="primary" disabled={!!pending} onClick={() => run("fixSource", tracing)}>{step.actionLabel}</Button>
                 </Actions>
             )}
         </>
@@ -346,7 +344,7 @@ function SourceStep({ status, pending, run }: ActionProps) {
                 <SourceLine source={source} />
                 <SourceHint source={source} pending={pending} run={run} />
             </Section>
-            <Actions><Button appearance="primary" disabled={!!pending} onClick={() => run("hostOnPlatform")}>Deploy</Button></Actions>
+            <Actions><Button appearance="primary" disabled={!!pending} onClick={() => run("hostOnPlatform")}>{pending === "chooseDeployTarget" ? "Preparing…" : "Deploy Agent"}</Button></Actions>
         </>
     );
 }
@@ -483,7 +481,7 @@ function phaseStatus(phase: Phase, status: AgentManagerStatus, slowStart: boolea
         case "starting":
             return (
                 <>
-                    <Row><ProgressRing sx={{ height: 12, width: 12 }} /><span>Starting</span></Row>
+                    <Row><ProgressRing sx={{ height: 12, width: 12 }} /><span>Deploying</span></Row>
                     {status.crash && <Detail>Keeps restarting: {status.crash.reason} · {logsLink("openRuntimeLogs", "View Runtime Logs")}</Detail>}
                     {!status.crash && slowStart && <Detail>Taking longer than usual · {logsLink("openRuntimeLogs", "View Runtime Logs")}</Detail>}
                 </>

@@ -18,9 +18,9 @@
 
 import React, { useEffect, useState } from "react";
 import styled from "@emotion/styled";
-import { AgentManagerConfigField, AgentManagerConfigForm as ConfigFormData } from "@wso2/ballerina-core";
+import { AgentManagerConfigField, AgentManagerConfigForm as ConfigFormData, AgentManagerDeployTarget } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { Button, CheckBox, ProgressRing } from "@wso2/ui-toolkit";
+import { Button, CheckBox, Codicon, ProgressRing } from "@wso2/ui-toolkit";
 import { PopupContent, PopupFooter } from "../../views/BI/Connection/styles";
 import { ConfigField } from "../../views/AIPanel/components/ConfigurationCollector";
 
@@ -39,6 +39,21 @@ const Muted = styled.span`
     font-size: 12px;
 `;
 
+const Summary = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--vscode-welcomePage-tileBorder);
+`;
+
+const SummaryRow = styled.span`
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--vscode-descriptionForeground);
+`;
+
 const ErrorText = styled.span`
     color: var(--vscode-errorForeground);
     word-break: break-word;
@@ -49,6 +64,7 @@ interface AgentManagerConfigFormProps {
     description: string;
     action: "hostOnPlatform" | "saveConfig";
     submitLabel: string;
+    busyLabel: string;
     onDone: () => void;
     onCancel: () => void;
     onAgentName?: (name?: string) => void;
@@ -67,7 +83,7 @@ function placeholder(field: AgentManagerConfigField): string {
     return field.required ? "Required" : "Optional";
 }
 
-export function AgentManagerConfigForm({ projectPath, description, action, submitLabel, onDone, onCancel, onAgentName }: AgentManagerConfigFormProps) {
+export function AgentManagerConfigForm({ projectPath, description, action, submitLabel, busyLabel, onDone, onCancel, onAgentName }: AgentManagerConfigFormProps) {
     const { rpcClient } = useRpcContext();
     const [form, setForm] = useState<ConfigFormData | undefined>();
     const [values, setValues] = useState<Record<string, string>>({});
@@ -95,7 +111,7 @@ export function AgentManagerConfigForm({ projectPath, description, action, submi
             setValues(initial);
             setSecrets(Object.fromEntries(loaded.fields.map((f) => [f.id, f.secret])));
             setForm(loaded);
-            onAgentName?.(loaded.agentName);
+            onAgentName?.(loaded.target?.agentName);
         });
     }, [projectPath]);
 
@@ -106,7 +122,8 @@ export function AgentManagerConfigForm({ projectPath, description, action, submi
     return (
         <>
             <PopupContent>
-                <Muted>{description}</Muted>
+                {form.target && <TargetSummary target={form.target} />}
+                {form.fields.length > 0 && <Muted>{description}</Muted>}
                 {form.error && <ErrorText>Couldn't read this agent's configurables: {form.error}</ErrorText>}
                 {form.fields.length === 0 && !form.error && <Muted>This agent has no configurables to set.</Muted>}
                 {groupFields(form.fields).map(([group, fields]) => (
@@ -131,9 +148,19 @@ export function AgentManagerConfigForm({ projectPath, description, action, submi
             </PopupContent>
             <PopupFooter>
                 <Button appearance="secondary" disabled={submitting} onClick={onCancel}>Cancel</Button>
-                <Button appearance="primary" disabled={submitting} onClick={() => submit()}>{submitLabel}</Button>
+                <Button appearance="primary" disabled={submitting} onClick={() => submit()}>{submitting ? busyLabel : submitLabel}</Button>
             </PopupFooter>
         </>
+    );
+}
+
+function TargetSummary({ target }: { target: AgentManagerDeployTarget }) {
+    return (
+        <Summary>
+            <SummaryRow><Codicon name="github" sx={{ fontSize: 12 }} />{target.repository} · {target.branch}</SummaryRow>
+            <SummaryRow><Codicon name="folder" sx={{ fontSize: 12 }} />Project: {target.project}{target.existing && " · Updates the existing agent"}</SummaryRow>
+            <SummaryRow><Codicon name="telescope" sx={{ fontSize: 12 }} />Auto-instrumentation {target.tracing ? "on" : "off"}</SummaryRow>
+        </Summary>
     );
 }
 

@@ -38,6 +38,12 @@ const interactiveSignIns = new Set<string>();
 // Agent Manager's IdP (SQLite-backed Thunder) fails concurrent authorization requests, so browser sign-ins run one at a time.
 let signInQueue: Promise<unknown> = Promise.resolve();
 
+export class SignInCancelled extends Error {
+    constructor() {
+        super("Sign-in cancelled.");
+    }
+}
+
 export function signInOnNextConnect(url: string): void {
     interactiveSignIns.add(url);
 }
@@ -139,7 +145,7 @@ function waitForAuthCode(port: number, state: string, authUrl: string, cancel: v
             finish(error === undefined ? undefined : new Error(error), code ?? "");
         });
         const timer = setTimeout(() => finish(new Error("Sign-in timed out.")), SIGN_IN_TIMEOUT_MS);
-        const cancelListener = cancel.onCancellationRequested(() => finish(new Error("Sign-in cancelled.")));
+        const cancelListener = cancel.onCancellationRequested(() => finish(new SignInCancelled()));
         function finish(error?: Error, code?: string) {
             clearTimeout(timer);
             cancelListener.dispose();
