@@ -446,8 +446,12 @@ class BallerinaTextDocumentService implements TextDocumentService {
                 }
                 String formattedSource;
                 if (FormatterUtils.isBuildProject(context.currentModule())) {
-                    Path rootPath = context.workspace().projectRoot(context.filePath());
-                    BuildProject project = BuildProject.load(rootPath, BuildOptions.builder().build());
+                    // The options only come from the manifest, which the loaded project already holds.
+                    BuildProject project = context.workspace().project(context.filePath())
+                            .filter(BuildProject.class::isInstance)
+                            .map(BuildProject.class::cast)
+                            .orElseGet(() -> BuildProject.load(context.workspace().projectRoot(context.filePath()),
+                                    BuildOptions.builder().build()));
                     FormattingOptions options = buildFormattingOptions(project);
                     formattedSource = Formatter.format(syntaxTree.get(), options).toSourceCode();
                 } else {
