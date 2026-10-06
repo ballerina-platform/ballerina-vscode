@@ -51,9 +51,7 @@ public record EvalTemplate(String symbol, String label, String description, Stri
                 continue;
             }
             Object value = attachment.attachmentValue().map(ConstantValue::value).orElse(null);
-            if (!(value instanceof Map<?, ?> fields)) {
-                return Optional.empty();
-            }
+            Map<?, ?> fields = value instanceof Map<?, ?> map ? map : Map.of();
             return Optional.of(new EvalTemplate(name.get(), field(fields, "label", name.get()),
                     field(fields, "description", ""), field(fields, "kind", "RULE_BASED"),
                     Boolean.parseBoolean(field(fields, "needsEvalset", "false"))));
