@@ -184,11 +184,9 @@ function deployedCommit(imageId?: string): string | undefined {
 
 const ACTIONS: Record<AgentManagerAction, (projectPath: string, config?: AgentManagerConfigInput) => Promise<string | void>> = {
     signIn: async () => {
-        const session = await signIn();
-        if (session) {
-            void offerCopilotMcp();
-        }
-        return session && `Signed in to Agent Manager (${session.org}).`;
+        const session = required(await signIn());
+        void offerCopilotMcp();
+        return `Signed in to Agent Manager (${session.org}).`;
     },
     signOut: async () => signOut(),
     chooseDeployTarget: async (projectPath) => {
@@ -273,12 +271,12 @@ async function pickProject(): Promise<string> {
     const projects = await api.listProjects();
     const choice = required(await vscode.window.showQuickPick(
         [...projects.map((p) => ({ label: p.name, description: p.displayName })), { label: createNew }],
-        { title: "Select Agent Manager Project (1/3)", ignoreFocusOut: true }
+        { title: "Select Agent Manager Project (1/2)", ignoreFocusOut: true }
     ));
     if (choice.label !== createNew) {
         return choice.label;
     }
-    const displayName = required(await vscode.window.showInputBox({ title: "New Project Name (1/3)", ignoreFocusOut: true }));
+    const displayName = required(await vscode.window.showInputBox({ title: "New Project Name (1/2)", ignoreFocusOut: true }));
     const name = toResourceName(displayName);
     await api.createProject(name, displayName);
     return name;
@@ -287,7 +285,7 @@ async function pickProject(): Promise<string> {
 async function pickAgentName(projectPath: string, project: string, mode: AgentManagerHostingMode) {
     const agents = await api.listAgents(project);
     const displayName = required(await vscode.window.showInputBox({
-        title: "Agent Name (2/3)",
+        title: "Agent Name (2/2)",
         value: readPackageTitle(projectPath),
         validateInput: (value) => (toResourceName(value) ? undefined : "Use at least one letter or digit"),
         ignoreFocusOut: true,
@@ -371,8 +369,8 @@ async function chooseDeployTarget(projectPath: string): Promise<DeployTarget> {
     const git = await requireGitHubSource(projectPath);
     await ensureDevTracingOff(projectPath);
     await warnIfDefaultModelProvider(projectPath);
-    const linked = await newLink(projectPath, "internal");
-    const target = { ...linked, git, tracing: await chooseAutoInstrumentation(projectPath, linked.link, linked.existing) };
+    const tracing = await chooseAutoInstrumentation(projectPath);
+    const target = { ...(await newLink(projectPath, "internal")), git, tracing };
     if (!target.existing) {
         return { ...target, iface: await prepareHttpInterface(projectPath), secretRef: await ensureRepoAccess(git) };
     }
@@ -380,15 +378,14 @@ async function chooseDeployTarget(projectPath: string): Promise<DeployTarget> {
     return { ...target, secretRef: agent.provisioning?.repository?.secretRef ? undefined : await ensureRepoAccess(git) };
 }
 
-// The build uses the GitHub commit, so a newly added amp import has to be pushed before this deploy can use it.
-async function chooseAutoInstrumentation(projectPath: string, link: AgentManagerLink, existing: boolean): Promise<boolean> {
-    const current = existing ? await api.getAutoInstrumentation(link) : true;
+// The amp import means auto-instrumentation is wanted; without it, ask before the project and name so a commit doesn't discard them.
+async function chooseAutoInstrumentation(projectPath: string): Promise<boolean> {
+    if (hasAmpImport(projectPath)) {
+        return true;
+    }
     const enable = { label: "Enable Auto-Instrumentation", detail: "Send traces and metrics from this agent to Agent Manager.", enabled: true };
-    const skip = { label: "Don't Enable", detail: "Deploy without traces in Agent Manager.", enabled: false };
-    const choice = required(await vscode.window.showQuickPick(current ? [enable, skip] : [skip, enable], {
-        title: "Auto-Instrumentation (3/3)",
-        ignoreFocusOut: true,
-    }));
+    const skip = { label: "Deploy Without It", detail: "Deploy without traces in Agent Manager.", enabled: false };
+    const choice = required(await vscode.window.showQuickPick([enable, skip], { title: "Auto-Instrumentation", ignoreFocusOut: true }));
     if (choice.enabled && ensureAmpInstrumentation(projectPath)) {
         vscode.window.showInformationMessage(`Added ${AMP_IMPORT_FILE} and observability in Ballerina.toml for auto-instrumentation. Commit and push them, then deploy again.`);
         throw new UserCancelled();

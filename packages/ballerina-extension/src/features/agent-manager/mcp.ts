@@ -56,22 +56,14 @@ function endpointFor(proxy: McpProxyDetails, environmentId?: string): Endpoint |
     return proxy.endpoints?.find((endpoint) => endpoint.environments?.some((env) => env.environmentUuid === environmentId));
 }
 
-// API keys go in a custom header that ballerina/mcp can't send; OAuth tokens go in Authorization.
-function security(endpoint: Endpoint): "none" | "oauth" | "apiKey" {
-    if (!endpoint.security?.enabled) {
-        return "none";
-    }
-    return endpoint.security.identity?.enabled ? "oauth" : endpoint.security.apiKey?.enabled ? "apiKey" : "none";
-}
+// API-key proxies get no generated auth: ballerina/mcp can't send the custom header yet, so that stays in code.
+const usesOAuth = (endpoint: Endpoint) => !!endpoint.security?.enabled && !!endpoint.security.identity?.enabled;
 
 function describe(proxy: McpProxyDetails, environmentId?: string): AgentManagerMcpProxy {
     const endpoint = endpointFor(proxy, environmentId);
     const summary = { id: proxy.id, name: proxy.name, description: proxy.description, toolCount: endpoint?.capabilities?.tools?.length };
     if (!endpoint) {
         return { ...summary, unsupportedReason: `Not set up for the ${DEFAULT_ENVIRONMENT} environment.` };
-    }
-    if (security(endpoint) === "apiKey") {
-        return { ...summary, unsupportedReason: "Secured with an API key, which the MCP client can't send. Switch it to OAuth in Agent Manager." };
     }
     return summary;
 }
@@ -88,13 +80,13 @@ export async function bindMcpProxy({ projectPath, proxyId }: AgentManagerMcpBind
     try {
         const proxy = await api.getMcpProxy(proxyId);
         const endpoint = endpointFor(proxy, await api.getEnvironmentId(DEFAULT_ENVIRONMENT));
-        if (!endpoint || security(endpoint) === "apiKey") {
-            throw new Error(describe(proxy).unsupportedReason ?? "This MCP server can't be used from Agent Builder.");
+        if (!endpoint) {
+            throw new Error(describe(proxy).unsupportedReason);
         }
         const urlVariable = urlVariableFor(proxyId);
         const env = { url: `${envBase(proxyId)}_MCP_URL` };
         await writeEnvConfigurable(projectPath, urlVariable, env.url, await proxyUrl(proxy));
-        const oauth = security(endpoint) === "oauth";
+        const oauth = usesOAuth(endpoint);
         if (oauth) {
             await writeAgentIdConfigurables(projectPath, proxyId);
         }

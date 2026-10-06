@@ -192,7 +192,7 @@ export const api = {
     listLlmProviders: async () =>
         (await request<{ providers: { id: string; uuid: string; name: string; template: string }[] }>("GET", "/llm-providers?limit=100")).providers,
     getLlmProvider: (id: string) =>
-        request<{ context: string; security?: { enabled?: boolean; apiKey?: { enabled?: boolean; key?: string } } }>("GET", `/llm-providers/${id}`),
+        request<{ context: string }>("GET", `/llm-providers/${id}`),
     listMcpProxies: async () =>
         (await request<{ list: { id: string; name: string; description?: string }[] }>("GET", "/mcp-proxies?limit=100")).list,
     getMcpProxy: (id: string) => request<McpProxyDetails>("GET", `/mcp-proxies/${id}`),

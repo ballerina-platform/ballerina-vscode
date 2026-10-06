@@ -49,22 +49,45 @@ export function useAgentManagerPage() {
     };
 }
 
-/** While signed in, puts a WSO2 Agent Manager card above the model providers; a picked provider comes back through `onSelect` with a `prepareTemplate` step. */
+/** Signs in to Agent Manager from a picker, then runs `next`; cancelling leaves the picker as it was. */
+export function useAgentManagerConnect() {
+    const { rpcClient } = useRpcContext();
+    const [connecting, setConnecting] = useState(false);
+    const connect = async (next: () => void) => {
+        setConnecting(true);
+        const { projectPath } = await rpcClient.getVisualizerLocation();
+        const { success } = await rpcClient.getAgentManagerRpcClient().runAgentManagerAction({ projectPath, action: "signIn" });
+        setConnecting(false);
+        if (success) {
+            next();
+        }
+    };
+    return { connecting, connect };
+}
+
+export function connectionMeta(signedIn: boolean, connecting: boolean, connected: string | undefined): { text?: string; muted: boolean } {
+    if (connecting) {
+        return { text: "Signing In…", muted: true };
+    }
+    return signedIn ? { text: connected, muted: false } : { text: "Not signed in", muted: true };
+}
+
+/** Puts a WSO2 Agent Manager card above the model providers; a picked provider comes back through `onSelect` with a `prepareTemplate` step. */
 export function useAgentManagerModelProviders(connectionKind: string, categories: Category[], onSelect?: OnSelect) {
     const session = useAgentManagerSession();
     const { rpcClient } = useRpcContext();
     const openPage = useAgentManagerPage();
-    const enabled = connectionKind === "MODEL_PROVIDER" && !!session?.signedIn;
+    const { connecting, connect } = useAgentManagerConnect();
+    const signedIn = !!session?.signedIn;
     const { data } = useQuery({
         queryKey: ["agentManagerModelProviders"],
         queryFn: () => rpcClient.getAgentManagerRpcClient().getAgentManagerModelProviders(),
-        enabled,
+        enabled: connectionKind === "MODEL_PROVIDER" && signedIn,
     });
 
     const openPicker = () => openPage("agent-manager-llm-service-providers", (close) => (
         <AgentManagerProviderPicker
             categories={categories}
-            org={session?.org}
             onPick={async (id, metadata) => {
                 // The picker stays up while the host loads the form, so the list never flashes in between.
                 await onSelect?.(id, metadata);
@@ -76,12 +99,12 @@ export function useAgentManagerModelProviders(connectionKind: string, categories
     return {
         categories,
         onSelect,
-        leadingSection: enabled && (
+        leadingSection: connectionKind === "MODEL_PROVIDER" && session && (
             <ListSection>
                 <AgentManagerEntryCard
                     description="Models your organization added to Agent Manager, served through its AI Gateway with platform-issued keys."
-                    meta={data && `${session.org} · ${count(data.providers.length, "LLM service provider")}`}
-                    onClick={openPicker}
+                    {...connectionMeta(signedIn, connecting, data && `${session.org} · ${count(data.providers.length, "LLM service provider")}`)}
+                    onClick={() => !connecting && (signedIn ? openPicker() : connect(openPicker))}
                 />
             </ListSection>
         ),
@@ -90,34 +113,34 @@ export function useAgentManagerModelProviders(connectionKind: string, categories
 
 export const count = (n: number, noun: string) => `${n} ${noun}${n === 1 ? "" : "s"}`;
 
-export function AgentManagerEntryCard({ description, meta, onClick }: { description: string; meta?: string; onClick: () => void }) {
+export function AgentManagerEntryCard({ description, text, muted, onClick }: { description: string; text?: string; muted?: boolean; onClick: () => void }) {
     return (
         <OptionCard
-            accent
             icon={<Icon name="bi-wso2" sx={{ width: 24, height: 24 }} iconSx={{ fontSize: "24px" }} />}
             title={AGENT_MANAGER_TITLE}
             description={description}
-            meta={meta}
+            meta={text}
+            metaMuted={muted}
             onClick={onClick}
         />
     );
 }
 
-export function OptionCard({ icon, title, description, meta, accent, onClick }: {
+export function OptionCard({ icon, title, description, meta, metaMuted, onClick }: {
     icon: JSX.Element;
     title: string;
     description: string;
     meta?: string;
-    accent?: boolean;
+    metaMuted?: boolean;
     onClick: () => void;
 }) {
     return (
-        <EntryCard type="button" accent={accent} onClick={onClick}>
+        <EntryCard type="button" onClick={onClick}>
             <EntryIcon>{icon}</EntryIcon>
             <EntryText>
                 <EntryTitle>{title}</EntryTitle>
                 <Muted>{description}</Muted>
-                {meta && <Meta>{meta}</Meta>}
+                {meta && (metaMuted ? <Muted>{meta}</Muted> : <Meta>{meta}</Meta>)}
             </EntryText>
             <Codicon name="chevron-right" />
         </EntryCard>
@@ -136,7 +159,8 @@ export function ConsoleAction({ label, url }: { label: string; url: string }) {
     );
 }
 
-function AgentManagerProviderPicker({ categories, org, onPick }: { categories: Category[]; org?: string; onPick: OnSelect }) {
+function AgentManagerProviderPicker({ categories, onPick }: { categories: Category[]; onPick: OnSelect }) {
+    const org = useAgentManagerSession()?.org;
     const { rpcClient } = useRpcContext();
     const [preparing, setPreparing] = useState(false);
     const { data, isLoading } = useQuery({
@@ -243,13 +267,13 @@ export const ConsoleLink = styled.button`
     }
 `
 
-const EntryCard = styled.button<{ accent?: boolean }>`
+const EntryCard = styled.button`
     display: flex;
     align-items: center;
     gap: 12px;
     width: 100%;
     padding: 12px;
-    border: 1px solid ${({ accent }: { accent?: boolean }) => (accent ? ThemeColors.PRIMARY : ThemeColors.OUTLINE_VARIANT)};
+    border: 1px solid ${ThemeColors.OUTLINE_VARIANT};
     border-radius: 8px;
     background-color: ${ThemeColors.SURFACE};
     color: ${ThemeColors.ON_SURFACE};

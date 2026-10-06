@@ -26,7 +26,7 @@ import { Codicon, Icon } from "@wso2/ui-toolkit";
 import { useAgentManagerSession } from "../../hooks/useAgentManagerSession";
 import { RelativeLoader } from "../RelativeLoader";
 import { LoaderContainer } from "../RelativeLoader/styles";
-import { AgentManagerEntryCard, ConsoleAction, count, Intro, OptionCard, setExpression } from ".";
+import { AgentManagerEntryCard, connectionMeta, ConsoleAction, count, Intro, OptionCard, setExpression, useAgentManagerConnect } from ".";
 
 const QUERY_KEY = ["agentManagerMcpProxies"];
 
@@ -42,40 +42,41 @@ function useMcpProxies(enabled = true) {
 
 type Step = "choose" | "servers" | "form";
 
-/** Signed in, the MCP form starts with a choice between an Agent Manager server and manual setup; signed out, it opens the form. */
+/** The MCP form starts with a choice between an Agent Manager server, signing in first if needed, and manual setup. */
 export function AgentManagerMcpGate({ onBind, onSetBackOverride, children }: {
     onBind: (binding: AgentManagerMcpBinding, proxyId: string) => void;
     onSetBackOverride?: (handler: (() => void) | null) => void;
     children: ReactNode;
 }) {
     const session = useAgentManagerSession();
-    const { data } = useMcpProxies(!!session?.signedIn);
-    const [step, setStep] = useState<Step>("choose");
     const signedIn = !!session?.signedIn;
+    const { data } = useMcpProxies(signedIn);
+    const { connecting, connect } = useAgentManagerConnect();
+    const [step, setStep] = useState<Step>("choose");
     const toChoice = useCallback(() => setStep("choose"), []);
 
     // The header's back button returns to this choice before leaving the panel.
     useEffect(() => {
-        onSetBackOverride?.(signedIn && step !== "choose" ? toChoice : null);
-    }, [signedIn, step, toChoice, onSetBackOverride]);
+        onSetBackOverride?.(step !== "choose" ? toChoice : null);
+    }, [step, toChoice, onSetBackOverride]);
 
     if (!session) {
         return null;
     }
-    if (!signedIn || step === "form") {
+    if (step === "form") {
         return <>{children}</>;
     }
     if (step === "servers") {
         return (
-            <McpProxyPicker org={session.org} onBound={(binding, proxyId) => { onBind(binding, proxyId); setStep("form"); }} />
+            <McpProxyPicker onBound={(binding, proxyId) => { onBind(binding, proxyId); setStep("form"); }} />
         );
     }
     return (
         <Choices>
             <AgentManagerEntryCard
                 description="MCP servers your organization added to Agent Manager, served through its AI Gateway."
-                meta={data && `${session.org} · ${count(data.proxies.length, "MCP server")}`}
-                onClick={() => setStep("servers")}
+                {...connectionMeta(signedIn, connecting, data && `${session.org} · ${count(data.proxies.length, "MCP server")}`)}
+                onClick={() => !connecting && (signedIn ? setStep("servers") : connect(() => setStep("servers")))}
             />
             <OptionCard
                 icon={<Codicon name="edit" sx={{ fontSize: 20 }} />}
@@ -103,7 +104,8 @@ export function applyMcpBinding(flowNode: FlowNode, binding: AgentManagerMcpBind
     }
 }
 
-function McpProxyPicker({ org, onBound }: { org?: string; onBound: (binding: AgentManagerMcpBinding, proxyId: string) => void }) {
+function McpProxyPicker({ onBound }: { onBound: (binding: AgentManagerMcpBinding, proxyId: string) => void }) {
+    const org = useAgentManagerSession()?.org;
     const { rpcClient } = useRpcContext();
     const queryClient = useQueryClient();
     const [binding, setBinding] = useState(false);

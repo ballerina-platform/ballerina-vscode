@@ -154,7 +154,8 @@ export function AgentManagerSection({ projectPath, part, ampTracingEnabled, hand
         setPending("chooseDeployTarget");
         const chosen = await rpcClient.getAgentManagerRpcClient().runAgentManagerAction({ projectPath, action: "chooseDeployTarget" })
             .finally(() => setPending(undefined));
-        chosen.success && setFormAction("hostOnPlatform");
+        // The prompts can change the project (e.g. adding the amp import), so show the new state now rather than on the next poll.
+        chosen.success ? setFormAction("hostOnPlatform") : refetch();
     };
 
     const closeForm = () => {

@@ -28,11 +28,15 @@ import { addMissingImportsTo, envBase, writeEnvConfigurable } from "./bindings";
 import { api, consoleOrgUrl, DEFAULT_ENVIRONMENT, updateManifest } from "./client";
 import { readPackage } from "./configurables";
 
-// The header each Ballerina client sends its key in, and the path its service URL must end with.
-const BALLERINA_CLIENTS: Record<string, { module: string; label: string; keyHeader: string; pathSuffix: string }> = {
-    anthropic: { module: "ai.anthropic", label: "Anthropic", keyHeader: "x-api-key", pathSuffix: "/v1" },
-    openai: { module: "ai.openai", label: "OpenAI", keyHeader: "authorization", pathSuffix: "" },
-    mistralai: { module: "ai.mistral", label: "Mistral", keyHeader: "authorization", pathSuffix: "" },
+// The Ballerina model provider for each template, and the path its service URL must end with.
+const BALLERINA_CLIENTS: Record<string, { module: string; pathSuffix: string }> = {
+    anthropic: { module: "ai.anthropic", pathSuffix: "/v1" },
+    openai: { module: "ai.openai", pathSuffix: "" },
+    mistralai: { module: "ai.mistral", pathSuffix: "" },
+    "azure-openai": { module: "ai.azure", pathSuffix: "" },
+    "azureai-foundry": { module: "ai.azure", pathSuffix: "" },
+    gemini: { module: "ai.google.gemini", pathSuffix: "/v1beta" },
+    awsbedrock: { module: "ai.aws.bedrock", pathSuffix: "" },
 };
 
 export async function listModelProviders(): Promise<AgentManagerModelProviders> {
@@ -52,13 +56,9 @@ export async function listModelProviders(): Promise<AgentManagerModelProviders> 
 async function describe(provider: { id: string; name: string; template: string }, gatewayUrl: string): Promise<AgentManagerModelProvider> {
     const details = await api.getLlmProvider(provider.id);
     const client = BALLERINA_CLIENTS[provider.template];
-    const keyHeader = details.security?.apiKey?.enabled !== false ? details.security?.apiKey?.key?.toLowerCase() : undefined;
     const summary = { id: provider.id, name: provider.name, template: provider.template, url: `${gatewayUrl}${details.context}` };
     if (!client) {
         return { ...summary, unsupportedReason: "Agent Builder has no model provider for this service yet." };
-    }
-    if (keyHeader && keyHeader !== client.keyHeader) {
-        return { ...summary, module: client.module, unsupportedReason: `Agent Manager expects the key in the ${details.security!.apiKey!.key} header, which the ${client.label} model provider can't send.` };
     }
     return { ...summary, module: client.module, pathSuffix: client.pathSuffix || undefined };
 }
