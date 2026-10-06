@@ -186,8 +186,12 @@ export function AgentManagerSection({ projectPath, part, ampTracingEnabled, hand
         }
         return (
             <Stack>
-                {status.link?.mode === "internal" ? linked : <HostAgent status={status} pending={pending} run={run} refreshing={isFetching} onRefresh={() => refetch()} />}
-                <SignedInFooter status={status} run={run} />
+                {status.link?.mode === "internal" ? linked : (
+                    <>
+                        <HostAgent status={status} pending={pending} run={run} refreshing={isFetching} onRefresh={() => refetch()} />
+                        <SignedInFooter status={status} run={run} />
+                    </>
+                )}
             </Stack>
         );
     };
@@ -368,6 +372,7 @@ function LinkedAgent({ status, pending, run, ampTracingEnabled, handleAmpTracing
         item("openInConsole", "Open in Console"),
         ...(status.deployment?.endpointUrl ? [copyEndpointItem(status.deployment.endpointUrl)] : []),
         item("unlink", "Unlink"),
+        item("signOut", "Sign Out"),
     ];
     const commit = status.build?.commitId?.slice(0, 7);
 
