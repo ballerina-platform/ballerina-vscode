@@ -22,6 +22,7 @@ import com.google.gson.JsonObject;
 import io.ballerina.compiler.syntax.tree.FunctionDefinitionNode;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
 import io.ballerina.compiler.syntax.tree.SyntaxTree;
+import io.ballerina.testmanagerservice.extension.model.Property;
 import io.ballerina.tools.text.TextDocuments;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
@@ -88,6 +89,15 @@ public class UtilsTest {
         Assert.assertEquals(edit.getRange(), new Range(new Position(0, 0), new Position(0, 0)));
         Assert.assertTrue(Utils.defaultModelImportEdit(judged, parse("import ballerina/ai;")).isEmpty());
         Assert.assertTrue(Utils.defaultModelImportEdit(ruleBased, parse("import ballerina/test;")).isEmpty());
+    }
+
+    @Test
+    public void testReturnsError() {
+        Assert.assertTrue(Utils.returnsError(null));
+        Assert.assertTrue(Utils.returnsError(new Property.PropertyBuilder().value("").build()));
+        Assert.assertTrue(Utils.returnsError(new Property.PropertyBuilder().value("error?").build()));
+        Assert.assertTrue(Utils.returnsError(new Property.PropertyBuilder().value("string|error").build()));
+        Assert.assertFalse(Utils.returnsError(new Property.PropertyBuilder().value("()").build()));
     }
 
     @Test
