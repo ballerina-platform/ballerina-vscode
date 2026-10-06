@@ -271,8 +271,9 @@ public class TestManagerService implements ExtendedLanguageServerService {
                 }
 
                 // Generate the test function
-                String function = Utils.getTestFunctionTemplate(request.function(),
-                        Utils.getAgentEvaluationBody(request.targetAgent(), usesEvalSet));
+                String body = Utils.returnsError(request.function().returnType())
+                        ? Utils.getAgentEvaluationBody(request.targetAgent(), usesEvalSet) : "";
+                String function = Utils.getTestFunctionTemplate(request.function(), body);
                 edits.add(new TextEdit(Utils.toRange(lineRange.endLine()), function));
 
                 return new CommonSourceResponse(Map.of(request.filePath(), edits));
@@ -415,7 +416,9 @@ public class TestManagerService implements ExtendedLanguageServerService {
             }
             Utils.defaultModelImportEdit(template.get("parameters"), modulePartNode).ifPresent(edits::add);
             providerTemplate = name -> Utils.getQueriesDataProviderFunctionTemplate(name, queries);
-            patchInPlace = () -> Utils.queriesProviderEdit(provider.get(), queries).ifPresent(edits::add);
+            patchInPlace = () -> edits.add(Utils.queriesProviderEdit(provider.get(), queries)
+                    .orElseThrow(() -> new IllegalArgumentException("Cannot update the queries. The data provider '"
+                            + providerName + "' does not return them as a list. Edit its source instead.")));
         } else {
             String evalSetFile = dataSource.has("evalSetFile") ? dataSource.get("evalSetFile").getAsString() : "";
             if (evalSetFile.isBlank()) {

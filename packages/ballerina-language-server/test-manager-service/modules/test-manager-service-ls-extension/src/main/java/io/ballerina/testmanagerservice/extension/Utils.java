@@ -420,6 +420,12 @@ public class Utils {
                 + Constants.CLOSED_PARAM;
     }
 
+    /** Whether the function can return an error, so a generated body may use {@code check}. */
+    public static boolean returnsError(Property returnType) {
+        String type = returnType == null || returnType.value() == null ? "" : returnType.value().toString().trim();
+        return type.isEmpty() || type.contains("error");
+    }
+
     public static String buildReturnType(Property returnType) {
         if (returnType == null || returnType.value() == null || returnType.value().toString().trim().isEmpty()) {
             return Constants.SPACE + Constants.KEYWORD_RETURNS + Constants.SPACE + "error?";
