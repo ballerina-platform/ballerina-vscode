@@ -1,0 +1,155 @@
+{
+  "description": "Agent model declared as ai:ModelProvider and constructed as openai:ModelProvider resolves to the openai provider",
+  "projectPath": "project_22",
+  "output": {
+    "designModel": {
+      "connections": [
+        {
+          "symbol": "newsAgent",
+          "location": {
+            "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_22/main.bal",
+            "startLine": {
+              "line": 9,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 12,
+              "offset": 2
+            }
+          },
+          "scope": "GLOBAL",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png",
+          "dependentFunctions": [],
+          "dependentConnection": [],
+          "kind": "Agent",
+          "role": "Hacker News Assistant",
+          "modelProvider": {
+            "symbol": "newsAgentModel",
+            "type": "ModelProvider",
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.openai_1.3.5.png"
+          },
+          "typeName": "Agent",
+          "uuid": "14e012b0-1131-a48b-f69d-0afa2ec9fa08",
+          "enableFlowModel": false,
+          "sortText": "main.bal9"
+        },
+        {
+          "symbol": "newsAgentModel",
+          "location": {
+            "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_22/main.bal",
+            "startLine": {
+              "line": 6,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 7,
+              "offset": 77
+            }
+          },
+          "scope": "GLOBAL",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.openai_1.3.5.png",
+          "dependentFunctions": [],
+          "dependentConnection": [],
+          "kind": "Model Provider",
+          "typeName": "ModelProvider",
+          "uuid": "04fea242-9c2d-91ba-6d12-b90482ec45c2",
+          "enableFlowModel": true,
+          "sortText": "main.bal6"
+        }
+      ],
+      "listeners": [
+        {
+          "symbol": "newsAgentListener",
+          "location": {
+            "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_22/main.bal",
+            "startLine": {
+              "line": 14,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 14,
+              "offset": 90
+            }
+          },
+          "attachedServices": [
+            "2d814cf5-4351-b12f-3a4c-c7b8b0c9e0c0"
+          ],
+          "kind": "NAMED",
+          "type": "ai:Listener",
+          "args": [
+            {
+              "key": "listenOn",
+              "value": "check http:getDefaultListener()"
+            }
+          ],
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png",
+          "uuid": "21ff4d97-76c2-15b5-30f5-bc5bdac3965c",
+          "enableFlowModel": true,
+          "sortText": "main.bal14"
+        }
+      ],
+      "services": [
+        {
+          "location": {
+            "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_22/main.bal",
+            "startLine": {
+              "line": 16,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 21,
+              "offset": 1
+            }
+          },
+          "attachedListeners": [
+            "21ff4d97-76c2-15b5-30f5-bc5bdac3965c"
+          ],
+          "connections": [
+            "14e012b0-1131-a48b-f69d-0afa2ec9fa08"
+          ],
+          "workflows": [],
+          "functions": [],
+          "remoteFunctions": [],
+          "resourceFunctions": [
+            {
+              "accessor": "post",
+              "path": "chat",
+              "location": {
+                "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_22/main.bal",
+                "startLine": {
+                  "line": 17,
+                  "offset": 4
+                },
+                "endLine": {
+                  "line": 20,
+                  "offset": 5
+                }
+              },
+              "connections": [
+                "14e012b0-1131-a48b-f69d-0afa2ec9fa08"
+              ],
+              "workflows": [],
+              "workflowSendData": {},
+              "invalidWorkflowSendData": [],
+              "agentCalls": [
+                {
+                  "connection": "14e012b0-1131-a48b-f69d-0afa2ec9fa08",
+                  "line": 18,
+                  "groups": []
+                }
+              ]
+            }
+          ],
+          "absolutePath": "/news\\-agent ",
+          "type": "ai:Service",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png",
+          "uuid": "2d814cf5-4351-b12f-3a4c-c7b8b0c9e0c0",
+          "enableFlowModel": true,
+          "sortText": "main.bal16"
+        }
+      ],
+      "workflows": [],
+      "activities": []
+    }
+  }
+}

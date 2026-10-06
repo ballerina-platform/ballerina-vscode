@@ -34,7 +34,9 @@ const repoRootExtensionsFolder = path.join(__dirname, '..', '..', '..', '..', '.
 const vscodeVersion = '1.125.1';
 const baseVsCodeProfileName = process.env.BI_E2E_PROFILE_NAME ?? `bi-test-profile-${process.pid}`;
 let vscodeLaunchAttempt = 0;
-export const resourcesFolder = path.join(__dirname, '..', '..', '..', 'test-resources');
+// Overridable: VS Code binds a Unix socket under <resources>/settings/<profile>/Code, and macOS caps
+// socket paths at 104 bytes, which a deep checkout alone exceeds. Point this at a short folder there.
+export const resourcesFolder = process.env.BI_E2E_RESOURCES ?? path.join(__dirname, '..', '..', '..', 'test-resources');
 const extensionsWorkRoot = path.join(resourcesFolder, 'extensions-install');
 const marketplaceExtensionsFolder = path.join(extensionsWorkRoot, 'marketplace-cache');
 const preExtensionId = 'WSO2.wso2-integrator';

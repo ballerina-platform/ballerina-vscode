@@ -16,11 +16,12 @@
  * under the License.
  */
 
-import React, { useEffect } from "react";
-import { Controller } from "react-hook-form";
+import React, { useEffect, useMemo } from "react";
+import { useController } from "react-hook-form";
 import { useFormContext } from "../../context";
 import { FormArrayEditor } from "./FormArrayEditor";
 import { FormFieldEditorProps } from "./EditorFactory";
+import { buildRequiredRepeatableRule, useRepeatableRequiredError } from "./utils";
 
 export const FormArrayEditorWrapper = (props: FormFieldEditorProps) => {
     const { form } = useFormContext();
@@ -32,17 +33,23 @@ export const FormArrayEditorWrapper = (props: FormFieldEditorProps) => {
         }
     }, [props.field.value, props.field.key]);
 
+    const validateRequired = useMemo(
+        () => buildRequiredRepeatableRule({ isRequired: !props.field.optional, label: props.field.label }),
+        [props.field.optional, props.field.label]
+    );
+    const { field, fieldState } = useController({
+        name: props.field.key,
+        control,
+        rules: { validate: validateRequired },
+    });
+    const error = useRepeatableRequiredError(field.value, fieldState.error?.message, validateRequired);
+
     return (
-        <Controller
-            name={props.field.key}
-            control={control}
-            render={({ field }) => (
-                <FormArrayEditor
-                    {...props}
-                    value={field.value}
-                    onChange={field.onChange}
-                />
-            )}
+        <FormArrayEditor
+            {...props}
+            value={field.value}
+            onChange={field.onChange}
+            error={error}
         />
     );
 }

@@ -77,6 +77,9 @@ import {
     UpdateMcpServerRequest,
     DeleteMcpServerRequest,
     SetMcpToolsEnabledRequest,
+    SetCopilotOrbVisibleRequest,
+    CopilotToggleSettings,
+    SetCopilotToggleSettingRequest,
     McpLoadErrorsDTO,
     AgentsMdFileInfoDTO,
     ParseSkillFileRequest,
@@ -172,6 +175,10 @@ export const updateMcpServer: RequestType<UpdateMcpServerRequest, AddMcpServerRe
 export const deleteMcpServer: RequestType<DeleteMcpServerRequest, AddMcpServerResponse> = { method: `${_preFix}/deleteMcpServer` };
 export const setMcpToolsEnabled: RequestType<SetMcpToolsEnabledRequest, void> = { method: `${_preFix}/setMcpToolsEnabled` };
 export const getMcpToolsEnabled: RequestType<void, boolean> = { method: `${_preFix}/getMcpToolsEnabled` };
+export const setCopilotOrbVisible: RequestType<SetCopilotOrbVisibleRequest, void> = { method: `${_preFix}/setCopilotOrbVisible` };
+export const getCopilotOrbVisible: RequestType<void, boolean> = { method: `${_preFix}/getCopilotOrbVisible` };
+export const getCopilotToggleSettings: RequestType<void, CopilotToggleSettings> = { method: `${_preFix}/getCopilotToggleSettings` };
+export const setCopilotToggleSetting: RequestType<SetCopilotToggleSettingRequest, void> = { method: `${_preFix}/setCopilotToggleSetting` };
 export const getMcpWorkspaceContext: RequestType<void, McpWorkspaceContextResponse> = { method: `${_preFix}/getMcpWorkspaceContext` };
 export const getMcpLoadErrors: RequestType<void, McpLoadErrorsDTO> = { method: `${_preFix}/getMcpLoadErrors` };
 export const mcpServersChanged: NotificationType<McpServerStatusDTO[]> = { method: `${_preFix}/mcpServersChanged` };

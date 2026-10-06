@@ -26,6 +26,7 @@ import { AIChatView, DangerActionButton, PrimaryActionButton, SecondaryActionBut
 import AddMcpServerModal from "../components/AIChatInput/AddMcpServerModal";
 import { Loader } from "../components/Loader";
 import { AgentManagerMcpSuggestions } from "./AgentManagerMcpSuggestions";
+import { SettingsToggle as HeaderInlineToggle } from "../components/SettingsToggle";
 
 interface Props {
     onClose: () => void;
@@ -70,39 +71,6 @@ const HeaderDivider = styled.div`
     background: var(--vscode-widget-border, var(--vscode-panel-border));
     opacity: 0.6;
     flex-shrink: 0;
-`;
-
-const HeaderInlineToggle = styled.button<{ $on: boolean }>`
-    width: 30px;
-    height: 16px;
-    border-radius: 8px;
-    cursor: pointer;
-    position: relative;
-    flex-shrink: 0;
-    background: ${(p: { $on: boolean }) => (p.$on
-        ? "var(--vscode-button-background)"
-        : "var(--vscode-input-background)")};
-    border: 1px solid ${(p: { $on: boolean }) => (p.$on
-        ? "var(--vscode-contrastBorder, var(--vscode-button-background))"
-        : "var(--vscode-contrastBorder, var(--vscode-checkbox-border, var(--vscode-descriptionForeground)))")};
-    transition: background 0.15s, border-color 0.15s;
-
-    &::after {
-        content: "";
-        position: absolute;
-        box-sizing: border-box;
-        top: 1px;
-        left: ${(p: { $on: boolean }) => (p.$on ? "15px" : "1px")};
-        width: 12px;
-        height: 12px;
-        border-radius: 50%;
-        background: ${(p: { $on: boolean }) => (p.$on
-            ? "var(--vscode-button-foreground)"
-            : "var(--vscode-descriptionForeground)")};
-        border: 1px solid var(--vscode-contrastBorder, transparent);
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-        transition: left 0.15s, background 0.15s;
-    }
 `;
 
 const PanelContent = styled.div`
