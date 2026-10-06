@@ -682,6 +682,10 @@ function CardList(props: CardListProps) {
         || Boolean(expandedGroupId?.startsWith(groupId + GROUP_ID_SEPARATOR));
 
     const handleGroupClick = (groupId: string) => {
+        // Search keeps every group open, so a click has nothing to toggle and must not drop the drill position.
+        if (searchText) {
+            return;
+        }
         setExpandedGroupId(isGroupExpanded(groupId) ? null : groupId);
     };
 

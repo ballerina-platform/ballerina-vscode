@@ -148,6 +148,17 @@ describe("CardList", () => {
             expect(screen.getByText("AWS Default")).toBeTruthy();
         });
 
+        it("keeps the drill position when a group header is clicked during a search", () => {
+            renderNested();
+            fireEvent.click(screen.getByText("AWS Model Providers"));
+            fireEvent.click(screen.getByText("Bedrock"));
+            const search = screen.getByPlaceholderText("Search");
+            fireEvent.input(search, { target: { value: "titan" } });
+            fireEvent.click(screen.getByText("AWS Model Providers"));
+            fireEvent.input(search, { target: { value: "" } });
+            expect(screen.getByRole("heading", { name: "Bedrock" })).toBeTruthy();
+        });
+
         it("merges a single-subgroup chain into one row and one level", () => {
             const chained: any[] = [{
                 title: "Model Providers",
