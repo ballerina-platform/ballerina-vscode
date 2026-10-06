@@ -25,6 +25,7 @@ import { convertConnectionCategories, getSearchConfig } from "./utils";
 import { getAiModuleOrg } from "../../views/BI/AIChatAgent/utils";
 import { AI_COMPONENT_PROGRESS_MESSAGE, AI_COMPONENT_PROGRESS_MESSAGE_TIMEOUT, LOADING_MESSAGE } from "../../constants";
 import { LoaderContainer } from "../RelativeLoader/styles";
+import { useAgentManagerModelProviders } from "../AgentManagerModels";
 
 export function ConnectionSelectionList(props: ConnectionSelectionListProps): JSX.Element {
     const { connectionKind, selectedNode, onSelect, expandedGroupId, onExpandedGroupChange, fillContainerHeight } = props;
@@ -38,6 +39,7 @@ export function ConnectionSelectionList(props: ConnectionSelectionListProps): JS
     const aiModuleOrg = useRef<string>("");
     const searchConfig = useRef<ConnectionSearchConfig>();
     const progressTimeoutRef = useRef<number | null>(null);
+    const agentManager = useAgentManagerModelProviders(connectionKind, connectionCategories, onSelect);
 
     useEffect(() => {
         initPanel();
@@ -83,8 +85,9 @@ export function ConnectionSelectionList(props: ConnectionSelectionListProps): JS
             )}
             {!loading && connectionCategories.length > 0 && (
                 <CardList
-                    categories={connectionCategories}
-                    onSelect={onSelect}
+                    categories={agentManager.categories}
+                    onSelect={agentManager.onSelect}
+                    leadingSection={agentManager.leadingSection}
                     expandedGroupId={expandedGroupId}
                     onExpandedGroupChange={onExpandedGroupChange}
                     fillContainerHeight={fillContainerHeight}

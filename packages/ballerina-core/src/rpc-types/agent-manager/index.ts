@@ -78,7 +78,6 @@ export interface AgentManagerSourceStep {
     message: string;
     actionLabel?: string;
     blocking: boolean;
-    tracingChoice?: boolean;
 }
 
 export interface AgentManagerSource {
@@ -138,6 +137,9 @@ export interface AgentManagerDeployTarget {
     branch: string;
     existing: boolean;
     tracing: boolean;
+    /** Agent Manager LLM providers and MCP servers from .wso2/agent-manager.yaml, attached on deploy. */
+    llmProviders: string[];
+    mcpServers: string[];
 }
 
 export interface AgentManagerConfigInput {
@@ -149,7 +151,6 @@ export interface AgentManagerActionRequest {
     projectPath: string;
     action: AgentManagerAction;
     config?: AgentManagerConfigInput;
-    ampTracing?: boolean;
 }
 
 export interface AgentManagerActionResponse {
@@ -174,10 +175,74 @@ export interface AddAgentManagerMcpServersRequest {
     ids: string[];
 }
 
+export interface AgentManagerModelProvider {
+    id: string;
+    name: string;
+    template: string;
+    /** The Ballerina module whose ModelProvider talks to this template, e.g. "ai.anthropic". */
+    module?: string;
+    url: string;
+    /** Appended to the URL configurable in code, because injected URLs can't carry it. */
+    pathSuffix?: string;
+    unsupportedReason?: string;
+}
+
+export interface AgentManagerModelProviders {
+    signedIn: boolean;
+    providers: AgentManagerModelProvider[];
+    /** The console page where an admin adds LLM service providers. */
+    consoleUrl?: string;
+    error?: string;
+}
+
+export interface AgentManagerModelKeyRequest {
+    projectPath: string;
+    providerId: string;
+    urlVariable: string;
+    keyVariable: string;
+}
+
+export interface AgentManagerMcpProxy {
+    id: string;
+    name: string;
+    description?: string;
+    toolCount?: number;
+    unsupportedReason?: string;
+}
+
+export interface AgentManagerMcpProxies {
+    signedIn: boolean;
+    proxies: AgentManagerMcpProxy[];
+    consoleUrl?: string;
+    error?: string;
+}
+
+export interface AgentManagerMcpBindRequest {
+    projectPath: string;
+    proxyId: string;
+}
+
+export interface AgentManagerMcpBinding extends AgentManagerActionResponse {
+    /** Ballerina expressions for the MCP form's Server Url and auth fields. */
+    serverUrl?: string;
+    auth?: string;
+}
+
+export interface AgentManagerSession {
+    signedIn: boolean;
+    instanceUrl?: string;
+    org?: string;
+}
+
 export interface AgentManagerAPI {
     getAgentManagerStatus: (params: AgentManagerStatusRequest) => Promise<AgentManagerStatus>;
     runAgentManagerAction: (params: AgentManagerActionRequest) => Promise<AgentManagerActionResponse>;
     getAgentManagerConfigForm: (params: AgentManagerStatusRequest) => Promise<AgentManagerConfigForm>;
     getAgentManagerMcpOffer: () => Promise<AgentManagerMcpOffer>;
     addAgentManagerMcpServers: (params: AddAgentManagerMcpServersRequest) => Promise<AgentManagerActionResponse>;
+    getAgentManagerSession: () => Promise<AgentManagerSession>;
+    getAgentManagerModelProviders: () => Promise<AgentManagerModelProviders>;
+    createAgentManagerModelKey: (params: AgentManagerModelKeyRequest) => Promise<AgentManagerActionResponse>;
+    getAgentManagerMcpProxies: (params: AgentManagerStatusRequest) => Promise<AgentManagerMcpProxies>;
+    bindAgentManagerMcpProxy: (params: AgentManagerMcpBindRequest) => Promise<AgentManagerMcpBinding>;
 }

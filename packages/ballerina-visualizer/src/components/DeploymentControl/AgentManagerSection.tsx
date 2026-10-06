@@ -96,7 +96,7 @@ const ErrorText = styled.span`
     word-break: break-word;
 `;
 
-type Run = (action: AgentManagerAction, ampTracing?: boolean) => Promise<void>;
+type Run = (action: AgentManagerAction) => Promise<void>;
 
 interface AgentManagerSectionProps {
     projectPath: string;
@@ -132,7 +132,7 @@ export function AgentManagerSection({ projectPath, part, ampTracingEnabled, hand
     const [formAction, setFormAction] = useState<"hostOnPlatform" | "saveConfig" | undefined>();
     const [formAgentName, setFormAgentName] = useState<string | undefined>();
 
-    const run: Run = async (action, ampTracing) => {
+    const run: Run = async (action) => {
         if (action === "hostOnPlatform") {
             await deploy();
             return;
@@ -143,7 +143,7 @@ export function AgentManagerSection({ projectPath, part, ampTracingEnabled, hand
         }
         setPending(action);
         try {
-            await rpcClient.getAgentManagerRpcClient().runAgentManagerAction({ projectPath, action, ampTracing });
+            await rpcClient.getAgentManagerRpcClient().runAgentManagerAction({ projectPath, action });
         } finally {
             setPending(undefined);
             refetch();
@@ -320,17 +320,15 @@ function SourceHint({ source, pending, run }: { source?: AgentManagerSource; pen
 
 function BlockingStep({ source, pending, run }: { source?: AgentManagerSource; pending?: AgentManagerAction; run: Run }) {
     const step = source?.step!;
-    const [tracing, setTracing] = useState(true);
     return (
         <>
             <Section>
                 <SourceLine source={source} />
                 <Detail>{step.message}</Detail>
             </Section>
-            {step.tracingChoice && <CheckBox checked={tracing} onChange={setTracing} label="Enable Auto Instrumentation" />}
             {step.actionLabel && (
                 <Actions>
-                    <Button appearance="primary" disabled={!!pending} onClick={() => run("fixSource", tracing)}>{step.actionLabel}</Button>
+                    <Button appearance="primary" disabled={!!pending} onClick={() => run("fixSource")}>{step.actionLabel}</Button>
                 </Actions>
             )}
         </>

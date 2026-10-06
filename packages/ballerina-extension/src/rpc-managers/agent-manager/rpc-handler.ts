@@ -20,20 +20,37 @@ import {
     AddAgentManagerMcpServersRequest,
     addAgentManagerMcpServers,
     AgentManagerActionRequest,
+    AgentManagerMcpBindRequest,
+    AgentManagerModelKeyRequest,
     AgentManagerStatusRequest,
+    bindAgentManagerMcpProxy,
+    createAgentManagerModelKey,
     getAgentManagerConfigForm,
+    getAgentManagerModelProviders,
+    getAgentManagerSession,
     getAgentManagerMcpOffer,
+    getAgentManagerMcpProxies,
     getAgentManagerStatus,
     runAgentManagerAction,
 } from "@wso2/ballerina-core";
 import { Messenger } from "vscode-messenger";
 import { addMcpServers, getMcpOffer } from "../../features/agent-manager/copilot";
+import { getSessionSummary, onDidChangeSession } from "../../features/agent-manager/auth";
 import { getConfigForm, getStatus, runAction } from "../../features/agent-manager/flows";
+import { notifyAgentManagerSessionChanged } from "../../RPCLayer";
+import { createModelKey, listModelProviders } from "../../features/agent-manager/models";
+import { bindMcpProxy, listMcpProxies } from "../../features/agent-manager/mcp";
 
 export function registerAgentManagerRpcHandlers(messenger: Messenger) {
     messenger.onRequest(getAgentManagerStatus, (args: AgentManagerStatusRequest) => getStatus(args.projectPath));
-    messenger.onRequest(runAgentManagerAction, (args: AgentManagerActionRequest) => runAction(args.projectPath, args.action, args.config, { ampTracing: args.ampTracing }));
+    messenger.onRequest(runAgentManagerAction, (args: AgentManagerActionRequest) => runAction(args.projectPath, args.action, args.config));
     messenger.onRequest(getAgentManagerConfigForm, (args: AgentManagerStatusRequest) => getConfigForm(args.projectPath));
     messenger.onRequest(getAgentManagerMcpOffer, () => getMcpOffer());
     messenger.onRequest(addAgentManagerMcpServers, (args: AddAgentManagerMcpServersRequest) => addMcpServers(args.ids));
+    messenger.onRequest(getAgentManagerSession, () => getSessionSummary());
+    messenger.onRequest(getAgentManagerModelProviders, () => listModelProviders());
+    onDidChangeSession(() => notifyAgentManagerSessionChanged());
+    messenger.onRequest(createAgentManagerModelKey, (args: AgentManagerModelKeyRequest) => createModelKey(args));
+    messenger.onRequest(getAgentManagerMcpProxies, (args: AgentManagerStatusRequest) => listMcpProxies(args.projectPath));
+    messenger.onRequest(bindAgentManagerMcpProxy, (args: AgentManagerMcpBindRequest) => bindMcpProxy(args));
 }

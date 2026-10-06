@@ -19,11 +19,13 @@
 import * as fs from "fs";
 import * as path from "path";
 import { parse } from "@iarna/toml";
+import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 import { AgentManagerBuild, AgentManagerHostingMode, AgentManagerLink } from "@wso2/ballerina-core";
-import { extension } from "../../BalExtensionContext";
 import { getAccessToken, getJson, getSession, httpRequest, parseJson } from "./auth";
 
-const LINKS_KEY = "ballerina.agentManager.links";
+// Agent Manager deploys to the pipeline's first environment, which self-hosted AMP names 'default'.
+export const DEFAULT_ENVIRONMENT = "default";
+const MANIFEST_FILE = path.join(".wso2", "agent-manager.yaml");
 
 export class AgentManagerApiError extends Error {
     constructor(public readonly status: number, message: string) {
@@ -86,7 +88,27 @@ export interface InternalAgentSpec {
     env: EnvironmentVariable[];
     file?: FileMountInput;
     autoInstrumentation: boolean;
+    modelConfig: AgentConfigInput[];
+    mcpConfig: AgentConfigInput[];
 }
+
+export type AgentConfigKind = "model" | "mcp";
+
+/** Binds an LLM provider or MCP proxy to the agent, with the env var names Agent Manager injects its URL and key under. */
+export interface AgentConfigInput {
+    handle: string;
+    env: EnvNames;
+}
+
+interface AgentConfig {
+    uuid: string;
+    name: string;
+    handle?: string;
+    env: EnvNames;
+}
+
+const envVariables = (env: EnvNames) =>
+    [{ key: "url", name: env.url }, ...(env.apikey ? [{ key: "apikey", name: env.apikey }] : [])];
 
 export interface FileMountInput {
     key: string;
@@ -134,6 +156,8 @@ export const api = {
                 ...(spec.schemaPath ? { schema: { path: spec.schemaPath } } : {}),
             },
             configurations: { env: spec.env, files: spec.file ? [spec.file] : undefined, enableAutoInstrumentation: spec.autoInstrumentation },
+            modelConfig: spec.modelConfig.map((config) => ({ providerName: config.handle, environmentVariables: envVariables(config.env) })),
+            mcpConfig: spec.mcpConfig.map((config) => ({ proxyName: config.handle, environmentVariables: envVariables(config.env) })),
         }),
     createGitSecret: (name: string, username: string, password: string) =>
         request("POST", "/git-secrets", { name, type: "basic", credentials: { username, password } }),
@@ -155,15 +179,57 @@ export const api = {
         request<{ token: string; expires_at: number }>(
             "POST", `/projects/${link.project}/agents/${link.agent}/token?environment=${link.environment}`,
             { expires_in: expiresIn }),
-    getOtelEndpoint: async (environment: string) => {
+    getGatewayUrl: async (environment: string) => {
         const { gateways } = await request<{ gateways: { vhost?: string; environments?: { name: string }[] }[] }>(
             "GET", "/gateways");
         const gateway = gateways.find((g) => g.environments?.some((env) => env.name === environment)) ?? gateways[0];
         if (!gateway?.vhost) {
             throw new Error(`No gateway found for environment '${environment}'.`);
         }
-        return `${gateway.vhost.replace(/\/+$/, "")}/otel`;
+        return gateway.vhost.replace(/\/+$/, "");
     },
+    getOtelEndpoint: async (environment: string) => `${await api.getGatewayUrl(environment)}/otel`,
+    listLlmProviders: async () =>
+        (await request<{ providers: { id: string; uuid: string; name: string; template: string }[] }>("GET", "/llm-providers?limit=100")).providers,
+    getLlmProvider: (id: string) =>
+        request<{ context: string; security?: { enabled?: boolean; apiKey?: { enabled?: boolean; key?: string } } }>("GET", `/llm-providers/${id}`),
+    listMcpProxies: async () =>
+        (await request<{ list: { id: string; name: string; description?: string }[] }>("GET", "/mcp-proxies?limit=100")).list,
+    getMcpProxy: (id: string) => request<McpProxyDetails>("GET", `/mcp-proxies/${id}`),
+    listMcpProxyScopes: async (id: string) =>
+        (await request<{ scopes: { scope: string }[] }>("GET", `/mcp-proxies/${id}/scopes`)).scopes.map((entry) => entry.scope),
+    getEnvironmentId: async (environment: string) =>
+        (await request<{ id: string; name: string }[]>("GET", "/environments")).find((env) => env.name === environment)?.id,
+    getTokenUrl: async (environment: string) => {
+        const { thunderInstances } = await request<{ thunderInstances: { envName: string; tokenUrl: string }[] }>("GET", "/thunder-instances");
+        const tokenUrl = thunderInstances.find((instance) => instance.envName === environment)?.tokenUrl;
+        if (!tokenUrl) {
+            throw new Error(`Agent Manager has no identity provider for environment '${environment}'.`);
+        }
+        return tokenUrl;
+    },
+    listAgentConfigs: async (link: AgentManagerLink, kind: AgentConfigKind): Promise<AgentConfig[]> => {
+        const base = `/projects/${link.project}/agents/${link.agent}/${kind}-configs`;
+        const { configs } = await request<{ configs: { uuid: string }[] }>("GET", `${base}?limit=100`);
+        return Promise.all(configs.map(async ({ uuid }) => {
+            const config = await request<any>("GET", `${base}/${uuid}`);
+            const names = Object.fromEntries((config.environmentVariables ?? []).map((v: { key: string; name: string }) => [v.key, v.name]));
+            return { uuid, name: config.name, handle: config.envMappings?.[link.environment]?.configuration?.providerName, env: { url: names.url, apikey: names.apikey } };
+        }));
+    },
+    createAgentConfig: (link: AgentManagerLink, kind: AgentConfigKind, config: AgentConfigInput) =>
+        request("POST", `/projects/${link.project}/agents/${link.agent}/${kind}-configs`, {
+            name: config.handle,
+            type: kind === "model" ? "llm" : "mcp",
+            envMappings: { [link.environment]: { providerName: config.handle } },
+            environmentVariables: envVariables(config.env),
+        }),
+    // A rename-only PUT: the provider mapping, and so its proxy and keys, stay as they are.
+    renameAgentConfigEnv: (link: AgentManagerLink, kind: AgentConfigKind, uuid: string, env: EnvNames) =>
+        request("PUT", `/projects/${link.project}/agents/${link.agent}/${kind}-configs/${uuid}`, { environmentVariables: envVariables(env) }),
+    deleteLlmProviderKey: (uuid: string, name: string) => request("DELETE", `/llm-providers/${uuid}/api-keys/${name}`),
+    createLlmProviderKey: (uuid: string, name: string, displayName: string) =>
+        request<{ apiKey?: string; message?: string }>("POST", `/llm-providers/${uuid}/api-keys`, { name, displayName }),
     getLatestBuild: async (link: AgentManagerLink): Promise<AgentManagerBuild | undefined> => {
         const base = `/projects/${link.project}/agents/${link.agent}/builds`;
         const latest = (await request<{ builds: { buildName: string }[] }>("GET", `${base}?limit=1`)).builds[0];
@@ -229,6 +295,19 @@ export const api = {
         request("POST", `/projects/${link.project}/agents/${link.agent}/deployments`, { imageId }),
 };
 
+export interface McpProxyDetails {
+    id: string;
+    name: string;
+    description?: string;
+    context: string;
+    vhost?: string;
+    endpoints?: {
+        capabilities?: { tools?: unknown[] };
+        security?: { enabled?: boolean; apiKey?: { enabled?: boolean }; identity?: { enabled?: boolean } };
+        environments?: { environmentUuid: string; deploymentStatus?: string }[];
+    }[];
+}
+
 interface ConfigItem {
     key: string;
     value?: string;
@@ -283,31 +362,52 @@ function isSameSite(candidate: string, trusted: string): boolean {
     }
 }
 
-export function consoleUrl(link: AgentManagerLink): string {
-    // Prototype assumption: a self-hosted console sits next to the API as console.<domain>.
-    const url = new URL(link.instanceUrl);
+// Prototype assumption: a self-hosted console sits next to the API as console.<domain>.
+export function consoleOrgUrl(instanceUrl: string, org: string): string {
+    const url = new URL(instanceUrl);
     url.hostname = url.hostname.replace(/^api\./, "console.");
-    return `${url.origin}/org/${link.org}/project/${link.project}/agents/${link.agent}`;
+    return `${url.origin}/org/${org}`;
 }
 
-type StoredLink = Pick<AgentManagerLink, "instanceUrl" | "org" | "project" | "agent" | "environment">;
-
-function storedLinks(): Record<string, StoredLink> {
-    return extension.context.globalState.get<Record<string, StoredLink>>(LINKS_KEY) ?? {};
+export function consoleUrl(link: AgentManagerLink): string {
+    return `${consoleOrgUrl(link.instanceUrl, link.org)}/project/${link.project}/agents/${link.agent}`;
 }
 
-const linkKey = (projectPath: string) => path.resolve(projectPath);
+export interface EnvNames {
+    url: string;
+    apikey?: string;
+}
+
+/** Committed with the project, so a clone deploys to the same agent; holds handles and env var names, never the instance URL or keys. */
+export interface Manifest {
+    org?: string;
+    project?: string;
+    agent?: string;
+    llmProviders?: { provider: string; env: EnvNames }[];
+    mcpServers?: { proxy: string; env: EnvNames }[];
+}
+
+export function readManifest(projectPath: string): Manifest {
+    const file = path.join(projectPath, MANIFEST_FILE);
+    return fs.existsSync(file) ? parseYaml(fs.readFileSync(file, "utf-8")) ?? {} : {};
+}
+
+export function updateManifest(projectPath: string, change: (manifest: Manifest) => Manifest): void {
+    const file = path.join(projectPath, MANIFEST_FILE);
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    writeProjectFile(projectPath, file, stringifyYaml(change(readManifest(projectPath))));
+}
 
 const agentModes = new Map<string, AgentManagerHostingMode>();
 
-/** Links stay on this machine, so nothing about the instance is committed; another instance or org reads as unlinked. */
+/** Another org, or an agent missing on the signed-in instance, reads as unlinked. */
 export async function readLink(projectPath: string): Promise<AgentManagerLink | undefined> {
     const session = await getSession();
-    const stored = storedLinks()[linkKey(projectPath)];
-    if (!session || !stored || stored.instanceUrl !== session.instanceUrl || stored.org !== session.org) {
+    const { org, project, agent } = readManifest(projectPath);
+    if (!session || !project || !agent || org !== session.org) {
         return undefined;
     }
-    const link: AgentManagerLink = { ...stored, mode: "internal" };
+    const link: AgentManagerLink = { instanceUrl: session.instanceUrl, org, project, agent, environment: DEFAULT_ENVIRONMENT, mode: "internal" };
     const mode = await agentMode(link);
     if (!mode) {
         return undefined;
@@ -344,14 +444,12 @@ function apiKeyExpiry(projectPath: string): number | undefined {
     }
 }
 
-export async function writeLink(projectPath: string, link: AgentManagerLink): Promise<void> {
-    const { instanceUrl, org, project, agent, environment } = link;
-    await extension.context.globalState.update(LINKS_KEY, { ...storedLinks(), [linkKey(projectPath)]: { instanceUrl, org, project, agent, environment } });
+export function writeLink(projectPath: string, { org, project, agent }: AgentManagerLink): void {
+    updateManifest(projectPath, ({ llmProviders, mcpServers }) => ({ org, project, agent, llmProviders, mcpServers }));
 }
 
-export async function removeLink(projectPath: string): Promise<void> {
-    const { [linkKey(projectPath)]: _removed, ...rest } = storedLinks();
-    await extension.context.globalState.update(LINKS_KEY, rest);
+export function removeLink(projectPath: string): void {
+    updateManifest(projectPath, ({ llmProviders, mcpServers }) => ({ llmProviders, mcpServers }));
 }
 
 // A repo can commit symlinks, so a write could land in a tracked file elsewhere; refuse to follow them.

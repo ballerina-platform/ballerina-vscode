@@ -162,6 +162,8 @@ export const getNodeTemplateForConnection = async (
         ...node.metadata,
         description: flowNode?.metadata?.description || node?.metadata?.description,
     };
+    // A picker can fill in fields before the form opens, e.g. an Agent Manager LLM service provider.
+    metadata.prepareTemplate?.(flowNode);
 
     let connectionKind: string;
     switch (nodeId) {

@@ -7,11 +7,12 @@
  * You may not alter or remove any copyright or other notice from copies of this content.
  */
 
-import { FlowNode, LineRange, NodePosition } from "@wso2/ballerina-core";
+import { AgentManagerMcpBinding, FlowNode, LineRange, NodePosition } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { cloneDeep, debounce } from "lodash";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RelativeLoader } from "../../../components/RelativeLoader";
+import { AgentManagerMcpGate, applyMcpBinding } from "../../../components/AgentManagerModels/McpProxies";
 import FlowNodeForm from "../Forms/FlowNodeForm";
 import { McpToolsSelection, ToolScopes } from "./Mcp/McpToolsSelection";
 import { DiscoverToolsModal } from "./Mcp/DiscoverToolsModal";
@@ -38,6 +39,7 @@ interface AddMcpServerProps {
     };
     onSave?: (agentPosition?: NodePosition) => void;
     onBack?: () => void;
+    onSetBackOverride?: (handler: (() => void) | null) => void;
 }
 
 const SERVER_URL_FIELD_KEY = "serverUrl";
@@ -77,6 +79,7 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
     const [isSaving, setIsSaving] = useState<boolean>(false);
     const [showDiscoverModal, setShowDiscoverModal] = useState<boolean>(false);
     const [showScopes, setShowScopes] = useState<boolean>(false);
+    const [formKey, setFormKey] = useState(0);
 
     // Edit mode tracking
     const [resolutionError, setResolutionError] = useState<string>("");
@@ -191,8 +194,10 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
             : await resolveAuthConfig(authValue, rpcClient, projectPathUriRef.current, agentFilePathRef.current);
 
         const accessToken = extractAccessToken(resolvedAuthValue);
+        // The extension mints a token for client-credentials auth it holds credentials for.
+        const usesClientCredentials = /\bclientId\s*:/.test(authValue);
 
-        if (requiresAuth && accessToken === null) {
+        if (requiresAuth && accessToken === null && !usesClientCredentials) {
             setMcpToolsError("");
             setAvailableMcpTools([]);
             setSelectedMcpTools(new Set());
@@ -516,6 +521,13 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
         }
     };
 
+    // The form reads values only when it mounts, so a picked server remounts it.
+    const handleAgentManagerBinding = useCallback((binding: AgentManagerMcpBinding, proxyId: string) => {
+        applyMcpBinding(mcpToolKitNodeRef.current, binding, proxyId);
+        setRequiresAuth(!!binding.auth);
+        setFormKey((key) => key + 1);
+    }, []);
+
     const isSaveDisabled = useMemo(() => {
         return availableMcpTools.length > 0 && selectedMcpTools.size === 0;
     }, [availableMcpTools.length, selectedMcpTools.size]);
@@ -588,6 +600,51 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
         }
     }), [requiresAuth, editMode]);
 
+    const form = mcpToolKitNodeTemplateRef && (
+        <FlowNodeForm
+            key={formKey}
+            ref={formRef}
+            fileName={mcpToolKitNodeRef.current?.codedata?.lineRange?.fileName ? mcpToolKitNodeRef.current.codedata.lineRange?.fileName : agentFileEndLineRangeRef.current?.fileName}
+            targetLineRange={mcpToolKitNodeRef.current?.codedata?.lineRange ? mcpToolKitNodeRef.current.codedata.lineRange : agentFileEndLineRangeRef.current}
+            nodeFormTemplate={mcpToolKitNodeTemplateRef.current}
+            submitText={"Save"}
+            node={mcpToolKitNodeRef.current}
+            onSubmit={handleSave}
+            onChange={(fieldKey, value) => {
+                const processed = lastProcessedValuesRef.current;
+                if (fieldKey === SERVER_URL_FIELD_KEY) {
+                    const isReplay = processed !== null &&
+                        normalizeExpressionValue(value) === normalizeExpressionValue(processed.serverUrl);
+                    setServerUrl(value);
+                    if (processed) processed.serverUrl = value;
+                    if (editMode && !isInitializingEditModeRef.current && toolSource !== null && !isReplay) {
+                        setToolSource(null);
+                    }
+                } else if (fieldKey === AUTH_FIELD_KEY) {
+                    const isReplay = processed !== null &&
+                        normalizeExpressionValue(value) === normalizeExpressionValue(processed.auth);
+                    setAuth(value);
+                    if (processed) processed.auth = value;
+                    if (editMode && !isInitializingEditModeRef.current && toolSource !== null && !isReplay) {
+                        setToolSource(null);
+                    }
+                }
+            }}
+            derivedFields={editMode ? [] : [
+                {
+                    sourceField: RESULT_FIELD_KEY,
+                    targetField: TOOLKIT_NAME_FIELD_KEY,
+                    deriveFn: generateToolKitName,
+                    breakOnManualEdit: true
+                }
+            ]}
+            showProgressIndicator={isSaving}
+            disableSaveButton={isSaveDisabled}
+            injectedComponents={injectedComponents}
+            fieldOverrides={fieldOverrides}
+        />
+    );
+
     return (
         <Container>
             {isLoading && (
@@ -596,49 +653,7 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
                 </LoaderContainer>
             )}
 
-            {mcpToolKitNodeTemplateRef && (
-                <FlowNodeForm
-                    ref={formRef}
-                    fileName={mcpToolKitNodeRef.current?.codedata?.lineRange?.fileName ? mcpToolKitNodeRef.current.codedata.lineRange?.fileName : agentFileEndLineRangeRef.current?.fileName}
-                    targetLineRange={mcpToolKitNodeRef.current?.codedata?.lineRange ? mcpToolKitNodeRef.current.codedata.lineRange : agentFileEndLineRangeRef.current}
-                    nodeFormTemplate={mcpToolKitNodeTemplateRef.current}
-                    submitText={"Save"}
-                    node={mcpToolKitNodeRef.current}
-                    onSubmit={handleSave}
-                    onChange={(fieldKey, value) => {
-                        const processed = lastProcessedValuesRef.current;
-                        if (fieldKey === SERVER_URL_FIELD_KEY) {
-                            const isReplay = processed !== null &&
-                                normalizeExpressionValue(value) === normalizeExpressionValue(processed.serverUrl);
-                            setServerUrl(value);
-                            if (processed) processed.serverUrl = value;
-                            if (editMode && !isInitializingEditModeRef.current && toolSource !== null && !isReplay) {
-                                setToolSource(null);
-                            }
-                        } else if (fieldKey === AUTH_FIELD_KEY) {
-                            const isReplay = processed !== null &&
-                                normalizeExpressionValue(value) === normalizeExpressionValue(processed.auth);
-                            setAuth(value);
-                            if (processed) processed.auth = value;
-                            if (editMode && !isInitializingEditModeRef.current && toolSource !== null && !isReplay) {
-                                setToolSource(null);
-                            }
-                        }
-                    }}
-                    derivedFields={editMode ? [] : [
-                        {
-                            sourceField: RESULT_FIELD_KEY,
-                            targetField: TOOLKIT_NAME_FIELD_KEY,
-                            deriveFn: generateToolKitName,
-                            breakOnManualEdit: true
-                        }
-                    ]}
-                    showProgressIndicator={isSaving}
-                    disableSaveButton={isSaveDisabled}
-                    injectedComponents={injectedComponents}
-                    fieldOverrides={fieldOverrides}
-                />
-            )}
+            {editMode ? form : !isLoading && <AgentManagerMcpGate onBind={handleAgentManagerBinding} onSetBackOverride={props.onSetBackOverride}>{form}</AgentManagerMcpGate>}
 
             <DiscoverToolsModal
                 isOpen={showDiscoverModal}

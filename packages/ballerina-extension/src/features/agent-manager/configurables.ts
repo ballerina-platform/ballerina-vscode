@@ -73,7 +73,7 @@ function isOwnConfig(projectPath: string): boolean {
 }
 
 // The language server returns Config.toml values as Ballerina literals; only simple ones are prefilled.
-function literalValue(raw: unknown): string | undefined {
+export function literalValue(raw: unknown): string | undefined {
     if (typeof raw !== "string" || !raw || raw.startsWith("{") || raw.startsWith("[")) {
         return undefined;
     }
@@ -148,7 +148,13 @@ async function variableFields(ctx: VariableContext, variable: ConfigVariable): P
     return [{ ...field(ctx, [name], name, type, required), target: "file", unsupported: "Set this value in the Agent Manager console." }];
 }
 
-export async function buildConfigFields(projectPath: string, envKeys: string[], fileSaved: boolean): Promise<AgentManagerConfigField[]> {
+// Agent Manager fills `configurable x = os:getEnv("NAME")` itself when it injects NAME.
+function readsEnv(variable: ConfigVariable, envNames: Set<string>): boolean {
+    const name = /^os:getEnv\(\s*"([^"]+)"\s*\)$/.exec(String((variable.properties as any)?.defaultValue?.value ?? "").trim())?.[1];
+    return !!name && envNames.has(name);
+}
+
+export async function buildConfigFields(projectPath: string, envKeys: string[], fileSaved: boolean, injectedEnv: Set<string>): Promise<AgentManagerConfigField[]> {
     const pkg = readPackage(projectPath);
     const rootKey = `${pkg.org}/${pkg.name}`;
     const response = await StateMachine.langClient().getConfigVariablesV2({ projectPath, includeLibraries: true }) as any;
@@ -163,7 +169,7 @@ export async function buildConfigFields(projectPath: string, envKeys: string[], 
             const rootModule = pkgKey === rootKey && !moduleName;
             const group = rootModule ? "" : `${pkgKey}${moduleName ? `/${moduleName}` : ""}`;
             const ctx = { projectPath, section: sectionFor(pkgKey, moduleName), group, rootModule, ownConfig, envKeys, fileSaved };
-            for (const variable of variables.filter((v) => !(v.codedata as any)?.data?.isTestConfig)) {
+            for (const variable of variables.filter((v) => !(v.codedata as any)?.data?.isTestConfig && !readsEnv(v, injectedEnv))) {
                 const candidates = await variableFields(ctx, variable);
                 fields.push(...candidates.filter((f) => pkgKey === rootKey || f.required || f.localValue !== undefined));
             }

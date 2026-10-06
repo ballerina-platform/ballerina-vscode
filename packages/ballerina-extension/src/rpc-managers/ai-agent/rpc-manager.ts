@@ -49,6 +49,7 @@ import { writeBallerinaFileDidOpen } from "../../utils/modification";
 import { updateSourceCode } from "../../utils/source-utils";
 import { addMissingImports, checkProjectDiagnostics, removeUnusedImports } from "../ai-panel/repair-utils";
 import { CONFIGURE_DEFAULT_MODEL_COMMAND } from "../../features/ai/constants";
+import { mcpAccessToken } from "../../features/agent-manager/mcp";
 
 
 interface EntryPosition {
@@ -129,7 +130,8 @@ export class AiAgentRpcManager implements AIAgentAPI {
         return new Promise(async (resolve) => {
             const context = StateMachine.context();
             try {
-                const res: McpToolsResponse = await context.langClient.getMcpTools(params);
+                const accessToken = params.accessToken ?? await mcpAccessToken(params.serviceUrl).catch((): undefined => undefined);
+                const res: McpToolsResponse = await context.langClient.getMcpTools({ ...params, accessToken });
                 resolve(res);
             } catch (error) {
                 console.log(error);

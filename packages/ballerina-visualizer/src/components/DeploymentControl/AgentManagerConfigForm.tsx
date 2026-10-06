@@ -20,7 +20,7 @@ import React, { useEffect, useState } from "react";
 import styled from "@emotion/styled";
 import { AgentManagerConfigField, AgentManagerConfigForm as ConfigFormData, AgentManagerDeployTarget } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { Button, CheckBox, Codicon, ProgressRing } from "@wso2/ui-toolkit";
+import { Button, CheckBox, ProgressRing } from "@wso2/ui-toolkit";
 import { PopupContent, PopupFooter } from "../../views/BI/Connection/styles";
 import { ConfigField } from "../../views/AIPanel/components/ConfigurationCollector";
 
@@ -39,19 +39,49 @@ const Muted = styled.span`
     font-size: 12px;
 `;
 
-const Summary = styled.div`
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    padding-bottom: 12px;
-    border-bottom: 1px solid var(--vscode-welcomePage-tileBorder);
+const Summary = styled.dl`
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 10px 24px;
+    margin: 0;
+    font-size: 13px;
 `;
 
-const SummaryRow = styled.span`
+const Label = styled.dt`
+    color: var(--vscode-descriptionForeground);
+`;
+
+const Value = styled.dd`
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 6px;
-    color: var(--vscode-descriptionForeground);
+    min-width: 0;
+    margin: 0;
+    overflow-wrap: anywhere;
+`;
+
+const Pill = styled.span`
+    padding: 1px 8px;
+    border: 1px solid var(--vscode-welcomePage-tileBorder);
+    border-radius: 10px;
+    font-size: 12px;
+`;
+
+const Section = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-top: 16px;
+    border-top: 1px solid var(--vscode-welcomePage-tileBorder);
+`;
+
+const Loading = styled.div`
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 160px;
+    padding: 32px 0;
 `;
 
 const ErrorText = styled.span`
@@ -116,16 +146,20 @@ export function AgentManagerConfigForm({ projectPath, description, action, submi
     }, [projectPath]);
 
     if (!form) {
-        return <PopupContent><ProgressRing /></PopupContent>;
+        return <PopupContent><Loading><ProgressRing /></Loading></PopupContent>;
     }
     const fileFields = form.fields.some((f) => f.target === "file" && !f.unsupported);
     return (
         <>
             <PopupContent>
                 {form.target && <TargetSummary target={form.target} />}
-                {form.fields.length > 0 && <Muted>{description}</Muted>}
                 {form.error && <ErrorText>Couldn't read this agent's configurables: {form.error}</ErrorText>}
-                {form.fields.length === 0 && !form.error && <Muted>This agent has no configurables to set.</Muted>}
+                {form.fields.length > 0 && (
+                    <Section>
+                        <GroupTitle>Configurables</GroupTitle>
+                        <Muted>{description}</Muted>
+                    </Section>
+                )}
                 {groupFields(form.fields).map(([group, fields]) => (
                     <Group key={group}>
                         {group && <GroupTitle>{group}</GroupTitle>}
@@ -157,9 +191,20 @@ export function AgentManagerConfigForm({ projectPath, description, action, submi
 function TargetSummary({ target }: { target: AgentManagerDeployTarget }) {
     return (
         <Summary>
-            <SummaryRow><Codicon name="github" sx={{ fontSize: 12 }} />{target.repository} · {target.branch}</SummaryRow>
-            <SummaryRow><Codicon name="folder" sx={{ fontSize: 12 }} />Project: {target.project}{target.existing && " · Updates the existing agent"}</SummaryRow>
-            <SummaryRow><Codicon name="telescope" sx={{ fontSize: 12 }} />Auto-instrumentation {target.tracing ? "on" : "off"}</SummaryRow>
+            <Label>Repository</Label>
+            <Value>{target.repository} · {target.branch}</Value>
+            <Label>Project</Label>
+            <Value>{target.project}{target.existing && <Muted>Updates the existing agent</Muted>}</Value>
+            <Label>Auto-Instrumentation</Label>
+            <Value>{target.tracing ? "On" : "Off"}</Value>
+            {target.llmProviders?.length > 0 && <>
+                <Label>LLM Service Providers</Label>
+                <Value>{target.llmProviders.map((name) => <Pill key={name}>{name}</Pill>)}</Value>
+            </>}
+            {target.mcpServers?.length > 0 && <>
+                <Label>MCP Servers</Label>
+                <Value>{target.mcpServers.map((name) => <Pill key={name}>{name}</Pill>)}</Value>
+            </>}
         </Summary>
     );
 }

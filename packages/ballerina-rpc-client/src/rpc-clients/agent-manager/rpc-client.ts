@@ -23,11 +23,22 @@ import {
     AgentManagerActionRequest,
     AgentManagerActionResponse,
     AgentManagerConfigForm,
+    AgentManagerMcpBindRequest,
+    AgentManagerMcpBinding,
     AgentManagerMcpOffer,
+    AgentManagerMcpProxies,
+    AgentManagerModelKeyRequest,
+    AgentManagerModelProviders,
+    AgentManagerSession,
     AgentManagerStatus,
     AgentManagerStatusRequest,
+    bindAgentManagerMcpProxy,
     getAgentManagerConfigForm,
     getAgentManagerMcpOffer,
+    getAgentManagerMcpProxies,
+    createAgentManagerModelKey,
+    getAgentManagerModelProviders,
+    getAgentManagerSession,
     getAgentManagerStatus,
     runAgentManagerAction,
 } from "@wso2/ballerina-core";
@@ -59,5 +70,25 @@ export class AgentManagerRpcClient implements AgentManagerAPI {
 
     addAgentManagerMcpServers(params: AddAgentManagerMcpServersRequest): Promise<AgentManagerActionResponse> {
         return this._messenger.sendRequest(addAgentManagerMcpServers, HOST_EXTENSION, params);
+    }
+
+    getAgentManagerSession(): Promise<AgentManagerSession> {
+        return this._messenger.sendRequest(getAgentManagerSession, HOST_EXTENSION);
+    }
+
+    getAgentManagerModelProviders(): Promise<AgentManagerModelProviders> {
+        return this._messenger.sendRequest(getAgentManagerModelProviders, HOST_EXTENSION);
+    }
+
+    createAgentManagerModelKey(params: AgentManagerModelKeyRequest): Promise<AgentManagerActionResponse> {
+        return this._messenger.sendRequest(createAgentManagerModelKey, HOST_EXTENSION, params);
+    }
+
+    getAgentManagerMcpProxies(params: AgentManagerStatusRequest): Promise<AgentManagerMcpProxies> {
+        return this._messenger.sendRequest(getAgentManagerMcpProxies, HOST_EXTENSION, params);
+    }
+
+    bindAgentManagerMcpProxy(params: AgentManagerMcpBindRequest): Promise<AgentManagerMcpBinding> {
+        return this._messenger.sendRequest(bindAgentManagerMcpProxy, HOST_EXTENSION, params);
     }
 }

@@ -50,12 +50,23 @@ export async function getSession(): Promise<AgentManagerSession | undefined> {
     return raw ? JSON.parse(raw) : undefined;
 }
 
+const sessionChanged = new vscode.EventEmitter<void>();
+/** Fires on sign-in and on every sign-out, including the ones a rejected token forces. */
+export const onDidChangeSession = sessionChanged.event;
+
+/** What webviews may know about the session; tokens never leave the extension. */
+export async function getSessionSummary(): Promise<{ signedIn: boolean; instanceUrl?: string; org?: string }> {
+    const session = await getSession();
+    return session ? { signedIn: true, instanceUrl: session.instanceUrl, org: session.org } : { signedIn: false };
+}
+
 async function saveSession(session: AgentManagerSession): Promise<void> {
     await extension.context.secrets.store(SESSION_KEY, JSON.stringify(session));
 }
 
 export async function signOut(): Promise<void> {
     await extension.context.secrets.delete(SESSION_KEY);
+    sessionChanged.fire();
 }
 
 let refreshing: Promise<string | undefined> | undefined;
@@ -145,6 +156,7 @@ export async function signIn(): Promise<AgentManagerSession | undefined> {
         ...toSessionTokens(token),
     };
     await saveSession(session);
+    sessionChanged.fire();
     return session;
 }
 

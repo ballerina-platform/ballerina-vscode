@@ -16,13 +16,19 @@
  * under the License.
  */
 
-import { RequestType } from "vscode-messenger-common";
+import { NotificationType, RequestType } from "vscode-messenger-common";
 import {
     AddAgentManagerMcpServersRequest,
     AgentManagerActionRequest,
     AgentManagerActionResponse,
     AgentManagerConfigForm,
+    AgentManagerMcpBindRequest,
+    AgentManagerMcpBinding,
     AgentManagerMcpOffer,
+    AgentManagerMcpProxies,
+    AgentManagerModelKeyRequest,
+    AgentManagerModelProviders,
+    AgentManagerSession,
     AgentManagerStatus,
     AgentManagerStatusRequest,
 } from ".";
@@ -38,3 +44,15 @@ export const getAgentManagerMcpOffer: RequestType<void, AgentManagerMcpOffer> =
     { method: `${_preFix}/getAgentManagerMcpOffer` };
 export const addAgentManagerMcpServers: RequestType<AddAgentManagerMcpServersRequest, AgentManagerActionResponse> =
     { method: `${_preFix}/addAgentManagerMcpServers` };
+export const getAgentManagerModelProviders: RequestType<void, AgentManagerModelProviders> =
+    { method: `${_preFix}/getAgentManagerModelProviders` };
+export const createAgentManagerModelKey: RequestType<AgentManagerModelKeyRequest, AgentManagerActionResponse> =
+    { method: `${_preFix}/createAgentManagerModelKey` };
+export const getAgentManagerMcpProxies: RequestType<AgentManagerStatusRequest, AgentManagerMcpProxies> =
+    { method: `${_preFix}/getAgentManagerMcpProxies` };
+export const bindAgentManagerMcpProxy: RequestType<AgentManagerMcpBindRequest, AgentManagerMcpBinding> =
+    { method: `${_preFix}/bindAgentManagerMcpProxy` };
+export const getAgentManagerSession: RequestType<void, AgentManagerSession> =
+    { method: `${_preFix}/getAgentManagerSession` };
+export const agentManagerSessionChanged: NotificationType<AgentManagerSession> =
+    { method: `${_preFix}/agentManagerSessionChanged` };

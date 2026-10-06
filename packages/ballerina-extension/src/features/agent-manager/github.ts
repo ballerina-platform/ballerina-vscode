@@ -47,7 +47,6 @@ export interface SourceFacts {
 }
 
 export interface Preparation {
-    ampImport: boolean;
     openApiSpec: boolean;
     exposedFiles: string[];
     gitignore: boolean;
@@ -161,7 +160,7 @@ function preparationStep(prep: Preparation): AgentManagerSourceStep | undefined 
         files.length > 0 && `Agent Manager needs ${files.join(", ")}`,
         prep.exposedFiles.length > 0 && `${prep.exposedFiles.join(" and ")} must stay out of Git`,
     ].filter(Boolean);
-    return { id: "prepare", message: `${parts.join(". ")}.`, actionLabel: "Prepare Project", blocking: true, tracingChoice: prep.ampImport };
+    return { id: "prepare", message: `${parts.join(". ")}.`, actionLabel: "Prepare Project", blocking: true };
 }
 
 // Deploys build the upstream commit, so the files the build needs (and must not see) are checked there, not on disk.
