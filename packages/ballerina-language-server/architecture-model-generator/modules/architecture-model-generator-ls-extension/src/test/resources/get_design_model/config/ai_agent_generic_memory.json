@@ -1,0 +1,232 @@
+{
+  "description": "Agent memory declared as ai:Memory resolves to the class it constructs",
+  "projectPath": "project_23",
+  "output": {
+    "designModel": {
+      "connections": [
+        {
+          "symbol": "genericAgent",
+          "location": {
+            "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode.worktrees/verify-1191/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_23/main.bal",
+            "startLine": {
+              "line": 9,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 10,
+              "offset": 40
+            }
+          },
+          "scope": "GLOBAL",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png",
+          "dependentFunctions": [],
+          "dependentConnection": [
+            "545dd0f1-3f9d-c899-02ea-e8cf5fb1c79f"
+          ],
+          "kind": "Agent",
+          "role": "a",
+          "modelProvider": {
+            "symbol": "model",
+            "type": "Wso2ModelProvider",
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png?wso2_icon"
+          },
+          "memory": {
+            "symbol": "genericMemory",
+            "type": "ShortTermMemory"
+          },
+          "typeName": "Agent",
+          "uuid": "c9fb57f6-d821-740c-a761-d08bfa5eb74e",
+          "enableFlowModel": false,
+          "sortText": "main.bal9"
+        },
+        {
+          "symbol": "genericMemory",
+          "location": {
+            "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode.worktrees/verify-1191/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_23/main.bal",
+            "startLine": {
+              "line": 5,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 5,
+              "offset": 68
+            }
+          },
+          "scope": "GLOBAL",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png",
+          "dependentFunctions": [],
+          "dependentConnection": [],
+          "kind": "Connection",
+          "uuid": "d6187cac-7491-573a-964b-0ae3b657b54c",
+          "enableFlowModel": false,
+          "sortText": "main.bal5"
+        },
+        {
+          "symbol": "concreteExplicitMemory",
+          "location": {
+            "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode.worktrees/verify-1191/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_23/main.bal",
+            "startLine": {
+              "line": 6,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 6,
+              "offset": 86
+            }
+          },
+          "scope": "GLOBAL",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png",
+          "dependentFunctions": [],
+          "dependentConnection": [],
+          "kind": "Connection",
+          "uuid": "44773bbe-a52b-eba6-fa9b-1a6f40d055b0",
+          "enableFlowModel": false,
+          "sortText": "main.bal6"
+        },
+        {
+          "symbol": "concreteImplicitAgent",
+          "location": {
+            "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode.worktrees/verify-1191/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_23/main.bal",
+            "startLine": {
+              "line": 13,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 14,
+              "offset": 49
+            }
+          },
+          "scope": "GLOBAL",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png",
+          "dependentFunctions": [],
+          "dependentConnection": [
+            "c640bd16-43b9-2dac-d235-61120a3b2480",
+            "545dd0f1-3f9d-c899-02ea-e8cf5fb1c79f"
+          ],
+          "kind": "Agent",
+          "role": "a",
+          "modelProvider": {
+            "symbol": "model",
+            "type": "Wso2ModelProvider",
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png?wso2_icon"
+          },
+          "memory": {
+            "symbol": "concreteImplicitMemory",
+            "type": "ShortTermMemory"
+          },
+          "typeName": "Agent",
+          "uuid": "1213c008-9251-db8f-b77d-86240061aa63",
+          "enableFlowModel": false,
+          "sortText": "main.bal13"
+        },
+        {
+          "symbol": "model",
+          "location": {
+            "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode.worktrees/verify-1191/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_23/main.bal",
+            "startLine": {
+              "line": 2,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 2,
+              "offset": 70
+            }
+          },
+          "scope": "GLOBAL",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png?wso2_icon",
+          "dependentFunctions": [],
+          "dependentConnection": [],
+          "kind": "Model Provider",
+          "typeName": "Wso2ModelProvider",
+          "uuid": "545dd0f1-3f9d-c899-02ea-e8cf5fb1c79f",
+          "enableFlowModel": true,
+          "sortText": "main.bal2"
+        },
+        {
+          "symbol": "concreteExplicitAgent",
+          "location": {
+            "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode.worktrees/verify-1191/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_23/main.bal",
+            "startLine": {
+              "line": 11,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 12,
+              "offset": 49
+            }
+          },
+          "scope": "GLOBAL",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png",
+          "dependentFunctions": [],
+          "dependentConnection": [
+            "44773bbe-a52b-eba6-fa9b-1a6f40d055b0",
+            "545dd0f1-3f9d-c899-02ea-e8cf5fb1c79f"
+          ],
+          "kind": "Agent",
+          "role": "a",
+          "modelProvider": {
+            "symbol": "model",
+            "type": "Wso2ModelProvider",
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png?wso2_icon"
+          },
+          "memory": {
+            "symbol": "concreteExplicitMemory",
+            "type": "ShortTermMemory"
+          },
+          "typeName": "Agent",
+          "uuid": "5b9c397e-2f53-38f3-9210-97a29fe06ff9",
+          "enableFlowModel": false,
+          "sortText": "main.bal11"
+        },
+        {
+          "symbol": "store",
+          "location": {
+            "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode.worktrees/verify-1191/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_23/main.bal",
+            "startLine": {
+              "line": 3,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 3,
+              "offset": 82
+            }
+          },
+          "scope": "GLOBAL",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png",
+          "dependentFunctions": [],
+          "dependentConnection": [],
+          "kind": "Connection",
+          "uuid": "1303d150-0c60-acc1-1c9e-91f00274ffa0",
+          "enableFlowModel": false,
+          "sortText": "main.bal3"
+        },
+        {
+          "symbol": "concreteImplicitMemory",
+          "location": {
+            "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode.worktrees/verify-1191/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_23/main.bal",
+            "startLine": {
+              "line": 7,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 7,
+              "offset": 68
+            }
+          },
+          "scope": "GLOBAL",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png",
+          "dependentFunctions": [],
+          "dependentConnection": [],
+          "kind": "Connection",
+          "uuid": "c640bd16-43b9-2dac-d235-61120a3b2480",
+          "enableFlowModel": false,
+          "sortText": "main.bal7"
+        }
+      ],
+      "listeners": [],
+      "services": [],
+      "workflows": [],
+      "activities": []
+    }
+  }
+}
