@@ -18,14 +18,8 @@
 
 /**
  * @jest-environment node
- *
- * Under WSO2 Integrator, ICP must run from the copy the product seeds into the user's data
- * folder (WSO2_INTEGRATOR_ICP_HOME), not from the install tree, where H2 may only be able to
- * open its database read-only (wso2/product-integrator#1711). Real directories, not an fs mock.
  */
 
-// The full @wso2/ballerina-core barrel drags in ESM LS-connection code jest can't transform;
-// detect.ts only needs isSamePath, which lives in an import-free module.
 jest.mock('@wso2/ballerina-core', () => ({
     isSamePath: jest.requireActual('../../../ballerina-core/src/utils/path-utils').isSamePath,
 }));
@@ -38,40 +32,37 @@ import * as vscode from 'vscode';
 import { resolveICPPath } from '../features/icp/detect';
 
 const SCRIPT = process.platform === 'win32' ? 'icp.bat' : 'icp.sh';
-
-let root: string;
-let installRoot: string;
-let bundledPath: string;
-let seededHome: string;
-let seededPath: string;
-let configuredPath: string | undefined;
-let settingWrites: unknown[];
-let errorsShown: string[];
 const originalIcpHome = process.env.WSO2_INTEGRATOR_ICP_HOME;
 
-/** An ICP distribution at `home`, returning its launcher path. */
-function makeIcp(home: string): string {
-    fs.mkdirSync(path.join(home, 'bin'), { recursive: true });
-    const script = path.join(home, 'bin', SCRIPT);
+let tmpDir: string;
+let installPath: string;
+let homePath: string;
+let icpPathSetting: string | undefined;
+let savedSettings: unknown[];
+let errors: string[];
+
+function createIcp(dir: string): string {
+    fs.mkdirSync(path.join(dir, 'bin'), { recursive: true });
+    const script = path.join(dir, 'bin', SCRIPT);
     fs.writeFileSync(script, '');
     return script;
 }
 
 beforeEach(() => {
-    root = fs.mkdtempSync(path.join(os.tmpdir(), 'icp-path-'));
-    installRoot = path.join(root, 'install');
-    bundledPath = makeIcp(path.join(installRoot, 'components', 'icp'));
-    seededHome = path.join(root, 'home', '.wso2-integrator', 'components', 'icp', '2.1.0');
-    seededPath = makeIcp(seededHome);
-    process.env.WSO2_INTEGRATOR_ICP_HOME = seededHome;
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'icp-path-'));
+    const installRoot = path.join(tmpDir, 'install');
+    installPath = createIcp(path.join(installRoot, 'components', 'icp'));
+    const icpHome = path.join(tmpDir, 'home', 'icp');
+    homePath = createIcp(icpHome);
+    process.env.WSO2_INTEGRATOR_ICP_HOME = icpHome;
 
-    configuredPath = undefined;
-    settingWrites = [];
-    errorsShown = [];
+    icpPathSetting = undefined;
+    savedSettings = [];
+    errors = [];
     jest.spyOn(vscode.workspace, 'getConfiguration').mockImplementation((() => ({
-        get: (key: string) => (key === 'icpPath' ? configuredPath : undefined),
+        get: (key: string) => (key === 'icpPath' ? icpPathSetting : undefined),
         update: (_key: string, value: unknown) => {
-            settingWrites.push(value);
+            savedSettings.push(value);
             return Promise.resolve();
         },
     })) as unknown as typeof vscode.workspace.getConfiguration);
@@ -80,7 +71,7 @@ beforeEach(() => {
         extensionPath: path.join(installRoot, 'resources', 'app', 'extensions', id),
     })) as unknown as typeof vscode.extensions.getExtension);
     jest.spyOn(vscode.window, 'showErrorMessage').mockImplementation((message?: string) => {
-        errorsShown.push(message);
+        errors.push(message);
         return Promise.resolve(undefined);
     });
 });
@@ -92,42 +83,40 @@ afterEach(() => {
     } else {
         process.env.WSO2_INTEGRATOR_ICP_HOME = originalIcpHome;
     }
-    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(tmpDir, { recursive: true, force: true });
 });
 
-describe('resolveICPPath under WSO2 Integrator', () => {
-    it('runs the seeded copy when no path is configured, without persisting it', async () => {
-        expect(await resolveICPPath()).toBe(seededPath);
-        expect(settingWrites).toHaveLength(0);
+describe('resolveICPPath', () => {
+    it('uses WSO2_INTEGRATOR_ICP_HOME when icpPath is not set', async () => {
+        expect(await resolveICPPath()).toBe(homePath);
+        expect(savedSettings).toHaveLength(0);
     });
 
-    it('runs the seeded copy over the install-tree path an earlier version persisted', async () => {
-        configuredPath = bundledPath;
-        expect(await resolveICPPath()).toBe(seededPath);
+    it('uses WSO2_INTEGRATOR_ICP_HOME when icpPath is the install directory ICP', async () => {
+        icpPathSetting = installPath;
+        expect(await resolveICPPath()).toBe(homePath);
     });
 
-    it('runs the seeded copy when the configured path no longer exists', async () => {
-        configuredPath = path.join(root, 'removed', 'bin', SCRIPT);
-        expect(await resolveICPPath()).toBe(seededPath);
-        expect(errorsShown).toHaveLength(0);
+    it('uses WSO2_INTEGRATOR_ICP_HOME when icpPath does not exist', async () => {
+        icpPathSetting = path.join(tmpDir, 'missing', 'bin', SCRIPT);
+        expect(await resolveICPPath()).toBe(homePath);
+        expect(errors).toHaveLength(0);
     });
 
-    it('keeps a path the user pointed at another ICP', async () => {
-        configuredPath = makeIcp(path.join(root, 'custom-icp'));
-        expect(await resolveICPPath()).toBe(configuredPath);
+    it('uses icpPath when it points to another ICP', async () => {
+        icpPathSetting = createIcp(path.join(tmpDir, 'custom-icp'));
+        expect(await resolveICPPath()).toBe(icpPathSetting);
     });
 
-    it('falls back to the configured path when WSO2_INTEGRATOR_ICP_HOME has no launcher', async () => {
-        process.env.WSO2_INTEGRATOR_ICP_HOME = path.join(root, 'empty');
-        configuredPath = bundledPath;
-        expect(await resolveICPPath()).toBe(bundledPath);
+    it('uses icpPath when WSO2_INTEGRATOR_ICP_HOME has no ICP script', async () => {
+        process.env.WSO2_INTEGRATOR_ICP_HOME = path.join(tmpDir, 'empty');
+        icpPathSetting = installPath;
+        expect(await resolveICPPath()).toBe(installPath);
     });
-});
 
-describe('resolveICPPath outside WSO2 Integrator', () => {
-    it('keeps using the configured path when WSO2_INTEGRATOR_ICP_HOME is not set', async () => {
+    it('uses icpPath when WSO2_INTEGRATOR_ICP_HOME is not set', async () => {
         delete process.env.WSO2_INTEGRATOR_ICP_HOME;
-        configuredPath = bundledPath;
-        expect(await resolveICPPath()).toBe(bundledPath);
+        icpPathSetting = installPath;
+        expect(await resolveICPPath()).toBe(installPath);
     });
 });

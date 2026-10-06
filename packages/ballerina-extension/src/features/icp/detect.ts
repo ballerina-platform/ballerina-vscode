@@ -27,18 +27,14 @@ import { WI_EXTENSION_ID } from '../../utils/config';
 const ICP_BIN_RELATIVE = 'components/icp/bin';
 const ICP_SCRIPT_UNIX = 'icp.sh';
 const ICP_SCRIPT_WIN = 'icp.bat';
-const ICP_HOME_ENV = 'WSO2_INTEGRATOR_ICP_HOME';
 
 /**
- * Returns the ICP binary under `WSO2_INTEGRATOR_ICP_HOME`, which WSO2 Integrator sets for its
- * extension host. The product copies the bundled ICP into the user's data folder
- * (`~/.wso2-integrator/components/icp/<version>`) and points the variable at that copy, so ICP
- * can create its H2 database, logs and config there. The copy in the install tree may not be
- * writable (`/usr/share`, a macOS `.app` bundle, a locked-down install dir), and H2 then fails
- * with `AUTO_SERVER=TRUE && readOnly`; editor-only updates also remove it.
+ * WSO2 Integrator copies ICP to a writable location in the user's home
+ * (~/.wso2-integrator/components/icp/<version>) and sets WSO2_INTEGRATOR_ICP_HOME to it.
+ * The ICP inside the install directory may be read-only, which breaks the H2 database.
  */
 function getPathFromIntegratorEnv(): string | undefined {
-    const icpHome = process.env[ICP_HOME_ENV];
+    const icpHome = process.env.WSO2_INTEGRATOR_ICP_HOME;
     if (!icpHome) {
         return undefined;
     }
@@ -75,9 +71,6 @@ function getPathFromWIExtension(): string | undefined {
     return undefined;
 }
 
-/**
- * Where the ICP binary sits inside the WSO2 Integrator install tree, whether or not it exists.
- */
 function getBundledICPPath(): string | undefined {
     const wiExt = extensions.getExtension(WI_EXTENSION_ID);
     if (!wiExt) {
@@ -97,10 +90,7 @@ function getBundledICPPath(): string | undefined {
     return path.join(dir, ICP_BIN_RELATIVE, script);
 }
 
-/**
- * Whether `configuredPath` is the install-tree ICP that auto-detection persisted to settings,
- * as opposed to a path the user chose.
- */
+// Older versions saved the auto-detected install directory path to settings.
 function isBundledICPPath(configuredPath: string): boolean {
     const bundledPath = getBundledICPPath();
     return !!bundledPath && isSamePath(configuredPath, bundledPath);
@@ -176,12 +166,11 @@ function getDefaultPath(): string | undefined {
 
 /**
  * Resolves the ICP executable path.
- * 0. Uses the WSO2 Integrator's user-writable ICP copy, unless the user pointed
- *    `ballerina.icpPath` at some other ICP
- * 1. Checks the `ballerina.icpPath` setting
- * 2. Falls back to OS-specific default locations
- * 3. If auto-detected, persists the path to settings
- * 4. If not found, notifies the user
+ * 1. Uses WSO2_INTEGRATOR_ICP_HOME, unless `ballerina.icpPath` points to another ICP
+ * 2. Checks the `ballerina.icpPath` setting
+ * 3. Falls back to OS-specific default locations
+ * 4. If auto-detected, persists the path to settings
+ * 5. If not found, notifies the user
  *
  * @returns The resolved ICP path, or `undefined` if not found.
  */
@@ -189,10 +178,7 @@ export async function resolveICPPath(): Promise<string | undefined> {
     const config = workspace.getConfiguration('ballerina');
     const configuredPath = config.get<string>('icpPath');
 
-    // 0. Under WSO2 Integrator, prefer the ICP copy in the user's data folder. A configured
-    //    path that is missing, or is the install-tree copy that earlier versions auto-detected
-    //    and persisted, does not count as a user choice. The resolved path is versioned, so
-    //    it is not persisted: it would go stale when the ICP component is updated.
+    // Not saved to settings since the path changes when ICP is updated.
     const integratorPath = getPathFromIntegratorEnv();
     if (integratorPath && (!configuredPath || !existsSync(configuredPath) || isBundledICPPath(configuredPath))) {
         return integratorPath;
