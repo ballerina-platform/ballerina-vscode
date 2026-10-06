@@ -110,6 +110,7 @@ export {
     BRAND_ICON_REGISTRY,
     resolveBrandIcon,
     resolveBrandIconFromUrl,
+    resolveModuleFromIconUrl,
     ENTRY_TYPE_GLYPH,
     resolveEntryTypeGlyph,
     KIND_DEFAULT_ICON,

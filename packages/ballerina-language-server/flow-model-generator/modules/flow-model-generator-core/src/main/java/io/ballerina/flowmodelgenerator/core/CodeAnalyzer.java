@@ -776,13 +776,17 @@ public class CodeAnalyzer extends NodeVisitor {
     }
 
     private Optional<ImplicitNewExpressionNode> getInstanceNewExpr(ExpressionNode expressionNode) {
+        return getInstanceInitializer(expressionNode).flatMap(this::getNewExpr);
+    }
+
+    private Optional<ExpressionNode> getInstanceInitializer(ExpressionNode expressionNode) {
         if (isClassField(expressionNode)) {
             FieldAccessExpressionNode fieldAccess = (FieldAccessExpressionNode) expressionNode;
             Optional<Symbol> fieldSymbol = semanticModel.symbol(fieldAccess.fieldName());
             if (fieldSymbol.isEmpty() || fieldSymbol.get().kind() != SymbolKind.CLASS_FIELD) {
                 return Optional.empty();
             }
-            return findFieldInitAssignment(fieldSymbol.get()).flatMap(assign -> getNewExpr(assign.expression()));
+            return findFieldInitAssignment(fieldSymbol.get()).map(AssignmentStatementNode::expression);
         }
         Optional<Symbol> symbol = semanticModel.symbol(expressionNode);
         if (symbol.isEmpty() || !(symbol.get() instanceof VariableSymbol variableSymbol)) {
@@ -800,8 +804,17 @@ public class CodeAnalyzer extends NodeVisitor {
         if (varNodeOpt.isEmpty()) {
             return Optional.empty();
         }
-        ExpressionNode initializerExpr = getInitializerFromVariableNode(varNodeOpt.get());
-        return initializerExpr == null ? Optional.empty() : getNewExpr(initializerExpr);
+        return Optional.ofNullable(getInitializerFromVariableNode(varNodeOpt.get()));
+    }
+
+    private static Optional<SeparatedNodeList<FunctionArgumentNode>> getNewExprArguments(ExpressionNode expression) {
+        ExpressionNode expr = expression instanceof CheckExpressionNode check ? check.expression() : expression;
+        if (expr instanceof ExplicitNewExpressionNode explicitNew) {
+            return Optional.of(explicitNew.parenthesizedArgList().arguments());
+        }
+        return expr instanceof ImplicitNewExpressionNode implicitNew
+                ? implicitNew.parenthesizedArgList().map(ParenthesizedArgList::arguments)
+                : Optional.empty();
     }
 
     private ExpressionNode getInitializerFromVariableNode(NonTerminalNode varNode) {
@@ -5116,7 +5129,7 @@ public class CodeAnalyzer extends NodeVisitor {
     }
 
     private ModelData getModelIconUrl(ExpressionNode expressionNode) {
-        return AiUtils.getModelIconUrl(semanticModel, expressionNode);
+        return AiUtils.getModelIconUrl(semanticModel, project, expressionNode);
     }
 
     private MemoryManagerData getMemoryData(ExpressionNode memory) {
@@ -5126,16 +5139,19 @@ public class CodeAnalyzer extends NodeVisitor {
         if (memory.kind() == SyntaxKind.EXPLICIT_NEW_EXPRESSION) {
             ExplicitNewExpressionNode newExpr = (ExplicitNewExpressionNode) memory;
             SeparatedNodeList<FunctionArgumentNode> arguments = newExpr.parenthesizedArgList().arguments();
-            ModelData store = AiUtils.getMemoryStoreData(semanticModel, arguments);
+            ModelData store = AiUtils.getMemoryStoreData(semanticModel, project, arguments);
             String size = store == null && arguments.size() == 1 ? arguments.get(0).toSourceCode() : "";
             return new MemoryManagerData(newExpr.typeDescriptor().toSourceCode(), size, store);
         }
         if (memory.kind() == SyntaxKind.SIMPLE_NAME_REFERENCE) {
-            ModelData store = getInstanceNewExpr(memory)
-                    .flatMap(ImplicitNewExpressionNode::parenthesizedArgList)
-                    .map(argList -> AiUtils.getMemoryStoreData(semanticModel, argList.arguments()))
+            ModelData store = getInstanceInitializer(memory)
+                    .flatMap(CodeAnalyzer::getNewExprArguments)
+                    .map(arguments -> AiUtils.getMemoryStoreData(semanticModel, project, arguments))
                     .orElse(null);
-            return semanticModel.typeOf(memory)
+            return semanticModel.symbol(memory)
+                    .map(symbol -> AiUtils.getComponentType(semanticModel, project, symbol))
+                    .filter(typeSymbol -> CommonUtils.getRawType(typeSymbol) instanceof ClassSymbol)
+                    .or(() -> semanticModel.typeOf(memory))
                     .map(typeSymbol -> new MemoryManagerData(typeSymbol.getName().orElse("Memory Not Configured"),
                             AiUtils.MEMORY_DEFAULT_VALUE, store))
                     .orElse(null);

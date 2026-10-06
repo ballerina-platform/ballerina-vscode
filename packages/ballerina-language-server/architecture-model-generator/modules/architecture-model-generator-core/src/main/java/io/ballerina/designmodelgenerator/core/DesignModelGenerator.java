@@ -752,13 +752,17 @@ public class DesignModelGenerator {
     private void populateModuleLevelConnections(IntermediateModel intermediateModel) {
         for (Symbol symbol : this.semanticModel.moduleSymbols()) {
             if (symbol instanceof VariableSymbol variableSymbol) {
-                TypeSymbol typeSymbol = CommonUtils.getRawType(variableSymbol.typeDescriptor());
+                TypeSymbol variableType = io.ballerina.modelgenerator.commons.CommonUtils.getConstructedType(
+                        semanticModel, variableSymbol.getLocation()
+                                .map(location -> documentMap.get(location.lineRange().fileName())).orElse(null),
+                        variableSymbol);
+                TypeSymbol typeSymbol = CommonUtils.getRawType(variableType);
                 if (typeSymbol instanceof ObjectTypeSymbol objectTypeSymbol) {
                     boolean isHiddenAiClass = CommonUtils.isHiddenAiClass(objectTypeSymbol);
                     if (objectTypeSymbol.qualifiers().contains(Qualifier.CLIENT) || isHiddenAiClass) {
                         LineRange lineRange = variableSymbol.getLocation().get().lineRange();
                         String sortText = lineRange.fileName() + lineRange.startLine().line();
-                        String icon = CommonUtils.generateIcon(variableSymbol.typeDescriptor());
+                        String icon = CommonUtils.generateIcon(variableType);
                         boolean showConnection = !isHiddenAiClass; // Hide AI non-client classes
                         ClassSymbol persistClassSymbol = null;
                         if (objectTypeSymbol instanceof ClassSymbol cs &&

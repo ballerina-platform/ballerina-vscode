@@ -22,7 +22,7 @@ import { css } from "@emotion/react";
 import { DiagramEngine, PortWidget } from "@projectstorm/react-diagrams-core";
 import { Icon, ThemeColors, getAIModuleIcon } from "@wso2/ui-toolkit";
 import { DurableAgentIcon, NodeIcon } from "@wso2/bi-diagram";
-import { resolveBrandIconFromUrl } from "@wso2/ballerina-core";
+import { resolveBrandIconFromUrl, resolveModuleFromIconUrl } from "@wso2/ballerina-core";
 import { AgentCardNodeModel, inletPortName } from "./AgentCardNodeModel";
 import {
     AGENT_CARD_MIN_HEIGHT,
@@ -357,7 +357,9 @@ const BottomPortWidget = styled(PortWidget)`
 `;
 
 function modelGlyph(provider: TopologyModelProvider): React.ReactNode {
-    return getAIModuleIcon(provider.type, GLYPH_SIZE) ?? <NodeIcon type="MODEL_PROVIDER" size={GLYPH_SIZE} />;
+    return getAIModuleIcon(provider.type, GLYPH_SIZE)
+        ?? getAIModuleIcon(resolveModuleFromIconUrl(provider.icon), GLYPH_SIZE)
+        ?? <NodeIcon type="MODEL_PROVIDER" size={GLYPH_SIZE} />;
 }
 
 function chipGlyph(chip: ToolChip): React.ReactNode {
@@ -368,6 +370,11 @@ function chipGlyph(chip: ToolChip): React.ReactNode {
     }
     if (url.includes("mcp")) {
         return <Icon name="bi-mcp" sx={iconSx} iconSx={{ fontSize: GLYPH_SIZE }} />;
+    }
+    // The bundled provider SVGs stay visible in dark mode, unlike Central's monochrome PNGs.
+    const aiModuleIcon = getAIModuleIcon(resolveModuleFromIconUrl(url), GLYPH_SIZE);
+    if (aiModuleIcon) {
+        return aiModuleIcon;
     }
     const brand = resolveBrandIconFromUrl(url);
     if (brand) {
