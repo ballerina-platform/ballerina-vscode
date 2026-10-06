@@ -24,6 +24,16 @@ import { ProductMode, assistantName, assistantTagline, seededProductMode, shortA
 let cached: ProductMode | undefined;
 let inFlight: Promise<ProductMode> | undefined;
 
+/**
+ * Test-only: forgets the fetched mode so each case starts as a freshly loaded webview.
+ * Only the module-level cache needs clearing — the seed is read live from the window by
+ * `seededProductMode()` on every call, so a test controls it by setting that value.
+ */
+export function __resetProductModeForTests(): void {
+    cached = undefined;
+    inFlight = undefined;
+}
+
 /** The mode for callers outside a component, sharing the one fetch with the hook. */
 export function fetchProductMode(rpcClient: BallerinaRpcClient): Promise<ProductMode> {
     const resolved = seededProductMode() ?? cached;

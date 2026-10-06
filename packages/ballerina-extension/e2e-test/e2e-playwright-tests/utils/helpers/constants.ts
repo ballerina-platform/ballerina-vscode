@@ -17,6 +17,7 @@
  */
 
 export const BI_INTEGRATOR_LABEL = 'WSO2 Integrator';
+export const AGENT_BUILDER_LABEL = 'WSO2 Agent Builder';
 export const BI_WEBVIEW_NOT_FOUND_ERROR = `${BI_INTEGRATOR_LABEL} webview not found`;
 export const DEFAULT_PROJECT_NAME = 'test-project';
 export const DEFAULT_PROJECT_FOLDER_NAME = 'test_project';
