@@ -16,6 +16,7 @@
  * under the License.
  */
 
+import { createHash } from "crypto";
 import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
@@ -30,16 +31,17 @@ import {
     AgentManagerConfigInput,
     AgentManagerHostingMode,
     AgentManagerLink,
+    AgentManagerLinkCandidate,
     AgentManagerSource,
     AgentManagerStatus,
     OpenAPISpec,
 } from "@wso2/ballerina-core";
-import { getSession, signIn, signOut } from "./auth";
+import { getSession, hasPermission, signIn, signOut } from "./auth";
 import { offerCopilotMcp } from "./copilot";
 import { buildConfigFields, CONFIG_FILE, readPackage, splitConfig, SplitConfig } from "./configurables";
-import { configs, injectedEnvNames, reconcileAgentConfigs } from "./bindings";
+import { injectedEnvNames, reconcileAgentConfigs } from "./bindings";
 import {
-    ensureGitIgnored, inspectSource, isExposed, isIgnored, LOCAL_ONLY_FILES, openCommitView, Preparation, readFacts, renameRemote,
+    ensureGitIgnored, inspectSource, isExposed, isIgnored, linkCandidates, LOCAL_ONLY_FILES, openCommitView, Preparation, readFacts, renameRemote,
     SourceStepId, suggestCommitMessage, untrack,
 } from "./github";
 import {
@@ -49,7 +51,6 @@ import {
     DEFAULT_ENVIRONMENT,
     getRuntimeLogs,
     readLink,
-    readManifest,
     removeLink,
     writeLink,
     writeProjectFile,
@@ -60,9 +61,9 @@ import { TracerMachine } from "../tracing/tracer-machine";
 import { getActiveTracingProvider, updateOrAddSection } from "../tracing/utils";
 
 const EXTERNAL_TOKEN_EXPIRY = "720h";
-const OPENAPI_FILE = "openapi.yaml";
+export const OPENAPI_FILE = "openapi.yaml";
 const DEV_TRACE_FILE = "trace_enabled.bal";
-const AMP_IMPORT_FILE = "agent_manager.bal";
+export const AMP_IMPORT_FILE = "agent_manager.bal";
 
 let logChannel: vscode.OutputChannel | undefined;
 
@@ -71,9 +72,9 @@ function outputChannel(): vscode.OutputChannel {
     return logChannel;
 }
 
-class UserCancelled extends Error { }
+export class UserCancelled extends Error { }
 
-function required<T>(value: T | undefined): T {
+export function required<T>(value: T | undefined): T {
     if (value === undefined) {
         throw new UserCancelled();
     }
@@ -89,8 +90,10 @@ export async function getStatus(projectPath: string): Promise<AgentManagerStatus
     try {
         const link = await readLink(projectPath);
         if (!link) {
-            await api.listProjects();
-            return { ...status, source: await sourceStatus(projectPath) };
+            const [candidates, canCreate, source] = await Promise.all([
+                cachedCandidates(projectPath), hasPermission("agent:create"), sourceStatus(projectPath),
+            ]);
+            return { ...status, candidates, canCreate, source };
         }
         status.link = link;
         Object.assign(status, link.mode === "internal" ? await platformStatus(projectPath, link) : {});
@@ -189,10 +192,6 @@ const ACTIONS: Record<AgentManagerAction, (projectPath: string, config?: AgentMa
         return `Signed in to Agent Manager (${session.org}).`;
     },
     signOut: async () => signOut(),
-    chooseDeployTarget: async (projectPath) => {
-        deployTargets.set(projectPath, await chooseDeployTarget(projectPath));
-    },
-    hostOnPlatform,
     enableAmpTracing,
     fixSource,
     setupExternal,
@@ -222,13 +221,14 @@ const ACTIONS: Record<AgentManagerAction, (projectPath: string, config?: AgentMa
     unlink: async (projectPath) => removeLink(projectPath),
 };
 
-export async function runAction(
-    projectPath: string,
-    action: AgentManagerAction,
-    config?: AgentManagerConfigInput
-): Promise<AgentManagerActionResponse> {
+export function runAction(projectPath: string, action: AgentManagerAction, config?: AgentManagerConfigInput): Promise<AgentManagerActionResponse> {
+    return respond(() => ACTIONS[action](projectPath, config));
+}
+
+/** Runs a user-facing step: shows its message or error, and treats a dismissed prompt as a quiet cancel. */
+export async function respond(step: () => Promise<string | void>): Promise<AgentManagerActionResponse> {
     try {
-        const message = await ACTIONS[action](projectPath, config);
+        const message = await step();
         if (message) {
             vscode.window.showInformationMessage(message);
         }
@@ -241,6 +241,20 @@ export async function runAction(
         vscode.window.showErrorMessage(`Agent Manager: ${message}`);
         return { success: false, message };
     }
+}
+
+const CANDIDATES_CACHE_MS = 60_000;
+const candidateCache = new Map<string, { at: number; candidates: AgentManagerLinkCandidate[] }>();
+
+// Listing every project's agents is too heavy for each status poll.
+async function cachedCandidates(projectPath: string): Promise<AgentManagerLinkCandidate[]> {
+    const cached = candidateCache.get(projectPath);
+    if (cached && Date.now() - cached.at < CANDIDATES_CACHE_MS) {
+        return cached.candidates;
+    }
+    const candidates = await linkCandidates(projectPath);
+    candidateCache.set(projectPath, { at: Date.now(), candidates });
+    return candidates;
 }
 
 async function requireLink(projectPath: string): Promise<AgentManagerLink> {
@@ -343,7 +357,7 @@ function writeAmpConfig(projectPath: string, otelEndpoint: string, apiKey: strin
     writeProjectFile(projectPath, configPath, updated.endsWith("\n") ? updated : updated + "\n");
 }
 
-async function ensureDevTracingOff(projectPath: string): Promise<void> {
+export async function ensureDevTracingOff(projectPath: string): Promise<void> {
     if (getActiveTracingProvider(projectPath) !== "idetraceprovider") {
         return;
     }
@@ -360,76 +374,6 @@ async function ensureDevTracingOff(projectPath: string): Promise<void> {
     TracerMachine.disable(projectPath);
 }
 
-type DeployTarget = Awaited<ReturnType<typeof newLink>> & { git: GitHubSource; tracing: boolean; iface?: HttpInterface; secretRef?: string };
-
-// Every prompt runs here, before the config popup opens, so nothing pops up behind it.
-const deployTargets = new Map<string, DeployTarget>();
-
-async function chooseDeployTarget(projectPath: string): Promise<DeployTarget> {
-    const git = await requireGitHubSource(projectPath);
-    await ensureDevTracingOff(projectPath);
-    await warnIfDefaultModelProvider(projectPath);
-    const tracing = await chooseAutoInstrumentation(projectPath);
-    const target = { ...(await newLink(projectPath, "internal")), git, tracing };
-    if (!target.existing) {
-        return { ...target, iface: await prepareHttpInterface(projectPath), secretRef: await ensureRepoAccess(git) };
-    }
-    const agent = await api.getAgent(target.link);
-    return { ...target, secretRef: agent.provisioning?.repository?.secretRef ? undefined : await ensureRepoAccess(git) };
-}
-
-// The amp import means auto-instrumentation is wanted; without it, ask before the project and name so a commit doesn't discard them.
-async function chooseAutoInstrumentation(projectPath: string): Promise<boolean> {
-    if (hasAmpImport(projectPath)) {
-        return true;
-    }
-    const enable = { label: "Enable Auto-Instrumentation", detail: "Send traces and metrics from this agent to Agent Manager.", enabled: true };
-    const skip = { label: "Deploy Without It", detail: "Deploy without traces in Agent Manager.", enabled: false };
-    const choice = required(await vscode.window.showQuickPick([enable, skip], { title: "Auto-Instrumentation", ignoreFocusOut: true }));
-    if (choice.enabled && ensureAmpInstrumentation(projectPath)) {
-        vscode.window.showInformationMessage(`Added ${AMP_IMPORT_FILE} and observability in Ballerina.toml for auto-instrumentation. Commit and push them, then deploy again.`);
-        throw new UserCancelled();
-    }
-    return choice.enabled;
-}
-
-async function hostOnPlatform(projectPath: string, config?: AgentManagerConfigInput): Promise<string> {
-    const target = deployTargets.get(projectPath) ?? await chooseDeployTarget(projectPath);
-    deployTargets.delete(projectPath);
-    const { link, displayName, existing, git, tracing, iface, secretRef } = target;
-    if (!existing) {
-        const split = resolveConfig((await loadConfigFields(projectPath)).fields, config);
-        await api.createInternalAgent(link.project, {
-            name: link.agent,
-            displayName,
-            repoUrl: git.repoUrl,
-            branch: git.branch,
-            appPath: git.appPath,
-            port: iface!.port,
-            basePath: iface!.basePath,
-            schemaPath: iface!.schemaPath,
-            secretRef,
-            autoInstrumentation: tracing,
-            env: split.env,
-            file: split.file && { ...CONFIG_FILE, ...split.file },
-            ...configs(projectPath),
-        });
-    } else {
-        if (secretRef) {
-            await api.updateRepository(link, await api.getAgent(link), { secretRef });
-        }
-        if (config) {
-            await saveConfigFor(projectPath, link, config);
-        }
-        if (tracing !== await api.getAutoInstrumentation(link)) {
-            await api.updateConfigurations(link, [], undefined, tracing);
-        }
-        await reconcileAgentConfigs(projectPath, link);
-    }
-    writeLink(projectPath, link);
-    return `'${link.agent}' created in Agent Manager. Building from ${git.branch}@${git.commit.slice(0, 7)}.`;
-}
-
 async function pushAndRebuild(projectPath: string): Promise<string> {
     const link = await requireLink(projectPath);
     const git = await requireGitHubSource(projectPath);
@@ -437,8 +381,8 @@ async function pushAndRebuild(projectPath: string): Promise<string> {
     await warnIfDefaultModelProvider(projectPath);
     await switchBranchIfNeeded(link, git.branch);
     await reconcileAgentConfigs(projectPath, link);
-    await api.triggerBuild(link, git.commit);
-    return `Build started for ${git.branch}@${git.commit.slice(0, 7)}.`;
+    await api.triggerBuild(link);
+    return `Build started from the latest commit on ${git.branch}.`;
 }
 
 async function switchBranchIfNeeded(link: AgentManagerLink, branch: string): Promise<void> {
@@ -458,29 +402,20 @@ async function switchBranchIfNeeded(link: AgentManagerLink, branch: string): Pro
 
 export async function getConfigForm(projectPath: string): Promise<AgentManagerConfigForm> {
     try {
-        const linked = await readLink(projectPath);
-        const target = linked ? undefined : deployTargets.get(projectPath);
-        const link = linked ?? (target?.existing ? target.link : undefined);
-        const { llmProviders = [], mcpServers = [] } = readManifest(projectPath);
-        const summary = target && {
-            agentName: target.displayName, project: target.link.project, repository: target.git.repository, branch: target.git.branch,
-            existing: target.existing, tracing: target.tracing,
-            llmProviders: llmProviders.map((entry) => entry.provider), mcpServers: mcpServers.map((entry) => entry.proxy),
-        };
-        return { ...(await loadConfigFields(projectPath, link)), target: summary };
+        return await loadConfigFields(projectPath, await readLink(projectPath));
     } catch (error) {
         return { fields: [], fileSaved: false, error: await describeActionError(error) };
     }
 }
 
-async function loadConfigFields(projectPath: string, link?: AgentManagerLink): Promise<AgentManagerConfigForm> {
+export async function loadConfigFields(projectPath: string, link?: AgentManagerLink): Promise<AgentManagerConfigForm> {
     const state = link?.mode === "internal" ? await api.getConfigState(link, CONFIG_FILE.mountPath) : { envKeys: [], fileSaved: false };
     const fields = await buildConfigFields(projectPath, state.envKeys, state.fileSaved, injectedEnvNames(projectPath));
     return { fields, fileSaved: state.fileSaved };
 }
 
-function resolveConfig(fields: AgentManagerConfigField[], config?: AgentManagerConfigInput): SplitConfig {
-    const split = splitConfig(fields, config ?? { values: {}, secrets: {} });
+export function resolveConfig(fields: AgentManagerConfigField[], config?: AgentManagerConfigInput, allowMissing = false): SplitConfig {
+    const split = splitConfig(fields, config ?? { values: {}, secrets: {} }, allowMissing);
     if (split.errors.length > 0) {
         throw new Error(split.errors.join(" "));
     }
@@ -596,7 +531,7 @@ async function requireGitHubSource(projectPath: string): Promise<GitHubSource> {
     };
 }
 
-async function readPreparation(projectPath: string): Promise<Preparation> {
+export async function readPreparation(projectPath: string): Promise<Preparation> {
     const inRepo = !!readFacts(projectPath).root;
     return {
         openApiSpec: !fs.existsSync(path.join(projectPath, OPENAPI_FILE)),
@@ -700,10 +635,6 @@ async function prepareProject(projectPath: string): Promise<string> {
     return `Added ${added.join(", ")} for Agent Manager. Commit them with the rest of your code.`;
 }
 
-async function ensureRepoAccess(git: GitHubSource): Promise<string | undefined> {
-    return await isPrivateRepo(git) ? chooseGitSecret(git.repository) : undefined;
-}
-
 async function setRepoAccess(projectPath: string): Promise<string> {
     const link = await requireLink(projectPath);
     const git = await requireGitHubSource(projectPath);
@@ -712,63 +643,56 @@ async function setRepoAccess(projectPath: string): Promise<string> {
     return `'${link.agent}' now clones ${git.repository} with the token ${secretRef}.`;
 }
 
-async function isPrivateRepo(git: GitHubSource): Promise<boolean> {
-    if (git.isPrivate !== undefined) {
-        return git.isPrivate;
-    }
-    const isPrivate = "Private";
-    const choice = required(await vscode.window.showWarningMessage(
-        `Couldn't check whether ${git.repository} is private.`,
-        { modal: true, detail: "Agent Manager needs a read-only token to clone a private repository." },
-        isPrivate,
-        "Public"
-    ));
-    return choice === isPrivate;
-}
-
-async function chooseGitSecret(repository: string): Promise<string> {
-    const name = toResourceName(`${repository.replace("/", "-")}-git`);
-    const exists = await api.hasGitSecret(name);
+export async function chooseGitSecret(repository: string): Promise<string> {
+    const name = repoSecretName(repository);
     const reuse = "Use Existing Token";
-    if (exists && required(await vscode.window.showInformationMessage(
+    if (await api.hasGitSecret(name) && required(await vscode.window.showInformationMessage(
         `Agent Manager already has a token for ${repository}.`, { modal: true }, reuse, "Replace Token")) === reuse) {
         return name;
     }
-    const { username, token } = await askGitCredentials(repository);
-    if (exists) {
+    return saveRepoToken(repository, await askGitToken(repository));
+}
+
+// Agent Manager caps secret names at 25 characters; the hash keeps same-named repos of different owners apart.
+export function repoSecretName(repository: string): string {
+    const hash = createHash("sha1").update(repository.toLowerCase()).digest("hex").slice(0, 4);
+    return `${toResourceName(repository.split("/")[1]).slice(0, 15).replace(/-+$/, "")}-${hash}-git`;
+}
+
+/** Stores a token as this repository's git secret, replacing the old one: Agent Manager can't update a secret in place. */
+export async function saveRepoToken(repository: string, token: string): Promise<string> {
+    const name = repoSecretName(repository);
+    if (await api.hasGitSecret(name)) {
         await api.deleteGitSecret(name);
     }
-    await api.createGitSecret(name, username, token);
+    // GitHub ignores the username for token auth, but Agent Manager's basic-auth secret requires one.
+    await api.createGitSecret(name, repository.split("/")[0], token);
     return name;
 }
 
-async function askGitCredentials(repository: string): Promise<{ username: string; token: string }> {
-    const username = required(await vscode.window.showInputBox({
-        title: "Private repository: GitHub username",
-        prompt: `Agent Manager needs a read-only token to clone ${repository}.`,
-        ignoreFocusOut: true,
-    }));
-    const token = required(await vscode.window.showInputBox({
-        title: "Private repository: GitHub personal access token",
-        prompt: "Fine-grained token with read access to Contents on this repository only.",
+async function askGitToken(repository: string): Promise<string> {
+    return required(await vscode.window.showInputBox({
+        title: "Personal Access Token",
+        prompt: `Read-only access to the contents of ${repository}.`,
+        placeHolder: "github_pat_…",
         password: true,
         ignoreFocusOut: true,
-    }));
-    return { username, token };
+        validateInput: (value) => (value.trim() ? undefined : "Enter a token"),
+    })).trim();
 }
 
 // ---- Deriving the agent from the package -------------------------------------------------------
 
-function readPackageTitle(projectPath: string): string {
+export function readPackageTitle(projectPath: string): string {
     const { title, name } = readPackage(projectPath);
     return title ?? (name || path.basename(projectPath));
 }
 
-function hasAmpImport(projectPath: string): boolean {
+export function hasAmpImport(projectPath: string): boolean {
     return /import\s+ballerinax\/amp\b/.test(readBalSources(projectPath));
 }
 
-function toResourceName(value: string): string {
+export function toResourceName(value: string): string {
     return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+/, "").slice(0, 63).replace(/-+$/, "");
 }
 
@@ -788,7 +712,7 @@ interface HttpInterface {
     schemaPath: string;
 }
 
-async function prepareHttpInterface(projectPath: string): Promise<HttpInterface> {
+export async function prepareHttpInterface(projectPath: string): Promise<HttpInterface> {
     await warnIfMissingDependenciesToml(projectPath);
     const detected = await detectInterface(projectPath);
     return {
@@ -902,7 +826,7 @@ function usesDefaultModelProvider(projectPath: string): boolean {
 }
 
 // Warn once per project; deploying anyway stays allowed.
-async function warnIfDefaultModelProvider(projectPath: string): Promise<void> {
+export async function warnIfDefaultModelProvider(projectPath: string): Promise<void> {
     const warned: string[] = extension.context.workspaceState.get(DEFAULT_PROVIDER_WARNED, []);
     if (warned.includes(projectPath) || !usesDefaultModelProvider(projectPath)) {
         return;

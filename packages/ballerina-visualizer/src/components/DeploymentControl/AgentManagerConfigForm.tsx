@@ -18,28 +18,28 @@
 
 import React, { useEffect, useState } from "react";
 import styled from "@emotion/styled";
-import { AgentManagerConfigField, AgentManagerConfigForm as ConfigFormData, AgentManagerDeployTarget } from "@wso2/ballerina-core";
+import { AgentManagerConfigField, AgentManagerConfigForm as ConfigFormData } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Button, CheckBox, ProgressRing } from "@wso2/ui-toolkit";
 import { PopupContent, PopupFooter } from "../../views/BI/Connection/styles";
 import { ConfigField } from "../../views/AIPanel/components/ConfigurationCollector";
 
-const Group = styled.div`
+export const Group = styled.div`
     display: flex;
     flex-direction: column;
     gap: 8px;
 `;
 
-const GroupTitle = styled.span`
+export const GroupTitle = styled.span`
     font-weight: 600;
 `;
 
-const Muted = styled.span`
+export const Muted = styled.span`
     color: var(--vscode-descriptionForeground);
     font-size: 12px;
 `;
 
-const Summary = styled.dl`
+export const Summary = styled.dl`
     display: grid;
     grid-template-columns: max-content 1fr;
     gap: 10px 24px;
@@ -47,11 +47,11 @@ const Summary = styled.dl`
     font-size: 13px;
 `;
 
-const Label = styled.dt`
+export const Label = styled.dt`
     color: var(--vscode-descriptionForeground);
 `;
 
-const Value = styled.dd`
+export const Value = styled.dd`
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -61,14 +61,14 @@ const Value = styled.dd`
     overflow-wrap: anywhere;
 `;
 
-const Pill = styled.span`
+export const Pill = styled.span`
     padding: 1px 8px;
     border: 1px solid var(--vscode-welcomePage-tileBorder);
     border-radius: 10px;
     font-size: 12px;
 `;
 
-const Section = styled.div`
+export const Section = styled.div`
     display: flex;
     flex-direction: column;
     gap: 12px;
@@ -76,7 +76,7 @@ const Section = styled.div`
     border-top: 1px solid var(--vscode-welcomePage-tileBorder);
 `;
 
-const Loading = styled.div`
+export const Loading = styled.div`
     display: flex;
     align-items: center;
     justify-content: center;
@@ -84,7 +84,7 @@ const Loading = styled.div`
     padding: 32px 0;
 `;
 
-const ErrorText = styled.span`
+export const ErrorText = styled.span`
     color: var(--vscode-errorForeground);
     word-break: break-word;
 `;
@@ -92,15 +92,14 @@ const ErrorText = styled.span`
 interface AgentManagerConfigFormProps {
     projectPath: string;
     description: string;
-    action: "hostOnPlatform" | "saveConfig";
+    action: "saveConfig";
     submitLabel: string;
     busyLabel: string;
     onDone: () => void;
     onCancel: () => void;
-    onAgentName?: (name?: string) => void;
 }
 
-function groupFields(fields: AgentManagerConfigField[]): [string, AgentManagerConfigField[]][] {
+export function groupFields(fields: AgentManagerConfigField[]): [string, AgentManagerConfigField[]][] {
     const groups = new Map<string, AgentManagerConfigField[]>();
     fields.forEach((field) => groups.set(field.group, [...(groups.get(field.group) ?? []), field]));
     return [...groups.entries()];
@@ -113,7 +112,7 @@ function placeholder(field: AgentManagerConfigField): string {
     return field.required ? "Required" : "Optional";
 }
 
-export function AgentManagerConfigForm({ projectPath, description, action, submitLabel, busyLabel, onDone, onCancel, onAgentName }: AgentManagerConfigFormProps) {
+export function AgentManagerConfigForm({ projectPath, description, action, submitLabel, busyLabel, onDone, onCancel }: AgentManagerConfigFormProps) {
     const { rpcClient } = useRpcContext();
     const [form, setForm] = useState<ConfigFormData | undefined>();
     const [values, setValues] = useState<Record<string, string>>({});
@@ -141,7 +140,6 @@ export function AgentManagerConfigForm({ projectPath, description, action, submi
             setValues(initial);
             setSecrets(Object.fromEntries(loaded.fields.map((f) => [f.id, f.secret])));
             setForm(loaded);
-            onAgentName?.(loaded.target?.agentName);
         });
     }, [projectPath]);
 
@@ -152,7 +150,6 @@ export function AgentManagerConfigForm({ projectPath, description, action, submi
     return (
         <>
             <PopupContent>
-                {form.target && <TargetSummary target={form.target} />}
                 {form.error && <ErrorText>Couldn't read this agent's configurables: {form.error}</ErrorText>}
                 {form.fields.length > 0 && (
                     <Section>
@@ -188,27 +185,6 @@ export function AgentManagerConfigForm({ projectPath, description, action, submi
     );
 }
 
-function TargetSummary({ target }: { target: AgentManagerDeployTarget }) {
-    return (
-        <Summary>
-            <Label>Repository</Label>
-            <Value>{target.repository} · {target.branch}</Value>
-            <Label>Project</Label>
-            <Value>{target.project}{target.existing && <Muted>Updates the existing agent</Muted>}</Value>
-            <Label>Auto-Instrumentation</Label>
-            <Value>{target.tracing ? "On" : "Off"}</Value>
-            {target.llmProviders?.length > 0 && <>
-                <Label>LLM Service Providers</Label>
-                <Value>{target.llmProviders.map((name) => <Pill key={name}>{name}</Pill>)}</Value>
-            </>}
-            {target.mcpServers?.length > 0 && <>
-                <Label>MCP Servers</Label>
-                <Value>{target.mcpServers.map((name) => <Pill key={name}>{name}</Pill>)}</Value>
-            </>}
-        </Summary>
-    );
-}
-
 interface ConfigFieldInputProps {
     field: AgentManagerConfigField;
     value: string;
@@ -217,7 +193,7 @@ interface ConfigFieldInputProps {
     onSecret: (secret: boolean) => void;
 }
 
-function ConfigFieldInput({ field, value, secret, onValue, onSecret }: ConfigFieldInputProps) {
+export function ConfigFieldInput({ field, value, secret, onValue, onSecret }: ConfigFieldInputProps) {
     const [visible, setVisible] = useState(false);
     const label = `${field.label}${field.required ? " *" : ""}`;
     if (field.unsupported) {

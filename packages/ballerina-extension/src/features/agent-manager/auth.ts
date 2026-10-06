@@ -71,6 +71,17 @@ export async function signOut(): Promise<void> {
 
 let refreshing: Promise<string | undefined> | undefined;
 
+/** Whether the signed-in user's token carries an Agent Manager permission, such as "agent:create". */
+export async function hasPermission(permission: string): Promise<boolean> {
+    const payload = (await getAccessToken())?.split(".")[1];
+    try {
+        const scopes = String(JSON.parse(Buffer.from(payload ?? "", "base64url").toString()).scope ?? "").split(" ");
+        return scopes.includes(`amp:${permission}`);
+    } catch {
+        return false;
+    }
+}
+
 export async function getAccessToken(): Promise<string | undefined> {
     const session = await getSession();
     if (!session) {

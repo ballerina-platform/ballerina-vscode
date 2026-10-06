@@ -20,8 +20,8 @@ import * as cp from "child_process";
 import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
-import { AgentManagerSource, AgentManagerSourceStep } from "@wso2/ballerina-core";
-import { writeProjectFile } from "./client";
+import { AgentManagerLinkCandidate, AgentManagerRemote, AgentManagerRepoDetails, AgentManagerSourceCheck, AgentManagerSourceStep, AgentManagerSource } from "@wso2/ballerina-core";
+import { api, writeProjectFile } from "./client";
 
 const GITHUB_REPO_URL = /^(?:https?:\/\/(?:[^@/\s]+@)?github\.com\/|git@github\.com:|ssh:\/\/git@github\.com\/)([A-Za-z0-9._-]+)\/([A-Za-z0-9._-]+?)(?:\.git)?\/?$/;
 const REPO_INFO_TTL_MS = 10 * 60 * 1000;
@@ -272,3 +272,82 @@ export function suggestCommitMessage(projectPath: string): string {
     const parts = [...known, ...(others.length > 3 ? [`Update ${others.length} files`] : others.length ? [`Update ${others.join(", ")}`] : [])];
     return parts.join("; ") || "Update agent";
 }
+
+// ---- Remotes, for linking and creating agents ---------------------------------------------------
+
+export function githubRemotes(projectPath: string): AgentManagerRemote[] {
+    const lines = (out(projectPath, ["remote", "-v"]) ?? "").split("\n").filter((line) => line.endsWith("(fetch)"));
+    return lines.flatMap((line) => {
+        const [name, url] = line.split(/\s+/);
+        const match = url?.match(GITHUB_REPO_URL);
+        return match ? [{ name, repository: `${match[1]}/${match[2]}` }] : [];
+    });
+}
+
+// A fork usually builds from its parent, which git conventionally names `upstream`.
+export function defaultRemote(projectPath: string, remotes: AgentManagerRemote[]): string | undefined {
+    const tracked = readFacts(projectPath).remoteName;
+    return (remotes.find((remote) => remote.name === "upstream") ?? remotes.find((remote) => remote.name === tracked) ?? remotes[0])?.name;
+}
+
+// Network git calls run async and never prompt, so a missing credential fails instead of hanging the extension host.
+function gitAsync(cwd: string, args: string[]): Promise<{ ok: boolean; stdout: string; stderr: string }> {
+    return new Promise((resolve) => {
+        cp.execFile("git", args, { cwd, timeout: 30_000, env: { ...process.env, GIT_TERMINAL_PROMPT: "0" } },
+            (error, stdout, stderr) => resolve({ ok: !error, stdout: String(stdout), stderr: String(stderr) }));
+    });
+}
+
+export async function repoDetails(projectPath: string, remote: string): Promise<AgentManagerRepoDetails> {
+    const repository = githubRemotes(projectPath).find((candidate) => candidate.name === remote)?.repository;
+    const heads = await gitAsync(projectPath, ["ls-remote", "--symref", remote, "HEAD", "refs/heads/*"]);
+    if (!heads.ok) {
+        return { branches: [], error: `Couldn't list the branches of ${repository ?? remote}: ${heads.stderr.trim().split("\n").pop()}` };
+    }
+    const lines = heads.stdout.split("\n");
+    const defaultBranch = lines.find((line) => line.startsWith("ref: "))?.match(/refs\/heads\/(\S+)\s+HEAD/)?.[1];
+    const branches = lines.flatMap((line) => line.match(/\trefs\/heads\/(.+)$/)?.[1] ?? []);
+    return { branches, defaultBranch, isPrivate: repository ? (await repoInfo(repository)).isPrivate : undefined };
+}
+
+/** Checks the remote branch has the package and the files the build needs, fetching it first so the answer is current. */
+export async function checkPushed(projectPath: string, remote: string, branch: string, appPath: string, buildFiles: string[]): Promise<AgentManagerSourceCheck> {
+    const repository = githubRemotes(projectPath).find((candidate) => candidate.name === remote)?.repository ?? remote;
+    const fetched = await gitAsync(projectPath, ["fetch", "--quiet", remote, `refs/heads/${branch}:refs/remotes/${remote}/${branch}`]);
+    if (!fetched.ok) {
+        return { ok: false, message: `Couldn't fetch ${branch} from ${repository}.` };
+    }
+    const dir = appPath.replace(/^\/+|\/+$/g, "");
+    const onBranch = (file: string) => git(projectPath, ["cat-file", "-e", `refs/remotes/${remote}/${branch}:${dir ? `${dir}/` : ""}${file}`]).status === 0;
+    if (!onBranch("Ballerina.toml")) {
+        return { ok: false, message: `Not found on ${branch}. Push your changes first.` };
+    }
+    const missing = buildFiles.filter((file) => !onBranch(file));
+    if (missing.length > 0) {
+        return { ok: false, message: `${missing.join(" and ")} not found on ${branch}. Push your changes first.` };
+    }
+    return { ok: true, message: `Found on ${branch}.` };
+}
+
+const sameRepo = (url: string | undefined, repository: string) =>
+    url?.match(GITHUB_REPO_URL)?.slice(1, 3).join("/").toLowerCase() === repository.toLowerCase();
+const samePath = (a = "/", b = "/") => a.replace(/\/+$/, "") === b.replace(/\/+$/, "");
+
+/** Platform-hosted agents in the org that build this package from one of the clone's remotes. */
+export async function linkCandidates(projectPath: string): Promise<AgentManagerLinkCandidate[]> {
+    const remotes = githubRemotes(projectPath);
+    const appPath = readFacts(projectPath).appPath;
+    if (remotes.length === 0) {
+        return [];
+    }
+    const projects = await api.listProjects();
+    const perProject = await Promise.all(projects.map(async (project) => (await api.listAgents(project.name)).flatMap((agent) => {
+        const repo = agent.provisioning.repository;
+        const remote = remotes.find((candidate) => sameRepo(repo?.url, candidate.repository));
+        return agent.provisioning.type === "internal" && remote && samePath(repo?.appPath, appPath)
+            ? [{ project: project.name, agent: agent.name, displayName: agent.displayName ?? agent.name, repository: remote.repository, branch: repo?.branch }]
+            : [];
+    })));
+    return perProject.flat();
+}
+

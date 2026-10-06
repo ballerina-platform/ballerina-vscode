@@ -21,8 +21,6 @@ export type AgentManagerHostingMode = "internal" | "external";
 export type AgentManagerAction =
     | "signIn"
     | "signOut"
-    | "chooseDeployTarget"
-    | "hostOnPlatform"
     | "enableAmpTracing"
     | "setupExternal"
     | "fixSource"
@@ -92,6 +90,9 @@ export interface AgentManagerStatus {
     signedIn: boolean;
     instanceUrl?: string;
     org?: string;
+    /** Agents in the org that build one of this clone's remotes, offered before creating a new one. */
+    candidates?: AgentManagerLinkCandidate[];
+    canCreate?: boolean;
     ampTracing?: boolean;
     link?: AgentManagerLink;
     source?: AgentManagerSource;
@@ -126,20 +127,7 @@ export interface AgentManagerConfigField {
 export interface AgentManagerConfigForm {
     fields: AgentManagerConfigField[];
     fileSaved: boolean;
-    target?: AgentManagerDeployTarget;
     error?: string;
-}
-
-export interface AgentManagerDeployTarget {
-    agentName: string;
-    project: string;
-    repository: string;
-    branch: string;
-    existing: boolean;
-    tracing: boolean;
-    /** Agent Manager LLM providers and MCP servers from .wso2/agent-manager.yaml, attached on deploy. */
-    llmProviders: string[];
-    mcpServers: string[];
 }
 
 export interface AgentManagerConfigInput {
@@ -234,6 +222,78 @@ export interface AgentManagerSession {
     org?: string;
 }
 
+export interface AgentManagerLinkCandidate {
+    project: string;
+    agent: string;
+    displayName: string;
+    repository: string;
+    branch?: string;
+}
+
+export interface AgentManagerLinkRequest {
+    projectPath: string;
+    project: string;
+    agent: string;
+}
+
+export interface AgentManagerRemote {
+    name: string;
+    repository: string;
+}
+
+export interface AgentManagerCreateForm {
+    org?: string;
+    projects: { name: string; displayName: string }[];
+    agentName: string;
+    remotes: AgentManagerRemote[];
+    /** The remote to preselect: `upstream` when the clone is a fork, else the branch's own remote. */
+    defaultRemote?: string;
+    appPath: string;
+    gitSecrets: string[];
+    tracing: boolean;
+    llmProviders: string[];
+    mcpServers: string[];
+    environment: string;
+    fields: AgentManagerConfigField[];
+    error?: string;
+}
+
+export interface AgentManagerRepoRequest {
+    projectPath: string;
+    remote: string;
+}
+
+export interface AgentManagerRepoDetails {
+    branches: string[];
+    defaultBranch?: string;
+    isPrivate?: boolean;
+    error?: string;
+}
+
+export interface AgentManagerSourceCheckRequest extends AgentManagerRepoRequest {
+    branch: string;
+    appPath: string;
+}
+
+export interface AgentManagerSourceCheck {
+    ok: boolean;
+    message: string;
+}
+
+export interface AgentManagerCreateRequest {
+    projectPath: string;
+    project: string;
+    newProject?: string;
+    agentName: string;
+    remote: string;
+    branch: string;
+    appPath: string;
+    /** An existing org git secret; otherwise `newToken` is stored as this repository's secret when it is private. */
+    gitSecret?: string;
+    newToken?: string;
+    config: AgentManagerConfigInput;
+}
+
 export interface AgentManagerAPI {
     getAgentManagerStatus: (params: AgentManagerStatusRequest) => Promise<AgentManagerStatus>;
     runAgentManagerAction: (params: AgentManagerActionRequest) => Promise<AgentManagerActionResponse>;
@@ -245,4 +305,9 @@ export interface AgentManagerAPI {
     createAgentManagerModelKey: (params: AgentManagerModelKeyRequest) => Promise<AgentManagerActionResponse>;
     getAgentManagerMcpProxies: (params: AgentManagerStatusRequest) => Promise<AgentManagerMcpProxies>;
     bindAgentManagerMcpProxy: (params: AgentManagerMcpBindRequest) => Promise<AgentManagerMcpBinding>;
+    linkAgentManagerAgent: (params: AgentManagerLinkRequest) => Promise<AgentManagerActionResponse>;
+    getAgentManagerCreateForm: (params: AgentManagerStatusRequest) => Promise<AgentManagerCreateForm>;
+    getAgentManagerRepoDetails: (params: AgentManagerRepoRequest) => Promise<AgentManagerRepoDetails>;
+    checkAgentManagerSource: (params: AgentManagerSourceCheckRequest) => Promise<AgentManagerSourceCheck>;
+    createAgentManagerAgent: (params: AgentManagerCreateRequest) => Promise<AgentManagerActionResponse>;
 }

@@ -32,6 +32,15 @@ import {
     getAgentManagerMcpProxies,
     getAgentManagerStatus,
     runAgentManagerAction,
+    AgentManagerCreateRequest,
+    AgentManagerLinkRequest,
+    AgentManagerRepoRequest,
+    AgentManagerSourceCheckRequest,
+    linkAgentManagerAgent,
+    getAgentManagerCreateForm,
+    getAgentManagerRepoDetails,
+    checkAgentManagerSource,
+    createAgentManagerAgent,
 } from "@wso2/ballerina-core";
 import { Messenger } from "vscode-messenger";
 import { addMcpServers, getMcpOffer } from "../../features/agent-manager/copilot";
@@ -40,6 +49,7 @@ import { getConfigForm, getStatus, runAction } from "../../features/agent-manage
 import { notifyAgentManagerSessionChanged } from "../../RPCLayer";
 import { createModelKey, listModelProviders } from "../../features/agent-manager/models";
 import { bindMcpProxy, listMcpProxies } from "../../features/agent-manager/mcp";
+import { checkSource, createAgent, getCreateForm, getRepoDetails, linkAgent } from "../../features/agent-manager/create";
 
 export function registerAgentManagerRpcHandlers(messenger: Messenger) {
     messenger.onRequest(getAgentManagerStatus, (args: AgentManagerStatusRequest) => getStatus(args.projectPath));
@@ -53,4 +63,9 @@ export function registerAgentManagerRpcHandlers(messenger: Messenger) {
     messenger.onRequest(createAgentManagerModelKey, (args: AgentManagerModelKeyRequest) => createModelKey(args));
     messenger.onRequest(getAgentManagerMcpProxies, (args: AgentManagerStatusRequest) => listMcpProxies(args.projectPath));
     messenger.onRequest(bindAgentManagerMcpProxy, (args: AgentManagerMcpBindRequest) => bindMcpProxy(args));
+    messenger.onRequest(linkAgentManagerAgent, (args: AgentManagerLinkRequest) => linkAgent(args));
+    messenger.onRequest(getAgentManagerCreateForm, (args: AgentManagerStatusRequest) => getCreateForm(args.projectPath));
+    messenger.onRequest(getAgentManagerRepoDetails, (args: AgentManagerRepoRequest) => getRepoDetails(args));
+    messenger.onRequest(checkAgentManagerSource, (args: AgentManagerSourceCheckRequest) => checkSource(args));
+    messenger.onRequest(createAgentManagerAgent, (args: AgentManagerCreateRequest) => createAgent(args));
 }

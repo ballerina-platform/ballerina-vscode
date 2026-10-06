@@ -69,6 +69,12 @@ async function request<T>(method: string, apiPath: string, body?: unknown): Prom
     return (text ? parseJson(apiPath, text) : undefined) as T;
 }
 
+export interface AgentSummary {
+    name: string;
+    displayName?: string;
+    provisioning: { type: string; repository?: { url?: string; branch?: string; appPath?: string } };
+}
+
 export interface EnvironmentVariable {
     key: string;
     value: string;
@@ -130,8 +136,17 @@ export const api = {
     createProject: (name: string, displayName: string) =>
         request("POST", "/projects", { name, displayName, deploymentPipeline: "default" }),
     listAgents: async (project: string) =>
-        (await request<{ agents: { name: string; provisioning: { type: string } }[] }>(
-            "GET", `/projects/${project}/agents?limit=100`)).agents,
+        (await request<{ agents: AgentSummary[] }>("GET", `/projects/${project}/agents?limit=100`)).agents,
+    listGitSecrets: async () => {
+        const names: string[] = [];
+        for (let offset = 0; ; offset += 50) {
+            const page = await request<{ secrets: { name: string }[]; total: number }>("GET", `/git-secrets?limit=50&offset=${offset}`);
+            names.push(...page.secrets.map((secret) => secret.name));
+            if (page.secrets.length < 50 || names.length >= page.total) {
+                return names;
+            }
+        }
+    },
     createExternalAgent: (project: string, name: string, displayName: string) =>
         request("POST", `/projects/${project}/agents`, {
             name,
@@ -160,7 +175,7 @@ export const api = {
             mcpConfig: spec.mcpConfig.map((config) => ({ proxyName: config.handle, environmentVariables: envVariables(config.env) })),
         }),
     createGitSecret: (name: string, username: string, password: string) =>
-        request("POST", "/git-secrets", { name, type: "basic", credentials: { username, password } }),
+        request("POST", "/git-secrets", { name, type: "basic-auth", credentials: { username, password } }),
     deleteGitSecret: (name: string) => request("DELETE", `/git-secrets/${name}`),
     hasGitSecret: async (name: string) => {
         const pageSize = 50;
@@ -258,8 +273,8 @@ export const api = {
             inputInterface: agent.inputInterface,
         });
     },
-    triggerBuild: (link: AgentManagerLink, commitId: string) =>
-        request("POST", `/projects/${link.project}/agents/${link.agent}/builds?commitId=${encodeURIComponent(commitId)}`),
+    // Without a commit, Agent Manager builds the tip of the agent's own repository and branch.
+    triggerBuild: (link: AgentManagerLink) => request("POST", `/projects/${link.project}/agents/${link.agent}/builds`),
     getDeployment: async (link: AgentManagerLink) => {
         const deployments = await request<Record<string, DeploymentInfo>>(
             "GET", `/projects/${link.project}/agents/${link.agent}/deployments`);

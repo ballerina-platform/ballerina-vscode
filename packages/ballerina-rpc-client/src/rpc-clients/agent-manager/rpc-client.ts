@@ -41,6 +41,18 @@ import {
     getAgentManagerSession,
     getAgentManagerStatus,
     runAgentManagerAction,
+    AgentManagerCreateForm,
+    AgentManagerCreateRequest,
+    AgentManagerLinkRequest,
+    AgentManagerRepoDetails,
+    AgentManagerRepoRequest,
+    AgentManagerSourceCheck,
+    AgentManagerSourceCheckRequest,
+    linkAgentManagerAgent,
+    getAgentManagerCreateForm,
+    getAgentManagerRepoDetails,
+    checkAgentManagerSource,
+    createAgentManagerAgent,
 } from "@wso2/ballerina-core";
 import { HOST_EXTENSION } from "vscode-messenger-common";
 import { Messenger } from "vscode-messenger-webview";
@@ -90,5 +102,25 @@ export class AgentManagerRpcClient implements AgentManagerAPI {
 
     bindAgentManagerMcpProxy(params: AgentManagerMcpBindRequest): Promise<AgentManagerMcpBinding> {
         return this._messenger.sendRequest(bindAgentManagerMcpProxy, HOST_EXTENSION, params);
+    }
+
+    linkAgentManagerAgent(params: AgentManagerLinkRequest): Promise<AgentManagerActionResponse> {
+        return this._messenger.sendRequest(linkAgentManagerAgent, HOST_EXTENSION, params);
+    }
+
+    getAgentManagerCreateForm(params: AgentManagerStatusRequest): Promise<AgentManagerCreateForm> {
+        return this._messenger.sendRequest(getAgentManagerCreateForm, HOST_EXTENSION, params);
+    }
+
+    getAgentManagerRepoDetails(params: AgentManagerRepoRequest): Promise<AgentManagerRepoDetails> {
+        return this._messenger.sendRequest(getAgentManagerRepoDetails, HOST_EXTENSION, params);
+    }
+
+    checkAgentManagerSource(params: AgentManagerSourceCheckRequest): Promise<AgentManagerSourceCheck> {
+        return this._messenger.sendRequest(checkAgentManagerSource, HOST_EXTENSION, params);
+    }
+
+    createAgentManagerAgent(params: AgentManagerCreateRequest): Promise<AgentManagerActionResponse> {
+        return this._messenger.sendRequest(createAgentManagerAgent, HOST_EXTENSION, params);
     }
 }

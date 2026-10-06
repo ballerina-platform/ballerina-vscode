@@ -20,11 +20,12 @@ import React, { useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import styled from "@emotion/styled";
 import { useQuery } from "@tanstack/react-query";
-import { AgentManagerAction, AgentManagerBuild, AgentManagerSource, AgentManagerStatus } from "@wso2/ballerina-core";
+import { AgentManagerAction, AgentManagerBuild, AgentManagerLinkCandidate, AgentManagerSource, AgentManagerStatus } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Button, CheckBox, Codicon, ContextMenu, ProgressRing } from "@wso2/ui-toolkit";
 import { VSCodeLink } from "@vscode/webview-ui-toolkit/react";
 import { AgentManagerConfigForm } from "./AgentManagerConfigForm";
+import { AgentManagerCreateForm } from "./AgentManagerCreateForm";
 import { PopupModal, PopupModalStep } from "../PopupModal";
 import { CloseButton, HeaderTitleContainer, PopupHeader, PopupSubtitle, PopupTitle } from "../../views/BI/Connection/styles";
 
@@ -91,12 +92,37 @@ const ProgressFill = styled.div<{ percent: number }>`
     transition: width 0.3s ease;
 `;
 
+const CandidateList = styled.div`
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--vscode-welcomePage-tileBorder);
+    border-radius: 4px;
+    overflow: hidden;
+`;
+
+const Candidate = styled.button<{ selected: boolean }>`
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 6px 10px;
+    border: none;
+    background: ${({ selected }: { selected: boolean }) => (selected ? "var(--vscode-list-activeSelectionBackground)" : "transparent")};
+    color: ${({ selected }: { selected: boolean }) => (selected ? "var(--vscode-list-activeSelectionForeground)" : "var(--vscode-foreground)")};
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    &:hover {
+        background: ${({ selected }: { selected: boolean }) => (selected ? "var(--vscode-list-activeSelectionBackground)" : "var(--vscode-list-hoverBackground)")};
+    }
+`;
+
 const ErrorText = styled.span`
     color: var(--vscode-errorForeground);
     word-break: break-word;
 `;
 
 type Run = (action: AgentManagerAction) => Promise<void>;
+type Pending = AgentManagerAction | "link";
 
 interface AgentManagerSectionProps {
     projectPath: string;
@@ -127,16 +153,11 @@ export function isRunningOnAgentManager(status?: AgentManagerStatus): boolean {
 
 export function AgentManagerSection({ projectPath, part, ampTracingEnabled, handleAmpTracing }: AgentManagerSectionProps) {
     const { rpcClient } = useRpcContext();
-    const [pending, setPending] = useState<AgentManagerAction | undefined>();
+    const [pending, setPending] = useState<Pending>();
     const { data: status, isLoading, isFetching, refetch } = useAgentManagerStatus(projectPath);
-    const [formAction, setFormAction] = useState<"hostOnPlatform" | "saveConfig" | undefined>();
-    const [formAgentName, setFormAgentName] = useState<string | undefined>();
+    const [formAction, setFormAction] = useState<"create" | "saveConfig" | undefined>();
 
     const run: Run = async (action) => {
-        if (action === "hostOnPlatform") {
-            await deploy();
-            return;
-        }
         if (action === "saveConfig") {
             setFormAction(action);
             return;
@@ -150,17 +171,15 @@ export function AgentManagerSection({ projectPath, part, ampTracingEnabled, hand
         }
     };
 
-    const deploy = async () => {
-        setPending("chooseDeployTarget");
-        const chosen = await rpcClient.getAgentManagerRpcClient().runAgentManagerAction({ projectPath, action: "chooseDeployTarget" })
+    const link = async (candidate: AgentManagerLinkCandidate) => {
+        setPending("link");
+        await rpcClient.getAgentManagerRpcClient().linkAgentManagerAgent({ projectPath, project: candidate.project, agent: candidate.agent })
             .finally(() => setPending(undefined));
-        // The prompts can change the project (e.g. adding the amp import), so show the new state now rather than on the next poll.
-        chosen.success ? setFormAction("hostOnPlatform") : refetch();
+        refetch();
     };
 
     const closeForm = () => {
         setFormAction(undefined);
-        setFormAgentName(undefined);
         refetch();
     };
 
@@ -189,7 +208,8 @@ export function AgentManagerSection({ projectPath, part, ampTracingEnabled, hand
             <Stack>
                 {status.link?.mode === "internal" ? linked : (
                     <>
-                        <HostAgent status={status} pending={pending} run={run} refreshing={isFetching} onRefresh={() => refetch()} />
+                        <HostAgent status={status} pending={pending} run={run} refreshing={isFetching} onRefresh={() => refetch()}
+                            onLink={link} onCreate={() => setFormAction("create")} />
                         <SignedInFooter status={status} run={run} />
                     </>
                 )}
@@ -241,23 +261,26 @@ export function AgentManagerSection({ projectPath, part, ampTracingEnabled, hand
                         <PopupModalStep>
                             <PopupHeader>
                                 <HeaderTitleContainer>
-                                    <PopupTitle variant="h2">{formAction === "hostOnPlatform" ? "Deploy to Agent Manager" : "Configuration"}</PopupTitle>
-                                    <PopupSubtitle variant="body2">{formAgentName ?? status.displayName ?? status.link?.agent ?? "Agent Manager"}</PopupSubtitle>
+                                    <PopupTitle variant="h2">{formAction === "create" ? "Create Agent in Agent Manager" : "Configuration"}</PopupTitle>
+                                    <PopupSubtitle variant="body2">{formAction === "create" ? status.org : status.displayName ?? status.link?.agent}</PopupSubtitle>
                                 </HeaderTitleContainer>
                                 <CloseButton appearance="icon" onClick={close}>
                                     <Codicon name="close" />
                                 </CloseButton>
                             </PopupHeader>
-                            <AgentManagerConfigForm
-                                projectPath={projectPath}
-                                description="Values for this agent's configurables in Agent Manager."
-                                action={formAction}
-                                submitLabel={formAction === "hostOnPlatform" ? "Deploy" : "Save"}
-                                busyLabel={formAction === "hostOnPlatform" ? "Deploying…" : "Saving…"}
-                                onDone={close}
-                                onCancel={close}
-                                onAgentName={setFormAgentName}
-                            />
+                            {formAction === "create" ? (
+                                <AgentManagerCreateForm projectPath={projectPath} onDone={close} onCancel={close} />
+                            ) : (
+                                <AgentManagerConfigForm
+                                    projectPath={projectPath}
+                                    description="Values for this agent's configurables in Agent Manager."
+                                    action="saveConfig"
+                                    submitLabel="Save"
+                                    busyLabel="Saving…"
+                                    onDone={close}
+                                    onCancel={close}
+                                />
+                            )}
                         </PopupModalStep>
                     )}
                 </PopupModal>,
@@ -269,17 +292,59 @@ export function AgentManagerSection({ projectPath, part, ampTracingEnabled, hand
 
 interface ActionProps {
     status: AgentManagerStatus;
-    pending?: AgentManagerAction;
+    pending?: Pending;
     run: Run;
 }
 
-function HostAgent({ status, pending, run, refreshing, onRefresh }: ActionProps & Pick<LinkedAgentProps, "refreshing" | "onRefresh">) {
+interface LinkOrCreateProps {
+    onLink: (candidate: AgentManagerLinkCandidate) => void;
+    onCreate: () => void;
+}
+
+function HostAgent({ status, pending, run, refreshing, onRefresh, onLink, onCreate }: ActionProps & LinkOrCreateProps & Pick<LinkedAgentProps, "refreshing" | "onRefresh">) {
     return (
         <>
             {status.error && <ErrorText>{status.error}</ErrorText>}
             {status.unavailable
                 ? <Actions><Button appearance="secondary" disabled={refreshing} onClick={onRefresh}>Try Again</Button></Actions>
-                : <SourceStep status={status} pending={pending} run={run} />}
+                : <SourceStep status={status} pending={pending} run={run} onLink={onLink} onCreate={onCreate} />}
+        </>
+    );
+}
+
+// Most developers join an agent someone already set up for this repository, so that comes before creating one.
+function LinkOrCreate({ status, pending, onLink, onCreate }: Pick<ActionProps, "status" | "pending"> & LinkOrCreateProps) {
+    const candidates = status.candidates ?? [];
+    const [selected, setSelected] = useState(0);
+    const create = status.canCreate && (
+        <Button appearance={candidates.length > 0 ? "secondary" : "primary"} disabled={!!pending} onClick={onCreate}>Create New Agent</Button>
+    );
+    return (
+        <>
+            {candidates.length > 0 && (
+                <Section>
+                    <Detail>Existing agents for this repository</Detail>
+                    <CandidateList>
+                        {candidates.map((candidate, index) => (
+                            <Candidate key={`${candidate.project}/${candidate.agent}`} type="button" selected={index === selected} onClick={() => setSelected(index)}>
+                                <span>{candidate.displayName}</span>
+                                <Detail>{candidate.project} · {candidate.repository}{candidate.branch && ` · ${candidate.branch}`}</Detail>
+                            </Candidate>
+                        ))}
+                    </CandidateList>
+                </Section>
+            )}
+            <Actions>
+                {candidates.length > 0 && (
+                    <Button appearance="primary" disabled={!!pending} onClick={() => onLink(candidates[selected])}>
+                        {pending === "link" ? "Linking…" : "Link Agent"}
+                    </Button>
+                )}
+                {create}
+            </Actions>
+            {!status.canCreate && candidates.length === 0 && (
+                <Detail>You don't have permission to create agents. Contact your Agent Manager administrator.</Detail>
+            )}
         </>
     );
 }
@@ -306,7 +371,7 @@ function SourceLine({ source }: { source?: AgentManagerSource }) {
 }
 
 // Blocking steps replace the deploy button; the rest are a one-line hint so deploying what's on GitHub stays one click.
-function SourceHint({ source, pending, run }: { source?: AgentManagerSource; pending?: AgentManagerAction; run: Run }) {
+function SourceHint({ source, pending, run }: { source?: AgentManagerSource; pending?: Pending; run: Run }) {
     const step = source?.step;
     if (!step || step.blocking) {
         return null;
@@ -319,7 +384,7 @@ function SourceHint({ source, pending, run }: { source?: AgentManagerSource; pen
     );
 }
 
-function BlockingStep({ source, pending, run }: { source?: AgentManagerSource; pending?: AgentManagerAction; run: Run }) {
+function BlockingStep({ source, pending, run }: { source?: AgentManagerSource; pending?: Pending; run: Run }) {
     const step = source?.step!;
     return (
         <>
@@ -336,7 +401,7 @@ function BlockingStep({ source, pending, run }: { source?: AgentManagerSource; p
     );
 }
 
-function SourceStep({ status, pending, run }: ActionProps) {
+function SourceStep({ status, pending, run, onLink, onCreate }: ActionProps & LinkOrCreateProps) {
     const source = status.source;
     if (source?.step?.blocking) {
         return <BlockingStep source={source} pending={pending} run={run} />;
@@ -347,7 +412,7 @@ function SourceStep({ status, pending, run }: ActionProps) {
                 <SourceLine source={source} />
                 <SourceHint source={source} pending={pending} run={run} />
             </Section>
-            <Actions><Button appearance="primary" disabled={!!pending} onClick={() => run("hostOnPlatform")}>{pending === "chooseDeployTarget" ? "Preparing…" : "Deploy Agent"}</Button></Actions>
+            <LinkOrCreate status={status} pending={pending} onLink={onLink} onCreate={onCreate} />
         </>
     );
 }
@@ -451,7 +516,7 @@ function PlatformState({ status, pending, run }: ActionProps) {
 }
 
 // With nothing to fix, Try It leads; otherwise the fix does and Try It follows.
-function ActionRow({ actions, live, pending, run }: { actions: DeployAction[]; live: boolean; pending?: AgentManagerAction; run: Run }) {
+function ActionRow({ actions, live, pending, run }: { actions: DeployAction[]; live: boolean; pending?: Pending; run: Run }) {
     const healthy = live && actions.length === 0;
     if (actions.length === 0 && !live) {
         return null;

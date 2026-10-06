@@ -251,7 +251,7 @@ export interface SplitConfig {
     errors: string[];
 }
 
-export function splitConfig(fields: AgentManagerConfigField[], input: AgentManagerConfigInput): SplitConfig {
+export function splitConfig(fields: AgentManagerConfigField[], input: AgentManagerConfigInput, allowMissing = false): SplitConfig {
     const result: SplitConfig = { env: [], errors: [] };
     const table = emptyTable();
     const types = new Map<string, string>();
@@ -276,7 +276,7 @@ export function splitConfig(fields: AgentManagerConfigField[], input: AgentManag
         }
     }
     const writesFile = types.size > 0;
-    for (const f of supported.filter((candidate) => candidate.required && !input.values[candidate.id])) {
+    for (const f of supported.filter((candidate) => !allowMissing && candidate.required && !input.values[candidate.id])) {
         // Replacing Config.toml drops everything not in the new one, so saved file values count only when the file is kept.
         const kept = f.target === "env" ? f.saved : f.saved && !writesFile;
         if (!kept) {

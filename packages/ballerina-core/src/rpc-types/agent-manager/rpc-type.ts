@@ -22,6 +22,13 @@ import {
     AgentManagerActionRequest,
     AgentManagerActionResponse,
     AgentManagerConfigForm,
+    AgentManagerCreateForm,
+    AgentManagerCreateRequest,
+    AgentManagerLinkRequest,
+    AgentManagerRepoDetails,
+    AgentManagerRepoRequest,
+    AgentManagerSourceCheck,
+    AgentManagerSourceCheckRequest,
     AgentManagerMcpBindRequest,
     AgentManagerMcpBinding,
     AgentManagerMcpOffer,
@@ -56,3 +63,13 @@ export const getAgentManagerSession: RequestType<void, AgentManagerSession> =
     { method: `${_preFix}/getAgentManagerSession` };
 export const agentManagerSessionChanged: NotificationType<AgentManagerSession> =
     { method: `${_preFix}/agentManagerSessionChanged` };
+export const linkAgentManagerAgent: RequestType<AgentManagerLinkRequest, AgentManagerActionResponse> =
+    { method: `${_preFix}/linkAgentManagerAgent` };
+export const getAgentManagerCreateForm: RequestType<AgentManagerStatusRequest, AgentManagerCreateForm> =
+    { method: `${_preFix}/getAgentManagerCreateForm` };
+export const getAgentManagerRepoDetails: RequestType<AgentManagerRepoRequest, AgentManagerRepoDetails> =
+    { method: `${_preFix}/getAgentManagerRepoDetails` };
+export const checkAgentManagerSource: RequestType<AgentManagerSourceCheckRequest, AgentManagerSourceCheck> =
+    { method: `${_preFix}/checkAgentManagerSource` };
+export const createAgentManagerAgent: RequestType<AgentManagerCreateRequest, AgentManagerActionResponse> =
+    { method: `${_preFix}/createAgentManagerAgent` };
