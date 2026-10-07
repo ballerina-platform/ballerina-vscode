@@ -44,6 +44,12 @@ export class SignInCancelled extends Error {
     }
 }
 
+const tokensKey = (serverUrl: string, oauth: McpOAuthConfig) => `ballerina.copilot.mcp.oauth:${oauth.clientId}@${serverUrl}`;
+
+export async function forgetTokens(serverUrl: string, oauth: McpOAuthConfig): Promise<void> {
+    await extension.context.secrets.delete(tokensKey(serverUrl, oauth));
+}
+
 export function signInOnNextConnect(url: string): void {
     interactiveSignIns.add(url);
 }
@@ -60,7 +66,7 @@ export class McpOAuthProvider {
     private readonly secretKey: string;
 
     constructor(serverUrl: string, private readonly oauth: McpOAuthConfig) {
-        this.secretKey = `ballerina.copilot.mcp.oauth:${oauth.clientId}@${serverUrl}`;
+        this.secretKey = tokensKey(serverUrl, oauth);
     }
 
     get redirectUrl(): string {

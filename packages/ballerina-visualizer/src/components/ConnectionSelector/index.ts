@@ -30,6 +30,7 @@ export type {
     ConnectionConfigProps,
     ConnectionSelectionListProps,
     ConnectionCreatorProps,
+    PendingSetup,
 } from "./types";
 
 export {

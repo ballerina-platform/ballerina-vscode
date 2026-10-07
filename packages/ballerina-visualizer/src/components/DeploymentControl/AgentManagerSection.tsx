@@ -118,6 +118,7 @@ type Pending = AgentManagerAction | "link";
 interface AgentManagerSectionProps {
     projectPath: string;
     part: "deploy" | "monitor";
+    active: boolean;
     ampTracingEnabled: boolean;
     handleAmpTracing: (checked: boolean) => void;
 }
@@ -151,10 +152,10 @@ export function agentManagerTag(status?: AgentManagerStatus): string | undefined
     return kind === "starting" && status.crashed ? "Failed" : PHASE_TAGS[kind];
 }
 
-export function AgentManagerSection({ projectPath, part, ampTracingEnabled, handleAmpTracing }: AgentManagerSectionProps) {
+export function AgentManagerSection({ projectPath, part, active, ampTracingEnabled, handleAmpTracing }: AgentManagerSectionProps) {
     const { rpcClient } = useRpcContext();
     const [pending, setPending] = useState<Pending>();
-    const { data: status, isLoading, isFetching, refetch } = useAgentManagerStatus(projectPath);
+    const { data: status, isLoading, isFetching, refetch } = useAgentManagerStatus(projectPath, active);
     const [creating, setCreating] = useState(false);
 
     const run: Run = async (action, autoInstrumentation) => {

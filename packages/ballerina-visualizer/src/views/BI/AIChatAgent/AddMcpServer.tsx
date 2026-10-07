@@ -80,6 +80,7 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
     const [showDiscoverModal, setShowDiscoverModal] = useState<boolean>(false);
     const [showScopes, setShowScopes] = useState<boolean>(false);
     const [formKey, setFormKey] = useState(0);
+    const pickedProxy = useRef<{ proxyId: string; created: string[]; properties: FlowNode["properties"] }>();
 
     // Edit mode tracking
     const [resolutionError, setResolutionError] = useState<string>("");
@@ -510,7 +511,13 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
 
             await rpcClient.getAIAgentRpcClient().fixMissingImports().catch((): undefined => undefined);
 
+            const picked = pickedProxy.current;
+            pickedProxy.current = undefined;
             onSave?.(targetAgentNode ? await resolveAgentNodePosition(targetAgentNode, rpcClient) : undefined);
+            if (picked) {
+                const { projectPath } = await rpcClient.getVisualizerLocation();
+                await rpcClient.getAgentManagerRpcClient().commitAgentManagerMcpProxy({ projectPath, proxyId: picked.proxyId });
+            }
         } catch (error) {
             console.error("Error saving MCP server:", error);
             rpcClient.getCommonRpcClient().showErrorMessage({
@@ -523,10 +530,31 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
 
     // The form reads values only when it mounts, so a picked server remounts it.
     const handleAgentManagerBinding = useCallback((binding: AgentManagerMcpBinding, proxyId: string) => {
+        pickedProxy.current = { proxyId, created: binding.created ?? [], properties: cloneDeep(mcpToolKitNodeRef.current.properties) };
         applyMcpBinding(mcpToolKitNodeRef.current, binding, proxyId);
         setRequiresAuth(!!binding.auth);
         setFormKey((key) => key + 1);
     }, []);
+
+    // Going back or leaving without saving removes the configurables the pick added and clears its values from the form.
+    const discardPickedProxy = useCallback(() => {
+        const picked = pickedProxy.current;
+        if (!picked) {
+            return;
+        }
+        pickedProxy.current = undefined;
+        mcpToolKitNodeRef.current.properties = picked.properties;
+        setServerUrl("");
+        setAuth("");
+        setRequiresAuth(false);
+        setFormKey((key) => key + 1);
+        if (picked.created.length > 0) {
+            void rpcClient.getVisualizerLocation().then(({ projectPath }) => rpcClient.getAgentManagerRpcClient()
+                .discardAgentManagerBinding({ projectPath, configurables: picked.created }));
+        }
+    }, [rpcClient]);
+
+    useEffect(() => discardPickedProxy, [discardPickedProxy]);
 
     const isSaveDisabled = useMemo(() => {
         return availableMcpTools.length > 0 && selectedMcpTools.size === 0;
@@ -653,7 +681,7 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
                 </LoaderContainer>
             )}
 
-            {editMode ? form : !isLoading && <AgentManagerMcpGate onBind={handleAgentManagerBinding} onSetBackOverride={props.onSetBackOverride}>{form}</AgentManagerMcpGate>}
+            {editMode ? form : !isLoading && <AgentManagerMcpGate onBind={handleAgentManagerBinding} onDiscard={discardPickedProxy} onSetBackOverride={props.onSetBackOverride}>{form}</AgentManagerMcpGate>}
 
             <DiscoverToolsModal
                 isOpen={showDiscoverModal}

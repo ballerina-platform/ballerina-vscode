@@ -35,7 +35,7 @@ import { URI, Utils } from "vscode-uri";
 import { CONNECTIONS_FILE } from "../../constants";
 
 export function ConnectionCreator(props: ConnectionCreatorProps): JSX.Element {
-    const { connectionKind, selectedNode, nodeFormTemplate, onSave } = props;
+    const { connectionKind, selectedNode, nodeFormTemplate, pendingSetup, onSave } = props;
 
     const connectionSymbol = useMemo(() => nodeFormTemplate?.codedata?.symbol || '', [nodeFormTemplate?.codedata?.symbol]);
     const specialConfig = useMemo(() => getConnectionSpecialConfig(connectionSymbol) || {}, [connectionSymbol]);
@@ -49,6 +49,14 @@ export function ConnectionCreator(props: ConnectionCreatorProps): JSX.Element {
     const [savingForm, setSavingForm] = useState<boolean>(false);
 
     const projectPath = useRef<string>("");
+    const saved = useRef(false);
+    const pendingSetupRef = useRef(pendingSetup);
+    pendingSetupRef.current = pendingSetup;
+    useEffect(() => () => {
+        if (!saved.current) {
+            pendingSetupRef.current?.discard();
+        }
+    }, []);
     const connectionsFilePath = useRef<string>("");
     const targetLineRangeRef = useRef<LineRange | undefined>(undefined);
 
@@ -135,11 +143,13 @@ export function ConnectionCreator(props: ConnectionCreatorProps): JSX.Element {
                 const providerKind = connectionSymbol === GET_DEFAULT_EMBEDDING_PROVIDER ? "embedding" : "model";
                 await rpcClient.getAIAgentRpcClient().configureDefaultModelProvider(providerKind);
             }
+            saved.current = true;
             onSave?.(selectedNode, response.artifacts);
+            await pendingSetup?.commit();
         } catch (error) {
             console.error(`>>> Error creating ${connectionKind}`, error);
         }
-    }, [onSave, rpcClient, connectionKind, connectionFields, connectionSymbol]);
+    }, [onSave, rpcClient, connectionKind, connectionFields, connectionSymbol, pendingSetup]);
 
     return (
         <>

@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { createHash } from "crypto";
+import { createHash, randomBytes } from "crypto";
 import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
@@ -34,18 +34,21 @@ import {
     DIRECTORY_MAP,
     isSamePath,
     OpenAPISpec,
+    ProjectStructureArtifactResponse,
 } from "@wso2/ballerina-core";
 import { AgentManagerApiError, getSession, signIn, signOut } from "./auth";
-import { offerCopilotMcp } from "./copilot";
+import { forgetCopilotMcpTokens, offerCopilotMcp } from "./copilot";
 import { buildConfigFields, configEnvKey } from "./configurables";
 import { injectedEnvNames, reconcileAgentConfigs } from "./bindings";
 import {
-    buildBranch, ensureGitIgnored, inspectSource, isExposed, isIgnored, linkCandidates, LOCAL_ONLY_FILES, Preparation, readFacts, SourceStepId, untrack,
+    buildBranch, ensureGitIgnored, inspectSource, isExposed, isIgnored, linkCandidates, LOCAL_ONLY_FILES, Preparation, readFacts, SourceFacts, SourceStepId,
+    untrack,
 } from "./github";
 import {
     api,
     consoleUrl,
     DEFAULT_ENVIRONMENT,
+    MAX_RESOURCE_NAME,
     readLink,
     readManifest,
     removeLink,
@@ -190,7 +193,10 @@ const ACTIONS: Record<AgentManagerAction, (projectPath: string, autoInstrumentat
         void offerCopilotMcp();
         return `Signed in to Agent Manager (${session.org}).`;
     },
-    signOut,
+    signOut: async () => {
+        await forgetCopilotMcpTokens();
+        await signOut();
+    },
     fixSource,
     setupExternal,
     pushAndRebuild,
@@ -270,10 +276,23 @@ async function pickProject(): Promise<string> {
     if (choice.label !== createNew) {
         return choice.label;
     }
-    const displayName = required(await vscode.window.showInputBox({ title: "New Project Name (1/2)", ignoreFocusOut: true }));
+    const displayName = required(await vscode.window.showInputBox({
+        title: "New Project Name (1/2)",
+        validateInput: (value) => (toResourceName(value) ? undefined : "Use at least one letter"),
+        ignoreFocusOut: true,
+    }));
     const name = toResourceName(displayName);
-    await api.createProject(name, displayName);
+    await ensureProject(name, displayName);
     return name;
+}
+
+// A project left behind by an earlier attempt that failed later on is reused, not reported as a conflict.
+export async function ensureProject(name: string, displayName: string): Promise<void> {
+    await api.createProject(name, displayName).catch((error) => {
+        if (!(error instanceof AgentManagerApiError && error.status === 409)) {
+            throw error;
+        }
+    });
 }
 
 async function pickAgentName(projectPath: string, project: string) {
@@ -281,7 +300,7 @@ async function pickAgentName(projectPath: string, project: string) {
     const displayName = required(await vscode.window.showInputBox({
         title: "Agent Name (2/2)",
         value: await readPackageTitle(projectPath),
-        validateInput: (value) => (toResourceName(value) ? undefined : "Use at least one letter or digit"),
+        validateInput: (value) => (toResourceName(value) ? undefined : "Use at least one letter"),
         ignoreFocusOut: true,
     }));
     const name = toResourceName(displayName);
@@ -319,21 +338,21 @@ async function regenerateToken(projectPath: string): Promise<string> {
 
 async function issueExternalToken(projectPath: string, link: AgentManagerLink): Promise<void> {
     const [token, gatewayUrl] = await Promise.all([api.generateToken(link, EXTERNAL_TOKEN_EXPIRY), api.getGatewayUrl(link.environment)]);
-    writeAmpConfig(projectPath, `${gatewayUrl}/otel`, token.token);
+    await writeAmpConfig(projectPath, `${gatewayUrl}/otel`, token.token);
     writeLink(projectPath, link);
 }
 
-function writeAmpConfig(projectPath: string, otelEndpoint: string, apiKey: string): void {
-    if (!readFacts(projectPath).root) {
+async function writeAmpConfig(projectPath: string, otelEndpoint: string, apiKey: string): Promise<void> {
+    if (!(await readFacts(projectPath)).root) {
         throw new Error("Initialize Git for this integration first, so Config.toml can be kept out of commits before the API key is written to it.");
     }
     const configPath = path.join(projectPath, "Config.toml");
     const content = fs.existsSync(configPath) ? fs.readFileSync(configPath, "utf-8") : "";
     const updated = updateOrAddSection(content, "ballerinax.amp", { otelEndpoint, apiKey });
-    if (ensureGitIgnored(projectPath, "Config.toml")) {
+    if (await ensureGitIgnored(projectPath, "Config.toml")) {
         vscode.window.showInformationMessage("Added Config.toml to .gitignore.");
     }
-    untrack(projectPath, "Config.toml");
+    await untrack(projectPath, "Config.toml");
     fs.writeFileSync(configPath, updated.endsWith("\n") ? updated : updated + "\n");
 }
 
@@ -393,7 +412,8 @@ function ensureAmpInstrumentation(projectPath: string): boolean {
 }
 
 async function sourceStatus(projectPath: string): Promise<AgentManagerSource> {
-    return inspectSource(projectPath, await readPreparation(projectPath));
+    const facts = await readFacts(projectPath);
+    return inspectSource(projectPath, facts, await readPreparation(projectPath, facts));
 }
 
 async function requireGitHubSource(projectPath: string): Promise<AgentManagerSource> {
@@ -404,13 +424,17 @@ async function requireGitHubSource(projectPath: string): Promise<AgentManagerSou
     return source;
 }
 
-export async function readPreparation(projectPath: string): Promise<Preparation> {
-    const inRepo = !!readFacts(projectPath).root;
+export async function readPreparation(projectPath: string, facts?: SourceFacts): Promise<Preparation> {
+    const inRepo = !!(facts ?? await readFacts(projectPath)).root;
+    const [exposed, ignored] = await Promise.all([
+        Promise.all(LOCAL_ONLY_FILES.map((file) => isExposed(projectPath, file, inRepo))),
+        Promise.all(LOCAL_ONLY_FILES.map((file) => isIgnored(projectPath, file, inRepo))),
+    ]);
     return {
         openApiSpec: !fs.existsSync(path.join(projectPath, OPENAPI_FILE)),
         ampImport: !hasAmpImport(projectPath) && readManifest(projectPath).autoInstrumentation !== false,
-        exposedFiles: LOCAL_ONLY_FILES.filter((file) => isExposed(projectPath, file, inRepo)),
-        gitignore: LOCAL_ONLY_FILES.some((file) => !isIgnored(projectPath, file, inRepo)),
+        exposedFiles: LOCAL_ONLY_FILES.filter((_, index) => exposed[index]),
+        gitignore: ignored.some((isFileIgnored) => !isFileIgnored),
         buildFiles: [AMP_IMPORT_FILE, OPENAPI_FILE].filter((file) => fs.existsSync(path.join(projectPath, file))),
         staleSpec: await isSpecStale(projectPath),
     };
@@ -460,7 +484,7 @@ const SOURCE_FIXES: Record<SourceStepId, (projectPath: string, autoInstrumentati
     publishBranch: runCommand("git.publish"),
     commit: reviewAndCommit,
     push: runCommand("git.push"),
-    syncGitHub: (projectPath) => (readFacts(projectPath).dirty > 0 ? reviewAndCommit() : runCommand("git.push")()),
+    syncGitHub: async (projectPath) => ((await readFacts(projectPath)).dirty > 0 ? reviewAndCommit() : runCommand("git.push")()),
     refreshSpec: async (projectPath) => {
         writeOpenApiSpec(projectPath, (await detectInterface(projectPath)).spec);
         return "Updated openapi.yaml. Commit and push it so Try It shows the current API.";
@@ -486,32 +510,31 @@ async function prepareProject(projectPath: string, autoInstrumentation = true): 
     } else if (prep.ampImport && ensureAmpInstrumentation(projectPath)) {
         added.push(AMP_IMPORT_FILE);
     }
-    const inRepo = !!readFacts(projectPath).root;
-    const wanted = STANDARD_GITIGNORE.filter((entry) => !isIgnored(projectPath, entry, inRepo));
+    const inRepo = !!(await readFacts(projectPath)).root;
+    const ignored = await Promise.all(STANDARD_GITIGNORE.map((entry) => isIgnored(projectPath, entry, inRepo)));
+    const wanted = STANDARD_GITIGNORE.filter((_, index) => !ignored[index]);
     if (wanted.length > 0) {
         const gitignorePath = path.join(projectPath, ".gitignore");
         const current = fs.existsSync(gitignorePath) ? fs.readFileSync(gitignorePath, "utf-8") : "";
         fs.writeFileSync(gitignorePath, `${current.trimEnd()}${current ? "\n" : ""}${wanted.join("\n")}\n`);
         added.push(".gitignore");
     }
-    LOCAL_ONLY_FILES.forEach((file) => untrack(projectPath, file));
+    for (const file of LOCAL_ONLY_FILES) {
+        await untrack(projectPath, file);
+    }
     return added.length > 0 ? `Added ${added.join(", ")} for Agent Manager. Commit them with the rest of your code.` : undefined;
 }
 
-// Agent Manager caps secret names at 25 characters; the hash keeps same-named repos of different owners apart.
-export function repoSecretName(repository: string): string {
+// Every secret for a repository shares this prefix; the hash keeps same-named repos of different owners apart.
+export function repoSecretPrefix(repository: string): string {
     const hash = createHash("sha1").update(repository.toLowerCase()).digest("hex").slice(0, 4);
-    return `${toResourceName(repository.split("/")[1]).slice(0, 15).replace(/-+$/, "")}-${hash}-git`;
+    const base = toResourceName(repository.split("/")[1] ?? "").slice(0, 13).replace(/-+$/, "") || "repo";
+    return `${base}-${hash}-`;
 }
 
-// Agent Manager can't update a secret in place, so the old one is deleted first.
+// Secrets are org-wide and other agents may build with an existing one, so a new token always gets a new secret.
 export async function saveRepoToken(repository: string, token: string): Promise<string> {
-    const name = repoSecretName(repository);
-    await api.deleteGitSecret(name).catch((error) => {
-        if (!(error instanceof AgentManagerApiError && error.status === 404)) {
-            throw error;
-        }
-    });
+    const name = `${repoSecretPrefix(repository)}${randomBytes(2).toString("hex")}`;
     // GitHub ignores the username for token auth, but Agent Manager's basic-auth secret requires one.
     await api.createGitSecret(name, repository.split("/")[0], token);
     return name;
@@ -527,7 +550,7 @@ export function hasAmpImport(projectPath: string): boolean {
 }
 
 export function toResourceName(value: string): string {
-    return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+/, "").slice(0, 63).replace(/-+$/, "");
+    return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^[^a-z]+/, "").slice(0, MAX_RESOURCE_NAME).replace(/-+$/, "");
 }
 
 function balFiles(projectPath: string): string[] {
@@ -547,27 +570,24 @@ export async function prepareHttpInterface(projectPath: string) {
 
 const HTTP_LISTENER_MODULES = ["http", "ai"];
 
-export function requireHttpEntryPoint(projectPath: string): void {
+export function requireHttpEntryPoint(projectPath: string): ProjectStructureArtifactResponse {
     const project = StateMachine.context().projectStructure?.projects.find((candidate) => isSamePath(candidate.projectPath, projectPath));
-    const services = project?.directoryMap[DIRECTORY_MAP.SERVICE] ?? [];
-    if (project && !services.some((service) => HTTP_LISTENER_MODULES.includes(service.moduleName ?? ""))) {
+    if (!project) {
+        throw new Error("This integration hasn't finished loading. Try again in a moment.");
+    }
+    const service = project.directoryMap[DIRECTORY_MAP.SERVICE]?.find((candidate) => HTTP_LISTENER_MODULES.includes(candidate.moduleName ?? ""));
+    if (!service) {
         throw new Error("Agent Manager can only host agents that receive HTTP requests. "
             + "Run this agent on your own infrastructure and register it as an externally-hosted agent under Management.");
     }
+    return service;
 }
 
 async function detectInterface(projectPath: string): Promise<DetectedInterface> {
-    requireHttpEntryPoint(projectPath);
-    const serviceFile = fs.readdirSync(projectPath)
-        .filter((file) => file.endsWith(".bal"))
-        .find((file) => /service\s+[^{;]*\bon\s+/.test(fs.readFileSync(path.join(projectPath, file), "utf-8")));
-    if (!serviceFile) {
-        throw new Error("No service found in this integration. A platform-hosted agent needs one to receive requests.");
-    }
-    const source = fs.readFileSync(path.join(projectPath, serviceFile), "utf-8");
-    return /ai:Listener/.test(source)
-        ? { spec: chatSpec(await readPackageTitle(projectPath)), ...chatServiceAddress(projectPath, source) }
-        : httpServiceInterface(path.join(projectPath, serviceFile));
+    const service = requireHttpEntryPoint(projectPath);
+    return service.moduleName === "ai"
+        ? { spec: chatSpec(await readPackageTitle(projectPath)), ...chatServiceAddress(projectPath, fs.readFileSync(service.path, "utf-8")) }
+        : httpServiceInterface(service.path);
 }
 
 interface DetectedInterface {

@@ -114,8 +114,8 @@ async function refresh(session: AgentManagerSession): Promise<string | undefined
         await saveSession({ ...session, ...toSessionTokens(token, session.refreshToken) });
         return token.access_token;
     } catch (error) {
-        // A network failure keeps the session; only a rejected refresh token signs out.
-        if (!(error instanceof AgentManagerApiError)) {
+        // A network or server failure keeps the session; only a rejected refresh token signs out.
+        if (!(error instanceof AgentManagerApiError && (error.status === 400 || error.status === 401))) {
             throw error;
         }
         await signOut();

@@ -193,7 +193,17 @@ export interface AgentManagerMcpBindRequest {
     proxyId: string;
 }
 
-export interface AgentManagerMcpBinding extends AgentManagerActionResponse {
+/** `created` lists the configurables a pick declared, removed again if its form closes unsaved. */
+export interface AgentManagerBindResult extends AgentManagerActionResponse {
+    created?: string[];
+}
+
+export interface AgentManagerBindDiscardRequest {
+    projectPath: string;
+    configurables: string[];
+}
+
+export interface AgentManagerMcpBinding extends AgentManagerBindResult {
     /** Ballerina expressions for the MCP form's Server Url and auth fields. */
     serverUrl?: string;
     auth?: string;
@@ -250,7 +260,8 @@ export interface AgentManagerRepoDetails {
     branches: string[];
     defaultBranch?: string;
     isPrivate?: boolean;
-    secretName?: string;
+    /** Every git secret saved for this repository starts with it. */
+    secretPrefix?: string;
     error?: string;
 }
 
@@ -285,9 +296,12 @@ export interface AgentManagerAPI {
     addAgentManagerMcpServers: (params: AddAgentManagerMcpServersRequest) => Promise<AgentManagerActionResponse>;
     getAgentManagerSession: () => Promise<AgentManagerSession>;
     getAgentManagerModelProviders: () => Promise<AgentManagerModelProviders>;
-    bindAgentManagerModelProvider: (params: AgentManagerModelBindRequest) => Promise<AgentManagerActionResponse>;
+    bindAgentManagerModelProvider: (params: AgentManagerModelBindRequest) => Promise<AgentManagerBindResult>;
+    commitAgentManagerModelProvider: (params: AgentManagerModelBindRequest) => Promise<AgentManagerActionResponse>;
     getAgentManagerMcpProxies: (params: AgentManagerStatusRequest) => Promise<AgentManagerMcpProxies>;
     bindAgentManagerMcpProxy: (params: AgentManagerMcpBindRequest) => Promise<AgentManagerMcpBinding>;
+    commitAgentManagerMcpProxy: (params: AgentManagerMcpBindRequest) => Promise<AgentManagerActionResponse>;
+    discardAgentManagerBinding: (params: AgentManagerBindDiscardRequest) => Promise<void>;
     linkAgentManagerAgent: (params: AgentManagerLinkRequest) => Promise<AgentManagerActionResponse>;
     getAgentManagerCreateForm: (params: AgentManagerStatusRequest) => Promise<AgentManagerCreateForm>;
     getAgentManagerRepoDetails: (params: AgentManagerRepoRequest) => Promise<AgentManagerRepoDetails>;

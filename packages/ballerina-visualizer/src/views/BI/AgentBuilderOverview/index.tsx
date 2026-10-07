@@ -586,6 +586,7 @@ export function AgentBuilderOverview({ projectPath, agentFocus, isInDevant, isIC
                                 hasWorkflows={hasWorkflows}
                                 hasAgents={hasAgents}
                                 hasDeployableIntegration={hasDeployable}
+                                isOpen={!deployCollapsed}
                                 {...deploymentControl}
                             />
                         </SidePanel>

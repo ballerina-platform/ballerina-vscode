@@ -66,6 +66,9 @@ function needsInput(field: AgentManagerConfigField): boolean {
     return field.required && !field.saved && !field.localValue && !field.unsupported;
 }
 
+// Agent Manager names must start with a letter; the rest of the name is converted to fit.
+const hasLetter = (name: string) => /[a-z]/i.test(name);
+
 export function AgentManagerCreateForm({ projectPath, onDone, onCancel }: AgentManagerCreateFormProps) {
     const { rpcClient } = useRpcContext();
     const rpc = rpcClient.getAgentManagerRpcClient();
@@ -104,8 +107,8 @@ export function AgentManagerCreateForm({ projectPath, onDone, onCancel }: AgentM
         rpc.getAgentManagerRepoDetails({ projectPath, remote }).then((details) => {
             setRepo(details);
             setBranch(details.defaultBranch ?? details.branches[0] ?? "");
-            const matching = form.gitSecrets.find((name) => name === details.secretName);
-            setGitSecret(details.isPrivate === false ? "" : matching ?? form.gitSecrets[0] ?? NEW_TOKEN);
+            const matching = details.secretPrefix && form.gitSecrets.find((name) => name.startsWith(details.secretPrefix));
+            setGitSecret(details.isPrivate === false ? "" : matching || NEW_TOKEN);
         });
     }, [remote, form]);
 
@@ -142,7 +145,7 @@ export function AgentManagerCreateForm({ projectPath, onDone, onCancel }: AgentM
     }
     const needsAccess = !!repo && repo.isPrivate !== false;
     const needsToken = needsAccess && gitSecret === NEW_TOKEN;
-    const ready = !!check?.ok && !!agentName.trim() && (project !== NEW_PROJECT || !!newProject.trim()) && (!needsToken || !!newToken.trim());
+    const ready = !!check?.ok && hasLetter(agentName) && (project !== NEW_PROJECT || hasLetter(newProject)) && (!needsToken || !!newToken.trim());
 
     return (
         <>

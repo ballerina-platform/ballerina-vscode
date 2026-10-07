@@ -19,7 +19,7 @@
 import { useState } from "react";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { FlowNode, LineRange, ProjectStructureArtifactResponse } from "@wso2/ballerina-core";
-import { ConnectionKind } from "./types";
+import { ConnectionKind, PendingSetup } from "./types";
 import { ConnectionSelectionList } from "./ConnectionSelectionList";
 import { ConnectionCreator } from "./ConnectionCreator";
 import { getNodeTemplateForConnection } from "../../views/BI/FlowDiagram/utils";
@@ -38,6 +38,7 @@ export function ConnectionCreateWizard(props: ConnectionCreateWizardProps): JSX.
     const { rpcClient } = useRpcContext();
 
     const [nodeTemplate, setNodeTemplate] = useState<FlowNode | undefined>(undefined);
+    const [pendingSetup, setPendingSetup] = useState<PendingSetup | undefined>(undefined);
     const [loading, setLoading] = useState<boolean>(false);
 
     const handleSelect = async (nodeId: string, metadata?: any) => {
@@ -50,6 +51,7 @@ export function ConnectionCreateWizard(props: ConnectionCreateWizardProps): JSX.
                 fileName,
                 rpcClient
             );
+            setPendingSetup(metadata?.pendingSetup);
             setNodeTemplate(flowNode);
         } finally {
             setLoading(false);
@@ -81,6 +83,7 @@ export function ConnectionCreateWizard(props: ConnectionCreateWizardProps): JSX.
             <ConnectionCreator
                 connectionKind={connectionKind}
                 nodeFormTemplate={nodeTemplate}
+                pendingSetup={pendingSetup}
                 selectedNode={throwawayNode}
                 onSave={handleSave}
             />

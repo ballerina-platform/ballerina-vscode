@@ -18,6 +18,7 @@
 
 import * as vscode from "vscode";
 import {
+    AgentManagerActionResponse,
     AgentManagerMcpBindRequest,
     AgentManagerMcpBinding,
     AgentManagerMcpProxies,
@@ -25,7 +26,7 @@ import {
 } from "@wso2/ballerina-core";
 import { StateMachine } from "../../stateMachine";
 import { fetchJson, getSession } from "./auth";
-import { addMissingImportsTo, AGENT_ID_ENV, envBase, localConfigValues, writeEnvConfigurable } from "./bindings";
+import { addMissingImportsTo, AGENT_ID_ENV, envBase, localConfigValues, undeclared, writeEnvConfigurable } from "./bindings";
 import { api, consoleOrgUrl, DEFAULT_ENVIRONMENT, McpProxyDetails, readManifest, updateManifest } from "./client";
 
 const AGENT_ID_VARIABLES = {
@@ -72,6 +73,9 @@ async function proxyUrl(proxy: McpProxyDetails): Promise<string> {
 }
 
 const urlVariableFor = (proxyId: string) => `${proxyId.replace(/[^A-Za-z0-9]+(.)?/g, (_, next: string) => next?.toUpperCase() ?? "")}McpUrl`;
+const proxyEnv = (proxyId: string) => ({ url: `${envBase(proxyId)}_MCP_URL` });
+// Picked but not yet saved, so not in the manifest; the open form can still list their tools.
+const pickedProxies = new Set<string>();
 
 export async function bindMcpProxy({ projectPath, proxyId }: AgentManagerMcpBindRequest): Promise<AgentManagerMcpBinding> {
     try {
@@ -81,25 +85,32 @@ export async function bindMcpProxy({ projectPath, proxyId }: AgentManagerMcpBind
             throw new Error(NOT_IN_ENVIRONMENT);
         }
         const urlVariable = urlVariableFor(proxyId);
-        const env = { url: `${envBase(proxyId)}_MCP_URL` };
-        await writeEnvConfigurable(projectPath, urlVariable, env.url, await proxyUrl(proxy));
         const oauth = usesOAuth(endpoint);
+        const created = await undeclared(projectPath, [urlVariable, ...(oauth ? Object.values(AGENT_ID_VARIABLES) : [])]);
+        await writeEnvConfigurable(projectPath, urlVariable, proxyEnv(proxyId).url, await proxyUrl(proxy));
         if (oauth) {
             await writeAgentIdConfigurables(projectPath, proxyId);
         }
         await addMissingImportsTo(projectPath);
-        updateManifest(projectPath, (manifest) => ({
-            ...manifest,
-            mcpServers: [...(manifest.mcpServers ?? []).filter((entry) => entry.proxy !== proxyId), { proxy: proxyId, env }],
-        }));
+        pickedProxies.add(proxyId);
         const { tokenUrl, clientId: id, clientSecret: secret, scopes } = AGENT_ID_VARIABLES;
         const auth = `{tokenUrl: ${tokenUrl}, clientId: ${id}, clientSecret: ${secret}, scopes: ${scopes}, optionalParams: {"resource": ${urlVariable}}}`;
-        return { success: true, serverUrl: urlVariable, auth: oauth ? auth : undefined };
+        return { success: true, created, serverUrl: urlVariable, auth: oauth ? auth : undefined };
     } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         vscode.window.showErrorMessage(`Couldn't connect the MCP server from Agent Manager: ${message}`);
         return { success: false, message };
     }
+}
+
+// Runs once the MCP form is saved, so deploy only attaches servers the agent actually uses.
+export function commitMcpProxy({ projectPath, proxyId }: AgentManagerMcpBindRequest): AgentManagerActionResponse {
+    updateManifest(projectPath, (manifest) => ({
+        ...manifest,
+        mcpServers: [...(manifest.mcpServers ?? []).filter((entry) => entry.proxy !== proxyId), { proxy: proxyId, env: proxyEnv(proxyId) }],
+    }));
+    pickedProxies.delete(proxyId);
+    return { success: true };
 }
 
 // Client ID and secret have no local value: Agent Manager injects the deployed agent's own, and local runs set them in Config.toml.
@@ -115,12 +126,12 @@ async function writeAgentIdConfigurables(projectPath: string, proxyId: string): 
 // Design-time token for listing an OAuth-secured proxy's tools, minted with the project's AgentID credentials.
 export async function mcpAccessToken(serverUrl: string): Promise<string | undefined> {
     const projectPath = StateMachine.context().projectPath;
-    const servers = projectPath ? readManifest(projectPath).mcpServers ?? [] : [];
-    if (servers.length === 0) {
+    const proxies = new Set([...(projectPath ? readManifest(projectPath).mcpServers ?? [] : []).map((entry) => entry.proxy), ...pickedProxies]);
+    if (!projectPath || proxies.size === 0) {
         return undefined;
     }
     const values = await localConfigValues(projectPath);
-    const bound = servers.some(({ proxy }) => values[urlVariableFor(proxy)] === serverUrl);
+    const bound = [...proxies].some((proxy) => values[urlVariableFor(proxy)] === serverUrl);
     const { tokenUrl, clientId, clientSecret, scopes } = AGENT_ID_VARIABLES;
     if (!bound || !values[tokenUrl] || !values[clientId] || !values[clientSecret]) {
         return undefined;

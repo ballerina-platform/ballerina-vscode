@@ -61,9 +61,16 @@ export interface ConnectionSelectionListProps {
     fillContainerHeight?: boolean;
 }
 
+/** Work a picker did before the form opened: kept once the form saves, undone if it closes without saving. */
+export interface PendingSetup {
+    commit: () => Promise<void>;
+    discard: () => void;
+}
+
 export interface ConnectionCreatorProps {
     connectionKind: ConnectionKind;
     selectedNode?: FlowNode;
     nodeFormTemplate?: FlowNode;
+    pendingSetup?: PendingSetup;
     onSave?: (connectionNode: FlowNode, artifacts?: ProjectStructureArtifactResponse[]) => void;
 }

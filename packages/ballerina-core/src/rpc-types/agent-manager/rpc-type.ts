@@ -21,6 +21,8 @@ import {
     AddAgentManagerMcpServersRequest,
     AgentManagerActionRequest,
     AgentManagerActionResponse,
+    AgentManagerBindDiscardRequest,
+    AgentManagerBindResult,
     AgentManagerCreateForm,
     AgentManagerCreateRequest,
     AgentManagerLinkRequest,
@@ -50,12 +52,18 @@ export const addAgentManagerMcpServers: RequestType<AddAgentManagerMcpServersReq
     { method: `${_preFix}/addAgentManagerMcpServers` };
 export const getAgentManagerModelProviders: RequestType<void, AgentManagerModelProviders> =
     { method: `${_preFix}/getAgentManagerModelProviders` };
-export const bindAgentManagerModelProvider: RequestType<AgentManagerModelBindRequest, AgentManagerActionResponse> =
+export const bindAgentManagerModelProvider: RequestType<AgentManagerModelBindRequest, AgentManagerBindResult> =
     { method: `${_preFix}/bindAgentManagerModelProvider` };
+export const commitAgentManagerModelProvider: RequestType<AgentManagerModelBindRequest, AgentManagerActionResponse> =
+    { method: `${_preFix}/commitAgentManagerModelProvider` };
 export const getAgentManagerMcpProxies: RequestType<AgentManagerStatusRequest, AgentManagerMcpProxies> =
     { method: `${_preFix}/getAgentManagerMcpProxies` };
 export const bindAgentManagerMcpProxy: RequestType<AgentManagerMcpBindRequest, AgentManagerMcpBinding> =
     { method: `${_preFix}/bindAgentManagerMcpProxy` };
+export const commitAgentManagerMcpProxy: RequestType<AgentManagerMcpBindRequest, AgentManagerActionResponse> =
+    { method: `${_preFix}/commitAgentManagerMcpProxy` };
+export const discardAgentManagerBinding: RequestType<AgentManagerBindDiscardRequest, void> =
+    { method: `${_preFix}/discardAgentManagerBinding` };
 export const getAgentManagerSession: RequestType<void, AgentManagerSession> =
     { method: `${_preFix}/getAgentManagerSession` };
 export const agentManagerSessionChanged: NotificationType<AgentManagerSession> =

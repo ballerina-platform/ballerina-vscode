@@ -19,7 +19,7 @@
 import * as vscode from "vscode";
 import { AgentManagerActionResponse, AgentManagerMcpOffer } from "@wso2/ballerina-core";
 import { loadMcpConfig, MCP_ENABLE_SETTING, MCP_ENABLE_SETTING_KEY, McpHttpServerConfig, updateMcpServer, writeMcpServer } from "../ai/agent/mcp";
-import { signInOnNextConnect } from "../ai/agent/mcp/oauth";
+import { forgetTokens, signInOnNextConnect } from "../ai/agent/mcp/oauth";
 import { AgentManagerSession, getSession } from "./auth";
 import { getObserverBaseUrl } from "./client";
 
@@ -93,6 +93,17 @@ async function enableMcpToolsUnlessTurnedOff(): Promise<void> {
     const open = "Open Settings";
     void vscode.window.showInformationMessage("MCP tools are turned off in your settings. Turn them on to let Copilot use Agent Manager.", open)
         .then((choice) => choice === open && vscode.commands.executeCommand("workbench.action.openSettings", MCP_ENABLE_SETTING_KEY));
+}
+
+// Signing out of Agent Manager also signs Copilot out of its servers; the servers stay and ask to sign in again.
+export async function forgetCopilotMcpTokens(): Promise<void> {
+    const ids = new Set(MCP_SERVERS.map((server) => server.id));
+    for (const { name, config } of loadMcpConfig(undefined, false).entries) {
+        const http = config as McpHttpServerConfig;
+        if (ids.has(name) && http.url && http.oauth) {
+            await forgetTokens(http.url, http.oauth);
+        }
+    }
 }
 
 export async function offerCopilotMcp(): Promise<void> {

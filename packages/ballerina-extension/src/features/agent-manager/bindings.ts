@@ -17,9 +17,10 @@
  */
 
 import * as path from "path";
-import { AgentManagerLink } from "@wso2/ballerina-core";
+import { Uri } from "vscode";
+import { AgentManagerLink, Diagnostics, isSamePath } from "@wso2/ballerina-core";
 import { BiDiagramRpcManager } from "../../rpc-managers/bi-diagram/rpc-manager";
-import { addMissingImports, checkProjectDiagnostics } from "../../rpc-managers/ai-panel/repair-utils";
+import { addMissingImports, checkProjectDiagnostics, removeUnusedImports } from "../../rpc-managers/ai-panel/repair-utils";
 import { StateMachine } from "../../stateMachine";
 import { AgentConfigInput, AgentConfigKind, api, EnvNames, readManifest } from "./client";
 import { getProjectTomlValues } from "../../utils/config";
@@ -110,4 +111,27 @@ export async function writeEnvConfigurable(projectPath: string, variable: string
 export async function addMissingImportsTo(projectPath: string): Promise<void> {
     const langClient = StateMachine.langClient();
     await addMissingImports(await checkProjectDiagnostics(langClient, projectPath), langClient);
+}
+
+export async function undeclared(projectPath: string, variables: string[]): Promise<string[]> {
+    const declared = await localConfigValues(projectPath);
+    return variables.filter((variable) => !(variable in declared));
+}
+
+// Undoes a pick whose form closed unsaved: drops the configurables it added, then any config.bal import they leave unused.
+export async function removeConfigurables(projectPath: string, variables: string[]): Promise<void> {
+    const packageName = await packageKey(projectPath);
+    const configFilePath = path.join(projectPath, "config.bal");
+    const rpc = new BiDiagramRpcManager();
+    for (const variable of variables) {
+        // Each deletion shifts the file, so positions are read fresh every time.
+        const declared = await rpc.getConfigVariablesV2({ projectPath, includeLibraries: false });
+        const node = (declared?.configVariables as any)?.[packageName]?.[""]?.find((candidate: any) => candidate.properties?.variable?.value === variable);
+        if (node) {
+            await rpc.deleteConfigVariableV2({ configFilePath, configVariable: node, packageName, moduleName: "" });
+        }
+    }
+    const langClient = StateMachine.langClient();
+    const diagnostics = await checkProjectDiagnostics(langClient, projectPath).catch((): Diagnostics[] => []);
+    await removeUnusedImports(diagnostics.filter((diagnostic) => isSamePath(Uri.parse(diagnostic.uri).fsPath, configFilePath)), langClient);
 }

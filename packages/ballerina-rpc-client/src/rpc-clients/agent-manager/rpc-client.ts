@@ -22,6 +22,8 @@ import {
     AgentManagerAPI,
     AgentManagerActionRequest,
     AgentManagerActionResponse,
+    AgentManagerBindDiscardRequest,
+    AgentManagerBindResult,
     AgentManagerMcpBindRequest,
     AgentManagerMcpBinding,
     AgentManagerMcpOffer,
@@ -35,6 +37,9 @@ import {
     getAgentManagerMcpOffer,
     getAgentManagerMcpProxies,
     bindAgentManagerModelProvider,
+    commitAgentManagerMcpProxy,
+    commitAgentManagerModelProvider,
+    discardAgentManagerBinding,
     getAgentManagerModelProviders,
     getAgentManagerSession,
     getAgentManagerStatus,
@@ -86,8 +91,12 @@ export class AgentManagerRpcClient implements AgentManagerAPI {
         return this._messenger.sendRequest(getAgentManagerModelProviders, HOST_EXTENSION);
     }
 
-    bindAgentManagerModelProvider(params: AgentManagerModelBindRequest): Promise<AgentManagerActionResponse> {
+    bindAgentManagerModelProvider(params: AgentManagerModelBindRequest): Promise<AgentManagerBindResult> {
         return this._messenger.sendRequest(bindAgentManagerModelProvider, HOST_EXTENSION, params);
+    }
+
+    commitAgentManagerModelProvider(params: AgentManagerModelBindRequest): Promise<AgentManagerActionResponse> {
+        return this._messenger.sendRequest(commitAgentManagerModelProvider, HOST_EXTENSION, params);
     }
 
     getAgentManagerMcpProxies(params: AgentManagerStatusRequest): Promise<AgentManagerMcpProxies> {
@@ -96,6 +105,14 @@ export class AgentManagerRpcClient implements AgentManagerAPI {
 
     bindAgentManagerMcpProxy(params: AgentManagerMcpBindRequest): Promise<AgentManagerMcpBinding> {
         return this._messenger.sendRequest(bindAgentManagerMcpProxy, HOST_EXTENSION, params);
+    }
+
+    commitAgentManagerMcpProxy(params: AgentManagerMcpBindRequest): Promise<AgentManagerActionResponse> {
+        return this._messenger.sendRequest(commitAgentManagerMcpProxy, HOST_EXTENSION, params);
+    }
+
+    discardAgentManagerBinding(params: AgentManagerBindDiscardRequest): Promise<void> {
+        return this._messenger.sendRequest(discardAgentManagerBinding, HOST_EXTENSION, params);
     }
 
     linkAgentManagerAgent(params: AgentManagerLinkRequest): Promise<AgentManagerActionResponse> {

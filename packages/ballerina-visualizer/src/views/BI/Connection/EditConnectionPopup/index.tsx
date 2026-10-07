@@ -28,7 +28,7 @@ import { getFormProperties } from "../../../../utils/bi";
 import { ExpressionFormField } from "@wso2/ballerina-side-panel";
 import { cloneDeep } from "lodash";
 import { PopupOverlay, PopupContainer, PopupHeader as ConfigHeader, BackButton, HeaderTitleContainer as ConfigTitleContainer, PopupTitle, PopupSubtitle as ConfigSubtitle, CloseButton } from "../styles";
-import { ConnectionKind, ConnectionSelectionList, ConnectionCreator } from "../../../../components/ConnectionSelector";
+import { ConnectionKind, ConnectionSelectionList, ConnectionCreator, PendingSetup } from "../../../../components/ConnectionSelector";
 import { SidePanelView } from "../../FlowDiagram/PanelManager";
 import { getNodeTemplateForConnection } from "../../FlowDiagram/utils";
 import type { IntrospectCredentialsResponse } from "@wso2/ballerina-core";
@@ -126,6 +126,7 @@ export function EditConnectionPopup(props: EditConnectionPopupProps) {
     const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
     const [selectedConnectionKind, setSelectedConnectionKind] = useState<ConnectionKind>();
     const [nodeFormTemplate, setNodeFormTemplate] = useState<FlowNode>();
+    const [pendingSetup, setPendingSetup] = useState<PendingSetup | undefined>(undefined);
 
     // Connector credentials from introspectCredentials API (for persist connections)
     const [connectorCredentials, setConnectorCredentials] = useState<IntrospectCredentialsResponse["data"] | null>(null);
@@ -279,6 +280,7 @@ export function EditConnectionPopup(props: EditConnectionPopupProps) {
                 rpcClient
             );
             setNodeFormTemplate(flowNode);
+            setPendingSetup(metadata?.pendingSetup);
             setSelectedConnectionKind(connectionKind as ConnectionKind);
             setCurrentView(PopupView.CONNECTION_CREATE);
         } catch (error) {
@@ -379,6 +381,7 @@ export function EditConnectionPopup(props: EditConnectionPopupProps) {
                         connectionKind={selectedConnectionKind}
                         selectedNode={connection}
                         nodeFormTemplate={nodeFormTemplate}
+                        pendingSetup={pendingSetup}
                         onSave={handleConnectionCreated}
                     />
                 );

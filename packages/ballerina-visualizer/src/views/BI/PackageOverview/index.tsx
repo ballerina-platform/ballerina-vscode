@@ -754,6 +754,7 @@ export function PackageOverview(props: PackageOverviewProps) {
                                 hasWorkflows={hasWorkflows}
                                 hasAgents={hasAgents}
                                 hasDeployableIntegration={deployableIntegrationTypes.length > 0}
+                                isOpen={!deployCollapsed}
                                 {...deploymentControl}
                             />
                         </SidePanel>

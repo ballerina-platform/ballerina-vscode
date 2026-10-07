@@ -26,6 +26,7 @@ import { Codicon, Icon, ThemeColors } from "@wso2/ui-toolkit";
 import { useModalStack } from "../../Context";
 import { useAgentManagerSession } from "../../hooks/useAgentManagerSession";
 import { PanelOverlayContext } from "../../views/BI/FlowDiagram/context/PanelOverlayContext";
+import type { PendingSetup } from "../ConnectionSelector/types";
 import { RelativeLoader } from "../RelativeLoader";
 import { LoaderContainer } from "../RelativeLoader/styles";
 
@@ -64,7 +65,7 @@ export function useAgentManagerModelProviders(connectionKind: string, categories
     const openPage = useAgentManagerPage();
     const isModelProvider = connectionKind === "MODEL_PROVIDER";
     const { data } = useModelProviders(isModelProvider && !!session?.signedIn);
-    if (!isModelProvider || !session) {
+    if (!isModelProvider) {
         return null;
     }
 
@@ -82,7 +83,7 @@ export function useAgentManagerModelProviders(connectionKind: string, categories
         <ListSection>
             <AgentManagerEntryCard
                 description="Models your organization added to Agent Manager, served through its AI Gateway with platform-issued keys."
-                connected={data && `${session.org} · ${count(data.providers.length, "LLM service provider")}`}
+                connected={data && `${session?.org} · ${count(data.providers.length, "LLM service provider")}`}
                 onOpen={openPicker}
             />
         </ListSection>
@@ -184,15 +185,27 @@ function AgentManagerProviderPicker({ categories, onPick }: { categories: Catego
         const variables = configurableNames(provider);
         setPreparing(true);
         const { projectPath } = await rpcClient.getVisualizerLocation();
-        const { success } = await rpcClient.getAgentManagerRpcClient()
-            .bindAgentManagerModelProvider({ projectPath, providerId: provider.id, ...variables });
+        const agentManager = rpcClient.getAgentManagerRpcClient();
+        const request = { projectPath, providerId: provider.id, ...variables };
+        const { success, created = [] } = await agentManager.bindAgentManagerModelProvider(request);
         if (!success) {
             setPreparing(false);
             return;
         }
+        const pendingSetup: PendingSetup = {
+            commit: async () => {
+                await agentManager.commitAgentManagerModelProvider(request);
+            },
+            discard: () => {
+                if (created.length > 0) {
+                    void agentManager.discardAgentManagerBinding({ projectPath, configurables: created });
+                }
+            },
+        };
         await onPick(providerNode.id, {
             node: providerNode.metadata,
             prepareTemplate: (flowNode: FlowNode) => applyProvider(flowNode, provider, variables),
+            pendingSetup,
         });
     };
 

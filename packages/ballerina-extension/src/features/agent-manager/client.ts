@@ -27,6 +27,9 @@ import { AgentManagerApiError, fetchJson, getAccessToken, getSession, requireSes
 export const DEFAULT_ENVIRONMENT = "default";
 const MANIFEST_FILE = path.join(".wso2", "agent-manager.yaml");
 export const CONFIG_FILE = { key: "Config.toml", mountPath: "/workspace" };
+// Agent Manager's rule for project, agent and git secret names.
+export const MAX_RESOURCE_NAME = 25;
+const RESOURCE_NAME = /^[a-z][a-z0-9-]{0,24}$/;
 
 async function authorize() {
     const session = await getSession();
@@ -102,23 +105,29 @@ interface DeploymentInfo {
     endpoints?: { url: string }[];
 }
 
+// The MCP proxy list caps a page at 50, so every list uses that size.
+const PAGE_SIZE = 50;
+
+async function listAll<T>(apiPath: string, items: (page: any) => T[]): Promise<T[]> {
+    const all: T[] = [];
+    for (let offset = 0; ; offset += PAGE_SIZE) {
+        const page = items(await request("GET", `${apiPath}?limit=${PAGE_SIZE}&offset=${offset}`)) ?? [];
+        all.push(...page);
+        if (page.length < PAGE_SIZE) {
+            return all;
+        }
+    }
+}
+
 export const api = {
-    listProjects: async () =>
-        (await request<{ projects: { name: string; displayName: string }[] }>("GET", "/projects?limit=100")).projects,
+    listProjects: () =>
+        listAll<{ name: string; displayName: string }>("/projects", (page) => page.projects),
     createProject: (name: string, displayName: string) =>
         request("POST", "/projects", { name, displayName, deploymentPipeline: "default" }),
-    listAgents: async (project: string) =>
-        (await request<{ agents: AgentSummary[] }>("GET", `/projects/${encodeURIComponent(project)}/agents?limit=100`)).agents,
-    listGitSecrets: async () => {
-        const names: string[] = [];
-        for (let offset = 0; ; offset += 50) {
-            const page = await request<{ secrets: { name: string }[]; total: number }>("GET", `/git-secrets?limit=50&offset=${offset}`);
-            names.push(...page.secrets.map((secret) => secret.name));
-            if (page.secrets.length < 50 || names.length >= page.total) {
-                return names;
-            }
-        }
-    },
+    listAgents: (project: string) =>
+        listAll<AgentSummary>(`/projects/${encodeURIComponent(project)}/agents`, (page) => page.agents),
+    listGitSecrets: async () =>
+        (await listAll<{ name: string }>("/git-secrets", (page) => page.secrets)).map((secret) => secret.name),
     createExternalAgent: (project: string, name: string, displayName: string) =>
         request("POST", `/projects/${encodeURIComponent(project)}/agents`, {
             name,
@@ -148,7 +157,6 @@ export const api = {
         }),
     createGitSecret: (name: string, username: string, password: string) =>
         request("POST", "/git-secrets", { name, type: "basic-auth", credentials: { username, password } }),
-    deleteGitSecret: (name: string) => request("DELETE", `/git-secrets/${encodeURIComponent(name)}`),
     generateToken: (link: AgentManagerLink, expiresIn: string) =>
         request<{ token: string; expires_at: number }>(
             "POST", `${agentPath(link)}/token?environment=${encodeURIComponent(link.environment)}`,
@@ -162,12 +170,12 @@ export const api = {
         }
         return gateway.vhost.replace(/\/+$/, "");
     },
-    listLlmProviders: async () =>
-        (await request<{ providers: { id: string; uuid: string; name: string; template: string }[] }>("GET", "/llm-providers?limit=100")).providers,
+    listLlmProviders: () =>
+        listAll<{ id: string; uuid: string; name: string; template: string }>("/llm-providers", (page) => page.providers),
     getLlmProvider: (id: string) =>
         request<{ context: string }>("GET", `/llm-providers/${encodeURIComponent(id)}`),
-    listMcpProxies: async () =>
-        (await request<{ list: { id: string; name: string; description?: string }[] }>("GET", "/mcp-proxies?limit=100")).list,
+    listMcpProxies: () =>
+        listAll<{ id: string; name: string; description?: string }>("/mcp-proxies", (page) => page.list),
     getMcpProxy: (id: string) => request<McpProxyDetails>("GET", `/mcp-proxies/${encodeURIComponent(id)}`),
     listMcpProxyScopes: async (id: string) =>
         (await request<{ scopes: { scope: string }[] }>("GET", `/mcp-proxies/${encodeURIComponent(id)}/scopes`)).scopes.map((entry) => entry.scope),
@@ -292,11 +300,11 @@ export function updateManifest(projectPath: string, change: (manifest: Manifest)
 
 const agentModes = new Map<string, AgentManagerHostingMode>();
 
-// Another org, or an agent missing on the signed-in instance, reads as unlinked.
+// Another org, a name Agent Manager couldn't have issued, or an agent missing on the signed-in instance, reads as unlinked.
 export async function readLink(projectPath: string): Promise<AgentManagerLink | undefined> {
     const session = await getSession();
-    const { org, project, agent } = readManifest(projectPath);
-    if (!session || !project || !agent || org !== session.org) {
+    const { org, project = "", agent = "" } = readManifest(projectPath);
+    if (!session || org !== session.org || !RESOURCE_NAME.test(project) || !RESOURCE_NAME.test(agent)) {
         return undefined;
     }
     const link: AgentManagerLink = { instanceUrl: session.instanceUrl, org, project, agent, environment: DEFAULT_ENVIRONMENT, mode: "internal" };

@@ -59,10 +59,10 @@ function fieldPath(field: AgentManagerConfigField): string[] {
 }
 
 // Prefill only from the user's own Config.toml; one committed to the repo could carry someone else's values.
-function isOwnConfig(projectPath: string): boolean {
-    const inWorkTree = git(projectPath, ["rev-parse", "--is-inside-work-tree"]).stdout?.trim() === "true";
+async function isOwnConfig(projectPath: string): Promise<boolean> {
+    const inWorkTree = (await git(projectPath, ["rev-parse", "--is-inside-work-tree"])).stdout.trim() === "true";
     // Exit 1 means "not tracked"; anything else (no repo, no git) can't prove the file is the user's own.
-    return inWorkTree && git(projectPath, ["ls-files", "--error-unmatch", "Config.toml"]).status === 1;
+    return inWorkTree && (await git(projectPath, ["ls-files", "--error-unmatch", "Config.toml"])).status === 1;
 }
 
 // The language server returns Config.toml values as Ballerina literals; only simple ones are prefilled.
@@ -152,7 +152,7 @@ export async function buildConfigFields(projectPath: string, envKeys: string[], 
     const rootKey = `${pkg?.org}/${pkg?.name}`;
     const response = await StateMachine.langClient().getConfigVariablesV2({ projectPath, includeLibraries: true }) as any;
     const configMap: ConfigMap = response?.configVariables ?? {};
-    const ownConfig = isOwnConfig(projectPath);
+    const ownConfig = await isOwnConfig(projectPath);
     const fields: AgentManagerConfigField[] = [];
     for (const [pkgKey, modules] of Object.entries(configMap)) {
         if (PLATFORM_MANAGED.some((managed) => pkgKey === managed || pkgKey.startsWith(`${managed}.`))) {

@@ -40,24 +40,25 @@ function useMcpProxies(enabled = true) {
 
 type Step = "choose" | "servers" | "form";
 
-export function AgentManagerMcpGate({ onBind, onSetBackOverride, children }: {
+export function AgentManagerMcpGate({ onBind, onDiscard, onSetBackOverride, children }: {
     onBind: (binding: AgentManagerMcpBinding, proxyId: string) => void;
+    onDiscard: () => void;
     onSetBackOverride?: (handler: (() => void) | null) => void;
     children: ReactNode;
 }) {
     const session = useAgentManagerSession();
     const { data } = useMcpProxies(!!session?.signedIn);
     const [step, setStep] = useState<Step>("choose");
-    const toChoice = useCallback(() => setStep("choose"), []);
+    const toChoice = useCallback(() => {
+        onDiscard();
+        setStep("choose");
+    }, [onDiscard]);
 
     // The header's back button returns to this choice before leaving the panel.
     useEffect(() => {
         onSetBackOverride?.(step !== "choose" ? toChoice : null);
     }, [step, toChoice, onSetBackOverride]);
 
-    if (!session) {
-        return null;
-    }
     if (step === "form") {
         return <>{children}</>;
     }
@@ -68,7 +69,7 @@ export function AgentManagerMcpGate({ onBind, onSetBackOverride, children }: {
         <Choices>
             <AgentManagerEntryCard
                 description="MCP servers your organization added to Agent Manager, served through its AI Gateway."
-                connected={data && `${session.org} · ${count(data.proxies.length, "MCP server")}`}
+                connected={data && `${session?.org} · ${count(data.proxies.length, "MCP server")}`}
                 onOpen={() => setStep("servers")}
             />
             <OptionCard

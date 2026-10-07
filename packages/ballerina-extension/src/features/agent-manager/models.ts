@@ -19,12 +19,13 @@
 import * as vscode from "vscode";
 import {
     AgentManagerActionResponse,
+    AgentManagerBindResult,
     AgentManagerModelBindRequest,
     AgentManagerModelProvider,
     AgentManagerModelProviders,
 } from "@wso2/ballerina-core";
-import { getSession, requireSession } from "./auth";
-import { addMissingImportsTo, envBase, writeEnvConfigurable } from "./bindings";
+import { getSession } from "./auth";
+import { addMissingImportsTo, envBase, undeclared, writeEnvConfigurable } from "./bindings";
 import { api, consoleOrgUrl, DEFAULT_ENVIRONMENT, updateManifest } from "./client";
 
 // The Ballerina model provider for each template, and the path its service URL must end with.
@@ -59,31 +60,41 @@ async function describe(provider: { id: string; name: string; template: string }
     return client ? { ...summary, ...client } : { ...summary, unsupportedReason: "Agent Builder has no model provider for this service yet." };
 }
 
-// The deployed agent gets its key through the LLM configuration added on deploy; local runs use a key the user creates.
-export async function bindModelProvider({ projectPath, providerId, urlVariable, keyVariable }: AgentManagerModelBindRequest): Promise<AgentManagerActionResponse> {
+const providerEnv = (providerId: string) => ({ url: `${envBase(providerId)}_URL`, apikey: `${envBase(providerId)}_API_KEY` });
+
+// Declares the configurables the form's fields point at; the deploy entry waits for the form to be saved.
+export async function bindModelProvider({ projectPath, providerId, urlVariable, keyVariable }: AgentManagerModelBindRequest): Promise<AgentManagerBindResult> {
     try {
-        const session = await requireSession();
-        const [providers, details, gatewayUrl] = await Promise.all([
-            api.listLlmProviders(), api.getLlmProvider(providerId), api.getGatewayUrl(DEFAULT_ENVIRONMENT),
-        ]);
-        const env = { url: `${envBase(providerId)}_URL`, apikey: `${envBase(providerId)}_API_KEY` };
+        const [details, gatewayUrl] = await Promise.all([api.getLlmProvider(providerId), api.getGatewayUrl(DEFAULT_ENVIRONMENT)]);
+        const env = providerEnv(providerId);
+        const created = await undeclared(projectPath, [urlVariable, keyVariable]);
         await writeEnvConfigurable(projectPath, urlVariable, env.url, `${gatewayUrl}${details.context}`);
         await writeEnvConfigurable(projectPath, keyVariable, env.apikey);
         await addMissingImportsTo(projectPath);
-        updateManifest(projectPath, (manifest) => ({
-            ...manifest,
-            llmProviders: [...(manifest.llmProviders ?? []).filter((entry) => entry.provider !== providerId), { provider: providerId, env }],
-        }));
-        const uuid = providers.find((provider) => provider.id === providerId)?.uuid;
-        const open = "Open in Console";
-        vscode.window.showInformationMessage(
-            `To run this agent locally, create an API key for ${providerId} in Agent Manager and set ${keyVariable} in Config.toml.`, open
-        ).then((choice) => choice && uuid && vscode.env.openExternal(
-            vscode.Uri.parse(`${consoleOrgUrl(session.consoleUrl, session.org)}/llm-providers/view/${uuid}`)));
-        return { success: true };
+        return { success: true, created };
     } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         vscode.window.showErrorMessage(`Couldn't connect the model to Agent Manager: ${message}`);
         return { success: false, message };
     }
+}
+
+// The deployed agent gets its key through the LLM configuration added on deploy; local runs use a key the user creates.
+export async function commitModelProvider({ projectPath, providerId, keyVariable }: AgentManagerModelBindRequest): Promise<AgentManagerActionResponse> {
+    updateManifest(projectPath, (manifest) => ({
+        ...manifest,
+        llmProviders: [...(manifest.llmProviders ?? []).filter((entry) => entry.provider !== providerId), { provider: providerId, env: providerEnv(providerId) }],
+    }));
+    const open = "Open in Console";
+    vscode.window.showInformationMessage(
+        `To run this agent locally, create an API key for ${providerId} in Agent Manager and set ${keyVariable} in Config.toml.`, open
+    ).then(async (choice) => {
+        const session = choice && await getSession();
+        const providers = session ? await api.listLlmProviders().catch(() => []) : [];
+        const uuid = providers.find((provider) => provider.id === providerId)?.uuid;
+        if (session && uuid) {
+            vscode.env.openExternal(vscode.Uri.parse(`${consoleOrgUrl(session.consoleUrl, session.org)}/llm-providers/view/${uuid}`));
+        }
+    });
+    return { success: true };
 }
