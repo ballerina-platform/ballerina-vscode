@@ -44,7 +44,7 @@ export async function listModelProviders(): Promise<AgentManagerModelProviders> 
     if (!session) {
         return { signedIn: false, providers: [] };
     }
-    const consoleUrl = `${consoleOrgUrl(session.instanceUrl, session.org)}/llm-providers`;
+    const consoleUrl = `${consoleOrgUrl(session.consoleUrl, session.org)}/llm-providers`;
     try {
         const [providers, gatewayUrl] = await Promise.all([api.listLlmProviders(), api.getGatewayUrl(DEFAULT_ENVIRONMENT)]);
         return { signedIn: true, consoleUrl, providers: await Promise.all(providers.map((provider) => describe(provider, gatewayUrl))) };

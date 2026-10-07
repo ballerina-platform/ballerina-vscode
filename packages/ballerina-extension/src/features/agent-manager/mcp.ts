@@ -43,7 +43,7 @@ export async function listMcpProxies(projectPath: string): Promise<AgentManagerM
     if (!session) {
         return { signedIn: false, proxies: [] };
     }
-    const consoleUrl = `${consoleOrgUrl(session.instanceUrl, session.org)}/mcp-proxies`;
+    const consoleUrl = `${consoleOrgUrl(session.consoleUrl, session.org)}/mcp-proxies`;
     try {
         const [proxies, environmentId] = await Promise.all([api.listMcpProxies(), api.getEnvironmentId(DEFAULT_ENVIRONMENT)]);
         const details = await Promise.all(proxies.map((proxy) => api.getMcpProxy(proxy.id)));

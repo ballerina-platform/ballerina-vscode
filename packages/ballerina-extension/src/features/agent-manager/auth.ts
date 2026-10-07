@@ -26,10 +26,11 @@ const CLIENT_ID = "amctl";
 const CALLBACK_PORT = 10325;
 const REDIRECT_URI = `http://127.0.0.1:${CALLBACK_PORT}/callback`;
 const SESSION_KEY = "ballerina.agentManager.session";
-const DEFAULT_INSTANCE_URL = "http://api.amp.localhost:8080";
+const DEFAULT_CONSOLE_URL = "http://console.amp.localhost:8080";
 
 export interface AgentManagerSession {
     instanceUrl: string;
+    consoleUrl: string;
     org: string;
     tokenEndpoint: string;
     accessToken: string;
@@ -39,6 +40,19 @@ export interface AgentManagerSession {
 
 class TokenRejected extends Error { }
 
+export class CertificateError extends Error { }
+
+const UNTRUSTED_CA = "isn't trusted by this machine. Add its CA certificate to your system's trust store, then try again.";
+const CERTIFICATE_ERRORS: Record<string, string> = {
+    SELF_SIGNED_CERT_IN_CHAIN: UNTRUSTED_CA,
+    DEPTH_ZERO_SELF_SIGNED_CERT: UNTRUSTED_CA,
+    UNABLE_TO_VERIFY_LEAF_SIGNATURE: UNTRUSTED_CA,
+    UNABLE_TO_GET_ISSUER_CERT: UNTRUSTED_CA,
+    UNABLE_TO_GET_ISSUER_CERT_LOCALLY: UNTRUSTED_CA,
+    CERT_HAS_EXPIRED: "has expired. Ask your Agent Manager administrator to renew it.",
+    ERR_TLS_CERT_ALTNAME_INVALID: "doesn't match the address you entered. Use the hostname the certificate was issued for.",
+};
+
 interface TokenResponse {
     access_token: string;
     refresh_token?: string;
@@ -47,7 +61,9 @@ interface TokenResponse {
 
 export async function getSession(): Promise<AgentManagerSession | undefined> {
     const raw = await extension.context.secrets.get(SESSION_KEY);
-    return raw ? JSON.parse(raw) : undefined;
+    const session: AgentManagerSession | undefined = raw ? JSON.parse(raw) : undefined;
+    // Sessions saved before the console URL was asked for must sign in again.
+    return session?.consoleUrl ? session : undefined;
 }
 
 const sessionChanged = new vscode.EventEmitter<void>();
@@ -119,16 +135,17 @@ async function refresh(session: AgentManagerSession): Promise<string | undefined
 
 export async function signIn(): Promise<AgentManagerSession | undefined> {
     const previous = await getSession();
-    const instanceUrl = await vscode.window.showInputBox({
+    const enteredUrl = await vscode.window.showInputBox({
         title: "Connect to Agent Manager",
-        prompt: "Agent Manager API URL",
-        value: previous?.instanceUrl ?? DEFAULT_INSTANCE_URL,
+        prompt: "Agent Manager Console URL",
+        value: previous?.consoleUrl ?? DEFAULT_CONSOLE_URL,
         ignoreFocusOut: true,
     });
-    if (!instanceUrl) {
+    if (!enteredUrl) {
         return undefined;
     }
-    const baseUrl = instanceUrl.replace(/\/+$/, "");
+    const consoleUrl = new URL(enteredUrl).origin;
+    const baseUrl = await apiUrlFromConsole(consoleUrl);
     const discovery = await discover(baseUrl);
     const verifier = crypto.randomBytes(32).toString("base64url");
     const state = crypto.randomBytes(32).toString("base64url");
@@ -160,6 +177,7 @@ export async function signIn(): Promise<AgentManagerSession | undefined> {
     }
     const session: AgentManagerSession = {
         instanceUrl: baseUrl,
+        consoleUrl,
         org,
         tokenEndpoint: discovery.tokenEndpoint,
         ...toSessionTokens(token),
@@ -175,6 +193,16 @@ function toSessionTokens(token: TokenResponse, previousRefresh?: string) {
         refreshToken: token.refresh_token ?? previousRefresh,
         expiresAt: Date.now() + (token.expires_in ?? 3600) * 1000,
     };
+}
+
+// The console publishes its runtime config, including the API it talks to, so one URL locates both.
+async function apiUrlFromConsole(consoleUrl: string): Promise<string> {
+    const response = await httpRequest(`${consoleUrl}/config.js`);
+    const apiBaseUrl = response.ok ? /apiBaseUrl:\s*['"`]([^'"`]+)['"`]/.exec(response.text)?.[1] : undefined;
+    if (!apiBaseUrl) {
+        throw new Error(`${consoleUrl} doesn't look like an Agent Manager console. Enter the URL you open the console at.`);
+    }
+    return new URL(apiBaseUrl, consoleUrl).toString().replace(/\/+$/, "");
 }
 
 async function discover(baseUrl: string) {
@@ -243,8 +271,12 @@ export async function httpRequest(
         return { ok: response.ok, status: response.status, text: await response.text() };
     } catch (error) {
         const host = new URL(url).hostname;
-        if (host.endsWith(".localhost") && (error as { cause?: { code?: string } }).cause?.code === "ENOTFOUND") {
+        const code = (error as { cause?: { code?: string } }).cause?.code;
+        if (host.endsWith(".localhost") && code === "ENOTFOUND") {
             throw new Error(`Cannot resolve ${host}. Add "127.0.0.1 ${host}" to your hosts file.`);
+        }
+        if (code && CERTIFICATE_ERRORS[code]) {
+            throw new CertificateError(`The certificate of ${host} ${CERTIFICATE_ERRORS[code]}`);
         }
         throw error;
     }

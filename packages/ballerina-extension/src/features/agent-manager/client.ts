@@ -21,7 +21,7 @@ import * as path from "path";
 import { parse } from "@iarna/toml";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 import { AgentManagerBuild, AgentManagerHostingMode, AgentManagerLink } from "@wso2/ballerina-core";
-import { getAccessToken, getJson, getSession, httpRequest, parseJson } from "./auth";
+import { getAccessToken, getJson, getSession, httpRequest, parseJson, CertificateError } from "./auth";
 
 // Agent Manager deploys to the pipeline's first environment, which self-hosted AMP names 'default'.
 export const DEFAULT_ENVIRONMENT = "default";
@@ -38,7 +38,7 @@ async function unreachable<T>(call: () => Promise<T>): Promise<T> {
     try {
         return await call();
     } catch (error) {
-        throw error instanceof AgentManagerApiError ? error : new AgentManagerApiError(503, error instanceof Error ? error.message : String(error));
+        throw error instanceof AgentManagerApiError || error instanceof CertificateError ? error : new AgentManagerApiError(503, error instanceof Error ? error.message : String(error));
     }
 }
 
@@ -338,32 +338,19 @@ export async function getRuntimeLogs(link: AgentManagerLink, sinceMinutes: numbe
 
 export async function getObserverBaseUrl(instanceUrl: string): Promise<string> {
     const { observerBaseUrl } = await getJson(`${instanceUrl}/api/v1/config`);
-    if (!isSameSite(observerBaseUrl, instanceUrl)) {
-        throw new Error(`Refusing to trust the observer at ${observerBaseUrl}: it isn't part of ${instanceUrl}.`);
+    return new URL(observerBaseUrl, instanceUrl).toString().replace(/\/+$/, "");
+}
+
+export function consoleOrgUrl(consoleUrl: string, org: string): string {
+    return `${consoleUrl}/org/${org}`;
+}
+
+export async function consoleUrl(link: AgentManagerLink): Promise<string> {
+    const session = await getSession();
+    if (!session) {
+        throw new Error("Sign in to Agent Manager first.");
     }
-    return String(observerBaseUrl).replace(/\/+$/, "");
-}
-
-// Same registrable domain (last two labels) and protocol, e.g. traces.amp.localhost next to api.amp.localhost.
-function isSameSite(candidate: string, trusted: string): boolean {
-    try {
-        const [a, b] = [new URL(candidate), new URL(trusted)];
-        const site = (url: URL) => url.hostname.split(".").slice(-2).join(".");
-        return a.protocol === b.protocol && site(a) === site(b);
-    } catch {
-        return false;
-    }
-}
-
-// Prototype assumption: a self-hosted console sits next to the API as console.<domain>.
-export function consoleOrgUrl(instanceUrl: string, org: string): string {
-    const url = new URL(instanceUrl);
-    url.hostname = url.hostname.replace(/^api\./, "console.");
-    return `${url.origin}/org/${org}`;
-}
-
-export function consoleUrl(link: AgentManagerLink): string {
-    return `${consoleOrgUrl(link.instanceUrl, link.org)}/project/${link.project}/agents/${link.agent}`;
+    return `${consoleOrgUrl(session.consoleUrl, link.org)}/project/${link.project}/agents/${link.agent}`;
 }
 
 export interface EnvNames {

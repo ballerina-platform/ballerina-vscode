@@ -199,16 +199,16 @@ const ACTIONS: Record<AgentManagerAction, (projectPath: string, config?: AgentMa
     deployLatestBuild,
     regenerateToken,
     openInConsole: async (projectPath) => {
-        await vscode.env.openExternal(vscode.Uri.parse(consoleUrl(await requireLink(projectPath))));
+        await vscode.env.openExternal(vscode.Uri.parse(await consoleUrl(await requireLink(projectPath))));
     },
     openTryIt: async (projectPath) => {
         const link = await requireLink(projectPath);
-        await vscode.env.openExternal(vscode.Uri.parse(`${consoleUrl(link)}/environment/${link.environment}/tryOut`));
+        await vscode.env.openExternal(vscode.Uri.parse(`${await consoleUrl(link)}/environment/${link.environment}/tryOut`));
     },
     openDeploymentSettings: async (projectPath) => {
         const link = await requireLink(projectPath);
         const query = new URLSearchParams({ envId: link.environment, openConfigure: "open" });
-        await vscode.env.openExternal(vscode.Uri.parse(`${consoleUrl(link)}/deployment?${query}`));
+        await vscode.env.openExternal(vscode.Uri.parse(`${await consoleUrl(link)}/deployment?${query}`));
     },
     saveConfig,
     openBuildLogs,
@@ -424,7 +424,7 @@ async function openBuildLogs(projectPath: string): Promise<void> {
         throw new Error("No builds yet.");
     }
     const query = new URLSearchParams({ selectedBuild: build.name, panel: "logs" });
-    await vscode.env.openExternal(vscode.Uri.parse(`${consoleUrl(link)}/build?${query}`));
+    await vscode.env.openExternal(vscode.Uri.parse(`${await consoleUrl(link)}/build?${query}`));
 }
 
 async function openRuntimeLogs(projectPath: string): Promise<void> {
