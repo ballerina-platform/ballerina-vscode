@@ -29,7 +29,9 @@ import io.ballerina.compiler.api.symbols.FutureTypeSymbol;
 import io.ballerina.compiler.api.symbols.IntersectionTypeSymbol;
 import io.ballerina.compiler.api.symbols.MapTypeSymbol;
 import io.ballerina.compiler.api.symbols.ModuleSymbol;
+import io.ballerina.compiler.api.symbols.ParameterKind;
 import io.ballerina.compiler.api.symbols.ParameterSymbol;
+import io.ballerina.compiler.api.symbols.RecordFieldSymbol;
 import io.ballerina.compiler.api.symbols.StreamTypeSymbol;
 import io.ballerina.compiler.api.symbols.Symbol;
 import io.ballerina.compiler.api.symbols.SymbolKind;
@@ -1865,6 +1867,12 @@ public class CommonUtils {
     public static String resolveDefaultValue(Symbol paramSymbol, TypeSymbol typeSymbol,
                                              SemanticModel semanticModel, Package resolvedPackage,
                                              Document document) {
+        // A parameter or field that declares no default has none to report. A value derived from its type would be
+        // an arbitrary member of a union, or `false` for a boolean, presented as what the connector applies when
+        // the field is left unset (e.g. `ServiceTier serviceTier?;` read as defaulting to "reserved").
+        if (!declaresDefaultValue(paramSymbol)) {
+            return "";
+        }
         String defaultValue = DefaultValueGeneratorUtil.getDefaultValueForType(typeSymbol);
 
         Optional<Location> symbolLocation = paramSymbol.getLocation();
@@ -1905,6 +1913,21 @@ public class CommonUtils {
         } else {
             return expression.toSourceCode();
         }
+    }
+
+    /**
+     * Whether a parameter or record field declares a default value. Read from the symbol, so it holds whether or
+     * not the source of its module is available. Any other kind of symbol is assumed to declare one, which keeps
+     * the default derived from its type.
+     */
+    private static boolean declaresDefaultValue(Symbol symbol) {
+        if (symbol instanceof ParameterSymbol parameterSymbol) {
+            return parameterSymbol.paramKind() == ParameterKind.DEFAULTABLE;
+        }
+        if (symbol instanceof RecordFieldSymbol recordFieldSymbol) {
+            return recordFieldSymbol.hasDefaultValue();
+        }
+        return true;
     }
 
     /**
