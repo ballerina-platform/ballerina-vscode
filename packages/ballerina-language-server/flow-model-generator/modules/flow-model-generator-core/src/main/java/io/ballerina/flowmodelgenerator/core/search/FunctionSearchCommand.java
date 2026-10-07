@@ -89,6 +89,8 @@ class FunctionSearchCommand extends SearchCommand {
     // When set (to "ballerina" or "ballerinax"), the request loads the next page of that single library section
     // instead of the full view. Used by the per-section "Show more" pagination.
     private final String sectionOrg;
+    // Set by callers wanting only the project's own functions; skips a Central round trip.
+    private final boolean excludeLibrary;
 
     public FunctionSearchCommand(Project project, LineRange position, Map<String, String> queryMap,
                                  Document functionsDoc) {
@@ -97,6 +99,7 @@ class FunctionSearchCommand extends SearchCommand {
         this.functionsDoc = functionsDoc;
         String requestedSectionOrg = queryMap != null ? queryMap.getOrDefault("orgName", "") : "";
         this.sectionOrg = PAGINATED_SECTION_ORGS.contains(requestedSectionOrg) ? requestedSectionOrg : "";
+        this.excludeLibrary = queryMap != null && "true".equals(queryMap.get("excludeLibrary"));
         // TODO: Use this method when https://github.com/ballerina-platform/ballerina-lang/issues/43695 is fixed
         // List<String> moduleNames = semanticModel.moduleSymbols().stream()
         // .filter(symbol -> symbol.kind().equals(SymbolKind.MODULE))
@@ -119,6 +122,11 @@ class FunctionSearchCommand extends SearchCommand {
                 searchResults.addAll(
                         dbManager.searchFunctionsByPackages(importedModules, List.of(), Integer.MAX_VALUE, 0));
             }
+        }
+
+        if (excludeLibrary) {
+            buildLibraryNodes(searchResults, true);
+            return rootBuilder.build().items();
         }
 
         // The standard library (ballerina) and the extended library (ballerinax) are fetched from Ballerina Central,
