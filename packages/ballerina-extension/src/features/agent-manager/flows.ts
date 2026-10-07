@@ -747,7 +747,7 @@ async function httpServiceInterface(serviceFile: string): Promise<DetectedInterf
     return {
         spec,
         port: Number(server?.variables?.port?.default),
-        basePath: server?.url?.replace(/^\{server\}:\{port\}/, "").replace(/\\/g, "") || "/",
+        basePath: server?.url?.replace(/^(?:[a-z]+:\/\/)?[^/]*/i, "") || "/",
     };
 }
 
