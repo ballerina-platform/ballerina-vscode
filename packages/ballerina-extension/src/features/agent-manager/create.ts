@@ -31,7 +31,7 @@ import { configs } from "./bindings";
 import { api, DEFAULT_ENVIRONMENT, readManifest, writeLink } from "./client";
 import { CONFIG_FILE } from "./configurables";
 import {
-    chooseGitSecret, ensureDevTracingOff, repoSecretName, saveRepoToken, hasAmpImport, loadConfigFields, prepareHttpInterface, readPackageTitle, readPreparation,
+    chooseGitSecret, ensureDevTracingOff, repoSecretName, saveRepoToken, hasAmpImport, loadConfigFields, prepareHttpInterface, readPackageTitle, readPreparation, requireHttpEntryPoint,
     resolveConfig, respond, toResourceName, warnIfDefaultModelProvider,
 } from "./flows";
 import { checkPushed, defaultRemote, githubRemotes, readFacts, repoDetails } from "./github";
@@ -69,6 +69,7 @@ export async function getCreateForm(projectPath: string): Promise<AgentManagerCr
         fields: [],
     };
     try {
+        requireHttpEntryPoint(projectPath);
         const [session, projects, gitSecrets, config] = await Promise.all([
             requireSession(), api.listProjects(), api.listGitSecrets(), loadConfigFields(projectPath),
         ]);

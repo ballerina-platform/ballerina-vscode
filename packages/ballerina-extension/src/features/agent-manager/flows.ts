@@ -34,6 +34,8 @@ import {
     AgentManagerLinkCandidate,
     AgentManagerSource,
     AgentManagerStatus,
+    DIRECTORY_MAP,
+    isSamePath,
     OpenAPISpec,
 } from "@wso2/ballerina-core";
 import { getSession, hasPermission, signIn, signOut } from "./auth";
@@ -700,7 +702,19 @@ export async function prepareHttpInterface(projectPath: string): Promise<HttpInt
     };
 }
 
+const HTTP_LISTENER_MODULES = ["http", "ai"];
+
+export function requireHttpEntryPoint(projectPath: string): void {
+    const project = StateMachine.context().projectStructure?.projects.find((candidate) => isSamePath(candidate.projectPath, projectPath));
+    const services = project?.directoryMap[DIRECTORY_MAP.SERVICE] ?? [];
+    if (project && !services.some((service) => HTTP_LISTENER_MODULES.includes(service.moduleName ?? ""))) {
+        throw new Error("Agent Manager can only host agents that receive HTTP requests. "
+            + "Run this agent on your own infrastructure and register it as an externally-hosted agent under Management.");
+    }
+}
+
 async function detectInterface(projectPath: string): Promise<DetectedInterface> {
+    requireHttpEntryPoint(projectPath);
     const serviceFile = fs.readdirSync(projectPath)
         .filter((file) => file.endsWith(".bal"))
         .find((file) => /service\s+[^{;]*\bon\s+/.test(fs.readFileSync(path.join(projectPath, file), "utf-8")));
@@ -733,7 +747,7 @@ async function httpServiceInterface(serviceFile: string): Promise<DetectedInterf
     return {
         spec,
         port: Number(server?.variables?.port?.default),
-        basePath: server?.url?.replace(/^\{server\}:\{port\}/, "") || "/",
+        basePath: server?.url?.replace(/^\{server\}:\{port\}/, "").replace(/\\/g, "") || "/",
     };
 }
 
