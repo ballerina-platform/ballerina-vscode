@@ -2245,17 +2245,17 @@ public class AiUtils {
     public record ModelData(String name, String path, String type) {
     }
 
-    public static ModelData getModelIconUrl(SemanticModel semanticModel, ExpressionNode expression) {
+    public static ModelData getModelIconUrl(SemanticModel semanticModel, Project project, ExpressionNode expression) {
         if (expression.kind() == SyntaxKind.SIMPLE_NAME_REFERENCE) {
-            return resolveComponent(semanticModel, expression, Ai.MODEL_PROVIDER_TYPE_NAME);
+            return resolveComponent(semanticModel, project, expression, Ai.MODEL_PROVIDER_TYPE_NAME);
         }
         if (expression.kind() == SyntaxKind.FIELD_ACCESS) {
-            return getModelIconUrl(semanticModel, ((FieldAccessExpressionNode) expression).fieldName());
+            return getModelIconUrl(semanticModel, project, ((FieldAccessExpressionNode) expression).fieldName());
         }
         return new ModelData(expression.toSourceCode().strip(), null, null);
     }
 
-    public static ModelData getMemoryStoreData(SemanticModel semanticModel,
+    public static ModelData getMemoryStoreData(SemanticModel semanticModel, Project project,
                                                SeparatedNodeList<FunctionArgumentNode> arguments) {
         for (FunctionArgumentNode argument : arguments) {
             ExpressionNode expression = switch (argument.kind()) {
@@ -2264,22 +2264,20 @@ public class AiUtils {
                 default -> null;
             };
             if (expression != null && semanticModel.symbol(expression)
+                    .map(symbol -> getComponentType(semanticModel, project, symbol))
+                    .map(CommonUtils::getRawType)
                     .filter(CommonUtils::isAiMemoryStore).isPresent()) {
-                return resolveComponent(semanticModel, expression, null);
+                return resolveComponent(semanticModel, project, expression, null);
             }
         }
         return null;
     }
 
-    private static ModelData resolveComponent(SemanticModel semanticModel, ExpressionNode expression,
+    private static ModelData resolveComponent(SemanticModel semanticModel, Project project, ExpressionNode expression,
                                               String genericTypeName) {
         Symbol symbol = semanticModel.symbol(expression).orElse(null);
-        TypeSymbol typeDescriptor;
-        if (symbol instanceof VariableSymbol variable) {
-            typeDescriptor = variable.typeDescriptor();
-        } else if (symbol instanceof ClassFieldSymbol field) {
-            typeDescriptor = field.typeDescriptor();
-        } else {
+        TypeSymbol typeDescriptor = getComponentType(semanticModel, project, symbol);
+        if (typeDescriptor == null) {
             return null;
         }
         Optional<ModuleID> optId = typeDescriptor.getModule().map(ModuleSymbol::id);
@@ -2292,6 +2290,19 @@ public class AiUtils {
                 ? id.packageName() : type;
         return new ModelData(symbol.getName().orElse(""),
                 CommonUtils.generateIcon(id.orgName(), id.packageName(), id.version()), iconType);
+    }
+
+    static TypeSymbol getComponentType(SemanticModel semanticModel, Project project, Symbol symbol) {
+        if (symbol instanceof VariableSymbol variable) {
+            return CommonUtils.getConstructedType(semanticModel, getModulePart(project, variable), variable);
+        }
+        return symbol instanceof ClassFieldSymbol field ? field.typeDescriptor() : null;
+    }
+
+    private static ModulePartNode getModulePart(Project project, Symbol symbol) {
+        Document document = project == null || symbol.getLocation().isEmpty() ? null
+                : CommonUtils.getDocument(project, symbol.getLocation().get());
+        return document == null ? null : document.syntaxTree().rootNode();
     }
 
 }

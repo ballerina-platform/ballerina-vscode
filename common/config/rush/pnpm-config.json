@@ -125,6 +125,7 @@
       // Security fix: 4.28.7 is the 4.x fix. The 4.14.2 transitive is not
       // flagged, so leave it untouched.
       "browserslist@4.28.4": "4.28.7",
+      "compression@1": "1.8.2",
       // Security fix: bump past the previous override version, which is now
       // itself flagged.
       "dompurify": "3.4.16",
@@ -140,6 +141,8 @@
       // and to 4.13.7 for the hono/jsx XSS (CVE-2026-93981).
       "hono@>=4 <5": "4.13.7",
       "http-proxy": "1.18.1",
+      // Security fix: rehype-katex@7 asks for ^0.16, which has no fix.
+      "katex@<0.18.2": "0.18.2",
       // CVE-2026-55602: stay on the 2.x line (first 2.x fix is 2.0.10). The
       // 0.17.x transitive is not flagged, so leave it untouched.
       "http-proxy-middleware@>=2 <3": "2.0.10",
@@ -150,11 +153,11 @@
       // Security fix: 10.5.1 is the first release covering all flagged
       // advisories.
       "ip-address@10": "10.7.1",
-      "joi@>=17 <18": "17.13.4",
+      "joi@>=17 <18": "17.13.8",
       // Security fix: rename() prototype set and a prototype pollution
       // advisory. ballerina-low-code-diagram pins 18.2.5 directly; keep
       // the 18.x line at the fixed version.
-      "joi@>=18 <19": "18.2.6",
+      "joi@>=18 <19": "18.2.9",
       // js-yaml v3 has no in-line fix; the fix only lands in v4.3.0+.
       // Force all consumers to v4 — revert with narrower selector if a
       // workspace package needs the v3 sync API.
@@ -171,12 +174,16 @@
       // Security fix: path traversal via source map auto-loading.
       "postcss@8": "8.5.23",
       "prismjs": "1.30.0",
+      // Security fix: also lifts the 1.41.9 transitive, not only the direct pin.
+      "prosemirror-view@>=1 <1.42.3": "1.42.3",
       "protobufjs@>=7 <8": "7.6.5",
+      "proxy-addr": "2.0.8",
       // Security fix: bump past the previous override version, which is now
       // itself flagged.
       "qs@6": "6.16.0",
       "serialize-javascript": "7.0.5",
       "shell-quote": "1.9.0",
+      "source-map-js": "1.2.2",
       "tmp": "0.2.7",
       // No 5.x release fixes the flagged advisories, so 5.x moves up a major and
       // 6.x (@ai-sdk/provider-utils) is pinned; 6.28.1 covers all of them.
