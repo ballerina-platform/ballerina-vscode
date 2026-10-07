@@ -671,7 +671,7 @@
               "kind": "DEFAULTABLE",
               "originalName": "sessionId"
             },
-            "defaultValue": "DEFAULT_SESSION_ID"
+            "defaultValue": "sessionId"
           },
           "context": {
             "metadata": {

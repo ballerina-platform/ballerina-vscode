@@ -296,7 +296,7 @@
             "kind": "INCLUDED_FIELD",
             "originalName": "compression"
           },
-          "defaultValue": "\"AUTO\""
+          "defaultValue": "AUTO"
         },
         "retryConfiguration": {
           "metadata": {

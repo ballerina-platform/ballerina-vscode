@@ -9294,7 +9294,7 @@
               "kind": "DEFAULTABLE",
               "originalName": "temperature"
             },
-            "defaultValue": "DEFAULT_TEMPERATURE"
+            "defaultValue": "0.7"
           },
           "generatorConfig": {
             "metadata": {
@@ -9317,7 +9317,7 @@
               "kind": "DEFAULTABLE",
               "originalName": "generatorConfig"
             },
-            "defaultValue": "DEFAULT_GENERATOR_CONFIG"
+            "defaultValue": "{}"
           },
           "httpVersion": {
             "metadata": {
@@ -9609,7 +9609,7 @@
                 "selected": false
               }
             ],
-            "placeholder": "",
+            "placeholder": "\"AUTO\"",
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -9621,7 +9621,7 @@
             "imports": {
               "http": "ballerina/http"
             },
-            "defaultValue": "http:COMPRESSION_AUTO"
+            "defaultValue": "AUTO"
           },
           "circuitBreaker": {
             "metadata": {
