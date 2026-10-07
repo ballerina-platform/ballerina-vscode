@@ -21,30 +21,16 @@ import * as path from "path";
 import { parse } from "@iarna/toml";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 import { AgentManagerBuild, AgentManagerHostingMode, AgentManagerLink } from "@wso2/ballerina-core";
-import { getAccessToken, getJson, getSession, httpRequest, parseJson, CertificateError } from "./auth";
+import { AgentManagerApiError, fetchJson, getAccessToken, getSession, requireSession } from "./auth";
 
 // Agent Manager deploys to the pipeline's first environment, which self-hosted AMP names 'default'.
 export const DEFAULT_ENVIRONMENT = "default";
 const MANIFEST_FILE = path.join(".wso2", "agent-manager.yaml");
-
-export class AgentManagerApiError extends Error {
-    constructor(public readonly status: number, message: string) {
-        super(message);
-    }
-}
-
-// A network failure, including one while refreshing the token, reads as unreachable rather than signed out.
-async function unreachable<T>(call: () => Promise<T>): Promise<T> {
-    try {
-        return await call();
-    } catch (error) {
-        throw error instanceof AgentManagerApiError || error instanceof CertificateError ? error : new AgentManagerApiError(503, error instanceof Error ? error.message : String(error));
-    }
-}
+export const CONFIG_FILE = { key: "Config.toml", mountPath: "/workspace" };
 
 async function authorize() {
     const session = await getSession();
-    const token = await unreachable(getAccessToken);
+    const token = await getAccessToken();
     if (!session || !token) {
         throw new AgentManagerApiError(401, "Not signed in to Agent Manager.");
     }
@@ -53,20 +39,11 @@ async function authorize() {
 
 async function request<T>(method: string, apiPath: string, body?: unknown): Promise<T> {
     const { session, token } = await authorize();
-    const response = await unreachable(() => httpRequest(`${session.instanceUrl}/api/v1/orgs/${session.org}${apiPath}`, {
+    return fetchJson<T>(`${session.instanceUrl}/api/v1/orgs/${session.org}${apiPath}`, {
         method,
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", Accept: "application/json" },
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: body === undefined ? undefined : JSON.stringify(body),
-    }));
-    const { text } = response;
-    if (!response.ok) {
-        let message = text;
-        try {
-            message = JSON.parse(text).message ?? text;
-        } catch { /* plain-text error */ }
-        throw new AgentManagerApiError(response.status, `${method} ${apiPath} failed (${response.status}): ${message}`);
-    }
-    return (text ? parseJson(apiPath, text) : undefined) as T;
+    });
 }
 
 interface AgentSummary {
@@ -81,7 +58,7 @@ interface EnvironmentVariable {
     isSensitive?: boolean;
 }
 
-export interface InternalAgentSpec {
+interface InternalAgentSpec {
     name: string;
     displayName: string;
     repoUrl: string;
@@ -139,7 +116,6 @@ export const api = {
             }
         }
     },
-    hasGitSecret: async (name: string) => (await api.listGitSecrets()).includes(name),
     createExternalAgent: (project: string, name: string, displayName: string) =>
         request("POST", `/projects/${project}/agents`, {
             name,
@@ -183,7 +159,6 @@ export const api = {
         }
         return gateway.vhost.replace(/\/+$/, "");
     },
-    getOtelEndpoint: async (environment: string) => `${await api.getGatewayUrl(environment)}/otel`,
     listLlmProviders: async () =>
         (await request<{ providers: { id: string; uuid: string; name: string; template: string }[] }>("GET", "/llm-providers?limit=100")).providers,
     getLlmProvider: (id: string) =>
@@ -222,9 +197,6 @@ export const api = {
     // A rename-only PUT: the provider mapping, and so its proxy and keys, stay as they are.
     renameAgentConfigEnv: (link: AgentManagerLink, kind: AgentConfigKind, uuid: string, env: EnvNames) =>
         request("PUT", `/projects/${link.project}/agents/${link.agent}/${kind}-configs/${uuid}`, { environmentVariables: envVariables(env) }),
-    deleteLlmProviderKey: (uuid: string, name: string) => request("DELETE", `/llm-providers/${uuid}/api-keys/${name}`),
-    createLlmProviderKey: (uuid: string, name: string, displayName: string) =>
-        request<{ apiKey?: string; message?: string }>("POST", `/llm-providers/${uuid}/api-keys`, { name, displayName }),
     getLatestBuild: async (link: AgentManagerLink): Promise<AgentManagerBuild | undefined> => {
         const base = `/projects/${link.project}/agents/${link.agent}/builds`;
         const latest = (await request<{ builds: { buildName: string }[] }>("GET", `${base}?limit=1`)).builds[0];
@@ -243,15 +215,6 @@ export const api = {
     },
     getAgent: (link: AgentManagerLink) =>
         request<any>("GET", `/projects/${link.project}/agents/${link.agent}`),
-    updateRepository: (link: AgentManagerLink, agent: any, changes: { branch?: string; secretRef?: string }) => {
-        const repository = { ...agent.provisioning.repository, ...changes };
-        return request("PUT", `/projects/${link.project}/agents/${link.agent}/build-parameters`, {
-            provisioning: { ...agent.provisioning, repository },
-            agentType: agent.agentType,
-            build: agent.build,
-            inputInterface: agent.inputInterface,
-        });
-    },
     // Without a commit, Agent Manager builds the tip of the agent's own repository and branch.
     triggerBuild: (link: AgentManagerLink) => request("POST", `/projects/${link.project}/agents/${link.agent}/builds`),
     getDeployment: async (link: AgentManagerLink) => {
@@ -259,30 +222,14 @@ export const api = {
             "GET", `/projects/${link.project}/agents/${link.agent}/deployments`);
         return deployments[link.environment];
     },
-    getConfigState: async (link: AgentManagerLink, mountPath: string) => {
-        const { env, files } = await getConfigItems(link);
-        return { envKeys: env.map((item) => item.key), fileSaved: files.some((file) => file.mountPath === mountPath) };
-    },
-    // The PUT replaces whole sets, so everything else goes back as read: secrets by reference, system vars dropped (the server re-adds them).
-    updateConfigurations: async (link: AgentManagerLink, env: EnvironmentVariable[], file?: FileMountInput) => {
-        const current = await getConfigItems(link);
-        const addedKeys = new Set(env.map((item) => item.key));
-        const keptEnv = current.env.filter((item) => !item.isSystem && !addedKeys.has(item.key));
-        const keptFiles = file ? current.files.filter((item) => !(item.mountPath === file.mountPath && item.key === file.key)) : [];
-        const occupied = file && keptFiles.find((item) => item.mountPath === file.mountPath || item.key === file.key);
-        if (occupied) {
-            throw new Error(`Agent Manager already mounts ${occupied.key} at ${occupied.mountPath}, so nothing was changed. Remove it in the console first.`);
-        }
-        const unsafe = [...keptEnv, ...keptFiles].find((item) => (item.isSensitive ? !item.secretRef : typeof item.value !== "string"));
-        if (unsafe) {
-            throw new Error(`Couldn't read the current value of ${unsafe.key}, so nothing was changed. Set the value in the Agent Manager console.`);
-        }
-        await request("PUT", `/projects/${link.project}/agents/${link.agent}/configurations`, {
-            environmentName: link.environment,
-            enableAutoInstrumentation: current.autoInstrumentation,
-            env: [...keptEnv.map(roundTrip), ...env],
-            ...(file ? { files: [...keptFiles.map((item) => ({ ...roundTrip(item), mountPath: item.mountPath! })), file] } : {}),
-        });
+    // Names Agent Manager already holds values for, so the Deploy card only asks for the rest.
+    getConfigState: async (link: AgentManagerLink) => {
+        const config = await request<{ configurations?: { env?: { key: string }[]; files?: { mountPath?: string }[] } }>(
+            "GET", `/projects/${link.project}/agents/${link.agent}/configurations?environment=${link.environment}`);
+        return {
+            envKeys: (config.configurations?.env ?? []).map((item) => item.key),
+            fileSaved: (config.configurations?.files ?? []).some((file) => file.mountPath === CONFIG_FILE.mountPath),
+        };
     },
     deploy: (link: AgentManagerLink, imageId: string) =>
         request("POST", `/projects/${link.project}/agents/${link.agent}/deployments`, { imageId }),
@@ -301,43 +248,8 @@ export interface McpProxyDetails {
     }[];
 }
 
-interface ConfigItem {
-    key: string;
-    value?: string;
-    isSensitive?: boolean;
-    secretRef?: string;
-    isSystem?: boolean;
-    mountPath?: string;
-}
-
-function roundTrip(item: ConfigItem) {
-    return item.isSensitive ? { key: item.key, isSensitive: true, secretRef: item.secretRef } : { key: item.key, value: item.value };
-}
-
-async function getConfigItems(link: AgentManagerLink): Promise<{ env: ConfigItem[]; files: ConfigItem[]; autoInstrumentation?: boolean }> {
-    const config = await request<{ configurations?: { env?: ConfigItem[]; files?: ConfigItem[] }; enableAutoInstrumentation?: boolean }>(
-        "GET", `/projects/${link.project}/agents/${link.agent}/configurations?environment=${link.environment}`);
-    return { env: config.configurations?.env ?? [], files: config.configurations?.files ?? [], autoInstrumentation: config.enableAutoInstrumentation };
-}
-
-export async function getRuntimeLogs(link: AgentManagerLink, sinceMinutes: number): Promise<string> {
-    const { session, token } = await authorize();
-    const endTime = new Date();
-    const query = new URLSearchParams({
-        organization: session.org,
-        project: link.project,
-        agent: link.agent,
-        environment: link.environment,
-        startTime: new Date(endTime.getTime() - sinceMinutes * 60_000).toISOString(),
-        endTime: endTime.toISOString(),
-        sortOrder: "asc",
-    });
-    const body = await getJson(`${await getObserverBaseUrl(session.instanceUrl)}/api/v1/logs?${query}`, { Authorization: `Bearer ${token}` });
-    return (body.logs ?? []).map((entry: { log: string; timestamp: string }) => `${entry.timestamp}  ${entry.log}`).join("\n");
-}
-
 export async function getObserverBaseUrl(instanceUrl: string): Promise<string> {
-    const { observerBaseUrl } = await getJson(`${instanceUrl}/api/v1/config`);
+    const { observerBaseUrl } = await fetchJson(`${instanceUrl}/api/v1/config`);
     return new URL(observerBaseUrl, instanceUrl).toString().replace(/\/+$/, "");
 }
 
@@ -346,11 +258,7 @@ export function consoleOrgUrl(consoleUrl: string, org: string): string {
 }
 
 export async function consoleUrl(link: AgentManagerLink): Promise<string> {
-    const session = await getSession();
-    if (!session) {
-        throw new Error("Sign in to Agent Manager first.");
-    }
-    return `${consoleOrgUrl(session.consoleUrl, link.org)}/project/${link.project}/agents/${link.agent}`;
+    return `${consoleOrgUrl((await requireSession()).consoleUrl, link.org)}/project/${link.project}/agents/${link.agent}`;
 }
 
 export interface EnvNames {
@@ -359,7 +267,7 @@ export interface EnvNames {
 }
 
 // Committed with the project, so it holds handles and env var names, never the instance URL or keys.
-export interface Manifest {
+interface Manifest {
     org?: string;
     project?: string;
     agent?: string;
@@ -376,7 +284,7 @@ export function readManifest(projectPath: string): Manifest {
 export function updateManifest(projectPath: string, change: (manifest: Manifest) => Manifest): void {
     const file = path.join(projectPath, MANIFEST_FILE);
     fs.mkdirSync(path.dirname(file), { recursive: true });
-    writeProjectFile(projectPath, file, stringifyYaml(change(readManifest(projectPath))));
+    fs.writeFileSync(file, stringifyYaml(change(readManifest(projectPath))));
 }
 
 const agentModes = new Map<string, AgentManagerHostingMode>();
@@ -425,14 +333,4 @@ export function writeLink(projectPath: string, { org, project, agent }: AgentMan
 
 export function removeLink(projectPath: string): void {
     updateManifest(projectPath, ({ org, project, agent, ...rest }) => rest);
-}
-
-// A repo can commit symlinks, so a write could land in a tracked file elsewhere; refuse to follow them.
-export function writeProjectFile(projectPath: string, file: string, content: string, append = false): void {
-    for (let current = file; current.startsWith(projectPath) && current !== projectPath; current = path.dirname(current)) {
-        if (fs.existsSync(current) && fs.lstatSync(current).isSymbolicLink()) {
-            throw new Error(`Refusing to write ${path.relative(projectPath, file)}: ${path.relative(projectPath, current)} is a symbolic link.`);
-        }
-    }
-    (append ? fs.appendFileSync : fs.writeFileSync)(file, content, "utf-8");
 }

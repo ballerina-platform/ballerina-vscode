@@ -27,8 +27,6 @@ import {
     AgentManagerAction,
     AgentManagerActionResponse,
     AgentManagerConfigField,
-    AgentManagerConfigForm,
-    AgentManagerConfigInput,
     AgentManagerLink,
     AgentManagerLinkCandidate,
     AgentManagerSource,
@@ -37,31 +35,28 @@ import {
     isSamePath,
     OpenAPISpec,
 } from "@wso2/ballerina-core";
-import { getSession, hasPermission, signIn, signOut } from "./auth";
+import { AgentManagerApiError, getSession, signIn, signOut } from "./auth";
 import { offerCopilotMcp } from "./copilot";
-import { buildConfigFields, CONFIG_FILE, readPackage, splitConfig, SplitConfig } from "./configurables";
+import { buildConfigFields, configEnvKey } from "./configurables";
 import { injectedEnvNames, reconcileAgentConfigs } from "./bindings";
 import {
-    buildBranch, ensureGitIgnored, inspectSource, isExposed, isIgnored, linkCandidates, LOCAL_ONLY_FILES, openCommitView, Preparation, readFacts,
-    SourceStepId, suggestCommitMessage, untrack,
+    buildBranch, ensureGitIgnored, inspectSource, isExposed, isIgnored, linkCandidates, LOCAL_ONLY_FILES, Preparation, readFacts, SourceStepId, untrack,
 } from "./github";
 import {
-    AgentManagerApiError,
     api,
     consoleUrl,
     DEFAULT_ENVIRONMENT,
-    getRuntimeLogs,
     readLink,
     readManifest,
     removeLink,
     updateManifest,
     writeLink,
-    writeProjectFile,
 } from "./client";
 import { extension } from "../../BalExtensionContext";
 import { StateMachine } from "../../stateMachine";
 import { TracerMachine } from "../tracing/tracer-machine";
 import { getActiveTracingProvider, updateOrAddSection } from "../tracing/utils";
+import { getProjectTomlValues } from "../../utils/config";
 
 const EXTERNAL_TOKEN_EXPIRY = "720h";
 const OPENAPI_FILE = "openapi.yaml";
@@ -91,10 +86,10 @@ export async function getStatus(projectPath: string): Promise<AgentManagerStatus
         const link = await readLink(projectPath);
         if (!link) {
             // Listing every project's agents is too heavy for each status poll.
-            const [candidates, canCreate, source] = await Promise.all([
-                cached(candidateCache, projectPath, () => linkCandidates(projectPath)), hasPermission("agent:create"), sourceStatus(projectPath),
+            const [candidates, source] = await Promise.all([
+                cached(candidateCache, projectPath, () => linkCandidates(projectPath)), sourceStatus(projectPath),
             ]);
-            return { ...status, candidates, canCreate, source };
+            return { ...status, candidates, source };
         }
         status.link = link;
         Object.assign(status, link.mode === "internal" ? await platformStatus(projectPath, link) : {});
@@ -111,19 +106,32 @@ export async function getStatus(projectPath: string): Promise<AgentManagerStatus
 
 let lastStatusError: string | undefined;
 
+const UNTRUSTED_CA = "isn't trusted by this machine. Add its CA certificate to your system's trust store, then try again.";
+const CERTIFICATE_ERRORS: Record<string, string> = {
+    SELF_SIGNED_CERT_IN_CHAIN: UNTRUSTED_CA,
+    DEPTH_ZERO_SELF_SIGNED_CERT: UNTRUSTED_CA,
+    UNABLE_TO_VERIFY_LEAF_SIGNATURE: UNTRUSTED_CA,
+    UNABLE_TO_GET_ISSUER_CERT_LOCALLY: UNTRUSTED_CA,
+    CERT_HAS_EXPIRED: "has expired. Ask your Agent Manager administrator to renew it.",
+    ERR_TLS_CERT_ALTNAME_INVALID: "doesn't match the address you entered. Use the hostname the certificate was issued for.",
+};
+
 function describeError(error: unknown, instanceUrl?: string): string {
     const message = error instanceof Error ? error.message : String(error);
     if (message !== lastStatusError) {
         lastStatusError = message;
         outputChannel().appendLine(message);
     }
-    if (!(error instanceof AgentManagerApiError)) {
-        return message;
+    if (error instanceof AgentManagerApiError && error.status === 401) {
+        return "Your Agent Manager session has expired. Sign in again to continue.";
     }
-    if (error.status === 503) {
-        return `Can't reach Agent Manager${instanceUrl ? ` at ${new URL(instanceUrl).host}` : ""}. Check that it's running and try again.`;
+    // fetch reports network and TLS failures as a TypeError whose cause carries the code.
+    const code = (error as { cause?: { code?: string } }).cause?.code;
+    const host = instanceUrl ? new URL(instanceUrl).host : "Agent Manager";
+    if (code && CERTIFICATE_ERRORS[code]) {
+        return `The certificate of ${host} ${CERTIFICATE_ERRORS[code]}`;
     }
-    return error.status === 401 ? "Your Agent Manager session has expired. Sign in again to continue." : message;
+    return error instanceof TypeError && message === "fetch failed" ? `Can't reach ${host}. Check that it's running and try again.` : message;
 }
 
 async function describeActionError(error: unknown): Promise<string> {
@@ -137,21 +145,16 @@ async function describeActionError(error: unknown): Promise<string> {
 async function platformStatus(projectPath: string, link: AgentManagerLink): Promise<Partial<AgentManagerStatus>> {
     const [agent, build, deployment, source, missingConfig] = await Promise.all([
         api.getAgent(link), api.getLatestBuild(link), api.getDeployment(link), sourceStatus(projectPath),
-        missingConfigLabels(projectPath, link).catch((): string[] => []),
+        missingConfigNames(projectPath, link).catch((): string[] => []),
     ]);
     const repo = agent.provisioning?.repository;
-    const target = await buildBranch(projectPath, repo?.url, repo?.branch);
     const deployed = deployment?.imageId?.match(/:v\d+-([0-9a-f]{7,40})$/)?.[1] ?? build?.commitId;
-    const newCommit = target?.tip && !(deployed && target.tip.startsWith(deployed)) ? target.tip : undefined;
     return {
         displayName: agent.displayName,
-        repository: target?.repository,
         branch: repo?.branch,
-        tracked: !!target?.tip,
         source,
-        newCommit,
-        newCommitMessage: newCommit && target?.message,
-        crash: looksCrashed(deployment) ? await crashReason(link, usesDefaultModelProvider(projectPath)) : undefined,
+        ...await branchFreshness(projectPath, repo, deployed),
+        crashed: looksCrashed(deployment),
         missingConfig,
         build,
         deployment: deployment && {
@@ -164,7 +167,13 @@ async function platformStatus(projectPath: string, link: AgentManagerLink): Prom
     };
 }
 
-const CONFIG_ERROR = /configurable|not configured|unused environment variable|as an environment variable|Config\.toml/i;
+// Compares the deployed commit with the tip of the branch the agent builds, not the branch this clone tracks.
+async function branchFreshness(projectPath: string, repo?: { url?: string; branch?: string }, deployed?: string): Promise<Partial<AgentManagerStatus>> {
+    const target = await buildBranch(projectPath, repo?.url, repo?.branch);
+    const newCommit = target?.tip && !(deployed && target.tip.startsWith(deployed)) ? target.tip : undefined;
+    return { repository: target?.repository, tracked: !!target?.tip, newCommit, newCommitMessage: newCommit && target?.message };
+}
+
 const STUCK_STARTING_MS = 3 * 60 * 1000;
 
 // Agent Manager keeps reporting "in-progress" while a pod crash-loops, so a long start is treated as a crash.
@@ -175,18 +184,7 @@ function looksCrashed(deployment?: { status: string; lastDeployed?: string }): b
     return stuck || /fail|error|crash/i.test(status);
 }
 
-// The last runtime error usually names the cause; config errors need the console, not a rebuild.
-async function crashReason(link: AgentManagerLink, defaultProviderInCode: boolean): Promise<AgentManagerStatus["crash"]> {
-    try {
-        const lines = (await getRuntimeLogs(link, 15)).split("\n").map((line) => line.replace(/^\S+\s+/, "").trim());
-        const reason = [...lines].reverse().find((line) => /^error:/i.test(line))?.replace(/^error:\s*/i, "");
-        return reason ? { reason, config: CONFIG_ERROR.test(reason), defaultModelProvider: defaultProviderInCode && /wso2ProviderConfig/.test(reason) } : undefined;
-    } catch {
-        return undefined;
-    }
-}
-
-const ACTIONS: Record<AgentManagerAction, (projectPath: string, config?: AgentManagerConfigInput, autoInstrumentation?: boolean) => Promise<string | void>> = {
+const ACTIONS: Record<AgentManagerAction, (projectPath: string, autoInstrumentation?: boolean) => Promise<string | void>> = {
     signIn: async () => {
         const session = required(await signIn());
         void offerCopilotMcp();
@@ -210,15 +208,16 @@ const ACTIONS: Record<AgentManagerAction, (projectPath: string, config?: AgentMa
         const query = new URLSearchParams({ envId: link.environment, openConfigure: "open" });
         await vscode.env.openExternal(vscode.Uri.parse(`${await consoleUrl(link)}/deployment?${query}`));
     },
-    saveConfig,
     openBuildLogs,
-    openRuntimeLogs,
-    setRepoAccess,
+    openRuntimeLogs: async (projectPath) => {
+        const link = await requireLink(projectPath);
+        await vscode.env.openExternal(vscode.Uri.parse(`${await consoleUrl(link)}/environment/${link.environment}/observability/logs`));
+    },
     unlink: async (projectPath) => removeLink(projectPath),
 };
 
-export function runAction(projectPath: string, action: AgentManagerAction, config?: AgentManagerConfigInput, autoInstrumentation?: boolean): Promise<AgentManagerActionResponse> {
-    return respond(() => ACTIONS[action](projectPath, config, autoInstrumentation));
+export function runAction(projectPath: string, action: AgentManagerAction, autoInstrumentation?: boolean): Promise<AgentManagerActionResponse> {
+    return respond(() => ACTIONS[action](projectPath, autoInstrumentation));
 }
 
 export async function respond(step: () => Promise<string | void>): Promise<AgentManagerActionResponse> {
@@ -281,7 +280,7 @@ async function pickAgentName(projectPath: string, project: string) {
     const agents = await api.listAgents(project);
     const displayName = required(await vscode.window.showInputBox({
         title: "Agent Name (2/2)",
-        value: readPackageTitle(projectPath),
+        value: await readPackageTitle(projectPath),
         validateInput: (value) => (toResourceName(value) ? undefined : "Use at least one letter or digit"),
         ignoreFocusOut: true,
     }));
@@ -319,11 +318,8 @@ async function regenerateToken(projectPath: string): Promise<string> {
 }
 
 async function issueExternalToken(projectPath: string, link: AgentManagerLink): Promise<void> {
-    const [token, otelEndpoint] = await Promise.all([
-        api.generateToken(link, EXTERNAL_TOKEN_EXPIRY),
-        api.getOtelEndpoint(link.environment),
-    ]);
-    writeAmpConfig(projectPath, otelEndpoint, token.token);
+    const [token, gatewayUrl] = await Promise.all([api.generateToken(link, EXTERNAL_TOKEN_EXPIRY), api.getGatewayUrl(link.environment)]);
+    writeAmpConfig(projectPath, `${gatewayUrl}/otel`, token.token);
     writeLink(projectPath, link);
 }
 
@@ -338,73 +334,28 @@ function writeAmpConfig(projectPath: string, otelEndpoint: string, apiKey: strin
         vscode.window.showInformationMessage("Added Config.toml to .gitignore.");
     }
     untrack(projectPath, "Config.toml");
-    writeProjectFile(projectPath, configPath, updated.endsWith("\n") ? updated : updated + "\n");
-}
-
-export async function ensureDevTracingOff(projectPath: string): Promise<void> {
-    if (getActiveTracingProvider(projectPath) !== "idetraceprovider") {
-        return;
-    }
-    required(await vscode.window.showWarningMessage(
-        "Dev-time tracing is on for this integration.",
-        {
-            modal: true,
-            detail: "Dev-time tracing sends traces to the local trace viewer and must be off before deploying. "
-                + "Agent Manager instruments the hosted agent itself.",
-        },
-        "Turn Off Dev-Time Tracing"
-    ));
-    TracerMachine.disable(projectPath);
+    fs.writeFileSync(configPath, updated.endsWith("\n") ? updated : updated + "\n");
 }
 
 async function pushAndRebuild(projectPath: string): Promise<string> {
     const link = await requireLink(projectPath);
     await requireGitHubSource(projectPath);
-    await ensureDevTracingOff(projectPath);
     await warnIfDefaultModelProvider(projectPath);
     await reconcileAgentConfigs(projectPath, link);
     await api.triggerBuild(link);
-    const repo = (await api.getAgent(link)).provisioning?.repository;
-    return `Build started from the latest commit on ${repo?.branch ?? "the agent's branch"}.`;
+    return "Build started from the latest commit on the agent's branch.";
 }
 
-export async function getConfigForm(projectPath: string): Promise<AgentManagerConfigForm> {
-    try {
-        return await loadConfigFields(projectPath, await readLink(projectPath));
-    } catch (error) {
-        return { fields: [], fileSaved: false, error: await describeActionError(error) };
-    }
+export async function loadConfigFields(projectPath: string, link?: AgentManagerLink): Promise<AgentManagerConfigField[]> {
+    const state = link?.mode === "internal" ? await api.getConfigState(link) : { envKeys: [], fileSaved: false };
+    return buildConfigFields(projectPath, state.envKeys, state.fileSaved, injectedEnvNames(projectPath));
 }
 
-export async function loadConfigFields(projectPath: string, link?: AgentManagerLink): Promise<AgentManagerConfigForm> {
-    const state = link?.mode === "internal" ? await api.getConfigState(link, CONFIG_FILE.mountPath) : { envKeys: [], fileSaved: false };
-    const fields = await buildConfigFields(projectPath, state.envKeys, state.fileSaved, injectedEnvNames(projectPath));
-    return { fields, fileSaved: state.fileSaved };
-}
-
-export function resolveConfig(fields: AgentManagerConfigField[], config?: AgentManagerConfigInput, allowMissing = false): SplitConfig {
-    const split = splitConfig(fields, config ?? { values: {}, secrets: {} }, allowMissing);
-    if (split.errors.length > 0) {
-        throw new Error(split.errors.join(" "));
-    }
-    return split;
-}
-
-async function saveConfig(projectPath: string, config?: AgentManagerConfigInput): Promise<string> {
-    const link = await requireLink(projectPath);
-    const split = resolveConfig((await loadConfigFields(projectPath, link)).fields, config);
-    if (split.env.length === 0 && !split.file) {
-        return "Nothing to save.";
-    }
-    await api.updateConfigurations(link, split.env, split.file && { ...CONFIG_FILE, ...split.file });
-    configCache.delete(projectPath);
-    return `Saved configuration to Agent Manager (${link.environment}).`;
-}
-
-// The language server call is too heavy for every status poll.
-function missingConfigLabels(projectPath: string, link: AgentManagerLink): Promise<string[]> {
-    return cached(configCache, projectPath, async () => (await loadConfigFields(projectPath, link)).fields
-        .filter((f) => f.required && !f.saved && !f.unsupported).map((f) => f.label));
+// Names to add in Agent Manager; Ballerina only reads env vars named BAL_CONFIG_VAR_<NAME>. The language server call is too heavy for every poll.
+function missingConfigNames(projectPath: string, link: AgentManagerLink): Promise<string[]> {
+    return cached(configCache, projectPath, async () => (await loadConfigFields(projectPath, link))
+        .filter((f) => f.required && !f.saved)
+        .map((f) => (f.target === "env" ? configEnvKey(f.label) : `${f.label} (Config.toml)`)));
 }
 
 async function deployLatestBuild(projectPath: string): Promise<string> {
@@ -427,26 +378,16 @@ async function openBuildLogs(projectPath: string): Promise<void> {
     await vscode.env.openExternal(vscode.Uri.parse(`${await consoleUrl(link)}/build?${query}`));
 }
 
-async function openRuntimeLogs(projectPath: string): Promise<void> {
-    const link = await requireLink(projectPath);
-    const logs = await getRuntimeLogs(link, 30);
-    const channel = outputChannel();
-    channel.clear();
-    channel.appendLine(`# ${link.agent} in ${link.environment}, last 30 minutes`);
-    channel.appendLine(logs || "No log lines yet. Try again in a few seconds.");
-    channel.show(true);
-}
-
 // Auto-instrumentation injects ballerinax.amp config vars; Ballerina exits on unused config vars unless the module is imported.
 function ensureAmpInstrumentation(projectPath: string): boolean {
     if (hasAmpImport(projectPath)) {
         return false;
     }
-    writeProjectFile(projectPath, path.join(projectPath, AMP_IMPORT_FILE), "import ballerinax/amp as _;\n");
+    fs.writeFileSync(path.join(projectPath, AMP_IMPORT_FILE), "import ballerinax/amp as _;\n");
     const tomlPath = path.join(projectPath, "Ballerina.toml");
     const toml = fs.readFileSync(tomlPath, "utf-8");
     if (!/observabilityIncluded\s*=\s*true/.test(toml)) {
-        writeProjectFile(projectPath, tomlPath, updateOrAddSection(toml, "build-options", { observabilityIncluded: true }) + "\n");
+        fs.writeFileSync(tomlPath, updateOrAddSection(toml, "build-options", { observabilityIncluded: true }) + "\n");
     }
     return true;
 }
@@ -498,14 +439,14 @@ async function isSpecStale(projectPath: string): Promise<boolean> {
 }
 
 function writeOpenApiSpec(projectPath: string, spec: object): void {
-    writeProjectFile(projectPath, path.join(projectPath, OPENAPI_FILE), stringifyYaml(spec));
+    fs.writeFileSync(path.join(projectPath, OPENAPI_FILE), stringifyYaml(spec));
     specCache.delete(projectPath);
 }
 
-const reviewAndCommit = (projectPath: string) => openCommitView(projectPath, suggestCommitMessage(projectPath));
 const runCommand = (command: string) => async () => {
     await vscode.commands.executeCommand(command);
 };
+const reviewAndCommit = runCommand("workbench.view.scm");
 
 const SOURCE_FIXES: Record<SourceStepId, (projectPath: string, autoInstrumentation?: boolean) => Promise<string | void>> = {
     gitMissing: async () => {
@@ -519,14 +460,14 @@ const SOURCE_FIXES: Record<SourceStepId, (projectPath: string, autoInstrumentati
     publishBranch: runCommand("git.publish"),
     commit: reviewAndCommit,
     push: runCommand("git.push"),
-    syncGitHub: (projectPath) => (readFacts(projectPath).dirty > 0 ? reviewAndCommit(projectPath) : runCommand("git.push")()),
+    syncGitHub: (projectPath) => (readFacts(projectPath).dirty > 0 ? reviewAndCommit() : runCommand("git.push")()),
     refreshSpec: async (projectPath) => {
         writeOpenApiSpec(projectPath, (await detectInterface(projectPath)).spec);
         return "Updated openapi.yaml. Commit and push it so Try It shows the current API.";
     },
 };
 
-async function fixSource(projectPath: string, _config?: AgentManagerConfigInput, autoInstrumentation?: boolean): Promise<string | void> {
+async function fixSource(projectPath: string, autoInstrumentation?: boolean): Promise<string | void> {
     const { step } = await sourceStatus(projectPath);
     return step && SOURCE_FIXES[step.id as SourceStepId](projectPath, autoInstrumentation);
 }
@@ -550,29 +491,11 @@ async function prepareProject(projectPath: string, autoInstrumentation = true): 
     if (wanted.length > 0) {
         const gitignorePath = path.join(projectPath, ".gitignore");
         const current = fs.existsSync(gitignorePath) ? fs.readFileSync(gitignorePath, "utf-8") : "";
-        writeProjectFile(projectPath, gitignorePath, `${current.trimEnd()}${current ? "\n" : ""}${wanted.join("\n")}\n`);
+        fs.writeFileSync(gitignorePath, `${current.trimEnd()}${current ? "\n" : ""}${wanted.join("\n")}\n`);
         added.push(".gitignore");
     }
     LOCAL_ONLY_FILES.forEach((file) => untrack(projectPath, file));
     return added.length > 0 ? `Added ${added.join(", ")} for Agent Manager. Commit them with the rest of your code.` : undefined;
-}
-
-async function setRepoAccess(projectPath: string): Promise<string> {
-    const link = await requireLink(projectPath);
-    const { repository } = await requireGitHubSource(projectPath);
-    const secretRef = await chooseGitSecret(repository!);
-    await api.updateRepository(link, await api.getAgent(link), { secretRef });
-    return `'${link.agent}' now clones ${repository} with the token ${secretRef}.`;
-}
-
-export async function chooseGitSecret(repository: string): Promise<string> {
-    const name = repoSecretName(repository);
-    const reuse = "Use Existing Token";
-    if (await api.hasGitSecret(name) && required(await vscode.window.showInformationMessage(
-        `Agent Manager already has a token for ${repository}.`, { modal: true }, reuse, "Replace Token")) === reuse) {
-        return name;
-    }
-    return saveRepoToken(repository, await askGitToken(repository));
 }
 
 // Agent Manager caps secret names at 25 characters; the hash keeps same-named repos of different owners apart.
@@ -584,28 +507,19 @@ export function repoSecretName(repository: string): string {
 // Agent Manager can't update a secret in place, so the old one is deleted first.
 export async function saveRepoToken(repository: string, token: string): Promise<string> {
     const name = repoSecretName(repository);
-    if (await api.hasGitSecret(name)) {
-        await api.deleteGitSecret(name);
-    }
+    await api.deleteGitSecret(name).catch((error) => {
+        if (!(error instanceof AgentManagerApiError && error.status === 404)) {
+            throw error;
+        }
+    });
     // GitHub ignores the username for token auth, but Agent Manager's basic-auth secret requires one.
     await api.createGitSecret(name, repository.split("/")[0], token);
     return name;
 }
 
-async function askGitToken(repository: string): Promise<string> {
-    return required(await vscode.window.showInputBox({
-        title: "Personal Access Token",
-        prompt: `Read-only access to the contents of ${repository}.`,
-        placeHolder: "github_pat_…",
-        password: true,
-        ignoreFocusOut: true,
-        validateInput: (value) => (value.trim() ? undefined : "Enter a token"),
-    })).trim();
-}
-
-export function readPackageTitle(projectPath: string): string {
-    const { title, name } = readPackage(projectPath);
-    return title ?? (name || path.basename(projectPath));
+export async function readPackageTitle(projectPath: string): Promise<string> {
+    const pkg = (await getProjectTomlValues(projectPath))?.package;
+    return pkg?.title ?? (pkg?.name || path.basename(projectPath));
 }
 
 export function hasAmpImport(projectPath: string): boolean {
@@ -627,13 +541,8 @@ function readBalSources(projectPath: string): string {
 }
 
 export async function prepareHttpInterface(projectPath: string) {
-    await warnIfMissingDependenciesToml(projectPath);
     const detected = await detectInterface(projectPath);
-    return {
-        port: detected.port || await askPort(),
-        basePath: detected.basePath,
-        schemaPath: `/${OPENAPI_FILE}`,
-    };
+    return { port: detected.port, basePath: detected.basePath, schemaPath: `/${OPENAPI_FILE}` };
 }
 
 const HTTP_LISTENER_MODULES = ["http", "ai"];
@@ -657,13 +566,13 @@ async function detectInterface(projectPath: string): Promise<DetectedInterface> 
     }
     const source = fs.readFileSync(path.join(projectPath, serviceFile), "utf-8");
     return /ai:Listener/.test(source)
-        ? chatServiceInterface(projectPath, source)
+        ? { spec: chatSpec(await readPackageTitle(projectPath)), ...chatServiceAddress(projectPath, source) }
         : httpServiceInterface(path.join(projectPath, serviceFile));
 }
 
 interface DetectedInterface {
     spec: object;
-    port?: number;
+    port: number;
     basePath: string;
 }
 
@@ -680,19 +589,17 @@ async function httpServiceInterface(serviceFile: string): Promise<DetectedInterf
     delete spec.servers;
     return {
         spec,
-        port: Number(server?.variables?.port?.default),
+        port: Number(server?.variables?.port?.default) || 9090,
         basePath: server?.url?.replace(/^(?:[a-z]+:\/\/)?[^/]*/i, "") || "/",
     };
 }
 
 // ai:Listener serves a fixed chat contract that the OpenAPI generator does not see.
-function chatServiceInterface(projectPath: string, source: string): DetectedInterface {
+function chatServiceAddress(projectPath: string, source: string): { port: number; basePath: string } {
     const explicitPort = /ai:Listener\s+\w+\s*=\s*new\s*\(\s*(?:listenOn\s*=\s*)?(\d+)/.exec(source)?.[1];
-    const basePath = /service\s+(\/[^\s{]*)\s+on\s/.exec(source)?.[1]?.replace(/\\/g, "") ?? "/";
     return {
-        spec: chatSpec(readPackageTitle(projectPath)),
         port: explicitPort ? Number(explicitPort) : defaultListenerPort(projectPath),
-        basePath,
+        basePath: /service\s+(\/[^\s{]*)\s+on\s/.exec(source)?.[1]?.replace(/\\/g, "") ?? "/",
     };
 }
 
@@ -736,15 +643,6 @@ function chatSpec(title: string): object {
     };
 }
 
-async function askPort(): Promise<number> {
-    const port = required(await vscode.window.showInputBox({
-        title: "HTTP port the agent listens on",
-        validateInput: (value) => (/^\d+$/.test(value) ? undefined : "Enter a port number"),
-        ignoreFocusOut: true,
-    }));
-    return Number(port);
-}
-
 const DEFAULT_PROVIDER_WARNED = "agentManager.defaultProviderWarned";
 
 function usesDefaultModelProvider(projectPath: string): boolean {
@@ -768,15 +666,3 @@ export async function warnIfDefaultModelProvider(projectPath: string): Promise<v
     ));
     await extension.context.workspaceState.update(DEFAULT_PROVIDER_WARNED, [...warned, projectPath]);
 }
-
-async function warnIfMissingDependenciesToml(projectPath: string): Promise<void> {
-    if (fs.existsSync(path.join(projectPath, "Dependencies.toml"))) {
-        return;
-    }
-    required(await vscode.window.showWarningMessage(
-        "Dependencies.toml is missing. The first Agent Manager build of a package without it can fail. Build locally once and commit it.",
-        { modal: true },
-        "Continue"
-    ));
-}
-

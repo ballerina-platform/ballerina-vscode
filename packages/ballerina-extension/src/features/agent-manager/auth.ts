@@ -38,20 +38,11 @@ export interface AgentManagerSession {
     expiresAt: number;
 }
 
-class TokenRejected extends Error { }
-
-export class CertificateError extends Error { }
-
-const UNTRUSTED_CA = "isn't trusted by this machine. Add its CA certificate to your system's trust store, then try again.";
-const CERTIFICATE_ERRORS: Record<string, string> = {
-    SELF_SIGNED_CERT_IN_CHAIN: UNTRUSTED_CA,
-    DEPTH_ZERO_SELF_SIGNED_CERT: UNTRUSTED_CA,
-    UNABLE_TO_VERIFY_LEAF_SIGNATURE: UNTRUSTED_CA,
-    UNABLE_TO_GET_ISSUER_CERT: UNTRUSTED_CA,
-    UNABLE_TO_GET_ISSUER_CERT_LOCALLY: UNTRUSTED_CA,
-    CERT_HAS_EXPIRED: "has expired. Ask your Agent Manager administrator to renew it.",
-    ERR_TLS_CERT_ALTNAME_INVALID: "doesn't match the address you entered. Use the hostname the certificate was issued for.",
-};
+export class AgentManagerApiError extends Error {
+    constructor(public readonly status: number, message: string) {
+        super(message);
+    }
+}
 
 interface TokenResponse {
     access_token: string;
@@ -64,6 +55,14 @@ export async function getSession(): Promise<AgentManagerSession | undefined> {
     const session: AgentManagerSession | undefined = raw ? JSON.parse(raw) : undefined;
     // Sessions saved before the console URL was asked for must sign in again.
     return session?.consoleUrl ? session : undefined;
+}
+
+export async function requireSession(): Promise<AgentManagerSession> {
+    const session = await getSession();
+    if (!session) {
+        throw new Error("Sign in to Agent Manager first.");
+    }
+    return session;
 }
 
 const sessionChanged = new vscode.EventEmitter<void>();
@@ -85,16 +84,6 @@ export async function signOut(): Promise<void> {
 }
 
 let refreshing: Promise<string | undefined> | undefined;
-
-export async function hasPermission(permission: string): Promise<boolean> {
-    const payload = (await getAccessToken())?.split(".")[1];
-    try {
-        const scopes = String(JSON.parse(Buffer.from(payload ?? "", "base64url").toString()).scope ?? "").split(" ");
-        return scopes.includes(`amp:${permission}`);
-    } catch {
-        return false;
-    }
-}
 
 export async function getAccessToken(): Promise<string | undefined> {
     const session = await getSession();
@@ -125,7 +114,8 @@ async function refresh(session: AgentManagerSession): Promise<string | undefined
         await saveSession({ ...session, ...toSessionTokens(token, session.refreshToken) });
         return token.access_token;
     } catch (error) {
-        if (!(error instanceof TokenRejected)) {
+        // A network failure keeps the session; only a rejected refresh token signs out.
+        if (!(error instanceof AgentManagerApiError)) {
             throw error;
         }
         await signOut();
@@ -197,8 +187,8 @@ function toSessionTokens(token: TokenResponse, previousRefresh?: string) {
 
 // The console publishes its runtime config, including the API it talks to, so one URL locates both.
 async function apiUrlFromConsole(consoleUrl: string): Promise<string> {
-    const response = await httpRequest(`${consoleUrl}/config.js`);
-    const apiBaseUrl = response.ok ? /apiBaseUrl:\s*['"`]([^'"`]+)['"`]/.exec(response.text)?.[1] : undefined;
+    const response = await fetch(`${consoleUrl}/config.js`);
+    const apiBaseUrl = response.ok ? /apiBaseUrl:\s*['"`]([^'"`]+)['"`]/.exec(await response.text())?.[1] : undefined;
     if (!apiBaseUrl) {
         throw new Error(`${consoleUrl} doesn't look like an Agent Manager console. Enter the URL you open the console at.`);
     }
@@ -206,12 +196,12 @@ async function apiUrlFromConsole(consoleUrl: string): Promise<string> {
 }
 
 async function discover(baseUrl: string) {
-    const resource = await getJson(`${baseUrl}/.well-known/oauth-protected-resource`);
+    const resource = await fetchJson(`${baseUrl}/.well-known/oauth-protected-resource`);
     const authServer: string | undefined = resource.authorization_servers?.[0];
     if (!authServer) {
         throw new Error(`${baseUrl} does not advertise an authorization server.`);
     }
-    const metadata = await getJson(`${authServer.replace(/\/+$/, "")}/.well-known/oauth-authorization-server`);
+    const metadata = await fetchJson(`${authServer.replace(/\/+$/, "")}/.well-known/oauth-authorization-server`);
     return {
         authorizationEndpoint: metadata.authorization_endpoint as string,
         tokenEndpoint: metadata.token_endpoint as string,
@@ -220,11 +210,8 @@ async function discover(baseUrl: string) {
 }
 
 async function pickOrg(baseUrl: string, accessToken: string): Promise<string | undefined> {
-    const response = await httpRequest(`${baseUrl}/api/v1/orgs`, { headers: { Authorization: `Bearer ${accessToken}` } });
-    if (!response.ok) {
-        throw new Error(`Agent Manager rejected the sign-in (${response.status}): ${response.text.slice(0, 200) || "(empty body)"}.`);
-    }
-    const orgs: string[] = (parseJson(`${baseUrl}/api/v1/orgs`, response.text).organizations ?? []).map((org: { name: string }) => org.name);
+    const { organizations = [] } = await fetchJson(`${baseUrl}/api/v1/orgs`, { headers: { Authorization: `Bearer ${accessToken}` } });
+    const orgs: string[] = organizations.map((org: { name: string }) => org.name);
     if (orgs.length === 0) {
         throw new Error("Your account has no Agent Manager organization. Open the Agent Manager console once to create one.");
     }
@@ -233,51 +220,24 @@ async function pickOrg(baseUrl: string, accessToken: string): Promise<string | u
         : vscode.window.showQuickPick(orgs, { title: "Select an Agent Manager organization", ignoreFocusOut: true });
 }
 
-async function postToken(tokenEndpoint: string, body: Record<string, string>): Promise<TokenResponse> {
-    const response = await httpRequest(tokenEndpoint, {
+function postToken(tokenEndpoint: string, body: Record<string, string>): Promise<TokenResponse> {
+    return fetchJson(tokenEndpoint, {
         method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: new URLSearchParams(body).toString(),
     });
+}
+
+export async function fetchJson<T = any>(url: string, init: RequestInit & { headers?: Record<string, string> } = {}): Promise<T> {
+    // Some gateways reject requests without a User-Agent.
+    const response = await fetch(url, { ...init, headers: { "User-Agent": "wso2-integrator-vscode", Accept: "application/json", ...init.headers } });
+    const text = await response.text();
     if (!response.ok) {
-        throw new TokenRejected(`Token request failed (${response.status}): ${response.text}`);
+        let detail = text;
+        try {
+            detail = JSON.parse(text).message ?? text;
+        } catch { /* plain-text error */ }
+        throw new AgentManagerApiError(response.status, `${init.method ?? "GET"} ${url} failed (${response.status}): ${detail}`);
     }
-    return parseJson(tokenEndpoint, response.text) as TokenResponse;
-}
-
-export async function getJson(url: string, headers: Record<string, string> = {}): Promise<any> {
-    const response = await httpRequest(url, { headers: { Accept: "application/json", ...headers } });
-    if (!response.ok) {
-        throw new Error(`GET ${url} failed (${response.status}).`);
-    }
-    return parseJson(url, response.text);
-}
-
-export function parseJson(url: string, text: string): any {
-    try {
-        return JSON.parse(text);
-    } catch {
-        throw new Error(`Unexpected response from ${url}: ${text.slice(0, 200) || "(empty body)"}`);
-    }
-}
-
-export async function httpRequest(
-    url: string,
-    init: { method?: string; headers?: Record<string, string>; body?: string } = {}
-): Promise<{ ok: boolean; status: number; text: string }> {
-    try {
-        // Some gateways reject requests without a User-Agent.
-        const response = await fetch(url, { ...init, headers: { "User-Agent": "wso2-integrator-vscode", ...init.headers } });
-        return { ok: response.ok, status: response.status, text: await response.text() };
-    } catch (error) {
-        const host = new URL(url).hostname;
-        const code = (error as { cause?: { code?: string } }).cause?.code;
-        if (host.endsWith(".localhost") && code === "ENOTFOUND") {
-            throw new Error(`Cannot resolve ${host}. Add "127.0.0.1 ${host}" to your hosts file.`);
-        }
-        if (code && CERTIFICATE_ERRORS[code]) {
-            throw new CertificateError(`The certificate of ${host} ${CERTIFICATE_ERRORS[code]}`);
-        }
-        throw error;
-    }
+    return text ? JSON.parse(text) : undefined;
 }

@@ -24,7 +24,7 @@ import { AgentManagerAction, AgentManagerBuild, AgentManagerLink, AgentManagerLi
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Button, CheckBox, Codicon, ContextMenu, ProgressRing } from "@wso2/ui-toolkit";
 import { VSCodeLink } from "@vscode/webview-ui-toolkit/react";
-import { AgentManagerConfigForm, ErrorText, Muted as Detail } from "./AgentManagerConfigForm";
+import { ErrorText, Muted as Detail } from "./AgentManagerConfigFields";
 import { AgentManagerCreateForm } from "./AgentManagerCreateForm";
 import { PopupModal, PopupModalStep } from "../PopupModal";
 import { CloseButton, HeaderTitleContainer, PopupHeader, PopupSubtitle, PopupTitle } from "../../views/BI/Connection/styles";
@@ -135,21 +135,29 @@ export function useAgentManagerStatus(projectPath: string, enabled = true) {
     });
 }
 
-export function isRunningOnAgentManager(status?: AgentManagerStatus): boolean {
-    return status?.link?.mode === "internal" && platformPhase(status).kind === "live";
+const PHASE_TAGS: Partial<Record<Phase["kind"], string>> = {
+    building: "Building",
+    starting: "Deploying",
+    buildFailed: "Failed",
+    crashed: "Failed",
+    live: "Deployed",
+};
+
+export function agentManagerTag(status?: AgentManagerStatus): string | undefined {
+    if (status?.link?.mode !== "internal") {
+        return undefined;
+    }
+    const kind = platformPhase(status).kind;
+    return kind === "starting" && status.crashed ? "Failed" : PHASE_TAGS[kind];
 }
 
 export function AgentManagerSection({ projectPath, part, ampTracingEnabled, handleAmpTracing }: AgentManagerSectionProps) {
     const { rpcClient } = useRpcContext();
     const [pending, setPending] = useState<Pending>();
     const { data: status, isLoading, isFetching, refetch } = useAgentManagerStatus(projectPath);
-    const [formAction, setFormAction] = useState<"create" | "saveConfig" | undefined>();
+    const [creating, setCreating] = useState(false);
 
     const run: Run = async (action, autoInstrumentation) => {
-        if (action === "saveConfig") {
-            setFormAction(action);
-            return;
-        }
         setPending(action);
         try {
             await rpcClient.getAgentManagerRpcClient().runAgentManagerAction({ projectPath, action, autoInstrumentation });
@@ -167,7 +175,7 @@ export function AgentManagerSection({ projectPath, part, ampTracingEnabled, hand
     };
 
     const closeForm = () => {
-        setFormAction(undefined);
+        setCreating(false);
         refetch();
     };
 
@@ -192,6 +200,9 @@ export function AgentManagerSection({ projectPath, part, ampTracingEnabled, hand
                 </Stack>
             );
         }
+        if (status.link?.mode === "external") {
+            return <Detail>{status.link.agent} is registered as an externally-hosted agent. Unlink it under Management to host it on Agent Manager.</Detail>;
+        }
         return (
             <Stack>
                 {status.link?.mode === "internal" ? linked : (
@@ -199,7 +210,7 @@ export function AgentManagerSection({ projectPath, part, ampTracingEnabled, hand
                         {status.error && <ErrorText>{status.error}</ErrorText>}
                         {status.unavailable
                             ? <Actions><Button appearance="secondary" disabled={isFetching} onClick={() => refetch()}>Try Again</Button></Actions>
-                            : <SourceStep status={status} pending={pending} run={run} onLink={link} onCreate={() => setFormAction("create")} />}
+                            : <SourceStep status={status} pending={pending} run={run} onLink={link} onCreate={() => setCreating(true)} />}
                         <Detail style={{ borderTop: "1px solid var(--vscode-welcomePage-tileBorder)", paddingTop: 10 }}>
                             Signed in to {new URL(status.instanceUrl!).host} · <VSCodeLink onClick={() => run("signOut")}>Sign Out</VSCodeLink>
                         </Detail>
@@ -215,7 +226,7 @@ export function AgentManagerSection({ projectPath, part, ampTracingEnabled, hand
         }
         return (
             <Stack>
-                <p style={{ margin: 0 }}>Register this agent in Agent Manager as an externally-hosted agent. Its traces then appear in Agent Manager when you run it on your own infrastructure, such as Docker or a virtual machine.</p>
+                <p style={{ margin: 0 }}>Register this agent in Agent Manager as an externally-hosted agent. Its traces then appear in Agent Manager when you run it on your own infrastructure.</p>
                 <Actions>
                     <Button appearance="secondary" disabled={!!pending} onClick={() => run(status?.signedIn ? "setupExternal" : "signIn")}>
                         {status?.signedIn ? "Register Agent" : "Connect to Agent Manager"}
@@ -231,24 +242,20 @@ export function AgentManagerSection({ projectPath, part, ampTracingEnabled, hand
     return (
         <div>
             {isLoading ? <ProgressRing /> : part === "deploy" ? renderDeploy() : renderMonitor()}
-            {formAction && status?.signedIn && createPortal(
+            {creating && status?.signedIn && createPortal(
                 <PopupModal onClose={closeForm} autoHeight maxWidth={560} dismissOnEscape>
                     {(close) => (
                         <PopupModalStep>
                             <PopupHeader>
                                 <HeaderTitleContainer>
-                                    <PopupTitle variant="h2">{formAction === "create" ? "Create Agent in Agent Manager" : "Configuration"}</PopupTitle>
-                                    <PopupSubtitle variant="body2">{formAction === "create" ? status.org : status.displayName ?? status.link?.agent}</PopupSubtitle>
+                                    <PopupTitle variant="h2">Create Agent in Agent Manager</PopupTitle>
+                                    <PopupSubtitle variant="body2">{status.org}</PopupSubtitle>
                                 </HeaderTitleContainer>
                                 <CloseButton appearance="icon" onClick={close}>
                                     <Codicon name="close" />
                                 </CloseButton>
                             </PopupHeader>
-                            {formAction === "create" ? (
-                                <AgentManagerCreateForm projectPath={projectPath} onDone={close} onCancel={close} />
-                            ) : (
-                                <AgentManagerConfigForm projectPath={projectPath} onDone={close} onCancel={close} />
-                            )}
+                            <AgentManagerCreateForm projectPath={projectPath} onDone={close} onCancel={close} />
                         </PopupModalStep>
                     )}
                 </PopupModal>,
@@ -294,13 +301,8 @@ function LinkOrCreate({ status, pending, onLink, onCreate }: Pick<ActionProps, "
                         {pending === "link" ? "Linking…" : "Link Agent"}
                     </Button>
                 )}
-                {status.canCreate && (
-                    <Button appearance={candidates.length > 0 ? "secondary" : "primary"} disabled={!!pending} onClick={onCreate}>Create New Agent</Button>
-                )}
+                <Button appearance={candidates.length > 0 ? "secondary" : "primary"} disabled={!!pending} onClick={onCreate}>Create New Agent</Button>
             </Actions>
-            {!status.canCreate && candidates.length === 0 && (
-                <Detail>You don't have permission to create agents. Contact your Agent Manager administrator.</Detail>
-            )}
         </>
     );
 }
@@ -380,10 +382,9 @@ function LinkedAgent({ status, pending, run, ampTracingEnabled, handleAmpTracing
     const internal = link.mode === "internal";
     const item = (id: AgentManagerAction, label: string) => ({ id, label, onClick: () => run(id) });
     const endpointUrl = status.deployment?.endpointUrl;
-    const repoAccess = status.source?.isPrivate !== false ? [item("setRepoAccess", "Repository Access")] : [];
     const menuItems = [
         ...(internal
-            ? [item("pushAndRebuild", "Rebuild"), item("openRuntimeLogs", "Logs"), item("saveConfig", "Configuration"), ...repoAccess]
+            ? [item("pushAndRebuild", "Rebuild"), item("openRuntimeLogs", "Logs"), item("openDeploymentSettings", "Configuration")]
             : [item("regenerateToken", "Regenerate Token")]),
         item("openInConsole", "Open in Console"),
         ...(endpointUrl ? [{ id: "copyEndpoint", label: "Copy Endpoint URL", onClick: (): void => void navigator.clipboard.writeText(endpointUrl) }] : []),
@@ -449,7 +450,7 @@ function PlatformState({ status, pending, run }: ActionProps) {
     startedAt.current = phase.kind === "starting" ? startedAt.current ?? Date.now() : undefined;
     const slowStart = !!startedAt.current && Date.now() - startedAt.current > SLOW_START_MS;
 
-    const failed = phase.kind === "buildFailed" || phase.kind === "crashed" || (phase.kind === "starting" && !!status.crash);
+    const failed = phase.kind === "buildFailed" || phase.kind === "crashed" || (phase.kind === "starting" && !!status.crashed);
     const settled = failed || phase.kind === "live" || phase.kind === "notDeployed";
     const actions = settled ? deployActions(status, failed) : [];
     const blocked = settled && !!status.source?.step?.blocking;
@@ -500,15 +501,14 @@ function phaseStatus(phase: Phase, status: AgentManagerStatus, slowStart: boolea
             return (
                 <>
                     <Row><ProgressRing sx={{ height: 12, width: 12 }} /><span>Deploying</span></Row>
-                    {status.crash && <Detail>Keeps restarting: {status.crash.reason} · {logsLink("openRuntimeLogs", "View Runtime Logs")}</Detail>}
-                    {!status.crash && slowStart && <Detail>Taking longer than usual · {logsLink("openRuntimeLogs", "View Runtime Logs")}</Detail>}
+                    {status.crashed && <Detail>Keeps restarting · {logsLink("openRuntimeLogs", "View Runtime Logs")}</Detail>}
+                    {!status.crashed && slowStart && <Detail>Taking longer than usual · {logsLink("openRuntimeLogs", "View Runtime Logs")}</Detail>}
                 </>
             );
         case "crashed":
             return (
                 <>
                     <Row><Dot color="var(--vscode-errorForeground)" /><span>Crashed ·</span>{logsLink("openRuntimeLogs", "View Runtime Logs")}</Row>
-                    {status.crash && <Detail>{status.crash.reason}</Detail>}
                 </>
             );
         case "notDeployed":
@@ -548,31 +548,25 @@ function deployAction(status: AgentManagerStatus, failed: boolean): DeployAction
     return failed ? { id: "pushAndRebuild", label: "Rebuild" } : undefined;
 }
 
-function configAction({ missingConfig = [], crash }: AgentManagerStatus): DeployAction | undefined {
-    if (missingConfig.length > 0) {
-        return { id: "saveConfig", label: missingConfig.length === 1 ? `Set ${missingConfig[0]}` : `Set ${missingConfig.length} Values` };
-    }
-    return crash?.config ? { id: "openDeploymentSettings", label: "Set Configuration" } : undefined;
+function configAction({ missingConfig = [] }: AgentManagerStatus): DeployAction | undefined {
+    return missingConfig.length > 0
+        ? { id: "openDeploymentSettings", label: missingConfig.length === 1 ? "Set 1 Value" : `Set ${missingConfig.length} Values` }
+        : undefined;
 }
 
 // A missing value would crash the next deploy too, so it comes first; otherwise new code outranks console config.
 function deployActions(status: AgentManagerStatus, failed: boolean): DeployAction[] {
     const deploy = deployAction(status, failed);
     const config = configAction(status);
-    const configFirst = config?.id === "saveConfig" || !deploy || deploy.label === "Rebuild";
+    const configFirst = !!config || !deploy || deploy.label === "Rebuild";
     return (configFirst ? [config, deploy] : [deploy, config]).filter((action): action is DeployAction => !!action);
 }
 
 function ConfigHints({ status }: { status: AgentManagerStatus }) {
-    const unmentioned = (status.missingConfig ?? []).filter((name) => !status.crash?.reason.includes(`'${name}'`));
-    return (
-        <>
-            {unmentioned.length > 0 && <Detail>Agent Manager has no value for {unmentioned.join(", ")}.</Detail>}
-            {status.crash?.defaultModelProvider && (
-                <Detail>The default WSO2 model provider can't be configured in Agent Manager. Use a model provider with its own API key.</Detail>
-            )}
-        </>
-    );
+    const missing = status.missingConfig ?? [];
+    return missing.length > 0
+        ? <Detail>Add in Agent Manager's deployment settings: {missing.map((name, index) => <React.Fragment key={name}>{index > 0 && ", "}<code>{name}</code></React.Fragment>)}</Detail>
+        : null;
 }
 
 function BuildProgress({ build, onLogs }: { build: AgentManagerBuild; onLogs: () => void }) {

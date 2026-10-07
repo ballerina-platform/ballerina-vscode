@@ -22,21 +22,19 @@ import {
     AgentManagerAPI,
     AgentManagerActionRequest,
     AgentManagerActionResponse,
-    AgentManagerConfigForm,
     AgentManagerMcpBindRequest,
     AgentManagerMcpBinding,
     AgentManagerMcpOffer,
     AgentManagerMcpProxies,
-    AgentManagerModelKeyRequest,
+    AgentManagerModelBindRequest,
     AgentManagerModelProviders,
     AgentManagerSession,
     AgentManagerStatus,
     AgentManagerStatusRequest,
     bindAgentManagerMcpProxy,
-    getAgentManagerConfigForm,
     getAgentManagerMcpOffer,
     getAgentManagerMcpProxies,
-    createAgentManagerModelKey,
+    bindAgentManagerModelProvider,
     getAgentManagerModelProviders,
     getAgentManagerSession,
     getAgentManagerStatus,
@@ -72,10 +70,6 @@ export class AgentManagerRpcClient implements AgentManagerAPI {
         return this._messenger.sendRequest(runAgentManagerAction, HOST_EXTENSION, params);
     }
 
-    getAgentManagerConfigForm(params: AgentManagerStatusRequest): Promise<AgentManagerConfigForm> {
-        return this._messenger.sendRequest(getAgentManagerConfigForm, HOST_EXTENSION, params);
-    }
-
     getAgentManagerMcpOffer(): Promise<AgentManagerMcpOffer> {
         return this._messenger.sendRequest(getAgentManagerMcpOffer, HOST_EXTENSION);
     }
@@ -92,8 +86,8 @@ export class AgentManagerRpcClient implements AgentManagerAPI {
         return this._messenger.sendRequest(getAgentManagerModelProviders, HOST_EXTENSION);
     }
 
-    createAgentManagerModelKey(params: AgentManagerModelKeyRequest): Promise<AgentManagerActionResponse> {
-        return this._messenger.sendRequest(createAgentManagerModelKey, HOST_EXTENSION, params);
+    bindAgentManagerModelProvider(params: AgentManagerModelBindRequest): Promise<AgentManagerActionResponse> {
+        return this._messenger.sendRequest(bindAgentManagerModelProvider, HOST_EXTENSION, params);
     }
 
     getAgentManagerMcpProxies(params: AgentManagerStatusRequest): Promise<AgentManagerMcpProxies> {

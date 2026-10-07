@@ -19,14 +19,13 @@
 import * as vscode from "vscode";
 import {
     AgentManagerActionResponse,
-    AgentManagerModelKeyRequest,
+    AgentManagerModelBindRequest,
     AgentManagerModelProvider,
     AgentManagerModelProviders,
 } from "@wso2/ballerina-core";
-import { getSession } from "./auth";
+import { getSession, requireSession } from "./auth";
 import { addMissingImportsTo, envBase, writeEnvConfigurable } from "./bindings";
 import { api, consoleOrgUrl, DEFAULT_ENVIRONMENT, updateManifest } from "./client";
-import { readPackage } from "./configurables";
 
 // The Ballerina model provider for each template, and the path its service URL must end with.
 const BALLERINA_CLIENTS: Record<string, { module: string; pathSuffix?: string }> = {
@@ -60,36 +59,27 @@ async function describe(provider: { id: string; name: string; template: string }
     return client ? { ...summary, ...client } : { ...summary, unsupportedReason: "Agent Builder has no model provider for this service yet." };
 }
 
-// Only for local runs; the deployed agent gets its own key through the LLM configuration added on deploy.
-export async function createModelKey({ projectPath, providerId, urlVariable, keyVariable }: AgentManagerModelKeyRequest): Promise<AgentManagerActionResponse> {
+// The deployed agent gets its key through the LLM configuration added on deploy; local runs use a key the user creates.
+export async function bindModelProvider({ projectPath, providerId, urlVariable, keyVariable }: AgentManagerModelBindRequest): Promise<AgentManagerActionResponse> {
     try {
-        const pkg = readPackage(projectPath);
-        const provider = (await api.listLlmProviders()).find((candidate) => candidate.id === providerId);
-        if (!provider) {
-            throw new Error(`The LLM provider '${providerId}' no longer exists in Agent Manager.`);
-        }
-        const keyName = `${pkg.name}-${keyVariable}-${Date.now().toString(36)}`.toLowerCase().replace(/[^a-z0-9-]/g, "-");
-        const [{ apiKey, message }, details, gatewayUrl] = await Promise.all([
-            api.createLlmProviderKey(provider.uuid, keyName, `${pkg.title ?? pkg.name} (local runs)`),
-            api.getLlmProvider(providerId),
-            api.getGatewayUrl(DEFAULT_ENVIRONMENT),
+        const session = await requireSession();
+        const [providers, details, gatewayUrl] = await Promise.all([
+            api.listLlmProviders(), api.getLlmProvider(providerId), api.getGatewayUrl(DEFAULT_ENVIRONMENT),
         ]);
-        if (!apiKey) {
-            throw new Error(message ?? "Agent Manager didn't return an API key.");
-        }
         const env = { url: `${envBase(providerId)}_URL`, apikey: `${envBase(providerId)}_API_KEY` };
-        try {
-            await writeEnvConfigurable(projectPath, urlVariable, env.url, `${gatewayUrl}${details.context}`);
-            await writeEnvConfigurable(projectPath, keyVariable, env.apikey, apiKey);
-        } catch (error) {
-            await api.deleteLlmProviderKey(provider.uuid, keyName).catch(() => undefined);
-            throw error;
-        }
+        await writeEnvConfigurable(projectPath, urlVariable, env.url, `${gatewayUrl}${details.context}`);
+        await writeEnvConfigurable(projectPath, keyVariable, env.apikey);
         await addMissingImportsTo(projectPath);
         updateManifest(projectPath, (manifest) => ({
             ...manifest,
             llmProviders: [...(manifest.llmProviders ?? []).filter((entry) => entry.provider !== providerId), { provider: providerId, env }],
         }));
+        const uuid = providers.find((provider) => provider.id === providerId)?.uuid;
+        const open = "Open in Console";
+        vscode.window.showInformationMessage(
+            `To run this agent locally, create an API key for ${providerId} in Agent Manager and set ${keyVariable} in Config.toml.`, open
+        ).then((choice) => choice && uuid && vscode.env.openExternal(
+            vscode.Uri.parse(`${consoleOrgUrl(session.consoleUrl, session.org)}/llm-providers/view/${uuid}`)));
         return { success: true };
     } catch (error) {
         const message = error instanceof Error ? error.message : String(error);

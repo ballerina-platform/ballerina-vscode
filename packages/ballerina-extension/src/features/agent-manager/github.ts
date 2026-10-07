@@ -19,9 +19,8 @@
 import * as cp from "child_process";
 import * as fs from "fs";
 import * as path from "path";
-import * as vscode from "vscode";
 import { AgentManagerLinkCandidate, AgentManagerRemote, AgentManagerRepoDetails, AgentManagerSourceCheck, AgentManagerSourceStep, AgentManagerSource } from "@wso2/ballerina-core";
-import { api, writeProjectFile } from "./client";
+import { api } from "./client";
 
 const GITHUB_REPO_URL = /^(?:https?:\/\/(?:[^@/\s]+@)?github\.com\/|git@github\.com:|ssh:\/\/git@github\.com\/)([A-Za-z0-9._-]+)\/([A-Za-z0-9._-]+?)(?:\.git)?\/?$/;
 const REPO_INFO_TTL_MS = 10 * 60 * 1000;
@@ -31,7 +30,7 @@ export type SourceStepId =
     | "gitMissing" | "prepare" | "publishRepo" | "nonGitHub" | "detached"
     | "commitFirst" | "publishBranch" | "commit" | "push" | "syncGitHub" | "refreshSpec";
 
-export interface SourceFacts {
+interface SourceFacts {
     root?: string;
     appPath?: string;
     remoteName?: string;
@@ -138,10 +137,6 @@ async function isPrivateRepo(repository: string): Promise<boolean | undefined> {
     return isPrivate;
 }
 
-function plural(count: number, noun: string): string {
-    return `${count} ${noun}${count === 1 ? "" : "s"}`;
-}
-
 function preparationStep(prep: Preparation): AgentManagerSourceStep | undefined {
     const files = [prep.openApiSpec && "openapi.yaml", prep.gitignore && ".gitignore"].filter(Boolean);
     if (files.length === 0 && prep.exposedFiles.length === 0 && !prep.ampImport) {
@@ -187,7 +182,7 @@ function sourceSteps(projectPath: string, facts: SourceFacts, prep: Preparation)
         !facts.repository && !facts.hasRemotes && { id: "publishRepo", message: "Not on GitHub yet.", actionLabel: "Publish to GitHub", blocking: true },
         !facts.repository && { id: "nonGitHub", message: "This repository's remote isn't on GitHub. Agent Manager builds from GitHub only.", blocking: true },
         !facts.branch && { id: "detached", message: "Not on a branch.", actionLabel: "Check Out a Branch", blocking: true },
-        !onGitHub && facts.dirty > 0 && { id: "commitFirst", message: `${plural(facts.dirty, "change")} to commit before publishing.`, actionLabel: "Review and Commit", blocking: true },
+        !onGitHub && facts.dirty > 0 && { id: "commitFirst", message: `${facts.dirty} ${facts.dirty === 1 ? "change" : "changes"} to commit before publishing.`, actionLabel: "Review and Commit", blocking: true },
         !onGitHub && { id: "publishBranch", message: `${facts.branch} isn't on GitHub yet.`, actionLabel: "Publish Branch", blocking: true },
         gitHubStep(projectPath, facts, prep),
         prep.staleSpec && { id: "refreshSpec", message: "openapi.yaml no longer matches the service.", actionLabel: "Update API Spec", blocking: false },
@@ -211,7 +206,7 @@ export function ensureGitIgnored(projectPath: string, file: string): boolean {
     if (git(projectPath, ["check-ignore", "-q", "--no-index", file]).status !== 1) {
         return false;
     }
-    writeProjectFile(projectPath, path.join(projectPath, ".gitignore"), `\n${file}\n`, true);
+    fs.appendFileSync(path.join(projectPath, ".gitignore"), `\n${file}\n`);
     return true;
 }
 
@@ -221,36 +216,8 @@ export function untrack(projectPath: string, file: string): void {
     }
 }
 
-interface GitApiRepository {
-    rootUri: vscode.Uri;
-    inputBox: { value: string };
-}
-
-export async function openCommitView(projectPath: string, message: string): Promise<void> {
-    const gitExtension = vscode.extensions.getExtension("vscode.git");
-    const api = gitExtension && (gitExtension.isActive ? gitExtension.exports : await gitExtension.activate()).getAPI(1);
-    const repo: GitApiRepository | null | undefined = api?.getRepository(vscode.Uri.file(projectPath));
-    if (repo && !repo.inputBox.value) {
-        repo.inputBox.value = message;
-    }
-    await vscode.commands.executeCommand("workbench.view.scm");
-}
-
-export function suggestCommitMessage(projectPath: string): string {
-    const labels: Record<string, string> = {
-        "agent_manager.bal": "Enable Agent Manager auto-instrumentation",
-        "openapi.yaml": "Add OpenAPI spec for Agent Manager",
-        ".gitignore": "Keep local config out of Git",
-    };
-    if (!out(projectPath, ["rev-parse", "HEAD"])) {
-        return "Initial commit";
-    }
-    const changed = changedFiles(projectPath).map((file) => path.basename(file));
-    const known = [...new Set(changed.map((file) => labels[file]).filter(Boolean))];
-    const others = changed.filter((file) => !labels[file] && !LOCAL_ONLY_FILES.includes(file));
-    const parts = [...known, ...(others.length > 3 ? [`Update ${others.length} files`] : others.length ? [`Update ${others.join(", ")}`] : [])];
-    return parts.join("; ") || "Update agent";
-}
+export const remoteRepository = (projectPath: string, remote: string) =>
+    githubRemotes(projectPath).find((candidate) => candidate.name === remote)?.repository;
 
 export function githubRemotes(projectPath: string): AgentManagerRemote[] {
     const lines = (out(projectPath, ["remote", "-v"]) ?? "").split("\n").filter((line) => line.endsWith("(fetch)"));
@@ -276,7 +243,7 @@ function gitAsync(cwd: string, args: string[]): Promise<{ ok: boolean; stdout: s
 }
 
 export async function repoDetails(projectPath: string, remote: string): Promise<AgentManagerRepoDetails> {
-    const repository = githubRemotes(projectPath).find((candidate) => candidate.name === remote)?.repository;
+    const repository = remoteRepository(projectPath, remote);
     const heads = await gitAsync(projectPath, ["ls-remote", "--symref", remote, "HEAD", "refs/heads/*"]);
     if (!heads.ok) {
         return { branches: [], error: `Couldn't list the branches of ${repository ?? remote}: ${heads.stderr.trim().split("\n").pop()}` };
@@ -288,7 +255,7 @@ export async function repoDetails(projectPath: string, remote: string): Promise<
 }
 
 export async function checkPushed(projectPath: string, remote: string, branch: string, appPath: string, buildFiles: string[]): Promise<AgentManagerSourceCheck> {
-    const repository = githubRemotes(projectPath).find((candidate) => candidate.name === remote)?.repository ?? remote;
+    const repository = remoteRepository(projectPath, remote) ?? remote;
     const fetched = await gitAsync(projectPath, ["fetch", "--quiet", remote, `refs/heads/${branch}:refs/remotes/${remote}/${branch}`]);
     if (!fetched.ok) {
         return { ok: false, message: `Couldn't fetch ${branch} from ${repository}.` };

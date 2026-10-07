@@ -26,7 +26,7 @@ import { VSCodeLink } from "@vscode/webview-ui-toolkit/react";
 import { WICommandIds } from "@wso2/wso2-platform-core";
 import { usePlatformExtContext } from "../../providers/platform-ext-ctx-provider";
 import { DeploymentControlState } from "../../hooks/useDeploymentControl";
-import { AgentManagerSection, isRunningOnAgentManager, useAgentManagerStatus } from "./AgentManagerSection";
+import { AgentManagerSection, agentManagerTag, useAgentManagerStatus } from "./AgentManagerSection";
 import { useProductMode } from "../../hooks/useProductMode";
 
 const Title = styled(Typography)`
@@ -633,7 +633,7 @@ export function DeploymentPanel(props: DeploymentPanelProps) {
     );
 
     const agentManagerItem = hasAgents && item("agentManager", "WSO2 Agent Manager",
-        isRunningOnAgentManager(agentManager) ? "Deployed" : undefined, agentManagerSection("deploy"));
+        agentManagerTag(agentManager), agentManagerSection("deploy"));
     const cloudItem = cloud.available && item("cloud", "WSO2 Cloud", cloud.isDeployed ? "Deployed" : undefined,
         <Wso2CloudBody cloud={cloud} noun={noun} canDeploy={hasDeployableIntegration && !cloud.isRefreshing}
             handleDeploy={handleDeploy} goToDevant={goToDevant} />);

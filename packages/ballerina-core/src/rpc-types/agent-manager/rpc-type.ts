@@ -21,7 +21,6 @@ import {
     AddAgentManagerMcpServersRequest,
     AgentManagerActionRequest,
     AgentManagerActionResponse,
-    AgentManagerConfigForm,
     AgentManagerCreateForm,
     AgentManagerCreateRequest,
     AgentManagerLinkRequest,
@@ -33,7 +32,7 @@ import {
     AgentManagerMcpBinding,
     AgentManagerMcpOffer,
     AgentManagerMcpProxies,
-    AgentManagerModelKeyRequest,
+    AgentManagerModelBindRequest,
     AgentManagerModelProviders,
     AgentManagerSession,
     AgentManagerStatus,
@@ -45,16 +44,14 @@ export const getAgentManagerStatus: RequestType<AgentManagerStatusRequest, Agent
     { method: `${_preFix}/getAgentManagerStatus` };
 export const runAgentManagerAction: RequestType<AgentManagerActionRequest, AgentManagerActionResponse> =
     { method: `${_preFix}/runAgentManagerAction` };
-export const getAgentManagerConfigForm: RequestType<AgentManagerStatusRequest, AgentManagerConfigForm> =
-    { method: `${_preFix}/getAgentManagerConfigForm` };
 export const getAgentManagerMcpOffer: RequestType<void, AgentManagerMcpOffer> =
     { method: `${_preFix}/getAgentManagerMcpOffer` };
 export const addAgentManagerMcpServers: RequestType<AddAgentManagerMcpServersRequest, AgentManagerActionResponse> =
     { method: `${_preFix}/addAgentManagerMcpServers` };
 export const getAgentManagerModelProviders: RequestType<void, AgentManagerModelProviders> =
     { method: `${_preFix}/getAgentManagerModelProviders` };
-export const createAgentManagerModelKey: RequestType<AgentManagerModelKeyRequest, AgentManagerActionResponse> =
-    { method: `${_preFix}/createAgentManagerModelKey` };
+export const bindAgentManagerModelProvider: RequestType<AgentManagerModelBindRequest, AgentManagerActionResponse> =
+    { method: `${_preFix}/bindAgentManagerModelProvider` };
 export const getAgentManagerMcpProxies: RequestType<AgentManagerStatusRequest, AgentManagerMcpProxies> =
     { method: `${_preFix}/getAgentManagerMcpProxies` };
 export const bindAgentManagerMcpProxy: RequestType<AgentManagerMcpBindRequest, AgentManagerMcpBinding> =

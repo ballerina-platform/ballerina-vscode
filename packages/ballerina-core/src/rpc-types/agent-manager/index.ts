@@ -29,10 +29,8 @@ export type AgentManagerAction =
     | "openInConsole"
     | "openTryIt"
     | "openDeploymentSettings"
-    | "saveConfig"
     | "openBuildLogs"
     | "openRuntimeLogs"
-    | "setRepoAccess"
     | "unlink";
 
 export interface AgentManagerLink {
@@ -81,7 +79,6 @@ export interface AgentManagerSource {
 export interface AgentManagerStatus extends AgentManagerSession {
     /** Agents in the org that build one of this clone's remotes, offered before creating a new one. */
     candidates?: AgentManagerLinkCandidate[];
-    canCreate?: boolean;
     link?: AgentManagerLink;
     source?: AgentManagerSource;
     displayName?: string;
@@ -92,7 +89,7 @@ export interface AgentManagerStatus extends AgentManagerSession {
     tracked?: boolean;
     newCommit?: string;
     newCommitMessage?: string;
-    crash?: { reason: string; config: boolean; defaultModelProvider: boolean };
+    crashed?: boolean;
     missingConfig?: string[];
     build?: AgentManagerBuild;
     deployment?: AgentManagerDeployment;
@@ -117,12 +114,6 @@ export interface AgentManagerConfigField {
     unsupported?: string;
 }
 
-export interface AgentManagerConfigForm {
-    fields: AgentManagerConfigField[];
-    fileSaved: boolean;
-    error?: string;
-}
-
 export interface AgentManagerConfigInput {
     values: Record<string, string>;
     secrets: Record<string, boolean>;
@@ -131,7 +122,6 @@ export interface AgentManagerConfigInput {
 export interface AgentManagerActionRequest {
     projectPath: string;
     action: AgentManagerAction;
-    config?: AgentManagerConfigInput;
     autoInstrumentation?: boolean;
 }
 
@@ -176,7 +166,7 @@ export interface AgentManagerModelProviders {
     error?: string;
 }
 
-export interface AgentManagerModelKeyRequest {
+export interface AgentManagerModelBindRequest {
     projectPath: string;
     providerId: string;
     urlVariable: string;
@@ -291,12 +281,11 @@ export interface AgentManagerCreateRequest {
 export interface AgentManagerAPI {
     getAgentManagerStatus: (params: AgentManagerStatusRequest) => Promise<AgentManagerStatus>;
     runAgentManagerAction: (params: AgentManagerActionRequest) => Promise<AgentManagerActionResponse>;
-    getAgentManagerConfigForm: (params: AgentManagerStatusRequest) => Promise<AgentManagerConfigForm>;
     getAgentManagerMcpOffer: () => Promise<AgentManagerMcpOffer>;
     addAgentManagerMcpServers: (params: AddAgentManagerMcpServersRequest) => Promise<AgentManagerActionResponse>;
     getAgentManagerSession: () => Promise<AgentManagerSession>;
     getAgentManagerModelProviders: () => Promise<AgentManagerModelProviders>;
-    createAgentManagerModelKey: (params: AgentManagerModelKeyRequest) => Promise<AgentManagerActionResponse>;
+    bindAgentManagerModelProvider: (params: AgentManagerModelBindRequest) => Promise<AgentManagerActionResponse>;
     getAgentManagerMcpProxies: (params: AgentManagerStatusRequest) => Promise<AgentManagerMcpProxies>;
     bindAgentManagerMcpProxy: (params: AgentManagerMcpBindRequest) => Promise<AgentManagerMcpBinding>;
     linkAgentManagerAgent: (params: AgentManagerLinkRequest) => Promise<AgentManagerActionResponse>;

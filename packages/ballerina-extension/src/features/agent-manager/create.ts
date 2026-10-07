@@ -26,23 +26,15 @@ import {
     AgentManagerSourceCheck,
     AgentManagerSourceCheckRequest,
 } from "@wso2/ballerina-core";
-import { getSession } from "./auth";
+import { requireSession } from "./auth";
 import { configs } from "./bindings";
-import { api, DEFAULT_ENVIRONMENT, readManifest, writeLink } from "./client";
-import { CONFIG_FILE } from "./configurables";
+import { api, CONFIG_FILE, DEFAULT_ENVIRONMENT, readManifest, writeLink } from "./client";
+import { splitConfig } from "./configurables";
 import {
-    chooseGitSecret, ensureDevTracingOff, repoSecretName, saveRepoToken, hasAmpImport, loadConfigFields, prepareHttpInterface, readPackageTitle, readPreparation, requireHttpEntryPoint,
-    resolveConfig, respond, toResourceName, warnIfDefaultModelProvider,
+    repoSecretName, saveRepoToken, hasAmpImport, loadConfigFields, prepareHttpInterface, readPackageTitle, readPreparation, requireHttpEntryPoint,
+    respond, toResourceName, warnIfDefaultModelProvider,
 } from "./flows";
-import { checkPushed, defaultRemote, githubRemotes, readFacts, repoDetails } from "./github";
-
-async function requireSession() {
-    const session = await getSession();
-    if (!session) {
-        throw new Error("Sign in to Agent Manager first.");
-    }
-    return session;
-}
+import { checkPushed, defaultRemote, githubRemotes, readFacts, remoteRepository, repoDetails } from "./github";
 
 export function linkAgent({ projectPath, project, agent }: AgentManagerLinkRequest): Promise<AgentManagerActionResponse> {
     return respond(async () => {
@@ -57,7 +49,7 @@ export async function getCreateForm(projectPath: string): Promise<AgentManagerCr
     const { llmProviders = [], mcpServers = [] } = readManifest(projectPath);
     const form: AgentManagerCreateForm = {
         projects: [],
-        agentName: readPackageTitle(projectPath),
+        agentName: await readPackageTitle(projectPath),
         remotes,
         defaultRemote: defaultRemote(projectPath, remotes),
         appPath: readFacts(projectPath).appPath ?? "/",
@@ -70,17 +62,17 @@ export async function getCreateForm(projectPath: string): Promise<AgentManagerCr
     };
     try {
         requireHttpEntryPoint(projectPath);
-        const [session, projects, gitSecrets, config] = await Promise.all([
+        const [session, projects, gitSecrets, fields] = await Promise.all([
             requireSession(), api.listProjects(), api.listGitSecrets(), loadConfigFields(projectPath),
         ]);
-        return { ...form, org: session.org, projects, gitSecrets, fields: config.fields };
+        return { ...form, org: session.org, projects, gitSecrets, fields };
     } catch (error) {
         return { ...form, error: error instanceof Error ? error.message : String(error) };
     }
 }
 
 export async function getRepoDetails({ projectPath, remote }: AgentManagerRepoRequest): Promise<AgentManagerRepoDetails> {
-    const repository = githubRemotes(projectPath).find((candidate) => candidate.name === remote)?.repository;
+    const repository = remoteRepository(projectPath, remote);
     return { ...await repoDetails(projectPath, remote), secretName: repository && repoSecretName(repository) };
 }
 
@@ -92,7 +84,7 @@ export function createAgent(request: AgentManagerCreateRequest): Promise<AgentMa
     const { projectPath, remote, branch, appPath } = request;
     return respond(async () => {
         const { instanceUrl, org } = await requireSession();
-        const repository = githubRemotes(projectPath).find((candidate) => candidate.name === remote)?.repository;
+        const repository = remoteRepository(projectPath, remote);
         if (!repository) {
             throw new Error(`The remote '${remote}' no longer points at a GitHub repository.`);
         }
@@ -100,7 +92,6 @@ export function createAgent(request: AgentManagerCreateRequest): Promise<AgentMa
         if (!check.ok) {
             throw new Error(check.message);
         }
-        await ensureDevTracingOff(projectPath);
         await warnIfDefaultModelProvider(projectPath);
         const project = request.newProject ? toResourceName(request.newProject) : request.project;
         if (request.newProject) {
@@ -111,11 +102,12 @@ export function createAgent(request: AgentManagerCreateRequest): Promise<AgentMa
             throw new Error(`'${name}' already exists in ${project}. Link it from the Deploy panel instead.`);
         }
         const iface = await prepareHttpInterface(projectPath);
-        const isPrivate = (await repoDetails(projectPath, remote)).isPrivate !== false;
-        const secretRef = request.gitSecret
-            ?? (isPrivate ? (request.newToken ? await saveRepoToken(repository, request.newToken) : await chooseGitSecret(repository)) : undefined);
+        const secretRef = request.gitSecret || (request.newToken ? await saveRepoToken(repository, request.newToken) : undefined);
         // Required values left empty are set later; the Deploy card lists what the agent still needs.
-        const split = resolveConfig((await loadConfigFields(projectPath)).fields, request.config, true);
+        const split = splitConfig(await loadConfigFields(projectPath), request.config);
+        if (split.errors.length > 0) {
+            throw new Error(split.errors.join(" "));
+        }
         await api.createInternalAgent(project, {
             name,
             displayName: request.agentName,

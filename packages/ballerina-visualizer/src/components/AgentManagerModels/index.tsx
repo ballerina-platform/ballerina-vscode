@@ -185,7 +185,7 @@ function AgentManagerProviderPicker({ categories, onPick }: { categories: Catego
         setPreparing(true);
         const { projectPath } = await rpcClient.getVisualizerLocation();
         const { success } = await rpcClient.getAgentManagerRpcClient()
-            .createAgentManagerModelKey({ projectPath, providerId: provider.id, ...variables });
+            .bindAgentManagerModelProvider({ projectPath, providerId: provider.id, ...variables });
         if (!success) {
             setPreparing(false);
             return;

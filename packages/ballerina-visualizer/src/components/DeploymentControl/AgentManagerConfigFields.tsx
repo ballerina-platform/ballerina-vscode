@@ -16,12 +16,10 @@
  * under the License.
  */
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import styled from "@emotion/styled";
-import { AgentManagerConfigField, AgentManagerConfigForm as ConfigFormData, AgentManagerConfigInput } from "@wso2/ballerina-core";
-import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { Button, CheckBox, ProgressRing } from "@wso2/ui-toolkit";
-import { PopupContent, PopupFooter } from "../../views/BI/Connection/styles";
+import { AgentManagerConfigField, AgentManagerConfigInput } from "@wso2/ballerina-core";
+import { CheckBox } from "@wso2/ui-toolkit";
 import { ConfigField } from "../../views/AIPanel/components/ConfigurationCollector";
 
 export const Group = styled.div`
@@ -89,12 +87,6 @@ export const ErrorText = styled.span`
     word-break: break-word;
 `;
 
-interface AgentManagerConfigFormProps {
-    projectPath: string;
-    onDone: () => void;
-    onCancel: () => void;
-}
-
 export function initialConfig(fields: AgentManagerConfigField[]): AgentManagerConfigInput {
     return {
         values: Object.fromEntries(fields.filter((f) => f.localValue && !f.saved).map((f) => [f.id, f.localValue!])),
@@ -109,66 +101,7 @@ function groupFields(fields: AgentManagerConfigField[]): [string, AgentManagerCo
 }
 
 function placeholder(field: AgentManagerConfigField): string {
-    if (field.saved) {
-        return field.target === "env" ? "Saved. Enter a new value to replace it." : "Saved in Agent Manager's Config.toml.";
-    }
     return field.required ? "Required" : "Optional";
-}
-
-export function AgentManagerConfigForm({ projectPath, onDone, onCancel }: AgentManagerConfigFormProps) {
-    const { rpcClient } = useRpcContext();
-    const [form, setForm] = useState<ConfigFormData | undefined>();
-    const [config, setConfig] = useState<AgentManagerConfigInput>({ values: {}, secrets: {} });
-    const [submitting, setSubmitting] = useState(false);
-    const [error, setError] = useState<string | undefined>();
-
-    const submit = async () => {
-        setSubmitting(true);
-        setError(undefined);
-        try {
-            const response = await rpcClient.getAgentManagerRpcClient().runAgentManagerAction({ projectPath, action: "saveConfig", config });
-            response.success ? onDone() : setError(response.message);
-        } catch (err) {
-            setError(String(err));
-        } finally {
-            setSubmitting(false);
-        }
-    };
-
-    useEffect(() => {
-        const failed = (err: unknown): ConfigFormData => ({ fields: [], fileSaved: false, error: String(err) });
-        rpcClient.getAgentManagerRpcClient().getAgentManagerConfigForm({ projectPath }).catch(failed).then((loaded) => {
-            setConfig(initialConfig(loaded.fields));
-            setForm(loaded);
-        });
-    }, [projectPath]);
-
-    if (!form) {
-        return <PopupContent><Loading><ProgressRing /></Loading></PopupContent>;
-    }
-    const fileFields = form.fields.some((f) => f.target === "file" && !f.unsupported);
-    return (
-        <>
-            <PopupContent>
-                {form.error && <ErrorText>Couldn't read this agent's configurables: {form.error}</ErrorText>}
-                {form.fields.length > 0 && (
-                    <Section>
-                        <GroupTitle>Configurables</GroupTitle>
-                        <Muted>Values for this agent's configurables in Agent Manager.</Muted>
-                    </Section>
-                )}
-                <ConfigFieldGroups fields={form.fields} config={config} onChange={setConfig} />
-                {fileFields && form.fileSaved && (
-                    <Muted>Library and record values are saved together as a Config.toml file. Saving any of them replaces that file.</Muted>
-                )}
-                {error && <ErrorText>{error}</ErrorText>}
-            </PopupContent>
-            <PopupFooter>
-                <Button appearance="secondary" disabled={submitting} onClick={onCancel}>Cancel</Button>
-                <Button appearance="primary" disabled={submitting} onClick={submit}>{submitting ? "Saving…" : "Save"}</Button>
-            </PopupFooter>
-        </>
-    );
 }
 
 interface ConfigFieldGroupsProps {

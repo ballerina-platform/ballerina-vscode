@@ -22,7 +22,8 @@ import { BiDiagramRpcManager } from "../../rpc-managers/bi-diagram/rpc-manager";
 import { addMissingImports, checkProjectDiagnostics } from "../../rpc-managers/ai-panel/repair-utils";
 import { StateMachine } from "../../stateMachine";
 import { AgentConfigInput, AgentConfigKind, api, EnvNames, readManifest } from "./client";
-import { literalValue, readPackage } from "./configurables";
+import { getProjectTomlValues } from "../../utils/config";
+import { literalValue } from "./configurables";
 
 // Agent Manager injects these into every platform-hosted agent; the names are fixed.
 export const AGENT_ID_ENV = {
@@ -71,17 +72,20 @@ export async function reconcileAgentConfigs(projectPath: string, link: AgentMana
 
 const sameNames = (a: EnvNames, b: EnvNames) => a.url === b.url && (!b.apikey || a.apikey === b.apikey);
 
+async function packageKey(projectPath: string): Promise<string> {
+    const pkg = (await getProjectTomlValues(projectPath))?.package;
+    return `${pkg?.org}/${pkg?.name}`;
+}
+
 export async function localConfigValues(projectPath: string): Promise<Record<string, string | undefined>> {
-    const pkg = readPackage(projectPath);
     const declared = await new BiDiagramRpcManager().getConfigVariablesV2({ projectPath, includeLibraries: false });
-    const variables: any[] = (declared?.configVariables as any)?.[`${pkg.org}/${pkg.name}`]?.[""] ?? [];
+    const variables: any[] = (declared?.configVariables as any)?.[await packageKey(projectPath)]?.[""] ?? [];
     return Object.fromEntries(variables.map((node) => [node.properties?.variable?.value, literalValue(node.properties?.configValue?.value)]));
 }
 
 // Declares or refreshes `configurable string <variable> = os:getEnv("<envVar>");`, with the local value in Config.toml.
 export async function writeEnvConfigurable(projectPath: string, variable: string, envVar: string, localValue?: string): Promise<void> {
-    const pkg = readPackage(projectPath);
-    const packageName = `${pkg.org}/${pkg.name}`;
+    const packageName = await packageKey(projectPath);
     const rpc = new BiDiagramRpcManager();
     const declared = await rpc.getConfigVariablesV2({ projectPath, includeLibraries: false });
     const existing = (declared?.configVariables as any)?.[packageName]?.[""]?.find((node: any) => node.properties?.variable?.value === variable);

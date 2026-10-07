@@ -26,7 +26,7 @@ import { Button, Codicon, Dropdown, ProgressRing, TextField } from "@wso2/ui-too
 import { PopupContent, PopupFooter } from "../../views/BI/Connection/styles";
 import {
     ConfigFieldGroups, ErrorText, GroupTitle, initialConfig, Label, Loading, Muted, Pill, Section, Summary, Value,
-} from "./AgentManagerConfigForm";
+} from "./AgentManagerConfigFields";
 
 const NEW_PROJECT = "$new-project";
 const NEW_TOKEN = "$new-token";

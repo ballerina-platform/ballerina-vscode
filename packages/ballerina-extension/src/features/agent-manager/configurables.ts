@@ -18,7 +18,6 @@
 
 import * as fs from "fs";
 import * as path from "path";
-import { parse } from "@iarna/toml";
 import {
     AgentManagerConfigField,
     AgentManagerConfigInput,
@@ -28,6 +27,7 @@ import {
     TypeField,
 } from "@wso2/ballerina-core";
 import { StateMachine } from "../../stateMachine";
+import { getProjectTomlValues } from "../../utils/config";
 import { git } from "./github";
 
 const SIMPLE_TYPES = new Set(["string", "int", "float", "decimal", "boolean", "byte"]);
@@ -36,7 +36,6 @@ const PLATFORM_MANAGED = ["ballerinax/amp", "ballerina/observe"];
 const SENSITIVE_NAME = /key|secret|token|password/i;
 const BARE_KEY = /^[A-Za-z0-9_-]+$/;
 const ENV_SAFE_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
-export const CONFIG_FILE = { key: "Config.toml", mountPath: "/workspace" };
 
 type ConfigMap = Record<string, Record<string, ConfigVariable[]>>;
 type TomlTable = { [key: string]: string | number | boolean | TomlTable };
@@ -55,14 +54,8 @@ export function configEnvKey(name: string): string {
     return `BAL_CONFIG_VAR_${name.toUpperCase()}`;
 }
 
-export function fieldPath(field: AgentManagerConfigField): string[] {
+function fieldPath(field: AgentManagerConfigField): string[] {
     return JSON.parse(field.id);
-}
-
-export function readPackage(projectPath: string): { org: string; name: string; title?: string } {
-    const tomlPath = path.join(projectPath, "Ballerina.toml");
-    const toml: any = fs.existsSync(tomlPath) ? parse(fs.readFileSync(tomlPath, "utf-8")) : {};
-    return { org: toml.package?.org ?? "", name: toml.package?.name ?? "", title: toml.package?.title };
 }
 
 // Prefill only from the user's own Config.toml; one committed to the repo could carry someone else's values.
@@ -155,8 +148,8 @@ function readsEnv(variable: ConfigVariable, envNames: Set<string>): boolean {
 }
 
 export async function buildConfigFields(projectPath: string, envKeys: string[], fileSaved: boolean, injectedEnv: Set<string>): Promise<AgentManagerConfigField[]> {
-    const pkg = readPackage(projectPath);
-    const rootKey = `${pkg.org}/${pkg.name}`;
+    const pkg = (await getProjectTomlValues(projectPath))?.package;
+    const rootKey = `${pkg?.org}/${pkg?.name}`;
     const response = await StateMachine.langClient().getConfigVariablesV2({ projectPath, includeLibraries: true }) as any;
     const configMap: ConfigMap = response?.configVariables ?? {};
     const ownConfig = isOwnConfig(projectPath);
@@ -251,7 +244,7 @@ export interface SplitConfig {
     errors: string[];
 }
 
-export function splitConfig(fields: AgentManagerConfigField[], input: AgentManagerConfigInput, allowMissing = false): SplitConfig {
+export function splitConfig(fields: AgentManagerConfigField[], input: AgentManagerConfigInput = { values: {}, secrets: {} }): SplitConfig {
     const result: SplitConfig = { env: [], errors: [] };
     const table = emptyTable();
     const types = new Map<string, string>();
@@ -275,14 +268,6 @@ export function splitConfig(fields: AgentManagerConfigField[], input: AgentManag
             result.errors.push(`${f.label} clashes with another value of the same name, so it can't go in one Config.toml.`);
         }
     }
-    const writesFile = types.size > 0;
-    for (const f of supported.filter((candidate) => !allowMissing && candidate.required && !input.values[candidate.id])) {
-        // Replacing Config.toml drops everything not in the new one, so saved file values count only when the file is kept.
-        const kept = f.target === "env" ? f.saved : f.saved && !writesFile;
-        if (!kept) {
-            result.errors.push(`${f.label} is required.`);
-        }
-    }
-    result.file = writesFile ? { value: writeToml(table, types), isSensitive: fileSecret } : undefined;
+    result.file = types.size > 0 ? { value: writeToml(table, types), isSensitive: fileSecret } : undefined;
     return result;
 }

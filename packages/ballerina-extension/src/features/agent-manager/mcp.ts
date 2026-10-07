@@ -24,7 +24,7 @@ import {
     AgentManagerMcpProxy,
 } from "@wso2/ballerina-core";
 import { StateMachine } from "../../stateMachine";
-import { getSession, httpRequest } from "./auth";
+import { fetchJson, getSession } from "./auth";
 import { addMissingImportsTo, AGENT_ID_ENV, envBase, localConfigValues, writeEnvConfigurable } from "./bindings";
 import { api, consoleOrgUrl, DEFAULT_ENVIRONMENT, McpProxyDetails, readManifest, updateManifest } from "./client";
 
@@ -126,13 +126,13 @@ export async function mcpAccessToken(serverUrl: string): Promise<string | undefi
         return undefined;
     }
     const body = new URLSearchParams({ grant_type: "client_credentials", resource: serverUrl, ...(values[scopes] ? { scope: values[scopes] } : {}) });
-    const response = await httpRequest(values[tokenUrl], {
+    const token = await fetchJson(values[tokenUrl], {
         method: "POST",
         headers: {
             Authorization: `Basic ${Buffer.from(`${values[clientId]}:${values[clientSecret]}`).toString("base64")}`,
             "Content-Type": "application/x-www-form-urlencoded",
         },
         body: body.toString(),
-    });
-    return response.ok ? JSON.parse(response.text).access_token : undefined;
+    }).catch(() => undefined);
+    return token?.access_token;
 }
