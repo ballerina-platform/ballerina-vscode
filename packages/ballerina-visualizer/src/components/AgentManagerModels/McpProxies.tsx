@@ -48,35 +48,37 @@ export function AgentManagerMcpGate({ onBind, onDiscard, onSetBackOverride, chil
 }) {
     const session = useAgentManagerSession();
     const { data } = useMcpProxies(!!session?.signedIn);
-    const [step, setStep] = useState<Step>("choose");
-    const toChoice = useCallback(() => {
+    const [steps, setSteps] = useState<Step[]>(["choose"]);
+    const step = steps[steps.length - 1];
+    const goTo = (next: Step) => setSteps((previous) => [...previous, next]);
+    const back = useCallback(() => {
         onDiscard();
-        setStep("choose");
+        setSteps((previous) => previous.slice(0, -1));
     }, [onDiscard]);
 
-    // The header's back button returns to this choice before leaving the panel.
+    // The header's back button retraces these steps before leaving the panel.
     useEffect(() => {
-        onSetBackOverride?.(step !== "choose" ? toChoice : null);
-    }, [step, toChoice, onSetBackOverride]);
+        onSetBackOverride?.(steps.length > 1 ? back : null);
+    }, [steps.length, back, onSetBackOverride]);
 
     if (step === "form") {
         return <>{children}</>;
     }
     if (step === "servers") {
-        return <McpProxyPicker onBound={(binding, proxyId) => { onBind(binding, proxyId); setStep("form"); }} />;
+        return <McpProxyPicker onBound={(binding, proxyId) => { onBind(binding, proxyId); goTo("form"); }} />;
     }
     return (
         <Choices>
             <AgentManagerEntryCard
                 description="MCP servers your organization added to Agent Manager, served through its AI Gateway."
                 connected={data && `${session?.org} · ${count(data.proxies.length, "MCP server")}`}
-                onOpen={() => setStep("servers")}
+                onOpen={() => goTo("servers")}
             />
             <OptionCard
                 icon={<Codicon name="edit" sx={{ fontSize: 20 }} />}
                 title="Connect Manually"
                 description="Enter the server URL and authentication for any MCP server."
-                onClick={() => setStep("form")}
+                onClick={() => goTo("form")}
             />
         </Choices>
     );
