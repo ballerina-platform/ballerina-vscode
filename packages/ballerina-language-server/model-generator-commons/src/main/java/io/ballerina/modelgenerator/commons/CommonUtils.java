@@ -1931,6 +1931,23 @@ public class CommonUtils {
     }
 
     /**
+     * The semantic model of the module a document belongs to. A node is looked up by its position in its own
+     * document, so asking the model of another module finds nothing, or a symbol at the same position of a file that
+     * happens to share the name. Falls back to the given model when the document is unknown or cannot be compiled.
+     */
+    private static SemanticModel semanticModelOf(Document document, SemanticModel fallback) {
+        if (document == null) {
+            return fallback;
+        }
+        try {
+            Module module = document.module();
+            return PackageUtil.getCompilation(module.packageInstance()).getSemanticModel(module.moduleId());
+        } catch (RuntimeException e) {
+            return fallback;
+        }
+    }
+
+    /**
      * Helper method to find a document in a package by file path.
      */
     public static Document findDocument(Package pkg, String path) {
@@ -1955,11 +1972,12 @@ public class CommonUtils {
      */
     private static String resolveEnumMemberValue(ExpressionNode expression, Package resolvedPackage,
                                                  SemanticModel semanticModel, Document document) {
-        if (semanticModel == null) {
+        SemanticModel documentModel = semanticModelOf(document, semanticModel);
+        if (documentModel == null) {
             return null;
         }
 
-        Optional<Symbol> symbolOpt = semanticModel.symbol(expression);
+        Optional<Symbol> symbolOpt = documentModel.symbol(expression);
         if (symbolOpt.isEmpty()) {
             return null;
         }
