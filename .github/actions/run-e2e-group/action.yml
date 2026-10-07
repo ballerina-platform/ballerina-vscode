@@ -23,6 +23,16 @@ runs:
       id: platform
       run: echo "label=$(echo "$RUNNER_OS" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
 
+    - name: Resolve product mode
+      shell: bash
+      env:
+        TEST_GROUP: ${{ inputs.group }}
+      run: |
+        if [ "$TEST_GROUP" = "agent-builder" ]; then
+          echo "WSO2_PRODUCT_MODE=agent-builder" >> "$GITHUB_ENV"
+          echo "Launching VS Code in agent-builder mode"
+        fi
+
     - name: Check for previous test results
       shell: bash
       if: github.run_attempt > 1

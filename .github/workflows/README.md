@@ -383,6 +383,40 @@ Gradle's `mavenJava` publication and does not run Gradle's `release` task: that 
 rewrote the `version=` key in `gradle.properties`, which no longer exists now that the
 extension manifest owns the version.
 
+## Agent Builder tests
+
+Agent Builder is selected by `WSO2_PRODUCT_MODE=agent-builder`, which the extension host
+reads **once, when VS Code launches**. Nothing can switch it afterwards, so its E2E tests
+cannot share a launch with the normal-mode groups — they get their own, and a leg started
+without the variable skips itself and reports green. That is why the group is a separate
+job rather than a fifth entry in `BalE2ETest`'s matrix. Callers name only a group;
+`run-e2e-group` derives the mode from the group name, since for a mode-specific group the
+two are the same string and passing them separately would let a caller contradict itself.
+
+How each level runs:
+
+| Level | Where it runs | How to trigger |
+|---|---|---|
+| Unit + component | `fast-tests` | Automatic on every build-relevant PR; no label |
+| LS integration | `LSTest_AgentBuilder` | Label `Checks/Run LS Tests`, or any change under the LS paths |
+| E2E | `BalAgentBuilderE2ETest` | Label `Checks/Run Agent Builder UI Tests`, or a PR into a `*.x` line |
+
+The nightly runs the E2E group too: `agent-builder` is simply one more name in
+`e2e-scheduled.yml`'s `groups` output, so the download loop, the per-group result folder
+and the aggregator's missing-group check all treat it like `groupN`. Its product mode is
+derived from the group name at the point the action is called, which keeps that output a
+flat list of strings rather than a list of objects the `Report` job would also have to
+understand.
+
+`LSTest_AgentBuilder` runs the extension's headless LS-integration suite (jest driving a
+real language server over stdio), which is separate from `LSTest_Ballerina`'s gradle suite
+and is kept out of the fast PR job by its config filename. Two details are load-bearing:
+the job pins `BAL_LS_CMD` because the harness never searches `PATH`, and fails if no
+distribution is found — otherwise every test would skip and the job would pass having run
+nothing. And `nodeTemplateInvariants` is excluded from the gating step because it is
+deliberately red against an open LS bug (see `docs/TEST_GUIDE.md`); it still runs in a
+following step marked informational so the result stays visible.
+
 ## Language server test coverage
 
 Every LS test run reports coverage to [Codecov](https://codecov.io/gh/ballerina-platform/ballerina-vscode)

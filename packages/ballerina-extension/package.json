@@ -1547,6 +1547,7 @@
         "preui-test": "node -e \"const fs = require('fs'); if (fs.existsSync('test-resou')) { fs.unlinkSync('test-resou'); }\"",
         "e2e-test": "pnpm exec playwright test -c e2e-test/playwright.config.js",
         "e2e-test:download-prerelease": "DOWNLOAD_PRERELEASE=true pnpm exec playwright test -c e2e-test/playwright.config.js",
+        "e2e-test:agent-builder": "cross-env WSO2_PRODUCT_MODE=agent-builder pnpm exec playwright test -c e2e-test/playwright.config.js --grep @agent-builder",
         "test-coverage": "cross-env COVER_CONFIG=html pnpm run test",
         "lint": "tslint --fix 'src/**/*{.ts,.tsx}'",
         "package": "node ../../submodules/wso2-vscode-extensions/workspaces/common-libs/scripts/package-vsix.js",

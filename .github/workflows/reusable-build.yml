@@ -56,6 +56,13 @@ on:
         type: boolean
         required: false
         default: false
+      runAgentBuilderE2ETests:
+        description: >-
+          Run the Agent Builder e2e group. Separate from runBalE2ETests because the group
+          needs its own VS Code launch with WSO2_PRODUCT_MODE=agent-builder
+        type: boolean
+        required: false
+        default: false
       runLSTests:
         type: boolean
         required: false
@@ -303,6 +310,104 @@ jobs:
         uses: ./.github/actions/run-e2e-group
         with:
           group: ${{ matrix.group }}
+
+  # Separate job rather than a fifth entry in BalE2ETest's matrix: the mode is read from
+  # the environment when VS Code launches, so this group needs WSO2_PRODUCT_MODE set on
+  # the Playwright process. A matrix entry would share the other groups' (normal-mode)
+  # launch, and the spec would skip itself and report green.
+  BalAgentBuilderE2ETest:
+    name: Run Agent Builder e2e Test
+    needs: Build_Stage
+    timeout-minutes: 60
+    if: ${{ inputs.runAgentBuilderE2ETests }}
+    runs-on: ${{ inputs.runOnAWS && inputs.awsRunnerId || 'ubuntu-latest' }}
+    steps:
+      - name: Restore build
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: ExtBuild
+          path: ./
+
+      - name: Set up workspace
+        run: |
+          unzip build.zip
+          rm build.zip
+
+      - name: Setup Rush
+        uses: gigara/setup-rush@7ba3446572d15f5eacc85de383ad9679dfb7223c # v1.2.0
+        with:
+          pnpm: 10.10.0
+          node: 22.x
+          rush-install: true
+
+      - name: Install Ballerina distribution
+        uses: ./.github/actions/setup-ballerina
+        # TEMPORARY: revert once 2201.14.0 is on dist.ballerina.io (currently HTTP 403).
+        with:
+          distributionVersion: nightly
+
+      - name: Run e2e test group
+        uses: ./.github/actions/run-e2e-group
+        with:
+          # Matches the '@agent-builder' tag on the group in test.list.ts. Written without
+          # the '@' so it is also a valid artifact-name fragment, exactly as group1..group4
+          # match their own '@groupN' tags. run-e2e-group derives WSO2_PRODUCT_MODE from it.
+          group: agent-builder
+
+  # The agent-side half of the LS label. LSTest_Ballerina runs the language server's own
+  # gradle suite; this runs the extension's headless LS-integration suite (jest), which
+  # drives a real LS over stdio against .bal fixtures — including the Agent Builder agent
+  # model test. Kept out of the fast PR job by its config filename, so this is the only
+  # place it runs. Needs no build artifact: ts-jest compiles from source and the only
+  # cross-package import is `import type`, which is erased.
+  LSTest_AgentBuilder:
+    name: Run agent LS integration tests
+    timeout-minutes: 30
+    if: ${{ inputs.runLSTests }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+          persist-credentials: false
+          submodules: recursive
+
+      - name: Setup Rush
+        uses: gigara/setup-rush@7ba3446572d15f5eacc85de383ad9679dfb7223c # v1.2.0
+        with:
+          pnpm: 10.10.0
+          node: 22.x
+          rush-install: true
+
+      - name: Install Ballerina distribution
+        uses: ./.github/actions/setup-ballerina
+        # TEMPORARY: revert once 2201.14.0 is on dist.ballerina.io (currently HTTP 403).
+        with:
+          distributionVersion: nightly
+
+      # The suite auto-skips when it finds no distribution, which would report green while
+      # testing nothing — the one outcome the test plan calls out ("a test skipped because
+      # its runtime is unavailable is recorded as skipped, not passed")
+      - name: Resolve the Ballerina command
+        run: |
+          BAL="$(command -v bal || true)"
+          if [ -z "$BAL" ]; then
+            echo "::error::No Ballerina distribution on PATH - the LS-integration suite would skip every test and still report success."
+            exit 1
+          fi
+          echo "Using $BAL"
+          echo "BAL_LS_CMD=$BAL" >> "$GITHUB_ENV"
+
+      - name: Run agent LS integration tests
+        working-directory: packages/ballerina-extension
+        run: node ./node_modules/jest/bin/jest.js --config jest.ls-integration.config.js --ci --testPathIgnorePatterns "nodeTemplateInvariants"
+
+      # Excluded from the gating step above because it is deliberately red: 
+      - name: Node-template invariants (known red, informational)
+        continue-on-error: true
+        working-directory: packages/ballerina-extension
+        run: node ./node_modules/jest/bin/jest.js --config jest.ls-integration.config.js --ci --testPathPattern "nodeTemplateInvariants"
 
   LSTest_Ballerina:
     name: Run Ballerina LS tests (${{ matrix.os }})
