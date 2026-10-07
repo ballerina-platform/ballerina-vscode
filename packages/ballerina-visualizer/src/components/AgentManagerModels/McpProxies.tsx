@@ -27,6 +27,8 @@ import { useAgentManagerSession } from "../../hooks/useAgentManagerSession";
 import { AgentManagerEntryCard, AgentManagerList, camelId, count, OptionCard, setExpression } from ".";
 
 const QUERY_KEY = ["agentManagerMcpProxies"];
+// Built once: CardList deep-clones its items, and an element made during render drags the whole React tree in through its owner.
+const MCP_ICON = <Icon name="bi-mcp" sx={{ width: 24, height: 24 }} iconSx={{ fontSize: "24px" }} />;
 
 function useMcpProxies(enabled = true) {
     const { rpcClient } = useRpcContext();
@@ -121,7 +123,7 @@ function McpProxyPicker({ onBound }: { onBound: (binding: AgentManagerMcpBinding
         id: proxy.id,
         label: proxy.name,
         description: proxy.unsupportedReason ?? proxy.description ?? (proxy.toolCount !== undefined ? count(proxy.toolCount, "Tool") : ""),
-        icon: <Icon name="bi-mcp" sx={{ width: 24, height: 24 }} iconSx={{ fontSize: "24px" }} />,
+        icon: MCP_ICON,
         enabled: !proxy.unsupportedReason,
         metadata: { proxy },
     }));
