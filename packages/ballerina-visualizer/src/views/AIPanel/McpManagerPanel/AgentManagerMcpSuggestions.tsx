@@ -98,17 +98,7 @@ const RowIcon = styled.span`
     color: var(--vscode-descriptionForeground);
 `;
 
-function ServerIcon({ id }: { id: string }) {
-    return id === "agent-manager"
-        ? <Icon name="bi-ai-agent" sx={{ fontSize: 16, width: 16, height: 16 }} iconSx={{ fontSize: 16 }} />
-        : <Codicon name="telescope" />;
-}
-
-interface AgentManagerMcpSuggestionsProps {
-    servers: McpServerStatusDTO[];
-}
-
-export function AgentManagerMcpSuggestions({ servers }: AgentManagerMcpSuggestionsProps) {
+export function AgentManagerMcpSuggestions({ servers }: { servers: McpServerStatusDTO[] }) {
     const { rpcClient } = useRpcContext();
     const [offer, setOffer] = useState<AgentManagerMcpOffer | undefined>();
     const [adding, setAdding] = useState<string | undefined>();
@@ -138,15 +128,16 @@ export function AgentManagerMcpSuggestions({ servers }: AgentManagerMcpSuggestio
 
     return (
         <Section>
-            <Heading>
-                Agent Manager
-                <Divider />
-            </Heading>
+            <Heading>Agent Manager<Divider /></Heading>
             <Helper>Give Copilot access to your agents on {offer.instance}. Adding one opens your browser to sign in.</Helper>
             <Rows>
                 {available.map((server) => (
                     <Row key={server.id}>
-                        <RowIcon><ServerIcon id={server.id} /></RowIcon>
+                        <RowIcon>
+                            {server.id === "agent-manager"
+                                ? <Icon name="bi-ai-agent" sx={{ fontSize: 16, width: 16, height: 16 }} iconSx={{ fontSize: 16 }} />
+                                : <Codicon name="telescope" />}
+                        </RowIcon>
                         <RowText>
                             <RowName>{server.label}</RowName>
                             <RowDescription>{server.description}</RowDescription>

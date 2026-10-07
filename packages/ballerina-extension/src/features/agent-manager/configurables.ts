@@ -267,7 +267,7 @@ export function splitConfig(fields: AgentManagerConfigField[], input: AgentManag
         if (value === undefined) {
             result.errors.push(`${f.label} must be a ${f.type}.`);
         } else if (f.target === "env") {
-            result.env.push({ key: configEnvKey(fieldPath(f)[fieldPath(f).length - 1]), value: raw.trim(), isSensitive: secret });
+            result.env.push({ key: configEnvKey(fieldPath(f).at(-1)), value: raw.trim(), isSensitive: secret });
         } else if (setPath(table, fieldPath(f), value)) {
             types.set(f.id, f.type);
             fileSecret ||= secret;

@@ -88,7 +88,6 @@ export async function checkSource({ projectPath, remote, branch, appPath }: Agen
     return checkPushed(projectPath, remote, branch, appPath, (await readPreparation(projectPath)).buildFiles);
 }
 
-/** Creates a platform-hosted agent that builds the chosen remote and branch, which need not be the one the local branch pushes to. */
 export function createAgent(request: AgentManagerCreateRequest): Promise<AgentManagerActionResponse> {
     const { projectPath, remote, branch, appPath } = request;
     return respond(async () => {

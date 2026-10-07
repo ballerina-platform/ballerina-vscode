@@ -29,14 +29,14 @@ import { api, consoleOrgUrl, DEFAULT_ENVIRONMENT, updateManifest } from "./clien
 import { readPackage } from "./configurables";
 
 // The Ballerina model provider for each template, and the path its service URL must end with.
-const BALLERINA_CLIENTS: Record<string, { module: string; pathSuffix: string }> = {
+const BALLERINA_CLIENTS: Record<string, { module: string; pathSuffix?: string }> = {
     anthropic: { module: "ai.anthropic", pathSuffix: "/v1" },
-    openai: { module: "ai.openai", pathSuffix: "" },
-    mistralai: { module: "ai.mistral", pathSuffix: "" },
-    "azure-openai": { module: "ai.azure", pathSuffix: "" },
-    "azureai-foundry": { module: "ai.azure", pathSuffix: "" },
+    openai: { module: "ai.openai" },
+    mistralai: { module: "ai.mistral" },
+    "azure-openai": { module: "ai.azure" },
+    "azureai-foundry": { module: "ai.azure" },
     gemini: { module: "ai.google.gemini", pathSuffix: "/v1beta" },
-    awsbedrock: { module: "ai.aws.bedrock", pathSuffix: "" },
+    awsbedrock: { module: "ai.aws.bedrock" },
 };
 
 export async function listModelProviders(): Promise<AgentManagerModelProviders> {
@@ -57,13 +57,10 @@ async function describe(provider: { id: string; name: string; template: string }
     const details = await api.getLlmProvider(provider.id);
     const client = BALLERINA_CLIENTS[provider.template];
     const summary = { id: provider.id, name: provider.name, template: provider.template, url: `${gatewayUrl}${details.context}` };
-    if (!client) {
-        return { ...summary, unsupportedReason: "Agent Builder has no model provider for this service yet." };
-    }
-    return { ...summary, module: client.module, pathSuffix: client.pathSuffix || undefined };
+    return client ? { ...summary, ...client } : { ...summary, unsupportedReason: "Agent Builder has no model provider for this service yet." };
 }
 
-/** Gives a local run a provider key and URL; the deployed agent gets its own through the LLM configuration added on deploy. */
+// Only for local runs; the deployed agent gets its own key through the LLM configuration added on deploy.
 export async function createModelKey({ projectPath, providerId, urlVariable, keyVariable }: AgentManagerModelKeyRequest): Promise<AgentManagerActionResponse> {
     try {
         const pkg = readPackage(projectPath);

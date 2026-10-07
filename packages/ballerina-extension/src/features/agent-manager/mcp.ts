@@ -36,6 +36,7 @@ const AGENT_ID_VARIABLES = {
 };
 
 type Endpoint = NonNullable<McpProxyDetails["endpoints"]>[number];
+const NOT_IN_ENVIRONMENT = `Not set up for the ${DEFAULT_ENVIRONMENT} environment.`;
 
 export async function listMcpProxies(projectPath: string): Promise<AgentManagerMcpProxies> {
     const session = await getSession();
@@ -62,10 +63,7 @@ const usesOAuth = (endpoint: Endpoint) => !!endpoint.security?.enabled && !!endp
 function describe(proxy: McpProxyDetails, environmentId?: string): AgentManagerMcpProxy {
     const endpoint = endpointFor(proxy, environmentId);
     const summary = { id: proxy.id, name: proxy.name, description: proxy.description, toolCount: endpoint?.capabilities?.tools?.length };
-    if (!endpoint) {
-        return { ...summary, unsupportedReason: `Not set up for the ${DEFAULT_ENVIRONMENT} environment.` };
-    }
-    return summary;
+    return endpoint ? summary : { ...summary, unsupportedReason: NOT_IN_ENVIRONMENT };
 }
 
 async function proxyUrl(proxy: McpProxyDetails): Promise<string> {
@@ -75,13 +73,12 @@ async function proxyUrl(proxy: McpProxyDetails): Promise<string> {
 
 const urlVariableFor = (proxyId: string) => `${proxyId.replace(/[^A-Za-z0-9]+(.)?/g, (_, next: string) => next?.toUpperCase() ?? "")}McpUrl`;
 
-/** Points the MCP form at a proxy through configurables that Agent Manager fills on deploy, with local values where it has them. */
 export async function bindMcpProxy({ projectPath, proxyId }: AgentManagerMcpBindRequest): Promise<AgentManagerMcpBinding> {
     try {
         const proxy = await api.getMcpProxy(proxyId);
         const endpoint = endpointFor(proxy, await api.getEnvironmentId(DEFAULT_ENVIRONMENT));
         if (!endpoint) {
-            throw new Error(describe(proxy).unsupportedReason);
+            throw new Error(NOT_IN_ENVIRONMENT);
         }
         const urlVariable = urlVariableFor(proxyId);
         const env = { url: `${envBase(proxyId)}_MCP_URL` };
@@ -115,7 +112,7 @@ async function writeAgentIdConfigurables(projectPath: string, proxyId: string): 
     await writeEnvConfigurable(projectPath, AGENT_ID_VARIABLES.clientSecret, AGENT_ID_ENV.clientSecret);
 }
 
-/** A design-time token for listing an OAuth-secured proxy's tools, minted with the project's AgentID credentials. */
+// Design-time token for listing an OAuth-secured proxy's tools, minted with the project's AgentID credentials.
 export async function mcpAccessToken(serverUrl: string): Promise<string | undefined> {
     const projectPath = StateMachine.context().projectPath;
     const servers = projectPath ? readManifest(projectPath).mcpServers ?? [] : [];

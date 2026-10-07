@@ -19,16 +19,13 @@
 import React, { useEffect, useState } from "react";
 import styled from "@emotion/styled";
 import {
-    AgentManagerConfigField,
-    AgentManagerCreateForm as CreateFormData,
-    AgentManagerRepoDetails,
-    AgentManagerSourceCheck,
+    AgentManagerConfigField, AgentManagerConfigInput, AgentManagerCreateForm as CreateFormData, AgentManagerRepoDetails, AgentManagerSourceCheck,
 } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Button, Codicon, Dropdown, ProgressRing, TextField } from "@wso2/ui-toolkit";
 import { PopupContent, PopupFooter } from "../../views/BI/Connection/styles";
 import {
-    ConfigFieldInput, ErrorText, Group, GroupTitle, groupFields, Label, Loading, Muted, Pill, Section, Summary, Value,
+    ConfigFieldGroups, ErrorText, GroupTitle, initialConfig, Label, Loading, Muted, Pill, Section, Summary, Value,
 } from "./AgentManagerConfigForm";
 
 const NEW_PROJECT = "$new-project";
@@ -69,10 +66,6 @@ function needsInput(field: AgentManagerConfigField): boolean {
     return field.required && !field.saved && !field.localValue && !field.unsupported;
 }
 
-function tokenOptions(secrets: string[]) {
-    return [...secrets.map((name) => ({ value: name, content: name })), { value: NEW_TOKEN, content: "Add Personal Token…" }];
-}
-
 export function AgentManagerCreateForm({ projectPath, onDone, onCancel }: AgentManagerCreateFormProps) {
     const { rpcClient } = useRpcContext();
     const rpc = rpcClient.getAgentManagerRpcClient();
@@ -87,8 +80,7 @@ export function AgentManagerCreateForm({ projectPath, onDone, onCancel }: AgentM
     const [check, setCheck] = useState<AgentManagerSourceCheck | undefined>();
     const [gitSecret, setGitSecret] = useState(NEW_TOKEN);
     const [newToken, setNewToken] = useState("");
-    const [values, setValues] = useState<Record<string, string>>({});
-    const [secrets, setSecrets] = useState<Record<string, boolean>>({});
+    const [config, setConfig] = useState<AgentManagerConfigInput>({ values: {}, secrets: {} });
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | undefined>();
 
@@ -99,8 +91,7 @@ export function AgentManagerCreateForm({ projectPath, onDone, onCancel }: AgentM
             setProject(loaded.projects[0]?.name ?? NEW_PROJECT);
             setRemote(loaded.defaultRemote ?? "");
             setAppPath(loaded.appPath);
-            setValues(Object.fromEntries(loaded.fields.filter((f) => f.localValue && !f.saved).map((f) => [f.id, f.localValue!])));
-            setSecrets(Object.fromEntries(loaded.fields.map((f) => [f.id, f.secret])));
+            setConfig(initialConfig(loaded.fields));
         });
     }, [projectPath]);
 
@@ -140,7 +131,7 @@ export function AgentManagerCreateForm({ projectPath, onDone, onCancel }: AgentM
             appPath,
             gitSecret: gitSecret === NEW_TOKEN || !gitSecret ? undefined : gitSecret,
             newToken: gitSecret === NEW_TOKEN ? newToken.trim() : undefined,
-            config: { values, secrets },
+            config,
         }).catch((err) => ({ success: false, message: String(err) }));
         setSubmitting(false);
         response.success ? onDone() : setError(response.message);
@@ -190,12 +181,7 @@ export function AgentManagerCreateForm({ projectPath, onDone, onCancel }: AgentM
                     <TextField id="am-app-path" label="Directory" value={appPath} onTextChange={setAppPath} />
                 </Row>
                 {repo?.error && <ErrorText>{repo.error}</ErrorText>}
-                {check && (
-                    <Check ok={check.ok}>
-                        <Codicon name={check.ok ? "pass" : "warning"} sx={{ fontSize: 14 }} />
-                        <span>{check.message}</span>
-                    </Check>
-                )}
+                <SourceCheck check={check} />
                 {needsAccess && (
                     <Dropdown
                         id="am-git-secret"
@@ -203,7 +189,7 @@ export function AgentManagerCreateForm({ projectPath, onDone, onCancel }: AgentM
                         containerSx={{ width: "100%" }}
                         value={gitSecret}
                         onValueChange={setGitSecret}
-                        items={tokenOptions(form.gitSecrets)}
+                        items={[...form.gitSecrets.map((name) => ({ value: name, content: name })), { value: NEW_TOKEN, content: "Add Personal Token…" }]}
                     />
                 )}
                 {needsToken && (
@@ -219,13 +205,7 @@ export function AgentManagerCreateForm({ projectPath, onDone, onCancel }: AgentM
                     />
                 )}
                 <IncludedSection form={form} />
-                <ConfigurablesSection
-                    fields={form.fields}
-                    values={values}
-                    secrets={secrets}
-                    onValue={(id, value) => setValues({ ...values, [id]: value })}
-                    onSecret={(id, secret) => setSecrets({ ...secrets, [id]: secret })}
-                />
+                <ConfigurablesSection fields={form.fields} config={config} onChange={setConfig} />
                 {error && <ErrorText>{error}</ErrorText>}
             </PopupContent>
             <PopupFooter>
@@ -236,6 +216,15 @@ export function AgentManagerCreateForm({ projectPath, onDone, onCancel }: AgentM
     );
 }
 
+function SourceCheck({ check }: { check?: AgentManagerSourceCheck }) {
+    return check ? (
+        <Check ok={check.ok}>
+            <Codicon name={check.ok ? "pass" : "warning"} sx={{ fontSize: 14 }} />
+            <span>{check.message}</span>
+        </Check>
+    ) : null;
+}
+
 function IncludedSection({ form }: { form: CreateFormData }) {
     return (
         <Section>
@@ -243,14 +232,12 @@ function IncludedSection({ form }: { form: CreateFormData }) {
             <Summary>
                 <Label>Auto-Instrumentation</Label>
                 <Value>{form.tracing ? "On" : "Off"}</Value>
-                {form.llmProviders.length > 0 && <>
-                    <Label>LLM Service Providers</Label>
-                    <Value>{form.llmProviders.map((name) => <Pill key={name}>{name}</Pill>)}</Value>
-                </>}
-                {form.mcpServers.length > 0 && <>
-                    <Label>MCP Servers</Label>
-                    <Value>{form.mcpServers.map((name) => <Pill key={name}>{name}</Pill>)}</Value>
-                </>}
+                {([["LLM Service Providers", form.llmProviders], ["MCP Servers", form.mcpServers]] as const).map(([label, names]) => names.length > 0 && (
+                    <React.Fragment key={label}>
+                        <Label>{label}</Label>
+                        <Value>{names.map((name) => <Pill key={name}>{name}</Pill>)}</Value>
+                    </React.Fragment>
+                ))}
                 <Label>Deploys To</Label>
                 <Value>{form.environment}</Value>
             </Summary>
@@ -258,15 +245,7 @@ function IncludedSection({ form }: { form: CreateFormData }) {
     );
 }
 
-interface ConfigurablesSectionProps {
-    fields: AgentManagerConfigField[];
-    values: Record<string, string>;
-    secrets: Record<string, boolean>;
-    onValue: (id: string, value: string) => void;
-    onSecret: (id: string, secret: boolean) => void;
-}
-
-function ConfigurablesSection({ fields, values, secrets, onValue, onSecret }: ConfigurablesSectionProps) {
+function ConfigurablesSection({ fields, ...props }: React.ComponentProps<typeof ConfigFieldGroups>) {
     const [showAll, setShowAll] = useState(false);
     if (fields.length === 0) {
         return null;
@@ -274,27 +253,12 @@ function ConfigurablesSection({ fields, values, secrets, onValue, onSecret }: Co
     const open = fields.filter(needsInput);
     const folded = fields.filter((field) => !needsInput(field));
     const prefilled = folded.filter((field) => field.localValue && !field.saved).length;
-    const render = (list: AgentManagerConfigField[]) => groupFields(list).map(([group, groupList]) => (
-        <Group key={group}>
-            {group && <GroupTitle>{group}</GroupTitle>}
-            {groupList.map((field) => (
-                <ConfigFieldInput
-                    key={field.id}
-                    field={field}
-                    value={values[field.id] ?? ""}
-                    secret={secrets[field.id] ?? field.secret}
-                    onValue={(value) => onValue(field.id, value)}
-                    onSecret={(secret) => onSecret(field.id, secret)}
-                />
-            ))}
-        </Group>
-    ));
     return (
         <Section>
             <GroupTitle>Configurables</GroupTitle>
             {open.length > 0 && <Muted>Values left empty can be set later in Agent Manager.</Muted>}
-            {render(open)}
-            {folded.length > 0 && (showAll ? render(folded) : (
+            <ConfigFieldGroups fields={open} {...props} />
+            {folded.length > 0 && (showAll ? <ConfigFieldGroups fields={folded} {...props} /> : (
                 <ShowMore type="button" onClick={() => setShowAll(true)}>
                     Show {folded.length} More{prefilled > 0 ? ` · ${prefilled} Filled From Config.toml` : ""}
                 </ShowMore>
@@ -302,4 +266,3 @@ function ConfigurablesSection({ fields, values, secrets, onValue, onSecret }: Co
         </Section>
     );
 }
-

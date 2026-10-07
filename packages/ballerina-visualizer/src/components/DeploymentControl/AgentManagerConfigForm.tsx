@@ -18,7 +18,7 @@
 
 import React, { useEffect, useState } from "react";
 import styled from "@emotion/styled";
-import { AgentManagerConfigField, AgentManagerConfigForm as ConfigFormData } from "@wso2/ballerina-core";
+import { AgentManagerConfigField, AgentManagerConfigForm as ConfigFormData, AgentManagerConfigInput } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Button, CheckBox, ProgressRing } from "@wso2/ui-toolkit";
 import { PopupContent, PopupFooter } from "../../views/BI/Connection/styles";
@@ -91,15 +91,18 @@ export const ErrorText = styled.span`
 
 interface AgentManagerConfigFormProps {
     projectPath: string;
-    description: string;
-    action: "saveConfig";
-    submitLabel: string;
-    busyLabel: string;
     onDone: () => void;
     onCancel: () => void;
 }
 
-export function groupFields(fields: AgentManagerConfigField[]): [string, AgentManagerConfigField[]][] {
+export function initialConfig(fields: AgentManagerConfigField[]): AgentManagerConfigInput {
+    return {
+        values: Object.fromEntries(fields.filter((f) => f.localValue && !f.saved).map((f) => [f.id, f.localValue!])),
+        secrets: Object.fromEntries(fields.map((f) => [f.id, f.secret])),
+    };
+}
+
+function groupFields(fields: AgentManagerConfigField[]): [string, AgentManagerConfigField[]][] {
     const groups = new Map<string, AgentManagerConfigField[]>();
     fields.forEach((field) => groups.set(field.group, [...(groups.get(field.group) ?? []), field]));
     return [...groups.entries()];
@@ -112,11 +115,10 @@ function placeholder(field: AgentManagerConfigField): string {
     return field.required ? "Required" : "Optional";
 }
 
-export function AgentManagerConfigForm({ projectPath, description, action, submitLabel, busyLabel, onDone, onCancel }: AgentManagerConfigFormProps) {
+export function AgentManagerConfigForm({ projectPath, onDone, onCancel }: AgentManagerConfigFormProps) {
     const { rpcClient } = useRpcContext();
     const [form, setForm] = useState<ConfigFormData | undefined>();
-    const [values, setValues] = useState<Record<string, string>>({});
-    const [secrets, setSecrets] = useState<Record<string, boolean>>({});
+    const [config, setConfig] = useState<AgentManagerConfigInput>({ values: {}, secrets: {} });
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | undefined>();
 
@@ -124,7 +126,7 @@ export function AgentManagerConfigForm({ projectPath, description, action, submi
         setSubmitting(true);
         setError(undefined);
         try {
-            const response = await rpcClient.getAgentManagerRpcClient().runAgentManagerAction({ projectPath, action, config: { values, secrets } });
+            const response = await rpcClient.getAgentManagerRpcClient().runAgentManagerAction({ projectPath, action: "saveConfig", config });
             response.success ? onDone() : setError(response.message);
         } catch (err) {
             setError(String(err));
@@ -136,9 +138,7 @@ export function AgentManagerConfigForm({ projectPath, description, action, submi
     useEffect(() => {
         const failed = (err: unknown): ConfigFormData => ({ fields: [], fileSaved: false, error: String(err) });
         rpcClient.getAgentManagerRpcClient().getAgentManagerConfigForm({ projectPath }).catch(failed).then((loaded) => {
-            const initial = Object.fromEntries(loaded.fields.filter((f) => f.localValue && !f.saved).map((f) => [f.id, f.localValue!]));
-            setValues(initial);
-            setSecrets(Object.fromEntries(loaded.fields.map((f) => [f.id, f.secret])));
+            setConfig(initialConfig(loaded.fields));
             setForm(loaded);
         });
     }, [projectPath]);
@@ -154,24 +154,10 @@ export function AgentManagerConfigForm({ projectPath, description, action, submi
                 {form.fields.length > 0 && (
                     <Section>
                         <GroupTitle>Configurables</GroupTitle>
-                        <Muted>{description}</Muted>
+                        <Muted>Values for this agent's configurables in Agent Manager.</Muted>
                     </Section>
                 )}
-                {groupFields(form.fields).map(([group, fields]) => (
-                    <Group key={group}>
-                        {group && <GroupTitle>{group}</GroupTitle>}
-                        {fields.map((field) => (
-                            <ConfigFieldInput
-                                key={field.id}
-                                field={field}
-                                value={values[field.id] ?? ""}
-                                secret={secrets[field.id] ?? field.secret}
-                                onValue={(value) => setValues({ ...values, [field.id]: value })}
-                                onSecret={(secret) => setSecrets({ ...secrets, [field.id]: secret })}
-                            />
-                        ))}
-                    </Group>
-                ))}
+                <ConfigFieldGroups fields={form.fields} config={config} onChange={setConfig} />
                 {fileFields && form.fileSaved && (
                     <Muted>Library and record values are saved together as a Config.toml file. Saving any of them replaces that file.</Muted>
                 )}
@@ -179,8 +165,36 @@ export function AgentManagerConfigForm({ projectPath, description, action, submi
             </PopupContent>
             <PopupFooter>
                 <Button appearance="secondary" disabled={submitting} onClick={onCancel}>Cancel</Button>
-                <Button appearance="primary" disabled={submitting} onClick={() => submit()}>{submitting ? busyLabel : submitLabel}</Button>
+                <Button appearance="primary" disabled={submitting} onClick={submit}>{submitting ? "Saving…" : "Save"}</Button>
             </PopupFooter>
+        </>
+    );
+}
+
+interface ConfigFieldGroupsProps {
+    fields: AgentManagerConfigField[];
+    config: AgentManagerConfigInput;
+    onChange: (config: AgentManagerConfigInput) => void;
+}
+
+export function ConfigFieldGroups({ fields, config, onChange }: ConfigFieldGroupsProps) {
+    return (
+        <>
+            {groupFields(fields).map(([group, groupList]) => (
+                <Group key={group}>
+                    {group && <GroupTitle>{group}</GroupTitle>}
+                    {groupList.map((field) => (
+                        <ConfigFieldInput
+                            key={field.id}
+                            field={field}
+                            value={config.values[field.id] ?? ""}
+                            secret={config.secrets[field.id] ?? field.secret}
+                            onValue={(value) => onChange({ ...config, values: { ...config.values, [field.id]: value } })}
+                            onSecret={(secret) => onChange({ ...config, secrets: { ...config.secrets, [field.id]: secret } })}
+                        />
+                    ))}
+                </Group>
+            ))}
         </>
     );
 }
@@ -193,7 +207,7 @@ interface ConfigFieldInputProps {
     onSecret: (secret: boolean) => void;
 }
 
-export function ConfigFieldInput({ field, value, secret, onValue, onSecret }: ConfigFieldInputProps) {
+function ConfigFieldInput({ field, value, secret, onValue, onSecret }: ConfigFieldInputProps) {
     const [visible, setVisible] = useState(false);
     const label = `${field.label}${field.required ? " *" : ""}`;
     if (field.unsupported) {

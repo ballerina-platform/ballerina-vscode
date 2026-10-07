@@ -29,7 +29,6 @@ import {
     AgentManagerConfigField,
     AgentManagerConfigForm,
     AgentManagerConfigInput,
-    AgentManagerHostingMode,
     AgentManagerLink,
     AgentManagerLinkCandidate,
     AgentManagerSource,
@@ -65,20 +64,17 @@ import { TracerMachine } from "../tracing/tracer-machine";
 import { getActiveTracingProvider, updateOrAddSection } from "../tracing/utils";
 
 const EXTERNAL_TOKEN_EXPIRY = "720h";
-export const OPENAPI_FILE = "openapi.yaml";
+const OPENAPI_FILE = "openapi.yaml";
 const DEV_TRACE_FILE = "trace_enabled.bal";
-export const AMP_IMPORT_FILE = "agent_manager.bal";
+const AMP_IMPORT_FILE = "agent_manager.bal";
+const CACHE_MS = 60_000;
 
 let logChannel: vscode.OutputChannel | undefined;
+const outputChannel = () => (logChannel ??= vscode.window.createOutputChannel("Agent Manager"));
 
-function outputChannel(): vscode.OutputChannel {
-    logChannel ??= vscode.window.createOutputChannel("Agent Manager");
-    return logChannel;
-}
+class UserCancelled extends Error { }
 
-export class UserCancelled extends Error { }
-
-export function required<T>(value: T | undefined): T {
+function required<T>(value: T | undefined): T {
     if (value === undefined) {
         throw new UserCancelled();
     }
@@ -94,8 +90,9 @@ export async function getStatus(projectPath: string): Promise<AgentManagerStatus
     try {
         const link = await readLink(projectPath);
         if (!link) {
+            // Listing every project's agents is too heavy for each status poll.
             const [candidates, canCreate, source] = await Promise.all([
-                cachedCandidates(projectPath), hasPermission("agent:create"), sourceStatus(projectPath),
+                cached(candidateCache, projectPath, () => linkCandidates(projectPath)), hasPermission("agent:create"), sourceStatus(projectPath),
             ]);
             return { ...status, candidates, canCreate, source };
         }
@@ -144,7 +141,7 @@ async function platformStatus(projectPath: string, link: AgentManagerLink): Prom
     ]);
     const repo = agent.provisioning?.repository;
     const target = await buildBranch(projectPath, repo?.url, repo?.branch);
-    const deployed = deployedCommit(deployment?.imageId) ?? build?.commitId;
+    const deployed = deployment?.imageId?.match(/:v\d+-([0-9a-f]{7,40})$/)?.[1] ?? build?.commitId;
     const newCommit = target?.tip && !(deployed && target.tip.startsWith(deployed)) ? target.tip : undefined;
     return {
         displayName: agent.displayName,
@@ -189,17 +186,13 @@ async function crashReason(link: AgentManagerLink, defaultProviderInCode: boolea
     }
 }
 
-function deployedCommit(imageId?: string): string | undefined {
-    return imageId?.match(/:v\d+-([0-9a-f]{7,40})$/)?.[1];
-}
-
 const ACTIONS: Record<AgentManagerAction, (projectPath: string, config?: AgentManagerConfigInput, autoInstrumentation?: boolean) => Promise<string | void>> = {
     signIn: async () => {
         const session = required(await signIn());
         void offerCopilotMcp();
         return `Signed in to Agent Manager (${session.org}).`;
     },
-    signOut: async () => signOut(),
+    signOut,
     fixSource,
     setupExternal,
     pushAndRebuild,
@@ -228,7 +221,6 @@ export function runAction(projectPath: string, action: AgentManagerAction, confi
     return respond(() => ACTIONS[action](projectPath, config, autoInstrumentation));
 }
 
-/** Runs a user-facing step: shows its message or error, and treats a dismissed prompt as a quiet cancel. */
 export async function respond(step: () => Promise<string | void>): Promise<AgentManagerActionResponse> {
     try {
         const message = await step();
@@ -246,18 +238,18 @@ export async function respond(step: () => Promise<string | void>): Promise<Agent
     }
 }
 
-const CANDIDATES_CACHE_MS = 60_000;
-const candidateCache = new Map<string, { at: number; candidates: AgentManagerLinkCandidate[] }>();
+type Cache<T> = Map<string, { at: number; value: T }>;
+const candidateCache: Cache<AgentManagerLinkCandidate[]> = new Map();
+const configCache: Cache<string[]> = new Map();
 
-// Listing every project's agents is too heavy for each status poll.
-async function cachedCandidates(projectPath: string): Promise<AgentManagerLinkCandidate[]> {
-    const cached = candidateCache.get(projectPath);
-    if (cached && Date.now() - cached.at < CANDIDATES_CACHE_MS) {
-        return cached.candidates;
+async function cached<T>(cache: Cache<T>, key: string, load: () => Promise<T>): Promise<T> {
+    const hit = cache.get(key);
+    if (hit && Date.now() - hit.at < CACHE_MS) {
+        return hit.value;
     }
-    const candidates = await linkCandidates(projectPath);
-    candidateCache.set(projectPath, { at: Date.now(), candidates });
-    return candidates;
+    const value = await load();
+    cache.set(key, { at: Date.now(), value });
+    return value;
 }
 
 async function requireLink(projectPath: string): Promise<AgentManagerLink> {
@@ -268,20 +260,6 @@ async function requireLink(projectPath: string): Promise<AgentManagerLink> {
     return link;
 }
 
-async function newLink(projectPath: string, mode: AgentManagerHostingMode) {
-    const session = await getSession() ?? required(await signIn());
-    const project = await pickProject();
-    const agent = await pickAgentName(projectPath, project, mode);
-    const link: AgentManagerLink = {
-        instanceUrl: session.instanceUrl,
-        org: session.org,
-        project,
-        agent: agent.name,
-        mode,
-        environment: DEFAULT_ENVIRONMENT,
-    };
-    return { link, displayName: agent.displayName, existing: agent.existing };
-}
 
 async function pickProject(): Promise<string> {
     const createNew = "$(add) Create New Project";
@@ -299,7 +277,7 @@ async function pickProject(): Promise<string> {
     return name;
 }
 
-async function pickAgentName(projectPath: string, project: string, mode: AgentManagerHostingMode) {
+async function pickAgentName(projectPath: string, project: string) {
     const agents = await api.listAgents(project);
     const displayName = required(await vscode.window.showInputBox({
         title: "Agent Name (2/2)",
@@ -312,7 +290,7 @@ async function pickAgentName(projectPath: string, project: string, mode: AgentMa
     if (!existing) {
         return { name, displayName, existing: false };
     }
-    if (existing.provisioning.type !== mode) {
+    if (existing.provisioning.type !== "external") {
         throw new Error(`'${name}' already exists in '${project}' as a ${existing.provisioning.type}ly hosted agent.`);
     }
     const link = "Link to Existing Agent";
@@ -321,9 +299,12 @@ async function pickAgentName(projectPath: string, project: string, mode: AgentMa
 }
 
 async function setupExternal(projectPath: string): Promise<string> {
-    const { link, displayName, existing } = await newLink(projectPath, "external");
+    const { instanceUrl, org } = await getSession() ?? required(await signIn());
+    const project = await pickProject();
+    const { name, displayName, existing } = await pickAgentName(projectPath, project);
+    const link: AgentManagerLink = { instanceUrl, org, project, agent: name, mode: "external", environment: DEFAULT_ENVIRONMENT };
     if (!existing) {
-        await api.createExternalAgent(link.project, link.agent, displayName);
+        await api.createExternalAgent(project, name, displayName);
     }
     await issueExternalToken(projectPath, link);
     if (getActiveTracingProvider(projectPath) !== "amp") {
@@ -364,7 +345,6 @@ export async function ensureDevTracingOff(projectPath: string): Promise<void> {
     if (getActiveTracingProvider(projectPath) !== "idetraceprovider") {
         return;
     }
-    const turnOff = "Turn Off Dev-Time Tracing";
     required(await vscode.window.showWarningMessage(
         "Dev-time tracing is on for this integration.",
         {
@@ -372,7 +352,7 @@ export async function ensureDevTracingOff(projectPath: string): Promise<void> {
             detail: "Dev-time tracing sends traces to the local trace viewer and must be off before deploying. "
                 + "Agent Manager instruments the hosted agent itself.",
         },
-        turnOff
+        "Turn Off Dev-Time Tracing"
     ));
     TracerMachine.disable(projectPath);
 }
@@ -410,7 +390,8 @@ export function resolveConfig(fields: AgentManagerConfigField[], config?: AgentM
     return split;
 }
 
-async function saveConfigFor(projectPath: string, link: AgentManagerLink, config: AgentManagerConfigInput): Promise<string> {
+async function saveConfig(projectPath: string, config?: AgentManagerConfigInput): Promise<string> {
+    const link = await requireLink(projectPath);
     const split = resolveConfig((await loadConfigFields(projectPath, link)).fields, config);
     if (split.env.length === 0 && !split.file) {
         return "Nothing to save.";
@@ -420,23 +401,10 @@ async function saveConfigFor(projectPath: string, link: AgentManagerLink, config
     return `Saved configuration to Agent Manager (${link.environment}).`;
 }
 
-async function saveConfig(projectPath: string, config?: AgentManagerConfigInput): Promise<string> {
-    return saveConfigFor(projectPath, await requireLink(projectPath), config ?? { values: {}, secrets: {} });
-}
-
-const CONFIG_CACHE_MS = 60_000;
-const configCache = new Map<string, { at: number; labels: string[] }>();
-
-// The language server call is too heavy for every status poll, so missing values are cached briefly.
-async function missingConfigLabels(projectPath: string, link: AgentManagerLink): Promise<string[]> {
-    const cached = configCache.get(projectPath);
-    if (cached && Date.now() - cached.at < CONFIG_CACHE_MS) {
-        return cached.labels;
-    }
-    const { fields } = await loadConfigFields(projectPath, link);
-    const labels = fields.filter((f) => f.required && !f.saved && !f.unsupported).map((f) => f.label);
-    configCache.set(projectPath, { at: Date.now(), labels });
-    return labels;
+// The language server call is too heavy for every status poll.
+function missingConfigLabels(projectPath: string, link: AgentManagerLink): Promise<string[]> {
+    return cached(configCache, projectPath, async () => (await loadConfigFields(projectPath, link)).fields
+        .filter((f) => f.required && !f.saved && !f.unsupported).map((f) => f.label));
 }
 
 async function deployLatestBuild(projectPath: string): Promise<string> {
@@ -461,13 +429,10 @@ async function openBuildLogs(projectPath: string): Promise<void> {
 
 async function openRuntimeLogs(projectPath: string): Promise<void> {
     const link = await requireLink(projectPath);
-    showLogs(`${link.agent} in ${link.environment}, last 30 minutes`, await getRuntimeLogs(link, 30));
-}
-
-function showLogs(title: string, logs: string): void {
+    const logs = await getRuntimeLogs(link, 30);
     const channel = outputChannel();
     channel.clear();
-    channel.appendLine(`# ${title}`);
+    channel.appendLine(`# ${link.agent} in ${link.environment}, last 30 minutes`);
     channel.appendLine(logs || "No log lines yet. Try again in a few seconds.");
     channel.show(true);
 }
@@ -486,37 +451,16 @@ function ensureAmpInstrumentation(projectPath: string): boolean {
     return true;
 }
 
-// ---- GitHub preflight -------------------------------------------------------------------------
-
-interface GitHubSource {
-    repoUrl: string;
-    repository: string;
-    branch: string;
-    commit: string;
-    appPath: string;
-    isPrivate?: boolean;
-}
-
 async function sourceStatus(projectPath: string): Promise<AgentManagerSource> {
-    const { facts, ...source } = await inspectSource(projectPath, await readPreparation(projectPath));
-    return source;
+    return inspectSource(projectPath, await readPreparation(projectPath));
 }
 
-// Deploys build what is on GitHub, so the commit is the upstream one, not local HEAD.
-async function requireGitHubSource(projectPath: string): Promise<GitHubSource> {
-    const source = await inspectSource(projectPath, await readPreparation(projectPath));
+async function requireGitHubSource(projectPath: string): Promise<AgentManagerSource> {
+    const source = await sourceStatus(projectPath);
     if (source.step?.blocking) {
         throw new Error(`${source.step.message} Resolve it in the Agent Manager panel, then deploy.`);
     }
-    const { facts } = source;
-    return {
-        repoUrl: `https://github.com/${facts.repository}`,
-        repository: facts.repository!,
-        branch: facts.upstreamBranch!,
-        commit: facts.remoteCommit!,
-        appPath: facts.appPath ?? "/",
-        isPrivate: source.isPrivate,
-    };
+    return source;
 }
 
 export async function readPreparation(projectPath: string): Promise<Preparation> {
@@ -548,9 +492,7 @@ async function isSpecStale(projectPath: string): Promise<boolean> {
     try {
         const generated = JSON.parse(JSON.stringify((await detectInterface(projectPath)).spec));
         stale = !isDeepStrictEqual(parseYaml(fs.readFileSync(specPath, "utf-8")), generated);
-    } catch {
-        stale = false;
-    }
+    } catch { }
     specCache.set(projectPath, { key, stale });
     return stale;
 }
@@ -585,7 +527,7 @@ const SOURCE_FIXES: Record<SourceStepId, (projectPath: string, autoInstrumentati
 };
 
 async function fixSource(projectPath: string, _config?: AgentManagerConfigInput, autoInstrumentation?: boolean): Promise<string | void> {
-    const { step } = await inspectSource(projectPath, await readPreparation(projectPath));
+    const { step } = await sourceStatus(projectPath);
     return step && SOURCE_FIXES[step.id as SourceStepId](projectPath, autoInstrumentation);
 }
 
@@ -617,10 +559,10 @@ async function prepareProject(projectPath: string, autoInstrumentation = true): 
 
 async function setRepoAccess(projectPath: string): Promise<string> {
     const link = await requireLink(projectPath);
-    const git = await requireGitHubSource(projectPath);
-    const secretRef = await chooseGitSecret(git.repository);
+    const { repository } = await requireGitHubSource(projectPath);
+    const secretRef = await chooseGitSecret(repository!);
     await api.updateRepository(link, await api.getAgent(link), { secretRef });
-    return `'${link.agent}' now clones ${git.repository} with the token ${secretRef}.`;
+    return `'${link.agent}' now clones ${repository} with the token ${secretRef}.`;
 }
 
 export async function chooseGitSecret(repository: string): Promise<string> {
@@ -639,7 +581,7 @@ export function repoSecretName(repository: string): string {
     return `${toResourceName(repository.split("/")[1]).slice(0, 15).replace(/-+$/, "")}-${hash}-git`;
 }
 
-/** Stores a token as this repository's git secret, replacing the old one: Agent Manager can't update a secret in place. */
+// Agent Manager can't update a secret in place, so the old one is deleted first.
 export async function saveRepoToken(repository: string, token: string): Promise<string> {
     const name = repoSecretName(repository);
     if (await api.hasGitSecret(name)) {
@@ -660,8 +602,6 @@ async function askGitToken(repository: string): Promise<string> {
         validateInput: (value) => (value.trim() ? undefined : "Enter a token"),
     })).trim();
 }
-
-// ---- Deriving the agent from the package -------------------------------------------------------
 
 export function readPackageTitle(projectPath: string): string {
     const { title, name } = readPackage(projectPath);
@@ -686,13 +626,7 @@ function readBalSources(projectPath: string): string {
         .join("\n");
 }
 
-interface HttpInterface {
-    port: number;
-    basePath: string;
-    schemaPath: string;
-}
-
-export async function prepareHttpInterface(projectPath: string): Promise<HttpInterface> {
+export async function prepareHttpInterface(projectPath: string) {
     await warnIfMissingDependenciesToml(projectPath);
     const detected = await detectInterface(projectPath);
     return {
@@ -817,13 +751,11 @@ function usesDefaultModelProvider(projectPath: string): boolean {
     return /getDefaultModelProvider\s*\(/.test(readBalSources(projectPath));
 }
 
-// Warn once per project; deploying anyway stays allowed.
 export async function warnIfDefaultModelProvider(projectPath: string): Promise<void> {
     const warned: string[] = extension.context.workspaceState.get(DEFAULT_PROVIDER_WARNED, []);
     if (warned.includes(projectPath) || !usesDefaultModelProvider(projectPath)) {
         return;
     }
-    const proceed = "Deploy Anyway";
     required(await vscode.window.showWarningMessage(
         "This agent uses the default WSO2 model provider.",
         {
@@ -832,7 +764,7 @@ export async function warnIfDefaultModelProvider(projectPath: string): Promise<v
                 + "stops answering. Its configuration also can't be set as an environment variable in Agent Manager. "
                 + "For a hosted agent, use a model provider with its own API key.",
         },
-        proceed
+        "Deploy Anyway"
     ));
     await extension.context.workspaceState.update(DEFAULT_PROVIDER_WARNED, [...warned, projectPath]);
 }
@@ -841,11 +773,10 @@ async function warnIfMissingDependenciesToml(projectPath: string): Promise<void>
     if (fs.existsSync(path.join(projectPath, "Dependencies.toml"))) {
         return;
     }
-    const proceed = "Continue";
     required(await vscode.window.showWarningMessage(
         "Dependencies.toml is missing. The first Agent Manager build of a package without it can fail. Build locally once and commit it.",
         { modal: true },
-        proceed
+        "Continue"
     ));
 }
 

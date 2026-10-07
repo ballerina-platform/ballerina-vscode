@@ -574,16 +574,11 @@ export interface DeploymentPanelProps extends DeploymentControlState {
     hasDeployableIntegration: boolean;
 }
 
-type ItemId = "agentManager" | "cloud" | "docker" | "vm" | "agentManagerTracing" | "icp" | "workflow";
-type ItemFactory = (id: ItemId, title: string, tag: string | undefined, body: ReactNode) => ReactNode;
-type Section = "deploy" | "monitor";
-const MONITOR_ITEMS = new Set<ItemId>(["agentManagerTracing", "icp", "workflow"]);
-const sectionOf = (id: ItemId): Section => (MONITOR_ITEMS.has(id) ? "monitor" : "deploy");
+type ItemFactory = (id: string, title: string, tag: string | undefined, body: ReactNode) => ReactNode;
 
 const enabledTag = (enabled: boolean) => (enabled ? "Enabled" : undefined);
 
-interface MonitorItemsOptions extends Pick<DeploymentPanelProps,
-    "hasAgents" | "isICPSupported" | "hasWorkflows" | "icpEnabled" | "handleICP" | "workflowMgmtEnabled" | "handleWorkflowManagement" | "ampTracingEnabled"> {
+interface MonitorItemsOptions extends DeploymentPanelProps {
     item: ItemFactory;
     noun: string;
     agentMode: boolean;
@@ -611,42 +606,20 @@ function monitorItems(options: MonitorItemsOptions): ReactNode[] {
     return (options.agentMode ? [tracing, icp, workflow] : [icp, tracing, workflow]).filter(Boolean);
 }
 
-/**
- * The drawer's content: where to deploy, then how to monitor, or the Devant dashboard when already in Devant.
- * Wrapper-agnostic: the caller supplies the collapsible container (e.g. `SidePanel`).
- */
-export function DeploymentPanel({
-    projectPath,
-    projectStructure,
-    isInDevant,
-    isICPSupported,
-    hasWorkflows,
-    hasAgents,
-    hasDeployableIntegration,
-    icpEnabled,
-    handleICP,
-    workflowMgmtEnabled,
-    handleWorkflowManagement,
-    ampTracingEnabled,
-    handleAmpTracing,
-    handleDeploy,
-    handleDockerBuild,
-    handleJarBuild,
-    goToDevant,
-}: DeploymentPanelProps) {
+export function DeploymentPanel(props: DeploymentPanelProps) {
+    const { projectPath, isInDevant, hasAgents, hasDeployableIntegration, ampTracingEnabled, handleAmpTracing, handleDeploy, goToDevant } = props;
     const productMode = useProductMode();
     const agentMode = hasAgents && productMode === ProductMode.AGENT_BUILDER;
     const noun = agentMode ? "agent" : "integration";
     const cloud = useWso2Cloud(projectPath);
     const { data: agentManager } = useAgentManagerStatus(projectPath, hasAgents);
-    const [open, setOpen] = useState<Partial<Record<Section, ItemId>>>({ deploy: agentMode ? "agentManager" : "cloud" });
+    const [open, setOpen] = useState<Partial<Record<"deploy" | "monitor", string>>>({ deploy: agentMode ? "agentManager" : "cloud" });
 
     if (isInDevant) {
-        return <DevantDashboard projectStructure={projectStructure} handleDeploy={handleDeploy} goToDevant={goToDevant} />;
+        return <DevantDashboard projectStructure={props.projectStructure} handleDeploy={handleDeploy} goToDevant={goToDevant} />;
     }
 
-    const item: ItemFactory = (id, title, tag, body) => {
-        const section = sectionOf(id);
+    const itemIn = (section: "deploy" | "monitor"): ItemFactory => (id, title, tag, body) => {
         const isExpanded = open[section] === id;
         return (
             <DrawerItem key={id} title={title} tag={tag} isExpanded={isExpanded} onToggle={() => setOpen({ ...open, [section]: isExpanded ? undefined : id })}>
@@ -654,10 +627,10 @@ export function DeploymentPanel({
             </DrawerItem>
         );
     };
+    const item = itemIn("deploy");
     const agentManagerSection = (part: "deploy" | "monitor") => (
         <AgentManagerSection projectPath={projectPath} part={part} ampTracingEnabled={ampTracingEnabled} handleAmpTracing={handleAmpTracing} />
     );
-    const linkMode = agentManager?.link?.mode;
 
     const agentManagerItem = hasAgents && item("agentManager", "WSO2 Agent Manager",
         isRunningOnAgentManager(agentManager) ? "Deployed" : undefined, agentManagerSection("deploy"));
@@ -666,15 +639,14 @@ export function DeploymentPanel({
             handleDeploy={handleDeploy} goToDevant={goToDevant} />);
     const dockerItem = item("docker", "Docker Image", undefined,
         <BuildOption description="Build a container image to deploy on Kubernetes or any container platform."
-            label="Build Image" enabled={hasDeployableIntegration} onBuild={handleDockerBuild} />);
+            label="Build Image" enabled={hasDeployableIntegration} onBuild={props.handleDockerBuild} />);
     const vmItem = item("vm", "Virtual Machine", undefined,
         <BuildOption description="Build an executable JAR to run on any server with a Java runtime."
-            label="Build JAR" enabled={hasDeployableIntegration} onBuild={handleJarBuild} />);
+            label="Build JAR" enabled={hasDeployableIntegration} onBuild={props.handleJarBuild} />);
 
     const deployItems = agentMode ? [agentManagerItem, cloudItem, dockerItem, vmItem] : [cloudItem, dockerItem, vmItem, agentManagerItem];
     const monitor = monitorItems({
-        item, noun, agentMode, linkMode, hasAgents, isICPSupported, hasWorkflows, icpEnabled, handleICP,
-        workflowMgmtEnabled, handleWorkflowManagement, ampTracingEnabled, tracingBody: agentManagerSection("monitor"),
+        ...props, item: itemIn("monitor"), noun, agentMode, linkMode: agentManager?.link?.mode, tracingBody: agentManagerSection("monitor"),
     });
 
     return (

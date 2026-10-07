@@ -20,11 +20,11 @@ import React, { useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import styled from "@emotion/styled";
 import { useQuery } from "@tanstack/react-query";
-import { AgentManagerAction, AgentManagerBuild, AgentManagerLinkCandidate, AgentManagerSource, AgentManagerStatus } from "@wso2/ballerina-core";
+import { AgentManagerAction, AgentManagerBuild, AgentManagerLink, AgentManagerLinkCandidate, AgentManagerSource, AgentManagerStatus } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Button, CheckBox, Codicon, ContextMenu, ProgressRing } from "@wso2/ui-toolkit";
 import { VSCodeLink } from "@vscode/webview-ui-toolkit/react";
-import { AgentManagerConfigForm } from "./AgentManagerConfigForm";
+import { AgentManagerConfigForm, ErrorText, Muted as Detail } from "./AgentManagerConfigForm";
 import { AgentManagerCreateForm } from "./AgentManagerCreateForm";
 import { PopupModal, PopupModalStep } from "../PopupModal";
 import { CloseButton, HeaderTitleContainer, PopupHeader, PopupSubtitle, PopupTitle } from "../../views/BI/Connection/styles";
@@ -51,10 +51,6 @@ const Actions = styled.div`
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-`;
-
-const Detail = styled(Muted)`
-    font-size: 12px;
 `;
 
 const Row = styled.div`
@@ -116,25 +112,14 @@ const Candidate = styled.button<{ selected: boolean }>`
     }
 `;
 
-const ErrorText = styled.span`
-    color: var(--vscode-errorForeground);
-    word-break: break-word;
-`;
-
 type Run = (action: AgentManagerAction, autoInstrumentation?: boolean) => Promise<void>;
 type Pending = AgentManagerAction | "link";
 
 interface AgentManagerSectionProps {
     projectPath: string;
-    /** Deploy hosts the agent on Agent Manager; Monitor sends traces from an agent that runs elsewhere. */
     part: "deploy" | "monitor";
     ampTracingEnabled: boolean;
     handleAmpTracing: (checked: boolean) => void;
-}
-
-function isBusy(status?: AgentManagerStatus): boolean {
-    const phase = status && platformPhase(status).kind;
-    return phase === "building" || phase === "starting";
 }
 
 export function useAgentManagerStatus(projectPath: string, enabled = true) {
@@ -142,7 +127,10 @@ export function useAgentManagerStatus(projectPath: string, enabled = true) {
     return useQuery({
         queryKey: ["agentManagerStatus", projectPath],
         queryFn: () => rpcClient.getAgentManagerRpcClient().getAgentManagerStatus({ projectPath }),
-        refetchInterval: (query) => (isBusy(query.state.data) ? 4000 : query.state.data?.source?.step ? 5000 : 20000),
+        refetchInterval: ({ state: { data } }) => {
+            const phase = data && platformPhase(data).kind;
+            return phase === "building" || phase === "starting" ? 4000 : data?.source?.step ? 5000 : 20000;
+        },
         enabled: enabled && !!projectPath,
     });
 }
@@ -208,9 +196,13 @@ export function AgentManagerSection({ projectPath, part, ampTracingEnabled, hand
             <Stack>
                 {status.link?.mode === "internal" ? linked : (
                     <>
-                        <HostAgent status={status} pending={pending} run={run} refreshing={isFetching} onRefresh={() => refetch()}
-                            onLink={link} onCreate={() => setFormAction("create")} />
-                        <SignedInFooter status={status} run={run} />
+                        {status.error && <ErrorText>{status.error}</ErrorText>}
+                        {status.unavailable
+                            ? <Actions><Button appearance="secondary" disabled={isFetching} onClick={() => refetch()}>Try Again</Button></Actions>
+                            : <SourceStep status={status} pending={pending} run={run} onLink={link} onCreate={() => setFormAction("create")} />}
+                        <Detail style={{ borderTop: "1px solid var(--vscode-welcomePage-tileBorder)", paddingTop: 10 }}>
+                            Signed in to {new URL(status.instanceUrl!).host} · <VSCodeLink onClick={() => run("signOut")}>Sign Out</VSCodeLink>
+                        </Detail>
                     </>
                 )}
             </Stack>
@@ -225,9 +217,9 @@ export function AgentManagerSection({ projectPath, part, ampTracingEnabled, hand
             <Stack>
                 <p style={{ margin: 0 }}>Register this agent in Agent Manager as an externally-hosted agent. Its traces then appear in Agent Manager when you run it on your own infrastructure, such as Docker or a virtual machine.</p>
                 <Actions>
-                    {status?.signedIn
-                        ? <Button appearance="secondary" disabled={!!pending} onClick={() => run("setupExternal")}>Register Agent</Button>
-                        : <Button appearance="secondary" disabled={!!pending} onClick={() => run("signIn")}>Connect to Agent Manager</Button>}
+                    <Button appearance="secondary" disabled={!!pending} onClick={() => run(status?.signedIn ? "setupExternal" : "signIn")}>
+                        {status?.signedIn ? "Register Agent" : "Connect to Agent Manager"}
+                    </Button>
                 </Actions>
                 {!status?.signedIn && (
                     <CheckBox checked={ampTracingEnabled} onChange={handleAmpTracing} label="Configure Instrumentation Manually" />
@@ -255,15 +247,7 @@ export function AgentManagerSection({ projectPath, part, ampTracingEnabled, hand
                             {formAction === "create" ? (
                                 <AgentManagerCreateForm projectPath={projectPath} onDone={close} onCancel={close} />
                             ) : (
-                                <AgentManagerConfigForm
-                                    projectPath={projectPath}
-                                    description="Values for this agent's configurables in Agent Manager."
-                                    action="saveConfig"
-                                    submitLabel="Save"
-                                    busyLabel="Saving…"
-                                    onDone={close}
-                                    onCancel={close}
-                                />
+                                <AgentManagerConfigForm projectPath={projectPath} onDone={close} onCancel={close} />
                             )}
                         </PopupModalStep>
                     )}
@@ -285,24 +269,10 @@ interface LinkOrCreateProps {
     onCreate: () => void;
 }
 
-function HostAgent({ status, pending, run, refreshing, onRefresh, onLink, onCreate }: ActionProps & LinkOrCreateProps & Pick<LinkedAgentProps, "refreshing" | "onRefresh">) {
-    return (
-        <>
-            {status.error && <ErrorText>{status.error}</ErrorText>}
-            {status.unavailable
-                ? <Actions><Button appearance="secondary" disabled={refreshing} onClick={onRefresh}>Try Again</Button></Actions>
-                : <SourceStep status={status} pending={pending} run={run} onLink={onLink} onCreate={onCreate} />}
-        </>
-    );
-}
-
-// Most developers join an agent someone already set up for this repository, so that comes before creating one.
+// Linking comes first because most developers join an agent someone already set up for this repository.
 function LinkOrCreate({ status, pending, onLink, onCreate }: Pick<ActionProps, "status" | "pending"> & LinkOrCreateProps) {
     const candidates = status.candidates ?? [];
     const [selected, setSelected] = useState(0);
-    const create = status.canCreate && (
-        <Button appearance={candidates.length > 0 ? "secondary" : "primary"} disabled={!!pending} onClick={onCreate}>Create New Agent</Button>
-    );
     return (
         <>
             {candidates.length > 0 && (
@@ -324,21 +294,14 @@ function LinkOrCreate({ status, pending, onLink, onCreate }: Pick<ActionProps, "
                         {pending === "link" ? "Linking…" : "Link Agent"}
                     </Button>
                 )}
-                {create}
+                {status.canCreate && (
+                    <Button appearance={candidates.length > 0 ? "secondary" : "primary"} disabled={!!pending} onClick={onCreate}>Create New Agent</Button>
+                )}
             </Actions>
             {!status.canCreate && candidates.length === 0 && (
                 <Detail>You don't have permission to create agents. Contact your Agent Manager administrator.</Detail>
             )}
         </>
-    );
-}
-
-function SignedInFooter({ status, run }: Pick<ActionProps, "status" | "run">) {
-    return (
-        <Detail style={{ borderTop: "1px solid var(--vscode-welcomePage-tileBorder)", paddingTop: 10 }}>
-            Signed in to {new URL(status.instanceUrl!).host} ·{" "}
-            <VSCodeLink onClick={() => run("signOut")}>Sign Out</VSCodeLink>
-        </Detail>
     );
 }
 
@@ -416,13 +379,14 @@ function LinkedAgent({ status, pending, run, ampTracingEnabled, handleAmpTracing
     const link = status.link!;
     const internal = link.mode === "internal";
     const item = (id: AgentManagerAction, label: string) => ({ id, label, onClick: () => run(id) });
+    const endpointUrl = status.deployment?.endpointUrl;
     const repoAccess = status.source?.isPrivate !== false ? [item("setRepoAccess", "Repository Access")] : [];
     const menuItems = [
         ...(internal
             ? [item("pushAndRebuild", "Rebuild"), item("openRuntimeLogs", "Logs"), item("saveConfig", "Configuration"), ...repoAccess]
             : [item("regenerateToken", "Regenerate Token")]),
         item("openInConsole", "Open in Console"),
-        ...(status.deployment?.endpointUrl ? [copyEndpointItem(status.deployment.endpointUrl)] : []),
+        ...(endpointUrl ? [{ id: "copyEndpoint", label: "Copy Endpoint URL", onClick: (): void => void navigator.clipboard.writeText(endpointUrl) }] : []),
         item("unlink", "Unlink"),
         item("signOut", "Sign Out"),
     ];
@@ -447,7 +411,7 @@ function LinkedAgent({ status, pending, run, ampTracingEnabled, handleAmpTracing
             {!status.unavailable && (internal ? (
                 <PlatformState status={status} pending={pending} run={run} />
             ) : (
-                <ExternalState tokenExpiresAt={link.tokenExpiresAt} environment={link.environment} enabled={ampTracingEnabled} onChange={handleAmpTracing} />
+                <ExternalState link={link} enabled={ampTracingEnabled} onChange={handleAmpTracing} />
             ))}
             {status.error && <ErrorText>{status.error}</ErrorText>}
         </Stack>
@@ -484,7 +448,6 @@ function PlatformState({ status, pending, run }: ActionProps) {
     const startedAt = useRef<number>();
     startedAt.current = phase.kind === "starting" ? startedAt.current ?? Date.now() : undefined;
     const slowStart = !!startedAt.current && Date.now() - startedAt.current > SLOW_START_MS;
-    const logsLink = (action: AgentManagerAction, label: string) => <VSCodeLink onClick={() => run(action)}>{label}</VSCodeLink>;
 
     const failed = phase.kind === "buildFailed" || phase.kind === "crashed" || (phase.kind === "starting" && !!status.crash);
     const settled = failed || phase.kind === "live" || phase.kind === "notDeployed";
@@ -493,7 +456,7 @@ function PlatformState({ status, pending, run }: ActionProps) {
     return (
         <>
             <Section>
-                {phaseStatus(phase, status, slowStart, logsLink, () => run("openBuildLogs"))}
+                {phaseStatus(phase, status, slowStart, run)}
                 {settled && <ConfigHints status={status} />}
                 {settled && <SourceHint source={status.source} pending={pending} run={run} />}
             </Section>
@@ -503,7 +466,6 @@ function PlatformState({ status, pending, run }: ActionProps) {
     );
 }
 
-// With nothing to fix, Try It leads; otherwise the fix does and Try It follows.
 function ActionRow({ actions, live, pending, run }: { actions: DeployAction[]; live: boolean; pending?: Pending; run: Run }) {
     const healthy = live && actions.length === 0;
     if (actions.length === 0 && !live) {
@@ -527,12 +489,11 @@ function ActionRow({ actions, live, pending, run }: { actions: DeployAction[]; l
     );
 }
 
-type LogsLink = (action: AgentManagerAction, label: string) => React.ReactNode;
-
-function phaseStatus(phase: Phase, status: AgentManagerStatus, slowStart: boolean, logsLink: LogsLink, onBuildLogs: () => void) {
+function phaseStatus(phase: Phase, status: AgentManagerStatus, slowStart: boolean, run: Run) {
+    const logsLink = (action: AgentManagerAction, label: string) => <VSCodeLink onClick={() => run(action)}>{label}</VSCodeLink>;
     switch (phase.kind) {
         case "building":
-            return <BuildProgress build={phase.build} onLogs={onBuildLogs} />;
+            return <BuildProgress build={phase.build} onLogs={() => run("openBuildLogs")} />;
         case "buildFailed":
             return <Row><Dot color="var(--vscode-errorForeground)" /><span>Build Failed ·</span>{logsLink("openBuildLogs", "View Build Logs")}</Row>;
         case "starting":
@@ -560,7 +521,9 @@ function phaseStatus(phase: Phase, status: AgentManagerStatus, slowStart: boolea
                         <span>Deployed</span>
                         {status.deployment?.lastDeployed && <Detail style={{ marginLeft: "auto" }}>{timeAgo(status.deployment.lastDeployed)}</Detail>}
                     </Row>
-                    {!status.source?.step && <Freshness status={status} />}
+                    {!status.source?.step && status.tracked && (
+                        <Detail>{status.newCommit ? `Newer commit on ${status.branch}: ${status.newCommitMessage}` : `Up to date with ${status.branch}`}</Detail>
+                    )}
                 </>
             );
     }
@@ -568,13 +531,6 @@ function phaseStatus(phase: Phase, status: AgentManagerStatus, slowStart: boolea
 
 const otherRepository = (status: AgentManagerStatus) =>
     !!status.repository && status.repository.toLowerCase() !== status.source?.repository?.toLowerCase();
-
-function Freshness({ status }: { status: AgentManagerStatus }) {
-    if (!status.tracked) {
-        return null;
-    }
-    return <Detail>{status.newCommit ? `Newer commit on ${status.branch}: ${status.newCommitMessage}` : `Up to date with ${status.branch}`}</Detail>;
-}
 
 interface DeployAction {
     id: AgentManagerAction;
@@ -592,7 +548,6 @@ function deployAction(status: AgentManagerStatus, failed: boolean): DeployAction
     return failed ? { id: "pushAndRebuild", label: "Rebuild" } : undefined;
 }
 
-// New code outranks config as the primary button; a plain rebuild does not.
 function configAction({ missingConfig = [], crash }: AgentManagerStatus): DeployAction | undefined {
     if (missingConfig.length > 0) {
         return { id: "saveConfig", label: missingConfig.length === 1 ? `Set ${missingConfig[0]}` : `Set ${missingConfig.length} Values` };
@@ -638,18 +593,7 @@ function BuildProgress({ build, onLogs }: { build: AgentManagerBuild; onLogs: ()
     );
 }
 
-function copyEndpointItem(url: string) {
-    return { id: "copyEndpoint", label: "Copy Endpoint URL", onClick: (): void => void navigator.clipboard.writeText(url) };
-}
-
-interface ExternalStateProps {
-    tokenExpiresAt?: number;
-    environment: string;
-    enabled: boolean;
-    onChange: (checked: boolean) => void;
-}
-
-function ExternalState({ tokenExpiresAt, environment, enabled, onChange }: ExternalStateProps) {
+function ExternalState({ link: { tokenExpiresAt, environment }, enabled, onChange }: { link: AgentManagerLink; enabled: boolean; onChange: (checked: boolean) => void }) {
     const expires = tokenExpiresAt ? new Date(tokenExpiresAt * 1000) : undefined;
     const expiringSoon = !!expires && expires.getTime() - Date.now() < 7 * 24 * 3600 * 1000;
     return (

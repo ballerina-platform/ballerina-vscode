@@ -51,10 +51,9 @@ export async function getSession(): Promise<AgentManagerSession | undefined> {
 }
 
 const sessionChanged = new vscode.EventEmitter<void>();
-/** Fires on sign-in and on every sign-out, including the ones a rejected token forces. */
 export const onDidChangeSession = sessionChanged.event;
 
-/** What webviews may know about the session; tokens never leave the extension. */
+// Tokens never leave the extension.
 export async function getSessionSummary(): Promise<{ signedIn: boolean; instanceUrl?: string; org?: string }> {
     const session = await getSession();
     return session ? { signedIn: true, instanceUrl: session.instanceUrl, org: session.org } : { signedIn: false };
@@ -71,7 +70,6 @@ export async function signOut(): Promise<void> {
 
 let refreshing: Promise<string | undefined> | undefined;
 
-/** Whether the signed-in user's token carries an Agent Manager permission, such as "agent:create". */
 export async function hasPermission(permission: string): Promise<boolean> {
     const payload = (await getAccessToken())?.split(".")[1];
     try {
@@ -132,8 +130,8 @@ export async function signIn(): Promise<AgentManagerSession | undefined> {
     }
     const baseUrl = instanceUrl.replace(/\/+$/, "");
     const discovery = await discover(baseUrl);
-    const verifier = base64Url(crypto.randomBytes(32));
-    const state = base64Url(crypto.randomBytes(32));
+    const verifier = crypto.randomBytes(32).toString("base64url");
+    const state = crypto.randomBytes(32).toString("base64url");
     const authUrl = new URL(discovery.authorizationEndpoint);
     authUrl.search = new URLSearchParams({
         response_type: "code",
@@ -141,7 +139,7 @@ export async function signIn(): Promise<AgentManagerSession | undefined> {
         redirect_uri: REDIRECT_URI,
         scope: discovery.scopes.join(" "),
         state,
-        code_challenge: base64Url(crypto.createHash("sha256").update(verifier).digest()),
+        code_challenge: crypto.createHash("sha256").update(verifier).digest("base64url"),
         code_challenge_method: "S256",
     }).toString();
 
@@ -235,16 +233,10 @@ export function parseJson(url: string, text: string): any {
     }
 }
 
-export interface HttpResponse {
-    ok: boolean;
-    status: number;
-    text: string;
-}
-
 export async function httpRequest(
     url: string,
     init: { method?: string; headers?: Record<string, string>; body?: string } = {}
-): Promise<HttpResponse> {
+): Promise<{ ok: boolean; status: number; text: string }> {
     try {
         // Some gateways reject requests without a User-Agent.
         const response = await fetch(url, { ...init, headers: { "User-Agent": "wso2-integrator-vscode", ...init.headers } });
@@ -256,8 +248,4 @@ export async function httpRequest(
         }
         throw error;
     }
-}
-
-function base64Url(buffer: Buffer): string {
-    return buffer.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }

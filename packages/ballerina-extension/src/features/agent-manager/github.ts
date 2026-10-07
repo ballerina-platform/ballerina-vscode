@@ -40,7 +40,6 @@ export interface SourceFacts {
     upstreamBranch?: string;
     remoteCommit?: string;
     ahead: number;
-    behind: number;
     dirty: number;
     hasRemotes: boolean;
     gitMissing: boolean;
@@ -51,17 +50,11 @@ export interface Preparation {
     ampImport: boolean;
     exposedFiles: string[];
     gitignore: boolean;
-    /** Local files the build needs from GitHub, such as openapi.yaml. */
     buildFiles: string[];
     staleSpec: boolean;
 }
 
-interface RepoInfo {
-    isPrivate?: boolean;
-    fetchedAt: number;
-}
-
-const repoInfoCache = new Map<string, RepoInfo>();
+const repoInfoCache = new Map<string, { isPrivate?: boolean; at: number }>();
 
 export function git(cwd: string, args: string[]) {
     return cp.spawnSync("git", args, { cwd, encoding: "utf-8" });
@@ -72,8 +65,10 @@ function out(cwd: string, args: string[]): string | undefined {
     return result.status === 0 ? result.stdout.trim() : undefined;
 }
 
+const repoFromUrl = (url?: string) => url?.match(GITHUB_REPO_URL)?.slice(1, 3).join("/");
+
 export function readFacts(projectPath: string): SourceFacts {
-    const facts: SourceFacts = { ahead: 0, behind: 0, dirty: 0, hasRemotes: false, gitMissing: false };
+    const facts: SourceFacts = { ahead: 0, dirty: 0, hasRemotes: false, gitMissing: false };
     if (git(projectPath, ["--version"]).error) {
         return { ...facts, gitMissing: true };
     }
@@ -91,15 +86,12 @@ export function readFacts(projectPath: string): SourceFacts {
     const chosen = upstreamRemote
         ? remotes.find(([name]) => name === upstreamRemote)
         : remotes.find(([, url]) => GITHUB_REPO_URL.test(url ?? ""));
-    const match = chosen?.[1]?.match(GITHUB_REPO_URL);
-    facts.remoteName = match ? chosen![0] : undefined;
-    facts.repository = match ? `${match[1]}/${match[2]}` : undefined;
+    facts.repository = repoFromUrl(chosen?.[1]);
+    facts.remoteName = facts.repository && chosen![0];
     const merge = facts.branch ? out(projectPath, ["config", "--get", `branch.${facts.branch}.merge`]) : undefined;
     facts.upstreamBranch = upstreamRemote && merge ? merge.replace(/^refs\/heads\//, "") : undefined;
     facts.remoteCommit = facts.upstreamBranch ? out(projectPath, ["rev-parse", "@{u}"]) : undefined;
-    const [behind, ahead] = (out(projectPath, ["rev-list", "--left-right", "--count", "@{u}...HEAD"]) ?? "0 0").split(/\s+/).map(Number);
-    facts.ahead = ahead || 0;
-    facts.behind = behind || 0;
+    facts.ahead = Number(out(projectPath, ["rev-list", "--count", "@{u}..HEAD"])) || 0;
     facts.dirty = changedFiles(projectPath).length;
     return facts;
 }
@@ -127,24 +119,23 @@ function listedInGitignore(projectPath: string, entry: string): boolean {
     return lines.includes(entry) || lines.includes(`/${entry}`);
 }
 
-// The unauthenticated API is enough to tell public from private and to spot a renamed repository.
-async function repoInfo(repository: string): Promise<RepoInfo> {
+// The unauthenticated API 404s for private repositories, so a failed lookup reads as private.
+async function isPrivateRepo(repository: string): Promise<boolean | undefined> {
     const cached = repoInfoCache.get(repository);
-    if (cached && Date.now() - cached.fetchedAt < REPO_INFO_TTL_MS) {
-        return cached;
+    if (cached && Date.now() - cached.at < REPO_INFO_TTL_MS) {
+        return cached.isPrivate;
     }
-    let info: RepoInfo = { isPrivate: true, fetchedAt: Date.now() };
+    let isPrivate: boolean | undefined = true;
     try {
         const response = await fetch(`https://api.github.com/repos/${repository}`, { headers: { Accept: "application/vnd.github+json" } });
         if (response.ok) {
-            const body = (await response.json()) as { full_name: string; private: boolean };
-            info = { isPrivate: body.private, fetchedAt: Date.now() };
+            isPrivate = ((await response.json()) as { private: boolean }).private;
         }
     } catch {
-        info = { fetchedAt: Date.now() };
+        isPrivate = undefined;
     }
-    repoInfoCache.set(repository, info);
-    return info;
+    repoInfoCache.set(repository, { isPrivate, at: Date.now() });
+    return isPrivate;
 }
 
 function plural(count: number, noun: string): string {
@@ -186,41 +177,35 @@ function gitHubStep(projectPath: string, facts: SourceFacts, prep: Preparation):
     };
 }
 
-type StepRule = [boolean, AgentManagerSourceStep];
-
 const NOT_ON_GITHUB = "The latest changes aren't on GitHub yet, so they won't be deployed.";
 
-function sourceSteps(projectPath: string, facts: SourceFacts, prep: Preparation): StepRule[] {
+function sourceSteps(projectPath: string, facts: SourceFacts, prep: Preparation): (AgentManagerSourceStep | false | undefined)[] {
     const onGitHub = !!facts.upstreamBranch;
     return [
-        [facts.gitMissing, { id: "gitMissing", message: "Git isn't installed. It's needed to put this code on GitHub.", actionLabel: "Download Git", blocking: true }],
-        [true, preparationStep(prep)!],
-        [!facts.repository && !facts.hasRemotes, { id: "publishRepo", message: "Not on GitHub yet.", actionLabel: "Publish to GitHub", blocking: true }],
-        [!facts.repository, { id: "nonGitHub", message: "This repository's remote isn't on GitHub. Agent Manager builds from GitHub only.", blocking: true }],
-        [!facts.branch, { id: "detached", message: "Not on a branch.", actionLabel: "Check Out a Branch", blocking: true }],
-        [!onGitHub && facts.dirty > 0, { id: "commitFirst", message: `${plural(facts.dirty, "change")} to commit before publishing.`, actionLabel: "Review and Commit", blocking: true }],
-        [!onGitHub, { id: "publishBranch", message: `${facts.branch} isn't on GitHub yet.`, actionLabel: "Publish Branch", blocking: true }],
-        [true, gitHubStep(projectPath, facts, prep)!],
-        [prep.staleSpec, { id: "refreshSpec", message: "openapi.yaml no longer matches the service.", actionLabel: "Update API Spec", blocking: false }],
-        [facts.dirty > 0, { id: "commit", message: NOT_ON_GITHUB, actionLabel: "Review and Commit", blocking: false }],
-        [facts.ahead > 0, { id: "push", message: NOT_ON_GITHUB, actionLabel: "Push", blocking: false }],
+        facts.gitMissing && { id: "gitMissing", message: "Git isn't installed. It's needed to put this code on GitHub.", actionLabel: "Download Git", blocking: true },
+        preparationStep(prep),
+        !facts.repository && !facts.hasRemotes && { id: "publishRepo", message: "Not on GitHub yet.", actionLabel: "Publish to GitHub", blocking: true },
+        !facts.repository && { id: "nonGitHub", message: "This repository's remote isn't on GitHub. Agent Manager builds from GitHub only.", blocking: true },
+        !facts.branch && { id: "detached", message: "Not on a branch.", actionLabel: "Check Out a Branch", blocking: true },
+        !onGitHub && facts.dirty > 0 && { id: "commitFirst", message: `${plural(facts.dirty, "change")} to commit before publishing.`, actionLabel: "Review and Commit", blocking: true },
+        !onGitHub && { id: "publishBranch", message: `${facts.branch} isn't on GitHub yet.`, actionLabel: "Publish Branch", blocking: true },
+        gitHubStep(projectPath, facts, prep),
+        prep.staleSpec && { id: "refreshSpec", message: "openapi.yaml no longer matches the service.", actionLabel: "Update API Spec", blocking: false },
+        facts.dirty > 0 && { id: "commit", message: NOT_ON_GITHUB, actionLabel: "Review and Commit", blocking: false },
+        facts.ahead > 0 && { id: "push", message: NOT_ON_GITHUB, actionLabel: "Push", blocking: false },
     ];
 }
 
-export async function inspectSource(projectPath: string, prep: Preparation): Promise<AgentManagerSource & { facts: SourceFacts }> {
+export async function inspectSource(projectPath: string, prep: Preparation): Promise<AgentManagerSource> {
     const facts = readFacts(projectPath);
-    const info = facts.repository ? await repoInfo(facts.repository) : undefined;
-    const step = sourceSteps(projectPath, facts, prep).find(([applies, candidate]) => applies && candidate)?.[1];
     return {
-        facts,
         repository: facts.repository,
         branch: facts.upstreamBranch ?? facts.branch,
         remoteCommit: facts.remoteCommit,
-        isPrivate: info?.isPrivate,
-        step,
+        isPrivate: facts.repository ? await isPrivateRepo(facts.repository) : undefined,
+        step: sourceSteps(projectPath, facts, prep).find((step): step is AgentManagerSourceStep => !!step),
     };
 }
-
 
 export function ensureGitIgnored(projectPath: string, file: string): boolean {
     if (git(projectPath, ["check-ignore", "-q", "--no-index", file]).status !== 1) {
@@ -241,7 +226,6 @@ interface GitApiRepository {
     inputBox: { value: string };
 }
 
-// Prefills the Source Control commit box; the user reviews and commits there.
 export async function openCommitView(projectPath: string, message: string): Promise<void> {
     const gitExtension = vscode.extensions.getExtension("vscode.git");
     const api = gitExtension && (gitExtension.isActive ? gitExtension.exports : await gitExtension.activate()).getAPI(1);
@@ -258,24 +242,22 @@ export function suggestCommitMessage(projectPath: string): string {
         "openapi.yaml": "Add OpenAPI spec for Agent Manager",
         ".gitignore": "Keep local config out of Git",
     };
-    const changed = changedFiles(projectPath).map((file) => path.basename(file));
     if (!out(projectPath, ["rev-parse", "HEAD"])) {
         return "Initial commit";
     }
+    const changed = changedFiles(projectPath).map((file) => path.basename(file));
     const known = [...new Set(changed.map((file) => labels[file]).filter(Boolean))];
     const others = changed.filter((file) => !labels[file] && !LOCAL_ONLY_FILES.includes(file));
     const parts = [...known, ...(others.length > 3 ? [`Update ${others.length} files`] : others.length ? [`Update ${others.join(", ")}`] : [])];
     return parts.join("; ") || "Update agent";
 }
 
-// ---- Remotes, for linking and creating agents ---------------------------------------------------
-
 export function githubRemotes(projectPath: string): AgentManagerRemote[] {
     const lines = (out(projectPath, ["remote", "-v"]) ?? "").split("\n").filter((line) => line.endsWith("(fetch)"));
     return lines.flatMap((line) => {
         const [name, url] = line.split(/\s+/);
-        const match = url?.match(GITHUB_REPO_URL);
-        return match ? [{ name, repository: `${match[1]}/${match[2]}` }] : [];
+        const repository = repoFromUrl(url);
+        return repository ? [{ name, repository }] : [];
     });
 }
 
@@ -302,10 +284,9 @@ export async function repoDetails(projectPath: string, remote: string): Promise<
     const lines = heads.stdout.split("\n");
     const defaultBranch = lines.find((line) => line.startsWith("ref: "))?.match(/refs\/heads\/(\S+)\s+HEAD/)?.[1];
     const branches = lines.flatMap((line) => line.match(/\trefs\/heads\/(.+)$/)?.[1] ?? []);
-    return { branches, defaultBranch, isPrivate: repository ? (await repoInfo(repository)).isPrivate : undefined };
+    return { branches, defaultBranch, isPrivate: repository ? await isPrivateRepo(repository) : undefined };
 }
 
-/** Checks the remote branch has the package and the files the build needs, fetching it first so the answer is current. */
 export async function checkPushed(projectPath: string, remote: string, branch: string, appPath: string, buildFiles: string[]): Promise<AgentManagerSourceCheck> {
     const repository = githubRemotes(projectPath).find((candidate) => candidate.name === remote)?.repository ?? remote;
     const fetched = await gitAsync(projectPath, ["fetch", "--quiet", remote, `refs/heads/${branch}:refs/remotes/${remote}/${branch}`]);
@@ -324,11 +305,9 @@ export async function checkPushed(projectPath: string, remote: string, branch: s
     return { ok: true, message: `Found on ${branch}.` };
 }
 
-const sameRepo = (url: string | undefined, repository: string) =>
-    url?.match(GITHUB_REPO_URL)?.slice(1, 3).join("/").toLowerCase() === repository.toLowerCase();
+const sameRepo = (url: string | undefined, repository: string) => repoFromUrl(url)?.toLowerCase() === repository.toLowerCase();
 const samePath = (a = "/", b = "/") => a.replace(/\/+$/, "") === b.replace(/\/+$/, "");
 
-/** Platform-hosted agents in the org that build this package from one of the clone's remotes. */
 export async function linkCandidates(projectPath: string): Promise<AgentManagerLinkCandidate[]> {
     const remotes = githubRemotes(projectPath);
     const appPath = readFacts(projectPath).appPath;
@@ -346,18 +325,11 @@ export async function linkCandidates(projectPath: string): Promise<AgentManagerL
     return perProject.flat();
 }
 
-export interface BuildBranch {
-    repository: string;
-    tip?: string;
-    message?: string;
-}
-
 const BRANCH_FETCH_TTL_MS = 60 * 1000;
 const branchFetchedAt = new Map<string, number>();
 
-/** The tip of the branch an agent builds, read through whichever remote points at its repository. */
-export async function buildBranch(projectPath: string, repoUrl: string | undefined, branch: string | undefined): Promise<BuildBranch | undefined> {
-    const repository = repoUrl?.match(GITHUB_REPO_URL)?.slice(1, 3).join("/");
+export async function buildBranch(projectPath: string, repoUrl: string | undefined, branch: string | undefined) {
+    const repository = repoFromUrl(repoUrl);
     if (!repository || !branch) {
         return undefined;
     }
@@ -367,9 +339,6 @@ export async function buildBranch(projectPath: string, repoUrl: string | undefin
         await gitAsync(projectPath, ["fetch", "--quiet", remote, `refs/heads/${branch}:${ref}`]);
         branchFetchedAt.set(projectPath + ref, Date.now());
     }
-    const tip = remote && out(projectPath, ["rev-parse", "--verify", "--quiet", ref]);
-    if (!tip) {
-        return { repository };
-    }
-    return { repository, tip, message: out(projectPath, ["log", "-1", "--format=%s", tip]) };
+    const tip = remote ? out(projectPath, ["rev-parse", "--verify", "--quiet", ref]) : undefined;
+    return { repository, tip, message: tip && out(projectPath, ["log", "-1", "--format=%s", tip]) };
 }

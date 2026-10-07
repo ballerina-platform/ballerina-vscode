@@ -186,7 +186,6 @@ export class McpClientManager {
     private oauthProviders = new Map<string, McpOAuthProvider>();
     // A reconnect mid-sign-in would replace the PKCE verifier the browser redirect is waiting to redeem.
     private signingIn = new Set<string>();
-    /** Called when a server connects outside refresh(), e.g. after an OAuth sign-in. */
     onDidChange?: () => void;
 
     constructor(enabledOverrides: EnabledOverrideStore, workspacePath?: string, workspaceTrusted: boolean = true) {
@@ -408,7 +407,6 @@ export class McpClientManager {
         throw new Error("Sign-in required.");
     }
 
-    /** Starts a browser sign-in for a server that is waiting for one. */
     async signIn(scope: McpScope, name: string): Promise<void> {
         const state = this.servers.get(keyOf(scope, name));
         if (!state || state.status === "connected" || this.signingIn.has(keyOf(scope, name))) {
@@ -484,12 +482,10 @@ export class McpClientManager {
 
     private oauthProviderFor(state: ServerState, url: string, oauth: NonNullable<McpHttpServerConfig["oauth"]>): McpOAuthProvider {
         const key = keyOf(state.scope, state.name);
-        let provider = this.oauthProviders.get(key);
-        if (!provider) {
-            provider = new McpOAuthProvider(url, oauth);
-            this.oauthProviders.set(key, provider);
+        if (!this.oauthProviders.has(key)) {
+            this.oauthProviders.set(key, new McpOAuthProvider(url, oauth));
         }
-        return provider;
+        return this.oauthProviders.get(key)!;
     }
 
     private async disconnect(state: ServerState): Promise<void> {

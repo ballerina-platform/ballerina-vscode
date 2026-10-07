@@ -45,20 +45,13 @@ export interface AgentManagerLink {
     tokenExpiresAt?: number;
 }
 
-export interface AgentManagerBuildStep {
-    type: string;
-    status: string;
-    message?: string;
-}
-
 export interface AgentManagerBuild {
     name: string;
     status: string;
     percent?: number;
-    steps?: AgentManagerBuildStep[];
+    steps?: { type: string; status: string; message?: string }[];
     commitId?: string;
     imageId?: string;
-    startedAt?: string;
 }
 
 export interface AgentManagerDeployment {
@@ -85,10 +78,7 @@ export interface AgentManagerSource {
     step?: AgentManagerSourceStep;
 }
 
-export interface AgentManagerStatus {
-    signedIn: boolean;
-    instanceUrl?: string;
-    org?: string;
+export interface AgentManagerStatus extends AgentManagerSession {
     /** Agents in the org that build one of this clone's remotes, offered before creating a new one. */
     candidates?: AgentManagerLinkCandidate[];
     canCreate?: boolean;
@@ -182,7 +172,6 @@ export interface AgentManagerModelProvider {
 export interface AgentManagerModelProviders {
     signedIn: boolean;
     providers: AgentManagerModelProvider[];
-    /** The console page where an admin adds LLM service providers. */
     consoleUrl?: string;
     error?: string;
 }

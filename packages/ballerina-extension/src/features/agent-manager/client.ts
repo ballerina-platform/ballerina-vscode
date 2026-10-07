@@ -69,13 +69,13 @@ async function request<T>(method: string, apiPath: string, body?: unknown): Prom
     return (text ? parseJson(apiPath, text) : undefined) as T;
 }
 
-export interface AgentSummary {
+interface AgentSummary {
     name: string;
     displayName?: string;
     provisioning: { type: string; repository?: { url?: string; branch?: string; appPath?: string } };
 }
 
-export interface EnvironmentVariable {
+interface EnvironmentVariable {
     key: string;
     value: string;
     isSensitive?: boolean;
@@ -100,23 +100,15 @@ export interface InternalAgentSpec {
 
 export type AgentConfigKind = "model" | "mcp";
 
-/** Binds an LLM provider or MCP proxy to the agent, with the env var names Agent Manager injects its URL and key under. */
 export interface AgentConfigInput {
     handle: string;
-    env: EnvNames;
-}
-
-interface AgentConfig {
-    uuid: string;
-    name: string;
-    handle?: string;
     env: EnvNames;
 }
 
 const envVariables = (env: EnvNames) =>
     [{ key: "url", name: env.url }, ...(env.apikey ? [{ key: "apikey", name: env.apikey }] : [])];
 
-export interface FileMountInput {
+interface FileMountInput {
     key: string;
     mountPath: string;
     value: string;
@@ -147,6 +139,7 @@ export const api = {
             }
         }
     },
+    hasGitSecret: async (name: string) => (await api.listGitSecrets()).includes(name),
     createExternalAgent: (project: string, name: string, displayName: string) =>
         request("POST", `/projects/${project}/agents`, {
             name,
@@ -177,19 +170,6 @@ export const api = {
     createGitSecret: (name: string, username: string, password: string) =>
         request("POST", "/git-secrets", { name, type: "basic-auth", credentials: { username, password } }),
     deleteGitSecret: (name: string) => request("DELETE", `/git-secrets/${name}`),
-    hasGitSecret: async (name: string) => {
-        const pageSize = 50;
-        for (let offset = 0; ; offset += pageSize) {
-            const page = await request<{ secrets: { name: string }[]; total: number }>(
-                "GET", `/git-secrets?limit=${pageSize}&offset=${offset}`);
-            if (page.secrets.some((secret) => secret.name === name)) {
-                return true;
-            }
-            if (page.secrets.length < pageSize || offset + pageSize >= page.total) {
-                return false;
-            }
-        }
-    },
     generateToken: (link: AgentManagerLink, expiresIn: string) =>
         request<{ token: string; expires_at: number }>(
             "POST", `/projects/${link.project}/agents/${link.agent}/token?environment=${link.environment}`,
@@ -223,13 +203,13 @@ export const api = {
         }
         return tokenUrl;
     },
-    listAgentConfigs: async (link: AgentManagerLink, kind: AgentConfigKind): Promise<AgentConfig[]> => {
+    listAgentConfigs: async (link: AgentManagerLink, kind: AgentConfigKind) => {
         const base = `/projects/${link.project}/agents/${link.agent}/${kind}-configs`;
         const { configs } = await request<{ configs: { uuid: string }[] }>("GET", `${base}?limit=100`);
         return Promise.all(configs.map(async ({ uuid }) => {
             const config = await request<any>("GET", `${base}/${uuid}`);
             const names = Object.fromEntries((config.environmentVariables ?? []).map((v: { key: string; name: string }) => [v.key, v.name]));
-            return { uuid, name: config.name, handle: config.envMappings?.[link.environment]?.configuration?.providerName, env: { url: names.url, apikey: names.apikey } };
+            return { uuid, handle: config.envMappings?.[link.environment]?.configuration?.providerName, env: { url: names.url, apikey: names.apikey } as EnvNames };
         }));
     },
     createAgentConfig: (link: AgentManagerLink, kind: AgentConfigKind, config: AgentConfigInput) =>
@@ -259,7 +239,6 @@ export const api = {
             steps: details.steps,
             commitId: details.buildParameters?.commitId,
             imageId: details.imageId,
-            startedAt: details.startedAt,
         };
     },
     getAgent: (link: AgentManagerLink) =>
@@ -285,7 +264,7 @@ export const api = {
         return { envKeys: env.map((item) => item.key), fileSaved: files.some((file) => file.mountPath === mountPath) };
     },
     // The PUT replaces whole sets, so everything else goes back as read: secrets by reference, system vars dropped (the server re-adds them).
-    updateConfigurations: async (link: AgentManagerLink, env: EnvironmentVariable[], file?: FileMountInput, autoInstrumentation?: boolean) => {
+    updateConfigurations: async (link: AgentManagerLink, env: EnvironmentVariable[], file?: FileMountInput) => {
         const current = await getConfigItems(link);
         const addedKeys = new Set(env.map((item) => item.key));
         const keptEnv = current.env.filter((item) => !item.isSystem && !addedKeys.has(item.key));
@@ -300,7 +279,7 @@ export const api = {
         }
         await request("PUT", `/projects/${link.project}/agents/${link.agent}/configurations`, {
             environmentName: link.environment,
-            enableAutoInstrumentation: autoInstrumentation ?? current.autoInstrumentation,
+            enableAutoInstrumentation: current.autoInstrumentation,
             env: [...keptEnv.map(roundTrip), ...env],
             ...(file ? { files: [...keptFiles.map((item) => ({ ...roundTrip(item), mountPath: item.mountPath! })), file] } : {}),
         });
@@ -317,7 +296,7 @@ export interface McpProxyDetails {
     vhost?: string;
     endpoints?: {
         capabilities?: { tools?: unknown[] };
-        security?: { enabled?: boolean; apiKey?: { enabled?: boolean }; identity?: { enabled?: boolean } };
+        security?: { enabled?: boolean; identity?: { enabled?: boolean } };
         environments?: { environmentUuid: string; deploymentStatus?: string }[];
     }[];
 }
@@ -392,7 +371,7 @@ export interface EnvNames {
     apikey?: string;
 }
 
-/** Committed with the project, so a clone deploys to the same agent; holds handles and env var names, never the instance URL or keys. */
+// Committed with the project, so it holds handles and env var names, never the instance URL or keys.
 export interface Manifest {
     org?: string;
     project?: string;
@@ -415,7 +394,7 @@ export function updateManifest(projectPath: string, change: (manifest: Manifest)
 
 const agentModes = new Map<string, AgentManagerHostingMode>();
 
-/** Another org, or an agent missing on the signed-in instance, reads as unlinked. */
+// Another org, or an agent missing on the signed-in instance, reads as unlinked.
 export async function readLink(projectPath: string): Promise<AgentManagerLink | undefined> {
     const session = await getSession();
     const { org, project, agent } = readManifest(projectPath);
@@ -424,22 +403,16 @@ export async function readLink(projectPath: string): Promise<AgentManagerLink | 
     }
     const link: AgentManagerLink = { instanceUrl: session.instanceUrl, org, project, agent, environment: DEFAULT_ENVIRONMENT, mode: "internal" };
     const mode = await agentMode(link);
-    if (!mode) {
-        return undefined;
-    }
-    link.mode = mode;
-    link.tokenExpiresAt = mode === "external" ? apiKeyExpiry(projectPath) : undefined;
-    return link;
+    return mode && { ...link, mode, tokenExpiresAt: mode === "external" ? apiKeyExpiry(projectPath) : undefined };
 }
 
 async function agentMode(link: AgentManagerLink): Promise<AgentManagerHostingMode | undefined> {
     const key = `${link.instanceUrl}/${link.org}/${link.project}/${link.agent}`;
     if (!agentModes.has(key)) {
         const agent = await api.getAgent(link).catch((error) => {
-            if (error instanceof AgentManagerApiError && error.status === 404) {
-                return undefined;
+            if (!(error instanceof AgentManagerApiError && error.status === 404)) {
+                throw error;
             }
-            throw error;
         });
         if (!agent) {
             return undefined;
@@ -460,11 +433,11 @@ function apiKeyExpiry(projectPath: string): number | undefined {
 }
 
 export function writeLink(projectPath: string, { org, project, agent }: AgentManagerLink): void {
-    updateManifest(projectPath, ({ llmProviders, mcpServers }) => ({ org, project, agent, llmProviders, mcpServers }));
+    updateManifest(projectPath, (manifest) => ({ ...manifest, org, project, agent }));
 }
 
 export function removeLink(projectPath: string): void {
-    updateManifest(projectPath, ({ llmProviders, mcpServers }) => ({ llmProviders, mcpServers }));
+    updateManifest(projectPath, ({ org, project, agent, ...rest }) => rest);
 }
 
 // A repo can commit symlinks, so a write could land in a tracked file elsewhere; refuse to follow them.

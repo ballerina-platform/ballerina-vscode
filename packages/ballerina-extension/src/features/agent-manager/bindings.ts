@@ -32,7 +32,7 @@ export const AGENT_ID_ENV = {
     scopes: "AMP_AGENTID_SCOPES",
 };
 
-/** Agent Manager's own naming for a handle, e.g. "my-proxy" → "MY_PROXY". */
+// Matches Agent Manager's own env naming for a handle, e.g. "my-proxy" → "MY_PROXY".
 export function envBase(handle: string): string {
     const base = handle.toUpperCase().replace(/[^A-Z0-9_]+/g, "_");
     return /^\d/.test(base) ? `_${base}` : base;
@@ -46,14 +46,14 @@ export function configs(projectPath: string): { modelConfig: AgentConfigInput[];
     };
 }
 
-/** Env vars Agent Manager fills on the deployed agent, so deploy neither asks for nor sends the configurables reading them. */
+// Agent Manager fills these on the deployed agent, so deploy neither asks for nor sends the configurables reading them.
 export function injectedEnvNames(projectPath: string): Set<string> {
     const { modelConfig, mcpConfig } = configs(projectPath);
     const bound = [...modelConfig, ...mcpConfig].flatMap(({ env }) => [env.url, env.apikey]);
     return new Set([...Object.values(AGENT_ID_ENV), ...bound].filter(Boolean));
 }
 
-/** Attaches every bound provider and proxy, and restores env var names renamed in Agent Manager, which the code still reads. */
+// Restores env var names renamed in Agent Manager, since the code still reads the old ones.
 export async function reconcileAgentConfigs(projectPath: string, link: AgentManagerLink): Promise<void> {
     const wanted = configs(projectPath);
     for (const kind of ["model", "mcp"] as AgentConfigKind[]) {
@@ -71,7 +71,6 @@ export async function reconcileAgentConfigs(projectPath: string, link: AgentMana
 
 const sameNames = (a: EnvNames, b: EnvNames) => a.url === b.url && (!b.apikey || a.apikey === b.apikey);
 
-/** Root-module configurable values from Config.toml, by variable name. */
 export async function localConfigValues(projectPath: string): Promise<Record<string, string | undefined>> {
     const pkg = readPackage(projectPath);
     const declared = await new BiDiagramRpcManager().getConfigVariablesV2({ projectPath, includeLibraries: false });
@@ -79,14 +78,13 @@ export async function localConfigValues(projectPath: string): Promise<Record<str
     return Object.fromEntries(variables.map((node) => [node.properties?.variable?.value, literalValue(node.properties?.configValue?.value)]));
 }
 
-/** Declares `configurable string <variable> = os:getEnv("<envVar>");` (or refreshes it) with the local value in Config.toml. */
+// Declares or refreshes `configurable string <variable> = os:getEnv("<envVar>");`, with the local value in Config.toml.
 export async function writeEnvConfigurable(projectPath: string, variable: string, envVar: string, localValue?: string): Promise<void> {
     const pkg = readPackage(projectPath);
     const packageName = `${pkg.org}/${pkg.name}`;
     const rpc = new BiDiagramRpcManager();
     const declared = await rpc.getConfigVariablesV2({ projectPath, includeLibraries: false });
-    const existing = (declared?.configVariables as any)?.[packageName]?.[""]
-        ?.find((node: any) => node.properties?.variable?.value === variable);
+    const existing = (declared?.configVariables as any)?.[packageName]?.[""]?.find((node: any) => node.properties?.variable?.value === variable);
     const flowNode = existing ?? (await rpc.getConfigVariableNodeTemplate({ isNew: true })).flowNode;
     const set = (key: string, value: string) => {
         flowNode.properties[key] = { ...flowNode.properties[key], value, modified: true };
@@ -105,7 +103,6 @@ export async function writeEnvConfigurable(projectPath: string, variable: string
     });
 }
 
-/** Adds the `ballerina/os` import the env-reading configurables need. */
 export async function addMissingImportsTo(projectPath: string): Promise<void> {
     const langClient = StateMachine.langClient();
     await addMissingImports(await checkProjectDiagnostics(langClient, projectPath), langClient);

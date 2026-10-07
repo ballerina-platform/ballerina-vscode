@@ -21,12 +21,10 @@ import styled from "@emotion/styled";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AgentManagerMcpBinding, AgentManagerMcpProxy, FlowNode } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { CardList, Node } from "@wso2/ballerina-side-panel";
+import { Node } from "@wso2/ballerina-side-panel";
 import { Codicon, Icon } from "@wso2/ui-toolkit";
 import { useAgentManagerSession } from "../../hooks/useAgentManagerSession";
-import { RelativeLoader } from "../RelativeLoader";
-import { LoaderContainer } from "../RelativeLoader/styles";
-import { AgentManagerEntryCard, connectionMeta, ConsoleAction, count, Intro, OptionCard, setExpression, useAgentManagerConnect } from ".";
+import { AgentManagerEntryCard, AgentManagerList, camelId, count, OptionCard, setExpression } from ".";
 
 const QUERY_KEY = ["agentManagerMcpProxies"];
 
@@ -42,16 +40,13 @@ function useMcpProxies(enabled = true) {
 
 type Step = "choose" | "servers" | "form";
 
-/** The MCP form starts with a choice between an Agent Manager server, signing in first if needed, and manual setup. */
 export function AgentManagerMcpGate({ onBind, onSetBackOverride, children }: {
     onBind: (binding: AgentManagerMcpBinding, proxyId: string) => void;
     onSetBackOverride?: (handler: (() => void) | null) => void;
     children: ReactNode;
 }) {
     const session = useAgentManagerSession();
-    const signedIn = !!session?.signedIn;
-    const { data } = useMcpProxies(signedIn);
-    const { connecting, connect } = useAgentManagerConnect();
+    const { data } = useMcpProxies(!!session?.signedIn);
     const [step, setStep] = useState<Step>("choose");
     const toChoice = useCallback(() => setStep("choose"), []);
 
@@ -67,16 +62,14 @@ export function AgentManagerMcpGate({ onBind, onSetBackOverride, children }: {
         return <>{children}</>;
     }
     if (step === "servers") {
-        return (
-            <McpProxyPicker onBound={(binding, proxyId) => { onBind(binding, proxyId); setStep("form"); }} />
-        );
+        return <McpProxyPicker onBound={(binding, proxyId) => { onBind(binding, proxyId); setStep("form"); }} />;
     }
     return (
         <Choices>
             <AgentManagerEntryCard
                 description="MCP servers your organization added to Agent Manager, served through its AI Gateway."
-                {...connectionMeta(signedIn, connecting, data && `${session.org} · ${count(data.proxies.length, "MCP server")}`)}
-                onClick={() => !connecting && (signedIn ? setStep("servers") : connect(() => setStep("servers")))}
+                connected={data && `${session.org} · ${count(data.proxies.length, "MCP server")}`}
+                onOpen={() => setStep("servers")}
             />
             <OptionCard
                 icon={<Codicon name="edit" sx={{ fontSize: 20 }} />}
@@ -88,10 +81,9 @@ export function AgentManagerMcpGate({ onBind, onSetBackOverride, children }: {
     );
 }
 
-/** Names the toolkit after the server and points it at the bound URL configurable and, for OAuth servers, the AgentID client credentials. */
 export function applyMcpBinding(flowNode: FlowNode, binding: AgentManagerMcpBinding, proxyId: string) {
     const props: any = flowNode.properties;
-    const variable = `${proxyId.replace(/[^A-Za-z0-9]+(.)?/g, (_, next: string) => next?.toUpperCase() ?? "")}Mcp`;
+    const variable = `${camelId(proxyId)}Mcp`;
     if (props?.variable) {
         props.variable.value = variable;
     }
@@ -105,7 +97,6 @@ export function applyMcpBinding(flowNode: FlowNode, binding: AgentManagerMcpBind
 }
 
 function McpProxyPicker({ onBound }: { onBound: (binding: AgentManagerMcpBinding, proxyId: string) => void }) {
-    const org = useAgentManagerSession()?.org;
     const { rpcClient } = useRpcContext();
     const queryClient = useQueryClient();
     const [binding, setBinding] = useState(false);
@@ -123,9 +114,6 @@ function McpProxyPicker({ onBound }: { onBound: (binding: AgentManagerMcpBinding
         }
     };
 
-    if (isLoading || binding) {
-        return <LoaderContainer><RelativeLoader /></LoaderContainer>;
-    }
     const items = (data?.proxies ?? []).map((proxy): Node => ({
         id: proxy.id,
         label: proxy.name,
@@ -135,17 +123,18 @@ function McpProxyPicker({ onBound }: { onBound: (binding: AgentManagerMcpBinding
         metadata: { proxy },
     }));
     return (
-        <>
-            <Intro>Pick an MCP server your organization added to Agent Manager. Requests go through its AI Gateway, and OAuth servers sign in with an AgentID.</Intro>
-            <CardList
-                categories={[{ title: org ? `MCP Servers in ${org}` : "MCP Servers", description: data?.error ?? "", items }]}
-                onSelect={pick}
-                extraSection={data?.consoleUrl && <ConsoleAction label="Add MCP Server" url={data.consoleUrl} />}
-            />
-        </>
+        <AgentManagerList
+            loading={isLoading || binding}
+            intro="Pick an MCP server your organization added to Agent Manager. Requests go through its AI Gateway, and OAuth servers sign in with an AgentID."
+            title="MCP Servers"
+            description={data?.error}
+            items={items}
+            onSelect={pick}
+            consoleLabel="Add MCP Server"
+            consoleUrl={data?.consoleUrl}
+        />
     );
 }
-
 
 const Choices = styled.div`
     display: flex;

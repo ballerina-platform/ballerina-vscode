@@ -33,8 +33,6 @@ interface OAuthTokens {
     expires_in?: number;
 }
 
-type CredentialScope = "all" | "client" | "tokens" | "verifier" | "discovery";
-
 // Servers the user just added from a button click sign in without a second prompt.
 const interactiveSignIns = new Set<string>();
 // Agent Manager's IdP (SQLite-backed Thunder) fails concurrent authorization requests, so browser sign-ins run one at a time.
@@ -54,7 +52,7 @@ export function takeInteractiveSignIn(url: string): boolean {
     return interactiveSignIns.delete(url);
 }
 
-/** A pre-registered public client with a pinned loopback redirect, as `claude mcp add --client-id --callback-port` uses. */
+// A pre-registered public client with a pinned loopback redirect, so no dynamic client registration.
 export class McpOAuthProvider {
     authorizationUrl?: URL;
     private verifier = "";
@@ -109,13 +107,12 @@ export class McpOAuthProvider {
         return this.verifier;
     }
 
-    async invalidateCredentials(scope: CredentialScope): Promise<void> {
+    async invalidateCredentials(scope: "all" | "client" | "tokens" | "verifier" | "discovery"): Promise<void> {
         if (scope === "all" || scope === "tokens") {
             await extension.context.secrets.delete(this.secretKey);
         }
     }
 
-    /** Opens the pending authorization URL and resolves with the code from the loopback redirect. */
     async signIn(serverName: string): Promise<string> {
         const authUrl = this.authorizationUrl;
         if (!authUrl) {
@@ -130,7 +127,6 @@ export class McpOAuthProvider {
     }
 }
 
-/** Serves the loopback redirect, opens the browser, and resolves with the authorization code. */
 export function waitForAuthCode(port: number, state: string, authUrl: string, cancel: vscode.CancellationToken, service: string): Promise<string> {
     return new Promise((resolve, reject) => {
         const server = http.createServer((req, res) => {

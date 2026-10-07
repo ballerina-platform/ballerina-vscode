@@ -47,7 +47,7 @@ export function ConnectionSelectionList(props: ConnectionSelectionListProps): JS
     const aiModuleOrg = useRef<string>("");
     const searchConfig = useRef<ConnectionSearchConfig>();
     const progressTimeoutRef = useRef<number | null>(null);
-    const agentManager = useAgentManagerModelProviders(connectionKind, connectionCategories, onSelect);
+    const agentManagerSection = useAgentManagerModelProviders(connectionKind, connectionCategories, onSelect);
 
     useEffect(() => {
         initPanel();
@@ -94,9 +94,9 @@ export function ConnectionSelectionList(props: ConnectionSelectionListProps): JS
             )}
             {!loading && connectionCategories.length > 0 && (
                 <CardList
-                    categories={agentManager.categories}
-                    onSelect={agentManager.onSelect}
-                    leadingSection={agentManager.leadingSection}
+                    categories={connectionCategories}
+                    onSelect={onSelect}
+                    leadingSection={agentManagerSection}
                     expandedGroupId={expandedGroupId}
                     onExpandedGroupChange={onExpandedGroupChange}
                     fillContainerHeight={fillContainerHeight}
