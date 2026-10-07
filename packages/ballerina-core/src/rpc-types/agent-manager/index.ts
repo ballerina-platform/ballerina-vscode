@@ -102,7 +102,6 @@ export interface AgentManagerStatus {
     tracked?: boolean;
     newCommit?: string;
     newCommitMessage?: string;
-    pullRequest?: { from: string; url: string };
     crash?: { reason: string; config: boolean; defaultModelProvider: boolean };
     missingConfig?: string[];
     build?: AgentManagerBuild;

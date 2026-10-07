@@ -570,18 +570,10 @@ const otherRepository = (status: AgentManagerStatus) =>
     !!status.repository && status.repository.toLowerCase() !== status.source?.repository?.toLowerCase();
 
 function Freshness({ status }: { status: AgentManagerStatus }) {
-    if (status.pullRequest) {
-        return (
-            <Detail>
-                Your changes are on {status.pullRequest.from}. Open a pull request to {status.repository} · {status.branch} to deploy them.{" "}
-                <VSCodeLink href={status.pullRequest.url}>Open Pull Request</VSCodeLink>
-            </Detail>
-        );
-    }
     if (!status.tracked) {
-        return <Detail>No remote in this clone points to {status.repository ?? "the agent's repository"}.</Detail>;
+        return null;
     }
-    return <Detail>{status.newCommit ? `Newer commit on ${status.branch}: ${status.newCommitMessage}` : "Up to date with GitHub"}</Detail>;
+    return <Detail>{status.newCommit ? `Newer commit on ${status.branch}: ${status.newCommitMessage}` : `Up to date with ${status.branch}`}</Detail>;
 }
 
 interface DeployAction {

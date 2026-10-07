@@ -29,7 +29,7 @@ export const LOCAL_ONLY_FILES = ["Config.toml", "trace_enabled.bal"];
 
 export type SourceStepId =
     | "gitMissing" | "prepare" | "publishRepo" | "nonGitHub" | "detached"
-    | "commitFirst" | "publishBranch" | "commit" | "push" | "pull" | "moved" | "syncGitHub" | "refreshSpec";
+    | "commitFirst" | "publishBranch" | "commit" | "push" | "syncGitHub" | "refreshSpec";
 
 export interface SourceFacts {
     root?: string;
@@ -57,7 +57,6 @@ export interface Preparation {
 }
 
 interface RepoInfo {
-    fullName?: string;
     isPrivate?: boolean;
     fetchedAt: number;
 }
@@ -139,7 +138,7 @@ async function repoInfo(repository: string): Promise<RepoInfo> {
         const response = await fetch(`https://api.github.com/repos/${repository}`, { headers: { Accept: "application/vnd.github+json" } });
         if (response.ok) {
             const body = (await response.json()) as { full_name: string; private: boolean };
-            info = { fullName: body.full_name, isPrivate: body.private, fetchedAt: Date.now() };
+            info = { isPrivate: body.private, fetchedAt: Date.now() };
         }
     } catch {
         info = { fetchedAt: Date.now() };
@@ -189,7 +188,9 @@ function gitHubStep(projectPath: string, facts: SourceFacts, prep: Preparation):
 
 type StepRule = [boolean, AgentManagerSourceStep];
 
-function sourceSteps(projectPath: string, facts: SourceFacts, prep: Preparation, renamedTo?: string): StepRule[] {
+const NOT_ON_GITHUB = "The latest changes aren't on GitHub yet, so they won't be deployed.";
+
+function sourceSteps(projectPath: string, facts: SourceFacts, prep: Preparation): StepRule[] {
     const onGitHub = !!facts.upstreamBranch;
     return [
         [facts.gitMissing, { id: "gitMissing", message: "Git isn't installed. It's needed to put this code on GitHub.", actionLabel: "Download Git", blocking: true }],
@@ -200,19 +201,16 @@ function sourceSteps(projectPath: string, facts: SourceFacts, prep: Preparation,
         [!onGitHub && facts.dirty > 0, { id: "commitFirst", message: `${plural(facts.dirty, "change")} to commit before publishing.`, actionLabel: "Review and Commit", blocking: true }],
         [!onGitHub, { id: "publishBranch", message: `${facts.branch} isn't on GitHub yet.`, actionLabel: "Publish Branch", blocking: true }],
         [true, gitHubStep(projectPath, facts, prep)!],
-        [!!renamedTo, { id: "moved", message: `This repository moved to ${renamedTo}.`, actionLabel: "Update Remote", blocking: false }],
         [prep.staleSpec, { id: "refreshSpec", message: "openapi.yaml no longer matches the service.", actionLabel: "Update API Spec", blocking: false }],
-        [facts.dirty > 0, { id: "commit", message: `${plural(facts.dirty, "uncommitted change")} won't be deployed.`, actionLabel: "Review", blocking: false }],
-        [facts.ahead > 0, { id: "push", message: `${plural(facts.ahead, "commit")} not pushed.`, actionLabel: "Push", blocking: false }],
-        [facts.behind > 0, { id: "pull", message: `GitHub has ${plural(facts.behind, "newer commit")}.`, actionLabel: "Pull", blocking: false }],
+        [facts.dirty > 0, { id: "commit", message: NOT_ON_GITHUB, actionLabel: "Review and Commit", blocking: false }],
+        [facts.ahead > 0, { id: "push", message: NOT_ON_GITHUB, actionLabel: "Push", blocking: false }],
     ];
 }
 
 export async function inspectSource(projectPath: string, prep: Preparation): Promise<AgentManagerSource & { facts: SourceFacts }> {
     const facts = readFacts(projectPath);
     const info = facts.repository ? await repoInfo(facts.repository) : undefined;
-    const renamedTo = info?.fullName && info.fullName.toLowerCase() !== facts.repository!.toLowerCase() ? info.fullName : undefined;
-    const step = sourceSteps(projectPath, facts, prep, renamedTo).find(([applies, candidate]) => applies && candidate)?.[1];
+    const step = sourceSteps(projectPath, facts, prep).find(([applies, candidate]) => applies && candidate)?.[1];
     return {
         facts,
         repository: facts.repository,
@@ -223,11 +221,6 @@ export async function inspectSource(projectPath: string, prep: Preparation): Pro
     };
 }
 
-export async function renameRemote(projectPath: string, facts: SourceFacts): Promise<void> {
-    const info = await repoInfo(facts.repository!);
-    git(projectPath, ["remote", "set-url", facts.remoteName!, `https://github.com/${info.fullName}.git`]);
-    repoInfoCache.delete(facts.repository!);
-}
 
 export function ensureGitIgnored(projectPath: string, file: string): boolean {
     if (git(projectPath, ["check-ignore", "-q", "--no-index", file]).status !== 1) {
@@ -357,7 +350,6 @@ export interface BuildBranch {
     repository: string;
     tip?: string;
     message?: string;
-    pullRequest?: { from: string; url: string };
 }
 
 const BRANCH_FETCH_TTL_MS = 60 * 1000;
@@ -379,19 +371,5 @@ export async function buildBranch(projectPath: string, repoUrl: string | undefin
     if (!tip) {
         return { repository };
     }
-    return { repository, tip, message: out(projectPath, ["log", "-1", "--format=%s", tip]), pullRequest: pullRequest(projectPath, repository, branch, tip) };
-}
-
-// Pushed commits missing from the agent's branch reach it through a pull request; a rebuild would not include them.
-function pullRequest(projectPath: string, repository: string, branch: string, tip: string): BuildBranch["pullRequest"] {
-    const facts = readFacts(projectPath);
-    const head = out(projectPath, ["rev-parse", "HEAD"]);
-    const sameRepository = facts.repository?.toLowerCase() === repository.toLowerCase();
-    if (!head || head !== facts.remoteCommit || (sameRepository && facts.upstreamBranch === branch)
-        || git(projectPath, ["merge-base", "--is-ancestor", head, tip]).status === 0) {
-        return undefined;
-    }
-    const [owner, name] = facts.repository!.split("/");
-    const source = sameRepository ? facts.upstreamBranch : `${owner}:${name}:${facts.upstreamBranch}`;
-    return { from: `${facts.repository} · ${facts.upstreamBranch}`, url: `https://github.com/${repository}/compare/${branch}...${source}` };
+    return { repository, tip, message: out(projectPath, ["log", "-1", "--format=%s", tip]) };
 }

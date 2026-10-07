@@ -41,7 +41,7 @@ import { offerCopilotMcp } from "./copilot";
 import { buildConfigFields, CONFIG_FILE, readPackage, splitConfig, SplitConfig } from "./configurables";
 import { injectedEnvNames, reconcileAgentConfigs } from "./bindings";
 import {
-    buildBranch, ensureGitIgnored, inspectSource, isExposed, isIgnored, linkCandidates, LOCAL_ONLY_FILES, openCommitView, Preparation, readFacts, renameRemote,
+    buildBranch, ensureGitIgnored, inspectSource, isExposed, isIgnored, linkCandidates, LOCAL_ONLY_FILES, openCommitView, Preparation, readFacts,
     SourceStepId, suggestCommitMessage, untrack,
 } from "./github";
 import {
@@ -152,7 +152,6 @@ async function platformStatus(projectPath: string, link: AgentManagerLink): Prom
         source,
         newCommit,
         newCommitMessage: newCommit && target?.message,
-        pullRequest: target?.pullRequest,
         crash: looksCrashed(deployment) ? await crashReason(link, usesDefaultModelProvider(projectPath)) : undefined,
         missingConfig,
         build,
@@ -576,15 +575,10 @@ const SOURCE_FIXES: Record<SourceStepId, (projectPath: string, autoInstrumentati
     publishBranch: runCommand("git.publish"),
     commit: reviewAndCommit,
     push: runCommand("git.push"),
-    pull: runCommand("git.pull"),
     syncGitHub: (projectPath) => (readFacts(projectPath).dirty > 0 ? reviewAndCommit(projectPath) : runCommand("git.push")()),
     refreshSpec: async (projectPath) => {
         writeOpenApiSpec(projectPath, (await detectInterface(projectPath)).spec);
         return "Updated openapi.yaml. Commit and push it so Try It shows the current API.";
-    },
-    moved: async (projectPath) => {
-        await renameRemote(projectPath, readFacts(projectPath));
-        return "Updated the remote to the repository's new name.";
     },
 };
 
