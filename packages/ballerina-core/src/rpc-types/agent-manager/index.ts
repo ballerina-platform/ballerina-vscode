@@ -21,7 +21,6 @@ export type AgentManagerHostingMode = "internal" | "external";
 export type AgentManagerAction =
     | "signIn"
     | "signOut"
-    | "enableAmpTracing"
     | "setupExternal"
     | "fixSource"
     | "pushAndRebuild"
@@ -29,7 +28,6 @@ export type AgentManagerAction =
     | "regenerateToken"
     | "openInConsole"
     | "openTryIt"
-    | "openTraces"
     | "openDeploymentSettings"
     | "saveConfig"
     | "openBuildLogs"
@@ -76,6 +74,7 @@ export interface AgentManagerSourceStep {
     message: string;
     actionLabel?: string;
     blocking: boolean;
+    offerAutoInstrumentation?: boolean;
 }
 
 export interface AgentManagerSource {
@@ -93,12 +92,17 @@ export interface AgentManagerStatus {
     /** Agents in the org that build one of this clone's remotes, offered before creating a new one. */
     candidates?: AgentManagerLinkCandidate[];
     canCreate?: boolean;
-    ampTracing?: boolean;
     link?: AgentManagerLink;
     source?: AgentManagerSource;
     displayName?: string;
+    /** The repository and branch the agent builds, which may differ from the one this clone pushes to. */
+    repository?: string;
     branch?: string;
+    /** Whether a remote in this clone points at the agent's repository, so its branch tip is known. */
+    tracked?: boolean;
     newCommit?: string;
+    newCommitMessage?: string;
+    pullRequest?: { from: string; url: string };
     crash?: { reason: string; config: boolean; defaultModelProvider: boolean };
     missingConfig?: string[];
     build?: AgentManagerBuild;
@@ -139,6 +143,7 @@ export interface AgentManagerActionRequest {
     projectPath: string;
     action: AgentManagerAction;
     config?: AgentManagerConfigInput;
+    autoInstrumentation?: boolean;
 }
 
 export interface AgentManagerActionResponse {
@@ -267,6 +272,7 @@ export interface AgentManagerRepoDetails {
     branches: string[];
     defaultBranch?: string;
     isPrivate?: boolean;
+    secretName?: string;
     error?: string;
 }
 

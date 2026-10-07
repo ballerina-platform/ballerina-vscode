@@ -586,7 +586,6 @@ export function AgentBuilderOverview({ projectPath, agentFocus, isInDevant, isIC
                                 hasWorkflows={hasWorkflows}
                                 hasAgents={hasAgents}
                                 hasDeployableIntegration={hasDeployable}
-                                devTracing={{ enabled: isTracingEnabled, toggle: toggleTracing }}
                                 {...deploymentControl}
                             />
                         </SidePanel>

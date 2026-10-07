@@ -26,7 +26,6 @@ import {
 } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Button, Codicon, Dropdown, ProgressRing, TextField } from "@wso2/ui-toolkit";
-import { VSCodeLink } from "@vscode/webview-ui-toolkit/react";
 import { PopupContent, PopupFooter } from "../../views/BI/Connection/styles";
 import {
     ConfigFieldInput, ErrorText, Group, GroupTitle, groupFields, Label, Loading, Muted, Pill, Section, Summary, Value,
@@ -70,10 +69,7 @@ function needsInput(field: AgentManagerConfigField): boolean {
     return field.required && !field.saved && !field.localValue && !field.unsupported;
 }
 
-function tokenOptions(repo: AgentManagerRepoDetails | undefined, secrets: string[]) {
-    if (repo?.isPrivate === false) {
-        return [{ value: "", content: "Not Required (Public Repository)" }];
-    }
+function tokenOptions(secrets: string[]) {
     return [...secrets.map((name) => ({ value: name, content: name })), { value: NEW_TOKEN, content: "Add Personal Token…" }];
 }
 
@@ -95,13 +91,6 @@ export function AgentManagerCreateForm({ projectPath, onDone, onCancel }: AgentM
     const [secrets, setSecrets] = useState<Record<string, boolean>>({});
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | undefined>();
-    const [recheck, setRecheck] = useState(0);
-
-    const enableTracing = async () => {
-        await rpc.runAgentManagerAction({ projectPath, action: "enableAmpTracing" });
-        setForm((current) => current && { ...current, tracing: true });
-        setRecheck((count) => count + 1);
-    };
 
     useEffect(() => {
         rpc.getAgentManagerCreateForm({ projectPath }).then((loaded) => {
@@ -124,8 +113,7 @@ export function AgentManagerCreateForm({ projectPath, onDone, onCancel }: AgentM
         rpc.getAgentManagerRepoDetails({ projectPath, remote }).then((details) => {
             setRepo(details);
             setBranch(details.defaultBranch ?? details.branches[0] ?? "");
-            const repository = form.remotes.find((candidate) => candidate.name === remote)?.repository ?? "";
-            const matching = form.gitSecrets.find((name) => name === `${repository.replace("/", "-")}-git`.toLowerCase());
+            const matching = form.gitSecrets.find((name) => name === details.secretName);
             setGitSecret(details.isPrivate === false ? "" : matching ?? form.gitSecrets[0] ?? NEW_TOKEN);
         });
     }, [remote, form]);
@@ -137,7 +125,7 @@ export function AgentManagerCreateForm({ projectPath, onDone, onCancel }: AgentM
         }
         const timer = setTimeout(() => rpc.checkAgentManagerSource({ projectPath, remote, branch, appPath }).then(setCheck), 400);
         return () => clearTimeout(timer);
-    }, [remote, branch, appPath, recheck]);
+    }, [remote, branch, appPath]);
 
     const submit = async () => {
         setSubmitting(true);
@@ -161,7 +149,8 @@ export function AgentManagerCreateForm({ projectPath, onDone, onCancel }: AgentM
     if (!form) {
         return <PopupContent><Loading><ProgressRing /></Loading></PopupContent>;
     }
-    const needsToken = gitSecret === NEW_TOKEN && repo?.isPrivate !== false;
+    const needsAccess = !!repo && repo.isPrivate !== false;
+    const needsToken = needsAccess && gitSecret === NEW_TOKEN;
     const ready = !!check?.ok && !!agentName.trim() && (project !== NEW_PROJECT || !!newProject.trim()) && (!needsToken || !!newToken.trim());
 
     return (
@@ -194,9 +183,9 @@ export function AgentManagerCreateForm({ projectPath, onDone, onCancel }: AgentM
                         label="Branch"
                         containerSx={{ width: "100%" }}
                         value={branch}
-                        isLoading={!repo}
+                        disabled={!repo}
                         onValueChange={setBranch}
-                        items={(repo?.branches ?? []).map((name) => ({ value: name, content: name }))}
+                        items={repo ? repo.branches.map((name) => ({ value: name, content: name })) : [{ value: "", content: "Loading…" }]}
                     />
                     <TextField id="am-app-path" label="Directory" value={appPath} onTextChange={setAppPath} />
                 </Row>
@@ -207,15 +196,16 @@ export function AgentManagerCreateForm({ projectPath, onDone, onCancel }: AgentM
                         <span>{check.message}</span>
                     </Check>
                 )}
-                <Dropdown
-                    id="am-git-secret"
-                    label="Repository Access"
-                    containerSx={{ width: "100%" }}
-                    value={gitSecret}
-                    onValueChange={setGitSecret}
-                    disabled={repo?.isPrivate === false}
-                    items={tokenOptions(repo, form.gitSecrets)}
-                />
+                {needsAccess && (
+                    <Dropdown
+                        id="am-git-secret"
+                        label="Repository Access"
+                        containerSx={{ width: "100%" }}
+                        value={gitSecret}
+                        onValueChange={setGitSecret}
+                        items={tokenOptions(form.gitSecrets)}
+                    />
+                )}
                 {needsToken && (
                     <TextField
                         id="am-new-token"
@@ -228,7 +218,7 @@ export function AgentManagerCreateForm({ projectPath, onDone, onCancel }: AgentM
                         required
                     />
                 )}
-                <IncludedSection form={form} onEnableTracing={enableTracing} />
+                <IncludedSection form={form} />
                 <ConfigurablesSection
                     fields={form.fields}
                     values={values}
@@ -246,13 +236,13 @@ export function AgentManagerCreateForm({ projectPath, onDone, onCancel }: AgentM
     );
 }
 
-function IncludedSection({ form, onEnableTracing }: { form: CreateFormData; onEnableTracing: () => void }) {
+function IncludedSection({ form }: { form: CreateFormData }) {
     return (
         <Section>
             <GroupTitle>Included Automatically</GroupTitle>
             <Summary>
                 <Label>Auto-Instrumentation</Label>
-                <Value>{form.tracing ? "On" : <>Off · <VSCodeLink onClick={onEnableTracing}>Enable</VSCodeLink></>}</Value>
+                <Value>{form.tracing ? "On" : "Off"}</Value>
                 {form.llmProviders.length > 0 && <>
                     <Label>LLM Service Providers</Label>
                     <Value>{form.llmProviders.map((name) => <Pill key={name}>{name}</Pill>)}</Value>

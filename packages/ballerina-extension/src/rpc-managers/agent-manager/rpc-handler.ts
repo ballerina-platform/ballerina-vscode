@@ -53,7 +53,7 @@ import { checkSource, createAgent, getCreateForm, getRepoDetails, linkAgent } fr
 
 export function registerAgentManagerRpcHandlers(messenger: Messenger) {
     messenger.onRequest(getAgentManagerStatus, (args: AgentManagerStatusRequest) => getStatus(args.projectPath));
-    messenger.onRequest(runAgentManagerAction, (args: AgentManagerActionRequest) => runAction(args.projectPath, args.action, args.config));
+    messenger.onRequest(runAgentManagerAction, (args: AgentManagerActionRequest) => runAction(args.projectPath, args.action, args.config, args.autoInstrumentation));
     messenger.onRequest(getAgentManagerConfigForm, (args: AgentManagerStatusRequest) => getConfigForm(args.projectPath));
     messenger.onRequest(getAgentManagerMcpOffer, () => getMcpOffer());
     messenger.onRequest(addAgentManagerMcpServers, (args: AddAgentManagerMcpServersRequest) => addMcpServers(args.ids));

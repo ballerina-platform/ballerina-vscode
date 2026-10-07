@@ -41,7 +41,7 @@ import { offerCopilotMcp } from "./copilot";
 import { buildConfigFields, CONFIG_FILE, readPackage, splitConfig, SplitConfig } from "./configurables";
 import { injectedEnvNames, reconcileAgentConfigs } from "./bindings";
 import {
-    ensureGitIgnored, inspectSource, isExposed, isIgnored, linkCandidates, LOCAL_ONLY_FILES, openCommitView, Preparation, readFacts, renameRemote,
+    buildBranch, ensureGitIgnored, inspectSource, isExposed, isIgnored, linkCandidates, LOCAL_ONLY_FILES, openCommitView, Preparation, readFacts, renameRemote,
     SourceStepId, suggestCommitMessage, untrack,
 } from "./github";
 import {
@@ -51,7 +51,9 @@ import {
     DEFAULT_ENVIRONMENT,
     getRuntimeLogs,
     readLink,
+    readManifest,
     removeLink,
+    updateManifest,
     writeLink,
     writeProjectFile,
 } from "./client";
@@ -138,14 +140,19 @@ async function platformStatus(projectPath: string, link: AgentManagerLink): Prom
         api.getAgent(link), api.getLatestBuild(link), api.getDeployment(link), sourceStatus(projectPath),
         missingConfigLabels(projectPath, link).catch((): string[] => []),
     ]);
+    const repo = agent.provisioning?.repository;
+    const target = await buildBranch(projectPath, repo?.url, repo?.branch);
     const deployed = deployedCommit(deployment?.imageId) ?? build?.commitId;
-    const newCommit = source.remoteCommit && !(deployed && source.remoteCommit.startsWith(deployed)) ? source.remoteCommit : undefined;
+    const newCommit = target?.tip && !(deployed && target.tip.startsWith(deployed)) ? target.tip : undefined;
     return {
         displayName: agent.displayName,
-        ampTracing: hasAmpImport(projectPath),
-        branch: agent.provisioning?.repository?.branch,
+        repository: target?.repository,
+        branch: repo?.branch,
+        tracked: !!target?.tip,
         source,
         newCommit,
+        newCommitMessage: newCommit && target?.message,
+        pullRequest: target?.pullRequest,
         crash: looksCrashed(deployment) ? await crashReason(link, usesDefaultModelProvider(projectPath)) : undefined,
         missingConfig,
         build,
@@ -185,14 +192,13 @@ function deployedCommit(imageId?: string): string | undefined {
     return imageId?.match(/:v\d+-([0-9a-f]{7,40})$/)?.[1];
 }
 
-const ACTIONS: Record<AgentManagerAction, (projectPath: string, config?: AgentManagerConfigInput) => Promise<string | void>> = {
+const ACTIONS: Record<AgentManagerAction, (projectPath: string, config?: AgentManagerConfigInput, autoInstrumentation?: boolean) => Promise<string | void>> = {
     signIn: async () => {
         const session = required(await signIn());
         void offerCopilotMcp();
         return `Signed in to Agent Manager (${session.org}).`;
     },
     signOut: async () => signOut(),
-    enableAmpTracing,
     fixSource,
     setupExternal,
     pushAndRebuild,
@@ -204,10 +210,6 @@ const ACTIONS: Record<AgentManagerAction, (projectPath: string, config?: AgentMa
     openTryIt: async (projectPath) => {
         const link = await requireLink(projectPath);
         await vscode.env.openExternal(vscode.Uri.parse(`${consoleUrl(link)}/environment/${link.environment}/tryOut`));
-    },
-    openTraces: async (projectPath) => {
-        const link = await requireLink(projectPath);
-        await vscode.env.openExternal(vscode.Uri.parse(`${consoleUrl(link)}/environment/${link.environment}/observability/traces`));
     },
     openDeploymentSettings: async (projectPath) => {
         const link = await requireLink(projectPath);
@@ -221,8 +223,8 @@ const ACTIONS: Record<AgentManagerAction, (projectPath: string, config?: AgentMa
     unlink: async (projectPath) => removeLink(projectPath),
 };
 
-export function runAction(projectPath: string, action: AgentManagerAction, config?: AgentManagerConfigInput): Promise<AgentManagerActionResponse> {
-    return respond(() => ACTIONS[action](projectPath, config));
+export function runAction(projectPath: string, action: AgentManagerAction, config?: AgentManagerConfigInput, autoInstrumentation?: boolean): Promise<AgentManagerActionResponse> {
+    return respond(() => ACTIONS[action](projectPath, config, autoInstrumentation));
 }
 
 /** Runs a user-facing step: shows its message or error, and treats a dismissed prompt as a quiet cancel. */
@@ -376,28 +378,13 @@ export async function ensureDevTracingOff(projectPath: string): Promise<void> {
 
 async function pushAndRebuild(projectPath: string): Promise<string> {
     const link = await requireLink(projectPath);
-    const git = await requireGitHubSource(projectPath);
+    await requireGitHubSource(projectPath);
     await ensureDevTracingOff(projectPath);
     await warnIfDefaultModelProvider(projectPath);
-    await switchBranchIfNeeded(link, git.branch);
     await reconcileAgentConfigs(projectPath, link);
     await api.triggerBuild(link);
-    return `Build started from the latest commit on ${git.branch}.`;
-}
-
-async function switchBranchIfNeeded(link: AgentManagerLink, branch: string): Promise<void> {
-    const agent = await api.getAgent(link);
-    const agentBranch = agent.provisioning?.repository?.branch;
-    if (!agentBranch || agentBranch === branch) {
-        return;
-    }
-    const switchAction = `Build from ${branch}`;
-    required(await vscode.window.showWarningMessage(
-        `Build from '${branch}' instead of '${agentBranch}'?`,
-        { modal: true, detail: `'${link.agent}' builds from '${agentBranch}'. Switching makes future builds use '${branch}'.` },
-        switchAction
-    ));
-    await api.updateRepository(link, agent, { branch });
+    const repo = (await api.getAgent(link)).provisioning?.repository;
+    return `Build started from the latest commit on ${repo?.branch ?? "the agent's branch"}.`;
 }
 
 export async function getConfigForm(projectPath: string): Promise<AgentManagerConfigForm> {
@@ -535,6 +522,7 @@ export async function readPreparation(projectPath: string): Promise<Preparation>
     const inRepo = !!readFacts(projectPath).root;
     return {
         openApiSpec: !fs.existsSync(path.join(projectPath, OPENAPI_FILE)),
+        ampImport: !hasAmpImport(projectPath) && readManifest(projectPath).autoInstrumentation !== false,
         exposedFiles: LOCAL_ONLY_FILES.filter((file) => isExposed(projectPath, file, inRepo)),
         gitignore: LOCAL_ONLY_FILES.some((file) => !isIgnored(projectPath, file, inRepo)),
         buildFiles: [AMP_IMPORT_FILE, OPENAPI_FILE].filter((file) => fs.existsSync(path.join(projectPath, file))),
@@ -576,7 +564,7 @@ const runCommand = (command: string) => async () => {
     await vscode.commands.executeCommand(command);
 };
 
-const SOURCE_FIXES: Record<SourceStepId, (projectPath: string) => Promise<string | void>> = {
+const SOURCE_FIXES: Record<SourceStepId, (projectPath: string, autoInstrumentation?: boolean) => Promise<string | void>> = {
     gitMissing: async () => {
         await vscode.env.openExternal(vscode.Uri.parse("https://git-scm.com/downloads"));
     },
@@ -600,28 +588,24 @@ const SOURCE_FIXES: Record<SourceStepId, (projectPath: string) => Promise<string
     },
 };
 
-async function fixSource(projectPath: string): Promise<string | void> {
+async function fixSource(projectPath: string, _config?: AgentManagerConfigInput, autoInstrumentation?: boolean): Promise<string | void> {
     const { step } = await inspectSource(projectPath, await readPreparation(projectPath));
-    return step && SOURCE_FIXES[step.id as SourceStepId](projectPath);
-}
-
-async function enableAmpTracing(projectPath: string): Promise<string | void> {
-    const added = ensureAmpInstrumentation(projectPath);
-    const link = await readLink(projectPath);
-    if (link?.mode === "internal" && !(await api.getAutoInstrumentation(link))) {
-        await api.updateConfigurations(link, [], undefined, true);
-    }
-    return added ? "Auto-instrumentation is on. Commit and push the change, then rebuild to collect traces." : undefined;
+    return step && SOURCE_FIXES[step.id as SourceStepId](projectPath, autoInstrumentation);
 }
 
 const STANDARD_GITIGNORE = ["target/", "generated/", ...LOCAL_ONLY_FILES];
 
-async function prepareProject(projectPath: string): Promise<string> {
+async function prepareProject(projectPath: string, autoInstrumentation = true): Promise<string | void> {
     const prep = await readPreparation(projectPath);
     const added: string[] = [];
     if (prep.openApiSpec) {
         writeOpenApiSpec(projectPath, (await detectInterface(projectPath)).spec);
         added.push(OPENAPI_FILE);
+    }
+    if (prep.ampImport && !autoInstrumentation) {
+        updateManifest(projectPath, (manifest) => ({ ...manifest, autoInstrumentation: false }));
+    } else if (prep.ampImport && ensureAmpInstrumentation(projectPath)) {
+        added.push(AMP_IMPORT_FILE);
     }
     const inRepo = !!readFacts(projectPath).root;
     const wanted = STANDARD_GITIGNORE.filter((entry) => !isIgnored(projectPath, entry, inRepo));
@@ -632,7 +616,7 @@ async function prepareProject(projectPath: string): Promise<string> {
         added.push(".gitignore");
     }
     LOCAL_ONLY_FILES.forEach((file) => untrack(projectPath, file));
-    return `Added ${added.join(", ")} for Agent Manager. Commit them with the rest of your code.`;
+    return added.length > 0 ? `Added ${added.join(", ")} for Agent Manager. Commit them with the rest of your code.` : undefined;
 }
 
 async function setRepoAccess(projectPath: string): Promise<string> {

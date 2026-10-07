@@ -280,7 +280,6 @@ export const api = {
             "GET", `/projects/${link.project}/agents/${link.agent}/deployments`);
         return deployments[link.environment];
     },
-    getAutoInstrumentation: async (link: AgentManagerLink) => (await getConfigItems(link)).autoInstrumentation === true,
     getConfigState: async (link: AgentManagerLink, mountPath: string) => {
         const { env, files } = await getConfigItems(link);
         return { envKeys: env.map((item) => item.key), fileSaved: files.some((file) => file.mountPath === mountPath) };
@@ -400,6 +399,7 @@ export interface Manifest {
     agent?: string;
     llmProviders?: { provider: string; env: EnvNames }[];
     mcpServers?: { proxy: string; env: EnvNames }[];
+    autoInstrumentation?: boolean;
 }
 
 export function readManifest(projectPath: string): Manifest {

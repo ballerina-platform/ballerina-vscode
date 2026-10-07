@@ -31,7 +31,7 @@ import { configs } from "./bindings";
 import { api, DEFAULT_ENVIRONMENT, readManifest, writeLink } from "./client";
 import { CONFIG_FILE } from "./configurables";
 import {
-    chooseGitSecret, ensureDevTracingOff, saveRepoToken, hasAmpImport, loadConfigFields, prepareHttpInterface, readPackageTitle, readPreparation,
+    chooseGitSecret, ensureDevTracingOff, repoSecretName, saveRepoToken, hasAmpImport, loadConfigFields, prepareHttpInterface, readPackageTitle, readPreparation,
     resolveConfig, respond, toResourceName, warnIfDefaultModelProvider,
 } from "./flows";
 import { checkPushed, defaultRemote, githubRemotes, readFacts, repoDetails } from "./github";
@@ -78,8 +78,9 @@ export async function getCreateForm(projectPath: string): Promise<AgentManagerCr
     }
 }
 
-export function getRepoDetails({ projectPath, remote }: AgentManagerRepoRequest): Promise<AgentManagerRepoDetails> {
-    return repoDetails(projectPath, remote);
+export async function getRepoDetails({ projectPath, remote }: AgentManagerRepoRequest): Promise<AgentManagerRepoDetails> {
+    const repository = githubRemotes(projectPath).find((candidate) => candidate.name === remote)?.repository;
+    return { ...await repoDetails(projectPath, remote), secretName: repository && repoSecretName(repository) };
 }
 
 export async function checkSource({ projectPath, remote, branch, appPath }: AgentManagerSourceCheckRequest): Promise<AgentManagerSourceCheck> {

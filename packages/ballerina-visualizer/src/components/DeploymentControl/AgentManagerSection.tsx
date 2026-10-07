@@ -121,7 +121,7 @@ const ErrorText = styled.span`
     word-break: break-word;
 `;
 
-type Run = (action: AgentManagerAction) => Promise<void>;
+type Run = (action: AgentManagerAction, autoInstrumentation?: boolean) => Promise<void>;
 type Pending = AgentManagerAction | "link";
 
 interface AgentManagerSectionProps {
@@ -157,14 +157,14 @@ export function AgentManagerSection({ projectPath, part, ampTracingEnabled, hand
     const { data: status, isLoading, isFetching, refetch } = useAgentManagerStatus(projectPath);
     const [formAction, setFormAction] = useState<"create" | "saveConfig" | undefined>();
 
-    const run: Run = async (action) => {
+    const run: Run = async (action, autoInstrumentation) => {
         if (action === "saveConfig") {
             setFormAction(action);
             return;
         }
         setPending(action);
         try {
-            await rpcClient.getAgentManagerRpcClient().runAgentManagerAction({ projectPath, action });
+            await rpcClient.getAgentManagerRpcClient().runAgentManagerAction({ projectPath, action, autoInstrumentation });
         } finally {
             setPending(undefined);
             refetch();
@@ -221,28 +221,12 @@ export function AgentManagerSection({ projectPath, part, ampTracingEnabled, hand
         if (status?.link?.mode === "external") {
             return linked;
         }
-        if (status?.link?.mode === "internal" && status.ampTracing) {
-            return (
-                <p style={{ margin: 0 }}>
-                    Agent Manager auto-instruments this agent, so its traces appear under Observability.{" "}
-                    <VSCodeLink onClick={() => run("openTraces")}>View Traces</VSCodeLink>
-                </p>
-            );
-        }
-        if (status?.link?.mode === "internal") {
-            return (
-                <Stack>
-                    <p style={{ margin: 0 }}>Auto-instrumentation is off for this agent. Enable it to see the agent's traces under Observability.</p>
-                    <Actions><Button appearance="secondary" disabled={!!pending} onClick={() => run("enableAmpTracing")}>Enable Auto Instrumentation</Button></Actions>
-                </Stack>
-            );
-        }
         return (
             <Stack>
-                <p style={{ margin: 0 }}>Send traces to Agent Manager from deployments you host yourself, such as Docker or a virtual machine.</p>
+                <p style={{ margin: 0 }}>Register this agent in Agent Manager as an externally-hosted agent. Its traces then appear in Agent Manager when you run it on your own infrastructure, such as Docker or a virtual machine.</p>
                 <Actions>
                     {status?.signedIn
-                        ? <Button appearance="secondary" disabled={!!pending} onClick={() => run("setupExternal")}>Send Traces</Button>
+                        ? <Button appearance="secondary" disabled={!!pending} onClick={() => run("setupExternal")}>Register Agent</Button>
                         : <Button appearance="secondary" disabled={!!pending} onClick={() => run("signIn")}>Connect to Agent Manager</Button>}
                 </Actions>
                 {!status?.signedIn && (
@@ -386,15 +370,19 @@ function SourceHint({ source, pending, run }: { source?: AgentManagerSource; pen
 
 function BlockingStep({ source, pending, run }: { source?: AgentManagerSource; pending?: Pending; run: Run }) {
     const step = source?.step!;
+    const [autoInstrumentation, setAutoInstrumentation] = useState(true);
     return (
         <>
             <Section>
                 <SourceLine source={source} />
                 <Detail>{step.message}</Detail>
+                {step.offerAutoInstrumentation && (
+                    <CheckBox checked={autoInstrumentation} onChange={setAutoInstrumentation} label="Enable Auto-Instrumentation" />
+                )}
             </Section>
             {step.actionLabel && (
                 <Actions>
-                    <Button appearance="primary" disabled={!!pending} onClick={() => run("fixSource")}>{step.actionLabel}</Button>
+                    <Button appearance="primary" disabled={!!pending} onClick={() => run("fixSource", autoInstrumentation)}>{step.actionLabel}</Button>
                 </Actions>
             )}
         </>
@@ -453,7 +441,7 @@ function LinkedAgent({ status, pending, run, ampTracingEnabled, handleAmpTracing
                     </Row>
                 </Header>
                 {internal && status.branch && (
-                    <Row><Codicon name="git-branch" sx={{ fontSize: 12 }} /><Detail>{status.branch}{commit && ` · ${commit}`}</Detail></Row>
+                    <Row><Codicon name="git-branch" sx={{ fontSize: 12 }} /><Detail>{otherRepository(status) && `${status.repository} · `}{status.branch}{commit && ` · ${commit}`}</Detail></Row>
                 )}
             </Section>
             {!status.unavailable && (internal ? (
@@ -572,10 +560,28 @@ function phaseStatus(phase: Phase, status: AgentManagerStatus, slowStart: boolea
                         <span>Deployed</span>
                         {status.deployment?.lastDeployed && <Detail style={{ marginLeft: "auto" }}>{timeAgo(status.deployment.lastDeployed)}</Detail>}
                     </Row>
-                    {!status.source?.step && <Detail>{status.newCommit ? "A newer commit is on GitHub" : "Up to date with GitHub"}</Detail>}
+                    {!status.source?.step && <Freshness status={status} />}
                 </>
             );
     }
+}
+
+const otherRepository = (status: AgentManagerStatus) =>
+    !!status.repository && status.repository.toLowerCase() !== status.source?.repository?.toLowerCase();
+
+function Freshness({ status }: { status: AgentManagerStatus }) {
+    if (status.pullRequest) {
+        return (
+            <Detail>
+                Your changes are on {status.pullRequest.from}. Open a pull request to {status.repository} · {status.branch} to deploy them.{" "}
+                <VSCodeLink href={status.pullRequest.url}>Open Pull Request</VSCodeLink>
+            </Detail>
+        );
+    }
+    if (!status.tracked) {
+        return <Detail>No remote in this clone points to {status.repository ?? "the agent's repository"}.</Detail>;
+    }
+    return <Detail>{status.newCommit ? `Newer commit on ${status.branch}: ${status.newCommitMessage}` : "Up to date with GitHub"}</Detail>;
 }
 
 interface DeployAction {

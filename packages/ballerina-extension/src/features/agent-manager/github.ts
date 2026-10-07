@@ -48,6 +48,7 @@ export interface SourceFacts {
 
 export interface Preparation {
     openApiSpec: boolean;
+    ampImport: boolean;
     exposedFiles: string[];
     gitignore: boolean;
     /** Local files the build needs from GitHub, such as openapi.yaml. */
@@ -153,14 +154,15 @@ function plural(count: number, noun: string): string {
 
 function preparationStep(prep: Preparation): AgentManagerSourceStep | undefined {
     const files = [prep.openApiSpec && "openapi.yaml", prep.gitignore && ".gitignore"].filter(Boolean);
-    if (files.length === 0 && prep.exposedFiles.length === 0) {
+    if (files.length === 0 && prep.exposedFiles.length === 0 && !prep.ampImport) {
         return undefined;
     }
     const parts = [
         files.length > 0 && `Agent Manager needs ${files.join(", ")}`,
         prep.exposedFiles.length > 0 && `${prep.exposedFiles.join(" and ")} must stay out of Git`,
     ].filter(Boolean);
-    return { id: "prepare", message: `${parts.join(". ")}.`, actionLabel: "Prepare Project", blocking: true };
+    const message = parts.length > 0 ? `${parts.join(". ")}.` : "Agent Manager can collect this agent's traces.";
+    return { id: "prepare", message, actionLabel: "Prepare Project", blocking: true, offerAutoInstrumentation: prep.ampImport };
 }
 
 // Deploys build the upstream commit, so the files the build needs (and must not see) are checked there, not on disk.
@@ -351,3 +353,45 @@ export async function linkCandidates(projectPath: string): Promise<AgentManagerL
     return perProject.flat();
 }
 
+export interface BuildBranch {
+    repository: string;
+    tip?: string;
+    message?: string;
+    pullRequest?: { from: string; url: string };
+}
+
+const BRANCH_FETCH_TTL_MS = 60 * 1000;
+const branchFetchedAt = new Map<string, number>();
+
+/** The tip of the branch an agent builds, read through whichever remote points at its repository. */
+export async function buildBranch(projectPath: string, repoUrl: string | undefined, branch: string | undefined): Promise<BuildBranch | undefined> {
+    const repository = repoUrl?.match(GITHUB_REPO_URL)?.slice(1, 3).join("/");
+    if (!repository || !branch) {
+        return undefined;
+    }
+    const remote = githubRemotes(projectPath).find((candidate) => sameRepo(repoUrl, candidate.repository))?.name;
+    const ref = `refs/remotes/${remote}/${branch}`;
+    if (remote && Date.now() - (branchFetchedAt.get(projectPath + ref) ?? 0) > BRANCH_FETCH_TTL_MS) {
+        await gitAsync(projectPath, ["fetch", "--quiet", remote, `refs/heads/${branch}:${ref}`]);
+        branchFetchedAt.set(projectPath + ref, Date.now());
+    }
+    const tip = remote && out(projectPath, ["rev-parse", "--verify", "--quiet", ref]);
+    if (!tip) {
+        return { repository };
+    }
+    return { repository, tip, message: out(projectPath, ["log", "-1", "--format=%s", tip]), pullRequest: pullRequest(projectPath, repository, branch, tip) };
+}
+
+// Pushed commits missing from the agent's branch reach it through a pull request; a rebuild would not include them.
+function pullRequest(projectPath: string, repository: string, branch: string, tip: string): BuildBranch["pullRequest"] {
+    const facts = readFacts(projectPath);
+    const head = out(projectPath, ["rev-parse", "HEAD"]);
+    const sameRepository = facts.repository?.toLowerCase() === repository.toLowerCase();
+    if (!head || head !== facts.remoteCommit || (sameRepository && facts.upstreamBranch === branch)
+        || git(projectPath, ["merge-base", "--is-ancestor", head, tip]).status === 0) {
+        return undefined;
+    }
+    const [owner, name] = facts.repository!.split("/");
+    const source = sameRepository ? facts.upstreamBranch : `${owner}:${name}:${facts.upstreamBranch}`;
+    return { from: `${facts.repository} · ${facts.upstreamBranch}`, url: `https://github.com/${repository}/compare/${branch}...${source}` };
+}

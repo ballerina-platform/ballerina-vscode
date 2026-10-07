@@ -572,43 +572,34 @@ export interface DeploymentPanelProps extends DeploymentControlState {
     hasWorkflows: boolean;
     hasAgents: boolean;
     hasDeployableIntegration: boolean;
-    devTracing?: { enabled: boolean; toggle: () => void };
 }
 
-type ItemId = "agentManager" | "cloud" | "docker" | "vm" | "agentManagerTracing" | "icp" | "devTracing" | "workflow";
+type ItemId = "agentManager" | "cloud" | "docker" | "vm" | "agentManagerTracing" | "icp" | "workflow";
 type ItemFactory = (id: ItemId, title: string, tag: string | undefined, body: ReactNode) => ReactNode;
 type Section = "deploy" | "monitor";
-const MONITOR_ITEMS = new Set<ItemId>(["agentManagerTracing", "icp", "devTracing", "workflow"]);
+const MONITOR_ITEMS = new Set<ItemId>(["agentManagerTracing", "icp", "workflow"]);
 const sectionOf = (id: ItemId): Section => (MONITOR_ITEMS.has(id) ? "monitor" : "deploy");
 
 const enabledTag = (enabled: boolean) => (enabled ? "Enabled" : undefined);
 
 interface MonitorItemsOptions extends Pick<DeploymentPanelProps,
-    "hasAgents" | "isICPSupported" | "hasWorkflows" | "devTracing" | "icpEnabled" | "handleICP" | "workflowMgmtEnabled" | "handleWorkflowManagement" | "ampTracingEnabled"> {
+    "hasAgents" | "isICPSupported" | "hasWorkflows" | "icpEnabled" | "handleICP" | "workflowMgmtEnabled" | "handleWorkflowManagement" | "ampTracingEnabled"> {
     item: ItemFactory;
     noun: string;
     agentMode: boolean;
     linkMode?: "internal" | "external";
-    hostedTracing?: boolean;
     tracingBody: ReactNode;
 }
 
 function monitorItems(options: MonitorItemsOptions): ReactNode[] {
-    const { item, noun, devTracing, linkMode } = options;
-    const tracing = options.hasAgents && item("agentManagerTracing", "Agent Manager Observability",
-        enabledTag(linkMode === "internal" ? !!options.hostedTracing : linkMode === "external" && options.ampTracingEnabled), options.tracingBody);
+    const { item, noun, linkMode } = options;
+    const tracing = options.hasAgents && linkMode !== "internal" && item("agentManagerTracing", "Agent Manager Observability",
+        enabledTag(linkMode === "external" && options.ampTracingEnabled), options.tracingBody);
     const icp = options.isICPSupported && item("icp", "Integration Control Plane", enabledTag(options.icpEnabled), (
         <>
             <p>Monitor and manage integration deployments from a central console.<LearnMore url={ICP_DOCS} /></p>
             <CheckBox checked={options.icpEnabled} onChange={options.handleICP} label="Enable ICP Monitoring" />
             <LocalICPDeployment />
-        </>
-    ));
-    const development = devTracing && item("devTracing", "Development Tracing", enabledTag(devTracing.enabled), (
-        <>
-            <p>Capture traces when you run the {noun} in this IDE and inspect them in the trace view.</p>
-            <CheckBox checked={devTracing.enabled} onChange={(checked) => checked !== devTracing.enabled && devTracing.toggle()}
-                label="Enable Development Tracing" />
         </>
     ));
     const workflow = options.hasWorkflows && item("workflow", "Workflow Management", enabledTag(options.workflowMgmtEnabled), (
@@ -617,7 +608,7 @@ function monitorItems(options: MonitorItemsOptions): ReactNode[] {
             <CheckBox checked={options.workflowMgmtEnabled} onChange={options.handleWorkflowManagement} label="Enable Workflow Management REST API" />
         </>
     ));
-    return (options.agentMode ? [tracing, icp, development, workflow] : [icp, tracing, development, workflow]).filter(Boolean);
+    return (options.agentMode ? [tracing, icp, workflow] : [icp, tracing, workflow]).filter(Boolean);
 }
 
 /**
@@ -632,7 +623,6 @@ export function DeploymentPanel({
     hasWorkflows,
     hasAgents,
     hasDeployableIntegration,
-    devTracing,
     icpEnabled,
     handleICP,
     workflowMgmtEnabled,
@@ -683,7 +673,7 @@ export function DeploymentPanel({
 
     const deployItems = agentMode ? [agentManagerItem, cloudItem, dockerItem, vmItem] : [cloudItem, dockerItem, vmItem, agentManagerItem];
     const monitor = monitorItems({
-        item, noun, agentMode, linkMode, hostedTracing: agentManager?.ampTracing, devTracing, hasAgents, isICPSupported, hasWorkflows, icpEnabled, handleICP,
+        item, noun, agentMode, linkMode, hasAgents, isICPSupported, hasWorkflows, icpEnabled, handleICP,
         workflowMgmtEnabled, handleWorkflowManagement, ampTracingEnabled, tracingBody: agentManagerSection("monitor"),
     });
 
@@ -695,8 +685,8 @@ export function DeploymentPanel({
             {monitor.length > 0 && (
                 <>
                     <Divider sx={{ margin: "16px 0" }} />
-                    <Title variant="h3">Monitor</Title>
-                    <SectionLead>Trace and monitor this {noun} in development and production.</SectionLead>
+                    <Title variant="h3">Management</Title>
+                    <SectionLead>Connect deployments you host yourself to WSO2 management tools.</SectionLead>
                     {monitor}
                 </>
             )}
