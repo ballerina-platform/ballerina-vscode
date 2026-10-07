@@ -37,9 +37,12 @@ async function authorize() {
     return { session, token };
 }
 
+// Manifest values reach these paths, so each segment is encoded to keep a crafted name inside its own resource.
+const agentPath = (link: AgentManagerLink) => `/projects/${encodeURIComponent(link.project)}/agents/${encodeURIComponent(link.agent)}`;
+
 async function request<T>(method: string, apiPath: string, body?: unknown): Promise<T> {
     const { session, token } = await authorize();
-    return fetchJson<T>(`${session.instanceUrl}/api/v1/orgs/${session.org}${apiPath}`, {
+    return fetchJson<T>(`${session.instanceUrl}/api/v1/orgs/${encodeURIComponent(session.org)}${apiPath}`, {
         method,
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: body === undefined ? undefined : JSON.stringify(body),
@@ -105,7 +108,7 @@ export const api = {
     createProject: (name: string, displayName: string) =>
         request("POST", "/projects", { name, displayName, deploymentPipeline: "default" }),
     listAgents: async (project: string) =>
-        (await request<{ agents: AgentSummary[] }>("GET", `/projects/${project}/agents?limit=100`)).agents,
+        (await request<{ agents: AgentSummary[] }>("GET", `/projects/${encodeURIComponent(project)}/agents?limit=100`)).agents,
     listGitSecrets: async () => {
         const names: string[] = [];
         for (let offset = 0; ; offset += 50) {
@@ -117,14 +120,14 @@ export const api = {
         }
     },
     createExternalAgent: (project: string, name: string, displayName: string) =>
-        request("POST", `/projects/${project}/agents`, {
+        request("POST", `/projects/${encodeURIComponent(project)}/agents`, {
             name,
             displayName,
             provisioning: { type: "external" },
             agentType: { type: "external-agent-api" },
         }),
     createInternalAgent: (project: string, spec: InternalAgentSpec) =>
-        request("POST", `/projects/${project}/agents`, {
+        request("POST", `/projects/${encodeURIComponent(project)}/agents`, {
             name: spec.name,
             displayName: spec.displayName,
             agentType: { type: "agent-api", subType: "custom-api" },
@@ -145,10 +148,10 @@ export const api = {
         }),
     createGitSecret: (name: string, username: string, password: string) =>
         request("POST", "/git-secrets", { name, type: "basic-auth", credentials: { username, password } }),
-    deleteGitSecret: (name: string) => request("DELETE", `/git-secrets/${name}`),
+    deleteGitSecret: (name: string) => request("DELETE", `/git-secrets/${encodeURIComponent(name)}`),
     generateToken: (link: AgentManagerLink, expiresIn: string) =>
         request<{ token: string; expires_at: number }>(
-            "POST", `/projects/${link.project}/agents/${link.agent}/token?environment=${link.environment}`,
+            "POST", `${agentPath(link)}/token?environment=${encodeURIComponent(link.environment)}`,
             { expires_in: expiresIn }),
     getGatewayUrl: async (environment: string) => {
         const { gateways } = await request<{ gateways: { vhost?: string; environments?: { name: string }[] }[] }>(
@@ -162,12 +165,12 @@ export const api = {
     listLlmProviders: async () =>
         (await request<{ providers: { id: string; uuid: string; name: string; template: string }[] }>("GET", "/llm-providers?limit=100")).providers,
     getLlmProvider: (id: string) =>
-        request<{ context: string }>("GET", `/llm-providers/${id}`),
+        request<{ context: string }>("GET", `/llm-providers/${encodeURIComponent(id)}`),
     listMcpProxies: async () =>
         (await request<{ list: { id: string; name: string; description?: string }[] }>("GET", "/mcp-proxies?limit=100")).list,
-    getMcpProxy: (id: string) => request<McpProxyDetails>("GET", `/mcp-proxies/${id}`),
+    getMcpProxy: (id: string) => request<McpProxyDetails>("GET", `/mcp-proxies/${encodeURIComponent(id)}`),
     listMcpProxyScopes: async (id: string) =>
-        (await request<{ scopes: { scope: string }[] }>("GET", `/mcp-proxies/${id}/scopes`)).scopes.map((entry) => entry.scope),
+        (await request<{ scopes: { scope: string }[] }>("GET", `/mcp-proxies/${encodeURIComponent(id)}/scopes`)).scopes.map((entry) => entry.scope),
     getEnvironmentId: async (environment: string) =>
         (await request<{ id: string; name: string }[]>("GET", "/environments")).find((env) => env.name === environment)?.id,
     getTokenUrl: async (environment: string) => {
@@ -179,7 +182,7 @@ export const api = {
         return tokenUrl;
     },
     listAgentConfigs: async (link: AgentManagerLink, kind: AgentConfigKind) => {
-        const base = `/projects/${link.project}/agents/${link.agent}/${kind}-configs`;
+        const base = `${agentPath(link)}/${kind}-configs`;
         const { configs } = await request<{ configs: { uuid: string }[] }>("GET", `${base}?limit=100`);
         return Promise.all(configs.map(async ({ uuid }) => {
             const config = await request<any>("GET", `${base}/${uuid}`);
@@ -188,7 +191,7 @@ export const api = {
         }));
     },
     createAgentConfig: (link: AgentManagerLink, kind: AgentConfigKind, config: AgentConfigInput) =>
-        request("POST", `/projects/${link.project}/agents/${link.agent}/${kind}-configs`, {
+        request("POST", `${agentPath(link)}/${kind}-configs`, {
             name: config.handle,
             type: kind === "model" ? "llm" : "mcp",
             envMappings: { [link.environment]: { providerName: config.handle } },
@@ -196,9 +199,9 @@ export const api = {
         }),
     // A rename-only PUT: the provider mapping, and so its proxy and keys, stay as they are.
     renameAgentConfigEnv: (link: AgentManagerLink, kind: AgentConfigKind, uuid: string, env: EnvNames) =>
-        request("PUT", `/projects/${link.project}/agents/${link.agent}/${kind}-configs/${uuid}`, { environmentVariables: envVariables(env) }),
+        request("PUT", `${agentPath(link)}/${kind}-configs/${uuid}`, { environmentVariables: envVariables(env) }),
     getLatestBuild: async (link: AgentManagerLink): Promise<AgentManagerBuild | undefined> => {
-        const base = `/projects/${link.project}/agents/${link.agent}/builds`;
+        const base = `${agentPath(link)}/builds`;
         const latest = (await request<{ builds: { buildName: string }[] }>("GET", `${base}?limit=1`)).builds[0];
         if (!latest) {
             return undefined;
@@ -214,25 +217,25 @@ export const api = {
         };
     },
     getAgent: (link: AgentManagerLink) =>
-        request<any>("GET", `/projects/${link.project}/agents/${link.agent}`),
+        request<any>("GET", `${agentPath(link)}`),
     // Without a commit, Agent Manager builds the tip of the agent's own repository and branch.
-    triggerBuild: (link: AgentManagerLink) => request("POST", `/projects/${link.project}/agents/${link.agent}/builds`),
+    triggerBuild: (link: AgentManagerLink) => request("POST", `${agentPath(link)}/builds`),
     getDeployment: async (link: AgentManagerLink) => {
         const deployments = await request<Record<string, DeploymentInfo>>(
-            "GET", `/projects/${link.project}/agents/${link.agent}/deployments`);
+            "GET", `${agentPath(link)}/deployments`);
         return deployments[link.environment];
     },
     // Names Agent Manager already holds values for, so the Deploy card only asks for the rest.
     getConfigState: async (link: AgentManagerLink) => {
         const config = await request<{ configurations?: { env?: { key: string }[]; files?: { mountPath?: string }[] } }>(
-            "GET", `/projects/${link.project}/agents/${link.agent}/configurations?environment=${link.environment}`);
+            "GET", `${agentPath(link)}/configurations?environment=${encodeURIComponent(link.environment)}`);
         return {
             envKeys: (config.configurations?.env ?? []).map((item) => item.key),
             fileSaved: (config.configurations?.files ?? []).some((file) => file.mountPath === CONFIG_FILE.mountPath),
         };
     },
     deploy: (link: AgentManagerLink, imageId: string) =>
-        request("POST", `/projects/${link.project}/agents/${link.agent}/deployments`, { imageId }),
+        request("POST", `${agentPath(link)}/deployments`, { imageId }),
 };
 
 export interface McpProxyDetails {
@@ -254,11 +257,11 @@ export async function getObserverBaseUrl(instanceUrl: string): Promise<string> {
 }
 
 export function consoleOrgUrl(consoleUrl: string, org: string): string {
-    return `${consoleUrl}/org/${org}`;
+    return `${consoleUrl}/org/${encodeURIComponent(org)}`;
 }
 
 export async function consoleUrl(link: AgentManagerLink): Promise<string> {
-    return `${consoleOrgUrl((await requireSession()).consoleUrl, link.org)}/project/${link.project}/agents/${link.agent}`;
+    return `${consoleOrgUrl((await requireSession()).consoleUrl, link.org)}/project/${encodeURIComponent(link.project)}/agents/${encodeURIComponent(link.agent)}`;
 }
 
 export interface EnvNames {

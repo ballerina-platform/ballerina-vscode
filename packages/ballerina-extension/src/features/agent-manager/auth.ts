@@ -134,8 +134,8 @@ export async function signIn(): Promise<AgentManagerSession | undefined> {
     if (!enteredUrl) {
         return undefined;
     }
-    const consoleUrl = new URL(enteredUrl).origin;
-    const baseUrl = await apiUrlFromConsole(consoleUrl);
+    const consoleUrl = requireSecure(enteredUrl).origin;
+    const baseUrl = requireSecure(await apiUrlFromConsole(consoleUrl)).toString().replace(/\/+$/, "");
     const discovery = await discover(baseUrl);
     const verifier = crypto.randomBytes(32).toString("base64url");
     const state = crypto.randomBytes(32).toString("base64url");
@@ -185,6 +185,16 @@ function toSessionTokens(token: TokenResponse, previousRefresh?: string) {
     };
 }
 
+// Tokens travel to these hosts, so plain HTTP is only allowed for a local instance.
+function requireSecure(url: string): URL {
+    const parsed = new URL(url);
+    const local = ["localhost", "127.0.0.1", "[::1]"].includes(parsed.hostname) || parsed.hostname.endsWith(".localhost");
+    if (parsed.protocol !== "https:" && !local) {
+        throw new Error(`${parsed.origin} isn't using HTTPS. Agent Manager must be reached over HTTPS unless it runs on this machine.`);
+    }
+    return parsed;
+}
+
 // The console publishes its runtime config, including the API it talks to, so one URL locates both.
 async function apiUrlFromConsole(consoleUrl: string): Promise<string> {
     const response = await fetch(`${consoleUrl}/config.js`);
@@ -201,10 +211,10 @@ async function discover(baseUrl: string) {
     if (!authServer) {
         throw new Error(`${baseUrl} does not advertise an authorization server.`);
     }
-    const metadata = await fetchJson(`${authServer.replace(/\/+$/, "")}/.well-known/oauth-authorization-server`);
+    const metadata = await fetchJson(`${requireSecure(authServer).toString().replace(/\/+$/, "")}/.well-known/oauth-authorization-server`);
     return {
-        authorizationEndpoint: metadata.authorization_endpoint as string,
-        tokenEndpoint: metadata.token_endpoint as string,
+        authorizationEndpoint: requireSecure(metadata.authorization_endpoint).toString(),
+        tokenEndpoint: requireSecure(metadata.token_endpoint).toString(),
         scopes: (resource.scopes_supported ?? []) as string[],
     };
 }

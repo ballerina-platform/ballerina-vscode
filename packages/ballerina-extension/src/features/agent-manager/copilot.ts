@@ -18,7 +18,7 @@
 
 import * as vscode from "vscode";
 import { AgentManagerActionResponse, AgentManagerMcpOffer } from "@wso2/ballerina-core";
-import { loadMcpConfig, MCP_ENABLE_SETTING, McpHttpServerConfig, updateMcpServer, writeMcpServer } from "../ai/agent/mcp";
+import { loadMcpConfig, MCP_ENABLE_SETTING, MCP_ENABLE_SETTING_KEY, McpHttpServerConfig, updateMcpServer, writeMcpServer } from "../ai/agent/mcp";
 import { signInOnNextConnect } from "../ai/agent/mcp/oauth";
 import { AgentManagerSession, getSession } from "./auth";
 import { getObserverBaseUrl } from "./client";
@@ -73,13 +73,26 @@ export async function addMcpServers(ids: string[]): Promise<AgentManagerActionRe
             signInOnNextConnect(config.url);
             (existing.has(server.id) ? updateMcpServer : writeMcpServer)(server.id, config, "user");
         }
-        await vscode.workspace.getConfiguration("ballerina").update(MCP_ENABLE_SETTING, true, vscode.ConfigurationTarget.Global);
+        await enableMcpToolsUnlessTurnedOff();
         return { success: true };
     } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         vscode.window.showErrorMessage(`Couldn't add Agent Manager to Copilot: ${message}`);
         return { success: false, message };
     }
+}
+
+// An explicit "off" at any level is the user's choice, so it is pointed out rather than overridden.
+async function enableMcpToolsUnlessTurnedOff(): Promise<void> {
+    const config = vscode.workspace.getConfiguration("ballerina");
+    const { globalValue, workspaceValue, workspaceFolderValue } = config.inspect<boolean>(MCP_ENABLE_SETTING) ?? {};
+    if (![globalValue, workspaceValue, workspaceFolderValue].includes(false)) {
+        await config.update(MCP_ENABLE_SETTING, true, vscode.ConfigurationTarget.Global);
+        return;
+    }
+    const open = "Open Settings";
+    void vscode.window.showInformationMessage("MCP tools are turned off in your settings. Turn them on to let Copilot use Agent Manager.", open)
+        .then((choice) => choice === open && vscode.commands.executeCommand("workbench.action.openSettings", MCP_ENABLE_SETTING_KEY));
 }
 
 export async function offerCopilotMcp(): Promise<void> {
