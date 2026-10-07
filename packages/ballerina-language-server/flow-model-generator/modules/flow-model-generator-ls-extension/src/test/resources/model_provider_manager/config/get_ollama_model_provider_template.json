@@ -547,7 +547,7 @@
             "kind": "INCLUDED_FIELD",
             "originalName": "http1Settings"
           },
-          "defaultValue": "{}"
+          "defaultValue": ""
         },
         "http2Settings": {
           "metadata": {
@@ -584,7 +584,7 @@
             "kind": "INCLUDED_FIELD",
             "originalName": "http2Settings"
           },
-          "defaultValue": "{}"
+          "defaultValue": ""
         },
         "timeout": {
           "metadata": {
@@ -677,7 +677,7 @@
             "kind": "INCLUDED_FIELD",
             "originalName": "poolConfig"
           },
-          "defaultValue": "{}"
+          "defaultValue": ""
         },
         "cache": {
           "metadata": {
@@ -714,7 +714,7 @@
             "kind": "INCLUDED_FIELD",
             "originalName": "cache"
           },
-          "defaultValue": "{}"
+          "defaultValue": ""
         },
         "compression": {
           "metadata": {
@@ -792,7 +792,7 @@
             "kind": "INCLUDED_FIELD",
             "originalName": "circuitBreaker"
           },
-          "defaultValue": "{}"
+          "defaultValue": ""
         },
         "retryConfig": {
           "metadata": {
@@ -829,7 +829,7 @@
             "kind": "INCLUDED_FIELD",
             "originalName": "retryConfig"
           },
-          "defaultValue": "{}"
+          "defaultValue": ""
         },
         "responseLimits": {
           "metadata": {
@@ -866,7 +866,7 @@
             "kind": "INCLUDED_FIELD",
             "originalName": "responseLimits"
           },
-          "defaultValue": "{}"
+          "defaultValue": ""
         },
         "secureSocket": {
           "metadata": {
@@ -903,7 +903,7 @@
             "kind": "INCLUDED_FIELD",
             "originalName": "secureSocket"
           },
-          "defaultValue": "{}"
+          "defaultValue": ""
         },
         "proxy": {
           "metadata": {
@@ -940,7 +940,7 @@
             "kind": "INCLUDED_FIELD",
             "originalName": "proxy"
           },
-          "defaultValue": "{}"
+          "defaultValue": ""
         },
         "validation": {
           "metadata": {

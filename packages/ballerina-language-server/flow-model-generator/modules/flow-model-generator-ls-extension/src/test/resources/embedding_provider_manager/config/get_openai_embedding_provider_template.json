@@ -244,7 +244,7 @@
           "imports": {
             "http": "ballerina/http"
           },
-          "defaultValue": "{}"
+          "defaultValue": ""
         },
         "http2Settings": {
           "metadata": {
@@ -284,7 +284,7 @@
           "imports": {
             "http": "ballerina/http"
           },
-          "defaultValue": "{}"
+          "defaultValue": ""
         },
         "timeout": {
           "metadata": {
@@ -380,7 +380,7 @@
           "imports": {
             "http": "ballerina/http"
           },
-          "defaultValue": "{}"
+          "defaultValue": ""
         },
         "cache": {
           "metadata": {
@@ -420,7 +420,7 @@
           "imports": {
             "http": "ballerina/http"
           },
-          "defaultValue": "{}"
+          "defaultValue": ""
         },
         "compression": {
           "metadata": {
@@ -504,7 +504,7 @@
           "imports": {
             "http": "ballerina/http"
           },
-          "defaultValue": "{}"
+          "defaultValue": ""
         },
         "retryConfig": {
           "metadata": {
@@ -544,7 +544,7 @@
           "imports": {
             "http": "ballerina/http"
           },
-          "defaultValue": "{}"
+          "defaultValue": ""
         },
         "responseLimits": {
           "metadata": {
@@ -584,7 +584,7 @@
           "imports": {
             "http": "ballerina/http"
           },
-          "defaultValue": "{}"
+          "defaultValue": ""
         },
         "secureSocket": {
           "metadata": {
@@ -624,7 +624,7 @@
           "imports": {
             "http": "ballerina/http"
           },
-          "defaultValue": "{}"
+          "defaultValue": ""
         },
         "proxy": {
           "metadata": {
@@ -664,7 +664,7 @@
           "imports": {
             "http": "ballerina/http"
           },
-          "defaultValue": "{}"
+          "defaultValue": ""
         },
         "validation": {
           "metadata": {

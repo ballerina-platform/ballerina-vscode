@@ -378,7 +378,7 @@
             "kind": "INCLUDED_FIELD",
             "originalName": "poolConfig"
           },
-          "defaultValue": "{}"
+          "defaultValue": ""
         },
         "cache": {
           "metadata": {
@@ -493,7 +493,7 @@
             "kind": "INCLUDED_FIELD",
             "originalName": "circuitBreaker"
           },
-          "defaultValue": "{}"
+          "defaultValue": ""
         },
         "retryConfig": {
           "metadata": {
@@ -530,7 +530,7 @@
             "kind": "INCLUDED_FIELD",
             "originalName": "retryConfig"
           },
-          "defaultValue": "{}"
+          "defaultValue": ""
         },
         "responseLimits": {
           "metadata": {
@@ -604,7 +604,7 @@
             "kind": "INCLUDED_FIELD",
             "originalName": "secureSocket"
           },
-          "defaultValue": "{}"
+          "defaultValue": ""
         },
         "proxy": {
           "metadata": {
@@ -641,7 +641,7 @@
             "kind": "INCLUDED_FIELD",
             "originalName": "proxy"
           },
-          "defaultValue": "{}"
+          "defaultValue": ""
         },
         "validation": {
           "metadata": {

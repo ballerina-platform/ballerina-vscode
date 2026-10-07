@@ -9537,7 +9537,7 @@
             "imports": {
               "http": "ballerina/http"
             },
-            "defaultValue": "{}"
+            "defaultValue": ""
           },
           "cache": {
             "metadata": {
@@ -9661,7 +9661,7 @@
             "imports": {
               "http": "ballerina/http"
             },
-            "defaultValue": "{}"
+            "defaultValue": ""
           },
           "retryConfig": {
             "metadata": {
@@ -9701,7 +9701,7 @@
             "imports": {
               "http": "ballerina/http"
             },
-            "defaultValue": "{}"
+            "defaultValue": ""
           },
           "responseLimits": {
             "metadata": {
@@ -9781,7 +9781,7 @@
             "imports": {
               "http": "ballerina/http"
             },
-            "defaultValue": "{}"
+            "defaultValue": ""
           },
           "proxy": {
             "metadata": {
@@ -9821,7 +9821,7 @@
             "imports": {
               "http": "ballerina/http"
             },
-            "defaultValue": "{}"
+            "defaultValue": ""
           },
           "validation": {
             "metadata": {

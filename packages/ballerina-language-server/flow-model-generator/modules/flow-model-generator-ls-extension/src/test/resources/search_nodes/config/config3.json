@@ -169,7 +169,7 @@
             "kind": "INCLUDED_FIELD",
             "originalName": "secureSocket"
           },
-          "defaultValue": "{}"
+          "defaultValue": ""
         },
         "checkError": {
           "metadata": {

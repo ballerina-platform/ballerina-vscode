@@ -197,7 +197,7 @@
             "type": "LISTENER_INIT_PARAM",
             "originalName": "offsetReset"
           },
-          "placeholder": "\"earliest\"",
+          "placeholder": "",
           "value": "",
           "types": [
             {
@@ -379,7 +379,7 @@
             "type": "LISTENER_INIT_PARAM",
             "originalName": "isolationLevel"
           },
-          "placeholder": "\"read_committed\"",
+          "placeholder": "",
           "value": "",
           "types": [
             {
