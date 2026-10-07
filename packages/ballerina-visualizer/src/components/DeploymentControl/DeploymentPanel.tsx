@@ -572,6 +572,8 @@ export interface DeploymentPanelProps extends DeploymentControlState {
     hasWorkflows: boolean;
     hasAgents: boolean;
     hasDeployableIntegration: boolean;
+    // A collapsed drawer stays mounted, so its status polling is paused instead.
+    isOpen?: boolean;
 }
 
 type ItemFactory = (id: string, title: string, tag: string | undefined, body: ReactNode) => ReactNode;
@@ -607,13 +609,14 @@ function monitorItems(options: MonitorItemsOptions): ReactNode[] {
 }
 
 export function DeploymentPanel(props: DeploymentPanelProps) {
-    const { projectPath, isInDevant, hasAgents, hasDeployableIntegration, ampTracingEnabled, handleAmpTracing, handleDeploy, goToDevant } = props;
+    const { projectPath, isInDevant, hasAgents, hasDeployableIntegration, ampTracingEnabled, handleAmpTracing, handleDeploy, goToDevant, isOpen = true } = props;
     const productMode = useProductMode();
     const agentMode = hasAgents && productMode === ProductMode.AGENT_BUILDER;
     const noun = agentMode ? "agent" : "integration";
     const cloud = useWso2Cloud(projectPath);
-    const { data: agentManager } = useAgentManagerStatus(projectPath, hasAgents);
-    const [open, setOpen] = useState<Partial<Record<"deploy" | "monitor", string>>>({ deploy: agentMode ? "agentManager" : "cloud" });
+    const { data: agentManager } = useAgentManagerStatus(projectPath, hasAgents && isOpen);
+    const [open, setOpen] = useState<Partial<Record<"deploy" | "monitor", string>>>(
+        agentMode ? { deploy: "agentManager" } : { deploy: "cloud", monitor: "icp" });
 
     if (isInDevant) {
         return <DevantDashboard projectStructure={props.projectStructure} handleDeploy={handleDeploy} goToDevant={goToDevant} />;
@@ -629,7 +632,7 @@ export function DeploymentPanel(props: DeploymentPanelProps) {
     };
     const item = itemIn("deploy");
     const agentManagerSection = (part: "deploy" | "monitor") => (
-        <AgentManagerSection projectPath={projectPath} part={part} ampTracingEnabled={ampTracingEnabled} handleAmpTracing={handleAmpTracing} />
+        <AgentManagerSection projectPath={projectPath} part={part} active={isOpen} ampTracingEnabled={ampTracingEnabled} handleAmpTracing={handleAmpTracing} />
     );
 
     const agentManagerItem = hasAgents && item("agentManager", "WSO2 Agent Manager",
@@ -644,7 +647,7 @@ export function DeploymentPanel(props: DeploymentPanelProps) {
         <BuildOption description="Build an executable JAR to run on any server with a Java runtime."
             label="Build JAR" enabled={hasDeployableIntegration} onBuild={props.handleJarBuild} />);
 
-    const deployItems = agentMode ? [agentManagerItem, cloudItem, dockerItem, vmItem] : [cloudItem, dockerItem, vmItem, agentManagerItem];
+    const deployItems = agentMode ? [agentManagerItem, cloudItem, dockerItem, vmItem] : [cloudItem, agentManagerItem, dockerItem, vmItem];
     const monitor = monitorItems({
         ...props, item: itemIn("monitor"), noun, agentMode, linkMode: agentManager?.link?.mode, tracingBody: agentManagerSection("monitor"),
     });
@@ -658,7 +661,7 @@ export function DeploymentPanel(props: DeploymentPanelProps) {
                 <>
                     <Divider sx={{ margin: "16px 0" }} />
                     <Title variant="h3">Management</Title>
-                    <SectionLead>Connect deployments you host yourself to WSO2 management tools.</SectionLead>
+                    <SectionLead>Monitor and manage your deployments.</SectionLead>
                     {monitor}
                 </>
             )}
