@@ -53,6 +53,7 @@ export interface AgentEditorHost {
 
 export interface AgentEditorController {
     view: AgentEditorView;
+    projectPath: string;
     agentNode?: FlowNode;
     memoryNode?: FlowNode;
     memoryStoreNode?: FlowNode;
@@ -374,7 +375,7 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
     };
 
     return {
-        view, agentNode, memoryNode, memoryStoreNode, memoryPropertyKey: memoryKeyOf(agentNode),
+        view, projectPath: host.projectPath, agentNode, memoryNode, memoryStoreNode, memoryPropertyKey: memoryKeyOf(agentNode),
         selectedTool, selectedAgentName,
         diagramCallbacks, onAgentCreated: host.onAgentCreated,
         openView, selectAgent, close, cancel, back, setBackHandler,

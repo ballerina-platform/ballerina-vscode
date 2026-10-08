@@ -35,7 +35,7 @@ import {
     ProjectStructureArtifactResponse
 } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { FormField, FormImports, FormValues } from "@wso2/ballerina-side-panel";
+import { FormField, FormImports, FormLoadingState, FormValues } from "@wso2/ballerina-side-panel";
 import { cloneDeep } from "lodash";
 import { RelativeLoader } from "../../../components/RelativeLoader";
 import { convertConfig, convertNodePropertyToFormField, getImportsForProperty } from "../../../utils/bi";
@@ -768,11 +768,11 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
     };
 
     if (loading || !formRange || (!toolNode && !functionModel)) {
-        return (
+        return nestedForm ? (
             <LoaderContainer>
                 <RelativeLoader />
             </LoaderContainer>
-        );
+        ) : <FormLoadingState />;
     }
 
     const oauthFieldCount = oauthPropertiesRef.current.length;

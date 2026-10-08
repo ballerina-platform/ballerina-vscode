@@ -64,7 +64,7 @@ export function AgentEditorPanelContent({ controller }: { controller: AgentEdito
         case "NEW_TOOL_CONNECTION":
         case "NEW_TOOL_FUNCTION":
         case "NEW_TOOL_KNOWLEDGE_BASE":
-            return <NewTool agentNode={agent}
+            return <NewTool agentNode={agent} projectPath={controller.projectPath}
                 mode={controller.view === "NEW_TOOL_CUSTOM" ? NewToolSelectionMode.CUSTOM_TOOL
                     : controller.view === "NEW_TOOL_CONNECTION" ? NewToolSelectionMode.CONNECTION
                         : controller.view === "NEW_TOOL_KNOWLEDGE_BASE" ? NewToolSelectionMode.KNOWLEDGE_BASE
