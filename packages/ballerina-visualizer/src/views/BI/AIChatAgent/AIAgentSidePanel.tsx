@@ -66,7 +66,8 @@ import { ImplementationBadge } from "../../../components/ImplementationBadge";
 import { FUNCTION_CALL, KNOWLEDGE_BASE_CALL, METHOD_CALL, REMOTE_ACTION_CALL, RESOURCE_ACTION_CALL } from "../../../constants";
 import { NewToolSelectionMode } from "./NewTool";
 import { buildOAuthFields, fetchOAuthConfigProperties, ZERO_LINE_RANGE } from "./utils";
-import { assertFunctionSearchSuccess, FUNCTIONS_PAGE_SIZE } from "../../../utils/function-pagination";
+import { assertFunctionSearchSuccess, FUNCTIONS_PAGE_SIZE, PAGINATED_LIBRARY_SECTIONS } from "../../../utils/function-pagination";
+import { settleLibrarySection, withLibrarySections } from "../../../utils/useFunctionPagination";
 import { useFunctionPaginationController } from "../../../utils/useFunctionPaginationController";
 import { countSectionLeafNodes, mergePanelCategories } from "../FlowDiagram/utils";
 import { updateResourcePathProperty } from "./agentTools";
@@ -459,6 +460,7 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
         loadingSections: loadingFunctionSections,
         reset: resetFunctionPagination,
         seed: seedFunctionSections,
+        setSectionCursor: setFunctionSectionCursor,
         loadSection: loadFunctionSection,
     } = useFunctionPaginationController();
     const selectedNodeRef = useRef<AvailableNode>(undefined);
@@ -579,13 +581,7 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
         // FUNCTION mode: skip getAvailableNodes entirely — connections are not needed
         if (mode === NewToolSelectionMode.FUNCTION) {
             try {
-                const filteredFunctions = await handleSearchFunction("", FUNCTION_TYPE.REGULAR, false);
-                if (filteredFunctions === undefined) {
-                    return;
-                }
-                const categories = reorderFunctionCategories(filteredFunctions);
-                setCategories(categories);
-                initialCategoriesRef.current = categories;
+                await loadDefaultFunctionList();
             } catch { } finally {
                 settleLoading();
             }
@@ -763,6 +759,59 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
         }
         initialFunctionPaginationRef.current = response.functionPagination;
         return categories;
+    };
+
+    // The library sections come from Ballerina Central, so they load after the panel opens.
+    const loadDefaultFunctionList = async () => {
+        const searchSeq = ++functionSearchSeqRef.current;
+        resetFunctionPagination();
+        const search = (queryMap: BISearchRequest["queryMap"]) => rpcClient.getBIDiagramRpcClient().search({
+            position: { startLine: targetRef.current.startLine, endLine: targetRef.current.endLine },
+            filePath: agentFilePath.current,
+            queryMap: { q: "", limit: FUNCTIONS_PAGE_SIZE, offset: 0, includeAvailableFunctions: "true", ...queryMap },
+            searchKind: "FUNCTION",
+        });
+        const response = await search({ excludeLibrary: "true" });
+        if (searchSeq !== functionSearchSeqRef.current) {
+            return;
+        }
+        assertFunctionSearchSuccess(response);
+        const { categories, pagination, pending, fillSection } = withLibrarySections(`use-function|${projectPath}`,
+            toToolCandidateCategories(response, FUNCTION_TYPE.REGULAR));
+        initialCategoriesRef.current = reorderFunctionCategories(ensureStandardLibModules(categories));
+        initialFunctionPaginationRef.current = pagination;
+        functionQueryRef.current = "";
+        setCategories(initialCategoriesRef.current);
+        seedFunctionSections(pagination, title => countSectionLeafNodes(categories, title));
+        // A section fills the default list, which a newer default list replaces and an active search keeps hidden.
+        const setDefaultCategories = (update: (prev: PanelCategory[]) => PanelCategory[]) => {
+            if (initialFunctionPaginationRef.current !== pagination) {
+                return;
+            }
+            initialCategoriesRef.current = ensureStandardLibModules(update(initialCategoriesRef.current));
+            if (!functionQueryRef.current) {
+                setCategories(initialCategoriesRef.current);
+            }
+        };
+        for (const title of pending) {
+            const { org } = PAGINATED_LIBRARY_SECTIONS.find((section) => section.title === title);
+            search({ orgName: org })
+                .then((page) => {
+                    assertFunctionSearchSuccess(page);
+                    const cursor = fillSection(title, page, toToolCandidateCategories(page, FUNCTION_TYPE.REGULAR),
+                        setDefaultCategories);
+                    if (initialFunctionPaginationRef.current === pagination) {
+                        pagination[org] = cursor;
+                        if (!functionQueryRef.current) {
+                            setFunctionSectionCursor(title, cursor);
+                        }
+                    }
+                })
+                .catch((error) => {
+                    console.error(">>> Error loading a library section", error);
+                    setDefaultCategories((prev) => settleLibrarySection(prev, title));
+                });
+        }
     };
 
     // Appends the next page of one library section. The page belongs to the query and list it was requested for.
@@ -1771,7 +1820,7 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                     onCreateNode={handleCreateNode}
                     groups={toolFormGroups}
                     opensPrefilled
-                    submitText={"Save Tool"}
+                    submitText={submittingTool ? "Saving..." : "Save Tool"}
                     isSaving={submittingTool}
                     helperPaneSide="left"
                     customDiagnosticFilter={customDiagnosticFilter}
