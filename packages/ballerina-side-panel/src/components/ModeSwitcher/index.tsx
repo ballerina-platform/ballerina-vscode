@@ -18,7 +18,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { Label, Slider, SwitchWrapper } from './styles';
-import { InputMode } from '../editors/MultiModeExpressionEditor/ChipExpressionEditor/types';
+import { InputMode, getInputModeLabel } from '../editors/MultiModeExpressionEditor/ChipExpressionEditor/types';
 import { getDefaultExpressionMode, getSecondaryMode } from '../editors/MultiModeExpressionEditor/ChipExpressionEditor/utils';
 import { InputType } from '@wso2/ballerina-core';
 import { getEditorConfiguration } from '../editors/ExpressionField';
@@ -90,13 +90,15 @@ const ModeSwitcher: React.FC<ModeSwitcherProps> = ({ value, isRecordTypeField, o
     };
 
     const isChecked = value === secondaryMode;
+    const defaultLabel = getInputModeLabel(defaultMode);
+    const secondaryLabel = getInputModeLabel(secondaryMode);
 
     return (
         <>
             <SwitchWrapper>
                 <Slider checked={isChecked} data-testid={`mode-switcher-slider-${fieldKey}`}>
-                    <Label data-testid="primary-mode" active={!isChecked} onClick={() => handleModeSwitch(defaultMode)}>{defaultMode}</Label>
-                    <Label data-testid="expression-mode" active={isChecked} onClick={() => handleModeSwitch(secondaryMode)}>{secondaryMode}</Label>
+                    <Label data-testid="primary-mode" active={!isChecked} title={defaultLabel} onClick={() => handleModeSwitch(defaultMode)}>{defaultLabel}</Label>
+                    <Label data-testid="expression-mode" active={isChecked} title={secondaryLabel} onClick={() => handleModeSwitch(secondaryMode)}>{secondaryLabel}</Label>
                 </Slider>
             </SwitchWrapper>
             <WarningPopup
