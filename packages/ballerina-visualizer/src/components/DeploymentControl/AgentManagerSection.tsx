@@ -130,7 +130,7 @@ export function useAgentManagerStatus(projectPath: string, enabled = true) {
         queryFn: () => rpcClient.getAgentManagerRpcClient().getAgentManagerStatus({ projectPath }),
         refetchInterval: ({ state: { data } }) => {
             const phase = data && platformPhase(data).kind;
-            return phase === "building" || phase === "starting" ? 4000 : data?.source?.step ? 5000 : 20000;
+            return phase === "building" || phase === "starting" ? 4000 : data?.source?.step?.blocking ? 5000 : 20000;
         },
         enabled: enabled && !!projectPath,
     });
@@ -281,6 +281,8 @@ interface LinkOrCreateProps {
 function LinkOrCreate({ status, pending, onLink, onCreate }: Pick<ActionProps, "status" | "pending"> & LinkOrCreateProps) {
     const candidates = status.candidates ?? [];
     const [selected, setSelected] = useState(0);
+    // The polled list can shrink under a selection.
+    const current = Math.min(selected, candidates.length - 1);
     return (
         <>
             {candidates.length > 0 && (
@@ -288,7 +290,7 @@ function LinkOrCreate({ status, pending, onLink, onCreate }: Pick<ActionProps, "
                     <Detail>Existing agents for this repository</Detail>
                     <CandidateList>
                         {candidates.map((candidate, index) => (
-                            <Candidate key={`${candidate.project}/${candidate.agent}`} type="button" selected={index === selected} onClick={() => setSelected(index)}>
+                            <Candidate key={`${candidate.project}/${candidate.agent}`} type="button" selected={index === current} onClick={() => setSelected(index)}>
                                 <span>{candidate.displayName}</span>
                                 <Detail>{candidate.project} · {candidate.repository}{candidate.branch && ` · ${candidate.branch}`}</Detail>
                             </Candidate>
@@ -298,7 +300,7 @@ function LinkOrCreate({ status, pending, onLink, onCreate }: Pick<ActionProps, "
             )}
             <Actions>
                 {candidates.length > 0 && (
-                    <Button appearance="primary" disabled={!!pending} onClick={() => onLink(candidates[selected])}>
+                    <Button appearance="primary" disabled={!!pending} onClick={() => onLink(candidates[current])}>
                         {pending === "link" ? "Linking…" : "Link Agent"}
                     </Button>
                 )}

@@ -424,6 +424,8 @@ export class McpClientManager {
         try {
             await transport.finishAuth(await provider.signIn(state.name));
             provider.authorizationUrl = undefined;
+            // The verifier is spent, so connect() may report a failed reconnect as "failed" instead of "connecting".
+            this.signingIn.delete(key);
             await this.connect(state);
             this.onDidChange?.();
         } catch (err: any) {

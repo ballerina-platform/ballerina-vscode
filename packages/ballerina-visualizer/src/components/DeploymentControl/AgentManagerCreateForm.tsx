@@ -61,9 +61,18 @@ interface AgentManagerCreateFormProps {
     onCancel: () => void;
 }
 
-// Only required values with nothing to prefill need attention; the rest stay folded so long lists don't bury them.
+// Every value that will be uploaded stays on screen, so local Config.toml values are never sent unseen.
 function needsInput(field: AgentManagerConfigField): boolean {
-    return field.required && !field.saved && !field.localValue && !field.unsupported;
+    return !field.saved && !field.unsupported && (field.required || !!field.localValue);
+}
+
+// When GitHub couldn't say whether the repository is public, the user can say so.
+function accessOptions(repo: AgentManagerRepoDetails | undefined, gitSecrets: string[]) {
+    return [
+        ...(repo?.isPrivate === undefined ? [{ value: "", content: "None (Public Repository)" }] : []),
+        ...gitSecrets.map((name) => ({ value: name, content: name })),
+        { value: NEW_TOKEN, content: "Add Personal Token…" },
+    ];
 }
 
 // Agent Manager names must start with a letter; the rest of the name is converted to fit.
@@ -192,7 +201,7 @@ export function AgentManagerCreateForm({ projectPath, onDone, onCancel }: AgentM
                         containerSx={{ width: "100%" }}
                         value={gitSecret}
                         onValueChange={setGitSecret}
-                        items={[...form.gitSecrets.map((name) => ({ value: name, content: name })), { value: NEW_TOKEN, content: "Add Personal Token…" }]}
+                        items={accessOptions(repo, form.gitSecrets)}
                     />
                 )}
                 {needsToken && (
@@ -255,7 +264,6 @@ function ConfigurablesSection({ fields, ...props }: React.ComponentProps<typeof 
     }
     const open = fields.filter(needsInput);
     const folded = fields.filter((field) => !needsInput(field));
-    const prefilled = folded.filter((field) => field.localValue && !field.saved).length;
     return (
         <Section>
             <GroupTitle>Configurables</GroupTitle>
@@ -263,7 +271,7 @@ function ConfigurablesSection({ fields, ...props }: React.ComponentProps<typeof 
             <ConfigFieldGroups fields={open} {...props} />
             {folded.length > 0 && (showAll ? <ConfigFieldGroups fields={folded} {...props} /> : (
                 <ShowMore type="button" onClick={() => setShowAll(true)}>
-                    Show {folded.length} More{prefilled > 0 ? ` · ${prefilled} Filled From Config.toml` : ""}
+                    Show {folded.length} More
                 </ShowMore>
             ))}
         </Section>

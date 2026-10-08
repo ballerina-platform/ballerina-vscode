@@ -47,8 +47,18 @@ export async function listMcpProxies(projectPath: string): Promise<AgentManagerM
     const consoleUrl = `${consoleOrgUrl(session.consoleUrl, session.org)}/mcp-proxies`;
     try {
         const [proxies, environmentId] = await Promise.all([api.listMcpProxies(), api.getEnvironmentId(DEFAULT_ENVIRONMENT)]);
-        const details = await Promise.all(proxies.map((proxy) => api.getMcpProxy(proxy.id)));
-        return { signedIn: true, consoleUrl, proxies: details.map((proxy) => describe(proxy, environmentId)) };
+        // One broken proxy shouldn't hide the rest.
+        const details = await Promise.allSettled(proxies.map((proxy) => api.getMcpProxy(proxy.id)));
+        return {
+            signedIn: true,
+            consoleUrl,
+            proxies: details.map((result, index) => result.status === "fulfilled" ? describe(result.value, environmentId) : {
+                id: proxies[index].id,
+                name: proxies[index].name,
+                description: proxies[index].description,
+                unsupportedReason: "Couldn't load this MCP server from Agent Manager.",
+            }),
+        };
     } catch (error) {
         return { signedIn: true, consoleUrl, proxies: [], error: error instanceof Error ? error.message : String(error) };
     }
@@ -72,7 +82,8 @@ async function proxyUrl(proxy: McpProxyDetails): Promise<string> {
     return `${host.replace(/\/+$/, "")}${proxy.context.replace(/\/+$/, "")}/mcp`;
 }
 
-const urlVariableFor = (proxyId: string) => `${proxyId.replace(/[^A-Za-z0-9]+(.)?/g, (_, next: string) => next?.toUpperCase() ?? "")}McpUrl`;
+// Handles may start with a digit, which a Ballerina identifier can't; envBase handles the env side the same way.
+const urlVariableFor = (proxyId: string) => `${proxyId.replace(/[^A-Za-z0-9]+(.)?/g, (_, next: string) => next?.toUpperCase() ?? "").replace(/^(?=\d)/, "_")}McpUrl`;
 const proxyEnv = (proxyId: string) => ({ url: `${envBase(proxyId)}_MCP_URL` });
 // Picked but not yet saved, so not in the manifest; the open form can still list their tools.
 const pickedProxies = new Set<string>();

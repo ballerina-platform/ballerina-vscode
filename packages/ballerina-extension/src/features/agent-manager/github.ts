@@ -132,21 +132,21 @@ function listedInGitignore(projectPath: string, entry: string): boolean {
     return lines.includes(entry) || lines.includes(`/${entry}`);
 }
 
-// The unauthenticated API 404s for private repositories, so a failed lookup reads as private.
+// The unauthenticated API 404s for private repositories; any other failure (e.g. rate limiting) leaves visibility unknown.
 async function isPrivateRepo(repository: string): Promise<boolean | undefined> {
     const cached = repoInfoCache.get(repository);
     if (cached && Date.now() - cached.at < REPO_INFO_TTL_MS) {
         return cached.isPrivate;
     }
-    let isPrivate: boolean | undefined = true;
+    let isPrivate: boolean | undefined;
     try {
         const response = await fetch(`https://api.github.com/repos/${repository}`, { headers: { Accept: "application/vnd.github+json" } });
         if (response.ok) {
             isPrivate = ((await response.json()) as { private: boolean }).private;
+        } else if (response.status === 404) {
+            isPrivate = true;
         }
-    } catch {
-        isPrivate = undefined;
-    }
+    } catch { /* unknown */ }
     repoInfoCache.set(repository, { isPrivate, at: Date.now() });
     return isPrivate;
 }

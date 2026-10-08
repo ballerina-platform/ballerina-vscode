@@ -107,16 +107,19 @@ interface DeploymentInfo {
 
 // The MCP proxy list caps a page at 50, so every list uses that size.
 const PAGE_SIZE = 50;
+// Stops a server that ignores `offset` from paging forever.
+const MAX_PAGES = 100;
 
 async function listAll<T>(apiPath: string, items: (page: any) => T[]): Promise<T[]> {
     const all: T[] = [];
-    for (let offset = 0; ; offset += PAGE_SIZE) {
+    for (let offset = 0; offset < PAGE_SIZE * MAX_PAGES; offset += PAGE_SIZE) {
         const page = items(await request("GET", `${apiPath}?limit=${PAGE_SIZE}&offset=${offset}`)) ?? [];
         all.push(...page);
         if (page.length < PAGE_SIZE) {
-            return all;
+            break;
         }
     }
+    return all;
 }
 
 export const api = {
@@ -298,7 +301,8 @@ export function updateManifest(projectPath: string, change: (manifest: Manifest)
     fs.writeFileSync(file, stringifyYaml(change(readManifest(projectPath))));
 }
 
-const agentModes = new Map<string, AgentManagerHostingMode>();
+const AGENT_MODE_TTL_MS = 60_000;
+const agentModes = new Map<string, { mode: AgentManagerHostingMode; at: number }>();
 
 // Another org, a name Agent Manager couldn't have issued, or an agent missing on the signed-in instance, reads as unlinked.
 export async function readLink(projectPath: string): Promise<AgentManagerLink | undefined> {
@@ -314,18 +318,23 @@ export async function readLink(projectPath: string): Promise<AgentManagerLink | 
 
 async function agentMode(link: AgentManagerLink): Promise<AgentManagerHostingMode | undefined> {
     const key = `${link.instanceUrl}/${link.org}/${link.project}/${link.agent}`;
-    if (!agentModes.has(key)) {
-        const agent = await api.getAgent(link).catch((error) => {
-            if (!(error instanceof AgentManagerApiError && error.status === 404)) {
-                throw error;
-            }
-        });
-        if (!agent) {
-            return undefined;
-        }
-        agentModes.set(key, agent.provisioning?.type === "external" ? "external" : "internal");
+    const cached = agentModes.get(key);
+    if (cached && Date.now() - cached.at < AGENT_MODE_TTL_MS) {
+        return cached.mode;
     }
-    return agentModes.get(key);
+    // Re-checked periodically so an agent deleted in the console falls back to unlinked.
+    const agent = await api.getAgent(link).catch((error) => {
+        if (!(error instanceof AgentManagerApiError && error.status === 404)) {
+            throw error;
+        }
+    });
+    if (!agent) {
+        agentModes.delete(key);
+        return undefined;
+    }
+    const mode: AgentManagerHostingMode = agent.provisioning?.type === "external" ? "external" : "internal";
+    agentModes.set(key, { mode, at: Date.now() });
+    return mode;
 }
 
 function apiKeyExpiry(projectPath: string): number | undefined {

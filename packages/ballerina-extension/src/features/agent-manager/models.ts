@@ -47,7 +47,19 @@ export async function listModelProviders(): Promise<AgentManagerModelProviders> 
     const consoleUrl = `${consoleOrgUrl(session.consoleUrl, session.org)}/llm-providers`;
     try {
         const [providers, gatewayUrl] = await Promise.all([api.listLlmProviders(), api.getGatewayUrl(DEFAULT_ENVIRONMENT)]);
-        return { signedIn: true, consoleUrl, providers: await Promise.all(providers.map((provider) => describe(provider, gatewayUrl))) };
+        // One broken provider shouldn't hide the rest.
+        const settled = await Promise.allSettled(providers.map((provider) => describe(provider, gatewayUrl)));
+        return {
+            signedIn: true,
+            consoleUrl,
+            providers: settled.map((result, index) => result.status === "fulfilled" ? result.value : {
+                id: providers[index].id,
+                name: providers[index].name,
+                template: providers[index].template,
+                url: "",
+                unsupportedReason: "Couldn't load this provider from Agent Manager.",
+            }),
+        };
     } catch (error) {
         return { signedIn: true, consoleUrl, providers: [], error: error instanceof Error ? error.message : String(error) };
     }

@@ -7,12 +7,13 @@
  * You may not alter or remove any copyright or other notice from copies of this content.
  */
 
-import { AgentManagerMcpBinding, FlowNode, LineRange, NodePosition } from "@wso2/ballerina-core";
+import { AgentManagerMcpBinding, FlowNode, LineRange, NodePosition, ProductMode } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { cloneDeep, debounce } from "lodash";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RelativeLoader } from "../../../components/RelativeLoader";
 import { AgentManagerMcpGate, applyMcpBinding } from "../../../components/AgentManagerModels/McpProxies";
+import { useProductMode } from "../../../hooks/useProductMode";
 import FlowNodeForm from "../Forms/FlowNodeForm";
 import { McpToolsSelection, ToolScopes } from "./Mcp/McpToolsSelection";
 import { DiscoverToolsModal } from "./Mcp/DiscoverToolsModal";
@@ -62,6 +63,7 @@ const uniqueName = (base: string, reserved: Set<string>): string => {
 export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
     const { agentNode, agentDefinition, onSave, editMode = false } = props;
     const { rpcClient } = useRpcContext();
+    const agentBuilder = useProductMode() === ProductMode.AGENT_BUILDER;
 
     const [serverUrl, setServerUrl] = useState("");
     const [auth, setAuth] = useState("");
@@ -681,7 +683,7 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
                 </LoaderContainer>
             )}
 
-            {editMode ? form : !isLoading && <AgentManagerMcpGate onBind={handleAgentManagerBinding} onDiscard={discardPickedProxy} onSetBackOverride={props.onSetBackOverride}>{form}</AgentManagerMcpGate>}
+            {editMode || !agentBuilder ? form : !isLoading && <AgentManagerMcpGate onBind={handleAgentManagerBinding} onDiscard={discardPickedProxy} onSetBackOverride={props.onSetBackOverride}>{form}</AgentManagerMcpGate>}
 
             <DiscoverToolsModal
                 isOpen={showDiscoverModal}

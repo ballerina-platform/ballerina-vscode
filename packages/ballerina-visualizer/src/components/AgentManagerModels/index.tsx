@@ -97,7 +97,8 @@ export function AgentManagerModelProviderSection({ categories, onSelect }: { cat
 
 export const count = (n: number, noun: string) => `${n} ${noun}${n === 1 ? "" : "s"}`;
 
-export const camelId = (id: string) => id.replace(/[^A-Za-z0-9]+(.)?/g, (_, next: string) => next?.toUpperCase() ?? "");
+// Handles may start with a digit, which a Ballerina identifier can't.
+export const camelId = (id: string) => id.replace(/[^A-Za-z0-9]+(.)?/g, (_, next: string) => next?.toUpperCase() ?? "").replace(/^(?=\d)/, "_");
 
 // Signs in first when needed; cancelling the sign-in leaves the picker as it was.
 export function AgentManagerEntryCard({ description, connected, onOpen }: { description: string; connected?: string; onOpen: () => void }) {
