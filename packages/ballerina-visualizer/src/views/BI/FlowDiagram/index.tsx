@@ -189,6 +189,8 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
 
 
     const [model, setModel] = useState<Flow>();
+    const modelRef = useRef<Flow>();
+    modelRef.current = model;
     const [suggestedModel, setSuggestedModel] = useState<Flow>();
     const [showSidePanel, setShowSidePanel] = useState(false);
     const [sidePanelView, setSidePanelView] = useState<SidePanelView>(SidePanelView.NODE_LIST);
@@ -327,6 +329,8 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     // the loader (content not editable) and closes only when the refreshed flow model
     // lands — matching how the other flow diagrams hold the panel through an operation.
     const pendingCapabilityCloseRef = useRef<boolean>(false);
+    // A refresh while a new node is being placed would replace the model and drop its draft.
+    const pendingInsertRef = useRef(false);
     // Refresh ladders and the capability failsafe armed by the operations below. Both are
     // cancelled when the next operation starts, when the panel closes and on unmount, so a
     // timer armed for one operation cannot fire against the next one (or after navigation).
@@ -926,8 +930,14 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     };
 
     const getFlowModel = () => {
-        setShowProgressIndicator(true);
-        onUpdate();
+        if (pendingInsertRef.current && !pendingCapabilityCloseRef.current) {
+            return;
+        }
+        // Refreshing a flow already on screen must not blank the title bar actions or lock the canvas.
+        if (!modelRef.current) {
+            setShowProgressIndicator(true);
+            onUpdate();
+        }
 
         // Re-check authentication status
         rpcClient.getAiPanelRpcClient().isUserAuthenticated()
@@ -1228,6 +1238,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         nodeTemplateRef.current = undefined;
         topNodeRef.current = undefined;
         targetRef.current = undefined;
+        pendingInsertRef.current = false;
         changeTargetRange(undefined);
         selectedClientName.current = undefined;
         showEditForm.current = false;
@@ -1414,6 +1425,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         }
         // handle add new node
         topNodeRef.current = parent;
+        pendingInsertRef.current = true;
         changeTargetRange(target)
         fetchNodesAndAISuggestions(parent, target, undefined, undefined, true);
     };
@@ -2418,6 +2430,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         editorConfig?: EditorConfig,
         options?: FormSubmitOptions
     ) => {
+        pendingInsertRef.current = false;
         if (!updatedNode) {
             console.log(">>> No updated node found");
             updatedNode = selectedNodeRef.current;
@@ -2777,9 +2790,11 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         await updateArtifactLocation(deleteNodeResponse);
 
         selectedNodeRef.current = undefined;
-        closeSidePanelAndFetchUpdatedFlowModel();
-        setShowProgressIndicator(false);
-        debouncedGetFlowModel();
+        resetNodeSelectionStates();
+        clearRefreshTimers();
+        // Stay locked until the flow without the node is on screen, so a quick next delete cannot hit a stale range.
+        setShowProgressIndicator(true);
+        getFlowModel();
     };
 
     const handleOnAddComment = (comment: string, target: LineRange) => {
