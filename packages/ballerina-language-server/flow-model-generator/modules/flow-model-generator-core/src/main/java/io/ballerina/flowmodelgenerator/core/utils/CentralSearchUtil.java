@@ -30,6 +30,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BiPredicate;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -48,9 +49,22 @@ public class CentralSearchUtil {
     private static final String FUNCTION_SYMBOL_TYPE = "function";
 
     private final CentralAPI centralClient;
+    private final BiPredicate<String, String> toolPackageCheck;
 
     public CentralSearchUtil(CentralAPI centralClient) {
+        this(centralClient, SearchResultFilter::isToolPackage);
+    }
+
+    /**
+     * Creates a Central search with the given tool package check. Every search drops the packages it accepts, since
+     * Central does not mark a bal tool package in its search responses.
+     *
+     * @param centralClient the Central client to query with
+     * @param toolPackageCheck checks whether an organization and package name identify a bal tool package
+     */
+    public CentralSearchUtil(CentralAPI centralClient, BiPredicate<String, String> toolPackageCheck) {
         this.centralClient = centralClient;
+        this.toolPackageCheck = toolPackageCheck;
     }
 
     /**
@@ -98,7 +112,10 @@ public class CentralSearchUtil {
                     if (!allowedOrgs.contains(connector.packageInfo.getOrganization())) {
                         continue;
                     }
-                    if (isBlacklisted(connector.name, blacklistedNamePatterns)) {
+                    if (isToolPackage(connector)) {
+                        continue;
+                    }
+                    if (SearchResultFilter.isBlacklistedConnector(connector.name, blacklistedNamePatterns)) {
                         continue;
                     }
                     if (skipped < offset) {
@@ -178,7 +195,10 @@ public class CentralSearchUtil {
                 if (connector == null || connector.packageInfo == null || connector.name == null) {
                     continue;
                 }
-                if (isBlacklisted(connector.name, blacklistedNamePatterns)) {
+                if (isToolPackage(connector)) {
+                    continue;
+                }
+                if (SearchResultFilter.isBlacklistedConnector(connector.name, blacklistedNamePatterns)) {
                     continue;
                 }
                 if (skipped < offset) {
@@ -248,6 +268,9 @@ public class CentralSearchUtil {
                     if (!allowedOrgs.contains(symbol.organization())) {
                         continue;
                     }
+                    if (isToolPackage(symbol)) {
+                        continue;
+                    }
                     if (skipped < offset) {
                         skipped++;
                         continue;
@@ -274,8 +297,12 @@ public class CentralSearchUtil {
     /**
      * Searches functions from Ballerina Central scoped to a single organization. The organization and symbol type
      * filters are applied by Central, so {@code limit} and {@code offset} map directly to stable pages (no
-     * over-fetching or post-filtering). This suits paginated listing of an organization's functions. Returns null if
-     * the request fails or times out, allowing the caller to fall back to the local database.
+     * over-fetching). This suits paginated listing of an organization's functions. Returns null if the request fails
+     * or times out, allowing the caller to fall back to the local database.
+     *
+     * <p>Tool packages are dropped after Central has paged, so a page that loses rows to them is topped up from the
+     * rows after it. A short page would otherwise hide "Show more", which the panel only offers after a full page.
+     * The top-up rows come back again with the next page, and the panel drops them as duplicates.</p>
      *
      * @param query  the search query string (empty to list all functions of the organization)
      * @param limit  the desired number of results
@@ -290,29 +317,44 @@ public class CentralSearchUtil {
             return new ArrayList<>();
         }
         try {
-            Map<String, String> queryMap = new HashMap<>();
-            if (!query.isEmpty()) {
-                queryMap.put("q", query);
-            }
-            queryMap.put("org", org);
-            queryMap.put("symbolType", FUNCTION_SYMBOL_TYPE);
-            queryMap.put("limit", String.valueOf(limit));
-            queryMap.put("offset", String.valueOf(offset));
-            SymbolResponse symbolResponse = centralClient.searchSymbols(queryMap);
-
-            if (symbolResponse == null || symbolResponse.symbols() == null) {
-                return new ArrayList<>();
-            }
-
             List<SearchResult> results = new ArrayList<>();
-            for (SymbolResponse.Symbol symbol : symbolResponse.symbols()) {
-                if (symbol == null || symbol.symbolType() == null) {
-                    continue;
+            int fetchOffset = offset;
+            int fetchLimit = limit;
+            for (int iteration = 0; iteration < MAX_FETCH_ITERATIONS && fetchLimit > 0; iteration++) {
+                Map<String, String> queryMap = new HashMap<>();
+                if (!query.isEmpty()) {
+                    queryMap.put("q", query);
                 }
-                if (!FUNCTION_SYMBOL_TYPE.equals(symbol.symbolType())) {
-                    continue;
+                queryMap.put("org", org);
+                queryMap.put("symbolType", FUNCTION_SYMBOL_TYPE);
+                queryMap.put("limit", String.valueOf(fetchLimit));
+                queryMap.put("offset", String.valueOf(fetchOffset));
+                SymbolResponse symbolResponse = centralClient.searchSymbols(queryMap);
+
+                if (symbolResponse == null || symbolResponse.symbols() == null) {
+                    break;
                 }
-                results.add(toSearchResult(symbol, false));
+
+                boolean droppedToolPackage = false;
+                for (SymbolResponse.Symbol symbol : symbolResponse.symbols()) {
+                    if (symbol == null || symbol.symbolType() == null) {
+                        continue;
+                    }
+                    if (!FUNCTION_SYMBOL_TYPE.equals(symbol.symbolType())) {
+                        continue;
+                    }
+                    if (isToolPackage(symbol)) {
+                        droppedToolPackage = true;
+                        continue;
+                    }
+                    results.add(toSearchResult(symbol, false));
+                }
+
+                if (!droppedToolPackage || symbolResponse.count() <= fetchOffset + fetchLimit) {
+                    break;
+                }
+                fetchOffset += fetchLimit;
+                fetchLimit = limit - results.size();
             }
             return results;
         } catch (RuntimeException e) {
@@ -401,7 +443,7 @@ public class CentralSearchUtil {
                     if (symbol == null || symbol.symbolType() == null) {
                         continue;
                     }
-                    if (symbolTypeFilter.test(symbol.symbolType())) {
+                    if (symbolTypeFilter.test(symbol.symbolType()) && !isToolPackage(symbol)) {
                         if (skipped < offset) {
                             skipped++;
                             continue;
@@ -465,8 +507,12 @@ public class CentralSearchUtil {
         return moduleName == null || moduleName.isEmpty() ? symbol.name() : moduleName;
     }
 
-    private static boolean isBlacklisted(String connectorName, Set<String> patterns) {
-        return connectorName != null && patterns.stream().anyMatch(connectorName::contains);
+    private boolean isToolPackage(Connector connector) {
+        return toolPackageCheck.test(connector.packageInfo.getOrganization(), connector.packageInfo.getName());
+    }
+
+    private boolean isToolPackage(SymbolResponse.Symbol symbol) {
+        return toolPackageCheck.test(symbol.organization(), symbol.name());
     }
 
     private static int safeFetchLimit(int limit, int offset) {
