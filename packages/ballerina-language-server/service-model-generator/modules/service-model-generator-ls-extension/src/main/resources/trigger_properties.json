@@ -10,7 +10,7 @@
     "version": "1.3.0",
     "kind": "mcp",
     "minSupportedVersion": "1.3.0",
-    "description": "Exposes tools to AI agents over the Model Context Protocol."
+    "description": "A service that exposes tools to AI agents through the Model Context Protocol (MCP)."
   },
   "2": {
     "name": "kafka",

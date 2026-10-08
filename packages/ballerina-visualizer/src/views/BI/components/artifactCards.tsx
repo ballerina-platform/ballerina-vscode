@@ -121,7 +121,7 @@ export const AUTOMATION_CARD: ArtifactCard = {
     kind: "automation",
     displayName: "Automation",
     icon: <Icon name="bi-task" />,
-    tooltip: "A one-time task that runs a sequence of steps, invoked manually or on a schedule."
+    tooltip: "A task that runs a sequence of steps, invoked manually or on a schedule."
 };
 
 export const WORKFLOW_CARD: ArtifactCard = {
@@ -129,7 +129,7 @@ export const WORKFLOW_CARD: ArtifactCard = {
     kind: "workflow",
     displayName: "Durable Workflow",
     icon: <Icon name="bi-flowchart" />,
-    tooltip: "Long-running workflow logic with events, timers, human tasks, and crash recovery."
+    tooltip: "Long-running workflow with events, timers, human tasks, and crash recovery."
 };
 
 export const DURABLE_AGENT_CARD: ArtifactCard = {
@@ -138,7 +138,7 @@ export const DURABLE_AGENT_CARD: ArtifactCard = {
     kind: "durable_agent",
     displayName: "Durable Agentic Workflow",
     icon: <DurableAgentIcon size={24} />,
-    tooltip: "Agentic long-running workflow logic with events, timers, human tasks, and crash recovery."
+    tooltip: "A long-running agentic workflow with events, timers, human tasks, and crash recovery."
 };
 
 export const AI_CHAT_AGENT_CARD: ArtifactCard = {
@@ -146,7 +146,7 @@ export const AI_CHAT_AGENT_CARD: ArtifactCard = {
     kind: "ai-agent",
     displayName: "Chat Agent Service",
     icon: <Icon name="bi-ai-agent" />,
-    tooltip: "A conversational service that exposes an AI agent over a chat-style API."
+    tooltip: "A conversational service that exposes an AI agent over a chat API."
 };
 
 export const VOICE_AGENT_CARD: ArtifactCard = {
@@ -279,6 +279,6 @@ export const OTHER_ARTIFACT_CARDS: OtherArtifactCard[] = [
         displayName: "Configuration",
         icon: <Icon name="bi-config" />,
         directoryKey: DIRECTORY_MAP.CONFIGURABLE,
-        tooltip: "A configurable value that can be set externally without changing code.",
+        tooltip: "A value that can be configured externally without changing code.",
     },
 ];
