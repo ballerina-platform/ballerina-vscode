@@ -77,6 +77,7 @@ import { useDurableAgentUsages } from "./durableAgentUsages";
 import { NodePosition } from "@wso2/syntax-tree";
 import { View, ProgressIndicator, ThemeColors } from "@wso2/ui-toolkit";
 import { applyModifications, textToModifications } from "../../../utils/utils";
+import { debouncedUndoRedoManager } from "../../../utils/debouncedUndoRedo";
 import { PanelManager, SidePanelView } from "./PanelManager";
 import {
     transformCategories,
@@ -406,6 +407,10 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
 
     useEffect(() => {
         const unsubscribeProjectContent = rpcClient.onProjectContentUpdated(() => {
+            // Mid undo/redo the view location is not yet moved to the edited source; the applied refresh covers it.
+            if (debouncedUndoRedoManager.isProcessing()) {
+                return;
+            }
             debouncedGetFlowModel();
         })
         rpcClient.onParentPopupSubmitted((parent: ParentPopupData) => {
@@ -460,7 +465,13 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 setIsUserAuthenticated(false);
             });
 
-        return () => unsubscribeProjectContent();
+        // The user's own undo/redo is not a burst to wait out.
+        const unsubscribeUndoRedo = debouncedUndoRedoManager.onApplied(() => getFlowModel());
+
+        return () => {
+            unsubscribeProjectContent();
+            unsubscribeUndoRedo();
+        };
     }, [rpcClient]);
 
     useEffect(() => {
