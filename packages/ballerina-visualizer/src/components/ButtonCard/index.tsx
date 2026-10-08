@@ -155,7 +155,7 @@ export function ButtonCard(props: ButtonCardProps) {
     };
 
     return (
-        <Tooltip content={tooltip}>
+        <Tooltip maxWidth={300} content={tooltip}>
             <Card
                 id={props.id}
                 data-testid={`function-card-${title}`}
