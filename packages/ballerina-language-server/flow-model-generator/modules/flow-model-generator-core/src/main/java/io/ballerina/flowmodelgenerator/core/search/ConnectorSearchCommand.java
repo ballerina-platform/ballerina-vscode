@@ -38,6 +38,7 @@ import io.ballerina.flowmodelgenerator.core.model.node.NewConnectionBuilder;
 import io.ballerina.flowmodelgenerator.core.utils.CentralSearchUtil;
 import io.ballerina.flowmodelgenerator.core.utils.ConnectorCategoryResolver;
 import io.ballerina.flowmodelgenerator.core.utils.ConnectorUtil;
+import io.ballerina.flowmodelgenerator.core.utils.SearchResultFilter;
 import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.modelgenerator.commons.SearchResult;
@@ -49,7 +50,6 @@ import io.ballerina.tools.text.LineRange;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -75,12 +75,6 @@ public class ConnectorSearchCommand extends SearchCommand {
     private static final Set<String> AGENT_SUPPORT_CONNECTORS = LocalIndexCentral.getInstance()
             .readJsonResource(AGENT_SUPPORT_CONNECTORS_JSON, AGENT_SUPPORT_CONNECTORS_LIST_TYPE);
     public static final String IS_AGENT_SUPPORT = "isAgentSupport";
-    private static final Set<String> BLACKLISTED_CONNECTOR_NAME_PATTERNS = Set.of("ModelProvider");
-    private static final Set<String> ALLOWED_ORGANIZATIONS = Set.of("ballerina", "ballerinax", "wso2");
-
-    private static boolean isBlacklisted(String connectorName) {
-        return BLACKLISTED_CONNECTOR_NAME_PATTERNS.stream().anyMatch(connectorName::contains);
-    }
 
     private final boolean groupedConnectorSet;
 
@@ -93,7 +87,7 @@ public class ConnectorSearchCommand extends SearchCommand {
     @Override
     protected List<Item> defaultView() {
         List<SearchResult> localConnectors = getLocalConnectors().stream()
-                .filter(result -> !isBlacklisted(result.name()))
+                .filter(result -> !SearchResultFilter.isBlacklistedConnector(result.name()))
                 .toList();
         Category.Builder localCategoryBuilder = rootBuilder.stepIn("Local", null, null);
         localConnectors.forEach(connection -> localCategoryBuilder.node(generateAvailableNode(connection, true)));
@@ -113,7 +107,7 @@ public class ConnectorSearchCommand extends SearchCommand {
         // TODO: The current search does not combine local and standard connectors when calculating the relevance
         //  score. Consequently, results are currently returned in sets, and pagination does not work uniformly.
         List<SearchResult> localConnectors = getLocalConnectors().stream()
-                .filter(result -> !isBlacklisted(result.name()))
+                .filter(result -> !SearchResultFilter.isBlacklistedConnector(result.name()))
                 .toList();
         List<ScoredConnector> scoredConnectors = new ArrayList<>();
         for (SearchResult connector : localConnectors) {
@@ -128,20 +122,15 @@ public class ConnectorSearchCommand extends SearchCommand {
         scoredConnectors.forEach(result -> rootBuilder.node(generateAvailableNode(result.searchResult(), true)));
 
         // Search connectors from Ballerina Central, falling back to local database on failure or timeout
-        String currentOrg = project.currentPackage().packageOrg().value();
-        Set<String> allowedOrgs = new HashSet<>(ALLOWED_ORGANIZATIONS);
-        if (currentOrg != null && !currentOrg.isEmpty()) {
-            allowedOrgs.add(currentOrg);
-        }
-
+        Set<String> allowedOrgs = SearchResultFilter.allowedOrganizations(project);
         CentralSearchUtil centralSearch = new CentralSearchUtil(RemoteCentral.getInstance());
         List<SearchResult> centralConnectors = centralSearch.searchConnectors(query, limit, offset,
-                allowedOrgs, BLACKLISTED_CONNECTOR_NAME_PATTERNS);
+                allowedOrgs, SearchResultFilter.blacklistedConnectorNamePatterns());
         if (centralConnectors != null) {
             centralConnectors.forEach(searchResult -> rootBuilder.node(generateAvailableNode(searchResult)));
         } else {
             List<SearchResult> indexSearchResults = dbManager.searchConnectors(query, limit, offset,
-                    allowedOrgs, BLACKLISTED_CONNECTOR_NAME_PATTERNS);
+                    allowedOrgs, SearchResultFilter.blacklistedConnectorNamePatterns());
             indexSearchResults.forEach(searchResult -> rootBuilder.node(generateAvailableNode(searchResult)));
         }
 
@@ -152,7 +141,7 @@ public class ConnectorSearchCommand extends SearchCommand {
     protected List<Item> searchCurrentOrganization(String currentOrg) {
         CentralSearchUtil centralSearch = new CentralSearchUtil(RemoteCentral.getInstance());
         List<SearchResult> organizationConnectors = centralSearch.searchConnectorsByOrganization(
-                currentOrg, query, limit, offset, BLACKLISTED_CONNECTOR_NAME_PATTERNS);
+                currentOrg, query, limit, offset, SearchResultFilter.blacklistedConnectorNamePatterns());
         organizationConnectors.forEach(searchResult -> rootBuilder.node(generateAvailableNode(searchResult)));
         return rootBuilder.build().items();
     }
@@ -171,14 +160,14 @@ public class ConnectorSearchCommand extends SearchCommand {
             List<SearchResult> searchResults = dbManager.searchConnectorsByPackage(packageList, limit, offset);
             SearchResult.sortByPackageListOrder(searchResults, packageList);
             defaultView.put(category.getKey(), searchResults.stream()
-                    .filter(result -> !isBlacklisted(result.name()))
+                    .filter(result -> !SearchResultFilter.isBlacklistedConnector(result.name()))
                     .toList());
         }
         return defaultView;
     }
 
     private Map<String, List<SearchResult>> fetchGroupedItems() {
-        return ConnectorCategoryResolver.group(dbManager.listConnectors(ALLOWED_ORGANIZATIONS));
+        return ConnectorCategoryResolver.group(dbManager.listConnectors(SearchResultFilter.allowedOrganizations()));
     }
 
     private static AvailableNode generateAvailableNode(SearchResult searchResult) {
