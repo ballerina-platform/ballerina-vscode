@@ -19,6 +19,7 @@
 package io.ballerina.indexgenerator;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.api.symbols.ClassSymbol;
@@ -28,6 +29,7 @@ import io.ballerina.compiler.api.symbols.Qualifiable;
 import io.ballerina.compiler.api.symbols.Qualifier;
 import io.ballerina.compiler.api.symbols.Symbol;
 import io.ballerina.compiler.api.symbols.TypeDefinitionSymbol;
+import io.ballerina.flowmodelgenerator.core.utils.SearchResultFilter;
 import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.projects.Module;
@@ -45,7 +47,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -65,6 +70,15 @@ public class SearchIndexGenerator {
             new TypeToken<Map<String, List<SearchListGenerator.PackageMetadataInfo>>>() { }.getType();
     private static final Logger LOGGER = Logger.getLogger(SearchIndexGenerator.class.getName());
     private static final String CONNECTOR_EXCLUDE_JSON = "connector_exclude.json";
+    // Relative to the language server root, which the Gradle task sets as the working directory, like the other
+    // generators' output paths. Running the generator from another directory writes elsewhere or fails.
+    private static final Path TOOL_PACKAGES_PATH =
+            Path.of("flow-model-generator/modules/flow-model-generator-ls-extension/src/main/resources")
+                    .resolve(SearchResultFilter.TOOL_PACKAGES_JSON);
+    private static final java.lang.reflect.Type TOOL_PACKAGES_TYPE = new TypeToken<Set<String>>() { }.getType();
+    // The tool packages skipped by this run, as "org/name". Ballerina Central does not mark a tool package in its
+    // search responses, so the language server filters its Central results against this list.
+    private static final Set<String> TOOL_PACKAGES = ConcurrentHashMap.newKeySet();
 
     public static void main(String[] args) {
         SearchDatabaseManager.createDatabase();
@@ -115,6 +129,32 @@ public class SearchIndexGenerator {
         } catch (URISyntaxException | IOException e) {
             LOGGER.severe("Error reading connector_exclude.json file: " + e.getMessage());
         }
+
+        writeToolPackages();
+    }
+
+    /**
+     * Writes the tool packages skipped by this run to the language server's resources, merged with the ones already
+     * recorded there. The merge keeps a package whose resolution failed in this run from silently leaving the list.
+     * As a result, regenerating the index only ever adds entries: a package that stops being a tool, or an entry
+     * recorded by mistake, has to be removed from the file by hand.
+     */
+    private static void writeToolPackages() {
+        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        Set<String> toolPackages = new TreeSet<>(TOOL_PACKAGES);
+        try {
+            if (Files.exists(TOOL_PACKAGES_PATH)) {
+                Set<String> recorded = gson.fromJson(
+                        Files.readString(TOOL_PACKAGES_PATH, StandardCharsets.UTF_8), TOOL_PACKAGES_TYPE);
+                if (recorded != null) {
+                    toolPackages.addAll(recorded);
+                }
+            }
+            Files.writeString(TOOL_PACKAGES_PATH, gson.toJson(toolPackages) + System.lineSeparator(),
+                    StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            LOGGER.severe("Error writing the tool packages file: " + e.getMessage());
+        }
     }
 
     private static void resolvePackage(String org,
@@ -134,6 +174,7 @@ public class SearchIndexGenerator {
         // bala declares itself a tool via bal-tool.json, so no list of tool names has to be maintained.
         if (resolvedPackage.manifest().balToolDescriptor().isPresent()) {
             logger.log("Skipping the bal tool package: " + packageMetadataInfo.name());
+            TOOL_PACKAGES.add(org + "/" + packageMetadataInfo.name());
             return;
         }
 
