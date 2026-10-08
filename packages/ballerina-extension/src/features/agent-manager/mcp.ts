@@ -105,11 +105,17 @@ export async function bindMcpProxy({ projectPath, proxyId }: AgentManagerMcpBind
 
 // Runs once the MCP form is saved, so deploy only attaches servers the agent actually uses.
 export function commitMcpProxy({ projectPath, proxyId }: AgentManagerMcpBindRequest): AgentManagerActionResponse {
-    updateManifest(projectPath, (manifest) => ({
-        ...manifest,
-        mcpServers: [...(manifest.mcpServers ?? []).filter((entry) => entry.proxy !== proxyId), { proxy: proxyId, env: proxyEnv(proxyId) }],
-    }));
-    pickedProxies.delete(proxyId);
+    try {
+        updateManifest(projectPath, (manifest) => ({
+            ...manifest,
+            mcpServers: [...(manifest.mcpServers ?? []).filter((entry) => entry.proxy !== proxyId), { proxy: proxyId, env: proxyEnv(proxyId) }],
+        }));
+        pickedProxies.delete(proxyId);
+    } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        vscode.window.showErrorMessage(`Couldn't record the MCP server in .wso2/agent-manager.yaml: ${message}`);
+        return { success: false, message };
+    }
     return { success: true };
 }
 

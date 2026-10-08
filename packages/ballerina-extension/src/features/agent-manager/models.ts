@@ -81,10 +81,16 @@ export async function bindModelProvider({ projectPath, providerId, urlVariable, 
 
 // The deployed agent gets its key through the LLM configuration added on deploy; local runs use a key the user creates.
 export async function commitModelProvider({ projectPath, providerId, keyVariable }: AgentManagerModelBindRequest): Promise<AgentManagerActionResponse> {
-    updateManifest(projectPath, (manifest) => ({
-        ...manifest,
-        llmProviders: [...(manifest.llmProviders ?? []).filter((entry) => entry.provider !== providerId), { provider: providerId, env: providerEnv(providerId) }],
-    }));
+    try {
+        updateManifest(projectPath, (manifest) => ({
+            ...manifest,
+            llmProviders: [...(manifest.llmProviders ?? []).filter((entry) => entry.provider !== providerId), { provider: providerId, env: providerEnv(providerId) }],
+        }));
+    } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        vscode.window.showErrorMessage(`Couldn't record the model in .wso2/agent-manager.yaml: ${message}`);
+        return { success: false, message };
+    }
     const open = "Open in Console";
     vscode.window.showInformationMessage(
         `To run this agent locally, create an API key for ${providerId} in Agent Manager and set ${keyVariable} in Config.toml.`, open

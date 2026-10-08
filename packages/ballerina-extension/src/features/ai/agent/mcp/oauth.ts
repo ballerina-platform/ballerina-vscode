@@ -62,7 +62,6 @@ export function takeInteractiveSignIn(url: string): boolean {
 export class McpOAuthProvider {
     authorizationUrl?: URL;
     private verifier = "";
-    private readonly expectedState = crypto.randomBytes(24).toString("base64url");
     private readonly secretKey: string;
 
     constructor(serverUrl: string, private readonly oauth: McpOAuthConfig) {
@@ -83,8 +82,9 @@ export class McpOAuthProvider {
         };
     }
 
+    // A fresh value per authorization request; signIn checks the one carried in that request's URL.
     state(): string {
-        return this.expectedState;
+        return crypto.randomBytes(24).toString("base64url");
     }
 
     clientInformation() {
@@ -121,12 +121,13 @@ export class McpOAuthProvider {
 
     async signIn(serverName: string): Promise<string> {
         const authUrl = this.authorizationUrl;
-        if (!authUrl) {
+        const expectedState = authUrl?.searchParams.get("state");
+        if (!authUrl || !expectedState) {
             throw new Error(`MCP server '${serverName}' has no pending sign-in.`);
         }
         const run = signInQueue.then(() => vscode.window.withProgress(
             { location: vscode.ProgressLocation.Notification, title: `Signing in to MCP server '${serverName}' in your browser...`, cancellable: true },
-            (_progress, cancel) => waitForAuthCode(this.oauth.callbackPort, this.expectedState, authUrl.toString(), cancel, `MCP server '${serverName}'`)
+            (_progress, cancel) => waitForAuthCode(this.oauth.callbackPort, expectedState, authUrl.toString(), cancel, `MCP server '${serverName}'`)
         ));
         signInQueue = run.catch(() => undefined);
         return run;

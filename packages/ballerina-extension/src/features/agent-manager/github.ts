@@ -255,19 +255,26 @@ export async function defaultRemote(projectPath: string, remotes: AgentManagerRe
 
 export async function repoDetails(projectPath: string, remote: string): Promise<AgentManagerRepoDetails> {
     const repository = await remoteRepository(projectPath, remote);
-    const heads = await git(projectPath, ["ls-remote", "--symref", remote, "HEAD", "refs/heads/*"]);
+    if (!repository) {
+        return { branches: [], error: `'${remote}' isn't a GitHub remote of this repository.` };
+    }
+    // "--" keeps a remote name that starts with "-" from being read as a git option.
+    const heads = await git(projectPath, ["ls-remote", "--symref", "--", remote, "HEAD", "refs/heads/*"]);
     if (heads.status !== 0) {
-        return { branches: [], error: `Couldn't list the branches of ${repository ?? remote}: ${heads.stderr.trim().split("\n").pop()}` };
+        return { branches: [], error: `Couldn't list the branches of ${repository}: ${heads.stderr.trim().split("\n").pop()}` };
     }
     const lines = heads.stdout.split("\n");
     const defaultBranch = lines.find((line) => line.startsWith("ref: "))?.match(/refs\/heads\/(\S+)\s+HEAD/)?.[1];
     const branches = lines.flatMap((line) => line.match(/\trefs\/heads\/(.+)$/)?.[1] ?? []);
-    return { branches, defaultBranch, isPrivate: repository ? await isPrivateRepo(repository) : undefined };
+    return { branches, defaultBranch, isPrivate: await isPrivateRepo(repository) };
 }
 
 export async function checkPushed(projectPath: string, remote: string, branch: string, appPath: string, buildFiles: string[]): Promise<AgentManagerSourceCheck> {
-    const repository = (await remoteRepository(projectPath, remote)) ?? remote;
-    const fetched = await git(projectPath, ["fetch", "--quiet", remote, `refs/heads/${branch}:refs/remotes/${remote}/${branch}`]);
+    const repository = await remoteRepository(projectPath, remote);
+    if (!repository) {
+        return { ok: false, message: `'${remote}' isn't a GitHub remote of this repository.` };
+    }
+    const fetched = await git(projectPath, ["fetch", "--quiet", "--", remote, `refs/heads/${branch}:refs/remotes/${remote}/${branch}`]);
     if (fetched.status !== 0) {
         return { ok: false, message: `Couldn't fetch ${branch} from ${repository}.` };
     }
@@ -316,7 +323,7 @@ export async function buildBranch(projectPath: string, repoUrl: string | undefin
     const remote = (await githubRemotes(projectPath)).find((candidate) => sameRepo(repoUrl, candidate.repository))?.name;
     const ref = `refs/remotes/${remote}/${branch}`;
     if (remote && Date.now() - (branchFetchedAt.get(projectPath + ref) ?? 0) > BRANCH_FETCH_TTL_MS) {
-        await git(projectPath, ["fetch", "--quiet", remote, `refs/heads/${branch}:${ref}`]);
+        await git(projectPath, ["fetch", "--quiet", "--", remote, `refs/heads/${branch}:${ref}`]);
         branchFetchedAt.set(projectPath + ref, Date.now());
     }
     const tip = remote ? await out(projectPath, ["rev-parse", "--verify", "--quiet", ref]) : undefined;

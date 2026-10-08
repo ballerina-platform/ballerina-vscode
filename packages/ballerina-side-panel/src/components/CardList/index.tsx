@@ -634,6 +634,8 @@ function CardList(props: CardListProps) {
         });
 
     const hasContent = filteredCategories.some((category) => category?.items && category.items.length > 0);
+    // A search can empty the first category, so the leading section goes with the first one that still has items.
+    const leadingIndex = filteredCategories.findIndex((category) => category?.items?.length > 0);
     const headerTitle = title;
     const canGoBack = Boolean(onBack);
     const shouldShowHeaderActions = (canGoBack && headerTitle) || onClose;
@@ -685,7 +687,7 @@ function CardList(props: CardListProps) {
                         </S.EmptyState>
                     ) : (
                         <>
-                            {filteredCategories.length === 0 && leadingSection}
+                            {leadingIndex === -1 && leadingSection}
                             {filteredCategories.map((category, index) => {
                                 if (!category?.items || category.items.length === 0) {
                                     return null;
@@ -697,7 +699,7 @@ function CardList(props: CardListProps) {
                                         {category.description && (
                                             <S.CategoryDescription>{category.description}</S.CategoryDescription>
                                         )}
-                                        {index === 0 && leadingSection}
+                                        {index === leadingIndex && leadingSection}
                                         {renderCards(category.items)}
                                     </S.CategorySection>
                                 );
