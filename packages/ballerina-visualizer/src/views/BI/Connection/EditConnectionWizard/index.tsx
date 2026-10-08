@@ -25,7 +25,7 @@ import { getFormProperties } from "../../../../utils/bi";
 import { ExpressionFormField, PanelContainer } from "@wso2/ballerina-side-panel";
 import { ProgressRing, ThemeColors } from "@wso2/ui-toolkit";
 import { HelperView } from "../../HelperView";
-import { ConnectionKind, ConnectionSelectionList, ConnectionCreator, PendingSetup } from "../../../../components/ConnectionSelector";
+import { ConnectionKind, ConnectionSelectionList, ConnectionCreator } from "../../../../components/ConnectionSelector";
 import { SidePanelView } from "../../FlowDiagram/PanelManager";
 import { getNodeTemplateForConnection } from "../../FlowDiagram/utils";
 
@@ -68,7 +68,6 @@ export function EditConnectionWizard(props: EditConnectionWizardProps) {
     const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
     const [selectedConnectionKind, setSelectedConnectionKind] = useState<ConnectionKind>();
     const [nodeFormTemplate, setNodeFormTemplate] = useState<FlowNode>();
-    const [pendingSetup, setPendingSetup] = useState<PendingSetup | undefined>(undefined);
 
     useEffect(() => {
         rpcClient
@@ -204,7 +203,6 @@ export function EditConnectionWizard(props: EditConnectionWizardProps) {
             );
 
             setNodeFormTemplate(flowNode);
-            setPendingSetup(metadata?.pendingSetup);
             setSelectedConnectionKind(connectionKind as ConnectionKind);
             setCurrentView(WizardView.CONNECTION_CREATE);
         } catch (error) {
@@ -260,7 +258,6 @@ export function EditConnectionWizard(props: EditConnectionWizardProps) {
                         connectionKind={selectedConnectionKind}
                         selectedNode={connection}
                         nodeFormTemplate={nodeFormTemplate}
-                        pendingSetup={pendingSetup}
                         onSave={handleConnectionCreated}
                     />
                 );

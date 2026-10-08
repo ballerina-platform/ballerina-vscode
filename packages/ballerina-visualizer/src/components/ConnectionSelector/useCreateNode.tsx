@@ -228,7 +228,6 @@ export function useCreateNode(
                                 connectionKind={connectionKind}
                                 selectedNode={{ properties: { model: { value: "" } } } as unknown as FlowNode}
                                 nodeFormTemplate={flowNode}
-                                pendingSetup={metadata?.pendingSetup}
                                 onSave={(node, artifacts) => {
                                     const varName = readCreatedVariable(node) || artifacts?.find(
                                         (artifact) => artifact.isNew

@@ -33,6 +33,7 @@ import { getContainerTitle, getSubPanelWidth } from "../../../utils/bi";
 import styled from "@emotion/styled";
 import { FormSubmitOptions } from ".";
 import { ConnectionConfig, ConnectionCreator, ConnectionSelectionList, ConnectionKind } from "../../../components/ConnectionSelector";
+import { AgentManagerModelProviderSection } from "../../../components/AgentManagerModels";
 import { RelativeLoader } from "../../../components/RelativeLoader";
 import { LoaderContainer } from "../../../components/RelativeLoader/styles";
 import { ConnectionListItem } from "@wso2/wso2-platform-core";
@@ -418,6 +419,7 @@ export function PanelManager(props: PanelManagerProps) {
                     <CardList
                         categories={categories}
                         onSelect={onSelectNode}
+                        leadingSection={<AgentManagerModelProviderSection categories={categories} onSelect={onSelectNode} />}
                         onClose={onClose}
                         title={"Model Providers"}
                         searchPlaceholder={"Search model providers"}

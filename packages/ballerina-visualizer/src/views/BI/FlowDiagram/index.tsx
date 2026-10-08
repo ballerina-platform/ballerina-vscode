@@ -76,7 +76,7 @@ import { NodePosition, STNode } from "@wso2/syntax-tree";
 import { View, ProgressIndicator, ThemeColors } from "@wso2/ui-toolkit";
 import { applyModifications, textToModifications } from "../../../utils/utils";
 import { PanelManager, SidePanelView } from "./PanelManager";
-import { transformCategories, getNodeTemplateForConnection, findFunctionByName, filterCategoriesLocally } from "./utils";
+import { transformCategories, getNodeTemplateForConnection, findFunctionByName, filterCategoriesLocally, attachPendingSetup, settlePendingSetup } from "./utils";
 import { PanelOverlayProvider } from "./context/PanelOverlayContext";
 import { PanelOverlayRenderer } from "./PanelOverlayRenderer";
 import { ExpressionFormField, Category as PanelCategory, S } from "@wso2/ballerina-side-panel";
@@ -1326,6 +1326,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
 
     const handleOnCloseSidePanel = () => {
         panelNavEpochRef.current += 1;
+        void settlePendingSetup(nodeTemplateRef.current, false);
         // The failsafe acts on the panel this close is dismissing; the refresh ladder is just a
         // model fetch, so it is left to finish.
         clearCapabilityFailsafe();
@@ -2400,6 +2401,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                             showConnectorError(response.errorMsg);
                             return;
                         }
+                        // A picker can fill in fields before the form opens, e.g. an Agent Manager LLM service provider.
+                        metadata.prepareTemplate?.(response.flowNode);
+                        attachPendingSetup(response.flowNode, metadata.pendingSetup);
                         selectedNodeRef.current = response.flowNode;
                         nodeTemplateRef.current = response.flowNode;
                         showEditForm.current = false;
@@ -2660,6 +2664,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                     return;
                 }
                 if (response.artifacts.length > 0) {
+                    await settlePendingSetup(nodeTemplateRef.current, true);
 
                     if (editorConfig && editorConfig.displayMode !== EditorDisplayMode.NONE) {
                         const newArtifact = response.artifacts.find(res => res.isNew);
@@ -2915,6 +2920,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     const handleOnFormBack = () => {
         panelNavEpochRef.current += 1;
         clearWorkflowCreationState();
+        void settlePendingSetup(nodeTemplateRef.current, false);
 
         // Try to navigate back using the navigation stack
         const didNavigateBack = popFromNavigationStack();

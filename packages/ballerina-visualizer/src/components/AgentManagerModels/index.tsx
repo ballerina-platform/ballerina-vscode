@@ -26,7 +26,7 @@ import { Codicon, Icon, ThemeColors } from "@wso2/ui-toolkit";
 import { useModalStack } from "../../Context";
 import { useAgentManagerSession } from "../../hooks/useAgentManagerSession";
 import { PanelOverlayContext } from "../../views/BI/FlowDiagram/context/PanelOverlayContext";
-import type { PendingSetup } from "../ConnectionSelector/types";
+import type { PendingSetup } from "../../views/BI/FlowDiagram/utils";
 import { RelativeLoader } from "../RelativeLoader";
 import { LoaderContainer } from "../RelativeLoader/styles";
 
@@ -88,6 +88,11 @@ export function useAgentManagerModelProviders(connectionKind: string, categories
             />
         </ListSection>
     );
+}
+
+// For lists that always show model providers, where a hook can't be called conditionally.
+export function AgentManagerModelProviderSection({ categories, onSelect }: { categories: Category[]; onSelect?: OnSelect }) {
+    return useAgentManagerModelProviders("MODEL_PROVIDER", categories, onSelect);
 }
 
 export const count = (n: number, noun: string) => `${n} ${noun}${n === 1 ? "" : "s"}`;

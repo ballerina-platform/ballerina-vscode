@@ -33,9 +33,10 @@ import { GET_DEFAULT_EMBEDDING_PROVIDER, GET_DEFAULT_MODEL_PROVIDER, LineRange, 
 import { LoaderContainer } from "../RelativeLoader/styles";
 import { URI, Utils } from "vscode-uri";
 import { CONNECTIONS_FILE } from "../../constants";
+import { settlePendingSetup } from "../../views/BI/FlowDiagram/utils";
 
 export function ConnectionCreator(props: ConnectionCreatorProps): JSX.Element {
-    const { connectionKind, selectedNode, nodeFormTemplate, pendingSetup, onSave } = props;
+    const { connectionKind, selectedNode, nodeFormTemplate, onSave } = props;
 
     const connectionSymbol = useMemo(() => nodeFormTemplate?.codedata?.symbol || '', [nodeFormTemplate?.codedata?.symbol]);
     const specialConfig = useMemo(() => getConnectionSpecialConfig(connectionSymbol) || {}, [connectionSymbol]);
@@ -49,14 +50,9 @@ export function ConnectionCreator(props: ConnectionCreatorProps): JSX.Element {
     const [savingForm, setSavingForm] = useState<boolean>(false);
 
     const projectPath = useRef<string>("");
-    const saved = useRef(false);
-    const pendingSetupRef = useRef(pendingSetup);
-    pendingSetupRef.current = pendingSetup;
-    useEffect(() => () => {
-        if (!saved.current) {
-            pendingSetupRef.current?.discard();
-        }
-    }, []);
+    const templateRef = useRef(nodeFormTemplate);
+    // Closing without saving undoes what the picker set up; after a save this finds nothing left to undo.
+    useEffect(() => () => void settlePendingSetup(templateRef.current, false), []);
     const connectionsFilePath = useRef<string>("");
     const targetLineRangeRef = useRef<LineRange | undefined>(undefined);
 
@@ -143,13 +139,13 @@ export function ConnectionCreator(props: ConnectionCreatorProps): JSX.Element {
                 const providerKind = connectionSymbol === GET_DEFAULT_EMBEDDING_PROVIDER ? "embedding" : "model";
                 await rpcClient.getAIAgentRpcClient().configureDefaultModelProvider(providerKind);
             }
-            saved.current = true;
+            const committed = settlePendingSetup(nodeFormTemplate, true);
             onSave?.(selectedNode, response.artifacts);
-            await pendingSetup?.commit();
+            await committed;
         } catch (error) {
             console.error(`>>> Error creating ${connectionKind}`, error);
         }
-    }, [onSave, rpcClient, connectionKind, connectionFields, connectionSymbol, pendingSetup]);
+    }, [onSave, rpcClient, connectionKind, connectionFields, connectionSymbol, nodeFormTemplate]);
 
     return (
         <>
