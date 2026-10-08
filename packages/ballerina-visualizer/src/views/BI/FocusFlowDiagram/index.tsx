@@ -146,6 +146,8 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
     const editorLoadingRef = useRef(false);
     const deferredRefreshRef = useRef(false);
     const [agentFormKey, setAgentFormKey] = useState(0);
+    const [savingAgentForm, setSavingAgentForm] = useState(false);
+    const [loadingConnectionTemplate, setLoadingConnectionTemplate] = useState(false);
 
     const [model, setModel] = useState<Flow>();
     const [suggestedModel, setSuggestedModel] = useState<Flow>();
@@ -480,8 +482,12 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
             suppressRef.current = false;
             return;
         }
-        setShowProgressIndicator(true);
-        onUpdate();
+        // A refresh of an agent already on screen must not blank the title bar actions or touch the canvas lock
+        const isInitialLoad = !agentDeclRef.current;
+        if (isInitialLoad) {
+            setShowProgressIndicator(true);
+            onUpdate();
+        }
         try {
             const location = await rpcClient.getVisualizerLocation();
             const pos = posOverride ?? (embedded ? embeddedPositionRef.current : location?.position) ?? location?.position;
@@ -532,7 +538,9 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         } catch (error) {
             console.error(`>>> ${logLabel}: error building model`, error);
         } finally {
-            setShowProgressIndicator(false);
+            if (isInitialLoad) {
+                setShowProgressIndicator(false);
+            }
             onReady(undefined, undefined, undefined);
         }
     };
@@ -591,14 +599,14 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
             return;
         }
         suppressAgentTypeReloadRef.current = false;
-        setShowProgressIndicator(true);
+        setSavingAgentForm(true);
         try {
             const fileName = model?.fileName;
             await rpcClient.getBIDiagramRpcClient().getSourceCode({ filePath: fileName, flowNode: updatedNode });
         } catch (error) {
             console.error(">>> agent focus: error saving agent form", error);
         } finally {
-            setShowProgressIndicator(false);
+            setSavingAgentForm(false);
             handleCloseAgentPanel();
         }
     };
@@ -995,7 +1003,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
     };
 
     const handleSelectConnection = async (nodeId: string, metadata?: any) => {
-        setShowProgressIndicator(true);
+        setLoadingConnectionTemplate(true);
 
         try {
             const { flowNode, connectionKind } = await getNodeTemplateForConnection(
@@ -1010,13 +1018,11 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
             setSelectedConnectionKind(connectionKind as ConnectionKind);
             setConnectionView(SidePanelView.CONNECTION_CREATE);
         } finally {
-            setShowProgressIndicator(false);
+            setLoadingConnectionTemplate(false);
         }
     };
 
     const handleUpdateNodeWithConnection = async (selectedNode: FlowNode) => {
-        setShowProgressIndicator(true);
-
         const clonedNode = structuredClone(selectedNode);
 
         const isNpFunction = clonedNode.codedata.node === "NP_FUNCTION";
@@ -1027,7 +1033,6 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
             .getBIDiagramRpcClient()
             .getSourceCode({ filePath: model?.fileName, flowNode: clonedNode, isFunctionNodeUpdate: isNpFunction });
         handleCloseConnectionPanel();
-        setShowProgressIndicator(false);
     };
 
     const createHelperPane = useCallback<GetHelperPaneFunction>((
@@ -1261,9 +1266,9 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                     projectPath={projectPath}
                     editForm={true}
                     onSubmit={handleSubmitAgentForm}
-                    submitText={showProgressIndicator ? "Saving..." : "Save"}
-                    showProgressIndicator={showProgressIndicator}
-                    disableSaveButton={showProgressIndicator}
+                    submitText={savingAgentForm ? "Saving..." : "Save"}
+                    showProgressIndicator={savingAgentForm}
+                    disableSaveButton={savingAgentForm}
                     fieldOverrides={fieldOverrides}
                     injectedComponents={isAgentType ? agentTypePromptInjection : undefined}
                     hideInfoBanner={isAgentType && Boolean(agentTypePromptInjection)}
@@ -1277,7 +1282,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
     return (
         <PanelOverlayProvider>
             <View>
-                {(showProgressIndicator) && model && (
+                {(showProgressIndicator || loadingConnectionTemplate) && model && (
                     <ProgressIndicator color={ThemeColors.PRIMARY} />
                 )}
                 <Container embedded={embedded}>
