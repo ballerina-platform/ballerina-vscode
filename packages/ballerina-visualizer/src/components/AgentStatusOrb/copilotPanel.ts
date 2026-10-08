@@ -41,6 +41,8 @@ export interface CopilotPromptOptions {
     planMode?: boolean;
     attachments?: Attachment[];
     newThread?: boolean;
+    /** Continues the thread last used for this key while it is recent, instead of starting a new one. */
+    threadKey?: string;
     hiddenContext?: string;
 }
 

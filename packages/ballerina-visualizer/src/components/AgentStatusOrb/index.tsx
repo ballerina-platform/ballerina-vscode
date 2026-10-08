@@ -46,6 +46,8 @@ import {
     ORB_HOVER_BRIGHTNESS,
     OrbGlow,
     activeStateLabel,
+    isMiniChatShortcut,
+    MINI_CHAT_SHORTCUT_LABEL,
     subscribeAgentRunStatus,
     subscribeOrbSuppressed,
     subscribeMiniChatOpen,
@@ -237,6 +239,17 @@ const InviteClear = styled.button`
     }
 `;
 
+const InviteShortcut = styled.kbd`
+    margin-right: 6px;
+    font-family: var(--vscode-editor-font-family);
+    font-size: 10px;
+    line-height: 16px;
+    padding: 0 4px;
+    border: 1px solid var(--vscode-dropdown-border);
+    border-radius: 3px;
+    color: var(--vscode-descriptionForeground);
+`;
+
 const InviteInput = styled.input`
     width: 230px;
     background: transparent;
@@ -278,6 +291,9 @@ const OrbButton = styled.button<{ state: AgentRunState; agentBuilder: boolean }>
     background: transparent;
     cursor: grab;
     outline-offset: 4px;
+    &:focus-visible {
+        outline: 1px solid var(--vscode-focusBorder);
+    }
     touch-action: none;
     transition: transform 0.2s ease;
     &:hover {
@@ -432,6 +448,8 @@ export function AgentStatusOrb() {
     const miniPromptRef = useRef<MiniChatPrompt | undefined>(undefined);
     /** Forces a fresh mini instance when a diagram launches it while already open. */
     const [miniChatKey, setMiniChatKey] = useState(0);
+    /** Bumped by the keyboard shortcut so an open mini chat takes focus again. */
+    const [miniFocusRequest, setMiniFocusRequest] = useState(0);
     /** WebGL unavailable — render the CSS gradient sphere instead. */
     const [webglFailed, setWebglFailed] = useState(false);
     const handleWebglFailed = useCallback(() => setWebglFailed(true), []);
@@ -518,6 +536,23 @@ export function AgentStatusOrb() {
         }
     }, [orbHidden]);
 
+    useEffect(() => {
+        if (orbHidden) {
+            return;
+        }
+        const handleKeyDown = (event: KeyboardEvent) => {
+            // An editor that already handled the chord (e.g. Cmd+I for italic) keeps it.
+            if (event.defaultPrevented || event.repeat || !isMiniChatShortcut(event)) {
+                return;
+            }
+            event.preventDefault();
+            setMiniOpen(true);
+            setMiniFocusRequest((request) => request + 1);
+        };
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [orbHidden]);
+
     // Resolve orb colors before any early return so the hook order stays stable
     // across renders (status is null while the orb is hidden).
     const themeColors = useOrbColors(status?.state ?? "idle");
@@ -568,7 +603,8 @@ export function AgentStatusOrb() {
         : state === "idle"
             ? ACCENT_CORE
             : `color-mix(in srgb, ${colors[0]} 70%, transparent)`;
-    const label = state === "idle" ? `Chat with ${assistantName}` : activeStateLabel(status);
+    // Idle has nothing to report, so the tooltip falls back to the bare product name.
+    const label = state === "idle" ? undefined : activeStateLabel(status);
     const showLabel = !dragging && !snapping && state !== "idle" && !miniOpen;
 
     // Typing into the invite starts the conversation in the mini chat — every
@@ -699,6 +735,7 @@ export function AgentStatusOrb() {
                 <MiniChat
                     key={miniChatKey}
                     anchor={anchor}
+                    focusRequest={miniFocusRequest}
                     onClose={() => setMiniOpen(false)}
                     takeInitialPrompt={() => {
                         const prompt = miniPromptRef.current;
@@ -747,6 +784,11 @@ export function AgentStatusOrb() {
                                         placeholder="How can I help?"
                                         aria-label={`Message ${assistantName}`}
                                     />
+                                    {inviteText.length === 0 && (
+                                        <InviteShortcut title={`Open the mini chat from anywhere with ${MINI_CHAT_SHORTCUT_LABEL}`}>
+                                            {MINI_CHAT_SHORTCUT_LABEL}
+                                        </InviteShortcut>
+                                    )}
                                     {inviteText.length > 0 && (
                                         <InviteClear
                                             type="button"
@@ -777,7 +819,7 @@ export function AgentStatusOrb() {
                     onPointerUp={handlePointerUp}
                     onFocus={() => setOrbFocused(true)}
                     onBlur={() => setOrbFocused(false)}
-                    title={label ? `${assistantName} — ${label}` : assistantName}
+                    title={`${label ? `${assistantName} — ${label}` : assistantName} (${MINI_CHAT_SHORTCUT_LABEL})`}
                     aria-label={label ? `${assistantName}: ${label}. Click to open the mini chat, double-click for the chat panel, right-click to hide the orb.` : `Click to open the ${assistantName} mini chat, double-click for the chat panel, right-click to hide the orb`}
                 >
                     {(state === "running" || state === "awaiting-input") && <Halo colors={colors} />}

@@ -22,6 +22,7 @@ import { EvaluationOutcomeResult, EvaluationReportTestResult, EvaluationRun } fr
 import { Codicon } from "@wso2/ui-toolkit";
 import { RunPassRateChart } from "./RunPassRateChart";
 import { outcomeLabel, PassRatePill, toPercent } from "../../components/PassRatePill";
+import { FixEvaluationButton } from "../../components/FixEvaluationButton";
 
 // Without minPassRate, `bal test` reports a plain test that must pass on its one run.
 const PLAIN_TEST_MIN_PASS_RATE = 1;
@@ -274,6 +275,18 @@ export function ReportTestCard({ test, moduleName }: ReportTestCardProps) {
                             {isPassing ? "Passed" : "Failed"}
                         </StatusChip>
                         <PassRatePill passRate={passRate} minPassRate={minPassRate} isPassing={isPassing} />
+                        {test.status === "FAILURE" && (
+                            <FixEvaluationButton
+                                evaluation={{
+                                    testName: test.name,
+                                    projectName: moduleName,
+                                    passRate,
+                                    minPassRate,
+                                    failureMessage: test.failureMessage,
+                                    runs: evalSummary?.evaluationRuns ?? [],
+                                }}
+                            />
+                        )}
                     </CardBadges>
                 </CardTitleRow>
                 <CardMeta>{moduleName}</CardMeta>

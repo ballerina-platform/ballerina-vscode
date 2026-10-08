@@ -23,6 +23,7 @@ import { EvaluationRunDataPoint, EvaluationTestHistory } from "./types";
 import { SparklineChart } from "./SparklineChart";
 import { RunHistoryTable } from "./RunHistoryTable";
 import { PassRatePill } from "../../components/PassRatePill";
+import { FixEvaluationButton } from "../../components/FixEvaluationButton";
 import { Button, Codicon } from "@wso2/ui-toolkit";
 
 const Card = styled.section`
@@ -191,6 +192,19 @@ export function TestCard({ history, projectPath, deleted, onDeleteHistory, focus
                             latest
                         />
                         {deleted && <DeletedTag title="This evaluation is no longer in the code">Deleted</DeletedTag>}
+                        {!isPassing && !deleted && (
+                            <FixEvaluationButton
+                                evaluation={{
+                                    testName: history.testName,
+                                    projectName: history.projectName,
+                                    passRate: latest.passRate,
+                                    minPassRate: latest.targetPassRate,
+                                    failureMessage: latest.failureMessage,
+                                    runs: latest.evaluationRuns,
+                                    history: { runs: history.runs.length, passed: passedRuns },
+                                }}
+                            />
+                        )}
                         {onDeleteHistory && (
                             <Button appearance="icon" tooltip="Delete run history" onClick={() => onDeleteHistory()}>
                                 <Codicon name="trash" />

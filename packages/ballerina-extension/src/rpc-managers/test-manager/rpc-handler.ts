@@ -23,6 +23,7 @@ import {
     stopEvaluations, StopEvaluationsRequest, getEvaluationRunState,
     runEvaluationAction, EvaluationActionRequest,
     runEvalsetAction, EvalsetActionRequest,
+    generateEvaluationQueries, GenerateEvaluationQueriesRequest,
     AddOrUpdateTestFunctionRequest, updateTestFunction, getEvalsets, GetEvalsetsRequest,
     getEvaluationHistory, GetEvaluationHistoryRequest, deleteEvaluationHistory, DeleteEvaluationHistoryRequest,
     openEvaluationReport, OpenEvaluationReportRequest,
@@ -46,6 +47,8 @@ export function registerTestManagerRpcHandlers(messenger: Messenger) {
     messenger.onRequest(getEvaluationRunState, (args: EvaluationsRequest) => rpcManger.getEvaluationRunState(args));
     messenger.onRequest(runEvaluationAction, (args: EvaluationActionRequest) => rpcManger.runEvaluationAction(args));
     messenger.onRequest(runEvalsetAction, (args: EvalsetActionRequest) => rpcManger.runEvalsetAction(args));
+    messenger.onRequest(generateEvaluationQueries,
+        (args: GenerateEvaluationQueriesRequest) => rpcManger.generateEvaluationQueries(args));
     messenger.onRequest(getEvalsets, (args: GetEvalsetsRequest) => rpcManger.getEvalsets(args));
     messenger.onRequest(getEvaluationHistory, (args: GetEvaluationHistoryRequest) => rpcManger.getEvaluationHistory(args));
     messenger.onRequest(deleteEvaluationHistory,

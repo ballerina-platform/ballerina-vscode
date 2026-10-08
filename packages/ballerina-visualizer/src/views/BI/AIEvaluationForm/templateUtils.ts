@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { FormField } from "@wso2/ballerina-side-panel";
+import { buildStringArray, FormField } from "@wso2/ballerina-side-panel";
 import { AvailableNode, FlowNode, Property as FlowProperty } from "@wso2/ballerina-core";
 import { convertNodePropertyToFormField } from "../../../utils/bi";
 import {
@@ -188,3 +188,11 @@ export const generateTemplateFields = (node: FlowNode, dsParamName?: string): Fo
         }));
 
 export const isTemplateField = (field: FormField): boolean => field.key.startsWith(TEMPLATE_FIELD_PREFIX);
+
+/** A template argument as source text; a list argument's form value is its item fields. */
+export const templateArgumentSource = (value: unknown): string =>
+    Array.isArray(value) ? buildStringArray(value) : String(value ?? '');
+
+/** Wraps generated text as the string template the queries editor stores, keeping `` ` `` and `${` literal. */
+export const toQueryExpression = (text: string): string =>
+    `string \`${text.replace(/\$\{/g, () => '${"${"}').replace(/`/g, () => '${"`"}')}\``;

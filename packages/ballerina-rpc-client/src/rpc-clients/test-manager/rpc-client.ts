@@ -24,6 +24,7 @@ import {
     RunEvaluationsRequest, runEvaluations, StopEvaluationsRequest, stopEvaluations,
     EvaluationRunState, getEvaluationRunState, EvaluationActionRequest, runEvaluationAction,
     EvalsetActionRequest, runEvalsetAction,
+    GenerateEvaluationQueriesRequest, GenerateEvaluationQueriesResponse, generateEvaluationQueries,
     SourceUpdateResponse, GetEvalsetsRequest, GetEvalsetsResponse, getEvalsets,
     GetEvaluationHistoryRequest, GetEvaluationHistoryResponse, getEvaluationHistory,
     DeleteEvaluationHistoryRequest, deleteEvaluationHistory,
@@ -84,6 +85,10 @@ export class TestManagerServiceRpcClient implements TestManagerServiceAPI {
 
     runEvalsetAction(params: EvalsetActionRequest): Promise<void> {
         return this._messenger.sendRequest(runEvalsetAction, HOST_EXTENSION, params);
+    }
+
+    generateEvaluationQueries(params: GenerateEvaluationQueriesRequest): Promise<GenerateEvaluationQueriesResponse> {
+        return this._messenger.sendRequest(generateEvaluationQueries, HOST_EXTENSION, params);
     }
 
     getEvalsets(params: GetEvalsetsRequest): Promise<GetEvalsetsResponse> {

@@ -22,6 +22,7 @@ import {
     GetTestFunctionNamesRequest, GetTestFunctionNamesResponse,
     EvaluationsRequest, GetEvaluationsResponse, EvaluationFileResponse,
     RunEvaluationsRequest, StopEvaluationsRequest, EvaluationRunState, EvaluationActionRequest, EvalsetActionRequest,
+    GenerateEvaluationQueriesRequest, GenerateEvaluationQueriesResponse,
     GetEvalsetsRequest, GetEvalsetsResponse,
     GetEvaluationHistoryRequest, GetEvaluationHistoryResponse, DeleteEvaluationHistoryRequest,
     OpenEvaluationReportRequest,
@@ -42,6 +43,7 @@ export interface TestManagerServiceAPI {
     getEvaluationRunState: (params: EvaluationsRequest) => Promise<EvaluationRunState>;
     runEvaluationAction: (params: EvaluationActionRequest) => Promise<void>;
     runEvalsetAction: (params: EvalsetActionRequest) => Promise<void>;
+    generateEvaluationQueries: (params: GenerateEvaluationQueriesRequest) => Promise<GenerateEvaluationQueriesResponse>;
     getEvalsets: (params: GetEvalsetsRequest) => Promise<GetEvalsetsResponse>;
     getEvaluationHistory: (params: GetEvaluationHistoryRequest) => Promise<GetEvaluationHistoryResponse>;
     deleteEvaluationHistory: (params: DeleteEvaluationHistoryRequest) => Promise<void>;
