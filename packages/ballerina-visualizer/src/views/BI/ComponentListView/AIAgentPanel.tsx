@@ -148,7 +148,7 @@ export function AIAgentPanel(props: AIAgentPanelProps) {
                         title={VOICE_AGENT_CARD.displayName}
                         onClick={handleVoiceAgentClick}
                         disabled={isDisabled}
-                        tooltip={isDisabled ? OutOfScopeComponentTooltip : ""}
+                        tooltip={isDisabled ? OutOfScopeComponentTooltip : VOICE_AGENT_CARD.tooltip}
                     />
                 )}
                 {props.triggers.local.length === 0 && <RelativeLoader />}
