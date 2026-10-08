@@ -40,6 +40,15 @@ describe("getInputModeLabel", () => {
         }
     });
 
+    // The switcher pairs a field's primary mode with Expression, so a primary label that reads
+    // the same as Expression would render two identical options.
+    it("no other mode reads the same as Expression", () => {
+        const expressionLabel = getInputModeLabel(InputMode.EXP);
+        for (const mode of ALL_MODES.filter(m => m !== InputMode.EXP)) {
+            expect(getInputModeLabel(mode)).not.toBe(expressionLabel);
+        }
+    });
+
     it("shows a text-set field as an Array", () => {
         expect(getInputModeLabel(InputMode.TEXT_ARRAY)).toBe("Array");
     });

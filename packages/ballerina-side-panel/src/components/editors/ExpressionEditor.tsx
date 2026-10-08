@@ -652,7 +652,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
     const modeSwitcherNode = modeSwitcherContext?.isModeSwitcherEnabled && !field.hideModeSwitcher ? (
         <S.FieldInfoSection>
             {isLoading ? (
-                <SkeletonBase height="24px" width="112px" style={{ borderRadius: '2px', marginTop: '2px' }} />
+                <SkeletonBase height="24px" width="140px" style={{ borderRadius: '2px', marginTop: '2px' }} />
             ) : (
                 <ModeSwitcher
                     fieldKey={field.key}

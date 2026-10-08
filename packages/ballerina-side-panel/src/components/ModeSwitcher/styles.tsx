@@ -37,8 +37,7 @@ export const Label = styled.span<LabelProps>`
   box-sizing: border-box;
   min-width: 0;
   max-width: ${MAX_LABEL_WIDTH};
-  justify-self: center;
-  padding: 0 8px;
+  padding: 0 6px;
   text-align: center;
   font-size: 10px;
   transition: all 0.2s ease;
@@ -48,6 +47,17 @@ export const Label = styled.span<LabelProps>`
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+
+  /* The active label is bolder, so size every label for its bold text (via an invisible
+     zero-height copy); otherwise the columns, and the whole switcher, resize on each toggle. */
+  &::after {
+    content: attr(data-text);
+    display: block;
+    height: 0;
+    overflow: hidden;
+    visibility: hidden;
+    font-weight: 600;
+  }
 `;
 
 export const Slider = styled.div<{ checked: boolean }>`
