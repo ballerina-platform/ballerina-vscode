@@ -27,8 +27,8 @@ import {
     AgentManagerSourceCheckRequest,
 } from "@wso2/ballerina-core";
 import { requireSession } from "./auth";
-import { configs } from "./bindings";
-import { api, CONFIG_FILE, DEFAULT_ENVIRONMENT, readManifest, writeLink } from "./client";
+import { usedConfigs } from "./bindings";
+import { api, CONFIG_FILE, DEFAULT_ENVIRONMENT, writeLink } from "./client";
 import { splitConfig } from "./configurables";
 import {
     ensureProject, repoSecretPrefix, saveRepoToken, hasAmpImport, loadConfigFields, prepareHttpInterface, readPackageTitle, readPreparation,
@@ -46,7 +46,7 @@ export function linkAgent({ projectPath, project, agent }: AgentManagerLinkReque
 
 export async function getCreateForm(projectPath: string): Promise<AgentManagerCreateForm> {
     const remotes = await githubRemotes(projectPath);
-    const { llmProviders = [], mcpServers = [] } = readManifest(projectPath);
+    const { modelConfig, mcpConfig } = await usedConfigs(projectPath);
     const form: AgentManagerCreateForm = {
         projects: [],
         agentName: await readPackageTitle(projectPath),
@@ -55,8 +55,8 @@ export async function getCreateForm(projectPath: string): Promise<AgentManagerCr
         appPath: (await readFacts(projectPath)).appPath ?? "/",
         gitSecrets: [],
         tracing: hasAmpImport(projectPath),
-        llmProviders: llmProviders.map((entry) => entry.provider),
-        mcpServers: mcpServers.map((entry) => entry.proxy),
+        llmProviders: modelConfig.map((entry) => entry.handle),
+        mcpServers: mcpConfig.map((entry) => entry.handle),
         environment: DEFAULT_ENVIRONMENT,
         fields: [],
     };
@@ -124,7 +124,7 @@ export function createAgent(request: AgentManagerCreateRequest): Promise<AgentMa
             autoInstrumentation: hasAmpImport(projectPath),
             env: split.env,
             file: split.file && { ...CONFIG_FILE, ...split.file },
-            ...configs(projectPath),
+            ...await usedConfigs(projectPath),
         });
         writeLink(projectPath, { instanceUrl, org, project, agent: name, environment: DEFAULT_ENVIRONMENT, mode: "internal" });
         return `'${name}' created in Agent Manager. Building ${branch} from ${repository}.`;

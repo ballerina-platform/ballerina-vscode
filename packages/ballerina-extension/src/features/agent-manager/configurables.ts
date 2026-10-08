@@ -141,9 +141,14 @@ async function variableFields(ctx: VariableContext, variable: ConfigVariable): P
     return [{ ...field(ctx, [name], name, type, required), target: "file", unsupported: "Set this value in the Agent Manager console." }];
 }
 
+// The NAME in a `configurable x = os:getEnv("NAME")` default.
+export function envVarRead(variable: ConfigVariable): string | undefined {
+    return /^os:getEnv\(\s*"([^"]+)"\s*\)$/.exec(String((variable.properties as any)?.defaultValue?.value ?? "").trim())?.[1];
+}
+
 // Agent Manager fills `configurable x = os:getEnv("NAME")` itself when it injects NAME.
 function readsEnv(variable: ConfigVariable, envNames: Set<string>): boolean {
-    const name = /^os:getEnv\(\s*"([^"]+)"\s*\)$/.exec(String((variable.properties as any)?.defaultValue?.value ?? "").trim())?.[1];
+    const name = envVarRead(variable);
     return !!name && envNames.has(name);
 }
 
