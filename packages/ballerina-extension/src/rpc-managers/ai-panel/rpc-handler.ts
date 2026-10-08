@@ -152,6 +152,8 @@ import {
     listThreads,
     switchThread,
     SwitchThreadRequest,
+    prepareKeyedThread,
+    PrepareKeyedThreadRequest,
     deleteThread,
     DeleteThreadRequest,
     renameThread,
@@ -266,6 +268,7 @@ export function registerAiPanelRpcHandlers(messenger: Messenger) {
     messenger.onRequest(openOrCreateAgentsMd, () => rpcManger.openOrCreateAgentsMd());
     messenger.onRequest(listThreads, () => rpcManger.listThreads());
     messenger.onRequest(switchThread, (args: SwitchThreadRequest) => rpcManger.switchThread(args));
+    messenger.onRequest(prepareKeyedThread, (args: PrepareKeyedThreadRequest) => rpcManger.prepareKeyedThread(args));
     messenger.onRequest(deleteThread, (args: DeleteThreadRequest) => rpcManger.deleteThread(args));
     messenger.onRequest(renameThread, (args: RenameThreadRequest) => rpcManger.renameThread(args));
     // TODO(auto-memory): temporarily disabled for this release.

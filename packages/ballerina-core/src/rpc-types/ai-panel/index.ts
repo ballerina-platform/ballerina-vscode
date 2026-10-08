@@ -85,6 +85,8 @@ import {
     AgentsMdFileInfoDTO,
     ThreadSummary,
     SwitchThreadRequest,
+    PrepareKeyedThreadRequest,
+    PrepareKeyedThreadResponse,
     DeleteThreadRequest,
     RenameThreadRequest,
     // TODO(auto-memory): temporarily disabled for this release.
@@ -166,6 +168,8 @@ export interface AIPanelAPI {
     listThreads: () => Promise<ThreadSummary[]>;
     /** False when refused — a run or checkpoint restore is in progress. */
     switchThread: (params: SwitchThreadRequest) => Promise<boolean>;
+    /** Makes the thread last used for `key` active when it is still recent, or a new thread for it. */
+    prepareKeyedThread: (params: PrepareKeyedThreadRequest) => Promise<PrepareKeyedThreadResponse>;
     deleteThread: (params: DeleteThreadRequest) => Promise<void>;
     renameThread: (params: RenameThreadRequest) => Promise<void>;
     // TODO(auto-memory): memory management temporarily disabled for this release.

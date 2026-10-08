@@ -168,6 +168,7 @@ export enum MACHINE_VIEW {
     BISamplesView = "BI Samples View",
     ReviewMode = "Review Mode SKIP",
     EvalsetViewer = "Evalset Viewer SKIP",
+    EvalsetList = "Evalset List",
     ConfigurationCollector = "Configuration Collector"
 }
 
@@ -222,6 +223,7 @@ export interface VisualizerLocation {
     artifactInfo?: ArtifactInfo;
     reviewData?: ReviewModeData;
     evalsetData?: EvalsetData;
+    evaluationsOpen?: boolean;
 }
 
 export interface ArtifactInfo {
