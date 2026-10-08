@@ -295,7 +295,7 @@ if decision is workflow:HumanTaskTimeoutError {
 
 A pending task is completed by a separate call, `workflow:completeHumanTask(taskWorkflowId,
 result)`. A portal built on the workflow management API may already do this for the user; when
-nothing does (the program runs standalone, or is hosted on Agent Manager), generate completion
+nothing does (the program runs standalone, for example), generate completion
 resources as shown in "Completing human tasks and approvals" below.
 
 ### Alternative: approval over a data channel
