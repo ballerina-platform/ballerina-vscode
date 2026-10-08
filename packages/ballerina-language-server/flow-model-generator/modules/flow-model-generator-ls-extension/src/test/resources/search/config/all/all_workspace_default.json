@@ -18,10 +18,234 @@
   "categories": [
     {
       "metadata": {
+        "label": "Agent Tools",
+        "description": "Functions used as agent tools",
+        "keywords": [
+          "Project",
+          "Local",
+          "Function"
+        ]
+      },
+      "items": [
+        {
+          "metadata": {
+            "label": "package1 (Current Integration)",
+            "description": "",
+            "keywords": []
+          },
+          "items": []
+        },
+        {
+          "metadata": {
+            "label": "package2",
+            "description": "",
+            "keywords": []
+          },
+          "items": []
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "label": "Within Project",
+        "description": "Components available in the current workspace project",
+        "keywords": [
+          "Workspace Project",
+          "Local",
+          "Function",
+          "Types",
+          "Data Mapper"
+        ]
+      },
+      "items": [
+        {
+          "metadata": {
+            "label": "package1 (Current Integration)",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "findMax",
+                "description": "Finds the maximum value in an array\n",
+                "data": {
+                  "isDataMappedFunction": false,
+                  "isAgentTool": false,
+                  "isIsolatedFunction": false
+                }
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "testorg",
+                "module": "package1",
+                "symbol": "findMax",
+                "version": "0.1.0",
+                "isGenerated": false,
+                "data": {
+                  "moduleRelation": "CURRENT_MODULE",
+                  "moduleKind": "DEFAULT_MODULE"
+                }
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "helperFunction",
+                "data": {
+                  "isDataMappedFunction": false,
+                  "isAgentTool": false,
+                  "isIsolatedFunction": true
+                }
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "testorg",
+                "module": "package1",
+                "symbol": "helperFunction",
+                "version": "0.1.0",
+                "isGenerated": false,
+                "data": {
+                  "moduleRelation": "CURRENT_MODULE",
+                  "moduleKind": "DEFAULT_MODULE"
+                }
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "package2",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "filterGreaterThan",
+                "description": "Data Processing Functions\nFilters an array of integers based on a condition\n",
+                "data": {
+                  "isDataMappedFunction": false,
+                  "isAgentTool": false,
+                  "isIsolatedFunction": false
+                }
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "testorg",
+                "module": "package2",
+                "packageName": "package2",
+                "symbol": "filterGreaterThan",
+                "version": "0.1.0",
+                "isGenerated": false,
+                "data": {
+                  "moduleRelation": "WORKSPACE_PACKAGE_MODULE",
+                  "moduleKind": "DEFAULT_MODULE"
+                }
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "formatMessage",
+                "description": "Formats a message with two parts\n",
+                "data": {
+                  "isDataMappedFunction": false,
+                  "isAgentTool": false,
+                  "isIsolatedFunction": false
+                }
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "testorg",
+                "module": "package2",
+                "packageName": "package2",
+                "symbol": "formatMessage",
+                "version": "0.1.0",
+                "isGenerated": false,
+                "data": {
+                  "moduleRelation": "WORKSPACE_PACKAGE_MODULE",
+                  "moduleKind": "DEFAULT_MODULE"
+                }
+              },
+              "enabled": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "label": "Imported Functions",
+        "description": "Functions imported from other integrations",
+        "keywords": [
+          "Imported",
+          "Function",
+          "Library"
+        ]
+      },
+      "items": []
+    },
+    {
+      "metadata": {
         "label": "Standard Library",
         "description": "Components supported officially by Ballerina",
         "keywords": [
           "Ballerina",
+          "Library"
+        ]
+      },
+      "items": [
+        {
+          "metadata": {
+            "label": "observe",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "finishSpan",
+                "description": "Finish the current span.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_observe_1.7.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "observe",
+                "packageName": "observe",
+                "symbol": "finishSpan",
+                "version": "1.7.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "finishSpanWithError",
+                "description": "Finish the current span.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_observe_1.7.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "observe",
+                "packageName": "observe",
+                "symbol": "finishSpanWithError",
+                "version": "1.7.1"
+              },
+              "enabled": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "label": "Extended Library",
+        "description": "Components from the ballerinax organization",
+        "keywords": [
+          "Ballerinax",
           "Library"
         ]
       },
@@ -135,47 +359,6 @@
         },
         {
           "metadata": {
-            "label": "observe",
-            "description": "",
-            "keywords": []
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "finishSpan",
-                "description": "Finish the current span.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_observe_1.7.1.png"
-              },
-              "codedata": {
-                "node": "FUNCTION_CALL",
-                "org": "ballerina",
-                "module": "observe",
-                "packageName": "observe",
-                "symbol": "finishSpan",
-                "version": "1.7.1"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "finishSpanWithError",
-                "description": "Finish the current span.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_observe_1.7.1.png"
-              },
-              "codedata": {
-                "node": "FUNCTION_CALL",
-                "org": "ballerina",
-                "module": "observe",
-                "packageName": "observe",
-                "symbol": "finishSpanWithError",
-                "version": "1.7.1"
-              },
-              "enabled": true
-            }
-          ]
-        },
-        {
-          "metadata": {
             "label": "edifact.d03a.finance.mFINCAN",
             "description": "",
             "keywords": []
@@ -253,114 +436,6 @@
     },
     {
       "metadata": {
-        "label": "Within Project",
-        "description": "Components available in the current workspace project",
-        "keywords": [
-          "Workspace Project",
-          "Local",
-          "Function",
-          "Types",
-          "Data Mapper"
-        ]
-      },
-      "items": [
-        {
-          "metadata": {
-            "label": "package1 (Current Integration)",
-            "description": "",
-            "keywords": []
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "findMax",
-                "description": "Finds the maximum value in an array\n",
-                "data": {
-                  "isDataMappedFunction": false,
-                  "isAgentTool": false,
-                  "isIsolatedFunction": false
-                }
-              },
-              "codedata": {
-                "node": "FUNCTION_CALL",
-                "org": "testorg",
-                "module": "package1",
-                "symbol": "findMax",
-                "version": "0.1.0"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "helperFunction",
-                "data": {
-                  "isDataMappedFunction": false,
-                  "isAgentTool": false,
-                  "isIsolatedFunction": true
-                }
-              },
-              "codedata": {
-                "node": "FUNCTION_CALL",
-                "org": "testorg",
-                "module": "package1",
-                "symbol": "helperFunction",
-                "version": "0.1.0"
-              },
-              "enabled": true
-            }
-          ]
-        },
-        {
-          "metadata": {
-            "label": "package2",
-            "description": "",
-            "keywords": []
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "filterGreaterThan",
-                "description": "Data Processing Functions\nFilters an array of integers based on a condition\n",
-                "data": {
-                  "isDataMappedFunction": false,
-                  "isAgentTool": false,
-                  "isIsolatedFunction": false
-                }
-              },
-              "codedata": {
-                "node": "FUNCTION_CALL",
-                "org": "testorg",
-                "module": "package2",
-                "symbol": "filterGreaterThan",
-                "version": "0.1.0"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "formatMessage",
-                "description": "Formats a message with two parts\n",
-                "data": {
-                  "isDataMappedFunction": false,
-                  "isAgentTool": false,
-                  "isIsolatedFunction": false
-                }
-              },
-              "codedata": {
-                "node": "FUNCTION_CALL",
-                "org": "testorg",
-                "module": "package2",
-                "symbol": "formatMessage",
-                "version": "0.1.0"
-              },
-              "enabled": true
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "metadata": {
         "label": "Connectors"
       },
       "items": [
@@ -368,7 +443,10 @@
           "metadata": {
             "label": "FHIR FHIRConnector",
             "description": "This connector allows you to connect and interact with any FHIR server",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.clients.fhir_3.0.6.png"
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.clients.fhir_3.0.6.png",
+            "data": {
+              "isAgentSupport": false
+            }
           },
           "codedata": {
             "node": "NEW_CONNECTION",
@@ -386,7 +464,10 @@
           "metadata": {
             "label": "Cerner FHIRClientConnector",
             "description": "This connector allows you to connect and interact with any FHIR server",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.clients.fhir.cerner_1.0.2.png"
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.clients.fhir.cerner_1.0.2.png",
+            "data": {
+              "isAgentSupport": false
+            }
           },
           "codedata": {
             "node": "NEW_CONNECTION",
@@ -404,7 +485,10 @@
           "metadata": {
             "label": "Athenahealth FHIRClientConnector",
             "description": "This connector allows you to connect and interact with any FHIR server",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.clients.fhir.athenahealth_1.0.2.png"
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.clients.fhir.athenahealth_1.0.2.png",
+            "data": {
+              "isAgentSupport": false
+            }
           },
           "codedata": {
             "node": "NEW_CONNECTION",
@@ -422,7 +506,10 @@
           "metadata": {
             "label": "Epic FHIRClientConnector",
             "description": "This connector allows you to connect and interact with any FHIR server",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.clients.fhir.epic_1.0.2.png"
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.clients.fhir.epic_1.0.2.png",
+            "data": {
+              "isAgentSupport": false
+            }
           },
           "codedata": {
             "node": "NEW_CONNECTION",
@@ -440,7 +527,10 @@
           "metadata": {
             "label": "Files File",
             "description": "Azure Storage File connector allows you to access the Azure Files REST API.\nThis connector lets you to access data stored in Azure file shares.\n",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure_storage_service_4.3.4.png"
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure_storage_service_4.3.4.png",
+            "data": {
+              "isAgentSupport": false
+            }
           },
           "codedata": {
             "node": "NEW_CONNECTION",
@@ -458,7 +548,10 @@
           "metadata": {
             "label": "FTP",
             "description": "FTP client for connecting to and managing FTP/SFTP servers.\nSupports reading files in various formats (text, JSON, XML, CSV, bytes) and writing files with overwrite or append options.",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ftp_2.19.0.png"
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ftp_2.19.0.png",
+            "data": {
+              "isAgentSupport": false
+            }
           },
           "codedata": {
             "node": "NEW_CONNECTION",
@@ -476,7 +569,10 @@
           "metadata": {
             "label": "Xero Files",
             "description": "This is a generated connector for [Xero Files API v2.16.1](https://developer.xero.com/documentation/api/files/overview) OpenAPI specification.\nThe Files API provides access to the files, folders, and the association of files within a Xero organisation. It can be used to upload/download files, manage folders and associate files to invoices, contacts, payments etc.",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_xero.files_1.5.1.png"
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_xero.files_1.5.1.png",
+            "data": {
+              "isAgentSupport": false
+            }
           },
           "codedata": {
             "node": "NEW_CONNECTION",
@@ -494,7 +590,10 @@
           "metadata": {
             "label": "Azure OpenAI Finetunes",
             "description": "APIs for fine-tuning and managing deployments of OpenAI models.",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure.openai.finetunes_1.0.1.png"
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure.openai.finetunes_1.0.1.png",
+            "data": {
+              "isAgentSupport": false
+            }
           },
           "codedata": {
             "node": "NEW_CONNECTION",
@@ -512,7 +611,10 @@
           "metadata": {
             "label": "FraudLabs Detection",
             "description": "This is a generated connector for [FraudLabsPro Fraud Detection API v1.1](https://www.fraudlabspro.com/developer/api/screen-order) OpenAPI specification.\nOnline payment fraud detection service. It helps merchants to minimize chargebacks and therefore maximize the revenue. \nIt can be used to detect fraud for various kinds of payment method, such as credit card, paypal, cod and so on. \nPlease visit https://www.fraudlabspro.com to learn more.",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_fraudlabspro.frauddetection_1.5.1.png"
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_fraudlabspro.frauddetection_1.5.1.png",
+            "data": {
+              "isAgentSupport": false
+            }
           },
           "codedata": {
             "node": "NEW_CONNECTION",
@@ -530,7 +632,10 @@
           "metadata": {
             "label": "Amadeus Flight Orders",
             "description": "This is a generated connector for [Amadeus Flight Create Orders API](https://developers.amadeus.com/self-service/category/air/api-doc/flight-create-orders) OpenAPI specification. \nThis [Amadeus Flight Create Orders API](https://developers.amadeus.com/) provides the capability to perform the final booking for a chosen flight.  Use this after completing a flight search with Flight Offers Search and confirming real-time price and availability with Flight Offers Price.",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_amadeus.flightcreateorders_1.3.1.png"
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_amadeus.flightcreateorders_1.3.1.png",
+            "data": {
+              "isAgentSupport": false
+            }
           },
           "codedata": {
             "node": "NEW_CONNECTION",
@@ -543,47 +648,6 @@
             "isGenerated": false
           },
           "enabled": true
-        }
-      ]
-    },
-    {
-      "metadata": {
-        "label": "Imported Functions",
-        "description": "Functions imported from other integrations",
-        "keywords": [
-          "Imported",
-          "Function",
-          "Library"
-        ]
-      },
-      "items": []
-    },
-    {
-      "metadata": {
-        "label": "Agent Tools",
-        "description": "Functions used as agent tools",
-        "keywords": [
-          "Project",
-          "Local",
-          "Function"
-        ]
-      },
-      "items": [
-        {
-          "metadata": {
-            "label": "package1 (Current Integration)",
-            "description": "",
-            "keywords": []
-          },
-          "items": []
-        },
-        {
-          "metadata": {
-            "label": "package2",
-            "description": "",
-            "keywords": []
-          },
-          "items": []
         }
       ]
     }
