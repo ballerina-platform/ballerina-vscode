@@ -123,19 +123,27 @@ async function refresh(session: AgentManagerSession): Promise<string | undefined
     }
 }
 
-export async function signIn(): Promise<AgentManagerSession | undefined> {
-    const previous = await getSession();
+// Locates an instance without signing in, for callers that only need its addresses.
+export async function askInstance(previousConsoleUrl?: string): Promise<{ consoleUrl: string; instanceUrl: string } | undefined> {
     const enteredUrl = await vscode.window.showInputBox({
         title: "Connect to Agent Manager",
         prompt: "Agent Manager Console URL",
-        value: previous?.consoleUrl ?? DEFAULT_CONSOLE_URL,
+        value: previousConsoleUrl ?? DEFAULT_CONSOLE_URL,
         ignoreFocusOut: true,
     });
     if (!enteredUrl) {
         return undefined;
     }
     const consoleUrl = requireSecure(enteredUrl).origin;
-    const baseUrl = requireSecure(await apiUrlFromConsole(consoleUrl)).toString().replace(/\/+$/, "");
+    return { consoleUrl, instanceUrl: requireSecure(await apiUrlFromConsole(consoleUrl)).toString().replace(/\/+$/, "") };
+}
+
+export async function signIn(): Promise<AgentManagerSession | undefined> {
+    const instance = await askInstance((await getSession())?.consoleUrl);
+    if (!instance) {
+        return undefined;
+    }
+    const { consoleUrl, instanceUrl: baseUrl } = instance;
     const discovery = await discover(baseUrl);
     const verifier = crypto.randomBytes(32).toString("base64url");
     const state = crypto.randomBytes(32).toString("base64url");

@@ -18,11 +18,12 @@
 
 import React, { useEffect, useState } from "react";
 import styled from "@emotion/styled";
-import { AgentManagerMcpOffer, AgentManagerMcpServerOption, McpServerStatusDTO } from "@wso2/ballerina-core";
+import { AgentManagerMcpOffer, AgentManagerMcpServerOption, McpServerStatusDTO, ProductMode } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Codicon, Icon } from "@wso2/ui-toolkit";
 
 import { SecondaryActionButton } from "../styles";
+import { useProductMode } from "../../../hooks/useProductMode";
 
 const Section = styled.div`
     display: flex;
@@ -102,6 +103,7 @@ export function AgentManagerMcpSuggestions({ servers }: { servers: McpServerStat
     const { rpcClient } = useRpcContext();
     const [offer, setOffer] = useState<AgentManagerMcpOffer | undefined>();
     const [adding, setAdding] = useState<string | undefined>();
+    const agentBuilder = useProductMode() === ProductMode.AGENT_BUILDER;
 
     const load = () => rpcClient.getAgentManagerRpcClient().getAgentManagerMcpOffer()
         .then(setOffer)
@@ -112,7 +114,7 @@ export function AgentManagerMcpSuggestions({ servers }: { servers: McpServerStat
     }, [servers]);
 
     const available = offer?.servers.filter((server) => !server.added) ?? [];
-    if (!offer?.signedIn || available.length === 0) {
+    if (!agentBuilder || available.length === 0) {
         return null;
     }
 
@@ -129,7 +131,11 @@ export function AgentManagerMcpSuggestions({ servers }: { servers: McpServerStat
     return (
         <Section>
             <Heading>Agent Manager<Divider /></Heading>
-            <Helper>Give Copilot access to your agents on {offer.instance}. Adding one opens your browser to sign in.</Helper>
+            <Helper>
+                {offer?.signedIn
+                    ? `Give Copilot access to your agents on ${offer.instance}. Adding one opens your browser to sign in.`
+                    : "Give Copilot access to your agents in Agent Manager. Adding one asks for your console URL, then opens your browser to sign in."}
+            </Helper>
             <Rows>
                 {available.map((server) => (
                     <Row key={server.id}>

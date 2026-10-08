@@ -37,7 +37,7 @@ import {
     ProjectStructureArtifactResponse,
 } from "@wso2/ballerina-core";
 import { AgentManagerApiError, getSession, signIn, signOut } from "./auth";
-import { forgetCopilotMcpTokens, offerCopilotMcp } from "./copilot";
+import { forgetCopilotMcpTokens } from "./copilot";
 import { buildConfigFields, configEnvKey } from "./configurables";
 import { injectedEnvNames, reconcileAgentConfigs } from "./bindings";
 import {
@@ -190,7 +190,6 @@ function looksCrashed(deployment?: { status: string; lastDeployed?: string }): b
 const ACTIONS: Record<AgentManagerAction, (projectPath: string, autoInstrumentation?: boolean) => Promise<string | void>> = {
     signIn: async () => {
         const session = required(await signIn());
-        void offerCopilotMcp();
         return `Signed in to Agent Manager (${session.org}).`;
     },
     signOut: async () => {

@@ -20,7 +20,7 @@ import * as vscode from "vscode";
 import { AgentManagerActionResponse, AgentManagerMcpOffer } from "@wso2/ballerina-core";
 import { loadMcpConfig, MCP_ENABLE_SETTING, MCP_ENABLE_SETTING_KEY, McpHttpServerConfig, updateMcpServer, writeMcpServer } from "../ai/agent/mcp";
 import { forgetTokens, signInOnNextConnect } from "../ai/agent/mcp/oauth";
-import { AgentManagerSession, getSession } from "./auth";
+import { askInstance, getSession } from "./auth";
 import { getObserverBaseUrl } from "./client";
 
 // Agent Manager pre-registers one public OAuth client per MCP endpoint, each with a pinned loopback port.
@@ -31,7 +31,7 @@ const MCP_SERVERS = [
         description: "Create, build and deploy agents",
         clientId: "am-mcp",
         callbackPort: 33418,
-        baseUrl: async (session: AgentManagerSession) => session.instanceUrl,
+        baseUrl: async (instanceUrl: string) => instanceUrl,
     },
     {
         id: "agent-manager-observer",
@@ -39,7 +39,7 @@ const MCP_SERVERS = [
         description: "Read logs, metrics and traces",
         clientId: "am-obs-mcp",
         callbackPort: 33419,
-        baseUrl: (session: AgentManagerSession) => getObserverBaseUrl(session.instanceUrl),
+        baseUrl: (instanceUrl: string) => getObserverBaseUrl(instanceUrl),
     },
 ];
 
@@ -59,15 +59,16 @@ export async function getMcpOffer(): Promise<AgentManagerMcpOffer> {
 
 export async function addMcpServers(ids: string[]): Promise<AgentManagerActionResponse> {
     try {
-        const session = await getSession();
-        if (!session) {
-            return { success: false, message: "Connect to Agent Manager from the Deploy panel first." };
+        // Each MCP server signs in on its own, so an instance URL is all that's needed here.
+        const instanceUrl = (await getSession())?.instanceUrl ?? (await askInstance())?.instanceUrl;
+        if (!instanceUrl) {
+            return { success: false };
         }
         const existing = userServerNames();
         for (const server of MCP_SERVERS.filter((candidate) => ids.includes(candidate.id))) {
             const config: McpHttpServerConfig = {
                 type: "http",
-                url: `${await server.baseUrl(session)}/mcp`,
+                url: `${await server.baseUrl(instanceUrl)}/mcp`,
                 oauth: { clientId: server.clientId, callbackPort: server.callbackPort },
             };
             signInOnNextConnect(config.url);
@@ -103,20 +104,5 @@ export async function forgetCopilotMcpTokens(): Promise<void> {
         if (ids.has(name) && http.url && http.oauth) {
             await forgetTokens(http.url, http.oauth);
         }
-    }
-}
-
-export async function offerCopilotMcp(): Promise<void> {
-    const available = (await getMcpOffer()).servers.filter((server) => !server.added);
-    const add = "Add to Copilot";
-    if (available.length === 0
-        || await vscode.window.showInformationMessage("Let Copilot use Agent Manager for your deployed agents?", add) !== add) {
-        return;
-    }
-    const items: (vscode.QuickPickItem & { id: string })[] = available.map((server) => (
-        { label: server.label, description: server.description, id: server.id, picked: true }));
-    const picked = await vscode.window.showQuickPick(items, { title: "Agent Manager tools for Copilot", canPickMany: true, ignoreFocusOut: true });
-    if (picked?.length) {
-        await addMcpServers(picked.map((item) => item.id));
     }
 }
