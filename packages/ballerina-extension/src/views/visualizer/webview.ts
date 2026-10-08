@@ -60,8 +60,10 @@ function toInlineJson(value: unknown): string {
 
 /** Linked from a failed dependency update. */
 const TROUBLESHOOTING_DOCS_URL = "https://wso2.com/integration-platform/docs/develop/troubleshooting/ide-troubleshooting";
-/** Where both blocked screens send users who want to stay on an earlier version. Placeholder until its own page. */
-const EARLIER_VERSION_DOCS_URL = TROUBLESHOOTING_DOCS_URL;
+const MOVING_TO_2201_14_DOCS_URL = "https://wso2.com/integration-platform/docs/integrator/editor/troubleshooting/moving-to-ballerina-2201-14";
+/** Where each blocked screen sends users who want to stay on an earlier version. */
+const EARLIER_BALLERINA_DOCS_URL = `${MOVING_TO_2201_14_DOCS_URL}#keep-your-current-ballerina-version`;
+const EARLIER_DEPENDENCIES_DOCS_URL = `${MOVING_TO_2201_14_DOCS_URL}#keep-the-current-dependencies`;
 /** One label on both screens; a link, since it opens docs rather than downgrading anything. */
 const EARLIER_VERSION_LINK = `<a href="#" class="earlier-version-link" id="use-earlier-version">How to stay on an earlier version ↗</a>`;
 
@@ -116,7 +118,8 @@ export class VisualizerWebview {
                     VisualizerWebview.showJdkIncompatibility(blocked); // a failed update doesn't reload, so nothing else brings it back
                 }
             } else if (message?.command === 'useEarlierVersion') {
-                await vscode.env.openExternal(vscode.Uri.parse(EARLIER_VERSION_DOCS_URL));
+                const url = VisualizerWebview.jdkIncompatibility ? EARLIER_BALLERINA_DOCS_URL : EARLIER_DEPENDENCIES_DOCS_URL; // same precedence as the rendered screen
+                await vscode.env.openExternal(vscode.Uri.parse(url));
             } else if (message?.command === 'dependencyUpdate.update') {
                 await updateDependenciesFromPanel();
             } else if (message?.command === 'dependencyUpdate.showOutput') {
