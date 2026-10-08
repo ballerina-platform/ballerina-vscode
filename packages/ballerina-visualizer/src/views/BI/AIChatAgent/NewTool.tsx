@@ -16,12 +16,13 @@
  * under the License.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import styled from "@emotion/styled";
 import { FlowNode, Property } from "@wso2/ballerina-core";
 import { Button } from "@wso2/ui-toolkit";
 import { NodePosition } from "@wso2/syntax-tree";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
+import { URI, Utils } from "vscode-uri";
 import { Banner } from "../../../components/Banner";
 import { AIAgentSidePanel, ExtendedAgentToolRequest } from "./AIAgentSidePanel";
 import { RelativeLoader } from "../../../components/RelativeLoader";
@@ -46,6 +47,7 @@ export enum NewToolSelectionMode {
 
 interface NewToolProps {
     agentNode: FlowNode;
+    projectPath: string;
     mode?: NewToolSelectionMode;
     onBack?: () => void;
     onSave?: (agentPosition?: NodePosition) => void;
@@ -53,27 +55,14 @@ interface NewToolProps {
 }
 
 export function NewTool(props: NewToolProps): JSX.Element {
-    const { agentNode: agentNodeProp, mode = NewToolSelectionMode.ALL, onSave, onBack, onSetBackOverride } = props;
+    const { agentNode: agentNodeProp, projectPath, mode = NewToolSelectionMode.ALL, onSave, onBack, onSetBackOverride } = props;
     const { rpcClient } = useRpcContext();
 
     const agentNode = agentNodeProp ?? null;
     const [savingForm, setSavingForm] = useState<boolean>(false);
-    const [ready, setReady] = useState<boolean>(false);
     const [error, setError] = useState<string>("");
 
-    const agentFilePath = useRef<string>("");
-    const projectPath = useRef<string>("");
-
-    useEffect(() => {
-        initPanel();
-    }, [agentNodeProp]);
-
-    const initPanel = async () => {
-        const visualizerContext = await rpcClient.getVisualizerLocation();
-        agentFilePath.current = (await rpcClient.getVisualizerRpcClient().joinProjectPath({ segments: ['agents.bal'] })).filePath;
-        projectPath.current = visualizerContext.projectPath;
-        setReady(true);
-    };
+    const agentFilePath = Utils.joinPath(URI.file(projectPath), "agents.bal").fsPath;
 
     const handleAgentToolCreated = async (functionName: string) => {
         if (!agentNode) {
@@ -159,7 +148,7 @@ export function NewTool(props: NewToolProps): JSX.Element {
             }
 
             const toolResponse = await rpcClient.getBIDiagramRpcClient().getSourceCode({
-                filePath: agentFilePath.current,
+                filePath: agentFilePath,
                 flowNode: buildAgentToolNode(flowNode, data.toolName, data.description, connection, data.toolParameters,
                     undefined, data.includeContext),
             });
@@ -210,18 +199,18 @@ export function NewTool(props: NewToolProps): JSX.Element {
                     />
                 </div>
             )}
-            {ready && !savingForm && (
+            {!savingForm && (
                 mode === NewToolSelectionMode.CUSTOM_TOOL ? (
                     <AgentToolForm
-                        filePath={agentFilePath.current}
-                        projectPath={projectPath.current}
+                        filePath={agentFilePath}
+                        projectPath={projectPath}
                         onSave={handleAgentToolCreated}
                         onBack={onBack}
                     />
                 ) : (
                     <AIAgentSidePanel
                         agentNode={agentNode}
-                        projectPath={projectPath.current}
+                        projectPath={projectPath}
                         onSubmit={handleOnSubmit}
                         mode={mode}
                         onViewChange={(_view, navigateBack) => {
@@ -231,7 +220,7 @@ export function NewTool(props: NewToolProps): JSX.Element {
                     />
                 )
             )}
-            {(!ready || savingForm) && (
+            {savingForm && (
                 <LoaderContainer>
                     <RelativeLoader />
                 </LoaderContainer>

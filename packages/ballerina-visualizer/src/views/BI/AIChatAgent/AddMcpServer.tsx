@@ -11,14 +11,14 @@ import { FlowNode, LineRange, NodePosition } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { cloneDeep, debounce } from "lodash";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { RelativeLoader } from "../../../components/RelativeLoader";
+import { FormLoadingState } from "@wso2/ballerina-side-panel";
 import FlowNodeForm from "../Forms/FlowNodeForm";
 import { McpToolsSelection, ToolScopes } from "./Mcp/McpToolsSelection";
 import { DiscoverToolsModal } from "./Mcp/DiscoverToolsModal";
 import { RequiresAuthCheckbox } from "./Mcp/RequiresAuthCheckbox";
 import { attemptValueResolution, createMockTools, extractOriginalValues, generateToolKitName } from "./Mcp/utils";
 import { cleanServerUrl } from "./formUtils";
-import { Container, LoaderContainer } from "./styles";
+import { Container } from "./styles";
 import { extractAccessToken, getEndOfFileLineRange, refreshAgentNodeLineRange, removeQuotes, resolveAgentNodePosition, resolveVariableValue, resolveAuthConfig, checkAiPackageVersionSupport } from "./utils";
 
 interface Tool {
@@ -131,18 +131,21 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
     const initPanel = useCallback(async () => {
         setIsLoading(true);
 
-        // Get project path URI
-        const visualizerLocation = await rpcClient.getVisualizerLocation();
+        const agentFileName = agentNode?.codedata?.lineRange?.fileName;
+        const [visualizerLocation, moduleNodes, agentFile, endLineRange] = await Promise.all([
+            rpcClient.getVisualizerLocation(),
+            editMode && !props.existingNode ? fetchModuleNodes() : Promise.resolve(undefined),
+            rpcClient.getVisualizerRpcClient().joinProjectPath({ segments: [agentFileName] }),
+            getEndOfFileLineRange(agentFileName, rpcClient),
+        ]);
         projectPathUriRef.current = visualizerLocation.projectPath;
-
-        const moduleNodes = editMode && !props.existingNode ? await fetchModuleNodes() : undefined;
-
-        agentFilePathRef.current = (await rpcClient.getVisualizerRpcClient().joinProjectPath({ segments: [agentNode?.codedata?.lineRange?.fileName] })).filePath;
-        const endLineRange = await getEndOfFileLineRange(agentNode?.codedata?.lineRange?.fileName, rpcClient);
+        agentFilePathRef.current = agentFile.filePath;
         agentFileEndLineRangeRef.current = endLineRange;
 
-        const template = await fetchMcpToolKitTemplate();
-        const scopesSupported = await checkAiPackageVersionSupport(rpcClient, visualizerLocation.projectPath, "1.11.0");
+        const [template, scopesSupported] = await Promise.all([
+            fetchMcpToolKitTemplate(),
+            checkAiPackageVersionSupport(rpcClient, visualizerLocation.projectPath, "1.11.0"),
+        ]);
         setShowScopes(scopesSupported);
 
         mcpToolKitNodeTemplateRef.current = template;
@@ -590,13 +593,9 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
 
     return (
         <Container>
-            {isLoading && (
-                <LoaderContainer>
-                    <RelativeLoader />
-                </LoaderContainer>
-            )}
+            {isLoading && <FormLoadingState />}
 
-            {mcpToolKitNodeTemplateRef && (
+            {!isLoading && mcpToolKitNodeTemplateRef.current && (
                 <FlowNodeForm
                     ref={formRef}
                     fileName={mcpToolKitNodeRef.current?.codedata?.lineRange?.fileName ? mcpToolKitNodeRef.current.codedata.lineRange?.fileName : agentFileEndLineRangeRef.current?.fileName}

@@ -1666,12 +1666,7 @@ export const Form = forwardRef((props: FormProps, _ref) => {
             >
                 <Provider {...contextValue}>
                     <S.Container nestedForm={nestedForm} compact={compact} footerActionButton={footerActionButton} className="side-panel-body">
-                        {isFormLoading && (
-                            <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: "12px", flex: 1, minHeight: "300px" }}>
-                                <ProgressRing color={ThemeColors.PRIMARY} />
-                                <span style={{ fontSize: "12px", color: ThemeColors.ON_SURFACE_VARIANT }}>Loading form data...</span>
-                            </div>
-                        )}
+                        {isFormLoading && <FormLoadingIndicator />}
                         {/* NOTE: isFormLoading is only expected to be true during initial field value
     resolution on form open. If this ever becomes true during user interaction,
     it will drop focus — treat that as a bug in the loading registration logic. */}
@@ -1768,6 +1763,20 @@ export const Form = forwardRef((props: FormProps, _ref) => {
 });
 
 export default Form;
+
+const FormLoadingIndicator = () => (
+    <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: "12px", flex: 1, minHeight: "300px" }}>
+        <ProgressRing color={ThemeColors.PRIMARY} />
+        <span style={{ fontSize: "12px", color: ThemeColors.ON_SURFACE_VARIANT }}>Loading form data...</span>
+    </div>
+);
+
+// The form's own loading view, for callers that are still fetching what the form needs.
+export const FormLoadingState = () => (
+    <S.Container className="side-panel-body">
+        <FormLoadingIndicator />
+    </S.Container>
+);
 
 export const FormRow = S.Row;
 export const FormButtonContainer = S.ButtonContainer;
