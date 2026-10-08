@@ -74,6 +74,45 @@ public class AnnotationEmitterTest {
                         + "skipped entirely, matching annotationBody's behavior, got: " + annotations);
     }
 
+    @Test
+    public void testStringLeafRendering() {
+        Assert.assertEquals(emitLeaf("abc", "TEXT"), "@ftp:FunctionConfig {moveTo: \"abc\"}");
+        Assert.assertEquals(emitLeaf("\"abc\"", "TEXT"), "@ftp:FunctionConfig {moveTo: \"abc\"}");
+    }
+
+    @Test
+    public void testInterpolatedStringTemplateIsNotQuoted() {
+        Assert.assertEquals(emitLeaf("string `${processedDirectoryPath}`", "TEXT"),
+                "@ftp:FunctionConfig {moveTo: string `${processedDirectoryPath}`}");
+    }
+
+    @Test
+    public void testExpressionTypedLeafIsNotQuoted() {
+        Assert.assertEquals(emitLeaf("processedDirectoryPath", "EXPRESSION"),
+                "@ftp:FunctionConfig {moveTo: processedDirectoryPath}");
+    }
+
+    @Test
+    public void testExpressionTypedQuotedLiteralIsNotDoubleQuoted() {
+        Assert.assertEquals(emitLeaf("\"abc\"", "EXPRESSION"), "@ftp:FunctionConfig {moveTo: \"abc\"}");
+    }
+
+    private static String emitLeaf(String value, String selectedFieldType) {
+        TriggerUISchemaModel.Property base = leaf(true, value, "moveTo", false);
+        List<TriggerUISchemaModel.PropertyType> types = List.of(
+                new TriggerUISchemaModel.PropertyType("TEXT", "TEXT".equals(selectedFieldType), "string", null, null,
+                        null, null, null),
+                new TriggerUISchemaModel.PropertyType("EXPRESSION", "EXPRESSION".equals(selectedFieldType), "string",
+                        null, null, null, null, null));
+        TriggerUISchemaModel.Property typed = new TriggerUISchemaModel.Property(null, true, true, false, false, null,
+                value, types, null, null, null, base.codedata(), null);
+        Map<String, TriggerUISchemaModel.Property> fields = new LinkedHashMap<>();
+        fields.put("moveTo", typed);
+        Map<String, TriggerUISchemaModel.Property> properties = new LinkedHashMap<>();
+        properties.put("config", annotationNode("ftp", "FunctionConfig", fields));
+        return AnnotationEmitter.annotationsOf(properties).getFirst();
+    }
+
     private static TriggerUISchemaModel.Property leaf(boolean enabled, String value, String field, boolean optional) {
         TriggerUISchemaModel.Codedata codedata = new TriggerUISchemaModel.Codedata(null, null, null, null, null, null,
                 null, null, null, null, null, null, null, null, null, null, null, null, field, optional,

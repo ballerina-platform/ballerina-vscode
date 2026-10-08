@@ -26,6 +26,7 @@ import io.ballerina.flowmodelgenerator.core.model.Item;
 import io.ballerina.flowmodelgenerator.core.model.Metadata;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.utils.CentralSearchUtil;
+import io.ballerina.flowmodelgenerator.core.utils.SearchResultFilter;
 import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.ModuleCoordinate;
 import io.ballerina.modelgenerator.commons.SearchResult;
@@ -71,7 +72,6 @@ class FunctionSearchCommand extends SearchCommand {
     );
     private static final String POPULAR_FUNCTIONS_ORG = "ballerina";
     private static final String FETCH_KEY = "functions";
-    private static final Set<String> ALLOWED_ORGANIZATIONS = Set.of("ballerina", "ballerinax", "wso2");
     private static final String STANDARD_LIBRARY_ORG = "ballerina";
     private static final String EXTENDED_LIBRARY_ORG = "ballerinax";
     // Organizations whose functions can be loaded page-by-page as an independent library section.
@@ -163,12 +163,7 @@ class FunctionSearchCommand extends SearchCommand {
 
         // Search functions from Ballerina Central, falling back to the local index on failure or timeout. Querying
         // Central live ensures functions published after the bundled index was built are still discoverable.
-        String currentOrg = project.currentPackage().packageOrg().value();
-        Set<String> allowedOrgs = new HashSet<>(ALLOWED_ORGANIZATIONS);
-        if (currentOrg != null && !currentOrg.isEmpty()) {
-            allowedOrgs.add(currentOrg);
-        }
-
+        Set<String> allowedOrgs = SearchResultFilter.allowedOrganizations(project);
         CentralSearchUtil centralSearch = new CentralSearchUtil(RemoteCentral.getInstance());
         List<SearchResult> functionSearchList = centralSearch.searchFunctions(query, limit, offset, allowedOrgs);
         if (functionSearchList == null) {

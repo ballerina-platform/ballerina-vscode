@@ -27,12 +27,14 @@ import io.ballerina.testmanagerservice.extension.model.TestFunction;
  * @param filePath     path for the source test
  * @param function     test function
  * @param evalTemplate evaluation template for the test
+ * @param targetAgent  agent a custom evaluation starts by running
  *
  * @since 1.0.0
  */
-public record AddTestFunctionRequest(String filePath, TestFunction function, JsonObject evalTemplate) {
+public record AddTestFunctionRequest(String filePath, TestFunction function, JsonObject evalTemplate,
+                                     String targetAgent) {
 
     public AddTestFunctionRequest(String filePath, TestFunction function) {
-        this(filePath, function, null);
+        this(filePath, function, null, null);
     }
 }

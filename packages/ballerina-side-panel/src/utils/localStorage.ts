@@ -51,6 +51,8 @@ export const getDefaultExpandedState = (categories: string[]): ExpandedCategorie
         "Standard Library",
         "Extended Library",
         "Current Integration",
+        // Workflow nodes are the point of a durable workflow: keep them in view.
+        "Workflow",
         "Model Providers",
         "Vector Stores",
         "Embedding Providers",
