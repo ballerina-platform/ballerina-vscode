@@ -334,6 +334,10 @@ class FunctionSearchCommand extends SearchCommand {
     private List<Item> loadLibrarySection() {
         CentralSearchUtil centralSearch = new CentralSearchUtil(RemoteCentral.getInstance());
         List<SearchResult> sectionResults = centralSearch.searchFunctionsByOrg(query, limit, offset, sectionOrg);
+        if (sectionResults == null && offset == 0 && query.isEmpty() && STANDARD_LIBRARY_ORG.equals(sectionOrg)) {
+            // Central is unavailable; the panel loads this section lazily, so it needs the defaultView fallback.
+            sectionResults = defaultViewHolder.get(this).getOrDefault(FETCH_KEY, List.of());
+        }
         buildLibraryNodes(sectionResults != null ? sectionResults : List.of(), true);
         return rootBuilder.build().items();
     }

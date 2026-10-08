@@ -34,7 +34,7 @@ import styled from "@emotion/styled";
 import { BackIcon, CloseIcon, LogIcon } from "../../resources";
 import { Category, Item, Node } from "./types";
 import { cloneDeep, debounce } from "lodash";
-import { GroupListSkeleton, NodeListSkeleton } from "../Skeletons";
+import { GroupListSkeleton, NodeGridSkeleton, NodeListSkeleton } from "../Skeletons";
 import GroupList from "../GroupList";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { getExpandedCategories, setExpandedCategories, getDefaultExpandedState } from "../../utils/localStorage";
@@ -824,7 +824,8 @@ export function NodeList(props: NodeListProps) {
                     // Hide categories that don't have items, except for special categories that can add items
                     if (!group || !group.items || group.items.length === 0) {
                         // Only show empty categories if they have add functionality
-                        if (!shouldShowEmptyCategory(normalizedGroupTitle, isSubCategory) && categoryActions.length === 0) {
+                        if (!shouldShowEmptyCategory(normalizedGroupTitle, isSubCategory) && categoryActions.length === 0
+                            && !group?.isLoading) {
                             return null;
                         }
                     }
@@ -945,6 +946,9 @@ export function NodeList(props: NodeListProps) {
                                                     );
                                                 })}
                                             {(() => {
+                                                if (group.isLoading) {
+                                                    return <NodeGridSkeleton />;
+                                                }
                                                 const itemsContent =
                                                     group.items &&
                                                     group.items.length > 0 &&
