@@ -20,6 +20,7 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { getBallerinaPackages } from '../../utils/config';
+import { EVALSET_EXCLUDE, EVALSET_GLOB } from './evalset-utils';
 
 // Interface matching the EvalThread object structure
 interface EvalThreadJson {
@@ -96,8 +97,7 @@ export class EvalsetTreeDataProvider implements vscode.TreeDataProvider<EvalsetN
         }
 
         // Watch all evalset files in workspace
-        const pattern = '**/tests/resources/evalsets/**/*.evalset.json';
-        this.fileWatcher = vscode.workspace.createFileSystemWatcher(pattern);
+        this.fileWatcher = vscode.workspace.createFileSystemWatcher(EVALSET_GLOB);
 
         // Refresh on file changes
         this.fileWatcher.onDidCreate(() => this.refresh());
@@ -204,8 +204,8 @@ export class EvalsetTreeDataProvider implements vscode.TreeDataProvider<EvalsetN
      * Check if a project directory contains any evalset files
      */
     private async projectHasEvalsets(projectPath: string): Promise<boolean> {
-        const pattern = new vscode.RelativePattern(projectPath, 'tests/resources/evalsets/**/*.evalset.json');
-        const files = await vscode.workspace.findFiles(pattern, undefined, 1);
+        const pattern = new vscode.RelativePattern(projectPath, EVALSET_GLOB);
+        const files = await vscode.workspace.findFiles(pattern, EVALSET_EXCLUDE, 1);
         return files.length > 0;
     }
 
@@ -213,8 +213,8 @@ export class EvalsetTreeDataProvider implements vscode.TreeDataProvider<EvalsetN
      * Get evalset files scoped to a specific project
      */
     private async getEvalsetFilesForProject(projectPath: string): Promise<EvalsetFileNode[]> {
-        const pattern = new vscode.RelativePattern(projectPath, 'tests/resources/evalsets/**/*.evalset.json');
-        const evalsetFiles = await vscode.workspace.findFiles(pattern);
+        const pattern = new vscode.RelativePattern(projectPath, EVALSET_GLOB);
+        const evalsetFiles = await vscode.workspace.findFiles(pattern, EVALSET_EXCLUDE);
         return this.parseEvalsetFiles(evalsetFiles);
     }
 
@@ -222,7 +222,7 @@ export class EvalsetTreeDataProvider implements vscode.TreeDataProvider<EvalsetN
      * Get all evalset files in the workspace (used for single-project workspaces)
      */
     private async getEvalsetFiles(): Promise<EvalsetFileNode[]> {
-        const evalsetFiles = await vscode.workspace.findFiles('**/tests/resources/evalsets/**/*.evalset.json');
+        const evalsetFiles = await vscode.workspace.findFiles(EVALSET_GLOB, EVALSET_EXCLUDE);
         return this.parseEvalsetFiles(evalsetFiles);
     }
 

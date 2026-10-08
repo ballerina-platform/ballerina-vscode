@@ -18,13 +18,14 @@
 
 import { HistoryEntry } from "../../history";
 import { ProjectStructureArtifactResponse, UpdatedArtifactsResponse } from "../../interfaces/bi";
-import { ColorThemeKind } from "../../state-machine-types";
+import { ColorThemeKind, VisualizerLocation } from "../../state-machine-types";
 import { AddToUndoStackRequest, HandleApprovalPopupCloseRequest, JoinProjectPathRequest, JoinProjectPathResponse, NavigateReviewModeRequest, OpenViewRequest, ReopenApprovalViewRequest, UndoRedoStateResponse, SaveEvalThreadRequest, SaveEvalThreadResponse, GoBackRequest, GoHomeRequest } from "./interfaces";
 
 export interface VisualizerAPI {
     openView: (params: OpenViewRequest) => void;
     getHistory: () => Promise<HistoryEntry[]>;
     addToHistory: (entry: HistoryEntry) => void;
+    mergeHistoryLocation: (location: VisualizerLocation) => void;
     goBack: (params: GoBackRequest) => void;
     goHome: (params: GoHomeRequest) => void;
     goSelected: (index: number) => void;
