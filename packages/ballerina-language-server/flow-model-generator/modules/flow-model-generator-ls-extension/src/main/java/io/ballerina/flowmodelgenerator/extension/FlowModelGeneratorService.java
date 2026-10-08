@@ -613,9 +613,14 @@ public class FlowModelGeneratorService implements ExtendedLanguageServerService 
                 if (semanticModel.isEmpty() || document.isEmpty()) {
                     return response;
                 }
-                response.setTextEdits(DeleteNodeHandler.getTextEditsToDeletedNode(
+                JsonElement textEdits = DeleteNodeHandler.getTextEditsToDeletedNode(
                         request.component(), filePath, document.get(), project
-                ));
+                );
+                Optional<JsonElement> formattedEdits = request.formatted()
+                        ? new SourceGenerator(workspaceManager, filePath).formatTextEdits(toEditsByPath(textEdits))
+                        : Optional.empty();
+                response.setFormatted(formattedEdits.isPresent());
+                response.setTextEdits(formattedEdits.orElse(textEdits));
             } catch (Throwable e) {
                 response.setError(e);
             }

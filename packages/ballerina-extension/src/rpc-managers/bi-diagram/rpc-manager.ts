@@ -1692,14 +1692,14 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
         const performDelete = async (): Promise<any> => {
             return new Promise((resolve, reject) => {
                 StateMachine.langClient()
-                    .deleteByComponentInfo(params)
-                    .then(async (model) => {
+                    .deleteByComponentInfo({ ...params, formatted: true } as BIDeleteByComponentInfoRequest)
+                    .then(async (model: BISourceCodeResponse & { formatted?: boolean }) => {
                         console.log(">>> bi delete node from ls by componentInfo", model);
                         let description = 'Component Deletion';
                         if (componentView?.location?.artifactType && componentView?.location?.identifier) {
                             description = `${this.capitalizeFirstLetter(componentView.location.artifactType)} Deletion - ${componentView.location.identifier}`;
                         }
-                        await updateSourceCode({ textEdits: model.textEdits, description: description, skipPayloadCheck: true }); // Skip payload check because the component is deleted
+                        await updateSourceCode({ textEdits: model.textEdits, description: description, skipPayloadCheck: true, preformatted: model.formatted }); // Skip payload check because the component is deleted
                         resolve(model);
                     })
                     .catch((error) => {
