@@ -217,6 +217,16 @@ public class SourceBuilder {
         return newVariable(Property.TYPE_KEY);
     }
 
+    // Keeps an explicit `new pkg:Class(...)` as written; a generic declared type cannot infer the class.
+    public SourceBuilder newExpression() {
+        tokenBuilder.keyword(SyntaxKind.NEW_KEYWORD);
+        Map<String, Object> data = flowNode.codedata() == null ? null : flowNode.codedata().data();
+        if (data != null && data.get(Constants.EXPLICIT_NEW_TYPE_KEY) instanceof String explicitType) {
+            tokenBuilder.name(explicitType);
+        }
+        return this;
+    }
+
     public SourceBuilder newVariableWithInferredType() {
         Optional<Property> optionalType = getProperty(Property.TYPE_KEY);
         Optional<Property> variable = getProperty(Property.VARIABLE_KEY);
