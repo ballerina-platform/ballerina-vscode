@@ -21,7 +21,7 @@ import * as vscode from "vscode";
 import { extension } from "../../BalExtensionContext";
 import { waitForAuthCode } from "../ai/agent/mcp/oauth";
 
-// Prototype only: borrows amctl's public client and its fixed loopback redirect.
+// Temporary: reuses amctl's OAuth client until Agent Builder is registered as a client in Agent Manager.
 const CLIENT_ID = "amctl";
 const CALLBACK_PORT = 10325;
 const REDIRECT_URI = `http://127.0.0.1:${CALLBACK_PORT}/callback`;
