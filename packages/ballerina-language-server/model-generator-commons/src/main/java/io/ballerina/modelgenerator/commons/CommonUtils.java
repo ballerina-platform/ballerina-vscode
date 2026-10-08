@@ -1487,15 +1487,10 @@ public class CommonUtils {
      */
     public static Optional<ClassSymbol> getClientClassSymbol(SemanticModel semanticModel, FunctionData functionData,
                                                              String name) {
-        Optional<Map<String, Symbol>> moduleTypesOpt = semanticModel.types()
-                .typesInModule(functionData.org(), functionData.moduleName(), functionData.version());
-        if (moduleTypesOpt.isEmpty()) {
-            return Optional.empty();
-        }
-
-        Map<String, Symbol> moduleTypes = moduleTypesOpt.get();
-        Symbol symbol = moduleTypes.get(name);
-        if (!(symbol instanceof ClassSymbol classSymbol)) {
+        // typesInModule builds every type's annotations, which asserts on annotations owned by BIR-loaded deps
+        Optional<Symbol> symbol = semanticModel.types()
+                .getTypeByName(functionData.org(), functionData.moduleName(), functionData.version(), name);
+        if (symbol.isEmpty() || !(symbol.get() instanceof ClassSymbol classSymbol)) {
             return Optional.empty();
         }
 
