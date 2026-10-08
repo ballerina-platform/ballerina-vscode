@@ -63,6 +63,7 @@ export const BRAND_ICON_REGISTRY: Record<string, BrandIcon> = {
     telegram: { glyph: "bi-telegram", color: "#26A5E4" },
     "whatsapp.business": { glyph: "bi-whatsapp", color: "#25D366" },
     "googleapis.chat": { glyph: "bi-google-chat", color: "#00AC47" },
+    "ai.wso2.integration": { glyph: "bi-audio" },
 };
 
 /** Looks up the brand glyph override for a module/type identifier; `undefined` when there is none. */
@@ -94,9 +95,12 @@ export function resolveKindDefaultIcon(kind: string | undefined | null): BrandIc
 
 const CENTRAL_ICON_MODULE = /\/[^/]*?_(.+)_\d[^/]*\.(?:png|svg)$/i;
 
+export function resolveModuleFromIconUrl(url: string | undefined | null): string | undefined {
+    return url?.match(CENTRAL_ICON_MODULE)?.[1];
+}
+
 export function resolveBrandIconFromUrl(url: string | undefined | null): BrandIcon | undefined {
-    const match = url?.match(CENTRAL_ICON_MODULE);
-    return match ? resolveBrandIcon(match[1]) : undefined;
+    return resolveBrandIcon(resolveModuleFromIconUrl(url));
 }
 
 export const ENTRY_TYPE_GLYPH: Record<string, BrandIcon & { isCodicon?: boolean }> = {

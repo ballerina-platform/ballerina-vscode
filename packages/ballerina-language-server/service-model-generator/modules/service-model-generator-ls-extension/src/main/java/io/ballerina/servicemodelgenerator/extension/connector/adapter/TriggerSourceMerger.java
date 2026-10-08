@@ -24,6 +24,7 @@ import io.ballerina.compiler.syntax.tree.MappingConstructorExpressionNode;
 import io.ballerina.compiler.syntax.tree.MappingFieldNode;
 import io.ballerina.compiler.syntax.tree.NodeParser;
 import io.ballerina.compiler.syntax.tree.SpecificFieldNode;
+import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.modelgenerator.commons.trigger.models.Repeatable;
 import io.ballerina.servicemodelgenerator.extension.model.Codedata;
 import io.ballerina.servicemodelgenerator.extension.model.Function;
@@ -487,7 +488,7 @@ public final class TriggerSourceMerger {
             }
             child.setEnabled(true);
             if (isLeaf) {
-                child.setValue(fieldValue.toSourceCode().trim());
+                setLeafValue(child, fieldValue);
             } else {
                 child.setValue("true");
                 applyFieldValue(child, fieldValue);
@@ -528,8 +529,26 @@ public final class TriggerSourceMerger {
         }
         // A childless value node is a leaf: the source expression text is its editable value.
         if (node.getProperties() == null || node.getProperties().isEmpty()) {
-            node.setValue(expression.toSourceCode().trim());
+            setLeafValue(node, expression);
         }
+    }
+
+    /**
+     * Sets a leaf's source text and, when the source is neither a string literal nor a {@code string} template,
+     * selects its {@code EXPRESSION} type so the value is not re-quoted on the next save.
+     */
+    private static void setLeafValue(Value leaf, ExpressionNode expression) {
+        leaf.setValue(expression.toSourceCode().trim());
+        if (expression.kind() == SyntaxKind.STRING_LITERAL
+                || expression.kind() == SyntaxKind.STRING_TEMPLATE_EXPRESSION || leaf.getTypes() == null) {
+            return;
+        }
+        boolean hasExpressionType = leaf.getTypes().stream()
+                .anyMatch(type -> type.fieldType() == Value.FieldType.EXPRESSION);
+        if (!hasExpressionType) {
+            return;
+        }
+        leaf.getTypes().forEach(type -> type.selected(type.fieldType() == Value.FieldType.EXPRESSION));
     }
 
     /** A mapping value matches the branch sharing the most field names; a scalar matches by value. */

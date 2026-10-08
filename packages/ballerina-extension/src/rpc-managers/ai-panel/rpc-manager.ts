@@ -28,6 +28,8 @@ import {
     Command,
     GetRunStatusRequest,
     GetRunStatusResponse,
+    PrepareKeyedThreadRequest,
+    PrepareKeyedThreadResponse,
     DocGenerationRequest,
     GenerateAgentCodeRequest,
     GenerateOpenAPIRequest,
@@ -79,6 +81,10 @@ import {
     UpdateMcpServerRequest,
     DeleteMcpServerRequest,
     SetMcpToolsEnabledRequest,
+    SetCopilotOrbVisibleRequest,
+    CopilotToggleSetting,
+    CopilotToggleSettings,
+    SetCopilotToggleSettingRequest,
     McpLoadErrorsDTO,
     AgentsMdFileInfoDTO,
     ThreadSummary,
@@ -156,6 +162,7 @@ import {
 import { clearCompactionDisabledWarning } from '../../features/ai/agent/AgentExecutor';
 import { LLM_API_BASE_PATH, WI_EXTENSION_ID } from "../../features/ai/constants";
 import { ContextTypesExecutor } from '../../features/ai/executors/datamapper/ContextTypesExecutor';
+import { agentStatusManager } from '../../features/ai/state/AgentStatusManager';
 import { approvalManager } from '../../features/ai/state/ApprovalManager';
 import { approvalViewManager } from '../../features/ai/state/ApprovalViewManager';
 import { chatStateStorage, isRevertible } from '../../views/ai-panel/chatStateStorage';
@@ -196,6 +203,12 @@ function getActiveThreadId(projectRootPath?: string): string {
 
 const OAUTH_CALLBACK_TIMEOUT_MS = 3 * 60 * 1_000;
 
+const COPILOT_CONFIG_SECTION = 'ballerina.copilot';
+/** Mirrors the defaults declared for these settings in package.json. */
+const COPILOT_TOGGLE_DEFAULTS: CopilotToggleSettings = {
+    followupSuggestions: true,
+};
+
 // Shown when a flow ends without a connection id. "cancelled" and "superseded" are dropped by the
 // webview's run-id guard, so those only reach the log.
 const CONNECTION_FAILURE_MESSAGE: Record<ConnectionSettleReason, string> = {
@@ -205,6 +218,10 @@ const CONNECTION_FAILURE_MESSAGE: Record<ConnectionSettleReason, string> = {
     cancelled: "Connection cancelled.",
     superseded: "Connection cancelled — a newer connection attempt was started.",
 };
+
+const KEYED_THREADS_STATE = "copilot.keyedThreads";
+// Past this, a keyed request starts a new thread: the old one likely no longer matches the code.
+const KEYED_THREAD_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 /**
  * A run owns the active thread until it ends, so reparenting it mid-turn would strand the
@@ -882,6 +899,25 @@ User reverted the last made changes. The files have been restored to the state b
         if (refuseWhileBusy(projectRootPath, 'switchThread')) { return false; }
         chatStateStorage.switchToThread(projectRootPath, params.threadId);
         return true;
+    }
+
+    async prepareKeyedThread(params: PrepareKeyedThreadRequest): Promise<PrepareKeyedThreadResponse> {
+        const projectRootPath = resolveProjectRootPath();
+        if (refuseWhileBusy(projectRootPath, 'prepareKeyedThread')) {
+            window.showInformationMessage('Copilot is still working on another request. Try again when it finishes.');
+            return { status: 'busy' };
+        }
+        const mapKey = `${projectRootPath}::${params.key}`;
+        const keyed = extension.context.workspaceState.get<Record<string, string>>(KEYED_THREADS_STATE, {});
+        const thread = chatStateStorage.listThreadsSummary(projectRootPath).find((summary) => summary.id === keyed[mapKey]);
+        if (thread && Date.now() - thread.updatedAt < KEYED_THREAD_MAX_AGE_MS) {
+            chatStateStorage.switchToThread(projectRootPath, thread.id);
+            return { status: 'reused' };
+        }
+        const threadId = chatStateStorage.createNewThread(projectRootPath);
+        clearCompactionDisabledWarning(projectRootPath, threadId);
+        await extension.context.workspaceState.update(KEYED_THREADS_STATE, { ...keyed, [mapKey]: threadId });
+        return { status: 'created' };
     }
 
     async deleteThread(params: DeleteThreadRequest): Promise<void> {
@@ -1596,6 +1632,36 @@ User reverted the last made changes. The files have been restored to the state b
     async setMcpToolsEnabled(params: SetMcpToolsEnabledRequest): Promise<void> {
         await workspace.getConfiguration('ballerina')
             .update(MCP_ENABLE_SETTING, !!params?.enabled, ConfigurationTarget.Global);
+    }
+
+    async getCopilotOrbVisible(): Promise<boolean> {
+        return agentStatusManager.isOrbVisible();
+    }
+
+    async setCopilotOrbVisible(params: SetCopilotOrbVisibleRequest): Promise<void> {
+        await agentStatusManager.setOrbHidden(!params?.visible);
+    }
+
+    async getCopilotToggleSettings(): Promise<CopilotToggleSettings> {
+        const config = workspace.getConfiguration(COPILOT_CONFIG_SECTION);
+        const settings = { ...COPILOT_TOGGLE_DEFAULTS };
+        for (const key of Object.keys(COPILOT_TOGGLE_DEFAULTS) as CopilotToggleSetting[]) {
+            settings[key] = config.get<boolean>(key, COPILOT_TOGGLE_DEFAULTS[key]);
+        }
+        return settings;
+    }
+
+    async setCopilotToggleSetting(params: SetCopilotToggleSettingRequest): Promise<void> {
+        if (!params || !Object.prototype.hasOwnProperty.call(COPILOT_TOGGLE_DEFAULTS, params.key)) {
+            throw new Error(`Unknown Copilot setting: ${params?.key}`);
+        }
+        const config = workspace.getConfiguration(COPILOT_CONFIG_SECTION);
+        // These are resource-scoped: a workspace value would shadow a global write and the
+        // toggle would seem to do nothing, so write where the effective value comes from.
+        const target = config.inspect<boolean>(params.key)?.workspaceValue !== undefined
+            ? ConfigurationTarget.Workspace
+            : ConfigurationTarget.Global;
+        await config.update(params.key, !!params.value, target);
     }
 
     async getAgentsMdFileInfo(): Promise<AgentsMdFileInfoDTO> {

@@ -11,7 +11,7 @@
   "output": {
     "id": "31",
     "metadata": {
-      "label": "Wait for Child Workflow",
+      "label": "Await Child",
       "description": "Durably wait for a started child workflow's result"
     },
     "codedata": {
@@ -27,7 +27,7 @@
       "childWorkflowId": {
         "metadata": {
           "label": "Child Workflow ID",
-          "description": "The child workflow ID returned by Run Child Workflow."
+          "description": "The child workflow ID returned by Run Child."
         },
         "types": [
           {

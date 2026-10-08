@@ -32,7 +32,7 @@ export type AIPanelView = 'settings' | 'mcp' | 'skills';
 
 export type AIPanelPrompt =
     | { type: 'command-template'; command: Command; templateId: TemplateId; text?: string; params?: Record<string, string>; metadata?: Record<string, any>; hiddenContext?: string }
-    | { type: 'text'; text: string; planMode: boolean; codeContext?: CodeContext; autoSubmit?: boolean; hiddenContext?: string; suggestedCommandTemplates?: AIPanelPrompt[];    inputPlaceholder?:string; attachments?: Attachment[]; newThread?: boolean; consoleScaffold?: boolean; }
+    | { type: 'text'; text: string; planMode: boolean; codeContext?: CodeContext; autoSubmit?: boolean; hiddenContext?: string; suggestedCommandTemplates?: AIPanelPrompt[];    inputPlaceholder?:string; attachments?: Attachment[]; newThread?: boolean; threadKey?: string; consoleScaffold?: boolean; }
     | { type: 'skill'; skillId: string; skillName: string; args?: string; tagParams?: Record<string, string>; autoSubmit?: boolean; hiddenContext?: string }
     /** Opens the panel straight onto one of its surfaces, or onto an existing thread. */
     | { type: 'view'; view: AIPanelView }
@@ -640,6 +640,15 @@ export interface SwitchThreadRequest {
     threadId: string;
 }
 
+export interface PrepareKeyedThreadRequest {
+    key: string;
+}
+
+/** `busy` when a run or checkpoint restore is in progress, so nothing was switched or created. */
+export interface PrepareKeyedThreadResponse {
+    status: "reused" | "created" | "busy";
+}
+
 export interface DeleteThreadRequest {
     threadId: string;
 }
@@ -943,6 +952,16 @@ export interface DeleteMcpServerRequest {
 }
 export interface SetMcpToolsEnabledRequest {
     enabled: boolean;
+}
+export interface SetCopilotOrbVisibleRequest {
+    visible: boolean;
+}
+/** Boolean `ballerina.copilot.*` settings the Copilot settings panel toggles, keyed relative to that section. */
+export type CopilotToggleSetting = 'followupSuggestions';
+export type CopilotToggleSettings = Record<CopilotToggleSetting, boolean>;
+export interface SetCopilotToggleSettingRequest {
+    key: CopilotToggleSetting;
+    value: boolean;
 }
 /** Per-scope parse / read errors for `mcp.json` files. Both fields are optional — missing means OK. */
 export interface McpLoadErrorsDTO {

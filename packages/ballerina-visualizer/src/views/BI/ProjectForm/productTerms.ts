@@ -54,7 +54,7 @@ const AGENT_BUILDER_TERMS: ProductTerms = {
     integrationNameLabel: "Agentic integration name",
     integrationNamePlaceholder: "Enter a name for your agentic integration",
     createButtonLabel: "Create Agentic Integration",
-    integrationOptionTitle: "Create an agentic integration",
+    integrationOptionTitle: "Agentic Integration",
     integrationOptionDescription: "Build AI agents with tools, memory, and the triggers that invoke them.",
     libraryOptionDescription:
         "Build reusable components and utilities that can be shared across agentic integrations.",

@@ -73,10 +73,12 @@ const WORKFLOW_UTILITY_NODE_TITLES: Record<string, string> = {
 // The language server currently emits these as generic statement kinds (e.g. "EXPRESSION") rather than
 // the dedicated WORKFLOW_* node kinds, so matching has to key off the function symbol, not the node kind.
 const WORKFLOW_MODULE_FUNCTION_TITLES: Record<string, string> = {
-    currentTime: "Get Current Time",
+    currentTime: "Current Time",
     isReplaying: "Is Replaying",
-    getWorkflowId: "Get Workflow ID",
-    getWorkflowType: "Get Workflow Type",
+    getWorkflowId: "Workflow ID",
+    getWorkflowType: "Workflow Type",
+    lastHumanTaskCompletion: "Last Completion",
+    lastReviewDecision: "Last Decision",
     sleep: "Sleep"
 };
 

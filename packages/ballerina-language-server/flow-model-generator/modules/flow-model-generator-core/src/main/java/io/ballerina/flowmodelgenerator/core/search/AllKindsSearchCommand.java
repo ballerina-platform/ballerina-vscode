@@ -18,330 +18,124 @@
 
 package io.ballerina.flowmodelgenerator.core.search;
 
-import io.ballerina.flowmodelgenerator.core.model.AvailableNode;
 import io.ballerina.flowmodelgenerator.core.model.Category;
-import io.ballerina.flowmodelgenerator.core.model.Category.Builder;
-import io.ballerina.flowmodelgenerator.core.model.Codedata;
 import io.ballerina.flowmodelgenerator.core.model.Item;
-import io.ballerina.flowmodelgenerator.core.model.Metadata;
-import io.ballerina.flowmodelgenerator.core.model.NodeKind;
-import io.ballerina.flowmodelgenerator.core.utils.ConnectorUtil;
-import io.ballerina.modelgenerator.commons.CommonUtils;
-import io.ballerina.modelgenerator.commons.ModuleCoordinate;
 import io.ballerina.modelgenerator.commons.SearchResult;
-import io.ballerina.modelgenerator.commons.UnifiedSearchResult;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.Project;
 import io.ballerina.tools.text.LineRange;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.stream.Collectors;
-
-import static io.ballerina.flowmodelgenerator.core.model.Category.Name.IMPORTED_FUNCTIONS;
-import static io.ballerina.flowmodelgenerator.core.model.Category.Name.STANDARD_LIBRARY;
+import java.util.function.Supplier;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
- * Optimized search command implementation that uses a hybrid approach:
- * - Fast database queries using existing unified SearchDatabaseManager methods for functions/connectors
- * - Parallel local searches for project-specific search types (AI components, local utilities, etc.)
- * - Unified result processing and deduplication
+ * Search command behind the node panel's master search. It runs the function search and the connector search side by
+ * side and merges their results, so the master search uses the same data source as "Call a Function" and "Add
+ * Connection" (Ballerina Central, falling back to the local index), the same organization and package filters, and
+ * the same categories.
  *
- * This provides complete coverage of functions and connectors search types while maintaining performance.
+ * <p>The master search is a preview of both kinds: each kind gets half of the requested page, and at least
+ * {@value #MIN_KIND_LIMIT} items, so a kind can return fewer results here than its own search does.</p>
+ *
+ * <p>The function results keep their own categories (current integration or workspace, agent tools, imported
+ * functions, standard library and extended library). The connector results are placed under a single
+ * {@value #CONNECTORS_CATEGORY} category: a query returns them ungrouped, and the default view keeps their groups
+ * inside that category.</p>
  *
  * @since 1.7.0
  */
 public class AllKindsSearchCommand extends SearchCommand {
 
-    private final Document functionsDoc;
-    private final Set<ModuleCoordinate> importedModules;
-    private final ExecutorService executorService;
+    private static final Logger LOGGER = Logger.getLogger(AllKindsSearchCommand.class.getName());
+    private static final String CONNECTORS_CATEGORY = "Connectors";
+    private static final int MIN_KIND_LIMIT = 10;
+    // Shared by every master search, which runs on each debounced keystroke. Idle threads are reused, and a search is
+    // never queued behind a slower earlier one still waiting on Central.
+    private static final ExecutorService SEARCH_EXECUTOR = Executors.newCachedThreadPool(runnable -> {
+        Thread thread = new Thread(runnable, "master-search");
+        thread.setDaemon(true);
+        return thread;
+    });
 
-    // Database search types (fast path)
-    private static final List<Kind> DATABASE_SEARCH_TYPES = List.of(
-            Kind.FUNCTION,
-            Kind.CONNECTOR
-    );
+    private final Document functionsDoc;
 
     public AllKindsSearchCommand(Project project, LineRange position, Map<String, String> queryMap,
                                  Document functionsDoc) {
         super(project, position, queryMap);
         this.functionsDoc = functionsDoc;
-        this.importedModules = ImportedModules.collect(project);
-        this.executorService = Executors.newCachedThreadPool();
     }
 
     @Override
     protected List<Item> defaultView() {
-        return executeHybridSearch();
+        return searchAllKinds();
     }
 
     @Override
     protected List<Item> search() {
-        return executeHybridSearch();
+        return searchAllKinds();
     }
 
     @Override
     protected Map<String, List<SearchResult>> fetchPopularItems() {
-        Map<String, List<SearchResult>> popularItems = new HashMap<>();
+        // The delegated commands fetch their own popular items.
+        return Map.of();
+    }
 
-        for (Kind searchType : DATABASE_SEARCH_TYPES) {
-            try {
-                SearchCommand command = createSearchCommand(searchType);
-                Map<String, List<SearchResult>> typePopularItems = command.fetchPopularItems();
-                popularItems.putAll(typePopularItems);
-            } catch (RuntimeException e) {
-                // Continue with other search types if one fails
-            }
-        }
-
-        return popularItems;
+    private List<Item> searchAllKinds() {
+        SearchCommand functionSearch = new FunctionSearchCommand(project, position, kindQueryMap(), functionsDoc);
+        SearchCommand connectorSearch = new ConnectorSearchCommand(project, position, kindQueryMap());
+        return searchInParallel(functionSearch::items, connectorSearch::items);
     }
 
     /**
-     * Executes hybrid search combining fast database queries with parallel local searches.
+     * Runs the function and connector searches in parallel and merges their results. Both searches wait on Ballerina
+     * Central, so running them side by side bounds the latency to the slower of the two rather than their sum.
+     *
+     * @param functionSearch  the function search
+     * @param connectorSearch the connector search
+     * @return the function results, followed by the connector results under a single category
      */
-    private List<Item> executeHybridSearch() {
-        // Add workspace functions to the root builder
-        WorkspaceFunctionNodeBuilder.buildWorkspaceNodes(rootBuilder, project, position, query, functionsDoc);
+    static List<Item> searchInParallel(Supplier<List<Item>> functionSearch, Supplier<List<Item>> connectorSearch) {
+        CompletableFuture<List<Item>> functionItems = CompletableFuture.supplyAsync(functionSearch, SEARCH_EXECUTOR);
+        CompletableFuture<List<Item>> connectorItems = CompletableFuture.supplyAsync(connectorSearch, SEARCH_EXECUTOR);
 
-        List<CompletableFuture<List<Item>>> futures = new ArrayList<>();
-
-        CompletableFuture<List<Item>> databaseFuture = CompletableFuture.supplyAsync(() -> {
-            try {
-                List<UnifiedSearchResult> unifiedResults = dbManager.searchAllTypes(query, limit, offset);
-                return processDatabaseResults(unifiedResults);
-            } catch (RuntimeException e) {
-                return Collections.emptyList();
-            }
-        }, executorService);
-        futures.add(databaseFuture);
-
-        List<Item> dbItems = aggregateResults(futures);
-
-        // Combine workspace items (already in rootBuilder) with database items
-        List<Item> workspaceItems = rootBuilder.build().items();
-        List<Item> allItems = new ArrayList<>(workspaceItems);
-        allItems.addAll(dbItems);
-        return deduplicateItems(allItems);
-    }
-
-    /**
-     * Processes unified database results and converts them directly to Items.
-     */
-    private List<Item> processDatabaseResults(List<UnifiedSearchResult> unifiedResults) {
-        Builder rootBuilder = new Builder(null);
-
-        List<UnifiedSearchResult> functions = new ArrayList<>();
-        List<UnifiedSearchResult> connectors = new ArrayList<>();
-
-        for (UnifiedSearchResult result : unifiedResults) {
-            if ("function".equals(result.getResultType())) {
-                functions.add(result);
-            } else if ("connector".equals(result.getResultType())) {
-                connectors.add(result);
-            }
-        }
-
-        if (!functions.isEmpty()) {
-            List<SearchResult> functionResults = functions.stream()
-                    .map(UnifiedSearchResult::getSearchResult)
-                    .collect(Collectors.toList());
-            buildLibraryNodesFromResults(functionResults, rootBuilder);
-        }
-
+        List<Item> allItems = new ArrayList<>(join(functionItems));
+        List<Item> connectors = join(connectorItems);
         if (!connectors.isEmpty()) {
-            List<SearchResult> connectorResults = connectors.stream()
-                    .map(UnifiedSearchResult::getSearchResult)
-                    .collect(Collectors.toList());
-            buildLibraryNodesFromConnectorResults(connectorResults, rootBuilder);
+            allItems.add(new Category.Builder(null).stepIn(CONNECTORS_CATEGORY, null, null).items(connectors).build());
         }
-
-        return rootBuilder.build().items();
+        return allItems;
     }
 
-    /**
-     * Builds function nodes grouped by package modules under Imported Functions or Standard Library.
-     */
-    private void buildLibraryNodesFromResults(List<SearchResult> results, Builder rootBuilder) {
-        if (results.isEmpty()) {
-            return;
-        }
-
-        Builder importedFnBuilder = rootBuilder.stepIn(IMPORTED_FUNCTIONS);
-        Builder stdLibBuilder = rootBuilder.stepIn(STANDARD_LIBRARY);
-
-        for (SearchResult result : results) {
-            String moduleName = result.packageInfo().moduleName();
-            Builder builder = importedModules.contains(result.packageInfo().coordinate())
-                    ? importedFnBuilder : stdLibBuilder;
-            builder.stepIn(moduleName, "", List.of())
-                    .node(createFunctionNode(result));
+    private static List<Item> join(CompletableFuture<List<Item>> future) {
+        try {
+            List<Item> items = future.join();
+            return items != null ? items : List.of();
+        } catch (CompletionException e) {
+            // One kind failing must not hide the results of the other.
+            LOGGER.log(Level.WARNING, "Master search failed for one kind of result", e.getCause());
+            return List.of();
         }
     }
 
     /**
-     * Builds connector nodes under a single "Connectors" category.
+     * The query map for a delegated command. Each kind gets half of the page, and at least {@value #MIN_KIND_LIMIT}
+     * items. The master search has no paging, so the offset is passed through unchanged.
      */
-    private void buildLibraryNodesFromConnectorResults(List<SearchResult> results, Builder rootBuilder) {
-        if (results.isEmpty()) {
-            return;
-        }
-
-        Builder connectorsBuilder = rootBuilder.stepIn("Connectors", null, null);
-        for (SearchResult result : results) {
-            connectorsBuilder.node(createConnectorNode(result));
-        }
-    }
-
-    /**
-     * Creates a function node with proper metadata.
-     */
-    private AvailableNode createFunctionNode(SearchResult result) {
-        String icon = CommonUtils.generateIcon(
-                result.packageInfo().org(), result.packageInfo().packageName(), result.packageInfo().version());
-
-        Metadata metadata = new Metadata.Builder<>(null)
-                .label(result.name())
-                .description(result.description())
-                .icon(icon)
-                .build();
-
-        Codedata codedata = new Codedata.Builder<>(null)
-                .node(NodeKind.FUNCTION_CALL)
-                .org(result.packageInfo().org())
-                .module(result.packageInfo().moduleName())
-                .packageName(result.packageInfo().packageName())
-                .symbol(result.name())
-                .version(result.packageInfo().version())
-                .build();
-
-        return new AvailableNode(metadata, codedata, true);
-    }
-
-    /**
-     * Creates a connector node with proper metadata and connection structure.
-     */
-    private AvailableNode createConnectorNode(SearchResult result) {
-        String icon = CommonUtils.generateIcon(
-                result.packageInfo().org(), result.packageInfo().packageName(), result.packageInfo().version());
-
-        String connectorName = ConnectorUtil.getConnectorName(result.name(), result.packageInfo().moduleName());
-
-        Metadata metadata = new Metadata.Builder<>(null)
-                .label(connectorName)
-                .description(result.description())
-                .icon(icon)
-                .build();
-
-        Codedata codedata = new Codedata.Builder<>(null)
-                .node(NodeKind.NEW_CONNECTION)
-                .org(result.packageInfo().org())
-                .module(result.packageInfo().moduleName())
-                .packageName(result.packageInfo().packageName())
-                .object(result.name())
-                .symbol("init")
-                .version(result.packageInfo().version())
-                .isGenerated(false)
-                .build();
-
-        return new AvailableNode(metadata, codedata, true);
-    }
-
-    /**
-     * Creates a search command instance for the specified search type.
-     */
-    private SearchCommand createSearchCommand(Kind searchType) {
-        return switch (searchType) {
-            case FUNCTION ->
-                    new FunctionSearchCommand(project, position, getQueryMapForType(searchType), functionsDoc);
-            case CONNECTOR -> new ConnectorSearchCommand(project, position, getQueryMapForType(searchType));
-            default -> throw new IllegalArgumentException("Unsupported search type: " + searchType);
-        };
-    }
-
-    /**
-     * Aggregates results from all search futures, applies deduplication and ranking.
-     */
-    private List<Item> aggregateResults(List<CompletableFuture<List<Item>>> futures) {
-        List<Item> allItems = new ArrayList<>();
-
-        for (CompletableFuture<List<Item>> future : futures) {
-            try {
-                List<Item> items = future.get();
-                if (items != null) {
-                    allItems.addAll(items);
-                }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            } catch (ExecutionException e) {
-                // Continue with other results if one fails
-            }
-        }
-
-        return deduplicateItems(allItems);
-    }
-
-    /**
-     * Removes duplicate items based on their key properties.
-     */
-    private List<Item> deduplicateItems(List<Item> items) {
-        Map<String, Item> uniqueItems = new HashMap<>();
-
-        for (Item item : items) {
-            String key = generateItemKey(item);
-            if (!uniqueItems.containsKey(key)) {
-                uniqueItems.put(key, item);
-            }
-        }
-
-        return new ArrayList<>(uniqueItems.values());
-    }
-
-    /**
-     * Generates a unique key for an item based on its properties.
-     */
-    private String generateItemKey(Item item) {
-        if (item instanceof AvailableNode availableNode) {
-            if (availableNode.codedata() != null && availableNode.codedata().node() != null) {
-                String symbol = availableNode.codedata().symbol() != null ?
-                        availableNode.codedata().symbol() : "";
-                String kind = availableNode.codedata().node().toString();
-                String org = availableNode.codedata().org() != null ?
-                        availableNode.codedata().org() : "";
-                String module = availableNode.codedata().module() != null ?
-                        availableNode.codedata().module() : "";
-                return org + ":" + module + ":" + symbol + ":" + kind;
-            }
-        }
-
-        if (item instanceof Category category) {
-            return "category:" + (category.metadata() != null ? category.metadata().label() : "unknown");
-        }
-
-        return item.getClass().getSimpleName() + ":" + System.identityHashCode(item);
-    }
-
-    /**
-     * Creates a query map for a specific search type.
-     */
-    private Map<String, String> getQueryMapForType(Kind searchType) {
-        Map<String, String> typeQueryMap = new HashMap<>();
-        typeQueryMap.put("q", query);
-
-        int typeLimit = DATABASE_SEARCH_TYPES.contains(searchType) ?
-                Math.max(10, limit / 2) : Math.max(5, limit / 5);
-
-        typeQueryMap.put("limit", String.valueOf(typeLimit));
-        typeQueryMap.put("offset", String.valueOf(offset));
-        return typeQueryMap;
+    private Map<String, String> kindQueryMap() {
+        Map<String, String> kindQueryMap = new HashMap<>();
+        kindQueryMap.put("q", query);
+        kindQueryMap.put("limit", String.valueOf(Math.max(MIN_KIND_LIMIT, limit / 2)));
+        kindQueryMap.put("offset", String.valueOf(offset));
+        return kindQueryMap;
     }
 }

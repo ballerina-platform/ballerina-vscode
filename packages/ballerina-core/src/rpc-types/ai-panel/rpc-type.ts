@@ -76,12 +76,17 @@ import {
     UpdateMcpServerRequest,
     DeleteMcpServerRequest,
     SetMcpToolsEnabledRequest,
+    SetCopilotOrbVisibleRequest,
+    CopilotToggleSettings,
+    SetCopilotToggleSettingRequest,
     McpLoadErrorsDTO,
     AgentsMdFileInfoDTO,
     ParseSkillFileRequest,
     ParseSkillFileResponse,
     ThreadSummary,
     SwitchThreadRequest,
+    PrepareKeyedThreadRequest,
+    PrepareKeyedThreadResponse,
     DeleteThreadRequest,
     RenameThreadRequest,
     // TODO(auto-memory): temporarily disabled for this release.
@@ -170,6 +175,10 @@ export const updateMcpServer: RequestType<UpdateMcpServerRequest, AddMcpServerRe
 export const deleteMcpServer: RequestType<DeleteMcpServerRequest, AddMcpServerResponse> = { method: `${_preFix}/deleteMcpServer` };
 export const setMcpToolsEnabled: RequestType<SetMcpToolsEnabledRequest, void> = { method: `${_preFix}/setMcpToolsEnabled` };
 export const getMcpToolsEnabled: RequestType<void, boolean> = { method: `${_preFix}/getMcpToolsEnabled` };
+export const setCopilotOrbVisible: RequestType<SetCopilotOrbVisibleRequest, void> = { method: `${_preFix}/setCopilotOrbVisible` };
+export const getCopilotOrbVisible: RequestType<void, boolean> = { method: `${_preFix}/getCopilotOrbVisible` };
+export const getCopilotToggleSettings: RequestType<void, CopilotToggleSettings> = { method: `${_preFix}/getCopilotToggleSettings` };
+export const setCopilotToggleSetting: RequestType<SetCopilotToggleSettingRequest, void> = { method: `${_preFix}/setCopilotToggleSetting` };
 export const getMcpWorkspaceContext: RequestType<void, McpWorkspaceContextResponse> = { method: `${_preFix}/getMcpWorkspaceContext` };
 export const getMcpLoadErrors: RequestType<void, McpLoadErrorsDTO> = { method: `${_preFix}/getMcpLoadErrors` };
 export const mcpServersChanged: NotificationType<McpServerStatusDTO[]> = { method: `${_preFix}/mcpServersChanged` };
@@ -179,6 +188,7 @@ export const openOrCreateAgentsMd: RequestType<void, void> = { method: `${_preFi
 export const agentsMdFileInfoChanged: NotificationType<AgentsMdFileInfoDTO> = { method: `${_preFix}/agentsMdFileInfoChanged` };
 export const listThreads: RequestType<void, ThreadSummary[]> = { method: `${_preFix}/listThreads` };
 export const switchThread: RequestType<SwitchThreadRequest, void> = { method: `${_preFix}/switchThread` };
+export const prepareKeyedThread: RequestType<PrepareKeyedThreadRequest, PrepareKeyedThreadResponse> = { method: `${_preFix}/prepareKeyedThread` };
 export const deleteThread: RequestType<DeleteThreadRequest, void> = { method: `${_preFix}/deleteThread` };
 export const renameThread: RequestType<RenameThreadRequest, void> = { method: `${_preFix}/renameThread` };
 // TODO(auto-memory): temporarily disabled for this release.

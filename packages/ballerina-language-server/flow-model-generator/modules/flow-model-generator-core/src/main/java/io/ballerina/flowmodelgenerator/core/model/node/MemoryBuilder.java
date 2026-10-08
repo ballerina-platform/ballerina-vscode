@@ -108,7 +108,7 @@ public class MemoryBuilder extends CallBuilder {
             sourceBuilder.token().keyword(SyntaxKind.CHECK_KEYWORD);
         }
 
-        sourceBuilder.token().keyword(SyntaxKind.NEW_KEYWORD);
+        sourceBuilder.newExpression();
         sourceBuilder.functionParameters(sourceBuilder.flowNode,
                 Set.of(Property.VARIABLE_KEY, Property.TYPE_KEY, Property.SCOPE_KEY, Property.CHECK_ERROR_KEY));
         sourceBuilder.textEdit();

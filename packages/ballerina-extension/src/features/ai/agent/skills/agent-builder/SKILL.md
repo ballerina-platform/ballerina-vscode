@@ -1,6 +1,6 @@
 ---
 name: agent-builder
-description: Use this skill whenever you are writing or modifying Ballerina AI agent code: declaring an `ai:Agent`, its system prompt or model provider, adding agent tools, gating a tool behind human approval, wiring subagents, or putting an agent behind any trigger: a chat service, a messaging channel such as Slack, WhatsApp or Telegram, a webhook, an event source such as Kafka or GitHub, or an HTTP endpoint. Applies to every `.bal` file that declares or edits an agent, including `agents.bal`.
+description: Writes and edits Ballerina AI agents (`ai:Agent`): system prompts, model providers, tools, human approval, subagents, toolkits, knowledge bases, and triggers such as chat, Slack, WhatsApp, Telegram, webhooks, Kafka or GitHub events, and HTTP endpoints. Also decides when an agent must be durable (long-running, resumable, crash-resilient, waiting for approval). Use for any `.bal` file that declares or edits an agent, including `agents.bal`.
 ---
 
 # Agent Builder
@@ -14,6 +14,21 @@ empty agent, and the user cannot then edit it from the low-code side. Follow eve
 Derive identifiers from the agent's purpose in camelCase, and keep the family consistent:
 `<agent>Agent`, `<agent>Model`, `<agent>Listener`. Service paths are the exception, they are
 kebab-case, written `<agent-name>`.
+
+## `ai:Agent` or a durable agent
+
+Everything below is for `ai:Agent`. Use a durable agent (`workflow:DurableAgent`) instead, and
+follow the workflow-builder skill, when the user asks for a durable, resumable or crash-resilient
+agent, or one that must:
+
+- keep going after a restart without repeating completed tool calls,
+- wait hours or days for a person or for external data,
+- get approval from an entry point other than chat (an event, a queue, a schedule, HTTP).
+
+Choose it without asking and say why. When "long-running" is the only signal, ask first whether
+the agent must survive a restart or wait for a person or data: it often means an always-on
+service, which an `ai:Agent` covers. Memory across chat turns alone is not a reason. A durable
+agent needs a workflow server in production; tell the user.
 
 ## System prompt: always inline
 
@@ -147,8 +162,9 @@ isolated function <predicateName>(<the same params>) returns boolean {
 
 **A gated tool needs a human to ask.** Approval resolves only over the chat trigger. An agent whose
 only entry point is an event source, a queue or an HTTP endpoint has nobody to ask, so its run
-fails instead of pausing, say so, and either put the gated action behind a chat-triggered agent or
-leave it ungated and have the agent recommend the action rather than take it.
+fails instead of pausing, say so, and either put the gated action behind a chat-triggered agent,
+make the agent durable (see "`ai:Agent` or a durable agent" above) so the approval waits for a
+reviewer, or leave it ungated and have the agent recommend the action rather than take it.
 
 Toolkit-derived tools (MCP, OpenAPI) cannot be gated.
 

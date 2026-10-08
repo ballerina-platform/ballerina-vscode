@@ -24,7 +24,9 @@ import {
     WebviewPanel,
     window,
 } from "vscode";
+import * as fs from "fs";
 import * as path from "path";
+import { isSamePath } from "@wso2/ballerina-core";
 import {
     WebViewOptions,
     getComposerWebViewOptions,
@@ -32,27 +34,32 @@ import {
 } from "../../utils/webview-utils";
 import { RPCLayer } from "../../RPCLayer";
 import { extension } from "../../BalExtensionContext";
+import { parseReportDate, reportTestNames } from "../../utils/evaluation-report";
 
 export class EvaluationReportWebview {
-    public static currentPanel: EvaluationReportWebview | undefined;
+    private static readonly openPanels = new Set<EvaluationReportWebview>();
     public static readonly viewType = "ballerina.evaluation-report";
     private readonly _panel: WebviewPanel;
+    private readonly _reportPath: string;
     private _disposables: Disposable[] = [];
 
-    private constructor(panel: WebviewPanel) {
+    private constructor(panel: WebviewPanel, reportPath: string) {
         this._panel = panel;
+        this._reportPath = reportPath;
         this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
         RPCLayer.create(this._panel);
     }
 
     public static async createOrShow(reportPath: string): Promise<void> {
-        if (EvaluationReportWebview.currentPanel) {
-            EvaluationReportWebview.currentPanel.dispose();
+        const open = [...EvaluationReportWebview.openPanels].find((view) => isSamePath(view._reportPath, reportPath));
+        if (open) {
+            open._panel.reveal(ViewColumn.Active);
+            return;
         }
 
         const panel = window.createWebviewPanel(
             EvaluationReportWebview.viewType,
-            "Evaluation Report",
+            reportTitle(reportPath),
             ViewColumn.Active,
             {
                 enableScripts: true,
@@ -67,15 +74,14 @@ export class EvaluationReportWebview {
                 retainContextWhenHidden: true,
             }
         );
+        panel.iconPath = {
+            light: Uri.file(path.join(extension.context.extensionPath, "resources", "icons", "dark-beaker.svg")),
+            dark: Uri.file(path.join(extension.context.extensionPath, "resources", "icons", "light-beaker.svg")),
+        };
 
-        EvaluationReportWebview.currentPanel = new EvaluationReportWebview(
-            panel
-        );
-        EvaluationReportWebview.currentPanel._panel.webview.html =
-            EvaluationReportWebview.currentPanel.getWebviewContent(
-                panel.webview,
-                reportPath
-            );
+        const view = new EvaluationReportWebview(panel, reportPath);
+        EvaluationReportWebview.openPanels.add(view);
+        panel.webview.html = view.getWebviewContent(panel.webview, reportPath);
     }
 
     private getWebviewContent(
@@ -148,7 +154,7 @@ export class EvaluationReportWebview {
     }
 
     public dispose(): void {
-        EvaluationReportWebview.currentPanel = undefined;
+        EvaluationReportWebview.openPanels.delete(this);
         this._panel.dispose();
         while (this._disposables.length) {
             const d = this._disposables.pop();
@@ -157,4 +163,23 @@ export class EvaluationReportWebview {
             }
         }
     }
+}
+
+function reportTitle(reportPath: string): string {
+    let names: string[] = [];
+    try {
+        names = reportTestNames(JSON.parse(fs.readFileSync(reportPath, "utf-8")));
+    } catch {
+        // An unreadable report still opens; the webview shows the error.
+    }
+    const label = names.length > 1 ? `${names[0]} +${names.length - 1}` : names[0] ?? "Evaluation Report";
+    const date = parseReportDate(path.basename(reportPath));
+    return date ? `${label} · ${formatRunTime(date)}` : label;
+}
+
+function formatRunTime(date: Date): string {
+    const isToday = date.toDateString() === new Date().toDateString();
+    return date.toLocaleString(undefined, isToday
+        ? { hour: "numeric", minute: "2-digit" }
+        : { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 }

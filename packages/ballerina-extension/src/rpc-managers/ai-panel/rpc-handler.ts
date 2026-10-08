@@ -136,6 +136,12 @@ import {
     setMcpToolsEnabled,
     SetMcpToolsEnabledRequest,
     getMcpToolsEnabled,
+    setCopilotOrbVisible,
+    SetCopilotOrbVisibleRequest,
+    getCopilotOrbVisible,
+    getCopilotToggleSettings,
+    setCopilotToggleSetting,
+    SetCopilotToggleSettingRequest,
     getMcpWorkspaceContext,
     getMcpLoadErrors,
     OpenMcpConfigRequest,
@@ -144,6 +150,8 @@ import {
     listThreads,
     switchThread,
     SwitchThreadRequest,
+    prepareKeyedThread,
+    PrepareKeyedThreadRequest,
     deleteThread,
     DeleteThreadRequest,
     renameThread,
@@ -247,12 +255,17 @@ export function registerAiPanelRpcHandlers(messenger: Messenger) {
     messenger.onRequest(deleteMcpServer, (args: DeleteMcpServerRequest) => rpcManger.deleteMcpServer(args));
     messenger.onRequest(setMcpToolsEnabled, (args: SetMcpToolsEnabledRequest) => rpcManger.setMcpToolsEnabled(args));
     messenger.onRequest(getMcpToolsEnabled, () => rpcManger.getMcpToolsEnabled());
+    messenger.onRequest(setCopilotOrbVisible, (args: SetCopilotOrbVisibleRequest) => rpcManger.setCopilotOrbVisible(args));
+    messenger.onRequest(getCopilotOrbVisible, () => rpcManger.getCopilotOrbVisible());
+    messenger.onRequest(getCopilotToggleSettings, () => rpcManger.getCopilotToggleSettings());
+    messenger.onRequest(setCopilotToggleSetting, (args: SetCopilotToggleSettingRequest) => rpcManger.setCopilotToggleSetting(args));
     messenger.onRequest(getMcpWorkspaceContext, () => rpcManger.getMcpWorkspaceContext());
     messenger.onRequest(getMcpLoadErrors, () => rpcManger.getMcpLoadErrors());
     messenger.onRequest(getAgentsMdFileInfo, () => rpcManger.getAgentsMdFileInfo());
     messenger.onRequest(openOrCreateAgentsMd, () => rpcManger.openOrCreateAgentsMd());
     messenger.onRequest(listThreads, () => rpcManger.listThreads());
     messenger.onRequest(switchThread, (args: SwitchThreadRequest) => rpcManger.switchThread(args));
+    messenger.onRequest(prepareKeyedThread, (args: PrepareKeyedThreadRequest) => rpcManger.prepareKeyedThread(args));
     messenger.onRequest(deleteThread, (args: DeleteThreadRequest) => rpcManger.deleteThread(args));
     messenger.onRequest(renameThread, (args: RenameThreadRequest) => rpcManger.renameThread(args));
     // TODO(auto-memory): temporarily disabled for this release.

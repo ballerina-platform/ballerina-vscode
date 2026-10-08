@@ -37,6 +37,7 @@ import { ResourceForm } from "../ServiceDesigner/Forms/ResourceForm";
 import { AddServiceElementDropdown, DropdownOptionProps } from "../ServiceDesigner/components/AddServiceElementDropdown";
 import { removeForwardSlashes } from "../ServiceDesigner/utils";
 import { getTryItAIDefaultPromptResource, getTryItDropdownOptions, TryItOptionValue, TryItQuickPickItem } from "../shared/tryIt";
+import { AgentEvaluationsPopup } from "../AgentEvaluations/AgentEvaluationsPopup";
 
 const ActionButton = styled(Button)`
     display: flex;
@@ -133,6 +134,7 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
     const [serviceType, setServiceType] = useState("");
     const [serviceName, setServiceName] = useState("");
     const [agentName, setAgentName] = useState("");
+    const [showEvaluations, setShowEvaluations] = useState(false);
     const [basePath, setBasePath] = useState("");
     const [listener, setListener] = useState("");
     const [parentMetadata, setParentMetadata] = useState<ParentMetadata>();
@@ -152,11 +154,25 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
     const [isTryItInProgress, setIsTryItInProgress] = useState(false);
     const isMountedRef = useRef(true);
 
+    // Kept on the history entry so going back to this page reopens the modal.
+    const setEvaluationsOpen = (open: boolean) => {
+        setShowEvaluations(open);
+        rpcClient.getVisualizerRpcClient().mergeHistoryLocation({ evaluationsOpen: open });
+    };
+
     useEffect(() => {
         isMountedRef.current = true;
         return () => {
             isMountedRef.current = false;
         };
+    }, []);
+
+    useEffect(() => {
+        rpcClient.getVisualizerRpcClient().getHistory().then((history) => {
+            if (isMountedRef.current && history.at(-1)?.location.evaluationsOpen) {
+                setShowEvaluations(true);
+            }
+        });
     }, []);
 
     useEffect(() => {
@@ -421,6 +437,9 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
     let isNPFunction = view === FOCUS_FLOW_DIAGRAM_VIEW.NP_FUNCTION;
     let isAgentFocus = view === FOCUS_FLOW_DIAGRAM_VIEW.AGENT || view === FOCUS_FLOW_DIAGRAM_VIEW.TYPED_AGENT;
     const isDurableAgentPage = isDurableAgent && productMode === ProductMode.AGENT_BUILDER;
+    // The sequence diagram knows nothing of the workflow model; artifactType covers the time before the model loads.
+    const hasNoSequenceDiagram = isWorkflow || isDurableAgent
+        || artifactType === DIRECTORY_MAP.WORKFLOW || artifactType === DIRECTORY_MAP.DURABLE_AGENT;
 
     const handleResourceTryIt = async (methodValue: string, pathValue: string) => {
         if (serviceType !== "http") { return; }
@@ -612,7 +631,23 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
             );
         }
 
-        if (isAgentFocus || isDurableAgentPage) {
+        if (isAgentFocus) {
+            return (
+                <>
+                    <ActionButton
+                        appearance="secondary"
+                        onClick={() => setEvaluationsOpen(true)}
+                        tooltip="View and run the evaluations of this agent"
+                    >
+                        <Icon name="beaker" isCodicon={true} sx={{ marginRight: 5, width: 16, height: 16, fontSize: 14 }} />
+                        Evaluations
+                    </ActionButton>
+                    {tracingButton}
+                </>
+            );
+        }
+
+        if (isDurableAgentPage) {
             return tracingButton;
         }
 
@@ -678,7 +713,7 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
                     actions={loadingDiagram ? null : getActions()}
                 />
             )}
-            {enableSequenceDiagram && !isAgent && !isAgentFocus && !isDurableAgentPage &&
+            {enableSequenceDiagram && !isAgent && !isAgentFocus && !hasNoSequenceDiagram &&
                 (
                     !loadingDiagram ? (
                         <Switch
@@ -737,6 +772,13 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
                     />
                 )
             }
+            {showEvaluations && (
+                <AgentEvaluationsPopup
+                    projectPath={projectPath}
+                    agentName={agentName}
+                    onClose={() => setEvaluationsOpen(false)}
+                />
+            )}
             {/* This is for editing a http resource */}
             <PanelContainer
                 title={"Resource Configuration"}

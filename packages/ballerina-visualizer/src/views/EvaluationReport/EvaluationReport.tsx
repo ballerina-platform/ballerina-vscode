@@ -232,11 +232,12 @@ export function EvaluationReport() {
         const idx = Math.max(testsIdx, backslashIdx);
         const projectPath = idx > 0 ? reportPath.substring(0, idx) : undefined;
 
+        const testNames = data?.moduleStatus.flatMap((mod) => mod.tests.map((test) => test.name)) ?? [];
         rpcClient
             .getCommonRpcClient()
             .executeCommand({
                 commands: projectPath
-                    ? ["ballerina.openEvaluationHistory", projectPath]
+                    ? ["ballerina.openEvaluationHistory", projectPath, { testNames }]
                     : ["ballerina.openEvaluationHistory"],
             });
     };

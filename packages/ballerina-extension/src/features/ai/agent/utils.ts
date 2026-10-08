@@ -172,8 +172,10 @@ function collectFilesFromProject(
                         content: "",
                     });
                 } else {
+                    // getProjectSource stores module files under their bare name; without the
+                    // prefix the agent is told they sit at the package root.
                     files.push({
-                        filePath: `${prefix}${sourceFile.filePath}`,
+                        filePath: `${prefix}modules/${module.moduleName}/${sourceFile.filePath}`,
                         content: sourceFile.content,
                     });
                 }
@@ -206,6 +208,20 @@ function formatFileWithContent(file: SourceFile): string {
 ${file.content}
 \`\`\`
 </file>`;
+}
+
+/** Package-relative paths of every evalset in the package, skipping build output and hidden folders. */
+function findEvalsetFiles(pkgRoot: string, dir: string = pkgRoot): string[] {
+    if (!fs.existsSync(dir)) {
+        return [];
+    }
+    return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+            return entry.name === "target" || entry.name.startsWith(".") ? [] : findEvalsetFiles(pkgRoot, fullPath);
+        }
+        return entry.name.endsWith(".evalset.json") ? [path.relative(pkgRoot, fullPath).split(path.sep).join("/")] : [];
+    });
 }
 
 /**
@@ -250,6 +266,15 @@ export function formatCodebaseStructure(projects: ProjectSource[], tempProjectPa
             const mainConfig = fs.existsSync(path.join(pkgRoot, "Config.toml")) ? "present" : "absent";
             const testConfig = fs.existsSync(path.join(pkgRoot, "tests", "Config.toml")) ? "present" : "absent";
             text += `<config_files main="${mainConfig}" tests="${testConfig}"/>\n`;
+
+            // Paths only: an evalset is JSON, not source, and can be large.
+            const evalsets = findEvalsetFiles(pkgRoot);
+            if (evalsets.length > 0) {
+                const prefix = isWorkspace && project.packagePath ? `${project.packagePath}/` : "";
+                text += "<evalsets>\n";
+                text += evalsets.map(file => `<file path="${prefix}${file}"/>`).join("\n");
+                text += "\n</evalsets>\n";
+            }
         }
 
         text += "</project>\n";
