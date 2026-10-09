@@ -82,6 +82,7 @@ import {
     filterCategoriesLocally,
     buildMasterSearchCategories,
     mergePanelCategories,
+    opensListFromPalette,
 } from "./utils";
 import { PanelOverlayProvider } from "./context/PanelOverlayContext";
 import { PanelOverlayRenderer } from "./PanelOverlayRenderer";
@@ -1938,7 +1939,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 // First click from the palette opens the same searchable workflow list as
                 // Run Workflow; the nodeKind override makes selected items resolve to the
                 // child-workflow node so the right template/codegen kicks in.
-                if (sidePanelView === SidePanelView.NODE_LIST) {
+                if (opensListFromPalette(sidePanelView)) {
                     childWorkflowKindRef.current = node.codedata.node as "CHILD_WORKFLOW_RUN" | "CHILD_WORKFLOW_CALL";
                     setShowProgressIndicator(true);
                     rpcClient
@@ -1993,7 +1994,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
 
             case "WORKFLOW_RUN":
                 // First click from node list should open searchable workflow list.
-                if (sidePanelView === SidePanelView.NODE_LIST) {
+                if (opensListFromPalette(sidePanelView)) {
                     childWorkflowKindRef.current = null;
         durableAgentObjectVarRef.current = null;
                     setShowProgressIndicator(true);
@@ -2048,7 +2049,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
 
             case "ACTIVITY_CALL":
                 // First click from node list should open searchable activity list.
-                if (sidePanelView === SidePanelView.NODE_LIST) {
+                if (opensListFromPalette(sidePanelView)) {
                     durableAgentActivityListRef.current = false;
                     setShowProgressIndicator(true);
                     rpcClient
@@ -2103,7 +2104,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             case "DURABLE_AGENT_ADD_ACTIVITY":
                 // First click from the palette opens the agent's Add Tool/Activity list:
                 // the project's activities, its AI tools and toolkits, and the MCP entry.
-                if (sidePanelView === SidePanelView.NODE_LIST) {
+                if (opensListFromPalette(sidePanelView)) {
                     durableAgentActivityListRef.current = true;
                     setShowProgressIndicator(true);
                     rpcClient

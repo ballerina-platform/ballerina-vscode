@@ -159,6 +159,11 @@ export const mergePanelCategories = (prev: PanelCategory[], next: PanelCategory[
 // Builds the master search panel. Only the static panel nodes are filtered by label: the language server has already
 // matched its results on name, description and package, the same way the function and connection searches do, so
 // filtering them again by label would drop valid results.
+// The palette's own views: the node list and the cross-kind search over it. A list-opening node
+// (Call Activity, Run Workflow, ...) picked from either is a first click, not a pick from its list.
+export const opensListFromPalette = (sidePanelView: string): boolean =>
+    sidePanelView === "NODE_LIST" || sidePanelView === "ALL";
+
 export const buildMasterSearchCategories = (
     staticCategories: PanelCategory[],
     searchCategories: PanelCategory[],
