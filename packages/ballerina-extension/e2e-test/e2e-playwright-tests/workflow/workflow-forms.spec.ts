@@ -65,6 +65,26 @@ async function fillExEditor(webview: Frame, key: string, value: string): Promise
     }, value);
 }
 
+// A TYPE field is a CodeMirror editor (TypeEditor), not a textbox. Prefer its own ex-editor container; otherwise
+// take the first visible editor in the side panel, which is the only one in the Await Data entry sub-form.
+async function fillTypeEditor(webview: Frame, key: string, value: string): Promise<void> {
+    const own = webview.locator(`[data-testid="ex-editor-${key}"] .cm-content`).first();
+    const editor = await own.isVisible().catch(() => false)
+        ? own
+        : webview.getByTestId('side-panel').locator('.cm-content').filter({ visible: true }).first();
+    await editor.waitFor({ state: 'visible', timeout: 30000 });
+    await editor.evaluate((element, text) => {
+        const view = (element as HTMLElement & { cmView?: { view?: any } }).cmView?.view;
+        if (!view) {
+            throw new Error('CodeMirror view not found for the type editor');
+        }
+        view.focus();
+        view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: text } });
+    }, value);
+    await page.page.waitForTimeout(500);
+    await page.page.keyboard.press('Escape');
+}
+
 // The identifier fields validate after each edit, and Save stays disabled until the last result is in.
 async function waitForEnabled(button: Locator): Promise<void> {
     await button.waitFor({ state: 'visible', timeout: 60000 });
@@ -162,9 +182,7 @@ export default function createTests() {
             const variable = panel.getByRole('textbox', { name: /Data Receive Variable Name/ }).first();
             await variable.waitFor({ timeout: 60000 });
             await variable.fill('payment');
-            const dataType = panel.getByRole('textbox', { name: /^Data Type/ }).first();
-            await dataType.fill('boolean');
-            await dataType.press('Escape');
+            await fillTypeEditor(webview, 'dataType', 'boolean');
             const dataName = panel.getByRole('textbox', { name: /^Data Name/ }).first();
             await dataName.fill('payment');
             await dataName.press('Escape');
