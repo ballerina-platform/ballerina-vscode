@@ -85,6 +85,7 @@ import createProject from './project-overview/project-creation.spec';
 
 import diagram from './diagram/diagram.spec';
 import durableAgentActivity from './workflow/durable-agent-activity.spec';
+import workflowForms from './workflow/workflow-forms.spec';
 import automationFlowNodes from './diagram/flow-nodes.spec';
 
 import httpTryItExisting from './tryit/http-try-it-existing.spec';
@@ -215,6 +216,7 @@ test.describe('Ballerina E2E Group 4', { tag: '@group4' }, async () => {
     // <----Diagram Test---->
     test.describe(diagram);
     test.describe(durableAgentActivity);
+    test.describe(workflowForms);
 
     // <----Test Explorer Test---->
     test.describe(testExplorer);
