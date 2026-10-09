@@ -83,8 +83,23 @@ public abstract class AbstractLSTest {
         log = LoggerFactory.getLogger(clazz());
         this.languageServer = new BallerinaLanguageServer();
         this.languageServer.setEvictProjectOnLastClose(true);
-        TestUtil.LanguageServerBuilder builder = TestUtil.newLanguageServer().withLanguageServer(languageServer);
-        this.serviceEndpoint = builder.build();
+        this.serviceEndpoint = newServiceEndpoint(languageServer);
+    }
+
+    /**
+     * Connects to the language server without publishing diagnostics on project updates. On every project load
+     * that publishing compiles the project a second later, under the workspace manager's lock rather than the
+     * {@link PackageUtil} lock the request compiles under. The two then compile the same project at once and
+     * corrupt the compiler's non-thread-safe plugin state, failing whichever test the overlap lands on. No test
+     * here reads published diagnostics.
+     *
+     * @param languageServer The language server to connect to
+     * @return The endpoint to send requests through
+     */
+    private static Endpoint newServiceEndpoint(BallerinaLanguageServer languageServer) {
+        Endpoint endpoint = TestUtil.newLanguageServer().withLanguageServer(languageServer).build();
+        languageServer.detachProjectUpdateDiagnostics();
+        return endpoint;
     }
 
     /**
@@ -438,8 +453,7 @@ public abstract class AbstractLSTest {
         }
         this.languageServer = new BallerinaLanguageServer();
         this.languageServer.setEvictProjectOnLastClose(true);
-        TestUtil.LanguageServerBuilder builder = TestUtil.newLanguageServer().withLanguageServer(languageServer);
-        this.serviceEndpoint = builder.build();
+        this.serviceEndpoint = newServiceEndpoint(languageServer);
     }
 
     @AfterClass
