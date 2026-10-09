@@ -183,6 +183,13 @@ export default function createTests() {
     test.describe.serial('Workflow Form Tests', {
     }, async () => {
         initTest(true, true, undefined, undefined, EMPTY_PROJECT_TEMPLATE);
+        // The failure summary is only printed once the whole group ends; log each failure as it happens so a
+        // group that runs out of time still says what went wrong.
+        test.afterEach(async ({ }, testInfo) => {
+            for (const error of testInfo.errors) {
+                console.log(`  ✖ ${testInfo.title}: ${(error.message ?? '').split('\n').slice(0, 6).join(' | ')}`);
+            }
+        });
 
         test('Create a workflow without an input and wait for a data event', async () => {
             logStep('Create the Durable Workflow artifact with a name only');
