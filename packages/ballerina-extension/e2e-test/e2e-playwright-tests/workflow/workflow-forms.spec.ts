@@ -74,7 +74,7 @@ function controlUnder(scope: Locator, label: string): Locator {
         + 'or self::select or @role="combobox" or @role="textbox" or contains(@class,"cm-content")';
     return scope.locator(`xpath=.//*[not(self::script)][${labelText}][not(.//*[${labelText}])]`).first()
         .locator(`xpath=ancestor::*[.//*[${controls}]][1]`)
-        .locator(`xpath=.//*[${controls}]`).first();
+        .locator(`xpath=.//*[${controls}]`).filter({ visible: true }).first();
 }
 
 async function fillUnderLabel(scope: Locator, label: string, value: string): Promise<void> {
@@ -95,9 +95,11 @@ async function fillUnderLabel(scope: Locator, label: string, value: string): Pro
         if (kind === 'vscode-text-field' || kind === 'vscode-text-area') {
             input = input.locator('input, textarea').first();
         }
-        await input.click();
-        await input.fill('');
-        await input.pressSequentially(value);
+        // Explicit timeouts: the suite's actions otherwise wait without limit and a stuck one burns the
+        // 20-minute test budget three times over, past the e2e job's limit.
+        await input.click({ timeout: 10000 });
+        await input.fill('', { timeout: 10000 });
+        await input.pressSequentially(value, { timeout: 10000 });
         await expect.poll(() => input.inputValue(), { timeout: 10000 }).toBe(value);
     }
     await page.page.waitForTimeout(400);
