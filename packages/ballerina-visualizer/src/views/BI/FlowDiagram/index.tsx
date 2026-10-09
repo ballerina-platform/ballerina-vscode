@@ -88,7 +88,7 @@ import {
 import { PanelOverlayProvider } from "./context/PanelOverlayContext";
 import { PanelOverlayRenderer } from "./PanelOverlayRenderer";
 import { ExpressionFormField, Category as PanelCategory, S } from "@wso2/ballerina-side-panel";
-import { PAGINATED_LIBRARY_SECTIONS } from "../../../utils/useFunctionPagination";
+import { cacheLibrarySection, cachedLibrarySection, PAGINATED_LIBRARY_SECTIONS } from "../../../utils/useFunctionPagination";
 import { cloneDeep, debounce } from "lodash";
 import { ConnectionKind } from "../../../components/ConnectionSelector";
 import AddAgentPopup from "../AIChatAgent/AddAgentPopup";
@@ -1505,6 +1505,62 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         []
     );
 
+    // The library sections come from Ballerina Central, so they load after the panel opens.
+    const loadDefaultFunctionList = async (filePath: string) => {
+        const navEpoch = panelNavEpochRef.current;
+        const position = { startLine: targetRef.current.startLine, endLine: targetRef.current.endLine };
+        const searchPage = (queryMap: BISearchRequest["queryMap"]) => rpcClient.getBIDiagramRpcClient()
+            .search({
+                position,
+                filePath,
+                queryMap: { q: "", limit: FUNCTION_PAGE_SIZE, offset: 0, includeAvailableFunctions: "true", ...queryMap },
+                searchKind: "FUNCTION",
+            })
+            .then((response) => convertFunctionCategoriesToSidePanelCategories(
+                response.categories as Category[],
+                FUNCTION_TYPE.REGULAR
+            ));
+        const cacheScope = `call-function|${projectPath}`;
+        const sectionTitles = PAGINATED_LIBRARY_SECTIONS.map(({ title }) => title);
+        const localCategories = await searchPage({ excludeLibrary: "true" });
+        if (panelNavEpochRef.current !== navEpoch) {
+            return false;
+        }
+        const sections = sectionTitles.map((title): PanelCategory =>
+            cachedLibrarySection(cacheScope, title) ?? { title, description: "", items: [], isLoading: true }
+        );
+        const initialCategories = [
+            ...localCategories.filter((category) => !sectionTitles.includes(category.title)),
+            ...sections,
+        ];
+        setCategories(initialCategories);
+        seedFunctionPagination(initialCategories, "", FUNCTION_TYPE.REGULAR);
+        for (const { title, org } of PAGINATED_LIBRARY_SECTIONS) {
+            if (!sections.find((section) => section.title === title)?.isLoading) {
+                continue;
+            }
+            void searchPage({ orgName: org })
+                .catch((): PanelCategory[] => [])
+                .then((page) => {
+                    const section = page.find((category) => category.title === title);
+                    if (section?.items.length) {
+                        cacheLibrarySection(cacheScope, section);
+                    }
+                    if (panelNavEpochRef.current !== navEpoch || functionSearchQueryRef.current) {
+                        return;
+                    }
+                    setCategories((prev) => prev
+                        .map((category) => (category.title === title ? section : category))
+                        .filter((category) => category !== undefined));
+                    setFunctionSectionsWithMore((prev) => ({
+                        ...prev,
+                        [title]: countSectionLeafNodes(page, title) >= FUNCTION_PAGE_SIZE,
+                    }));
+                });
+        }
+        return true;
+    };
+
     const handleSearch = useCallback(async (searchText: string, functionType: FUNCTION_TYPE, searchKind: SearchKind) => {
         const searchEpoch = panelNavEpochRef.current;
         const masterSearchSeq = searchKind === "ALL" ? ++masterSearchSeqRef.current : undefined;
@@ -1514,6 +1570,10 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             masterSearchSeq !== undefined
             && (masterSearchSeq !== masterSearchSeqRef.current || panelNavEpochRef.current !== searchEpoch);
         // An unfiltered activity list is owned by the post-creation refresh while it runs.
+        if (searchKind === "FUNCTION" && functionType === FUNCTION_TYPE.REGULAR && !searchText.trim()) {
+            await loadDefaultFunctionList(model.fileName);
+            return;
+        }
         const yieldsToActivityRefresh = searchKind === "ACTIVITY_CALL" && !searchText.trim();
         if (yieldsToActivityRefresh && activityRefreshOwnsPanelRef.current) {
             return;
@@ -1891,24 +1951,12 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         switch (node.codedata.node) {
             case "FUNCTION":
                 setShowProgressIndicator(true);
-                rpcClient
-                    .getBIDiagramRpcClient()
-                    .search({
-                        position: { startLine: targetRef.current.startLine, endLine: targetRef.current.endLine },
-                        filePath: model?.fileName || fileName,
-                        // Explicit first page so scroll pagination stays aligned with FUNCTION_PAGE_SIZE.
-                        queryMap: { q: "", limit: FUNCTION_PAGE_SIZE, offset: 0, includeAvailableFunctions: "true" },
-                        searchKind: "FUNCTION",
-                    })
-                    .then((response) => {
-                        const currentCategories = convertFunctionCategoriesToSidePanelCategories(
-                            response.categories as Category[],
-                            FUNCTION_TYPE.REGULAR
-                        );
-                        setCategories(currentCategories);
-                        seedFunctionPagination(currentCategories, "", FUNCTION_TYPE.REGULAR);
-                        setSidePanelView(SidePanelView.FUNCTION_LIST);
-                        setShowSidePanel(true);
+                loadDefaultFunctionList(model?.fileName || fileName)
+                    .then((loaded) => {
+                        if (loaded) {
+                            setSidePanelView(SidePanelView.FUNCTION_LIST);
+                            setShowSidePanel(true);
+                        }
                     })
                     .finally(() => {
                         setShowProgressIndicator(false);

@@ -64,7 +64,7 @@ import { ImplementationBadge } from "../../../components/ImplementationBadge";
 import { FUNCTION_CALL, KNOWLEDGE_BASE_CALL, METHOD_CALL, REMOTE_ACTION_CALL, RESOURCE_ACTION_CALL } from "../../../constants";
 import { NewToolSelectionMode } from "./NewTool";
 import { buildOAuthFields, fetchOAuthConfigProperties, ZERO_LINE_RANGE } from "./utils";
-import { PAGINATED_LIBRARY_SECTIONS } from "../../../utils/useFunctionPagination";
+import { cacheLibrarySection, cachedLibrarySection, PAGINATED_LIBRARY_SECTIONS } from "../../../utils/useFunctionPagination";
 import { updateResourcePathProperty } from "./agentTools";
 import { AddConnectionPopupContent } from "../Connection/AddConnectionPopup/AddConnectionPopupContent";
 import { ConnectionConfigurationForm } from "../Connection/ConnectionConfigurationPopup";
@@ -378,18 +378,6 @@ function ensureStandardLibModules(categories: PanelCategory[]): PanelCategory[] 
     return categories;
 }
 
-// The library sections come from Ballerina Central, which rarely changes within a session.
-const LIBRARY_SECTION_TTL_MS = 30 * 60 * 1000;
-const librarySectionCache = new Map<string, { cachedAt: number; category: PanelCategory }>();
-
-function cachedLibrarySection(projectPath: string, title: string): PanelCategory | undefined {
-    const entry = librarySectionCache.get(`${projectPath}|${title}`);
-    if (!entry || Date.now() - entry.cachedAt > LIBRARY_SECTION_TTL_MS) {
-        return undefined;
-    }
-    return { ...entry.category, items: [...entry.category.items] };
-}
-
 // Reorder function categories: move "Imported Functions" to the end
 function reorderFunctionCategories(categories: PanelCategory[]): PanelCategory[] {
     const importedIndex = categories.findIndex((cat) => cat.title?.includes("Imported"));
@@ -581,7 +569,7 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                 const localFunctions = await handleSearchFunction("", FUNCTION_TYPE.REGULAR, false, { excludeLibrary: "true" });
                 const sectionTitles = PAGINATED_LIBRARY_SECTIONS.map(({ title }) => title);
                 const sections = sectionTitles.map((title): PanelCategory =>
-                    cachedLibrarySection(projectPath, title) ?? { title, description: "", items: [], isLoading: true }
+                    cachedLibrarySection(`use-function|${projectPath}`, title) ?? { title, description: "", items: [], isLoading: true }
                 );
                 const categories = ensureStandardLibModules(reorderFunctionCategories([
                     ...(localFunctions || []).filter((category) => !sectionTitles.includes(category.title)),
@@ -768,7 +756,7 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                 .then((sectionCategories: PanelCategory[] | undefined) => {
                     const section = sectionCategories?.find((category) => category.title === title);
                     if (section?.items.length) {
-                        librarySectionCache.set(`${projectPath}|${title}`, { cachedAt: Date.now(), category: section });
+                        cacheLibrarySection(`use-function|${projectPath}`, section);
                     }
                     const updated = initialCategoriesRef.current
                         .map((category) => (category.title === title ? section : category))

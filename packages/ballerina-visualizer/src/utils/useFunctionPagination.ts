@@ -18,7 +18,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { HelperPaneFunctionCategory, HelperPaneFunctionInfo } from "@wso2/ballerina-side-panel";
+import { Category as PanelCategory, HelperPaneFunctionCategory, HelperPaneFunctionInfo } from "@wso2/ballerina-side-panel";
 import { Category, LineRange } from "@wso2/ballerina-core";
 import { convertToHelperPaneFunction } from "./bi";
 
@@ -31,6 +31,22 @@ export const PAGINATED_LIBRARY_SECTIONS: ReadonlyArray<{ title: string; org: str
     { title: "Standard Library", org: "ballerina" },
     { title: "Extended Library", org: "ballerinax" }
 ];
+
+// The library sections come from Ballerina Central, which rarely changes within a session.
+const LIBRARY_SECTION_TTL_MS = 30 * 60 * 1000;
+const librarySectionCache = new Map<string, { cachedAt: number; category: PanelCategory }>();
+
+export function cachedLibrarySection(scope: string, title: string): PanelCategory | undefined {
+    const entry = librarySectionCache.get(`${scope}|${title}`);
+    if (!entry || Date.now() - entry.cachedAt > LIBRARY_SECTION_TTL_MS) {
+        return undefined;
+    }
+    return { ...entry.category, items: [...entry.category.items] };
+}
+
+export function cacheLibrarySection(scope: string, category: PanelCategory) {
+    librarySectionCache.set(`${scope}|${category.title}`, { cachedAt: Date.now(), category });
+}
 
 // Counts the leaf function items across a category tree, used to decide whether another page exists.
 export const countFunctionItems = (categories: HelperPaneFunctionCategory[] = []): number =>
