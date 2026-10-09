@@ -25,8 +25,12 @@ import com.google.gson.JsonElement;
  *
  * @param filePath file path of the source file
  * @param component component to delete
+ * @param formatted whether to return the deletion as one formatted edit per document
  * @since 1.0.0
  */
-public record ComponentDeleteRequest(String filePath, JsonElement component) {
+public record ComponentDeleteRequest(String filePath, JsonElement component, boolean formatted) {
 
+    public ComponentDeleteRequest(String filePath, JsonElement component) {
+        this(filePath, component, false);
+    }
 }

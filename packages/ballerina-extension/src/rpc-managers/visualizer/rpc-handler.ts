@@ -39,6 +39,8 @@ import {
     NavigateReviewModeRequest,
     ReopenApprovalViewRequest,
     resetUndoRedoStack,
+    beginUndoGroup,
+    endUndoGroup,
     saveEvalThread,
     SaveEvalThreadRequest,
     undo,
@@ -67,6 +69,8 @@ export function registerVisualizerRpcHandlers(messenger: Messenger) {
     messenger.onNotification(addToUndoStack, (args: AddToUndoStackRequest) => rpcManger.addToUndoStack(args));
     messenger.onRequest(undoRedoState, () => rpcManger.undoRedoState());
     messenger.onNotification(resetUndoRedoStack, () => rpcManger.resetUndoRedoStack());
+    messenger.onRequest(beginUndoGroup, () => rpcManger.beginUndoGroup());
+    messenger.onRequest(endUndoGroup, (description?: string) => rpcManger.endUndoGroup(description));
     messenger.onRequest(joinProjectPath, (args: JoinProjectPathRequest) => rpcManger.joinProjectPath(args));
     messenger.onRequest(getThemeKind, () => rpcManger.getThemeKind());
     messenger.onRequest(updateCurrentArtifactLocation, (args: UpdatedArtifactsResponse) => rpcManger.updateCurrentArtifactLocation(args));

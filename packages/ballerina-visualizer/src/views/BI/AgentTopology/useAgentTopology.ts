@@ -25,6 +25,38 @@ import { useProjectContentRefresh } from "../PackageOverview/utils";
 const DEFER_MS = 600;
 
 const inputCache = new Map<string, TopologyInput>();
+
+function canonicalTopology(input: TopologyInput): string {
+    const entityKeys = new Map<string, string>();
+    const collect = (value: unknown): void => {
+        if (Array.isArray(value)) {
+            value.forEach(collect);
+        } else if (value && typeof value === "object") {
+            const node = value as Record<string, unknown>;
+            if (typeof node.uuid === "string") {
+                entityKeys.set(node.uuid, `${node.sortText ?? ""}:${node.symbol ?? node.name ?? ""}`);
+            }
+            Object.values(node).forEach(collect);
+        }
+    };
+    collect(input);
+    const key = (text: string) => entityKeys.get(text) ?? text;
+    const normalize = (value: unknown): unknown => {
+        if (Array.isArray(value)) {
+            return value.every((item) => typeof item === "string")
+                ? value.map((item) => key(item as string)).sort()
+                : value.map(normalize);
+        }
+        if (value && typeof value === "object") {
+            return Object.entries(value as Record<string, unknown>)
+                .map(([name, item]): [string, unknown] => [key(name), normalize(item)])
+                .sort(([a], [b]) => a.localeCompare(b));
+        }
+        return typeof value === "string" ? key(value) : value;
+    };
+    return JSON.stringify(normalize(input));
+}
+
 const NO_AGENT_DEFINITIONS: ProjectStructureArtifactResponse[] = [];
 
 function toArtifact(agent: ProjectStructureArtifactResponse, isDefinition: boolean): TopologyAgentArtifact {
@@ -68,8 +100,12 @@ export function useAgentTopology(
                     return;
                 }
                 const next: TopologyInput = { model: response.designModel, agents: artifacts };
-                inputCache.set(projectPath, next);
-                setInput(next);
+                // A refetch that matches what is on screen must not rebuild the diagram.
+                setInput((current) => {
+                    const kept = current && canonicalTopology(current) === canonicalTopology(next) ? current : next;
+                    inputCache.set(projectPath, kept);
+                    return kept;
+                });
             } catch (error) {
                 console.error(">>> agent topology: failed to load design model", error);
             }

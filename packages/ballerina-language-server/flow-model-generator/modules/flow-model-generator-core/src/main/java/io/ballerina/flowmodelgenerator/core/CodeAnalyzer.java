@@ -208,6 +208,7 @@ import io.ballerina.projects.Document;
 import io.ballerina.projects.Module;
 import io.ballerina.projects.Package;
 import io.ballerina.projects.Project;
+import io.ballerina.projects.ResolvedPackageDependency;
 import io.ballerina.tools.diagnostics.DiagnosticSeverity;
 import io.ballerina.tools.diagnostics.Location;
 import io.ballerina.tools.text.LinePosition;
@@ -695,6 +696,17 @@ public class CodeAnalyzer extends NodeVisitor {
                     : WorkflowUtil.workflowFunctionOptions(project.currentPackage());
         }
         return workflowOptions;
+    }
+
+    // The agent's forms (memory, model, tools) build their templates from the project's ballerina/ai.
+    private void prewarmAgentLibrary() {
+        project.currentPackage().getResolution().dependencyGraph().getNodes().stream()
+                .map(ResolvedPackageDependency::packageInstance)
+                .filter(pkg -> pkg.packageOrg().value().equals(Constants.Ai.BALLERINA_ORG)
+                        && pkg.packageName().value().equals(Constants.Ai.AI_PACKAGE))
+                .findFirst()
+                .ifPresent(pkg -> PackageUtil.prewarm(Constants.Ai.BALLERINA_ORG, Constants.Ai.AI_PACKAGE,
+                        pkg.packageVersion().toString()));
     }
 
     private void populateAgentMetaData(ExpressionNode expressionNode, ClassSymbol classSymbol) {
@@ -3273,16 +3285,12 @@ public class CodeAnalyzer extends NodeVisitor {
                                        RemoteMethodCallActionNode remoteMethodCallActionNode,
                                        MethodSymbol functionSymbol, String objName,
                                        Map<String, Object> metadataData) {
-        Optional<Package> resolvedPackage = moduleInfo != null ?
-                PackageUtil.resolveModulePackage(moduleInfo.org(), moduleInfo.packageName(), moduleInfo.version()) :
-                Optional.empty();
-
         FunctionDataBuilder functionDataBuilder = new FunctionDataBuilder()
                 .name(functionName)
                 .functionSymbol(functionSymbol)
                 .semanticModel(semanticModel)
                 .userModuleInfo(moduleInfo)
-                .resolvedPackage(resolvedPackage.orElse(null));
+                .resolvedPackage(calleePackage(functionSymbol).orElse(null));
         FunctionData functionData = functionDataBuilder.build();
 
         nodeBuilder
@@ -3299,6 +3307,21 @@ public class CodeAnalyzer extends NodeVisitor {
                 .properties().callConnection(expressionNode, Property.CONNECTION_KEY, metadataData);
         processFunctionSymbol(remoteMethodCallActionNode, remoteMethodCallActionNode.arguments(), functionSymbol,
                 functionData);
+    }
+
+    // Default values are read from the callee's source: the current package for a local client, its bala otherwise.
+    private Optional<Package> calleePackage(MethodSymbol functionSymbol) {
+        Optional<ModuleID> calleeModule = functionSymbol.getModule().map(ModuleSymbol::id);
+        if (calleeModule.isEmpty()) {
+            return Optional.empty();
+        }
+        ModuleID id = calleeModule.get();
+        Package currentPackage = project.currentPackage();
+        if (currentPackage.packageOrg().value().equals(id.orgName())
+                && currentPackage.packageName().value().equals(id.packageName())) {
+            return Optional.of(currentPackage);
+        }
+        return PackageUtil.resolveModulePackage(id.orgName(), id.packageName(), id.version());
     }
 
     private String getDefaultMemoryManagerName(ClassSymbol classSymbol) {
@@ -4127,6 +4150,7 @@ public class CodeAnalyzer extends NodeVisitor {
         if (kind == NodeKind.AGENT) {
             nodeBuilder.properties().reserveProperty(AgentCallBuilder.ROLE)
                     .reserveProperty(AgentCallBuilder.INSTRUCTIONS);
+            prewarmAgentLibrary();
         }
         Optional<MethodSymbol> optMethodSymbol = classSymbol.initMethod();
         FunctionDataBuilder functionDataBuilder = new FunctionDataBuilder()

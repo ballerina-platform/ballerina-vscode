@@ -75,6 +75,7 @@ import { useDurableAgentUsages } from "./durableAgentUsages";
 import { NodePosition, STNode } from "@wso2/syntax-tree";
 import { View, ProgressIndicator, ThemeColors } from "@wso2/ui-toolkit";
 import { applyModifications, textToModifications } from "../../../utils/utils";
+import { debouncedUndoRedoManager } from "../../../utils/debouncedUndoRedo";
 import { PanelManager, SidePanelView } from "./PanelManager";
 import {
     transformCategories,
@@ -89,7 +90,7 @@ import {
 import { PanelOverlayProvider } from "./context/PanelOverlayContext";
 import { PanelOverlayRenderer } from "./PanelOverlayRenderer";
 import { ExpressionFormField, Category as PanelCategory, S } from "@wso2/ballerina-side-panel";
-import { PAGINATED_LIBRARY_SECTIONS } from "../../../utils/useFunctionPagination";
+import { cacheLibrarySection, cachedLibrarySection, PAGINATED_LIBRARY_SECTIONS } from "../../../utils/useFunctionPagination";
 import { cloneDeep, debounce } from "lodash";
 import { ConnectionKind } from "../../../components/ConnectionSelector";
 import AddAgentPopup from "../AIChatAgent/AddAgentPopup";
@@ -191,6 +192,10 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
 
 
     const [model, setModel] = useState<Flow>();
+    const modelRef = useRef<Flow>();
+    modelRef.current = model;
+    // Responses can arrive out of order; only the latest request reflects the newest source.
+    const latestFetchRef = useRef(0);
     const [suggestedModel, setSuggestedModel] = useState<Flow>();
     const [showSidePanel, setShowSidePanel] = useState(false);
     const [sidePanelView, setSidePanelView] = useState<SidePanelView>(SidePanelView.NODE_LIST);
@@ -329,6 +334,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     // the loader (content not editable) and closes only when the refreshed flow model
     // lands — matching how the other flow diagrams hold the panel through an operation.
     const pendingCapabilityCloseRef = useRef<boolean>(false);
+    // A refresh while a new node is being placed would replace the model and drop its draft.
+    const pendingInsertRef = useRef(false);
+    const skippedRefreshRef = useRef(false);
     // Refresh ladders and the capability failsafe armed by the operations below. Both are
     // cancelled when the next operation starts, when the panel closes and on unmount, so a
     // timer armed for one operation cannot fire against the next one (or after navigation).
@@ -398,7 +406,11 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     }, [breakpointState]);
 
     useEffect(() => {
-        rpcClient.onProjectContentUpdated(() => {
+        const unsubscribeProjectContent = rpcClient.onProjectContentUpdated(() => {
+            // Mid undo/redo the view location is not yet moved to the edited source; the applied refresh covers it.
+            if (debouncedUndoRedoManager.isProcessing()) {
+                return;
+            }
             debouncedGetFlowModel();
         })
         rpcClient.onParentPopupSubmitted((parent: ParentPopupData) => {
@@ -453,6 +465,13 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 setIsUserAuthenticated(false);
             });
 
+        // The user's own undo/redo is not a burst to wait out.
+        const unsubscribeUndoRedo = debouncedUndoRedoManager.onApplied(() => getFlowModel());
+
+        return () => {
+            unsubscribeProjectContent();
+            unsubscribeUndoRedo();
+        };
     }, [rpcClient]);
 
     useEffect(() => {
@@ -495,10 +514,11 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         setTargetLineRange(range);
     }
 
+    // Leading edge: a single save refreshes at once; only bursts (e.g. Copilot live edits) wait out the delay.
     const debouncedGetFlowModel = useCallback(
         debounce(() => {
             getFlowModel();
-        }, DIAGRAM_REFRESH_DEBOUNCE_MS),
+        }, DIAGRAM_REFRESH_DEBOUNCE_MS, { leading: true, trailing: true }),
         [hasDraft]
     );
 
@@ -926,8 +946,17 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     };
 
     const getFlowModel = () => {
-        setShowProgressIndicator(true);
-        onUpdate();
+        if (pendingInsertRef.current && !pendingCapabilityCloseRef.current) {
+            skippedRefreshRef.current = true;
+            return;
+        }
+        skippedRefreshRef.current = false;
+        const fetchId = ++latestFetchRef.current;
+        // Refreshing a flow already on screen must not blank the title bar actions or lock the canvas.
+        if (!modelRef.current) {
+            setShowProgressIndicator(true);
+            onUpdate();
+        }
 
         // Re-check authentication status
         rpcClient.getAiPanelRpcClient().isUserAuthenticated()
@@ -948,6 +977,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                     .getFlowModel({})
                     .then((model) => {
                         console.log(">>> BIFlowDiagram getFlowModel", model);
+                        if (fetchId !== latestFetchRef.current) {
+                            return;
+                        }
                         if (model?.flowModel) {
                             if (pendingCapabilityCloseRef.current) {
                                 // The capability write has landed: release the held panel and
@@ -1011,6 +1043,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                         }
                     })
                     .finally(() => {
+                        if (fetchId !== latestFetchRef.current) {
+                            return;
+                        }
                         setShowProgressIndicator(false);
                         setShowProgressSpinner(false);
                         onReady(undefined, undefined, undefined);
@@ -1020,6 +1055,17 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                     });
             });
     };
+
+    // Every way the side panel closes ends a placement; catch up on any refresh it held back.
+    useEffect(() => {
+        if (showSidePanel) {
+            return;
+        }
+        pendingInsertRef.current = false;
+        if (skippedRefreshRef.current) {
+            getFlowModel();
+        }
+    }, [showSidePanel]);
 
     // Hack: Updates agent model types based on ModelProvider connections
     // This is so that we render the icons for the models in the AgentCallNodeWidget
@@ -1228,6 +1274,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         nodeTemplateRef.current = undefined;
         topNodeRef.current = undefined;
         targetRef.current = undefined;
+        pendingInsertRef.current = false;
         changeTargetRange(undefined);
         selectedClientName.current = undefined;
         showEditForm.current = false;
@@ -1261,7 +1308,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         );
     };
 
-    const closeSidePanelAndFetchUpdatedFlowModel = () => {
+    const closeSidePanelAndFetchUpdatedFlowModel = (afterCapabilityWrite = false) => {
         resetNodeSelectionStates();
         clearRefreshTimers();
         // Fetch the updated flow model
@@ -1269,7 +1316,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         // Capability writes on the agent declaration are raw text edits with no artifact
         // event: the fetch above can race the recompile (which runs to seconds on projects
         // importing ai/mcp), so refresh a few more times on a backoff ladder.
-        scheduleFlowModelRefreshes(1500, 4000, 8000);
+        if (afterCapabilityWrite) {
+            scheduleFlowModelRefreshes(1500, 4000, 8000);
+        }
         if (hasDraft) {
             // completeDraft();
             setSuggestedModel(undefined);
@@ -1338,6 +1387,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         if (!parent || !target) {
             console.error(">>> No parent or target found");
             return;
+        }
+        if (isOnAddNode) {
+            pendingInsertRef.current = true;
         }
         const getNodeRequest: BIAvailableNodesRequest = {
             position: target.startLine,
@@ -1472,6 +1524,62 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         []
     );
 
+    // The library sections come from Ballerina Central, so they load after the panel opens.
+    const loadDefaultFunctionList = async (filePath: string) => {
+        const navEpoch = panelNavEpochRef.current;
+        const position = { startLine: targetRef.current.startLine, endLine: targetRef.current.endLine };
+        const searchPage = (queryMap: BISearchRequest["queryMap"]) => rpcClient.getBIDiagramRpcClient()
+            .search({
+                position,
+                filePath,
+                queryMap: { q: "", limit: FUNCTION_PAGE_SIZE, offset: 0, includeAvailableFunctions: "true", ...queryMap },
+                searchKind: "FUNCTION",
+            })
+            .then((response) => convertFunctionCategoriesToSidePanelCategories(
+                response.categories as Category[],
+                FUNCTION_TYPE.REGULAR
+            ));
+        const cacheScope = `call-function|${projectPath}`;
+        const sectionTitles = PAGINATED_LIBRARY_SECTIONS.map(({ title }) => title);
+        const localCategories = await searchPage({ excludeLibrary: "true" });
+        if (panelNavEpochRef.current !== navEpoch) {
+            return false;
+        }
+        const sections = sectionTitles.map((title): PanelCategory =>
+            cachedLibrarySection(cacheScope, title) ?? { title, description: "", items: [], isLoading: true }
+        );
+        const initialCategories = [
+            ...localCategories.filter((category) => !sectionTitles.includes(category.title)),
+            ...sections,
+        ];
+        setCategories(initialCategories);
+        seedFunctionPagination(initialCategories, "", FUNCTION_TYPE.REGULAR);
+        for (const { title, org } of PAGINATED_LIBRARY_SECTIONS) {
+            if (!sections.find((section) => section.title === title)?.isLoading) {
+                continue;
+            }
+            void searchPage({ orgName: org })
+                .catch((): PanelCategory[] => [])
+                .then((page) => {
+                    const section = page.find((category) => category.title === title);
+                    if (section?.items.length) {
+                        cacheLibrarySection(cacheScope, section);
+                    }
+                    if (panelNavEpochRef.current !== navEpoch || functionSearchQueryRef.current) {
+                        return;
+                    }
+                    setCategories((prev) => prev
+                        .map((category) => (category.title === title ? section : category))
+                        .filter((category) => category !== undefined));
+                    setFunctionSectionsWithMore((prev) => ({
+                        ...prev,
+                        [title]: countSectionLeafNodes(page, title) >= FUNCTION_PAGE_SIZE,
+                    }));
+                });
+        }
+        return true;
+    };
+
     const handleSearch = useCallback(async (searchText: string, functionType: FUNCTION_TYPE, searchKind: SearchKind) => {
         const searchEpoch = panelNavEpochRef.current;
         const masterSearchSeq = searchKind === "ALL" ? ++masterSearchSeqRef.current : undefined;
@@ -1481,6 +1589,10 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             masterSearchSeq !== undefined
             && (masterSearchSeq !== masterSearchSeqRef.current || panelNavEpochRef.current !== searchEpoch);
         // An unfiltered activity list is owned by the post-creation refresh while it runs.
+        if (searchKind === "FUNCTION" && functionType === FUNCTION_TYPE.REGULAR && !searchText.trim()) {
+            await loadDefaultFunctionList(model.fileName);
+            return;
+        }
         const yieldsToActivityRefresh = searchKind === "ACTIVITY_CALL" && !searchText.trim();
         if (yieldsToActivityRefresh && activityRefreshOwnsPanelRef.current) {
             return;
@@ -1858,24 +1970,12 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         switch (node.codedata.node) {
             case "FUNCTION":
                 setShowProgressIndicator(true);
-                rpcClient
-                    .getBIDiagramRpcClient()
-                    .search({
-                        position: { startLine: targetRef.current.startLine, endLine: targetRef.current.endLine },
-                        filePath: model?.fileName || fileName,
-                        // Explicit first page so scroll pagination stays aligned with FUNCTION_PAGE_SIZE.
-                        queryMap: { q: "", limit: FUNCTION_PAGE_SIZE, offset: 0, includeAvailableFunctions: "true" },
-                        searchKind: "FUNCTION",
-                    })
-                    .then((response) => {
-                        const currentCategories = convertFunctionCategoriesToSidePanelCategories(
-                            response.categories as Category[],
-                            FUNCTION_TYPE.REGULAR
-                        );
-                        setCategories(currentCategories);
-                        seedFunctionPagination(currentCategories, "", FUNCTION_TYPE.REGULAR);
-                        setSidePanelView(SidePanelView.FUNCTION_LIST);
-                        setShowSidePanel(true);
+                loadDefaultFunctionList(model?.fileName || fileName)
+                    .then((loaded) => {
+                        if (loaded) {
+                            setSidePanelView(SidePanelView.FUNCTION_LIST);
+                            setShowSidePanel(true);
+                        }
                     })
                     .finally(() => {
                         setShowProgressIndicator(false);
@@ -2420,6 +2520,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         editorConfig?: EditorConfig,
         options?: FormSubmitOptions
     ) => {
+        pendingInsertRef.current = false;
         if (!updatedNode) {
             console.log(">>> No updated node found");
             updatedNode = selectedNodeRef.current;
@@ -2780,9 +2881,11 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         await updateArtifactLocation(deleteNodeResponse);
 
         selectedNodeRef.current = undefined;
-        closeSidePanelAndFetchUpdatedFlowModel();
-        setShowProgressIndicator(false);
-        debouncedGetFlowModel();
+        resetNodeSelectionStates();
+        clearRefreshTimers();
+        // Stay locked until the flow without the node is on screen, so a quick next delete cannot hit a stale range.
+        setShowProgressIndicator(true);
+        getFlowModel();
     };
 
     const handleOnAddComment = (comment: string, target: LineRange) => {
@@ -3959,7 +4062,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             await rpcClient.getBIDiagramRpcClient().getSourceCode({ filePath: model?.fileName, flowNode: node });
             // The entry removal is a raw text edit on the declaration — no artifact event
             // follows, so refresh the canvas explicitly.
-            closeSidePanelAndFetchUpdatedFlowModel();
+            closeSidePanelAndFetchUpdatedFlowModel(true);
         } finally {
             setShowProgressIndicator(false);
             durableAgentObjectVarRef.current = null;

@@ -630,7 +630,7 @@ export function LibraryOverview({ projectStructure, isNPSupported, projectPath, 
         if (!rpcClient) {
             return;
         }
-        rpcClient.onProjectContentUpdated((state: boolean) => {
+        return rpcClient.onProjectContentUpdated((state: boolean) => {
             if (state) {
                 fetchReadme();
             }

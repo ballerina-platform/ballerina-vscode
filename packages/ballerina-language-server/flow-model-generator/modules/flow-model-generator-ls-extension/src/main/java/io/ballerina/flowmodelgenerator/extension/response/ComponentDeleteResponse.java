@@ -28,6 +28,7 @@ import com.google.gson.JsonElement;
 public class ComponentDeleteResponse extends AbstractFlowModelResponse {
 
     private JsonElement textEdits;
+    private boolean formatted;
 
     public void setTextEdits(JsonElement textEdits) {
         this.textEdits = textEdits;
@@ -35,5 +36,13 @@ public class ComponentDeleteResponse extends AbstractFlowModelResponse {
 
     public JsonElement textEdits() {
         return textEdits;
+    }
+
+    public void setFormatted(boolean formatted) {
+        this.formatted = formatted;
+    }
+
+    public boolean formatted() {
+        return formatted;
     }
 }

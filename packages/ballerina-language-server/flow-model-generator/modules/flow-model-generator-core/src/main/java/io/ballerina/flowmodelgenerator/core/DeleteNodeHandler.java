@@ -43,6 +43,7 @@ import io.ballerina.compiler.syntax.tree.Node;
 import io.ballerina.compiler.syntax.tree.NodeList;
 import io.ballerina.compiler.syntax.tree.NonTerminalNode;
 import io.ballerina.compiler.syntax.tree.ParameterNode;
+import io.ballerina.compiler.syntax.tree.QualifiedNameReferenceNode;
 import io.ballerina.compiler.syntax.tree.SeparatedNodeList;
 import io.ballerina.compiler.syntax.tree.StatementNode;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
@@ -54,21 +55,13 @@ import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.node.WaitDataBuilder;
 import io.ballerina.flowmodelgenerator.core.utils.TypeUtils;
 import io.ballerina.modelgenerator.commons.CommonUtils;
-import io.ballerina.projects.DiagnosticResult;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.DocumentId;
 import io.ballerina.projects.Project;
-import io.ballerina.tools.diagnostics.Diagnostic;
-import io.ballerina.tools.diagnostics.DiagnosticInfo;
-import io.ballerina.tools.diagnostics.DiagnosticProperty;
-import io.ballerina.tools.diagnostics.DiagnosticSeverity;
 import io.ballerina.tools.text.LinePosition;
 import io.ballerina.tools.text.LineRange;
 import io.ballerina.tools.text.TextDocument;
-import io.ballerina.tools.text.TextDocumentChange;
 import io.ballerina.tools.text.TextRange;
-import org.ballerinalang.langserver.common.utils.PositionUtil;
-import org.ballerinalang.util.diagnostic.DiagnosticErrorCode;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.TextEdit;
@@ -76,6 +69,7 @@ import org.eclipse.lsp4j.TextEdit;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -145,58 +139,7 @@ public class DeleteNodeHandler {
         int startTextPosition = textDocument.textPositionFrom(lineRange.startLine());
         int endTextPosition = textDocument.textPositionFrom(lineRange.endLine());
 
-        io.ballerina.tools.text.TextEdit te = io.ballerina.tools.text.TextEdit.from(TextRange.from(startTextPosition,
-                endTextPosition - startTextPosition), "");
-        TextDocument apply = textDocument
-                .apply(TextDocumentChange.from(List.of(te).toArray(new io.ballerina.tools.text.TextEdit[0])));
-        Document modifiedDoc =
-                project.duplicate().currentPackage().module(document.module().moduleId())
-                        .document(document.documentId()).modify().withContent(String.join(System.lineSeparator(),
-                                apply.textLines())).apply();
-        ModulePartNode modulePartNode = modifiedDoc.syntaxTree().rootNode();
-        NodeList<ImportDeclarationNode> imports = modulePartNode.imports();
-
-        List<TextEdit> textEdits = new ArrayList<>();
-        String documentName = modifiedDoc.name();
-        DiagnosticResult diagnostics = modifiedDoc.module().getCompilation().diagnostics();
-        for (Diagnostic diagnostic : diagnostics.diagnostics()) {
-            DiagnosticInfo diagnosticInfo = diagnostic.diagnosticInfo();
-            if (diagnostic.diagnosticInfo().severity() == DiagnosticSeverity.ERROR &&
-                    diagnosticInfo.code().equals(DiagnosticErrorCode.UNUSED_MODULE_PREFIX.diagnosticId())) {
-                if (!diagnostic.location().lineRange().fileName().equals(documentName)) {
-                    continue;
-                }
-                ImportDeclarationNode importNode = getUnusedImport(diagnostic.location().lineRange(), imports);
-                TextEdit deleteImportTextEdit = new TextEdit(CommonUtils.toRange(importNode.lineRange()), "");
-                textEdits.add(deleteImportTextEdit);
-
-                List<DiagnosticProperty<?>> diagnosticProperties = diagnostic.properties();
-                if (diagnosticProperties != null && !diagnosticProperties.isEmpty()) {
-                    String diagnosticProperty = diagnosticProperties.getFirst().value().toString();
-                    if (DB_DRIVERS.contains(diagnosticProperty)) {
-                        String expectedModuleName = diagnosticProperty + DRIVER_SUFFIX;
-                        for (ImportDeclarationNode importDeclarationNode : imports) {
-                            Optional<ImportOrgNameNode> orgName = importDeclarationNode.orgName();
-                            Optional<ImportPrefixNode> prefix = importDeclarationNode.prefix();
-                            if (prefix.isPresent() &&
-                                    prefix.get().prefix().text().equals(EXPECTED_PREFIX) &&
-                                    orgName.isPresent() &&
-                                    orgName.get().toString().equals("ballerinax/") &&
-                                    importDeclarationNode.moduleName().stream()
-                                            .map(Token::text)
-                                            .collect(Collectors.joining("."))
-                                            .equals(expectedModuleName)
-                                    ) {
-                                TextEdit deleteDriverImportTextEdit =
-                                        new TextEdit(CommonUtils.toRange(importDeclarationNode.lineRange()), "");
-                                textEdits.add(deleteDriverImportTextEdit);
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        List<TextEdit> textEdits = unusedImportEdits(document, startTextPosition, endTextPosition);
 
         LineRange nodeRangeToDelete = checkElseToDelete(document, startTextPosition, endTextPosition);
         if (nodeRangeToDelete == null) {
@@ -207,6 +150,69 @@ public class DeleteNodeHandler {
         Map<Path, List<TextEdit>> textEditsMap = new HashMap<>();
         textEditsMap.put(filePath, textEdits);
         return gson.toJsonTree(textEditsMap);
+    }
+
+    // Imports whose prefix has no `prefix:name` reference left once the range is deleted, as the compiler reports them.
+    private static List<TextEdit> unusedImportEdits(Document document, int start, int end) {
+        ModulePartNode root = document.syntaxTree().rootNode();
+        Set<String> deletedPrefixes = new HashSet<>();
+        Set<String> remainingPrefixes = new HashSet<>();
+        collectModulePrefixes(root, start, end, deletedPrefixes, remainingPrefixes);
+
+        List<TextEdit> textEdits = new ArrayList<>();
+        if (deletedPrefixes.isEmpty()) {
+            return textEdits;
+        }
+        NodeList<ImportDeclarationNode> imports = root.imports();
+        for (ImportDeclarationNode importNode : imports) {
+            String prefix = importPrefix(importNode);
+            if (prefix.equals(EXPECTED_PREFIX) || remainingPrefixes.contains(prefix)) {
+                continue;
+            }
+            textEdits.add(new TextEdit(CommonUtils.toRange(importNode.lineRange()), ""));
+            if (DB_DRIVERS.contains(prefix)) {
+                driverImport(imports, prefix + DRIVER_SUFFIX).ifPresent(driverImport ->
+                        textEdits.add(new TextEdit(CommonUtils.toRange(driverImport.lineRange()), "")));
+            }
+        }
+        return textEdits;
+    }
+
+    private static void collectModulePrefixes(Node node, int start, int end, Set<String> deletedPrefixes,
+                                              Set<String> remainingPrefixes) {
+        if (node.kind() == SyntaxKind.QUALIFIED_NAME_REFERENCE) {
+            TextRange range = node.textRange();
+            boolean deleted = range.startOffset() >= start && range.endOffset() <= end;
+            String prefix = ((QualifiedNameReferenceNode) node).modulePrefix().text();
+            (deleted ? deletedPrefixes : remainingPrefixes).add(prefix);
+            return;
+        }
+        if (node instanceof NonTerminalNode nonTerminalNode) {
+            for (Node child : nonTerminalNode.children()) {
+                collectModulePrefixes(child, start, end, deletedPrefixes, remainingPrefixes);
+            }
+        }
+    }
+
+    private static String importPrefix(ImportDeclarationNode importNode) {
+        return importNode.prefix()
+                .map(prefix -> prefix.prefix().text())
+                .orElseGet(() -> importNode.moduleName().get(importNode.moduleName().size() - 1).text());
+    }
+
+    private static Optional<ImportDeclarationNode> driverImport(NodeList<ImportDeclarationNode> imports,
+                                                                String driverModuleName) {
+        for (ImportDeclarationNode importNode : imports) {
+            Optional<ImportOrgNameNode> orgName = importNode.orgName();
+            Optional<ImportPrefixNode> prefix = importNode.prefix();
+            if (prefix.isPresent() && prefix.get().prefix().text().equals(EXPECTED_PREFIX)
+                    && orgName.isPresent() && orgName.get().toString().equals("ballerinax/")
+                    && importNode.moduleName().stream().map(Token::text).collect(Collectors.joining("."))
+                    .equals(driverModuleName)) {
+                return Optional.of(importNode);
+            }
+        }
+        return Optional.empty();
     }
 
     private static LineRange getNodeLineRange(JsonElement node) {
@@ -222,16 +228,6 @@ public class DeleteNodeHandler {
         LinePosition endLinePosition = LinePosition.from(
                 jsonObject.get("endLine").getAsInt(), jsonObject.get("endColumn").getAsInt());
         return LineRange.from(jsonObject.get("filePath").getAsString(), startLinePosition, endLinePosition);
-    }
-
-    private static ImportDeclarationNode getUnusedImport(LineRange diagnosticLocation,
-                                                         NodeList<ImportDeclarationNode> imports) {
-        for (ImportDeclarationNode importNode : imports) {
-            if (PositionUtil.isWithinLineRange(diagnosticLocation, importNode.lineRange())) {
-                return importNode;
-            }
-        }
-        throw new IllegalStateException("There should be an import node");
     }
 
     private static LineRange checkElseToDelete(Document document, int nodeStart, int nodeEnd) {

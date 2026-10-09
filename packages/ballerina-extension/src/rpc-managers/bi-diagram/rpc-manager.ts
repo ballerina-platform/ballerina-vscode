@@ -367,7 +367,9 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
         console.log(">>> requesting bi source code from ls", params);
         try {
             this.ensureTargetFileExists(params.filePath);
-            const model = await StateMachine.langClient().getSourceCode(params) as BISourceCodeResponse;
+            const model = await StateMachine.langClient().getSourceCode(
+                { ...params, formatted: true } as BISourceCodeRequest
+            ) as BISourceCodeResponse & { formatted?: boolean; sourceEdits?: BISourceCodeResponse["textEdits"] };
             console.log(">>> bi source code from ls", model);
 
             if (model?.errorMsg) {
@@ -388,7 +390,9 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             }
 
             if (params?.isConnector) {
-                const artifacts = await updateSourceCode({ textEdits: model.textEdits, description: this.getSourceDescription(params) });
+                const artifacts = await updateSourceCode({
+                    textEdits: model.textEdits, description: this.getSourceDescription(params), preformatted: model.formatted
+                });
                 return { artifacts };
             }
 
@@ -397,9 +401,12 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             // Read off the edits the LS actually produced, before they are applied. Whether the
             // default provider was declared is the LS's decision, so reporting what it emitted is
             // the only answer that cannot drift from it — see UpdatedArtifactsResponse.
-            const declaredDefaultModelProvider = declaresDefaultModelProvider(model.textEdits);
+            const declaredDefaultModelProvider = declaresDefaultModelProvider(model.sourceEdits ?? model.textEdits);
             const artifacts = await updateSourceCode(
-                { textEdits: model.textEdits, artifactData, description: this.getSourceDescription(params) },
+                {
+                    textEdits: model.textEdits, artifactData, description: this.getSourceDescription(params),
+                    preformatted: model.formatted
+                },
                 params.isHelperPaneChange
             );
             if (typeof nodeKind === "string" && nodeKind.startsWith("DURABLE_AGENT")) {
@@ -1070,10 +1077,13 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
 
         return new Promise((resolve) => {
             StateMachine.langClient()
-                .deleteFlowNode(params)
-                .then(async (model) => {
+                .deleteFlowNode({ ...params, formatted: true } as BISourceCodeRequest)
+                .then(async (model: BISourceCodeResponse & { formatted?: boolean }) => {
                     console.log(">>> bi delete node from ls", model);
-                    const artifacts = await updateSourceCode({ textEdits: model.textEdits, description: 'Flow Node Deletion - ' + params.flowNode.metadata.label, skipPayloadCheck: true });
+                    const artifacts = await updateSourceCode({
+                        textEdits: model.textEdits, description: 'Flow Node Deletion - ' + params.flowNode.metadata.label,
+                        skipPayloadCheck: true, preformatted: model.formatted
+                    });
                     resolve({ artifacts });
                 })
                 .catch((error) => {
@@ -1682,14 +1692,14 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
         const performDelete = async (): Promise<any> => {
             return new Promise((resolve, reject) => {
                 StateMachine.langClient()
-                    .deleteByComponentInfo(params)
-                    .then(async (model) => {
+                    .deleteByComponentInfo({ ...params, formatted: true } as BIDeleteByComponentInfoRequest)
+                    .then(async (model: BISourceCodeResponse & { formatted?: boolean }) => {
                         console.log(">>> bi delete node from ls by componentInfo", model);
                         let description = 'Component Deletion';
                         if (componentView?.location?.artifactType && componentView?.location?.identifier) {
                             description = `${this.capitalizeFirstLetter(componentView.location.artifactType)} Deletion - ${componentView.location.identifier}`;
                         }
-                        await updateSourceCode({ textEdits: model.textEdits, description: description, skipPayloadCheck: true }); // Skip payload check because the component is deleted
+                        await updateSourceCode({ textEdits: model.textEdits, description: description, skipPayloadCheck: true, preformatted: model.formatted }); // Skip payload check because the component is deleted
                         resolve(model);
                     })
                     .catch((error) => {

@@ -292,13 +292,14 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
             setAddMore(false);
         }
 
-        rpcClient.onProjectContentUpdated(() => {
+        const unsubscribeProjectContent = rpcClient.onProjectContentUpdated(() => {
             if (!isMountedRef.current) return;
             fetchService(positionRef.current);
         });
 
         return () => {
             isMountedRef.current = false;
+            unsubscribeProjectContent();
         };
     }, [position]);
 

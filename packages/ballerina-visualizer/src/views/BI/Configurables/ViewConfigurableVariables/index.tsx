@@ -171,7 +171,7 @@ export function ViewConfigurableVariables(props?: ConfigProps) {
     }, [selectedModule]);
 
     useEffect(() => {
-        rpcClient.onProjectContentUpdated(() => {
+        return rpcClient.onProjectContentUpdated(() => {
             if (isTestsContextRef.current) {
                 getTestConfigVariables();
             } else {

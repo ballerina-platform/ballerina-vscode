@@ -64,6 +64,7 @@ import { ImplementationBadge } from "../../../components/ImplementationBadge";
 import { FUNCTION_CALL, KNOWLEDGE_BASE_CALL, METHOD_CALL, REMOTE_ACTION_CALL, RESOURCE_ACTION_CALL } from "../../../constants";
 import { NewToolSelectionMode } from "./NewTool";
 import { buildOAuthFields, fetchOAuthConfigProperties, ZERO_LINE_RANGE } from "./utils";
+import { cacheLibrarySection, cachedLibrarySection, PAGINATED_LIBRARY_SECTIONS } from "../../../utils/useFunctionPagination";
 import { updateResourcePathProperty } from "./agentTools";
 import { AddConnectionPopupContent } from "../Connection/AddConnectionPopup/AddConnectionPopupContent";
 import { ConnectionConfigurationForm } from "../Connection/ConnectionConfigurationPopup";
@@ -445,6 +446,7 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
     const addedAgentConnectionNamesRef = useRef<string[]>([]);
     const pendingDependencyRefreshRef = useRef<boolean>(false);
     const initialCategoriesRef = useRef<PanelCategory[]>([]);
+    const functionSearchTextRef = useRef<string>("");
     const selectedNodeRef = useRef<AvailableNode>(undefined);
     const agentFilePath = useRef<string>(Utils.joinPath(URI.file(projectPath), agentNode?.codedata?.lineRange?.fileName || "agents.bal").fsPath);
     const functionFilePath = useRef<string>(Utils.joinPath(URI.file(projectPath), "functions.bal").fsPath);
@@ -563,10 +565,19 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
         // FUNCTION mode: skip getAvailableNodes entirely — connections are not needed
         if (mode === NewToolSelectionMode.FUNCTION) {
             try {
-                const filteredFunctions = await handleSearchFunction("", FUNCTION_TYPE.REGULAR, false);
-                const categories = reorderFunctionCategories(filteredFunctions || []);
+                // The library sections come from Ballerina Central, so they load after the panel opens.
+                const localFunctions = await handleSearchFunction("", FUNCTION_TYPE.REGULAR, false, { excludeLibrary: "true" });
+                const sectionTitles = PAGINATED_LIBRARY_SECTIONS.map(({ title }) => title);
+                const sections = sectionTitles.map((title): PanelCategory =>
+                    cachedLibrarySection(`use-function|${projectPath}`, title) ?? { title, description: "", items: [], isLoading: true }
+                );
+                const categories = ensureStandardLibModules(reorderFunctionCategories([
+                    ...(localFunctions || []).filter((category) => !sectionTitles.includes(category.title)),
+                    ...sections,
+                ]));
                 setCategories(categories);
                 initialCategoriesRef.current = categories;
+                loadLibrarySections(sections.filter((section) => section.isLoading).map((section) => section.title));
             } catch { } finally {
                 settleLoading();
             }
@@ -688,8 +699,12 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
     const handleSearchFunction = async (
         searchText: string,
         functionType: FUNCTION_TYPE,
-        isSearching: boolean = true
+        isSearching: boolean = true,
+        defaultQuery?: BISearchRequest["queryMap"]
     ) => {
+        if (isSearching) {
+            functionSearchTextRef.current = searchText;
+        }
         if (isSearching && !searchText) {
             setCategories(initialCategoriesRef.current); // Reset the categories list when the search input is empty
             return;
@@ -707,7 +722,7 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                     offset: 0,
                     includeAvailableFunctions: "true",
                 }
-                : undefined,
+                : defaultQuery,
             searchKind: "FUNCTION",
         };
         const response = await rpcClient.getBIDiagramRpcClient().search(request);
@@ -732,6 +747,26 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
             return [];
         }
         return ensureStandardLibModules(convertFunctionCategoriesToSidePanelCategories(filteredResponse, functionType));
+    };
+
+    const loadLibrarySections = (titles: string[]) => {
+        for (const { title, org } of PAGINATED_LIBRARY_SECTIONS.filter((section) => titles.includes(section.title))) {
+            void handleSearchFunction("", FUNCTION_TYPE.REGULAR, false, { orgName: org })
+                .catch((): PanelCategory[] => [])
+                .then((sectionCategories: PanelCategory[] | undefined) => {
+                    const section = sectionCategories?.find((category) => category.title === title);
+                    if (section?.items.length) {
+                        cacheLibrarySection(`use-function|${projectPath}`, section);
+                    }
+                    const updated = initialCategoriesRef.current
+                        .map((category) => (category.title === title ? section : category))
+                        .filter((category) => category !== undefined);
+                    initialCategoriesRef.current = ensureStandardLibModules(updated);
+                    if (!functionSearchTextRef.current) {
+                        setCategories(initialCategoriesRef.current);
+                    }
+                });
+        }
     };
 
     const isResultTypeField = (field: FormField) =>

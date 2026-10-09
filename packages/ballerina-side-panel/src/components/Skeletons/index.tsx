@@ -17,4 +17,4 @@
  */
 
 export { GroupListSkeleton } from "./GroupListSkeleton";
-export { NodeListSkeleton } from "./NodeListSkeleton";
+export { NodeGridSkeleton, NodeListSkeleton } from "./NodeListSkeleton";
