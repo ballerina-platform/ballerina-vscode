@@ -168,6 +168,8 @@ test.describe('Ballerina E2E Group 2', { tag: '@group2' }, async () => {
 
     // <----Other Artifacts Test---->
     test.describe(functionArtifact);
+    // Workflow forms built from an empty project; Group 2 has the time for them, Group 4 is at its limit.
+    test.describe(workflowForms);
 
     // <----Project Explorer Test---->
     test.describe(projectExplorer);
@@ -216,7 +218,6 @@ test.describe('Ballerina E2E Group 4', { tag: '@group4' }, async () => {
     // <----Diagram Test---->
     test.describe(diagram);
     test.describe(durableAgentActivity);
-    test.describe(workflowForms);
 
     // <----Test Explorer Test---->
     test.describe(testExplorer);

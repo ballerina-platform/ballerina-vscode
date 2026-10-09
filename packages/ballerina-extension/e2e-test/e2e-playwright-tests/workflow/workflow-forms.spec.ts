@@ -251,7 +251,11 @@ export default function createTests() {
             await result.waitFor({ state: 'visible', timeout: 90000 });
             await domClick(result);
             // #2624: the pick opens the activity list rather than collapsing the panel.
-            await panel.getByText('Current Integration', { exact: true }).first().waitFor({ timeout: 60000 });
+            const header = panel.getByText('Current Integration', { exact: true }).first();
+            if (!await header.waitFor({ timeout: 60000 }).then(() => true, () => false)) {
+                const shown = (await panel.innerText().catch(() => '')).replace(/\s+/g, ' ').slice(0, 300);
+                throw new Error(`picking Call Activity from the search results did not open the activity list; the panel shows: ${shown}`);
+            }
             await expect(panel.getByTestId('node-list-action-onAddFunction').first()).toBeVisible();
 
             logStep('Create the first activity');
