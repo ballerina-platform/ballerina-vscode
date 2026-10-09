@@ -130,8 +130,8 @@ async function openPaletteBelow(webview: Frame, nodeText: string): Promise<SideP
             const button = webview.locator(`[data-testid="${buttonId}"]`).first();
             // Hovered by position: an edge path can measure fine yet count as invisible to Playwright.
             await page.page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-            await page.page.waitForTimeout(400);
-            if (await button.isVisible().catch(() => false)) {
+            // The + is drawn on hover; give it time to render before falling back to a click on the edge.
+            if (await button.waitFor({ state: 'visible', timeout: 3000 }).then(() => true, () => false)) {
                 await button.click({ force: true, timeout: 3000 }).catch(() => page.page.mouse.click(box.x + box.width / 2, box.y + box.height / 2));
             } else {
                 await page.page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
