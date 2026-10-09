@@ -124,8 +124,9 @@ async function openPaletteBelow(webview: Frame, nodeText: string): Promise<SideP
     const canvas = webview.getByTestId('bi-diagram-canvas');
     await canvas.waitFor({ timeout: 60000 });
     const sidePanel = new SidePanel(webview, page.page);
+    // Right after a save the diagram redraws; give the trailing empty node a moment to come back.
     const emptyNodeButton = canvas.locator('[data-testid^="empty-node-add-button"]').first();
-    if (await emptyNodeButton.isVisible().catch(() => false)) {
+    if (await emptyNodeButton.waitFor({ state: 'visible', timeout: 15000 }).then(() => true, () => false)) {
         await emptyNodeButton.click({ force: true, timeout: 5000 }).catch(() => emptyNodeButton.dispatchEvent('click'));
         if (!await sidePanelOpens(webview, 5000)) {
             await emptyNodeButton.dispatchEvent('click');
