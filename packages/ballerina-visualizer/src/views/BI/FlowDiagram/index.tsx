@@ -1875,6 +1875,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                         if (isStaleSelection()) {
                             return;
                         }
+                        assertFunctionSearchSuccess(response);
                         const currentCategories = convertFunctionCategoriesToSidePanelCategories(
                             response.categories as Category[],
                             FUNCTION_TYPE.REGULAR
@@ -1883,6 +1884,12 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                         seedFunctionPagination(currentCategories, "", FUNCTION_TYPE.REGULAR, response.functionPagination);
                         setSidePanelView(SidePanelView.FUNCTION_LIST);
                         setShowSidePanel(true);
+                    })
+                    .catch((error) => {
+                        console.error(">>> Error loading functions", error);
+                        if (!isStaleSelection()) {
+                            resetFunctionPagination();
+                        }
                     })
                     .finally(() => {
                         if (!isStaleSelection()) {
@@ -1905,6 +1912,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                         if (isStaleSelection()) {
                             return;
                         }
+                        assertFunctionSearchSuccess(response);
                         const currentCategories = convertFunctionCategoriesToSidePanelCategories(
                             response.categories as Category[], FUNCTION_TYPE.EXPRESSION_BODIED
                         );
@@ -1913,6 +1921,12 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                             response.functionPagination);
                         setSidePanelView(SidePanelView.DATA_MAPPER_LIST);
                         setShowSidePanel(true);
+                    })
+                    .catch((error) => {
+                        console.error(">>> Error loading functions", error);
+                        if (!isStaleSelection()) {
+                            resetFunctionPagination();
+                        }
                     })
                     .finally(() => {
                         if (!isStaleSelection()) {

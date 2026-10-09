@@ -110,33 +110,39 @@ final class ResolvedFunctionCatalog {
                 for (var documentId : module.documentIds()) {
                     ModulePartNode root = (ModulePartNode) module.document(documentId).syntaxTree().rootNode();
                     for (var importNode : root.imports()) {
-                        var symbol = semanticModel.symbol(importNode);
-                        if (symbol.isEmpty() || !(symbol.get() instanceof ModuleSymbol imported)) {
-                            String org = importNode.orgName().map(node -> node.orgName().text())
-                                    .orElse(pkg.packageOrg().value());
-                            String name = StreamSupport.stream(importNode.moduleName().spliterator(), false)
-                                    .map(token -> token.text().replaceFirst("^'", ""))
-                                    .collect(Collectors.joining("."));
-                            knownImports.add(new ModuleCoordinate(org.replaceFirst("^'", ""), name));
-                            continue;
-                        }
-                        ModuleCoordinate coordinate = new ModuleCoordinate(imported.id().orgName(),
-                                imported.id().moduleName());
-                        if (!imports.contains(coordinate) || functions.containsKey(coordinate)) {
-                            continue;
-                        }
-                        List<SearchResult> rows = new ArrayList<>();
-                        for (var function : imported.functions()) {
-                            if (!function.qualifiers().contains(Qualifier.PUBLIC) || function.getName().isEmpty()) {
+                        // One failing import must not cost the rest of the module their resolved surfaces.
+                        try {
+                            var symbol = semanticModel.symbol(importNode);
+                            if (symbol.isEmpty() || !(symbol.get() instanceof ModuleSymbol imported)) {
+                                String org = importNode.orgName().map(node -> node.orgName().text())
+                                        .orElse(pkg.packageOrg().value());
+                                String name = StreamSupport.stream(importNode.moduleName().spliterator(), false)
+                                        .map(token -> token.text().replaceFirst("^'", ""))
+                                        .collect(Collectors.joining("."));
+                                knownImports.add(new ModuleCoordinate(org.replaceFirst("^'", ""), name));
                                 continue;
                             }
-                            rows.add(SearchResult.from(imported.id().orgName(), imported.id().packageName(),
-                                    imported.id().moduleName(), imported.id().version(), function.getName().get(),
-                                    function.documentation().flatMap(doc -> doc.description()).orElse("")));
+                            ModuleCoordinate coordinate = new ModuleCoordinate(imported.id().orgName(),
+                                    imported.id().moduleName());
+                            if (!imports.contains(coordinate) || functions.containsKey(coordinate)) {
+                                continue;
+                            }
+                            List<SearchResult> rows = new ArrayList<>();
+                            for (var function : imported.functions()) {
+                                if (!function.qualifiers().contains(Qualifier.PUBLIC) || function.getName().isEmpty()) {
+                                    continue;
+                                }
+                                rows.add(SearchResult.from(imported.id().orgName(), imported.id().packageName(),
+                                        imported.id().moduleName(), imported.id().version(), function.getName().get(),
+                                        function.documentation().flatMap(doc -> doc.description()).orElse("")));
+                            }
+                            rows.sort(Comparator.comparing(SearchResult::name));
+                            // Empty is authoritative too: it must not resurrect obsolete Central/index APIs.
+                            functions.put(coordinate, List.copyOf(rows));
+                        } catch (RuntimeException e) {
+                            LOGGER.log(Level.WARNING, "Failed to discover functions of import "
+                                    + importNode.toSourceCode().strip() + " in " + module.moduleName(), e);
                         }
-                        rows.sort(Comparator.comparing(SearchResult::name));
-                        // Empty is authoritative too: it must not resurrect obsolete Central/index APIs.
-                        functions.put(coordinate, List.copyOf(rows));
                     }
                 }
             } catch (RuntimeException e) {
