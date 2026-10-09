@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { capabilityValueText, revealActivityIdentity, seedCapabilityValue, SeedableProperty } from "./capabilityFieldValues";
+import { capabilityValueText, seedCapabilityValue, SeedableProperty, showActivityIdentityReadOnly } from "./capabilityFieldValues";
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import styled from "@emotion/styled";
@@ -84,6 +84,8 @@ import {
     filterCategoriesLocally,
     buildMasterSearchCategories,
     mergePanelCategories,
+    attachPendingSetup,
+    settlePendingSetup,
 } from "./utils";
 import { PanelOverlayProvider } from "./context/PanelOverlayContext";
 import { PanelOverlayRenderer } from "./PanelOverlayRenderer";
@@ -1349,6 +1351,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
 
     const handleOnCloseSidePanel = () => {
         panelNavEpochRef.current += 1;
+        void settlePendingSetup(nodeTemplateRef.current, false);
         // The failsafe acts on the panel this close is dismissing; the refresh ladder is just a
         // model fetch, so it is left to finish.
         clearCapabilityFailsafe();
@@ -2460,6 +2463,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                             showConnectorError(response.errorMsg);
                             return;
                         }
+                        // A picker can fill in fields before the form opens, e.g. an Agent Manager LLM service provider.
+                        metadata.prepareTemplate?.(response.flowNode);
+                        attachPendingSetup(response.flowNode, metadata.pendingSetup);
                         selectedNodeRef.current = response.flowNode;
                         nodeTemplateRef.current = response.flowNode;
                         showEditForm.current = false;
@@ -2721,6 +2727,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                     return;
                 }
                 if (response.artifacts.length > 0) {
+                    await settlePendingSetup(nodeTemplateRef.current, true);
 
                     if (editorConfig && editorConfig.displayMode !== EditorDisplayMode.NONE) {
                         const newArtifact = response.artifacts.find(res => res.isNew);
@@ -2978,6 +2985,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     const handleOnFormBack = () => {
         panelNavEpochRef.current += 1;
         clearWorkflowCreationState();
+        void settlePendingSetup(nodeTemplateRef.current, false);
 
         // Try to navigate back using the navigation stack
         const didNavigateBack = popFromNavigationStack();
@@ -3989,7 +3997,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 }
             }
             if (capability?.type === "activity") {
-                revealActivityIdentity(nodeProps);
+                showActivityIdentityReadOnly(nodeProps);
             }
             node.codedata.lineRange = lineRange;
             node.codedata.isNew = false;

@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { Category, AvailableNode, BallerinaProjectComponents } from "@wso2/ballerina-core";
+import { Category, AvailableNode, BallerinaProjectComponents, FlowNode } from "@wso2/ballerina-core";
 import type { Category as PanelCategory, Item as PanelItem } from "@wso2/ballerina-side-panel";
 import { URI, Utils } from "vscode-uri";
 
@@ -78,14 +78,18 @@ export const filterCategoriesLocally = (categories: any[], searchText: string): 
 
     const lowerSearchText = searchText.toLowerCase();
 
+    // A node is found by its label, the method it stands for, or a search-only keyword such as
+    // the name it used to have. Descriptions stay out: nearly every one contains "workflow".
+    const itemMatchesSearch = (item: any): boolean => {
+        const terms: string[] = [item.title || item.label, item.method, ...(item.keywords ?? [])];
+        return terms.some((term) => typeof term === "string" && term.toLowerCase().includes(lowerSearchText));
+    };
+
     const filterItemsRecursively = (items: any[]): any[] => {
         if (!items) return [];
 
         return items.map((item: any) => {
-            // Check if this item matches the search
-            const label = item.title || item.label;
-            const itemMatches = label.toLowerCase().includes(lowerSearchText);
-            if (itemMatches) {
+            if (itemMatchesSearch(item)) {
                 return item;
             }
             // If this item has nested items (subcategory), recursively filter them
@@ -195,6 +199,34 @@ export const findClassByName = (components: BallerinaProjectComponents, classNam
     return null;
 };
 
+/** Work a picker did before its form opened: kept once the form saves, undone if it closes without saving. */
+export interface PendingSetup {
+    commit: () => Promise<void>;
+    discard: () => void;
+}
+
+// Keyed by the template object, so every form host that opens it can settle it without passing it along.
+const pendingSetups = new WeakMap<FlowNode, PendingSetup>();
+
+export function attachPendingSetup(template: FlowNode, setup?: PendingSetup): void {
+    if (setup) {
+        pendingSetups.set(template, setup);
+    }
+}
+
+export async function settlePendingSetup(template: FlowNode | undefined, saved: boolean): Promise<void> {
+    const setup = template && pendingSetups.get(template);
+    if (!setup) {
+        return;
+    }
+    pendingSetups.delete(template);
+    if (saved) {
+        await setup.commit();
+    } else {
+        setup.discard();
+    }
+}
+
 export const getNodeTemplateForConnection = async (
     nodeId: string,
     metadata: any,
@@ -217,6 +249,9 @@ export const getNodeTemplateForConnection = async (
         ...node.metadata,
         description: flowNode?.metadata?.description || node?.metadata?.description,
     };
+    // A picker can fill in fields before the form opens, e.g. an Agent Manager LLM service provider.
+    metadata.prepareTemplate?.(flowNode);
+    attachPendingSetup(flowNode, metadata.pendingSetup);
 
     let connectionKind: string;
     switch (nodeId) {

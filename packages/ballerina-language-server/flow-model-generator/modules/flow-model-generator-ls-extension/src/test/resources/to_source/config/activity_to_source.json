@@ -221,7 +221,7 @@
             "character": 0
           }
         },
-        "newText": "# Activity that sends an email\n# + return - Result of the activity\n@workflow:Activity\nfunction sendEmailActivity(int a, int b) returns string {\n}"
+        "newText": "# Activity that sends an email\n# + return - Result of the activity\n@workflow:Activity\nfunction sendEmailActivity(int a, int b) returns string|error {\n}"
       }
     ]
   }

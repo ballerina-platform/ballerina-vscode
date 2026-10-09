@@ -80,6 +80,8 @@ import {
     agentsMdFileInfoChanged,
     AgentsMdFileInfoDTO,
     evaluationHistoryUpdated,
+    agentManagerSessionChanged,
+    AgentManagerSession,
     evaluationRunStateChanged,
     EvaluationRunState,
     evalsetsChanged
@@ -96,6 +98,7 @@ import { TestManagerServiceRpcClient } from "./rpc-clients";
 import { AiAgentRpcClient } from "./rpc-clients/ai-agent/rpc-client";
 import { ICPServiceRpcClient } from "./rpc-clients/icp-service/rpc-client";
 import { WorkflowManagementServiceRpcClient } from "./rpc-clients/workflow-management-service/rpc-client";
+import { AgentManagerRpcClient } from "./rpc-clients/agent-manager/rpc-client";
 import { AgentChatRpcClient } from "./rpc-clients/agent-chat/rpc-client";
 import { PlatformExtRpcClient } from "./rpc-clients/platform-ext/platform-ext-client";
 
@@ -120,11 +123,13 @@ export class BallerinaRpcClient {
     private _aiAgent: AiAgentRpcClient;
     private _icpManager: ICPServiceRpcClient;
     private _workflowManagementManager: WorkflowManagementServiceRpcClient;
+    private _agentManager: AgentManagerRpcClient;
     private _agentChat: AgentChatRpcClient;
     private _platformExt: PlatformExtRpcClient;
     private _identifierUpdatedCallbacks = new Set<(response: ProjectStructureArtifactResponse[]) => void>();
     private _runningServicesChangedCallbacks = new Set<(services: RunningServiceInfo[]) => void>();
     private _mcpServersChangedCallbacks = new Set<(servers: McpServerStatusDTO[]) => void>();
+    private _agentManagerSessionChangedCallbacks = new Set<(session: AgentManagerSession) => void>();
     private _mcpLoadErrorsChangedCallbacks = new Set<(errors: McpLoadErrorsDTO) => void>();
     private _agentsMdFileInfoChangedCallbacks = new Set<(state: AgentsMdFileInfoDTO) => void>();
     private _projectContentUpdatedCallbacks = new Set<(state: boolean) => void>();
@@ -153,6 +158,7 @@ export class BallerinaRpcClient {
         this._aiAgent = new AiAgentRpcClient(this.messenger);
         this._icpManager = new ICPServiceRpcClient(this.messenger);
         this._workflowManagementManager = new WorkflowManagementServiceRpcClient(this.messenger);
+        this._agentManager = new AgentManagerRpcClient(this.messenger);
         this._agentChat = new AgentChatRpcClient(this.messenger);
         this._platformExt = new PlatformExtRpcClient(this.messenger);
         this.messenger.onNotification(onIdentifierUpdated, (response: ProjectStructureArtifactResponse[]) => {
@@ -163,6 +169,9 @@ export class BallerinaRpcClient {
         });
         this.messenger.onNotification(mcpServersChanged, (servers: McpServerStatusDTO[]) => {
             this._mcpServersChangedCallbacks.forEach((callback) => callback(servers));
+        });
+        this.messenger.onNotification(agentManagerSessionChanged, (session: AgentManagerSession) => {
+            this._agentManagerSessionChangedCallbacks.forEach((callback) => callback(session));
         });
         this.messenger.onNotification(mcpLoadErrorsChanged, (errors: McpLoadErrorsDTO) => {
             this._mcpLoadErrorsChangedCallbacks.forEach((callback) => callback(errors));
@@ -194,6 +203,10 @@ export class BallerinaRpcClient {
 
     getWorkflowManagementRpcClient(): WorkflowManagementServiceRpcClient {
         return this._workflowManagementManager;
+    }
+
+    getAgentManagerRpcClient(): AgentManagerRpcClient {
+        return this._agentManager;
     }
 
     getConnectorWizardRpcClient(): ConnectorWizardRpcClient {
@@ -414,6 +427,13 @@ export class BallerinaRpcClient {
         this._runningServicesChangedCallbacks.add(callback);
         return () => {
             this._runningServicesChangedCallbacks.delete(callback);
+        };
+    }
+
+    onAgentManagerSessionChanged(callback: (session: AgentManagerSession) => void): () => void {
+        this._agentManagerSessionChangedCallbacks.add(callback);
+        return () => {
+            this._agentManagerSessionChangedCallbacks.delete(callback);
         };
     }
 

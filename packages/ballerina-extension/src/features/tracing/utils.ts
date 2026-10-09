@@ -143,7 +143,7 @@ function convertObjectToToml(config: any, originalContent: string): string {
  * @param values Object with key-value pairs to set in the section
  * @returns Updated TOML content
  */
-function updateOrAddSection(content: string, sectionName: string, values: Record<string, any>): string {
+export function updateOrAddSection(content: string, sectionName: string, values: Record<string, any>): string {
     const sectionHeader = `[${sectionName}]`;
     const lines = content.split('\n');
     const sectionStartIndex = lines.findIndex(line => line.trim() === sectionHeader);

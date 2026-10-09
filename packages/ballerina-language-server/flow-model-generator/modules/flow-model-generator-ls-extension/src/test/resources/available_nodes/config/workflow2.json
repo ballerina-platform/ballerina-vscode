@@ -42,6 +42,11 @@
               "metadata": {
                 "label": "Human Task",
                 "description": "Create a human task and wait for a human to complete it",
+                "keywords": [
+                  "Await Human Task",
+                  "Await Task",
+                  "Review"
+                ],
                 "data": {
                   "method": "awaitHumanTask"
                 }
@@ -55,6 +60,11 @@
               "metadata": {
                 "label": "Await Data",
                 "description": "Wait for a data event from outside the workflow",
+                "keywords": [
+                  "Await Data Event",
+                  "Wait Data",
+                  "Event"
+                ],
                 "data": {
                   "method": "await"
                 }
@@ -95,6 +105,10 @@
               "metadata": {
                 "label": "Current Time",
                 "description": "Deterministic current time, safe to use inside workflow logic",
+                "keywords": [
+                  "Get Current Time",
+                  "Now"
+                ],
                 "data": {
                   "method": "currentTime"
                 }
@@ -121,6 +135,10 @@
               "metadata": {
                 "label": "Workflow ID",
                 "description": "The unique ID of this workflow instance",
+                "keywords": [
+                  "Get Workflow ID",
+                  "Instance"
+                ],
                 "data": {
                   "method": "getWorkflowId"
                 }
@@ -134,6 +152,9 @@
               "metadata": {
                 "label": "Workflow Type",
                 "description": "The type name of this workflow",
+                "keywords": [
+                  "Get Workflow Type"
+                ],
                 "data": {
                   "method": "getWorkflowType"
                 }
@@ -147,6 +168,10 @@
               "metadata": {
                 "label": "Last Completion",
                 "description": "The completion of the most recently completed human task, with who completed it",
+                "keywords": [
+                  "Get Last Human Task Completion",
+                  "Human Task"
+                ],
                 "data": {
                   "method": "lastHumanTaskCompletion"
                 }
@@ -160,6 +185,10 @@
               "metadata": {
                 "label": "Last Decision",
                 "description": "The decision of the most recent review task, with who decided it",
+                "keywords": [
+                  "Get Last Review Decision",
+                  "Review"
+                ],
                 "data": {
                   "method": "lastReviewDecision"
                 }
@@ -186,6 +215,9 @@
               "metadata": {
                 "label": "Run Child",
                 "description": "Start a child workflow and continue without waiting for its result",
+                "keywords": [
+                  "Run Child Workflow"
+                ],
                 "data": {
                   "method": "runChildWorkflow"
                 }
@@ -199,6 +231,9 @@
               "metadata": {
                 "label": "Call Child",
                 "description": "Run a child workflow and durably wait for its result",
+                "keywords": [
+                  "Call Child Workflow"
+                ],
                 "data": {
                   "method": "callWorkflow"
                 }
@@ -212,6 +247,9 @@
               "metadata": {
                 "label": "Await Child",
                 "description": "Durably wait for a started child workflow's result",
+                "keywords": [
+                  "Wait for Child Workflow"
+                ],
                 "data": {
                   "method": "waitForChildWorkflow"
                 }
@@ -225,6 +263,9 @@
               "metadata": {
                 "label": "Send to Child",
                 "description": "Send a data event to a running child workflow",
+                "keywords": [
+                  "Send Data to Child Workflow"
+                ],
                 "data": {
                   "method": "sendDataToChildWorkflow"
                 }

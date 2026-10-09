@@ -126,6 +126,8 @@ import {
     listMcpServers,
     setMcpServerEnabled,
     SetMcpServerEnabledRequest,
+    signInMcpServer,
+    SignInMcpServerRequest,
     openMcpConfig,
     addMcpServer,
     AddMcpServerRequest,
@@ -249,6 +251,7 @@ export function registerAiPanelRpcHandlers(messenger: Messenger) {
     messenger.onRequest(parseSkillFile, (args: ParseSkillFileRequest) => rpcManger.parseSkillFile(args));
     messenger.onRequest(listMcpServers, () => rpcManger.listMcpServers());
     messenger.onRequest(setMcpServerEnabled, (args: SetMcpServerEnabledRequest) => rpcManger.setMcpServerEnabled(args));
+    messenger.onRequest(signInMcpServer, (args: SignInMcpServerRequest) => rpcManger.signInMcpServer(args));
     messenger.onRequest(openMcpConfig, (args: OpenMcpConfigRequest) => rpcManger.openMcpConfig(args));
     messenger.onRequest(addMcpServer, (args: AddMcpServerRequest) => rpcManger.addMcpServer(args));
     messenger.onRequest(updateMcpServer, (args: UpdateMcpServerRequest) => rpcManger.updateMcpServer(args));
