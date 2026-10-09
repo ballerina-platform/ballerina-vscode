@@ -69,6 +69,7 @@
           }
         ],
         "value": "",
+        "placeholder": "",
         "optional": true,
         "editable": true,
         "advanced": false,
@@ -87,6 +88,7 @@
           }
         ],
         "value": "",
+        "placeholder": "",
         "optional": true,
         "editable": true,
         "advanced": false,

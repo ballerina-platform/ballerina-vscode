@@ -18,6 +18,7 @@
 
 package io.ballerina.flowmodelgenerator.core.utils;
 
+import io.ballerina.flowmodelgenerator.core.model.Property;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -184,5 +185,27 @@ public class WorkflowUtilLiteralTest {
         Assert.assertEquals(WorkflowUtil.capabilityName("string `Bill ${id}`"), "string `Bill ${id}`");
         Assert.assertEquals(WorkflowUtil.capabilityName("string ``"), "");
         Assert.assertEquals(WorkflowUtil.capabilityName("lookupBill"), "lookupBill");
+    }
+
+    @Test(description = "A role list item the text box wrote as a template is written as its trimmed text: one "
+            + "role as a string, several as a list, an interpolated item as source")
+    public void testRoleListReadsTemplateItems() {
+        Assert.assertEquals(WorkflowUtil.roleSource(roleList("string `MANAGER\n`")), "\"MANAGER\"");
+        Assert.assertEquals(WorkflowUtil.roleSource(roleList("string `finance`", "string `manager`")),
+                "[\"finance\", \"manager\"]");
+        Assert.assertEquals(WorkflowUtil.roleSource(roleList("string ``", "  ")), "");
+        Assert.assertEquals(WorkflowUtil.roleSource(roleList("\"finance\"")), "\"finance\"");
+        Assert.assertEquals(WorkflowUtil.roleSource(roleList("finance")), "\"finance\"");
+        Assert.assertEquals(WorkflowUtil.roleSource(roleList("string `team-${teamId}`")), "string `team-${teamId}`");
+        // Text that is not one template or one literal is a role name as typed, never an expression.
+        Assert.assertEquals(WorkflowUtil.roleSource(roleList("string `a` + string `b`")),
+                "\"string `a` + string `b`\"");
+        Assert.assertEquals(WorkflowUtil.roleSource(roleList("string`MANAGER`")), "\"string`MANAGER`\"");
+        Assert.assertEquals(WorkflowUtil.roleSource(roleList("\"finance\" + \"manager\"")),
+                "\"\\\"finance\\\" + \\\"manager\\\"\"");
+    }
+
+    private static Property roleList(String... items) {
+        return Property.convertToProperty(Map.of("value", List.of(items)));
     }
 }

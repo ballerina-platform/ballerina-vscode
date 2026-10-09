@@ -1,27 +1,25 @@
 {
-  "filePath": "workflow_def",
-  "fileName": "functions.bal",
-  "functionName": "inputWorkflow",
-  "description": "Workflow function with input parameter",
-  "output": {
-    "id": "46711",
+  "source": "activity_edit/functions.bal",
+  "description": "Edit an activity's return type: the signature keeps one newline after its annotation",
+  "diagram": {
+    "id": "61579",
     "metadata": {
-      "label": "Workflow Process Function",
-      "description": "Define a workflow process function"
+      "label": "Workflow Activity",
+      "description": "Define a workflow activity function"
     },
     "codedata": {
-      "node": "WORKFLOW",
+      "node": "ACTIVITY",
       "org": "ballerina",
       "module": "workflow",
       "lineRange": {
         "fileName": "functions.bal",
         "startLine": {
-          "line": 15,
+          "line": 30,
           "offset": 0
         },
         "endLine": {
-          "line": 16,
-          "offset": 56
+          "line": 31,
+          "offset": 44
         }
       }
     },
@@ -30,7 +28,7 @@
       "functionName": {
         "metadata": {
           "label": "Name",
-          "description": "Unique workflow identifier used to reference it in workflow management and execution."
+          "description": "Name of the function"
         },
         "types": [
           {
@@ -39,7 +37,7 @@
             "selected": true
           }
         ],
-        "value": "inputWorkflow",
+        "value": "simpleActivity",
         "optional": false,
         "editable": false,
         "advanced": false,
@@ -48,12 +46,12 @@
           "lineRange": {
             "fileName": "functions.bal",
             "startLine": {
-              "line": 16,
+              "line": 31,
               "offset": 9
             },
             "endLine": {
-              "line": 16,
-              "offset": 22
+              "line": 31,
+              "offset": 23
             }
           }
         }
@@ -86,7 +84,7 @@
             "selected": true
           }
         ],
-        "value": "error?",
+        "value": "string|error",
         "optional": true,
         "editable": true,
         "advanced": false,
@@ -126,21 +124,73 @@
         "advanced": false,
         "hidden": false
       },
-      "inputType": {
+      "parameters": {
         "metadata": {
-          "label": "Workflow Input Data type",
-          "description": "Type of the input data to the workflow"
+          "label": "Parameters",
+          "description": "Function parameters"
         },
         "types": [
           {
-            "fieldType": "TYPE",
-            "ballerinaType": "anydata",
+            "fieldType": "REPEATABLE_PROPERTY",
+            "template": {
+              "metadata": {
+                "label": "Parameter",
+                "description": "Function parameter"
+              },
+              "types": [
+                {
+                  "fieldType": "FIXED_PROPERTY",
+                  "selected": false
+                }
+              ],
+              "value": {
+                "type": {
+                  "metadata": {
+                    "label": "Type",
+                    "description": "Type of the parameter"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "TYPE",
+                      "ballerinaType": "anydata",
+                      "selected": false
+                    }
+                  ],
+                  "value": "",
+                  "optional": false,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "variable": {
+                  "metadata": {
+                    "label": "Name",
+                    "description": "Name of the parameter"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "IDENTIFIER",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "optional": false,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                }
+              },
+              "optional": false,
+              "editable": false,
+              "advanced": false,
+              "hidden": false
+            },
             "selected": false
           }
         ],
-        "value": "OrderInput",
+        "value": {},
         "optional": true,
-        "editable": true,
+        "editable": false,
         "advanced": false,
         "hidden": false
       },
@@ -155,7 +205,7 @@
             "selected": true
           }
         ],
-        "value": "@workflow:Workflow",
+        "value": "@workflow:Activity",
         "optional": false,
         "editable": false,
         "advanced": false,
@@ -163,5 +213,22 @@
       }
     },
     "flags": 0
+  },
+  "output": {
+    "activity_edit/functions.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 30,
+            "character": 0
+          },
+          "end": {
+            "line": 31,
+            "character": 44
+          }
+        },
+        "newText": "@workflow:Activity\nfunction simpleActivity( ) returns string|error"
+      }
+    ]
   }
 }
