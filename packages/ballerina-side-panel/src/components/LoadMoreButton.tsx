@@ -44,6 +44,7 @@ const LoadMoreLink = styled.button`
     }
     &:disabled {
         color: var(--vscode-disabledForeground);
+        text-decoration: none;
         cursor: default;
     }
 `;
