@@ -245,8 +245,10 @@ export default function createTests() {
             const search = panel.locator('input[placeholder*="Search"], input[type="text"]').first();
             await search.waitFor({ timeout: 60000 });
             await search.fill('Call Activity');
-            await page.page.waitForTimeout(1500);
-            await domClick(panel.getByText('Call Activity', { exact: true }).last());
+            // The cross-kind search is debounced and then asks the language server; its results replace the list.
+            const result = panel.getByText('Call Activity', { exact: true }).last();
+            await result.waitFor({ state: 'visible', timeout: 90000 });
+            await domClick(result);
             // #2624: the pick opens the activity list rather than collapsing the panel.
             await panel.getByText('Current Integration', { exact: true }).first().waitFor({ timeout: 60000 });
             await expect(panel.getByTestId('node-list-action-onAddFunction').first()).toBeVisible();
