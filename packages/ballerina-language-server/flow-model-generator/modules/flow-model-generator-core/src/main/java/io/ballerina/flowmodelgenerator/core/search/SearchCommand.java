@@ -52,7 +52,6 @@ public abstract class SearchCommand {
     protected final int offset;
     private final boolean filterByCurrentOrg;
     final SearchDatabaseManager dbManager;
-    final DefaultViewHolder defaultViewHolder;
 
     protected static final String DATA_MAPPER_FILE_NAME = "data_mappings.bal";
     protected static final String CURRENT_INTEGRATION_INDICATOR = " (Current Integration)";
@@ -93,7 +92,6 @@ public abstract class SearchCommand {
         this.project = project;
         this.position = position;
         this.dbManager = SearchDatabaseManager.getInstance();
-        this.defaultViewHolder = DefaultViewHolder.getInstance();
 
         if (queryMap == null) {
             this.query = "";
@@ -124,11 +122,13 @@ public abstract class SearchCommand {
     protected abstract List<Item> search();
 
     /**
-     * Fetches the popular items if not cached already.
+     * Fetches popular items for commands that provide a curated default view.
      *
-     * @return a list of popular search results
+     * @return categorized popular search results, or an empty map when this command has no curated defaults
      */
-    protected abstract Map<String, List<SearchResult>> fetchPopularItems();
+    protected Map<String, List<SearchResult>> fetchPopularItems() {
+        return Map.of();
+    }
 
     /**
      * Performs a search with the given query parameters within the current organization.
@@ -137,6 +137,17 @@ public abstract class SearchCommand {
      */
     protected List<Item> searchCurrentOrganization(String currentOrg) {
         throw new UnsupportedOperationException("Organization search is not supported for this command");
+    }
+
+    /** Optional independent library-section cursors; absent for searches without function paging. */
+    public Map<String, FunctionPagination> functionPagination() {
+        return null;
+    }
+
+    public record FunctionPagination(boolean hasMore, int nextOffset, String source) {
+        public FunctionPagination(boolean hasMore, int nextOffset) {
+            this(hasMore, nextOffset, null);
+        }
     }
 
     /**

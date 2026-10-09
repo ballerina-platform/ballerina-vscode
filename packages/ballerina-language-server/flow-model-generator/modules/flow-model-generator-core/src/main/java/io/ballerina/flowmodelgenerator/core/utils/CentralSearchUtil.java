@@ -32,6 +32,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.BiPredicate;
 import java.util.function.Predicate;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 /**
@@ -43,6 +45,7 @@ import java.util.stream.Collectors;
  */
 public class CentralSearchUtil {
 
+    private static final Logger LOGGER = Logger.getLogger(CentralSearchUtil.class.getName());
     private static final int OVERFETCH_FACTOR = 3;
     private static final int MAX_FETCH_ITERATIONS = 3;
     private static final int MAX_FETCH_LIMIT = 1000;
@@ -290,6 +293,41 @@ public class CentralSearchUtil {
 
             return filteredResults;
         } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
+    /**
+     * One unfiltered org-scoped window. Null slots retain offsets of tools/non-function symbols.
+     *
+     * @param rows raw source rows, including null slots
+     * @param hasMore whether the source has further rows
+     */
+    public record FunctionRawPage(List<SearchResult> rows, boolean hasMore) { }
+
+    /** Fetches exactly one raw window; null signals Central failure rather than exhaustion. */
+    public FunctionRawPage searchFunctionPage(String query, int limit, int offset, String org) {
+        try {
+            Map<String, String> params = new HashMap<>();
+            if (!query.isEmpty()) {
+                params.put("q", query);
+            }
+            params.put("org", org);
+            params.put("symbolType", FUNCTION_SYMBOL_TYPE);
+            params.put("limit", String.valueOf(limit));
+            params.put("offset", String.valueOf(offset));
+            SymbolResponse response = centralClient.searchSymbols(params);
+            if (response == null || response.symbols() == null) {
+                return null;
+            }
+            List<SearchResult> rows = new ArrayList<>();
+            for (var symbol : response.symbols()) {
+                rows.add(symbol != null && FUNCTION_SYMBOL_TYPE.equals(symbol.symbolType()) && !isToolPackage(symbol)
+                        ? toSearchResult(symbol, false) : null);
+            }
+            return new FunctionRawPage(rows, response.count() > offset + rows.size());
+        } catch (RuntimeException e) {
+            LOGGER.log(Level.FINE, "Central function page unavailable for " + org + " at offset " + offset, e);
             return null;
         }
     }

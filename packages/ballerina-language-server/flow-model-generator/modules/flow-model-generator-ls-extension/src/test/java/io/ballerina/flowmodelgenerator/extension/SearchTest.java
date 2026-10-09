@@ -19,9 +19,16 @@
 package io.ballerina.flowmodelgenerator.extension;
 
 import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import io.ballerina.compiler.api.symbols.ModuleSymbol;
+import io.ballerina.compiler.api.symbols.Qualifier;
+import io.ballerina.compiler.syntax.tree.ModulePartNode;
 import io.ballerina.flowmodelgenerator.core.search.SearchCommand;
 import io.ballerina.flowmodelgenerator.extension.request.SearchRequest;
 import io.ballerina.modelgenerator.commons.AbstractLSTest;
+import io.ballerina.modelgenerator.commons.PackageUtil;
+import io.ballerina.projects.BuildOptions;
+import io.ballerina.projects.directory.BuildProject;
 import io.ballerina.tools.text.LineRange;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -29,6 +36,8 @@ import org.testng.annotations.Test;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -59,6 +68,58 @@ public class SearchTest extends AbstractLSTest {
 //            updateConfig(configJsonPath, updateConfig);
             compareJsonElements(categories, testConfig.categories());
             Assert.fail(String.format("Failed test: '%s' (%s)", testConfig.description(), configJsonPath));
+        }
+    }
+
+    @Test
+    public void importedFunctionsAreCompleteAndVersionCorrectAcrossSearchViews() throws IOException {
+        String source = "proj/main.bal";
+        var project = BuildProject.load(sourceDir.resolve("proj"), BuildOptions.builder().setOffline(true).build());
+        var module = project.currentPackage().getDefaultModule();
+        var document = module.documentIds().stream().map(module::document)
+                .filter(value -> value.name().equals("main.bal")).findFirst().orElseThrow();
+        var semantic = PackageUtil.getCompilation(project.currentPackage()).getSemanticModel(module.moduleId());
+        var root = (ModulePartNode) document.syntaxTree().rootNode();
+        ModuleSymbol io = root.imports().stream().map(node -> semantic.symbol(node).orElseThrow())
+                .filter(ModuleSymbol.class::isInstance).map(ModuleSymbol.class::cast)
+                .filter(symbol -> symbol.id().moduleName().equals("io")).findFirst().orElseThrow();
+        List<String> expected = io.functions().stream()
+                .filter(function -> function.qualifiers().contains(Qualifier.PUBLIC))
+                .flatMap(function -> function.getName().stream()).sorted().toList();
+        Assert.assertFalse(expected.isEmpty());
+        for (String kind : List.of("FUNCTION", "ALL")) {
+            for (String query : List.of("", "io")) {
+                var request = new SearchRequest(kind, getSourcePath(source), null, Map.of("q", query));
+                JsonObject response = getResponseAndCloseFile(request, source);
+                List<JsonObject> nodes = new ArrayList<>();
+                for (var category : response.getAsJsonArray("categories")) {
+                    JsonObject value = category.getAsJsonObject();
+                    if (!value.getAsJsonObject("metadata").get("label").getAsString().equals("Imported Functions")) {
+                        continue;
+                    }
+                    for (var imported : value.getAsJsonArray("items")) {
+                        JsonObject group = imported.getAsJsonObject();
+                        if (group.getAsJsonObject("metadata").get("label").getAsString().equals("io")) {
+                            group.getAsJsonArray("items").forEach(node -> nodes.add(node.getAsJsonObject()));
+                        }
+                    }
+                }
+                Assert.assertEquals(nodes.stream().map(node -> node.getAsJsonObject("codedata")
+                        .get("symbol").getAsString()).sorted().toList(), expected, kind + " query=" + query);
+                for (JsonObject node : nodes) {
+                    Assert.assertEquals(node.getAsJsonObject("codedata").get("version").getAsString(),
+                            io.id().version());
+                }
+                if (kind.equals("FUNCTION")) {
+                    JsonObject pagination = response.getAsJsonObject("functionPagination");
+                    for (String org : List.of("ballerina", "ballerinax")) {
+                        JsonObject page = pagination.getAsJsonObject(org);
+                        Assert.assertEquals(page.get("source").getAsString(), "index");
+                        Assert.assertTrue(page.get("nextOffset").getAsInt() >= 0);
+                        Assert.assertNotNull(page.get("hasMore"));
+                    }
+                }
+            }
         }
     }
 

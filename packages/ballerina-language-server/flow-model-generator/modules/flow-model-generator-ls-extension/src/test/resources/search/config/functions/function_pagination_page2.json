@@ -29,7 +29,181 @@
           "Library"
         ]
       },
-      "items": []
+      "items": [
+        {
+          "metadata": {
+            "label": "lang.float",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "abs",
+                "description": "Returns the IEEE absolute value of a float value.\n\n```ballerina\nfloat f = -3.21;\nf.abs() ⇒ 3.21\n```\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_lang.float_0.0.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "lang.float",
+                "packageName": "lang.float",
+                "symbol": "abs",
+                "version": "0.0.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "acos",
+                "description": "Returns the arccosine of a float value.\n\nCorresponds to IEEE acos operation.\n\n```ballerina\nfloat f = 0.5;\nf.acos() ⇒ 1.0471975511965979\n```\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_lang.float_0.0.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "lang.float",
+                "packageName": "lang.float",
+                "symbol": "acos",
+                "version": "0.0.0"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "lang.int",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "abs",
+                "description": "Returns the absolute value of an int value.\n\n```ballerina\nint n = -25;\nn.abs() ⇒ 25\nint:abs(-30) ⇒ 30\n```\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_lang.int_0.0.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "lang.int",
+                "packageName": "lang.int",
+                "symbol": "abs",
+                "version": "0.0.0"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "lang.table",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "add",
+                "description": "Adds a member to a table.\n\nIt will be added as the last member.\nIt panics if parameter `val` has the same key as an existing member of parameter `t`,\nor if parameter `val` is inconsistent with the inherent type of `t`.\n\n```ballerina\ntable<record {|int id; string name;|}> employees = table [\n    {id: 1, name: \"Jo\"},\n    {id: 2, name: \"Sam\"}\n];\nemployees.add({id: 1, name: \"Pat\"});\nemployees ⇒ [{\"id\":1,\"name\":\"Jo\"},{\"id\":2,\"name\":\"Sam\"},{\"id\":1,\"name\":\"Pat\"}]\ntable<record {|readonly int id; string name;|}> key(id) students = table [\n    {id: 1, name: \"Jo\"},\n    {id: 2, name: \"Sam\"}\n];\nstudents.add({id: 3, name: \"Pat\"});\nstudents ⇒ [{\"id\":1,\"name\":\"Jo\"},{\"id\":2,\"name\":\"Sam\"},{\"id\":3,\"name\":\"Pat\"}]\nstudents.add({id: 1, name: \"James\"}) ⇒ panic\ntable<record {readonly int id;}> key(id) studentIds = students;\nstudentIds.add({id: 7}) ⇒ panic\n```\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_lang.table_0.0.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "lang.table",
+                "packageName": "lang.table",
+                "symbol": "add",
+                "version": "0.0.0"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "websocket",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "addCookies",
+                "description": "Adds cookies to the custom header.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_websocket_2.15.2.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "websocket",
+                "packageName": "websocket",
+                "symbol": "addCookies",
+                "version": "2.15.2"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "observe",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "addTag",
+                "description": "Add a key-value pair as a tag to the root.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_observe_1.7.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "observe",
+                "packageName": "observe",
+                "symbol": "addTag",
+                "version": "1.7.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "addTagToMetrics",
+                "description": "Add a key value pair as a tag to system metrics.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_observe_1.7.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "observe",
+                "packageName": "observe",
+                "symbol": "addTagToMetrics",
+                "version": "1.7.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "addTagToSpan",
+                "description": "Add a key value pair as a tag to the span.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_observe_1.7.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "observe",
+                "packageName": "observe",
+                "symbol": "addTagToSpan",
+                "version": "1.7.1"
+              },
+              "enabled": true
+            }
+          ]
+        }
+      ]
     },
     {
       "metadata": {
@@ -40,7 +214,154 @@
           "Library"
         ]
       },
-      "items": []
+      "items": [
+        {
+          "metadata": {
+            "label": "health.fhir.r4.terminology",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "addValueSets",
+                "description": "Add a list of new ValueSets.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4.terminology_7.0.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "health.fhir.r4.terminology",
+                "packageName": "health.fhir.r4.terminology",
+                "symbol": "addValueSets",
+                "version": "7.0.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "addValueSetsAsJson",
+                "description": "Add a list of new ValueSet as a json or json array.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4.terminology_7.0.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "health.fhir.r4.terminology",
+                "packageName": "health.fhir.r4.terminology",
+                "symbol": "addValueSetsAsJson",
+                "version": "7.0.1"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "health.hl7v23.utils.v2tofhirr4",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "adtA01ToBundle",
+                "description": "",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.hl7v23.utils.v2tofhirr4_1.1.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "health.hl7v23.utils.v2tofhirr4",
+                "packageName": "health.hl7v23.utils.v2tofhirr4",
+                "symbol": "adtA01ToBundle",
+                "version": "1.1.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "adtA02ToBundle",
+                "description": "",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.hl7v23.utils.v2tofhirr4_1.1.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "health.hl7v23.utils.v2tofhirr4",
+                "packageName": "health.hl7v23.utils.v2tofhirr4",
+                "symbol": "adtA02ToBundle",
+                "version": "1.1.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "adtA05ToBundle",
+                "description": "",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.hl7v23.utils.v2tofhirr4_1.1.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "health.hl7v23.utils.v2tofhirr4",
+                "packageName": "health.hl7v23.utils.v2tofhirr4",
+                "symbol": "adtA05ToBundle",
+                "version": "1.1.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "adtA06ToBundle",
+                "description": "",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.hl7v23.utils.v2tofhirr4_1.1.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "health.hl7v23.utils.v2tofhirr4",
+                "packageName": "health.hl7v23.utils.v2tofhirr4",
+                "symbol": "adtA06ToBundle",
+                "version": "1.1.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "adtA09ToBundle",
+                "description": "",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.hl7v23.utils.v2tofhirr4_1.1.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "health.hl7v23.utils.v2tofhirr4",
+                "packageName": "health.hl7v23.utils.v2tofhirr4",
+                "symbol": "adtA09ToBundle",
+                "version": "1.1.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "adtA11ToBundle",
+                "description": "",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.hl7v23.utils.v2tofhirr4_1.1.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "health.hl7v23.utils.v2tofhirr4",
+                "packageName": "health.hl7v23.utils.v2tofhirr4",
+                "symbol": "adtA11ToBundle",
+                "version": "1.1.0"
+              },
+              "enabled": true
+            }
+          ]
+        }
+      ]
     }
   ]
 }

@@ -58,6 +58,36 @@ public class CentralSearchUtilTest {
     private static final BiPredicate<String, String> EDI_TOOL =
             (org, pkg) -> "ballerina".equals(org) && "editoolspackage".equals(pkg);
 
+    @Test(description = "Raw function windows retain filtered slots and expose count-based continuation")
+    public void testRawFunctionPagesKeepSourceOffsets() {
+        RecordingCentralApi central = new RecordingCentralApi(null);
+        central.pagedSymbols = List.of(
+                function("ballerina", "editoolspackage", "2.3.0", "tool", "Tool"),
+                symbol("ballerina", "edi", "1.4.0", "Client", "Connector", "connector"),
+                function("ballerina", "edi", "1.4.0", "fromEdiString", "Library"));
+        CentralSearchUtil search = new CentralSearchUtil(central, EDI_TOOL);
+        var first = search.searchFunctionPage("edi", 2, 0, "ballerina");
+        Assert.assertEquals(first.rows().size(), 2);
+        Assert.assertNull(first.rows().get(0));
+        Assert.assertNull(first.rows().get(1));
+        Assert.assertTrue(first.hasMore());
+        Assert.assertEquals(central.callCount, 1);
+        Assert.assertEquals(central.lastQueryMap.get("org"), "ballerina");
+        Assert.assertEquals(central.lastQueryMap.get("symbolType"), "function");
+        var second = search.searchFunctionPage("edi", 2, 2, "ballerina");
+        Assert.assertEquals(second.rows().getFirst().name(), "fromEdiString");
+        Assert.assertFalse(second.hasMore());
+    }
+
+    @Test(description = "A raw Central failure is distinct from a successful empty window")
+    public void testRawFunctionFailureSignalsFallback() {
+        RecordingCentralApi central = new RecordingCentralApi(symbolResponse());
+        CentralSearchUtil search = new CentralSearchUtil(central, EDI_TOOL);
+        Assert.assertFalse(search.searchFunctionPage("", 10, 0, "ballerina").hasMore());
+        central.failOnSearch = true;
+        Assert.assertNull(search.searchFunctionPage("", 10, 0, "ballerina"));
+    }
+
     @Test(description = "A function search drops tool packages before paging, so offsets stay stable.")
     public void testSearchFunctionsDropsToolPackages() {
         RecordingCentralApi central = new RecordingCentralApi(symbolResponse(

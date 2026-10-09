@@ -131,6 +131,119 @@ const createFunctionCases: CreateFunctionCase[] = [
 ];
 
 describe("NodeList (rpc-driven)", () => {
+    describe("manual library pagination", () => {
+        const sections = ["Standard Library", "Extended Library"];
+        const cases = sections.flatMap((section) => ["", "workflow"].map((searchText) => ({ section, searchText })));
+
+        it.each(cases)("keeps an empty continuing $section page reachable for query '$searchText'", async ({ section, searchText }) => {
+            const onLoadMoreSection = jest.fn();
+            const { getByLabelText } = renderWithRpc(
+                <NodeList categories={[{ title: section, description: "", items: [] }]}
+                    title="Functions" onSelect={jest.fn()} searchText={searchText}
+                    alwaysExpandedCategories={sections}
+                    sectionsWithMore={{ [section]: true }} loadingSections={{}}
+                    onLoadMoreSection={onLoadMoreSection} />,
+                fakeRpc()
+            );
+            const button = await waitFor(() => getByLabelText(`Load more ${section} functions`));
+            expect(button.tagName).toBe("BUTTON");
+            expect(button).toHaveAttribute("type", "button");
+            const linkStyle = getComputedStyle(button);
+            expect(linkStyle.textDecoration).toBe("underline");
+            expect(linkStyle.whiteSpace).toBe("nowrap");
+            expect(linkStyle.alignSelf).toBe("center");
+            expect(linkStyle.display).toBe("flex");
+            // jsdom cannot resolve fit-content widths; assert the centering rules it supports.
+            expect(linkStyle.marginLeft).toBe("auto");
+            expect(linkStyle.marginRight).toBe("auto");
+            expect(linkStyle.marginBottom).toBe("12px");
+            expect(onLoadMoreSection).not.toHaveBeenCalled();
+            fireEvent.click(button);
+            expect(onLoadMoreSection).toHaveBeenCalledTimes(1);
+            expect(onLoadMoreSection).toHaveBeenCalledWith(section);
+        });
+
+        it.each(["", "match"])("loads only the clicked section for query '%s', never on mount or scroll", async (searchText) => {
+            const clientHeight = jest.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(500);
+            const scrollHeight = jest.spyOn(HTMLElement.prototype, "scrollHeight", "get").mockReturnValue(100);
+            try {
+                const onLoadMoreSection = jest.fn();
+                const { container, getByLabelText } = renderWithRpc(
+                    <NodeList categories={sections.map((title) => ({ title, description: "", items: [node(title, "match")] }))}
+                        title="Functions" onSelect={jest.fn()} searchText={searchText}
+                        alwaysExpandedCategories={sections}
+                        sectionsWithMore={{ "Standard Library": true, "Extended Library": true }}
+                        onLoadMoreSection={onLoadMoreSection} panelBodySx={{ outline: "1px solid red" }} />,
+                    fakeRpc()
+                );
+                await waitFor(() => expect(getByLabelText("Load more Standard Library functions")).toBeTruthy());
+                fireEvent.scroll(container.querySelector<HTMLElement>('[style*="outline"]')!);
+                expect(onLoadMoreSection).not.toHaveBeenCalled();
+                fireEvent.click(getByLabelText("Load more Extended Library functions"));
+                expect(onLoadMoreSection).toHaveBeenCalledTimes(1);
+                expect(onLoadMoreSection).toHaveBeenLastCalledWith("Extended Library");
+                fireEvent.click(getByLabelText("Load more Standard Library functions"));
+                expect(onLoadMoreSection).toHaveBeenCalledTimes(2);
+                expect(onLoadMoreSection).toHaveBeenLastCalledWith("Standard Library");
+            } finally {
+                clientHeight.mockRestore();
+                scrollHeight.mockRestore();
+            }
+        });
+
+        it.each(sections)("disables %s's button while fetching without blocking the other section", async (section) => {
+            const otherSection = sections.find((title) => title !== section)!;
+            const onLoadMoreSection = jest.fn();
+            const { getByLabelText, getByText } = renderWithRpc(
+                <NodeList categories={sections.map((title) => ({ title, description: "", items: [node(title, "match")] }))}
+                    title="Functions" onSelect={jest.fn()} alwaysExpandedCategories={sections}
+                    sectionsWithMore={{ "Standard Library": true, "Extended Library": true }}
+                    loadingSections={{ [section]: true }} onLoadMoreSection={onLoadMoreSection} />,
+                fakeRpc()
+            );
+            const loadingButton = await waitFor(() => getByLabelText(`Load more ${section} functions`));
+            expect(getByText("Loading...")).toBeTruthy();
+            expect(loadingButton).toHaveAttribute("aria-busy", "true");
+            await waitFor(() => expect(loadingButton).toHaveAttribute("disabled"));
+            fireEvent.click(loadingButton);
+            expect(onLoadMoreSection).not.toHaveBeenCalled();
+            fireEvent.click(getByLabelText(`Load more ${otherSection} functions`));
+            expect(onLoadMoreSection).toHaveBeenCalledTimes(1);
+            expect(onLoadMoreSection).toHaveBeenCalledWith(otherSection);
+        });
+
+        it.each(sections)("hides %s's button when exhausted", async (section) => {
+            const category = { title: section, description: "", items: [node("fn", "match")] };
+            const onLoadMoreSection = jest.fn();
+            const { getByText, queryByLabelText } = renderWithRpc(
+                <NodeList categories={[category]} title="Functions" onSelect={jest.fn()}
+                    alwaysExpandedCategories={[section]} sectionsWithMore={{ [section]: false }}
+                    onLoadMoreSection={onLoadMoreSection} />,
+                fakeRpc()
+            );
+            await waitFor(() => expect(getByText("match")).toBeTruthy());
+            expect(queryByLabelText(`Load more ${section} functions`)).toBeNull();
+            expect(onLoadMoreSection).not.toHaveBeenCalled();
+        });
+
+        it.each(sections)("hides %s's button while collapsed without fetching on expand", async (section) => {
+            const onLoadMoreSection = jest.fn();
+            const { getByText, getByLabelText, queryByLabelText } = renderWithRpc(
+                <NodeList categories={[{ title: section, description: "", items: [node("fn", "match")] }]}
+                    title="Functions" onSelect={jest.fn()} alwaysExpandedCategories={[section]}
+                    sectionsWithMore={{ [section]: true }}
+                    onLoadMoreSection={onLoadMoreSection} />,
+                fakeRpc()
+            );
+            await waitFor(() => expect(getByLabelText(`Load more ${section} functions`)).toBeTruthy());
+            fireEvent.click(getByText(section));
+            expect(queryByLabelText(`Load more ${section} functions`)).toBeNull();
+            fireEvent.click(getByText(section));
+            expect(getByLabelText(`Load more ${section} functions`)).toBeTruthy();
+            expect(onLoadMoreSection).not.toHaveBeenCalled();
+        });
+    });
+
     it("INVARIANT: renders every category title from the categories prop", async () => {
         const categories = [
             { title: "Statements", items: [node("log", "Log"), node("if", "If")] },

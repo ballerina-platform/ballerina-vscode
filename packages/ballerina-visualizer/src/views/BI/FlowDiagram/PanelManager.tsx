@@ -378,6 +378,9 @@ export function PanelManager(props: PanelManagerProps) {
                         title={"Data Mappers"}
                         searchText={searchText}
                         onBack={canGoBack ? onBack : undefined}
+                        onLoadMoreSection={onLoadMoreFunctionSection}
+                        sectionsWithMore={functionSectionsWithMore}
+                        loadingSections={loadingFunctionSections}
                     />
                 );
 

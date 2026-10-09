@@ -16,12 +16,11 @@
  * under the License.
  */
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import {
     Button,
     Codicon,
-    ProgressRing,
     SearchBox,
     SidePanelBody,
     Switch,
@@ -35,6 +34,7 @@ import { BackIcon, CloseIcon, LogIcon } from "../../resources";
 import { Category, Item, Node } from "./types";
 import { cloneDeep, debounce } from "lodash";
 import { GroupListSkeleton, NodeListSkeleton } from "../Skeletons";
+import { LoadMoreButton } from "../LoadMoreButton";
 import GroupList from "../GroupList";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { getExpandedCategories, setExpandedCategories, getDefaultExpandedState } from "../../utils/localStorage";
@@ -396,9 +396,8 @@ interface NodeListProps {
     alwaysCollapsedCategories?: string[];
     alwaysExpandedCategories?: string[];
     loading?: boolean;
-    // Per-section pagination. Each category whose title is a key in sectionsWithMore (and true) gets a bottom
-    // sentinel; when it scrolls into view onLoadMoreSection is called with that category title and the parent
-    // fetches and appends that section's next page. loadingSections marks which sections are currently fetching.
+    // Per-section pagination. Expanded categories with more results get a Load more button; clicking it asks
+    // the parent to fetch and append one page for that category. loadingSections disables the button while fetching.
     onLoadMoreSection?: (sectionTitle: string) => void;
     sectionsWithMore?: Record<string, boolean>;
     loadingSections?: Record<string, boolean>;
@@ -560,50 +559,10 @@ export function NodeList(props: NodeListProps) {
         setExpandedCategories(newExpandedState);
     };
 
-    // A paginated section (e.g. Standard/Extended Library) loads its next page when its end scrolls into view.
-    // Only top-level sections the parent flagged in sectionsWithMore are paginated, and only while not searching
-    // (search results are not paginated here).
+    // The parent supplies continuation for server-side searches as well as the default view. Local-only searches
+    // do not supply these callbacks/flags and remain unpaginated. Continuations are requested only by button clicks.
     const isPaginatedSection = (categoryTitle: string): boolean =>
-        !searchText && Boolean(onLoadMoreSection) && sectionsWithMore != null && categoryTitle in sectionsWithMore;
-
-    // One bottom-of-section sentinel per expanded paginated section. Collapsed sections render no content or
-    // sentinel, so they never trigger a load.
-    const panelBodyRef = useRef<HTMLDivElement>(null);
-    const sectionSentinelRefs = useRef<Map<string, HTMLDivElement>>(new Map());
-    const setSectionSentinelRef = (categoryTitle: string) => (el: HTMLDivElement | null) => {
-        if (el) {
-            sectionSentinelRefs.current.set(categoryTitle, el);
-        } else {
-            sectionSentinelRefs.current.delete(categoryTitle);
-        }
-    };
-
-    // Loads the next page of the topmost expanded paginated section whose end has come into view within the panel.
-    const loadVisibleSection = (panelEl: HTMLElement) => {
-        if (!onLoadMoreSection || !sectionsWithMore) {
-            return;
-        }
-        const panelBottom = panelEl.getBoundingClientRect().bottom;
-        const candidate = Array.from(sectionSentinelRefs.current.entries())
-            .filter(([title]) => sectionsWithMore[title] && !loadingSections?.[title])
-            .map(([title, el]) => ({ title, top: el.getBoundingClientRect().top }))
-            .filter(({ top }) => top <= panelBottom + 150)
-            .sort((a, b) => a.top - b.top)[0];
-        if (candidate) {
-            onLoadMoreSection(candidate.title);
-        }
-    };
-
-    const handlePanelScroll = (e: React.UIEvent<HTMLDivElement>) => loadVisibleSection(e.currentTarget);
-
-    // If a freshly loaded page doesn't fill the panel there is no scroll event to trigger the next page, so nudge
-    // the first in-view section's next page whenever the panel is not yet scrollable.
-    useEffect(() => {
-        const el = panelBodyRef.current;
-        if (el && el.clientHeight > 0 && el.scrollHeight <= el.clientHeight) {
-            loadVisibleSection(el);
-        }
-    }, [categories, sectionsWithMore, loadingSections]);
+        Boolean(onLoadMoreSection) && sectionsWithMore != null && categoryTitle in sectionsWithMore;
 
     const handleAddNode = (node: Node, category?: string) => {
         if (node.enabled) {
@@ -821,14 +780,17 @@ export function NodeList(props: NodeListProps) {
                     const config = categoryConfig[normalizedGroupTitle] || { hasBackground: true };
                     const shouldShowSeparator = config.showSeparatorBefore;
 
-                    // Hide categories that don't have items, except for special categories that can add items
+                    // An empty filtered page can still have a continuation. Keep its section/button visible so
+                    // the next eligible function is reachable instead of interpreting this page as exhaustion.
+                    const hasPendingPage = !isSubCategory && isPaginatedSection(group?.title)
+                        && (Boolean(sectionsWithMore?.[group?.title]) || Boolean(loadingSections?.[group?.title]));
                     if (!group || !group.items || group.items.length === 0) {
-                        // Only show empty categories if they have add functionality
-                        if (!shouldShowEmptyCategory(normalizedGroupTitle, isSubCategory) && categoryActions.length === 0) {
+                        if (!hasPendingPage && !shouldShowEmptyCategory(normalizedGroupTitle, isSubCategory)
+                            && categoryActions.length === 0) {
                             return null;
                         }
                     }
-                    if (searchText && (!group.items || group.items.length === 0)) {
+                    if (searchText && (!group.items || group.items.length === 0) && !hasPendingPage) {
                         return null;
                     }
                     // skip current integration category if onAddFunction is not provided and items are empty
@@ -969,20 +931,18 @@ export function NodeList(props: NodeListProps) {
                                                               !isSubCategory ? group.title : parentCategoryTitle
                                                           );
 
-                                                // A paginated top-level section gets a bottom sentinel; when it
-                                                // scrolls into view the parent loads that section's next page.
-                                                if (isSubCategory || !isPaginatedSection(group.title)) {
+                                                if (isSubCategory || !isPaginatedSection(group.title) || !hasPendingPage) {
                                                     return itemsContent;
                                                 }
+                                                const isLoadingPage = Boolean(loadingSections?.[group.title]);
                                                 return (
                                                     <>
                                                         {itemsContent}
-                                                        <div ref={setSectionSentinelRef(group.title)} />
-                                                        {loadingSections?.[group.title] && (
-                                                            <div style={{ display: "flex", justifyContent: "center", padding: "8px" }}>
-                                                                <ProgressRing sx={{ height: "16px", width: "16px" }} />
-                                                            </div>
-                                                        )}
+                                                        <LoadMoreButton
+                                                            label={`Load more ${group.title} functions`}
+                                                            loading={isLoadingPage}
+                                                            onClick={() => onLoadMoreSection(group.title)}
+                                                        />
                                                     </>
                                                 );
                                             })()}
@@ -1116,7 +1076,7 @@ export function NodeList(props: NodeListProps) {
                 </S.PanelBody>
             )}
             {!showGeneratePanel && !isSearching && !loading && (
-                <S.PanelBody ref={panelBodyRef} style={{ ...props.panelBodySx }} onScroll={handlePanelScroll}>
+                <S.PanelBody style={{ ...props.panelBodySx }}>
                     {getCategoryContainer(filteredCategories)}
                     {/* Show More Functions button - moved outside Logging category */}
                     {callFunctionNode && !searchText && (
