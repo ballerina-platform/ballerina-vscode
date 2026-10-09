@@ -58,9 +58,9 @@ function toInlineJson(value: unknown): string {
     return JSON.stringify(value ?? null).replace(/</g, "\\u003c");
 }
 
-const MOVING_TO_2201_14_DOCS_URL = "https://wso2.com/integration-platform/docs/integrator/editor/editor-troubleshooting/moving-to-ballerina-2201-14";
 /** Linked from a failed dependency update. */
-const TROUBLESHOOTING_DOCS_URL = `${MOVING_TO_2201_14_DOCS_URL}#if-the-update-fails`;
+const TROUBLESHOOTING_DOCS_URL = "https://wso2.com/integration-platform/docs/develop/troubleshooting/ide-troubleshooting";
+const MOVING_TO_2201_14_DOCS_URL = "https://wso2.com/integration-platform/docs/integrator/editor/editor-troubleshooting/moving-to-ballerina-2201-14";
 /** Where each blocked screen sends users who want to stay on an earlier version. */
 const EARLIER_BALLERINA_DOCS_URL = `${MOVING_TO_2201_14_DOCS_URL}#keep-your-current-ballerina-version`;
 const EARLIER_DEPENDENCIES_DOCS_URL = `${MOVING_TO_2201_14_DOCS_URL}#keep-the-current-dependencies`;
