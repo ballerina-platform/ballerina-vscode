@@ -334,6 +334,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     const pendingCapabilityCloseRef = useRef<boolean>(false);
     // A refresh while a new node is being placed would replace the model and drop its draft.
     const pendingInsertRef = useRef(false);
+    const skippedRefreshRef = useRef(false);
     // Refresh ladders and the capability failsafe armed by the operations below. Both are
     // cancelled when the next operation starts, when the panel closes and on unmount, so a
     // timer armed for one operation cannot fire against the next one (or after navigation).
@@ -944,8 +945,10 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
 
     const getFlowModel = () => {
         if (pendingInsertRef.current && !pendingCapabilityCloseRef.current) {
+            skippedRefreshRef.current = true;
             return;
         }
+        skippedRefreshRef.current = false;
         const fetchId = ++latestFetchRef.current;
         // Refreshing a flow already on screen must not blank the title bar actions or lock the canvas.
         if (!modelRef.current) {
@@ -1050,6 +1053,17 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                     });
             });
     };
+
+    // Every way the side panel closes ends a placement; catch up on any refresh it held back.
+    useEffect(() => {
+        if (showSidePanel) {
+            return;
+        }
+        pendingInsertRef.current = false;
+        if (skippedRefreshRef.current) {
+            getFlowModel();
+        }
+    }, [showSidePanel]);
 
     // Hack: Updates agent model types based on ModelProvider connections
     // This is so that we render the icons for the models in the AgentCallNodeWidget
@@ -1371,6 +1385,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             console.error(">>> No parent or target found");
             return;
         }
+        if (isOnAddNode) {
+            pendingInsertRef.current = true;
+        }
         const getNodeRequest: BIAvailableNodesRequest = {
             position: target.startLine,
             filePath: model?.fileName || parent?.codedata?.lineRange.fileName,
@@ -1445,7 +1462,6 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         }
         // handle add new node
         topNodeRef.current = parent;
-        pendingInsertRef.current = true;
         changeTargetRange(target)
         fetchNodesAndAISuggestions(parent, target, undefined, undefined, true);
     };
