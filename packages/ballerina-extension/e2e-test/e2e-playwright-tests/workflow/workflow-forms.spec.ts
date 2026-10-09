@@ -27,7 +27,7 @@ import {
 } from '../utils/helpers';
 import { DEFAULT_PROJECT_NAME } from '../utils/helpers/constants';
 import { logStep } from '../utils/helpers/progress';
-import { Diagram, ProjectExplorer, SidePanel } from '../utils/pages';
+import { ProjectExplorer, SidePanel } from '../utils/pages';
 
 // Workflow forms built from an empty project, then reopened: what the designer wrote must come back
 // from source (wso2/product-integrator#2624, #2493, #2422).
@@ -72,12 +72,19 @@ async function waitForEnabled(button: Locator): Promise<void> {
     await page.page.waitForTimeout(500);
 }
 
-// Opens the node palette from the diagram's trailing empty node.
+// Opens the node palette from the diagram's trailing empty node. Its add button's test id carries the
+// node's own index, not 0, and a coordinate click can land on the floating orb, so fall back to a DOM click.
 async function openPalette(webview: Frame): Promise<SidePanel> {
-    const diagram = new Diagram(page.page);
-    await diagram.init();
-    await diagram.clickAddButtonByIndex(0);
+    const canvas = webview.getByTestId('bi-diagram-canvas');
+    await canvas.waitFor({ timeout: 60000 });
+    const addButton = canvas.locator('[data-testid^="empty-node-add-button"]').first();
+    await addButton.waitFor({ state: 'visible', timeout: 60000 });
     const sidePanel = new SidePanel(webview, page.page);
+    await addButton.click({ force: true, timeout: 5000 }).catch(() => addButton.dispatchEvent('click'));
+    const opened = () => webview.getByTestId('side-panel').waitFor({ state: 'visible', timeout: 5000 }).then(() => true, () => false);
+    if (!await opened()) {
+        await addButton.dispatchEvent('click');
+    }
     await sidePanel.init();
     return sidePanel;
 }
