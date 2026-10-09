@@ -110,8 +110,10 @@ public final class AiFunctionBuilder extends AbstractFunctionBuilder {
         // blank line, matching how buildServiceNodeBody joins them.
         NodeList<Node> members = serviceNode.members();
         String separator = members.isEmpty() ? NEW_LINE : TWO_NEW_LINES;
+        // Match the chat resource: when it takes the request headers, so does decision.
         String resourceSource = separator
-                + AiSourceUtils.agentDecisionResourceSource(agentCall.agentVarName(), agentCall.operator());
+                + AiSourceUtils.agentDecisionResourceSource(agentCall.agentVarName(), agentCall.operator(),
+                AiSourceUtils.hasHeadersParam(serviceNode));
 
         LineRange anchor = members.isEmpty()
                 ? serviceNode.openBraceToken().lineRange()
