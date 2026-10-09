@@ -118,7 +118,8 @@ export class VisualizerWebview {
                     VisualizerWebview.showJdkIncompatibility(blocked); // a failed update doesn't reload, so nothing else brings it back
                 }
             } else if (message?.command === 'useEarlierVersion') {
-                const url = VisualizerWebview.jdkIncompatibility ? EARLIER_BALLERINA_DOCS_URL : EARLIER_DEPENDENCIES_DOCS_URL; // same precedence as the rendered screen
+                // Same precedence as the rendered screen.
+                const url = VisualizerWebview.jdkIncompatibility ? EARLIER_BALLERINA_DOCS_URL : EARLIER_DEPENDENCIES_DOCS_URL;
                 await vscode.env.openExternal(vscode.Uri.parse(url));
             } else if (message?.command === 'dependencyUpdate.update') {
                 await updateDependenciesFromPanel();
