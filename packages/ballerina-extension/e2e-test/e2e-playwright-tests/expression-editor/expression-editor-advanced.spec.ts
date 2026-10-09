@@ -301,7 +301,9 @@ export default function createTests() {
     }, async () => {
         // Loads a fixture that already contains the `Person` record type
         // (name: string, age: int optional) — the starting step is a
-        // pre-created type rather than building it through the type diagram.
+        // pre-created type rather than building it through the type diagram —
+        // and a module-level `final http:Response response = new;` whose
+        // methods the completion-filter case types against.
         initTest(true, true, undefined, undefined, EXPRESSION_EDITOR_PROJECT_TEMPLATE);
 
         test('Expand Editor and Completion Driven Function Call', async ({ }, testInfo) => {
@@ -395,6 +397,57 @@ export default function createTests() {
 
             await saveOpenForm(frame);
             await pollGenerated('automation.bal', `int ${greetingName} = "Hello World".length()`);
+            logStep('automation.bal verified');
+        });
+
+        // Regression: typing a method name after `obj.` must narrow the popup.
+        // FlowNodeForm used to hand the chip editor the raw completion cache, so
+        // keystrokes served from that cache never reached the editor and the
+        // popup froze on the unfiltered `response.` member list.
+        test('Completion Filters Object Methods While Typing', async ({ }, testInfo) => {
+            const payloadName = `payload${testInfo.retry + 1}`;
+            logStep(`Declaring ${payloadName} through method completion filtering`);
+
+            const frame = await getWebviewFrame();
+            const sidePanel = await openNodePalette(frame);
+            await sidePanel.clickNode('Declare Variable');
+            await page.page.waitForTimeout(1000);
+            const form = new Form(page.page, BI_INTEGRATOR_LABEL, frame);
+            await form.switchToFormView(false, frame);
+            await form.fill({
+                values: {
+                    'Name*Name of the variable': { type: 'input', value: payloadName },
+                    'Type': { type: 'textarea', value: 'json|error', additionalProps: { clickLabel: true } }
+                }
+            });
+            await dismissHelperPanel();
+
+            const exprCm = frame.getByTestId('side-panel').locator('.cm-content').last();
+            await exprCm.click({ force: true });
+            await page.page.waitForTimeout(500);
+            await dismissHelperPanel();
+            await exprCm.click({ force: true });
+
+            const options = frame.locator('.cm-tooltip-autocomplete [role="option"]');
+            await page.page.keyboard.type('response.', { delay: 80 });
+            await options.filter({ hasText: 'setPayload' }).first().waitFor({ state: 'visible', timeout: 30000 });
+            await options.filter({ hasText: 'getJsonPayload' }).first().waitFor({ state: 'visible', timeout: 15000 });
+            logStep(`Member list open (${await options.count()} options)`);
+
+            await page.page.keyboard.type('getJ', { delay: 150 });
+            await expect.poll(async () => {
+                const labels = await options.allInnerTexts();
+                return labels.length > 0 && labels.every((label) => label.startsWith('getJ'));
+            }, { timeout: 15000 }).toBe(true);
+            await expect(options.filter({ hasText: 'setPayload' })).toHaveCount(0);
+            logStep('Popup narrowed to getJ* methods');
+
+            await options.filter({ hasText: 'getJsonPayload' }).first().click({ force: true });
+            await expect(exprCm).toContainText('response.getJsonPayload()', { timeout: 15000 });
+            logStep('Completion inserted response.getJsonPayload()');
+
+            await saveOpenForm(frame);
+            await pollGenerated('automation.bal', `json|error ${payloadName} = response.getJsonPayload()`);
             logStep('automation.bal verified');
         });
 
