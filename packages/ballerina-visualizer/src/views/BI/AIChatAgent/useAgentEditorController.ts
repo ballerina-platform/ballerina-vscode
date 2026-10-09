@@ -175,6 +175,7 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
         setLoading(true);
         let nextPosition: NodePosition | undefined;
         try {
+            await rpcClient.getVisualizerRpcClient().beginUndoGroup();
             const memoryKey = memoryKeyOf(node);
             const name = node.properties?.variable?.value as string;
             const memory = (node.properties as any)?.[memoryKey]?.value;
@@ -206,6 +207,7 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
                 message: "Failed to delete memory. The deletion may be partially applied.",
             });
         } finally {
+            await rpcClient.getVisualizerRpcClient().endUndoGroup("Memory Deletion").catch((): undefined => undefined);
             setLoading(false);
             close(nextPosition);
         }
@@ -278,6 +280,7 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
         setLoading(true);
         let nextPosition: NodePosition | undefined;
         try {
+            await rpcClient.getVisualizerRpcClient().beginUndoGroup();
             if (tool.type?.includes("MCP Server")) {
                 const updated = removeMcpServerFromAgentNode(node, tool.name);
                 if (updated) {
@@ -316,6 +319,8 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
                 message: "Failed to delete tool. The deletion may be partially applied.",
             });
         } finally {
+            await rpcClient.getVisualizerRpcClient().endUndoGroup(`Tool Deletion - ${tool.name}`)
+                .catch((): undefined => undefined);
             setLoading(false);
             close(nextPosition);
         }

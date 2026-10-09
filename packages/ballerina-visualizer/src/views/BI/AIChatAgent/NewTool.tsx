@@ -124,6 +124,7 @@ export function NewTool(props: NewToolProps): JSX.Element {
         setSavingForm(true);
 
         try {
+            await rpcClient.getVisualizerRpcClient().beginUndoGroup();
             if (flowNode.codedata) {
                 flowNode.codedata.isNew = true;
                 flowNode.codedata.lineRange = {
@@ -182,6 +183,7 @@ export function NewTool(props: NewToolProps): JSX.Element {
             console.error("Error saving tool", { error });
             setError(`The tool could not be saved. ${error instanceof Error ? error.message : ""}`.trim());
         } finally {
+            await rpcClient.getVisualizerRpcClient().endUndoGroup().catch((): undefined => undefined);
             setSavingForm(false);
         }
     };

@@ -23,6 +23,7 @@ import {
     GoHomeRequest,
     HandleApprovalPopupCloseRequest,
     HistoryEntry,
+    isSamePath,
     JoinProjectPathRequest,
     JoinProjectPathResponse,
     MACHINE_VIEW,
@@ -136,80 +137,63 @@ export class VisualizerRpcManager implements VisualizerAPI {
     }
 
     async undo(count: number): Promise<string> {
-        // Handle the undo batch operation here. Use the vscode vscode.WorkspaceEdit() to revert the changes.
-        return new Promise((resolve, reject) => {
-            StateMachine.setEditMode();
-            const workspaceEdit = new WorkspaceEdit();
-            const revertedFiles = undoRedoManager.undo(count);
-            if (revertedFiles) {
-                for (const [filePath, content] of revertedFiles.entries()) {
-                    workspaceEdit.replace(Uri.file(filePath), new Range(0, 0, Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER), content);
-                }
-            }
-            workspace.applyEdit(workspaceEdit);
-
-            // Get the artifact notification handler instance
-            const notificationHandler = ArtifactNotificationHandler.getInstance();
-            // Subscribe to artifact updated notifications
-            let unsubscribe = notificationHandler.subscribe(ArtifactsUpdated.method, undefined, async (payload) => {
-                console.log("Received notification:", payload);
-                const currentArtifact = await this.updateCurrentArtifactLocation({ artifacts: payload.data });
-                clearTimeout(timeoutId);
-                StateMachine.setReadyMode();
-                if (!currentArtifact && StateMachine.context().view !== MACHINE_VIEW.InlineDataMapper) {
-                    openView(EVENT_TYPE.OPEN_VIEW, { view: MACHINE_VIEW.PackageOverview });
-                    resolve("Undo successful"); // resolve the undo string
-                }
-                notifyCurrentWebview();
-                await this.refreshDataMapperView();
-                unsubscribe();
-                resolve("Undo successful"); // resolve the undo string
-            });
-
-            // Set a timeout to reject if no notification is received within 10 seconds
-            const timeoutId = setTimeout(() => {
-                console.log("No artifact update notification received within 10 seconds");
-                unsubscribe();
-                StateMachine.setReadyMode();
-                openView(EVENT_TYPE.OPEN_VIEW, { view: MACHINE_VIEW.PackageOverview });
-                reject(new Error("Operation timed out. Please try again."));
-            }, 10000);
-
-            // Clear the timeout when notification is received
-            const originalUnsubscribe = unsubscribe;
-            unsubscribe = () => {
-                clearTimeout(timeoutId);
-                originalUnsubscribe();
-            };
-        });
+        return this.applyUndoRedo(undoRedoManager.undo(count), "Undo successful");
     }
 
     async redo(count: number): Promise<string> {
-        // Handle the redo batch operation here. Use the vscode vscode.WorkspaceEdit() to revert the changes.
+        return this.applyUndoRedo(undoRedoManager.redo(count), "Redo successful");
+    }
+
+    private applyUndoRedo(revertedFiles: Map<string, string> | null, successMessage: string): Promise<string> {
+        const currentText = (filePath: string) =>
+            workspace.textDocuments.find((document) => isSamePath(document.uri.fsPath, filePath))?.getText()
+            ?? (fs.existsSync(filePath) ? fs.readFileSync(filePath, "utf8") : undefined);
+        // A file already holding its target content produces no change event and so no artifact publish.
+        const changedPaths = [...(revertedFiles?.entries() ?? [])]
+            .filter(([filePath, content]) => currentText(filePath) !== content)
+            .map(([filePath]) => filePath);
+        if (changedPaths.length === 0) {
+            return Promise.resolve(successMessage);
+        }
         return new Promise((resolve, reject) => {
             StateMachine.setEditMode();
             const workspaceEdit = new WorkspaceEdit();
-            const revertedFiles = undoRedoManager.redo(count);
-            if (revertedFiles) {
-                for (const [filePath, content] of revertedFiles.entries()) {
-                    workspaceEdit.replace(Uri.file(filePath), new Range(0, 0, Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER), content);
-                }
+            for (const [filePath, content] of revertedFiles.entries()) {
+                workspaceEdit.replace(Uri.file(filePath), new Range(0, 0, Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER), content);
             }
-            workspace.applyEdit(workspaceEdit);
 
-            // Get the artifact notification handler instance
+            // Artifacts are published per changed source file; the view's artifact may live in any of them.
+            let pendingPublishes = changedPaths.filter((filePath) => filePath.endsWith(".bal")).length;
+            if (pendingPublishes === 0) {
+                workspace.applyEdit(workspaceEdit).then(() => {
+                    StateMachine.setReadyMode();
+                    notifyCurrentWebview();
+                    resolve(successMessage);
+                });
+                return;
+            }
+            const publishedArtifacts: ProjectStructureArtifactResponse[] = [];
             const notificationHandler = ArtifactNotificationHandler.getInstance();
-            // Subscribe to artifact updated notifications
             let unsubscribe = notificationHandler.subscribe(ArtifactsUpdated.method, undefined, async (payload) => {
-                console.log("Received notification:", payload);
-                await this.updateCurrentArtifactLocation({ artifacts: payload.data });
-                clearTimeout(timeoutId);
+                publishedArtifacts.push(...payload.data);
+                if (--pendingPublishes > 0) {
+                    return;
+                }
+                unsubscribe();
+                const currentArtifact = await this.updateCurrentArtifactLocation({ artifacts: publishedArtifacts });
                 StateMachine.setReadyMode();
+                const { documentUri, view } = StateMachine.context();
+                // Only a change to the file on screen can remove what the view shows.
+                const viewFileChanged = !!documentUri
+                    && changedPaths.some((filePath) => isSamePath(filePath, documentUri));
+                if (!currentArtifact && viewFileChanged && view !== MACHINE_VIEW.InlineDataMapper) {
+                    openView(EVENT_TYPE.OPEN_VIEW, { view: MACHINE_VIEW.PackageOverview });
+                }
                 notifyCurrentWebview();
                 await this.refreshDataMapperView();
-                unsubscribe();
-                resolve("Redo successful");
+                resolve(successMessage);
             });
+            workspace.applyEdit(workspaceEdit);
 
             // Set a timeout to reject if no notification is received within 10 seconds
             const timeoutId = setTimeout(() => {
@@ -239,6 +223,14 @@ export class VisualizerRpcManager implements VisualizerAPI {
 
     resetUndoRedoStack(): void {
         undoRedoManager.reset();
+    }
+
+    async beginUndoGroup(): Promise<void> {
+        undoRedoManager.beginGroup();
+    }
+
+    async endUndoGroup(description?: string): Promise<void> {
+        undoRedoManager.endGroup(description);
     }
 
     async getThemeKind(): Promise<ColorThemeKind> {

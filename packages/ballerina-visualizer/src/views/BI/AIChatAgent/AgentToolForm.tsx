@@ -584,6 +584,7 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
         if (!functionModel || saving) return;
         setSaving(true);
         try {
+            await rpcClient.getVisualizerRpcClient().beginUndoGroup();
             const updatedModel = cloneDeep(functionModel);
             updatedModel.name.value = String(data.name);
             updatedModel.returnType.value = String(data.returnType);
@@ -645,6 +646,7 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
         } catch {
             await rpcClient.getCommonRpcClient().showErrorMessage({ message: "Failed to update the agent tool." });
         } finally {
+            await rpcClient.getVisualizerRpcClient().endUndoGroup().catch((): undefined => undefined);
             setSaving(false);
         }
     };
@@ -656,6 +658,7 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
         if (!toolNode || saving) return;
         setSaving(true);
         try {
+            await rpcClient.getVisualizerRpcClient().beginUndoGroup();
             const updatedNode = cloneDeep(toolNode);
             const properties = updatedNode.properties as Record<string, Property>;
 
@@ -761,6 +764,7 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
                 message: `Failed to ${isEdit ? "update" : "create"} the agent tool.`,
             });
         } finally {
+            await rpcClient.getVisualizerRpcClient().endUndoGroup().catch((): undefined => undefined);
             setSaving(false);
         }
     };
