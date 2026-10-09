@@ -368,7 +368,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                     setUsagesLoading(false);
                 }
             }
-        }, 600);
+        }, cached ? 600 : 0);
     };
 
     useEffect(() => () => clearTimeout(usageFetchTimerRef.current), []);
