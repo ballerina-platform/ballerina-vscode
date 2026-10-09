@@ -64,6 +64,8 @@ export interface AIChatAgentWizardProps {
 const AI_CHAT_AGENT_LISTENER = "chatAgentListener";
 const AGENT_FILE_NAME = "agents.bal";
 const BASE_PATH_KEY = "basePath";
+// Service option, not an agent property: stripped from the agent node and set on the service model.
+const REQUEST_HEADERS_KEY = "requestHeaders";
 
 function toKebabCase(varName: string): string {
     return varName
@@ -138,6 +140,17 @@ export function AIChatAgentWizard(props: AIChatAgentWizardProps) {
                     editable: true,
                     types: [{ fieldType: "SERVICE_PATH", selected: true }],
                 } as Property;
+                (template.properties as Record<string, Property>)[REQUEST_HEADERS_KEY] = {
+                    metadata: {
+                        label: "Access Request Headers",
+                        description: "Add the HTTP request headers as a parameter of the chat and decision "
+                            + "resources, so the service can read them.",
+                    },
+                    value: "false",
+                    optional: true,
+                    editable: true,
+                    types: [{ fieldType: "FLAG", selected: true }],
+                } as Property;
 
                 const endOfFile = await getEndOfFileLineRange(AGENT_FILE_NAME, rpcClient);
                 if (cancelled) return;
@@ -161,6 +174,7 @@ export function AIChatAgentWizard(props: AIChatAgentWizardProps) {
 
         const agentVarName = String(updatedNode.properties?.variable?.value ?? "");
         const rawBasePath = String((updatedNode.properties as Record<string, Property>)?.[BASE_PATH_KEY]?.value ?? "").trim();
+        const requestHeaders = String((updatedNode.properties as Record<string, Property>)?.[REQUEST_HEADERS_KEY]?.value) === "true";
         const basePathSegment = rawBasePath.replace(/^\/+/, "") || toKebabCase(agentVarName);
         const servicePath = sanitizedHttpPath(basePathSegment);
 
@@ -179,6 +193,7 @@ export function AIChatAgentWizard(props: AIChatAgentWizardProps) {
             const endOfFile = await getEndOfFileLineRange(AGENT_FILE_NAME, rpcClient);
             const node = cloneDeep(updatedNode);
             delete (node.properties as Record<string, Property>)[BASE_PATH_KEY];
+            delete (node.properties as Record<string, Property>)[REQUEST_HEADERS_KEY];
             node.codedata.lineRange = endOfFile;
             await rpcClient.getBIDiagramRpcClient().getSourceCode({
                 filePath: endOfFile.fileName,
@@ -233,6 +248,9 @@ export function AIChatAgentWizard(props: AIChatAgentWizardProps) {
             serviceConfiguration.properties["listener"].value = AI_CHAT_AGENT_LISTENER;
             serviceConfiguration.properties["basePath"].value = `/${servicePath}`;
             serviceConfiguration.properties["agentName"].value = agentVarName;
+            if (serviceConfiguration.properties[REQUEST_HEADERS_KEY]) {
+                serviceConfiguration.properties[REQUEST_HEADERS_KEY].value = String(requestHeaders);
+            }
 
             const serviceSourceCodeResult = await rpcClient.getServiceDesignerRpcClient().addServiceSourceCode({
                 filePath: "",
@@ -309,7 +327,7 @@ export function AIChatAgentWizard(props: AIChatAgentWizardProps) {
                                 deriveFn: (agentVarName) => deriveBasePath(String(agentVarName ?? "")),
                                 breakOnManualEdit: true,
                             }]}
-                            bottomFields={[BASE_PATH_KEY]}
+                            bottomFields={[BASE_PATH_KEY, REQUEST_HEADERS_KEY]}
                         />
                     </Container>
                 ) : (
