@@ -65,25 +65,43 @@ async function fillExEditor(webview: Frame, key: string, value: string): Promise
     }, value);
 }
 
-// A TYPE field is a CodeMirror editor (TypeEditor), not a textbox, and the side panel holds other editors
-// (the form's own numeric fields). Find the editor under the field's label.
-async function fillTypeEditor(webview: Frame, label: string, value: string): Promise<void> {
+// The control under a form label: the nearest ancestor of the label text that holds a control, then that
+// control. Covers text fields, web-component fields, dropdowns and CodeMirror editors, which the Await Data
+// entry's Data Type is (the side panel also holds the form's own numeric editor, so the label is the anchor).
+function controlUnder(scope: Locator, label: string): Locator {
     const labelText = `translate(normalize-space(.), '*', '')='${label}'`;
-    const editor = webview.getByTestId('side-panel')
-        .locator(`xpath=.//*[not(self::script)][${labelText}][not(.//*[${labelText}])]`).first()
-        .locator('xpath=ancestor::*[.//*[contains(@class,"cm-content")]][1]')
-        .locator('.cm-content').first();
-    await editor.waitFor({ state: 'visible', timeout: 30000 });
-    await editor.evaluate((element, text) => {
-        const view = (element as HTMLElement & { cmView?: { view?: any } }).cmView?.view;
-        if (!view) {
-            throw new Error('CodeMirror view not found for the type editor');
+    const controls = 'self::input or self::textarea or self::vscode-text-field or self::vscode-text-area or self::vscode-dropdown '
+        + 'or self::select or @role="combobox" or @role="textbox" or contains(@class,"cm-content")';
+    return scope.locator(`xpath=.//*[not(self::script)][${labelText}][not(.//*[${labelText}])]`).first()
+        .locator(`xpath=ancestor::*[.//*[${controls}]][1]`)
+        .locator(`xpath=.//*[${controls}]`).first();
+}
+
+async function fillUnderLabel(scope: Locator, label: string, value: string): Promise<void> {
+    let input = controlUnder(scope, label);
+    await input.waitFor({ state: 'visible', timeout: 30000 });
+    const kind = await input.evaluate((e) => (e.classList.contains('cm-content') || e.closest('.cm-editor') ? 'cm' : e.tagName.toLowerCase()));
+    if (kind === 'cm') {
+        await input.evaluate((element, text) => {
+            const view = (element as HTMLElement & { cmView?: { view?: any } }).cmView?.view;
+            if (!view) {
+                throw new Error('CodeMirror view not found under the label');
+            }
+            view.focus();
+            view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: text } });
+        }, value);
+        await expect.poll(() => input.textContent(), { timeout: 10000 }).toBe(value);
+    } else {
+        if (kind === 'vscode-text-field' || kind === 'vscode-text-area') {
+            input = input.locator('input, textarea').first();
         }
-        view.focus();
-        view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: text } });
-    }, value);
-    await page.page.waitForTimeout(500);
-    await expect.poll(() => editor.textContent(), { timeout: 10000 }).toBe(value);
+        await input.click();
+        await input.fill('');
+        await input.pressSequentially(value);
+        await expect.poll(() => input.inputValue(), { timeout: 10000 }).toBe(value);
+    }
+    await page.page.waitForTimeout(400);
+    // The type helper popup stays open over the fields below it; the next click would land in it.
     await page.page.keyboard.press('Escape');
 }
 
@@ -184,7 +202,7 @@ export default function createTests() {
             const variable = panel.getByRole('textbox', { name: /Data Receive Variable Name/ }).first();
             await variable.waitFor({ timeout: 60000 });
             await variable.fill('payment');
-            await fillTypeEditor(webview, 'Data Type', 'boolean');
+            await fillUnderLabel(panel, 'Data Type', 'boolean');
             const dataName = panel.getByRole('textbox', { name: /^Data Name/ }).first();
             await dataName.fill('payment');
             await dataName.press('Escape');
