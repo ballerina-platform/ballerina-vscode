@@ -155,7 +155,7 @@
             "selected": true
           }
         ],
-        "value": "\n@workflow:Workflow\n\n",
+        "value": "@workflow:Workflow",
         "optional": false,
         "editable": false,
         "advanced": false,

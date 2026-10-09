@@ -1,6 +1,6 @@
 {
   "source": "workflow_function_empty/functions.bal",
-  "description": "Create a workflow activity function",
+  "description": "Create a workflow activity whose return type already includes error: it is kept as written",
   "diagram": {
     "metadata": {
       "label": "Workflow Activity",
@@ -57,7 +57,7 @@
           "description": "Type of the return value"
         },
         "valueType": "TYPE",
-        "value": "string",
+        "value": "string|error",
         "optional": true,
         "editable": true,
         "advanced": false,

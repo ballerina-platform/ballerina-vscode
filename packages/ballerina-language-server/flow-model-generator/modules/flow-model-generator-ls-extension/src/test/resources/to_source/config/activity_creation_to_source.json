@@ -375,7 +375,7 @@
             "character": 1
           }
         },
-        "newText": "@workflow:Activity\nfunction processOrder(string orderId, int amount) returns string {\n}"
+        "newText": "@workflow:Activity\nfunction processOrder(string orderId, int amount) returns string|error {\n}"
       }
     ]
   }
