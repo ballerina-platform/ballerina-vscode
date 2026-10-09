@@ -26,6 +26,8 @@ import org.ballerinalang.langserver.commons.LanguageServerContext;
 import org.ballerinalang.langserver.commons.capability.LSClientCapabilities;
 import org.ballerinalang.langserver.commons.client.ExtendedLanguageClient;
 import org.ballerinalang.langserver.commons.client.ExtendedLanguageClientAware;
+import org.ballerinalang.langserver.commons.eventsync.EventKind;
+import org.ballerinalang.langserver.commons.eventsync.exceptions.EventSyncException;
 import org.ballerinalang.langserver.commons.registration.BallerinaClientCapability;
 import org.ballerinalang.langserver.commons.registration.BallerinaInitializeParams;
 import org.ballerinalang.langserver.commons.registration.BallerinaInitializeResult;
@@ -34,6 +36,9 @@ import org.ballerinalang.langserver.config.ClientConfigListener;
 import org.ballerinalang.langserver.config.LSClientConfig;
 import org.ballerinalang.langserver.config.LSClientConfigHolder;
 import org.ballerinalang.langserver.contexts.LanguageServerContextImpl;
+import org.ballerinalang.langserver.eventsync.EventPublisher;
+import org.ballerinalang.langserver.eventsync.EventSyncPubSubHolder;
+import org.ballerinalang.langserver.eventsync.subscribers.PublishDiagnosticSubscriber;
 import org.ballerinalang.langserver.extensions.AbstractExtendedLanguageServer;
 import org.ballerinalang.langserver.extensions.ExtendedLanguageServer;
 import org.ballerinalang.langserver.semantictokens.SemanticTokensUtils;
@@ -116,6 +121,23 @@ public class BallerinaLanguageServer extends AbstractExtendedLanguageServer
     public void setEvictProjectOnLastClose(boolean enabled) {
         if (workspaceManagerProxy instanceof BallerinaWorkspaceManagerProxyImpl ballerinaWorkspaceManagerProxy) {
             ballerinaWorkspaceManagerProxy.setEvictProjectOnLastClose(enabled);
+        }
+    }
+
+    /**
+     * Stops publishing diagnostics on project updates. The publishing compiles the project in the background a
+     * second after each update, so a caller that compiles the same project under its own lock can overlap with it.
+     * Meant for test harnesses that never read published diagnostics.
+     */
+    public void detachProjectUpdateDiagnostics() {
+        try {
+            EventPublisher publisher = EventSyncPubSubHolder.getInstance(serverContext)
+                    .getPublisher(EventKind.PROJECT_UPDATE);
+            List.copyOf(publisher.getSubscribers()).stream()
+                    .filter(PublishDiagnosticSubscriber.class::isInstance)
+                    .forEach(publisher::unsubscribe);
+        } catch (EventSyncException e) {
+            throw new IllegalStateException("No project update publisher to detach diagnostics from", e);
         }
     }
 
