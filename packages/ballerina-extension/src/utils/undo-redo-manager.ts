@@ -30,6 +30,8 @@ export class UndoRedoManager implements IUndoRedoManager {
     private redoStack: BatchOperation[];
     private currentTransaction: FileChange[] | null;
     private transactionId: string | null;
+    // While open, every commit merges into one undo entry so a multi-edit action undoes in one step.
+    private group: { entry?: BatchOperation } | null = null;
     private readonly MAX_STACK_SIZE = 20;
 
     constructor() {
@@ -42,6 +44,17 @@ export class UndoRedoManager implements IUndoRedoManager {
     /**
      * Start a new batch transaction with extension-specific logging
      */
+    public beginGroup(): void {
+        this.group = {};
+    }
+
+    public endGroup(description?: string): void {
+        if (description && this.group?.entry) {
+            this.group.entry.description = description;
+        }
+        this.group = null;
+    }
+
     public startBatchOperation(): string {
         if (this.currentTransaction) {
             throw new Error('A batch operation is already in progress. Complete it before starting a new one.');
@@ -105,8 +118,22 @@ export class UndoRedoManager implements IUndoRedoManager {
             description
         };
 
-        // Add to undo stack
-        this.undoStack.push(batchOperation);
+        const groupEntry = this.group?.entry;
+        if (groupEntry && this.undoStack[this.undoStack.length - 1] === groupEntry) {
+            for (const change of this.currentTransaction) {
+                const existing = groupEntry.changes.find(c => c.path === change.path);
+                if (existing) {
+                    existing.afterContent = change.afterContent;
+                } else {
+                    groupEntry.changes.push({ ...change });
+                }
+            }
+        } else {
+            this.undoStack.push(batchOperation);
+            if (this.group) {
+                this.group.entry = batchOperation;
+            }
+        }
 
         // Limit stack size
         if (this.undoStack.length > this.MAX_STACK_SIZE) {
@@ -195,8 +222,8 @@ export class UndoRedoManager implements IUndoRedoManager {
             redoOperations.push(redoOperation);
         }
 
-        // Add redo operations to redo stack (in reverse order to maintain correct sequence)
-        redoOperations.reverse().forEach(operation => {
+        // Pushed newest-first so the oldest undone operation is redone first
+        redoOperations.forEach(operation => {
             this.redoStack.push(operation);
         });
 
@@ -205,11 +232,12 @@ export class UndoRedoManager implements IUndoRedoManager {
             this.redoStack.shift();
         }
 
-        // Return only the files from the last operation (most recent one undone)
-        const lastOperation = operationsToUndo[operationsToUndo.length - 1];
+        // Each file returns to its content before the oldest undone operation that touched it
         const restoredFiles = new Map<string, string>();
-        for (const change of lastOperation.changes) {
-            restoredFiles.set(change.path, change.beforeContent);
+        for (const operation of operationsToUndo) {
+            for (const change of operation.changes) {
+                restoredFiles.set(change.path, change.beforeContent);
+            }
         }
 
         return restoredFiles;
@@ -255,16 +283,17 @@ export class UndoRedoManager implements IUndoRedoManager {
             undoOperations.push(undoOperation);
         }
 
-        // Add undo operations to undo stack (in reverse order to maintain correct sequence)
-        undoOperations.reverse().forEach(operation => {
+        // Pushed in redo order so the newest redone operation is undone first
+        undoOperations.forEach(operation => {
             this.undoStack.push(operation);
         });
 
-        // Return only the files from the last operation (most recent one redone)
-        const lastOperation = operationsToRedo[operationsToRedo.length - 1];
+        // Each file takes its content after the newest redone operation that touched it
         const redoneFiles = new Map<string, string>();
-        for (const change of lastOperation.changes) {
-            redoneFiles.set(change.path, change.beforeContent);
+        for (const operation of operationsToRedo) {
+            for (const change of operation.changes) {
+                redoneFiles.set(change.path, change.beforeContent);
+            }
         }
 
         return redoneFiles;
@@ -362,6 +391,7 @@ export class UndoRedoManager implements IUndoRedoManager {
         this.redoStack = [];
         this.currentTransaction = null;
         this.transactionId = null;
+        this.group = null;
     }
 
     /**
