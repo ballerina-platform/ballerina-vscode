@@ -3078,6 +3078,8 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     };
 
     const handleOnAddActivityFromConnection = () => {
+        // As for Create Activity: a refresh still running from the previous save must not replace the wizard.
+        beginPanelNav();
         // The wizard can create a connection on the way, and that write runs the ordinary
         // post-write reset — which can clear the flag that says this list belongs to an agent
         // while the wizard itself stays open. Remember it here, where the flow is unambiguous.
@@ -3226,6 +3228,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     };
 
     const handleOnAddActivity = () => {
+        // A user action: the previous save's list refresh, still polling for its activity, must
+        // not land on top of this form and discard what was typed (wso2/product-integrator#2422).
+        beginPanelNav();
         isCreatingNewActivity.current = true;
         setShowProgressIndicator(true);
         pushToNavigationStack(sidePanelView, categories, selectedNodeRef.current, selectedClientName.current);
