@@ -165,7 +165,6 @@ const AI_COMPONENT_PICKER_VIEWS: SidePanelView[] = [
     SidePanelView.CHUNKERS,
 ];
 
-
 // Counts the leaf function nodes (items with an `id`) across a panel category tree, used to decide whether
 // another page exists.
 const countFunctionLeafNodes = (categories: PanelCategory[] = []): number =>
@@ -192,6 +191,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     const {
         sectionsWithMore: functionSectionsWithMore,
         loadingSections: loadingFunctionSections,
+        invalidate: invalidateFunctionPagination,
         reset: resetFunctionPagination,
         seed: seedFunctionSections,
         loadSection: loadFunctionSection,
@@ -1471,6 +1471,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         const masterSearchSeq = searchKind === "ALL" ? ++masterSearchSeqRef.current : undefined;
         const generation = ++functionSearchGenerationRef.current;
         const functionGeneration = searchKind === "FUNCTION" ? generation : undefined;
+        const isDataMapperSearch = searchKind === "FUNCTION" && functionType === FUNCTION_TYPE.EXPRESSION_BODIED;
         if (functionGeneration !== undefined) {
             // Disable the previous query's continuation while this first page is in flight.
             resetFunctionPagination();
@@ -1503,7 +1504,8 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             filePath: model.fileName,
             queryMap: {
                 q: searchText.trim(),
-                limit: 60,
+                // Data mappers are workspace functions only, so a data mapper search skips the library sources.
+                limit: isDataMapperSearch ? 0 : FUNCTIONS_PAGE_SIZE,
                 offset: 0,
                 includeAvailableFunctions: "true",
                 ...(searchKind === "ACTIVITY_CALL" && durableAgentActivityListRef.current
@@ -1558,7 +1560,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                     }
                     setCategories(currentCategories);
 
-                    if (searchKind === "FUNCTION") {
+                    if (searchKind === "FUNCTION" && !isDataMapperSearch) {
                         seedFunctionPagination(currentCategories, searchText, functionType, response.functionPagination);
                     }
                 }
@@ -1615,9 +1617,12 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             if (isStaleSearch()) {
                 return;
             }
-            // Fallback to cached categories on error
             setShowProgressIndicator(false);
-            setCategories(initialCategoriesRef.current);
+            // A failed function search keeps the current list; its view would not show the cached node palette.
+            if (searchKind !== "FUNCTION") {
+                // Fallback to cached categories on error
+                setCategories(initialCategoriesRef.current);
+            }
         } finally {
             if (!isStaleSearch()) {
                 setShowProgressIndicator(false);
@@ -1837,7 +1842,8 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         const functionGeneration = ++functionSearchGenerationRef.current;
         const isStaleSelection = () => panelNavEpochRef.current !== selectionEpoch
             || functionSearchGenerationRef.current !== functionGeneration;
-        resetFunctionPagination();
+        // Back may restore the function list being left, so keep its cursors and only drop in-flight pages.
+        invalidateFunctionPagination();
         selectedNodeMetadata.current = { nodeId, metadata, fileName: model?.fileName || fileName };
         // A node selected through the normal palette flow is not part of the create-activity wizard.
         const { node, category } = metadata as { node: AvailableNode; category?: string };
@@ -1905,7 +1911,8 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                     .search({
                         position: { startLine: targetRef.current.startLine, endLine: targetRef.current.endLine },
                         filePath: model?.fileName || fileName,
-                        queryMap: { q: "", limit: FUNCTIONS_PAGE_SIZE, offset: 0, includeAvailableFunctions: "true" },
+                        // Data mappers are workspace functions only, so the library sources are skipped.
+                        queryMap: { q: "", limit: 0, offset: 0, includeAvailableFunctions: "true" },
                         searchKind: "FUNCTION",
                     })
                     .then((response) => {
@@ -1913,12 +1920,10 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                             return;
                         }
                         assertFunctionSearchSuccess(response);
-                        const currentCategories = convertFunctionCategoriesToSidePanelCategories(
+                        setCategories(convertFunctionCategoriesToSidePanelCategories(
                             response.categories as Category[], FUNCTION_TYPE.EXPRESSION_BODIED
-                        );
-                        setCategories(currentCategories);
-                        seedFunctionPagination(currentCategories, "", FUNCTION_TYPE.EXPRESSION_BODIED,
-                            response.functionPagination);
+                        ));
+                        resetFunctionPagination();
                         setSidePanelView(SidePanelView.DATA_MAPPER_LIST);
                         setShowSidePanel(true);
                     })

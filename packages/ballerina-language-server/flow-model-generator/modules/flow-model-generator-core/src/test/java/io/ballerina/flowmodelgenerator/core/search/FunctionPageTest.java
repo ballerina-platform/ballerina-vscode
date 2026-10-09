@@ -101,6 +101,18 @@ public class FunctionPageTest {
     }
 
     @Test
+    public void failedFirstPageKeepsOtherResultsButContinuationsStayRetryable() {
+        BiFunction<Integer, Integer, FunctionPage.Raw> failingIndex = (take, skip) -> {
+            throw new IllegalStateException("index unavailable");
+        };
+        var first = FunctionPage.library(5, 0, null, (take, skip) -> null, failingIndex, row -> row);
+        Assert.assertTrue(first.rows().isEmpty());
+        Assert.assertFalse(first.pagination().hasMore());
+        Assert.expectThrows(IllegalStateException.class,
+                () -> FunctionPage.library(5, 100, "index", (take, skip) -> null, failingIndex, row -> row));
+    }
+
+    @Test
     public void failedSourceSignalsFallbackRatherThanExhaustion() {
         Assert.assertNull(FunctionPage.scan(20, 0, (take, skip) -> null, row -> row));
     }

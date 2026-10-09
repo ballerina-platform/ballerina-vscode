@@ -24,12 +24,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiFunction;
 import java.util.function.UnaryOperator;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Bounded eligible paging with offsets in the raw source, never the filtered result. The admit operator returns the
  * row to offer (possibly rebased onto a resolved version) or null to skip it.
  */
 final class FunctionPage {
+    private static final Logger LOGGER = Logger.getLogger(FunctionPage.class.getName());
     private static final int MAX_SCANS = 5;
     private static final int CHUNK_SIZE = 100;
 
@@ -51,7 +54,17 @@ final class FunctionPage {
                 throw new IllegalStateException("Central function page unavailable; retry the same cursor");
             }
         }
-        return withSource(scan(limit, offset, index, admit), "index");
+        try {
+            return withSource(scan(limit, offset, index, admit), "index");
+        } catch (RuntimeException e) {
+            // Continuations keep throwing so that the same cursor stays retryable.
+            if (requestedSource != null || offset > 0) {
+                throw e;
+            }
+            // A first page also carries imported and workspace functions, so a failed index must not lose them.
+            LOGGER.log(Level.WARNING, "Library functions unavailable from Central and the search index", e);
+            return new Page(List.of(), new SearchCommand.FunctionPagination(false, 0, "index"));
+        }
     }
 
     private static Page withSource(Page page, String source) {

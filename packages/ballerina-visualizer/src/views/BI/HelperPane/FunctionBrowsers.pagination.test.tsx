@@ -165,9 +165,9 @@ describe.each([
         act(() => { button("Extended Library")!.click(); button("Extended Library")!.click(); });
         expect(search).toHaveBeenCalledTimes(2);
         expect(search.mock.calls[1][0].queryMap).toMatchObject({ orgName: "ballerinax", offset: 240, functionSource: "central" });
-        expect(button("Extended Library")!.disabled).toBe(true);
+        expect(button("Extended Library")!.getAttribute("aria-disabled")).toBe("true");
         expect(button("Extended Library")!.getAttribute('aria-busy')).toBe('true');
-        expect(button("Standard Library")!.disabled).toBe(false);
+        expect(button("Standard Library")!.getAttribute("aria-disabled")).toBe("false");
         expect(container.querySelector('[role="status"]')).not.toBeNull();
         await act(async () => { next.resolve(page(true, false, true)); });
         expect(button("Extended Library")).toBeNull();
@@ -184,7 +184,7 @@ describe.each([
         await mount();
         await act(async () => { button("Extended Library")!.click(); });
         expect(button("Extended Library")).not.toBeNull();
-        expect(button("Extended Library")!.disabled).toBe(false);
+        expect(button("Extended Library")!.getAttribute("aria-disabled")).toBe("false");
         expect(button("Extended Library")!.getAttribute("aria-busy")).toBe("false");
         expect(container.textContent).toContain("Extended Library function");
         await act(async () => { button("Extended Library")!.click(); });

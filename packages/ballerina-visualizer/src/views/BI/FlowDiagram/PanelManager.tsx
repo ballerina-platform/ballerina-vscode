@@ -145,7 +145,7 @@ interface PanelManagerProps {
     onUpdateExpressionField: (updatedExpressionField: ExpressionFormField) => void;
     onResetUpdatedExpressionField: () => void;
     onSearchFunction?: (searchText: string, functionType: FUNCTION_TYPE) => void;
-    // Scroll pagination for the function list.
+    // Load more pagination for the function list.
     onLoadMoreFunctionSection?: (sectionTitle: string) => void;
     onShowMoreFunctions?: () => void;
     functionSectionsWithMore?: Record<string, boolean>;
@@ -231,7 +231,7 @@ export function PanelManager(props: PanelManagerProps) {
         onResetUpdatedExpressionField,
         onSearchFunction,
         onLoadMoreFunctionSection,
-    onShowMoreFunctions,
+        onShowMoreFunctions,
         functionSectionsWithMore,
         loadingFunctionSections,
         onSearchWorkflow,
@@ -380,9 +380,6 @@ export function PanelManager(props: PanelManagerProps) {
                         title={"Data Mappers"}
                         searchText={searchText}
                         onBack={canGoBack ? onBack : undefined}
-                        onLoadMoreSection={onLoadMoreFunctionSection}
-                        sectionsWithMore={functionSectionsWithMore}
-                        loadingSections={loadingFunctionSections}
                     />
                 );
 

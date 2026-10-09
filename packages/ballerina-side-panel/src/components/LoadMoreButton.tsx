@@ -35,14 +35,14 @@ const LoadMoreLink = styled.button`
     color: var(--vscode-descriptionForeground);
     text-decoration: underline;
     cursor: pointer;
-    &:hover:not(:disabled) {
+    &:hover:not([aria-disabled="true"]) {
         color: var(--vscode-foreground);
     }
     &:focus-visible {
         outline: 1px solid var(--vscode-focusBorder);
         outline-offset: 2px;
     }
-    &:disabled {
+    &[aria-disabled="true"] {
         color: var(--vscode-disabledForeground);
         text-decoration: none;
         cursor: default;
@@ -54,7 +54,8 @@ export const LoadMoreButton = ({ label, loading = false, onClick }: {
     loading?: boolean;
     onClick: () => void;
 }) => (
-    <LoadMoreLink type="button" aria-label={label} aria-busy={loading} disabled={loading}
+    // aria-disabled rather than disabled keeps keyboard focus on the button while its page loads.
+    <LoadMoreLink type="button" aria-label={label} aria-busy={loading} aria-disabled={loading}
         onClick={() => { if (!loading) { onClick(); } }}>
         {loading && <ProgressRing sx={{ height: "16px", width: "16px" }} />}
         {loading ? "Loading..." : "Load more"}

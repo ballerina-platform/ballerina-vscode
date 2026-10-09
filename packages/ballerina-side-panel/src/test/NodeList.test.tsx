@@ -204,7 +204,8 @@ describe("NodeList (rpc-driven)", () => {
             const loadingButton = await waitFor(() => getByLabelText(`Load more ${section} functions`));
             expect(getByText("Loading...")).toBeTruthy();
             expect(loadingButton).toHaveAttribute("aria-busy", "true");
-            await waitFor(() => expect(loadingButton).toHaveAttribute("disabled"));
+            await waitFor(() => expect(loadingButton).toHaveAttribute("aria-disabled", "true"));
+            expect(loadingButton).not.toHaveAttribute("disabled");
             fireEvent.click(loadingButton);
             expect(onLoadMoreSection).not.toHaveBeenCalled();
             fireEvent.click(getByLabelText(`Load more ${otherSection} functions`));

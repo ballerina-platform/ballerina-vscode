@@ -31,13 +31,18 @@ export const useFunctionPaginationController = (pageSize = FUNCTIONS_PAGE_SIZE) 
     const loading = useRef<Record<string, boolean>>({});
     const generation = useRef(0);
 
-    const reset = useCallback(() => {
+    // Drops in-flight pages but keeps the cursors, so a list restored by Back can still load more.
+    const invalidate = useCallback(() => {
         ++generation.current;
-        cursors.current = {};
         loading.current = {};
-        setSectionsWithMore({});
         setLoadingSections({});
     }, []);
+
+    const reset = useCallback(() => {
+        invalidate();
+        cursors.current = {};
+        setSectionsWithMore({});
+    }, [invalidate]);
 
     const seed = useCallback((pagination: FunctionSearchPagination | undefined, count: (title: string) => number) => {
         reset();
@@ -89,5 +94,5 @@ export const useFunctionPaginationController = (pageSize = FUNCTIONS_PAGE_SIZE) 
         }
     }, [pageSize]);
 
-    return { sectionsWithMore, loadingSections, reset, seed, loadSection };
+    return { sectionsWithMore, loadingSections, invalidate, reset, seed, loadSection };
 };

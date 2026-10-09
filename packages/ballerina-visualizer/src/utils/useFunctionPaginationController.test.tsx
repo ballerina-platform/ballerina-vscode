@@ -99,4 +99,25 @@ describe("shared function pagination ownership", () => {
         expect(result.current.sectionsWithMore).toEqual({});
         expect(result.current.loadingSections).toEqual({});
     });
+
+    it("keeps cursors across a selection so Back can still load more", async () => {
+        const { result } = renderHook(() => useFunctionPaginationController());
+        act(() => result.current.seed(pagination, () => 1));
+        const pending = deferred();
+        const apply = jest.fn(() => 1);
+        let load!: Promise<void>;
+        act(() => { load = result.current.loadSection("Standard Library", () => pending.promise, apply); });
+        // Selecting a function drops the in-flight page but not the list's continuation.
+        act(() => result.current.invalidate());
+        expect(result.current.loadingSections).toEqual({});
+        await act(async () => {
+            pending.resolve({ categories: [], functionPagination: { ballerina: { hasMore: false, nextOffset: 240 } } });
+            await load;
+        });
+        expect(apply).not.toHaveBeenCalled();
+        expect(result.current.sectionsWithMore).toEqual({ "Standard Library": true, "Extended Library": true });
+        const fetch = jest.fn(() => Promise.resolve({ categories: [] } as BISearchResponse));
+        await act(async () => { await result.current.loadSection("Standard Library", fetch, apply); });
+        expect(fetch).toHaveBeenCalledWith("ballerina", pagination.ballerina);
+    });
 });
