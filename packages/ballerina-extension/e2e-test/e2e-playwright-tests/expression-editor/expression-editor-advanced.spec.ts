@@ -37,6 +37,24 @@ import { Diagram, SidePanel } from '../utils/pages';
 // Record Config Editor test below declares a variable of this type.
 const EXPRESSION_EDITOR_PROJECT_TEMPLATE = path.join(__dirname, '..', 'data', 'expression_editor_project');
 
+// Completion-filter corpus: one `issue-<n>.json` per reported case. Each
+// receiver must be declared in expression_editor_project (main.bal).
+interface CompletionFilterEntry {
+    receiver: string;      // value whose members are completed
+    memberList: string[];  // members visible right after `<receiver>.`
+    prefix: string;        // text typed after the dot
+    pick: string;          // member selected once the list has narrowed
+    variableType: string;  // Declare Variable type that accepts `<receiver>.<pick>(...)`
+}
+const COMPLETION_FILTER_CORPUS_DIR = path.join(__dirname, '..', 'data', 'completion_filter_corpus');
+const COMPLETION_FILTER_CORPUS = fs.readdirSync(COMPLETION_FILTER_CORPUS_DIR)
+    .filter((file) => file.endsWith('.json'))
+    .sort()
+    .map((file) => ({
+        file: path.basename(file, '.json'),
+        entry: JSON.parse(fs.readFileSync(path.join(COMPLETION_FILTER_CORPUS_DIR, file), 'utf8')) as CompletionFilterEntry
+    }));
+
 // Fixed name baked into the fixture's types.bal (see expression_editor_project).
 const personTypeName = 'Person';
 let greetingName = 'greeting';
@@ -302,8 +320,8 @@ export default function createTests() {
         // Loads a fixture that already contains the `Person` record type
         // (name: string, age: int optional) — the starting step is a
         // pre-created type rather than building it through the type diagram —
-        // and a module-level `final http:Response response = new;` whose
-        // methods the completion-filter case types against.
+        // and a module-level `final http:Response response = new;` that the
+        // completion-filter corpus types against.
         initTest(true, true, undefined, undefined, EXPRESSION_EDITOR_PROJECT_TEMPLATE);
 
         test('Expand Editor and Completion Driven Function Call', async ({ }, testInfo) => {
@@ -400,56 +418,62 @@ export default function createTests() {
             logStep('automation.bal verified');
         });
 
-        // Regression: typing a method name after `obj.` must narrow the popup.
-        // FlowNodeForm used to hand the chip editor the raw completion cache, so
-        // keystrokes served from that cache never reached the editor and the
-        // popup froze on the unfiltered `response.` member list.
-        test('Completion Filters Object Methods While Typing', async ({ }, testInfo) => {
-            const payloadName = `payload${testInfo.retry + 1}`;
-            logStep(`Declaring ${payloadName} through method completion filtering`);
+        // Invariant over COMPLETION_FILTER_CORPUS: once the member list for
+        // `<receiver>.` is open, typing a prefix must narrow it so that every
+        // option starts with that prefix. FlowNodeForm used to hand the chip
+        // editor the raw completion cache, so keystrokes served from that cache
+        // never reached the editor and the popup froze on the unfiltered list.
+        for (const { file, entry } of COMPLETION_FILTER_CORPUS) {
+            test(`Completion Filters Members While Typing (${file})`, async ({ }, testInfo) => {
+                const varName = `${entry.receiver}${entry.pick}${testInfo.retry + 1}`;
+                logStep(`${file}: typing ${entry.receiver}.${entry.prefix} into ${varName}`);
 
-            const frame = await getWebviewFrame();
-            const sidePanel = await openNodePalette(frame);
-            await sidePanel.clickNode('Declare Variable');
-            await page.page.waitForTimeout(1000);
-            const form = new Form(page.page, BI_INTEGRATOR_LABEL, frame);
-            await form.switchToFormView(false, frame);
-            await form.fill({
-                values: {
-                    'Name*Name of the variable': { type: 'input', value: payloadName },
-                    'Type': { type: 'textarea', value: 'json|error', additionalProps: { clickLabel: true } }
+                const frame = await getWebviewFrame();
+                const sidePanel = await openNodePalette(frame);
+                await sidePanel.clickNode('Declare Variable');
+                await page.page.waitForTimeout(1000);
+                const form = new Form(page.page, BI_INTEGRATOR_LABEL, frame);
+                await form.switchToFormView(false, frame);
+                await form.fill({
+                    values: {
+                        'Name*Name of the variable': { type: 'input', value: varName },
+                        'Type': { type: 'textarea', value: entry.variableType, additionalProps: { clickLabel: true } }
+                    }
+                });
+                await dismissHelperPanel();
+
+                const exprCm = frame.getByTestId('side-panel').locator('.cm-content').last();
+                await exprCm.click({ force: true });
+                await page.page.waitForTimeout(500);
+                await dismissHelperPanel();
+                await exprCm.click({ force: true });
+
+                const options = frame.locator('.cm-tooltip-autocomplete [role="option"]');
+                await page.page.keyboard.type(`${entry.receiver}.`, { delay: 80 });
+                for (const member of entry.memberList) {
+                    await options.filter({ hasText: member }).first().waitFor({ state: 'visible', timeout: 30000 });
                 }
+                logStep(`Member list open (${await options.count()} options)`);
+
+                await page.page.keyboard.type(entry.prefix, { delay: 150 });
+                await expect.poll(async () => {
+                    const labels = await options.allInnerTexts();
+                    return labels.length > 0 && labels.every((label) => label.startsWith(entry.prefix));
+                }, { timeout: 15000 }).toBe(true);
+                for (const member of entry.memberList.filter((m) => !m.startsWith(entry.prefix))) {
+                    await expect(options.filter({ hasText: member })).toHaveCount(0);
+                }
+                logStep(`Popup narrowed to ${entry.prefix}* members`);
+
+                await options.filter({ hasText: entry.pick }).first().click({ force: true });
+                await expect(exprCm).toContainText(`${entry.receiver}.${entry.pick}(`, { timeout: 15000 });
+                logStep(`Completion inserted ${entry.receiver}.${entry.pick}(...)`);
+
+                await saveOpenForm(frame);
+                await pollGenerated('automation.bal', `${entry.variableType} ${varName} = ${entry.receiver}.${entry.pick}(`);
+                logStep('automation.bal verified');
             });
-            await dismissHelperPanel();
-
-            const exprCm = frame.getByTestId('side-panel').locator('.cm-content').last();
-            await exprCm.click({ force: true });
-            await page.page.waitForTimeout(500);
-            await dismissHelperPanel();
-            await exprCm.click({ force: true });
-
-            const options = frame.locator('.cm-tooltip-autocomplete [role="option"]');
-            await page.page.keyboard.type('response.', { delay: 80 });
-            await options.filter({ hasText: 'setPayload' }).first().waitFor({ state: 'visible', timeout: 30000 });
-            await options.filter({ hasText: 'getJsonPayload' }).first().waitFor({ state: 'visible', timeout: 15000 });
-            logStep(`Member list open (${await options.count()} options)`);
-
-            await page.page.keyboard.type('getJ', { delay: 150 });
-            await expect.poll(async () => {
-                const labels = await options.allInnerTexts();
-                return labels.length > 0 && labels.every((label) => label.startsWith('getJ'));
-            }, { timeout: 15000 }).toBe(true);
-            await expect(options.filter({ hasText: 'setPayload' })).toHaveCount(0);
-            logStep('Popup narrowed to getJ* methods');
-
-            await options.filter({ hasText: 'getJsonPayload' }).first().click({ force: true });
-            await expect(exprCm).toContainText('response.getJsonPayload()', { timeout: 15000 });
-            logStep('Completion inserted response.getJsonPayload()');
-
-            await saveOpenForm(frame);
-            await pollGenerated('automation.bal', `json|error ${payloadName} = response.getJsonPayload()`);
-            logStep('automation.bal verified');
-        });
+        }
 
         test('Record Config Editor with Configurable Chip', async ({ }, testInfo) => {
             const testAttempt = testInfo.retry + 1;
