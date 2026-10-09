@@ -31,8 +31,11 @@ public abstract class AbstractFlowModelResponse {
     private String stacktrace;
 
     public void setError(Throwable e) {
-        this.errorMsg = e.getLocalizedMessage();
-        this.stacktrace = Arrays.toString(e.getStackTrace());
+        // Some throwables (e.g. StackOverflowError, ExceptionInInitializerError) carry no message; a null
+        // errorMsg is dropped from the response, so the failure would reach the client as an empty result.
+        String message = e.getLocalizedMessage();
+        this.errorMsg = message != null ? message : e.toString();
+        this.stacktrace = e + " " + Arrays.toString(e.getStackTrace());
     }
 
     /**
