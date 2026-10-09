@@ -42,7 +42,9 @@ public class WorkflowManagerTest extends AbstractLSTest {
     protected Object[] getConfigsList() {
         return new Object[][]{
                 {Path.of("get_all_events1.json")},
-                {Path.of("get_all_events2.json")}
+                {Path.of("get_all_events2.json")},
+                {Path.of("get_all_events3.json")},
+                {Path.of("get_all_events4.json")}
         };
     }
 

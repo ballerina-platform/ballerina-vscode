@@ -24,7 +24,6 @@ import com.google.gson.JsonObject;
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.api.symbols.ClassSymbol;
 import io.ballerina.compiler.api.symbols.FunctionSymbol;
-import io.ballerina.compiler.api.symbols.FunctionTypeSymbol;
 import io.ballerina.compiler.api.symbols.FutureTypeSymbol;
 import io.ballerina.compiler.api.symbols.MethodSymbol;
 import io.ballerina.compiler.api.symbols.ParameterSymbol;
@@ -212,37 +211,31 @@ public class WorkflowManagerService implements ExtendedLanguageServerService {
      * @return JsonArray of data information
      */
     private JsonArray getDataFromWorkflowFunction(FunctionSymbol funcSymbol, SemanticModel semanticModel) {
-        JsonArray data = new JsonArray();
-
-        FunctionTypeSymbol functionType = funcSymbol.typeDescriptor();
-        Optional<List<ParameterSymbol>> params = functionType.params();
-
-        if (params.isEmpty() || params.get().size() < 3) {
-            // Try to find data type by convention: <FunctionName>Data
-            String funcName = funcSymbol.getName().orElse("");
-            if (funcName.isEmpty()) {
-                return data;
+        // The data record is the last parameter, whatever precedes it: a workflow may omit the context or
+        // the input, so its position is not fixed. It is recognised by its shape, as Await Data does.
+        Optional<List<ParameterSymbol>> params = funcSymbol.typeDescriptor().params();
+        if (params.isPresent() && !params.get().isEmpty()) {
+            List<ParameterSymbol> paramList = params.get();
+            TypeSymbol lastParamType = TypeUtils.resolveTypeReference(
+                    paramList.get(paramList.size() - 1).typeDescriptor());
+            if (WorkflowUtil.isValidDataType(lastParamType)) {
+                return extractDataFromRecordType(lastParamType);
             }
-            String dataTypeName = funcName.substring(0, 1).toUpperCase(Locale.ROOT) + funcName.substring(1)
-                    + DATA_SUFFIX;
-
-            Optional<Symbol> dataTypeSymbol = semanticModel.moduleSymbols().stream()
-                    .filter(symbol -> symbol.nameEquals(dataTypeName))
-                    .findFirst();
-
-            if (dataTypeSymbol.isPresent() && dataTypeSymbol.get().kind() == SymbolKind.TYPE_DEFINITION) {
-                TypeDefinitionSymbol typeDefSymbol = (TypeDefinitionSymbol) dataTypeSymbol.get();
-                return extractDataFromRecordType(typeDefSymbol.typeDescriptor());
-            }
-
-            return data;
         }
 
-        // Get the third parameter (data parameter)
-        ParameterSymbol dataParam = params.get().get(2);
-        TypeSymbol dataType = TypeUtils.resolveTypeReference(dataParam.typeDescriptor());
-
-        return extractDataFromRecordType(dataType);
+        // Otherwise a record named by convention, <FunctionName>Data, may declare the events.
+        String funcName = funcSymbol.getName().orElse("");
+        if (funcName.isEmpty()) {
+            return new JsonArray();
+        }
+        String dataTypeName = funcName.substring(0, 1).toUpperCase(Locale.ROOT) + funcName.substring(1)
+                + DATA_SUFFIX;
+        return semanticModel.moduleSymbols().stream()
+                .filter(symbol -> symbol.nameEquals(dataTypeName))
+                .filter(symbol -> symbol.kind() == SymbolKind.TYPE_DEFINITION)
+                .findFirst()
+                .map(symbol -> extractDataFromRecordType(((TypeDefinitionSymbol) symbol).typeDescriptor()))
+                .orElseGet(JsonArray::new);
     }
 
     /**
@@ -281,6 +274,9 @@ public class WorkflowManagerService implements ExtendedLanguageServerService {
     }
 
     private String extractTypeNameFromFuture(FutureTypeSymbol typeSymbol) {
-        return typeSymbol.typeParameter().flatMap(TypeSymbol::getName).orElse(ANYDATA);
+        // A built-in type such as `boolean` has no symbol name; its signature is the type itself.
+        return typeSymbol.typeParameter()
+                .map(type -> type.getName().orElseGet(type::signature))
+                .orElse(ANYDATA);
     }
 }
