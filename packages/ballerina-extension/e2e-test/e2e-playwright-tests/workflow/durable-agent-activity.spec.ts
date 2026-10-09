@@ -64,7 +64,7 @@ export default function createTests() {
             await agentBox.waitFor({ state: 'visible', timeout: 60000 });
 
             logStep('Open the Add Activity list from the agent box');
-            await webview.getByTestId('durable-agent-affordance-activity').first().click({ force: true });
+            await webview.getByTestId('durable-agent-add-activity').first().click({ force: true });
             const sidePanel = webview.getByTestId('side-panel');
             await sidePanel.getByText('lookupBill', { exact: true }).first().waitFor({ timeout: 60000 });
 
@@ -117,7 +117,7 @@ export default function createTests() {
                 throw new Error(BI_WEBVIEW_NOT_FOUND_ERROR);
             }
             logStep('Open the Add Activity list and choose to create a new activity');
-            await webview.getByTestId('durable-agent-affordance-activity').first().click({ force: true });
+            await webview.getByTestId('durable-agent-add-activity').first().click({ force: true });
             const sidePanel = webview.getByTestId('side-panel');
             await sidePanel.getByText('lookupBill', { exact: true }).first().waitFor({ timeout: 60000 });
             await clickPanelControl(sidePanel.getByTestId('node-list-action-onAddFunction').first());
@@ -158,7 +158,7 @@ export default function createTests() {
                 throw new Error(BI_WEBVIEW_NOT_FOUND_ERROR);
             }
             logStep('Open the Add Activity list and choose an activity from a connection');
-            await webview.getByTestId('durable-agent-affordance-activity').first().click({ force: true });
+            await webview.getByTestId('durable-agent-add-activity').first().click({ force: true });
             const sidePanel = webview.getByTestId('side-panel');
             await sidePanel.getByText('lookupBill', { exact: true }).first().waitFor({ timeout: 60000 });
             await clickPanelControl(sidePanel.getByTestId('node-list-action-onAdd').first());
