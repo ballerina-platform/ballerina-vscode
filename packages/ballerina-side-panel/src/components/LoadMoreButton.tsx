@@ -32,11 +32,11 @@ const LoadMoreLink = styled.button`
     background: none;
     font: inherit;
     white-space: nowrap;
-    color: var(--vscode-textLink-foreground);
+    color: var(--vscode-descriptionForeground);
     text-decoration: underline;
     cursor: pointer;
     &:hover:not(:disabled) {
-        color: var(--vscode-textLink-activeForeground);
+        color: var(--vscode-foreground);
     }
     &:focus-visible {
         outline: 1px solid var(--vscode-focusBorder);
