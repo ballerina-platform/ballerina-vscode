@@ -19,6 +19,7 @@
 package io.ballerina.servicemodelgenerator.extension.builder.service;
 
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
+import io.ballerina.compiler.syntax.tree.ServiceDeclarationNode;
 import io.ballerina.servicemodelgenerator.extension.model.Function;
 import io.ballerina.servicemodelgenerator.extension.model.PropertyType;
 import io.ballerina.servicemodelgenerator.extension.model.Service;
@@ -26,12 +27,14 @@ import io.ballerina.servicemodelgenerator.extension.model.Value;
 import io.ballerina.servicemodelgenerator.extension.model.context.AddModelContext;
 import io.ballerina.servicemodelgenerator.extension.model.context.GetModelContext;
 import io.ballerina.servicemodelgenerator.extension.model.context.ModelFromSourceContext;
+import io.ballerina.servicemodelgenerator.extension.model.context.UpdateModelContext;
 import io.ballerina.servicemodelgenerator.extension.util.AiSourceUtils;
 import io.ballerina.servicemodelgenerator.extension.util.ListenerUtil;
 import io.ballerina.servicemodelgenerator.extension.util.Utils;
 import org.eclipse.lsp4j.TextEdit;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -56,10 +59,12 @@ import static io.ballerina.servicemodelgenerator.extension.util.Utils.populateRe
 public final class AiChatServiceBuilder extends AbstractServiceBuilder {
 
     private static final String AGENT_NAME_PROPERTY = "agentName";
+    private static final String REQUEST_HEADERS_PROPERTY = "requestHeaders";
     private static final String DEFAULT_AGENT_NAME = "chat";
 
-    private String getAgentChatFunction(String agentVarName, String orgName) {
-        return AiSourceUtils.agentChatResourceSource(agentVarName, AiSourceUtils.runOperator(orgName));
+    private String getAgentChatFunction(String agentVarName, String orgName, boolean withHeaders) {
+        return AiSourceUtils.agentChatResourceSource(agentVarName, AiSourceUtils.runOperator(orgName),
+                withHeaders);
     }
 
     @Override
@@ -73,8 +78,65 @@ public final class AiChatServiceBuilder extends AbstractServiceBuilder {
                     .editable(true)
                     .build();
             properties.put(AGENT_NAME_PROPERTY, agentNameProperty);
+            Value requestHeadersProperty = new Value.ValueBuilder()
+                    .metadata("Access Request Headers", "Add the HTTP request headers as a parameter of the chat "
+                            + "and decision resources, so the service can read them.")
+                    .types(List.of(PropertyType.types(Value.FieldType.FLAG)))
+                    .value(false)
+                    .enabled(true)
+                    .editable(true)
+                    .optional(true)
+                    .build();
+            properties.put(REQUEST_HEADERS_PROPERTY, requestHeadersProperty);
             return service;
         });
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Reads {@code requestHeaders} back from the source, so the flag shows whether the
+     * {@code chat} resource currently takes the request headers.
+     */
+    @Override
+    protected void populateServiceModelFromSource(Service serviceModel, ServiceDeclarationNode serviceNode,
+                                                  ModelFromSourceContext context) {
+        super.populateServiceModelFromSource(serviceModel, serviceNode, context);
+        Value requestHeaders = serviceModel.getProperty(REQUEST_HEADERS_PROPERTY);
+        if (Objects.nonNull(requestHeaders)) {
+            requestHeaders.setValue(AiSourceUtils.hasHeadersParam(serviceNode));
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Adds or removes the {@code http:Headers} parameter on the {@code chat} and {@code decision}
+     * resources when {@code requestHeaders} no longer matches the source.
+     */
+    @Override
+    public Map<String, List<TextEdit>> updateModel(UpdateModelContext context) {
+        Map<String, List<TextEdit>> serviceEdits = super.updateModel(context);
+        Value requestHeaders = context.service().getProperty(REQUEST_HEADERS_PROPERTY);
+        ServiceDeclarationNode serviceNode = context.serviceNode();
+        if (Objects.isNull(requestHeaders) || Objects.isNull(serviceNode)) {
+            return serviceEdits;
+        }
+
+        boolean withHeaders = isFlagSet(requestHeaders);
+        if (withHeaders == AiSourceUtils.hasHeadersParam(serviceNode)) {
+            return serviceEdits;
+        }
+
+        List<TextEdit> edits = new ArrayList<>(serviceEdits.getOrDefault(context.filePath(), List.of()));
+        edits.addAll(AiSourceUtils.headersParamEdits(serviceNode, withHeaders));
+        Map<String, List<TextEdit>> allEdits = new HashMap<>(serviceEdits);
+        allEdits.put(context.filePath(), edits);
+        return allEdits;
+    }
+
+    private static boolean isFlagSet(Value flag) {
+        return Objects.nonNull(flag) && Boolean.parseBoolean(flag.getValue());
     }
 
     /**
@@ -116,6 +178,7 @@ public final class AiChatServiceBuilder extends AbstractServiceBuilder {
         Service service = context.service();
 
         String agentVarName = getAgentNameFromService(service);
+        boolean withHeaders = isFlagSet(service.getProperty(REQUEST_HEADERS_PROPERTY));
 
         addDefaultListenerEdit(context, edits);
 
@@ -124,7 +187,7 @@ public final class AiChatServiceBuilder extends AbstractServiceBuilder {
 
         StringBuilder serviceBuilder = new StringBuilder(NEW_LINE);
         buildServiceNodeStr(service, serviceBuilder);
-        buildServiceNodeBody(getServiceMembers(agentVarName, service.getOrgName()), serviceBuilder);
+        buildServiceNodeBody(getServiceMembers(agentVarName, service.getOrgName(), withHeaders), serviceBuilder);
 
         ModulePartNode rootNode = context.document().syntaxTree().rootNode();
         edits.add(new TextEdit(Utils.toRange(rootNode.lineRange().endLine()), serviceBuilder.toString()));
@@ -171,9 +234,9 @@ public final class AiChatServiceBuilder extends AbstractServiceBuilder {
         }
     }
 
-    private List<String> getServiceMembers(String agentVarName, String orgName) {
+    private List<String> getServiceMembers(String agentVarName, String orgName, boolean withHeaders) {
         List<String> members = new ArrayList<>();
-        members.add(getAgentChatFunction(agentVarName, orgName));
+        members.add(getAgentChatFunction(agentVarName, orgName, withHeaders));
         return members;
     }
 
