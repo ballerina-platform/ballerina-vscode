@@ -192,6 +192,8 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     const [model, setModel] = useState<Flow>();
     const modelRef = useRef<Flow>();
     modelRef.current = model;
+    // Responses can arrive out of order; only the latest request reflects the newest source.
+    const latestFetchRef = useRef(0);
     const [suggestedModel, setSuggestedModel] = useState<Flow>();
     const [showSidePanel, setShowSidePanel] = useState(false);
     const [sidePanelView, setSidePanelView] = useState<SidePanelView>(SidePanelView.NODE_LIST);
@@ -944,6 +946,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         if (pendingInsertRef.current && !pendingCapabilityCloseRef.current) {
             return;
         }
+        const fetchId = ++latestFetchRef.current;
         // Refreshing a flow already on screen must not blank the title bar actions or lock the canvas.
         if (!modelRef.current) {
             setShowProgressIndicator(true);
@@ -969,6 +972,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                     .getFlowModel({})
                     .then((model) => {
                         console.log(">>> BIFlowDiagram getFlowModel", model);
+                        if (fetchId !== latestFetchRef.current) {
+                            return;
+                        }
                         if (model?.flowModel) {
                             if (pendingCapabilityCloseRef.current) {
                                 // The capability write has landed: release the held panel and
@@ -1032,6 +1038,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                         }
                     })
                     .finally(() => {
+                        if (fetchId !== latestFetchRef.current) {
+                            return;
+                        }
                         setShowProgressIndicator(false);
                         setShowProgressSpinner(false);
                         onReady(undefined, undefined, undefined);
