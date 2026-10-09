@@ -82,6 +82,7 @@ async function fillTypeEditor(webview: Frame, key: string, value: string): Promi
         view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: text } });
     }, value);
     await page.page.waitForTimeout(500);
+    await expect.poll(() => editor.textContent(), { timeout: 10000 }).toBe(value);
     await page.page.keyboard.press('Escape');
 }
 
@@ -186,8 +187,17 @@ export default function createTests() {
             const dataName = panel.getByRole('textbox', { name: /^Data Name/ }).first();
             await dataName.fill('payment');
             await dataName.press('Escape');
-            await domClick(panel.getByRole('button', { name: 'Add' }).first());
-            await panel.getByRole('button', { name: 'Cancel' }).waitFor({ state: 'hidden', timeout: 30000 });
+            // Add reads the entry sub-form's state, which commits a beat after typing; a press before that is
+            // ignored and leaves the sub-form open, so retry until Cancel is gone.
+            const cancel = panel.getByRole('button', { name: 'Cancel' });
+            for (let attempt = 0; attempt < 4; attempt++) {
+                await page.page.waitForTimeout(800);
+                await domClick(panel.getByRole('button', { name: 'Add' }).first());
+                if (await cancel.waitFor({ state: 'hidden', timeout: 5000 }).then(() => true, () => false)) {
+                    break;
+                }
+            }
+            await expect(cancel).toBeHidden();
             const saveButton = panel.getByRole('button', { name: 'Save' }).first();
             await waitForEnabled(saveButton);
             await saveButton.click({ force: true });
