@@ -1748,6 +1748,28 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         debouncedSearchRef.current = debouncedSearch;
     }, [debouncedSearch]);
 
+    // The master search lists only the first functions. This opens the paginated function search for the same
+    // query. Its Back clears the query, as the function list's Back does, and returns to the node panel.
+    const handleShowMoreFunctions = () => {
+        const query = searchText.trim();
+        if (!query) {
+            return;
+        }
+        // A pending or in-flight master search must not replace the function search.
+        debouncedSearchRef.current?.cancel();
+        panelNavEpochRef.current++;
+        // A repeated click while the first search loads must not make Back stop at the same results twice.
+        const top = navigationStack[navigationStack.length - 1];
+        if (top?.view !== sidePanelView || top?.categories !== categories) {
+            pushToNavigationStack(sidePanelView, categories, selectedNodeRef.current, selectedClientName.current);
+        }
+        handleSearch(query, FUNCTION_TYPE.REGULAR, "FUNCTION");
+    };
+
+    // Offered only where the node panel offers function calls, as with its own "Show More Functions".
+    const canCallFunctions = initialCategoriesRef.current.some((category: PanelCategory) =>
+        category?.items?.some((item) => item != null && "id" in item && item.id === "FUNCTION"));
+
     // Effect to handle search text changes
     useEffect(() => {
         // Drop any in-flight master search response, which is for an earlier query
@@ -4304,6 +4326,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 onResetUpdatedExpressionField={handleResetUpdatedExpressionField}
                 onSearchFunction={handleSearchFunction}
                 onLoadMoreFunctionSection={loadMoreFunctionSection}
+                onShowMoreFunctions={canCallFunctions ? handleShowMoreFunctions : undefined}
                 functionSectionsWithMore={functionSectionsWithMore}
                 loadingFunctionSections={loadingFunctionSections}
                 onSearchWorkflow={handleSearchWorkflow}

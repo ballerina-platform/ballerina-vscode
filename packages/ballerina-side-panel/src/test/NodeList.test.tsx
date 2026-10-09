@@ -32,7 +32,7 @@ jest.mock("@wso2/ballerina-rpc-client", () => {
     return { __esModule: true, useRpcContext: h.useRpcContext, Context: h.TestRpcContext };
 });
 
-import { renderWithRpc } from "./rpcHarness";
+import { renderWithRpc, TestRpcContext } from "./rpcHarness";
 import { NodeList } from "../components/NodeList";
 import type { Category } from "../components/NodeList/types";
 
@@ -241,6 +241,51 @@ describe("NodeList (rpc-driven)", () => {
             fireEvent.click(getByText(section));
             expect(getByLabelText(`Load more ${section} functions`)).toBeTruthy();
             expect(onLoadMoreSection).not.toHaveBeenCalled();
+        });
+    });
+
+    describe("Show More Functions", () => {
+        const searchResults = [{ title: "Extended Library", description: "", items: [node("fn", "fromEdiString")] }];
+        const nodePanel = [{ title: "Statements", description: "", items: [node("FUNCTION", "Call Function")] }];
+        // A search shows a skeleton until the parent delivers that query's results as new categories.
+        const renderSearchResults = (list: (categories: any[]) => React.ReactElement, categories: any[]) => {
+            const view = renderWithRpc(list(categories), fakeRpc());
+            view.rerender(<TestRpcContext.Provider value={{ rpcClient: fakeRpc() }}>{list([...categories])}</TestRpcContext.Provider>);
+            return view;
+        };
+
+        it("opens the function search for the query from a search result list", async () => {
+            const onShowMoreFunctions = jest.fn();
+            const onSelect = jest.fn();
+            const { getByText } = renderSearchResults((categories) =>
+                <NodeList categories={categories} title="All Components" onSelect={onSelect}
+                    onSearchTextChange={jest.fn()} searchText="edi" onShowMoreFunctions={onShowMoreFunctions} />,
+            searchResults);
+            fireEvent.click(await waitFor(() => getByText("Show More Functions")));
+            expect(onShowMoreFunctions).toHaveBeenCalledTimes(1);
+            expect(onSelect).not.toHaveBeenCalled();
+        });
+
+        it("is not offered for a search without a function search to open", async () => {
+            const { getByText, queryByText } = renderSearchResults((categories) =>
+                <NodeList categories={categories} title="All Components" onSelect={jest.fn()}
+                    onSearchTextChange={jest.fn()} searchText="edi" />,
+            [...nodePanel, ...searchResults]);
+            await waitFor(() => expect(getByText("fromEdiString")).toBeTruthy());
+            expect(queryByText("Show More Functions")).toBeNull();
+        });
+
+        it("still opens the function list from the node panel without a query", async () => {
+            const onShowMoreFunctions = jest.fn();
+            const onSelect = jest.fn();
+            const { getByText } = renderWithRpc(
+                <NodeList categories={nodePanel} title="Nodes" onSelect={onSelect}
+                    onShowMoreFunctions={onShowMoreFunctions} />,
+                fakeRpc()
+            );
+            fireEvent.click(await waitFor(() => getByText("Show More Functions")));
+            expect(onSelect).toHaveBeenCalledWith("FUNCTION", expect.anything());
+            expect(onShowMoreFunctions).not.toHaveBeenCalled();
         });
     });
 

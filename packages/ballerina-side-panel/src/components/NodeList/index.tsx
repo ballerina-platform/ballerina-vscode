@@ -401,6 +401,9 @@ interface NodeListProps {
     onLoadMoreSection?: (sectionTitle: string) => void;
     sectionsWithMore?: Record<string, boolean>;
     loadingSections?: Record<string, boolean>;
+    // Opens the function search for the current query. A search spanning several kinds shows only the first
+    // functions, so this offers the full, paginated list.
+    onShowMoreFunctions?: () => void;
 }
 
 export function NodeList(props: NodeListProps) {
@@ -429,7 +432,8 @@ export function NodeList(props: NodeListProps) {
         loading,
         onLoadMoreSection,
         sectionsWithMore,
-        loadingSections
+        loadingSections,
+        onShowMoreFunctions
     } = props;
 
     const [searchText, setSearchText] = useState<string>("");
@@ -1014,6 +1018,16 @@ export function NodeList(props: NodeListProps) {
         .filter((item) => item != null)
         .find((item) => "id" in item && item.id === "FUNCTION");
 
+    // The default view opens the function list, and a search opens the function search for the same query.
+    const showMoreFunctions = searchText ? Boolean(onShowMoreFunctions) : Boolean(callFunctionNode);
+    const handleShowMoreFunctions = () => {
+        if (searchText) {
+            onShowMoreFunctions?.();
+        } else if (callFunctionNode) {
+            handleAddNode(callFunctionNode as Node);
+        }
+    };
+
     // When searching, expand all categories
     const shouldExpandAll = searchText && searchText.length > 0;
 
@@ -1079,9 +1093,9 @@ export function NodeList(props: NodeListProps) {
                 <S.PanelBody style={{ ...props.panelBodySx }}>
                     {getCategoryContainer(filteredCategories)}
                     {/* Show More Functions button - moved outside Logging category */}
-                    {callFunctionNode && !searchText && (
+                    {showMoreFunctions && (
                         <S.AdvancedSubcategoryContainer key={"showMoreFunctions"} style={{ marginBottom: "12px" }}>
-                            <S.AdvancedSubcategoryHeader onClick={() => handleAddNode(callFunctionNode as Node)}>
+                            <S.AdvancedSubcategoryHeader onClick={handleShowMoreFunctions}>
                                 <S.AdvancedSubTitle muted>Show More Functions</S.AdvancedSubTitle>
                                 <Button
                                     appearance="icon"
