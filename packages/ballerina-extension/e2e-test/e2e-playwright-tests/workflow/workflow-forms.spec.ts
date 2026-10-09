@@ -65,13 +65,14 @@ async function fillExEditor(webview: Frame, key: string, value: string): Promise
     }, value);
 }
 
-// A TYPE field is a CodeMirror editor (TypeEditor), not a textbox. Prefer its own ex-editor container; otherwise
-// take the first visible editor in the side panel, which is the only one in the Await Data entry sub-form.
-async function fillTypeEditor(webview: Frame, key: string, value: string): Promise<void> {
-    const own = webview.locator(`[data-testid="ex-editor-${key}"] .cm-content`).first();
-    const editor = await own.isVisible().catch(() => false)
-        ? own
-        : webview.getByTestId('side-panel').locator('.cm-content').filter({ visible: true }).first();
+// A TYPE field is a CodeMirror editor (TypeEditor), not a textbox, and the side panel holds other editors
+// (the form's own numeric fields). Find the editor under the field's label.
+async function fillTypeEditor(webview: Frame, label: string, value: string): Promise<void> {
+    const labelText = `translate(normalize-space(.), '*', '')='${label}'`;
+    const editor = webview.getByTestId('side-panel')
+        .locator(`xpath=.//*[not(self::script)][${labelText}][not(.//*[${labelText}])]`).first()
+        .locator('xpath=ancestor::*[.//*[contains(@class,"cm-content")]][1]')
+        .locator('.cm-content').first();
     await editor.waitFor({ state: 'visible', timeout: 30000 });
     await editor.evaluate((element, text) => {
         const view = (element as HTMLElement & { cmView?: { view?: any } }).cmView?.view;
@@ -183,7 +184,7 @@ export default function createTests() {
             const variable = panel.getByRole('textbox', { name: /Data Receive Variable Name/ }).first();
             await variable.waitFor({ timeout: 60000 });
             await variable.fill('payment');
-            await fillTypeEditor(webview, 'dataType', 'boolean');
+            await fillTypeEditor(webview, 'Data Type', 'boolean');
             const dataName = panel.getByRole('textbox', { name: /^Data Name/ }).first();
             await dataName.fill('payment');
             await dataName.press('Escape');
