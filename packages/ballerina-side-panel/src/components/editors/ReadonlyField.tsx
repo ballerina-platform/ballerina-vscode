@@ -108,6 +108,10 @@ const Value = styled.span`
     overflow: hidden;
 `;
 
+const Placeholder = styled.span`
+    color: var(--vscode-input-placeholderForeground);
+`;
+
 const LockContainer = styled.div`
     display: flex;
     align-items: center;
@@ -201,7 +205,7 @@ export function ReadonlyField(props: ReadonlyFieldProps) {
     const { displayValue, isExpression } = getDisplayInfo(field);
 
     return (
-        <Container>
+        <Container data-testid={`readonly-field-${field.key}`}>
             <Label>
                 <div style={{ color: "var(--vscode-editor-foreground)" }}>
                     <label>{capitalize(field.label)}</label>
@@ -225,7 +229,9 @@ export function ReadonlyField(props: ReadonlyFieldProps) {
                     </ExpressionRibbon>
                 )}
                 <Value>
-                    {isExpression ? renderExpressionValue(displayValue) : displayValue}
+                    {!displayValue && field.placeholder
+                        ? <Placeholder>{field.placeholder}</Placeholder>
+                        : isExpression ? renderExpressionValue(displayValue) : displayValue}
                 </Value>
                 <LockContainer>
                     <Tooltip content="Read only field">

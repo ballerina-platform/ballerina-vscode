@@ -23,7 +23,7 @@
     "isomorphic-ws": "5.0.0",
     "vscode-jsonrpc": "8.2.1",
     "@types/vscode-webview": "1.57.3",
-    "handlebars": "4.7.9",
+    "handlebars": "4.7.10",
     "mousetrap": "1.6.5",
     "react": "18.2.0",
     "@wso2/wso2-platform-core": "workspace:*",

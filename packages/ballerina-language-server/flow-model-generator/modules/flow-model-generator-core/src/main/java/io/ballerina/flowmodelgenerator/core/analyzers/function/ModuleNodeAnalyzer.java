@@ -68,6 +68,7 @@ import org.ballerinalang.langserver.commons.BallerinaCompilerApi;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.StringJoiner;
 
 import static io.ballerina.flowmodelgenerator.core.utils.WorkflowUtil.isActivityFunction;
 import static io.ballerina.flowmodelgenerator.core.utils.WorkflowUtil.isWorkflowFunction;
@@ -256,12 +257,12 @@ public class ModuleNodeAnalyzer extends NodeVisitor {
 
         Optional<MetadataNode> optMetadata = functionDefinitionNode.metadata();
         if (optMetadata.isPresent()) {
-            StringBuilder annot = new StringBuilder();
+            // Each annotation's source carries its surrounding newlines; the signature writer adds the one after them.
+            StringJoiner annot = new StringJoiner(System.lineSeparator());
             NodeList<AnnotationNode> annotations = optMetadata.get().annotations();
             for (AnnotationNode annotation : annotations) {
-                annot.append(annotation.toSourceCode());
+                annot.add(annotation.toSourceCode().strip());
             }
-            annot.append(System.lineSeparator());
             nodeBuilder.properties().annotations(annot.toString());
         }
 

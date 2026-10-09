@@ -1,6 +1,6 @@
 {
   "source": "workflow_function_empty/functions.bal",
-  "description": "Create a workflow activity function",
+  "description": "Create a workflow activity whose return type has error inside a parenthesized optional union: it is kept as written",
   "diagram": {
     "metadata": {
       "label": "Workflow Activity",
@@ -57,7 +57,7 @@
           "description": "Type of the return value"
         },
         "valueType": "TYPE",
-        "value": "string",
+        "value": "(string|error)?",
         "optional": true,
         "editable": true,
         "advanced": false,
@@ -221,7 +221,7 @@
             "character": 0
           }
         },
-        "newText": "# Activity that sends an email\n# + return - Result of the activity\n@workflow:Activity\nfunction sendEmailActivity(int a, int b) returns string|error {\n}"
+        "newText": "# Activity that sends an email\n# + return - Result of the activity\n@workflow:Activity\nfunction sendEmailActivity(int a, int b) returns (string|error)? {\n}"
       }
     ]
   }

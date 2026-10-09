@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { capabilityValueText, revealActivityIdentity, seedCapabilityValue, SeedableProperty } from "./capabilityFieldValues";
+import { capabilityValueText, seedCapabilityValue, SeedableProperty, showActivityIdentityReadOnly } from "./capabilityFieldValues";
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { TraceAnimationEvent } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
@@ -3886,7 +3886,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 }
             }
             if (capability?.type === "activity") {
-                revealActivityIdentity(nodeProps);
+                showActivityIdentityReadOnly(nodeProps);
             }
             node.codedata.lineRange = lineRange;
             node.codedata.isNew = false;

@@ -105,9 +105,32 @@ export function parseTextArraySource(source: string): string[] | undefined {
     return items;
 }
 
+// One template only: `string \`a\` + string \`b\`` is an expression of two.
+const STRING_TEMPLATE = /^string `([^`]*)`$/;
+
+/**
+ * An item's source: a text editor hands items over as string templates, so one without interpolation is
+ * decoded to its text and quoted, a literal is kept, and an interpolated template stays an expression.
+ */
+function itemSource(item: string): string {
+    const trimmed = item.trim();
+    const template = STRING_TEMPLATE.exec(trimmed);
+    if (template) {
+        if (template[1].includes("${")) {
+            return trimmed;
+        }
+        const text = template[1].trim();
+        return text === "" ? "" : stringLiteral(text);
+    }
+    if (stringLiteralText(trimmed) !== undefined) {
+        return trimmed;
+    }
+    return trimmed === "" ? "" : stringLiteral(trimmed);
+}
+
 /** The source for the items a TEXT_SET field holds: one as the literal alone, several as a list. */
 export function textArraySource(items: readonly string[]): string {
-    const literals = items.map((item) => item.trim()).filter((item) => item !== "").map(stringLiteral);
+    const literals = items.map(itemSource).filter((item) => item !== "");
     if (literals.length === 0) {
         return "";
     }
