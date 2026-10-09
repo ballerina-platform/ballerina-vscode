@@ -907,7 +907,7 @@ export interface McpToolSummaryDTO {
 }
 export type McpServerConfigDTO =
     | { type: "stdio"; command: string; args?: string[]; env?: Record<string, string> }
-    | { type: "http"; url: string; headers?: Record<string, string>; headersFromEnv?: Record<string, string> };
+    | { type: "http"; url: string; headers?: Record<string, string>; headersFromEnv?: Record<string, string>; oauth?: { clientId: string; callbackPort: number } };
 export interface McpServerStatusDTO {
     name: string;
     scope: McpScope;
@@ -915,11 +915,16 @@ export interface McpServerStatusDTO {
     enabled: boolean;
     status: McpConnectionStatus;
     error?: string;
+    signInRequired?: boolean;
     tools: McpToolSummaryDTO[];
     /** Raw config as stored on disk — used by the Edit dialog to pre-fill fields. */
     config: McpServerConfigDTO;
     /** True when this user-scope server is shadowed by a same-named workspace-scope server. */
     shadowed?: boolean;
+}
+export interface SignInMcpServerRequest {
+    name: string;
+    scope: McpScope;
 }
 export interface SetMcpServerEnabledRequest {
     name: string;

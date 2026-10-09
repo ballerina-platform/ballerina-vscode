@@ -74,6 +74,7 @@ import {
     ParseSkillFileResponse,
     McpServerStatusDTO,
     SetMcpServerEnabledRequest,
+    SignInMcpServerRequest,
     AddMcpServerRequest,
     AddMcpServerResponse,
     OpenMcpConfigRequest,
@@ -1499,6 +1500,17 @@ User reverted the last made changes. The files have been restored to the state b
         }
         const scope = params.scope ?? "user";
         await manager.setEnabled(scope, params.name, params.enabled);
+        notifyMcpServersChanged(manager.listServers());
+    }
+
+    async signInMcpServer(params: SignInMcpServerRequest): Promise<void> {
+        const manager = getMcpClientManager();
+        if (!manager) {
+            return;
+        }
+        const signIn = manager.signIn(params.scope ?? "user", params.name);
+        notifyMcpServersChanged(manager.listServers());
+        await signIn;
         notifyMcpServersChanged(manager.listServers());
     }
 

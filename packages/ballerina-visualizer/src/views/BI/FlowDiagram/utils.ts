@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { Category, AvailableNode, BallerinaProjectComponents } from "@wso2/ballerina-core";
+import { Category, AvailableNode, BallerinaProjectComponents, FlowNode } from "@wso2/ballerina-core";
 import type { Category as PanelCategory, Item as PanelItem } from "@wso2/ballerina-side-panel";
 import { URI, Utils } from "vscode-uri";
 
@@ -195,6 +195,34 @@ export const findClassByName = (components: BallerinaProjectComponents, classNam
     return null;
 };
 
+/** Work a picker did before its form opened: kept once the form saves, undone if it closes without saving. */
+export interface PendingSetup {
+    commit: () => Promise<void>;
+    discard: () => void;
+}
+
+// Keyed by the template object, so every form host that opens it can settle it without passing it along.
+const pendingSetups = new WeakMap<FlowNode, PendingSetup>();
+
+export function attachPendingSetup(template: FlowNode, setup?: PendingSetup): void {
+    if (setup) {
+        pendingSetups.set(template, setup);
+    }
+}
+
+export async function settlePendingSetup(template: FlowNode | undefined, saved: boolean): Promise<void> {
+    const setup = template && pendingSetups.get(template);
+    if (!setup) {
+        return;
+    }
+    pendingSetups.delete(template);
+    if (saved) {
+        await setup.commit();
+    } else {
+        setup.discard();
+    }
+}
+
 export const getNodeTemplateForConnection = async (
     nodeId: string,
     metadata: any,
@@ -217,6 +245,9 @@ export const getNodeTemplateForConnection = async (
         ...node.metadata,
         description: flowNode?.metadata?.description || node?.metadata?.description,
     };
+    // A picker can fill in fields before the form opens, e.g. an Agent Manager LLM service provider.
+    metadata.prepareTemplate?.(flowNode);
+    attachPendingSetup(flowNode, metadata.pendingSetup);
 
     let connectionKind: string;
     switch (nodeId) {

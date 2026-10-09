@@ -410,12 +410,14 @@ export interface CardListProps {
     onExpandedGroupChange?: (groupId: string | null) => void;
     // Optional extra content rendered below the categories (e.g. a WSO2 Cloud section).
     extraSection?: React.ReactNode;
+    // Optional content rendered at the top of the first category, under its title.
+    leadingSection?: React.ReactNode;
     fillContainerHeight?: boolean;
 }
 
 function CardList(props: CardListProps) {
     const { categories, title, searchPlaceholder, onSelect, onSearch, onBack, onClose,
-        expandedGroupId: controlledExpandedGroupId, onExpandedGroupChange, extraSection,
+        expandedGroupId: controlledExpandedGroupId, onExpandedGroupChange, extraSection, leadingSection,
         fillContainerHeight } = props;
 
     const [searchText, setSearchText] = useState<string>("");
@@ -632,6 +634,8 @@ function CardList(props: CardListProps) {
         });
 
     const hasContent = filteredCategories.some((category) => category?.items && category.items.length > 0);
+    // A search can empty the first category, so the leading section goes with the first one that still has items.
+    const leadingIndex = filteredCategories.findIndex((category) => category?.items?.length > 0);
     const headerTitle = title;
     const canGoBack = Boolean(onBack);
     const shouldShowHeaderActions = (canGoBack && headerTitle) || onClose;
@@ -676,13 +680,14 @@ function CardList(props: CardListProps) {
 
             {!isSearching && (
                 <S.PanelBody fillContainerHeight={fillContainerHeight}>
-                    {!hasContent && !extraSection ? (
+                    {!hasContent && !extraSection && !leadingSection ? (
                         <S.EmptyState>
                             <S.EmptyStateText>No results found</S.EmptyStateText>
                             <S.EmptyStateSubText>Try adjusting your search terms</S.EmptyStateSubText>
                         </S.EmptyState>
                     ) : (
                         <>
+                            {leadingIndex === -1 && leadingSection}
                             {filteredCategories.map((category, index) => {
                                 if (!category?.items || category.items.length === 0) {
                                     return null;
@@ -694,6 +699,7 @@ function CardList(props: CardListProps) {
                                         {category.description && (
                                             <S.CategoryDescription>{category.description}</S.CategoryDescription>
                                         )}
+                                        {index === leadingIndex && leadingSection}
                                         {renderCards(category.items)}
                                     </S.CategorySection>
                                 );
