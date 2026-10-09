@@ -250,21 +250,22 @@ export default function createTests() {
             const result = panel.getByText('Call Activity', { exact: true }).last();
             await result.waitFor({ state: 'visible', timeout: 90000 });
             await domClick(result);
-            // #2624: the pick opens the activity list rather than collapsing the panel.
-            const header = panel.getByText('Current Integration', { exact: true }).first();
-            if (!await header.waitFor({ timeout: 60000 }).then(() => true, () => false)) {
+            // #2624: the pick opens the activity list rather than collapsing the panel. An empty project has no
+            // Current Integration section yet; the prebuilt activities and the empty-state link are what shows.
+            const prebuilt = panel.getByText('Prebuilt Activities', { exact: true }).first();
+            if (!await prebuilt.waitFor({ timeout: 60000 }).then(() => true, () => false)) {
                 const shown = (await panel.innerText().catch(() => '')).replace(/\s+/g, ' ').slice(0, 300);
                 throw new Error(`picking Call Activity from the search results did not open the activity list; the panel shows: ${shown}`);
             }
-            await expect(panel.getByTestId('node-list-action-onAddFunction').first()).toBeVisible();
 
-            logStep('Create the first activity');
-            await domClick(panel.getByTestId('node-list-action-onAddFunction').first());
+            logStep('Create the first activity from the empty-state link');
+            await domClick(panel.getByText(/^\+?\s*Create Activity$/).first());
             await createActivity(webview, 'chargeCard');
 
             logStep('Create a second activity while the list is still refreshing');
             // After the save the list is restored at once and refreshed for up to six seconds; the form
-            // opened in that window must keep what is typed (#2422).
+            // opened in that window must keep what is typed (#2422). The list now has a Current Integration
+            // section, whose header carries the + for another activity.
             await panel.getByText('Current Integration', { exact: true }).first().waitFor({ timeout: 60000 });
             await domClick(panel.getByTestId('node-list-action-onAddFunction').first());
             const nameInput = webview.getByRole('textbox', { name: /Activity Name/ }).first();
