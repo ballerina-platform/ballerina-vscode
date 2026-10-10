@@ -21,7 +21,7 @@ import { EVENT_TYPE, MACHINE_VIEW, SCOPE } from '@wso2/ballerina-core';
 import { CardGrid, PanelViewMore, Title, TitleWrapper } from './styles';
 import { BodyText } from '../../styles';
 import ButtonCard from '../../../components/ButtonCard';
-import { ARTIFACT_CATEGORY_META, ArtifactCard, INTEGRATION_API_CARDS } from '../components/artifactCards';
+import { ARTIFACT_CATEGORY_META, ARTIFACT_TOOLTIP_MAX_WIDTH, ArtifactCard, INTEGRATION_API_CARDS } from '../components/artifactCards';
 import { cardMatchesSearch, OutOfScopeComponentTooltip } from './componentListUtils';
 
 interface IntegrationAPIPanelProps {
@@ -67,6 +67,7 @@ export function IntegrationAPIPanel(props: IntegrationAPIPanelProps) {
                         onClick={() => handleClick(card)}
                         disabled={isDisabled}
                         tooltip={isDisabled ? OutOfScopeComponentTooltip : card.tooltip}
+                        tooltipMaxWidth={ARTIFACT_TOOLTIP_MAX_WIDTH}
                         isBeta={card.isBeta}
                     />
                 ))}

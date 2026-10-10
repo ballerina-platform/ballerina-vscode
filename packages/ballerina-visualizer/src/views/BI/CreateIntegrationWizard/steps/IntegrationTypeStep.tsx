@@ -23,6 +23,7 @@ import { TriggerModelsResponse } from "@wso2/ballerina-core";
 import ButtonCard from "../../../../components/ButtonCard";
 import { RelativeLoader } from "../../../../components/RelativeLoader";
 import { Chip, ChipRow, FilterBarBase, SearchSlot } from "../../components/ChipFilterBar.styles";
+import { ARTIFACT_TOOLTIP_MAX_WIDTH } from "../../components/artifactCards";
 import { cardMatchesSearch } from "../../ComponentListView/componentListUtils";
 import { useContainerWidth } from "../hooks/useContainerWidth";
 import {
@@ -363,6 +364,7 @@ export function IntegrationTypeStep({ triggers, selection, onSelect, compact = f
                                 truncate={true}
                                 onClick={() => onSelect(card)}
                                 tooltip={card.tooltip}
+                                tooltipMaxWidth={ARTIFACT_TOOLTIP_MAX_WIDTH}
                             />
                         ))}
                     </CardGrid>

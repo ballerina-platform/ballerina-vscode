@@ -21,7 +21,7 @@ import { EVENT_TYPE, MACHINE_VIEW } from '@wso2/ballerina-core';
 import { CardGrid, PanelViewMore, Title, TitleWrapper } from './styles';
 import { BodyText } from '../../styles';
 import ButtonCard from '../../../components/ButtonCard';
-import { ARTIFACT_CATEGORY_META, WORKFLOW_CARD } from '../components/artifactCards';
+import { ARTIFACT_CATEGORY_META, ARTIFACT_TOOLTIP_MAX_WIDTH, WORKFLOW_CARD } from '../components/artifactCards';
 import { cardMatchesSearch } from './componentListUtils';
 
 const CATEGORY = ARTIFACT_CATEGORY_META.workflow;
@@ -55,6 +55,7 @@ export function WorkflowPanel({ searchQuery }: { searchQuery?: string }) {
                     title={WORKFLOW_CARD.displayName}
                     onClick={handleClick}
                     tooltip={WORKFLOW_CARD.tooltip}
+                    tooltipMaxWidth={ARTIFACT_TOOLTIP_MAX_WIDTH}
                 />
             </CardGrid>
         </PanelViewMore>

@@ -23,7 +23,7 @@ import { CardGrid, PanelViewMore, Title, TitleWrapper } from './styles';
 import { BodyText } from '../../styles';
 import ButtonCard from '../../../components/ButtonCard';
 import { useVisualizerContext } from '../../../Context';
-import { OTHER_ARTIFACT_CARDS } from '../components/artifactCards';
+import { ARTIFACT_TOOLTIP_MAX_WIDTH, OTHER_ARTIFACT_CARDS } from '../components/artifactCards';
 import { cardMatchesSearch } from './componentListUtils';
 
 interface OtherArtifactsPanelProps {
@@ -149,6 +149,7 @@ export function OtherArtifactsPanel(props: OtherArtifactsPanelProps) {
                         onClick={() => handleClick(card.directoryKey)}
                         isBeta={card.isBeta}
                         tooltip={card.tooltip}
+                        tooltipMaxWidth={ARTIFACT_TOOLTIP_MAX_WIDTH}
                     />
                 ))}
             </CardGrid>

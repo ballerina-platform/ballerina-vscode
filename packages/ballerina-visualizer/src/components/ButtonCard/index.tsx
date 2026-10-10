@@ -123,6 +123,8 @@ export interface ButtonCardProps {
     onClick: () => void;
     disabled?: boolean;
     tooltip?: string;
+    /** Wraps the tooltip at this width and makes it expandable; unset keeps the plain tooltip. */
+    tooltipMaxWidth?: number;
     isBeta?: boolean;
 }
 
@@ -138,6 +140,7 @@ export function ButtonCard(props: ButtonCardProps) {
         onClick,
         disabled,
         tooltip,
+        tooltipMaxWidth,
         isBeta
     } = props;
 
@@ -155,7 +158,7 @@ export function ButtonCard(props: ButtonCardProps) {
     };
 
     return (
-        <Tooltip maxWidth={300} content={tooltip}>
+        <Tooltip maxWidth={tooltipMaxWidth} content={tooltip}>
             <Card
                 id={props.id}
                 data-testid={`function-card-${title}`}

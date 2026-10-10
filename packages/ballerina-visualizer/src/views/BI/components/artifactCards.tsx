@@ -21,6 +21,9 @@ import { Icon } from "@wso2/ui-toolkit";
 import { DurableAgentIcon } from "@wso2/bi-diagram";
 import { DIRECTORY_MAP } from "@wso2/ballerina-core";
 
+export { ARTIFACT_TOOLTIP_MAX_WIDTH, triggerTooltip } from "./artifactTooltips";
+export type { TriggerTooltipKind } from "./artifactTooltips";
+
 /**
  * Single source of truth for the STATIC artifact cards and category copy shared by
  * `ComponentListView` (in-project add) and the wizard's type step. Only the DATA lives

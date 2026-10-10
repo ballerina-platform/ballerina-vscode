@@ -26,6 +26,7 @@ import {
     INTEGRATION_API_CARDS,
     WORKFLOW_CARD,
     DURABLE_AGENT_CARD,
+    triggerTooltip,
 } from "../components/artifactCards";
 import { isBetaModule } from "../ComponentListView/componentListUtils";
 import { getIntegrationIcon } from "../ComponentListView/integrationIcon";
@@ -94,7 +95,7 @@ function triggerToCard(item: ServiceModel, type: DynamicTriggerType): ArtifactCa
             displayName: item.name,
             icon: getIntegrationIcon(item),
             artifactInfo,
-            tooltip: item.documentation || `A service triggered by the availability of files via ${item.name}.`,
+            tooltip: triggerTooltip(item, "file"),
         };
     }
 
@@ -105,11 +106,8 @@ function triggerToCard(item: ServiceModel, type: DynamicTriggerType): ArtifactCa
         icon: getIntegrationIcon(item),
         isBeta: isBetaModule(item.moduleName),
         artifactInfo,
-        tooltip:
-            item.documentation ||
-            (type === "mcp"
-                ? `An MCP tool provider service using the ${item.name} module.`
-                : `A service triggered by ${item.name} events.`),
+        // `ai` triggers sit with `mcp` in the AI panel, so they share its wording.
+        tooltip: triggerTooltip(item, type === "event" ? "event" : "mcp"),
     };
 }
 
