@@ -159,7 +159,7 @@
             "kind": "DEFAULTABLE",
             "originalName": "queryMode"
           },
-          "defaultValue": "ai:DENSE"
+          "defaultValue": "\"DENSE\""
         },
         "config": {
           "metadata": {

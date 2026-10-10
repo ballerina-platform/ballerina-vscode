@@ -175,7 +175,7 @@
             "kind": "DEFAULTABLE",
             "originalName": "strategy"
           },
-          "defaultValue": "HTML_HEADER"
+          "defaultValue": "\"HTML_HEADER\""
         },
         "scope": {
           "metadata": {

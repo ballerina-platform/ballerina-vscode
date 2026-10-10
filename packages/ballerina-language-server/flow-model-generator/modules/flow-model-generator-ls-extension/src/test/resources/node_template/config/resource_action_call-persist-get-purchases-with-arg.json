@@ -126,7 +126,7 @@
           "kind": "DEFAULTABLE",
           "originalName": "maxPrice"
         },
-        "defaultValue": "0.0d"
+        "defaultValue": ""
       },
       "targetType": {
         "metadata": {
@@ -725,7 +725,7 @@
           "kind": "DEFAULTABLE",
           "originalName": "customerFilter"
         },
-        "defaultValue": "\"\""
+        "defaultValue": ""
       },
       "type": {
         "metadata": {

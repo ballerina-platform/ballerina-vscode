@@ -478,7 +478,7 @@
                 "selected": false
               }
             ],
-            "placeholder": "\"all\"",
+            "placeholder": "",
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -487,7 +487,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "acks"
             },
-            "defaultValue": "\"all\""
+            "defaultValue": ""
           },
           "compressionType": {
             "metadata": {
@@ -527,7 +527,7 @@
                 "selected": false
               }
             ],
-            "placeholder": "\"none\"",
+            "placeholder": "",
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -536,7 +536,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "compressionType"
             },
-            "defaultValue": "\"none\""
+            "defaultValue": ""
           },
           "clientId": {
             "metadata": {
@@ -564,7 +564,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "clientId"
             },
-            "defaultValue": "\"\""
+            "defaultValue": ""
           },
           "metricsRecordingLevel": {
             "metadata": {
@@ -592,7 +592,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "metricsRecordingLevel"
             },
-            "defaultValue": "\"\""
+            "defaultValue": ""
           },
           "metricReporterClasses": {
             "metadata": {
@@ -620,7 +620,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "metricReporterClasses"
             },
-            "defaultValue": "\"\""
+            "defaultValue": ""
           },
           "partitionerClass": {
             "metadata": {
@@ -648,7 +648,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "partitionerClass"
             },
-            "defaultValue": "\"\""
+            "defaultValue": ""
           },
           "interceptorClasses": {
             "metadata": {
@@ -676,7 +676,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "interceptorClasses"
             },
-            "defaultValue": "\"\""
+            "defaultValue": ""
           },
           "transactionalId": {
             "metadata": {
@@ -704,7 +704,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "transactionalId"
             },
-            "defaultValue": "\"\""
+            "defaultValue": ""
           },
           "schemaRegistryUrl": {
             "metadata": {
@@ -732,7 +732,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "schemaRegistryUrl"
             },
-            "defaultValue": "\"\""
+            "defaultValue": ""
           },
           "avroSchema": {
             "metadata": {
@@ -760,7 +760,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "avroSchema"
             },
-            "defaultValue": "\"\""
+            "defaultValue": ""
           },
           "keySchema": {
             "metadata": {
@@ -788,7 +788,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "keySchema"
             },
-            "defaultValue": "\"\""
+            "defaultValue": ""
           },
           "valueSchema": {
             "metadata": {
@@ -816,7 +816,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "valueSchema"
             },
-            "defaultValue": "\"\""
+            "defaultValue": ""
           },
           "schemaRegistryConfig": {
             "metadata": {
@@ -857,7 +857,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "schemaRegistryConfig"
             },
-            "defaultValue": "{}"
+            "defaultValue": ""
           },
           "keySerializerType": {
             "metadata": {
@@ -885,7 +885,7 @@
                 "selected": false
               }
             ],
-            "placeholder": "\"SER_AVRO\"",
+            "placeholder": "",
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -894,7 +894,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "keySerializerType"
             },
-            "defaultValue": "\"SER_AVRO\""
+            "defaultValue": ""
           },
           "valueSerializerType": {
             "metadata": {
@@ -922,7 +922,7 @@
                 "selected": false
               }
             ],
-            "placeholder": "\"SER_AVRO\"",
+            "placeholder": "",
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -931,7 +931,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "valueSerializerType"
             },
-            "defaultValue": "\"SER_AVRO\""
+            "defaultValue": ""
           },
           "additionalProperties": {
             "metadata": {
@@ -977,7 +977,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "additionalProperties"
             },
-            "defaultValue": "{}"
+            "defaultValue": ""
           },
           "bufferMemory": {
             "metadata": {
@@ -1005,7 +1005,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "bufferMemory"
             },
-            "defaultValue": "0"
+            "defaultValue": ""
           },
           "retryCount": {
             "metadata": {
@@ -1033,7 +1033,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "retryCount"
             },
-            "defaultValue": "0"
+            "defaultValue": ""
           },
           "batchSize": {
             "metadata": {
@@ -1061,7 +1061,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "batchSize"
             },
-            "defaultValue": "0"
+            "defaultValue": ""
           },
           "linger": {
             "metadata": {
@@ -1089,7 +1089,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "linger"
             },
-            "defaultValue": "0.0d"
+            "defaultValue": ""
           },
           "sendBuffer": {
             "metadata": {
@@ -1117,7 +1117,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "sendBuffer"
             },
-            "defaultValue": "0"
+            "defaultValue": ""
           },
           "receiveBuffer": {
             "metadata": {
@@ -1145,7 +1145,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "receiveBuffer"
             },
-            "defaultValue": "0"
+            "defaultValue": ""
           },
           "maxRequestSize": {
             "metadata": {
@@ -1173,7 +1173,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "maxRequestSize"
             },
-            "defaultValue": "0"
+            "defaultValue": ""
           },
           "reconnectBackoffTime": {
             "metadata": {
@@ -1201,7 +1201,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "reconnectBackoffTime"
             },
-            "defaultValue": "0.0d"
+            "defaultValue": ""
           },
           "reconnectBackoffMaxTime": {
             "metadata": {
@@ -1229,7 +1229,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "reconnectBackoffMaxTime"
             },
-            "defaultValue": "0.0d"
+            "defaultValue": ""
           },
           "retryBackoffTime": {
             "metadata": {
@@ -1257,7 +1257,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "retryBackoffTime"
             },
-            "defaultValue": "0.0d"
+            "defaultValue": ""
           },
           "maxBlock": {
             "metadata": {
@@ -1285,7 +1285,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "maxBlock"
             },
-            "defaultValue": "0.0d"
+            "defaultValue": ""
           },
           "requestTimeout": {
             "metadata": {
@@ -1313,7 +1313,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "requestTimeout"
             },
-            "defaultValue": "0.0d"
+            "defaultValue": ""
           },
           "metadataMaxAge": {
             "metadata": {
@@ -1341,7 +1341,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "metadataMaxAge"
             },
-            "defaultValue": "0.0d"
+            "defaultValue": ""
           },
           "metricsSampleWindow": {
             "metadata": {
@@ -1369,7 +1369,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "metricsSampleWindow"
             },
-            "defaultValue": "0.0d"
+            "defaultValue": ""
           },
           "metricsNumSamples": {
             "metadata": {
@@ -1397,7 +1397,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "metricsNumSamples"
             },
-            "defaultValue": "0"
+            "defaultValue": ""
           },
           "maxInFlightRequestsPerConnection": {
             "metadata": {
@@ -1425,7 +1425,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "maxInFlightRequestsPerConnection"
             },
-            "defaultValue": "0"
+            "defaultValue": ""
           },
           "connectionsMaxIdleTime": {
             "metadata": {
@@ -1453,7 +1453,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "connectionsMaxIdleTime"
             },
-            "defaultValue": "0.0d"
+            "defaultValue": ""
           },
           "transactionTimeout": {
             "metadata": {
@@ -1481,7 +1481,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "transactionTimeout"
             },
-            "defaultValue": "0.0d"
+            "defaultValue": ""
           },
           "enableIdempotence": {
             "metadata": {
@@ -1509,7 +1509,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "enableIdempotence"
             },
-            "defaultValue": "false"
+            "defaultValue": ""
           },
           "secureSocket": {
             "metadata": {
@@ -1546,7 +1546,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "secureSocket"
             },
-            "defaultValue": "{cert: {path: \"\", password: \"\"}}"
+            "defaultValue": ""
           },
           "auth": {
             "metadata": {
@@ -1583,7 +1583,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "auth"
             },
-            "defaultValue": "{username: \"\", password: \"\"}"
+            "defaultValue": ""
           },
           "securityProtocol": {
             "metadata": {
@@ -1619,7 +1619,7 @@
                 "selected": false
               }
             ],
-            "placeholder": "\"PLAINTEXT\"",
+            "placeholder": "",
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -1628,7 +1628,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "securityProtocol"
             },
-            "defaultValue": "\"PLAINTEXT\""
+            "defaultValue": ""
           },
           "checkError": {
             "metadata": {

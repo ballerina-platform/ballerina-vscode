@@ -197,7 +197,7 @@
             "type": "LISTENER_INIT_PARAM",
             "originalName": "httpVersion"
           },
-          "placeholder": "\"2.0\"",
+          "placeholder": "",
           "value": "",
           "types": [
             {

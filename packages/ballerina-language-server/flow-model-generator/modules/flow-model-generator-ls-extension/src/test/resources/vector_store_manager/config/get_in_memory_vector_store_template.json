@@ -105,7 +105,7 @@
             "kind": "DEFAULTABLE",
             "originalName": "similarityMetric"
           },
-          "defaultValue": "COSINE"
+          "defaultValue": "\"COSINE\""
         },
         "scope": {
           "metadata": {

@@ -908,7 +908,7 @@
           "kind": "DEFAULTABLE",
           "originalName": "minRating"
         },
-        "defaultValue": "0"
+        "defaultValue": ""
       },
       "type": {
         "metadata": {

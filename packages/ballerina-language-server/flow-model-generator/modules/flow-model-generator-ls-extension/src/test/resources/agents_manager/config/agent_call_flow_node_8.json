@@ -199,7 +199,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "systemPrompt"
             },
-            "defaultValue": "{role: \"\", instructions: \"\"}"
+            "defaultValue": ""
           },
           "model": {
             "metadata": {
@@ -222,7 +222,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "model"
             },
-            "defaultValue": "object {}"
+            "defaultValue": ""
           },
           "tools": {
             "metadata": {
@@ -366,7 +366,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "memory"
             },
-            "defaultValue": "()"
+            "defaultValue": ""
           },
           "toolLoadingStrategy": {
             "metadata": {
@@ -403,7 +403,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "toolLoadingStrategy"
             },
-            "defaultValue": "NO_FILTER"
+            "defaultValue": "\"NO_FILTER\""
           },
           "executeToolCallsInParallel": {
             "metadata": {
@@ -468,7 +468,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "credential"
             },
-            "defaultValue": "{id: \"\", secret: \"\"}"
+            "defaultValue": ""
           },
           "type": {
             "metadata": {
@@ -671,7 +671,7 @@
               "kind": "DEFAULTABLE",
               "originalName": "sessionId"
             },
-            "defaultValue": "DEFAULT_SESSION_ID"
+            "defaultValue": "sessionId"
           },
           "context": {
             "metadata": {
@@ -831,7 +831,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "systemPrompt"
             },
-            "defaultValue": "{role: \"\", instructions: \"\"}"
+            "defaultValue": ""
           },
           "model": {
             "metadata": {
@@ -854,7 +854,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "model"
             },
-            "defaultValue": "object {}"
+            "defaultValue": ""
           },
           "tools": {
             "metadata": {
@@ -998,7 +998,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "memory"
             },
-            "defaultValue": "()"
+            "defaultValue": ""
           },
           "toolLoadingStrategy": {
             "metadata": {
@@ -1035,7 +1035,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "toolLoadingStrategy"
             },
-            "defaultValue": "NO_FILTER"
+            "defaultValue": "\"NO_FILTER\""
           },
           "executeToolCallsInParallel": {
             "metadata": {
@@ -1100,7 +1100,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "credential"
             },
-            "defaultValue": "{id: \"\", secret: \"\"}"
+            "defaultValue": ""
           },
           "checkError": {
             "metadata": {

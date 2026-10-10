@@ -411,7 +411,7 @@
               "kind": "DEFAULTABLE",
               "originalName": "host"
             },
-            "defaultValue": "\"\""
+            "defaultValue": ""
           },
           "user": {
             "metadata": {
@@ -439,7 +439,7 @@
               "kind": "DEFAULTABLE",
               "originalName": "user"
             },
-            "defaultValue": "()"
+            "defaultValue": ""
           },
           "password": {
             "metadata": {
@@ -467,7 +467,7 @@
               "kind": "DEFAULTABLE",
               "originalName": "password"
             },
-            "defaultValue": "()"
+            "defaultValue": ""
           },
           "database": {
             "metadata": {
@@ -495,7 +495,7 @@
               "kind": "DEFAULTABLE",
               "originalName": "database"
             },
-            "defaultValue": "()"
+            "defaultValue": ""
           },
           "port": {
             "metadata": {
@@ -523,7 +523,7 @@
               "kind": "DEFAULTABLE",
               "originalName": "port"
             },
-            "defaultValue": "0"
+            "defaultValue": ""
           },
           "options": {
             "metadata": {
@@ -560,7 +560,7 @@
               "kind": "DEFAULTABLE",
               "originalName": "options"
             },
-            "defaultValue": "()"
+            "defaultValue": ""
           },
           "connectionPool": {
             "metadata": {
@@ -600,7 +600,7 @@
             "imports": {
               "sql": "ballerina/sql"
             },
-            "defaultValue": "()"
+            "defaultValue": ""
           },
           "checkError": {
             "metadata": {

@@ -29,7 +29,9 @@ import io.ballerina.compiler.api.symbols.FutureTypeSymbol;
 import io.ballerina.compiler.api.symbols.IntersectionTypeSymbol;
 import io.ballerina.compiler.api.symbols.MapTypeSymbol;
 import io.ballerina.compiler.api.symbols.ModuleSymbol;
+import io.ballerina.compiler.api.symbols.ParameterKind;
 import io.ballerina.compiler.api.symbols.ParameterSymbol;
+import io.ballerina.compiler.api.symbols.RecordFieldSymbol;
 import io.ballerina.compiler.api.symbols.StreamTypeSymbol;
 import io.ballerina.compiler.api.symbols.Symbol;
 import io.ballerina.compiler.api.symbols.SymbolKind;
@@ -42,12 +44,12 @@ import io.ballerina.compiler.api.symbols.TypeReferenceTypeSymbol;
 import io.ballerina.compiler.api.symbols.TypeSymbol;
 import io.ballerina.compiler.api.symbols.UnionTypeSymbol;
 import io.ballerina.compiler.api.symbols.VariableSymbol;
+import io.ballerina.compiler.api.values.ConstantValue;
 import io.ballerina.compiler.syntax.tree.BindingPatternNode;
 import io.ballerina.compiler.syntax.tree.BuiltinSimpleNameReferenceNode;
 import io.ballerina.compiler.syntax.tree.ChildNodeList;
 import io.ballerina.compiler.syntax.tree.DefaultableParameterNode;
 import io.ballerina.compiler.syntax.tree.DoStatementNode;
-import io.ballerina.compiler.syntax.tree.EnumMemberNode;
 import io.ballerina.compiler.syntax.tree.ExpressionNode;
 import io.ballerina.compiler.syntax.tree.FunctionDefinitionNode;
 import io.ballerina.compiler.syntax.tree.InterpolationNode;
@@ -103,6 +105,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -1842,13 +1845,13 @@ public class CommonUtils {
      *
      * @param paramSymbol     the parameter or record field symbol
      * @param typeSymbol      the type descriptor of the parameter
-     * @param semanticModel   the semantic model for symbol resolution (can be null)
+     * @param semanticModel   the semantic model of the default module of {@code resolvedPackage} (can be null)
      * @param resolvedPackage the resolved package containing the symbol (can be null)
      * @return the extracted default value as a string
      */
     public static String resolveDefaultValue(Symbol paramSymbol, TypeSymbol typeSymbol,
                                              SemanticModel semanticModel, Package resolvedPackage) {
-        return resolveDefaultValue(paramSymbol, typeSymbol, semanticModel, resolvedPackage, null);
+        return resolveDefaultValue(paramSymbol, typeSymbol, () -> semanticModel, resolvedPackage, null);
     }
 
     /**
@@ -1857,25 +1860,31 @@ public class CommonUtils {
      *
      * @param paramSymbol     the parameter or record field symbol
      * @param typeSymbol      the type descriptor of the parameter
-     * @param semanticModel   the semantic model for symbol resolution (can be null)
+     * @param semanticModel   supplies the semantic model of the module the default is read from: that of
+     *                        {@code document}, or else the default module of {@code resolvedPackage}. A constant or
+     *                        enum member the default names is resolved by its node, which no other model knows. Asked
+     *                        only for such a default (may supply null)
      * @param resolvedPackage the resolved package containing the symbol (can be null)
      * @param document        the document containing the symbol (can be null for optimization)
      * @return the extracted default value as a string
      */
     public static String resolveDefaultValue(Symbol paramSymbol, TypeSymbol typeSymbol,
-                                             SemanticModel semanticModel, Package resolvedPackage,
+                                             Supplier<SemanticModel> semanticModel, Package resolvedPackage,
                                              Document document) {
-        String defaultValue = DefaultValueGeneratorUtil.getDefaultValueForType(typeSymbol);
+        if (!declaresDefaultValue(paramSymbol)) {
+            return "";
+        }
+        String unknownDefault = "";
 
         Optional<Location> symbolLocation = paramSymbol.getLocation();
         if (resolvedPackage == null || symbolLocation.isEmpty()) {
-            return defaultValue;
+            return unknownDefault;
         }
         if (document == null) {
             // TODO: Remove the document passing logic to separate imported and local packages
             document = findDocument(resolvedPackage, symbolLocation.get().lineRange().fileName());
             if (document == null) {
-                return defaultValue;
+                return unknownDefault;
             }
         }
 
@@ -1888,23 +1897,36 @@ public class CommonUtils {
             case DEFAULTABLE_PARAM -> expression = (ExpressionNode) ((DefaultableParameterNode) node).expression();
             case RECORD_FIELD_WITH_DEFAULT_VALUE -> expression = ((RecordFieldWithDefaultValueNode) node).expression();
             default -> {
-                return defaultValue;
+                return unknownDefault;
             }
         }
 
         if (expression instanceof SimpleNameReferenceNode simpleNameReferenceNode) {
-            String enumValue = resolveEnumMemberValue(simpleNameReferenceNode, resolvedPackage,
-                    semanticModel, document);
+            String enumValue = resolveEnumMemberValue(simpleNameReferenceNode, semanticModel.get());
             return enumValue != null ? enumValue : simpleNameReferenceNode.name().text();
         } else if (expression instanceof QualifiedNameReferenceNode qualifiedNameReferenceNode) {
-            String enumValue = resolveEnumMemberValue(qualifiedNameReferenceNode, resolvedPackage,
-                    semanticModel, document);
+            String enumValue = resolveEnumMemberValue(qualifiedNameReferenceNode, semanticModel.get());
             return enumValue != null ? enumValue :
                     qualifiedNameReferenceNode.modulePrefix().text() + ":" + qualifiedNameReferenceNode.identifier()
                             .text();
         } else {
             return expression.toSourceCode();
         }
+    }
+
+    /**
+     * Whether a parameter or record field declares a default value. Read from the symbol, so it holds whether or
+     * not the source of its module is available. Any other kind of symbol is assumed to declare one, which keeps
+     * the default derived from its type.
+     */
+    private static boolean declaresDefaultValue(Symbol symbol) {
+        if (symbol instanceof ParameterSymbol parameterSymbol) {
+            return parameterSymbol.paramKind() == ParameterKind.DEFAULTABLE;
+        }
+        if (symbol instanceof RecordFieldSymbol recordFieldSymbol) {
+            return recordFieldSymbol.hasDefaultValue();
+        }
+        return true;
     }
 
     /**
@@ -1928,10 +1950,11 @@ public class CommonUtils {
     }
 
     /**
-     * Helper method to resolve enum member values from expressions.
+     * Helper method to resolve the value of the constant or enum member an expression names. Both are read from the
+     * symbol, which holds the value whether the member is declared in another file or another package, whose source
+     * the declaring module's model does not have.
      */
-    private static String resolveEnumMemberValue(ExpressionNode expression, Package resolvedPackage,
-                                                 SemanticModel semanticModel, Document document) {
+    private static String resolveEnumMemberValue(ExpressionNode expression, SemanticModel semanticModel) {
         if (semanticModel == null) {
             return null;
         }
@@ -1941,45 +1964,21 @@ public class CommonUtils {
             return null;
         }
 
-        Symbol symbol = symbolOpt.get();
-        if (symbol.kind() == SymbolKind.CONSTANT) {
-            if (symbol instanceof ConstantSymbol constantSymbol) {
-                return String.valueOf(constantSymbol.constValue());
-            }
-            // Handle case where kind is CONSTANT but not instanceof ConstantSymbol
+        // An enum member is a constant symbol too
+        if (!(symbolOpt.get() instanceof ConstantSymbol constantSymbol)) {
+            return null;
+        }
+        if (constantSymbol.kind() == SymbolKind.CONSTANT) {
+            return String.valueOf(constantSymbol.constValue());
+        }
+        if (constantSymbol.kind() != SymbolKind.ENUM_MEMBER) {
             return null;
         }
 
-        if (symbol.kind() != SymbolKind.ENUM_MEMBER) {
-            return null;
-        }
-
-        Optional<Location> symbolLocation = symbol.getLocation();
-        if (resolvedPackage == null || symbolLocation.isEmpty()) {
-            return null;
-        }
-
-        if (document == null) {
-            document = findDocument(resolvedPackage, symbolLocation.get().lineRange().fileName());
-            if (document == null) {
-                return null;
-            }
-        }
-
-        ModulePartNode rootNode = document.syntaxTree().rootNode();
-        TextRange textRange = symbolLocation.get().textRange();
-        NonTerminalNode node = rootNode.findNode(TextRange.from(textRange.startOffset(), textRange.length()));
-
-        if (!(node instanceof EnumMemberNode enumMemberNode)) {
-            return null;
-        }
-
-        if (enumMemberNode.constExprNode().isEmpty()) {
-            return enumMemberNode.identifier().text();
-        }
-
-        ExpressionNode valueExpression = enumMemberNode.constExprNode().get();
-        return valueExpression.toSourceCode().trim();
+        // The value of an enum member is always a string, presented as the literal it is written with
+        Object value = constantSymbol.constValue() instanceof ConstantValue constantValue
+                ? constantValue.value() : constantSymbol.constValue();
+        return value == null ? null : "\"" + escapeContent(String.valueOf(value)) + "\"";
     }
 
     /**

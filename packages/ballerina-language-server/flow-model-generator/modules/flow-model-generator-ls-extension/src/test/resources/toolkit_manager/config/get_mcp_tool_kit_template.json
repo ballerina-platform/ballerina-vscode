@@ -134,7 +134,7 @@
             "kind": "INCLUDED_FIELD",
             "originalName": "httpVersion"
           },
-          "defaultValue": "http:HTTP_2_0"
+          "defaultValue": "\"2.0\""
         },
         "http1Settings": {
           "metadata": {
@@ -845,7 +845,7 @@
             "kind": "INCLUDED_FIELD",
             "originalName": "sessionId"
           },
-          "defaultValue": "\"\""
+          "defaultValue": ""
         },
         "toolKitName": {
           "metadata": {

@@ -78,7 +78,7 @@
           "kind": "INCLUDED_FIELD",
           "originalName": "userRoles"
         },
-        "defaultValue": "()"
+        "defaultValue": ""
       },
       "taskInput": {
         "metadata": {
@@ -147,7 +147,7 @@
           "kind": "INCLUDED_FIELD",
           "originalName": "title"
         },
-        "defaultValue": "()"
+        "defaultValue": ""
       },
       "$description": {
         "metadata": {
@@ -175,7 +175,7 @@
           "kind": "INCLUDED_FIELD",
           "originalName": "description"
         },
-        "defaultValue": "()"
+        "defaultValue": ""
       },
       "timeout": {
         "metadata": {
@@ -212,7 +212,7 @@
           "kind": "INCLUDED_FIELD",
           "originalName": "timeout"
         },
-        "defaultValue": "()"
+        "defaultValue": ""
       },
       "databindingType": {
         "metadata": {
@@ -293,7 +293,7 @@
           "kind": "INCLUDED_FIELD",
           "originalName": "users"
         },
-        "defaultValue": "\"\""
+        "defaultValue": ""
       },
       "excludedUsers": {
         "metadata": {
@@ -322,7 +322,7 @@
           "kind": "INCLUDED_FIELD",
           "originalName": "excludedUsers"
         },
-        "defaultValue": "\"\""
+        "defaultValue": ""
       },
       "excludedRoles": {
         "metadata": {
@@ -351,7 +351,7 @@
           "kind": "INCLUDED_FIELD",
           "originalName": "excludedRoles"
         },
-        "defaultValue": "\"\""
+        "defaultValue": ""
       },
       "administratorRoles": {
         "metadata": {
@@ -380,7 +380,7 @@
           "kind": "INCLUDED_FIELD",
           "originalName": "administratorRoles"
         },
-        "defaultValue": "\"\""
+        "defaultValue": ""
       },
       "administratorUsers": {
         "metadata": {
@@ -409,7 +409,7 @@
           "kind": "INCLUDED_FIELD",
           "originalName": "administratorUsers"
         },
-        "defaultValue": "\"\""
+        "defaultValue": ""
       },
       "taskInputType": {
         "metadata": {
