@@ -21,6 +21,7 @@ import { ExecutionContext, ProjectSource } from '@wso2/ballerina-core';
 import { CopilotEventHandler } from '../utils/events';
 import { createTaskWriteTool, TASK_WRITE_TOOL_NAME } from './tools/task-writer';
 import { createDiagnosticsTool, DIAGNOSTICS_TOOL_NAME } from './tools/diagnostics';
+import { createEditDiagnosticsReporter, withEditDiagnostics } from './tools/edit-diagnostics';
 import {
     createBatchEditTool,
     createEditExecute,
@@ -89,6 +90,10 @@ export interface ToolRegistryOptions {
 export function createToolRegistry(opts: ToolRegistryOptions) {
     const { eventHandler, toolModelUsage, tempProjectPath, modifiedFiles, allModifiedFiles, projects, generationType, projectRootPath, generationId, threadId, migrationSourcePath, webSearchEnabled, ctx } = opts;
     const resolvedThreadId = threadId || 'default';
+    // Which compiler errors this run has shown the model, shared by the edit tools and the
+    // diagnostics tool. Only with an ExecutionContext do edits go through the document model, so
+    // only then does the language server see them.
+    const editDiagnostics = ctx ? createEditDiagnosticsReporter(tempProjectPath) : undefined;
     // Library lookups happen only inside subagents; their histories live next to the thread.
     const subagentCtx: SubagentRunContext = {
         eventHandler,
@@ -126,18 +131,18 @@ export function createToolRegistry(opts: ToolRegistryOptions) {
             modifiedFiles
         ),
         [FILE_WRITE_TOOL_NAME]: createWriteTool(
-            createWriteExecute(eventHandler, tempProjectPath, modifiedFiles, allModifiedFiles, ctx)
+            withEditDiagnostics(editDiagnostics, createWriteExecute(eventHandler, tempProjectPath, modifiedFiles, allModifiedFiles, ctx))
         ),
         [FILE_SINGLE_EDIT_TOOL_NAME]: createEditTool(
-            createEditExecute(eventHandler, tempProjectPath, modifiedFiles, allModifiedFiles, ctx)
+            withEditDiagnostics(editDiagnostics, createEditExecute(eventHandler, tempProjectPath, modifiedFiles, allModifiedFiles, ctx))
         ),
         [FILE_BATCH_EDIT_TOOL_NAME]: createBatchEditTool(
-            createMultiEditExecute(eventHandler, tempProjectPath, modifiedFiles, allModifiedFiles, ctx)
+            withEditDiagnostics(editDiagnostics, createMultiEditExecute(eventHandler, tempProjectPath, modifiedFiles, allModifiedFiles, ctx))
         ),
         [FILE_READ_TOOL_NAME]: createReadTool(
             createReadExecute(eventHandler, tempProjectPath)
         ),
-        [DIAGNOSTICS_TOOL_NAME]: createDiagnosticsTool(tempProjectPath, eventHandler),
+        [DIAGNOSTICS_TOOL_NAME]: createDiagnosticsTool(tempProjectPath, eventHandler, editDiagnostics),
         [TEST_RUNNER_TOOL_NAME]: createTestRunnerTool(tempProjectPath, eventHandler),
         // Migration source tools — registered only when a source project path is available
         ...(migrationSourcePath ? {

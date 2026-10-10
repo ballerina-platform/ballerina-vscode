@@ -23,12 +23,16 @@ export interface ModelPricing {
     output: number;
 }
 
-// Cache-write rates are the 5-minute-TTL tier, matching getProviderCacheControl().
+// Cache-write rates are the 1-hour-TTL tier (2x input), matching getProviderCacheControl()'s default.
+// Claude Haiku 5.5 bills prompts over 100K tokens at $0.50/$2.50; only its standard card is here,
+// because tool-internal usage arrives summed across calls, and its calls stay far below 100K.
 // Per-million-token pricing by model
 const MODEL_PRICING: Record<string, ModelPricing> = {
-    'claude-sonnet-5':              { input: 2,  cacheWrite: 2.50, cacheRead: 0.20, output: 10 },
-    'claude-sonnet-4-6':            { input: 3,  cacheWrite: 3.75, cacheRead: 0.30, output: 15 },
-    'claude-haiku-4-5-20251001':    { input: 1,  cacheWrite: 1.25, cacheRead: 0.10, output: 5  },
+    'claude-sonnet-5-5':            { input: 2,  cacheWrite: 4,    cacheRead: 0.20, output: 10 },
+    'claude-sonnet-5':              { input: 2,  cacheWrite: 4,    cacheRead: 0.20, output: 10 },
+    'claude-sonnet-4-6':            { input: 3,  cacheWrite: 6,    cacheRead: 0.30, output: 15 },
+    'claude-haiku-5-5':             { input: 0.10, cacheWrite: 0.20, cacheRead: 0.01, output: 0.50 },
+    'claude-haiku-4-5-20251001':    { input: 1,  cacheWrite: 2,    cacheRead: 0.10, output: 5  },
 };
 
 export interface CostInput {

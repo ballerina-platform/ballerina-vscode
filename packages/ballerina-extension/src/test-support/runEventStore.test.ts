@@ -69,6 +69,31 @@ describe("RunEventStore", () => {
         ]);
     });
 
+    it("coalesces adjacent thinking deltas per block without crossing types or block ids", () => {
+        const store = new RunEventStore();
+        store.beginRun("/workspace", "thread", "generation");
+        store.stamp("/workspace", "thread", "generation", { type: "thinking_start", thinkingId: "r1", timestamp: 1000 });
+        store.stamp("/workspace", "thread", "generation", { type: "thinking_delta", thinkingId: "r1", content: "First, " });
+        store.stamp("/workspace", "thread", "generation", { type: "thinking_delta", thinkingId: "r1", content: "then." });
+        // A text delta right after a thinking entry must NOT merge into it, and a
+        // second reasoning block's deltas must not merge into the first block's.
+        store.stamp("/workspace", "thread", "generation", { type: "content_block", content: "answer" });
+        store.stamp("/workspace", "thread", "generation", { type: "thinking_delta", thinkingId: "r2", content: "more" });
+
+        expect(store.getRunStatus("/workspace", "thread").events).toEqual([
+            expect.objectContaining({ type: "thinking_start", thinkingId: "r1", seq: 1 }),
+            expect.objectContaining({ type: "thinking_delta", thinkingId: "r1", content: "First, then.", seq: 3 }),
+            expect.objectContaining({ type: "content_block", content: "answer", seq: 4 }),
+            expect.objectContaining({ type: "thinking_delta", thinkingId: "r2", content: "more", seq: 5 }),
+        ]);
+        // Polling delta stays exact within a merged thinking entry.
+        expect(store.getRunStatus("/workspace", "thread", 2).events).toEqual([
+            expect.objectContaining({ type: "thinking_delta", thinkingId: "r1", content: "then.", seq: 3 }),
+            expect.objectContaining({ type: "content_block", content: "answer", seq: 4 }),
+            expect.objectContaining({ type: "thinking_delta", thinkingId: "r2", content: "more", seq: 5 }),
+        ]);
+    });
+
     it("keeps startup events when the executor re-registers the same run", () => {
         const store = new RunEventStore();
         store.beginRun("/workspace", "thread", "generation");

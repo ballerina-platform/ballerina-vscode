@@ -154,7 +154,7 @@ export const validateApiKey = async (apiKey: string, loginMethod: LoginMethod): 
         });
 
         await generateText({
-            model: directAnthropic('claude-haiku-4-5-20251001'),
+            model: directAnthropic('claude-haiku-5-5'),
             maxOutputTokens: 1,
             messages: [{ role: 'user', content: 'Hi' }]
         });
@@ -228,7 +228,7 @@ export const validateAwsCredentials = async (credentials: {
 
         // Get regional prefix based on AWS region and construct model ID
         const regionalPrefix = getBedrockRegionalPrefix(region);
-        const modelId = `${regionalPrefix}.anthropic.claude-haiku-4-5-20251001-v1:0`;
+        const modelId = `${regionalPrefix}.anthropic.claude-haiku-5-5`;
         const bedrockClient = bedrock(modelId);
 
         // Make a minimal test call to validate credentials
@@ -292,7 +292,7 @@ export const validateVertexAiCredentials = async (credentials: {
         });
 
         await generateText({
-            model: vertexAnthropic('claude-haiku-4-5@20251001'),
+            model: vertexAnthropic('claude-haiku-5-5'),
             maxOutputTokens: 1,
             messages: [{ role: 'user', content: 'Hi' }]
         });
@@ -369,7 +369,7 @@ export const validateAnthropicAwsCredentials = async (credentials: {
 
     try {
         await generateText({
-            model: anthropicAws('claude-haiku-4-5-20251001'),
+            model: anthropicAws('claude-haiku-5-5'),
             maxOutputTokens: 1,
             messages: [{ role: 'user', content: 'Hi' }]
         });

@@ -16,7 +16,7 @@
 
 import { GenerateOpenAPIRequest, Command } from "@wso2/ballerina-core";
 import { streamText } from "ai";
-import { getAnthropicClient, ANTHROPIC_HAIKU, getProviderCacheControl } from "../utils/ai-client";
+import { getAnthropicClient, ANTHROPIC_HAIKU, getProviderCacheControl, getProviderModelOptions } from "../utils/ai-client";
 import { buildChatError, populateHistory } from "../utils/ai-utils";
 import { CopilotEventHandler, createWebviewEventHandler } from "../utils/events";
 import { chatStateStorage } from "../../../views/ai-panel/chatStateStorage";
@@ -30,11 +30,15 @@ export async function generateOpenAPISpecCore(
 ): Promise<void> {
     // Populate chat history and add user message
     const historyMessages = populateHistory(params.chatHistory);
-    const cacheOptions = await getProviderCacheControl();
+    const [model, cacheOptions, providerOptions] = await Promise.all([
+        getAnthropicClient(ANTHROPIC_HAIKU),
+        getProviderCacheControl(),
+        getProviderModelOptions('low'),
+    ]);
     const { fullStream } = streamText({
-        model: await getAnthropicClient(ANTHROPIC_HAIKU),
+        model,
         maxOutputTokens: 8192,
-        temperature: 0,
+        providerOptions,
         system: { role: "system", content: getSystemPrompt(), providerOptions: cacheOptions },
         messages: [
             ...historyMessages,

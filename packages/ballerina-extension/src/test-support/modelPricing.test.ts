@@ -40,16 +40,24 @@ const rates = (model: string) => ({
 });
 
 describe('the pricing table', () => {
+    it('prices claude-sonnet-5-5 at its published rates', () => {
+        expect(rates('claude-sonnet-5-5')).toEqual({ input: 2, output: 10, cacheWrite: 4, cacheRead: 0.2 });
+    });
+
     it('prices claude-sonnet-5 at its published rates', () => {
-        expect(rates('claude-sonnet-5')).toEqual({ input: 2, output: 10, cacheWrite: 2.5, cacheRead: 0.2 });
+        expect(rates('claude-sonnet-5')).toEqual({ input: 2, output: 10, cacheWrite: 4, cacheRead: 0.2 });
     });
 
     it('prices claude-sonnet-4-6 at its published rates', () => {
-        expect(rates('claude-sonnet-4-6')).toEqual({ input: 3, output: 15, cacheWrite: 3.75, cacheRead: 0.3 });
+        expect(rates('claude-sonnet-4-6')).toEqual({ input: 3, output: 15, cacheWrite: 6, cacheRead: 0.3 });
+    });
+
+    it('prices claude-haiku-5-5 at its published rates for prompts up to 100K tokens', () => {
+        expect(rates('claude-haiku-5-5')).toEqual({ input: 0.1, output: 0.5, cacheWrite: 0.2, cacheRead: 0.01 });
     });
 
     it('prices claude-haiku-4-5-20251001 at its published rates', () => {
-        expect(rates('claude-haiku-4-5-20251001')).toEqual({ input: 1, output: 5, cacheWrite: 1.25, cacheRead: 0.1 });
+        expect(rates('claude-haiku-4-5-20251001')).toEqual({ input: 1, output: 5, cacheWrite: 2, cacheRead: 0.1 });
     });
 
     it('reports an unknown model as zero, which is why the key has to be right', () => {
@@ -69,7 +77,7 @@ describe('rates do not depend on the wall clock', () => {
         'well after the cancelled cutover': Date.parse('2027-01-01T00:00:00Z'),
     };
 
-    for (const model of ['claude-sonnet-5', 'claude-sonnet-4-6', 'claude-haiku-4-5-20251001']) {
+    for (const model of ['claude-sonnet-5-5', 'claude-sonnet-5', 'claude-sonnet-4-6', 'claude-haiku-5-5', 'claude-haiku-4-5-20251001']) {
         it(`prices ${model} identically at every instant`, () => {
             const expected = rates(model);
             expect(expected.input).toBeGreaterThan(0);

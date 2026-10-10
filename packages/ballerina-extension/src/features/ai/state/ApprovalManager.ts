@@ -112,8 +112,6 @@ export class ApprovalManager {
     private skillEnableIds = new Map<string, string>();
     private approvalQueue: ApprovalQueueItem[] = [];
     private approvalQueueActive = false;
-    private notificationCounters = new Map<string, number>();
-    private notificationHandlers = new Map<string, (active: boolean) => void>();
 
     // Default timeout for abandoned approvals (30 minutes)
     private readonly DEFAULT_TIMEOUT_MS = 30 * 60 * 1000;
@@ -618,33 +616,6 @@ export class ApprovalManager {
     }
 
     // ============================================
-    // Notification Counter
-    // ============================================
-
-    /** Register a callback fired when a type transitions between idle (0) and active (>0). */
-    registerNotificationHandler(type: string, handler: (active: boolean) => void): void {
-        this.notificationHandlers.set(type, handler);
-    }
-
-    /** Increment active count for type. Fires handler(true) on 0 → 1. */
-    trackNotificationStart(type: string): void {
-        const count = (this.notificationCounters.get(type) ?? 0) + 1;
-        this.notificationCounters.set(type, count);
-        if (count === 1) {
-            this.notificationHandlers.get(type)?.(true);
-        }
-    }
-
-    /** Decrement active count for type. Fires handler(false) on 1 → 0. */
-    trackNotificationEnd(type: string): void {
-        const count = Math.max(0, (this.notificationCounters.get(type) ?? 0) - 1);
-        this.notificationCounters.set(type, count);
-        if (count === 0) {
-            this.notificationHandlers.get(type)?.(false);
-        }
-    }
-
-    // ============================================
     // Cleanup
     // ============================================
 
@@ -724,14 +695,6 @@ export class ApprovalManager {
         }
         this.skillEnableRequests.clear();
         this.skillEnableIds.clear();
-
-        // Reset all notification counters and fire handlers (e.g. turn off globe)
-        for (const [type, count] of this.notificationCounters.entries()) {
-            if (count > 0) {
-                this.notificationCounters.set(type, 0);
-                this.notificationHandlers.get(type)?.(false);
-            }
-        }
     }
 
     /**
@@ -759,14 +722,6 @@ export class ApprovalManager {
             resolver.resolve({ provided: false, comment: reason });
         }
         this.configurationRequests.clear();
-
-        // Reset notification counters and fire handlers (e.g. turn off the web-search globe).
-        for (const [type, count] of this.notificationCounters.entries()) {
-            if (count > 0) {
-                this.notificationCounters.set(type, 0);
-                this.notificationHandlers.get(type)?.(false);
-            }
-        }
     }
 
     /**

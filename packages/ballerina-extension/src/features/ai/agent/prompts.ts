@@ -88,6 +88,12 @@ Anything outside the project — a running server or database, installed softwar
 
 Before offering choices, work out what each one needs beyond the project and your tools, and offer only options you could carry out if picked. If an option rests on something the user may not have, say so in the option or ask first; if the whole task needs something you cannot supply, say so before the choices.
 
+# Thinking behavior
+- Ballerina is a low-resource language: your training data holds far less Ballerina than mainstream languages, and its libraries and connectors change between releases. What you remember about library APIs, connector operations and runtime behavior may therefore be incomplete or out of date. Don't work out these specifics in your head before writing code.
+- Work in a loop: form a rough plan, implement it, then refine it with the feedback available — the compiler errors each edit reports, ${TEST_RUNNER_TOOL_NAME} and ${BALLERINA_RUN_TOOL_NAME} for runtime behavior, and the Librarian's report (${SUBAGENT_TOOL_NAME}) for library signatures. When a signal is one tool call away, fetch it instead of reasoning about what it would say. When debugging, get one signal first, then narrow down.
+- Use thinking for reasoning that doesn't depend on Ballerina-specific knowledge: control-flow design, data-mapping logic, breaking a task into steps, and making sense of tool output or project source already in context.
+- Treat any Ballerina-specific conclusion you reach by thinking as a hypothesis, however confident you feel. Check it against the Librarian's report or diagnostics before relying on it.
+
 # Generation Modes
 
 ## Plan Mode
@@ -140,7 +146,7 @@ This plan will be visible to the user and the execution will be guided on the ta
      - First check if any available skill's trigger condition matches — invoke that skill and follow its library selection and tool-use guidance.
      - If no skill applies, call ${SUBAGENT_TOOL_NAME} (subagent_type: Librarian) with a purpose-written brief of what the integration must do; its report is your only source of library signatures (see "Library Usage").
      - If you think user is refering to an ambiguous API, or internal API, call ${CONNECTOR_GENERATOR_TOOL} to request for the API spec from the user and to generate a connector for it.
-   - Before marking the task as completed, use ${DIAGNOSTICS_TOOL_NAME} to check for compilation errors and fix them.
+   - Before marking the task as completed, fix the compiler errors your edits reported (see "File modifications").
    - Mark task as completed using ${TASK_WRITE_TOOL_NAME} (send ALL tasks, no approval flags) — the agent continues automatically. **IMPORTANT: When marking a task as completed in a message with other tool calls, ${TASK_WRITE_TOOL_NAME} MUST always be the LAST tool call in the message.**
    - After completing a logical unit of work (a set of related tasks), set **requestReview: true** on the ${TASK_WRITE_TOOL_NAME} call to let the user review before continuing. Do NOT set this after every single task.
    - Repeat until ALL tasks are done
@@ -165,9 +171,9 @@ Before discovering libraries, check if any available skill's trigger condition m
 Write/modify the Ballerina code to implement the user requirement. Use the ${FILE_BATCH_EDIT_TOOL_NAME}, ${FILE_SINGLE_EDIT_TOOL_NAME}, ${FILE_WRITE_TOOL_NAME} tools to write/modify the code. 
 
 ### Step 4: Validate the code
-Once the code is written, always use ${DIAGNOSTICS_TOOL_NAME} to check for compilation errors and fix them. You may call it multiple times after making changes.
+Fix the compiler errors your edits report (see "File modifications").
 If errors cannot be resolved after multiple attempts, bring the code to a good state and finish the task.
-Once compilation is clean and if the project contains test cases, run the tests.
+Once the code compiles and if the project contains test cases, run the tests.
 
 ### Step 5: Provide a consise summary
 Once the code is written and validated, provide a very concise summary of the overall changes made. Avoid adding detailed explanations and NEVER create documentations files via ${FILE_WRITE_TOOL_NAME}.
@@ -255,6 +261,8 @@ ${CONCURRENCY_CODING_RULES}
 - Do not manually add/modify Dependencies.toml. For Config.toml configuration management, use ${CONFIG_COLLECTOR_TOOL}.
 - NEVER read Config.toml or tests/Config.toml directly. Use ${CONFIG_COLLECTOR_TOOL} CHECK mode to inspect configuration status — actual values must never be visible to you.
 - Prefer modifying existing bal files over creating new files unless explicitly asked to create a new file in the query.
+- Each edit's result reports the compiler errors it newly surfaced anywhere in the edited file's package, in a <new-diagnostics> block; no block means the edit added no new errors. Errors that only reflect a change still in progress, such as a symbol you have yet to define in another file, are expected; fix the rest before moving on.
+- Call ${DIAGNOSTICS_TOOL_NAME} only when an edit result says its errors were not checked, when an error reports a module that cannot be resolved (the tool pulls missing dependencies), or when you need a package's full current error list with fix hints.
 
 ## Workspace Management
 When working with Ballerina workspace projects (projects with a root Ballerina.toml containing a [workspace] section):
@@ -325,6 +333,7 @@ export function getUserPrompt(
     tempProjectPath: string,
     projects: ProjectSource[],
     projectSkills: ProjectSkillMeta[],
+    webSearchEnabled: boolean,
     agentsMdBlockText?: string,
     codebase?: { omitCodebaseDump?: boolean; codebaseMapText?: string },
 ) {
@@ -427,7 +436,7 @@ ${queryParts.join('\n\n')}
         text: getGenerationType(params.isPlanMode)
     });
 
-    if (params.webSearchEnabled) {
+    if (webSearchEnabled) {
         content.push({
             type: 'text' as const,
             text: getWebToolsHint()
@@ -451,7 +460,7 @@ ${queryParts.join('\n\n')}
 }
 
 export function getWebToolsHint(): string {
-    return `<system-reminder>The user has enabled web tools. Use ${WEB_SEARCH_TOOL_NAME} for live or up-to-date information. Use ${WEB_FETCH_TOOL_NAME} when the user provides a URL. Invoke these tools proactively when the query suggests current data or external content is needed.</system-reminder>`;
+    return `<system-reminder>Web search is enabled: ${WEB_SEARCH_TOOL_NAME} and ${WEB_FETCH_TOOL_NAME} run without asking the user for approval. Use ${WEB_SEARCH_TOOL_NAME} for live or up-to-date information, and ${WEB_FETCH_TOOL_NAME} when the user provides a URL.</system-reminder>`;
 }
 
 function getGenerationType(isPlanMode: boolean): string {

@@ -93,6 +93,12 @@ export const Uri = {
     parse: (p: string) => ({ fsPath: p, path: p, scheme: "file", toString: () => p }),
 };
 
+export enum ConfigurationTarget {
+    Global = 1,
+    Workspace = 2,
+    WorkspaceFolder = 3,
+}
+
 export enum ProgressLocation {
     SourceControl = 1,
     Window = 10,

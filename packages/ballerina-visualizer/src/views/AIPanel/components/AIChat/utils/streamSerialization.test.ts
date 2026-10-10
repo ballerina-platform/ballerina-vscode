@@ -48,6 +48,10 @@ import {
     appendToLastEntry,
     upsertComponent,
     upsertRequestCard,
+    upsertThinking,
+    foldThinkingEvent,
+    describeThinkingDuration,
+    thinkingPreview,
     buildRequestCardData,
     buildPlanItem,
     applyPlanApprovalResolution,
@@ -393,5 +397,117 @@ describe("upsertToolResult", () => {
         const out = upsertToolResult(entries, { toolCallId: "c1", toolName: "Subagent", toolOutput: { status: "completed" } });
         expect(out[0].items.map(i => i.kind)).toEqual(["tool_result", "tool_result"]);
         expect(out[0].items[1]).toMatchObject({ toolOutput: { status: "completed" } });
+    });
+});
+
+/** Flatten entries and return the item at `index`, narrowed to the thinking variant. */
+function thinkingAt(entries: StreamEntry[], index: number) {
+    const item = entries.flatMap((e) => e.items)[index];
+    if (item?.kind !== "thinking") {
+        throw new Error(`expected a thinking item at ${index}, got ${item?.kind}`);
+    }
+    return item;
+}
+
+describe("upsertThinking", () => {
+    it("start → delta → delta → end merges into one done item with concatenated text", () => {
+        let entries: StreamEntry[] = [];
+        entries = upsertThinking(entries, "r1", "", false, 1000);
+        entries = upsertThinking(entries, "r1", "First, ", false, 1500);
+        entries = upsertThinking(entries, "r1", "then.", false, 2000);
+        entries = upsertThinking(entries, "r1", "", true, 4000);
+        expect(entries).toHaveLength(1);
+        expect(entries[0].items).toEqual([
+            { kind: "thinking", id: "r1", text: "First, then.", done: true, startedAt: 1000, endedAt: 4000 },
+        ]);
+    });
+
+    it("foldThinkingEvent takes start and end times from the events and never stamps a delta", () => {
+        let entries: StreamEntry[] = [];
+        entries = foldThinkingEvent(entries, { type: "thinking_start", thinkingId: "r1", timestamp: 1000 });
+        entries = foldThinkingEvent(entries, { type: "thinking_delta", thinkingId: "r1", content: "reason" });
+        entries = foldThinkingEvent(entries, { type: "thinking_end", thinkingId: "r1", timestamp: 3000 });
+        expect(entries[0].items).toEqual([
+            { kind: "thinking", id: "r1", text: "reason", done: true, startedAt: 1000, endedAt: 3000 },
+        ]);
+        // A delta that opens a block (its start was lost) carries no time of its own.
+        const orphan = foldThinkingEvent([], { type: "thinking_delta", thinkingId: "r2", content: "late" });
+        expect(thinkingAt(orphan, 0).startedAt).toBeUndefined();
+    });
+
+    it("a different id opens a new item instead of merging", () => {
+        let entries: StreamEntry[] = [];
+        entries = upsertThinking(entries, "r1", "one", true, 1000);
+        entries = upsertThinking(entries, "r2", "two", false, 2000);
+        expect(kindsOf(entries)).toEqual(["thinking", "thinking"]);
+        expect(thinkingAt(entries, 0).id).toBe("r1");
+        expect(thinkingAt(entries, 1).id).toBe("r2");
+    });
+
+    it("an orphaned delta (no trailing match) appends defensively rather than corrupting", () => {
+        // A tool_call landed after the block opened (interleaved thinking) — the
+        // delta must not merge into it or into an unrelated earlier thinking item.
+        let entries: StreamEntry[] = [];
+        entries = upsertThinking(entries, "r1", "early", true, 1000);
+        entries = appendToLastEntry(entries, { kind: "tool_call", toolCallId: "t1", toolName: "file_read" });
+        entries = upsertThinking(entries, "r1", "late", false, undefined);
+        const items = entries.flatMap((e) => e.items);
+        expect(items.map((i) => i.kind)).toEqual(["thinking", "tool_call", "thinking"]);
+        expect(thinkingAt(entries, 0).text).toBe("early");
+        expect(thinkingAt(entries, 2).text).toBe("late");
+        // The orphan opened from a delta carries no locally-derived timestamp —
+        // stamping one would make the serialized bytes differ per surface.
+        expect(thinkingAt(entries, 2).startedAt).toBeUndefined();
+        expect(serializeStream(entries, "")).not.toContain("startedAt\":2");
+    });
+
+    it("ignores the end of a block whose start is gone, instead of adding an empty row", () => {
+        const entries = appendToLastEntry([], { kind: "text", text: "before" });
+        expect(upsertThinking(entries, "r1", "", true, 5000)).toBe(entries);
+    });
+
+    it("a repeated end keeps the first endedAt (duration is fixed at close time)", () => {
+        let entries: StreamEntry[] = [];
+        entries = upsertThinking(entries, "r1", "x", false, 1000);
+        entries = upsertThinking(entries, "r1", "", true, 2000);
+        entries = upsertThinking(entries, "r1", "", true, 9000); // e.g. flush replayed after real end
+        const item = thinkingAt(entries, 0);
+        expect(item.done).toBe(true);
+        expect(item.endedAt).toBe(2000);
+    });
+
+    it("round-trips through serialize/parse", () => {
+        let entries: StreamEntry[] = [];
+        entries = upsertThinking(entries, "r1", "thought", true, 1000);
+        expect(parseStream(serializeStream(entries, ""))).toEqual(entries);
+    });
+});
+
+describe("describeThinkingDuration", () => {
+    it("reports whole seconds, rounding and flooring at 1s", () => {
+        expect(describeThinkingDuration({ startedAt: 1000, endedAt: 4000 })).toBe("Thought for 3s");
+        expect(describeThinkingDuration({ startedAt: 1000, endedAt: 1200 })).toBe("Thought for 1s");
+        expect(describeThinkingDuration({ startedAt: 1000, endedAt: 1000 })).toBe("Thought for 1s");
+    });
+
+    it("falls back to a bare label when a block never closed or timestamps are inconsistent", () => {
+        expect(describeThinkingDuration({ startedAt: 1000 })).toBe("Thought");
+        expect(describeThinkingDuration({})).toBe("Thought");
+        expect(describeThinkingDuration({ startedAt: 2000, endedAt: 1000 })).toBe("Thought");
+    });
+});
+
+describe("thinkingPreview", () => {
+    it("shows the last paragraph and says there is more above it", () => {
+        expect(thinkingPreview("**Planning**\nRead the service first.\n\n  \n\nThe tests pass; next I add the retry.\n"))
+            .toEqual({ preview: "The tests pass; next I add the retry.", hasMore: true });
+    });
+
+    it("shows a single paragraph whole, with nothing more to expand", () => {
+        expect(thinkingPreview("  Checking the diagnostics.  ")).toEqual({ preview: "Checking the diagnostics.", hasMore: false });
+    });
+
+    it("has no preview for empty thinking", () => {
+        expect(thinkingPreview(" \n\n ")).toEqual({ preview: "", hasMore: false });
     });
 });
