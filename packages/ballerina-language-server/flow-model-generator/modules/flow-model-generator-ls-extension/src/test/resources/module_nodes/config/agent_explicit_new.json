@@ -460,7 +460,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "toolLoadingStrategy"
             },
-            "defaultValue": "NO_FILTER"
+            "defaultValue": "\"NO_FILTER\""
           },
           "executeToolCallsInParallel": {
             "metadata": {

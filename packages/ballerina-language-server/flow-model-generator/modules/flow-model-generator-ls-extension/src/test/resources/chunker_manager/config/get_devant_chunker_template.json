@@ -219,7 +219,7 @@
             "kind": "DEFAULTABLE",
             "originalName": "strategy"
           },
-          "defaultValue": "RECURSIVE"
+          "defaultValue": "\"recursive\""
         },
         "httpVersion": {
           "metadata": {

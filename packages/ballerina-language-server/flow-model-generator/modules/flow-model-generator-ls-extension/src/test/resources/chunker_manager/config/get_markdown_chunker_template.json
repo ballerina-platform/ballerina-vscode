@@ -183,7 +183,7 @@
             "kind": "DEFAULTABLE",
             "originalName": "strategy"
           },
-          "defaultValue": "MARKDOWN_HEADER"
+          "defaultValue": "\"MARKDOWN_HEADER\""
         },
         "scope": {
           "metadata": {

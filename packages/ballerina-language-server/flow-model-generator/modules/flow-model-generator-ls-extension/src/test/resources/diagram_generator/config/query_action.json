@@ -894,7 +894,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "keySerializerType"
             },
-            "defaultValue": "\"SER_AVRO\""
+            "defaultValue": "\"SER_BYTE_ARRAY\""
           },
           "valueSerializerType": {
             "metadata": {
@@ -931,7 +931,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "valueSerializerType"
             },
-            "defaultValue": "\"SER_AVRO\""
+            "defaultValue": "\"SER_BYTE_ARRAY\""
           },
           "additionalProperties": {
             "metadata": {

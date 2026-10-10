@@ -85,7 +85,7 @@
           "kind": "DEFAULTABLE",
           "originalName": "day"
         },
-        "defaultValue": "Wednesday"
+        "defaultValue": "\"Wednesday\""
       }
     },
     "flags": 0

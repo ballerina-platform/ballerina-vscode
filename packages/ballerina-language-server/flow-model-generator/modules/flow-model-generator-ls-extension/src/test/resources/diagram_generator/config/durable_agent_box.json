@@ -1784,7 +1784,7 @@
             "imports": {
               "http": "ballerina/http"
             },
-            "defaultValue": "http:HTTP_2_0"
+            "defaultValue": "\"2.0\""
           },
           "http1Settings": {
             "metadata": {
