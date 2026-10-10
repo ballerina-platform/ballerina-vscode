@@ -267,12 +267,17 @@ jobs:
   BalE2ETest:
     name: Run Ballerina e2e Test
     needs: Build_Stage
-    timeout-minutes: 60
+    # group5's 18 journeys need longer than the other groups; one retry keeps a flaky one inside the budget.
+    timeout-minutes: ${{ matrix.group == 'group5' && 90 || 60 }}
+    env:
+      BI_E2E_RETRIES: ${{ matrix.group == 'group5' && '1' || '' }}
     if: ${{ inputs.runBalE2ETests }}
+    # group5 follows the workflow docs pages; it reports drift but does not block a PR until it is stable on CI.
+    continue-on-error: ${{ matrix.group == 'group5' }}
     strategy:
       fail-fast: false
       matrix:
-        group: [group1, group2, group3, group4]
+        group: [group1, group2, group3, group4, group5]
     runs-on: ${{ inputs.runOnAWS && inputs.awsRunnerId || 'ubuntu-latest' }}
     steps:
       - name: Restore build

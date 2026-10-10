@@ -41,6 +41,9 @@ export default function createTests() {
             const artifactWebView = await createArtifactAndGetWebview('RabbitMQ Integration', 'trigger-rabbitmq');
             const form = new Form(page.page, BI_INTEGRATOR_LABEL, artifactWebView);
             await form.switchToFormView(false, artifactWebView);
+            // On a cold cache the form renders only after ballerinax/rabbitmq is pulled, and
+            // form.fill() silently skips a cmEditor field that isn't in the DOM yet.
+            await artifactWebView.locator('div[data-testid="ex-editor-queueName"]').waitFor({ state: 'visible', timeout: 60000 });
 
             queueName = `myQueueName`;
             await form.fill({

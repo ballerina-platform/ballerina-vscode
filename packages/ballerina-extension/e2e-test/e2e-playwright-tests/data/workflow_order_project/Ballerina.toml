@@ -1,0 +1,9 @@
+[package]
+org = "demo"
+name = "orderprocessor"
+version = "0.1.0"
+distribution = "2201.13.2"
+title = "OrderProcessor"
+
+[build-options]
+sticky = true
