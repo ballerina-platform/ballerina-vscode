@@ -54,3 +54,15 @@ export async function deleteArtifactFromTree(treeItemPath: string[]): Promise<vo
 
     await expect(treeItem).not.toBeVisible({ timeout: 10000 });
 }
+
+// Clicks the debug toolbar Stop button until no session remains (bounded).
+export async function stopAllRunningIntegrations(): Promise<void> {
+    for (let i = 0; i < 4; i++) {
+        const stopButton = page.page.locator('.debug-toolbar a[aria-label^="Stop"]').first();
+        if (!await stopButton.waitFor({ state: 'visible', timeout: 2000 }).then(() => true, () => false)) {
+            return;
+        }
+        await stopButton.click().catch(() => undefined);
+        await page.page.waitForTimeout(1500);
+    }
+}

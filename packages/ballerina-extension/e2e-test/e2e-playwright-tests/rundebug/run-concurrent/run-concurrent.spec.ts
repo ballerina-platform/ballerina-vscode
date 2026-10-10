@@ -17,7 +17,7 @@
  */
 import { test } from '@playwright/test';
 import * as path from 'path';
-import { initTest, logStep, page, toggleNotifications } from '../../utils/helpers';
+import { initTest, logStep, page, stopAllRunningIntegrations, toggleNotifications } from '../../utils/helpers';
 import { waitForBISidebarTreeView } from '../../utils/helpers/sidebar';
 import { ProjectExplorer } from '../../utils/pages';
 
@@ -123,18 +123,6 @@ function restartNotification() {
 
 function terminalWithText(text: string) {
     return page.page.locator('.xterm-screen', { hasText: text }).first();
-}
-
-// Clicks the debug toolbar Stop button until no session remains (bounded).
-async function stopAllRunningIntegrations() {
-    for (let i = 0; i < 4; i++) {
-        const stopButton = page.page.locator('.debug-toolbar a[aria-label^="Stop"]').first();
-        if (!await stopButton.isVisible({ timeout: 2000 }).catch(() => false)) {
-            return;
-        }
-        await stopButton.click().catch(() => undefined);
-        await page.page.waitForTimeout(1500);
-    }
 }
 
 export default function createTests() {

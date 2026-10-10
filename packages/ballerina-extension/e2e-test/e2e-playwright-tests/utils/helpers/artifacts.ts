@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { Frame, Locator } from "@playwright/test";
+import { Frame, FrameLocator, Locator } from "@playwright/test";
 import { getWebview } from "./webview";
 import { page } from "./setup";
 import { BI_INTEGRATOR_LABEL, BI_WEBVIEW_NOT_FOUND_ERROR } from "./constants";
@@ -72,9 +72,15 @@ export async function addArtifact(artifactName: string, testId: string) {
     // `force` throughout — the floating Copilot orb/invite box intermittently overlaps
     // and intercepts pointer events on cards and buttons across these views.
     await addArtifactBtn.click({ force: true });
+    await clickArtifactCard(artifactWebView, testId);
+}
+
+// Clicks an artifact's card on the open Artifacts page.
+export async function clickArtifactCard(artifactWebView: Frame | FrameLocator, testId: string): Promise<Locator> {
     const card = artifactWebView.locator(`#${testId}`);
     await card.waitFor();
     await domClick(card);
+    return card;
 }
 
 /**
