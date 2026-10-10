@@ -57,6 +57,10 @@ export async function deleteArtifactFromTree(treeItemPath: string[]): Promise<vo
 
 // Clicks the debug toolbar Stop button until no session remains (bounded).
 export async function stopAllRunningIntegrations(): Promise<void> {
+    // A launch that failed leaves no page; throwing here would bury the launch's own error in the report.
+    if (!page?.page || page.page.isClosed()) {
+        return;
+    }
     for (let i = 0; i < 4; i++) {
         const stopButton = page.page.locator('.debug-toolbar a[aria-label^="Stop"]').first();
         if (!await stopButton.waitFor({ state: 'visible', timeout: 2000 }).then(() => true, () => false)) {
