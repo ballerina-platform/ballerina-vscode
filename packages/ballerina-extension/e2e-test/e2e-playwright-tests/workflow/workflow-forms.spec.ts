@@ -295,30 +295,36 @@ export default function createTests() {
             await expect.poll(projectSource, { timeout: 90000 }).toMatch(/callActivity\(chargeCard/);
             await callSave.waitFor({ state: 'hidden', timeout: 60000 });
 
-            logStep('Open the activity\'s own diagram from its node and check the edit form reads the name from source');
-            const canvas = webview.getByTestId('bi-diagram-canvas');
-            const callNode = canvas.getByText('chargeCard', { exact: true }).filter({ visible: true }).last();
-            await callNode.waitFor({ timeout: 60000 });
-            const openIcon = callNode.locator('xpath=ancestor::*[.//*[contains(@class,"bi-open-in")]][1]').locator('[class*="bi-open-in"]').first();
-            await openIcon.waitFor({ state: 'visible', timeout: 30000 });
-            // The icon sits in a web-component button; a coordinate click can land on the glyph and stop there.
-            // Arrived when the view offers the artifact's edit button; the form's Name then proves which artifact.
+            logStep('Open the activity\'s own diagram and check the edit form reads the name from source');
+            // From the integration overview, which lists the activity; failing that, from the call node's open icon.
+            await domClick(webview.getByTestId('home-button').first());
             let activityView = await getWebview();
-            let editButton = activityView.locator('#bi-edit').first();
-            for (let attempt = 0; attempt < 3; attempt++) {
-                if (attempt === 0) {
-                    await openIcon.click({ force: true, timeout: 10000 }).catch(() => undefined);
-                } else {
-                    await openIcon.locator('xpath=ancestor::vscode-button[1]').dispatchEvent('click').catch(() => openIcon.dispatchEvent('click'));
-                }
-                await page.page.waitForTimeout(1500);
+            await activityView.getByRole('button', { name: /Add Artifact/i }).first().waitFor({ timeout: 60000 });
+            const card = activityView.getByText('chargeCard', { exact: true }).first();
+            if (await card.waitFor({ state: 'visible', timeout: 30000 }).then(() => true, () => false)) {
+                await domClick(card);
+            } else {
+                await domClick(activityView.getByText('orderWorkflow', { exact: true }).first());
                 activityView = await getWebview();
-                editButton = activityView.locator('#bi-edit').first();
-                if (await editButton.waitFor({ state: 'visible', timeout: 20000 }).then(() => true, () => false)) {
-                    break;
-                }
+                const canvas = activityView.getByTestId('bi-diagram-canvas');
+                const callNode = canvas.getByText('chargeCard', { exact: true }).filter({ visible: true }).last();
+                await callNode.waitFor({ timeout: 60000 });
+                const openIcon = callNode.locator('xpath=ancestor::*[.//*[contains(@class,"bi-open-in")]][1]').locator('[class*="bi-open-in"]').first();
+                await openIcon.waitFor({ state: 'visible', timeout: 30000 });
+                await openIcon.click({ force: true, timeout: 10000 }).catch(() => openIcon.dispatchEvent('click'));
             }
-            await editButton.waitFor({ state: 'visible', timeout: 30000 });
+            activityView = await getWebview();
+            // The activity's own view: its name in the header, outside the canvas, before its edit button is used.
+            await expect.poll(async () => {
+                for (const el of await activityView.getByText('chargeCard', { exact: true }).filter({ visible: true }).all()) {
+                    if (!await el.evaluate((e) => !!e.closest('[data-testid="bi-diagram-canvas"]')).catch(() => true)) {
+                        return true;
+                    }
+                }
+                return false;
+            }, { timeout: 60000 }).toBe(true);
+            const editButton = activityView.locator('#bi-edit').first();
+            await editButton.waitFor({ state: 'visible', timeout: 60000 });
             await editButton.click({ force: true });
             await expect(activityView.getByRole('textbox', { name: /^Name/ }).first()).toHaveValue('chargeCard', { timeout: 60000 });
         });
