@@ -96,7 +96,7 @@
         "metadata": {
           "label": "calculateDiscount",
           "description": "Activity function for calculating discount",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.10.0.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_1.0.0.png"
         },
         "codedata": {
           "node": "ACTIVITY_CALL",
@@ -1807,7 +1807,7 @@
         "metadata": {
           "label": "calculateDiscount",
           "description": "Activity function for calculating discount",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.10.0.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_1.0.0.png"
         },
         "codedata": {
           "node": "ACTIVITY_CALL",

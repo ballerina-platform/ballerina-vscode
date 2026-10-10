@@ -96,7 +96,7 @@
         "metadata": {
           "label": "fetchOrder",
           "description": "Executes an activity function. A completed activity is never re-executed on replay — its\nrecorded result is reused — but a failed attempt can run again under a retry policy, so keep\nside effects idempotent. `T` comes from the assignment, so bind every call: `() _ = check ...`\nwhen the activity returns only `error?`.\n",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.10.0.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_1.0.0.png"
         },
         "codedata": {
           "node": "ACTIVITY_CALL",
@@ -1725,7 +1725,7 @@
         "metadata": {
           "label": "fetchOrder",
           "description": "Executes an activity function. A completed activity is never re-executed on replay — its\nrecorded result is reused — but a failed attempt can run again under a retry policy, so keep\nside effects idempotent. `T` comes from the assignment, so bind every call: `() _ = check ...`\nwhen the activity returns only `error?`.\n",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.10.0.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_1.0.0.png"
         },
         "codedata": {
           "node": "ACTIVITY_CALL",
@@ -3354,7 +3354,7 @@
         "metadata": {
           "label": "Call REST API",
           "description": "Call a REST API endpoint as a workflow activity using a configured http:Client connection.",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.17.1.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.18.0.png"
         },
         "codedata": {
           "node": "CONNECTION_ACTIVITY_CALL",
@@ -5259,7 +5259,7 @@
         "metadata": {
           "label": "Human Task",
           "description": "Create a human task and wait for a human to complete it",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.10.0.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_1.0.0.png"
         },
         "codedata": {
           "node": "HUMAN_TASK",
@@ -5820,7 +5820,7 @@
         "metadata": {
           "label": "HTTP",
           "description": "The HTTP client provides functionality to connect to remote HTTP services and perform requests using standard HTTP methods like GET, POST, PUT, DELETE, etc.\n",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.17.1.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.18.0.png"
         },
         "codedata": {
           "node": "NEW_CONNECTION",

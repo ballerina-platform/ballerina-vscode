@@ -50,7 +50,7 @@
         "metadata": {
           "label": "lookupBooking",
           "description": "Look up a booking activity",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.17.1.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.18.0.png"
         },
         "codedata": {
           "node": "CONNECTION_ACTIVITY_CALL",
@@ -1671,7 +1671,7 @@
         "metadata": {
           "label": "lookupBooking",
           "description": "Look up a booking activity",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.17.1.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.18.0.png"
         },
         "codedata": {
           "node": "CONNECTION_ACTIVITY_CALL",
@@ -3292,7 +3292,7 @@
         "metadata": {
           "label": "Run Child",
           "description": "childFlow",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.10.0.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_1.0.0.png"
         },
         "codedata": {
           "node": "CHILD_WORKFLOW_RUN",
@@ -3463,7 +3463,7 @@
         "metadata": {
           "label": "lookupBooking",
           "description": "Look up a booking activity",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.17.1.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.18.0.png"
         },
         "codedata": {
           "node": "CONNECTION_ACTIVITY_CALL",
@@ -5084,7 +5084,7 @@
         "metadata": {
           "label": "lookupBooking",
           "description": "Look up a booking activity",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.17.1.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.18.0.png"
         },
         "codedata": {
           "node": "CONNECTION_ACTIVITY_CALL",
@@ -6707,7 +6707,7 @@
         "metadata": {
           "label": "lookupBooking",
           "description": "Look up a booking activity",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.17.1.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.18.0.png"
         },
         "codedata": {
           "node": "CONNECTION_ACTIVITY_CALL",
@@ -8330,7 +8330,7 @@
         "metadata": {
           "label": "HTTP",
           "description": "The HTTP client provides functionality to connect to remote HTTP services and perform requests using standard HTTP methods like GET, POST, PUT, DELETE, etc.\n",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.17.1.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.18.0.png"
         },
         "codedata": {
           "node": "NEW_CONNECTION",

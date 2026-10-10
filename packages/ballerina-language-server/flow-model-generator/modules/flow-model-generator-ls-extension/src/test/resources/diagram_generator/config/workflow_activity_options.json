@@ -50,7 +50,7 @@
         "metadata": {
           "label": "notifyOptionsEmployee",
           "description": "Executes an activity function. A completed activity is never re-executed on replay — its\nrecorded result is reused — but a failed attempt can run again under a retry policy, so keep\nside effects idempotent. `T` comes from the assignment, so bind every call: `() _ = check ...`\nwhen the activity returns only `error?`.\n",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.10.0.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_1.0.0.png"
         },
         "codedata": {
           "node": "ACTIVITY_CALL",
