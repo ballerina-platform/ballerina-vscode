@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Button, Codicon, ProgressRing, SearchBox, SidePanelBody, ThemeColors } from "@wso2/ui-toolkit";
 import styled from "@emotion/styled";
 import { BackIcon, CloseIcon, LogIcon } from "../../resources";
@@ -275,6 +275,140 @@ namespace S {
         }
     `;
 
+    export const SubGroupRow = styled.div`
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 15px;
+        padding: 12px 16px;
+        cursor: pointer;
+        transition: background-color 0.15s ease;
+
+        &:not(:last-child) {
+            border-bottom: 1px solid ${ThemeColors.OUTLINE_VARIANT};
+        }
+
+        &:hover {
+            background-color: var(--vscode-list-hoverBackground, ${ThemeColors.SURFACE_CONTAINER});
+        }
+
+        &:focus {
+            outline: none;
+        }
+
+        &:focus-visible {
+            outline: 1px solid var(--vscode-focusBorder, ${ThemeColors.PRIMARY});
+            outline-offset: -2px;
+        }
+    `;
+
+    export const LevelHeader = styled.div`
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+        min-height: 28px;
+        margin: 2px 0 12px -4px;
+    `;
+
+    export const LevelBackButton = styled.button`
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        width: 24px;
+        height: 24px;
+        padding: 0;
+        border: none;
+        border-radius: 4px;
+        background: none;
+        color: ${ThemeColors.ON_SURFACE};
+        cursor: pointer;
+
+        &:hover {
+            background-color: var(--vscode-toolbar-hoverBackground, ${ThemeColors.SURFACE_CONTAINER});
+        }
+
+        &:focus {
+            outline: none;
+        }
+
+        &:focus-visible {
+            outline: 1px solid var(--vscode-focusBorder, ${ThemeColors.PRIMARY});
+        }
+    `;
+
+    export const LevelIcon = styled.div`
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        width: 20px;
+        height: 20px;
+
+        & svg,
+        & img {
+            width: 20px !important;
+            height: 20px !important;
+            border-radius: 3px;
+        }
+    `;
+
+    export const LevelTitle = styled.div`
+        flex: 1;
+        min-width: 0;
+        font-size: 14px;
+        font-family: GilmerBold;
+        color: ${ThemeColors.ON_SURFACE};
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    `;
+
+    export const DrillList = styled.div`
+        display: flex;
+        flex-direction: column;
+        border: 1px solid ${ThemeColors.OUTLINE_VARIANT};
+        border-radius: 8px;
+        overflow: hidden;
+        background-color: ${ThemeColors.SURFACE};
+        user-select: none;
+        -webkit-user-select: none;
+        animation: drillListIn 0.16s ease;
+
+        @keyframes drillListIn {
+            from {
+                opacity: 0;
+                transform: translateX(6px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            animation: none;
+        }
+    `;
+
+    export const SubGroupIcon = styled.div`
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        flex-shrink: 0;
+
+        & svg,
+        & img {
+            width: 18px !important;
+            height: 18px !important;
+            border-radius: 3px;
+        }
+    `;
+
     export const ChildIcon = styled.div`
         position: relative;
         display: flex;
@@ -413,6 +547,85 @@ export interface CardListProps {
     fillContainerHeight?: boolean;
 }
 
+// Joins nested group ids; a control character cannot appear in a title or description.
+const GROUP_ID_SEPARATOR = "\u001f";
+
+const isCategory = (item: Item): item is Category => "items" in item && "title" in item;
+
+const GROUP_PATH_SEPARATOR = " › ";
+
+interface DrillPath {
+    section: Category;
+    trail: Category[];
+    ids: string[];
+}
+
+const groupKey = (category: Category) => `${category.title}:${category.description}`;
+
+// A drill path is the package group followed by at least one subgroup; anything else renders the accordion.
+function resolveDrillPath(categories: Category[], expandedGroupId: string | null): DrillPath | null {
+    const parts = expandedGroupId?.split(GROUP_ID_SEPARATOR);
+    if (!parts || parts.length < 2) {
+        return null;
+    }
+    for (const section of categories) {
+        const packageGroup = section?.items?.find((item) => item && isCategory(item) && groupKey(item) === parts[0]);
+        if (!packageGroup) {
+            continue;
+        }
+        const trail: Category[] = [packageGroup as Category];
+        for (const part of parts.slice(1)) {
+            const next = trail[trail.length - 1].items.find((item) => item && isCategory(item) && groupKey(item) === part);
+            if (!next) {
+                return null;
+            }
+            trail.push(next as Category);
+        }
+        const ids = parts.map((_, index) => parts.slice(0, index + 1).join(GROUP_ID_SEPARATOR));
+        return { section, trail, ids };
+    }
+    return null;
+}
+
+// Follows a subgroup down while its only child is another subgroup, so sparse chains render as one row.
+function subgroupChain(category: Category): Category[] {
+    const chain = [category];
+    let last = category;
+    while (last.items?.length === 1 && last.items[0] && isCategory(last.items[0])) {
+        last = last.items[0];
+        chain.push(last);
+    }
+    return chain;
+}
+
+// The section heading already names the category, so "AWS Model Providers" reads as "AWS" in the path.
+function packageSegmentTitle(packageTitle: string, sectionTitle: string): string {
+    const suffix = ` ${sectionTitle}`;
+    return sectionTitle && packageTitle.endsWith(suffix) ? packageTitle.slice(0, -suffix.length) : packageTitle;
+}
+
+// Path segments with each single-subgroup chain shown as one segment, as its row was.
+function pathSegments(drill: DrillPath): { title: string; id: string }[] {
+    const segments = [{ title: packageSegmentTitle(drill.trail[0].title, drill.section.title), id: drill.ids[0] }];
+    let index = 1;
+    while (index < drill.trail.length) {
+        const chain = subgroupChain(drill.trail[index]).slice(0, drill.trail.length - index);
+        const end = index + chain.length - 1;
+        segments.push({ title: chain.map((group) => group.title).join(GROUP_PATH_SEPARATOR), id: drill.ids[end] });
+        index = end + 1;
+    }
+    return segments;
+}
+
+function flattenLeaves(items: Item[], path: string[] = []): { node: Node; path: string[] }[] {
+    return items.filter(Boolean).flatMap((item) => isCategory(item)
+        ? flattenLeaves(item.items, [...path, item.title])
+        : [{ node: item as Node, path }]);
+}
+
+const countLeaves = (category: Category): number =>
+    category.items.reduce((count, item) => count + (item && isCategory(item) ? countLeaves(item) : 1), 0);
+
 function CardList(props: CardListProps) {
     const { categories, title, searchPlaceholder, onSelect, onSearch, onBack, onClose,
         expandedGroupId: controlledExpandedGroupId, onExpandedGroupChange, extraSection,
@@ -460,11 +673,41 @@ function CardList(props: CardListProps) {
         onSelect(node.id, { node: node.metadata });
     };
 
-    const getGroupId = (category: Category) => `${category.title}:${category.description}`;
+    const getGroupId = (category: Category, parentId?: string) =>
+        parentId ? `${parentId}${GROUP_ID_SEPARATOR}${groupKey(category)}` : groupKey(category);
 
-    const handleGroupClick = (category: Category) => {
-        const groupId = getGroupId(category);
-        setExpandedGroupId(expandedGroupId === groupId ? null : groupId);
+    // The expanded id is the drilled-into group's path, so its package accordion counts as open too.
+    const isGroupExpanded = (groupId: string) =>
+        Boolean(searchText) || expandedGroupId === groupId
+        || Boolean(expandedGroupId?.startsWith(groupId + GROUP_ID_SEPARATOR));
+
+    const handleGroupClick = (groupId: string) => {
+        // Search keeps every group open, so a click has nothing to toggle and must not drop the drill position.
+        if (searchText) {
+            return;
+        }
+        setExpandedGroupId(isGroupExpanded(groupId) ? null : groupId);
+    };
+
+    const drillListRef = useRef<HTMLDivElement>(null);
+    const focusDrillList = useRef(false);
+
+    const drillInto = (groupId: string) => {
+        focusDrillList.current = true;
+        setExpandedGroupId(groupId);
+    };
+
+    // Keyboard users land on the first row of the level they moved to, not back at the top of the panel.
+    useEffect(() => {
+        if (focusDrillList.current) {
+            focusDrillList.current = false;
+            drillListRef.current?.querySelector<HTMLElement>("[role='button']")?.focus();
+        }
+    }, [expandedGroupId]);
+
+    const getCountLabel = (category: Category) => {
+        const itemCount = countLeaves(category);
+        return `${itemCount} ${itemCount === 1 ? "option" : "options"}`;
     };
 
     // Filter items based on search text (only if no onSearch prop - local filtering)
@@ -507,42 +750,117 @@ function CardList(props: CardListProps) {
             .filter(Boolean) as Item[];
     };
 
-    const renderGroupChildren = (items: Item[], groupIcon?: JSX.Element) => {
+    const renderSubGroupRow = (subgroup: Category, parentId: string, index: number) => {
+        const chain = subgroupChain(subgroup);
+        const groupId = chain.reduce((id, group) => getGroupId(group, id), parentId);
+        const category = chain[chain.length - 1];
+        const title = chain.map((group) => group.title).join(GROUP_PATH_SEPARATOR);
+        return (
+            <S.SubGroupRow
+                key={category.title + index}
+                onClick={() => drillInto(groupId)}
+                onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        drillInto(groupId);
+                    }
+                }}
+                role="button"
+                tabIndex={0}
+                title={category.description}
+            >
+                <S.SubGroupIcon>{category.icon ? category.icon : <LogIcon />}</S.SubGroupIcon>
+                <S.ChildContent>
+                    <S.ChildTitle>{title}</S.ChildTitle>
+                    {category.description && <S.ChildDescription>{category.description}</S.ChildDescription>}
+                </S.ChildContent>
+                <S.CountPill>{getCountLabel(category)}</S.CountPill>
+                <S.ChevronWrapper aria-hidden="true">
+                    <Codicon name="chevron-right" sx={{ fontSize: 16 }} />
+                </S.ChevronWrapper>
+            </S.SubGroupRow>
+        );
+    };
+
+    const renderLeaf = (node: Node, groupIcon: JSX.Element | undefined, key: string, caption?: string) => {
+        const mainIcon = node.contextIcon ?? groupIcon;
+        const subtitle = caption ?? node.description;
+        return (
+            <S.ChildCard
+                key={key}
+                enabled={node.enabled}
+                onClick={() => node.enabled !== false && handleCardClick(node)}
+                onKeyDown={(event) => {
+                    if (node.enabled !== false && (event.key === "Enter" || event.key === " ")) {
+                        event.preventDefault();
+                        handleCardClick(node);
+                    }
+                }}
+                role="button"
+                tabIndex={node.enabled !== false ? 0 : -1}
+                title={node.description}
+            >
+                <S.ChildIcon>
+                    <S.ChildIconMain>{mainIcon ?? node.icon ?? <LogIcon />}</S.ChildIconMain>
+                    {mainIcon && node.icon && <S.ChildIconBadge>{node.icon}</S.ChildIconBadge>}
+                </S.ChildIcon>
+                <S.ChildContent>
+                    <S.ChildTitle>{node.label}</S.ChildTitle>
+                    {subtitle && <S.ChildDescription>{subtitle}</S.ChildDescription>}
+                </S.ChildContent>
+            </S.ChildCard>
+        );
+    };
+
+    // Search results skip the hierarchy: every matching leaf is listed with its group path as the caption.
+    const renderGroupChildren = (items: Item[], groupIcon: JSX.Element | undefined, parentId: string) => {
+        if (searchText) {
+            return flattenLeaves(items).map(({ node, path }, index) =>
+                renderLeaf(node, groupIcon, node.id + index, path.length ? path.join(GROUP_PATH_SEPARATOR) : undefined));
+        }
         return items
             .filter((item): item is Node | Category => item != null)
-            .map((item, index) => {
-                // Not expected inside a group, but fall back gracefully.
-                if ("items" in item && "title" in item) {
-                    return <React.Fragment key={item.title + index}>{renderCards([item])}</React.Fragment>;
-                }
+            .map((item, index) => isCategory(item)
+                ? renderSubGroupRow(item, parentId, index)
+                : renderLeaf(item as Node, groupIcon, (item as Node).id + index));
+    };
 
-                const node = item as Node;
-                return (
-                    <S.ChildCard
-                        key={node.id + index}
-                        enabled={node.enabled}
-                        onClick={() => node.enabled !== false && handleCardClick(node)}
-                        onKeyDown={(event) => {
-                            if (node.enabled !== false && (event.key === "Enter" || event.key === " ")) {
-                                event.preventDefault();
-                                handleCardClick(node);
-                            }
-                        }}
-                        role="button"
-                        tabIndex={node.enabled !== false ? 0 : -1}
-                        title={node.description}
+    const renderDrillView = (drill: DrillPath) => {
+        const current = drill.trail[drill.trail.length - 1];
+        const currentId = drill.ids[drill.ids.length - 1];
+        const segments = pathSegments(drill);
+        const parent = segments[segments.length - 2];
+        const goUp = () => drillInto(parent.id);
+        return (
+            <S.CategorySection
+                onKeyDown={(event) => {
+                    const target = event.target as HTMLElement;
+                    const isTyping = target.tagName === "INPUT" || target.tagName === "TEXTAREA";
+                    if ((event.key === "Backspace" && !isTyping) || (event.altKey && event.key === "ArrowLeft")) {
+                        event.preventDefault();
+                        goUp();
+                    }
+                }}
+            >
+                <S.LevelHeader>
+                    <S.LevelBackButton
+                        onClick={goUp}
+                        aria-label={`Back to ${parent.title}`}
+                        title={segments.map((segment) => segment.title).join(GROUP_PATH_SEPARATOR)}
                     >
-                        <S.ChildIcon>
-                            <S.ChildIconMain>{groupIcon ? groupIcon : node.icon ? node.icon : <LogIcon />}</S.ChildIconMain>
-                            {groupIcon && node.icon && <S.ChildIconBadge>{node.icon}</S.ChildIconBadge>}
-                        </S.ChildIcon>
-                        <S.ChildContent>
-                            <S.ChildTitle>{node.label}</S.ChildTitle>
-                            {node.description && <S.ChildDescription>{node.description}</S.ChildDescription>}
-                        </S.ChildContent>
-                    </S.ChildCard>
-                );
-            });
+                        <Codicon name="chevron-left" sx={{ fontSize: 16 }} />
+                    </S.LevelBackButton>
+                    {current.icon && <S.LevelIcon aria-hidden="true">{current.icon}</S.LevelIcon>}
+                    <S.LevelTitle role="heading" aria-level={3} title={segments[segments.length - 1].title}>
+                        {segments[segments.length - 1].title}
+                    </S.LevelTitle>
+                    <S.CountPill>{getCountLabel(current)}</S.CountPill>
+                </S.LevelHeader>
+                <S.DrillList key={currentId} ref={drillListRef}>
+                    {renderGroupChildren(current.items, drill.trail[0].icon, currentId)}
+                </S.DrillList>
+            </S.CategorySection>
+        );
     };
 
     const renderCards = (items: Item[]) => {
@@ -576,19 +894,17 @@ function CardList(props: CardListProps) {
                     }
 
                     const category = item as Category;
-                    const itemCount = category.items.length;
-                    const countLabel = `${itemCount} ${itemCount === 1 ? "option" : "options"}`;
                     const groupId = getGroupId(category);
-                    const isExpanded = Boolean(searchText) || expandedGroupId === groupId;
-                    const groupChildrenId = `group-${category.title.replace(/[^a-zA-Z0-9]+/g, "-").toLowerCase()}-${index}`;
+                    const isExpanded = isGroupExpanded(groupId);
+                    const groupChildrenId = `group-${groupId.replace(/[^a-zA-Z0-9]+/g, "-").toLowerCase()}-${index}`;
                     return (
                         <S.GroupContainer key={category.title + index} expanded={isExpanded}>
                             <S.GroupHeader
-                                onClick={() => handleGroupClick(category)}
+                                onClick={() => handleGroupClick(groupId)}
                                 onKeyDown={(event) => {
                                     if (event.key === "Enter" || event.key === " ") {
                                         event.preventDefault();
-                                        handleGroupClick(category);
+                                        handleGroupClick(groupId);
                                     }
                                 }}
                                 role="button"
@@ -604,14 +920,14 @@ function CardList(props: CardListProps) {
                                         <S.CardDescription>{category.description}</S.CardDescription>
                                     )}
                                 </S.CardContent>
-                                <S.CountPill>{countLabel}</S.CountPill>
+                                <S.CountPill>{getCountLabel(category)}</S.CountPill>
                                 <S.ChevronWrapper expanded={isExpanded} aria-hidden="true">
                                     <Codicon name="chevron-down" sx={{ fontSize: 16 }} />
                                 </S.ChevronWrapper>
                             </S.GroupHeader>
                             {isExpanded && (
                                 <S.GroupBody id={groupChildrenId}>
-                                    {renderGroupChildren(category.items, category.icon)}
+                                    {renderGroupChildren(category.items, category.icon, groupId)}
                                 </S.GroupBody>
                             )}
                         </S.GroupContainer>
@@ -632,6 +948,7 @@ function CardList(props: CardListProps) {
         });
 
     const hasContent = filteredCategories.some((category) => category?.items && category.items.length > 0);
+    const drill = searchText ? null : resolveDrillPath(filteredCategories, expandedGroupId);
     const headerTitle = title;
     const canGoBack = Boolean(onBack);
     const shouldShowHeaderActions = (canGoBack && headerTitle) || onClose;
@@ -676,7 +993,12 @@ function CardList(props: CardListProps) {
 
             {!isSearching && (
                 <S.PanelBody fillContainerHeight={fillContainerHeight}>
-                    {!hasContent && !extraSection ? (
+                    {drill ? (
+                        <>
+                            {renderDrillView(drill)}
+                            {extraSection}
+                        </>
+                    ) : !hasContent && !extraSection ? (
                         <S.EmptyState>
                             <S.EmptyStateText>No results found</S.EmptyStateText>
                             <S.EmptyStateSubText>Try adjusting your search terms</S.EmptyStateSubText>
