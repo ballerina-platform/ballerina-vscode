@@ -22,9 +22,12 @@ import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.api.symbols.ModuleSymbol;
 import io.ballerina.compiler.api.symbols.Qualifier;
 import io.ballerina.compiler.syntax.tree.FunctionDefinitionNode;
+import io.ballerina.compiler.syntax.tree.MarkdownDocumentationLineNode;
+import io.ballerina.compiler.syntax.tree.MarkdownDocumentationNode;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.flowmodelgenerator.core.utils.SearchResultFilter;
+import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.ModuleCoordinate;
 import io.ballerina.modelgenerator.commons.PackageModuleUtils;
 import io.ballerina.modelgenerator.commons.PackageUtil;
@@ -68,9 +71,9 @@ final class ResolvedFunctionCatalog {
     private final Map<String, String> versions;
     private final Map<ModuleCoordinate, List<SearchResult>> functions;
     private final Set<ModuleCoordinate> imports;
-    // Public function names of a resolved module, or null when they cannot be enumerated.
-    private final Function<SearchResult.Package, Set<String>> resolvedSurface;
-    private final Map<String, Optional<Set<String>>> surfaces = new HashMap<>();
+    // Public function names of a resolved module mapped to their descriptions, or null when they cannot be read.
+    private final Function<SearchResult.Package, Map<String, String>> resolvedSurface;
+    private final Map<String, Optional<Map<String, String>>> surfaces = new HashMap<>();
 
     ResolvedFunctionCatalog(Map<String, String> versions, Map<ModuleCoordinate, List<SearchResult>> functions,
                             Set<ModuleCoordinate> imports) {
@@ -79,14 +82,19 @@ final class ResolvedFunctionCatalog {
 
     ResolvedFunctionCatalog(Map<String, String> versions, Map<ModuleCoordinate, List<SearchResult>> functions,
                             Set<ModuleCoordinate> imports,
-                            Function<SearchResult.Package, Set<String>> resolvedSurface) {
+                            Function<SearchResult.Package, Map<String, String>> resolvedSurface) {
         this.versions = Map.copyOf(versions);
         this.functions = new TreeMap<>(functions);
         this.imports = Set.copyOf(imports);
         this.resolvedSurface = resolvedSurface;
     }
 
-    static ResolvedFunctionCatalog collect(Project project, Set<ModuleCoordinate> imports) {
+    /**
+     * Collects the catalog of the current request. Without {@code listFunctions}, only the versions, the imports and
+     * which imports resolved are collected. That is all {@link #admit} and {@link #fallbackImports} need, and
+     * {@link #matching} then finds nothing.
+     */
+    static ResolvedFunctionCatalog collect(Project project, Set<ModuleCoordinate> imports, boolean listFunctions) {
         Set<ModuleCoordinate> knownImports = new TreeSet<>(imports);
         var pkg = project.currentPackage();
         var compilation = PackageUtil.getCompilation(pkg);
@@ -128,13 +136,17 @@ final class ResolvedFunctionCatalog {
                                 continue;
                             }
                             List<SearchResult> rows = new ArrayList<>();
-                            for (var function : imported.functions()) {
-                                if (!function.qualifiers().contains(Qualifier.PUBLIC) || function.getName().isEmpty()) {
-                                    continue;
+                            if (listFunctions) {
+                                for (var function : imported.functions()) {
+                                    if (!function.qualifiers().contains(Qualifier.PUBLIC)
+                                            || function.getName().isEmpty()) {
+                                        continue;
+                                    }
+                                    rows.add(SearchResult.from(imported.id().orgName(), imported.id().packageName(),
+                                            imported.id().moduleName(), imported.id().version(),
+                                            function.getName().get(),
+                                            function.documentation().flatMap(doc -> doc.description()).orElse("")));
                                 }
-                                rows.add(SearchResult.from(imported.id().orgName(), imported.id().packageName(),
-                                        imported.id().moduleName(), imported.id().version(), function.getName().get(),
-                                        function.documentation().flatMap(doc -> doc.description()).orElse("")));
                             }
                             rows.sort(Comparator.comparing(SearchResult::name));
                             // Empty is authoritative too: it must not resurrect obsolete Central/index APIs.
@@ -157,34 +169,45 @@ final class ResolvedFunctionCatalog {
         }
         return new ResolvedFunctionCatalog(versions, functions, knownImports, row -> {
             Package resolved = packages.get(row.org() + "/" + row.packageName());
-            return resolved == null ? null : publicFunctionNames(resolved, row.moduleName());
+            return resolved == null ? null : publicFunctions(resolved, row.moduleName());
         });
     }
 
     /** Reads declarations from the resolved package's sources, so no compilation or registry access is needed. */
-    private static Set<String> publicFunctionNames(Package resolved, String moduleName) {
+    private static Map<String, String> publicFunctions(Package resolved, String moduleName) {
         try {
             for (var module : resolved.modules()) {
                 if (!module.moduleName().toString().equals(moduleName)) {
                     continue;
                 }
-                Set<String> names = new TreeSet<>();
+                Map<String, String> functions = new TreeMap<>();
                 for (var documentId : module.documentIds()) {
                     ModulePartNode root = (ModulePartNode) module.document(documentId).syntaxTree().rootNode();
                     for (var member : root.members()) {
                         if (member instanceof FunctionDefinitionNode function && function.qualifierList().stream()
                                 .anyMatch(qualifier -> qualifier.kind() == SyntaxKind.PUBLIC_KEYWORD)) {
-                            names.add(unquote(function.functionName().text()));
+                            functions.put(unquote(function.functionName().text()), description(function));
                         }
                     }
                 }
-                return names;
+                return functions;
             }
         } catch (RuntimeException e) {
             LOGGER.log(Level.WARNING, "Failed to read public functions of " + resolved.packageOrg() + "/"
                     + moduleName + " " + resolved.packageVersion(), e);
         }
         return null;
+    }
+
+    private static String description(FunctionDefinitionNode function) {
+        StringBuilder description = new StringBuilder();
+        function.metadata().flatMap(metadata -> metadata.documentationString())
+                .filter(MarkdownDocumentationNode.class::isInstance)
+                .ifPresent(doc -> ((MarkdownDocumentationNode) doc).documentationLines().stream()
+                        .filter(CommonUtils::isMarkdownDocumentationLine)
+                        .forEach(line -> ((MarkdownDocumentationLineNode) line).documentElements()
+                                .forEach(element -> description.append(element.toSourceCode()))));
+        return description.toString().strip();
     }
 
     private static String unquote(String identifier) {
@@ -215,14 +238,10 @@ final class ResolvedFunctionCatalog {
         };
     }
 
-    boolean eligible(SearchResult row) {
-        return admit(row) != null;
-    }
-
     /**
      * Returns the row as the project can call it, or null when it must not be offered. A row at another version of
-     * a resolved package is rebased onto the resolved version only when that version declares the function; the
-     * signature is then taken from the resolved version when the node is created.
+     * a resolved package is rebased onto the resolved version only when that version declares the function. The
+     * description is then taken from the resolved version, as the signature is when the node is created.
      */
     SearchResult admit(SearchResult row) {
         if (row == null) {
@@ -245,12 +264,13 @@ final class ResolvedFunctionCatalog {
         if (version.equals(pkg.version())) {
             return row;
         }
-        Optional<Set<String>> declared = surfaces.computeIfAbsent(pkg.org() + "/" + pkg.moduleName(),
+        Optional<Map<String, String>> declared = surfaces.computeIfAbsent(pkg.org() + "/" + pkg.moduleName(),
                 key -> Optional.ofNullable(resolvedSurface.apply(pkg)));
-        if (declared.isEmpty() || !declared.get().contains(unquote(row.name()))) {
+        String description = declared.map(functions -> functions.get(unquote(row.name()))).orElse(null);
+        if (description == null) {
             return null;
         }
         return new SearchResult(new SearchResult.Package(pkg.org(), pkg.packageName(), pkg.moduleName(), version),
-                row.name(), row.description(), row.attributes(), row.fromCurrentOrg());
+                row.name(), description, row.attributes(), row.fromCurrentOrg());
     }
 }

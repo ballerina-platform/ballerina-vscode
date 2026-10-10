@@ -18,6 +18,7 @@
 
 package io.ballerina.flowmodelgenerator.core.search;
 
+import io.ballerina.flowmodelgenerator.core.search.SearchCommand.FunctionSource;
 import io.ballerina.modelgenerator.commons.SearchResult;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -78,24 +79,25 @@ public class FunctionPageTest {
         var central = source(List.of(row(10), row(11), row(12)));
         var index = source(List.of(row(20), row(21), row(22)));
         var first = FunctionPage.library(1, 0, null, central, index, row -> row);
-        Assert.assertEquals(first.pagination().source(), "central");
+        Assert.assertEquals(first.pagination().source(), FunctionSource.CENTRAL);
         Assert.assertEquals(first.rows(), List.of(row(10)));
         var offline = FunctionPage.library(1, 0, null, (take, skip) -> null, index, row -> row);
-        Assert.assertEquals(offline.pagination().source(), "index");
-        var recovered = FunctionPage.library(1, offline.pagination().nextOffset(), "index",
+        Assert.assertEquals(offline.pagination().source(), FunctionSource.INDEX);
+        var recovered = FunctionPage.library(1, offline.pagination().nextOffset(), FunctionSource.INDEX,
                 (take, skip) -> {
                     throw new AssertionError("Index continuation must not query Central");
                 },
                 index, row -> row);
         Assert.assertEquals(recovered.rows(), List.of(row(21)));
-        Assert.assertEquals(recovered.pagination().source(), "index");
+        Assert.assertEquals(recovered.pagination().source(), FunctionSource.INDEX);
         Assert.expectThrows(IllegalStateException.class, () -> FunctionPage.library(1,
-                first.pagination().nextOffset(), "central", (take, skip) -> null,
+                first.pagination().nextOffset(), FunctionSource.CENTRAL, (take, skip) -> null,
                 (take, skip) -> {
                     throw new AssertionError("Central cursor must not query the index");
                 },
                 row -> row));
-        var retry = FunctionPage.library(1, first.pagination().nextOffset(), "central", central, index, row -> row);
+        var retry = FunctionPage.library(1, first.pagination().nextOffset(), FunctionSource.CENTRAL, central, index,
+                row -> row);
         Assert.assertEquals(retry.rows(), List.of(row(11)));
         Assert.assertEquals(retry.pagination().nextOffset(), 2);
     }
@@ -109,7 +111,20 @@ public class FunctionPageTest {
         Assert.assertTrue(first.rows().isEmpty());
         Assert.assertFalse(first.pagination().hasMore());
         Assert.expectThrows(IllegalStateException.class,
-                () -> FunctionPage.library(5, 100, "index", (take, skip) -> null, failingIndex, row -> row));
+                () -> FunctionPage.library(5, 100, FunctionSource.INDEX, (take, skip) -> null, failingIndex,
+                        row -> row));
+    }
+
+    @Test
+    public void centralFailingMidScanRebuildsTheFirstPageFromTheIndex() {
+        // The first window cannot fill the page, so the scan asks for a second one, which fails.
+        BiFunction<Integer, Integer, FunctionPage.Raw> central = (take, skip) -> skip == 0
+                ? new FunctionPage.Raw(List.of(row(10)), true) : null;
+        var index = source(List.of(row(20), row(21), row(22)));
+        var page = FunctionPage.library(2, 0, null, central, index, row -> row);
+        Assert.assertEquals(page.rows(), List.of(row(20), row(21)), "Central's partial rows are dropped");
+        Assert.assertEquals(page.pagination().source(), FunctionSource.INDEX);
+        Assert.assertEquals(page.pagination().nextOffset(), 2, "The cursor indexes the index, not Central");
     }
 
     @Test

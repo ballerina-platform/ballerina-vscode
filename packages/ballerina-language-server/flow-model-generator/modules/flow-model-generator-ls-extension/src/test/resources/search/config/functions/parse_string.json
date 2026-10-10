@@ -100,7 +100,7 @@
             {
               "metadata": {
                 "label": "parseString",
-                "description": "Converts XML string to record type with projection.\n",
+                "description": "Converts XML string to record type with projection.",
                 "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_data.xmldata_1.6.3.png"
               },
               "codedata": {

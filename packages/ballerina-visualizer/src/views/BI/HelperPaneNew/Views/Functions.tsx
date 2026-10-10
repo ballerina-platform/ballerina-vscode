@@ -17,8 +17,7 @@
  */
 
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { HelperPaneCompletionItem, InputMode } from "@wso2/ballerina-side-panel";
-import { LoadMoreButton } from "@wso2/ballerina-side-panel/lib/components/LoadMoreButton";
+import { HelperPaneCompletionItem, InputMode, LoadMoreButton } from "@wso2/ballerina-side-panel";
 import { debounce } from "lodash";
 import { useRef, useState, useCallback, RefObject, useEffect } from "react";
 import { extractFunctionInsertText } from "../../../../utils/bi";

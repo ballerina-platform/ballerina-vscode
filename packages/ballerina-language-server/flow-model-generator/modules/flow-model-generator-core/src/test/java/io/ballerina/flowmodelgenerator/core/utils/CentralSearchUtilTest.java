@@ -44,6 +44,7 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.BiPredicate;
 
@@ -88,69 +89,6 @@ public class CentralSearchUtilTest {
         Assert.assertNull(search.searchFunctionPage("", 10, 0, "ballerina"));
     }
 
-    @Test(description = "A function search drops tool packages before paging, so offsets stay stable.")
-    public void testSearchFunctionsDropsToolPackages() {
-        RecordingCentralApi central = new RecordingCentralApi(symbolResponse(
-                function("ballerina", "editoolspackage", "2.3.0", "fromEdiString", "Tool"),
-                function("ballerina", "edi", "1.4.0", "fromEdiString", "first"),
-                function("ballerinax", "edifact.d03a.finance", "0.9.0", "fromEdiString", "second")));
-        CentralSearchUtil centralSearch = new CentralSearchUtil(central, EDI_TOOL);
-
-        List<SearchResult> firstPage = centralSearch.searchFunctions("fromEdiString", 1, 0, ALLOWED_ORGS);
-        List<SearchResult> secondPage = centralSearch.searchFunctions("fromEdiString", 1, 1, ALLOWED_ORGS);
-
-        Assert.assertEquals(firstPage.size(), 1);
-        Assert.assertEquals(firstPage.getFirst().packageInfo().packageName(), "edi");
-        Assert.assertEquals(secondPage.size(), 1);
-        Assert.assertEquals(secondPage.getFirst().packageInfo().packageName(), "edifact.d03a.finance");
-    }
-
-    @Test(description = "A single-org function listing drops tool packages.")
-    public void testSearchFunctionsByOrgDropsToolPackages() {
-        RecordingCentralApi central = new RecordingCentralApi(symbolResponse(
-                function("ballerina", "editoolspackage", "2.3.0", "fromEdiString", "Tool"),
-                function("ballerina", "edi", "1.4.0", "fromEdiString", "Library")));
-
-        List<SearchResult> results = new CentralSearchUtil(central, EDI_TOOL)
-                .searchFunctionsByOrg("edi", 10, 0, "ballerina");
-
-        Assert.assertEquals(results.size(), 1);
-        Assert.assertEquals(results.getFirst().packageInfo().packageName(), "edi");
-    }
-
-    @Test(description = "A single-org page that loses rows to tool packages is topped up, so it stays full.")
-    public void testSearchFunctionsByOrgTopsUpToolPackageRows() {
-        RecordingCentralApi central = new RecordingCentralApi(null);
-        central.pagedSymbols = List.of(
-                function("ballerina", "edi", "1.4.0", "fromEdiString", "Library"),
-                function("ballerina", "editoolspackage", "2.3.0", "fromEdiString", "Tool"),
-                function("ballerina", "edi", "1.4.0", "toEdiString", "Library"),
-                function("ballerina", "toml", "0.8.0", "readString", "Parses TOML"));
-
-        List<SearchResult> results = new CentralSearchUtil(central, EDI_TOOL)
-                .searchFunctionsByOrg("", 2, 0, "ballerina");
-
-        Assert.assertEquals(results.stream().map(SearchResult::name).toList(), List.of("fromEdiString", "toEdiString"));
-        Assert.assertEquals(central.callCount, 2);
-        Assert.assertEquals(central.lastQueryMap.get("offset"), "2");
-        Assert.assertEquals(central.lastQueryMap.get("limit"), "1");
-    }
-
-    @Test(description = "A single-org page without tool packages takes a single request.")
-    public void testSearchFunctionsByOrgWithoutToolPackagesMakesOneRequest() {
-        RecordingCentralApi central = new RecordingCentralApi(null);
-        central.pagedSymbols = List.of(
-                function("ballerina", "edi", "1.4.0", "fromEdiString", "Library"),
-                function("ballerina", "edi", "1.4.0", "toEdiString", "Library"),
-                function("ballerina", "toml", "0.8.0", "readString", "Parses TOML"));
-
-        List<SearchResult> results = new CentralSearchUtil(central, EDI_TOOL)
-                .searchFunctionsByOrg("", 2, 0, "ballerina");
-
-        Assert.assertEquals(results.size(), 2);
-        Assert.assertEquals(central.callCount, 1);
-    }
-
     @Test(description = "A connector search drops tool packages before paging.")
     public void testSearchConnectorsDropsToolPackages() {
         RecordingCentralApi central = new RecordingCentralApi(null);
@@ -168,13 +106,13 @@ public class CentralSearchUtilTest {
         Assert.assertEquals(secondPage.getFirst().packageInfo().packageName(), "azure.storage.files");
     }
 
-    @Test(description = "Functions from allowed organizations are surfaced with their package coordinates.")
+    @Test(description = "A function symbol is surfaced with its package coordinates.")
     public void testAllowedFunctionsSurfaced() {
         RecordingCentralApi central = new RecordingCentralApi(symbolResponse(
                 function("ballerina", "toml", "0.8.0", "readString", "Parses TOML")));
 
-        List<SearchResult> results = new CentralSearchUtil(central)
-                .searchFunctions("readString", 10, 0, ALLOWED_ORGS);
+        List<SearchResult> results = functionRows(new CentralSearchUtil(central)
+                .searchFunctionPage("readString", 10, 0, "ballerina"));
 
         Assert.assertEquals(results.size(), 1);
         SearchResult result = results.getFirst();
@@ -187,81 +125,23 @@ public class CentralSearchUtilTest {
         Assert.assertFalse(result.fromCurrentOrg());
     }
 
-    @Test(description = "Functions from organizations outside the allow list are dropped.")
-    public void testDisallowedOrgDropped() {
-        RecordingCentralApi central = new RecordingCentralApi(symbolResponse(
-                function("ballerina", "toml", "0.8.0", "readString", "Parses TOML"),
-                function("zerohack", "evil", "1.0.0", "readString", "Third party")));
-
-        List<SearchResult> results = new CentralSearchUtil(central)
-                .searchFunctions("readString", 10, 0, ALLOWED_ORGS);
-
-        Assert.assertEquals(results.size(), 1);
-        Assert.assertEquals(results.getFirst().packageInfo().org(), "ballerina");
-    }
-
-    @Test(description = "Non-function symbols are excluded even if Central returns them.")
-    public void testNonFunctionSymbolsExcluded() {
-        RecordingCentralApi central = new RecordingCentralApi(symbolResponse(
-                symbol("ballerina", "toml", "0.8.0", "readString", "Parses TOML", "function"),
-                symbol("ballerina", "toml", "0.8.0", "ReadConfig", "Config record", "record")));
-
-        List<SearchResult> results = new CentralSearchUtil(central)
-                .searchFunctions("read", 10, 0, ALLOWED_ORGS);
-
-        Assert.assertEquals(results.size(), 1);
-        Assert.assertEquals(results.getFirst().name(), "readString");
-    }
-
     @Test(description = "The symbolType=function filter is sent to Central.")
     public void testSymbolTypeQueryParameter() {
         RecordingCentralApi central = new RecordingCentralApi(symbolResponse(
                 function("ballerina", "toml", "0.8.0", "readString", "Parses TOML")));
 
-        new CentralSearchUtil(central).searchFunctions("readString", 10, 0, ALLOWED_ORGS);
+        new CentralSearchUtil(central).searchFunctionPage("readString", 10, 0, "ballerina");
 
         Assert.assertEquals(central.lastQueryMap.get("symbolType"), "function");
         Assert.assertEquals(central.lastQueryMap.get("q"), "readString");
     }
 
-    @Test(description = "A failure while contacting Central yields null so the caller can fall back to the index.")
-    public void testFailureReturnsNull() {
-        RecordingCentralApi central = new RecordingCentralApi(null);
-        central.failOnSearch = true;
-
-        Assert.assertNull(new CentralSearchUtil(central).searchFunctions("readString", 10, 0, ALLOWED_ORGS));
-    }
-
-    @Test(description = "An empty allow list short circuits without contacting Central.")
-    public void testEmptyAllowListReturnsEmpty() {
+    @Test(description = "A raw window passes org, symbolType, limit and offset to Central unchanged.")
+    public void testRawFunctionPageQueryParameters() {
         RecordingCentralApi central = new RecordingCentralApi(symbolResponse(
                 function("ballerina", "toml", "0.8.0", "readString", "Parses TOML")));
 
-        List<SearchResult> results = new CentralSearchUtil(central).searchFunctions("readString", 10, 0, Set.of());
-
-        Assert.assertTrue(results.isEmpty());
-        Assert.assertEquals(central.callCount, 0);
-    }
-
-    @Test(description = "The requested limit caps the number of returned functions.")
-    public void testLimitIsRespected() {
-        RecordingCentralApi central = new RecordingCentralApi(symbolResponse(
-                function("ballerina", "toml", "0.8.0", "readString", "one"),
-                function("ballerina", "yaml", "0.8.0", "readString", "two"),
-                function("ballerina", "json", "0.8.0", "readString", "three")));
-
-        List<SearchResult> results = new CentralSearchUtil(central)
-                .searchFunctions("readString", 2, 0, ALLOWED_ORGS);
-
-        Assert.assertEquals(results.size(), 2);
-    }
-
-    @Test(description = "The single-org list passes org and symbolType to Central server-side without over-fetching.")
-    public void testSearchFunctionsByOrgQueryParameters() {
-        RecordingCentralApi central = new RecordingCentralApi(symbolResponse(
-                function("ballerina", "toml", "0.8.0", "readString", "Parses TOML")));
-
-        new CentralSearchUtil(central).searchFunctionsByOrg("", 12, 24, "ballerina");
+        new CentralSearchUtil(central).searchFunctionPage("", 12, 24, "ballerina");
 
         Assert.assertEquals(central.lastQueryMap.get("org"), "ballerina");
         Assert.assertEquals(central.lastQueryMap.get("symbolType"), "function");
@@ -270,54 +150,14 @@ public class CentralSearchUtilTest {
         Assert.assertFalse(central.lastQueryMap.containsKey("q"));
     }
 
-    @Test(description = "A query term is forwarded when listing an organization's functions.")
-    public void testSearchFunctionsByOrgForwardsQuery() {
-        RecordingCentralApi central = new RecordingCentralApi(symbolResponse(
-                function("ballerina", "toml", "0.8.0", "readString", "Parses TOML")));
-
-        new CentralSearchUtil(central).searchFunctionsByOrg("read", 12, 0, "ballerina");
-
-        Assert.assertEquals(central.lastQueryMap.get("q"), "read");
-    }
-
-    @Test(description = "Non-function symbols are excluded from the single-org list.")
-    public void testSearchFunctionsByOrgExcludesNonFunctions() {
-        RecordingCentralApi central = new RecordingCentralApi(symbolResponse(
-                symbol("ballerina", "toml", "0.8.0", "readString", "Parses TOML", "function"),
-                symbol("ballerina", "toml", "0.8.0", "ReadConfig", "Config record", "record")));
-
-        List<SearchResult> results = new CentralSearchUtil(central).searchFunctionsByOrg("", 12, 0, "ballerina");
-
-        Assert.assertEquals(results.size(), 1);
-        Assert.assertEquals(results.getFirst().name(), "readString");
-        Assert.assertFalse(results.getFirst().fromCurrentOrg());
-    }
-
-    @Test(description = "A failure while contacting Central yields null so the caller can fall back to the index.")
-    public void testSearchFunctionsByOrgFailureReturnsNull() {
-        RecordingCentralApi central = new RecordingCentralApi(null);
-        central.failOnSearch = true;
-
-        Assert.assertNull(new CentralSearchUtil(central).searchFunctionsByOrg("", 12, 0, "ballerina"));
-    }
-
-    @Test(description = "A missing organization short circuits without contacting Central.")
-    public void testSearchFunctionsByOrgEmptyOrgReturnsEmpty() {
-        RecordingCentralApi central = new RecordingCentralApi(symbolResponse(
-                function("ballerina", "toml", "0.8.0", "readString", "Parses TOML")));
-
-        Assert.assertTrue(new CentralSearchUtil(central).searchFunctionsByOrg("", 12, 0, "").isEmpty());
-        Assert.assertEquals(central.callCount, 0);
-    }
-
     @Test(description = "A submodule symbol keeps its own module name, distinct from the package name.")
     public void testSubmoduleModuleNameRetained() {
         RecordingCentralApi central = new RecordingCentralApi(symbolResponse(
                 symbol("ballerinax", "edifact.d03a.supplychain", "edifact.d03a.supplychain.mORDERS", "1.0.1",
                         "fromEdiString", "Convert EDI string to Ballerina record.", "function")));
 
-        List<SearchResult> results = new CentralSearchUtil(central)
-                .searchFunctions("fromEdiString", 10, 0, ALLOWED_ORGS);
+        List<SearchResult> results = functionRows(new CentralSearchUtil(central)
+                .searchFunctionPage("fromEdiString", 10, 0, "ballerinax"));
 
         Assert.assertEquals(results.size(), 1);
         SearchResult.Package packageInfo = results.getFirst().packageInfo();
@@ -330,8 +170,8 @@ public class CentralSearchUtilTest {
         RecordingCentralApi central = new RecordingCentralApi(symbolResponse(
                 function("ballerinax", "edifact.d03a.supplychain", "1.0.1", "fromEdiString", "Convert EDI string.")));
 
-        List<SearchResult> results = new CentralSearchUtil(central)
-                .searchFunctions("fromEdiString", 10, 0, ALLOWED_ORGS);
+        List<SearchResult> results = functionRows(new CentralSearchUtil(central)
+                .searchFunctionPage("fromEdiString", 10, 0, "ballerinax"));
 
         Assert.assertEquals(results.size(), 1);
         Assert.assertEquals(results.getFirst().packageInfo().moduleName(), "edifact.d03a.supplychain");
@@ -345,131 +185,12 @@ public class CentralSearchUtilTest {
                 symbol("ballerinax", "edifact.d03a.supplychain", "edifact.d03a.supplychain.mORDERS", "1.0.1",
                         "fromEdiString", "Submodule", "function")));
 
-        List<SearchResult> results = new CentralSearchUtil(central)
-                .searchFunctions("fromEdiString", 10, 0, ALLOWED_ORGS);
+        List<SearchResult> results = functionRows(new CentralSearchUtil(central)
+                .searchFunctionPage("fromEdiString", 10, 0, "ballerinax"));
 
         Assert.assertEquals(results.size(), 2);
         Assert.assertEquals(results.get(0).packageInfo().moduleName(), "edifact.d03a.supplychain");
         Assert.assertEquals(results.get(1).packageInfo().moduleName(), "edifact.d03a.supplychain.mORDERS");
-    }
-
-    @Test(description = "The module name is retained by the single-org listing as well.")
-    public void testSearchFunctionsByOrgRetainsModuleName() {
-        RecordingCentralApi central = new RecordingCentralApi(symbolResponse(
-                symbol("ballerinax", "edifact.d03a.supplychain", "edifact.d03a.supplychain.mORDERS", "1.0.1",
-                        "fromEdiString", "Convert EDI string.", "function")));
-
-        List<SearchResult> results = new CentralSearchUtil(central)
-                .searchFunctionsByOrg("", 12, 0, "ballerinax");
-
-        Assert.assertEquals(results.size(), 1);
-        Assert.assertEquals(results.getFirst().packageInfo().moduleName(), "edifact.d03a.supplychain.mORDERS");
-    }
-
-    @Test(description = "Scoping a search to a module names it alongside the query, since Central has no filter.")
-    public void testSearchFunctionsInModuleNamesTheModuleInTheQuery() {
-        RecordingCentralApi central = new RecordingCentralApi(symbolResponse(
-                symbol("ballerinax", "edifact.d03a.supplychain", "edifact.d03a.supplychain.mORDERS", "1.0.1",
-                        "fromEdiString", "Convert an ORDERS EDI string.", "function")));
-
-        List<SearchResult> results = new CentralSearchUtil(central).searchFunctionsInModule("fromEdiString", 50,
-                new ModuleCoordinate("ballerinax", "edifact.d03a.supplychain.mORDERS"));
-
-        Assert.assertEquals(central.lastQueryMap.get("q"), "fromEdiString edifact.d03a.supplychain.mORDERS");
-        Assert.assertEquals(central.lastQueryMap.get("org"), "ballerinax");
-        Assert.assertEquals(central.lastQueryMap.get("symbolType"), "function");
-        Assert.assertEquals(central.lastQueryMap.get("limit"), "50");
-        Assert.assertEquals(central.lastQueryMap.get("offset"), "0");
-        Assert.assertEquals(results.size(), 1);
-        Assert.assertEquals(results.getFirst().packageInfo().moduleName(), "edifact.d03a.supplychain.mORDERS");
-    }
-
-    @Test(description = "An empty or null query scopes to the module alone.")
-    public void testSearchFunctionsInModuleWithoutQueryUsesModuleName() {
-        ModuleCoordinate module = new ModuleCoordinate("ballerinax", "edifact.d03a.supplychain.mORDERS");
-        RecordingCentralApi central = new RecordingCentralApi(symbolResponse(
-                symbol("ballerinax", "edifact.d03a.supplychain", "edifact.d03a.supplychain.mORDERS", "1.0.1",
-                        "fromEdiString", "Convert.", "function")));
-        CentralSearchUtil centralSearch = new CentralSearchUtil(central);
-
-        centralSearch.searchFunctionsInModule("", 50, module);
-        Assert.assertEquals(central.lastQueryMap.get("q"), "edifact.d03a.supplychain.mORDERS");
-
-        centralSearch.searchFunctionsInModule(null, 50, module);
-        Assert.assertEquals(central.lastQueryMap.get("q"), "edifact.d03a.supplychain.mORDERS");
-    }
-
-    @Test(description = "Naming a module only biases the ranking, so near misses are dropped by exact match.")
-    public void testSearchFunctionsInModuleDropsNearMisses() {
-        RecordingCentralApi central = new RecordingCentralApi(symbolResponse(
-                symbol("ballerinax", "edifact.d03a.supplychain", "edifact.d03a.supplychain.mORDERS", "1.0.1",
-                        "fromEdiString", "Wanted.", "function"),
-                // The package root, which shares every term of the query the submodule name is made of.
-                symbol("ballerinax", "edifact.d03a.supplychain", "edifact.d03a.supplychain", "1.0.1",
-                        "fromEdiString", "Package root.", "function"),
-                // A sibling submodule of the same package.
-                symbol("ballerinax", "edifact.d03a.supplychain", "edifact.d03a.supplychain.mINVOIC", "1.0.1",
-                        "fromEdiString", "Sibling module.", "function"),
-                // The same module name published by somebody else.
-                symbol("someoneelse", "edifact.d03a.supplychain", "edifact.d03a.supplychain.mORDERS", "1.0.1",
-                        "fromEdiString", "Different org.", "function")));
-
-        List<SearchResult> results = new CentralSearchUtil(central).searchFunctionsInModule("fromEdiString", 50,
-                new ModuleCoordinate("ballerinax", "edifact.d03a.supplychain.mORDERS"));
-
-        Assert.assertEquals(results.size(), 1);
-        Assert.assertEquals(results.getFirst().description(), "Wanted.");
-    }
-
-    @Test(description = "Every function the module declares is returned, not only the one the query names.")
-    public void testSearchFunctionsInModuleReturnsEveryFunction() {
-        RecordingCentralApi central = new RecordingCentralApi(symbolResponse(
-                symbol("ballerinax", "edifact.d03a.supplychain", "edifact.d03a.supplychain.mORDERS", "1.0.1",
-                        "fromEdiString", "One.", "function"),
-                symbol("ballerinax", "edifact.d03a.supplychain", "edifact.d03a.supplychain.mORDERS", "1.0.1",
-                        "fromEdiStringWithSchema", "Two.", "function"),
-                symbol("ballerinax", "edifact.d03a.supplychain", "edifact.d03a.supplychain.mORDERS", "1.0.1",
-                        "headersFromEdiString", "Three.", "function")));
-
-        List<SearchResult> results = new CentralSearchUtil(central).searchFunctionsInModule("fromEdi", 50,
-                new ModuleCoordinate("ballerinax", "edifact.d03a.supplychain.mORDERS"));
-
-        Assert.assertEquals(results.stream().map(SearchResult::name).sorted().toList(),
-                List.of("fromEdiString", "fromEdiStringWithSchema", "headersFromEdiString"));
-    }
-
-    @Test(description = "A failure while scoping to a module yields null, leaving the general results in place.")
-    public void testSearchFunctionsInModuleFailureReturnsNull() {
-        RecordingCentralApi central = new RecordingCentralApi(null);
-        central.failOnSearch = true;
-
-        Assert.assertNull(new CentralSearchUtil(central).searchFunctionsInModule("fromEdiString", 50,
-                new ModuleCoordinate("ballerinax", "edifact.d03a.supplychain.mORDERS")));
-    }
-
-    @Test(description = "A missing module short circuits without contacting Central.")
-    public void testSearchFunctionsInModuleWithoutCoordinateReturnsEmpty() {
-        RecordingCentralApi central = new RecordingCentralApi(symbolResponse(
-                function("ballerinax", "edifact.d03a.supplychain", "1.0.1", "fromEdiString", "Convert.")));
-        CentralSearchUtil centralSearch = new CentralSearchUtil(central);
-
-        Assert.assertTrue(centralSearch.searchFunctionsInModule("fromEdiString", 50, null).isEmpty());
-        Assert.assertTrue(centralSearch.searchFunctionsInModule("fromEdiString", 50,
-                new ModuleCoordinate("ballerinax", "")).isEmpty());
-        Assert.assertTrue(centralSearch.searchFunctionsInModule("fromEdiString", 50,
-                new ModuleCoordinate("", "edifact.d03a.supplychain.mORDERS")).isEmpty());
-        Assert.assertEquals(central.callCount, 0);
-    }
-
-    @Test(description = "A response carrying no symbols yields an empty list rather than failing.")
-    public void testSearchFunctionsInModuleWithoutSymbolsReturnsEmpty() {
-        RecordingCentralApi central = new RecordingCentralApi(new SymbolResponse(null, 0, 0, 0));
-
-        List<SearchResult> results = new CentralSearchUtil(central).searchFunctionsInModule("fromEdiString", 50,
-                new ModuleCoordinate("ballerinax", "edifact.d03a.supplychain.mORDERS"));
-
-        Assert.assertTrue(results.isEmpty());
-        Assert.assertEquals(central.callCount, 1);
     }
 
     @Test(description = "A function search lists the declarations in the default module and in the submodules.")
@@ -479,8 +200,8 @@ public class CentralSearchUtilTest {
         // twice for exactly this reason: the rows are separable only by moduleName, never by the package name.
         RecordingCentralApi central = new RecordingCentralApi(loadFixture("search-symbols-submodule.json"));
 
-        List<SearchResult> results = new CentralSearchUtil(central)
-                .searchFunctions("submodulecheck", 10, 0, Set.of("yaseematest"));
+        List<SearchResult> results = functionRows(new CentralSearchUtil(central)
+                .searchFunctionPage("submodulecheck", 10, 0, "yaseematest"));
 
         Assert.assertEquals(results.size(), 4);
         Assert.assertEquals(moduleOf(results, "getSchema"), "submodulecheck.mORDERS");
@@ -503,14 +224,18 @@ public class CentralSearchUtilTest {
         // imported functions quietly stop being listed, and nothing that asserts only one side would notice.
         RecordingCentralApi central = new RecordingCentralApi(loadFixture("search-symbols-submodule.json"));
 
-        List<SearchResult> results = new CentralSearchUtil(central)
-                .searchFunctions("submodulecheck", 10, 0, Set.of("yaseematest"));
+        List<SearchResult> results = functionRows(new CentralSearchUtil(central)
+                .searchFunctionPage("submodulecheck", 10, 0, "yaseematest"));
 
         PackageName packageName = PackageName.from("submodulecheck");
         Assert.assertEquals(coordinateOf(results, "getSchema"),
                 ModuleCoordinate.of("yaseematest", ModuleName.from(packageName, "mORDERS")));
         Assert.assertEquals(coordinateOf(results, "getEDINames"),
                 ModuleCoordinate.of("yaseematest", ModuleName.from(packageName)));
+    }
+
+    private static List<SearchResult> functionRows(CentralSearchUtil.FunctionRawPage page) {
+        return page.rows().stream().filter(Objects::nonNull).toList();
     }
 
     private static ModuleCoordinate coordinateOf(List<SearchResult> results, String symbolName) {

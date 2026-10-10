@@ -18,6 +18,7 @@
 
 package io.ballerina.flowmodelgenerator.core.search;
 
+import io.ballerina.flowmodelgenerator.core.search.SearchCommand.FunctionSource;
 import io.ballerina.modelgenerator.commons.SearchResult;
 
 import java.util.ArrayList;
@@ -42,20 +43,20 @@ final class FunctionPage {
     private FunctionPage() { }
 
     /** Keep continuation offsets tied to their original raw source. */
-    static Page library(int limit, int offset, String requestedSource,
+    static Page library(int limit, int offset, FunctionSource requestedSource,
                         BiFunction<Integer, Integer, Raw> central, BiFunction<Integer, Integer, Raw> index,
                         UnaryOperator<SearchResult> admit) {
-        if (!"index".equals(requestedSource)) {
+        if (requestedSource != FunctionSource.INDEX) {
             Page page = scan(limit, offset, central, admit);
             if (page != null) {
-                return withSource(page, "central");
+                return withSource(page, FunctionSource.CENTRAL);
             }
-            if ("central".equals(requestedSource)) {
+            if (requestedSource == FunctionSource.CENTRAL) {
                 throw new IllegalStateException("Central function page unavailable; retry the same cursor");
             }
         }
         try {
-            return withSource(scan(limit, offset, index, admit), "index");
+            return withSource(scan(limit, offset, index, admit), FunctionSource.INDEX);
         } catch (RuntimeException e) {
             // Continuations keep throwing so that the same cursor stays retryable.
             if (requestedSource != null || offset > 0) {
@@ -63,11 +64,11 @@ final class FunctionPage {
             }
             // A first page also carries imported and workspace functions, so a failed index must not lose them.
             LOGGER.log(Level.WARNING, "Library functions unavailable from Central and the search index", e);
-            return new Page(List.of(), new SearchCommand.FunctionPagination(false, 0, "index"));
+            return new Page(List.of(), new SearchCommand.FunctionPagination(false, 0, FunctionSource.INDEX));
         }
     }
 
-    private static Page withSource(Page page, String source) {
+    private static Page withSource(Page page, FunctionSource source) {
         return new Page(page.rows(), new SearchCommand.FunctionPagination(page.pagination().hasMore(),
                 page.pagination().nextOffset(), source));
     }

@@ -120,4 +120,22 @@ describe("shared function pagination ownership", () => {
         await act(async () => { await result.current.loadSection("Standard Library", fetch, apply); });
         expect(fetch).toHaveBeenCalledWith("ballerina", pagination.ballerina);
     });
+
+    it("releases the loading flag when only the caller's guard turns stale", async () => {
+        const { result } = renderHook(() => useFunctionPaginationController());
+        act(() => result.current.seed(pagination, () => 1));
+        let panelActive = true;
+        const pending = deferred();
+        const apply = jest.fn(() => 1);
+        let load!: Promise<void>;
+        act(() => { load = result.current.loadSection("Standard Library", () => pending.promise, apply, () => panelActive); });
+        // The caller navigates away without invalidating the controller.
+        panelActive = false;
+        await act(async () => { pending.resolve({ categories: [] }); await load; });
+        expect(apply).not.toHaveBeenCalled();
+        expect(result.current.loadingSections["Standard Library"]).toBe(false);
+        const fetch = jest.fn(() => Promise.resolve({ categories: [] } as BISearchResponse));
+        await act(async () => { await result.current.loadSection("Standard Library", fetch, apply); });
+        expect(fetch).toHaveBeenCalledWith("ballerina", pagination.ballerina);
+    });
 });

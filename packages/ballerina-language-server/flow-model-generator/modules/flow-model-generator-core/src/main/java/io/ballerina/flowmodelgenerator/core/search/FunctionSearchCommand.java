@@ -55,21 +55,32 @@ class FunctionSearchCommand extends SearchCommand {
     private static final String STANDARD_LIBRARY_ORG = "ballerina";
     private static final String EXTENDED_LIBRARY_ORG = "ballerinax";
     private static final List<String> LIBRARY_ORGS = List.of(STANDARD_LIBRARY_ORG, EXTENDED_LIBRARY_ORG);
-    private final Set<ModuleCoordinate> importedModules;
-    private final ResolvedFunctionCatalog catalog;
     private final Document functionsDoc;
     private final String sectionOrg;
-    private final String functionSource;
+    private final FunctionSource functionSource;
     private final Map<String, FunctionPagination> pagination = new LinkedHashMap<>();
+    private ResolvedFunctionCatalog catalog;
 
     FunctionSearchCommand(Project project, LineRange position, Map<String, String> queryMap, Document functionsDoc) {
         super(project, position, queryMap);
-        this.catalog = ResolvedFunctionCatalog.collect(project, ImportedModules.collect(project));
-        this.importedModules = catalog.imports();
         this.functionsDoc = functionsDoc;
         String org = queryMap == null ? "" : queryMap.getOrDefault("orgName", "");
         this.sectionOrg = LIBRARY_ORGS.contains(org) ? org : "";
-        this.functionSource = sectionOrg.isEmpty() || queryMap == null ? null : queryMap.get("functionSource");
+        this.functionSource = sectionOrg.isEmpty() || queryMap == null ? null
+                : FunctionSource.of(queryMap.get("functionSource"));
+    }
+
+    /**
+     * Collected on first use, so the master search collects it on its own worker thread, and a workspace-only
+     * ({@code limit} 0) search never does. Only a first page offers imported functions, so a library section's
+     * continuation skips listing them.
+     */
+    private ResolvedFunctionCatalog catalog() {
+        if (catalog == null) {
+            catalog = ResolvedFunctionCatalog.collect(project, ImportedModules.collect(project),
+                    sectionOrg.isEmpty() && limit > 0);
+        }
+        return catalog;
     }
 
     @Override
@@ -88,12 +99,16 @@ class FunctionSearchCommand extends SearchCommand {
         if (sectionOrg.isEmpty() && offset <= 0) {
             WorkspaceFunctionNodeBuilder.buildSubmoduleWorkspaceNodes(rootBuilder, project, position, query,
                     functionsDoc);
-            rows.addAll(catalog.matching(query));
+        }
+        // A limit of 0 asks for workspace functions only, so it skips the imported ones too.
+        if (sectionOrg.isEmpty() && offset <= 0 && limit > 0) {
+            ResolvedFunctionCatalog resolved = catalog();
+            rows.addAll(resolved.matching(query));
             // Failed symbol discovery can use only exact-version indexed functions. No latest-version top-up.
-            Set<ModuleCoordinate> fallbackImports = catalog.fallbackImports();
+            Set<ModuleCoordinate> fallbackImports = resolved.fallbackImports();
             if (!fallbackImports.isEmpty()) {
                 rows.addAll(dbManager.searchFunctionsByPackages(fallbackImports, List.of(), Integer.MAX_VALUE, 0)
-                        .stream().map(catalog::admit).filter(Objects::nonNull)
+                        .stream().map(resolved::admit).filter(Objects::nonNull)
                         .filter(ResolvedFunctionCatalog.queryMatcher(query)).toList());
             }
         }
@@ -110,7 +125,7 @@ class FunctionSearchCommand extends SearchCommand {
     private FunctionPage.Page libraryPage(CentralSearchUtil central, String org) {
         // Imported fallbacks belong in their own category and must never eat a library page's quota.
         UnaryOperator<SearchResult> admit = row -> org.equals(row.packageInfo().org())
-                && !importedModules.contains(row.packageInfo().coordinate()) ? catalog.admit(row) : null;
+                && !catalog().imports().contains(row.packageInfo().coordinate()) ? catalog().admit(row) : null;
         return FunctionPage.library(limit, offset, functionSource, (take, skip) -> {
             var raw = central.searchFunctionPage(query, take, skip, org);
             return raw == null ? null : new FunctionPage.Raw(raw.rows(), raw.hasMore());
@@ -128,10 +143,10 @@ class FunctionSearchCommand extends SearchCommand {
                 "function"::equals);
         List<SearchResult> eligible = new ArrayList<>();
         if (offset <= 0) {
-            eligible.addAll(catalog.matching(query).stream()
+            eligible.addAll(catalog().matching(query).stream()
                     .filter(row -> row.packageInfo().org().equals(currentOrg)).toList());
         }
-        eligible.addAll(rows.stream().map(catalog::admit).filter(Objects::nonNull).toList());
+        eligible.addAll(rows.stream().map(catalog()::admit).filter(Objects::nonNull).toList());
         buildLibraryNodes(eligible, false);
         return rootBuilder.build().items();
     }
@@ -148,7 +163,7 @@ class FunctionSearchCommand extends SearchCommand {
                 continue;
             }
             Category.Builder builder;
-            if (importedModules.contains(pkg.coordinate())) {
+            if (catalog().imports().contains(pkg.coordinate())) {
                 builder = imported;
             } else if (!categorizeByOrganization || STANDARD_LIBRARY_ORG.equals(pkg.org())) {
                 builder = standard;

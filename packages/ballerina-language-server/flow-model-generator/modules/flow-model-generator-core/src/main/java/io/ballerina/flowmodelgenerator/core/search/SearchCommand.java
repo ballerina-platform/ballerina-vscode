@@ -20,6 +20,7 @@ package io.ballerina.flowmodelgenerator.core.search;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
+import com.google.gson.annotations.SerializedName;
 import io.ballerina.flowmodelgenerator.core.model.Category;
 import io.ballerina.flowmodelgenerator.core.model.Item;
 import io.ballerina.modelgenerator.commons.SearchDatabaseManager;
@@ -144,9 +145,25 @@ public abstract class SearchCommand {
         return null;
     }
 
-    public record FunctionPagination(boolean hasMore, int nextOffset, String source) {
+    public record FunctionPagination(boolean hasMore, int nextOffset, FunctionSource source) {
         public FunctionPagination(boolean hasMore, int nextOffset) {
             this(hasMore, nextOffset, null);
+        }
+    }
+
+    /** The raw source whose offsets a library section's continuation indexes. */
+    public enum FunctionSource {
+        @SerializedName("central") CENTRAL,
+        @SerializedName("index") INDEX;
+
+        /** Returns the source a request names, or null when it names none. */
+        static FunctionSource of(String value) {
+            for (FunctionSource source : values()) {
+                if (source.name().equalsIgnoreCase(value)) {
+                    return source;
+                }
+            }
+            return null;
         }
     }
 

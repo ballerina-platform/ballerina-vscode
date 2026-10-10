@@ -1469,8 +1469,8 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     const handleSearch = useCallback(async (searchText: string, functionType: FUNCTION_TYPE, searchKind: SearchKind) => {
         const searchEpoch = panelNavEpochRef.current;
         const masterSearchSeq = searchKind === "ALL" ? ++masterSearchSeqRef.current : undefined;
-        const generation = ++functionSearchGenerationRef.current;
-        const functionGeneration = searchKind === "FUNCTION" ? generation : undefined;
+        // Other kinds render in other panels, so they must not discard an open function list's Load more page.
+        const functionGeneration = searchKind === "FUNCTION" ? ++functionSearchGenerationRef.current : undefined;
         const isDataMapperSearch = searchKind === "FUNCTION" && functionType === FUNCTION_TYPE.EXPRESSION_BODIED;
         if (functionGeneration !== undefined) {
             // Disable the previous query's continuation while this first page is in flight.

@@ -87,7 +87,9 @@ export const useFunctionPaginationController = (pageSize = FUNCTIONS_PAGE_SIZE) 
                 console.error(">>> Error loading more functions", error);
             }
         } finally {
-            if (!isStale()) {
+            // Only a newer generation owns the flag: a caller that navigated away without invalidating must not
+            // leave the section loading forever.
+            if (currentGeneration === generation.current) {
                 loading.current[title] = false;
                 setLoadingSections(prev => ({ ...prev, [title]: false }));
             }

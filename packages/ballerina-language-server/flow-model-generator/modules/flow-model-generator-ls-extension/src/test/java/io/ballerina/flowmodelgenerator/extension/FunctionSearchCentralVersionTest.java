@@ -92,7 +92,7 @@ public class FunctionSearchCentralVersionTest {
                 || row.module().equals("time") && !row.version().equals(timeVersion)));
 
         var pagination = command.functionPagination().get("ballerina");
-        Assert.assertEquals(pagination.source(), "central");
+        Assert.assertEquals(pagination.source(), SearchCommand.FunctionSource.CENTRAL);
         Assert.assertEquals(pagination.nextOffset(), ballerina.size(), "Filtered rows still consume raw offsets");
         Assert.assertFalse(pagination.hasMore());
     }

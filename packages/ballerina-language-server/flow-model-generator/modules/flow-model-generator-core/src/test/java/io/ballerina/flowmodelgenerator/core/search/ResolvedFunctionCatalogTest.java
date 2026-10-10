@@ -49,13 +49,18 @@ public class ResolvedFunctionCatalogTest {
         // This acceptance case must fail, rather than skip, if the build-owned fixture is missing.
         var project = BuildProject.load(Path.of("src/test/resources/function-discovery/issue-2697-workflow"),
                 BuildOptions.builder().setOffline(true).build());
-        var catalog = ResolvedFunctionCatalog.collect(project, ImportedModules.collect(project));
+        var catalog = ResolvedFunctionCatalog.collect(project, ImportedModules.collect(project), true);
         List<SearchResult> rows = catalog.matching("workflow");
         Assert.assertEquals(rows.stream().map(SearchResult::name).toList(), List.of("completeHumanTask",
                 "getPendingAgentEvents", "getWorkflowResult", "run", "sendData"));
         Assert.assertTrue(rows.stream().allMatch(row -> row.packageInfo().version().equals("0.10.0")));
         Assert.assertTrue(catalog.fallbackImports().isEmpty());
         Assert.assertTrue(catalog.matching("getWorkflowInfo").isEmpty());
+        var unlisted = ResolvedFunctionCatalog.collect(project, ImportedModules.collect(project), false);
+        Assert.assertTrue(unlisted.matching("workflow").isEmpty(), "A continuation does not list imported functions");
+        Assert.assertEquals(unlisted.imports(), catalog.imports());
+        Assert.assertTrue(unlisted.fallbackImports().isEmpty(), "Resolved imports stay resolved without listing");
+        Assert.assertNull(unlisted.admit(rows.getFirst()), "Imported compiler symbols still supersede registry rows");
     }
 
     @Test
@@ -64,7 +69,7 @@ public class ResolvedFunctionCatalogTest {
                 BuildOptions.builder().setOffline(true).build());
         Set<ModuleCoordinate> imports = ImportedModules.collect(project);
         Assert.assertEquals(imports.size(), 6);
-        var catalog = ResolvedFunctionCatalog.collect(project, imports);
+        var catalog = ResolvedFunctionCatalog.collect(project, imports, true);
         List<SearchResult> actual = catalog.matching("");
         Assert.assertTrue(actual.size() > 50, "Fixture must exercise a large real imported surface");
         var module = project.currentPackage().getDefaultModule();
@@ -92,7 +97,8 @@ public class ResolvedFunctionCatalogTest {
         representativeFunctions.forEach((name, function) -> Assert.assertTrue(actual.stream()
                 .anyMatch(row -> row.packageInfo().moduleName().equals(name) && row.name().equals(function)),
                 "Missing public function " + name + ":" + function));
-        Assert.assertEquals(catalog.matching(""), ResolvedFunctionCatalog.collect(project, imports).matching(""));
+        Assert.assertEquals(catalog.matching(""),
+                ResolvedFunctionCatalog.collect(project, imports, true).matching(""));
     }
 
     private static Map<String, String> resolvedVersions(Project project) {
@@ -113,12 +119,12 @@ public class ResolvedFunctionCatalogTest {
                 BuildOptions.builder().setOffline(true).build());
         Set<ModuleCoordinate> imports = ImportedModules.collect(project);
         Assert.assertEquals(imports, Set.of(new ModuleCoordinate("ballerina", "http")));
-        var before = ResolvedFunctionCatalog.collect(project, imports);
+        var before = ResolvedFunctionCatalog.collect(project, imports, true);
         Map<String, String> versions = resolvedVersions(project);
         String timeVersion = versions.get("ballerina/time");
         Assert.assertNotNull(timeVersion, "HTTP must resolve time as a transitive dependency");
         SearchResult compatible = SearchResult.from("ballerina", "time", "time", timeVersion, "utcNow", "");
-        Assert.assertTrue(before.eligible(compatible));
+        Assert.assertNotNull(before.admit(compatible));
         for (String otherVersion : List.of("0.0.0", "99.0.0")) {
             SearchResult rebased = before.admit(SearchResult.from("ballerina", "time", "time", otherVersion,
                     "utcNow", ""));
@@ -136,12 +142,12 @@ public class ResolvedFunctionCatalogTest {
         Set<ModuleCoordinate> promotedImports = ImportedModules.collect(project);
         Assert.assertTrue(promotedImports.contains(new ModuleCoordinate("ballerina", "time")));
         Assert.assertEquals(resolvedVersions(project), versions, "Adding an import must not imply a version upgrade");
-        var after = ResolvedFunctionCatalog.collect(project, promotedImports);
+        var after = ResolvedFunctionCatalog.collect(project, promotedImports, true);
         Assert.assertTrue(after.matching("utcNow").stream()
                 .anyMatch(row -> row.packageInfo().moduleName().equals("time")
                         && row.packageInfo().version().equals(timeVersion)));
-        Assert.assertFalse(after.eligible(compatible), "Imported compiler symbols supersede registry/index duplicates");
-        Assert.assertTrue(before.eligible(compatible), "A subsequent request must not mutate an earlier catalog");
+        Assert.assertNull(after.admit(compatible), "Imported compiler symbols supersede registry/index duplicates");
+        Assert.assertNotNull(before.admit(compatible), "A subsequent request must not mutate an earlier catalog");
     }
 
     @Test
@@ -158,18 +164,18 @@ public class ResolvedFunctionCatalogTest {
         Assert.assertEquals(catalog.matching("\"SAMPLE\" REMOVED"), List.of(old));
         Assert.assertTrue(catalog.matching("addedInLatest").isEmpty());
         for (String version : List.of("0.1.0", "0.2.0", "0.0.9")) {
-            Assert.assertFalse(catalog.eligible(row("ballerinax", "sample", version, "addedInLatest")));
-            Assert.assertEquals(catalog.eligible(row("ballerinax", "sample.sub", version, "subFunction")),
+            Assert.assertNull(catalog.admit(row("ballerinax", "sample", version, "addedInLatest")));
+            Assert.assertEquals(catalog.admit(row("ballerinax", "sample.sub", version, "subFunction")) != null,
                     "0.1.0".equals(version));
         }
-        Assert.assertTrue(catalog.eligible(row("otherorg", "sample", "0.2.0", "newFunction")));
+        Assert.assertNotNull(catalog.admit(row("otherorg", "sample", "0.2.0", "newFunction")));
     }
 
     @Test
     public void registryRowsAreRebasedOntoTheResolvedVersion() {
         // Central serves only the latest release: workflow 1.0.0 while the project resolves 0.10.0.
-        Map<String, Set<String>> declared = Map.of("ballerina/workflow", Set.of("run"),
-                "ballerina/workflow.sub", Set.of("subRun"));
+        Map<String, Map<String, String>> declared = Map.of("ballerina/workflow", Map.of("run", "resolved docs"),
+                "ballerina/workflow.sub", Map.of("subRun", ""));
         var catalog = new ResolvedFunctionCatalog(Map.of("ballerina/workflow", "0.10.0"), Map.of(), Set.of(),
                 pkg -> declared.get(pkg.org() + "/" + pkg.moduleName()));
         var latest = SearchResult.from("ballerina", "workflow", "workflow", "1.0.0", "run", "latest docs");
@@ -177,7 +183,7 @@ public class ResolvedFunctionCatalogTest {
         Assert.assertEquals(rebased.packageInfo(),
                 new SearchResult.Package("ballerina", "workflow", "workflow", "0.10.0"));
         Assert.assertEquals(rebased.name(), "run");
-        Assert.assertEquals(rebased.description(), "latest docs");
+        Assert.assertEquals(rebased.description(), "resolved docs", "Latest docs may describe another signature");
         Assert.assertNull(catalog.admit(SearchResult.from("ballerina", "workflow", "workflow", "1.0.0",
                 "getWorkflowInfo", "")));
         Assert.assertEquals(catalog.admit(SearchResult.from("ballerina", "workflow", "workflow.sub", "1.0.0",
@@ -192,13 +198,14 @@ public class ResolvedFunctionCatalogTest {
     public void realTransitiveSubmodulesAreRebasedFromResolvedSources() {
         var project = BuildProject.load(Path.of("src/test/resources/function-discovery/issue-2697-transitive"),
                 BuildOptions.builder().setOffline(true).build());
-        var catalog = ResolvedFunctionCatalog.collect(project, ImportedModules.collect(project));
+        var catalog = ResolvedFunctionCatalog.collect(project, ImportedModules.collect(project), true);
         String mimeVersion = resolvedVersions(project).get("ballerina/mime");
         Assert.assertNotNull(mimeVersion, "HTTP must resolve mime as a transitive dependency");
         SearchResult rebased = catalog.admit(SearchResult.from("ballerina", "mime", "mime", "99.0.0",
                 "getMediaType", ""));
         Assert.assertNotNull(rebased);
         Assert.assertEquals(rebased.packageInfo().version(), mimeVersion);
+        Assert.assertFalse(rebased.description().isEmpty(), "The description is read from the resolved sources");
         Assert.assertNull(catalog.admit(SearchResult.from("ballerina", "mime", "mime", "99.0.0",
                 "notAMimeFunction", "")));
         Assert.assertNull(catalog.admit(SearchResult.from("ballerina", "mime", "mime.missing", "99.0.0",
@@ -210,19 +217,19 @@ public class ResolvedFunctionCatalogTest {
         var module = new ModuleCoordinate("ballerinax", "sample");
         var empty = new ResolvedFunctionCatalog(Map.of("ballerinax/sample", "0.1.0"),
                 Map.of(module, List.of()), Set.of(module));
-        Assert.assertFalse(empty.eligible(row("ballerinax", "sample", "0.1.0", "obsolete")));
+        Assert.assertNull(empty.admit(row("ballerinax", "sample", "0.1.0", "obsolete")));
         var broken = new ResolvedFunctionCatalog(Map.of("ballerinax/sample", "0.1.0"), Map.of(), Set.of(module));
-        Assert.assertTrue(broken.eligible(row("ballerinax", "sample", "0.1.0", "fallback")));
-        Assert.assertFalse(broken.eligible(row("ballerinax", "sample", "0.2.0", "fallback")));
+        Assert.assertNotNull(broken.admit(row("ballerinax", "sample", "0.1.0", "fallback")));
+        Assert.assertNull(broken.admit(row("ballerinax", "sample", "0.2.0", "fallback")));
         var unresolved = new ResolvedFunctionCatalog(Map.of(), Map.of(), Set.of(module));
-        Assert.assertFalse(unresolved.eligible(row("ballerinax", "sample", "0.2.0", "fallback")));
-        Assert.assertFalse(unresolved.eligible(row("ballerinax", "sample.sub", "0.2.0", "sibling")));
+        Assert.assertNull(unresolved.admit(row("ballerinax", "sample", "0.2.0", "fallback")));
+        Assert.assertNull(unresolved.admit(row("ballerinax", "sample.sub", "0.2.0", "sibling")));
         var unresolvedSubmodule = new ResolvedFunctionCatalog(Map.of(), Map.of(),
                 Set.of(new ModuleCoordinate("ballerinax", "sample.sub")));
-        Assert.assertFalse(unresolvedSubmodule.eligible(row("ballerinax", "sample", "0.2.0", "root")));
-        Assert.assertFalse(unresolvedSubmodule.eligible(row("ballerinax", "sample.other", "0.2.0", "sibling")));
-        Assert.assertTrue(unresolvedSubmodule.eligible(row("otherorg", "sample", "0.2.0", "unrelated")));
-        Assert.assertTrue(unresolvedSubmodule.eligible(SearchResult.from("ballerinax", "sampleother", "sampleother",
+        Assert.assertNull(unresolvedSubmodule.admit(row("ballerinax", "sample", "0.2.0", "root")));
+        Assert.assertNull(unresolvedSubmodule.admit(row("ballerinax", "sample.other", "0.2.0", "sibling")));
+        Assert.assertNotNull(unresolvedSubmodule.admit(row("otherorg", "sample", "0.2.0", "unrelated")));
+        Assert.assertNotNull(unresolvedSubmodule.admit(SearchResult.from("ballerinax", "sampleother", "sampleother",
                 "0.2.0", "unrelated", "")));
     }
 

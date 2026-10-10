@@ -29,8 +29,7 @@ import {
     BrowserItemLabel,
     BrowserEmptyMessage
 } from '@wso2/ui-toolkit';
-import { HelperPaneCompletionItem } from '@wso2/ballerina-side-panel';
-import { LoadMoreButton } from '@wso2/ballerina-side-panel/lib/components/LoadMoreButton';
+import { HelperPaneCompletionItem, LoadMoreButton } from '@wso2/ballerina-side-panel';
 import { CompletionInsertText, LineRange } from '@wso2/ballerina-core';
 import { HelperPaneIconType, getHelperPaneIcon } from '../HelperPaneNew/utils/iconUtils';
 import { debounce } from 'lodash';
