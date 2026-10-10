@@ -71,6 +71,7 @@ import {
     convertKnowledgeBaseCategoriesToSidePanelCategories
 } from "../../../utils/bi";
 import { findCurrentIntegrationCategory } from "../../../utils/function-category";
+import { pollActivityList } from "./activityRefresh";
 import { useDraftNodeManager } from "./hooks/useDraftNodeManager";
 import { NodePosition, STNode } from "@wso2/syntax-tree";
 import { View, ProgressIndicator, ThemeColors } from "@wso2/ui-toolkit";
@@ -83,6 +84,7 @@ import {
     filterCategoriesLocally,
     buildMasterSearchCategories,
     mergePanelCategories,
+    opensListFromPalette,
     countSectionLeafNodes,
 } from "./utils";
 import { PanelOverlayProvider } from "./context/PanelOverlayContext";
@@ -300,6 +302,15 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             activityRefreshOwnsPanelRef.current = false;
             activityRefreshReleaseRef.current = null;
         }, 2000);
+    };
+
+    // A superseded refresh has no panel to protect: the list's own search must run for its new owner.
+    const releaseActivityPanelNow = () => {
+        if (activityRefreshReleaseRef.current) {
+            clearTimeout(activityRefreshReleaseRef.current);
+            activityRefreshReleaseRef.current = null;
+        }
+        activityRefreshOwnsPanelRef.current = false;
     };
 
     // Marks a user-driven panel action: invalidates in-flight refreshes, then reports whether
@@ -542,6 +553,11 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
 
     const clearNavigationStack = () => {
         setNavigationStack([]);
+    };
+
+    // Refreshes the categories a stacked view returns to, without leaving the current view.
+    const updateStackedCategories = (view: SidePanelView, cats: PanelCategory[]) => {
+        setNavigationStack((prev) => prev.map((item) => (item.view === view ? { ...item, categories: cats } : item)));
     };
 
     const popNavigationStackUntilView = (targetView: SidePanelView) => {
@@ -817,64 +833,54 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     const handleActivityAdded = async (recentIdentifier?: string) => {
         // Try to navigate back to ACTIVITY_LIST in the stack
         const foundInStack = popNavigationStackUntilView(SidePanelView.ACTIVITY_LIST);
+        if (!foundInStack) {
+            console.log(">>> ACTIVITY_LIST not found in navigation stack, closing panel");
+            closeSidePanelAndFetchUpdatedFlowModel();
+            return;
+        }
 
-        if (foundInStack) {
-            setShowProgressIndicator(true);
-            try {
-                const searchActivities = () => rpcClient.getBIDiagramRpcClient().search({
+        setShowProgressIndicator(true);
+        const superseded = capturePanelNav();
+        acquireActivityPanel();
+        try {
+            const categories = await pollActivityList({
+                search: () => rpcClient.getBIDiagramRpcClient().search({
                     position: { startLine: targetRef.current.startLine, endLine: targetRef.current.endLine },
                     filePath: model?.fileName,
                     queryMap: durableAgentActivityListRef.current
                         ? { nodeKind: "DURABLE_AGENT_ADD_ACTIVITY" }
                         : undefined,
                     searchKind: "ACTIVITY_CALL",
-                });
-                const epoch = panelNavEpochRef.current;
-                const superseded = () => panelNavEpochRef.current !== epoch;
-                acquireActivityPanel();
-                let response = await searchActivities();
-                // The just-created activity may not be compiled into the search results yet
-                // (compiles run to seconds on ai/mcp projects). Retry while the new identifier
-                // is missing — or, when it is unknown, while the project lists no activities
-                // at all right after a write.
-                const hasResult = () => {
-                    const raw = JSON.stringify(response.categories ?? []);
-                    if (recentIdentifier) {
-                        return raw.includes(`"${recentIdentifier}"`);
-                    }
-                    return raw.includes('"node":"ACTIVITY_CALL"') || raw.includes('DURABLE_AGENT_ADD_ACTIVITY');
-                };
-                for (let attempt = 0; attempt < 4 && !hasResult() && !superseded(); attempt++) {
-                    await new Promise((resolve) => setTimeout(resolve, 1500));
-                    if (superseded()) {
-                        break;
-                    }
-                    response = await searchActivities();
-                }
-                if (superseded()) {
-                    // The user moved on while the project was still compiling.
-                    return;
-                }
-                const panelCategories = convertFunctionCategoriesToSidePanelCategories(
-                    response.categories as Category[],
-                    FUNCTION_TYPE.REGULAR
-                );
-                const currentPackageCategory = findCurrentIntegrationCategory(panelCategories);
-                if (currentPackageCategory && !currentPackageCategory.items.length) {
-                    currentPackageCategory.description = "No activities defined. Click below to create a new activity.";
-                }
-                setCategories(panelCategories);
-                setSidePanelView(SidePanelView.ACTIVITY_LIST);
-                setShowSidePanel(true);
-            } catch (error) {
-                console.error(">>> Error refreshing activities", error);
-            } finally {
-                setShowProgressIndicator(false);
+                }).then((response) => response.categories as Category[]),
+                superseded,
+                sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+                recentIdentifier,
+            });
+            const panelCategories = convertFunctionCategoriesToSidePanelCategories(categories, FUNCTION_TYPE.REGULAR);
+            const currentPackageCategory = findCurrentIntegrationCategory(panelCategories);
+            if (currentPackageCategory && !currentPackageCategory.items.length) {
+                currentPackageCategory.description = "No activities defined. Click below to create a new activity.";
+            }
+            if (superseded()) {
+                // The user moved on (e.g. to another Create Activity form) while the project was still
+                // compiling: keep the list that form returns to current, and leave the panel to its owner.
+                updateStackedCategories(SidePanelView.ACTIVITY_LIST, panelCategories);
+                return;
+            }
+            setCategories(panelCategories);
+            setSidePanelView(SidePanelView.ACTIVITY_LIST);
+            setShowSidePanel(true);
+        } catch (error) {
+            console.error(">>> Error refreshing activities", error);
+        } finally {
+            // The indicator is this refresh's own, whatever happened to it: a successor that shows one
+            // sets it again, so at worst it flickers, where leaving it on keeps the canvas read-only.
+            setShowProgressIndicator(false);
+            if (superseded()) {
+                releaseActivityPanelNow();
+            } else {
                 releaseActivityPanel();
             }
-        } else {
-            console.log(">>> ACTIVITY_LIST not found in navigation stack, closing panel");
-            closeSidePanelAndFetchUpdatedFlowModel();
         }
     };
 
@@ -1961,7 +1967,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 // First click from the palette opens the same searchable workflow list as
                 // Run Workflow; the nodeKind override makes selected items resolve to the
                 // child-workflow node so the right template/codegen kicks in.
-                if (sidePanelView === SidePanelView.NODE_LIST) {
+                if (opensListFromPalette(sidePanelView)) {
                     childWorkflowKindRef.current = node.codedata.node as "CHILD_WORKFLOW_RUN" | "CHILD_WORKFLOW_CALL";
                     setShowProgressIndicator(true);
                     rpcClient
@@ -2016,7 +2022,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
 
             case "WORKFLOW_RUN":
                 // First click from node list should open searchable workflow list.
-                if (sidePanelView === SidePanelView.NODE_LIST) {
+                if (opensListFromPalette(sidePanelView)) {
                     childWorkflowKindRef.current = null;
         durableAgentObjectVarRef.current = null;
                     setShowProgressIndicator(true);
@@ -2071,7 +2077,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
 
             case "ACTIVITY_CALL":
                 // First click from node list should open searchable activity list.
-                if (sidePanelView === SidePanelView.NODE_LIST) {
+                if (opensListFromPalette(sidePanelView)) {
                     durableAgentActivityListRef.current = false;
                     setShowProgressIndicator(true);
                     rpcClient
@@ -2126,7 +2132,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             case "DURABLE_AGENT_ADD_ACTIVITY":
                 // First click from the palette opens the agent's Add Tool/Activity list:
                 // the project's activities, its AI tools and toolkits, and the MCP entry.
-                if (sidePanelView === SidePanelView.NODE_LIST) {
+                if (opensListFromPalette(sidePanelView)) {
                     durableAgentActivityListRef.current = true;
                     setShowProgressIndicator(true);
                     rpcClient
@@ -3100,6 +3106,8 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     };
 
     const handleOnAddActivityFromConnection = () => {
+        // As for Create Activity: a refresh still running from the previous save must not replace the wizard.
+        beginPanelNav();
         // The wizard can create a connection on the way, and that write runs the ordinary
         // post-write reset — which can clear the flag that says this list belongs to an agent
         // while the wizard itself stays open. Remember it here, where the flow is unambiguous.
@@ -3248,6 +3256,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     };
 
     const handleOnAddActivity = () => {
+        // A user action: the previous save's list refresh, still polling for its activity, must
+        // not land on top of this form and discard what was typed (wso2/product-integrator#2422).
+        const superseded = beginPanelNav();
         isCreatingNewActivity.current = true;
         setShowProgressIndicator(true);
         pushToNavigationStack(sidePanelView, categories, selectedNodeRef.current, selectedClientName.current);
@@ -3260,6 +3271,10 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 id: { node: "ACTIVITY" },
             })
             .then((response) => {
+                if (superseded()) {
+                    // Back or Close arrived before the template; the panel belongs to that action now.
+                    return;
+                }
                 applyDurableAgentObjectTarget(response.flowNode);
                 selectedNodeRef.current = response.flowNode;
                 nodeTemplateRef.current = response.flowNode;

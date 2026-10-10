@@ -17,7 +17,7 @@
  */
 
 import type { Category as PanelCategory, Item as PanelItem, Node as PanelNode } from "@wso2/ballerina-side-panel";
-import { buildMasterSearchCategories, filterCategoriesLocally, getPanelItemKey, mergePanelCategories } from "./utils";
+import { buildMasterSearchCategories, filterCategoriesLocally, getPanelItemKey, mergePanelCategories, opensListFromPalette } from "./utils";
 
 describe("filterCategoriesLocally", () => {
     const categories: any[] = [
@@ -261,5 +261,20 @@ describe("getPanelItemKey", () => {
 
     it("keys a node without codedata by its kind and label", () => {
         expect(getPanelItemKey(staticNode("IF", "If"))).toBe("node:IF:If");
+    });
+});
+
+// wso2/product-integrator#2624: Call Activity picked from the palette's search results must open the
+// activity list, as it does from the Workflow group, instead of being treated as a pick from that list.
+describe("opensListFromPalette", () => {
+    it("treats the node list and the cross-kind search as the palette", () => {
+        expect(opensListFromPalette("NODE_LIST")).toBe(true);
+        expect(opensListFromPalette("ALL")).toBe(true);
+    });
+
+    it("treats every list and form view as a pick from that list", () => {
+        for (const view of ["ACTIVITY_LIST", "WORKFLOW_LIST", "FUNCTION_LIST", "NP_FUNCTION_LIST", "FORM"] as const) {
+            expect(opensListFromPalette(view)).toBe(false);
+        }
     });
 });

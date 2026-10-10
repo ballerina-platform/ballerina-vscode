@@ -1,0 +1,13 @@
+{
+  "source": "workflow_project/main.bal",
+  "description": "Get all data for a workflow whose data record is its second parameter (no input)",
+  "workflowName": "shipmentWorkflow",
+  "output": {
+    "data": [
+      {
+        "name": "dispatched",
+        "type": "boolean"
+      }
+    ]
+  }
+}

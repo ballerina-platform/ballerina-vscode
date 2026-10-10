@@ -40,3 +40,36 @@ function simpleWorkflow(workflow:Context ctx, SimpleInput input) returns error? 
     io:println("Simple workflow: " + input.id.toString());
 }
 
+type ShipmentEvents record {|
+    future<boolean> dispatched;
+|};
+
+# Workflow without an input: the data record is the second parameter
+@workflow:Workflow
+function shipmentWorkflow(workflow:Context ctx, ShipmentEvents events) returns error? {
+    boolean dispatched = check wait events.dispatched;
+    io:println("Dispatched: " + dispatched.toString());
+}
+
+type PollEvents record {|
+    future<PaymentData> answer;
+|};
+
+# Workflow with the data record as its only parameter
+@workflow:Workflow
+function pollWorkflow(PollEvents events) returns error? {
+    PaymentData answer = check wait events.answer;
+    io:println("Answer: " + answer.currency);
+}
+
+type RefundEvents record {|
+    future<PaymentData?> refund;
+    future<int[]> lineItems;
+|};
+
+# Workflow whose events carry an optional record and a list
+@workflow:Workflow
+function refundWorkflow(workflow:Context ctx, OrderInput input, RefundEvents events) returns error? {
+    PaymentData? refund = check wait events.refund;
+    io:println("Refund received: " + (refund is () ? "none" : refund.currency));
+}

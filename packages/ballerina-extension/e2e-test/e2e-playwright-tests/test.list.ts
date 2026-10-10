@@ -85,6 +85,7 @@ import createProject from './project-overview/project-creation.spec';
 
 import diagram from './diagram/diagram.spec';
 import durableAgentActivity from './workflow/durable-agent-activity.spec';
+import workflowForms from './workflow/workflow-forms.spec';
 import durableAgentRoleFields from './workflow/durable-agent-role-fields.spec';
 import workflowRoleFields from './workflow/workflow-role-fields.spec';
 import automationFlowNodes from './diagram/flow-nodes.spec';
@@ -188,6 +189,8 @@ test.describe('Ballerina E2E Group 2', { tag: '@group2' }, async () => {
 
     // <----Other Artifacts Test---->
     test.describe(functionArtifact);
+    // Workflow forms built from an empty project; Group 2 has the time for them, Group 4 is at its limit.
+    test.describe(workflowForms);
 
     // <----Project Explorer Test---->
     test.describe(projectExplorer);

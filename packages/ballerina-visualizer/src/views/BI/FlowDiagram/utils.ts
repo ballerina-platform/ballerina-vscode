@@ -19,6 +19,7 @@
 import { Category, AvailableNode, BallerinaProjectComponents } from "@wso2/ballerina-core";
 import type { Category as PanelCategory, Item as PanelItem } from "@wso2/ballerina-side-panel";
 import { URI, Utils } from "vscode-uri";
+import type { SidePanelView } from "./PanelManager";
 
 // Filter out connections where name starts with _ and module is "ai" or "ai.agent"
 export const filterConnections = (categories: Category[]): Category[] => {
@@ -165,6 +166,12 @@ export const countSectionLeafNodes = (categories: PanelCategory[], sectionTitle:
 // master search results and to add a "Show more" page to the categories already shown.
 export const mergePanelCategories = (prev: PanelCategory[], next: PanelCategory[]): PanelCategory[] =>
     mergePanelItems(prev, next) as PanelCategory[];
+
+// The palette's own views: the node list and the cross-kind search over it. A list-opening node
+// (Call Activity, Run Workflow, ...) picked from either is a first click, not a pick from its list.
+// Typed against the enum's values so a renamed member fails the build instead of turning this off.
+export const opensListFromPalette = (sidePanelView: `${SidePanelView}`): boolean =>
+    sidePanelView === "NODE_LIST" || sidePanelView === "ALL";
 
 // Builds the master search panel. Only the static panel nodes are filtered by label: the language server has already
 // matched its results on name, description and package, the same way the function and connection searches do, so

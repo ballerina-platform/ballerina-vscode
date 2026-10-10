@@ -24,7 +24,6 @@ import com.google.gson.JsonObject;
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.api.symbols.ClassSymbol;
 import io.ballerina.compiler.api.symbols.FunctionSymbol;
-import io.ballerina.compiler.api.symbols.FunctionTypeSymbol;
 import io.ballerina.compiler.api.symbols.FutureTypeSymbol;
 import io.ballerina.compiler.api.symbols.MethodSymbol;
 import io.ballerina.compiler.api.symbols.ParameterSymbol;
@@ -47,7 +46,9 @@ import io.ballerina.flowmodelgenerator.extension.request.GetAllDataRequest;
 import io.ballerina.flowmodelgenerator.extension.response.AnalyzeActivityActionResponse;
 import io.ballerina.flowmodelgenerator.extension.response.GenActivityResponse;
 import io.ballerina.flowmodelgenerator.extension.response.GetAllDataResponse;
+import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.FileSystemUtils;
+import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.projects.Module;
 import org.ballerinalang.annotation.JavaSPIService;
 import org.ballerinalang.langserver.commons.service.spi.ExtendedLanguageServerService;
@@ -102,6 +103,9 @@ public class WorkflowManagerService implements ExtendedLanguageServerService {
                 Path filePath = Path.of(request.filePath());
                 this.workspaceManager.loadProject(filePath);
                 SemanticModel semanticModel = FileSystemUtils.getSemanticModel(workspaceManager, filePath);
+                // Event types are rendered as the user's code would name them: unqualified in this module.
+                ModuleInfo moduleInfo = this.workspaceManager.module(filePath)
+                        .map(module -> ModuleInfo.from(module.descriptor())).orElse(null);
 
                 JsonArray dataArray = new JsonArray();
                 Optional<Symbol> functionSymbol = semanticModel.moduleSymbols().stream()
@@ -111,7 +115,7 @@ public class WorkflowManagerService implements ExtendedLanguageServerService {
                         .findFirst();
 
                 if (functionSymbol.isPresent() && functionSymbol.get() instanceof FunctionSymbol funcSymbol) {
-                    JsonArray data = getDataFromWorkflowFunction(funcSymbol, semanticModel);
+                    JsonArray data = getDataFromWorkflowFunction(funcSymbol, semanticModel, moduleInfo);
                     data.forEach(dataArray::add);
                 }
 
@@ -209,50 +213,50 @@ public class WorkflowManagerService implements ExtendedLanguageServerService {
      *
      * @param funcSymbol    The workflow function symbol
      * @param semanticModel The semantic model
+     * @param moduleInfo    The module the request's file belongs to, or {@code null}
      * @return JsonArray of data information
      */
-    private JsonArray getDataFromWorkflowFunction(FunctionSymbol funcSymbol, SemanticModel semanticModel) {
-        JsonArray data = new JsonArray();
-
-        FunctionTypeSymbol functionType = funcSymbol.typeDescriptor();
-        Optional<List<ParameterSymbol>> params = functionType.params();
-
-        if (params.isEmpty() || params.get().size() < 3) {
-            // Try to find data type by convention: <FunctionName>Data
-            String funcName = funcSymbol.getName().orElse("");
-            if (funcName.isEmpty()) {
-                return data;
+    private JsonArray getDataFromWorkflowFunction(FunctionSymbol funcSymbol, SemanticModel semanticModel,
+                                                  ModuleInfo moduleInfo) {
+        // The data record is the last parameter, whatever precedes it: a workflow may omit the context or
+        // the input, so its position is not fixed. It is recognised by its shape, as Await Data does.
+        Optional<List<ParameterSymbol>> params = funcSymbol.typeDescriptor().params();
+        if (params.isPresent() && !params.get().isEmpty()) {
+            List<ParameterSymbol> paramList = params.get();
+            TypeSymbol lastParamType = TypeUtils.resolveTypeReference(
+                    paramList.get(paramList.size() - 1).typeDescriptor());
+            if (WorkflowUtil.isValidDataType(lastParamType)) {
+                return extractDataFromRecordType(lastParamType, semanticModel, moduleInfo);
             }
-            String dataTypeName = funcName.substring(0, 1).toUpperCase(Locale.ROOT) + funcName.substring(1)
-                    + DATA_SUFFIX;
-
-            Optional<Symbol> dataTypeSymbol = semanticModel.moduleSymbols().stream()
-                    .filter(symbol -> symbol.nameEquals(dataTypeName))
-                    .findFirst();
-
-            if (dataTypeSymbol.isPresent() && dataTypeSymbol.get().kind() == SymbolKind.TYPE_DEFINITION) {
-                TypeDefinitionSymbol typeDefSymbol = (TypeDefinitionSymbol) dataTypeSymbol.get();
-                return extractDataFromRecordType(typeDefSymbol.typeDescriptor());
-            }
-
-            return data;
         }
 
-        // Get the third parameter (data parameter)
-        ParameterSymbol dataParam = params.get().get(2);
-        TypeSymbol dataType = TypeUtils.resolveTypeReference(dataParam.typeDescriptor());
-
-        return extractDataFromRecordType(dataType);
+        // Otherwise a record named by convention, <FunctionName>Data, may declare the events.
+        String funcName = funcSymbol.getName().orElse("");
+        if (funcName.isEmpty()) {
+            return new JsonArray();
+        }
+        String dataTypeName = funcName.substring(0, 1).toUpperCase(Locale.ROOT) + funcName.substring(1)
+                + DATA_SUFFIX;
+        return semanticModel.moduleSymbols().stream()
+                .filter(symbol -> symbol.nameEquals(dataTypeName))
+                .filter(symbol -> symbol.kind() == SymbolKind.TYPE_DEFINITION)
+                .findFirst()
+                .map(symbol -> extractDataFromRecordType(((TypeDefinitionSymbol) symbol).typeDescriptor(),
+                        semanticModel, moduleInfo))
+                .orElseGet(JsonArray::new);
     }
 
     /**
      * Extracts workflow data information from a record type.
      * Each field in the record with type future<T> represents a data point that can be awaited.
      *
-     * @param dataType The data record type
+     * @param dataType      The data record type
+     * @param semanticModel The semantic model
+     * @param moduleInfo    The module the type names are rendered relative to, or {@code null}
      * @return JsonArray of event information
      */
-    private JsonArray extractDataFromRecordType(TypeSymbol dataType) {
+    private JsonArray extractDataFromRecordType(TypeSymbol dataType, SemanticModel semanticModel,
+                                                ModuleInfo moduleInfo) {
         JsonArray data = new JsonArray();
 
         if (dataType.typeKind() != TypeDescKind.RECORD) {
@@ -269,7 +273,7 @@ public class WorkflowManagerService implements ExtendedLanguageServerService {
             if (fieldType.typeKind() != TypeDescKind.FUTURE) {
                 continue;
             }
-            String eventDataType = extractTypeNameFromFuture((FutureTypeSymbol) fieldType);
+            String eventDataType = extractTypeNameFromFuture((FutureTypeSymbol) fieldType, semanticModel, moduleInfo);
 
             JsonObject eventObj = new JsonObject();
             eventObj.addProperty("name", fieldName);
@@ -280,7 +284,13 @@ public class WorkflowManagerService implements ExtendedLanguageServerService {
         return data;
     }
 
-    private String extractTypeNameFromFuture(FutureTypeSymbol typeSymbol) {
-        return typeSymbol.typeParameter().flatMap(TypeSymbol::getName).orElse(ANYDATA);
+    private String extractTypeNameFromFuture(FutureTypeSymbol typeSymbol, SemanticModel semanticModel,
+                                             ModuleInfo moduleInfo) {
+        // The raw signature qualifies every type reference with its org, package and version
+        // (`org/pkg:0.1.0:PaymentData?`), and a bare symbol name drops an imported type's prefix; the form types
+        // the data field with this text, so it has to be a type the user's code can name.
+        return typeSymbol.typeParameter()
+                .map(type -> CommonUtils.getTypeSignature(semanticModel, type, false, moduleInfo))
+                .orElse(ANYDATA);
     }
 }
