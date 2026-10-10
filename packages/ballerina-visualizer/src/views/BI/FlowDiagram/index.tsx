@@ -41,6 +41,7 @@ import {
     FUNCTION_TYPE,
     ParentPopupData,
     BISearchRequest,
+    FunctionSearchPagination,
     DIRECTORY_MAP,
     UpdatedArtifactsResponse,
     ParentMetadata,
@@ -82,11 +83,13 @@ import {
     filterCategoriesLocally,
     buildMasterSearchCategories,
     mergePanelCategories,
+    countSectionLeafNodes,
 } from "./utils";
 import { PanelOverlayProvider } from "./context/PanelOverlayContext";
 import { PanelOverlayRenderer } from "./PanelOverlayRenderer";
 import { ExpressionFormField, Category as PanelCategory, S } from "@wso2/ballerina-side-panel";
-import { PAGINATED_LIBRARY_SECTIONS } from "../../../utils/useFunctionPagination";
+import { assertFunctionSearchSuccess, FUNCTIONS_PAGE_SIZE } from "../../../utils/function-pagination";
+import { useFunctionPaginationController } from "../../../utils/useFunctionPaginationController";
 import { cloneDeep, debounce } from "lodash";
 import { ConnectionKind } from "../../../components/ConnectionSelector";
 import AddAgentPopup from "../AIChatAgent/AddAgentPopup";
@@ -163,20 +166,8 @@ const AI_COMPONENT_PICKER_VIEWS: SidePanelView[] = [
     SidePanelView.CHUNKERS,
 ];
 
-const FUNCTION_PAGE_SIZE = 60;
-
 // Counts the leaf function nodes (items with an `id`) across a panel category tree, used to decide whether
 // another page exists.
-const countFunctionLeafNodes = (categories: PanelCategory[] = []): number =>
-    categories.reduce((total, category) => {
-        const items = (category?.items ?? []) as any[];
-        return total + items.reduce((sum, item) => sum + ("id" in item ? 1 : countFunctionLeafNodes([item])), 0);
-    }, 0);
-
-// Counts the leaf nodes within a single section (top-level category matched by title).
-const countSectionLeafNodes = (categories: PanelCategory[], sectionTitle: string): number =>
-    countFunctionLeafNodes(categories.filter((category) => category.title === sectionTitle));
-
 export function BIFlowDiagram(props: BIFlowDiagramProps) {
     const { projectPath, breakpointState, syntaxTree, onUpdate, onReady, onSave, hideAgentConfiguration } = props;
     const { rpcClient } = useRpcContext();
@@ -188,13 +179,15 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     const [sidePanelView, setSidePanelView] = useState<SidePanelView>(SidePanelView.NODE_LIST);
     const [categories, setCategories] = useState<PanelCategory[]>([]); //
     const [searchText, setSearchText] = useState<string>("");
-    // Per-section pagination for the function list. Each library section (keyed by category title) loads its next
-    // page independently as it scrolls into view. Offsets/in-flight flags live in refs so they never trigger a
-    // re-render or fire load-more from one; the query/type of the current list are reused for section loads.
-    const [functionSectionsWithMore, setFunctionSectionsWithMore] = useState<Record<string, boolean>>({});
-    const [loadingFunctionSections, setLoadingFunctionSections] = useState<Record<string, boolean>>({});
-    const functionSectionOffsetsRef = useRef<Record<string, number>>({});
-    const functionSectionLoadingRef = useRef<Record<string, boolean>>({});
+    const {
+        sectionsWithMore: functionSectionsWithMore,
+        loadingSections: loadingFunctionSections,
+        invalidate: invalidateFunctionPagination,
+        reset: resetFunctionPagination,
+        seed: seedFunctionSections,
+        loadSection: loadFunctionSection,
+    } = useFunctionPaginationController();
+    const functionSearchGenerationRef = useRef(0);
     const functionSearchQueryRef = useRef<string>("");
     const functionSearchTypeRef = useRef<FUNCTION_TYPE>(FUNCTION_TYPE.REGULAR);
     // Kept here so an expanded AI package group survives switching to a form and back.
@@ -1453,34 +1446,33 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         }
     };
 
-    // Seeds per-section pagination for a freshly loaded first page: records the query/type to reuse for section
-    // loads, resets each section's offset to 0, and marks a section as having more pages when its first page came
-    // back full (>= FUNCTION_PAGE_SIZE leaf nodes).
+    // Prefer the server's raw-source continuation. A filtered page can be short/empty without being final.
+    // Older servers retain the full-visible-page heuristic.
     const seedFunctionPagination = useCallback(
-        (cats: PanelCategory[], query: string, type: FUNCTION_TYPE) => {
+        (cats: PanelCategory[], query: string, type: FUNCTION_TYPE, pagination?: FunctionSearchPagination) => {
             functionSearchQueryRef.current = query;
             functionSearchTypeRef.current = type;
-            functionSectionOffsetsRef.current = {};
-            functionSectionLoadingRef.current = {};
-            const sectionsWithMore: Record<string, boolean> = {};
-            for (const { title } of PAGINATED_LIBRARY_SECTIONS) {
-                functionSectionOffsetsRef.current[title] = 0;
-                sectionsWithMore[title] = countSectionLeafNodes(cats, title) >= FUNCTION_PAGE_SIZE;
-            }
-            setFunctionSectionsWithMore(sectionsWithMore);
-            setLoadingFunctionSections({});
+            seedFunctionSections(pagination, title => countSectionLeafNodes(cats, title));
         },
-        []
+        [seedFunctionSections]
     );
 
     const handleSearch = useCallback(async (searchText: string, functionType: FUNCTION_TYPE, searchKind: SearchKind) => {
         const searchEpoch = panelNavEpochRef.current;
         const masterSearchSeq = searchKind === "ALL" ? ++masterSearchSeqRef.current : undefined;
-        // A master search response is stale once a newer search starts or is cleared, or once the user leaves the
-        // panel; the panel's new owner then manages the categories and the progress indicator.
-        const isStaleMasterSearch = () =>
-            masterSearchSeq !== undefined
-            && (masterSearchSeq !== masterSearchSeqRef.current || panelNavEpochRef.current !== searchEpoch);
+        // Other kinds render in other panels, so they must not discard an open function list's Load more page.
+        const functionGeneration = searchKind === "FUNCTION" ? ++functionSearchGenerationRef.current : undefined;
+        const isDataMapperSearch = searchKind === "FUNCTION" && functionType === FUNCTION_TYPE.EXPRESSION_BODIED;
+        if (functionGeneration !== undefined) {
+            // Disable the previous query's continuation while this first page is in flight.
+            resetFunctionPagination();
+        }
+        // The current query and panel own the result, its pagination and its progress indicator.
+        const isStaleSearch = () =>
+            (masterSearchSeq !== undefined
+                && (masterSearchSeq !== masterSearchSeqRef.current || panelNavEpochRef.current !== searchEpoch))
+            || (functionGeneration !== undefined
+                && (functionGeneration !== functionSearchGenerationRef.current || panelNavEpochRef.current !== searchEpoch));
         // An unfiltered activity list is owned by the post-creation refresh while it runs.
         const yieldsToActivityRefresh = searchKind === "ACTIVITY_CALL" && !searchText.trim();
         if (yieldsToActivityRefresh && activityRefreshOwnsPanelRef.current) {
@@ -1503,7 +1495,8 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             filePath: model.fileName,
             queryMap: {
                 q: searchText.trim(),
-                limit: 60,
+                // Data mappers are workspace functions only, so a data mapper search skips the library sources.
+                limit: isDataMapperSearch ? 0 : FUNCTIONS_PAGE_SIZE,
                 offset: 0,
                 includeAvailableFunctions: "true",
                 ...(searchKind === "ACTIVITY_CALL" && durableAgentActivityListRef.current
@@ -1521,12 +1514,15 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         try {
             const response = await rpcClient.getBIDiagramRpcClient().search(request);
 
+            if (isStaleSearch()) {
+                return;
+            }
+            if (searchKind === "FUNCTION") {
+                assertFunctionSearchSuccess(response);
+            }
             if (response.categories) {
 
                 if (searchKind === "ALL") {
-                    if (isStaleMasterSearch()) {
-                        return;
-                    }
                     const searchCategories = convertFunctionCategoriesToSidePanelCategories(
                         response.categories as Category[],
                         functionType
@@ -1555,8 +1551,8 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                     }
                     setCategories(currentCategories);
 
-                    if (searchKind === "FUNCTION") {
-                        seedFunctionPagination(currentCategories, searchText, functionType);
+                    if (searchKind === "FUNCTION" && !isDataMapperSearch) {
+                        seedFunctionPagination(currentCategories, searchText, functionType, response.functionPagination);
                     }
                 }
 
@@ -1609,78 +1605,55 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             }
         } catch (error) {
             console.error(">>> Error in search request", error);
-            if (isStaleMasterSearch()) {
+            if (isStaleSearch()) {
                 return;
             }
-            // Fallback to cached categories on error
             setShowProgressIndicator(false);
-            setCategories(initialCategoriesRef.current);
+            // A failed function search keeps the current list; its view would not show the cached node palette.
+            if (searchKind !== "FUNCTION") {
+                // Fallback to cached categories on error
+                setCategories(initialCategoriesRef.current);
+            }
         } finally {
-            if (!isStaleMasterSearch()) {
+            if (!isStaleSearch()) {
                 setShowProgressIndicator(false);
             }
         }
-    }, [rpcClient, model?.fileName]);
+    }, [rpcClient, model?.fileName, seedFunctionPagination, resetFunctionPagination]);
 
     // Loads the next page of a single library section (e.g. Standard/Extended Library) and appends it. Each section
     // is scoped to its Central organization and paged by its own offset, so sections advance independently.
     const loadMoreFunctionSection = useCallback(async (sectionTitle: string) => {
-        const section = PAGINATED_LIBRARY_SECTIONS.find((s) => s.title === sectionTitle);
-        if (!section || functionSectionLoadingRef.current[sectionTitle]
-            || !targetRef.current || !model?.fileName) {
+        if (!targetRef.current || !model?.fileName) {
             return;
         }
-        functionSectionLoadingRef.current[sectionTitle] = true;
-        setLoadingFunctionSections((prev) => ({ ...prev, [sectionTitle]: true }));
-        const nextOffset = (functionSectionOffsetsRef.current[sectionTitle] ?? 0) + FUNCTION_PAGE_SIZE;
-        // Capture the panel-navigation epoch so a page that arrives after the user left this list is discarded.
+        // A newer query or a different panel must not inherit this page or its loading flags.
         const navEpoch = panelNavEpochRef.current;
-        const request: BISearchRequest = {
-            position: {
-                startLine: targetRef.current.startLine,
-                endLine: targetRef.current.endLine,
-            },
+        const generation = functionSearchGenerationRef.current;
+        const isStalePage = () => panelNavEpochRef.current !== navEpoch
+            || functionSearchGenerationRef.current !== generation;
+        await loadFunctionSection(sectionTitle, (org, cursor) => rpcClient.getBIDiagramRpcClient().search({
+            position: { startLine: targetRef.current.startLine, endLine: targetRef.current.endLine },
             filePath: model.fileName,
             queryMap: {
-                q: functionSearchQueryRef.current.trim(),
-                limit: FUNCTION_PAGE_SIZE,
-                offset: nextOffset,
-                orgName: section.org,
+                q: functionSearchQueryRef.current.trim(), limit: FUNCTIONS_PAGE_SIZE,
+                offset: cursor.nextOffset, orgName: org, functionSource: cursor.source,
                 includeAvailableFunctions: "true",
             },
             searchKind: "FUNCTION",
-        };
-        try {
-            const response = await rpcClient.getBIDiagramRpcClient().search(request);
-            // The user navigated to a different panel while this was in flight; discard the stale page.
-            if (panelNavEpochRef.current !== navEpoch) {
-                return;
+        }), response => {
+            const pageCategories = convertFunctionCategoriesToSidePanelCategories(
+                response.categories as Category[], functionSearchTypeRef.current
+            );
+            const sectionLeafCount = countSectionLeafNodes(pageCategories, sectionTitle);
+            if (sectionLeafCount > 0) {
+                // Imported Functions in an org-scoped response must not be duplicated into the library section.
+                const sectionOnly = pageCategories.filter(category => category.title === sectionTitle);
+                setCategories(prev => mergePanelCategories(prev, sectionOnly));
             }
-            if (response.categories) {
-                const pageCategories = convertFunctionCategoriesToSidePanelCategories(
-                    [...response.categories] as Category[],
-                    functionSearchTypeRef.current
-                );
-                const sectionLeafCount = countSectionLeafNodes(pageCategories, sectionTitle);
-                functionSectionOffsetsRef.current[sectionTitle] = nextOffset;
-                setFunctionSectionsWithMore((prev) => ({
-                    ...prev,
-                    [sectionTitle]: sectionLeafCount >= FUNCTION_PAGE_SIZE,
-                }));
-                if (sectionLeafCount > 0) {
-                    // Merge only the target section: the org-scoped response may also carry an Imported Functions
-                    // category (imported modules of the same org) which must not be duplicated into that section.
-                    const sectionOnly = pageCategories.filter((category) => category.title === sectionTitle);
-                    setCategories((prev) => mergePanelCategories(prev, sectionOnly));
-                }
-            }
-        } catch (error) {
-            console.error(">>> Error loading more functions", error);
-        } finally {
-            functionSectionLoadingRef.current[sectionTitle] = false;
-            setLoadingFunctionSections((prev) => ({ ...prev, [sectionTitle]: false }));
-        }
-    }, [rpcClient, model?.fileName]);
+            return sectionLeafCount;
+        }, () => !isStalePage());
+    }, [rpcClient, model?.fileName, loadFunctionSection]);
 
     const handleRetryNodeFetch = () => {
         if (topNodeRef.current && targetRef.current) {
@@ -1771,6 +1744,28 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         debouncedSearchRef.current = debouncedSearch;
     }, [debouncedSearch]);
 
+    // The master search lists only the first functions. This opens the paginated function search for the same
+    // query. Its Back clears the query, as the function list's Back does, and returns to the node panel.
+    const handleShowMoreFunctions = () => {
+        const query = searchText.trim();
+        if (!query) {
+            return;
+        }
+        // A pending or in-flight master search must not replace the function search.
+        debouncedSearchRef.current?.cancel();
+        panelNavEpochRef.current++;
+        // A repeated click while the first search loads must not make Back stop at the same results twice.
+        const top = navigationStack[navigationStack.length - 1];
+        if (top?.view !== sidePanelView || top?.categories !== categories) {
+            pushToNavigationStack(sidePanelView, categories, selectedNodeRef.current, selectedClientName.current);
+        }
+        handleSearch(query, FUNCTION_TYPE.REGULAR, "FUNCTION");
+    };
+
+    // Offered only where the node panel offers function calls, as with its own "Show More Functions".
+    const canCallFunctions = initialCategoriesRef.current.some((category: PanelCategory) =>
+        category?.items?.some((item) => item != null && "id" in item && item.id === "FUNCTION"));
+
     // Effect to handle search text changes
     useEffect(() => {
         // Drop any in-flight master search response, which is for an earlier query
@@ -1834,7 +1829,12 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     };
 
     const handleOnSelectNode = (nodeId: string, metadata?: any, fileName?: string) => {
-        panelNavEpochRef.current += 1;
+        const selectionEpoch = ++panelNavEpochRef.current;
+        const functionGeneration = ++functionSearchGenerationRef.current;
+        const isStaleSelection = () => panelNavEpochRef.current !== selectionEpoch
+            || functionSearchGenerationRef.current !== functionGeneration;
+        // Back may restore the function list being left, so keep its cursors and only drop in-flight pages.
+        invalidateFunctionPagination();
         selectedNodeMetadata.current = { nodeId, metadata, fileName: model?.fileName || fileName };
         // A node selected through the normal palette flow is not part of the create-activity wizard.
         const { node, category } = metadata as { node: AvailableNode; category?: string };
@@ -1864,22 +1864,34 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                     .search({
                         position: { startLine: targetRef.current.startLine, endLine: targetRef.current.endLine },
                         filePath: model?.fileName || fileName,
-                        // Explicit first page so scroll pagination stays aligned with FUNCTION_PAGE_SIZE.
-                        queryMap: { q: "", limit: FUNCTION_PAGE_SIZE, offset: 0, includeAvailableFunctions: "true" },
+                        // Explicit first page so manual pagination stays aligned with FUNCTIONS_PAGE_SIZE.
+                        queryMap: { q: "", limit: FUNCTIONS_PAGE_SIZE, offset: 0, includeAvailableFunctions: "true" },
                         searchKind: "FUNCTION",
                     })
                     .then((response) => {
+                        if (isStaleSelection()) {
+                            return;
+                        }
+                        assertFunctionSearchSuccess(response);
                         const currentCategories = convertFunctionCategoriesToSidePanelCategories(
                             response.categories as Category[],
                             FUNCTION_TYPE.REGULAR
                         );
                         setCategories(currentCategories);
-                        seedFunctionPagination(currentCategories, "", FUNCTION_TYPE.REGULAR);
+                        seedFunctionPagination(currentCategories, "", FUNCTION_TYPE.REGULAR, response.functionPagination);
                         setSidePanelView(SidePanelView.FUNCTION_LIST);
                         setShowSidePanel(true);
                     })
+                    .catch((error) => {
+                        console.error(">>> Error loading functions", error);
+                        if (!isStaleSelection()) {
+                            resetFunctionPagination();
+                        }
+                    })
                     .finally(() => {
-                        setShowProgressIndicator(false);
+                        if (!isStaleSelection()) {
+                            setShowProgressIndicator(false);
+                        }
                     });
                 break;
 
@@ -1890,21 +1902,32 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                     .search({
                         position: { startLine: targetRef.current.startLine, endLine: targetRef.current.endLine },
                         filePath: model?.fileName || fileName,
-                        queryMap: undefined,
+                        // Data mappers are workspace functions only, so the library sources are skipped.
+                        queryMap: { q: "", limit: 0, offset: 0, includeAvailableFunctions: "true" },
                         searchKind: "FUNCTION",
                     })
                     .then((response) => {
-                        setCategories(
-                            convertFunctionCategoriesToSidePanelCategories(
-                                response.categories as Category[],
-                                FUNCTION_TYPE.EXPRESSION_BODIED
-                            )
-                        );
+                        if (isStaleSelection()) {
+                            return;
+                        }
+                        assertFunctionSearchSuccess(response);
+                        setCategories(convertFunctionCategoriesToSidePanelCategories(
+                            response.categories as Category[], FUNCTION_TYPE.EXPRESSION_BODIED
+                        ));
+                        resetFunctionPagination();
                         setSidePanelView(SidePanelView.DATA_MAPPER_LIST);
                         setShowSidePanel(true);
                     })
+                    .catch((error) => {
+                        console.error(">>> Error loading functions", error);
+                        if (!isStaleSelection()) {
+                            resetFunctionPagination();
+                        }
+                    })
                     .finally(() => {
-                        setShowProgressIndicator(false);
+                        if (!isStaleSelection()) {
+                            setShowProgressIndicator(false);
+                        }
                     });
                 break;
 
@@ -4313,6 +4336,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 onResetUpdatedExpressionField={handleResetUpdatedExpressionField}
                 onSearchFunction={handleSearchFunction}
                 onLoadMoreFunctionSection={loadMoreFunctionSection}
+                onShowMoreFunctions={canCallFunctions ? handleShowMoreFunctions : undefined}
                 functionSectionsWithMore={functionSectionsWithMore}
                 loadingFunctionSections={loadingFunctionSections}
                 onSearchWorkflow={handleSearchWorkflow}

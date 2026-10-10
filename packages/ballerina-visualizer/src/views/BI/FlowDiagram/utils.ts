@@ -151,6 +151,16 @@ const mergePanelItems = (prev: PanelItem[], next: PanelItem[]): PanelItem[] => {
     return merged;
 };
 
+const countFunctionLeafNodes = (categories: PanelCategory[] = []): number =>
+    categories.reduce((total, category) => {
+        const items = (category?.items ?? []) as any[];
+        return total + items.reduce((sum, item) => sum + ("id" in item ? 1 : countFunctionLeafNodes([item])), 0);
+    }, 0);
+
+// Counts the leaf nodes within a single section (top-level category matched by title).
+export const countSectionLeafNodes = (categories: PanelCategory[], sectionTitle: string): number =>
+    countFunctionLeafNodes(categories.filter((category) => category.title === sectionTitle));
+
 // Merges categories into the given ones, keeping each category at its first position. Used both to combine the
 // master search results and to add a "Show more" page to the categories already shown.
 export const mergePanelCategories = (prev: PanelCategory[], next: PanelCategory[]): PanelCategory[] =>

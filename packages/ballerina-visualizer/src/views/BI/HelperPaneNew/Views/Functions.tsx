@@ -17,18 +17,19 @@
  */
 
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { HelperPaneCompletionItem, InputMode } from "@wso2/ballerina-side-panel";
+import { HelperPaneCompletionItem, InputMode, LoadMoreButton } from "@wso2/ballerina-side-panel";
 import { debounce } from "lodash";
-import { useRef, useState, useCallback, RefObject, useEffect, UIEvent } from "react";
+import { useRef, useState, useCallback, RefObject, useEffect } from "react";
 import { extractFunctionInsertText } from "../../../../utils/bi";
-import { loadNextAvailableSection, useFunctionPagination } from "../../../../utils/useFunctionPagination";
+import { useFunctionPagination } from "../../../../utils/useFunctionPagination";
+import { withPendingSections } from "../../../../utils/function-pagination";
 import { CompletionInsertText, FunctionKind, LineRange } from "@wso2/ballerina-core";
 import { useMutation } from "@tanstack/react-query";
 import { ExpandableList } from "../Components/ExpandableList";
 import { CompletionItem, HelperPaneCustom } from "@wso2/ui-toolkit/lib/components/ExpressionEditor";
 import { EmptyItemsPlaceHolder } from "../Components/EmptyItemsPlaceHolder";
 import styled from "@emotion/styled";
-import { Divider, ProgressRing, SearchBox } from "@wso2/ui-toolkit";
+import { Divider, SearchBox } from "@wso2/ui-toolkit";
 import { LibraryBrowser } from "../../HelperPane/LibraryBrowser";
 import { ScrollableContainer } from "../Components/ScrollableContainer";
 import FooterButtons from "../Components/FooterButtons";
@@ -70,7 +71,6 @@ export const FunctionsPage = ({
     const [showContent, setShowContent] = useState<boolean>(false);
     const [projectPath, setProjectPath] = useState<string>('');
 
-    const scrollRef = useRef<HTMLDivElement>(null);
     const {
         info: functionInfo,
         sectionsWithMore,
@@ -78,25 +78,13 @@ export const FunctionsPage = ({
         loadFirstPage,
         loadMoreSection
     } = useFunctionPagination({ fileName, targetLineRange });
-    const isFetchingMore = Object.values(loadingSections).some(Boolean);
+    // Keep empty continuing library sections reachable instead of treating them as exhausted.
+    const categories = withPendingSections(functionInfo?.category ?? [], sectionsWithMore);
 
-    // On scroll-to-bottom, load the next page of the first library section that still has more.
-    const handleScroll = useCallback((e: UIEvent<HTMLDivElement>) => {
-        const el = e.currentTarget;
-        const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 40;
-        if (nearBottom) {
-            loadNextAvailableSection(sectionsWithMore, loadingSections, loadMoreSection);
-        }
-    }, [sectionsWithMore, loadingSections, loadMoreSection]);
-
-    // If a freshly loaded page doesn't fill the scroll container there is no scroll event to trigger the next
-    // page, so nudge the next section in whenever the content is not yet scrollable.
-    useEffect(() => {
-        const el = scrollRef.current;
-        if (el && el.clientHeight > 0 && el.scrollHeight <= el.clientHeight) {
-            loadNextAvailableSection(sectionsWithMore, loadingSections, loadMoreSection);
-        }
-    }, [functionInfo, sectionsWithMore, loadingSections, loadMoreSection]);
+    const renderLoadMore = (title: string) => sectionsWithMore[title] && (
+        <LoadMoreButton label={`Load more ${title} functions`} loading={loadingSections[title]}
+            onClick={() => loadMoreSection(title)} />
+    );
 
     const { addModal, closeModal } = useModalStack();
 
@@ -227,7 +215,7 @@ export const FunctionsPage = ({
                 <SearchBox sx={{ width: "100%" }} placeholder='Search' value={searchValue} onChange={handleFunctionSearch} />
             </div>
 
-            <ScrollableContainer ref={scrollRef} style={{ margin: '8px 0px' }} onScroll={handleScroll}>
+            <ScrollableContainer style={{ margin: '8px 0px' }}>
                 {
 
                     isLoading || !showContent ? (
@@ -236,7 +224,10 @@ export const FunctionsPage = ({
                         <>
                             {(() => {
                                 // Check if we have any functions to display
-                                const hasAnyFunctions = functionInfo?.category?.some(category => {
+                                const hasAnyFunctions = categories.some(category => {
+                                    if (sectionsWithMore[category.label]) {
+                                        return true;
+                                    }
                                     if (category.items && category.items.length > 0) {
                                         return true;
                                     }
@@ -246,23 +237,23 @@ export const FunctionsPage = ({
                                     return false;
                                 });
 
-                                if (!functionInfo || !functionInfo.category || functionInfo.category.length === 0 || !hasAnyFunctions) {
+                                if (!hasAnyFunctions) {
                                     return <EmptyItemsPlaceHolder message={searchValue ? "No functions found for your search" : "No functions found"} />;
                                 }
 
                                 return (
                                     <>
-                                        {functionInfo.category.map((category) => {
+                                        {categories.map((category) => {
                                             if (!category.subCategory) {
-                                                if (!category.items || category.items.length === 0) {
+                                                if (!category.items?.length && !sectionsWithMore[category.label]) {
                                                     return null;
                                                 }
 
                                                 return (
-                                                    <ExpandableList>
-                                                        <ExpandableList.Section key={category.label} title={category.label} level={0}>
+                                                    <ExpandableList key={category.label}>
+                                                        <ExpandableList.Section title={category.label} level={0}>
                                                             <div style={{ marginTop: '10px' }}>
-                                                                {category.items.map((item) => (
+                                                                {category.items?.map((item) => (
                                                                     <HelperPaneListItem
                                                                         key={item.label}
                                                                         onClick={async () => await handleFunctionItemSelect(item)}
@@ -272,6 +263,7 @@ export const FunctionsPage = ({
                                                                     </HelperPaneListItem>
                                                                 ))}
                                                             </div>
+                                                            {renderLoadMore(category.label)}
                                                         </ExpandableList.Section>
                                                     </ExpandableList>
                                                 )
@@ -281,7 +273,7 @@ export const FunctionsPage = ({
                                             const nonEmptySubCategories = category.subCategory.filter(
                                                 sub => sub.items && sub.items.length > 0
                                             );
-                                            if (nonEmptySubCategories.length === 0) {
+                                            if (nonEmptySubCategories.length === 0 && !sectionsWithMore[category.label]) {
                                                 return null;
                                             }
 
@@ -303,6 +295,7 @@ export const FunctionsPage = ({
                                                                 </div>
                                                             </ExpandableList.Section>
                                                         ))}
+                                                        {renderLoadMore(category.label)}
                                                     </ExpandableList.Section>
                                                 </ExpandableList>
                                             )
@@ -313,11 +306,6 @@ export const FunctionsPage = ({
                         </>
                     )
                 }
-                {isFetchingMore && (
-                    <div style={{ display: "flex", justifyContent: "center", padding: "8px" }}>
-                        <ProgressRing sx={{ height: "16px", width: "16px" }} />
-                    </div>
-                )}
             </ScrollableContainer>
             <Divider sx={{ margin: '0px' }} />
             <div style={{ margin: '4px 0' }}>
