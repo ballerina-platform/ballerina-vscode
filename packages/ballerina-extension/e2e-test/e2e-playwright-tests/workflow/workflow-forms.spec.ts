@@ -295,38 +295,20 @@ export default function createTests() {
             await expect.poll(projectSource, { timeout: 90000 }).toMatch(/callActivity\(chargeCard/);
             await callSave.waitFor({ state: 'hidden', timeout: 60000 });
 
-            logStep('Open the activity\'s own diagram and check the edit form reads the name from source');
-            // From the integration overview, which lists the activity; failing that, from the call node's open icon.
-            await domClick(webview.getByTestId('home-button').first());
-            let activityView = await getWebview();
-            await activityView.getByRole('button', { name: /Add Artifact/i }).first().waitFor({ timeout: 60000 });
-            const card = activityView.getByText('chargeCard', { exact: true }).first();
-            if (await card.waitFor({ state: 'visible', timeout: 30000 }).then(() => true, () => false)) {
-                await domClick(card);
-            } else {
-                await domClick(activityView.getByText('orderWorkflow', { exact: true }).first());
-                activityView = await getWebview();
-                const canvas = activityView.getByTestId('bi-diagram-canvas');
-                const callNode = canvas.getByText('chargeCard', { exact: true }).filter({ visible: true }).last();
-                await callNode.waitFor({ timeout: 60000 });
-                const openIcon = callNode.locator('xpath=ancestor::*[.//*[contains(@class,"bi-open-in")]][1]').locator('[class*="bi-open-in"]').first();
-                await openIcon.waitFor({ state: 'visible', timeout: 30000 });
-                await openIcon.click({ force: true, timeout: 10000 }).catch(() => openIcon.dispatchEvent('click'));
+            logStep('Reopen the call node: its form reads the activity from source');
+            // On this build neither the overview nor the project tree lists activities, so the call node is the
+            // form that reopens from source here; the activity's own edit form is covered by the unit tests.
+            const canvas = webview.getByTestId('bi-diagram-canvas');
+            const callNode = canvas.getByText('chargeCard', { exact: true }).filter({ visible: true }).last();
+            await callNode.waitFor({ timeout: 60000 });
+            await callNode.click({ force: true, timeout: 10000 }).catch(() => callNode.dispatchEvent('click'));
+            const callForm = panel.getByRole('combobox', { name: /Retry Policy/ });
+            if (!await callForm.waitFor({ timeout: 15000 }).then(() => true, () => false)) {
+                await callNode.dispatchEvent('click');
+                await callForm.waitFor({ timeout: 60000 });
             }
-            activityView = await getWebview();
-            // The activity's own view: its name in the header, outside the canvas, before its edit button is used.
-            await expect.poll(async () => {
-                for (const el of await activityView.getByText('chargeCard', { exact: true }).filter({ visible: true }).all()) {
-                    if (!await el.evaluate((e) => !!e.closest('[data-testid="bi-diagram-canvas"]')).catch(() => true)) {
-                        return true;
-                    }
-                }
-                return false;
-            }, { timeout: 60000 }).toBe(true);
-            const editButton = activityView.locator('#bi-edit').first();
-            await editButton.waitFor({ state: 'visible', timeout: 60000 });
-            await editButton.click({ force: true });
-            await expect(activityView.getByRole('textbox', { name: /^Name/ }).first()).toHaveValue('chargeCard', { timeout: 60000 });
+            await expect(panel.getByText('chargeCard', { exact: true }).first()).toBeVisible({ timeout: 30000 });
+            await domClick(webview.getByTestId('close-panel-btn').first());
         });
 
         test('Send data to the workflow from the automation and reopen the node', async () => {
