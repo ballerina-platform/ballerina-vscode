@@ -248,7 +248,26 @@ export function withHeldValue(field: FormField, values: Record<string, any> | un
     // Only an absent key means "never set". An empty string is a value the form holds — a cleared
     // field — and folding it in with undefined would snap it back to the definition's default on the
     // next render. Indistinguishable today, since every branch definition defaults to "".
-    return held === undefined ? withChildren : { ...withChildren, value: held };
+    return held === undefined ? withChildren : withModeForHeldValue({ ...withChildren, value: held });
+}
+
+// A field that edits a list of names or an expression opens in the mode its held value fits: a list
+// in the list mode, text in the expression mode. The branch definition always selects the list
+// mode, so a reference loaded from source would otherwise show as an empty list and be dropped
+// by the next save. Text can only be the expression editor's — the list mode holds arrays.
+function withModeForHeldValue(field: FormField): FormField {
+    const types = field.types ?? [];
+    const listMode = types.find((type) => type.fieldType === "TEXT_SET");
+    const expressionMode = types.find((type) => type.fieldType === "EXPRESSION");
+    if (!listMode || !expressionMode) {
+        return field;
+    }
+    const asExpression = typeof field.value === "string" && field.value.trim() !== "";
+    if (!asExpression && !Array.isArray(field.value)) {
+        return field;
+    }
+    const chosen = asExpression ? expressionMode : listMode;
+    return { ...field, types: types.map((type) => ({ ...type, selected: type === chosen })) };
 }
 
 
