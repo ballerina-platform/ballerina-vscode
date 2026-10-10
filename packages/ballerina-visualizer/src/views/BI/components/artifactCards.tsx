@@ -21,7 +21,7 @@ import { Icon } from "@wso2/ui-toolkit";
 import { DurableAgentIcon } from "@wso2/bi-diagram";
 import { DIRECTORY_MAP } from "@wso2/ballerina-core";
 
-export { ARTIFACT_TOOLTIP_MAX_WIDTH, triggerTooltip } from "./artifactTooltips";
+export { ARTIFACT_TOOLTIP_MAX_WIDTH, markdownToPlainText, triggerTooltip } from "./artifactTooltips";
 export type { TriggerTooltipKind } from "./artifactTooltips";
 
 /**

@@ -23,7 +23,7 @@ import debounce from 'lodash.debounce';
 import { CardGrid, PanelViewMore, Title, TitleWrapper } from './styles';
 import { BodyText } from '../../styles';
 import ButtonCard from '../../../components/ButtonCard';
-import { ARTIFACT_TOOLTIP_MAX_WIDTH } from '../components/artifactCards';
+import { ARTIFACT_TOOLTIP_MAX_WIDTH, markdownToPlainText } from '../components/artifactCards';
 import { isBetaModule } from './componentListUtils';
 import { RelativeLoader } from '../../../components/RelativeLoader';
 import { getIntegrationIcon } from './integrationIcon';
@@ -149,7 +149,7 @@ export function CentralSearchPanel(props: CentralSearchPanelProps) {
                                 icon={getIntegrationIcon(item)}
                                 onClick={() => handleSelect(item, false)}
                                 isBeta={isBetaModule(item.moduleName)}
-                                tooltip={item.documentation || `An integration using the ${item.name} module from Ballerina Central.`}
+                                tooltip={markdownToPlainText(item.documentation) || `An integration using the ${item.name} module from Ballerina Central.`}
                                 tooltipMaxWidth={ARTIFACT_TOOLTIP_MAX_WIDTH}
                             />
                         ))}
@@ -173,7 +173,7 @@ export function CentralSearchPanel(props: CentralSearchPanelProps) {
                                 icon={getIntegrationIcon(item)}
                                 onClick={() => handleSelect(item, true)}
                                 isBeta={isBetaModule(item.moduleName)}
-                                tooltip={item.documentation || `An integration using the ${item.name} module from your local Ballerina repository.`}
+                                tooltip={markdownToPlainText(item.documentation) || `An integration using the ${item.name} module from your local Ballerina repository.`}
                                 tooltipMaxWidth={ARTIFACT_TOOLTIP_MAX_WIDTH}
                             />
                         ))}

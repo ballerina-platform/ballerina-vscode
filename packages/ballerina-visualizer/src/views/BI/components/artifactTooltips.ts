@@ -26,6 +26,31 @@ import type { ServiceModel } from "@wso2/ballerina-core";
 /** Width at which artifact card tooltips wrap and become expandable. Other `ButtonCard`s keep the default tooltip. */
 export const ARTIFACT_TOOLTIP_MAX_WIDTH = 300;
 
+/**
+ * Reduces Markdown to the text a reader would see, for tooltips that render plain text. Package
+ * summaries from Ballerina Central are taken from each README, so they arrive as Markdown.
+ */
+export function markdownToPlainText(markdown: string | undefined): string {
+    if (!markdown) {
+        return "";
+    }
+    return markdown
+        // Autolinks keep their URL; any other tag is HTML and goes.
+        .replace(/<((?:https?|mailto):[^>\s]+)>/g, "$1")
+        .replace(/<\/?[a-zA-Z][^>]*>/g, "")
+        // Images and links keep their text: ![alt](url), [text](url), [text][ref].
+        .replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1")
+        .replace(/\[([^\]]+)\](?:\([^)]*\)|\[[^\]]*\])/g, "$1")
+        .replace(/`+([^`]+)`+/g, "$1")
+        // Bold, then italics; an underscore inside a word (snake_case) is not emphasis.
+        .replace(/(\*\*|__)(.+?)\1/g, "$2")
+        .replace(/(^|[^\w*])[*_]([^*_\s][^*_]*?)[*_](?![\w*])/g, "$1$2")
+        // Line prefixes: headings, block quotes, list markers.
+        .replace(/^\s{0,3}(?:#{1,6}|>|[-*+]|\d+\.)\s+/gm, "")
+        .replace(/\s+/g, " ")
+        .trim();
+}
+
 /** How a trigger card is grouped: the AI panel lists `mcp` and `ai` triggers together. */
 export type TriggerTooltipKind = "event" | "file" | "mcp";
 
@@ -38,8 +63,9 @@ export function triggerTooltip(
     item: Pick<ServiceModel, "name" | "moduleName" | "documentation">,
     kind: TriggerTooltipKind
 ): string {
-    if (item.documentation) {
-        return item.documentation;
+    const documentation = markdownToPlainText(item.documentation);
+    if (documentation) {
+        return documentation;
     }
     switch (kind) {
         case "file":
