@@ -285,11 +285,10 @@ export default function createTests() {
             await panel.getByText('notifyCustomer', { exact: true }).first().waitFor({ timeout: 120000 });
 
             logStep('Reopen the first activity\'s form from its own diagram');
-            const projectExplorer = new ProjectExplorer(page.page);
-            // Brings the Integrator activity tab forward; the explorer's hover actions are not there otherwise.
-            await projectExplorer.init().catch(() => undefined);
-            await projectExplorer.goToOverview(DEFAULT_PROJECT_NAME);
+            // The title bar's home button opens the integration overview, which lists the activities.
+            await domClick(webview.getByTestId('home-button').first());
             const overview = await getWebview();
+            await overview.getByRole('button', { name: /Add Artifact/i }).first().waitFor({ timeout: 60000 });
             await domClick(overview.getByText('chargeCard', { exact: true }).first());
             const activityView = await getWebview();
             const editButton = activityView.locator('#bi-edit').first();
