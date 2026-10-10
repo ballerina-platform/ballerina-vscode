@@ -105,21 +105,26 @@ public class TriggerBasicInfoDescriptionTest {
 
     @Test(description = "On the lookup fallback, an entry without a description keeps the looked-up one.")
     public void testFallbackKeepsLookedUpDescriptionWhenUnset() {
-        int resolved = 0;
+        // Both real lookup sources send an empty description, so stub one that doesn't: otherwise an
+        // entry that dropped the looked-up text would compare "" with "" and still pass.
+        String lookedUp = "Looked-up description";
+        ServiceModelGeneratorService stubbed = new ServiceModelGeneratorService() {
+            @Override
+            Optional<TriggerBasicInfo> getTriggerBasicInfoByName(String orgName, String name) {
+                return Optional.of(new TriggerBasicInfo(1, name, orgName, name, name, "1.0.0", "event", name,
+                        lookedUp, "", "", null));
+            }
+        };
+        int checked = 0;
         for (TriggerProperty entry : shippedEntries()) {
             if (entry.triggerName() == null) {
                 continue;
             }
-            Optional<TriggerBasicInfo> original = service.getTriggerBasicInfoByName(entry.orgName(), entry.name());
-            if (original.isEmpty()) {
-                continue;
-            }
-            TriggerBasicInfo info = service.getTriggerBasicInfoByName(withoutVersionAndKind(entry, null))
+            TriggerBasicInfo info = stubbed.getTriggerBasicInfoByName(withoutVersionAndKind(entry, null))
                     .orElseThrow();
-            Assert.assertEquals(info.documentation(), original.get().documentation(),
-                    "Tooltip of " + entry.name());
-            resolved++;
+            Assert.assertEquals(info.documentation(), lookedUp, "Tooltip of " + entry.name());
+            checked++;
         }
-        Assert.assertTrue(resolved > 0, "Expected at least one entry to resolve through the lookup fallback");
+        Assert.assertTrue(checked > 0, "Expected at least one entry with a card title");
     }
 }
