@@ -1894,7 +1894,7 @@
                 "readonly": false,
                 "isGraphqlId": false,
                 "imports": {
-                  "time": "ballerina/time:2.8.1"
+                  "time": "ballerina/time:2.8.3"
                 },
                 "selected": false
               },
@@ -1941,7 +1941,7 @@
           "docs": "",
           "annotationAttachments": [],
           "imports": {
-            "time": "ballerina/time:2.8.1",
+            "time": "ballerina/time:2.8.3",
             "test_pack1": "testorg/test_pack1:0.1.0"
           },
           "selected": false
@@ -3046,7 +3046,7 @@
           "docs": "",
           "annotationAttachments": [],
           "imports": {
-            "time": "ballerina/time:2.8.1"
+            "time": "ballerina/time:2.8.3"
           },
           "selected": false
         }
@@ -4295,7 +4295,7 @@
           "docs": "",
           "annotationAttachments": [],
           "imports": {
-            "time": "ballerina/time:2.8.1"
+            "time": "ballerina/time:2.8.3"
           },
           "selected": false
         }
@@ -4535,7 +4535,7 @@
           "docs": "date of birth",
           "annotationAttachments": [],
           "imports": {
-            "time": "ballerina/time:2.8.1"
+            "time": "ballerina/time:2.8.3"
           },
           "selected": false
         }

@@ -46,7 +46,7 @@
         "metadata": {
           "label": "Configure Agent",
           "description": "Configure the agent's role, instructions, model and reasoning limit",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.10.0.png",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_1.0.0.png",
           "data": {
             "agentName": "claimAgent",
             "agentBox": true,
@@ -56,7 +56,7 @@
             },
             "model": {
               "name": "claimModel",
-              "path": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png",
+              "path": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png",
               "type": "Wso2ModelProvider"
             },
             "activities": [],
@@ -107,7 +107,7 @@
           "packageName": "workflow",
           "object": "DurableAgent",
           "symbol": "buildAndRunAgent",
-          "version": "0.10.0",
+          "version": "1.0.0",
           "lineRange": {
             "fileName": "durable_agent_task_types.bal",
             "startLine": {
@@ -336,7 +336,7 @@
         "metadata": {
           "label": "Model Provider",
           "description": "Initializes a new `WSO2ModelProvider` instance.\n",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png"
         },
         "codedata": {
           "node": "MODEL_PROVIDER",
@@ -522,7 +522,7 @@
                 "typeMembers": [
                   {
                     "type": "ClientHttp1Settings",
-                    "packageInfo": "ballerina:http:2.17.1",
+                    "packageInfo": "ballerina:http:2.18.0",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -562,7 +562,7 @@
                 "typeMembers": [
                   {
                     "type": "ClientHttp2Settings",
-                    "packageInfo": "ballerina:http:2.17.1",
+                    "packageInfo": "ballerina:http:2.18.0",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -658,7 +658,7 @@
                 "typeMembers": [
                   {
                     "type": "PoolConfiguration",
-                    "packageInfo": "ballerina:http:2.17.1",
+                    "packageInfo": "ballerina:http:2.18.0",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -698,7 +698,7 @@
                 "typeMembers": [
                   {
                     "type": "CacheConfig",
-                    "packageInfo": "ballerina:http:2.17.1",
+                    "packageInfo": "ballerina:http:2.18.0",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -782,7 +782,7 @@
                 "typeMembers": [
                   {
                     "type": "CircuitBreakerConfig",
-                    "packageInfo": "ballerina:http:2.17.1",
+                    "packageInfo": "ballerina:http:2.18.0",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -822,7 +822,7 @@
                 "typeMembers": [
                   {
                     "type": "RetryConfig",
-                    "packageInfo": "ballerina:http:2.17.1",
+                    "packageInfo": "ballerina:http:2.18.0",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -862,7 +862,7 @@
                 "typeMembers": [
                   {
                     "type": "ResponseLimitConfigs",
-                    "packageInfo": "ballerina:http:2.17.1",
+                    "packageInfo": "ballerina:http:2.18.0",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -902,7 +902,7 @@
                 "typeMembers": [
                   {
                     "type": "ClientSecureSocket",
-                    "packageInfo": "ballerina:http:2.17.1",
+                    "packageInfo": "ballerina:http:2.18.0",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -942,7 +942,7 @@
                 "typeMembers": [
                   {
                     "type": "ProxyConfig",
-                    "packageInfo": "ballerina:http:2.17.1",
+                    "packageInfo": "ballerina:http:2.18.0",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false

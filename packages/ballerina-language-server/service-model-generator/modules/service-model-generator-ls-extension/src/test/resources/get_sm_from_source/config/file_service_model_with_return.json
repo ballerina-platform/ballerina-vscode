@@ -17,10 +17,10 @@
     "displayName": "Local Files",
     "moduleName": "file",
     "orgName": "ballerina",
-    "version": "1.13.1",
+    "version": "1.14.0",
     "packageName": "file",
     "listenerProtocol": "file",
-    "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_file_1.13.1.png",
+    "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_file_1.14.0.png",
     "properties": {
       "listener": {
         "metadata": {
@@ -242,9 +242,303 @@
           "orgName": "ballerina",
           "packageName": "file",
           "moduleName": "file",
-          "version": "1.13.1"
+          "version": "1.14.0"
         },
-        "properties": {},
+        "properties": {
+          "fileHandling": {
+            "metadata": {
+              "label": "File Handling Options",
+              "description": "What happens to the source file after the handler runs."
+            },
+            "codedata": {
+              "type": "COMPLEX_FUNCTION_ANNOTATION",
+              "originalName": "FunctionConfig",
+              "moduleName": "file"
+            },
+            "properties": {
+              "afterProcess": {
+                "metadata": {
+                  "label": "On Success",
+                  "description": "Action when the handler completes without returning an error."
+                },
+                "codedata": {
+                  "type": "MAPPING_FIELD",
+                  "field": "afterProcess",
+                  "optional": true
+                },
+                "value": true,
+                "properties": {
+                  "action": {
+                    "metadata": {
+                      "label": "Action",
+                      "description": "Move the file to another directory, or delete it."
+                    },
+                    "codedata": {
+                      "type": "FIELD_VALUE_CHOICE"
+                    },
+                    "value": "MOVE",
+                    "choices": [
+                      {
+                        "metadata": {
+                          "label": "Move",
+                          "description": "Move the processed file to a destination directory."
+                        },
+                        "codedata": {
+                          "type": "MAPPING_CONSTRUCTOR"
+                        },
+                        "value": "MOVE",
+                        "properties": {
+                          "moveTo": {
+                            "metadata": {
+                              "label": "Move To",
+                              "description": "Directory to move the file to."
+                            },
+                            "codedata": {
+                              "type": "MAPPING_FIELD",
+                              "field": "moveTo"
+                            },
+                            "placeholder": "/data/processed",
+                            "value": "/data/processed",
+                            "types": [
+                              {
+                                "fieldType": "TEXT",
+                                "ballerinaType": "string",
+                                "selected": true,
+                                "validations": [
+                                  {
+                                    "rule": "common.validate.non.empty"
+                                  }
+                                ]
+                              },
+                              {
+                                "fieldType": "EXPRESSION",
+                                "ballerinaType": "string",
+                                "selected": false
+                              }
+                            ],
+                            "enabled": true,
+                            "editable": true,
+                            "optional": false,
+                            "advanced": false
+                          }
+                        },
+                        "types": [
+                          {
+                            "fieldType": "FORM",
+                            "selected": true
+                          }
+                        ],
+                        "enabled": true,
+                        "editable": true,
+                        "optional": false,
+                        "advanced": false
+                      },
+                      {
+                        "metadata": {
+                          "label": "Delete",
+                          "description": "Delete the processed file."
+                        },
+                        "codedata": {
+                          "type": "ENUM_LITERAL",
+                          "valueQualifier": "file",
+                          "value": "DELETE"
+                        },
+                        "value": "DELETE",
+                        "types": [
+                          {
+                            "fieldType": "ENUM",
+                            "ballerinaType": "file:DELETE",
+                            "selected": true
+                          }
+                        ],
+                        "enabled": false,
+                        "editable": true,
+                        "optional": false,
+                        "advanced": false
+                      }
+                    ],
+                    "types": [
+                      {
+                        "fieldType": "CHOICE",
+                        "ballerinaType": "file:MOVE|file:DELETE",
+                        "options": [
+                          {
+                            "label": "Move",
+                            "value": "MOVE"
+                          },
+                          {
+                            "label": "Delete",
+                            "value": "DELETE"
+                          }
+                        ],
+                        "selected": true
+                      }
+                    ],
+                    "enabled": true,
+                    "editable": true,
+                    "optional": false,
+                    "advanced": false
+                  }
+                },
+                "types": [
+                  {
+                    "fieldType": "EXPRESSION",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": true,
+                "advanced": false
+              },
+              "afterError": {
+                "metadata": {
+                  "label": "On Error",
+                  "description": "Action when the handler returns an error or panics."
+                },
+                "codedata": {
+                  "type": "MAPPING_FIELD",
+                  "field": "afterError",
+                  "optional": true
+                },
+                "value": true,
+                "properties": {
+                  "action": {
+                    "metadata": {
+                      "label": "Action",
+                      "description": "Move the file to another directory, or delete it."
+                    },
+                    "codedata": {
+                      "type": "FIELD_VALUE_CHOICE"
+                    },
+                    "value": "MOVE",
+                    "choices": [
+                      {
+                        "metadata": {
+                          "label": "Move",
+                          "description": "Move the failed file to a destination directory."
+                        },
+                        "codedata": {
+                          "type": "MAPPING_CONSTRUCTOR"
+                        },
+                        "value": "MOVE",
+                        "properties": {
+                          "moveTo": {
+                            "metadata": {
+                              "label": "Move To",
+                              "description": "Directory to move the file to."
+                            },
+                            "codedata": {
+                              "type": "MAPPING_FIELD",
+                              "field": "moveTo"
+                            },
+                            "placeholder": "/data/failed",
+                            "value": "/data/failed",
+                            "types": [
+                              {
+                                "fieldType": "TEXT",
+                                "ballerinaType": "string",
+                                "selected": true,
+                                "validations": [
+                                  {
+                                    "rule": "common.validate.non.empty"
+                                  }
+                                ]
+                              },
+                              {
+                                "fieldType": "EXPRESSION",
+                                "ballerinaType": "string",
+                                "selected": false
+                              }
+                            ],
+                            "enabled": true,
+                            "editable": true,
+                            "optional": false,
+                            "advanced": false
+                          }
+                        },
+                        "types": [
+                          {
+                            "fieldType": "FORM",
+                            "selected": true
+                          }
+                        ],
+                        "enabled": true,
+                        "editable": true,
+                        "optional": false,
+                        "advanced": false
+                      },
+                      {
+                        "metadata": {
+                          "label": "Delete",
+                          "description": "Delete the failed file."
+                        },
+                        "codedata": {
+                          "type": "ENUM_LITERAL",
+                          "valueQualifier": "file",
+                          "value": "DELETE"
+                        },
+                        "value": "DELETE",
+                        "types": [
+                          {
+                            "fieldType": "ENUM",
+                            "ballerinaType": "file:DELETE",
+                            "selected": true
+                          }
+                        ],
+                        "enabled": false,
+                        "editable": true,
+                        "optional": false,
+                        "advanced": false
+                      }
+                    ],
+                    "types": [
+                      {
+                        "fieldType": "CHOICE",
+                        "ballerinaType": "file:MOVE|file:DELETE",
+                        "options": [
+                          {
+                            "label": "Move",
+                            "value": "MOVE"
+                          },
+                          {
+                            "label": "Delete",
+                            "value": "DELETE"
+                          }
+                        ],
+                        "selected": true
+                      }
+                    ],
+                    "enabled": true,
+                    "editable": true,
+                    "optional": false,
+                    "advanced": false
+                  }
+                },
+                "types": [
+                  {
+                    "fieldType": "EXPRESSION",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": true,
+                "advanced": false
+              }
+            },
+            "types": [
+              {
+                "fieldType": "GROUP_SECTION",
+                "selected": true
+              }
+            ],
+            "enabled": true,
+            "editable": true,
+            "optional": true,
+            "advanced": true
+          }
+        },
         "group": "onCreate",
         "repeatable": "FALSE",
         "nameEditable": false
@@ -354,9 +648,303 @@
           "orgName": "ballerina",
           "packageName": "file",
           "moduleName": "file",
-          "version": "1.13.1"
+          "version": "1.14.0"
         },
-        "properties": {},
+        "properties": {
+          "fileHandling": {
+            "metadata": {
+              "label": "File Handling Options",
+              "description": "What happens to the source file after the handler runs."
+            },
+            "codedata": {
+              "type": "COMPLEX_FUNCTION_ANNOTATION",
+              "originalName": "FunctionConfig",
+              "moduleName": "file"
+            },
+            "properties": {
+              "afterProcess": {
+                "metadata": {
+                  "label": "On Success",
+                  "description": "Action when the handler completes without returning an error."
+                },
+                "codedata": {
+                  "type": "MAPPING_FIELD",
+                  "field": "afterProcess",
+                  "optional": true
+                },
+                "value": true,
+                "properties": {
+                  "action": {
+                    "metadata": {
+                      "label": "Action",
+                      "description": "Move the file to another directory, or delete it."
+                    },
+                    "codedata": {
+                      "type": "FIELD_VALUE_CHOICE"
+                    },
+                    "value": "MOVE",
+                    "choices": [
+                      {
+                        "metadata": {
+                          "label": "Move",
+                          "description": "Move the processed file to a destination directory."
+                        },
+                        "codedata": {
+                          "type": "MAPPING_CONSTRUCTOR"
+                        },
+                        "value": "MOVE",
+                        "properties": {
+                          "moveTo": {
+                            "metadata": {
+                              "label": "Move To",
+                              "description": "Directory to move the file to."
+                            },
+                            "codedata": {
+                              "type": "MAPPING_FIELD",
+                              "field": "moveTo"
+                            },
+                            "placeholder": "/data/processed",
+                            "value": "/data/processed",
+                            "types": [
+                              {
+                                "fieldType": "TEXT",
+                                "ballerinaType": "string",
+                                "selected": true,
+                                "validations": [
+                                  {
+                                    "rule": "common.validate.non.empty"
+                                  }
+                                ]
+                              },
+                              {
+                                "fieldType": "EXPRESSION",
+                                "ballerinaType": "string",
+                                "selected": false
+                              }
+                            ],
+                            "enabled": true,
+                            "editable": true,
+                            "optional": false,
+                            "advanced": false
+                          }
+                        },
+                        "types": [
+                          {
+                            "fieldType": "FORM",
+                            "selected": true
+                          }
+                        ],
+                        "enabled": true,
+                        "editable": true,
+                        "optional": false,
+                        "advanced": false
+                      },
+                      {
+                        "metadata": {
+                          "label": "Delete",
+                          "description": "Delete the processed file."
+                        },
+                        "codedata": {
+                          "type": "ENUM_LITERAL",
+                          "valueQualifier": "file",
+                          "value": "DELETE"
+                        },
+                        "value": "DELETE",
+                        "types": [
+                          {
+                            "fieldType": "ENUM",
+                            "ballerinaType": "file:DELETE",
+                            "selected": true
+                          }
+                        ],
+                        "enabled": false,
+                        "editable": true,
+                        "optional": false,
+                        "advanced": false
+                      }
+                    ],
+                    "types": [
+                      {
+                        "fieldType": "CHOICE",
+                        "ballerinaType": "file:MOVE|file:DELETE",
+                        "options": [
+                          {
+                            "label": "Move",
+                            "value": "MOVE"
+                          },
+                          {
+                            "label": "Delete",
+                            "value": "DELETE"
+                          }
+                        ],
+                        "selected": true
+                      }
+                    ],
+                    "enabled": true,
+                    "editable": true,
+                    "optional": false,
+                    "advanced": false
+                  }
+                },
+                "types": [
+                  {
+                    "fieldType": "EXPRESSION",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": true,
+                "advanced": false
+              },
+              "afterError": {
+                "metadata": {
+                  "label": "On Error",
+                  "description": "Action when the handler returns an error or panics."
+                },
+                "codedata": {
+                  "type": "MAPPING_FIELD",
+                  "field": "afterError",
+                  "optional": true
+                },
+                "value": true,
+                "properties": {
+                  "action": {
+                    "metadata": {
+                      "label": "Action",
+                      "description": "Move the file to another directory, or delete it."
+                    },
+                    "codedata": {
+                      "type": "FIELD_VALUE_CHOICE"
+                    },
+                    "value": "MOVE",
+                    "choices": [
+                      {
+                        "metadata": {
+                          "label": "Move",
+                          "description": "Move the failed file to a destination directory."
+                        },
+                        "codedata": {
+                          "type": "MAPPING_CONSTRUCTOR"
+                        },
+                        "value": "MOVE",
+                        "properties": {
+                          "moveTo": {
+                            "metadata": {
+                              "label": "Move To",
+                              "description": "Directory to move the file to."
+                            },
+                            "codedata": {
+                              "type": "MAPPING_FIELD",
+                              "field": "moveTo"
+                            },
+                            "placeholder": "/data/failed",
+                            "value": "/data/failed",
+                            "types": [
+                              {
+                                "fieldType": "TEXT",
+                                "ballerinaType": "string",
+                                "selected": true,
+                                "validations": [
+                                  {
+                                    "rule": "common.validate.non.empty"
+                                  }
+                                ]
+                              },
+                              {
+                                "fieldType": "EXPRESSION",
+                                "ballerinaType": "string",
+                                "selected": false
+                              }
+                            ],
+                            "enabled": true,
+                            "editable": true,
+                            "optional": false,
+                            "advanced": false
+                          }
+                        },
+                        "types": [
+                          {
+                            "fieldType": "FORM",
+                            "selected": true
+                          }
+                        ],
+                        "enabled": true,
+                        "editable": true,
+                        "optional": false,
+                        "advanced": false
+                      },
+                      {
+                        "metadata": {
+                          "label": "Delete",
+                          "description": "Delete the failed file."
+                        },
+                        "codedata": {
+                          "type": "ENUM_LITERAL",
+                          "valueQualifier": "file",
+                          "value": "DELETE"
+                        },
+                        "value": "DELETE",
+                        "types": [
+                          {
+                            "fieldType": "ENUM",
+                            "ballerinaType": "file:DELETE",
+                            "selected": true
+                          }
+                        ],
+                        "enabled": false,
+                        "editable": true,
+                        "optional": false,
+                        "advanced": false
+                      }
+                    ],
+                    "types": [
+                      {
+                        "fieldType": "CHOICE",
+                        "ballerinaType": "file:MOVE|file:DELETE",
+                        "options": [
+                          {
+                            "label": "Move",
+                            "value": "MOVE"
+                          },
+                          {
+                            "label": "Delete",
+                            "value": "DELETE"
+                          }
+                        ],
+                        "selected": true
+                      }
+                    ],
+                    "enabled": true,
+                    "editable": true,
+                    "optional": false,
+                    "advanced": false
+                  }
+                },
+                "types": [
+                  {
+                    "fieldType": "EXPRESSION",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": true,
+                "advanced": false
+              }
+            },
+            "types": [
+              {
+                "fieldType": "GROUP_SECTION",
+                "selected": true
+              }
+            ],
+            "enabled": true,
+            "editable": true,
+            "optional": true,
+            "advanced": true
+          }
+        },
         "group": "onModify",
         "repeatable": "FALSE",
         "nameEditable": false
@@ -464,7 +1052,7 @@
           "orgName": "ballerina",
           "packageName": "file",
           "moduleName": "file",
-          "version": "1.13.1"
+          "version": "1.14.0"
         },
         "properties": {},
         "group": "onDelete",

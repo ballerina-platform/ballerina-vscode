@@ -3,7 +3,7 @@
   "typeMembers": [
     {
       "type": "HttpServiceConfig",
-      "packageInfo": "ballerina:http:2.16.6",
+      "packageInfo": "ballerina:http:2.18.0",
       "kind": "RECORD_TYPE",
       "selected": true
     }
@@ -55,7 +55,7 @@
                 "name": "Compression",
                 "orgName": "ballerina",
                 "moduleName": "http",
-                "version": "2.16.6"
+                "version": "2.18.0"
               },
               "defaultable": true,
               "documentation": "The status of compression",
@@ -87,7 +87,7 @@
             "name": "CompressionConfig",
             "orgName": "ballerina",
             "moduleName": "http",
-            "version": "2.16.6"
+            "version": "2.18.0"
           },
           "defaultable": true,
           "documentation": "The status of compression",
@@ -125,7 +125,7 @@
             "name": "Chunking",
             "orgName": "ballerina",
             "moduleName": "http",
-            "version": "2.16.6"
+            "version": "2.18.0"
           },
           "defaultable": true,
           "documentation": "Configures the chunking behaviour for the service",
@@ -226,7 +226,7 @@
             "name": "CorsConfig",
             "orgName": "ballerina",
             "moduleName": "http",
-            "version": "2.16.6"
+            "version": "2.18.0"
           },
           "defaultable": true,
           "documentation": "The cross origin resource sharing configurations for the service",
@@ -248,7 +248,7 @@
                       "name": "FileUserStoreConfig",
                       "orgName": "ballerina",
                       "moduleName": "http",
-                      "version": "2.16.6"
+                      "version": "2.18.0"
                     },
                     "defaultable": false,
                     "documentation": "",
@@ -296,7 +296,7 @@
                   "name": "FileUserStoreConfigWithScopes",
                   "orgName": "ballerina",
                   "moduleName": "http",
-                  "version": "2.16.6"
+                  "version": "2.18.0"
                 },
                 "defaultable": false,
                 "isRestType": false,
@@ -517,7 +517,7 @@
                                   "name": "TrustStore",
                                   "orgName": "ballerina",
                                   "moduleName": "crypto",
-                                  "version": "2.12.1"
+                                  "version": "2.13.0"
                                 },
                                 "defaultable": false,
                                 "isRestType": false,
@@ -548,7 +548,7 @@
                           "name": "SecureSocket",
                           "orgName": "ballerina",
                           "moduleName": "auth",
-                          "version": "2.14.0"
+                          "version": "2.14.1"
                         },
                         "defaultable": false,
                         "documentation": "The SSL configurations for the LDAP client socket. This needs to be configured in order to communicate through LDAPs",
@@ -564,7 +564,7 @@
                       "name": "LdapUserStoreConfig",
                       "orgName": "ballerina",
                       "moduleName": "http",
-                      "version": "2.16.6"
+                      "version": "2.18.0"
                     },
                     "defaultable": false,
                     "documentation": "",
@@ -612,7 +612,7 @@
                   "name": "LdapUserStoreConfigWithScopes",
                   "orgName": "ballerina",
                   "moduleName": "http",
-                  "version": "2.16.6"
+                  "version": "2.18.0"
                 },
                 "defaultable": false,
                 "isRestType": false,
@@ -774,7 +774,7 @@
                                       "name": "EvictionPolicy",
                                       "orgName": "ballerina",
                                       "moduleName": "cache",
-                                      "version": "3.10.0"
+                                      "version": "3.10.1"
                                     },
                                     "defaultable": true,
                                     "documentation": "",
@@ -808,7 +808,7 @@
                                   "name": "CacheConfig",
                                   "orgName": "ballerina",
                                   "moduleName": "cache",
-                                  "version": "3.10.0"
+                                  "version": "3.10.1"
                                 },
                                 "defaultable": false,
                                 "documentation": "Configurations related to the cache, which are used to store parsed JWT information",
@@ -841,7 +841,7 @@
                                       "name": "HttpVersion",
                                       "orgName": "ballerina",
                                       "moduleName": "jwt",
-                                      "version": "2.15.1"
+                                      "version": "2.15.2"
                                     },
                                     "defaultable": true,
                                     "documentation": "",
@@ -890,7 +890,7 @@
                                               "name": "TrustStore",
                                               "orgName": "ballerina",
                                               "moduleName": "crypto",
-                                              "version": "2.12.1"
+                                              "version": "2.13.0"
                                             },
                                             "defaultable": false,
                                             "isRestType": false,
@@ -943,7 +943,7 @@
                                               "name": "KeyStore",
                                               "orgName": "ballerina",
                                               "moduleName": "crypto",
-                                              "version": "2.12.1"
+                                              "version": "2.13.0"
                                             },
                                             "defaultable": false,
                                             "isRestType": false,
@@ -987,7 +987,7 @@
                                               "name": "CertKey",
                                               "orgName": "ballerina",
                                               "moduleName": "jwt",
-                                              "version": "2.15.1"
+                                              "version": "2.15.2"
                                             },
                                             "defaultable": false,
                                             "isRestType": false,
@@ -1011,7 +1011,7 @@
                                       "name": "SecureSocket",
                                       "orgName": "ballerina",
                                       "moduleName": "jwt",
-                                      "version": "2.15.1"
+                                      "version": "2.15.2"
                                     },
                                     "defaultable": false,
                                     "documentation": "The SSL configurations for the LDAP client socket. This needs to be configured in order to communicate through LDAPs",
@@ -1027,7 +1027,7 @@
                                   "name": "ClientConfiguration",
                                   "orgName": "ballerina",
                                   "moduleName": "jwt",
-                                  "version": "2.15.1"
+                                  "version": "2.15.2"
                                 },
                                 "defaultable": true,
                                 "documentation": "",
@@ -1086,7 +1086,7 @@
                                       "name": "KeyAlgorithm",
                                       "orgName": "ballerina",
                                       "moduleName": "crypto",
-                                      "version": "2.12.1"
+                                      "version": "2.13.0"
                                     },
                                     "defaultable": false,
                                     "documentation": "",
@@ -1139,7 +1139,7 @@
                                           "name": "Utc",
                                           "orgName": "ballerina",
                                           "moduleName": "time",
-                                          "version": "2.8.1"
+                                          "version": "2.8.3"
                                         },
                                         "defaultable": false,
                                         "documentation": "",
@@ -1154,7 +1154,7 @@
                                           "name": "Utc",
                                           "orgName": "ballerina",
                                           "moduleName": "time",
-                                          "version": "2.8.1"
+                                          "version": "2.8.3"
                                         },
                                         "defaultable": false,
                                         "documentation": "",
@@ -1195,7 +1195,7 @@
                                       "name": "Certificate",
                                       "orgName": "ballerina",
                                       "moduleName": "crypto",
-                                      "version": "2.12.1"
+                                      "version": "2.13.0"
                                     },
                                     "defaultable": false,
                                     "documentation": "",
@@ -1211,7 +1211,7 @@
                                   "name": "PublicKey",
                                   "orgName": "ballerina",
                                   "moduleName": "crypto",
-                                  "version": "2.12.1"
+                                  "version": "2.13.0"
                                 },
                                 "defaultable": false,
                                 "isRestType": false,
@@ -1257,7 +1257,7 @@
                                   "name": "TrustStore",
                                   "orgName": "ballerina",
                                   "moduleName": "crypto",
-                                  "version": "2.12.1"
+                                  "version": "2.13.0"
                                 },
                                 "defaultable": false,
                                 "documentation": "",
@@ -1301,7 +1301,7 @@
                           "name": "ValidatorSignatureConfig",
                           "orgName": "ballerina",
                           "moduleName": "jwt",
-                          "version": "2.15.1"
+                          "version": "2.15.2"
                         },
                         "defaultable": false,
                         "documentation": "JWT signature configurations",
@@ -1345,7 +1345,7 @@
                               "name": "EvictionPolicy",
                               "orgName": "ballerina",
                               "moduleName": "cache",
-                              "version": "3.10.0"
+                              "version": "3.10.1"
                             },
                             "defaultable": true,
                             "documentation": "",
@@ -1379,7 +1379,7 @@
                           "name": "CacheConfig",
                           "orgName": "ballerina",
                           "moduleName": "cache",
-                          "version": "3.10.0"
+                          "version": "3.10.1"
                         },
                         "defaultable": false,
                         "documentation": "Configurations related to the cache, which are used to store parsed JWT information",
@@ -1402,7 +1402,7 @@
                       "name": "JwtValidatorConfig",
                       "orgName": "ballerina",
                       "moduleName": "http",
-                      "version": "2.16.6"
+                      "version": "2.18.0"
                     },
                     "defaultable": false,
                     "documentation": "",
@@ -1450,7 +1450,7 @@
                   "name": "JwtValidatorConfigWithScopes",
                   "orgName": "ballerina",
                   "moduleName": "http",
-                  "version": "2.16.6"
+                  "version": "2.18.0"
                 },
                 "defaultable": false,
                 "isRestType": false,
@@ -1540,7 +1540,7 @@
                               "name": "EvictionPolicy",
                               "orgName": "ballerina",
                               "moduleName": "cache",
-                              "version": "3.10.0"
+                              "version": "3.10.1"
                             },
                             "defaultable": true,
                             "documentation": "",
@@ -1574,7 +1574,7 @@
                           "name": "CacheConfig",
                           "orgName": "ballerina",
                           "moduleName": "cache",
-                          "version": "3.10.0"
+                          "version": "3.10.1"
                         },
                         "defaultable": false,
                         "documentation": "Configurations for the cache used to store the OAuth2 access token and other related information",
@@ -1616,7 +1616,7 @@
                               "name": "HttpVersion",
                               "orgName": "ballerina",
                               "moduleName": "oauth2",
-                              "version": "2.15.0"
+                              "version": "2.15.1"
                             },
                             "defaultable": true,
                             "documentation": "",
@@ -1769,7 +1769,7 @@
                                       "name": "CredentialBearer",
                                       "orgName": "ballerina",
                                       "moduleName": "oauth2",
-                                      "version": "2.15.0"
+                                      "version": "2.15.1"
                                     },
                                     "defaultable": true,
                                     "documentation": "",
@@ -1783,7 +1783,7 @@
                                       "name": "ClientConfiguration",
                                       "orgName": "ballerina",
                                       "moduleName": "oauth2",
-                                      "version": "2.15.0"
+                                      "version": "2.15.1"
                                     },
                                     "defaultable": true,
                                     "documentation": "HTTP client configurations, which call the introspection endpoint",
@@ -1799,7 +1799,7 @@
                                   "name": "ClientCredentialsGrantConfig",
                                   "orgName": "ballerina",
                                   "moduleName": "oauth2",
-                                  "version": "2.15.0"
+                                  "version": "2.15.1"
                                 },
                                 "defaultable": false,
                                 "isRestType": false,
@@ -1969,7 +1969,7 @@
                                               "name": "CredentialBearer",
                                               "orgName": "ballerina",
                                               "moduleName": "oauth2",
-                                              "version": "2.15.0"
+                                              "version": "2.15.1"
                                             },
                                             "defaultable": true,
                                             "documentation": "",
@@ -1983,7 +1983,7 @@
                                               "name": "ClientConfiguration",
                                               "orgName": "ballerina",
                                               "moduleName": "oauth2",
-                                              "version": "2.15.0"
+                                              "version": "2.15.1"
                                             },
                                             "defaultable": true,
                                             "documentation": "HTTP client configurations, which call the introspection endpoint",
@@ -1999,7 +1999,7 @@
                                           "name": "RefreshConfig",
                                           "orgName": "ballerina",
                                           "moduleName": "oauth2",
-                                          "version": "2.15.0"
+                                          "version": "2.15.1"
                                         },
                                         "defaultable": false,
                                         "isRestType": false,
@@ -2079,7 +2079,7 @@
                                       "name": "CredentialBearer",
                                       "orgName": "ballerina",
                                       "moduleName": "oauth2",
-                                      "version": "2.15.0"
+                                      "version": "2.15.1"
                                     },
                                     "defaultable": true,
                                     "documentation": "",
@@ -2093,7 +2093,7 @@
                                       "name": "ClientConfiguration",
                                       "orgName": "ballerina",
                                       "moduleName": "oauth2",
-                                      "version": "2.15.0"
+                                      "version": "2.15.1"
                                     },
                                     "defaultable": true,
                                     "documentation": "HTTP client configurations, which call the introspection endpoint",
@@ -2109,7 +2109,7 @@
                                   "name": "PasswordGrantConfig",
                                   "orgName": "ballerina",
                                   "moduleName": "oauth2",
-                                  "version": "2.15.0"
+                                  "version": "2.15.1"
                                 },
                                 "defaultable": false,
                                 "isRestType": false,
@@ -2243,7 +2243,7 @@
                                       "name": "CredentialBearer",
                                       "orgName": "ballerina",
                                       "moduleName": "oauth2",
-                                      "version": "2.15.0"
+                                      "version": "2.15.1"
                                     },
                                     "defaultable": true,
                                     "documentation": "",
@@ -2257,7 +2257,7 @@
                                       "name": "ClientConfiguration",
                                       "orgName": "ballerina",
                                       "moduleName": "oauth2",
-                                      "version": "2.15.0"
+                                      "version": "2.15.1"
                                     },
                                     "defaultable": true,
                                     "documentation": "HTTP client configurations, which call the introspection endpoint",
@@ -2273,7 +2273,7 @@
                                   "name": "RefreshTokenGrantConfig",
                                   "orgName": "ballerina",
                                   "moduleName": "oauth2",
-                                  "version": "2.15.0"
+                                  "version": "2.15.1"
                                 },
                                 "defaultable": false,
                                 "isRestType": false,
@@ -2287,7 +2287,7 @@
                               "name": "ClientAuth",
                               "orgName": "ballerina",
                               "moduleName": "oauth2",
-                              "version": "2.15.0"
+                              "version": "2.15.1"
                             },
                             "defaultable": false,
                             "documentation": "Service auth configurations",
@@ -2336,7 +2336,7 @@
                                       "name": "TrustStore",
                                       "orgName": "ballerina",
                                       "moduleName": "crypto",
-                                      "version": "2.12.1"
+                                      "version": "2.13.0"
                                     },
                                     "defaultable": false,
                                     "isRestType": false,
@@ -2389,7 +2389,7 @@
                                       "name": "KeyStore",
                                       "orgName": "ballerina",
                                       "moduleName": "crypto",
-                                      "version": "2.12.1"
+                                      "version": "2.13.0"
                                     },
                                     "defaultable": false,
                                     "isRestType": false,
@@ -2433,7 +2433,7 @@
                                       "name": "CertKey",
                                       "orgName": "ballerina",
                                       "moduleName": "oauth2",
-                                      "version": "2.15.0"
+                                      "version": "2.15.1"
                                     },
                                     "defaultable": false,
                                     "isRestType": false,
@@ -2457,7 +2457,7 @@
                               "name": "SecureSocket",
                               "orgName": "ballerina",
                               "moduleName": "oauth2",
-                              "version": "2.15.0"
+                              "version": "2.15.1"
                             },
                             "defaultable": false,
                             "documentation": "The SSL configurations for the LDAP client socket. This needs to be configured in order to communicate through LDAPs",
@@ -2491,7 +2491,7 @@
                           "name": "ClientConfiguration",
                           "orgName": "ballerina",
                           "moduleName": "oauth2",
-                          "version": "2.15.0"
+                          "version": "2.15.1"
                         },
                         "defaultable": true,
                         "documentation": "HTTP client configurations, which call the introspection endpoint",
@@ -2514,7 +2514,7 @@
                       "name": "OAuth2IntrospectionConfig",
                       "orgName": "ballerina",
                       "moduleName": "http",
-                      "version": "2.16.6"
+                      "version": "2.18.0"
                     },
                     "defaultable": false,
                     "documentation": "",
@@ -2562,7 +2562,7 @@
                   "name": "OAuth2IntrospectionConfigWithScopes",
                   "orgName": "ballerina",
                   "moduleName": "http",
-                  "version": "2.16.6"
+                  "version": "2.18.0"
                 },
                 "defaultable": false,
                 "isRestType": false,
@@ -2576,7 +2576,7 @@
               "name": "ListenerAuthConfig",
               "orgName": "ballerina",
               "moduleName": "http",
-              "version": "2.16.6"
+              "version": "2.18.0"
             },
             "defaultable": false,
             "isRestType": false,
@@ -2635,7 +2635,7 @@
         },
         {
           "name": "serviceType",
-          "typeName": "typedesc<ballerina/http:2.16.6:ServiceContract>",
+          "typeName": "typedesc<ballerina/http:2.18.0:ServiceContract>",
           "optional": true,
           "defaultable": false,
           "documentation": "The service object type which defines the service contract. This is auto-generated at compile-time",

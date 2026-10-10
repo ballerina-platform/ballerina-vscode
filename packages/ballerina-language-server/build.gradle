@@ -103,6 +103,7 @@ subprojects {
         ballerinaStdLibs "io.ballerina.stdlib:oauth2-ballerina:${stdlibOAuth2Version}"
         ballerinaStdLibs "io.ballerina.lib:data.jsondata-ballerina:${stdlibJsonDataVersion}"
         ballerinaStdLibs "io.ballerina.lib:data.xmldata-ballerina:${stdlibXmlDataVersion}"
+        ballerinaStdLibs "io.ballerina.lib:data.yaml-ballerina:${stdlibDataYamlVersion}"
         ballerinaStdLibs "io.ballerina.stdlib:http-ballerina:${stdlibHttpVersion}"
         ballerinaStdLibs "io.ballerina.stdlib:graphql-ballerina:${stdlibGraphqlVersion}"
         ballerinaStdLibs "io.ballerina.stdlib:sql-ballerina:${stdLibSqlVersion}"
@@ -128,7 +129,7 @@ subprojects {
         ballerinaStdLibs "io.ballerina.stdlib:task-ballerina:${stdlibTaskVersion}"
         ballerinaStdLibs "io.ballerina.stdlib:protobuf-ballerina:${stdlibProtobufVersion}"
         ballerinaStdLibs "io.ballerina.stdlib:soap-ballerina:${stdlibSoapVersion}"
-        ballerinaStdLibs "io.ballerina.stdlib:yaml-ballerina:${stdlibYamlVersion}"
+        ballerinaStdLibs "io.ballerina.lib:workflow-ballerina:${stdlibWorkflowVersion}"
 
         /* Ballerina Persist Tool */
         ballerinaStdLibs "io.ballerina:persist-tools:${persistToolVersion}"

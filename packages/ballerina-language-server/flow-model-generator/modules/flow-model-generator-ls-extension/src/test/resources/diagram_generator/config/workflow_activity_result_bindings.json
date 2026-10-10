@@ -93,7 +93,7 @@
         "metadata": {
           "label": "logEvent",
           "description": "Activity with no return value\n",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.10.0.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_1.0.0.png"
         },
         "codedata": {
           "node": "ACTIVITY_CALL",
@@ -1712,7 +1712,7 @@
         "metadata": {
           "label": "countEvents",
           "description": "Activity returning a count\n",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.10.0.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_1.0.0.png"
         },
         "codedata": {
           "node": "ACTIVITY_CALL",
@@ -3396,7 +3396,7 @@
         "metadata": {
           "label": "logEvent",
           "description": "Activity with no return value\n",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.10.0.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_1.0.0.png"
         },
         "codedata": {
           "node": "ACTIVITY_CALL",

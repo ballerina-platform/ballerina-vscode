@@ -171,7 +171,7 @@
               "readonly": false,
               "isGraphqlId": false,
               "imports": {
-                "time": "ballerina/time:2.8.1"
+                "time": "ballerina/time:2.8.3"
               },
               "selected": false
             }
@@ -184,7 +184,7 @@
         "readonly": false,
         "isGraphqlId": false,
         "imports": {
-          "time": "ballerina/time:2.8.1"
+          "time": "ballerina/time:2.8.3"
         },
         "selected": false
       }
