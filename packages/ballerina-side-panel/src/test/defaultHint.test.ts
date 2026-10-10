@@ -56,6 +56,9 @@ const DROPDOWN_FIELDS: Record<string, FormField> = {
         types: [number, select([{ label: "INFER_TOOL_COUNT", value: "\"INFER_TOOL_COUNT\"" }]), expression],
         placeholder: "\"INFER_TOOL_COUNT\"", defaultValue: "INFER_TOOL_COUNT",
     }),
+    "default offered by the second of two selects": field({
+        types: [httpVersion, securityProtocol, expression], placeholder: "\"SSL\"", defaultValue: "\"SSL\"",
+    }),
 };
 
 describe("getDefaultHint", () => {
@@ -82,6 +85,10 @@ describe("getDefaultHint", () => {
     it("states the declared default of a field without a dropdown", () => {
         expect(getDefaultHint(field({ types: [number, expression], placeholder: "0", defaultValue: "512" })))
             .toBe("512");
+    });
+
+    it("states the declared default without the whitespace around it", () => {
+        expect(getDefaultHint(field({ types: [number, expression], defaultValue: "  512 " }))).toBe("512");
     });
 
     it.each(["()", "object {}", " () "])("states no default for %p", defaultValue => {
