@@ -83,6 +83,7 @@ import {
     filterCategoriesLocally,
     buildMasterSearchCategories,
     mergePanelCategories,
+    countSectionLeafNodes,
 } from "./utils";
 import { PanelOverlayProvider } from "./context/PanelOverlayContext";
 import { PanelOverlayRenderer } from "./PanelOverlayRenderer";
@@ -167,16 +168,6 @@ const AI_COMPONENT_PICKER_VIEWS: SidePanelView[] = [
 
 // Counts the leaf function nodes (items with an `id`) across a panel category tree, used to decide whether
 // another page exists.
-const countFunctionLeafNodes = (categories: PanelCategory[] = []): number =>
-    categories.reduce((total, category) => {
-        const items = (category?.items ?? []) as any[];
-        return total + items.reduce((sum, item) => sum + ("id" in item ? 1 : countFunctionLeafNodes([item])), 0);
-    }, 0);
-
-// Counts the leaf nodes within a single section (top-level category matched by title).
-const countSectionLeafNodes = (categories: PanelCategory[], sectionTitle: string): number =>
-    countFunctionLeafNodes(categories.filter((category) => category.title === sectionTitle));
-
 export function BIFlowDiagram(props: BIFlowDiagramProps) {
     const { projectPath, breakpointState, syntaxTree, onUpdate, onReady, onSave, hideAgentConfiguration } = props;
     const { rpcClient } = useRpcContext();
