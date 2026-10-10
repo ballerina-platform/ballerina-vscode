@@ -85,6 +85,8 @@ import createProject from './project-overview/project-creation.spec';
 
 import diagram from './diagram/diagram.spec';
 import durableAgentActivity from './workflow/durable-agent-activity.spec';
+import durableAgentRoleFields from './workflow/durable-agent-role-fields.spec';
+import workflowRoleFields from './workflow/workflow-role-fields.spec';
 import automationFlowNodes from './diagram/flow-nodes.spec';
 
 import httpTryItExisting from './tryit/http-try-it-existing.spec';
@@ -170,6 +172,9 @@ test.describe('Ballerina E2E Group 2', { tag: '@group2' }, async () => {
 
     // <----Project Explorer Test---->
     test.describe(projectExplorer);
+
+    // <----Workflow Test---->
+    test.describe(workflowRoleFields);
 });
 
 test.describe('Ballerina E2E Group 3', { tag: '@group3' }, async () => {
@@ -215,6 +220,7 @@ test.describe('Ballerina E2E Group 4', { tag: '@group4' }, async () => {
     // <----Diagram Test---->
     test.describe(diagram);
     test.describe(durableAgentActivity);
+    test.describe(durableAgentRoleFields);
 
     // <----Test Explorer Test---->
     test.describe(testExplorer);
