@@ -284,13 +284,33 @@ export default function createTests() {
             await panel.getByText('chargeCard', { exact: true }).first().waitFor({ timeout: 120000 });
             await panel.getByText('notifyCustomer', { exact: true }).first().waitFor({ timeout: 120000 });
 
-            logStep('Reopen the first activity\'s form from its own diagram');
-            // The title bar's home button opens the integration overview, which lists the activities.
-            await domClick(webview.getByTestId('home-button').first());
-            const overview = await getWebview();
-            await overview.getByRole('button', { name: /Add Artifact/i }).first().waitFor({ timeout: 60000 });
-            await domClick(overview.getByText('chargeCard', { exact: true }).first());
+            logStep('Call the first activity from the workflow');
+            // The activity's own diagram is reached from its call node; the overview on this build does not list activities.
+            await domClick(panel.getByText('chargeCard', { exact: true }).first());
+            const callPanel = panel.getByRole('combobox', { name: /Retry Policy/ });
+            await callPanel.waitFor({ timeout: 60000 });
+            const callSave = panel.getByRole('button', { name: 'Save' }).first();
+            await waitForEnabled(callSave);
+            await callSave.click({ force: true });
+            await expect.poll(projectSource, { timeout: 90000 }).toMatch(/callActivity\(chargeCard/);
+            await callSave.waitFor({ state: 'hidden', timeout: 60000 });
+
+            logStep('Open the activity\'s own diagram from its node and check the edit form reads the name from source');
+            const canvas = webview.getByTestId('bi-diagram-canvas');
+            const callNode = canvas.getByText('chargeCard', { exact: true }).filter({ visible: true }).last();
+            await callNode.waitFor({ timeout: 60000 });
+            const openIcon = callNode.locator('xpath=ancestor::*[.//*[contains(@class,"bi-open-in")]][1]').locator('[class*="bi-open-in"]').first();
+            await openIcon.click({ force: true, timeout: 10000 }).catch(() => openIcon.dispatchEvent('click'));
             const activityView = await getWebview();
+            // Arrived when the name shows outside the canvas: the header of the activity's own view.
+            await expect.poll(async () => {
+                for (const el of await activityView.getByText('chargeCard', { exact: true }).filter({ visible: true }).all()) {
+                    if (!await el.evaluate((e) => !!e.closest('[data-testid="bi-diagram-canvas"]'))) {
+                        return true;
+                    }
+                }
+                return false;
+            }, { timeout: 60000 }).toBe(true);
             const editButton = activityView.locator('#bi-edit').first();
             await editButton.waitFor({ timeout: 60000 });
             await editButton.click({ force: true });
