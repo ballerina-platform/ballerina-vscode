@@ -39,12 +39,12 @@ const helperModule = (values: Record<string, unknown> = {}) => new Proxy(values,
 let nodeListProps: Record<string, any> | undefined;
 jest.mock("@wso2/ballerina-side-panel", () => new Proxy({}, {
     get: (_target, key) => key === "__esModule" ? true
-        : key === "NodeList" ? (props: Record<string, any>) => { nodeListProps = props; return null; }
+        : key === "NodeList" ? (props: Record<string, any>): null => { nodeListProps = props; return null; }
             : (): null => null,
 }));
 jest.mock("@wso2/ballerina-core", () => ({
     FUNCTION_TYPE: { REGULAR: "regular" }, MACHINE_VIEW: {}, EVENT_TYPE: {}, DIRECTORY_MAP: {},
-    getPrimaryInputType: (): undefined => undefined, TRIGGER_CHARACTERS: [],
+    getPrimaryInputType: (): undefined => undefined, TRIGGER_CHARACTERS: [] as string[],
 }));
 jest.mock("@wso2/ballerina-rpc-client", () => {
     const h = require("../../../test/rpcHarness");
