@@ -879,6 +879,10 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             setShowSidePanel(true);
         } catch (error) {
             console.error(">>> Error refreshing activities", error);
+            // A failed refresh owns no further request; leave the indicator only to a successor that does.
+            if (superseded()) {
+                setShowProgressIndicator(false);
+            }
         } finally {
             if (superseded()) {
                 releaseActivityPanelNow();
