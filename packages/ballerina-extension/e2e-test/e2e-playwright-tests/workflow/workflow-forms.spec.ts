@@ -328,13 +328,13 @@ export default function createTests() {
             const sidePanel = await openPaletteBelow(webview, 'Start');
             const panel = sidePanel.getLocator();
             // Outside a workflow diagram the Workflow category starts collapsed; open it rather than search.
-            const sendData = panel.getByText('Send Data', { exact: true }).last();
+            const sendData = panel.getByText('Send Data Event', { exact: true }).last();
             if (!await sendData.isVisible().catch(() => false)) {
                 await sidePanel.expandSection('Workflow');
             }
             if (!await sendData.waitFor({ state: 'visible', timeout: 60000 }).then(() => true, () => false)) {
                 const shown = (await panel.innerText().catch(() => '')).replace(/\s+/g, ' ').slice(0, 400);
-                throw new Error(`the automation's palette does not offer Send Data; the panel shows: ${shown}`);
+                throw new Error(`the automation's palette does not offer Send Data Event; the panel shows: ${shown}`);
             }
             await domClick(sendData);
 
