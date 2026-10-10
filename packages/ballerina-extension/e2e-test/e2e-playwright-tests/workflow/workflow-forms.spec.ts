@@ -332,7 +332,10 @@ export default function createTests() {
             if (!await sendData.isVisible().catch(() => false)) {
                 await sidePanel.expandSection('Workflow');
             }
-            await sendData.waitFor({ state: 'visible', timeout: 60000 });
+            if (!await sendData.waitFor({ state: 'visible', timeout: 60000 }).then(() => true, () => false)) {
+                const shown = (await panel.innerText().catch(() => '')).replace(/\s+/g, ' ').slice(0, 400);
+                throw new Error(`the automation's palette does not offer Send Data; the panel shows: ${shown}`);
+            }
             await domClick(sendData);
 
             logStep('The only workflow is selected and its data event offered');
