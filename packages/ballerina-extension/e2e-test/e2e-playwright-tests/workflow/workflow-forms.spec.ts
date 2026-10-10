@@ -286,6 +286,8 @@ export default function createTests() {
 
             logStep('Reopen the first activity\'s form from its own diagram');
             const projectExplorer = new ProjectExplorer(page.page);
+            // Brings the Integrator activity tab forward; the explorer's hover actions are not there otherwise.
+            await projectExplorer.init().catch(() => undefined);
             await projectExplorer.goToOverview(DEFAULT_PROJECT_NAME);
             const overview = await getWebview();
             await domClick(overview.getByText('chargeCard', { exact: true }).first());
@@ -299,7 +301,9 @@ export default function createTests() {
         test('Send data to the workflow from the automation and reopen the node', async () => {
             logStep('Open the automation and add a Send Data step');
             const projectExplorer = new ProjectExplorer(page.page);
-            await projectExplorer.findItem([DEFAULT_PROJECT_NAME, 'Entry Points', 'main']);
+            await projectExplorer.init().catch(() => undefined);
+            const automation = await projectExplorer.findItem([DEFAULT_PROJECT_NAME, 'Entry Points', 'main'], 30000);
+            await automation?.click();
             const webview = await getWebview();
             await webview.getByTestId('start-node').waitFor({ timeout: 60000 });
             const sidePanel = await openPaletteBelow(webview, 'Start');
