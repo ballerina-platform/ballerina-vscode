@@ -1455,11 +1455,12 @@ public class WorkflowUtil {
         }
         // In expression mode the value IS the expression: a bare `financeRoles` names a module-level
         // variable, and quoting it would rewrite that reference into a role literal of the same
-        // spelling. The same holds for any text reaching a field that offers the list mode: names
-        // typed there arrive as a list, so text can only have come from the expression editor —
-        // the mode flag itself does not travel when the field sits in a policy sub-form. Only a
-        // value from a field with neither can be a bare role name needing quotes.
-        if (isExpressionModeSelected(property) || offersListMode(property)) {
+        // spelling. The same holds for text reaching a hidden root property that offers the list
+        // mode: a policy sub-form edits such a field through the root's value alone, so the mode
+        // flag stays at the definition's list mode while names typed there arrive as a list — text
+        // can only have come from the expression editor. Anything else can be a bare role name
+        // needing quotes.
+        if (isExpressionModeSelected(property) || (property.hidden() && offersListMode(property))) {
             return source;
         }
         return quoteIfBareRole(source);
