@@ -181,7 +181,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "connection"
             },
-            "defaultValue": "\"\""
+            "defaultValue": ""
           },
           "connectionPooling": {
             "metadata": {
@@ -209,7 +209,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "connectionPooling"
             },
-            "defaultValue": "false"
+            "defaultValue": ""
           },
           "isClusterConnection": {
             "metadata": {
@@ -237,7 +237,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "isClusterConnection"
             },
-            "defaultValue": "false"
+            "defaultValue": ""
           },
           "secureSocket": {
             "metadata": {

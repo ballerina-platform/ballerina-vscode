@@ -87,7 +87,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "timeout"
             },
-            "defaultValue": "0.0d"
+            "defaultValue": ""
           },
           "poolConfig": {
             "metadata": {
@@ -124,7 +124,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "poolConfig"
             },
-            "defaultValue": "()"
+            "defaultValue": ""
           },
           "secureSocket": {
             "metadata": {
@@ -161,7 +161,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "secureSocket"
             },
-            "defaultValue": "()"
+            "defaultValue": ""
           },
           "compression": {
             "metadata": {
@@ -193,7 +193,7 @@
                 "selected": false
               }
             ],
-            "placeholder": "\"AUTO\"",
+            "placeholder": "",
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -202,7 +202,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "compression"
             },
-            "defaultValue": "AUTO"
+            "defaultValue": ""
           },
           "retryConfiguration": {
             "metadata": {
@@ -239,7 +239,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "retryConfiguration"
             },
-            "defaultValue": "()"
+            "defaultValue": ""
           },
           "auth": {
             "metadata": {
@@ -318,7 +318,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "auth"
             },
-            "defaultValue": "()"
+            "defaultValue": ""
           },
           "maxInboundMessageSize": {
             "metadata": {
@@ -346,7 +346,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "maxInboundMessageSize"
             },
-            "defaultValue": "0"
+            "defaultValue": ""
           },
           "checkError": {
             "metadata": {
@@ -1361,7 +1361,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "connection"
             },
-            "defaultValue": "\"\""
+            "defaultValue": ""
           },
           "connectionPooling": {
             "metadata": {
@@ -1389,7 +1389,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "connectionPooling"
             },
-            "defaultValue": "false"
+            "defaultValue": ""
           },
           "isClusterConnection": {
             "metadata": {
@@ -1417,7 +1417,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "isClusterConnection"
             },
-            "defaultValue": "false"
+            "defaultValue": ""
           },
           "secureSocket": {
             "metadata": {
