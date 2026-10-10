@@ -976,6 +976,8 @@ export type SearchQueryParams = {
     limit?: number;
     offset?: number;
     orgName?: string;
+    /** Keeps raw pagination offsets tied to the source that emitted them. */
+    functionSource?: "central" | "index";
     includeAvailableFunctions?: string;
     filterByCurrentOrg?: boolean;
     /** ACTIVITY_CALL search: "true" hides the prebuilt (builtin) activities. */
@@ -1016,8 +1018,20 @@ export type BISearchRequest = {
     searchKind: SearchKind;
 }
 
+export type FunctionPageInfo = {
+    hasMore: boolean;
+    /** Offset in the underlying search source, before version/category filtering. */
+    nextOffset: number;
+    /** Continuation requests must stay on this source, whose ordering owns the offset. */
+    source?: "central" | "index";
+};
+
+export type FunctionSearchPagination = Partial<Record<"ballerina" | "ballerinax", FunctionPageInfo>>;
+
 export type BISearchResponse = {
     categories: Category[];
+    /** Absent with older language servers; consumers retain legacy pagination in that case. */
+    functionPagination?: FunctionSearchPagination;
 }
 
 export interface WorkflowDataRequest {

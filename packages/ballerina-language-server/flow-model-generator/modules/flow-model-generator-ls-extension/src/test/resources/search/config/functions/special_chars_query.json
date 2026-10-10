@@ -202,7 +202,115 @@
           "Library"
         ]
       },
-      "items": []
+      "items": [
+        {
+          "metadata": {
+            "label": "aws.lambda",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "__process",
+                "description": "Process and excute the handler.  ",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_aws.lambda_3.3.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "aws.lambda",
+                "packageName": "aws.lambda",
+                "symbol": "__process",
+                "version": "3.3.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "__register",
+                "description": "Register a function handler with the function and event type.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_aws.lambda_3.3.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "aws.lambda",
+                "packageName": "aws.lambda",
+                "symbol": "__register",
+                "version": "3.3.0"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "azure_storage_service.blobs",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "addAuthorizationHeader",
+                "description": "Add authentication header to the request if it uses Shared Key Authentication.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure_storage_service_4.3.4.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "azure_storage_service.blobs",
+                "packageName": "azure_storage_service",
+                "symbol": "addAuthorizationHeader",
+                "version": "4.3.4"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "health.fhir.r4.terminology",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "addCodeSystem",
+                "description": "Add a new CodeSystem.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4.terminology_7.0.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "health.fhir.r4.terminology",
+                "packageName": "health.fhir.r4.terminology",
+                "symbol": "addCodeSystem",
+                "version": "7.0.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "addCodeSystems",
+                "description": "Add a list of new CodeSystems.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4.terminology_7.0.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "health.fhir.r4.terminology",
+                "packageName": "health.fhir.r4.terminology",
+                "symbol": "addCodeSystems",
+                "version": "7.0.1"
+              },
+              "enabled": true
+            }
+          ]
+        }
+      ]
     }
   ]
 }

@@ -77,7 +77,8 @@ export function UseAgentToolForm(props: UseAgentToolFormProps): JSX.Element {
             const request: BISearchRequest = {
                 position: { startLine: position, endLine: position },
                 filePath,
-                queryMap: undefined,
+                // Only local functions are collected, so the library sources are skipped.
+                queryMap: { q: "", limit: 0, offset: 0 },
                 searchKind: "FUNCTION",
             };
             const response = await rpcClient.getBIDiagramRpcClient().search(request);
