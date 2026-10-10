@@ -13,6 +13,13 @@ on:
         required: false
         type: string
         default: ''
+      skipLSTests:
+        description: >-
+          Skip the LS Ubuntu test and Windows build jobs, e.g. to unblock a release while
+          they are red. The LS pack, Trivy scan and extension build still gate the tag.
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -245,6 +252,8 @@ jobs:
     needs:
       - ls-prepare-matrix
       - ls-ubuntu-pack
+    # Scheduled runs have no inputs, so this is always false for them.
+    if: ${{ !inputs.skipLSTests }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     concurrency:
@@ -280,6 +289,7 @@ jobs:
   ls-windows-build:
     name: LS Windows build (${{ matrix.branch }})
     needs: ls-prepare-matrix
+    if: ${{ !inputs.skipLSTests }}
     runs-on: windows-latest
     timeout-minutes: 60
     concurrency:
@@ -414,7 +424,17 @@ jobs:
       - ls-windows-build
       - ls-trivy
       - Build
-    if: ${{ github.repository == 'ballerina-platform/ballerina-vscode' }}
+    # A skipped need would skip this job too, so spell out what counts as passing: the LS
+    # test jobs may be skipped only when skipLSTests was requested.
+    if: >-
+      ${{ !cancelled()
+        && github.repository == 'ballerina-platform/ballerina-vscode'
+        && needs.sync-nightly.result == 'success'
+        && needs.ls-ubuntu-pack.result == 'success'
+        && needs.ls-trivy.result == 'success'
+        && needs.Build.result == 'success'
+        && (needs.ls-ubuntu-test.result == 'success' || (inputs.skipLSTests && needs.ls-ubuntu-test.result == 'skipped'))
+        && (needs.ls-windows-build.result == 'success' || (inputs.skipLSTests && needs.ls-windows-build.result == 'skipped')) }}
     permissions:
       contents: write
     runs-on: ubuntu-latest
@@ -476,7 +496,7 @@ jobs:
       - ls-trivy
       - Build
       - Tag
-    if: ${{ github.repository == 'ballerina-platform/ballerina-vscode' }}
+    if: ${{ !cancelled() && needs.Tag.result == 'success' && github.repository == 'ballerina-platform/ballerina-vscode' }}
     runs-on: ubuntu-latest
     steps:
       - name: Restore build

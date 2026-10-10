@@ -59,6 +59,9 @@ checkstyle {
 def excludePattern = '**/module-info.java'
 tasks.withType(Checkstyle) {
     exclude excludePattern
+    // The worker's default heap (512m) runs out on flow-model-generator-core; the
+    // OutOfMemoryError surfaces as "Error was thrown while processing <file>".
+    maxHeapSize = "1g"
 }
 
 task validateSpotbugs() {
