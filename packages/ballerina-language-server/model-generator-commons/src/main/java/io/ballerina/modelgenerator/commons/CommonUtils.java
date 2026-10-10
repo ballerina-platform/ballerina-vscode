@@ -105,6 +105,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -1844,13 +1845,13 @@ public class CommonUtils {
      *
      * @param paramSymbol     the parameter or record field symbol
      * @param typeSymbol      the type descriptor of the parameter
-     * @param semanticModel   the semantic model for symbol resolution (can be null)
+     * @param semanticModel   the semantic model of the default module of {@code resolvedPackage} (can be null)
      * @param resolvedPackage the resolved package containing the symbol (can be null)
      * @return the extracted default value as a string
      */
     public static String resolveDefaultValue(Symbol paramSymbol, TypeSymbol typeSymbol,
                                              SemanticModel semanticModel, Package resolvedPackage) {
-        return resolveDefaultValue(paramSymbol, typeSymbol, semanticModel, resolvedPackage, null);
+        return resolveDefaultValue(paramSymbol, typeSymbol, () -> semanticModel, resolvedPackage, null);
     }
 
     /**
@@ -1859,13 +1860,16 @@ public class CommonUtils {
      *
      * @param paramSymbol     the parameter or record field symbol
      * @param typeSymbol      the type descriptor of the parameter
-     * @param semanticModel   the semantic model for symbol resolution (can be null)
+     * @param semanticModel   supplies the semantic model of the module the default is read from: that of
+     *                        {@code document}, or else the default module of {@code resolvedPackage}. A constant or
+     *                        enum member the default names is resolved by its node, which no other model knows. Asked
+     *                        only for such a default (may supply null)
      * @param resolvedPackage the resolved package containing the symbol (can be null)
      * @param document        the document containing the symbol (can be null for optimization)
      * @return the extracted default value as a string
      */
     public static String resolveDefaultValue(Symbol paramSymbol, TypeSymbol typeSymbol,
-                                             SemanticModel semanticModel, Package resolvedPackage,
+                                             Supplier<SemanticModel> semanticModel, Package resolvedPackage,
                                              Document document) {
         if (!declaresDefaultValue(paramSymbol)) {
             return "";
@@ -1899,11 +1903,11 @@ public class CommonUtils {
 
         if (expression instanceof SimpleNameReferenceNode simpleNameReferenceNode) {
             String enumValue = resolveEnumMemberValue(simpleNameReferenceNode, resolvedPackage,
-                    semanticModel, document);
+                    semanticModel.get(), document);
             return enumValue != null ? enumValue : simpleNameReferenceNode.name().text();
         } else if (expression instanceof QualifiedNameReferenceNode qualifiedNameReferenceNode) {
             String enumValue = resolveEnumMemberValue(qualifiedNameReferenceNode, resolvedPackage,
-                    semanticModel, document);
+                    semanticModel.get(), document);
             return enumValue != null ? enumValue :
                     qualifiedNameReferenceNode.modulePrefix().text() + ":" + qualifiedNameReferenceNode.identifier()
                             .text();
@@ -1925,23 +1929,6 @@ public class CommonUtils {
             return recordFieldSymbol.hasDefaultValue();
         }
         return true;
-    }
-
-    /**
-     * The semantic model of the module a document belongs to. A node is looked up by its position in its own
-     * document, so asking the model of another module finds nothing, or a symbol at the same position of a file that
-     * happens to share the name. Falls back to the given model when the document is unknown or cannot be compiled.
-     */
-    private static SemanticModel semanticModelOf(Document document, SemanticModel fallback) {
-        if (document == null) {
-            return fallback;
-        }
-        try {
-            Module module = document.module();
-            return PackageUtil.getCompilation(module.packageInstance()).getSemanticModel(module.moduleId());
-        } catch (RuntimeException e) {
-            return fallback;
-        }
     }
 
     /**
@@ -1969,12 +1956,11 @@ public class CommonUtils {
      */
     private static String resolveEnumMemberValue(ExpressionNode expression, Package resolvedPackage,
                                                  SemanticModel semanticModel, Document document) {
-        SemanticModel documentModel = semanticModelOf(document, semanticModel);
-        if (documentModel == null) {
+        if (semanticModel == null) {
             return null;
         }
 
-        Optional<Symbol> symbolOpt = documentModel.symbol(expression);
+        Optional<Symbol> symbolOpt = semanticModel.symbol(expression);
         if (symbolOpt.isEmpty()) {
             return null;
         }
