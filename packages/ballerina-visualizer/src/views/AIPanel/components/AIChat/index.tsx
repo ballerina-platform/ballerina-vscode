@@ -332,6 +332,9 @@ function scaffoldKeyHash(text: string, hiddenContext: string | undefined): strin
     return (h >>> 0).toString(36);
 }
 
+const CONTINUED_THREAD_CONTEXT = "This continues an earlier conversation about the same request, which did not resolve it. "
+    + "Check what was already tried and why it did not work before trying something else.";
+
 const AIChat: React.FC = () => {
     const shortName = useShortAssistantName();
     const { rpcClient } = useRpcContext();
@@ -504,6 +507,8 @@ const AIChat: React.FC = () => {
     const currentDiagnosticsRef = useRef<DiagnosticEntry[]>([]);
     const codeContextRef = useRef<CodeContext | undefined>(undefined);
     const hiddenContextRef = useRef<string | undefined>(undefined);
+    // Set only for the auto-submitted console scaffold turn; taken by the next agent request.
+    const consoleScaffoldRef = useRef(false);
     const functionsRef = useRef<any>([]);
     const lastAttatchmentsRef = useRef<any>([]);
     const aiChatInputRef = useRef<AIChatInputRef>(null);
@@ -703,13 +708,34 @@ const AIChat: React.FC = () => {
                                     }
                                     activeScaffoldKeyRef.current = key;
                                 }
-                                // A prompt handed off from another surface (e.g. the overview) can ask
-                                // for a fresh thread; clear first, then re-apply its mode (clear resets it).
-                                if (defaultPrompt.newThread) {
+                                if (defaultPrompt.threadKey) {
+                                    await reconnectSettledRef.current;
+                                    const { status } = await rpcClient.getAiPanelRpcClient()
+                                        .prepareKeyedThread({ key: defaultPrompt.threadKey });
+                                    if (status === "busy") {
+                                        hiddenContextRef.current = undefined;
+                                        rpcClient.getAiPanelRpcClient().clearInitialPrompt();
+                                        return;
+                                    }
+                                    if (status === "reused") {
+                                        await showActiveThread();
+                                        const existing = hiddenContextRef.current ? `${hiddenContextRef.current}\n` : "";
+                                        hiddenContextRef.current = existing + CONTINUED_THREAD_CONTEXT;
+                                    } else {
+                                        showEmptyThread();
+                                        loadThreads();
+                                    }
+                                    setAgentMode(defaultPrompt.planMode ? AgentMode.Plan : AgentMode.Edit);
+                                } else if (defaultPrompt.newThread) {
+                                    // A prompt handed off from another surface (e.g. the overview) can ask
+                                    // for a fresh thread; clear first, then re-apply its mode (clear resets it).
                                     await reconnectSettledRef.current;
                                     await handleClearChat().catch((): void => { /* best-effort: still submit */ });
                                     setAgentMode(defaultPrompt.planMode ? AgentMode.Plan : AgentMode.Edit);
                                 }
+                                // Set here, past the done-marker check, so a skipped scaffold
+                                // can't leave it behind for the user's next message.
+                                consoleScaffoldRef.current = !!textPrompt.consoleScaffold;
                                 void handleSend({
                                     input: [{ content: defaultPrompt.text }],
                                     attachments: defaultPrompt.attachments ?? [],
@@ -2369,11 +2395,13 @@ const AIChat: React.FC = () => {
         const currentCodeContext = codeContextRef.current;
         const currentHiddenContext = hiddenContextRef.current;
         hiddenContextRef.current = undefined;
+        const consoleScaffold = consoleScaffoldRef.current;
+        consoleScaffoldRef.current = false;
         console.log("Submitting agent prompt:", { useCase, agentMode: agentModeRef.current, codeContext: currentCodeContext, operationType, fileAttatchments });
         await rpcClient.getAiPanelRpcClient().generateAgent({
             generationId: activeRunGenerationIdRef.current,
             promptSource: 'ai-panel',
-            usecase: useCase, hiddenContext: currentHiddenContext, isPlanMode: agentModeRef.current === AgentMode.Plan, codeContext: currentCodeContext, operationType, fileAttachmentContents: fileAttatchments, webSearchEnabled: isWebToolsEnabled
+            usecase: useCase, hiddenContext: currentHiddenContext, consoleScaffold, isPlanMode: agentModeRef.current === AgentMode.Plan, codeContext: currentCodeContext, operationType, fileAttachmentContents: fileAttatchments, webSearchEnabled: isWebToolsEnabled
         });
     }
 
@@ -2397,13 +2425,17 @@ const AIChat: React.FC = () => {
         pushPanel("settings");
     }
 
-    async function handleClearChat(): Promise<void> {
+    function showEmptyThread(): void {
         setMessages([]);
         repinToBottom();
         setApprovalRequest(null);
         setContextUsage(null);
         setFollowupSuggestions([]);
         setAgentMode(AgentMode.Edit);
+    }
+
+    async function handleClearChat(): Promise<void> {
+        showEmptyThread();
         await rpcClient.getAiPanelRpcClient().clearChat();
         loadThreads();
     }
@@ -2434,7 +2466,11 @@ const AIChat: React.FC = () => {
         if (!switched) {
             return false;
         }
+        await showActiveThread();
+        return true;
+    }
 
+    async function showActiveThread(): Promise<void> {
         // Reload messages and checkpoints for the newly active thread in parallel
         const [msgs, checkpoints] = await Promise.all([
             rpcClient.getAiPanelRpcClient().getChatMessages(),
@@ -2454,7 +2490,6 @@ const AIChat: React.FC = () => {
         setContextUsage(null);
         await refreshFollowupSuggestions();
         loadThreads();
-        return true;
     }
 
     async function handleDeleteThread(threadId: string): Promise<void> {

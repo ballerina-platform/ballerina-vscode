@@ -54,6 +54,7 @@ import io.ballerina.compiler.syntax.tree.InterpolationNode;
 import io.ballerina.compiler.syntax.tree.MappingConstructorExpressionNode;
 import io.ballerina.compiler.syntax.tree.MappingFieldNode;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
+import io.ballerina.compiler.syntax.tree.ModuleVariableDeclarationNode;
 import io.ballerina.compiler.syntax.tree.Node;
 import io.ballerina.compiler.syntax.tree.NodeParser;
 import io.ballerina.compiler.syntax.tree.NonTerminalNode;
@@ -65,6 +66,7 @@ import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.compiler.syntax.tree.SyntaxTree;
 import io.ballerina.compiler.syntax.tree.TemplateExpressionNode;
 import io.ballerina.compiler.syntax.tree.TypedBindingPatternNode;
+import io.ballerina.compiler.syntax.tree.VariableDeclarationNode;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.DocumentId;
 import io.ballerina.projects.Module;
@@ -510,6 +512,34 @@ public class CommonUtils {
             return rawType;
         }
         return typeDescriptor;
+    }
+
+    /**
+     * Returns the class a variable's initializer produces, such as {@code openai:ModelProvider} for
+     * {@code final ai:ModelProvider model = check new openai:ModelProvider(...)}. Falls back to the declared type.
+     *
+     * @param semanticModel the semantic model of the variable's module
+     * @param modulePart    the root node of the document declaring the variable, or null if unknown
+     * @param variable      the variable to resolve
+     * @return the constructed class, or the declared type descriptor
+     */
+    public static TypeSymbol getConstructedType(SemanticModel semanticModel, ModulePartNode modulePart,
+                                                VariableSymbol variable) {
+        TypeSymbol declaredType = variable.typeDescriptor();
+        if (modulePart == null || variable.getLocation().isEmpty()) {
+            return declaredType;
+        }
+        NonTerminalNode node = modulePart.findNode(variable.getLocation().get().textRange());
+        while (node != null && !(node instanceof ModuleVariableDeclarationNode)
+                && !(node instanceof VariableDeclarationNode)) {
+            node = node.parent();
+        }
+        Optional<ExpressionNode> initializer = node instanceof ModuleVariableDeclarationNode moduleVar
+                ? moduleVar.initializer()
+                : node instanceof VariableDeclarationNode localVar ? localVar.initializer() : Optional.empty();
+        return initializer.flatMap(semanticModel::typeOf)
+                .filter(type -> getRawType(type) instanceof ClassSymbol)
+                .orElse(declaredType);
     }
 
     /**

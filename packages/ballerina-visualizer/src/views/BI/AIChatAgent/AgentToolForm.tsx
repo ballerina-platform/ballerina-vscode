@@ -289,7 +289,7 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
             const request: BISearchRequest = {
                 position: { startLine: position, endLine: position },
                 filePath,
-                queryMap: undefined,
+                queryMap: { excludeLibrary: "true" },
                 searchKind: "FUNCTION",
             };
             const response = await rpcClient.getBIDiagramRpcClient().search(request);
@@ -704,7 +704,6 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
                 ...buildApprovalToolData(data, compatibleApprovalFunctionsRef.current),
             };
 
-            let response;
             if (isEdit) {
                 if (properties.annotations && typeof properties.annotations.value === "string") {
                     let annotationStr = properties.annotations.value as string;
@@ -742,12 +741,16 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
                         properties.annotations.value = annotationStr.replace(/\s+$/, "\n");
                     }
                 }
-                response = await rpcClient.getBIDiagramRpcClient().getSourceCode({
-                    filePath, flowNode: updatedNode, isFunctionNodeUpdate: true,
-                });
-            } else {
-                response = await rpcClient.getBIDiagramRpcClient().getSourceCode({ filePath, flowNode: updatedNode });
             }
+            // A class-hosted tool becomes a method of the agent class, which publishes as AGENT_DEFINITION.
+            const response = await rpcClient.getBIDiagramRpcClient().getSourceCode({
+                filePath,
+                flowNode: updatedNode,
+                isFunctionNodeUpdate: isEdit,
+                artifactData: {
+                    artifactType: hostClass ? DIRECTORY_MAP.AGENT_DEFINITION : DIRECTORY_MAP.AGENT_TOOL,
+                },
+            });
             if (!response?.artifacts?.length) {
                 throw new Error("Agent tool source generation returned no artifacts");
             }

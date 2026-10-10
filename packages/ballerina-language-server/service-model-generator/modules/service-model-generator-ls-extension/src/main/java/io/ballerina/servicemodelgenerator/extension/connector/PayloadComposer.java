@@ -271,20 +271,20 @@ public final class PayloadComposer {
     }
 
     public static String selectedFieldType(TriggerUISchemaModel.Property property) {
-        if (property == null || property.types() == null) {
+        TriggerUISchemaModel.PropertyType selected = selectedType(property);
+        return selected == null ? null : selected.fieldType();
+    }
+
+    public static TriggerUISchemaModel.PropertyType selectedType(TriggerUISchemaModel.Property property) {
+        if (property == null || property.types() == null || property.types().isEmpty()) {
             return null;
         }
-        TriggerUISchemaModel.PropertyType selected = null;
         for (TriggerUISchemaModel.PropertyType type : property.types()) {
             if (type.selected()) {
-                selected = type;
-                break;
+                return type;
             }
         }
-        if (selected == null && !property.types().isEmpty()) {
-            selected = property.types().getFirst();
-        }
-        return selected == null ? null : selected.fieldType();
+        return property.types().getFirst();
     }
 
     private static String selectedBallerinaType(TriggerUISchemaModel.Property property) {

@@ -55,6 +55,7 @@ import { Parameters } from "./Parameters/Parameters";
 import { ParamEditor as HeaderParamEditor } from "../ResourceForm/Parameters/ParamEditor";
 import { ParamItem as HeaderParamItem } from "../ResourceForm/Parameters/ParamItem";
 import ArtifactForm from "../../../Forms/ArtifactForm";
+import { sanitizedResourcePath } from "../../utils";
 import { AnnotationExpressionFieldHandle } from "./AnnotationExpressionField";
 import { AnnotationConfigSection } from "./AnnotationConfigSection";
 import {
@@ -322,11 +323,25 @@ function buildArtifactFields(fn: FunctionModel | null | undefined): FormField[] 
         return [];
     }
     const fields: FormField[] = [];
+    if (fn.kind === "RESOURCE" && fn.accessor?.editable) {
+        fields.push({
+            key: "accessor",
+            label: fn.accessor.metadata?.label || "Accessor",
+            type: getPrimaryInputType(fn.accessor.types)?.fieldType || "SINGLE_SELECT",
+            optional: false,
+            editable: true,
+            advanced: fn.accessor.advanced,
+            enabled: fn.accessor.enabled ?? true,
+            documentation: fn.accessor.metadata?.description || "",
+            value: fn.accessor.value,
+            types: fn.accessor.types,
+        });
+    }
     if (fn.name?.editable) {
         fields.push({
             key: "name",
             label: fn.name.metadata?.label || "Function Name",
-            type: "IDENTIFIER",
+            type: getPrimaryInputType(fn.name.types)?.fieldType || "IDENTIFIER",
             optional: fn.name.optional ?? false,
             editable: true,
             advanced: fn.name.advanced,
@@ -370,6 +385,17 @@ function buildArtifactFields(fn: FunctionModel | null | undefined): FormField[] 
         });
     }
     return fields;
+}
+
+/**
+ * Escapes a user-entered resource path the way the HTTP resource form does on save (`.`/`-` inside a
+ * plain segment become `\.`/`\-`), leaving the root path `.` and `[...]` path params untouched.
+ */
+function withSanitizedResourcePath(fn: FunctionModel): FunctionModel {
+    if (fn.kind !== "RESOURCE" || !fn.name?.editable || !fn.name.value || fn.name.value === ".") {
+        return fn;
+    }
+    return { ...fn, name: { ...fn.name, value: sanitizedResourcePath(String(fn.name.value)) } };
 }
 
 /** ArtifactForm fields ordered by the authored `layout`. Done in the rebuild, not render, so the
@@ -443,15 +469,25 @@ export function TriggerHandlerForm(props: TriggerHandlerFormProps) {
         return addableCatalogOf(serviceModel).filter((fn) => handlerGroupId(fn) === groupId);
     }, [serviceModel, groupId]);
 
-    // Add mode starts from the group's first addable variant; edit mode from the passed model.
+    // Seeds the form: add mode from the group's first addable variant, edit mode from the passed model.
+    // Seeds once per source model, so a service refetch (e.g. after creating a configurable) that only
+    // renews `addableVariants` does not overwrite in-form edits.
+    const seededRef = useRef<{ isNew: boolean; source?: FunctionModel; seeded: boolean } | null>(null);
     useEffect(() => {
+        const prev = seededRef.current;
+        const sourceUnchanged = prev?.isNew === isNew && prev.source === props.functionModel;
+        if (sourceUnchanged && prev.seeded) {
+            return;
+        }
         if (isNew) {
             const initial = props.functionModel ?? addableVariants[0];
+            seededRef.current = { isNew, source: props.functionModel, seeded: !!initial };
             setFunctionModel(initial ? cloneDeep(initial) : null);
             setArtifactFields(buildOrderedArtifactFields(initial));
             setIsArtifactFieldsValid(true);
             initialSignatureKeyRef.current = null;
         } else {
+            seededRef.current = { isNew, source: props.functionModel, seeded: true };
             setFunctionModel(props.functionModel ? cloneDeep(props.functionModel) : null);
             setArtifactFields(buildOrderedArtifactFields(props.functionModel));
             setIsArtifactFieldsValid(true);
@@ -512,6 +548,9 @@ export function TriggerHandlerForm(props: TriggerHandlerFormProps) {
             }
             if (fieldKey === "name") {
                 return { ...prev, name: { ...prev.name, value: String(value) } };
+            }
+            if (fieldKey === "accessor") {
+                return { ...prev, accessor: { ...prev.accessor, value: String(value) } };
             }
             if (fieldKey === "returnType") {
                 return { ...prev, returnType: { ...prev.returnType, value: String(value) } };
@@ -757,13 +796,13 @@ export function TriggerHandlerForm(props: TriggerHandlerFormProps) {
             setIsSignatureWarningOpen(true);
             return;
         }
-        onSave({ ...functionModel, enabled: true }, isNew);
+        onSave({ ...withSanitizedResourcePath(functionModel), enabled: true }, isNew);
     };
 
     const confirmSignatureChangeSave = () => {
         setIsSignatureWarningOpen(false);
         if (functionModel) {
-            onSave({ ...functionModel, enabled: true }, isNew);
+            onSave({ ...withSanitizedResourcePath(functionModel), enabled: true }, isNew);
         }
     };
 

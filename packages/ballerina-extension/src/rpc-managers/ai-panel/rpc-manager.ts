@@ -28,6 +28,8 @@ import {
     Command,
     GetRunStatusRequest,
     GetRunStatusResponse,
+    PrepareKeyedThreadRequest,
+    PrepareKeyedThreadResponse,
     DocGenerationRequest,
     GenerateAgentCodeRequest,
     GenerateOpenAPIRequest,
@@ -72,6 +74,7 @@ import {
     ParseSkillFileResponse,
     McpServerStatusDTO,
     SetMcpServerEnabledRequest,
+    SignInMcpServerRequest,
     AddMcpServerRequest,
     AddMcpServerResponse,
     OpenMcpConfigRequest,
@@ -79,6 +82,10 @@ import {
     UpdateMcpServerRequest,
     DeleteMcpServerRequest,
     SetMcpToolsEnabledRequest,
+    SetCopilotOrbVisibleRequest,
+    CopilotToggleSetting,
+    CopilotToggleSettings,
+    SetCopilotToggleSettingRequest,
     McpLoadErrorsDTO,
     AgentsMdFileInfoDTO,
     ThreadSummary,
@@ -103,7 +110,7 @@ import * as fs from 'fs';
 import path from "path";
 import * as vscode from 'vscode';
 import { window, workspace } from 'vscode';
-import { LOGIN_REQUIRED_WARNING, SIGN_IN_BI_COPILOT } from '../../features/ai/constants';
+import { loginRequiredWarning, signInToCopilot } from '../../features/ai/constants';
 // TODO(auto-memory): temporarily disabled for this release.
 // import {
 //     getGlobalMemoryDir,
@@ -120,6 +127,7 @@ import { extension } from "../../BalExtensionContext";
 import { openChatWindowWithCommand } from "../../features/ai/data-mapper/index";
 import { generateDocumentationForService } from "../../features/ai/documentation/generator";
 import { generateOpenAPISpec } from "../../features/ai/openapi/index";
+import { removeConsoleSummary } from "../../features/ai/agent/console-summary";
 import { BACKEND_URL } from "../../features/ai/utils";
 import { fetchWithAuth } from "../../features/ai/utils/ai-client";
 import { sendSaveChatNotification, sendSkillEnableNotification } from "../../features/ai/utils/ai-utils";
@@ -155,6 +163,7 @@ import {
 import { clearCompactionDisabledWarning } from '../../features/ai/agent/AgentExecutor';
 import { LLM_API_BASE_PATH, WI_EXTENSION_ID } from "../../features/ai/constants";
 import { ContextTypesExecutor } from '../../features/ai/executors/datamapper/ContextTypesExecutor';
+import { agentStatusManager } from '../../features/ai/state/AgentStatusManager';
 import { approvalManager } from '../../features/ai/state/ApprovalManager';
 import { approvalViewManager } from '../../features/ai/state/ApprovalViewManager';
 import { chatStateStorage, isRevertible } from '../../views/ai-panel/chatStateStorage';
@@ -195,6 +204,12 @@ function getActiveThreadId(projectRootPath?: string): string {
 
 const OAUTH_CALLBACK_TIMEOUT_MS = 3 * 60 * 1_000;
 
+const COPILOT_CONFIG_SECTION = 'ballerina.copilot';
+/** Mirrors the defaults declared for these settings in package.json. */
+const COPILOT_TOGGLE_DEFAULTS: CopilotToggleSettings = {
+    followupSuggestions: true,
+};
+
 // Shown when a flow ends without a connection id. "cancelled" and "superseded" are dropped by the
 // webview's run-id guard, so those only reach the log.
 const CONNECTION_FAILURE_MESSAGE: Record<ConnectionSettleReason, string> = {
@@ -204,6 +219,10 @@ const CONNECTION_FAILURE_MESSAGE: Record<ConnectionSettleReason, string> = {
     cancelled: "Connection cancelled.",
     superseded: "Connection cancelled — a newer connection attempt was started.",
 };
+
+const KEYED_THREADS_STATE = "copilot.keyedThreads";
+// Past this, a keyed request starts a new thread: the old one likely no longer matches the code.
+const KEYED_THREAD_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 /**
  * A run owns the active thread until it ends, so reparenting it mid-turn would strand the
@@ -492,8 +511,9 @@ export class AiPanelRpcManager implements AIPanelAPI {
     }
 
     promptForLogin(): void {
-        window.showWarningMessage(LOGIN_REQUIRED_WARNING, SIGN_IN_BI_COPILOT).then(selection => {
-            if (selection === SIGN_IN_BI_COPILOT) {
+        const signIn = signInToCopilot();
+        window.showWarningMessage(loginRequiredWarning(), signIn).then(selection => {
+            if (selection === signIn) {
                 AIStateMachine.service().send(AIMachineEventType.LOGIN);
             }
         });
@@ -604,6 +624,11 @@ User reverted the last made changes. The files have been restored to the state b
 
             chatStateStorage.revertLastGeneration(projectRootPath, threadId);
             console.log(`[Review Actions] Reverted generation: ${doneGeneration.id}`);
+            // consoleSummary is persisted, so this also holds after a reload.
+            if (doneGeneration.consoleSummary) {
+                removeConsoleSummary(doneGeneration.id);
+                chatStateStorage.updateGeneration(projectRootPath, threadId, doneGeneration.id, { consoleSummary: undefined });
+            }
 
             // Drop the manager's cached review for this generation so a queued/late
             // navigation cannot reopen the just-reverted diff.
@@ -832,6 +857,13 @@ User reverted the last made changes. The files have been restored to the state b
                 throw new Error('Restoring the workspace from the checkpoint failed; the conversation was not rewound.');
             }
 
+            // Every turn the truncation drops has its changes undone, so collect the ones
+            // that were published to the console before they are gone.
+            const publishedIds = chatStateStorage
+                .getGenerationsFromCheckpoint(projectRootPath, threadId, params.checkpointId)
+                .filter(generation => generation.consoleSummary)
+                .map(generation => generation.id);
+
             // 2. Truncate thread history to this checkpoint
             const restored = chatStateStorage.restoreThreadToCheckpoint(
                 projectRootPath,
@@ -842,6 +874,8 @@ User reverted the last made changes. The files have been restored to the state b
             if (!restored) {
                 throw new Error('Failed to restore thread to checkpoint');
             }
+
+            publishedIds.forEach(id => removeConsoleSummary(id));
         } finally {
             endRestore(projectRootPath);
         }
@@ -866,6 +900,25 @@ User reverted the last made changes. The files have been restored to the state b
         if (refuseWhileBusy(projectRootPath, 'switchThread')) { return false; }
         chatStateStorage.switchToThread(projectRootPath, params.threadId);
         return true;
+    }
+
+    async prepareKeyedThread(params: PrepareKeyedThreadRequest): Promise<PrepareKeyedThreadResponse> {
+        const projectRootPath = resolveProjectRootPath();
+        if (refuseWhileBusy(projectRootPath, 'prepareKeyedThread')) {
+            window.showInformationMessage('Copilot is still working on another request. Try again when it finishes.');
+            return { status: 'busy' };
+        }
+        const mapKey = `${projectRootPath}::${params.key}`;
+        const keyed = extension.context.workspaceState.get<Record<string, string>>(KEYED_THREADS_STATE, {});
+        const thread = chatStateStorage.listThreadsSummary(projectRootPath).find((summary) => summary.id === keyed[mapKey]);
+        if (thread && Date.now() - thread.updatedAt < KEYED_THREAD_MAX_AGE_MS) {
+            chatStateStorage.switchToThread(projectRootPath, thread.id);
+            return { status: 'reused' };
+        }
+        const threadId = chatStateStorage.createNewThread(projectRootPath);
+        clearCompactionDisabledWarning(projectRootPath, threadId);
+        await extension.context.workspaceState.update(KEYED_THREADS_STATE, { ...keyed, [mapKey]: threadId });
+        return { status: 'created' };
     }
 
     async deleteThread(params: DeleteThreadRequest): Promise<void> {
@@ -1450,6 +1503,17 @@ User reverted the last made changes. The files have been restored to the state b
         notifyMcpServersChanged(manager.listServers());
     }
 
+    async signInMcpServer(params: SignInMcpServerRequest): Promise<void> {
+        const manager = getMcpClientManager();
+        if (!manager) {
+            return;
+        }
+        const signIn = manager.signIn(params.scope ?? "user", params.name);
+        notifyMcpServersChanged(manager.listServers());
+        await signIn;
+        notifyMcpServersChanged(manager.listServers());
+    }
+
     async openMcpConfig(params: OpenMcpConfigRequest): Promise<void> {
         const scope = params?.scope ?? "user";
         let workspacePath: string | undefined;
@@ -1580,6 +1644,36 @@ User reverted the last made changes. The files have been restored to the state b
     async setMcpToolsEnabled(params: SetMcpToolsEnabledRequest): Promise<void> {
         await workspace.getConfiguration('ballerina')
             .update(MCP_ENABLE_SETTING, !!params?.enabled, ConfigurationTarget.Global);
+    }
+
+    async getCopilotOrbVisible(): Promise<boolean> {
+        return agentStatusManager.isOrbVisible();
+    }
+
+    async setCopilotOrbVisible(params: SetCopilotOrbVisibleRequest): Promise<void> {
+        await agentStatusManager.setOrbHidden(!params?.visible);
+    }
+
+    async getCopilotToggleSettings(): Promise<CopilotToggleSettings> {
+        const config = workspace.getConfiguration(COPILOT_CONFIG_SECTION);
+        const settings = { ...COPILOT_TOGGLE_DEFAULTS };
+        for (const key of Object.keys(COPILOT_TOGGLE_DEFAULTS) as CopilotToggleSetting[]) {
+            settings[key] = config.get<boolean>(key, COPILOT_TOGGLE_DEFAULTS[key]);
+        }
+        return settings;
+    }
+
+    async setCopilotToggleSetting(params: SetCopilotToggleSettingRequest): Promise<void> {
+        if (!params || !Object.prototype.hasOwnProperty.call(COPILOT_TOGGLE_DEFAULTS, params.key)) {
+            throw new Error(`Unknown Copilot setting: ${params?.key}`);
+        }
+        const config = workspace.getConfiguration(COPILOT_CONFIG_SECTION);
+        // These are resource-scoped: a workspace value would shadow a global write and the
+        // toggle would seem to do nothing, so write where the effective value comes from.
+        const target = config.inspect<boolean>(params.key)?.workspaceValue !== undefined
+            ? ConfigurationTarget.Workspace
+            : ConfigurationTarget.Global;
+        await config.update(params.key, !!params.value, target);
     }
 
     async getAgentsMdFileInfo(): Promise<AgentsMdFileInfoDTO> {

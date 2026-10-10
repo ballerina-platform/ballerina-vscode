@@ -207,7 +207,7 @@
             "selected": true
           }
         ],
-        "value": "\n@workflow:Activity\n\n",
+        "value": "@workflow:Activity",
         "optional": false,
         "editable": false,
         "advanced": false,

@@ -33,12 +33,15 @@ interface FieldType {
 export interface SeedableProperty {
     value?: unknown;
     types?: FieldType[];
+    hidden?: boolean;
+    editable?: boolean;
 }
 
 // The modes that hold text rather than source. A doc box is one of them: it is a single mode, but a
 // literal still belongs in it decoded.
 const TEXT_MODES = ["TEXT", "DOC_TEXT"];
 const EXPRESSION = "EXPRESSION";
+const TEXT_SET = "TEXT_SET";
 
 /** Whether the source is a plain string literal, the one shape a text box can hold. */
 function stringLiteral(source: string): boolean {
@@ -63,7 +66,33 @@ function stringLiteral(source: string): boolean {
  * The text a string literal denotes, with the escapes it carries resolved. Read in one pass: an
  * escaped backslash consumes the character after it, so `"C:\\new"` is a path and not a line break.
  */
+const TEMPLATE_PREFIX = "string `";
+
+/**
+ * The body of a `string `...`` template that interpolates nothing: what the text box writes, and
+ * what it should read back. A template with an interpolation is an expression.
+ */
+function plainTemplateBody(source: string): string | undefined {
+    const trimmed = source.trim();
+    if (trimmed.length < TEMPLATE_PREFIX.length + 1 || !trimmed.startsWith(TEMPLATE_PREFIX) || !trimmed.endsWith("`")) {
+        return undefined;
+    }
+    const body = trimmed.slice(TEMPLATE_PREFIX.length, -1);
+    return body.includes("${") || body.includes("`") ? undefined : body;
+}
+
+/** Whether the source is text the form can show as it is meant: a string literal or a plain template. */
+function textSource(source: string): boolean {
+    return stringLiteral(source) || plainTemplateBody(source) !== undefined;
+}
+
+/** The text a literal or a plain template denotes: a literal is unescaped, a template's body is taken as written. */
 function literalText(source: string): string {
+    const template = plainTemplateBody(source);
+    if (template !== undefined) {
+        // Ballerina keeps a template's backslashes: `string \`C:\\temp\`` is the seven characters C:\temp.
+        return template;
+    }
     const body = source.slice(1, -1);
     let text = "";
     for (let i = 0; i < body.length; i++) {
@@ -113,7 +142,7 @@ export function capabilityValueText(source: string | undefined): string | undefi
     if (!source) {
         return source;
     }
-    return stringLiteral(source) ? literalText(source) : source;
+    return textSource(source) ? literalText(source) : source;
 }
 
 /**
@@ -134,7 +163,19 @@ export function seedCapabilityValue(property: SeedableProperty, source: string):
     const textMode = types.find((type) => TEXT_MODES.includes(type.fieldType ?? ""));
     const expressionMode = types.find((type) => type.fieldType === EXPRESSION);
 
-    if (textMode && stringLiteral(source)) {
+    // A list-of-text field (roles, users) shows names one by one: a literal or a list of them is
+    // decoded into items; anything else is the expression it is.
+    const listMode = types.find((type) => type.fieldType === TEXT_SET);
+    if (listMode) {
+        const items = literalItems(source);
+        if (items !== undefined) {
+            property.value = items;
+            select(types, listMode);
+            return;
+        }
+    }
+
+    if (textMode && textSource(source)) {
         property.value = literalText(source);
         select(types, textMode);
         return;
@@ -147,8 +188,86 @@ export function seedCapabilityValue(property: SeedableProperty, source: string):
     }
 }
 
+/**
+ * The names a role value states, decoded; undefined when it belongs to the expression mode. A copy of
+ * core's `parseTextArraySource` (this suite cannot load core's ESM); roleValues.json holds both to one table.
+ */
+function literalItems(source: string): string[] | undefined {
+    const trimmed = source.trim();
+    if (trimmed === "" || trimmed === "()" || trimmed === "[]") {
+        return [];
+    }
+    if (stringLiteral(trimmed)) {
+        return [literalText(trimmed)];
+    }
+    if (!trimmed.startsWith("[") || !trimmed.endsWith("]")) {
+        return undefined;
+    }
+    const items: string[] = [];
+    let depth = 0;
+    let quoted = false;
+    let start = 0;
+    const body = trimmed.slice(1, -1);
+    const push = (part: string): boolean => {
+        const candidate = part.trim();
+        if (candidate === "") {
+            return true;
+        }
+        if (!stringLiteral(candidate)) {
+            return false;
+        }
+        items.push(literalText(candidate));
+        return true;
+    };
+    for (let i = 0; i < body.length; i++) {
+        const ch = body[i];
+        if (quoted) {
+            if (ch === "\\") {
+                i++;
+            } else if (ch === '"') {
+                quoted = false;
+            }
+            continue;
+        }
+        if (ch === '"') {
+            quoted = true;
+        } else if (ch === "[" || ch === "{" || ch === "(") {
+            depth++;
+        } else if (ch === "]" || ch === "}" || ch === ")") {
+            depth--;
+        } else if (ch === "," && depth === 0) {
+            if (!push(body.slice(start, i))) {
+                return undefined;
+            }
+            start = i + 1;
+        }
+    }
+    return push(body.slice(start)) ? items : undefined;
+}
+
 function select(types: FieldType[], chosen: FieldType): void {
     types.forEach((type) => {
         type.selected = type === chosen;
     });
+}
+
+// The entry fields the add template hides: registering asks for the bindings and the policies alone.
+// They are DurableAgentAddActivityBuilder.ACTIVITY_NAME_KEY / ACTIVITY_DESCRIPTION_KEY on the language
+// server; a rename there must be mirrored here, or the edit form silently stops showing them.
+const ACTIVITY_IDENTITY_KEYS = ["name", "description"];
+
+/**
+ * Shows an activity entry's name and description on its edit form, read-only: the add template hides both,
+ * and on an existing entry they are shown as declared, or as the defaults the server puts in the placeholders.
+ *
+ * @param properties the template's properties, edited in place
+ */
+export function showActivityIdentityReadOnly(properties: Record<string, SeedableProperty> | undefined): void {
+    for (const key of ACTIVITY_IDENTITY_KEYS) {
+        const property = properties?.[key];
+        if (property) {
+            property.hidden = false;
+            property.editable = false;
+        }
+    }
 }

@@ -49,14 +49,14 @@ const Backdrop = styled(PopupOverlay)`
     }
 `;
 
-type BoxProps = { $expanded?: boolean; $autoHeight?: boolean; $maxWidth?: number };
+type BoxProps = { $expanded?: boolean; $autoHeight?: boolean; $maxWidth?: number; $height?: string };
 
 const Box = styled(PopupContainer) <BoxProps>`
     width: ${(props: BoxProps) => props.$expanded ? "90%" : "80%"};
     max-width: ${(props: BoxProps) => props.$maxWidth ? `${props.$maxWidth}px` : props.$expanded ? "1000px" : "800px"};
-    transition: max-height 180ms ease, max-width 180ms ease;
-    height: ${(props: BoxProps) => props.$autoHeight ? "auto" : props.$expanded ? "90vh" : "80vh"};
-    max-height: ${(props: BoxProps) => props.$autoHeight ? "90vh" : props.$expanded ? "none" : "800px"};
+    transition: height 180ms ease, max-height 180ms ease, max-width 180ms ease;
+    height: ${(props: BoxProps) => props.$height ?? (props.$autoHeight ? "auto" : props.$expanded ? "90vh" : "80vh")};
+    max-height: ${(props: BoxProps) => props.$autoHeight ? "92vh" : props.$expanded ? "none" : "800px"};
     min-height: ${(props: BoxProps) => props.$autoHeight ? "0" : "480px"};
     animation: ${popIn} ${ENTER_MS}ms cubic-bezier(0.16, 1, 0.3, 1) both;
     &.closing {
@@ -80,7 +80,7 @@ export const PopupModalStep = styled.div<{ $direction?: PopupModalStepDirection;
         props.$animate === false
             ? "none"
             : `${props.$direction === "backward" ? "popup-step-backward" : "popup-step-forward"} `
-              + `${STEP_MS}ms ease-out both`};
+            + `${STEP_MS}ms ease-out both`};
 
     @keyframes popup-step-forward {
         from { opacity: 0; transform: translateX(8px); }
@@ -104,13 +104,14 @@ export interface PopupModalProps {
     expanded?: boolean;
     autoHeight?: boolean;
     maxWidth?: number;
+    height?: string;
     zIndexBase?: number;
     ariaLabelledBy?: string;
     children: (close: () => void) => ReactNode;
 }
 
 export function PopupModal(props: PopupModalProps) {
-    const { onClose, dismissOnBackdropClick, dismissOnEscape, expanded, autoHeight, maxWidth, zIndexBase, ariaLabelledBy, children } = props;
+    const { onClose, dismissOnBackdropClick, dismissOnEscape, expanded, autoHeight, maxWidth, height, zIndexBase, ariaLabelledBy, children } = props;
     const [closing, setClosing] = useState(false);
     const exitTimer = useRef<ReturnType<typeof setTimeout>>(null);
 
@@ -144,7 +145,7 @@ export function PopupModal(props: PopupModalProps) {
             <Backdrop
                 className={closingClass}
                 onClose={dismissOnBackdropClick ? close : undefined}
-                sx={zIndexBase ? { zIndex: zIndexBase } : undefined}
+                sx={{ zIndex: zIndexBase ?? 1999 }}
             />
             <Box
                 role="dialog"
@@ -153,6 +154,7 @@ export function PopupModal(props: PopupModalProps) {
                 $expanded={expanded}
                 $autoHeight={autoHeight}
                 $maxWidth={maxWidth}
+                $height={height}
                 className={closingClass}
                 style={zIndexBase ? { zIndex: zIndexBase + 1 } : undefined}
             >

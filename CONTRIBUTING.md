@@ -116,7 +116,7 @@ several minutes; subsequent runs hit the install cache.
 # Build everything — TS packages, grammar, LS (via Gradle), and the extension
 # (webpack + vsce package). All 27 projects are reachable from ballerina-extension,
 # so `rush build` and `rush build --to ballerina` are equivalent.
-# Requires Java 21 + packageUser / packagePAT for the LS. Skips ./gradlew test/check.
+# Requires Java 25 + packageUser / packagePAT for the LS. Skips ./gradlew test/check.
 rush build
 
 # Skip the LS entirely — build only the TS chain up to the visualizer
@@ -242,7 +242,7 @@ line to the extension's `5.x` line. Consumers pinning
 After changing the extension version, rebuild the LS before packaging so the exact
 versioned jar exists. A stale jar from another version is never selected.
 
-Building the extension therefore requires being able to build the LS: JDK 21 and
+Building the extension therefore requires being able to build the LS: JDK 25 and
 GitHub Packages credentials (`packageUser` / `packagePAT` in `~/.gradle/gradle.properties`).
 
 ```bash

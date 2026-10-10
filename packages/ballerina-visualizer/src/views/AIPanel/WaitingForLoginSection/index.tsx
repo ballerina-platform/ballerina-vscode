@@ -1013,7 +1013,7 @@ const WaitingForLogin = ({ loginMethod, isValidating = false, errorMessage, embe
                 buttonTitle="Cancel"
                 onClick={cancelLogin}
                 subTitle={
-                    `Waiting for the login credentials. Please sign in to your ${assistantName} account in the browser window to continue.`
+                    "Waiting for the login credentials. Please sign in with your WSO2 account in the browser window to continue."
                 }
                 title={"Waiting for Login"}
             />

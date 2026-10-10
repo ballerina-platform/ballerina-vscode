@@ -32,7 +32,7 @@ export type AIPanelView = 'settings' | 'mcp' | 'skills';
 
 export type AIPanelPrompt =
     | { type: 'command-template'; command: Command; templateId: TemplateId; text?: string; params?: Record<string, string>; metadata?: Record<string, any>; hiddenContext?: string }
-    | { type: 'text'; text: string; planMode: boolean; codeContext?: CodeContext; autoSubmit?: boolean; hiddenContext?: string; suggestedCommandTemplates?: AIPanelPrompt[];    inputPlaceholder?:string; attachments?: Attachment[]; newThread?: boolean; }
+    | { type: 'text'; text: string; planMode: boolean; codeContext?: CodeContext; autoSubmit?: boolean; hiddenContext?: string; suggestedCommandTemplates?: AIPanelPrompt[];    inputPlaceholder?:string; attachments?: Attachment[]; newThread?: boolean; threadKey?: string; consoleScaffold?: boolean; }
     | { type: 'skill'; skillId: string; skillName: string; args?: string; tagParams?: Record<string, string>; autoSubmit?: boolean; hiddenContext?: string }
     /** Opens the panel straight onto one of its surfaces, or onto an existing thread. */
     | { type: 'view'; view: AIPanelView }
@@ -322,6 +322,8 @@ export interface GenerateAgentCodeRequest {
     promptSource?: 'ai-panel' | 'mini-chat';
     /** Host-validated workspace-relative Ballerina file currently associated with the prompt surface. */
     activeFilePath?: string;
+    /** The scaffold turn auto-submitted from a WSO2 Integration Platform console plan. Its thread publishes console summaries. */
+    consoleScaffold?: boolean;
 }
 
 export type LibraryMode = "CORE" | "HEALTHCARE" | "ALL";
@@ -638,6 +640,15 @@ export interface SwitchThreadRequest {
     threadId: string;
 }
 
+export interface PrepareKeyedThreadRequest {
+    key: string;
+}
+
+/** `busy` when a run or checkpoint restore is in progress, so nothing was switched or created. */
+export interface PrepareKeyedThreadResponse {
+    status: "reused" | "created" | "busy";
+}
+
 export interface DeleteThreadRequest {
     threadId: string;
 }
@@ -896,7 +907,7 @@ export interface McpToolSummaryDTO {
 }
 export type McpServerConfigDTO =
     | { type: "stdio"; command: string; args?: string[]; env?: Record<string, string> }
-    | { type: "http"; url: string; headers?: Record<string, string>; headersFromEnv?: Record<string, string> };
+    | { type: "http"; url: string; headers?: Record<string, string>; headersFromEnv?: Record<string, string>; oauth?: { clientId: string; callbackPort: number } };
 export interface McpServerStatusDTO {
     name: string;
     scope: McpScope;
@@ -904,11 +915,16 @@ export interface McpServerStatusDTO {
     enabled: boolean;
     status: McpConnectionStatus;
     error?: string;
+    signInRequired?: boolean;
     tools: McpToolSummaryDTO[];
     /** Raw config as stored on disk — used by the Edit dialog to pre-fill fields. */
     config: McpServerConfigDTO;
     /** True when this user-scope server is shadowed by a same-named workspace-scope server. */
     shadowed?: boolean;
+}
+export interface SignInMcpServerRequest {
+    name: string;
+    scope: McpScope;
 }
 export interface SetMcpServerEnabledRequest {
     name: string;
@@ -941,6 +957,16 @@ export interface DeleteMcpServerRequest {
 }
 export interface SetMcpToolsEnabledRequest {
     enabled: boolean;
+}
+export interface SetCopilotOrbVisibleRequest {
+    visible: boolean;
+}
+/** Boolean `ballerina.copilot.*` settings the Copilot settings panel toggles, keyed relative to that section. */
+export type CopilotToggleSetting = 'followupSuggestions';
+export type CopilotToggleSettings = Record<CopilotToggleSetting, boolean>;
+export interface SetCopilotToggleSettingRequest {
+    key: CopilotToggleSetting;
+    value: boolean;
 }
 /** Per-scope parse / read errors for `mcp.json` files. Both fields are optional — missing means OK. */
 export interface McpLoadErrorsDTO {

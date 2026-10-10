@@ -62,7 +62,11 @@ public record TriggerLibraryFacts(List<Listener> listeners, List<ServiceType> se
                            boolean returnsError, String doc, List<Param> parameters) {
     }
 
-    public record ServiceType(String name, String doc, List<Function> functions) {
+    public record ServiceType(String name, String doc, List<Function> functions, List<String> qualifiers) {
+
+        public ServiceType(String name, String doc, List<Function> functions) {
+            this(name, doc, functions, List.of());
+        }
     }
 
     public record Annotation(String name, String module, String typeConstraint, List<String> attachmentPoints,

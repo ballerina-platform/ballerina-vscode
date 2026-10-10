@@ -1,0 +1,96 @@
+{
+  "source": "new_connection6/main.bal",
+  "description": "Explicit new of a class in the own module stays unqualified",
+  "diagram": {
+    "id": "43704",
+    "metadata": {
+      "label": "New Connection",
+      "description": "Create a new connection"
+    },
+    "codedata": {
+      "node": "NEW_CONNECTION",
+      "org": "nipunaf",
+      "module": "new_connection1",
+      "object": "MyClient",
+      "symbol": "init",
+      "isNew": true,
+      "data": {
+        "explicitNewType": "MyClient"
+      }
+    },
+    "returning": false,
+    "properties": {
+      "checkError": {
+        "metadata": {
+          "label": "Check Flag",
+          "description": "Whether to check the expression error"
+        },
+        "valueType": "FLAG",
+        "value": true,
+        "optional": false,
+        "editable": true,
+        "advanced": false
+      },
+      "scope": {
+        "metadata": {
+          "label": "Connection Scope",
+          "description": "Scope of the connection, Global or Local"
+        },
+        "valueType": "ENUM",
+        "value": "Global",
+        "optional": false,
+        "editable": true
+      },
+      "config": {
+        "metadata": {
+          "label": "config",
+          "description": "configuration for the connector\n"
+        },
+        "placeholder": "{}",
+        "valueType": "EXPRESSION",
+        "optional": false,
+        "editable": true,
+        "codedata": {
+          "kind": "INCLUDED_RECORD",
+          "originalName": "config"
+        }
+      },
+      "variable": {
+        "metadata": {
+          "label": "Data variable",
+          "description": "Name of the variable"
+        },
+        "value": "myClient",
+        "optional": false,
+        "editable": true
+      },
+      "type": {
+        "metadata": {
+          "label": "Data type",
+          "description": "Type of the variable"
+        },
+        "value": "MyClient",
+        "optional": false,
+        "editable": true
+      }
+    },
+    "flags": 1
+  },
+  "output": {
+    "new_connection6/connections.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 6,
+            "character": 39
+          },
+          "end": {
+            "line": 6,
+            "character": 39
+          }
+        },
+        "newText": "\nfinal MyClient myClient = check new MyClient();"
+      }
+    ]
+  }
+}

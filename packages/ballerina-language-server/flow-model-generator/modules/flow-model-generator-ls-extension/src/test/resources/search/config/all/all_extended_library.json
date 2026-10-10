@@ -1,0 +1,278 @@
+{
+  "description": "ALL search places ballerinax functions under Extended Library and ballerina functions under Standard Library, as the function search does",
+  "kind": "ALL",
+  "source": "empty.bal",
+  "position": {
+    "startLine": {
+      "line": 1,
+      "offset": 1
+    },
+    "endLine": {
+      "line": 1,
+      "offset": 1
+    }
+  },
+  "queryMap": {
+    "q": "parse",
+    "limit": "20"
+  },
+  "categories": [
+    {
+      "metadata": {
+        "label": "Agent Tools",
+        "description": "Functions used as agent tools",
+        "keywords": [
+          "Project",
+          "Local",
+          "Function"
+        ]
+      },
+      "items": []
+    },
+    {
+      "metadata": {
+        "label": "Current Integration",
+        "description": "Components defined within the current integration",
+        "keywords": [
+          "Project",
+          "Local",
+          "Function",
+          "Types",
+          "Data Mapper"
+        ]
+      },
+      "items": []
+    },
+    {
+      "metadata": {
+        "label": "Imported Functions",
+        "description": "Functions imported from other integrations",
+        "keywords": [
+          "Imported",
+          "Function",
+          "Library"
+        ]
+      },
+      "items": []
+    },
+    {
+      "metadata": {
+        "label": "Standard Library",
+        "description": "Components supported officially by Ballerina",
+        "keywords": [
+          "Ballerina",
+          "Library"
+        ]
+      },
+      "items": []
+    },
+    {
+      "metadata": {
+        "label": "Extended Library",
+        "description": "Components from the ballerinax organization",
+        "keywords": [
+          "Ballerinax",
+          "Library"
+        ]
+      },
+      "items": [
+        {
+          "metadata": {
+            "label": "health.fhir.r4.parser",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "parseConstraintErrors",
+                "description": "",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4.parser_7.1.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "health.fhir.r4.parser",
+                "packageName": "health.fhir.r4.parser",
+                "symbol": "parseConstraintErrors",
+                "version": "7.1.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "parseWithValidation",
+                "description": "Function to validate and parse FHIR resource payload.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4.parser_7.1.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "health.fhir.r4.parser",
+                "packageName": "health.fhir.r4.parser",
+                "symbol": "parseWithValidation",
+                "version": "7.1.1"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "health.fhir.r5.parser",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "parseConstraintErrors",
+                "description": "",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r5.parser_1.0.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "health.fhir.r5.parser",
+                "packageName": "health.fhir.r5.parser",
+                "symbol": "parseConstraintErrors",
+                "version": "1.0.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "parseWithValidation",
+                "description": "Function to validate and parse FHIR resource payload.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r5.parser_1.0.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "health.fhir.r5.parser",
+                "packageName": "health.fhir.r5.parser",
+                "symbol": "parseWithValidation",
+                "version": "1.0.1"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "health.ccda.r3",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "parse",
+                "description": "",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.ccda.r3_0.9.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "health.ccda.r3",
+                "packageName": "health.ccda.r3",
+                "symbol": "parse",
+                "version": "0.9.0"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "health.dicom.dicomparser",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "parse",
+                "description": "Parses a DICOM source.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.dicom.dicomparser_0.1.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "health.dicom.dicomparser",
+                "packageName": "health.dicom.dicomparser",
+                "symbol": "parse",
+                "version": "0.1.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "parseFile",
+                "description": "Parses a DICOM File.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.dicom.dicomparser_0.1.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "health.dicom.dicomparser",
+                "packageName": "health.dicom.dicomparser",
+                "symbol": "parseFile",
+                "version": "0.1.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "parseTag",
+                "description": "Parses a DICOM Tag.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.dicom.dicomparser_0.1.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "health.dicom.dicomparser",
+                "packageName": "health.dicom.dicomparser",
+                "symbol": "parseTag",
+                "version": "0.1.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "parseDataset",
+                "description": "Parses a DICOM Data Set.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.dicom.dicomparser_0.1.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "health.dicom.dicomparser",
+                "packageName": "health.dicom.dicomparser",
+                "symbol": "parseDataset",
+                "version": "0.1.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "parseSequenceValue",
+                "description": "Parses a DICOM sequence value.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.dicom.dicomparser_0.1.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "health.dicom.dicomparser",
+                "packageName": "health.dicom.dicomparser",
+                "symbol": "parseSequenceValue",
+                "version": "0.1.0"
+              },
+              "enabled": true
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

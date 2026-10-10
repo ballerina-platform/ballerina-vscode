@@ -18,13 +18,10 @@
 export const PENDING_MIGRATION_ENHANCEMENT_KEY = "ballerina.pendingMigrationEnhancement";
 
 /**
- * Persistent globalState key that stores just the project root of the most
- * recently migrated project.  Unlike `PENDING_MIGRATION_ENHANCEMENT_KEY` this
- * entry is never TTL-expired so `getActiveMigrationSessionState` can always
- * locate the state file even if the webview mounts before
- * `checkAndRunPendingEnhancement` runs.
+ * globalState key older builds wrote the last migrated project root to. It is no
+ * longer read or written; `checkAndRunPendingEnhancement` clears it from existing installs.
  */
-export const MIGRATION_PROJECT_ROOT_KEY = "ballerina.migrationProjectRoot";
+export const LEGACY_MIGRATION_PROJECT_ROOT_KEY = "ballerina.migrationProjectRoot";
 
 /** Hidden directory inside the project root that stores AI migration metadata. */
 export const AI_MIGRATION_DIR = ".ballerina-ai-migration";

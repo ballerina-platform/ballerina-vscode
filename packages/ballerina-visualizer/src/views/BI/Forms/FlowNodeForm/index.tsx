@@ -100,6 +100,14 @@ import { ConnectionConfigurationPopup } from "../../Connection/ConnectionConfigu
 import { createPortal } from "react-dom";
 import { cloneDeep, debounce } from "lodash";
 import {
+    clearHiddenDependentValues,
+    dependentKeys,
+    forgetRetype,
+    picksWorkflow,
+    retypeFieldsFromTemplate,
+    shouldRetype,
+} from "./dependentFields";
+import {
     createNodeWithUpdatedLineRange,
     deserializeForDiagnosticsAPI,
     processFormData,
@@ -125,7 +133,7 @@ import { SidePanelView } from "../../FlowDiagram/PanelManager";
 import { ConnectionKind, useCreateNode } from "../../../../components/ConnectionSelector";
 import { getFilteredTypesByKind } from "../../TypeEditor/utils";
 import { useModalStack } from "../../../../Context";
-import { getArraySubFormFieldFromTypes, stringToRawArrayElements, stringToRawObjectEntries } from "@wso2/ballerina-side-panel/lib/components/editors/utils";
+import { getArrayElementValues, getArraySubFormFieldFromTypes, stringToRawArrayElements, stringToRawObjectEntries } from "@wso2/ballerina-side-panel/lib/components/editors/utils";
 import { useAssistantName } from "../../../../hooks/useProductMode";
 
 interface FlowNodeTypeEditorState {
@@ -333,6 +341,9 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     const [isAiUserAuthenticated, setIsAiUserAuthenticated] = useState(false);
     const formImportsRef = useRef<FormImports>({});
     const [typeEditorState, setTypeEditorState] = useState<FlowNodeTypeEditorState>({ isOpen: false, newTypeValue: "" });
+    // The live editor of the type field that opened "Create New Type", so the created type lands in that field,
+    // also when it sits inside a sub-form (a Data Waits entry) whose values live in a nested form.
+    const typeHelperOnChangeRef = useRef<(newType: string, newCursorPosition: number) => void>();
     const [isTypeEditorOpen, setIsTypeEditorOpen] = useState<boolean>(false);
     const [editingTypeName, setEditingTypeName] = useState<string>("");
     const [visualizableField, setVisualizableField] = useState<VisualizableField>();
@@ -683,9 +694,15 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         fields = hideTypeDescriptionField(fields);
 
         const sortedFields = sortFieldsByPriority(fields);
+        // `Form` reports every field as changed on first render; the opening values must not count.
+        retypedForRef.current = Object.fromEntries(sortedFields.map((field) => [field.key, field.value]));
+        // A template still in flight for the node that was open belongs to that node, not this one.
+        retypeRequest.current++;
         setBaseFields(sortedFields);
         formImportsRef.current = getImportsForFormFields(sortedFields);
     };
+
+    const diagnosticsRequestRef = useRef(0);
 
     const setDiagnosticsToFields = (data: FormValues, nodeWithDiagnostics: FlowNode) => {
         setFormDiagnostics(nodeWithDiagnostics?.diagnostics?.diagnostics ?? []);
@@ -703,16 +720,17 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
 
             // Update value from current form data and update diagnostics
             if (data[field.key] !== undefined) {
-                if (isContainingRepeatableList && Array.isArray(nodeProperties?.[field.key]?.value)) {
+                if ((isContainingRepeatableList || isContainingRepeatableMap) && data[field.key] === "") {
+                    updatedField.value = "";
+                }
+                else if (isContainingRepeatableList && Array.isArray(nodeProperties?.[field.key]?.value)) {
                     if (selectedInputType?.fieldType === "REPEATABLE_LIST") {
                         let initialValues: string[];
                         if (typeof data[field.key] === 'string') {
                             initialValues = stringToRawArrayElements(data[field.key]);
                         } else {
                             // When the value is an array (from FormArrayEditor), extract values directly
-                            initialValues = (data[field.key] as any[]).map((val: any) =>
-                                typeof val === 'string' ? val : String(val?.value ?? '')
-                            );
+                            initialValues = getArrayElementValues(data[field.key] as any[]);
                         }
                         const initialFields = initialValues.map((val, index) => {
                             const key = crypto.randomUUID();
@@ -764,8 +782,11 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             // level so that the exp mode also can show the diagnostics. Property-level diagnostics don't have a
             // `range`, so use a simple message-based dedupe and provide explicit typing to satisfy TypeScript.
             if (isRepeatableList && !(Array.isArray(propertyDiagnostics) && propertyDiagnostics.length > 0)) {
+                const repeatableListValue = nodeProperties?.[field.key]?.value;
                 const collectedDiagnostics = (
-                    nodeProperties?.[field.key]?.value?.map((val: any) => val?.diagnostics?.diagnostics) ?? []
+                    Array.isArray(repeatableListValue)
+                        ? repeatableListValue.map((val: any) => val?.diagnostics?.diagnostics)
+                        : []
                 ).flat().filter(Boolean) as Array<{ message?: string; severity?: string }>;
 
                 propertyDiagnostics = collectedDiagnostics.filter((d, i, arr) =>
@@ -879,17 +900,70 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             const validationData = buildValidationData(data);
 
             const updatedNode = mergeFormDataWithFlowNode(validationData, targetLineRange, dirtyFields);
+            const requestId = ++diagnosticsRequestRef.current;
             const nodeWithDiagnostics = await getFormWithDiagnostics(updatedNode);
-            setDiagnosticsToFields(data, nodeWithDiagnostics!);
+            if (requestId === diagnosticsRequestRef.current) {
+                setDiagnosticsToFields(data, nodeWithDiagnostics!);
+            }
         }
     };
+
+    // The fields typed from a dropdown's choice take their type from the template for the new
+    // choice; the last fetch wins when choices change faster than templates arrive.
+    const retypeRequest = useRef(0);
+    // The value each field was last seen holding, so a re-report of the same value does nothing.
+    const retypedForRef = useRef<Record<string, unknown>>({});
+    const retypeDependentFields = useCallback(async (fieldKey: string, value: unknown) => {
+        // Only the forms that pick a workflow: elsewhere a dropdown holds something that is not a
+        // symbol, and a template fetched for it would ask for one that does not exist.
+        if (!node || !picksWorkflow(node.codedata?.node) || !fileName) {
+            return;
+        }
+        // The dropdown check comes first: handleFormChange reports every field, and a bump from one
+        // of the others would strand the fetch the dropdown's own change is waiting on.
+        const changed = baseFields.find((field) => field.key === fieldKey);
+        if (!changed?.types?.some((type) => type.fieldType === "SINGLE_SELECT")) {
+            return;
+        }
+        // Captured before the await: initForm replaces the ref's object when another node opens,
+        // and a late answer must not write this node's record into that one.
+        const lastSeen = retypedForRef.current;
+        const previous = lastSeen[fieldKey];
+        if (!shouldRetype(lastSeen, fieldKey, value)) {
+            // A value that is gone or unchanged must also strand any fetch still in flight for the
+            // one before it, or its answer would retype fields for a workflow no longer chosen.
+            retypeRequest.current++;
+            return;
+        }
+        const request = ++retypeRequest.current;
+        try {
+            const response = await rpcClient.getBIDiagramRpcClient().getNodeTemplate({
+                position: targetLineRange?.startLine,
+                filePath: fileName,
+                id: { ...node.codedata, symbol: value },
+            });
+            if (request !== retypeRequest.current || !response?.flowNode) {
+                forgetRetype(lastSeen, fieldKey, value, previous);
+                return;
+            }
+            const template = getFormProperties(response.flowNode) ?? {};
+            setBaseFields((prev) => {
+                const keys = dependentKeys(prev, template, fieldKey);
+                return keys.length === 0 ? prev : retypeFieldsFromTemplate(prev, keys, template);
+            });
+        } catch (error) {
+            forgetRetype(lastSeen, fieldKey, value, previous);
+            console.error(">>> Failed to retype the fields that follow", fieldKey, error);
+        }
+    }, [baseFields, fileName, node?.codedata, rpcClient, targetLineRange]);
 
     const handleFormChange = useCallback(
         (fieldKey: string, value: any, allValues: FormValues) => {
             setFormDiagnostics(prev => prev.length > 0 ? [] : prev);
+            void retypeDependentFields(fieldKey, value);
             onChange?.(fieldKey, value, allValues);
         },
-        [onChange]
+        [onChange, retypeDependentFields]
     );
 
 
@@ -916,7 +990,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         const updatedNode = createNodeWithUpdatedLineRange(clonedNode, targetLineRange);
 
         // assign to a existing variable
-        const processedData = processFormData(data);
+        const processedData = clearHiddenDependentValues(processFormData(data), baseFields);
 
         // Update node properties
         const nodeWithUpdatedProps = updateNodeWithProperties(clonedNode, updatedNode, processedData, formImportsRef.current, dirtyFields);
@@ -944,10 +1018,12 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         });
         setBaseFields(updatedFields);
         const newTypeValue = typeof newType === 'string' ? newType : f[editingField?.key];
+        typeHelperOnChangeRef.current = undefined;
         setTypeEditorState({ isOpen, fieldKey: editingField?.key, newTypeValue });
     };
 
     const handleOpenFormTypeEditor = (open: boolean, typeName?: string, editingField?: FormField) => {
+        typeHelperOnChangeRef.current = undefined;
         setTypeEditorState((prevState) => ({
             ...prevState,
             fieldKey: editingField?.key,
@@ -969,6 +1045,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                 return;
             }
             resetStack();
+            typeHelperOnChangeRef.current = undefined;
         }
         setTypeEditorState({ ...typeEditorState, isOpen: state });
     }
@@ -1284,7 +1361,9 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             let diagnostics: DiagnosticMessage[] = [];
             if (property?.types?.length === 1 && getPrimaryInputType(property.types)?.fieldType === "REPEATABLE_LIST") {
                 // For repeatable list, check diagnostics for each element in the list
-                const valueDiagnostics = (property.value as any[])?.map((val) => val?.diagnostics?.diagnostics ?? []).flat() ?? [];
+                const valueDiagnostics = Array.isArray(property.value)
+                    ? property.value.map((val: any) => val?.diagnostics?.diagnostics ?? []).flat()
+                    : [];
                 diagnostics = [...diagnostics, ...valueDiagnostics];
             } else if (property?.types?.some(t => t.fieldType === "REPEATABLE_MAP") && typeof property.value === 'object' && property.value !== null && !Array.isArray(property.value)) {
                 // For repeatable map, check diagnostics for each entry in the map
@@ -1314,8 +1393,11 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         if (node && targetLineRange && !skipFormValidation) {
             const validationData = buildValidationData(data);
             const updatedNode = mergeFormDataWithFlowNode(validationData, targetLineRange, dirtyFields);
+            const requestId = ++diagnosticsRequestRef.current;
             const nodeWithDiagnostics = await getFormWithDiagnostics(updatedNode);
-            setDiagnosticsToFields(data, nodeWithDiagnostics!);
+            if (requestId === diagnosticsRequestRef.current) {
+                setDiagnosticsToFields(data, nodeWithDiagnostics!);
+            }
 
             // HACK: Ignore top-level hasDiagnostics when LS does not send property-level diagnostic messages.
             if (nodeWithDiagnostics?.diagnostics?.hasDiagnostics && hasPropertyDiagnosticMessages(nodeWithDiagnostics)) {
@@ -1415,16 +1497,27 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         handleExpressionEditorCancel();
     };
 
-    const onTypeChange = async (type: Type) => {
+    const onTypeChange = async (type: Type, outermost = true) => {
+        if (type.codedata.node === "RECORD") {
+            handleSelectedTypeChange(convertRecordTypeToCompletionItem(type));
+        }
+        // A type made inside another belongs to that type's field; the form's field takes the outermost one.
+        if (!outermost) {
+            return;
+        }
+        const writeToEditor = typeHelperOnChangeRef.current;
+        if (writeToEditor) {
+            // A dirty field keeps its value over a base-field update, so the type goes through the field's editor.
+            typeHelperOnChangeRef.current = undefined;
+            writeToEditor(type.name, type.name.length);
+            return;
+        }
         const updatedFields = fields.map((field) => {
             if (field.key === typeEditorState.fieldKey) {
                 return { ...field, value: type.name };
             }
             return field;
         });
-        if (type.codedata.node === "RECORD") {
-            handleSelectedTypeChange(convertRecordTypeToCompletionItem(type));
-        }
         setBaseFields(updatedFields);
     };
 
@@ -1514,6 +1607,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     ) => {
         const formField = fields.find(f => f.key === fieldKey);
         const handleCreateNewType = (typeName: string) => {
+            typeHelperOnChangeRef.current = onChange;
             onTypeCreate();
             setTypeEditorState({ isOpen: true, newTypeValue: typeName, fieldKey: fieldKey });
         }
@@ -1986,7 +2080,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                                 newType={peekTypeStack() ? peekTypeStack().isDirty : false}
                                 newTypeValue={typeEditorState.newTypeValue}
                                 isGraphql={isGraphql}
-                                onTypeChange={onTypeChange}
+                                onTypeChange={(type) => onTypeChange(type, i === 0)}
                                 onSaveType={onSaveType}
                                 onTypeCreate={() => { }}
                                 isPopupTypeForm={true}
@@ -2129,7 +2223,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                                 newType={peekTypeStack() ? peekTypeStack().isDirty : false}
                                 newTypeValue={typeEditorState.newTypeValue}
                                 isGraphql={isGraphql}
-                                onTypeChange={onTypeChange}
+                                onTypeChange={(type) => onTypeChange(type, i === 0)}
                                 onSaveType={onSaveType}
                                 onTypeCreate={() => { }}
                                 isPopupTypeForm={true}
@@ -2185,7 +2279,9 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         );
     }
 
-    if (node?.codedata.node === "SEND_DATA") {
+    // Sending to a child workflow asks for the same workflow → data event → payload chain as
+    // sending to a top-level one; the form is keyed by field names, so it serves both.
+    if (node?.codedata.node === "SEND_DATA" || node?.codedata.node === "CHILD_WORKFLOW_SEND_DATA") {
         return (
             <SendEventForm
                 fileName={fileName}
@@ -2327,7 +2423,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                             newTypeValue={typeEditorState.newTypeValue}
                             isPopupTypeForm={true}
                             isGraphql={isGraphql}
-                            onTypeChange={onTypeChange}
+                            onTypeChange={(type) => onTypeChange(type, i === 0)}
                             onSaveType={onSaveType}
                             onTypeCreate={() => { }}
                             getNewTypeCreateForm={getNewTypeCreateForm}

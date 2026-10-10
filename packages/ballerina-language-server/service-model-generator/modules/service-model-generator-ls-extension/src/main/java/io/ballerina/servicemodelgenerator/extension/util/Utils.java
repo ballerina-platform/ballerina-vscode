@@ -22,10 +22,15 @@ import com.google.gson.Gson;
 import com.google.gson.stream.JsonReader;
 import io.ballerina.centralconnector.CentralAPI;
 import io.ballerina.centralconnector.RemoteCentral;
+import io.ballerina.compiler.api.ModuleID;
 import io.ballerina.compiler.api.SemanticModel;
+import io.ballerina.compiler.api.symbols.AnnotationAttachmentSymbol;
+import io.ballerina.compiler.api.symbols.AnnotationSymbol;
 import io.ballerina.compiler.api.symbols.Symbol;
 import io.ballerina.compiler.api.symbols.TypeDefinitionSymbol;
+import io.ballerina.compiler.api.symbols.TypeDescKind;
 import io.ballerina.compiler.api.symbols.TypeReferenceTypeSymbol;
+import io.ballerina.compiler.api.symbols.TypeSymbol;
 import io.ballerina.compiler.syntax.tree.AnnotationNode;
 import io.ballerina.compiler.syntax.tree.BasicLiteralNode;
 import io.ballerina.compiler.syntax.tree.DefaultableParameterNode;
@@ -71,6 +76,7 @@ import io.ballerina.servicemodelgenerator.extension.model.FunctionReturnType;
 import io.ballerina.servicemodelgenerator.extension.model.MetaData;
 import io.ballerina.servicemodelgenerator.extension.model.Parameter;
 import io.ballerina.servicemodelgenerator.extension.model.PropertyType;
+import io.ballerina.servicemodelgenerator.extension.model.PropertyTypeMemberInfo;
 import io.ballerina.servicemodelgenerator.extension.model.Service;
 import io.ballerina.servicemodelgenerator.extension.model.ServiceClass;
 import io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel;
@@ -536,6 +542,16 @@ public final class Utils {
 
     public static void updateAnnotationAttachmentProperty(ServiceDeclarationNode serviceNode,
                                                           Service service) {
+        updateAnnotationAttachmentProperty(serviceNode, service, null);
+    }
+
+    /**
+     * Same as {@link #updateAnnotationAttachmentProperty(ServiceDeclarationNode, Service)}, but when the
+     * model has no property for an annotation found in source, the {@code semanticModel} (if given) is
+     * used to type the property that gets created, rather than leaving it a bare expression.
+     */
+    public static void updateAnnotationAttachmentProperty(ServiceDeclarationNode serviceNode,
+                                                          Service service, SemanticModel semanticModel) {
         Optional<MetadataNode> metadata = serviceNode.metadata();
         if (metadata.isEmpty()) {
             return;
@@ -556,13 +572,9 @@ public final class Utils {
             String moduleName = prefix.isEmpty() ? ""
                     : ImportPrefixReader.moduleNameForPrefix(rootNode, prefix).orElse(prefix);
 
-            // A schema-driven SERVICE_ANNOTATION container (e.g. RabbitMQ's `serviceConfig`, keyed by
-            // its own schema key, not `annot<Name>`) is matched by module/name wherever it sits in the
-            // tree; the raw mapping-constructor text is enough as its value (same as the legacy
-            // flat-property path below) — no need to distribute it field by field.
-            Value schemaContainer = findServiceAnnotationContainer(service.getProperties(), moduleName, annotName);
-            if (schemaContainer != null) {
-                schemaContainer.setValue(getAnnotationValue(annotationNode));
+            Value declared = findServiceAnnotationProperty(service.getProperties(), moduleName, annotName);
+            if (declared != null) {
+                declared.setValue(getAnnotationValue(annotationNode));
                 return;
             }
 
@@ -583,7 +595,7 @@ public final class Utils {
                         .metadata(annotName, annotName)
                         .setCodedata(codedata)
                         .value(getAnnotationValue(annotationNode))
-                        .types(List.of(PropertyType.types(Value.FieldType.EXPRESSION)))
+                        .types(List.of(annotationPropertyType(semanticModel, annotationNode, prefix)))
                         .enabled(true)
                         .editable(true)
                         .build();
@@ -593,11 +605,46 @@ public final class Utils {
     }
 
     /**
-     * Recursively locates a {@code SERVICE_ANNOTATION} container ({@code codedata.type ==
-     * SERVICE_ANNOTATION}) matching an annotation's module/name — wherever it sits in the service's
-     * properties tree (a schema-driven template keys it by its own schema key, e.g. {@code
-     * serviceConfig}, not by a fixed convention).
+     * The type of an annotation property created from source: a {@code RECORD_MAP_EXPRESSION} over the
+     * annotation's named record type when the semantic model resolves it, else a plain {@code EXPRESSION}.
      */
+    private static PropertyType annotationPropertyType(SemanticModel semanticModel, AnnotationNode annotationNode,
+                                                       String prefix) {
+        PropertyType fallback = PropertyType.types(Value.FieldType.EXPRESSION);
+        if (semanticModel == null || prefix.isEmpty()) {
+            return fallback;
+        }
+        Optional<Symbol> symbol;
+        try {
+            symbol = semanticModel.symbol(annotationNode);
+        } catch (RuntimeException e) {
+            return fallback;
+        }
+        AnnotationSymbol annotSymbol;
+        if (symbol.isPresent() && symbol.get() instanceof AnnotationAttachmentSymbol attachment) {
+            annotSymbol = attachment.typeDescriptor();
+        } else if (symbol.isPresent() && symbol.get() instanceof AnnotationSymbol annot) {
+            annotSymbol = annot;
+        } else {
+            return fallback;
+        }
+        Optional<TypeSymbol> typeDesc = annotSymbol.typeDescriptor();
+        if (typeDesc.isEmpty() || !(typeDesc.get() instanceof TypeReferenceTypeSymbol typeRef)
+                || typeRef.getName().isEmpty() || typeRef.getModule().isEmpty()
+                || CommonUtils.getRawType(typeRef).typeKind() != TypeDescKind.RECORD) {
+            return fallback;
+        }
+        String typeName = typeRef.getName().get();
+        ModuleID moduleId = typeRef.getModule().get().id();
+        String packageInfo = moduleId.orgName() + COLON + moduleId.packageName() + COLON + moduleId.version();
+        return new PropertyType.Builder()
+                .fieldType(Value.FieldType.RECORD_MAP_EXPRESSION)
+                .ballerinaType(prefix + COLON + typeName)
+                .setMembers(List.of(new PropertyTypeMemberInfo(typeName, packageInfo, moduleId.packageName(),
+                        "RECORD_TYPE", true)))
+                .build();
+    }
+
     /**
      * Whether a module name resolved from source names the same module a model declares. Models are
      * inconsistent about this: some declare the full module ({@code trigger.google.mail}), others only
@@ -613,24 +660,34 @@ public final class Utils {
                 || resolved.equals(ModuleAliasResolver.selfPrefix(declared));
     }
 
-    private static Value findServiceAnnotationContainer(Map<String, Value> properties, String moduleName,
-                                                        String originalName) {
+    /**
+     * Recursively locates the property a model declares for a service annotation ({@code codedata.type}
+     * {@code SERVICE_ANNOTATION} or {@code ANNOTATION_ATTACHMENT}) matching its module/name — wherever
+     * it sits in the service's properties tree (a schema-driven template keys it by its own schema key,
+     * e.g. {@code serviceConfig} or {@code descriptor}, not by a fixed convention).
+     */
+    private static Value findServiceAnnotationProperty(Map<String, Value> properties, String moduleName,
+                                                       String originalName) {
         if (properties == null) {
             return null;
         }
         for (Value value : properties.values()) {
             Codedata cd = value.getCodedata();
-            if (cd != null && CD_TYPE_SERVICE_ANNOTATION.equals(cd.getType())
+            if (cd != null && isServiceAnnotationType(cd.getType())
                     && originalName.equals(cd.getOriginalName())
                     && (moduleName.isEmpty() || sameModule(moduleName, cd.getModuleName()))) {
                 return value;
             }
-            Value nested = findServiceAnnotationContainer(value.getProperties(), moduleName, originalName);
+            Value nested = findServiceAnnotationProperty(value.getProperties(), moduleName, originalName);
             if (nested != null) {
                 return nested;
             }
         }
         return null;
+    }
+
+    private static boolean isServiceAnnotationType(String codedataType) {
+        return CD_TYPE_SERVICE_ANNOTATION.equals(codedataType) || CD_TYPE_ANNOTATION_ATTACHMENT.equals(codedataType);
     }
 
     public static void updateAnnotationAttachmentProperty(FunctionDefinitionNode functionDef,
@@ -1550,6 +1607,11 @@ public final class Utils {
         return value.substring(0, 1).toUpperCase(Locale.ROOT) + value.substring(1).toLowerCase(Locale.ROOT);
     }
 
+    /** Whether {@code orgName}/{@code packageName} ships with the Ballerina distribution and needs no Central pull. */
+    public static boolean isDistributionModule(String orgName, String packageName) {
+        return BALLERINA.equals(orgName) && DISTRIBUTION_MODULES.contains(packageName);
+    }
+
     /**
      * Resolves a Ballerina module by organization, package, and module name.
      * If the module is not found locally, attempts to pull it from the central repository,
@@ -1571,7 +1633,7 @@ public final class Utils {
         if (isLocalRepository) {
             return;
         }
-        if (BALLERINA.equals(orgName) && DISTRIBUTION_MODULES.contains(packageName)) {
+        if (isDistributionModule(orgName, packageName)) {
             return;
         }
         Path balHomePath = RepoUtils.createAndGetHomeReposPath();

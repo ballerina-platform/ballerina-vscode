@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { capabilityValueText, seedCapabilityValue, SeedableProperty } from "./capabilityFieldValues";
+import { capabilityValueText, seedCapabilityValue, SeedableProperty, showActivityIdentityReadOnly } from "./capabilityFieldValues";
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import styled from "@emotion/styled";
@@ -76,7 +76,16 @@ import { NodePosition, STNode } from "@wso2/syntax-tree";
 import { View, ProgressIndicator, ThemeColors } from "@wso2/ui-toolkit";
 import { applyModifications, textToModifications } from "../../../utils/utils";
 import { PanelManager, SidePanelView } from "./PanelManager";
-import { transformCategories, getNodeTemplateForConnection, findFunctionByName, filterCategoriesLocally } from "./utils";
+import {
+    transformCategories,
+    getNodeTemplateForConnection,
+    findFunctionByName,
+    filterCategoriesLocally,
+    buildMasterSearchCategories,
+    mergePanelCategories,
+    attachPendingSetup,
+    settlePendingSetup,
+} from "./utils";
 import { PanelOverlayProvider } from "./context/PanelOverlayContext";
 import { PanelOverlayRenderer } from "./PanelOverlayRenderer";
 import { ExpressionFormField, Category as PanelCategory, S } from "@wso2/ballerina-side-panel";
@@ -171,42 +180,6 @@ const countFunctionLeafNodes = (categories: PanelCategory[] = []): number =>
 // Counts the leaf nodes within a single section (top-level category matched by title).
 const countSectionLeafNodes = (categories: PanelCategory[], sectionTitle: string): number =>
     countFunctionLeafNodes(categories.filter((category) => category.title === sectionTitle));
-
-// Merges panel items, matching nested subcategories by title and de-duplicating leaf nodes by id.
-const mergePanelItems = (prev: any[] = [], next: any[] = []): any[] => {
-    const result = [...prev];
-    for (const item of next) {
-        if ("id" in item) {
-            if (!result.some((existing) => "id" in existing && existing.id === item.id)) {
-                result.push(item);
-            }
-        } else {
-            const index = result.findIndex((r) => !("id" in r) && r.title === item.title);
-            if (index >= 0) {
-                const existing = result[index];
-                result[index] = { ...existing, items: mergePanelItems(existing.items ?? [], item.items ?? []) };
-            } else {
-                result.push(item);
-            }
-        }
-    }
-    return result;
-};
-
-// Merges a newly fetched page of panel categories into the accumulated categories, matching categories and
-// nested subcategories by title and de-duplicating leaf nodes by id.
-const mergePanelCategories = (prev: PanelCategory[] = [], next: PanelCategory[] = []): PanelCategory[] => {
-    const merged: PanelCategory[] = prev.map((category) => ({ ...category, items: [...(category.items ?? [])] }));
-    for (const incoming of next) {
-        const existing = merged.find((category) => category.title === incoming.title);
-        if (existing) {
-            existing.items = mergePanelItems(existing.items ?? [], incoming.items ?? []);
-        } else {
-            merged.push({ ...incoming, items: [...(incoming.items ?? [])] });
-        }
-    }
-    return merged;
-};
 
 const isDurableAgentBoxNode = (node: FlowNode) =>
     node.codedata?.node === "DURABLE_AGENT_RUN" &&
@@ -366,6 +339,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     // list) is up: once the toolkit variable is created, it is registered on this agent.
     const pendingDurableMcpAgentRef = useRef<{ agentVar: string | null; insertBefore: any } | null>(null);
     const initialCategoriesRef = useRef<any[]>([]);
+    // Bumped by every master search request and whenever the search is cleared. Master search waits on Ballerina
+    // Central, so responses can arrive out of order; only the response for the latest request is rendered.
+    const masterSearchSeqRef = useRef<number>(0);
     const instanceListCategoriesRef = useRef<Partial<Record<SearchKind, PanelCategory[]>>>({});
     const showEditForm = useRef<boolean>(false);
     // True while the call form open is step 3 of the create-activity-from-connection wizard.
@@ -1326,6 +1302,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
 
     const handleOnCloseSidePanel = () => {
         panelNavEpochRef.current += 1;
+        void settlePendingSetup(nodeTemplateRef.current, false);
         // The failsafe acts on the panel this close is dismissing; the refresh ladder is just a
         // model fetch, so it is left to finish.
         clearCapabilityFailsafe();
@@ -1497,6 +1474,12 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
 
     const handleSearch = useCallback(async (searchText: string, functionType: FUNCTION_TYPE, searchKind: SearchKind) => {
         const searchEpoch = panelNavEpochRef.current;
+        const masterSearchSeq = searchKind === "ALL" ? ++masterSearchSeqRef.current : undefined;
+        // A master search response is stale once a newer search starts or is cleared, or once the user leaves the
+        // panel; the panel's new owner then manages the categories and the progress indicator.
+        const isStaleMasterSearch = () =>
+            masterSearchSeq !== undefined
+            && (masterSearchSeq !== masterSearchSeqRef.current || panelNavEpochRef.current !== searchEpoch);
         // An unfiltered activity list is owned by the post-creation refresh while it runs.
         const yieldsToActivityRefresh = searchKind === "ACTIVITY_CALL" && !searchText.trim();
         if (yieldsToActivityRefresh && activityRefreshOwnsPanelRef.current) {
@@ -1539,44 +1522,17 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
 
             if (response.categories) {
 
-                if (searchKind === "ALL") {                // Convert search API results
+                if (searchKind === "ALL") {
+                    if (isStaleMasterSearch()) {
+                        return;
+                    }
                     const searchCategories = convertFunctionCategoriesToSidePanelCategories(
                         response.categories as Category[],
                         functionType
                     );
-
-                    // Combine initial getAvailableNodes results with search API results
-                    const allCategories = [...initialCategoriesRef.current, ...searchCategories];
-
-                    // Filter both initial and search results with the same query
-                    const filteredCategories = filterCategoriesLocally(allCategories, searchText);
-
-                    // Start fresh with filtered combined results
-                    const currentCategories: PanelCategory[] = [];
-
-                    const getItemKey = (item: any) =>
-                        "id" in item ? `node:${item.id}` : `category:${item.title}`;
-
-                    filteredCategories.forEach(category => {
-                        const existingCategoryIndex = currentCategories.findIndex(
-                            existingCategory => existingCategory.title === category.title
-                        );
-
-                        if (existingCategoryIndex >= 0) {
-                            // Merge items if category exists, avoiding duplicate items
-                            const existingCategory = currentCategories[existingCategoryIndex];
-                            const existingItemKeys = new Set(existingCategory.items.map(getItemKey));
-                            const newItems = category.items.filter((item: any) => !existingItemKeys.has(getItemKey(item)));
-                            currentCategories[existingCategoryIndex] = {
-                                ...existingCategory,
-                                items: [...existingCategory.items, ...newItems]
-                            };
-                        } else {
-                            // Add new category
-                            currentCategories.push(category);
-                        }
-                    });
-                    setCategories(currentCategories);
+                    setCategories(
+                        buildMasterSearchCategories(initialCategoriesRef.current, searchCategories, searchText)
+                    );
                 } else {
                     const currentCategories = convertFunctionCategoriesToSidePanelCategories(
                         [...response.categories] as Category[],
@@ -1652,11 +1608,16 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             }
         } catch (error) {
             console.error(">>> Error in search request", error);
+            if (isStaleMasterSearch()) {
+                return;
+            }
             // Fallback to cached categories on error
             setShowProgressIndicator(false);
             setCategories(initialCategoriesRef.current);
         } finally {
-            setShowProgressIndicator(false);
+            if (!isStaleMasterSearch()) {
+                setShowProgressIndicator(false);
+            }
         }
     }, [rpcClient, model?.fileName]);
 
@@ -1811,6 +1772,8 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
 
     // Effect to handle search text changes
     useEffect(() => {
+        // Drop any in-flight master search response, which is for an earlier query
+        masterSearchSeqRef.current++;
         if (searchText.trim()) {
             debouncedSearch(searchText);
         } else {
@@ -2400,6 +2363,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                             showConnectorError(response.errorMsg);
                             return;
                         }
+                        // A picker can fill in fields before the form opens, e.g. an Agent Manager LLM service provider.
+                        metadata.prepareTemplate?.(response.flowNode);
+                        attachPendingSetup(response.flowNode, metadata.pendingSetup);
                         selectedNodeRef.current = response.flowNode;
                         nodeTemplateRef.current = response.flowNode;
                         showEditForm.current = false;
@@ -2660,6 +2626,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                     return;
                 }
                 if (response.artifacts.length > 0) {
+                    await settlePendingSetup(nodeTemplateRef.current, true);
 
                     if (editorConfig && editorConfig.displayMode !== EditorDisplayMode.NONE) {
                         const newArtifact = response.artifacts.find(res => res.isNew);
@@ -2915,6 +2882,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     const handleOnFormBack = () => {
         panelNavEpochRef.current += 1;
         clearWorkflowCreationState();
+        void settlePendingSetup(nodeTemplateRef.current, false);
 
         // Try to navigate back using the navigation stack
         const didNavigateBack = popFromNavigationStack();
@@ -3924,6 +3892,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                     // so a reference stays an expression instead of being quoted into a literal on save.
                     seedCapabilityValue(nodeProps[key], value);
                 }
+            }
+            if (capability?.type === "activity") {
+                showActivityIdentityReadOnly(nodeProps);
             }
             node.codedata.lineRange = lineRange;
             node.codedata.isNew = false;

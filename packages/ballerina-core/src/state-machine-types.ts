@@ -25,16 +25,15 @@ import { DIRECTORY_MAP, ProjectStructureArtifactResponse, ProjectStructureRespon
 import { SCOPE, ArtifactData, DataMapperMetadata } from "./interfaces/shared-types";
 import { DiagnosticEntry, DocumentationGeneratorIntermediaryState, SourceFile, CodeContext, FileAttatchment, SkillEnableStage } from "./rpc-types/ai-panel/interfaces";
 
-/**
- * Which product the extension is running inside. Set by the host app's own environment
- * (the WSO2 Integrator app exports `WSO2_PRODUCT_MODE`), so the extension inherits it.
- */
+/** Which product the extension is running inside. Resolved by the host; see `getProductMode`. */
 export enum ProductMode {
+    BALLERINA = 'ballerina',
     INTEGRATOR = 'integrator',
     AGENT_BUILDER = 'agent-builder'
 }
 
 const ASSISTANT_NAMES: Record<ProductMode, string> = {
+    [ProductMode.BALLERINA]: 'Ballerina Copilot',
     [ProductMode.INTEGRATOR]: 'WSO2 Integrator Copilot',
     [ProductMode.AGENT_BUILDER]: 'WSO2 Agent Builder Copilot'
 };
@@ -43,7 +42,12 @@ export function assistantName(mode: ProductMode): string {
     return ASSISTANT_NAMES[mode];
 }
 
+export function productName(mode: ProductMode): string {
+    return mode === ProductMode.AGENT_BUILDER ? 'WSO2 Agent Builder' : 'WSO2 Integrator';
+}
+
 const SHORT_ASSISTANT_NAMES: Record<ProductMode, string> = {
+    [ProductMode.BALLERINA]: 'Ballerina Copilot',
     [ProductMode.INTEGRATOR]: 'Integrator Copilot',
     [ProductMode.AGENT_BUILDER]: 'Agent Builder Copilot'
 };
@@ -53,12 +57,34 @@ export function shortAssistantName(mode: ProductMode): string {
 }
 
 const ASSISTANT_TAGLINES: Record<ProductMode, string> = {
+    [ProductMode.BALLERINA]: 'Your AI pair programmer for Ballerina development',
     [ProductMode.INTEGRATOR]: 'Your AI pair programmer for integration development',
     [ProductMode.AGENT_BUILDER]: 'Your AI partner for building agents'
 };
 
 export function assistantTagline(mode: ProductMode): string {
     return ASSISTANT_TAGLINES[mode];
+}
+
+/**
+ * The mode the host seeded into this webview's HTML, so a panel names the assistant on its first
+ * paint instead of flashing the wrong name. Undefined outside a seeded webview.
+ */
+export function seededProductMode(): ProductMode | undefined {
+    if (typeof window === 'undefined') {
+        return undefined;
+    }
+    const seed = (window as unknown as { productMode?: string }).productMode;
+    return Object.values(ProductMode).includes(seed as ProductMode) ? seed as ProductMode : undefined;
+}
+
+/**
+ * The assistant's name for a webview with no RPC client of its own. Unseeded falls back to
+ * BALLERINA, matching `getProductMode()` — naming a product the user may not have installed is
+ * the worse of the two wrong answers, and these callers have no way to correct it later.
+ */
+export function webviewAssistantName(): string {
+    return assistantName(seededProductMode() ?? ProductMode.BALLERINA);
 }
 
 export type MachineStateValue =
@@ -142,6 +168,7 @@ export enum MACHINE_VIEW {
     BISamplesView = "BI Samples View",
     ReviewMode = "Review Mode SKIP",
     EvalsetViewer = "Evalset Viewer SKIP",
+    EvalsetList = "Evalset List",
     ConfigurationCollector = "Configuration Collector"
 }
 
@@ -172,6 +199,7 @@ export interface VisualizerLocation {
     projectInfo?: ProjectInfo;
     identifier?: string;
     parentIdentifier?: string;
+    navigationKey?: string;
     artifactType?: DIRECTORY_MAP;
     position?: NodePosition;
     syntaxTree?: STNode;
@@ -195,6 +223,7 @@ export interface VisualizerLocation {
     artifactInfo?: ArtifactInfo;
     reviewData?: ReviewModeData;
     evalsetData?: EvalsetData;
+    evaluationsOpen?: boolean;
 }
 
 export interface ArtifactInfo {
@@ -749,6 +778,8 @@ export interface AgentRunStatus {
     label?: string;
     /** True while the Copilot chat panel is open — ambient indicators hide themselves then. */
     aiPanelOpen: boolean;
+    /** `ballerina.copilot.showOrb` is off; Copilot is reached from the editor title bar's Copilot button. */
+    orbHidden?: boolean;
     /** Generation (run) the status belongs to, when a run is/was active. */
     generationId?: string;
     /** Epoch millis of the last status change. */
@@ -876,6 +907,10 @@ export interface Checkpoint {
     workspaceSnapshot: { [filePath: string]: string };
     fileList: string[];
     snapshotSize: number;
+    /** Absolute root the paths above are relative to. Absent on checkpoints captured before it was recorded. */
+    workspaceRoot?: string;
+    /** Exclude globs in force when this was captured; a restore must not re-read the live settings. */
+    ignorePatterns?: string[];
 }
 
 // ==================================
@@ -988,6 +1023,8 @@ export interface Generation {
     codeContext?: CodeContext;
     /** Post-turn follow-up suggestions; runtime-only, not persisted across a restart */
     followupSuggestions?: FollowupSuggestion[];
+    /** Summary of this turn published to the WSO2 Integration Platform console (cloud editor only). Persisted, so a revert after a reload can still remove it */
+    consoleSummary?: string;
     /** Generation metadata */
     metadata: GenerationMetadata;
 }
@@ -1004,6 +1041,8 @@ export interface ChatThread {
     generations: Generation[];
     /** Session ID for backend correlation */
     sessionId?: string;
+    /** The console plan this cloud editor session was opened with started this thread; only its turns publish console summaries */
+    consoleOrigin?: boolean;
     /** Thread creation timestamp */
     createdAt: number;
     /** Last update timestamp */

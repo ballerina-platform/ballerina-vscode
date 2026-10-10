@@ -222,4 +222,60 @@ describe("NodeList (rpc-driven)", () => {
         );
         expect(grids).toHaveLength(0);
     });
+    // Regression (wso2/product-integrator): two columns of a side panel are too narrow for a
+    // name like "Reconcile Quarterly Ledger Entries", and the row used to cut it to one clipped line.
+    // The name now wraps within its row rather than being held on one line.
+    it("INVARIANT: a long node name wraps rather than being held on one line", async () => {
+        const label = "Reconcile Quarterly Ledger Entries";
+        const categories = [{ title: "Activities", items: [node("ACTIVITY_CALL", label)] }];
+        const { findByText } = renderWithRpc(
+            <NodeList {...props(categories)} searchText="Reconcile" />,
+            fakeRpc()
+        );
+
+        const shown = await findByText(label);
+        expect(shown.textContent).toBe(label);
+        expect(getComputedStyle(shown).whiteSpace).not.toBe("nowrap");
+    });
+
+    // One tooltip per row and no more. The styled one carries the description; a node that has
+    // none falls back to the browser's own with the name, so a clipped name is still readable.
+    // The name must not appear twice in the document: the styled tooltip's content is mounted
+    // whether or not it is shown, and a duplicate breaks every locator that matches on the name.
+    it.each([
+        ["described", "Reconciles the quarter's ledger entries against the bank feed", 0],
+        ["undescribed", "", 1],
+    ])("INVARIANT: a %s node row carries exactly one tooltip", async (_desc, description, nativeTitles) => {
+        const label = "Reconcile Quarterly Ledger Entries";
+        const item = { ...node("ACTIVITY_CALL", label), description };
+        const { container, findByText } = renderWithRpc(
+            <NodeList {...props([{ title: "Activities", items: [item] }])} searchText="Reconcile" />,
+            fakeRpc()
+        );
+
+        await findByText(label);
+        expect(container.querySelectorAll(`[title="${label}"]`)).toHaveLength(nativeTitles);
+        const showingTheName = Array.from(container.querySelectorAll("div"))
+            .filter((el) => el.textContent === label && el.children.length === 0);
+        expect(showingTheName).toHaveLength(1);
+    });
+
+    // A short palette name ("Human Task") hides which context method the node stands for, so the
+    // tooltip carries the method name under the description. It is a code line, not the name, so
+    // the exact-name locators the e2e suite relies on still match one element.
+    it("shows a node's context method in its tooltip, without repeating the name", async () => {
+        const label = "Human Task";
+        const method = "awaitHumanTask";
+        const item = { ...node("HUMAN_TASK", label), description: "Create a human task", method };
+        const { container, findByText } = renderWithRpc(
+            <NodeList {...props([{ title: "Steps", items: [item] }])} searchText="Human" />,
+            fakeRpc()
+        );
+
+        expect((await findByText(method)).tagName).toBe("CODE");
+        expect(container.querySelectorAll(`[title="${label}"]`)).toHaveLength(0);
+        const showingTheName = Array.from(container.querySelectorAll("div"))
+            .filter((el) => el.textContent === label && el.children.length === 0);
+        expect(showingTheName).toHaveLength(1);
+    });
 });

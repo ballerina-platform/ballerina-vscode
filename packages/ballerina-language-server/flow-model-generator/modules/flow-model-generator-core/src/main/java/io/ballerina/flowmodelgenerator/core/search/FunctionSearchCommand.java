@@ -26,6 +26,7 @@ import io.ballerina.flowmodelgenerator.core.model.Item;
 import io.ballerina.flowmodelgenerator.core.model.Metadata;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.utils.CentralSearchUtil;
+import io.ballerina.flowmodelgenerator.core.utils.SearchResultFilter;
 import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.ModuleCoordinate;
 import io.ballerina.modelgenerator.commons.SearchResult;
@@ -71,7 +72,6 @@ class FunctionSearchCommand extends SearchCommand {
     );
     private static final String POPULAR_FUNCTIONS_ORG = "ballerina";
     private static final String FETCH_KEY = "functions";
-    private static final Set<String> ALLOWED_ORGANIZATIONS = Set.of("ballerina", "ballerinax", "wso2");
     private static final String STANDARD_LIBRARY_ORG = "ballerina";
     private static final String EXTENDED_LIBRARY_ORG = "ballerinax";
     // Organizations whose functions can be loaded page-by-page as an independent library section.
@@ -89,6 +89,8 @@ class FunctionSearchCommand extends SearchCommand {
     // When set (to "ballerina" or "ballerinax"), the request loads the next page of that single library section
     // instead of the full view. Used by the per-section "Show more" pagination.
     private final String sectionOrg;
+    // Set by callers wanting only the project's own functions; skips a Central round trip.
+    private final boolean excludeLibrary;
 
     public FunctionSearchCommand(Project project, LineRange position, Map<String, String> queryMap,
                                  Document functionsDoc) {
@@ -97,6 +99,7 @@ class FunctionSearchCommand extends SearchCommand {
         this.functionsDoc = functionsDoc;
         String requestedSectionOrg = queryMap != null ? queryMap.getOrDefault("orgName", "") : "";
         this.sectionOrg = PAGINATED_SECTION_ORGS.contains(requestedSectionOrg) ? requestedSectionOrg : "";
+        this.excludeLibrary = queryMap != null && "true".equals(queryMap.get("excludeLibrary"));
         // TODO: Use this method when https://github.com/ballerina-platform/ballerina-lang/issues/43695 is fixed
         // List<String> moduleNames = semanticModel.moduleSymbols().stream()
         // .filter(symbol -> symbol.kind().equals(SymbolKind.MODULE))
@@ -119,6 +122,11 @@ class FunctionSearchCommand extends SearchCommand {
                 searchResults.addAll(
                         dbManager.searchFunctionsByPackages(importedModules, List.of(), Integer.MAX_VALUE, 0));
             }
+        }
+
+        if (excludeLibrary) {
+            buildLibraryNodes(searchResults, true);
+            return rootBuilder.build().items();
         }
 
         // The standard library (ballerina) and the extended library (ballerinax) are fetched from Ballerina Central,
@@ -155,12 +163,7 @@ class FunctionSearchCommand extends SearchCommand {
 
         // Search functions from Ballerina Central, falling back to the local index on failure or timeout. Querying
         // Central live ensures functions published after the bundled index was built are still discoverable.
-        String currentOrg = project.currentPackage().packageOrg().value();
-        Set<String> allowedOrgs = new HashSet<>(ALLOWED_ORGANIZATIONS);
-        if (currentOrg != null && !currentOrg.isEmpty()) {
-            allowedOrgs.add(currentOrg);
-        }
-
+        Set<String> allowedOrgs = SearchResultFilter.allowedOrganizations(project);
         CentralSearchUtil centralSearch = new CentralSearchUtil(RemoteCentral.getInstance());
         List<SearchResult> functionSearchList = centralSearch.searchFunctions(query, limit, offset, allowedOrgs);
         if (functionSearchList == null) {
@@ -312,7 +315,13 @@ class FunctionSearchCommand extends SearchCommand {
         List<String> functionNames = POPULAR_BALLERINA_FUNCTIONS.values().stream()
                 .flatMap(List::stream)
                 .toList();
-        return Map.of(FETCH_KEY, dbManager.searchFunctionsByPackages(popularModules, functionNames, limit, offset));
+        // The popular functions are a small, fixed curated list, not a page of a larger result set - defaultView()
+        // adds every one of them unconditionally rather than slicing by the request's own limit/offset. Fetching the
+        // whole set here (rather than this.limit/this.offset) keeps that true regardless of which request happens to
+        // populate DefaultViewHolder's cache first; a request with a small limit would otherwise permanently cap
+        // what every other request sees for the lifetime of the cache.
+        return Map.of(FETCH_KEY,
+                dbManager.searchFunctionsByPackages(popularModules, functionNames, Integer.MAX_VALUE, 0));
     }
 
     /**

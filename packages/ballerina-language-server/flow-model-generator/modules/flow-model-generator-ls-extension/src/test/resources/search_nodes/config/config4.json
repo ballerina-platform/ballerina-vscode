@@ -88,7 +88,7 @@
             "kind": "INCLUDED_FIELD",
             "originalName": "timeout"
           },
-          "defaultValue": "0.0d"
+          "defaultValue": "60"
         },
         "poolConfig": {
           "metadata": {
@@ -194,7 +194,7 @@
               "selected": false
             }
           ],
-          "placeholder": "\"AUTO\"",
+          "placeholder": "",
           "optional": true,
           "editable": true,
           "advanced": false,
@@ -203,7 +203,7 @@
             "kind": "INCLUDED_FIELD",
             "originalName": "compression"
           },
-          "defaultValue": "\"AUTO\""
+          "defaultValue": "COMPRESSION_AUTO"
         },
         "retryConfiguration": {
           "metadata": {
@@ -347,7 +347,7 @@
             "kind": "INCLUDED_FIELD",
             "originalName": "maxInboundMessageSize"
           },
-          "defaultValue": "0"
+          "defaultValue": "4194304"
         },
         "checkError": {
           "metadata": {

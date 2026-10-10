@@ -15,14 +15,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import styled from "@emotion/styled";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Button, Codicon, Icon } from "@wso2/ui-toolkit";
 
 import { AIChatView, DangerActionButton, PrimaryActionButton, SuccessActionButton } from "../styles";
-import { AIMachineEventType, AgentsMdFileInfoDTO, McpServerStatusDTO, SkillEntry } from "@wso2/ballerina-core";
+import { AIMachineEventType, AgentsMdFileInfoDTO, CopilotToggleSetting, McpServerStatusDTO, SkillEntry } from "@wso2/ballerina-core";
 import { CustomizeRow, CustomizeEntry } from "./CustomizeRow";
+import { SettingsToggle } from "../components/SettingsToggle";
 import type { PanelRoute } from "../components/AIChat";
 import { useShortAssistantName } from "../../../hooks/useProductMode";
 
@@ -201,6 +202,37 @@ const CancelLink = styled.button`
     &:hover { color: var(--vscode-foreground); }
 `;
 
+// ── General toggles ───────────────────────────────────────────────────────────
+
+/** `showOrb` goes through the orb's own RPC; the rest are plain `ballerina.copilot.*` booleans. */
+type GeneralToggleKey = "showOrb" | CopilotToggleSetting;
+
+interface GeneralToggle {
+    key: GeneralToggleKey;
+    label: string;
+    description: string;
+}
+
+// Where Copilot shows up first, then how the chat behaves.
+const GENERAL_TOGGLES: GeneralToggle[] = [
+    {
+        key: "showOrb",
+        label: "Show Copilot orb",
+        description: "When off, open Copilot from the title bar.",
+    },
+    {
+        key: "followupSuggestions",
+        label: "Follow-up suggestions",
+        description: "Suggest follow-up actions after Copilot responds.",
+    },
+];
+
+/** Until the host reports, each switch shows its setting's default. */
+const GENERAL_TOGGLE_DEFAULTS: Record<GeneralToggleKey, boolean> = {
+    showOrb: true,
+    followupSuggestions: true,
+};
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 interface SettingsPanelProps {
@@ -219,6 +251,9 @@ export const SettingsPanel = (props: SettingsPanelProps) => {
     const [mcpServers, setMcpServers] = useState<McpServerStatusDTO[]>([]);
     const [skills, setSkills] = useState<SkillEntry[]>([]);
     const [agentsMdInfo, setAgentsMdInfo] = useState<AgentsMdFileInfoDTO | null>(null);
+    const [toggles, setToggles] = useState(GENERAL_TOGGLE_DEFAULTS);
+    /** Switches with a write in flight; a second click waits for the host to answer. */
+    const pendingToggles = useRef(new Set<GeneralToggleKey>());
     // TODO(auto-memory): memory UI state temporarily disabled for this release — restore once the memory feature is refined.
     // const [clearing, setClearing] = React.useState<'workspace' | 'all' | null>(null);
     // const [clearError, setClearError] = React.useState<string | null>(null);
@@ -256,6 +291,37 @@ export const SettingsPanel = (props: SettingsPanelProps) => {
         });
         return () => { cancelled = true; dispose(); };
     }, [rpcClient]);
+
+    useEffect(() => {
+        let cancelled = false;
+        const api = rpcClient.getAiPanelRpcClient();
+        api.getCopilotOrbVisible()
+            .then(v => { if (!cancelled) setToggles(t => ({ ...t, showOrb: v })); })
+            .catch(() => { /* noop */ });
+        api.getCopilotToggleSettings()
+            .then(settings => { if (!cancelled) setToggles(t => ({ ...t, ...settings })); })
+            .catch(() => { /* noop */ });
+        return () => { cancelled = true; };
+    }, [rpcClient]);
+
+    const handleToggle = async (key: GeneralToggleKey) => {
+        if (pendingToggles.current.has(key)) return;
+        const next = !toggles[key];
+        setToggles(t => ({ ...t, [key]: next }));
+        pendingToggles.current.add(key);
+        try {
+            const api = rpcClient.getAiPanelRpcClient();
+            if (key === "showOrb") {
+                await api.setCopilotOrbVisible({ visible: next });
+            } else {
+                await api.setCopilotToggleSetting({ key, value: next });
+            }
+        } catch {
+            setToggles(t => ({ ...t, [key]: !next }));
+        } finally {
+            pendingToggles.current.delete(key);
+        }
+    };
 
     const mcpSubtitle = (() => {
         if (!mcpEnabled) return "Off";
@@ -360,6 +426,28 @@ export const SettingsPanel = (props: SettingsPanelProps) => {
                             <CustomizeRow key={entry.id} entry={entry} />
                         ))}
                     </EntryList>
+                </Section>
+
+                {/* General */}
+                <Section>
+                    <SectionHeader>General</SectionHeader>
+                    {GENERAL_TOGGLES.map(({ key, label, description }) => (
+                        <SettingRow key={key}>
+                            <SettingInfo>
+                                <SettingLabel>{label}</SettingLabel>
+                                <SettingDescription>{description}</SettingDescription>
+                            </SettingInfo>
+                            <SettingsToggle
+                                type="button"
+                                role="switch"
+                                aria-checked={toggles[key]}
+                                aria-label={label}
+                                $on={toggles[key]}
+                                title={`Turn ${toggles[key] ? "off" : "on"}`}
+                                onClick={() => handleToggle(key)}
+                            />
+                        </SettingRow>
+                    ))}
                 </Section>
 
                 {/* Integrations */}

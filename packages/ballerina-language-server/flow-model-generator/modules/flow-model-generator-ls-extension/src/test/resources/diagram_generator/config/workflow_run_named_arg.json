@@ -70,6 +70,36 @@
         },
         "returning": false,
         "properties": {
+          "workflow": {
+            "metadata": {
+              "label": "Workflow",
+              "description": "The workflow to start"
+            },
+            "types": [
+              {
+                "fieldType": "SINGLE_SELECT",
+                "options": [
+                  {
+                    "label": "orderWorkflow",
+                    "value": "orderWorkflow"
+                  },
+                  {
+                    "label": "reviewedOrderWorkflow",
+                    "value": "reviewedOrderWorkflow"
+                  }
+                ],
+                "selected": true
+              }
+            ],
+            "value": "orderWorkflow",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "REQUIRED"
+            }
+          },
           "input": {
             "metadata": {
               "label": "Input",
@@ -101,7 +131,10 @@
             "optional": false,
             "editable": true,
             "advanced": false,
-            "hidden": false
+            "hidden": false,
+            "codedata": {
+              "dependentProperty": "workflow"
+            }
           },
           "checkError": {
             "metadata": {
@@ -177,7 +210,7 @@
         "metadata": {
           "label": "println",
           "description": "Prints `any`, `error` or string templates value(s) to the standard output stream and terminates the line.\n```ballerina\nio:println(\"Start processing the CSV file from \", srcFileName);\n```\n",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.1.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.2.png"
         },
         "codedata": {
           "node": "FUNCTION_CALL",
@@ -185,7 +218,7 @@
           "module": "io",
           "packageName": "io",
           "symbol": "println",
-          "version": "1.8.1",
+          "version": "1.8.2",
           "lineRange": {
             "fileName": "workflow_operations.bal",
             "startLine": {

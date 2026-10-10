@@ -19,7 +19,10 @@
 // A capability form is a fresh template seeded with source. These pin the half that was missing:
 // putting each value in the right mode, so a reference is not written back as a literal.
 
-import { capabilityValueText, seedCapabilityValue, SeedableProperty } from "./capabilityFieldValues";
+import { capabilityValueText, seedCapabilityValue, SeedableProperty, showActivityIdentityReadOnly } from "./capabilityFieldValues";
+// The same table core's `parseTextArraySource` is held to, so this copy of the parser cannot
+// drift from it without one of the two suites failing.
+import corpus from "../../../../../ballerina-core/src/utils/__fixtures__/roleValues.json";
 
 const dualMode = (): SeedableProperty => ({
     value: "",
@@ -33,7 +36,61 @@ const expressionOnly = (): SeedableProperty => ({ value: "", types: [{ fieldType
 
 const modeOf = (property: SeedableProperty) => property.types?.find((type) => type.selected)?.fieldType;
 
+const listMode = (): SeedableProperty => ({
+    value: "",
+    types: [
+        { fieldType: "TEXT_SET", selected: true },
+        { fieldType: "EXPRESSION", selected: false },
+    ],
+});
+
+describe("the shared role-value corpus", () => {
+    it.each((corpus as { note: string; source: string; items: string[] | null }[])
+        .filter((entry) => entry.source !== "")
+        .map((entry) => [entry.note, entry.source, entry.items] as const))(
+        "%s", (_note, source, items) => {
+            const property = listMode();
+            seedCapabilityValue(property, source);
+            expect(property.value).toEqual(items ?? source);
+        });
+});
+
 describe("seedCapabilityValue", () => {
+    it("fills a role list with the names a literal or a list names", () => {
+        const single = listMode();
+        seedCapabilityValue(single, '"finance"');
+        expect(single.value).toEqual(["finance"]);
+        expect(modeOf(single)).toBe("TEXT_SET");
+
+        const several = listMode();
+        seedCapabilityValue(several, '["finance", "manager"]');
+        expect(several.value).toEqual(["finance", "manager"]);
+        expect(modeOf(several)).toBe("TEXT_SET");
+    });
+
+    // The one escape a re-encode cannot reproduce. Kept identical to the core decoder and to
+    // WorkflowUtil on the language server side.
+    it("decodes a numeric escape in a role list rather than doubling its backslash", () => {
+        const property = listMode();
+        seedCapabilityValue(property, '["grin \\u{1F600}", "\\u{41}BC"]');
+        expect(property.value).toEqual(["grin \u{1F600}", "ABC"]);
+    });
+
+    it("names nobody for the shapes that state no role", () => {
+        for (const source of ["()", "[]"]) {
+            const property = listMode();
+            seedCapabilityValue(property, source);
+            expect(property.value).toEqual([]);
+        }
+    });
+
+    it("keeps a role reference an expression even beside a role list", () => {
+        const property = listMode();
+        seedCapabilityValue(property, "financeRoles");
+        expect(property.value).toBe("financeRoles");
+        expect(modeOf(property)).toBe("EXPRESSION");
+    });
+
     it("puts a string literal in the text box, without its quotes", () => {
         const property = dualMode();
         seedCapabilityValue(property, '"finance"');
@@ -158,5 +215,55 @@ describe("seedCapabilityValue", () => {
         expect(capabilityValueText("descriptionVar")).toBe("descriptionVar");
         expect(capabilityValueText(undefined)).toBeUndefined();
         expect(capabilityValueText("")).toBe("");
+    });
+
+    // The text box writes what was typed as a `string `...`` template, so a name saved that way
+    // must read back as text on the canvas and in the box (wso2/product-integrator#2623).
+    it("reads a template the text box wrote as text, and an interpolating one as source", () => {
+        expect(capabilityValueText("string `Lookup bill`")).toBe("Lookup bill");
+        // A template keeps its backslashes, so its body reads back exactly as written.
+        expect(capabilityValueText('string `Say \\"hi\\"`')).toBe('Say \\"hi\\"');
+        expect(capabilityValueText('string `C:\\temp`')).toBe('C:\\temp');
+        expect(capabilityValueText("string ``")).toBe("");
+        expect(capabilityValueText("string `Bill ${id}`")).toBe("string `Bill ${id}`");
+
+        const name = dualMode();
+        seedCapabilityValue(name, "string `Lookup bill`");
+        expect(name.value).toBe("Lookup bill");
+        expect(modeOf(name)).toBe("TEXT");
+
+        const computed = dualMode();
+        seedCapabilityValue(computed, "string `Bill ${id}`");
+        expect(computed.value).toBe("string `Bill ${id}`");
+        expect(modeOf(computed)).toBe("EXPRESSION");
+    });
+});
+
+// The add template hides an activity entry's name and description (wso2/product-integrator#2622);
+// the edit form is where they are set, so the reveal must touch exactly those two.
+describe("showActivityIdentityReadOnly", () => {
+    const hiddenTemplate = () => ({
+        activity: { value: "lookupBill", hidden: true } as SeedableProperty,
+        name: { value: "", hidden: true } as SeedableProperty,
+        description: { value: "", hidden: true } as SeedableProperty,
+        "bindings.api": { value: "", hidden: false } as SeedableProperty,
+    });
+
+    it("shows the name and description read-only, and nothing else", () => {
+        const properties = hiddenTemplate();
+        showActivityIdentityReadOnly(properties);
+        expect(properties.name.hidden).toBe(false);
+        expect(properties.description.hidden).toBe(false);
+        expect(properties.name.editable).toBe(false);
+        expect(properties.description.editable).toBe(false);
+        expect(properties["bindings.api"].editable).toBeUndefined();
+        expect(properties.activity.hidden).toBe(true);
+        expect(properties["bindings.api"].hidden).toBe(false);
+    });
+
+    it("tolerates a template without them", () => {
+        const properties = { activity: { value: "lookupBill", hidden: true } as SeedableProperty };
+        expect(() => showActivityIdentityReadOnly(properties)).not.toThrow();
+        expect(() => showActivityIdentityReadOnly(undefined)).not.toThrow();
     });
 });

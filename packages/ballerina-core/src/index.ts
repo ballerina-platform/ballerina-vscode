@@ -92,6 +92,8 @@ export * from "./rpc-types/icp-service";
 export * from "./rpc-types/icp-service/rpc-type";
 export * from "./rpc-types/workflow-management-service";
 export * from "./rpc-types/workflow-management-service/rpc-type";
+export * from "./rpc-types/agent-manager";
+export * from "./rpc-types/agent-manager/rpc-type";
 export * from "./rpc-types/agent-chat";
 export * from "./rpc-types/agent-chat/interfaces";
 export * from "./rpc-types/agent-chat/rpc-type";
@@ -112,6 +114,7 @@ export * from "./utils/diagnostics-utils";
 export * from "./utils/visitors/records-finder-visitor";
 export * from "./utils/keyboard-navigation-manager";
 export * from "./utils/identifier-utils"
+export * from "./utils/text-array";
 export * from "./utils/optionality-utils";
 
 // ------ Util Components -------->

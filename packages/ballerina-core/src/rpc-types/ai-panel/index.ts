@@ -70,6 +70,7 @@ import {
     SkillTier,
     McpServerStatusDTO,
     SetMcpServerEnabledRequest,
+    SignInMcpServerRequest,
     AddMcpServerRequest,
     AddMcpServerResponse,
     OpenMcpConfigRequest,
@@ -77,10 +78,15 @@ import {
     UpdateMcpServerRequest,
     DeleteMcpServerRequest,
     SetMcpToolsEnabledRequest,
+    SetCopilotOrbVisibleRequest,
+    CopilotToggleSettings,
+    SetCopilotToggleSettingRequest,
     McpLoadErrorsDTO,
     AgentsMdFileInfoDTO,
     ThreadSummary,
     SwitchThreadRequest,
+    PrepareKeyedThreadRequest,
+    PrepareKeyedThreadResponse,
     DeleteThreadRequest,
     RenameThreadRequest,
     // TODO(auto-memory): temporarily disabled for this release.
@@ -162,6 +168,8 @@ export interface AIPanelAPI {
     listThreads: () => Promise<ThreadSummary[]>;
     /** False when refused — a run or checkpoint restore is in progress. */
     switchThread: (params: SwitchThreadRequest) => Promise<boolean>;
+    /** Makes the thread last used for `key` active when it is still recent, or a new thread for it. */
+    prepareKeyedThread: (params: PrepareKeyedThreadRequest) => Promise<PrepareKeyedThreadResponse>;
     deleteThread: (params: DeleteThreadRequest) => Promise<void>;
     renameThread: (params: RenameThreadRequest) => Promise<void>;
     // TODO(auto-memory): memory management temporarily disabled for this release.
@@ -199,12 +207,17 @@ export interface AIPanelAPI {
     // ==================================
     listMcpServers: () => Promise<McpServerStatusDTO[]>;
     setMcpServerEnabled: (params: SetMcpServerEnabledRequest) => Promise<void>;
+    signInMcpServer: (params: SignInMcpServerRequest) => Promise<void>;
     openMcpConfig: (params: OpenMcpConfigRequest) => Promise<void>;
     addMcpServer: (params: AddMcpServerRequest) => Promise<AddMcpServerResponse>;
     updateMcpServer: (params: UpdateMcpServerRequest) => Promise<AddMcpServerResponse>;
     deleteMcpServer: (params: DeleteMcpServerRequest) => Promise<AddMcpServerResponse>;
     setMcpToolsEnabled: (params: SetMcpToolsEnabledRequest) => Promise<void>;
     getMcpToolsEnabled: () => Promise<boolean>;
+    setCopilotOrbVisible: (params: SetCopilotOrbVisibleRequest) => Promise<void>;
+    getCopilotOrbVisible: () => Promise<boolean>;
+    getCopilotToggleSettings: () => Promise<CopilotToggleSettings>;
+    setCopilotToggleSetting: (params: SetCopilotToggleSettingRequest) => Promise<void>;
     getMcpWorkspaceContext: () => Promise<McpWorkspaceContextResponse>;
     getMcpLoadErrors: () => Promise<McpLoadErrorsDTO>;
     getAgentsMdFileInfo: () => Promise<AgentsMdFileInfoDTO>;

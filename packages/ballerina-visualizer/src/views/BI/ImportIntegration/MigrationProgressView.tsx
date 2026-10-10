@@ -171,7 +171,7 @@ export function MigrationProgressView({
                                 <RadioInput type="radio" name="ai-enhancement-mode-report" checked={!aiEnhancementEnabled} onChange={() => setAiEnhancementEnabled(false)} />
                                 <RadioContent>
                                     <RadioTitle>Skip for Now, Enhance Later</RadioTitle>
-                                    <RadioDescription>Keep the project as-is. You can trigger AI enhancement later from the {assistantName}.</RadioDescription>
+                                    <RadioDescription>Keep the project as-is. You can trigger AI enhancement later from {assistantName}.</RadioDescription>
                                 </RadioContent>
                             </RadioOption>
                         </RadioGroup>

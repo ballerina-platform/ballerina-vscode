@@ -21,7 +21,6 @@ import styled from "@emotion/styled";
 import { McpLoadErrorsDTO, McpScope, McpServerStatusDTO } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Icon } from "@wso2/ui-toolkit";
-import { ExperimentalTag } from "../ExperimentalTag";
 import { Loader } from "../Loader";
 
 const TOOLTIP_SHOW_MS = 150;
@@ -336,6 +335,9 @@ function transportLabel(s: McpServerStatusDTO): string {
     if (s.shadowed) {
         return `${transport} · shadowed by project`;
     }
+    if (s.signInRequired) {
+        return `${transport} · not signed in`;
+    }
     if (s.status === "failed" && s.error) {
         return `Failed: ${s.error}`;
     }
@@ -347,6 +349,10 @@ function transportLabel(s: McpServerStatusDTO): string {
     }
     const n = s.tools.length;
     return `${transport} · ${n} tool${n === 1 ? "" : "s"}`;
+}
+
+function dotStatus(s: McpServerStatusDTO): McpServerStatusDTO["status"] {
+    return s.signInRequired ? "disconnected" : s.status;
 }
 
 export const McpToolsChip: React.FC<McpToolsChipProps> = ({ mcpToolsEnabled, onOpenMcpManager }) => {
@@ -532,7 +538,6 @@ export const McpToolsChip: React.FC<McpToolsChipProps> = ({ mcpToolsEnabled, onO
                                 onClick={handleToggleGlobal}
                             />
                             <HeaderTitle>MCP</HeaderTitle>
-                            <ExperimentalTag size="sm" label="Preview" tooltip="MCP tool support is in preview and may change." />
                         </HeaderLeft>
                         <HeaderRight>
                             <IconAction
@@ -594,7 +599,7 @@ export const McpToolsChip: React.FC<McpToolsChipProps> = ({ mcpToolsEnabled, onO
                                             const rowPending = pendingToggle.has(rowKey);
                                             return (
                                             <ServerRow key={rowKey}>
-                                                <StatusDot status={s.status} />
+                                                <StatusDot status={dotStatus(s)} />
                                                 <ServerMeta>
                                                     <ServerName title={s.name}>{s.name}</ServerName>
                                                     <ServerSubline title={transportLabel(s)}>{transportLabel(s)}</ServerSubline>

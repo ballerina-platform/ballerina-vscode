@@ -49,6 +49,7 @@ import { approvalViewManager } from "../../features/ai/state/ApprovalViewManager
 import { history, openView, StateMachine, undoRedoManager, updateView } from "../../stateMachine";
 import { openPopupView } from "../../stateMachinePopup";
 import { ArtifactNotificationHandler, ArtifactsUpdated } from "../../utils/project-artifacts-handler";
+import { pickClosestArtifact } from "../../utils/state-machine-utils";
 import { refreshDataMapper } from "../data-mapper/utils";
 
 export class VisualizerRpcManager implements VisualizerAPI {
@@ -112,6 +113,13 @@ export class VisualizerRpcManager implements VisualizerAPI {
     goSelected(index: number): void {
         history.select(index);
         updateView(false, undefined, { userInitiated: true });
+    }
+
+    mergeHistoryLocation(location: VisualizerLocation): void {
+        const current = history.get().at(-1);
+        if (current) {
+            history.updateCurrentEntry({ ...current, location: { ...current.location, ...location } });
+        }
     }
 
     addToHistory(entry: HistoryEntry): void {
@@ -272,39 +280,34 @@ export class VisualizerRpcManager implements VisualizerAPI {
             }
             console.log(">>> Updating current artifact location", { artifacts: params.artifacts });
             // Get the updated component and update the location
-            const currentIdentifier = StateMachine.context().identifier;
-            const currentType = StateMachine.context().type;
-            const parentIdentifier = StateMachine.context().parentIdentifier;
+            const { identifier: currentIdentifier, type: currentType, parentIdentifier, documentUri, position } = StateMachine.context();
+            const matchesIdentifier = (artifact: ProjectStructureArtifactResponse) =>
+                artifact.id === currentIdentifier || artifact.name === currentIdentifier;
 
             // Find the correct artifact by currentIdentifier (id)
-            let currentArtifact = undefined;
+            let classArtifact: ProjectStructureArtifactResponse = undefined;
+            let classResource: ProjectStructureArtifactResponse = undefined;
+            const candidates: ProjectStructureArtifactResponse[] = [];
             for (const artifact of params.artifacts) {
                 if (currentType && currentType.codedata.node === "CLASS" && currentType.name === artifact.name) {
-                    currentArtifact = artifact;
-                    if (artifact.resources && artifact.resources.length > 0) {
-                        const resource = artifact.resources.find(
-                            (resource) => resource.id === currentIdentifier || resource.name === currentIdentifier
-                        );
-                        if (resource) {
-                            currentArtifact = resource;
-                            break;
-                        }
+                    classArtifact = artifact;
+                    classResource = artifact.resources?.find(matchesIdentifier);
+                    if (classResource) {
+                        break;
                     }
-
-                } else if (artifact.id === currentIdentifier || artifact.name === currentIdentifier) {
-                    currentArtifact = artifact;
+                } else if (matchesIdentifier(artifact)) {
+                    candidates.push(artifact);
                 }
 
                 // Check if parent artifact is matched and has resources and find within those
                 if (parentIdentifier && artifact.name === parentIdentifier && artifact.resources && artifact.resources.length > 0) {
-                    const resource = artifact.resources.find(
-                        (resource) => resource.id === currentIdentifier || resource.name === currentIdentifier
-                    );
+                    const resource = artifact.resources.find(matchesIdentifier);
                     if (resource) {
-                        currentArtifact = resource;
+                        candidates.push(resource);
                     }
                 }
             }
+            const currentArtifact = classResource ?? pickClosestArtifact(candidates, documentUri, position) ?? classArtifact;
 
             if (currentArtifact) {
                 openView(EVENT_TYPE.UPDATE_PROJECT_LOCATION, {

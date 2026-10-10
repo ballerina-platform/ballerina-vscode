@@ -591,37 +591,62 @@ public class AvailableNodesGenerator {
             Category steps = new Category.Builder(null).name(Category.Name.WORKFLOW_STEPS)
                     .items(List.of(
                             workflowNode(Workflow.CALL_ACTIVITY_LABEL, Workflow.CALL_ACTIVITY_DESCRIPTION,
-                                    NodeKind.ACTIVITY_CALL),
+                                    NodeKind.ACTIVITY_CALL, Workflow.CALL_ACTIVITY_METHOD_NAME),
                             workflowNode(Workflow.HUMAN_TASK_LABEL, Workflow.HUMAN_TASK_DESCRIPTION,
-                                    NodeKind.HUMAN_TASK),
+                                    NodeKind.HUMAN_TASK, Workflow.CALL_HUMAN_TASK_METHOD_NAME,
+                                    Workflow.HUMAN_TASK_KEYWORDS),
                             workflowNode(Workflow.WAIT_DATA_LABEL, Workflow.WAIT_DATA_DESCRIPTION,
-                                    NodeKind.WAIT_DATA),
-                            workflowNode(Workflow.SLEEP_LABEL, Workflow.SLEEP_DESCRIPTION, NodeKind.SLEEP)))
+                                    NodeKind.WAIT_DATA, Workflow.AWAIT_METHOD_NAME, Workflow.WAIT_DATA_KEYWORDS),
+                            workflowNode(Workflow.SLEEP_LABEL, Workflow.SLEEP_DESCRIPTION, NodeKind.SLEEP,
+                                    Workflow.SLEEP_METHOD_NAME)))
                     .build();
 
             Category childWorkflows = new Category.Builder(null).name(Category.Name.CHILD_WORKFLOWS)
                     .items(List.of(
                             workflowNode(Workflow.RUN_CHILD_WORKFLOW_LABEL, Workflow.RUN_CHILD_WORKFLOW_DESCRIPTION,
-                                    NodeKind.CHILD_WORKFLOW_RUN),
+                                    NodeKind.CHILD_WORKFLOW_RUN,
+                                    Workflow.RUN_CHILD_WORKFLOW_METHOD_NAME,
+                                    Workflow.RUN_CHILD_WORKFLOW_KEYWORDS),
                             workflowNode(Workflow.CALL_CHILD_WORKFLOW_LABEL, Workflow.CALL_CHILD_WORKFLOW_DESCRIPTION,
-                                    NodeKind.CHILD_WORKFLOW_CALL),
+                                    NodeKind.CHILD_WORKFLOW_CALL,
+                                    Workflow.CALL_CHILD_WORKFLOW_METHOD_NAME,
+                                    Workflow.CALL_CHILD_WORKFLOW_KEYWORDS),
                             workflowNode(Workflow.WAIT_CHILD_WORKFLOW_LABEL, Workflow.WAIT_CHILD_WORKFLOW_DESCRIPTION,
-                                    NodeKind.CHILD_WORKFLOW_WAIT),
+                                    NodeKind.CHILD_WORKFLOW_WAIT,
+                                    Workflow.WAIT_CHILD_WORKFLOW_METHOD_NAME,
+                                    Workflow.WAIT_CHILD_WORKFLOW_KEYWORDS),
                             workflowNode(Workflow.SEND_DATA_CHILD_WORKFLOW_LABEL,
                                     Workflow.SEND_DATA_CHILD_WORKFLOW_DESCRIPTION,
-                                    NodeKind.CHILD_WORKFLOW_SEND_DATA)))
+                                    NodeKind.CHILD_WORKFLOW_SEND_DATA,
+                                    Workflow.SEND_DATA_CHILD_WORKFLOW_METHOD_NAME,
+                                    Workflow.SEND_DATA_CHILD_WORKFLOW_KEYWORDS)))
                     .build();
 
             Category workflowFunctions = new Category.Builder(null).name(Category.Name.WORKFLOW_FUNCTIONS)
                     .items(List.of(
                             workflowNode(Workflow.CURRENT_TIME_LABEL, Workflow.CURRENT_TIME_DESCRIPTION,
-                                    NodeKind.WORKFLOW_CURRENT_TIME),
+                                    NodeKind.WORKFLOW_CURRENT_TIME,
+                                    Workflow.CURRENT_TIME_METHOD_NAME, Workflow.CURRENT_TIME_KEYWORDS),
                             workflowNode(Workflow.IS_REPLAYING_LABEL, Workflow.IS_REPLAYING_DESCRIPTION,
-                                    NodeKind.WORKFLOW_IS_REPLAYING),
+                                    NodeKind.WORKFLOW_IS_REPLAYING,
+                                    Workflow.IS_REPLAYING_METHOD_NAME),
                             workflowNode(Workflow.GET_WORKFLOW_ID_LABEL, Workflow.GET_WORKFLOW_ID_DESCRIPTION,
-                                    NodeKind.WORKFLOW_GET_ID),
+                                    NodeKind.WORKFLOW_GET_ID,
+                                    Workflow.GET_WORKFLOW_ID_METHOD_NAME, Workflow.GET_WORKFLOW_ID_KEYWORDS),
                             workflowNode(Workflow.GET_WORKFLOW_TYPE_LABEL, Workflow.GET_WORKFLOW_TYPE_DESCRIPTION,
-                                    NodeKind.WORKFLOW_GET_TYPE)))
+                                    NodeKind.WORKFLOW_GET_TYPE,
+                                    Workflow.GET_WORKFLOW_TYPE_METHOD_NAME,
+                                    Workflow.GET_WORKFLOW_TYPE_KEYWORDS),
+                            workflowNode(Workflow.LAST_HUMAN_TASK_COMPLETION_LABEL,
+                                    Workflow.LAST_HUMAN_TASK_COMPLETION_DESCRIPTION,
+                                    NodeKind.WORKFLOW_LAST_HUMAN_TASK_COMPLETION,
+                                    Workflow.LAST_HUMAN_TASK_COMPLETION_METHOD_NAME,
+                                    Workflow.LAST_HUMAN_TASK_COMPLETION_KEYWORDS),
+                            workflowNode(Workflow.LAST_REVIEW_DECISION_LABEL,
+                                    Workflow.LAST_REVIEW_DECISION_DESCRIPTION,
+                                    NodeKind.WORKFLOW_LAST_REVIEW_DECISION,
+                                    Workflow.LAST_REVIEW_DECISION_METHOD_NAME,
+                                    Workflow.LAST_REVIEW_DECISION_KEYWORDS)))
                     .build();
 
             workflowNodes.add(steps);
@@ -655,6 +680,27 @@ public class AvailableNodesGenerator {
     private static AvailableNode workflowNode(String label, String description, NodeKind kind) {
         return new AvailableNode(
                 new Metadata.Builder<>(null).label(label).description(description).build(),
+                new Codedata.Builder<>(null).node(kind).build(),
+                true);
+    }
+
+    // A short palette name hides which context method the node stands for; the method name travels
+    // with the node so the panel can show it beside the description.
+    private static AvailableNode workflowNode(String label, String description, NodeKind kind, String method) {
+        return new AvailableNode(
+                new Metadata.Builder<>(null).label(label).description(description)
+                        .data(Workflow.METHOD_KEY, method).build(),
+                new Codedata.Builder<>(null).node(kind).build(),
+                true);
+    }
+
+    // Keywords carry the names the node no longer shows (its former label, the domain noun) so that
+    // a palette search by those words still finds it.
+    private static AvailableNode workflowNode(String label, String description, NodeKind kind, String method,
+                                              List<String> keywords) {
+        return new AvailableNode(
+                new Metadata.Builder<>(null).label(label).description(description).keywords(keywords)
+                        .data(Workflow.METHOD_KEY, method).build(),
                 new Codedata.Builder<>(null).node(kind).build(),
                 true);
     }

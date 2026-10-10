@@ -18,6 +18,7 @@
 
 package io.ballerina.flowmodelgenerator.core.utils;
 
+import io.ballerina.flowmodelgenerator.core.model.Property;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -171,5 +172,40 @@ public class WorkflowUtilLiteralTest {
         Assert.assertEquals(WorkflowUtil.quoteIfPlain("[\"a\", \"b\"]"), "[\"a\", \"b\"]");
         Assert.assertEquals(WorkflowUtil.quoteIfPlain("string `t`"), "string `t`");
         Assert.assertEquals(WorkflowUtil.quoteIfPlain("tab\there"), "\"tab\\there\"");
+    }
+
+    @Test(description = "A template the text box wrote names the capability by its text, like a literal does; "
+            + "one that interpolates stays source (wso2/product-integrator#2623)")
+    public void testCapabilityNameReadsPlainTemplate() {
+        Assert.assertEquals(WorkflowUtil.capabilityName("string `Lookup bill`"), "Lookup bill");
+        // A template keeps its backslashes, so its body reads back as written.
+        Assert.assertEquals(WorkflowUtil.capabilityName("string `Say \\\"hi\\\"`"), "Say \\\"hi\\\"");
+        Assert.assertEquals(WorkflowUtil.capabilityName("string `C:\\temp`"), "C:\\temp");
+        Assert.assertEquals(WorkflowUtil.capabilityName("\"Lookup bill\""), "Lookup bill");
+        Assert.assertEquals(WorkflowUtil.capabilityName("string `Bill ${id}`"), "string `Bill ${id}`");
+        Assert.assertEquals(WorkflowUtil.capabilityName("string ``"), "");
+        Assert.assertEquals(WorkflowUtil.capabilityName("lookupBill"), "lookupBill");
+    }
+
+    @Test(description = "A role list item the text box wrote as a template is written as its trimmed text: one "
+            + "role as a string, several as a list, an interpolated item as source")
+    public void testRoleListReadsTemplateItems() {
+        Assert.assertEquals(WorkflowUtil.roleSource(roleList("string `MANAGER\n`")), "\"MANAGER\"");
+        Assert.assertEquals(WorkflowUtil.roleSource(roleList("string `finance`", "string `manager`")),
+                "[\"finance\", \"manager\"]");
+        Assert.assertEquals(WorkflowUtil.roleSource(roleList("string ``", "  ")), "");
+        Assert.assertEquals(WorkflowUtil.roleSource(roleList("\"finance\"")), "\"finance\"");
+        Assert.assertEquals(WorkflowUtil.roleSource(roleList("finance")), "\"finance\"");
+        Assert.assertEquals(WorkflowUtil.roleSource(roleList("string `team-${teamId}`")), "string `team-${teamId}`");
+        // Text that is not one template or one literal is a role name as typed, never an expression.
+        Assert.assertEquals(WorkflowUtil.roleSource(roleList("string `a` + string `b`")),
+                "\"string `a` + string `b`\"");
+        Assert.assertEquals(WorkflowUtil.roleSource(roleList("string`MANAGER`")), "\"string`MANAGER`\"");
+        Assert.assertEquals(WorkflowUtil.roleSource(roleList("\"finance\" + \"manager\"")),
+                "\"\\\"finance\\\" + \\\"manager\\\"\"");
+    }
+
+    private static Property roleList(String... items) {
+        return Property.convertToProperty(Map.of("value", List.of(items)));
     }
 }

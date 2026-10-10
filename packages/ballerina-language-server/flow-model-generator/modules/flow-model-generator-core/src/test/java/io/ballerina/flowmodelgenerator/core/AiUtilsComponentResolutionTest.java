@@ -44,8 +44,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 /**
- * Tests {@link AiUtils#getModelIconUrl(SemanticModel, ExpressionNode)} and
- * {@link AiUtils#getMemoryStoreData(SemanticModel, SeparatedNodeList)} against the reference forms a
+ * Tests {@link AiUtils#getModelIconUrl(SemanticModel, Project, ExpressionNode)} and
+ * {@link AiUtils#getMemoryStoreData(SemanticModel, Project, SeparatedNodeList)} against the reference forms a
  * model or memory-store argument takes at a call site: a plain variable, a variable typed by the
  * generic interface, a class field, and (for the model) an expression neither resolves.
  *
@@ -57,12 +57,13 @@ public class AiUtilsComponentResolutionTest {
             .toAbsolutePath();
 
     private SemanticModel semanticModel;
+    private Project project;
     private ModulePartNode modulePart;
 
     @BeforeClass
     public void setup() {
         BuildOptions buildOptions = BuildOptions.builder().setOffline(true).build();
-        Project project = SingleFileProject.load(RES_DIR.resolve("ai_component_resolution.bal"), buildOptions);
+        project = SingleFileProject.load(RES_DIR.resolve("ai_component_resolution.bal"), buildOptions);
         semanticModel = PackageUtil.getCompilation(project)
                 .getSemanticModel(project.currentPackage().getDefaultModule().moduleId());
         DocumentId documentId = project.documentId(project.sourceRoot());
@@ -72,19 +73,26 @@ public class AiUtilsComponentResolutionTest {
 
     @Test(description = "No store argument resolves to no memory store")
     public void testMemoryWithoutStoreResolvesToNull() {
-        Assert.assertNull(AiUtils.getMemoryStoreData(semanticModel, newExpressionArgumentsOf("memoryWithNoStore")));
+        Assert.assertNull(
+                AiUtils.getMemoryStoreData(semanticModel, project, newExpressionArgumentsOf("memoryWithNoStore")));
     }
 
     @Test(description = "A memory store passed as a positional variable argument is resolved")
     public void testMemoryStoreResolvesFromPositionalVariable() {
-        assertMemoryStore(AiUtils.getMemoryStoreData(semanticModel,
+        assertMemoryStore(AiUtils.getMemoryStoreData(semanticModel, project,
                 newExpressionArgumentsOf("memoryWithPositionalStore")), "memoryStoreVar");
     }
 
     @Test(description = "A memory store passed as a named variable argument is resolved")
     public void testMemoryStoreResolvesFromNamedVariable() {
-        assertMemoryStore(AiUtils.getMemoryStoreData(semanticModel,
+        assertMemoryStore(AiUtils.getMemoryStoreData(semanticModel, project,
                 newExpressionArgumentsOf("memoryWithNamedStore")), "memoryStoreVar");
+    }
+
+    @Test(description = "A memory store declared by the generic type is resolved through the class it constructs")
+    public void testMemoryStoreResolvesFromGenericDeclaration() {
+        assertMemoryStore(AiUtils.getMemoryStoreData(semanticModel, project,
+                newExpressionArgumentsOf("memoryWithGenericStore")), "genericMemoryStoreVar");
     }
 
     @Test(description = "A memory store held in a class field is not resolved: CommonUtils#isAiMemoryStore "
@@ -93,32 +101,43 @@ public class AiUtilsComponentResolutionTest {
             + "handle) - a pre-existing gap in a shared helper outside this change, not a regression here")
     public void testMemoryStoreFromClassFieldIsNotYetResolved() {
         Assert.assertNull(
-                AiUtils.getMemoryStoreData(semanticModel, newExpressionArgumentsOf("memoryWithFieldStore")));
+                AiUtils.getMemoryStoreData(semanticModel, project, newExpressionArgumentsOf("memoryWithFieldStore")));
     }
 
     @Test(description = "A model provider referenced by a variable of its own type keeps that type name")
     public void testModelIconUsesConcreteTypeName() {
         AiUtils.ModelData model =
-                AiUtils.getModelIconUrl(semanticModel, expressionBodyOf("referenceTypedModelProvider"));
+                AiUtils.getModelIconUrl(semanticModel, project, expressionBodyOf("referenceTypedModelProvider"));
         Assert.assertNotNull(model);
         Assert.assertEquals(model.name(), "typedModelProvider");
         Assert.assertEquals(model.type(), "Wso2ModelProvider");
         assertBallerinaAiIcon(model.path());
     }
 
-    @Test(description = "A model provider referenced by the generic ModelProvider type falls back to the "
-            + "package name")
+    @Test(description = "A model provider declared by the generic ModelProvider type, with no concrete class in "
+            + "its initializer, falls back to the package name")
     public void testModelIconFallsBackToPackageNameForGenericType() {
         AiUtils.ModelData model =
-                AiUtils.getModelIconUrl(semanticModel, expressionBodyOf("referenceGenericModelProvider"));
+                AiUtils.getModelIconUrl(semanticModel, project, expressionBodyOf("referenceGenericModelProvider"));
         Assert.assertNotNull(model);
         Assert.assertEquals(model.name(), "genericModelProvider");
         Assert.assertEquals(model.type(), "ai");
     }
 
+    @Test(description = "A model provider declared by the generic type takes the type of the class it constructs")
+    public void testModelIconUsesConstructedTypeForGenericDeclaration() {
+        AiUtils.ModelData model = AiUtils.getModelIconUrl(semanticModel, project,
+                expressionBodyOf("referenceConstructedModelProvider"));
+        Assert.assertNotNull(model);
+        Assert.assertEquals(model.name(), "constructedModelProvider");
+        Assert.assertEquals(model.type(), "Wso2ModelProvider");
+        assertBallerinaAiIcon(model.path());
+    }
+
     @Test(description = "A model provider held in a class field is resolved through the field access")
     public void testModelIconResolvesThroughFieldAccess() {
-        AiUtils.ModelData model = AiUtils.getModelIconUrl(semanticModel, expressionBodyOf("referenceFieldModel"));
+        AiUtils.ModelData model =
+                AiUtils.getModelIconUrl(semanticModel, project, expressionBodyOf("referenceFieldModel"));
         Assert.assertNotNull(model);
         Assert.assertEquals(model.name(), "fieldModel");
         Assert.assertEquals(model.type(), "ai");
@@ -127,7 +146,7 @@ public class AiUtilsComponentResolutionTest {
     @Test(description = "An expression that is neither a name nor a field access round-trips as source text")
     public void testModelIconFallsBackToSourceTextForOtherExpressions() {
         AiUtils.ModelData model =
-                AiUtils.getModelIconUrl(semanticModel, expressionBodyOf("referenceFallbackModelExpression"));
+                AiUtils.getModelIconUrl(semanticModel, project, expressionBodyOf("referenceFallbackModelExpression"));
         Assert.assertEquals(model, new AiUtils.ModelData("fallbackModelExpression()", null, null));
     }
 

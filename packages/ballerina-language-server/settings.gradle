@@ -16,7 +16,7 @@
  */
 
 plugins {
-    id "com.gradle.enterprise" version "3.13.2"
+    id "com.gradle.develocity" version "4.5.1"
 }
 
 rootProject.name = 'ballerina-language-server'
@@ -75,9 +75,9 @@ project(':diagram-util').projectDir = file('misc/diagram-util')
 project(':bal-shell-service').projectDir = file('misc/ls-extensions/modules/bal-shell-service')
 project(':service-template-generator').projectDir = file('service-template-generator')
 
-gradleEnterprise {
+develocity {
     buildScan {
-        termsOfServiceUrl = 'https://gradle.com/terms-of-service'
-        termsOfServiceAgree = 'yes'
+        termsOfUseUrl = 'https://gradle.com/help/legal-terms-of-use'
+        termsOfUseAgree = 'yes'
     }
 }

@@ -16,10 +16,13 @@
  * under the License.
  */
 
+import * as vscode from "vscode";
 import { BUILT_IN_MCP_SERVERS } from "./builtIns";
+import { McpOAuthProvider, SignInCancelled, signInOnNextConnect, takeInteractiveSignIn } from "./oauth";
 import { loadMcpConfig, McpLoadErrors } from "./configLoader";
 import {
     McpConnectionStatus,
+    McpHttpServerConfig,
     McpScope,
     McpServerConfig,
     McpServerStatus,
@@ -48,7 +51,10 @@ interface McpClient {
 }
 type McpClientCtor = new (info: { name: string; version: string }) => McpClient;
 type StdioCtor = new (params: { command: string; args?: string[]; env?: Record<string, string> }) => unknown;
-type StreamableHttpCtor = new (url: URL, opts?: { requestInit?: { headers?: Record<string, string> } }) => unknown;
+interface StreamableHttpTransport {
+    finishAuth(authorizationCode: string): Promise<void>;
+}
+type StreamableHttpCtor = new (url: URL, opts?: { requestInit?: { headers?: Record<string, string> }; authProvider?: McpOAuthProvider }) => StreamableHttpTransport;
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { Client: McpClientImpl } = require("@modelcontextprotocol/sdk/client/index.js") as { Client: McpClientCtor };
@@ -56,6 +62,8 @@ const { Client: McpClientImpl } = require("@modelcontextprotocol/sdk/client/inde
 const { StdioClientTransport } = require("@modelcontextprotocol/sdk/client/stdio.js") as { StdioClientTransport: StdioCtor };
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { StreamableHTTPClientTransport } = require("@modelcontextprotocol/sdk/client/streamableHttp.js") as { StreamableHTTPClientTransport: StreamableHttpCtor };
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { UnauthorizedError } = require("@modelcontextprotocol/sdk/client/auth.js") as { UnauthorizedError: new (...args: unknown[]) => Error };
 
 const CLIENT_NAME = "wso2-integrator-copilot";
 const CLIENT_VERSION = "1.0.0";
@@ -132,12 +140,13 @@ function normaliseConfigForDto(cfg: McpServerConfig, transport: McpTransportType
             ...(stdio.env ? { env: stdio.env } : {}),
         };
     }
-    const http = cfg as { url?: string; headers?: Record<string, string>; headersFromEnv?: Record<string, string> };
+    const http = cfg as McpHttpServerConfig;
     return {
         type: "http",
         url: http.url ?? "",
         ...(http.headers ? { headers: http.headers } : {}),
         ...(http.headersFromEnv ? { headersFromEnv: http.headersFromEnv } : {}),
+        ...(http.oauth ? { oauth: http.oauth } : {}),
     };
 }
 
@@ -173,6 +182,11 @@ export class McpClientManager {
     private lastErrors: McpLoadErrors = {};
     private refreshing?: Promise<void>;
     private disposed = false;
+    // Kept across reconnects so a PKCE verifier survives until the browser redirect comes back.
+    private oauthProviders = new Map<string, McpOAuthProvider>();
+    // A reconnect mid-sign-in would replace the PKCE verifier the browser redirect is waiting to redeem.
+    private signingIn = new Set<string>();
+    onDidChange?: () => void;
 
     constructor(enabledOverrides: EnabledOverrideStore, workspacePath?: string, workspaceTrusted: boolean = true) {
         this.enabledOverrides = enabledOverrides;
@@ -240,6 +254,7 @@ export class McpClientManager {
             if (!desired) {
                 await this.disconnect(state);
                 this.servers.delete(key);
+                this.oauthProviders.delete(key);
                 continue;
             }
             const enabled = this.isServerEnabled(desired.scope, desired.name, desired.config);
@@ -247,6 +262,7 @@ export class McpClientManager {
             if (configChanged) {
                 await this.disconnect(state);
                 this.servers.delete(key);
+                this.oauthProviders.delete(key);
                 continue;
             }
             if (!enabled && state.status !== "disconnected") {
@@ -274,7 +290,7 @@ export class McpClientManager {
             // `disconnected`/`failed` states fall through so re-enabling actually
             // reconnects instead of leaving the server in its prior status.
             const existing = this.servers.get(key);
-            if (existing && (existing.status === "connected" || existing.status === "connecting")) {
+            if (existing && (existing.status === "connected" || existing.status === "connecting" || this.signingIn.has(key))) {
                 continue;
             }
             const state: ServerState = {
@@ -335,8 +351,9 @@ export class McpClientManager {
         let client: McpClient | undefined;
         try {
             client = new McpClientImpl({ name: CLIENT_NAME, version: CLIENT_VERSION });
-            const transport = this.buildTransport(state.config);
-            await withTimeout(client.connect(transport), CONNECT_TIMEOUT_MS, `connect to '${state.scope}:${state.name}'`);
+            const transport = this.buildTransport(state);
+            await withTimeout(client.connect(transport), CONNECT_TIMEOUT_MS, `connect to '${state.scope}:${state.name}'`)
+                .catch((err) => this.handleUnauthorized(state, transport as StreamableHttpTransport, err));
             const { tools } = await withTimeout(client.listTools(), CONNECT_TIMEOUT_MS, `list tools for '${state.scope}:${state.name}'`);
             // Disposed mid-connect: close the client instead of leaking it.
             if (this.disposed) {
@@ -367,15 +384,64 @@ export class McpClientManager {
             if (client) {
                 client.close().catch(() => { /* ignore */ });
             }
-            state.status = "failed";
-            state.error = err?.message ?? String(err);
+            const signingIn = this.signingIn.has(keyOf(state.scope, state.name));
+            state.status = signingIn ? "connecting" : "failed";
+            state.error = signingIn ? undefined : err?.message ?? String(err);
             state.client = undefined;
             state.tools = [];
             console.warn(`[mcp] Failed to connect to '${state.scope}:${state.name}':`, state.error);
         }
     }
 
-    private buildTransport(cfg: McpServerConfig): unknown {
+    // A 401 leaves a pending authorization URL; sign-in finishes on the same transport, then reconnects.
+    private handleUnauthorized(state: ServerState, transport: StreamableHttpTransport, err: unknown): never {
+        const key = keyOf(state.scope, state.name);
+        const provider = this.oauthProviders.get(key);
+        if (!(err instanceof UnauthorizedError) || !provider?.authorizationUrl) {
+            throw err;
+        }
+        // Background reconnects stay quiet; the MCP page offers Sign In on the row instead.
+        if (takeInteractiveSignIn((state.config as McpHttpServerConfig).url)) {
+            void this.promptSignIn(state, provider, transport);
+        }
+        throw new Error("Sign-in required.");
+    }
+
+    async signIn(scope: McpScope, name: string): Promise<void> {
+        const state = this.servers.get(keyOf(scope, name));
+        if (!state || state.status === "connected" || this.signingIn.has(keyOf(scope, name))) {
+            return;
+        }
+        signInOnNextConnect((state.config as McpHttpServerConfig).url);
+        state.status = "connecting";
+        state.error = undefined;
+        await this.connect(state);
+    }
+
+    private async promptSignIn(state: ServerState, provider: McpOAuthProvider, transport: StreamableHttpTransport): Promise<void> {
+        const key = keyOf(state.scope, state.name);
+        this.signingIn.add(key);
+        try {
+            await transport.finishAuth(await provider.signIn(state.name));
+            provider.authorizationUrl = undefined;
+            // The verifier is spent, so connect() may report a failed reconnect as "failed" instead of "connecting".
+            this.signingIn.delete(key);
+            await this.connect(state);
+            this.onDidChange?.();
+        } catch (err: any) {
+            state.status = "failed";
+            state.error = "Sign-in required.";
+            this.onDidChange?.();
+            if (!(err instanceof SignInCancelled)) {
+                vscode.window.showErrorMessage(`Couldn't sign in to MCP server '${state.name}'. ${err?.message ?? err} Use Sign In on the MCP Servers page to try again.`);
+            }
+        } finally {
+            this.signingIn.delete(key);
+        }
+    }
+
+    private buildTransport(state: ServerState): unknown {
+        const cfg = state.config;
         const t = transportOf(cfg);
         if (t === "stdio") {
             if (!("command" in cfg) || !cfg.command) {
@@ -412,7 +478,16 @@ export class McpClientManager {
         }
         return new StreamableHTTPClientTransport(url, {
             requestInit: { headers },
+            authProvider: cfg.oauth ? this.oauthProviderFor(state, cfg.url, cfg.oauth) : undefined,
         });
+    }
+
+    private oauthProviderFor(state: ServerState, url: string, oauth: NonNullable<McpHttpServerConfig["oauth"]>): McpOAuthProvider {
+        const key = keyOf(state.scope, state.name);
+        if (!this.oauthProviders.has(key)) {
+            this.oauthProviders.set(key, new McpOAuthProvider(url, oauth));
+        }
+        return this.oauthProviders.get(key)!;
     }
 
     private async disconnect(state: ServerState): Promise<void> {
@@ -451,6 +526,7 @@ export class McpClientManager {
                 enabled: this.isServerEnabled(state.scope, state.name, state.config),
                 status: state.status,
                 error: state.error,
+                signInRequired: state.status === "failed" && !!this.oauthProviders.get(keyOf(state.scope, state.name))?.authorizationUrl,
                 tools: state.tools.map<McpToolSummary>(t => ({ name: t.name, description: t.description })),
                 config: normaliseConfigForDto(state.config, state.transport),
                 shadowed,

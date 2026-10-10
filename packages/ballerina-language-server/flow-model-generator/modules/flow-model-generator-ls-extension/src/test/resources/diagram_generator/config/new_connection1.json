@@ -968,7 +968,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "connection"
             },
-            "defaultValue": "\"\""
+            "defaultValue": "\"redis://localhost:6379\""
           },
           "connectionPooling": {
             "metadata": {
@@ -1533,7 +1533,10 @@
               "offset": 76
             }
           },
-          "sourceCode": "http:Client moduleHttpExCl = check new http:Client(\"http://localhost:9090\");"
+          "sourceCode": "http:Client moduleHttpExCl = check new http:Client(\"http://localhost:9090\");",
+          "data": {
+            "explicitNewType": "http:Client"
+          }
         },
         "returning": false,
         "properties": {
@@ -2436,7 +2439,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "connection"
             },
-            "defaultValue": "\"\""
+            "defaultValue": "\"redis://localhost:6379\""
           },
           "connectionPooling": {
             "metadata": {
@@ -2641,7 +2644,10 @@
               "offset": 56
             }
           },
-          "sourceCode": "redis:Client moduleRedisExCl = check new redis:Client();"
+          "sourceCode": "redis:Client moduleRedisExCl = check new redis:Client();",
+          "data": {
+            "explicitNewType": "redis:Client"
+          }
         },
         "returning": false,
         "properties": {
@@ -2685,7 +2691,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "connection"
             },
-            "defaultValue": "\"\""
+            "defaultValue": "\"redis://localhost:6379\""
           },
           "connectionPooling": {
             "metadata": {

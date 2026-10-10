@@ -143,18 +143,24 @@ import {
     ParseSkillFileResponse,
     listMcpServers,
     setMcpServerEnabled,
+    signInMcpServer,
     openMcpConfig,
     addMcpServer,
     updateMcpServer,
     deleteMcpServer,
     setMcpToolsEnabled,
     getMcpToolsEnabled,
+    setCopilotOrbVisible,
+    getCopilotOrbVisible,
+    getCopilotToggleSettings,
+    setCopilotToggleSetting,
     getMcpWorkspaceContext,
     getMcpLoadErrors,
     getAgentsMdFileInfo,
     openOrCreateAgentsMd,
     McpServerStatusDTO,
     SetMcpServerEnabledRequest,
+    SignInMcpServerRequest,
     AddMcpServerRequest,
     AddMcpServerResponse,
     OpenMcpConfigRequest,
@@ -162,11 +168,17 @@ import {
     UpdateMcpServerRequest,
     DeleteMcpServerRequest,
     SetMcpToolsEnabledRequest,
+    SetCopilotOrbVisibleRequest,
+    CopilotToggleSettings,
+    SetCopilotToggleSettingRequest,
     McpLoadErrorsDTO,
     AgentsMdFileInfoDTO,
     listThreads,
     switchThread,
     SwitchThreadRequest,
+    prepareKeyedThread,
+    PrepareKeyedThreadRequest,
+    PrepareKeyedThreadResponse,
     deleteThread,
     DeleteThreadRequest,
     renameThread,
@@ -470,6 +482,10 @@ export class AiPanelRpcClient implements AIPanelAPI {
         return this._messenger.sendRequest(setMcpServerEnabled, HOST_EXTENSION, params);
     }
 
+    signInMcpServer(params: SignInMcpServerRequest): Promise<void> {
+        return this._messenger.sendRequest(signInMcpServer, HOST_EXTENSION, params);
+    }
+
     openMcpConfig(params: OpenMcpConfigRequest): Promise<void> {
         return this._messenger.sendRequest(openMcpConfig, HOST_EXTENSION, params);
     }
@@ -494,6 +510,22 @@ export class AiPanelRpcClient implements AIPanelAPI {
         return this._messenger.sendRequest(getMcpToolsEnabled, HOST_EXTENSION);
     }
 
+    setCopilotOrbVisible(params: SetCopilotOrbVisibleRequest): Promise<void> {
+        return this._messenger.sendRequest(setCopilotOrbVisible, HOST_EXTENSION, params);
+    }
+
+    getCopilotOrbVisible(): Promise<boolean> {
+        return this._messenger.sendRequest(getCopilotOrbVisible, HOST_EXTENSION);
+    }
+
+    getCopilotToggleSettings(): Promise<CopilotToggleSettings> {
+        return this._messenger.sendRequest(getCopilotToggleSettings, HOST_EXTENSION);
+    }
+
+    setCopilotToggleSetting(params: SetCopilotToggleSettingRequest): Promise<void> {
+        return this._messenger.sendRequest(setCopilotToggleSetting, HOST_EXTENSION, params);
+    }
+
     getMcpWorkspaceContext(): Promise<McpWorkspaceContextResponse> {
         return this._messenger.sendRequest(getMcpWorkspaceContext, HOST_EXTENSION);
     }
@@ -516,6 +548,10 @@ export class AiPanelRpcClient implements AIPanelAPI {
 
     switchThread(params: SwitchThreadRequest): Promise<boolean> {
         return this._messenger.sendRequest(switchThread, HOST_EXTENSION, params);
+    }
+
+    prepareKeyedThread(params: PrepareKeyedThreadRequest): Promise<PrepareKeyedThreadResponse> {
+        return this._messenger.sendRequest(prepareKeyedThread, HOST_EXTENSION, params);
     }
 
     deleteThread(params: DeleteThreadRequest): Promise<void> {

@@ -19,7 +19,7 @@
 import { WebviewView, WebviewPanel, window } from 'vscode';
 import { Messenger } from 'vscode-messenger';
 import { StateMachine } from './stateMachine';
-import { stateChanged, getVisualizerLocation, VisualizerLocation, projectContentUpdated, aiStateChanged, sendAIStateEvent, popupStateChanged, getPopupVisualizerState, PopupVisualizerLocation, breakpointChanged, AIMachineEventType, ArtifactData, onArtifactUpdatedNotification, onArtifactUpdatedRequest, currentThemeChanged, AIMachineSendableEvent, checkpointCaptured, CheckpointCapturedPayload, promptUpdated, approvalOverlayState, ApprovalOverlayState, onIdentifierUpdated, ProjectStructureArtifactResponse, runningServicesChanged, RunningServiceInfo, evaluationHistoryUpdated, mcpServersChanged, McpServerStatusDTO, mcpLoadErrorsChanged, McpLoadErrorsDTO, agentsMdFileInfoChanged, AgentsMdFileInfoDTO } from '@wso2/ballerina-core';
+import { stateChanged, getVisualizerLocation, VisualizerLocation, projectContentUpdated, aiStateChanged, sendAIStateEvent, popupStateChanged, getPopupVisualizerState, PopupVisualizerLocation, breakpointChanged, AIMachineEventType, ArtifactData, onArtifactUpdatedNotification, onArtifactUpdatedRequest, currentThemeChanged, AIMachineSendableEvent, checkpointCaptured, CheckpointCapturedPayload, promptUpdated, approvalOverlayState, ApprovalOverlayState, onIdentifierUpdated, ProjectStructureArtifactResponse, runningServicesChanged, RunningServiceInfo, evaluationHistoryUpdated, evaluationRunStateChanged, EvaluationRunState, evalsetsChanged, mcpServersChanged, McpServerStatusDTO, mcpLoadErrorsChanged, McpLoadErrorsDTO, agentsMdFileInfoChanged, AgentsMdFileInfoDTO } from '@wso2/ballerina-core';
 import { EvaluationHistoryWebview } from './views/evaluation-history/webview';
 import { VisualizerWebview } from './views/visualizer/webview';
 import { registerVisualizerRpcHandlers } from './rpc-managers/visualizer/rpc-handler';
@@ -43,11 +43,13 @@ import { registerDataMapperRpcHandlers } from './rpc-managers/data-mapper/rpc-ha
 import { registerTestManagerRpcHandlers } from './rpc-managers/test-manager/rpc-handler';
 import { registerIcpServiceRpcHandlers } from './rpc-managers/icp-service/rpc-handler';
 import { registerWorkflowManagementServiceRpcHandlers } from './rpc-managers/workflow-management-service/rpc-handler';
+import { registerAgentManagerRpcHandlers } from './rpc-managers/agent-manager/rpc-handler';
+import { getSessionSummary } from './features/agent-manager/auth';
 import { extension } from './BalExtensionContext';
 import { isICPSupported } from './utils/config';
 import { registerAgentChatRpcHandlers } from './rpc-managers/agent-chat/rpc-handler';
 import { ChatPanel } from './views/agent-chat/webview';
-import { activeAgentChanged, tracingStatusChanged, TraceStatus } from '@wso2/ballerina-core';
+import { activeAgentChanged, agentManagerSessionChanged, tracingStatusChanged, TraceStatus } from '@wso2/ballerina-core';
 import { ArtifactsUpdated, ArtifactNotificationHandler } from './utils/project-artifacts-handler';
 import { registerMigrateIntegrationRpcHandlers } from './rpc-managers/migrate-integration/rpc-handler';
 import { registerPlatformExtRpcHandlers } from './rpc-managers/platform-ext/rpc-handler';
@@ -138,6 +140,7 @@ export class RPCLayer {
         registerAiAgentRpcHandlers(RPCLayer._messenger);
         registerIcpServiceRpcHandlers(RPCLayer._messenger);
         registerWorkflowManagementServiceRpcHandlers(RPCLayer._messenger);
+        registerAgentManagerRpcHandlers(RPCLayer._messenger);
         registerAgentChatRpcHandlers(RPCLayer._messenger);
         registerPlatformExtRpcHandlers(RPCLayer._messenger);
 
@@ -175,6 +178,7 @@ async function getContext(): Promise<VisualizerLocation> {
             view: context.view,
             identifier: context.identifier,
             parentIdentifier: context.parentIdentifier,
+            navigationKey: context.navigationKey,
             artifactType: context.artifactType,
             position: context.position,
             syntaxTree: context.syntaxTree,
@@ -275,6 +279,13 @@ export function notifyRunningServicesChanged(services: RunningServiceInfo[]) {
     RPCLayer._messenger.sendNotification(runningServicesChanged, { type: 'webview', webviewType: AiPanelWebview.viewType }, services);
 }
 
+export async function notifyAgentManagerSessionChanged() {
+    const session = await getSessionSummary();
+    for (const webviewType of [VisualizerWebview.viewType, AiPanelWebview.viewType]) {
+        RPCLayer._messenger.sendNotification(agentManagerSessionChanged, { type: 'webview', webviewType }, session);
+    }
+}
+
 export function notifyMcpServersChanged(servers: McpServerStatusDTO[]) {
     RPCLayer._messenger.sendNotification(mcpServersChanged, { type: 'webview', webviewType: AiPanelWebview.viewType }, servers);
 }
@@ -303,4 +314,12 @@ export function sendTracingStatusChangedNotification(status: TraceStatus) {
 
 export function notifyEvaluationHistoryUpdated() {
     RPCLayer._messenger.sendNotification(evaluationHistoryUpdated, { type: 'webview', webviewType: EvaluationHistoryWebview.viewType });
+}
+
+export function notifyEvaluationRunStateChanged(state: EvaluationRunState) {
+    RPCLayer._messenger.sendNotification(evaluationRunStateChanged, { type: 'webview', webviewType: VisualizerWebview.viewType }, state);
+}
+
+export function notifyEvalsetsChanged() {
+    RPCLayer._messenger.sendNotification(evalsetsChanged, { type: 'webview', webviewType: VisualizerWebview.viewType });
 }
