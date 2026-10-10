@@ -652,7 +652,9 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
     const modeSwitcherNode = modeSwitcherContext?.isModeSwitcherEnabled && !field.hideModeSwitcher ? (
         <S.FieldInfoSection>
             {isLoading ? (
-                <SkeletonBase height="24px" width="112px" style={{ borderRadius: '2px', marginTop: '2px' }} />
+                // 140px is the rendered ModeSwitcher width for any "<mode> / Expression" pair, not its
+                // 112px min-width: both columns size to the longer label, which is normally Expression.
+                <SkeletonBase height="24px" width="140px" style={{ borderRadius: '2px', marginTop: '2px' }} />
             ) : (
                 <ModeSwitcher
                     fieldKey={field.key}
