@@ -487,7 +487,7 @@
                 "selected": false
               }
             ],
-            "placeholder": "\"2.0\"",
+            "placeholder": "",
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -496,7 +496,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "httpVersion"
             },
-            "defaultValue": "\"2.0\""
+            "defaultValue": ""
           },
           "http1Settings": {
             "metadata": {
@@ -533,7 +533,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "http1Settings"
             },
-            "defaultValue": "{}"
+            "defaultValue": ""
           },
           "http2Settings": {
             "metadata": {
@@ -570,7 +570,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "http2Settings"
             },
-            "defaultValue": "{}"
+            "defaultValue": ""
           },
           "timeout": {
             "metadata": {
@@ -598,7 +598,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "timeout"
             },
-            "defaultValue": "0.0d"
+            "defaultValue": ""
           },
           "forwarded": {
             "metadata": {
@@ -626,7 +626,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "forwarded"
             },
-            "defaultValue": "\"\""
+            "defaultValue": ""
           },
           "followRedirects": {
             "metadata": {
@@ -663,7 +663,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "followRedirects"
             },
-            "defaultValue": "()"
+            "defaultValue": ""
           },
           "poolConfig": {
             "metadata": {
@@ -700,7 +700,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "poolConfig"
             },
-            "defaultValue": "()"
+            "defaultValue": ""
           },
           "cache": {
             "metadata": {
@@ -737,7 +737,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "cache"
             },
-            "defaultValue": "{}"
+            "defaultValue": ""
           },
           "compression": {
             "metadata": {
@@ -769,7 +769,7 @@
                 "selected": false
               }
             ],
-            "placeholder": "\"AUTO\"",
+            "placeholder": "",
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -778,7 +778,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "compression"
             },
-            "defaultValue": "\"AUTO\""
+            "defaultValue": ""
           },
           "auth": {
             "metadata": {
@@ -857,7 +857,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "auth"
             },
-            "defaultValue": "()"
+            "defaultValue": ""
           },
           "circuitBreaker": {
             "metadata": {
@@ -894,7 +894,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "circuitBreaker"
             },
-            "defaultValue": "()"
+            "defaultValue": ""
           },
           "retryConfig": {
             "metadata": {
@@ -931,7 +931,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "retryConfig"
             },
-            "defaultValue": "()"
+            "defaultValue": ""
           },
           "cookieConfig": {
             "metadata": {
@@ -968,7 +968,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "cookieConfig"
             },
-            "defaultValue": "()"
+            "defaultValue": ""
           },
           "responseLimits": {
             "metadata": {
@@ -1005,7 +1005,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "responseLimits"
             },
-            "defaultValue": "{}"
+            "defaultValue": ""
           },
           "proxy": {
             "metadata": {
@@ -1042,7 +1042,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "proxy"
             },
-            "defaultValue": "()"
+            "defaultValue": ""
           },
           "validation": {
             "metadata": {
@@ -1070,7 +1070,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "validation"
             },
-            "defaultValue": "false"
+            "defaultValue": ""
           },
           "socketConfig": {
             "metadata": {
@@ -1107,7 +1107,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "socketConfig"
             },
-            "defaultValue": "{}"
+            "defaultValue": ""
           },
           "laxDataBinding": {
             "metadata": {
@@ -1135,7 +1135,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "laxDataBinding"
             },
-            "defaultValue": "false"
+            "defaultValue": ""
           },
           "secureSocket": {
             "metadata": {
@@ -1844,7 +1844,7 @@
                 "selected": false
               }
             ],
-            "placeholder": "\"2.0\"",
+            "placeholder": "",
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -1853,7 +1853,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "httpVersion"
             },
-            "defaultValue": "\"2.0\""
+            "defaultValue": ""
           },
           "http1Settings": {
             "metadata": {
@@ -1890,7 +1890,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "http1Settings"
             },
-            "defaultValue": "{}"
+            "defaultValue": ""
           },
           "http2Settings": {
             "metadata": {
@@ -1927,7 +1927,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "http2Settings"
             },
-            "defaultValue": "{}"
+            "defaultValue": ""
           },
           "timeout": {
             "metadata": {
@@ -1955,7 +1955,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "timeout"
             },
-            "defaultValue": "0.0d"
+            "defaultValue": ""
           },
           "forwarded": {
             "metadata": {
@@ -1983,7 +1983,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "forwarded"
             },
-            "defaultValue": "\"\""
+            "defaultValue": ""
           },
           "followRedirects": {
             "metadata": {
@@ -2020,7 +2020,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "followRedirects"
             },
-            "defaultValue": "()"
+            "defaultValue": ""
           },
           "poolConfig": {
             "metadata": {
@@ -2057,7 +2057,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "poolConfig"
             },
-            "defaultValue": "()"
+            "defaultValue": ""
           },
           "cache": {
             "metadata": {
@@ -2094,7 +2094,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "cache"
             },
-            "defaultValue": "{}"
+            "defaultValue": ""
           },
           "compression": {
             "metadata": {
@@ -2126,7 +2126,7 @@
                 "selected": false
               }
             ],
-            "placeholder": "\"AUTO\"",
+            "placeholder": "",
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -2135,7 +2135,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "compression"
             },
-            "defaultValue": "\"AUTO\""
+            "defaultValue": ""
           },
           "auth": {
             "metadata": {
@@ -2214,7 +2214,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "auth"
             },
-            "defaultValue": "()"
+            "defaultValue": ""
           },
           "circuitBreaker": {
             "metadata": {
@@ -2251,7 +2251,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "circuitBreaker"
             },
-            "defaultValue": "()"
+            "defaultValue": ""
           },
           "retryConfig": {
             "metadata": {
@@ -2288,7 +2288,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "retryConfig"
             },
-            "defaultValue": "()"
+            "defaultValue": ""
           },
           "cookieConfig": {
             "metadata": {
@@ -2325,7 +2325,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "cookieConfig"
             },
-            "defaultValue": "()"
+            "defaultValue": ""
           },
           "responseLimits": {
             "metadata": {
@@ -2362,7 +2362,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "responseLimits"
             },
-            "defaultValue": "{}"
+            "defaultValue": ""
           },
           "proxy": {
             "metadata": {
@@ -2399,7 +2399,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "proxy"
             },
-            "defaultValue": "()"
+            "defaultValue": ""
           },
           "validation": {
             "metadata": {
@@ -2427,7 +2427,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "validation"
             },
-            "defaultValue": "false"
+            "defaultValue": ""
           },
           "socketConfig": {
             "metadata": {
@@ -2464,7 +2464,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "socketConfig"
             },
-            "defaultValue": "{}"
+            "defaultValue": ""
           },
           "laxDataBinding": {
             "metadata": {
@@ -2492,7 +2492,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "laxDataBinding"
             },
-            "defaultValue": "false"
+            "defaultValue": ""
           },
           "secureSocket": {
             "metadata": {
