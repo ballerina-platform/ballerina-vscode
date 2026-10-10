@@ -161,11 +161,13 @@ export async function expectNilAccepted(webview: Frame, panel: Locator, key: str
     await expect(panel.getByText(TYPE_ERROR)).toHaveCount(0, { timeout: 60000 });
 }
 
-// Fills the reviewer fields of a Human Approval / Retry-then-Review sub-form: roles `()`, users named.
-export async function fillReviewers(webview: Frame, panel: Locator, rolesKey: string, usersKey: string): Promise<void> {
+// Fills the reviewer fields of a Human Approval / Retry-then-Review sub-form: roles `()`, users as the
+// given expression (a literal name by default).
+export async function fillReviewers(webview: Frame, panel: Locator, rolesKey: string, usersKey: string,
+    users = '"alice"'): Promise<void> {
     await expandAdvanced(panel);
     await switchToExpression(panel, usersKey);
-    await fillExEditor(webview, usersKey, '"alice"');
+    await fillExEditor(webview, usersKey, users);
     await switchToExpression(panel, rolesKey);
     await expectNilAccepted(webview, panel, rolesKey);
 }

@@ -33,6 +33,9 @@ import {
 const EMPTY_PROJECT_TEMPLATE = path.join(__dirname, '..', 'data', 'empty_project');
 
 const HUMAN_TASK_CALL = /awaitHumanTask\("reviewTask", userRoles = \(\), taskInput = \{\}, users = "alice"\)/;
+const REVIEWERS_EXPRESSION = '"ali" + "ce"';
+const RETRY_POLICY = /retryPolicy = \{maxRetries: 3, userRoles: \(\), users: "ali" \+ "ce"\}/;
+const APPROVAL_POLICY = /approvalPolicy = \{userRoles: \(\), users: "alice"\}/;
 
 // Every .bal file of the project, joined: the designer decides which file a declaration lands in.
 function projectSource(): string {
@@ -187,7 +190,8 @@ export default function createTests() {
             logStep('Retry, then Review: the reviewer roles take () (#2721)');
             await selectDropdown(panel, /Retry Policy/, 'Retry, then Review');
             await fillExEditor(webview, 'maxRetries', '3');
-            await fillReviewers(webview, panel, 'retryUserRoles', 'retryUsers');
+            // A computed expression, not a literal: it must survive a reopen as the expression it is (#2716).
+            await fillReviewers(webview, panel, 'retryUserRoles', 'retryUsers', REVIEWERS_EXPRESSION);
 
             logStep('Human Approval: the reviewer roles take () (#2722)');
             await selectDropdown(panel, /Approval Policy/, 'Human Approval');
@@ -195,10 +199,23 @@ export default function createTests() {
 
             logStep('Save: both policies name the users with nil roles');
             const saveButton = await saveForm(panel);
-            await expect.poll(projectSource, { timeout: 90000 })
-                .toMatch(/retryPolicy = \{maxRetries: 3, userRoles: \(\), users: "alice"\}/);
-            expect(projectSource()).toMatch(/approvalPolicy = \{userRoles: \(\), users: "alice"\}/);
+            await expect.poll(projectSource, { timeout: 90000 }).toMatch(RETRY_POLICY);
+            expect(projectSource()).toMatch(APPROVAL_POLICY);
             await saveButton.waitFor({ state: 'hidden', timeout: 60000 });
+
+            logStep('Reopen the call: the reviewer expression comes back in expression mode and a save keeps it');
+            const canvas = webview.getByTestId('bi-diagram-canvas');
+            await openNode(canvas, 'checkStock', panel.getByRole('combobox', { name: /Retry Policy/ }));
+            await expandAdvanced(panel);
+            await expect.poll(() => exEditorText(webview, 'retryUsers'), { timeout: 30000 }).toBe(REVIEWERS_EXPRESSION);
+            const reopenedSave = await saveForm(panel);
+            if (!await reopenedSave.waitFor({ state: 'hidden', timeout: 60000 }).then(() => true, () => false)) {
+                const shown = (await panel.innerText().catch(() => '')).replace(/\s+/g, ' ').slice(0, 1500);
+                throw new Error(`the reopened call did not save; the panel shows: ${shown}`);
+            }
+            await page.page.waitForTimeout(2000);
+            expect(projectSource()).toMatch(RETRY_POLICY);
+            expect(projectSource()).toMatch(APPROVAL_POLICY);
         });
     });
 }
