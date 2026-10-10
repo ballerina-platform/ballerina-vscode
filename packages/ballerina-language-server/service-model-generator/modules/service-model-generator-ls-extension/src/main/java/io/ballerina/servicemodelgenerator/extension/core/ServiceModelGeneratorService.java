@@ -138,6 +138,7 @@ import org.eclipse.lsp4j.services.LanguageServer;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -350,9 +351,14 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
 
                 List<TextEdit> edits = new ArrayList<>();
                 LineRange lineRange = modulePartNode.lineRange();
+                Set<String> importStmts = new LinkedHashSet<>();
                 if (!importExists(modulePartNode, listener.getOrgName(), listener.getModuleName())) {
-                    String importText = getImportStmt(listener.getOrgName(), listener.getModuleName());
-                    edits.add(new TextEdit(Utils.toRange(lineRange.startLine()), importText));
+                    importStmts.add(getImportStmt(listener.getOrgName(), listener.getModuleName()));
+                }
+                importStmts.addAll(Utils.getMissingPropertyImportStmts(modulePartNode, listener.getProperties()));
+                if (!importStmts.isEmpty()) {
+                    edits.add(new TextEdit(Utils.toRange(lineRange.startLine()),
+                            String.join(NEW_LINE, importStmts)));
                 }
                 String listenerDeclaration = listener.getListenerDeclaration();
                 edits.add(new TextEdit(Utils.toRange(lineRange.endLine()), NEW_LINE + listenerDeclaration));
@@ -957,6 +963,13 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
 
                 // Add imports required by the FTP coordination config type cast
                 FTPListenerUtil.addCoordinationConfigImports(listenerDeclaration, modulePartNode, edits);
+
+                Set<String> propertyImportStmts = Utils.getMissingPropertyImportStmts(modulePartNode,
+                        listener.getProperties());
+                if (!propertyImportStmts.isEmpty()) {
+                    edits.addFirst(new TextEdit(Utils.toRange(modulePartNode.lineRange().startLine()),
+                            String.join(NEW_LINE, propertyImportStmts)));
+                }
 
                 Map<String, List<TextEdit>> allEdits = new LinkedHashMap<>();
                 allEdits.put(request.filePath(), edits);

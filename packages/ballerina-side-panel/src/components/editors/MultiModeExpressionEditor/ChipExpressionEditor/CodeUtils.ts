@@ -29,7 +29,13 @@ import { HELPER_PANE_WIDTH } from "./constants";
 import { defaultKeymap, historyKeymap } from "@codemirror/commands";
 import { CompletionItem, FnSignatureDocumentation } from "@wso2/ui-toolkit";
 import { ThemeColors } from "@wso2/ui-toolkit";
-import { CompletionContext, CompletionResult } from "@codemirror/autocomplete";
+import {
+    Completion,
+    CompletionContext,
+    CompletionResult,
+    insertCompletionText,
+    pickedCompletion
+} from "@codemirror/autocomplete";
 import { TokenType, TokenMetadata, CompoundTokenSequence } from "./types";
 import {
     CHIP_TEXT_STYLES,
@@ -892,7 +898,10 @@ export const buildOnChangeListner = (
     return onChangeListner;
 }
 
-export const buildCompletionSource = (getCompletions: () => Promise<CompletionItem[]>) => {
+export const buildCompletionSource = (
+    getCompletions: () => Promise<CompletionItem[]>,
+    onAccept?: (docValue: string, item: CompletionItem) => void
+) => {
     return async (context: CompletionContext): Promise<CompletionResult | null> => {
         const textBeforeCursor = context.state.doc.toString().slice(0, context.pos);
         const lastNonSpaceChar = textBeforeCursor.trimEnd().slice(-1);
@@ -919,13 +928,25 @@ export const buildCompletionSource = (getCompletions: () => Promise<CompletionIt
 
         return {
             from: word.from,
-            options: filteredCompletions.map(item => ({
-                label: item.label,
-                type: item.kind || "variable",
-                detail: item.description,
+            options: filteredCompletions.map(item => {
                 // Manipulating the value to handle the LSP snippet completions
-                apply: item.value.replace(/\$\{(\d+):([^}]+)\}/g, '$2').replace(/\$[0-9]+/g, '').trim(),
-            }))
+                const applyText = item.value
+                    .replace(/\$\{(\d+):([^}]+)\}/g, '$2')
+                    .replace(/\$[0-9]+/g, '')
+                    .trim();
+                return {
+                    label: item.label,
+                    type: item.kind || "variable",
+                    detail: item.description,
+                    apply: (view: EditorView, completion: Completion, from: number, to: number) => {
+                        view.dispatch({
+                            ...insertCompletionText(view.state, applyText, from, to),
+                            annotations: pickedCompletion.of(completion)
+                        });
+                        onAccept?.(view.state.doc.toString(), item);
+                    }
+                };
+            })
         };
     };
 };

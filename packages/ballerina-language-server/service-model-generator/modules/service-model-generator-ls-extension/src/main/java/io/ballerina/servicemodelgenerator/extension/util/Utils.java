@@ -103,6 +103,8 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -1503,6 +1505,99 @@ public final class Utils {
                     org.equals(importDeclarationNode.orgName().get().orgName().text()) &&
                     module.equals(moduleName);
         });
+    }
+
+    /**
+     * Collects the import statements for the modules carried by the given properties' {@code imports}
+     * (descending into nested properties and enabled choice branches) that the file does not already
+     * declare.
+     *
+     * @param rootNode   module part node of the file being edited
+     * @param properties the properties whose imports are collected
+     * @return the missing import statements, in encounter order
+     */
+    public static Set<String> getMissingPropertyImportStmts(ModulePartNode rootNode,
+                                                            Map<String, Value> properties) {
+        return getMissingPropertyImportStmts(rootNode, properties, Set.of());
+    }
+
+    /**
+     * Same as {@link #getMissingPropertyImportStmts(ModulePartNode, Map)}, additionally skipping the modules
+     * already covered by an import the caller emits, so a module is never imported under two prefixes.
+     *
+     * @param rootNode       module part node of the file being edited
+     * @param properties     the properties whose imports are collected
+     * @param coveredModules {@code org/module} references already imported by the caller
+     * @return the missing import statements, in encounter order
+     */
+    public static Set<String> getMissingPropertyImportStmts(ModulePartNode rootNode,
+                                                            Map<String, Value> properties,
+                                                            Set<String> coveredModules) {
+        Map<String, String> importStmts = new LinkedHashMap<>();
+        collectMissingPropertyImportStmts(rootNode, properties, coveredModules, importStmts);
+        return new LinkedHashSet<>(importStmts.values());
+    }
+
+    /**
+     * Builds the single edit that adds the imports a new service needs: the connector's own module (when
+     * the file does not import it) plus the modules its properties' expressions rely on.
+     *
+     * @param rootNode         module part node of the file being edited
+     * @param serviceInitModel the filled service creation model
+     * @return the import edit, or empty when nothing is missing
+     */
+    public static Optional<TextEdit> getServiceInitImportEdit(ModulePartNode rootNode,
+                                                              ServiceInitModel serviceInitModel) {
+        Set<String> importStmts = new LinkedHashSet<>();
+        if (!importExists(rootNode, serviceInitModel.getOrgName(), serviceInitModel.getModuleName())) {
+            importStmts.add(getImportStmt(serviceInitModel.getOrgName(), serviceInitModel.getModuleName()));
+        }
+        importStmts.addAll(getMissingPropertyImportStmts(rootNode, serviceInitModel.getProperties(),
+                Set.of(serviceInitModel.getOrgName() + "/" + serviceInitModel.getModuleName())));
+        if (importStmts.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(new TextEdit(toRange(rootNode.lineRange().startLine()),
+                String.join(Constants.NEW_LINE, importStmts)));
+    }
+
+    private static boolean contributesSource(Value property) {
+        return property.isEnabledWithValue() || !property.isEnabled() && !property.isEditable();
+    }
+
+    private static void collectMissingPropertyImportStmts(ModulePartNode rootNode, Map<String, Value> properties,
+                                                          Set<String> coveredModules,
+                                                          Map<String, String> importStmts) {
+        if (Objects.isNull(properties)) {
+            return;
+        }
+        for (Value property : properties.values()) {
+            if (Objects.isNull(property)) {
+                continue;
+            }
+            if (Objects.nonNull(property.getImports()) && contributesSource(property)) {
+                for (Map.Entry<String, String> entry : property.getImports().entrySet()) {
+                    String[] importParts = entry.getValue().split("/");
+                    if (importParts.length < 2) {
+                        continue;
+                    }
+                    String orgName = importParts[0];
+                    String moduleName = importParts[1].split(":")[0];
+                    String moduleKey = orgName + "/" + moduleName;
+                    if (coveredModules.contains(moduleKey) || importStmts.containsKey(moduleKey)
+                            || importExists(rootNode, orgName, moduleName)) {
+                        continue;
+                    }
+                    importStmts.put(moduleKey, getImportStmt(orgName, moduleName, entry.getKey()));
+                }
+            }
+            if (Objects.nonNull(property.getChoices())) {
+                property.getChoices().stream().filter(Value::isEnabled)
+                        .forEach(choice -> collectMissingPropertyImportStmts(rootNode, choice.getProperties(),
+                                coveredModules, importStmts));
+            }
+            collectMissingPropertyImportStmts(rootNode, property.getProperties(), coveredModules, importStmts);
+        }
     }
 
     /**

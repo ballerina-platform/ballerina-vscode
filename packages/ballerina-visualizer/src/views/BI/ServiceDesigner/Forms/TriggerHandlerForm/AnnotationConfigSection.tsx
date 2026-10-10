@@ -19,7 +19,7 @@
 import React from "react";
 import styled from "@emotion/styled";
 import { CheckBox, CheckBoxGroup, RadioButtonGroup, Typography } from "@wso2/ui-toolkit";
-import { Diagnostic, LineRange, PropertyModel } from "@wso2/ballerina-core";
+import { Diagnostic, Imports, LineRange, PropertyModel } from "@wso2/ballerina-core";
 
 import { AnnotationExpressionField, AnnotationExpressionFieldHandle } from "./AnnotationExpressionField";
 import { CODEDATA_FIELD_VALUE_CHOICE } from "./payloadComposer";
@@ -69,6 +69,7 @@ export interface AnnotationConfigSectionProps {
     targetLineRange?: LineRange;
     disabled: boolean;
     onChange: (annotationKey: string, updated: PropertyModel) => void;
+    onImportsChange: (annotationKey: string, imports: Imports) => void;
     registerFieldRef: (key: string, handle: AnnotationExpressionFieldHandle | null) => void;
     onDiagnosticsChange: (key: string, diagnostics: Diagnostic[]) => void;
     onValidationStateChange: (key: string, state: { isValidating: boolean }) => void;
@@ -105,7 +106,7 @@ const isFieldIncluded = (field: PropertyModel): boolean => {
  */
 export function AnnotationConfigSection(props: AnnotationConfigSectionProps) {
     const { annotationKey, annotation, filePath, targetLineRange, disabled, onChange,
-        registerFieldRef, onDiagnosticsChange, onValidationStateChange } = props;
+        onImportsChange, registerFieldRef, onDiagnosticsChange, onValidationStateChange } = props;
 
     const renderLeaf = (stateKey: string, field: PropertyModel, onValueChange: (value: string) => void) => (
         <AnnotationExpressionField
@@ -119,6 +120,7 @@ export function AnnotationConfigSection(props: AnnotationConfigSectionProps) {
             required={!field.optional}
             disabled={disabled}
             onChange={onValueChange}
+            onImportsChange={(imports) => onImportsChange(annotationKey, imports)}
             onDiagnosticsChange={(diags) => onDiagnosticsChange(stateKey, diags)}
             onValidationStateChange={(state) => onValidationStateChange(stateKey, state)}
         />

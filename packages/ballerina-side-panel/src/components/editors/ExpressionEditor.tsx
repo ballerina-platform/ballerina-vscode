@@ -22,7 +22,6 @@ import styled from '@emotion/styled';
 import {
     Button,
     Codicon,
-    CompletionItem,
     ErrorBanner,
     FormExpressionEditorRef,
     HelperPaneHeight,
@@ -410,7 +409,6 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
         getHelperPane,
         onFocus,
         onBlur,
-        onCompletionItemSelect,
         onSave,
         onCancel,
         onRemove,
@@ -577,10 +575,6 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
     const handleBlur = async () => {
         setFocused(false);
         await onBlur?.();
-    };
-
-    const handleCompletionSelect = async (value: string, item: CompletionItem) => {
-        await onCompletionItemSelect?.(value, key, item.additionalTextEdits);
     };
 
     const handleChangeHelperPaneState = (isOpen: boolean) => {
@@ -865,7 +859,6 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
                                                     }
                                                 }}
                                                 extractArgsFromFunction={handleExtractArgsFromFunction}
-                                                onCompletionSelect={handleCompletionSelect}
                                                 onFocus={async () => {
                                                     handleFocus(onChange);
                                                 }}

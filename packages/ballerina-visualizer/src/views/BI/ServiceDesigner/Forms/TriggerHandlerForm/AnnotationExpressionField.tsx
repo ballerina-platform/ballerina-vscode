@@ -23,9 +23,11 @@ import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import {
     Diagnostic,
     ExpressionProperty,
+    Imports,
     LineRange,
     PropertyModel,
     RecordTypeField,
+    TextEdit,
     TriggerCharacter,
     TRIGGER_CHARACTERS,
 } from "@wso2/ballerina-core";
@@ -68,6 +70,7 @@ export interface AnnotationExpressionFieldProps {
     required?: boolean;
     disabled?: boolean;
     onChange: (value: string) => void;
+    onImportsChange?: (imports: Imports) => void;
     onDiagnosticsChange?: (diagnostics: Diagnostic[]) => void;
     onValidationStateChange?: (state: { isValidating: boolean }) => void;
 }
@@ -99,7 +102,7 @@ export const AnnotationExpressionField = forwardRef<AnnotationExpressionFieldHan
         // FieldFactory exposes no disabled pass-through, and the annotation panel only disables during
         // the brief save round-trip. `required` is folded into the field's `optional` below.
         const { id, value, property, filePath, targetLineRange, required, onChange,
-            onDiagnosticsChange, onValidationStateChange } = props;
+            onImportsChange, onDiagnosticsChange, onValidationStateChange } = props;
         const { rpcClient } = useRpcContext();
 
         const methods = useForm<FormValues>({ defaultValues: { [FIELD_KEY]: value ?? "" } });
@@ -121,9 +124,11 @@ export const AnnotationExpressionField = forwardRef<AnnotationExpressionFieldHan
         // typing-time debounce and the save-time gate agree on a single source.
         const diagnosticsRef = useRef<Diagnostic[]>([]);
         const onChangeRef = useRef(onChange);
+        const onImportsChangeRef = useRef(onImportsChange);
         const onDiagnosticsChangeRef = useRef(onDiagnosticsChange);
         const onValidationStateChangeRef = useRef(onValidationStateChange);
         useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
+        useEffect(() => { onImportsChangeRef.current = onImportsChange; }, [onImportsChange]);
         useEffect(() => { onDiagnosticsChangeRef.current = onDiagnosticsChange; }, [onDiagnosticsChange]);
         useEffect(() => { onValidationStateChangeRef.current = onValidationStateChange; }, [onValidationStateChange]);
 
@@ -396,6 +401,23 @@ export const AnnotationExpressionField = forwardRef<AnnotationExpressionFieldHan
             } as any);
         }, [filePath, id, effectiveTargetLineRange, filteredCompletions, property, handleRetrieveCompletions]);
 
+        const handleCompletionItemSelect = useCallback(async (
+            _value: string,
+            _fieldKey: string,
+            additionalTextEdits?: TextEdit[]
+        ) => {
+            if (!filePath || !additionalTextEdits?.[0]?.newText) {
+                return;
+            }
+            const response = await rpcClient.getBIDiagramRpcClient().updateImports({
+                filePath,
+                importStatement: additionalTextEdits[0].newText,
+            });
+            if (response.prefix && response.moduleId) {
+                onImportsChangeRef.current?.({ [response.prefix]: response.moduleId });
+            }
+        }, [filePath, rpcClient]);
+
         // ----- expression editor RPC bundle -----
         const expressionEditor = useMemo(() => ({
             completions: filteredCompletions,
@@ -407,7 +429,7 @@ export const AnnotationExpressionField = forwardRef<AnnotationExpressionFieldHan
                 getExpressionTokens: (expression: string, fileName: string, position: any) =>
                     rpcClient.getBIDiagramRpcClient().getExpressionTokens({ expression, filePath: fileName, position }),
             },
-            onCompletionItemSelect: () => { },
+            onCompletionItemSelect: handleCompletionItemSelect,
             onFocus: () => { },
             onBlur: () => { },
             onCancel: () => {
@@ -417,7 +439,7 @@ export const AnnotationExpressionField = forwardRef<AnnotationExpressionFieldHan
             onOpenRecordConfigPage: openRecordConfigPage,
         }) as unknown as FormExpressionEditorProps, [
             filteredCompletions, handleRetrieveCompletions, debouncedDiagnostics, handleGetHelperPane, rpcClient,
-            openRecordConfigPage,
+            openRecordConfigPage, handleCompletionItemSelect,
         ]);
 
         const formContextValue = useMemo(() => ({

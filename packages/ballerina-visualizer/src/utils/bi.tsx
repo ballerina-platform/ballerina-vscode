@@ -92,7 +92,6 @@ import { FUNCTION_REGEX } from "../resources/constants";
 import { ConnectionKind, getConnectionKindDisplayName } from "../components/ConnectionSelector";
 import { ConnectionListItem } from "@wso2/wso2-platform-core";
 import { handleRepeatableProperty } from "./node-property-utils";
-export { updateNodeProperties } from "./node-property-utils";
 import {
     IconFactory,
     applyGroupedChildIcons,
@@ -100,6 +99,9 @@ import {
     chunkerIconFactory,
     vectorStoreIconFactory,
 } from "./group-icons";
+
+export { updateNodeProperties, mergeFormImports } from "./node-property-utils";
+
 hljs.registerLanguage("ballerina", ballerina);
 
 function convertAvailableNodeToPanelNode(

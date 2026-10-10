@@ -231,7 +231,8 @@ function convertConfig(listener: ListenerModel): FormField[] {
             diagnostics: [],
             items: expression.items,
             placeholder: expression.placeholder,
-            lineRange: expression?.codedata?.lineRange
+            lineRange: expression?.codedata?.lineRange,
+            imports: expression.imports
         }
         formFields.push(formField);
     }
@@ -248,6 +249,9 @@ function updateConfig(formFields: FormField[], listener: ListenerModel): Listene
         }
         if (value && value.length > 0) {
             listener.properties[field.key].enabled = true;
+        }
+        if (field.imports) {
+            listener.properties[field.key].imports = field.imports;
         }
     })
     return listener;

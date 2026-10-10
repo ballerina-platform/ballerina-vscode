@@ -174,10 +174,7 @@ public final class HttpServiceBuilder extends AbstractServiceBuilder {
                 .append(CLOSE_BRACE).append(NEW_LINE);
 
         List<TextEdit> edits = new ArrayList<>();
-        if (!importExists(modulePartNode, serviceInitModel.getOrgName(), serviceInitModel.getModuleName())) {
-            String importText = getImportStmt(serviceInitModel.getOrgName(), serviceInitModel.getModuleName());
-            edits.add(new TextEdit(Utils.toRange(modulePartNode.lineRange().startLine()), importText));
-        }
+        Utils.getServiceInitImportEdit(modulePartNode, serviceInitModel).ifPresent(edits::add);
         edits.add(new TextEdit(Utils.toRange(modulePartNode.lineRange().endLine()), builder.toString()));
 
         return Map.of(context.filePath(), edits);
@@ -223,6 +220,7 @@ public final class HttpServiceBuilder extends AbstractServiceBuilder {
                 importStmts.add(getImportStmt(orgName, moduleName));
             }
         });
+        importStmts.addAll(Utils.getMissingPropertyImportStmts(rootNode, service.getProperties()));
 
         if (!importStmts.isEmpty()) {
             String importsStmts = String.join(NEW_LINE, importStmts);

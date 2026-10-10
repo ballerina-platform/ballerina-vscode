@@ -20,6 +20,7 @@ import { Compartment, EditorState } from "@codemirror/state";
 import { EditorView, keymap, tooltips, placeholder, hoverTooltip } from "@codemirror/view";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useFormContext } from "../../../../../context";
+import { useOptionalFieldContext } from "../../../FieldContext";
 import {
     buildNeedTokenRefetchListner,
     buildOnChangeListner,
@@ -132,6 +133,20 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
 
     const { expressionEditor } = useFormContext();
     const expressionEditorRpcManager = expressionEditor?.rpcManager;
+    const fieldContext = useOptionalFieldContext();
+
+    const completionAcceptRef = useRef<(docValue: string, item: CompletionItem) => void>();
+    completionAcceptRef.current = (docValue, item) => {
+        const fieldKey = fieldContext?.field?.key;
+        if (!fieldKey || !item.additionalTextEdits?.length) {
+            return;
+        }
+        void expressionEditor?.onCompletionItemSelect?.(
+            configuration.deserializeValue(docValue),
+            fieldKey,
+            item.additionalTextEdits
+        );
+    };
 
     async function docTooltip(view: EditorView, pos: number) {
         const value = view.state.doc.toString()
@@ -241,7 +256,9 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
     };
 
     const completionSource = useMemo(() => {
-        return buildCompletionSource(waitForStateChange);
+        return buildCompletionSource(waitForStateChange, (docValue, item) =>
+            completionAcceptRef.current?.(docValue, item)
+        );
     }, [props.completions]);
 
     const helperPaneKeymap = buildHelperPaneKeymap(

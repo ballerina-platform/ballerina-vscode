@@ -38,6 +38,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.stream.Collectors;
 
 import static io.ballerina.servicemodelgenerator.extension.connector.ValueTreeUtils.argName;
 import static io.ballerina.servicemodelgenerator.extension.connector.ValueTreeUtils.fieldName;
@@ -139,7 +140,17 @@ public final class SchemaDrivenSourceGenerator {
         List<TextEdit> edits = new ArrayList<>();
         String emitAlias = resolveEmitAlias(rootNode, filledInitForm, triggerModel);
         Map<String, String> boundPrefixes = new LinkedHashMap<>();
-        String imports = buildImports(filledInitForm, triggerModel, rootNode, emitAlias, boundPrefixes);
+        Set<ModuleRef> declaredModules = new LinkedHashSet<>();
+        StringBuilder importsBuilder = new StringBuilder(
+                buildImports(filledInitForm, triggerModel, rootNode, emitAlias, boundPrefixes, declaredModules));
+        Set<String> coveredModules = declaredModules.stream()
+                .map(moduleRef -> moduleRef.org() + "/" + moduleRef.module())
+                .collect(Collectors.toSet());
+        for (String importStmt : Utils.getMissingPropertyImportStmts(rootNode, filledInitForm.getProperties(),
+                coveredModules)) {
+            importsBuilder.append(importStmt);
+        }
+        String imports = importsBuilder.toString();
         if (!imports.isEmpty()) {
             edits.add(new TextEdit(Utils.toRange(rootNode.lineRange().startLine()), imports));
         }
@@ -157,9 +168,8 @@ public final class SchemaDrivenSourceGenerator {
      */
     private static String buildImports(ServiceInitModel filledInitForm, TriggerUISchemaModel triggerModel,
                                        ModulePartNode rootNode, String emitAlias,
-                                       Map<String, String> boundPrefixes) {
+                                       Map<String, String> boundPrefixes, Set<ModuleRef> declared) {
         StringBuilder imports = new StringBuilder();
-        Set<ModuleRef> declared = new LinkedHashSet<>();
         declared.add(new ModuleRef(filledInitForm.getOrgName(), filledInitForm.getModuleName()));
         if (!Utils.importExists(rootNode, filledInitForm.getOrgName(), filledInitForm.getModuleName())) {
             imports.append(Utils.getImportStmt(filledInitForm.getOrgName(), filledInitForm.getModuleName(),

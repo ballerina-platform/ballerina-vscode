@@ -303,7 +303,8 @@ function convertConfig(service: ServiceModel): FormField[] {
             choices: expression.choices,
             placeholder: expression.placeholder,
             addNewButton: expression.addNewButton,
-            lineRange: expression?.codedata?.lineRange
+            lineRange: expression?.codedata?.lineRange,
+            imports: expression.imports
         }
 
         if (key === "basePath") {
@@ -343,6 +344,9 @@ function updateConfig(formFields: FormField[], service: ServiceModel): ServiceMo
         }
         if (value && value.length > 0) {
             service.properties[field.key].enabled = true;
+        }
+        if (field.imports) {
+            service.properties[field.key].imports = field.imports;
         }
     })
     return service;

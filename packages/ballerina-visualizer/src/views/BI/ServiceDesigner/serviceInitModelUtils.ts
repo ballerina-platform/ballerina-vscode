@@ -430,5 +430,28 @@ export function applyFormValuesToModel(formFields: FormField[], model: ServiceIn
 
         val.imports = getImportsForProperty(val.key, formImports);
     })
-    return populateServiceInitModelFromFormFields(formFields, model);
+    const populatedModel = populateServiceInitModelFromFormFields(formFields, model);
+    applyImportsToProperties(populatedModel.properties, formImports);
+    return populatedModel;
+}
+
+/**
+ * Records the form's collected imports on the matching model properties, descending into the enabled
+ * choice branches and nested properties, so the language server receives the imports a field's
+ * expression relies on.
+ */
+function applyImportsToProperties(properties: { [key: string]: PropertyModel }, formImports: FormImports) {
+    if (!properties || !formImports) {
+        return;
+    }
+    for (const key in properties) {
+        const property = properties[key];
+        const imports = getImportsForProperty(key, formImports);
+        if (imports && Object.keys(imports).length > 0) {
+            property.imports = { ...(property.imports ?? {}), ...imports };
+        }
+        property.choices?.filter((choice) => choice.enabled).forEach((choice) =>
+            applyImportsToProperties(choice.properties, formImports));
+        applyImportsToProperties(property.properties, formImports);
+    }
 }
