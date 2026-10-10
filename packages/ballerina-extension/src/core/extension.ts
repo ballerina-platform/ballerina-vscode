@@ -95,7 +95,12 @@ const PREV_EXTENSION_ID = 'ballerina.ballerina';
 /** Arguments to `ballerina.update-ballerina-visually`; omitted, it runs `bal dist update`. */
 export interface BallerinaUpdateOptions {
     version?: string;
+    /** False when the caller shows its own progress instead of the setup view. */
+    showSetup?: boolean;
 }
+
+/** `external` runs in a terminal or a detached UAC process, which report no outcome. */
+export type BallerinaUpdateOutcome = "updated" | "failed" | "external";
 export enum LANGUAGE {
     BALLERINA = 'ballerina',
     TOML = 'toml'
@@ -759,22 +764,23 @@ export class BallerinaExtension {
 
     /**
      * With `version`, pulls that exact distribution instead of `bal dist update`, whose target isn't pinned.
-     * Resolves false only when the command is known to have failed.
      */
-    async updateBallerinaVisually(options?: BallerinaUpdateOptions): Promise<boolean> {
-        try {
-            await commands.executeCommand(SHARED_COMMANDS.SETUP_BALLERINA);
-        } catch (error) {
-            console.warn("[SETUP] Failed to open setup flow", error);
+    async updateBallerinaVisually(options?: BallerinaUpdateOptions): Promise<BallerinaUpdateOutcome> {
+        if (options?.showSetup !== false) {
+            try {
+                await commands.executeCommand(SHARED_COMMANDS.SETUP_BALLERINA);
+            } catch (error) {
+                console.warn("[SETUP] Failed to open setup flow", error);
+            }
         }
         const realPath = this.ballerinaHome ? fs.realpathSync.native(this.ballerinaHome) : "";
         const command = options?.version ? `bal dist pull ${options.version}` : 'bal dist update';
         const elevated = !realPath.includes("ballerina-home");
         const run = this.executeCommandWithProgress(elevated ? `sudo ${command}` : command);
         if (elevated) {
-            return true; // runs in a terminal or a detached UAC process, which report no outcome
+            return "external";
         }
-        return run.then(() => true, () => false);
+        return run.then(() => "updated", () => "failed");
     }
 
     private async executeCommandWithProgress(command: string) {

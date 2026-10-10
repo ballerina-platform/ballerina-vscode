@@ -58,15 +58,41 @@ export class ProjectExplorer {
         return currentItem;
     }
 
-    public async goToOverview(projectName: string) {
-        // wait for 1s
-        const projectExplorerRoot = this.explorer.locator(ProjectExplorer.treeItemSelector(projectName));
+    // Without a name, the integration at the root of the tree.
+    public async goToOverview(projectName?: string) {
+        const projectExplorerRoot = projectName === undefined
+            ? this.page.locator('[role=treeitem][aria-level="1"]').filter({ visible: true }).first()
+            : this.explorer.locator(ProjectExplorer.treeItemSelector(projectName));
         await projectExplorerRoot.waitFor();
         await projectExplorerRoot.hover();
-        const locator = this.explorer.getByLabel('Open View');
+        // Builds name the action on the row Open View, or put Open Overview on the view's title bar.
+        const locator = this.explorer.getByLabel('Open View')
+            .or(this.page.getByRole('button', { name: 'Open Overview' })).filter({ visible: true }).first();
         await locator.waitFor();
         await this.page.waitForTimeout(500); // To fix intermittent issues
         await locator.click();
+    }
+
+    // The row for an item anywhere in the tree, opening collapsed groups and refreshing a tree that lags behind an
+    // artifact just added; undefined when the tree does not list it.
+    public async findItemExpanding(item: string): Promise<Locator | undefined> {
+        const escaped = item.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const row = this.page.getByRole('treeitem', { name: new RegExp(`^${escaped}(\\b|$)`) }).first();
+        const visible = () => row.isVisible().catch(() => false);
+        const expand = async () => {
+            const collapsed = this.page.locator('[role=treeitem][aria-expanded=false]').filter({ visible: true });
+            for (let i = 0; i < 12 && !await visible() && await collapsed.count() > 0; i++) {
+                await collapsed.first().click({ force: true }).catch(() => undefined);
+                await this.page.waitForTimeout(400);
+            }
+        };
+        await expand();
+        for (let i = 0; i < 2 && !await visible(); i++) {
+            await this.page.getByRole('button', { name: /^Refresh/ }).filter({ visible: true }).first().click().catch(() => undefined);
+            await this.page.waitForTimeout(3000);
+            await expand();
+        }
+        return await visible() ? row : undefined;
     }
 
     public async refresh(projectName: string) {

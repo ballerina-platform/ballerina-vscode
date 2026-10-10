@@ -642,7 +642,7 @@
                   "typeMembers": [
                     {
                       "type": "RefreshTokenGrantConfig",
-                      "packageInfo": "ballerina:oauth2:2.15.0",
+                      "packageInfo": "ballerina:oauth2:2.15.1",
                       "packageName": "oauth2",
                       "kind": "RECORD_TYPE",
                       "selected": false

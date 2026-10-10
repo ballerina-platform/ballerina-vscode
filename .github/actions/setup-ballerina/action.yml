@@ -4,7 +4,9 @@ inputs:
   distributionVersion:
     description: >-
       Version handed to the installer, when it differs from ballerinaLangVersion (the Maven
-      coordinate). 'nightly' installs the latest CI artifact instead of the CDN.
+      coordinate). 'nightly' installs the latest CI artifact instead of the CDN. No caller sets
+      it once a release is on dist.ballerina.io; it is kept for pre-GA cycles, when CI has to
+      build against a distribution that is not published yet.
     required: false
     default: ''
   gradlePropertiesRef:
@@ -49,9 +51,7 @@ runs:
           properties="${{ github.workspace }}/packages/ballerina-language-server/gradle.properties"
           version=$(sed -n 's/^ballerinaLangVersion=//p' "${properties}")
         fi
-        # Accepts timestamped pre-GA builds; tighten back to the plain N.N.N form once
-        # 2201.14.0 is released.
-        if [[ ! "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]]; then
+        if [[ ! "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
           echo "::error::Invalid or missing ballerinaLangVersion in packages/ballerina-language-server/gradle.properties${GRADLE_PROPERTIES_REF:+ at tag ${GRADLE_PROPERTIES_REF}}"
           exit 1
         fi

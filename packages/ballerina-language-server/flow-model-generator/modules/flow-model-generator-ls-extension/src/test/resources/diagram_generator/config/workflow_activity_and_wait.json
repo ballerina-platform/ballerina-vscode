@@ -97,7 +97,7 @@
         "metadata": {
           "label": "calculateDiscount",
           "description": "Activity function for calculating discount",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.10.0.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_1.0.0.png"
         },
         "codedata": {
           "node": "ACTIVITY_CALL",
@@ -2021,7 +2021,7 @@
                 "typeMembers": [
                   {
                     "type": "Duration",
-                    "packageInfo": "ballerina:workflow:0.10.0",
+                    "packageInfo": "ballerina:workflow:1.0.0",
                     "packageName": "workflow",
                     "kind": "RECORD_TYPE",
                     "selected": false
