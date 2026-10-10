@@ -4,7 +4,7 @@
   "typeMembers": [
     {
       "type": "ClientSocketConfig",
-      "packageInfo": "ballerina:http:2.16.6",
+      "packageInfo": "ballerina:http:2.18.0",
       "packageName": "http",
       "kind": "RECORD_TYPE",
       "selected": false

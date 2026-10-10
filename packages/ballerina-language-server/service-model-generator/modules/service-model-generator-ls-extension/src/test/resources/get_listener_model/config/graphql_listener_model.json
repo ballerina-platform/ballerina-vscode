@@ -132,7 +132,7 @@
               "typeMembers": [
                 {
                   "type": "ListenerHttp1Settings",
-                  "packageInfo": "ballerina:http:2.17.1",
+                  "packageInfo": "ballerina:http:2.18.0",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -169,7 +169,7 @@
               "typeMembers": [
                 {
                   "type": "ListenerSecureSocket",
-                  "packageInfo": "ballerina:http:2.17.1",
+                  "packageInfo": "ballerina:http:2.18.0",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -304,7 +304,7 @@
               "typeMembers": [
                 {
                   "type": "RequestLimitConfigs",
-                  "packageInfo": "ballerina:http:2.17.1",
+                  "packageInfo": "ballerina:http:2.18.0",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -369,7 +369,7 @@
               "typeMembers": [
                 {
                   "type": "ServerSocketConfig",
-                  "packageInfo": "ballerina:http:2.17.1",
+                  "packageInfo": "ballerina:http:2.18.0",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -396,6 +396,34 @@
           "codedata": {
             "type": "LISTENER_INIT_PARAM",
             "originalName": "http2InitialWindowSize"
+          },
+          "placeholder": "0",
+          "value": "",
+          "types": [
+            {
+              "fieldType": "NUMBER",
+              "ballerinaType": "int",
+              "selected": true
+            },
+            {
+              "fieldType": "EXPRESSION",
+              "ballerinaType": "int",
+              "selected": false
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": true,
+          "advanced": true
+        },
+        "http2MaxActiveStreams": {
+          "metadata": {
+            "label": "Http2 Max Active Streams",
+            "description": "Maximum concurrent HTTP/2 streams per connection advertised to clients.\nDefaults to 100"
+          },
+          "codedata": {
+            "type": "LISTENER_INIT_PARAM",
+            "originalName": "http2MaxActiveStreams"
           },
           "placeholder": "0",
           "value": "",

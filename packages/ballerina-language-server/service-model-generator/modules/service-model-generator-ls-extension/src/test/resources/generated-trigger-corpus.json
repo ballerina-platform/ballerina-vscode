@@ -4,7 +4,7 @@
     "org": "ballerinax",
     "package": "asb",
     "module": "asb",
-    "version": "3.10.0"
+    "version": "3.10.1"
   },
   {
     "key": "azure.storage.files",
@@ -18,14 +18,14 @@
     "org": "ballerina",
     "package": "file",
     "module": "file",
-    "version": "1.13.1"
+    "version": "1.14.0"
   },
   {
     "key": "ftp",
     "org": "ballerina",
     "package": "ftp",
     "module": "ftp",
-    "version": "2.20.1"
+    "version": "2.20.3"
   },
   {
     "key": "googleapis.chat",
@@ -39,7 +39,7 @@
     "org": "ballerinax",
     "package": "kafka",
     "module": "kafka",
-    "version": "4.6.5"
+    "version": "4.6.6"
   },
   {
     "key": "mcp",
@@ -53,14 +53,14 @@
     "org": "ballerina",
     "package": "mqtt",
     "module": "mqtt",
-    "version": "1.4.0"
+    "version": "1.4.2"
   },
   {
     "key": "mssql",
     "org": "ballerinax",
     "package": "mssql",
     "module": "mssql",
-    "version": "1.19.0"
+    "version": "1.19.1"
   },
   {
     "key": "mysql",
@@ -88,7 +88,7 @@
     "org": "ballerinax",
     "package": "rabbitmq",
     "module": "rabbitmq",
-    "version": "3.6.0"
+    "version": "3.6.1"
   },
   {
     "key": "salesforce",
@@ -102,7 +102,7 @@
     "org": "ballerina",
     "package": "smb",
     "module": "smb",
-    "version": "2.0.1"
+    "version": "2.0.2"
   },
   {
     "key": "solace",
@@ -116,7 +116,7 @@
     "org": "ballerinax",
     "package": "solace.jms",
     "module": "solace.jms",
-    "version": "1.0.0"
+    "version": "1.0.2"
   },
   {
     "key": "aws.sqs",
@@ -137,13 +137,13 @@
     "org": "ballerinax",
     "package": "trigger.hubspot",
     "module": "trigger.hubspot",
-    "version": "0.12.0"
+    "version": "0.12.1"
   },
   {
     "key": "trigger.shopify",
     "org": "ballerinax",
     "package": "trigger.shopify",
     "module": "trigger.shopify",
-    "version": "1.6.0"
+    "version": "1.6.1"
   }
 ]

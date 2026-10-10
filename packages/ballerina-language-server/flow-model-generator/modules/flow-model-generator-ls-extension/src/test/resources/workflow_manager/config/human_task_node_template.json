@@ -188,7 +188,7 @@
             "typeMembers": [
               {
                 "type": "Duration",
-                "packageInfo": "ballerina:workflow:0.10.0",
+                "packageInfo": "ballerina:workflow:1.0.0",
                 "packageName": "workflow",
                 "kind": "RECORD_TYPE",
                 "selected": false

@@ -46,7 +46,7 @@
         "metadata": {
           "label": "Run Workflow",
           "description": "Run a workflow instance",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.10.0.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_1.0.0.png"
         },
         "codedata": {
           "node": "WORKFLOW_RUN",
@@ -214,7 +214,7 @@
         "metadata": {
           "label": "Send Data",
           "description": "Send data to an existing workflow instance",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.10.0.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_1.0.0.png"
         },
         "codedata": {
           "node": "SEND_DATA",
@@ -222,7 +222,7 @@
           "module": "workflow",
           "packageName": "workflow",
           "symbol": "sendData",
-          "version": "0.10.0",
+          "version": "1.0.0",
           "lineRange": {
             "fileName": "workflow_child_operations.bal",
             "startLine": {

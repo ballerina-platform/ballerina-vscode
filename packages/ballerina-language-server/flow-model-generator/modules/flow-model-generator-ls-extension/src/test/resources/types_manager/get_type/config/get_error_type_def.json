@@ -695,7 +695,7 @@
           "docs": "date of birth",
           "annotationAttachments": [],
           "imports": {
-            "time": "ballerina/time:2.8.1"
+            "time": "ballerina/time:2.8.3"
           },
           "selected": false
         }

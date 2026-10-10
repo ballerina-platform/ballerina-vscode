@@ -98,12 +98,12 @@
       "bindings.api": {
         "metadata": {
           "label": "Api",
-          "description": "Fixed at registration and hidden from the model: the agent cannot supply a 'ballerina/http:2.17.1:Client'"
+          "description": "Fixed at registration and hidden from the model: the agent cannot supply a 'ballerina/http:2.18.0:Client'"
         },
         "types": [
           {
             "fieldType": "SINGLE_SELECT",
-            "ballerinaType": "ballerina/http:2.17.1:Client",
+            "ballerinaType": "ballerina/http:2.18.0:Client",
             "options": [
               {
                 "label": "billingApi",
