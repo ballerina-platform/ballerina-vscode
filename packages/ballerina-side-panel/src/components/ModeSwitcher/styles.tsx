@@ -25,7 +25,7 @@ interface LabelProps {
 
 // Labels stay in flow so the switcher sizes from its text: the Slider lays them out in two
 // equal columns as wide as the longer label, and the thumb covers exactly one column. A label
-// wider than MAX_LABEL_WIDTH is ellipsized (the full name is in its title), so no mode name,
+// wider than MAX_LABEL_WIDTH is ellipsized (the full name shows as its tooltip), so no mode name,
 // however long, can overlap its neighbour or push the switcher out of the panel.
 const MAX_LABEL_WIDTH = '96px';
 

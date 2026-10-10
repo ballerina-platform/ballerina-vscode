@@ -25,6 +25,12 @@ import { getEditorConfiguration } from '../editors/ExpressionField';
 import { useFormContext } from '../../context';
 import WarningPopup from '../WarningPopup';
 
+// Show the full mode name as a tooltip only when the label is ellipsized at its max width.
+const showTitleIfTruncated = (event: React.MouseEvent<HTMLElement>) => {
+    const label = event.currentTarget;
+    label.title = label.scrollWidth > label.clientWidth ? label.dataset.text ?? '' : '';
+};
+
 interface ModeSwitcherProps {
     value: InputMode;
     //TODO: Should be removed once fields with type field is fixed to
@@ -97,8 +103,8 @@ const ModeSwitcher: React.FC<ModeSwitcherProps> = ({ value, isRecordTypeField, o
         <>
             <SwitchWrapper>
                 <Slider checked={isChecked} data-testid={`mode-switcher-slider-${fieldKey}`}>
-                    <Label data-testid="primary-mode" active={!isChecked} title={defaultLabel} data-text={defaultLabel} onClick={() => handleModeSwitch(defaultMode)}>{defaultLabel}</Label>
-                    <Label data-testid="expression-mode" active={isChecked} title={secondaryLabel} data-text={secondaryLabel} onClick={() => handleModeSwitch(secondaryMode)}>{secondaryLabel}</Label>
+                    <Label data-testid="primary-mode" active={!isChecked} onMouseEnter={showTitleIfTruncated} data-text={defaultLabel} onClick={() => handleModeSwitch(defaultMode)}>{defaultLabel}</Label>
+                    <Label data-testid="expression-mode" active={isChecked} onMouseEnter={showTitleIfTruncated} data-text={secondaryLabel} onClick={() => handleModeSwitch(secondaryMode)}>{secondaryLabel}</Label>
                 </Slider>
             </SwitchWrapper>
             <WarningPopup

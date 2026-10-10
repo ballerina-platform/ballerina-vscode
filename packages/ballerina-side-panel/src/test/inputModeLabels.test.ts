@@ -40,12 +40,32 @@ describe("getInputModeLabel", () => {
         }
     });
 
-    // The switcher pairs a field's primary mode with Expression, so a primary label that reads
-    // the same as Expression would render two identical options.
-    it("no other mode reads the same as Expression", () => {
-        const expressionLabel = getInputModeLabel(InputMode.EXP);
-        for (const mode of ALL_MODES.filter(m => m !== InputMode.EXP)) {
-            expect(getInputModeLabel(mode)).not.toBe(expressionLabel);
+    // Two modes sharing a label would render as two identical options if they ever met in one
+    // switcher. The only deliberate exception is the Array pair: a text-set field and a generic
+    // array field never appear together, since the secondary mode is the field's last input
+    // type (normally Expression). Widen this list only with the same justification.
+    const SHARED_LABEL_GROUPS: InputMode[][] = [[InputMode.ARRAY, InputMode.TEXT_ARRAY]];
+
+    it("every label is unique except the documented shared groups", () => {
+        const sharedKey = (mode: InputMode) =>
+            SHARED_LABEL_GROUPS.findIndex(group => group.includes(mode));
+        const owners = new Map<string, InputMode>();
+        for (const mode of ALL_MODES) {
+            const label = getInputModeLabel(mode);
+            const owner = owners.get(label);
+            if (owner === undefined) {
+                owners.set(label, mode);
+                continue;
+            }
+            const group = sharedKey(mode);
+            expect({ label, modes: [owner, mode], shared: group !== -1 && group === sharedKey(owner) })
+                .toEqual({ label, modes: [owner, mode], shared: true });
+        }
+    });
+
+    it("the shared groups still share a label", () => {
+        for (const group of SHARED_LABEL_GROUPS) {
+            expect(new Set(group.map(getInputModeLabel)).size).toBe(1);
         }
     });
 
