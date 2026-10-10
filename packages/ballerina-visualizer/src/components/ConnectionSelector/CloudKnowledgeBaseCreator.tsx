@@ -18,13 +18,11 @@
 
 import { useState } from "react";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { AvailableNode, CodeData, FlowNode, LineRange, ProjectStructureArtifactResponse } from "@wso2/ballerina-core";
+import { AvailableNode, CodeData, FlowNode, LineRange } from "@wso2/ballerina-core";
 import { MarketplaceItem } from "@wso2/wso2-platform-core";
 import { usePlatformExtContext } from "../../providers/platform-ext-ctx-provider";
 import { CloudKnowledgeBasePage } from "../../views/BI/Connection/DevantConnections/CloudKnowledgeBasePage";
 import { prepareDevantKnowledgeBase } from "../../views/BI/Connection/DevantConnections/devant-kb-utils";
-import { ConnectionCreator } from "./ConnectionCreator";
-import { ConnectionKind } from "./types";
 import { RelativeLoader } from "../RelativeLoader";
 import { LoaderContainer } from "../RelativeLoader/styles";
 
@@ -32,10 +30,8 @@ interface CloudKnowledgeBaseCreatorProps {
     connectorCodeData: CodeData;
     fileName?: string;
     targetLineRange?: LineRange;
-    onSave: (node: FlowNode, artifacts?: ProjectStructureArtifactResponse[]) => void;
+    onNodeReady: (node: FlowNode) => void;
 }
-
-const dummyNode = { codedata: {}, properties: {} } as unknown as FlowNode;
 
 /**
  * Same "manually config or pick an existing Devant service" step the flow diagram's own "Add
@@ -43,10 +39,9 @@ const dummyNode = { codedata: {}, properties: {} } as unknown as FlowNode;
  * modal/overlay creation path (`useCreateNode`'s `createGenericConnection`).
  */
 export function CloudKnowledgeBaseCreator(props: CloudKnowledgeBaseCreatorProps) {
-    const { connectorCodeData, fileName, targetLineRange, onSave } = props;
+    const { connectorCodeData, fileName, targetLineRange, onNodeReady } = props;
     const { rpcClient } = useRpcContext();
     const { platformRpcClient, platformExtState } = usePlatformExtContext();
-    const [flowNode, setFlowNode] = useState<FlowNode | null>(null);
     const [loading, setLoading] = useState(false);
 
     const startPosition = targetLineRange?.startLine || { line: 0, offset: 0 };
@@ -63,7 +58,7 @@ export function CloudKnowledgeBaseCreator(props: CloudKnowledgeBaseCreatorProps)
                 filePath: fileName,
                 id: connectorCodeData,
             });
-            setFlowNode(response.flowNode);
+            onNodeReady(response.flowNode);
         } catch (error) {
             console.error(">>> Error opening WSO2 Cloud knowledge base form", error);
             await showError("Could not load the connector. Please try again.");
@@ -90,7 +85,7 @@ export function CloudKnowledgeBaseCreator(props: CloudKnowledgeBaseCreatorProps)
                 await showError("Could not connect to that knowledge base. Please try again.");
                 return;
             }
-            setFlowNode(node);
+            onNodeReady(node);
         } catch (error) {
             console.error(">>> Error setting up WSO2 Cloud knowledge base", error);
             await showError("Could not connect to that knowledge base. Please try again.");
@@ -107,16 +102,5 @@ export function CloudKnowledgeBaseCreator(props: CloudKnowledgeBaseCreatorProps)
         );
     }
 
-    if (flowNode) {
-        return (
-            <ConnectionCreator
-                connectionKind={(connectorCodeData.node || "NEW_CONNECTION") as ConnectionKind}
-                selectedNode={dummyNode}
-                nodeFormTemplate={flowNode}
-                onSave={onSave}
-            />
-        );
-    }
-
-    return <CloudKnowledgeBasePage onCreateNew={handleCreateNew} onSelectExisting={handleSelectExisting} />;
+    return <CloudKnowledgeBasePage inset onCreateNew={handleCreateNew} onSelectExisting={handleSelectExisting} />;
 }
