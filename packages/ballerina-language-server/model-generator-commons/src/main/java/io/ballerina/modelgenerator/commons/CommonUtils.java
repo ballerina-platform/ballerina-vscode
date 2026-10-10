@@ -1867,23 +1867,20 @@ public class CommonUtils {
     public static String resolveDefaultValue(Symbol paramSymbol, TypeSymbol typeSymbol,
                                              SemanticModel semanticModel, Package resolvedPackage,
                                              Document document) {
-        // A parameter or field that declares no default has none to report. A value derived from its type would be
-        // an arbitrary member of a union, or `false` for a boolean, presented as what the connector applies when
-        // the field is left unset (e.g. `ServiceTier serviceTier?;` read as defaulting to "reserved").
         if (!declaresDefaultValue(paramSymbol)) {
             return "";
         }
-        String defaultValue = DefaultValueGeneratorUtil.getDefaultValueForType(typeSymbol);
+        String unknownDefault = "";
 
         Optional<Location> symbolLocation = paramSymbol.getLocation();
         if (resolvedPackage == null || symbolLocation.isEmpty()) {
-            return defaultValue;
+            return unknownDefault;
         }
         if (document == null) {
             // TODO: Remove the document passing logic to separate imported and local packages
             document = findDocument(resolvedPackage, symbolLocation.get().lineRange().fileName());
             if (document == null) {
-                return defaultValue;
+                return unknownDefault;
             }
         }
 
@@ -1896,7 +1893,7 @@ public class CommonUtils {
             case DEFAULTABLE_PARAM -> expression = (ExpressionNode) ((DefaultableParameterNode) node).expression();
             case RECORD_FIELD_WITH_DEFAULT_VALUE -> expression = ((RecordFieldWithDefaultValueNode) node).expression();
             default -> {
-                return defaultValue;
+                return unknownDefault;
             }
         }
 
