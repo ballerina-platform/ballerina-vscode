@@ -124,6 +124,7 @@ public class AgentBuilder extends CallBuilder {
         metadata().addData(PARAMS_TO_HIDE, List.of(TOOLS, TYPE));
         hideAgentConfigProperties(this);
         AgentCallBuilder.setAdditionalAgentProperties(this, null, false);
+        AiUtils.setOptionalPropertiesAdvanced(this);
     }
 
     @Override
