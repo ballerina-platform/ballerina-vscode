@@ -56,7 +56,7 @@
               "metadata": {
                 "label": "decode",
                 "description": "Decodes the given string value into a `string` using the provided charset.\n```ballerina\nstring value = \"http://www.domain.com/?param1=http%3A%2F%2Fxyz.com%2F%3Fa%3D12%26b%3D55¶m2=99\";\nstring decoded = check url:decode(value, \"UTF-8\");\n```\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_url_2.6.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_url_2.6.4.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -64,7 +64,7 @@
                 "module": "url",
                 "packageName": "url",
                 "symbol": "decode",
-                "version": "2.6.2"
+                "version": "2.6.4"
               },
               "enabled": true
             },
@@ -72,7 +72,7 @@
               "metadata": {
                 "label": "encode",
                 "description": "Encodes the given string value into a `string` using the provided charset.\n```ballerina\nstring value = \"param1=http://xyz.com/?a=12&b=55¶m2=99\";\nstring encoded = check url:encode(value, \"UTF-8\");\n```\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_url_2.6.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_url_2.6.4.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -80,7 +80,7 @@
                 "module": "url",
                 "packageName": "url",
                 "symbol": "encode",
-                "version": "2.6.2"
+                "version": "2.6.4"
               },
               "enabled": true
             }
@@ -97,7 +97,7 @@
               "metadata": {
                 "label": "createRandomUuid",
                 "description": "Returns a UUID of type 4 as a string.\nThis function provides a convenient alias for 'createType4AsString()'.\n```ballerina\nstring newUUID = uuid:createRandomUuid();\n```\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_uuid_1.10.0.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_uuid_1.10.1.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -105,7 +105,7 @@
                 "module": "uuid",
                 "packageName": "uuid",
                 "symbol": "createRandomUuid",
-                "version": "1.10.0"
+                "version": "1.10.1"
               },
               "enabled": true
             },
@@ -113,7 +113,7 @@
               "metadata": {
                 "label": "createType1AsRecord",
                 "description": "Returns a UUID of type 1 as a UUID record.\n```ballerina\nuuid:Uuid uuid1 = check uuid:createType1AsRecord();\n```\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_uuid_1.10.0.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_uuid_1.10.1.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -121,7 +121,7 @@
                 "module": "uuid",
                 "packageName": "uuid",
                 "symbol": "createType1AsRecord",
-                "version": "1.10.0"
+                "version": "1.10.1"
               },
               "enabled": true
             },
@@ -129,7 +129,7 @@
               "metadata": {
                 "label": "createType1AsString",
                 "description": "Returns a UUID of type 1 as a string.\n```ballerina\nstring uuid1 = uuid:createType1AsString();\n```\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_uuid_1.10.0.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_uuid_1.10.1.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -137,7 +137,7 @@
                 "module": "uuid",
                 "packageName": "uuid",
                 "symbol": "createType1AsString",
-                "version": "1.10.0"
+                "version": "1.10.1"
               },
               "enabled": true
             },
@@ -145,7 +145,7 @@
               "metadata": {
                 "label": "createType3AsRecord",
                 "description": "Returns a UUID of type 3 as a UUID record.\n```ballerina\nuuid:Uuid uuid3 = check uuid:createType3AsRecord(uuid:NAME_SPACE_DNS, “ballerina.io”);\n```\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_uuid_1.10.0.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_uuid_1.10.1.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -153,7 +153,7 @@
                 "module": "uuid",
                 "packageName": "uuid",
                 "symbol": "createType3AsRecord",
-                "version": "1.10.0"
+                "version": "1.10.1"
               },
               "enabled": true
             },
@@ -161,7 +161,7 @@
               "metadata": {
                 "label": "createType3AsString",
                 "description": "Returns a UUID of type 3 as a string.\n```ballerina\nstring uuid3 = check uuid:createType3AsString(uuid:NAME_SPACE_DNS, “ballerina.io”);\n```\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_uuid_1.10.0.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_uuid_1.10.1.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -169,7 +169,7 @@
                 "module": "uuid",
                 "packageName": "uuid",
                 "symbol": "createType3AsString",
-                "version": "1.10.0"
+                "version": "1.10.1"
               },
               "enabled": true
             },
@@ -177,7 +177,7 @@
               "metadata": {
                 "label": "createType4AsRecord",
                 "description": "Returns a UUID of type 4 as a UUID record.\n```ballerina\nuuid:Uuid uuid4 = check uuid:createType4AsRecord();\n```\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_uuid_1.10.0.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_uuid_1.10.1.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -185,7 +185,7 @@
                 "module": "uuid",
                 "packageName": "uuid",
                 "symbol": "createType4AsRecord",
-                "version": "1.10.0"
+                "version": "1.10.1"
               },
               "enabled": true
             },
@@ -193,7 +193,7 @@
               "metadata": {
                 "label": "createType4AsString",
                 "description": "Returns a UUID of type 4 as a string.\n```ballerina\nstring uuid4 = uuid:createType4AsString();\n```\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_uuid_1.10.0.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_uuid_1.10.1.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -201,7 +201,7 @@
                 "module": "uuid",
                 "packageName": "uuid",
                 "symbol": "createType4AsString",
-                "version": "1.10.0"
+                "version": "1.10.1"
               },
               "enabled": true
             },
@@ -209,7 +209,7 @@
               "metadata": {
                 "label": "createType5AsRecord",
                 "description": "Returns a UUID of type 5 as a UUID record.\n```ballerina\nuuid:Uuid uuid5 = check uuid:createType5AsRecord(uuid:NAME_SPACE_DNS, “ballerina.io”);\n```\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_uuid_1.10.0.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_uuid_1.10.1.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -217,7 +217,7 @@
                 "module": "uuid",
                 "packageName": "uuid",
                 "symbol": "createType5AsRecord",
-                "version": "1.10.0"
+                "version": "1.10.1"
               },
               "enabled": true
             },
@@ -225,7 +225,7 @@
               "metadata": {
                 "label": "createType5AsString",
                 "description": "Returns a UUID of type 5 as a string.\n```ballerina\nstring uuid5 = check uuid:createType5AsString(uuid:NAME_SPACE_DNS, “ballerina.io”);\n```\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_uuid_1.10.0.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_uuid_1.10.1.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -233,7 +233,7 @@
                 "module": "uuid",
                 "packageName": "uuid",
                 "symbol": "createType5AsString",
-                "version": "1.10.0"
+                "version": "1.10.1"
               },
               "enabled": true
             },
@@ -241,7 +241,7 @@
               "metadata": {
                 "label": "getVersion",
                 "description": "Detect RFC version of a UUID. Returns an error if the UUID is invalid.\n```ballerina\nuuid:Version v = check uuid:getVersion(\"4397465e-35f9-11eb-adc1-0242ac120002\");\n```\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_uuid_1.10.0.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_uuid_1.10.1.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -249,7 +249,7 @@
                 "module": "uuid",
                 "packageName": "uuid",
                 "symbol": "getVersion",
-                "version": "1.10.0"
+                "version": "1.10.1"
               },
               "enabled": true
             },
@@ -257,7 +257,7 @@
               "metadata": {
                 "label": "nilAsRecord",
                 "description": "Returns a nil UUID as a UUID record.\n```ballerina\nuuid:Uuid nilUUID = uuid:nilAsRecord();\n```\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_uuid_1.10.0.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_uuid_1.10.1.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -265,7 +265,7 @@
                 "module": "uuid",
                 "packageName": "uuid",
                 "symbol": "nilAsRecord",
-                "version": "1.10.0"
+                "version": "1.10.1"
               },
               "enabled": true
             },
@@ -273,7 +273,7 @@
               "metadata": {
                 "label": "nilAsString",
                 "description": "Returns a nil UUID as a string.\n```ballerina\nstring nilUUID = uuid:nilAsString();\n```\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_uuid_1.10.0.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_uuid_1.10.1.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -281,7 +281,7 @@
                 "module": "uuid",
                 "packageName": "uuid",
                 "symbol": "nilAsString",
-                "version": "1.10.0"
+                "version": "1.10.1"
               },
               "enabled": true
             },
@@ -289,7 +289,7 @@
               "metadata": {
                 "label": "toBytes",
                 "description": "Converts to an array of bytes. Returns an error if the UUID is invalid.\n```ballerina\nbyte[] b = check uuid:toBytes(“6ec0bd7f-11c0-43da-975e-2aesass0b”);\n```\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_uuid_1.10.0.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_uuid_1.10.1.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -297,7 +297,7 @@
                 "module": "uuid",
                 "packageName": "uuid",
                 "symbol": "toBytes",
-                "version": "1.10.0"
+                "version": "1.10.1"
               },
               "enabled": true
             },
@@ -305,7 +305,7 @@
               "metadata": {
                 "label": "toRecord",
                 "description": "Converts to a UUID record. Returns an error if the UUID is invalid.\n```ballerina\nuuid:Uuid r1 = check uuid:toRecord(\"4397465e-35f9-11eb-adc1-0242ac120002\");\nuuid:Uuid r2 = check uuid:toRecord([10, 20, 30]);\n```\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_uuid_1.10.0.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_uuid_1.10.1.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -313,7 +313,7 @@
                 "module": "uuid",
                 "packageName": "uuid",
                 "symbol": "toRecord",
-                "version": "1.10.0"
+                "version": "1.10.1"
               },
               "enabled": true
             },
@@ -321,7 +321,7 @@
               "metadata": {
                 "label": "toString",
                 "description": "Converts to a UUID string. Returns an error if the UUID is invalid.\n```ballerina\nstring s = check uuid:toString([5, 12, 16, 35]);\n```\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_uuid_1.10.0.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_uuid_1.10.1.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -329,7 +329,7 @@
                 "module": "uuid",
                 "packageName": "uuid",
                 "symbol": "toString",
-                "version": "1.10.0"
+                "version": "1.10.1"
               },
               "enabled": true
             },
@@ -337,7 +337,7 @@
               "metadata": {
                 "label": "validate",
                 "description": "Test a string to see if it is a valid UUID.\n```ballerina\nboolean valid = uuid:validate(\"4397465e-35f9-11eb-adc1-0242ac120002\");\n```\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_uuid_1.10.0.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_uuid_1.10.1.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -345,7 +345,7 @@
                 "module": "uuid",
                 "packageName": "uuid",
                 "symbol": "validate",
-                "version": "1.10.0"
+                "version": "1.10.1"
               },
               "enabled": true
             }

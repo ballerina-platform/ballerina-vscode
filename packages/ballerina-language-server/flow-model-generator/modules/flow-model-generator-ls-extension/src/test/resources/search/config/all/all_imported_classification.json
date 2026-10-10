@@ -56,7 +56,7 @@
               "metadata": {
                 "label": "utcAddSeconds",
                 "description": "Returns UTC time that occurs seconds after the given UTC time.\nThis assumes that all days have 86400 seconds except when UTC represents a time during a positive leap second,\nin which case the corresponding day will be assumed to have 86401 seconds.\n```ballerina\ntime:Utc utc = time:utcAddSeconds(time:utcNow(), 20.900);\n```",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.1.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.3.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -64,7 +64,7 @@
                 "module": "time",
                 "packageName": "time",
                 "symbol": "utcAddSeconds",
-                "version": "2.8.1"
+                "version": "2.8.3"
               },
               "enabled": true
             },
@@ -72,7 +72,7 @@
               "metadata": {
                 "label": "utcDiffSeconds",
                 "description": "Returns difference in seconds between two UTC times.\nThis will be positive if `utc1` occurs after `utc2`\n```ballerina\ntime:Utc utc1 = time:utcNow();\ntime:Utc utc2 = check time:utcFromString(\"2021-04-12T23:20:50.520Z\");\ntime:Seconds seconds = time:utcDiffSeconds(utc1, utc2);\n```",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.1.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.3.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -80,7 +80,7 @@
                 "module": "time",
                 "packageName": "time",
                 "symbol": "utcDiffSeconds",
-                "version": "2.8.1"
+                "version": "2.8.3"
               },
               "enabled": true
             },
@@ -88,7 +88,7 @@
               "metadata": {
                 "label": "utcFromCivil",
                 "description": "Converts a given civil value to a UTC timestamp.\n```ballerina\ntime:Civil civil = time:utcToCivil(time:utcNow());\ntime:Utc utc = time:utcFromCivil(civil);\n```",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.1.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.3.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -96,7 +96,7 @@
                 "module": "time",
                 "packageName": "time",
                 "symbol": "utcFromCivil",
-                "version": "2.8.1"
+                "version": "2.8.3"
               },
               "enabled": true
             },
@@ -104,7 +104,7 @@
               "metadata": {
                 "label": "utcFromString",
                 "description": "Converts an RFC 3339 timestamp (e.g., `2007-12-03T10:15:30.00Z`) to UTC.\n```ballerina\ntime:Utc|time:Error utc = time:utcFromString(\"2007-12-03T10:15:30.00Z\");\n```",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.1.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.3.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -112,7 +112,7 @@
                 "module": "time",
                 "packageName": "time",
                 "symbol": "utcFromString",
-                "version": "2.8.1"
+                "version": "2.8.3"
               },
               "enabled": true
             },
@@ -120,7 +120,7 @@
               "metadata": {
                 "label": "utcNow",
                 "description": "Returns the `time:Utc` representing the current time (current instant of the system clock in seconds from the epoch of `1970-01-01T00:00:00`).\n```ballerina\ntime:Utc utc = time:utcNow();\n```",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.1.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.3.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -128,7 +128,7 @@
                 "module": "time",
                 "packageName": "time",
                 "symbol": "utcNow",
-                "version": "2.8.1"
+                "version": "2.8.3"
               },
               "enabled": true
             },
@@ -136,7 +136,7 @@
               "metadata": {
                 "label": "utcToCivil",
                 "description": "Converts a given UTC timestamp to a civil value.\n```ballerina\ntime:Utc utc = time:utcNow();\ntime:Civil civil = time:utcToCivil(utc);\n```",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.1.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.3.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -144,7 +144,7 @@
                 "module": "time",
                 "packageName": "time",
                 "symbol": "utcToCivil",
-                "version": "2.8.1"
+                "version": "2.8.3"
               },
               "enabled": true
             },
@@ -152,7 +152,7 @@
               "metadata": {
                 "label": "utcToEmailString",
                 "description": "Converts a given UTC to an email-formatted string (e.g `Mon, 3 Dec 2007 10:15:30 GMT`).\n```ballerina\ntime:Utc utc = time:utcNow();\nstring emailFormattedString = time:utcToEmailString(utc);\n```",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.1.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.3.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -160,7 +160,7 @@
                 "module": "time",
                 "packageName": "time",
                 "symbol": "utcToEmailString",
-                "version": "2.8.1"
+                "version": "2.8.3"
               },
               "enabled": true
             },
@@ -168,7 +168,7 @@
               "metadata": {
                 "label": "utcToString",
                 "description": "Converts a given UTC time to an RFC 3339 timestamp (e.g., `2007-12-03T10:15:30.00Z`).\n```ballerina\nstring utcString = time:utcToString(time:utcNow());\n```",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.1.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.3.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -176,7 +176,7 @@
                 "module": "time",
                 "packageName": "time",
                 "symbol": "utcToString",
-                "version": "2.8.1"
+                "version": "2.8.3"
               },
               "enabled": true
             }

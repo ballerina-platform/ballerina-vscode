@@ -40,13 +40,16 @@ import java.util.Map;
 
 /**
  * Drives the function search command through its Central path with a registry that has moved past the project's
- * resolved versions, as Central does whenever a package publishes a new release (e.g. workflow 1.0.0).
+ * resolved versions, as Central does whenever a package publishes a new release (e.g. workflow 99.0.0).
  */
 public class FunctionSearchCentralVersionTest {
 
     private static final Path WORKFLOW = Path.of("src/test/resources/function_search_versions/workflow");
     private static final Path HTTP = Path.of("src/test/resources/function_search_versions/http");
-    // Real crypto functions as Central serves them (latest 2.13.0 only); HTTP resolves an older crypto locally.
+    // Public functions of the workflow 1.0.0 that the test distribution bundles.
+    private static final List<String> WORKFLOW_FUNCTIONS = List.of("completeHumanTask", "getPendingAgentEvents",
+            "getResult", "getStatus", "getWorkflowResult", "run", "runWithId", "sendData", "waitForResult");
+    // Real crypto functions as a newer Central release (99.0.0) serves them; HTTP resolves an older crypto locally.
     private static final List<String> CRYPTO_FUNCTIONS = List.of("crc32b", "decryptAesGcm", "equalConstantTime",
             "hashArgon2", "hashSha256", "hmacSha256", "signRsaSha256", "verifyBcrypt");
 
@@ -72,8 +75,8 @@ public class FunctionSearchCentralVersionTest {
         Assert.assertNotEquals(timeVersion, "99.0.0");
 
         List<SymbolResponse.Symbol> ballerina = List.of(
-                function("workflow", "1.0.0", "run"),
-                function("workflow", "1.0.0", "getWorkflowInfo"),
+                function("workflow", "99.0.0", "run"),
+                function("workflow", "99.0.0", "onlyInLatestWorkflow"),
                 function("time", "99.0.0", "utcNow"),
                 function("time", "99.0.0", "onlyInLatestTime"),
                 function("unresolvedpkg", "1.0.0", "freshFunction"));
@@ -85,7 +88,7 @@ public class FunctionSearchCentralVersionTest {
         Assert.assertTrue(offered.contains(new Offered("Standard Library", "unresolvedpkg", "freshFunction",
                 "1.0.0")), "A package outside the dependency graph uses Central's release");
         Assert.assertTrue(offered.stream().noneMatch(row -> row.symbol().equals("onlyInLatestTime")
-                || row.symbol().equals("getWorkflowInfo")), "Another release's API must not be offered");
+                || row.symbol().equals("onlyInLatestWorkflow")), "Another release's API must not be offered");
         Assert.assertTrue(offered.stream().noneMatch(row -> row.module().equals("workflow")),
                 "Imported modules belong to the imported category only");
         Assert.assertTrue(offered.stream().noneMatch(row -> row.version().equals("99.0.0")
@@ -102,11 +105,11 @@ public class FunctionSearchCentralVersionTest {
         Project project = BuildProject.load(HTTP, BuildOptions.builder().setOffline(true).build());
         String cryptoVersion = resolvedVersion(project, "ballerina/crypto");
         Assert.assertNotNull(cryptoVersion, "http must resolve crypto as a transitive dependency");
-        Assert.assertNotEquals(cryptoVersion, "2.13.0", "The fixture must lag Central's latest crypto");
+        Assert.assertNotEquals(cryptoVersion, "99.0.0", "The fixture must lag Central's latest crypto");
 
         List<SymbolResponse.Symbol> ballerina = new ArrayList<>();
-        CRYPTO_FUNCTIONS.forEach(name -> ballerina.add(function("crypto", "2.13.0", name)));
-        ballerina.add(function("crypto", "2.13.0", "onlyInLatestCrypto"));
+        CRYPTO_FUNCTIONS.forEach(name -> ballerina.add(function("crypto", "99.0.0", name)));
+        ballerina.add(function("crypto", "99.0.0", "onlyInLatestCrypto"));
         SearchCommand command = search(project, Map.of("orgName", "ballerina", "q", "crypto", "limit", "50"),
                 ballerina);
         List<Offered> crypto = offered(command.execute()).stream()
@@ -124,12 +127,11 @@ public class FunctionSearchCentralVersionTest {
         Project project = BuildProject.load(WORKFLOW,
                 BuildOptions.builder().setOffline(true).build());
         SearchCommand command = search(project, Map.of("limit", "20"),
-                List.of(function("workflow", "1.0.0", "getWorkflowInfo")));
+                List.of(function("workflow", "99.0.0", "onlyInLatestWorkflow")));
         List<Offered> imported = offered(command.execute()).stream()
                 .filter(row -> row.category().equals("Imported Functions")).toList();
-        Assert.assertEquals(imported.stream().map(Offered::symbol).sorted().toList(), List.of("completeHumanTask",
-                "getPendingAgentEvents", "getWorkflowResult", "run", "sendData"));
-        Assert.assertTrue(imported.stream().allMatch(row -> row.version().equals("0.10.0")), imported.toString());
+        Assert.assertEquals(imported.stream().map(Offered::symbol).sorted().toList(), WORKFLOW_FUNCTIONS);
+        Assert.assertTrue(imported.stream().allMatch(row -> row.version().equals("1.0.0")), imported.toString());
     }
 
     private static String resolvedVersion(Project project, String key) {

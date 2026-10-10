@@ -64,7 +64,7 @@
               "metadata": {
                 "label": "parseString",
                 "description": "Converts JSON string to subtype of anydata.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_data.jsondata_1.1.4.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_data.jsondata_1.1.5.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -72,7 +72,7 @@
                 "module": "data.jsondata",
                 "packageName": "data.jsondata",
                 "symbol": "parseString",
-                "version": "1.1.4"
+                "version": "1.1.5"
               },
               "enabled": true
             }
@@ -101,7 +101,7 @@
               "metadata": {
                 "label": "parseString",
                 "description": "Converts XML string to record type with projection.",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_data.xmldata_1.6.3.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_data.xmldata_1.7.0.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -109,7 +109,7 @@
                 "module": "data.xmldata",
                 "packageName": "data.xmldata",
                 "symbol": "parseString",
-                "version": "1.6.3"
+                "version": "1.7.0"
               },
               "enabled": true
             }
@@ -125,8 +125,8 @@
             {
               "metadata": {
                 "label": "parseString",
-                "description": "Converts YAML string to subtype of anydata.\n\n```ballerina\njson value = yaml:parseString(\"name: Ballerina\");\nvalue ⇒ {\"name\": \"Ballerina\"}\n```\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_data.yaml_0.8.0.png"
+                "description": "Converts YAML string to subtype of anydata.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_data.yaml_1.0.0.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -134,7 +134,7 @@
                 "module": "data.yaml",
                 "packageName": "data.yaml",
                 "symbol": "parseString",
-                "version": "0.8.0"
+                "version": "1.0.0"
               },
               "enabled": true
             }

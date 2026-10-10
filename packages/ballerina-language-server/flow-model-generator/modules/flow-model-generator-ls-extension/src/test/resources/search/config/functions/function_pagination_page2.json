@@ -156,8 +156,8 @@
             {
               "metadata": {
                 "label": "addTag",
-                "description": "Add a key-value pair as a tag to the root.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_observe_1.7.1.png"
+                "description": "Add a key-value pair as a tag to the root.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_observe_1.8.0.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -165,15 +165,15 @@
                 "module": "observe",
                 "packageName": "observe",
                 "symbol": "addTag",
-                "version": "1.7.1"
+                "version": "1.8.0"
               },
               "enabled": true
             },
             {
               "metadata": {
                 "label": "addTagToMetrics",
-                "description": "Add a key value pair as a tag to system metrics.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_observe_1.7.1.png"
+                "description": "Add a key value pair as a tag to system metrics.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_observe_1.8.0.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -181,15 +181,15 @@
                 "module": "observe",
                 "packageName": "observe",
                 "symbol": "addTagToMetrics",
-                "version": "1.7.1"
+                "version": "1.8.0"
               },
               "enabled": true
             },
             {
               "metadata": {
                 "label": "addTagToSpan",
-                "description": "Add a key value pair as a tag to the span.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_observe_1.7.1.png"
+                "description": "Add a key value pair as a tag to the span.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_observe_1.8.0.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -197,7 +197,7 @@
                 "module": "observe",
                 "packageName": "observe",
                 "symbol": "addTagToSpan",
-                "version": "1.7.1"
+                "version": "1.8.0"
               },
               "enabled": true
             }

@@ -207,8 +207,8 @@
             {
               "metadata": {
                 "label": "finishSpan",
-                "description": "Finish the current span.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_observe_1.7.1.png"
+                "description": "Finish the current span.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_observe_1.8.0.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -216,15 +216,15 @@
                 "module": "observe",
                 "packageName": "observe",
                 "symbol": "finishSpan",
-                "version": "1.7.1"
+                "version": "1.8.0"
               },
               "enabled": true
             },
             {
               "metadata": {
                 "label": "finishSpanWithError",
-                "description": "Finish the current span.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_observe_1.7.1.png"
+                "description": "Finish the current span.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_observe_1.8.0.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -232,7 +232,7 @@
                 "module": "observe",
                 "packageName": "observe",
                 "symbol": "finishSpanWithError",
-                "version": "1.7.1"
+                "version": "1.8.0"
               },
               "enabled": true
             }

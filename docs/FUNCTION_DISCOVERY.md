@@ -31,9 +31,9 @@ Optional pagination metadata supports the **new client with an older language se
 ## Regression coverage
 
 - Compiler-derived full-surface invariants plus literal representative public function names cover imported discovery beyond former module/function caps.
-- Workflow 0.10.0 acceptance uses the build-owned dependency home provisioned by Gradle and fails rather than silently skipping when that fixture is missing.
+- Workflow 1.0.0 acceptance uses the build-owned test distribution and fails rather than silently skipping when that fixture is missing.
 - An HTTP-only offline fixture verifies that promoting `time` from transitive to direct import retains its resolved version, that other-version rows are rebased only for functions the resolved release declares, and that the rebasing reads real transitive sources (`mime`).
-- A fake-Central end-to-end test (`FunctionSearchCentralVersionTest`, ls-extension) serves newer releases (workflow 1.0.0, `time` 99.0.0) and verifies that imported functions stay at 0.10.0, transitive functions are rebased, latest-only APIs are hidden, and raw offsets still advance.
+- A fake-Central end-to-end test (`FunctionSearchCentralVersionTest`, ls-extension) serves newer releases (workflow, `time` and `crypto` at 99.0.0) and verifies that imported functions stay at the resolved 1.0.0, transitive functions are rebased, latest-only APIs are hidden, and raw offsets still advance.
 - Raw-page tests cover lookahead preservation, filtered/empty windows, source-pinned failure and retry.
 - SQLite tests cover organization filtering in both FTS and LIKE branches, deterministic page tiling, and deduplication.
 - Frontend controller, hook, and browser tests cover resolved/rejected failures, same-cursor retries, independent section loads, concurrent clicks, and stale responses.

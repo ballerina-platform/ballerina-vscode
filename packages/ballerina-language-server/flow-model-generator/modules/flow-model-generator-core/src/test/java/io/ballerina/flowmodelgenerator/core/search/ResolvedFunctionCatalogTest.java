@@ -45,15 +45,16 @@ public class ResolvedFunctionCatalogTest {
 
     @Test
     public void provisionedWorkflowUsesTheResolvedBalaNotTheIndex() {
-        // Gradle provisions workflow 0.10.0 in BALLERINA_HOME_DIR, not the developer's ~/.ballerina cache.
+        // The build-owned test distribution bundles workflow 1.0.0, not the developer's ~/.ballerina cache.
         // This acceptance case must fail, rather than skip, if the build-owned fixture is missing.
         var project = BuildProject.load(Path.of("src/test/resources/function-discovery/issue-2697-workflow"),
                 BuildOptions.builder().setOffline(true).build());
         var catalog = ResolvedFunctionCatalog.collect(project, ImportedModules.collect(project), true);
         List<SearchResult> rows = catalog.matching("workflow");
         Assert.assertEquals(rows.stream().map(SearchResult::name).toList(), List.of("completeHumanTask",
-                "getPendingAgentEvents", "getWorkflowResult", "run", "sendData"));
-        Assert.assertTrue(rows.stream().allMatch(row -> row.packageInfo().version().equals("0.10.0")));
+                "getPendingAgentEvents", "getResult", "getStatus", "getWorkflowResult", "run", "runWithId",
+                "sendData", "waitForResult"));
+        Assert.assertTrue(rows.stream().allMatch(row -> row.packageInfo().version().equals("1.0.0")));
         Assert.assertTrue(catalog.fallbackImports().isEmpty());
         Assert.assertTrue(catalog.matching("getWorkflowInfo").isEmpty());
         var unlisted = ResolvedFunctionCatalog.collect(project, ImportedModules.collect(project), false);
