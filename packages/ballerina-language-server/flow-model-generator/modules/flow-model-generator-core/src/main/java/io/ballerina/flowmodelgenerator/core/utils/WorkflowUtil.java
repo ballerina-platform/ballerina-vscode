@@ -1443,10 +1443,13 @@ public class WorkflowUtil {
         if (property.value() instanceof List<?> names) {
             return roleListSource(names);
         }
+        // An empty value names nobody; toSourceCode would hand back the field's placeholder instead.
+        if (property.value() == null || property.value().toString().isBlank()) {
+            return "";
+        }
         String source = property.toSourceCode().trim();
-        // `()` — typed as an expression, or the placeholder a nilable field falls back to — names
-        // nobody, the same as an empty field.
-        if (source.isEmpty() || NIL_SOURCE.equals(source)) {
+        // `()` — typed as an expression, with any spacing — names nobody, the same as an empty field.
+        if (source.isEmpty() || NIL_SOURCE.equals(source.replaceAll("\\s", ""))) {
             return "";
         }
         // In expression mode the value IS the expression: a bare `financeRoles` names a module-level

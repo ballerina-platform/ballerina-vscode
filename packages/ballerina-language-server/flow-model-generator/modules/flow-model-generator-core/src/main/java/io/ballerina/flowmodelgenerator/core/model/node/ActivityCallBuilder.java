@@ -982,15 +982,15 @@ public class ActivityCallBuilder extends CallBuilder {
                                                      boolean dualModeText) {
         Map<String, Property> fields = new LinkedHashMap<>();
         fields.put(keys.userRoles(), buildReviewerRolesSubProperty(RETRY_USER_ROLES_LABEL, RETRY_USER_ROLES_DOC, true));
-        fields.put(keys.users(), buildReviewerRolesSubProperty(RETRY_USERS_LABEL, RETRY_USERS_DOC));
+        fields.put(keys.users(), buildReviewerRolesSubProperty(RETRY_USERS_LABEL, RETRY_USERS_DOC, false));
         fields.put(keys.excludedUsers(),
-                buildReviewerRolesSubProperty(RETRY_EXCLUDED_USERS_LABEL, RETRY_EXCLUDED_USERS_DOC));
+                buildReviewerRolesSubProperty(RETRY_EXCLUDED_USERS_LABEL, RETRY_EXCLUDED_USERS_DOC, false));
         fields.put(keys.excludedRoles(),
-                buildReviewerRolesSubProperty(RETRY_EXCLUDED_ROLES_LABEL, RETRY_EXCLUDED_ROLES_DOC));
+                buildReviewerRolesSubProperty(RETRY_EXCLUDED_ROLES_LABEL, RETRY_EXCLUDED_ROLES_DOC, false));
         fields.put(keys.administratorRoles(),
-                buildReviewerRolesSubProperty(RETRY_ADMINISTRATOR_ROLES_LABEL, RETRY_ADMINISTRATOR_ROLES_DOC));
+                buildReviewerRolesSubProperty(RETRY_ADMINISTRATOR_ROLES_LABEL, RETRY_ADMINISTRATOR_ROLES_DOC, false));
         fields.put(keys.administratorUsers(),
-                buildReviewerRolesSubProperty(RETRY_ADMINISTRATOR_USERS_LABEL, RETRY_ADMINISTRATOR_USERS_DOC));
+                buildReviewerRolesSubProperty(RETRY_ADMINISTRATOR_USERS_LABEL, RETRY_ADMINISTRATOR_USERS_DOC, false));
         // Title and description offer a plain-text box as well as the expression editor, so a
         // wording typed as text is quoted on save while a reference to one is written as it stands.
         fields.put(keys.title(), dualModeText ? buildReviewTextSubProperty(RETRY_TITLE_LABEL, titleDoc)
@@ -1033,15 +1033,15 @@ public class ActivityCallBuilder extends CallBuilder {
         // expression it is), the way the sub-form's role fields edit them.
         addHiddenRoleProperty(nodeBuilder, keys.userRoles(), RETRY_USER_ROLES_LABEL, RETRY_USER_ROLES_DOC,
                 review.userRoles(), true);
-        addHiddenRoleProperty(nodeBuilder, keys.users(), RETRY_USERS_LABEL, RETRY_USERS_DOC, review.users());
+        addHiddenRoleProperty(nodeBuilder, keys.users(), RETRY_USERS_LABEL, RETRY_USERS_DOC, review.users(), false);
         addHiddenRoleProperty(nodeBuilder, keys.excludedUsers(), RETRY_EXCLUDED_USERS_LABEL,
-                RETRY_EXCLUDED_USERS_DOC, review.excludedUsers());
+                RETRY_EXCLUDED_USERS_DOC, review.excludedUsers(), false);
         addHiddenRoleProperty(nodeBuilder, keys.excludedRoles(), RETRY_EXCLUDED_ROLES_LABEL,
-                RETRY_EXCLUDED_ROLES_DOC, review.excludedRoles());
+                RETRY_EXCLUDED_ROLES_DOC, review.excludedRoles(), false);
         addHiddenRoleProperty(nodeBuilder, keys.administratorRoles(), RETRY_ADMINISTRATOR_ROLES_LABEL,
-                RETRY_ADMINISTRATOR_ROLES_DOC, review.administratorRoles());
+                RETRY_ADMINISTRATOR_ROLES_DOC, review.administratorRoles(), false);
         addHiddenRoleProperty(nodeBuilder, keys.administratorUsers(), RETRY_ADMINISTRATOR_USERS_LABEL,
-                RETRY_ADMINISTRATOR_USERS_DOC, review.administratorUsers());
+                RETRY_ADMINISTRATOR_USERS_DOC, review.administratorUsers(), false);
         if (dualModeText) {
             addHiddenReviewTextProperty(nodeBuilder, keys.title(), RETRY_TITLE_LABEL, titleDoc, review.title());
             addHiddenReviewTextProperty(nodeBuilder, keys.description(), RETRY_DESCRIPTION_LABEL, descriptionDoc,
@@ -1062,10 +1062,6 @@ public class ActivityCallBuilder extends CallBuilder {
      * sub-properties, except the role field offers every mode a role field offers elsewhere —
      * see {@link WorkflowUtil#addRoleFieldTypes}.
      */
-    private static Property buildReviewerRolesSubProperty(String label, String description) {
-        return buildReviewerRolesSubProperty(label, description, false);
-    }
-
     // `deciding` marks the reviewer roles themselves, whose expression mode takes `()`.
     private static Property buildReviewerRolesSubProperty(String label, String description, boolean deciding) {
         Property.Builder<Void> builder = new Property.Builder<Void>(null)
@@ -1115,11 +1111,6 @@ public class ActivityCallBuilder extends CallBuilder {
                 .editable(true)
                 .optional(optional)
                 .build();
-    }
-
-    private static void addHiddenRoleProperty(NodeBuilder nodeBuilder, String key, String label, String description,
-                                              String source) {
-        addHiddenRoleProperty(nodeBuilder, key, label, description, source, false);
     }
 
     // `deciding` marks the reviewer roles themselves, whose expression mode takes `()`.

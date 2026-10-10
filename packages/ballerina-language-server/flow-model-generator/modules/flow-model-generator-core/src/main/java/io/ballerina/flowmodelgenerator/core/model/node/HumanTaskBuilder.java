@@ -461,7 +461,9 @@ public class HumanTaskBuilder extends CallBuilder {
      */
     private static void openEmptyInputAsExpression(Map<String, Property> properties, String key) {
         Property existing = properties.get(key);
-        if (existing == null || existing.types() == null
+        // Only a required input: an optional one left unset must stay unset, not come back as `{}`.
+        if (existing == null || existing.types() == null || existing.codedata() == null
+                || !ParameterData.Kind.REQUIRED.name().equals(existing.codedata().kind())
                 || existing.types().stream().noneMatch(type -> type.fieldType() == Property.ValueType.EXPRESSION)) {
             return;
         }
