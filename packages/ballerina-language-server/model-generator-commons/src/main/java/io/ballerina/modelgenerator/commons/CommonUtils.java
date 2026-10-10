@@ -44,12 +44,12 @@ import io.ballerina.compiler.api.symbols.TypeReferenceTypeSymbol;
 import io.ballerina.compiler.api.symbols.TypeSymbol;
 import io.ballerina.compiler.api.symbols.UnionTypeSymbol;
 import io.ballerina.compiler.api.symbols.VariableSymbol;
+import io.ballerina.compiler.api.values.ConstantValue;
 import io.ballerina.compiler.syntax.tree.BindingPatternNode;
 import io.ballerina.compiler.syntax.tree.BuiltinSimpleNameReferenceNode;
 import io.ballerina.compiler.syntax.tree.ChildNodeList;
 import io.ballerina.compiler.syntax.tree.DefaultableParameterNode;
 import io.ballerina.compiler.syntax.tree.DoStatementNode;
-import io.ballerina.compiler.syntax.tree.EnumMemberNode;
 import io.ballerina.compiler.syntax.tree.ExpressionNode;
 import io.ballerina.compiler.syntax.tree.FunctionDefinitionNode;
 import io.ballerina.compiler.syntax.tree.InterpolationNode;
@@ -1902,12 +1902,10 @@ public class CommonUtils {
         }
 
         if (expression instanceof SimpleNameReferenceNode simpleNameReferenceNode) {
-            String enumValue = resolveEnumMemberValue(simpleNameReferenceNode, resolvedPackage,
-                    semanticModel.get(), document);
+            String enumValue = resolveEnumMemberValue(simpleNameReferenceNode, semanticModel.get());
             return enumValue != null ? enumValue : simpleNameReferenceNode.name().text();
         } else if (expression instanceof QualifiedNameReferenceNode qualifiedNameReferenceNode) {
-            String enumValue = resolveEnumMemberValue(qualifiedNameReferenceNode, resolvedPackage,
-                    semanticModel.get(), document);
+            String enumValue = resolveEnumMemberValue(qualifiedNameReferenceNode, semanticModel.get());
             return enumValue != null ? enumValue :
                     qualifiedNameReferenceNode.modulePrefix().text() + ":" + qualifiedNameReferenceNode.identifier()
                             .text();
@@ -1952,10 +1950,11 @@ public class CommonUtils {
     }
 
     /**
-     * Helper method to resolve enum member values from expressions.
+     * Helper method to resolve the value of the constant or enum member an expression names. Both are read from the
+     * symbol, which holds the value whether the member is declared in another file or another package, whose source
+     * the declaring module's model does not have.
      */
-    private static String resolveEnumMemberValue(ExpressionNode expression, Package resolvedPackage,
-                                                 SemanticModel semanticModel, Document document) {
+    private static String resolveEnumMemberValue(ExpressionNode expression, SemanticModel semanticModel) {
         if (semanticModel == null) {
             return null;
         }
@@ -1965,45 +1964,21 @@ public class CommonUtils {
             return null;
         }
 
-        Symbol symbol = symbolOpt.get();
-        if (symbol.kind() == SymbolKind.CONSTANT) {
-            if (symbol instanceof ConstantSymbol constantSymbol) {
-                return String.valueOf(constantSymbol.constValue());
-            }
-            // Handle case where kind is CONSTANT but not instanceof ConstantSymbol
+        // An enum member is a constant symbol too
+        if (!(symbolOpt.get() instanceof ConstantSymbol constantSymbol)) {
+            return null;
+        }
+        if (constantSymbol.kind() == SymbolKind.CONSTANT) {
+            return String.valueOf(constantSymbol.constValue());
+        }
+        if (constantSymbol.kind() != SymbolKind.ENUM_MEMBER) {
             return null;
         }
 
-        if (symbol.kind() != SymbolKind.ENUM_MEMBER) {
-            return null;
-        }
-
-        Optional<Location> symbolLocation = symbol.getLocation();
-        if (resolvedPackage == null || symbolLocation.isEmpty()) {
-            return null;
-        }
-
-        if (document == null) {
-            document = findDocument(resolvedPackage, symbolLocation.get().lineRange().fileName());
-            if (document == null) {
-                return null;
-            }
-        }
-
-        ModulePartNode rootNode = document.syntaxTree().rootNode();
-        TextRange textRange = symbolLocation.get().textRange();
-        NonTerminalNode node = rootNode.findNode(TextRange.from(textRange.startOffset(), textRange.length()));
-
-        if (!(node instanceof EnumMemberNode enumMemberNode)) {
-            return null;
-        }
-
-        if (enumMemberNode.constExprNode().isEmpty()) {
-            return enumMemberNode.identifier().text();
-        }
-
-        ExpressionNode valueExpression = enumMemberNode.constExprNode().get();
-        return valueExpression.toSourceCode().trim();
+        // The value of an enum member is always a string, presented as the literal it is written with
+        Object value = constantSymbol.constValue() instanceof ConstantValue constantValue
+                ? constantValue.value() : constantSymbol.constValue();
+        return value == null ? null : "\"" + escapeContent(String.valueOf(value)) + "\"";
     }
 
     /**
