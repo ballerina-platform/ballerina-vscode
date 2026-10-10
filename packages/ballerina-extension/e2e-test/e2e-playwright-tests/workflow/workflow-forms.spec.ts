@@ -326,8 +326,14 @@ export default function createTests() {
             const webview = await getWebview();
             await webview.getByTestId('start-node').waitFor({ timeout: 60000 });
             const sidePanel = await openPaletteBelow(webview, 'Start');
-            await sidePanel.clickNode('Send Data');
             const panel = sidePanel.getLocator();
+            // Outside a workflow diagram the Workflow category starts collapsed; open it rather than search.
+            const sendData = panel.getByText('Send Data', { exact: true }).last();
+            if (!await sendData.isVisible().catch(() => false)) {
+                await sidePanel.expandSection('Workflow');
+            }
+            await sendData.waitFor({ state: 'visible', timeout: 60000 });
+            await domClick(sendData);
 
             logStep('The only workflow is selected and its data event offered');
             const workflowName = panel.getByRole('combobox', { name: /Workflow Name/ });
