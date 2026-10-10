@@ -23,11 +23,75 @@ import * as helpers from './utils/helpers';
 import { extensionsFolder, newProjectPath, zipProjectSnapshot } from './utils/helpers';
 import { downloadExtensionFromMarketplace } from '@wso2/playwright-vscode-tester';
 import fs from 'fs';
+import { execSync } from 'child_process';
 import path from 'path';
 const videosFolder = path.join(__dirname, '..', 'test-resources', 'videos');
 const VIDEO_SAVE_TIMEOUT_MS = Number(process.env.BI_E2E_VIDEO_SAVE_TIMEOUT_MS ?? 20000);
 const PAGE_CLOSE_TIMEOUT_MS = Number(process.env.BI_E2E_PAGE_CLOSE_TIMEOUT_MS ?? 10000);
 const ELECTRON_EXIT_WAIT_MS = Number(process.env.BI_E2E_ELECTRON_EXIT_WAIT_MS ?? 5000);
+
+// Whether a process id is still running.
+function isAlive(pid: number): boolean {
+    try {
+        process.kill(pid, 0);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * Kills VS Code with everything it started. Playwright launches Electron as the leader of its own process group
+ * (not on Windows), so signalling the group also ends the extension host and the language servers it spawned,
+ * which otherwise outlive a killed main process. The pid recorded at launch is the fallback for an application
+ * handle that is already disposed, where `process()` throws.
+ */
+async function terminateVsCode(): Promise<void> {
+    let electronProcess: import('child_process').ChildProcess | undefined;
+    try {
+        electronProcess = helpers.vscode?.process?.();
+    } catch {
+        electronProcess = undefined;
+    }
+    const pid = electronProcess?.pid ?? helpers.vscodePid;
+    if (!pid || !isAlive(pid)) {
+        console.log('ℹ️  No live Electron process to terminate');
+        return;
+    }
+    const exited = new Promise<void>((resolve) => {
+        const deadline = Date.now() + ELECTRON_EXIT_WAIT_MS;
+        const poll = setInterval(() => {
+            if (!isAlive(pid) || Date.now() > deadline) {
+                clearInterval(poll);
+                resolve();
+            }
+        }, 200);
+        electronProcess?.once('exit', () => {
+            clearInterval(poll);
+            resolve();
+        });
+    });
+    if (process.platform === 'win32') {
+        // /T takes the child tree with it; Windows has no process groups to signal.
+        try {
+            execSync(`taskkill /pid ${pid} /T /F`, { stdio: 'ignore' });
+        } catch {
+            // Already gone.
+        }
+    } else {
+        try {
+            process.kill(-pid, 'SIGKILL');
+        } catch {
+            try {
+                process.kill(pid, 'SIGKILL');
+            } catch {
+                // Already gone.
+            }
+        }
+    }
+    await exited;
+    console.log(isAlive(pid) ? '⚠️  VS Code Electron app still running after SIGKILL' : '✅ VS Code Electron app terminated');
+}
 const WORKER_FORCE_EXIT_MS = Number(process.env.BI_E2E_WORKER_FORCE_EXIT_MS ?? 8000);
 
 async function withTimeout<T>(operation: Promise<T>, timeoutMs: number, timeoutMessage: string): Promise<T> {
@@ -351,32 +415,10 @@ test.afterAll(async () => {
     // modules, runs beforeAll -> initVSCode -> launches a new Electron),
     // so tearing Electron down here is safe and does not interfere with
     // retries.
-    if (helpers.vscode) {
+    if (helpers.vscode || helpers.vscodePid) {
         console.log('🛑 Terminating VS Code Electron app...');
         try {
-            const electronProcess = helpers.vscode.process?.();
-            if (electronProcess && !electronProcess.killed) {
-                await new Promise<void>((resolve) => {
-                    let settled = false;
-                    const done = () => {
-                        if (settled) return;
-                        settled = true;
-                        clearTimeout(timer);
-                        resolve();
-                    };
-                    const timer = setTimeout(done, ELECTRON_EXIT_WAIT_MS);
-                    electronProcess.once('exit', done);
-                    try {
-                        electronProcess.kill('SIGKILL');
-                    } catch {
-                        // already gone — resolve immediately
-                        done();
-                    }
-                });
-                console.log('✅ VS Code Electron app terminated');
-            } else {
-                console.log('ℹ️  No live Electron process to terminate');
-            }
+            await terminateVsCode();
         } catch (err) {
             console.warn(`⚠️  Failed to terminate Electron: ${(err as Error).message}`);
         }

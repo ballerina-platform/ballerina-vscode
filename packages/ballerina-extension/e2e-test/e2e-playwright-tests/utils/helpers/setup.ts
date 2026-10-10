@@ -45,6 +45,20 @@ const snapshotsFolder = path.join(resourcesFolder, 'snapshots');
 const screenshotsFolder = path.join(resourcesFolder, 'screenshots');
 export let vscode: any;
 export let page: ExtendedPage;
+/**
+ * The Electron main process id, read right after launch. Teardown needs it when the application handle is
+ * already disposed (a timed-out reload, say): `process()` then throws, and without the pid the old VS Code,
+ * its extension host and language servers would keep running beside the retry's fresh window.
+ */
+export let vscodePid: number | undefined;
+
+function rememberVsCodePid(): void {
+    try {
+        vscodePid = vscode?.process?.()?.pid ?? vscodePid;
+    } catch {
+        // The handle is already unusable; keep whatever was recorded at launch.
+    }
+}
 
 /**
  * Updated by afterEach to indicate whether the most recently finished test in
@@ -271,6 +285,7 @@ async function initVSCode(workspacePath: string = newProjectPath) {
             workspacePath,
             profileName
         );
+        rememberVsCodePid();
     }
     page = new ExtendedPage(await vscode!.firstWindow({ timeout: 60000 }));
 }
@@ -312,6 +327,7 @@ async function resumeVSCode() {
             newProjectPath,
             profileName
         );
+        rememberVsCodePid();
         await new Promise(resolve => setTimeout(resolve, 5000));
     }
     page = new ExtendedPage(await vscode!.firstWindow({ timeout: 60000 }));
