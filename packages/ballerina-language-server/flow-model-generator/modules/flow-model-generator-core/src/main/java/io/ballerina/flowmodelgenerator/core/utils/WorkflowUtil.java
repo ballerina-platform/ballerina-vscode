@@ -1229,11 +1229,12 @@ public class WorkflowUtil {
 
     private static final String NIL_SOURCE = "()";
 
-    // A role field edits one role as text, or an expression yielding a role or a list of them.
+    // A role field edits one role as text, or an expression yielding a role or a non-empty list of
+    // them: the module's own type, so what the editor accepts is what the compiler accepts.
     private static final String ROLE_LIST_TYPE = "string[]";
-    private static final String ROLE_UNION_TYPE = "string|string[]";
-    // The module's type for the roles that decide a task: nil says the named users alone decide.
-    private static final String NILABLE_ROLE_UNION_TYPE = "string|[string, string...]?";
+    private static final String ROLE_UNION_TYPE = "string|[string, string...]";
+    // The roles that decide a task may also be nil: the named users alone decide.
+    private static final String NILABLE_ROLE_UNION_TYPE = ROLE_UNION_TYPE + "?";
 
     /**
      * Declares the input modes a reviewer/user role field offers: a list of roles entered one by

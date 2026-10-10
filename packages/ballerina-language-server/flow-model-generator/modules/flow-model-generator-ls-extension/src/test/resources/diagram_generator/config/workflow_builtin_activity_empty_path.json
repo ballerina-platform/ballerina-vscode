@@ -49,7 +49,7 @@
         "metadata": {
           "label": "Call REST API",
           "description": "Call a REST API endpoint as a workflow activity using a configured http:Client connection.",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.18.0.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.17.1.png"
         },
         "codedata": {
           "node": "CONNECTION_ACTIVITY_CALL",
@@ -542,7 +542,7 @@
                     },
                     {
                       "fieldType": "EXPRESSION",
-                      "ballerinaType": "string|string[]",
+                      "ballerinaType": "string|[string, string...]",
                       "selected": false
                     }
                   ],
@@ -565,7 +565,7 @@
                     },
                     {
                       "fieldType": "EXPRESSION",
-                      "ballerinaType": "string|string[]",
+                      "ballerinaType": "string|[string, string...]",
                       "selected": false
                     }
                   ],
@@ -588,7 +588,7 @@
                     },
                     {
                       "fieldType": "EXPRESSION",
-                      "ballerinaType": "string|string[]",
+                      "ballerinaType": "string|[string, string...]",
                       "selected": false
                     }
                   ],
@@ -611,7 +611,7 @@
                     },
                     {
                       "fieldType": "EXPRESSION",
-                      "ballerinaType": "string|string[]",
+                      "ballerinaType": "string|[string, string...]",
                       "selected": false
                     }
                   ],
@@ -634,7 +634,7 @@
                     },
                     {
                       "fieldType": "EXPRESSION",
-                      "ballerinaType": "string|string[]",
+                      "ballerinaType": "string|[string, string...]",
                       "selected": false
                     }
                   ],
@@ -784,7 +784,7 @@
               },
               {
                 "fieldType": "EXPRESSION",
-                "ballerinaType": "string|string[]",
+                "ballerinaType": "string|[string, string...]",
                 "selected": false
               }
             ],
@@ -807,7 +807,7 @@
               },
               {
                 "fieldType": "EXPRESSION",
-                "ballerinaType": "string|string[]",
+                "ballerinaType": "string|[string, string...]",
                 "selected": false
               }
             ],
@@ -830,7 +830,7 @@
               },
               {
                 "fieldType": "EXPRESSION",
-                "ballerinaType": "string|string[]",
+                "ballerinaType": "string|[string, string...]",
                 "selected": false
               }
             ],
@@ -853,7 +853,7 @@
               },
               {
                 "fieldType": "EXPRESSION",
-                "ballerinaType": "string|string[]",
+                "ballerinaType": "string|[string, string...]",
                 "selected": false
               }
             ],
@@ -876,7 +876,7 @@
               },
               {
                 "fieldType": "EXPRESSION",
-                "ballerinaType": "string|string[]",
+                "ballerinaType": "string|[string, string...]",
                 "selected": false
               }
             ],
@@ -1119,7 +1119,7 @@
                     },
                     {
                       "fieldType": "EXPRESSION",
-                      "ballerinaType": "string|string[]",
+                      "ballerinaType": "string|[string, string...]",
                       "selected": false
                     }
                   ],
@@ -1142,7 +1142,7 @@
                     },
                     {
                       "fieldType": "EXPRESSION",
-                      "ballerinaType": "string|string[]",
+                      "ballerinaType": "string|[string, string...]",
                       "selected": false
                     }
                   ],
@@ -1165,7 +1165,7 @@
                     },
                     {
                       "fieldType": "EXPRESSION",
-                      "ballerinaType": "string|string[]",
+                      "ballerinaType": "string|[string, string...]",
                       "selected": false
                     }
                   ],
@@ -1188,7 +1188,7 @@
                     },
                     {
                       "fieldType": "EXPRESSION",
-                      "ballerinaType": "string|string[]",
+                      "ballerinaType": "string|[string, string...]",
                       "selected": false
                     }
                   ],
@@ -1211,7 +1211,7 @@
                     },
                     {
                       "fieldType": "EXPRESSION",
-                      "ballerinaType": "string|string[]",
+                      "ballerinaType": "string|[string, string...]",
                       "selected": false
                     }
                   ],
@@ -1395,7 +1395,7 @@
                     },
                     {
                       "fieldType": "EXPRESSION",
-                      "ballerinaType": "string|string[]",
+                      "ballerinaType": "string|[string, string...]",
                       "selected": false
                     }
                   ],
@@ -1418,7 +1418,7 @@
                     },
                     {
                       "fieldType": "EXPRESSION",
-                      "ballerinaType": "string|string[]",
+                      "ballerinaType": "string|[string, string...]",
                       "selected": false
                     }
                   ],
@@ -1441,7 +1441,7 @@
                     },
                     {
                       "fieldType": "EXPRESSION",
-                      "ballerinaType": "string|string[]",
+                      "ballerinaType": "string|[string, string...]",
                       "selected": false
                     }
                   ],
@@ -1464,7 +1464,7 @@
                     },
                     {
                       "fieldType": "EXPRESSION",
-                      "ballerinaType": "string|string[]",
+                      "ballerinaType": "string|[string, string...]",
                       "selected": false
                     }
                   ],
@@ -1487,7 +1487,7 @@
                     },
                     {
                       "fieldType": "EXPRESSION",
-                      "ballerinaType": "string|string[]",
+                      "ballerinaType": "string|[string, string...]",
                       "selected": false
                     }
                   ],
@@ -1719,7 +1719,7 @@
               },
               {
                 "fieldType": "EXPRESSION",
-                "ballerinaType": "string|string[]",
+                "ballerinaType": "string|[string, string...]",
                 "selected": false
               }
             ],
@@ -1742,7 +1742,7 @@
               },
               {
                 "fieldType": "EXPRESSION",
-                "ballerinaType": "string|string[]",
+                "ballerinaType": "string|[string, string...]",
                 "selected": false
               }
             ],
@@ -1765,7 +1765,7 @@
               },
               {
                 "fieldType": "EXPRESSION",
-                "ballerinaType": "string|string[]",
+                "ballerinaType": "string|[string, string...]",
                 "selected": false
               }
             ],
@@ -1788,7 +1788,7 @@
               },
               {
                 "fieldType": "EXPRESSION",
-                "ballerinaType": "string|string[]",
+                "ballerinaType": "string|[string, string...]",
                 "selected": false
               }
             ],
@@ -1811,7 +1811,7 @@
               },
               {
                 "fieldType": "EXPRESSION",
-                "ballerinaType": "string|string[]",
+                "ballerinaType": "string|[string, string...]",
                 "selected": false
               }
             ],
@@ -1913,7 +1913,7 @@
         "metadata": {
           "label": "HTTP",
           "description": "The HTTP client provides functionality to connect to remote HTTP services and perform requests using standard HTTP methods like GET, POST, PUT, DELETE, etc.\n",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.18.0.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.17.1.png"
         },
         "codedata": {
           "node": "NEW_CONNECTION",
