@@ -61,3 +61,15 @@ function pollWorkflow(PollEvents events) returns error? {
     PaymentData answer = check wait events.answer;
     io:println("Answer: " + answer.currency);
 }
+
+type RefundEvents record {|
+    future<PaymentData?> refund;
+    future<int[]> lineItems;
+|};
+
+# Workflow whose events carry an optional record and a list
+@workflow:Workflow
+function refundWorkflow(workflow:Context ctx, OrderInput input, RefundEvents events) returns error? {
+    PaymentData? refund = check wait events.refund;
+    io:println("Refund received: " + (refund is () ? "none" : refund.currency));
+}

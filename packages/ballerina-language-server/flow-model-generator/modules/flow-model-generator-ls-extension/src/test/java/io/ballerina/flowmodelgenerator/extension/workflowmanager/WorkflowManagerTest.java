@@ -44,7 +44,8 @@ public class WorkflowManagerTest extends AbstractLSTest {
                 {Path.of("get_all_events1.json")},
                 {Path.of("get_all_events2.json")},
                 {Path.of("get_all_events3.json")},
-                {Path.of("get_all_events4.json")}
+                {Path.of("get_all_events4.json")},
+                {Path.of("get_all_events5.json")}
         };
     }
 
