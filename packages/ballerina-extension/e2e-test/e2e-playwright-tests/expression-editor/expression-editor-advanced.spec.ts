@@ -301,9 +301,9 @@ export default function createTests() {
     }, async () => {
         // Loads a fixture that already contains the `Person` record type
         // (name: string, age: int optional) — the starting step is a
-        // pre-created type rather than building it through the type diagram —
-        // and a module-level `final http:Response response = new;` whose
-        // methods the completion-filter case types against.
+        // pre-created type rather than building it through the type diagram.
+        // It also declares a module-level `final http:Response response = new;`
+        // whose methods the completion-filter case types against.
         initTest(true, true, undefined, undefined, EXPRESSION_EDITOR_PROJECT_TEMPLATE);
 
         test('Expand Editor and Completion Driven Function Call', async ({ }, testInfo) => {
@@ -434,13 +434,15 @@ export default function createTests() {
             await options.filter({ hasText: 'getJsonPayload' }).first().waitFor({ state: 'visible', timeout: 15000 });
             logStep(`Member list open (${await options.count()} options)`);
 
+            // Mirror the production rule (FlowNodeForm's debouncedRetrieveCompletions):
+            // a case-insensitive substring match on the label.
             await page.page.keyboard.type('getJ', { delay: 150 });
             await expect.poll(async () => {
                 const labels = await options.allInnerTexts();
-                return labels.length > 0 && labels.every((label) => label.startsWith('getJ'));
+                return labels.length > 0 && labels.every((label) => label.toLowerCase().includes('getj'));
             }, { timeout: 15000 }).toBe(true);
             await expect(options.filter({ hasText: 'setPayload' })).toHaveCount(0);
-            logStep('Popup narrowed to getJ* methods');
+            logStep('Popup narrowed to methods matching getJ');
 
             await options.filter({ hasText: 'getJsonPayload' }).first().click({ force: true });
             await expect(exprCm).toContainText('response.getJsonPayload()', { timeout: 15000 });
