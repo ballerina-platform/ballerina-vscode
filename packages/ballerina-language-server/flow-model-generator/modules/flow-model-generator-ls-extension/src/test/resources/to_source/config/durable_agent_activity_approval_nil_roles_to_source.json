@@ -1,0 +1,156 @@
+{
+  "source": "workflow_function/agent.bal",
+  "description": "Edit an activity entry whose human approval names users only: () typed as the reviewer roles is written as userRoles: () (product-integrator#2723)",
+  "diagram": {
+    "id": "1",
+    "metadata": {
+      "label": "myActivity",
+      "description": "Register a workflow activity as a durable agent activity"
+    },
+    "codedata": {
+      "node": "DURABLE_AGENT_ADD_ACTIVITY",
+      "org": "ballerina",
+      "module": "workflow",
+      "object": "DurableAgent",
+      "symbol": "registerActivity",
+      "parentSymbol": "claimAgent",
+      "lineRange": {
+        "fileName": "agent.bal",
+        "startLine": {
+          "line": 19,
+          "offset": 8
+        },
+        "endLine": {
+          "line": 19,
+          "offset": 18
+        }
+      },
+      "isNew": false
+    },
+    "returning": false,
+    "properties": {
+      "activity": {
+        "metadata": {
+          "label": "Activity"
+        },
+        "valueType": "SINGLE_SELECT",
+        "value": "myActivity",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": true
+      },
+      "name": {
+        "metadata": {
+          "label": "Activity Name"
+        },
+        "valueType": "TEXT",
+        "value": "",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false
+      },
+      "description": {
+        "metadata": {
+          "label": "Activity Description"
+        },
+        "valueType": "DOC_TEXT",
+        "value": "",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false
+      },
+      "approvalPolicy": {
+        "metadata": {
+          "label": "Approval Policy",
+          "description": "Whether a person approves before this runs"
+        },
+        "valueType": "DROPDOWN_CHOICE",
+        "value": "HumanApproval",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "retryPolicy": {
+        "metadata": {
+          "label": "Retry Policy"
+        },
+        "valueType": "DROPDOWN_CHOICE",
+        "value": "NoRetry",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "approvalUserRoles": {
+        "metadata": {
+          "label": "Reviewer Roles"
+        },
+        "valueType": "EXPRESSION",
+        "value": "()",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false,
+        "types": [
+          {
+            "fieldType": "TEXT_SET",
+            "ballerinaType": "string[]",
+            "selected": false
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string|[string, string...]?",
+            "selected": true
+          }
+        ]
+      },
+      "approvalUsers": {
+        "metadata": {
+          "label": "Reviewers"
+        },
+        "valueType": "TEXT_SET",
+        "value": [
+          "alice"
+        ],
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false,
+        "types": [
+          {
+            "fieldType": "TEXT_SET",
+            "ballerinaType": "string[]",
+            "selected": true
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string|string[]",
+            "selected": false
+          }
+        ]
+      }
+    },
+    "flags": 0
+  },
+  "output": {
+    "workflow_function/agent.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 19,
+            "character": 8
+          },
+          "end": {
+            "line": 19,
+            "character": 18
+          }
+        },
+        "newText": "{activity: myActivity, approvalPolicy: {userRoles: (), users: \"alice\"}}"
+      }
+    ]
+  }
+}

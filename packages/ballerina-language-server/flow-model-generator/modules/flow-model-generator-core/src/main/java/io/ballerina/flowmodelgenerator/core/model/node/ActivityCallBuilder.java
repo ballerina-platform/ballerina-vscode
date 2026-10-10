@@ -36,6 +36,7 @@ import io.ballerina.flowmodelgenerator.core.Constants;
 import io.ballerina.flowmodelgenerator.core.UserFacingException;
 import io.ballerina.flowmodelgenerator.core.model.Codedata;
 import io.ballerina.flowmodelgenerator.core.model.FlowNode;
+import io.ballerina.flowmodelgenerator.core.model.FormBuilder;
 import io.ballerina.flowmodelgenerator.core.model.ItemOption;
 import io.ballerina.flowmodelgenerator.core.model.Metadata;
 import io.ballerina.flowmodelgenerator.core.model.NodeBuilder;
@@ -980,7 +981,7 @@ public class ActivityCallBuilder extends CallBuilder {
     static Map<String, Property> reviewSubProperties(ReviewKeys keys, String titleDoc, String descriptionDoc,
                                                      boolean dualModeText) {
         Map<String, Property> fields = new LinkedHashMap<>();
-        fields.put(keys.userRoles(), buildReviewerRolesSubProperty(RETRY_USER_ROLES_LABEL, RETRY_USER_ROLES_DOC));
+        fields.put(keys.userRoles(), buildReviewerRolesSubProperty(RETRY_USER_ROLES_LABEL, RETRY_USER_ROLES_DOC, true));
         fields.put(keys.users(), buildReviewerRolesSubProperty(RETRY_USERS_LABEL, RETRY_USERS_DOC));
         fields.put(keys.excludedUsers(),
                 buildReviewerRolesSubProperty(RETRY_EXCLUDED_USERS_LABEL, RETRY_EXCLUDED_USERS_DOC));
@@ -1031,7 +1032,7 @@ public class ActivityCallBuilder extends CallBuilder {
         // The audience values are shaped for the list mode (names as a list, anything else as the
         // expression it is), the way the sub-form's role fields edit them.
         addHiddenRoleProperty(nodeBuilder, keys.userRoles(), RETRY_USER_ROLES_LABEL, RETRY_USER_ROLES_DOC,
-                review.userRoles());
+                review.userRoles(), true);
         addHiddenRoleProperty(nodeBuilder, keys.users(), RETRY_USERS_LABEL, RETRY_USERS_DOC, review.users());
         addHiddenRoleProperty(nodeBuilder, keys.excludedUsers(), RETRY_EXCLUDED_USERS_LABEL,
                 RETRY_EXCLUDED_USERS_DOC, review.excludedUsers());
@@ -1062,12 +1063,17 @@ public class ActivityCallBuilder extends CallBuilder {
      * see {@link WorkflowUtil#addRoleFieldTypes}.
      */
     private static Property buildReviewerRolesSubProperty(String label, String description) {
-        return WorkflowUtil.addRoleFieldTypes(
-                        new Property.Builder<Void>(null)
-                                .metadata()
-                                    .label(label)
-                                    .description(description)
-                                    .stepOut())
+        return buildReviewerRolesSubProperty(label, description, false);
+    }
+
+    // `deciding` marks the reviewer roles themselves, whose expression mode takes `()`.
+    private static Property buildReviewerRolesSubProperty(String label, String description, boolean deciding) {
+        Property.Builder<Void> builder = new Property.Builder<Void>(null)
+                .metadata()
+                    .label(label)
+                    .description(description)
+                    .stepOut();
+        return (deciding ? WorkflowUtil.addDecidingRoleFieldTypes(builder) : WorkflowUtil.addRoleFieldTypes(builder))
                 .value("")
                 .editable(true)
                 // Optional on purpose: an empty role list is the documented "any role may decide"
@@ -1113,9 +1119,19 @@ public class ActivityCallBuilder extends CallBuilder {
 
     private static void addHiddenRoleProperty(NodeBuilder nodeBuilder, String key, String label, String description,
                                               String source) {
-        WorkflowUtil.addRoleFieldTypes(nodeBuilder.properties().custom()
-                .metadata().label(label).description(description).stepOut(), WorkflowUtil.roleFieldValue(source))
-                .editable(true).optional(true).hidden(true)
+        addHiddenRoleProperty(nodeBuilder, key, label, description, source, false);
+    }
+
+    // `deciding` marks the reviewer roles themselves, whose expression mode takes `()`.
+    private static void addHiddenRoleProperty(NodeBuilder nodeBuilder, String key, String label, String description,
+                                              String source, boolean deciding) {
+        Property.Builder<FormBuilder<NodeBuilder>> builder = nodeBuilder.properties().custom()
+                .metadata().label(label).description(description).stepOut();
+        Object value = WorkflowUtil.roleFieldValue(source);
+        Property.Builder<FormBuilder<NodeBuilder>> typed = deciding
+                ? WorkflowUtil.addDecidingRoleFieldTypes(builder, value)
+                : WorkflowUtil.addRoleFieldTypes(builder, value);
+        typed.editable(true).optional(true).hidden(true)
                 .stepOut()
                 .addProperty(key);
     }

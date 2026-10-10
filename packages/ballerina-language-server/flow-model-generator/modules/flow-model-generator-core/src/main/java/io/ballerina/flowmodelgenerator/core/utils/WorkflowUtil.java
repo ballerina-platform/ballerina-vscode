@@ -1227,9 +1227,13 @@ public class WorkflowUtil {
         return nodeKind != null && AGENT_DECLARATION_NODES.contains(nodeKind);
     }
 
+    private static final String NIL_SOURCE = "()";
+
     // A role field edits one role as text, or an expression yielding a role or a list of them.
     private static final String ROLE_LIST_TYPE = "string[]";
     private static final String ROLE_UNION_TYPE = "string|string[]";
+    // The module's type for the roles that decide a task: nil says the named users alone decide.
+    private static final String NILABLE_ROLE_UNION_TYPE = "string|[string, string...]?";
 
     /**
      * Declares the input modes a reviewer/user role field offers: a list of roles entered one by
@@ -1257,11 +1261,41 @@ public class WorkflowUtil {
      * @return the same builder, for fluent chaining
      */
     public static <T> Property.Builder<T> addRoleFieldTypes(Property.Builder<T> builder, Object value) {
+        return addRoleFieldTypes(builder, value, ROLE_UNION_TYPE);
+    }
+
+    /**
+     * Declares the input modes of the roles that decide a task or review. The module lets this
+     * field be nil when users are named, so its expression mode accepts {@code ()}.
+     *
+     * @param builder the property builder
+     * @param <T>     the builder's step-out target
+     * @return the same builder, for fluent chaining
+     */
+    public static <T> Property.Builder<T> addDecidingRoleFieldTypes(Property.Builder<T> builder) {
+        return addDecidingRoleFieldTypes(builder, "");
+    }
+
+    /**
+     * Declares the deciding-role input modes and sets the value, as {@link #addRoleFieldTypes(Property.Builder,
+     * Object)} does for the other audience fields.
+     *
+     * @param builder the property builder
+     * @param value   the value as {@link #roleFieldValue} shaped it
+     * @param <T>     the builder's step-out target
+     * @return the same builder, for fluent chaining
+     */
+    public static <T> Property.Builder<T> addDecidingRoleFieldTypes(Property.Builder<T> builder, Object value) {
+        return addRoleFieldTypes(builder, value, NILABLE_ROLE_UNION_TYPE);
+    }
+
+    private static <T> Property.Builder<T> addRoleFieldTypes(Property.Builder<T> builder, Object value,
+                                                             String expressionType) {
         boolean expression = value instanceof String text && !text.isBlank();
         return builder
                 .type().fieldType(Property.ValueType.TEXT_SET).ballerinaType(ROLE_LIST_TYPE)
                     .selected(!expression).stepOut()
-                .type().fieldType(Property.ValueType.EXPRESSION).ballerinaType(ROLE_UNION_TYPE)
+                .type().fieldType(Property.ValueType.EXPRESSION).ballerinaType(expressionType)
                     .selected(expression).stepOut()
                 .value(value);
     }
@@ -1410,7 +1444,9 @@ public class WorkflowUtil {
             return roleListSource(names);
         }
         String source = property.toSourceCode().trim();
-        if (source.isEmpty()) {
+        // `()` — typed as an expression, or the placeholder a nilable field falls back to — names
+        // nobody, the same as an empty field.
+        if (source.isEmpty() || NIL_SOURCE.equals(source)) {
             return "";
         }
         // In expression mode the value IS the expression: a bare `financeRoles` names a module-level

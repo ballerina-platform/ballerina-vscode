@@ -86,7 +86,7 @@ public class DurableAgentHumanTaskBuilder extends CallBuilder {
         addStringProperty(TASK_NAME_KEY, "Task Name",
                 "Identifies the task type; also the tool name advertised to the agent",
                 "approveRequest", true);
-        WorkflowUtil.addRoleFieldTypes(properties().custom()
+        WorkflowUtil.addDecidingRoleFieldTypes(properties().custom()
                 .metadata()
                     .label("User Roles")
                     .description("Role(s) permitted to complete this task; may be left empty when users are named")

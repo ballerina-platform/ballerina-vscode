@@ -25,9 +25,11 @@ import io.ballerina.compiler.syntax.tree.PositionalArgumentNode;
 import io.ballerina.compiler.syntax.tree.SeparatedNodeList;
 import io.ballerina.compiler.syntax.tree.SpecificFieldNode;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
+import io.ballerina.flowmodelgenerator.core.UserFacingException;
 import io.ballerina.flowmodelgenerator.core.model.NodeBuilder;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Property;
+import io.ballerina.flowmodelgenerator.core.model.PropertyType;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
 import io.ballerina.flowmodelgenerator.core.utils.FlowNodeUtil;
 import io.ballerina.flowmodelgenerator.core.utils.WorkflowUtil;
@@ -123,7 +125,8 @@ public class HumanTaskBuilder extends CallBuilder {
 
     // Form field descriptions.
     private static final String TASK_NAME_DOC = "Identifies the task type";
-    private static final String USER_ROLES_DOC = "One or more roles permitted to complete this task";
+    private static final String USER_ROLES_DOC =
+            "Role(s) permitted to complete this task; may be left empty when users are named";
     // The input field's documentation. The module renamed the parameter — `payload` before 0.9.0,
     // `taskInput` after — and a resolved form carries whichever key the pinned bala declares, so both
     // spellings are needed. One template, so the wording cannot drift while the pre-rename pin lives.
@@ -273,7 +276,7 @@ public class HumanTaskBuilder extends CallBuilder {
                 .stepOut()
                 .addProperty(TASK_NAME_KEY);
 
-        WorkflowUtil.addRoleFieldTypes(nodeBuilder.properties().custom()
+        WorkflowUtil.addDecidingRoleFieldTypes(nodeBuilder.properties().custom()
                 .metadata()
                     .label(USER_ROLES_LABEL)
                     .description(USER_ROLES_DOC)
@@ -385,6 +388,8 @@ public class HumanTaskBuilder extends CallBuilder {
                 WorkflowUtil.EXCLUDED_USERS_KEY, WorkflowUtil.EXCLUDED_ROLES_KEY,
                 WorkflowUtil.ADMINISTRATOR_ROLES_KEY, WorkflowUtil.ADMINISTRATOR_USERS_KEY);
         relabel(properties, TASK_INPUT_KEY, TASK_INPUT_LABEL, TASK_INPUT_DOC);
+        openEmptyInputAsExpression(properties, TASK_INPUT_KEY);
+        openEmptyInputAsExpression(properties, PAYLOAD_KEY);
         // The pinned workflow bala still names this parameter `payload`; a resolved-signature
         // form therefore carries that key, and the emitted argument keeps the module's own
         // name, so the label must not pretend otherwise. Dies with the pre-rename pin.
@@ -447,6 +452,33 @@ public class HumanTaskBuilder extends CallBuilder {
                         .build());
             }
         }
+    }
+
+    /**
+     * Opens an input that holds nothing — unset, or written as {@code {}} — as the {@code {}} it is, in
+     * the expression mode. Read back as an empty map it lands in the map editor with no entry to
+     * show, which saves as no value at all, and the required argument is then refused or dropped.
+     */
+    private static void openEmptyInputAsExpression(Map<String, Property> properties, String key) {
+        Property existing = properties.get(key);
+        if (existing == null || existing.types() == null
+                || existing.types().stream().noneMatch(type -> type.fieldType() == Property.ValueType.EXPRESSION)) {
+            return;
+        }
+        Object value = existing.value();
+        boolean empty = value == null || value.toString().isBlank()
+                || (value instanceof Map<?, ?> map && map.isEmpty())
+                || EMPTY_TASK_INPUT.equals(value.toString().replaceAll("\\s", ""));
+        if (!empty) {
+            return;
+        }
+        List<PropertyType> types = existing.types().stream()
+                .map(type -> new PropertyType(type.fieldType(), type.ballerinaType(), type.scope(), type.options(),
+                        type.template(), type.typeMembers(), type.recordSelectorType(),
+                        type.fieldType() == Property.ValueType.EXPRESSION))
+                .toList();
+        properties.put(key, Property.Builder.copyFrom(existing).clearTypes().types(types)
+                .value(EMPTY_TASK_INPUT).build());
     }
 
     private static final Set<String> ROLE_KEYS = Set.of(USER_ROLES_KEY, WorkflowUtil.USERS_KEY,
@@ -527,19 +559,18 @@ public class HumanTaskBuilder extends CallBuilder {
 
         // Required values. taskName is the only positional argument the signature keeps; the
         // rest — userRoles included — are fields of the HumanTaskOptions record and travel as
-        // named arguments. Both are still required by the form: surface a validation error
-        // when they are missing rather than silently emitting an empty value (in particular,
-        // never fall back to a privileged role for userRoles).
+        // named arguments. Surface a missing one as a validation error rather than silently
+        // emitting an empty value (in particular, never fall back to a privileged role).
         sourceBuilder.getProperty(TASK_NAME_KEY)
                 .filter(p -> p.value() != null && !p.value().toString().isEmpty())
-                .orElseThrow(() -> new IllegalStateException(
+                .orElseThrow(() -> new UserFacingException(
                         "A task name is required for the human task. Provide a value for '"
                                 + TASK_NAME_LABEL + "'."));
-        sourceBuilder.getProperty(USER_ROLES_KEY)
-                .filter(p -> !WorkflowUtil.isRoleBlank(p))
-                .orElseThrow(() -> new IllegalStateException(
-                        "At least one user role is required for the human task. Provide a value for '"
-                                + USER_ROLES_LABEL + "'."));
+        // The roles may be nil when users are named: `userRoles = ()` says those users alone decide.
+        if (WorkflowUtil.audienceSource(sourceBuilder, USER_ROLES_KEY).isBlank()
+                && WorkflowUtil.audienceSource(sourceBuilder, WorkflowUtil.USERS_KEY).isBlank()) {
+            throw new UserFacingException(WorkflowUtil.AUDIENCE_REQUIRED_MESSAGE);
+        }
         // The task input is required where the module declares it so (the form marks that field
         // REQUIRED) and the generic emitter below skips empty values — so a cleared field would
         // silently drop a required argument. A defaultable input, as older releases declare, may
@@ -548,7 +579,7 @@ public class HumanTaskBuilder extends CallBuilder {
                 .filter(p -> p.codedata() != null && ParameterData.Kind.REQUIRED.name().equals(p.codedata().kind()))
                 .filter(p -> p.value() == null || p.value().toString().isBlank())
                 .ifPresent(p -> {
-                    throw new IllegalStateException("A task input is required for the human task. Provide a "
+                    throw new UserFacingException("A task input is required for the human task. Provide a "
                             + "value for '" + TASK_INPUT_LABEL + "' — use {} for a task with nothing to show.");
                 });
 
@@ -585,15 +616,21 @@ public class HumanTaskBuilder extends CallBuilder {
         for (Map.Entry<String, Property> entry : sourceBuilder.flowNode.properties().entrySet()) {
             String key = entry.getKey();
             Property prop = entry.getValue();
-            if (excludedKeys.contains(key) || prop.value() == null || prop.value().toString().isEmpty()) {
+            if (excludedKeys.contains(key)) {
                 continue;
             }
-            // A role field holds a list of names or an expression; roleSource writes either.
+            // A role field holds a list of names or an expression; roleSource writes either. The
+            // deciding roles are always stated, as `()` when only the users decide.
             if (ROLE_KEYS.contains(key)) {
                 String roles = WorkflowUtil.roleSource(prop);
                 if (!roles.isBlank()) {
                     callArgs.add(argName(prop, key) + " = " + roles);
+                } else if (USER_ROLES_KEY.equals(key)) {
+                    callArgs.add(argName(prop, key) + " = ()");
                 }
+                continue;
+            }
+            if (prop.value() == null || prop.value().toString().isEmpty()) {
                 continue;
             }
             String kind = prop.codedata() != null ? prop.codedata().kind() : null;
