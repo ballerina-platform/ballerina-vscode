@@ -32,3 +32,11 @@ function varRefWorkflow(workflow:Context ctx, OrderInput input) returns error? {
     // 4. Human task with the roles coming from a module-level array reference
     boolean d = check ctx->awaitHumanTask("approve", userRoles = APPROVERS);
 }
+
+@workflow:Workflow
+function nilRolesWorkflow(workflow:Context ctx, OrderInput input) returns error? {
+    // Decisions addressed to users alone: the roles are nil.
+    boolean approved = check ctx->awaitHumanTask("reviewTask", userRoles = (), taskInput = {}, users = input.orderId);
+    int a = check ctx->callActivity(fetchOrder, {id: 1}, retryPolicy = {maxRetries: 3, userRoles: (), users: input.orderId});
+    int b = check ctx->callActivity(fetchOrder, {id: 2}, approvalPolicy = {userRoles: (), users: input.orderId});
+}

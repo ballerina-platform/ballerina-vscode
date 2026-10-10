@@ -1,0 +1,155 @@
+{
+  "source": "workflow_function/functions.bal",
+  "description": "Generate a human task addressed to users only: the roles are written as () rather than refused (product-integrator#2720)",
+  "diagram": {
+    "id": "1",
+    "metadata": {
+      "label": "Human Task",
+      "description": "Create a human task and wait for a human to complete it"
+    },
+    "codedata": {
+      "node": "HUMAN_TASK",
+      "org": "ballerina",
+      "module": "workflow",
+      "object": "Context",
+      "symbol": "awaitHumanTask",
+      "lineRange": {
+        "fileName": "functions.bal",
+        "startLine": {
+          "line": 16,
+          "offset": 0
+        },
+        "endLine": {
+          "line": 16,
+          "offset": 0
+        }
+      },
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "taskName": {
+        "metadata": {
+          "label": "Task Name"
+        },
+        "valueType": "TEXT",
+        "valueTypeConstraint": "string",
+        "value": "\"reviewTask\"",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "userRoles": {
+        "metadata": {
+          "label": "User Roles"
+        },
+        "valueType": "TEXT_SET",
+        "value": [],
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "types": [
+          {
+            "fieldType": "TEXT_SET",
+            "ballerinaType": "string[]",
+            "selected": true
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string|[string, string...]?",
+            "selected": false
+          }
+        ]
+      },
+      "taskInput": {
+        "metadata": {
+          "label": "Task Input"
+        },
+        "valueType": "EXPRESSION",
+        "valueTypeConstraint": "map<json>",
+        "value": "{}",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "users": {
+        "metadata": {
+          "label": "Users"
+        },
+        "valueType": "EXPRESSION",
+        "value": "input.orderId",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false,
+        "types": [
+          {
+            "fieldType": "TEXT_SET",
+            "ballerinaType": "string[]",
+            "selected": false
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string|string[]",
+            "selected": true
+          }
+        ]
+      },
+      "databindingType": {
+        "metadata": {
+          "label": "Completion Type"
+        },
+        "valueType": "TYPE",
+        "valueTypeConstraint": "anydata",
+        "value": "boolean",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "variable": {
+        "metadata": {
+          "label": "Result"
+        },
+        "valueType": "IDENTIFIER",
+        "value": "approved",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "checkError": {
+        "metadata": {
+          "label": "Check Error"
+        },
+        "valueType": "FLAG",
+        "value": "true",
+        "optional": false,
+        "editable": true,
+        "advanced": true,
+        "hidden": true
+      }
+    },
+    "flags": 0
+  },
+  "output": {
+    "workflow_function/functions.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 16,
+            "character": 0
+          },
+          "end": {
+            "line": 16,
+            "character": 0
+          }
+        },
+        "newText": "\nboolean approved = check context->awaitHumanTask(\"reviewTask\", userRoles = (), taskInput = {}, users = input.orderId);"
+      }
+    ]
+  }
+}

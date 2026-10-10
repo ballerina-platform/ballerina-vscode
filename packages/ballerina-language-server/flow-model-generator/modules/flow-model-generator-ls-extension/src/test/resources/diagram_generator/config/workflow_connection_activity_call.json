@@ -230,7 +230,7 @@
                     },
                     {
                       "fieldType": "EXPRESSION",
-                      "ballerinaType": "string|string[]",
+                      "ballerinaType": "string|[string, string...]?",
                       "selected": false
                     }
                   ],
@@ -253,7 +253,7 @@
                     },
                     {
                       "fieldType": "EXPRESSION",
-                      "ballerinaType": "string|string[]",
+                      "ballerinaType": "string|[string, string...]",
                       "selected": false
                     }
                   ],
@@ -276,7 +276,7 @@
                     },
                     {
                       "fieldType": "EXPRESSION",
-                      "ballerinaType": "string|string[]",
+                      "ballerinaType": "string|[string, string...]",
                       "selected": false
                     }
                   ],
@@ -299,7 +299,7 @@
                     },
                     {
                       "fieldType": "EXPRESSION",
-                      "ballerinaType": "string|string[]",
+                      "ballerinaType": "string|[string, string...]",
                       "selected": false
                     }
                   ],
@@ -322,7 +322,7 @@
                     },
                     {
                       "fieldType": "EXPRESSION",
-                      "ballerinaType": "string|string[]",
+                      "ballerinaType": "string|[string, string...]",
                       "selected": false
                     }
                   ],
@@ -345,7 +345,7 @@
                     },
                     {
                       "fieldType": "EXPRESSION",
-                      "ballerinaType": "string|string[]",
+                      "ballerinaType": "string|[string, string...]",
                       "selected": false
                     }
                   ],
@@ -472,7 +472,7 @@
               },
               {
                 "fieldType": "EXPRESSION",
-                "ballerinaType": "string|string[]",
+                "ballerinaType": "string|[string, string...]?",
                 "selected": false
               }
             ],
@@ -495,7 +495,7 @@
               },
               {
                 "fieldType": "EXPRESSION",
-                "ballerinaType": "string|string[]",
+                "ballerinaType": "string|[string, string...]",
                 "selected": false
               }
             ],
@@ -518,7 +518,7 @@
               },
               {
                 "fieldType": "EXPRESSION",
-                "ballerinaType": "string|string[]",
+                "ballerinaType": "string|[string, string...]",
                 "selected": false
               }
             ],
@@ -541,7 +541,7 @@
               },
               {
                 "fieldType": "EXPRESSION",
-                "ballerinaType": "string|string[]",
+                "ballerinaType": "string|[string, string...]",
                 "selected": false
               }
             ],
@@ -564,7 +564,7 @@
               },
               {
                 "fieldType": "EXPRESSION",
-                "ballerinaType": "string|string[]",
+                "ballerinaType": "string|[string, string...]",
                 "selected": false
               }
             ],
@@ -587,7 +587,7 @@
               },
               {
                 "fieldType": "EXPRESSION",
-                "ballerinaType": "string|string[]",
+                "ballerinaType": "string|[string, string...]",
                 "selected": false
               }
             ],
@@ -807,7 +807,7 @@
                     },
                     {
                       "fieldType": "EXPRESSION",
-                      "ballerinaType": "string|string[]",
+                      "ballerinaType": "string|[string, string...]?",
                       "selected": false
                     }
                   ],
@@ -830,7 +830,7 @@
                     },
                     {
                       "fieldType": "EXPRESSION",
-                      "ballerinaType": "string|string[]",
+                      "ballerinaType": "string|[string, string...]",
                       "selected": false
                     }
                   ],
@@ -853,7 +853,7 @@
                     },
                     {
                       "fieldType": "EXPRESSION",
-                      "ballerinaType": "string|string[]",
+                      "ballerinaType": "string|[string, string...]",
                       "selected": false
                     }
                   ],
@@ -876,7 +876,7 @@
                     },
                     {
                       "fieldType": "EXPRESSION",
-                      "ballerinaType": "string|string[]",
+                      "ballerinaType": "string|[string, string...]",
                       "selected": false
                     }
                   ],
@@ -899,7 +899,7 @@
                     },
                     {
                       "fieldType": "EXPRESSION",
-                      "ballerinaType": "string|string[]",
+                      "ballerinaType": "string|[string, string...]",
                       "selected": false
                     }
                   ],
@@ -922,7 +922,7 @@
                     },
                     {
                       "fieldType": "EXPRESSION",
-                      "ballerinaType": "string|string[]",
+                      "ballerinaType": "string|[string, string...]",
                       "selected": false
                     }
                   ],
@@ -1083,7 +1083,7 @@
                     },
                     {
                       "fieldType": "EXPRESSION",
-                      "ballerinaType": "string|string[]",
+                      "ballerinaType": "string|[string, string...]?",
                       "selected": false
                     }
                   ],
@@ -1106,7 +1106,7 @@
                     },
                     {
                       "fieldType": "EXPRESSION",
-                      "ballerinaType": "string|string[]",
+                      "ballerinaType": "string|[string, string...]",
                       "selected": false
                     }
                   ],
@@ -1129,7 +1129,7 @@
                     },
                     {
                       "fieldType": "EXPRESSION",
-                      "ballerinaType": "string|string[]",
+                      "ballerinaType": "string|[string, string...]",
                       "selected": false
                     }
                   ],
@@ -1152,7 +1152,7 @@
                     },
                     {
                       "fieldType": "EXPRESSION",
-                      "ballerinaType": "string|string[]",
+                      "ballerinaType": "string|[string, string...]",
                       "selected": false
                     }
                   ],
@@ -1175,7 +1175,7 @@
                     },
                     {
                       "fieldType": "EXPRESSION",
-                      "ballerinaType": "string|string[]",
+                      "ballerinaType": "string|[string, string...]",
                       "selected": false
                     }
                   ],
@@ -1198,7 +1198,7 @@
                     },
                     {
                       "fieldType": "EXPRESSION",
-                      "ballerinaType": "string|string[]",
+                      "ballerinaType": "string|[string, string...]",
                       "selected": false
                     }
                   ],
@@ -1407,7 +1407,7 @@
               },
               {
                 "fieldType": "EXPRESSION",
-                "ballerinaType": "string|string[]",
+                "ballerinaType": "string|[string, string...]?",
                 "selected": false
               }
             ],
@@ -1430,7 +1430,7 @@
               },
               {
                 "fieldType": "EXPRESSION",
-                "ballerinaType": "string|string[]",
+                "ballerinaType": "string|[string, string...]",
                 "selected": false
               }
             ],
@@ -1453,7 +1453,7 @@
               },
               {
                 "fieldType": "EXPRESSION",
-                "ballerinaType": "string|string[]",
+                "ballerinaType": "string|[string, string...]",
                 "selected": false
               }
             ],
@@ -1476,7 +1476,7 @@
               },
               {
                 "fieldType": "EXPRESSION",
-                "ballerinaType": "string|string[]",
+                "ballerinaType": "string|[string, string...]",
                 "selected": false
               }
             ],
@@ -1499,7 +1499,7 @@
               },
               {
                 "fieldType": "EXPRESSION",
-                "ballerinaType": "string|string[]",
+                "ballerinaType": "string|[string, string...]",
                 "selected": false
               }
             ],
@@ -1522,7 +1522,7 @@
               },
               {
                 "fieldType": "EXPRESSION",
-                "ballerinaType": "string|string[]",
+                "ballerinaType": "string|[string, string...]",
                 "selected": false
               }
             ],
