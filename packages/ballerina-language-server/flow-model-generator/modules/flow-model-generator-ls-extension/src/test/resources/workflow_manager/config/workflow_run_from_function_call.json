@@ -1,0 +1,98 @@
+{
+  "source": "workflow_function/functions.bal",
+  "position": {
+    "line": 3,
+    "offset": 0
+  },
+  "description": "workflow:run picked from the function search opens the workflow node with no workflow preselected",
+  "codedata": {
+    "node": "FUNCTION_CALL",
+    "org": "ballerina",
+    "module": "workflow",
+    "packageName": "workflow",
+    "symbol": "run",
+    "version": "1.0.0"
+  },
+  "output": {
+    "id": "31",
+    "metadata": {
+      "label": "Run Workflow",
+      "description": "Run a workflow instance"
+    },
+    "codedata": {
+      "node": "WORKFLOW_RUN",
+      "org": "ballerina",
+      "module": "workflow",
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "workflow": {
+        "metadata": {
+          "label": "Workflow",
+          "description": "The workflow to start"
+        },
+        "types": [
+          {
+            "fieldType": "SINGLE_SELECT",
+            "options": [
+              {
+                "label": "orderWorkflow",
+                "value": "orderWorkflow"
+              }
+            ],
+            "selected": true
+          }
+        ],
+        "value": "",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED"
+        }
+      },
+      "input": {
+        "metadata": {
+          "label": "Input",
+          "description": "Input data for the workflow"
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "anydata",
+            "selected": false
+          }
+        ],
+        "value": "",
+        "placeholder": "",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": true,
+        "codedata": {
+          "dependentProperty": "workflow"
+        }
+      },
+      "variable": {
+        "metadata": {
+          "label": "Workflow ID Variable Name",
+          "description": "Variable name to receive the started workflow ID."
+        },
+        "types": [
+          {
+            "fieldType": "IDENTIFIER",
+            "selected": false
+          }
+        ],
+        "value": "workflowId",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      }
+    },
+    "flags": 0
+  }
+}

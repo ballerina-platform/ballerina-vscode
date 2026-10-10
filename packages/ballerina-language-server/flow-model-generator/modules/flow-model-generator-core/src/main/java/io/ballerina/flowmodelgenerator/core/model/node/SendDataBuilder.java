@@ -19,6 +19,7 @@
 package io.ballerina.flowmodelgenerator.core.model.node;
 
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
+import io.ballerina.flowmodelgenerator.core.UserFacingException;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Option;
 import io.ballerina.flowmodelgenerator.core.model.Property;
@@ -163,6 +164,9 @@ public class SendDataBuilder extends FunctionCall {
         Optional<Property> workflowId = sourceBuilder.getProperty(WORKFLOW_ID_KEY);
         Optional<Property> dataName = sourceBuilder.getProperty(DATA_NAME_KEY);
         Optional<Property> data = sourceBuilder.getProperty(DATA_KEY);
+        if (workflow.isPresent() && workflow.get().toSourceCode().isBlank()) {
+            throw new UserFacingException("Select a workflow in the " + WORKFLOW_NAME_LABEL + " field");
+        }
         if (workflow.isPresent() && workflowId.isPresent() && dataName.isPresent() && data.isPresent()) {
             // The data name correlates with an event declared by the workflow function, so it must
             // always be a string literal even when the form submits the bare event name

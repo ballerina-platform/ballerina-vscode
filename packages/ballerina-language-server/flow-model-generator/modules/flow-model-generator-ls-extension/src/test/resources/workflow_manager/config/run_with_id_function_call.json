@@ -1,0 +1,245 @@
+{
+  "source": "workflow_function/functions.bal",
+  "position": {
+    "line": 3,
+    "offset": 0
+  },
+  "description": "workflow:runWithId picked from the function search offers the project's workflows for its workflow function",
+  "codedata": {
+    "node": "FUNCTION_CALL",
+    "org": "ballerina",
+    "module": "workflow",
+    "packageName": "workflow",
+    "symbol": "runWithId",
+    "version": "1.0.0"
+  },
+  "output": {
+    "id": "31",
+    "metadata": {
+      "label": "runWithId",
+      "description": "Starts a workflow instance under an id the caller chooses — a business key such as an order\nnumber — so the id doubles as the correlation key. The policies say what happens when the id is\nalready held: `ifRunning = USE_EXISTING` makes a retried submit join the instance it already\nstarted instead of failing. The id must not be blank, longer than 255 bytes in UTF-8, or start with\na reserved prefix (`humantask-`, `reviewactivity-`, `childwf-`, `childagent-`).\n",
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_1.0.0.png"
+    },
+    "codedata": {
+      "node": "FUNCTION_CALL",
+      "org": "ballerina",
+      "module": "workflow",
+      "packageName": "workflow",
+      "symbol": "runWithId",
+      "version": "1.0.0",
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "processFunction": {
+        "metadata": {
+          "label": "Workflow",
+          "description": "The workflow to start"
+        },
+        "types": [
+          {
+            "fieldType": "SINGLE_SELECT",
+            "options": [
+              {
+                "label": "orderWorkflow",
+                "value": "orderWorkflow"
+              }
+            ],
+            "selected": true
+          }
+        ],
+        "value": "",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED",
+          "originalName": "processFunction"
+        }
+      },
+      "instanceId": {
+        "metadata": {
+          "label": "Instance Id",
+          "description": "The instance id to start under"
+        },
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "ballerinaType": "string",
+            "selected": false
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string",
+            "selected": false
+          }
+        ],
+        "placeholder": "\"\"",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED",
+          "originalName": "instanceId"
+        }
+      },
+      "input": {
+        "metadata": {
+          "label": "Input",
+          "description": "Optional input data for the workflow, as for `run`"
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "anydata",
+            "selected": false
+          }
+        ],
+        "placeholder": "{}",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "DEFAULTABLE",
+          "originalName": "input"
+        },
+        "defaultValue": "()"
+      },
+      "ifRunning": {
+        "metadata": {
+          "label": "If Running",
+          "description": "What to do when an instance with this id is running"
+        },
+        "types": [
+          {
+            "fieldType": "SINGLE_SELECT",
+            "options": [
+              {
+                "label": "FAIL",
+                "value": "\"FAIL\""
+              },
+              {
+                "label": "USE_EXISTING",
+                "value": "\"USE_EXISTING\""
+              }
+            ],
+            "selected": false
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "workflow:RunningInstancePolicy",
+            "selected": false
+          }
+        ],
+        "placeholder": "\"FAIL\"",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "DEFAULTABLE",
+          "originalName": "ifRunning"
+        },
+        "defaultValue": "FAIL"
+      },
+      "ifClosed": {
+        "metadata": {
+          "label": "If Closed",
+          "description": "What to do when an instance with this id has closed"
+        },
+        "types": [
+          {
+            "fieldType": "SINGLE_SELECT",
+            "options": [
+              {
+                "label": "ALLOW_DUPLICATE",
+                "value": "\"ALLOW_DUPLICATE\""
+              },
+              {
+                "label": "ALLOW_DUPLICATE_FAILED_ONLY",
+                "value": "\"ALLOW_DUPLICATE_FAILED_ONLY\""
+              },
+              {
+                "label": "REJECT_DUPLICATE",
+                "value": "\"REJECT_DUPLICATE\""
+              }
+            ],
+            "selected": false
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "workflow:ClosedInstancePolicy",
+            "selected": false
+          }
+        ],
+        "placeholder": "\"ALLOW_DUPLICATE\"",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "DEFAULTABLE",
+          "originalName": "ifClosed"
+        },
+        "defaultValue": "ALLOW_DUPLICATE"
+      },
+      "type": {
+        "metadata": {
+          "label": "Result Type",
+          "description": "Type of the variable"
+        },
+        "types": [
+          {
+            "fieldType": "TYPE",
+            "selected": true
+          }
+        ],
+        "value": "string",
+        "placeholder": "var",
+        "optional": false,
+        "editable": false,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {}
+      },
+      "variable": {
+        "metadata": {
+          "label": "Result",
+          "description": "Name of the result variable"
+        },
+        "types": [
+          {
+            "fieldType": "IDENTIFIER",
+            "selected": true
+          }
+        ],
+        "value": "stringResult",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "checkError": {
+        "metadata": {
+          "label": "Check Error",
+          "description": "Trigger error flow"
+        },
+        "types": [
+          {
+            "fieldType": "FLAG",
+            "selected": true
+          }
+        ],
+        "value": true,
+        "optional": false,
+        "editable": true,
+        "advanced": true,
+        "hidden": true
+      }
+    },
+    "flags": 0
+  }
+}

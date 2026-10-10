@@ -20,13 +20,16 @@ package io.ballerina.flowmodelgenerator.extension;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
 import io.ballerina.flowmodelgenerator.extension.request.FlowModelSourceGeneratorRequest;
 import io.ballerina.modelgenerator.commons.AbstractLSTest;
 import io.ballerina.modelgenerator.commons.FileSystemUtils;
+import org.ballerinalang.langserver.util.TestUtil;
 import org.eclipse.lsp4j.TextEdit;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
@@ -37,6 +40,7 @@ import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Tests for the flow model source generator service.
@@ -89,6 +93,35 @@ public class SourceGeneratorTest extends AbstractLSTest {
 //            updateConfig(configJsonPath, updatedConfig);
             Assert.fail(String.format("Failed test: '%s' (%s)", testConfig.description(), configJsonPath));
         }
+    }
+
+    @Test(dataProvider = "blank-workflow")
+    public void testBlankWorkflowIsReported(String config, String expectedMessage) throws IOException {
+        TestConfig testConfig = gson.fromJson(Files.newBufferedReader(configDir.resolve(config)), TestConfig.class);
+        // The form opened from the function search has no workflow until one is picked from the dropdown.
+        JsonObject diagram = testConfig.diagram().getAsJsonObject().deepCopy();
+        diagram.getAsJsonObject("codedata").remove("symbol");
+        JsonObject workflow = diagram.getAsJsonObject("properties").getAsJsonObject("workflow");
+        if (workflow != null) {
+            workflow.addProperty("value", "");
+        }
+
+        FlowModelSourceGeneratorRequest request = new FlowModelSourceGeneratorRequest(
+                sourceDir.resolve(testConfig.source()).toAbsolutePath().toString(), diagram);
+        // getResponse fails the test on any error, so the error response is read directly.
+        CompletableFuture<?> result = serviceEndpoint.request(getServiceName() + "/" + getApiName(), request);
+        JsonObject response = JsonParser.parseString(TestUtil.getResponseString(result))
+                .getAsJsonObject().getAsJsonObject("result");
+
+        Assert.assertEquals(response.get("errorMsg").getAsString(), expectedMessage);
+    }
+
+    @DataProvider(name = "blank-workflow")
+    private Object[][] blankWorkflowConfigs() {
+        return new Object[][]{
+                {"workflow_run_to_source.json", "Select a workflow in the Workflow field"},
+                {"send_data_to_source.json", "Select a workflow in the Workflow Name field"}
+        };
     }
 
     @AfterClass

@@ -25,6 +25,7 @@ import io.ballerina.compiler.api.symbols.Symbol;
 import io.ballerina.compiler.api.symbols.SymbolKind;
 import io.ballerina.compiler.api.symbols.TypeSymbol;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
+import io.ballerina.flowmodelgenerator.core.UserFacingException;
 import io.ballerina.flowmodelgenerator.core.model.Codedata;
 import io.ballerina.flowmodelgenerator.core.model.FlowNode;
 import io.ballerina.flowmodelgenerator.core.model.NodeBuilder;
@@ -146,6 +147,22 @@ public class WorkflowRunBuilder extends NodeBuilder {
                     .editable(true)
                     .stepOut()
                     .addProperty(INPUT_KEY);
+        } else if (!durableAgent && (codedata == null || codedata.symbol() == null)) {
+            // No workflow chosen yet (opened from the function search). The form only retypes fields it
+            // already has, so the input starts hidden and is shown, typed, once a workflow is picked.
+            properties().custom()
+                    .metadata()
+                    .label(INPUT_LABEL)
+                    .description(INPUT_DOC)
+                    .stepOut()
+                    .type(Property.ValueType.EXPRESSION, "anydata")
+                    .codedata().dependentProperty(WORKFLOW_NAME_KEY).stepOut()
+                    .placeholder("")
+                    .value("")
+                    .editable(true)
+                    .hidden()
+                    .stepOut()
+                    .addProperty(INPUT_KEY);
         }
 
         // Variable property for result. Generate a unique default name so that adding
@@ -189,7 +206,7 @@ public class WorkflowRunBuilder extends NodeBuilder {
                 .filter(value -> !value.isBlank())
                 .orElseGet(() -> flowNode.codedata().symbol());
         if (workflowFunction == null) {
-            throw new IllegalStateException("Workflow symbol is required for WORKFLOW_RUN");
+            throw new UserFacingException("Select a workflow in the " + WORKFLOW_NAME_LABEL + " field");
         }
 
         // Get input property

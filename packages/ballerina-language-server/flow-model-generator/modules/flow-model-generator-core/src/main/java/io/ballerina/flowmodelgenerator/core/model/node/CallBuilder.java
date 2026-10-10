@@ -60,6 +60,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.RUN_PROCESS_FUNCTION_PARAM;
+import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.RUN_WITH_ID_METHOD_NAME;
+import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.WORKFLOW_MODULE;
+import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.WORKFLOW_ORG;
 import static io.ballerina.flowmodelgenerator.core.TypesManager.mergeWithTargetVarRecordSelectorType;
 
 /**
@@ -145,6 +149,29 @@ public abstract class CallBuilder extends NodeBuilder {
                     .addProperty(Property.CONNECTION_KEY);
         }
         setParameterProperties(functionData, module);
+        if (functionNodeKind == NodeKind.FUNCTION_CALL && WORKFLOW_ORG.equals(codedata.org())
+                && WORKFLOW_MODULE.equals(codedata.module()) && RUN_WITH_ID_METHOD_NAME.equals(codedata.symbol())) {
+            // The signature types the workflow as a bare function; offer the project's workflows instead.
+            // Re-adding at the existing key keeps the field's position.
+            properties().custom()
+                    .metadata()
+                        .label(WorkflowRunBuilder.WORKFLOW_NAME_LABEL)
+                        .description(WorkflowRunBuilder.WORKFLOW_NAME_DOC)
+                        .stepOut()
+                    .type()
+                        .fieldType(Property.ValueType.SINGLE_SELECT)
+                        .options(SendDataBuilder.getAvailableWorkflowFunctions(context))
+                        .selected(true)
+                        .stepOut()
+                    .codedata()
+                        .kind(ParameterData.Kind.REQUIRED.name())
+                        .originalName(RUN_PROCESS_FUNCTION_PARAM)
+                        .stepOut()
+                    .value("")
+                    .editable(true)
+                    .stepOut()
+                    .addProperty(RUN_PROCESS_FUNCTION_PARAM);
+        }
 
         if (CommonUtils.hasReturn(functionData.returnType())) {
             setReturnTypeProperties(functionData, context, Property.RESULT_NAME, Property.RESULT_DOC, false);

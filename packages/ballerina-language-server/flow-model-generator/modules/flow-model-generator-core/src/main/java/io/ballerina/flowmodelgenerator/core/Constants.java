@@ -106,6 +106,7 @@ public class Constants {
         public static final String ACTIVITY_MODULE = "workflow.activity";
         public static final String CONTEXT_CLASS_NAME = "Context";
         public static final String RUN_METHOD_NAME = "run";
+        public static final String RUN_WITH_ID_METHOD_NAME = "runWithId";
         public static final String RUN_PROCESS_FUNCTION_PARAM = "processFunction";
         public static final String RUN_INPUT_PARAM = "input";
         // Parameter names of the calls the analyzer reads back positionally or by name. A caller may
