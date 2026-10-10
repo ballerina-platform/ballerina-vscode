@@ -22,7 +22,7 @@ import { DIRECTORY_MAP, EVENT_TYPE, isSamePath, MACHINE_VIEW, SCOPE } from '@wso
 import { CardGrid, PanelViewMore, Title, TitleWrapper } from './styles';
 import { BodyText } from '../../styles';
 import ButtonCard from '../../../components/ButtonCard';
-import { ARTIFACT_CATEGORY_META, AUTOMATION_CARD } from '../components/artifactCards';
+import { ARTIFACT_CATEGORY_META, ARTIFACT_TOOLTIP_MAX_WIDTH, AUTOMATION_CARD } from '../components/artifactCards';
 import { AutomationAlreadyExistsTooltip, cardMatchesSearch, OutOfScopeComponentTooltip } from './componentListUtils';
 
 interface AutomationPanelProps {
@@ -54,7 +54,7 @@ export function AutomationPanel(props: AutomationPanelProps) {
         ? OutOfScopeComponentTooltip
         : automationExists
             ? AutomationAlreadyExistsTooltip
-            : "";
+            : AUTOMATION_CARD.tooltip;
 
     const handleClick = async () => {
         await rpcClient.getVisualizerRpcClient().openView({
@@ -83,6 +83,7 @@ export function AutomationPanel(props: AutomationPanelProps) {
                     onClick={handleClick}
                     disabled={isDisabled}
                     tooltip={tooltip}
+                    tooltipMaxWidth={ARTIFACT_TOOLTIP_MAX_WIDTH}
                 />
             </CardGrid>
         </PanelViewMore>

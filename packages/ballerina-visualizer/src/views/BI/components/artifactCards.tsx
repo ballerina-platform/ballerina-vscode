@@ -21,6 +21,9 @@ import { Icon } from "@wso2/ui-toolkit";
 import { DurableAgentIcon } from "@wso2/bi-diagram";
 import { DIRECTORY_MAP } from "@wso2/ballerina-core";
 
+export { ARTIFACT_TOOLTIP_MAX_WIDTH, triggerTooltip } from "./artifactTooltips";
+export type { TriggerTooltipKind } from "./artifactTooltips";
+
 /**
  * Single source of truth for the STATIC artifact cards and category copy shared by
  * `ComponentListView` (in-project add) and the wizard's type step. Only the DATA lives
@@ -121,6 +124,7 @@ export const AUTOMATION_CARD: ArtifactCard = {
     kind: "automation",
     displayName: "Automation",
     icon: <Icon name="bi-task" />,
+    tooltip: "A task that runs a sequence of steps, invoked manually or on a schedule."
 };
 
 export const WORKFLOW_CARD: ArtifactCard = {
@@ -128,7 +132,7 @@ export const WORKFLOW_CARD: ArtifactCard = {
     kind: "workflow",
     displayName: "Durable Workflow",
     icon: <Icon name="bi-flowchart" />,
-    tooltip: "Long-running workflow logic with events, timers, human tasks, and crash recovery."
+    tooltip: "Long-running workflow with events, timers, human tasks, and crash recovery."
 };
 
 export const DURABLE_AGENT_CARD: ArtifactCard = {
@@ -137,7 +141,7 @@ export const DURABLE_AGENT_CARD: ArtifactCard = {
     kind: "durable_agent",
     displayName: "Durable Agentic Workflow",
     icon: <DurableAgentIcon size={24} />,
-    tooltip: "Agentic long-running workflow logic with events, timers, human tasks, and crash recovery."
+    tooltip: "A long-running agentic workflow with events, timers, human tasks, and crash recovery."
 };
 
 export const AI_CHAT_AGENT_CARD: ArtifactCard = {
@@ -145,6 +149,7 @@ export const AI_CHAT_AGENT_CARD: ArtifactCard = {
     kind: "ai-agent",
     displayName: "Chat Agent Service",
     icon: <Icon name="bi-ai-agent" />,
+    tooltip: "A conversational service that exposes an AI agent over a chat API."
 };
 
 export const VOICE_AGENT_CARD: ArtifactCard = {
@@ -152,6 +157,7 @@ export const VOICE_AGENT_CARD: ArtifactCard = {
     kind: "voice-agent",
     displayName: "Voice Agent Service",
     icon: <Icon name="mic" isCodicon={true} />,
+    tooltip: "A real-time voice service that exposes an AI agent for verbal conversations."
 };
 
 export const VOICE_AGENT_ARTIFACT_INFO = {
@@ -173,6 +179,7 @@ export const INTEGRATION_API_CARDS: ArtifactCard[] = [
             packageName: "http",
             moduleName: "http",
         },
+        tooltip: "An API that exposes resources over HTTP.",
     },
     {
         id: "graphql-service-card",
@@ -185,6 +192,7 @@ export const INTEGRATION_API_CARDS: ArtifactCard[] = [
             packageName: "graphql",
             moduleName: "graphql",
         },
+        tooltip: "An API that exposes a GraphQL schema for querying and mutating data.",
     },
     {
         id: "tcp-service-card",
@@ -197,6 +205,7 @@ export const INTEGRATION_API_CARDS: ArtifactCard[] = [
             packageName: "tcp",
             moduleName: "tcp",
         },
+        tooltip: "An API that communicates over raw TCP sockets.",
     },
 ];
 
@@ -213,6 +222,7 @@ export interface OtherArtifactCard {
     requiresNaturalFunctions?: boolean;
     /** Shown only inside a library package. */
     requiresLibrary?: boolean;
+    tooltip?: string;
 }
 
 export const OTHER_ARTIFACT_CARDS: OtherArtifactCard[] = [
@@ -221,6 +231,7 @@ export const OTHER_ARTIFACT_CARDS: OtherArtifactCard[] = [
         displayName: "Function",
         icon: <Icon name="bi-function" />,
         directoryKey: DIRECTORY_MAP.FUNCTION,
+        tooltip: "A reusable block of logic that takes parameters and returns a value.",
     },
     {
         id: "bi-ai-function",
@@ -229,30 +240,35 @@ export const OTHER_ARTIFACT_CARDS: OtherArtifactCard[] = [
         directoryKey: DIRECTORY_MAP.NP_FUNCTION,
         isBeta: true,
         requiresNaturalFunctions: true,
+        tooltip: "A function whose logic is described in natural language and executed by AI.",
     },
     {
         id: "data-mapper",
         displayName: "Data Mapper",
         icon: <Icon name="dataMapper" />,
         directoryKey: DIRECTORY_MAP.DATA_MAPPER,
+        tooltip: "A visual mapping that transforms data from one shape to another.",
     },
     {
         id: "type",
         displayName: "Type",
         icon: <Icon name="bi-type" />,
         directoryKey: DIRECTORY_MAP.TYPE,
+        tooltip: "A custom data type definition, such as a record, enum, or union.",
     },
     {
         id: "connection",
         displayName: "Connection",
         icon: <Icon name="bi-connection" />,
         directoryKey: DIRECTORY_MAP.CONNECTION,
+        tooltip: "A reusable client connection to an external service or system.",
     },
     {
         id: "agent",
         displayName: "Agent",
         icon: <Icon name="bi-ai-agent" />,
         directoryKey: DIRECTORY_MAP.AGENT,
+        tooltip: "An AI agent that reasons over a task and uses tools to complete it.",
     },
     {
         id: "agent-definition",
@@ -260,11 +276,13 @@ export const OTHER_ARTIFACT_CARDS: OtherArtifactCard[] = [
         icon: <Icon name="symbol-class" isCodicon={true} />,
         directoryKey: DIRECTORY_MAP.AGENT_DEFINITION,
         requiresLibrary: true,
+        tooltip: "A reusable definition of an agent's configuration and behavior.",
     },
     {
         id: "configurable",
         displayName: "Configuration",
         icon: <Icon name="bi-config" />,
         directoryKey: DIRECTORY_MAP.CONFIGURABLE,
+        tooltip: "A value that can be configured externally without changing code.",
     },
 ];

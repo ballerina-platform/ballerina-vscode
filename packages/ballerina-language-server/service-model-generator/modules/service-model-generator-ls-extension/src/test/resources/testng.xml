@@ -75,6 +75,7 @@ under the License.
             <class name="io.ballerina.servicemodelgenerator.extension.builder.function.SchemaDrivenFunctionBuilderTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.core.McpOpenApiServiceGeneratorTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.core.McpOpenApiServiceGeneratorFixtureTest"/>
+            <class name="io.ballerina.servicemodelgenerator.extension.core.TriggerBasicInfoDescriptionTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.connector.ExistingListenerResolverTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.util.TriggerSearchUtilTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.connector.LocalDependencyEditUtilTest"/>

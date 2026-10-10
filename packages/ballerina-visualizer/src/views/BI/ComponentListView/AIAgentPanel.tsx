@@ -30,7 +30,15 @@ import {
 import { CardGrid, PanelViewMore, Title, TitleWrapper } from "./styles";
 import { BodyText } from "../../styles";
 import ButtonCard from "../../../components/ButtonCard";
-import { AI_CHAT_AGENT_CARD, ARTIFACT_CATEGORY_META, DURABLE_AGENT_CARD, VOICE_AGENT_ARTIFACT_INFO, VOICE_AGENT_CARD } from "../components/artifactCards";
+import {
+    AI_CHAT_AGENT_CARD,
+    ARTIFACT_CATEGORY_META,
+    ARTIFACT_TOOLTIP_MAX_WIDTH,
+    DURABLE_AGENT_CARD,
+    triggerTooltip,
+    VOICE_AGENT_ARTIFACT_INFO,
+    VOICE_AGENT_CARD,
+} from "../components/artifactCards";
 import { cardMatchesSearch, isBetaModule, OutOfScopeComponentTooltip } from "./componentListUtils";
 import { RelativeLoader } from "../../../components/RelativeLoader";
 import { getIntegrationIcon } from "./integrationIcon";
@@ -129,7 +137,8 @@ export function AIAgentPanel(props: AIAgentPanelProps) {
                         title={AI_CHAT_AGENT_CARD.displayName}
                         onClick={handleClick}
                         disabled={isDisabled}
-                        tooltip={isDisabled ? OutOfScopeComponentTooltip : ""}
+                        tooltip={isDisabled ? OutOfScopeComponentTooltip : AI_CHAT_AGENT_CARD.tooltip}
+                        tooltipMaxWidth={ARTIFACT_TOOLTIP_MAX_WIDTH}
                     />
                 )}
                 {durableAgentMatches && (
@@ -139,6 +148,7 @@ export function AIAgentPanel(props: AIAgentPanelProps) {
                         title={DURABLE_AGENT_CARD.displayName}
                         onClick={handleDurableAgentClick}
                         tooltip={DURABLE_AGENT_CARD.tooltip}
+                        tooltipMaxWidth={ARTIFACT_TOOLTIP_MAX_WIDTH}
                     />
                 )}
                 {voiceAgentMatches && (
@@ -148,7 +158,8 @@ export function AIAgentPanel(props: AIAgentPanelProps) {
                         title={VOICE_AGENT_CARD.displayName}
                         onClick={handleVoiceAgentClick}
                         disabled={isDisabled}
-                        tooltip={isDisabled ? OutOfScopeComponentTooltip : ""}
+                        tooltip={isDisabled ? OutOfScopeComponentTooltip : VOICE_AGENT_CARD.tooltip}
+                        tooltipMaxWidth={ARTIFACT_TOOLTIP_MAX_WIDTH}
                     />
                 )}
                 {props.triggers.local.length === 0 && <RelativeLoader />}
@@ -160,7 +171,8 @@ export function AIAgentPanel(props: AIAgentPanelProps) {
                         icon={getIntegrationIcon(item)}
                         onClick={() => handleTriggerClick(DIRECTORY_MAP.SERVICE, item)}
                         disabled={isDisabled}
-                        tooltip={isDisabled ? OutOfScopeComponentTooltip : ""}
+                        tooltip={isDisabled ? OutOfScopeComponentTooltip : triggerTooltip(item, "mcp")}
+                        tooltipMaxWidth={ARTIFACT_TOOLTIP_MAX_WIDTH}
                         isBeta={isBetaModule(item.moduleName)}
                     />
                 ))}

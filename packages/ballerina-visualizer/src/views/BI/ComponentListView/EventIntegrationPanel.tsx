@@ -22,7 +22,7 @@ import { DIRECTORY_MAP, EVENT_TYPE, MACHINE_VIEW, TriggerModelsResponse, Service
 import { CardGrid, PanelViewMore, Title, TitleWrapper } from './styles';
 import { BodyText } from '../../styles';
 import ButtonCard from '../../../components/ButtonCard';
-import { ARTIFACT_CATEGORY_META } from '../components/artifactCards';
+import { ARTIFACT_CATEGORY_META, ARTIFACT_TOOLTIP_MAX_WIDTH, triggerTooltip } from '../components/artifactCards';
 import { cardMatchesSearch, isBetaModule, OutOfScopeComponentTooltip } from './componentListUtils';
 import { RelativeLoader } from '../../../components/RelativeLoader';
 import { effectiveTriggerKind } from './triggerKind';
@@ -89,7 +89,8 @@ export function EventIntegrationPanel(props: EventIntegrationPanelProps) {
                                         handleClick(DIRECTORY_MAP.SERVICE, item);
                                     }}
                                     disabled={isDisabled}
-                                    tooltip={isDisabled ? OutOfScopeComponentTooltip : ""}
+                                    tooltip={isDisabled ? OutOfScopeComponentTooltip : triggerTooltip(item, "event")}
+                                    tooltipMaxWidth={ARTIFACT_TOOLTIP_MAX_WIDTH}
                                     isBeta={isBetaModule(item.moduleName)}
                                 />
                             );
