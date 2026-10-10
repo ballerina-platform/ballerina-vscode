@@ -273,7 +273,7 @@ describe("opensListFromPalette", () => {
     });
 
     it("treats every list and form view as a pick from that list", () => {
-        for (const view of ["ACTIVITY_LIST", "WORKFLOW_LIST", "FUNCTION_LIST", "NP_FUNCTION_LIST", "FORM"]) {
+        for (const view of ["ACTIVITY_LIST", "WORKFLOW_LIST", "FUNCTION_LIST", "NP_FUNCTION_LIST", "FORM"] as const) {
             expect(opensListFromPalette(view)).toBe(false);
         }
     });
