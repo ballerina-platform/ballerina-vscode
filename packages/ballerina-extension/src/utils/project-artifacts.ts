@@ -223,7 +223,9 @@ export async function updateProjectArtifacts(publishedArtifacts: ArtifactsNotifi
 
         const entryLocations = await traverseUpdatedComponents(publishedArtifacts.artifacts, currentProjectStructure, owningProjectPath);
         // Before anyone hears of the edit, so a refresh it triggers reads the view's new range.
-        updateLocationFromArtifacts(entryLocations);
+        // Only the view's own file can move it; a same-named artifact elsewhere is a different one.
+        const { documentUri } = StateMachine.context();
+        updateLocationFromArtifacts(entryLocations.filter((artifact) => isSamePath(artifact.path, documentUri)));
         const notificationHandler = ArtifactNotificationHandler.getInstance();
         // Publish a notification to the artifact handler
         notificationHandler.publish(ArtifactsUpdated.method, {
