@@ -213,7 +213,7 @@ export function ConnectorBrowser(props: ConnectorBrowserProps) {
         setStep(WizardStep.ACTION_LIST);
         setLoadingActions(true);
         try {
-            const fetched = await fetchConnectorActions(rpcClient, connector);
+            const fetched = await fetchConnectorActions(rpcClient, connector, filePath);
             if (fetched.length === 0) {
                 setActionError(
                     `No actions were found for ${connector.metadata?.label ?? "this connector"}.` +

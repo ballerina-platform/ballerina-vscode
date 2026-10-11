@@ -976,6 +976,8 @@ export type BIAvailableNodesResponse = {
 export interface BILibraryActionsRequest {
     filePath: string;
     codedata: CodeData;
+    // Answer only from packages already in the local repositories, never pulling from Central.
+    offline?: boolean;
 }
 
 export type BILibraryActionsResponse = {

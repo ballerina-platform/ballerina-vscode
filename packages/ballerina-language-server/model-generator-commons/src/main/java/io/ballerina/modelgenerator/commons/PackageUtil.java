@@ -453,6 +453,29 @@ public class PackageUtil {
     }
 
     /**
+     * Whether the exact package version resolves from the local repositories alone, without contacting Central.
+     *
+     * @param org     The package organization
+     * @param name    The package name
+     * @param version The exact package version
+     * @return true if the package is available offline
+     */
+    public static boolean isAvailableOffline(String org, String name, String version) {
+        if (org == null || name == null || version == null) {
+            return false;
+        }
+        try {
+            PackageResolver packageResolver =
+                    getSampleProject().projectEnvironmentContext().getService(PackageResolver.class);
+            ResolutionRequest request = ResolutionRequest.from(PackageDescriptor.from(PackageOrg.from(org),
+                    PackageName.from(name), PackageVersion.from(version)));
+            return resolveResponse(packageResolver, request, true).isPresent();
+        } catch (RuntimeException e) {
+            return false;
+        }
+    }
+
+    /**
      * A response is only usable when it actually {@code RESOLVED} — {@code resolvePackages} can return
      * a non-empty collection containing an {@code UNRESOLVED} entry (with a {@code null} {@code
      * resolvedPackage()}) rather than an empty collection, which previously slipped past an {@code

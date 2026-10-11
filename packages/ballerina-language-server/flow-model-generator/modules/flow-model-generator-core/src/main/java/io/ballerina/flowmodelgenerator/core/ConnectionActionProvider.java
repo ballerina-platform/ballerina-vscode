@@ -78,7 +78,9 @@ import static io.ballerina.modelgenerator.commons.CommonUtils.isPersistClient;
 public class ConnectionActionProvider {
 
     private static final int MAX_CACHE_SIZE = 25;
-    private static final String CACHE_DIR_NAME = "ballerina-ls-connector-cache";
+    private static final String DEPRECATED_KEY = "isDeprecated";
+    // Bump the suffix when the cached item shape changes, so older entries are not served.
+    private static final String CACHE_DIR_NAME = "ballerina-ls-connector-cache-v2";
     private static final String HTTP_MODULE = "http";
     private static final List<String> HTTP_REMOTE_METHOD_SKIP_LIST = List.of("get", "put", "post", "head",
             "delete", "patch", "options");
@@ -131,7 +133,9 @@ public class ConnectionActionProvider {
     public List<Item> getActions(ClassSymbol classSymbol, String parentSymbolName, Project project,
                                  SemanticModel semanticModel, boolean includeAgentToolCompatibility) {
         ConnectorContext context = createContext(classSymbol, project, semanticModel);
-        List<Item> cachedTemplates = getOrBuildTemplates(context);
+        List<Item> cachedTemplates = getOrBuildTemplates(context).stream()
+                .filter(item -> !isHttpVerbResource(item))
+                .toList();
         Map<String, Boolean> compatibilityMap = includeAgentToolCompatibility
                 ? getAgentToolCompatibilityMap(classSymbol, semanticModel)
                 : Map.of();
@@ -143,6 +147,14 @@ public class ConnectionActionProvider {
                 : Map.of();
         return bindForParentSymbol(cachedTemplates, parentSymbolName, compatibilityMap, returnInfoMap,
                 nonDataParamsMap);
+    }
+
+    // BI lists the HTTP verbs as remote actions only; the resource-style duplicates are kept for agent tools.
+    private static boolean isHttpVerbResource(Item item) {
+        return item instanceof AvailableNode node && node.codedata() != null
+                && node.codedata().node() == NodeKind.RESOURCE_ACTION_CALL
+                && BALLERINA.equals(node.codedata().org()) && HTTP_MODULE.equals(node.codedata().packageName())
+                && HTTP_REMOTE_METHOD_SKIP_LIST.contains(node.codedata().symbol());
     }
 
     public void populate(Codedata codedata, WorkspaceManager workspaceManager, Path filePath) {
@@ -163,12 +175,38 @@ public class ConnectionActionProvider {
             return List.of();
         }
 
+        List<Item> cached = cachedTemplates(codedata);
+        if (cached != null) {
+            // The action forms opened next compile this package, so start that now.
+            PackageUtil.prewarm(codedata.org(), codedata.resolvePackageName(), codedata.version());
+            return bindForParentSymbol(cached, null, Map.of(), Map.of(), Map.of());
+        }
         Project project = PackageUtil.loadProject(workspaceManager, filePath);
         ConnectorContext context = createContext(codedata, project);
         if (context == null) {
             return List.of();
         }
         return bindForParentSymbol(getOrBuildTemplates(context), null, Map.of(), Map.of(), Map.of());
+    }
+
+    private List<Item> cachedTemplates(Codedata codedata) {
+        boolean cacheable = BALLERINA.equals(codedata.org()) || BALLERINAX.equals(codedata.org());
+        if (!cacheable || codedata.version() == null) {
+            return null;
+        }
+        String cacheKey = generateKey(codedata.org(), codedata.resolvePackageName(), codedata.module(),
+                codedata.object(), codedata.version());
+        List<Item> cached = cache.getIfPresent(cacheKey);
+        if (cached != null) {
+            return cached;
+        }
+        List<Item> fromDisk = loadFromDisk(cacheKey);
+        if (fromDisk == null) {
+            return null;
+        }
+        List<Item> immutable = List.copyOf(fromDisk);
+        cache.put(cacheKey, immutable);
+        return immutable;
     }
 
     public void invalidate(String cacheKey) {
@@ -289,9 +327,6 @@ public class ConnectionActionProvider {
             NodeBuilder nodeBuilder;
             String label;
             if (methodFunction.kind() == FunctionData.Kind.RESOURCE) {
-                if (isHttpModule && HTTP_REMOTE_METHOD_SKIP_LIST.contains(methodFunction.name())) {
-                    continue;
-                }
                 label = methodFunction.name() + (isHttpModule ? "" : methodFunction.resourcePath());
                 nodeBuilder = NodeBuilder.getNodeFromKind(NodeKind.RESOURCE_ACTION_CALL);
             } else {
@@ -313,11 +348,14 @@ public class ConnectionActionProvider {
             String icon = context.iconOverride() == null
                     ? CommonUtils.generateIcon(org, packageName, version)
                     : context.iconOverride();
-            Item node = nodeBuilder
-                    .metadata()
+            Metadata.Builder<NodeBuilder> metadata = nodeBuilder.metadata()
                     .label(label)
                     .icon(icon)
-                    .description(methodFunction.description())
+                    .description(methodFunction.description());
+            if (methodFunction.deprecated()) {
+                metadata.addData(DEPRECATED_KEY, true);
+            }
+            Item node = metadata
                     .stepOut()
                     .codedata()
                     .org(org)
