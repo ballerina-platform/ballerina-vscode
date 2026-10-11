@@ -113,12 +113,12 @@ const stateMachine = createMachine<MachineContext>(
                     assign({
                         projectStructure: (context, event) => event.payload,
                     }),
-                    () => {
+                    (context, event) => {
                         // Use queueMicrotask to ensure context is updated before command execution
                         queueMicrotask(() => {
                             refreshProjectExplorer();
-                            // Check if the current view is Service desginer and if so don't notify the webview
-                            if (StateMachine.context().view !== MACHINE_VIEW.ServiceDesigner && StateMachine.context().view !== MACHINE_VIEW.BIDiagram) {
+                            // Service designer and diagram views refresh after their own edits; anything else is announced
+                            if (event.notifyAnyView || (StateMachine.context().view !== MACHINE_VIEW.ServiceDesigner && StateMachine.context().view !== MACHINE_VIEW.BIDiagram)) {
                                 notifyCurrentWebview();
                             }
                         });
@@ -1088,7 +1088,9 @@ export const StateMachine = {
     },
     productMode: () => { return stateService.getSnapshot().context.productMode; },
     sendEvent: (eventType: EVENT_TYPE) => { stateService.send({ type: eventType }); },
-    updateProjectStructure: (payload: ProjectStructureResponse) => { stateService.send({ type: "UPDATE_PROJECT_STRUCTURE", payload }); },
+    updateProjectStructure: (payload: ProjectStructureResponse, notifyAnyView?: boolean) => {
+        stateService.send({ type: "UPDATE_PROJECT_STRUCTURE", payload, notifyAnyView });
+    },
     updateProjectRootAndInfo: (projectPath: string, projectInfo: ProjectInfo): Promise<void> => {
         return new Promise<void>((resolve) => {
             pendingProjectRootUpdateResolvers.push(resolve);

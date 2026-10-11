@@ -33,6 +33,7 @@ import io.ballerina.compiler.syntax.tree.SyntaxTree;
 import io.ballerina.mcp.core.generator.OpenApiSpecParser;
 import io.ballerina.mcp.core.model.SpecInfo;
 import io.ballerina.modelgenerator.commons.CommonUtils;
+import io.ballerina.modelgenerator.commons.FormattedEdits;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.ModulePrefixContext;
 import io.ballerina.modelgenerator.commons.PackageUtil;
@@ -239,6 +240,15 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
         return requestedAttachPoint.equals(Utils.getPath(serviceNode.absoluteResourcePath()));
     }
 
+    private CommonSourceResponse sourceResponse(Map<String, List<TextEdit>> textEdits,
+                                                List<ValidationResult> validations, boolean formatted) {
+        Optional<Map<String, List<TextEdit>>> formattedEdits = formatted
+                ? FormattedEdits.foldByPathString(workspaceManager, textEdits)
+                : Optional.empty();
+        return new CommonSourceResponse(formattedEdits.orElse(textEdits), null, null, validations,
+                formattedEdits.isPresent());
+    }
+
     @Override
     public void init(LanguageServer langServer, WorkspaceManager workspaceManager,
                      LanguageServerContext serverContext) {
@@ -364,7 +374,7 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                 PlatformDependencyEditUtil.addDriverDependenciesIfPresent(allEdits, project,
                         listener.getProperties());
 
-                return new CommonSourceResponse(allEdits);
+                return sourceResponse(allEdits, List.of(), request.formatted());
             } catch (Throwable e) {
                 return new CommonSourceResponse(e);
             }
@@ -501,6 +511,10 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                     .flatMap(Optional::stream)
                     .map(AgentTriggerChannels::withAgentKind)
                     .toList();
+            triggerBasicInfoList.stream()
+                    .filter(trigger -> !Utils.isDistributionModule(trigger.orgName(), trigger.packageName()))
+                    .forEach(trigger -> ConnectorVersionResolver.prefetchCentralLatest(trigger.orgName(),
+                            trigger.packageName()));
             return new TriggerListResponse(triggerBasicInfoList);
         });
     }
@@ -610,7 +624,7 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                 Map<String, List<TextEdit>> textEdits = FunctionBuilderRouter.addFunction(HTTP,
                         request.function(), request.filePath(), semanticModelOp.get(), document.get(), node,
                         this.workspaceManager);
-                return new CommonSourceResponse(textEdits);
+                return sourceResponse(textEdits, List.of(), request.formatted());
             } catch (Exception e) {
                 return new CommonSourceResponse(e);
             }
@@ -811,7 +825,7 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                 Map<String, List<TextEdit>> textEdits = FunctionBuilderRouter.addFunction(moduleName,
                         request.function(), request.filePath(), semanticModelOp.get(), document.get(), node,
                         this.workspaceManager);
-                return new CommonSourceResponse(textEdits, validations);
+                return sourceResponse(textEdits, validations, request.formatted());
             } catch (Exception e) {
                 return new CommonSourceResponse(e);
             }
@@ -861,7 +875,7 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                 Map<String, List<TextEdit>> textEdits = FunctionBuilderRouter.updateFunction(moduleName, function,
                         request.filePath(), document.get(), functionDefinitionNode, semanticModelOp.get(), project,
                         this.workspaceManager);
-                return new CommonSourceResponse(textEdits, validations);
+                return sourceResponse(textEdits, validations, request.formatted());
             } catch (Throwable e) {
                 return new CommonSourceResponse(e);
             }
@@ -901,7 +915,7 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                 Map<String, List<TextEdit>> textEdits = ServiceBuilderRouter.updateService(service,
                         semanticModel.get(), workspaceManager, filePath.toString(), document.get(),
                         (ServiceDeclarationNode) node);
-                return new CommonSourceResponse(textEdits, validations);
+                return sourceResponse(textEdits, validations, request.formatted());
             } catch (Throwable e) {
                 return new CommonSourceResponse(e);
             }
@@ -970,7 +984,7 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                 PlatformDependencyEditUtil.addDriverDependenciesIfPresent(allEdits, project,
                         listener.getProperties());
 
-                return new CommonSourceResponse(allEdits);
+                return sourceResponse(allEdits, List.of(), request.formatted());
             } catch (Throwable e) {
                 return new CommonSourceResponse(e);
             }
@@ -1339,7 +1353,7 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                 Map<String, List<TextEdit>> textEdits = ServiceBuilderRouter.addServiceInitSource(
                         request.serviceInitModel(), semanticModel.get(), project, workspaceManager,
                         request.filePath(), document.get());
-                return new CommonSourceResponse(textEdits, validations);
+                return sourceResponse(textEdits, validations, request.formatted());
             } catch (GenerationRefusedException e) {
                 return CommonSourceResponse.validationFailure(List.of(e.toValidationResult()));
             } catch (Throwable e) {

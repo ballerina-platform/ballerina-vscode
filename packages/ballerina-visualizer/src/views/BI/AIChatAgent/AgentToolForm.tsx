@@ -32,6 +32,7 @@ import {
     RecordTypeField,
     getPrimaryInputType,
     isTemplateType,
+    ProjectStructureArtifactResponse
 } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { FormField, FormImports, FormLoadingState, FormValues } from "@wso2/ballerina-side-panel";
@@ -88,7 +89,7 @@ interface AgentToolFormProps {
     targetLineRange?: LineRange;
     editContext?: AgentToolEditContext;
     nestedForm?: boolean;
-    onSave: (toolName: string) => void | Promise<void>;
+    onSave: (toolName: string, artifacts?: ProjectStructureArtifactResponse[]) => void | Promise<void>;
     onBack?: () => void;
 }
 
@@ -758,7 +759,7 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
                 throw new Error("Agent tool source generation returned no artifacts");
             }
             await rpcClient.getAIAgentRpcClient().fixMissingImports();
-            await onSave(String(properties.functionName.value));
+            await onSave(String(properties.functionName.value), response.artifacts);
         } catch {
             await rpcClient.getCommonRpcClient().showErrorMessage({
                 message: `Failed to ${isEdit ? "update" : "create"} the agent tool.`,

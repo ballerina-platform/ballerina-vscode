@@ -20,17 +20,22 @@ package io.ballerina.flowmodelgenerator.extension.request;
 
 import com.google.gson.JsonElement;
 
+import java.util.List;
+
 /**
  * Represents a request to the flow model getSourceCode API.
  *
  * @param filePath file path of the source file
  * @param flowNode diagram node
+ * @param formatted whether to return the source as one formatted edit per document
+ * @param nodes     nodes to convert together with their own files, always formatted, instead of {@code flowNode}
  * @since 1.0.0
  */
-public record FlowModelSourceGeneratorRequest(String filePath, JsonElement flowNode, boolean formatted) {
+public record FlowModelSourceGeneratorRequest(String filePath, JsonElement flowNode, boolean formatted,
+                                              List<FlowModelSourceGeneratorRequest> nodes) {
 
     public FlowModelSourceGeneratorRequest(String filePath, JsonElement flowNode) {
-        this(filePath, flowNode, false);
+        this(filePath, flowNode, false, null);
     }
 
 }

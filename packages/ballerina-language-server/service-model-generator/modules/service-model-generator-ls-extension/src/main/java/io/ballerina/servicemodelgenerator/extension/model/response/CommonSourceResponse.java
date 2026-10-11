@@ -32,29 +32,30 @@ import java.util.Map;
  * @param validationErrors rule failures found by the save-time gate. An ERROR here means no edits
  *                         were generated; WARNINGs ride along with a successful generation. The
  *                         client maps each entry back onto its field by {@code propertyPath}.
+ * @param formatted        whether {@code textEdits} hold one formatted edit per Ballerina document
  */
 public record CommonSourceResponse(Map<String, List<TextEdit>> textEdits, String errorMsg, String stacktrace,
-                                   List<ValidationResult> validationErrors) {
+                                   List<ValidationResult> validationErrors, boolean formatted) {
 
     public CommonSourceResponse() {
-        this(Map.of(), null, null, List.of());
+        this(Map.of(), null, null, List.of(), false);
     }
 
     public CommonSourceResponse(Map<String, List<TextEdit>> textEdits) {
-        this(textEdits, null, null, List.of());
+        this(textEdits, null, null, List.of(), false);
     }
 
     public CommonSourceResponse(Map<String, List<TextEdit>> textEdits, List<ValidationResult> validationErrors) {
-        this(textEdits, null, null, validationErrors);
+        this(textEdits, null, null, validationErrors, false);
     }
 
     public CommonSourceResponse(Throwable e) {
         this(Map.of(), e.getMessage() != null ? e.getMessage() : e.toString(),
-                Arrays.toString(e.getStackTrace()), List.of());
+                Arrays.toString(e.getStackTrace()), List.of(), false);
     }
 
     /** Generation was refused because the model failed validation — no edits are produced. */
     public static CommonSourceResponse validationFailure(List<ValidationResult> validationErrors) {
-        return new CommonSourceResponse(Map.of(), null, null, validationErrors);
+        return new CommonSourceResponse(Map.of(), null, null, validationErrors, false);
     }
 }

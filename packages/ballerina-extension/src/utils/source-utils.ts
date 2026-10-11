@@ -20,7 +20,7 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import { workspace } from 'vscode';
 import { Uri } from 'vscode';
-import { ArtifactData, EVENT_TYPE, MACHINE_VIEW, ProjectStructureArtifactResponse, STModification, TextEdit } from '@wso2/ballerina-core';
+import { ArtifactData, EVENT_TYPE, isSamePath, MACHINE_VIEW, ProjectStructureArtifactResponse, STModification, TextEdit } from '@wso2/ballerina-core';
 import { openView, StateMachine, undoRedoManager } from '../stateMachine';
 import { ArtifactsUpdated, ArtifactNotificationHandler } from './project-artifacts-handler';
 import { existsSync, writeFileSync, mkdirSync } from 'fs';
@@ -49,6 +49,13 @@ export interface UpdateSourceCodeRequest {
     preformatted?: boolean; // The language server already formatted the edits, so they are applied once without a format pass.
 }
 
+function artifactsInFiles(filePaths: string[]): ProjectStructureArtifactResponse[] {
+    const projects = StateMachine.context().projectStructure?.projects ?? [];
+    return projects
+        .flatMap((project) => Object.values(project.directoryMap ?? {}).flat() as ProjectStructureArtifactResponse[])
+        .filter((artifact) => filePaths.some((filePath) => isSamePath(artifact.path, filePath)));
+}
+
 export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCodeRequest, isChangeFromHelperPane?: boolean): Promise<ProjectStructureArtifactResponse[]> {
     const skipUndoRedoStack = updateSourceCodeRequest.artifactData?.artifactType === "CONFIGURABLE";
     // Capture the current undo/redo manager instance for the whole operation. The
@@ -66,6 +73,7 @@ export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCode
             batchManager?.startBatchOperation();
         }
         const modificationRequests: Record<string, { filePath: string; modifications: STModification[] }> = {};
+        const unchangedFiles: string[] = [];
         for (const [key, value] of Object.entries(updateSourceCodeRequest.textEdits)) {
             const fileUri = key.startsWith("file:") ? Uri.parse(key) : Uri.file(key);
             const fileUriString = fileUri.toString();
@@ -100,6 +108,11 @@ export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCode
             // Get the before content of the file by using the workspace api
             const document = await workspace.openTextDocument(fileUri);
             const beforeContent = document.getText();
+            // An unchanged document sends no didChange, so no artifacts notification would ever arrive for it.
+            if (updateSourceCodeRequest.preformatted && edits.length === 1 && edits[0].newText === beforeContent) {
+                unchangedFiles.push(fileUri.fsPath);
+                continue;
+            }
             if (!skipUndoRedoStack) {
                 batchManager?.addFileToBatch(fileUri.fsPath, beforeContent, beforeContent);
             }
@@ -143,7 +156,8 @@ export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCode
                 batchManager?.cancelBatchOperation();
             }
             StateMachine.setReadyMode();
-            return [];
+            // A save that changed nothing still succeeded; callers look up the saved artifact in the result.
+            return artifactsInFiles(unchangedFiles);
         }
 
         // Iterate through modificationRequests and apply modifications
@@ -190,6 +204,7 @@ export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCode
 
             // Apply all changes at once
             await workspace.applyEdit(workspaceEdit);
+            await StateMachine.langClient().flushArtifacts().catch(() => undefined);
 
             await rawEditNotification;
 
@@ -222,8 +237,8 @@ export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCode
 
             if (preformatted && !skipUndoRedoStack) {
                 for (const request of Object.values(modificationRequests)) {
-                    const formattedText = request.modifications[0]?.config.STATEMENT ?? "";
-                    batchManager?.addFileToBatch(request.filePath, formattedText, formattedText);
+                    const afterContent = (await workspace.openTextDocument(Uri.file(request.filePath))).getText();
+                    batchManager?.addFileToBatch(request.filePath, afterContent, afterContent);
                 }
             }
             if (!skipUndoRedoStack) {
@@ -232,6 +247,7 @@ export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCode
 
             if (!preformatted) {
                 await workspace.applyEdit(formattedWorkspaceEdit);
+                await StateMachine.langClient().flushArtifacts().catch(() => undefined);
             }
 
             // Handle missing dependencies after all changes are applied

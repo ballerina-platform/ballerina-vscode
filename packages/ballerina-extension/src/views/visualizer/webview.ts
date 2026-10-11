@@ -150,6 +150,9 @@ export class VisualizerWebview {
         }, 500);
 
         vscode.workspace.onDidChangeTextDocument(async (document) => {
+            // Read before awaiting the save: by then an edit the extension applied has finished and set ready mode.
+            const state = StateMachine.state();
+            const machineReady = typeof state === 'object' && 'viewActive' in state && state.viewActive === "viewReady";
             // A Copilot generation's own live edits already save themselves (persistLiveEdit ->
             // addToIntegration does workspace.applyEdit + saveAll) and shouldn't reset the
             // diagram's undo/redo history on every edit — only genuine, concurrent user edits
@@ -171,8 +174,6 @@ export class VisualizerWebview {
                 undoRedoManager.reset();
             }
 
-            const state = StateMachine.state();
-            const machineReady = typeof state === 'object' && 'viewActive' in state && state.viewActive === "viewReady";
             if (document?.contentChanges.length === 0 || !machineReady) { return; }
 
             const balFileModified = document?.document.languageId === LANGUAGE.BALLERINA;

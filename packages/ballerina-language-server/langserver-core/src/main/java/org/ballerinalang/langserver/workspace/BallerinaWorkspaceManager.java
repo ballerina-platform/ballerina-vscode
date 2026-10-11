@@ -559,6 +559,22 @@ public class BallerinaWorkspaceManager implements WorkspaceManager {
         }
     }
 
+    // The client saving content the workspace already holds (its own edit) changes nothing to reload.
+    private boolean isUnchangedOnDisk(Path filePath, FileEvent fileEvent) {
+        if (fileEvent.getType() != FileChangeType.Changed) {
+            return false;
+        }
+        Optional<Document> document = document(filePath);
+        if (document.isEmpty()) {
+            return false;
+        }
+        try {
+            return Files.readString(filePath).equals(document.get().textDocument().toString());
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
     @Override
     public List<Path> didChangeWatched(DidChangeWatchedFilesParams params) throws WorkspaceDocumentException {
         if (!LSClientConfigHolder.getInstance(serverContext).getConfig().isEnableFileWatcher()) {
@@ -573,6 +589,9 @@ public class BallerinaWorkspaceManager implements WorkspaceManager {
                 return Collections.emptyList();
             }
             Path filePath = pathFromURI.get();
+            if (isUnchangedOnDisk(filePath, fileEvent)) {
+                return Collections.emptyList();
+            }
             if (!this.openedDocuments.contains(filePath) || fileEvent.getType() == FileChangeType.Deleted) {
                 // If already opened in the cache, this will be captured via the textDocument/didChange event
                 this.didChangeWatched(filePath, fileEvent);
@@ -595,6 +614,9 @@ public class BallerinaWorkspaceManager implements WorkspaceManager {
                 return Collections.emptyList();
             }
             Path filePath = pathFromURI.get();
+            if (isUnchangedOnDisk(filePath, fileEvent)) {
+                continue;
+            }
 
             try {
                 reloadableProjects.add(ProjectPaths.packageRoot(filePath));

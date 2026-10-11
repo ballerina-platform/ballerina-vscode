@@ -91,6 +91,26 @@ public class SourceGeneratorTest extends AbstractLSTest {
         }
     }
 
+    @Test
+    public void testNodesShareOneImport() throws IOException {
+        FlowModelSourceGeneratorRequest println = nodeRequest("function_call-io-println.json");
+        FlowModelSourceGeneratorRequest readCsv = nodeRequest("function_call-io-fileReadCsv.json");
+        FlowModelSourceGeneratorRequest request = new FlowModelSourceGeneratorRequest(println.filePath(),
+                println.flowNode(), false, List.of(println, readCsv));
+        JsonObject sourceEdits = getResponseAndCloseFile(request, "empty.bal").getAsJsonObject("sourceEdits");
+
+        Map<String, List<TextEdit>> edits = gson.fromJson(sourceEdits, textEditListType);
+        Assert.assertEquals(edits.size(), 1);
+        Assert.assertEquals(edits.values().iterator().next().stream().map(TextEdit::getNewText).toList(),
+                List.of("import ballerina/io;", "io:println();", "Row[] returnType = check io:fileReadCsv(\"\");"));
+    }
+
+    private FlowModelSourceGeneratorRequest nodeRequest(String configName) throws IOException {
+        TestConfig config = gson.fromJson(Files.newBufferedReader(configDir.resolve(configName)), TestConfig.class);
+        return new FlowModelSourceGeneratorRequest(sourceDir.resolve(config.source()).toAbsolutePath().toString(),
+                config.diagram());
+    }
+
     @AfterClass
     void cleanFiles() {
         FileSystemUtils.deleteCreatedFiles();

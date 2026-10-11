@@ -287,11 +287,15 @@ public class FlowModelGeneratorService implements ExtendedLanguageServerService 
         return CompletableFuture.supplyAsync(() -> {
             FlowModelSourceGeneratorResponse response = new FlowModelSourceGeneratorResponse();
             try {
-                SourceGenerator sourceGenerator =
-                        new SourceGenerator(this.workspaceManagerProxy.get(), Path.of(request.filePath()));
-                if (request.formatted()) {
-                    SourceGenerator.FormattedSource source =
-                            sourceGenerator.toFormattedSourceCode(request.flowNode(), lsClientLogger);
+                WorkspaceManager workspaceManager = this.workspaceManagerProxy.get();
+                SourceGenerator sourceGenerator = new SourceGenerator(workspaceManager, Path.of(request.filePath()));
+                boolean multiNode = request.nodes() != null && !request.nodes().isEmpty();
+                if (request.formatted() || multiNode) {
+                    SourceGenerator.FormattedSource source = multiNode
+                            ? SourceGenerator.toFormattedSourceCode(workspaceManager, request.nodes().stream()
+                                    .map(node -> Map.entry(Path.of(node.filePath()), node.flowNode())).toList(),
+                                    lsClientLogger)
+                            : sourceGenerator.toFormattedSourceCode(request.flowNode(), lsClientLogger);
                     response.setFormatted(source.textEdits() != null);
                     response.setTextEdits(source.textEdits() != null ? source.textEdits() : source.sourceEdits());
                     response.setSourceEdits(source.sourceEdits());
@@ -613,9 +617,10 @@ public class FlowModelGeneratorService implements ExtendedLanguageServerService 
                 if (semanticModel.isEmpty() || document.isEmpty()) {
                     return response;
                 }
-                JsonElement textEdits = DeleteNodeHandler.getTextEditsToDeletedNode(
-                        request.component(), filePath, document.get(), project
-                );
+                JsonElement textEdits = request.components() != null && !request.components().isEmpty()
+                        ? DeleteNodeHandler.getTextEditsToDeletedNodes(request.components(), filePath, document.get())
+                        : DeleteNodeHandler.getTextEditsToDeletedNode(request.component(), filePath, document.get(),
+                                project);
                 Optional<JsonElement> formattedEdits = request.formatted()
                         ? new SourceGenerator(workspaceManager, filePath).formatTextEdits(toEditsByPath(textEdits))
                         : Optional.empty();

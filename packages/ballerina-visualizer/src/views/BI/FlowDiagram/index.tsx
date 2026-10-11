@@ -72,7 +72,7 @@ import {
 import { findCurrentIntegrationCategory } from "../../../utils/function-category";
 import { useDraftNodeManager } from "./hooks/useDraftNodeManager";
 import { useDurableAgentUsages } from "./durableAgentUsages";
-import { NodePosition, STNode } from "@wso2/syntax-tree";
+import { NodePosition } from "@wso2/syntax-tree";
 import { View, ProgressIndicator, ThemeColors } from "@wso2/ui-toolkit";
 import { applyModifications, textToModifications } from "../../../utils/utils";
 import { debouncedUndoRedoManager } from "../../../utils/debouncedUndoRedo";
@@ -117,7 +117,6 @@ const AddAgentPopupLayer = styled.div`
 export interface BIFlowDiagramProps {
     projectPath: string;
     breakpointState?: number;
-    syntaxTree?: STNode;
     onUpdate: () => void;
     onReady: (fileName: string, parentMetadata?: ParentMetadata, position?: NodePosition, parentCodedata?: CodeData) => void;
     onSave?: () => void;
@@ -187,7 +186,7 @@ const isDurableAgentBoxNode = (node: FlowNode) =>
     ((node.metadata?.data as { agentBox?: boolean })?.agentBox === true || node.metadata?.draft === true);
 
 export function BIFlowDiagram(props: BIFlowDiagramProps) {
-    const { projectPath, breakpointState, syntaxTree, onUpdate, onReady, onSave, hideAgentConfiguration } = props;
+    const { projectPath, breakpointState, onUpdate, onReady, onSave, hideAgentConfiguration } = props;
     const { rpcClient } = useRpcContext();
 
 
@@ -522,11 +521,11 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         [hasDraft]
     );
 
-    // Shorter debounce specifically for breakpoint changes (faster feedback)
+    // Shorter debounce specifically for breakpoint changes (faster feedback); its mount call is the first load.
     const debouncedGetFlowModelForBreakpoints = useCallback(
         debounce(() => {
             getFlowModel();
-        }, 200),
+        }, 200, { leading: true, trailing: true }),
         []
     );
 

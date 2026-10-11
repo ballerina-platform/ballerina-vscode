@@ -18,7 +18,7 @@
 
 import { useState } from "react";
 import styled from "@emotion/styled";
-import { FlowNode, Property } from "@wso2/ballerina-core";
+import { FlowNode, Property, ProjectStructureArtifactResponse } from "@wso2/ballerina-core";
 import { Button } from "@wso2/ui-toolkit";
 import { NodePosition } from "@wso2/syntax-tree";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
@@ -64,7 +64,7 @@ export function NewTool(props: NewToolProps): JSX.Element {
 
     const agentFilePath = Utils.joinPath(URI.file(projectPath), "agents.bal").fsPath;
 
-    const handleAgentToolCreated = async (functionName: string) => {
+    const handleAgentToolCreated = async (functionName: string, artifacts?: ProjectStructureArtifactResponse[]) => {
         if (!agentNode) {
             console.error("Agent node not found");
             return;
@@ -76,7 +76,7 @@ export function NewTool(props: NewToolProps): JSX.Element {
                 return;
             }
 
-            await refreshAgentNodeLineRange(updatedAgentNode, rpcClient);
+            await refreshAgentNodeLineRange(updatedAgentNode, rpcClient, artifacts);
 
             const { filePath: agentFile } = await rpcClient.getVisualizerRpcClient().joinProjectPath({
                 segments: [updatedAgentNode.codedata.lineRange.fileName],

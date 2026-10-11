@@ -133,13 +133,41 @@ public class DeleteNodeHandler {
         return getTextEditsToDeletedNode(lineRange, filePath, document, project);
     }
 
+    /**
+     * Deletes several components of one document in a single set of edits, so the client applies them at once.
+     *
+     * @param nodes    The components to delete, all in {@code filePath}
+     * @param filePath The file holding the components
+     * @param document The current document of {@code filePath}
+     * @return The text edits keyed by file path
+     */
+    public static JsonElement getTextEditsToDeletedNodes(List<JsonElement> nodes, Path filePath, Document document) {
+        TextDocument textDocument = document.textDocument();
+        List<LineRange> lineRanges = nodes.stream().map(DeleteNodeHandler::getNodeLineRange).toList();
+        List<TextRange> ranges = lineRanges.stream()
+                .map(range -> {
+                    int start = textDocument.textPositionFrom(range.startLine());
+                    return TextRange.from(start, textDocument.textPositionFrom(range.endLine()) - start);
+                })
+                .toList();
+        List<TextEdit> textEdits = unusedImportEdits(document, ranges);
+        for (int i = 0; i < ranges.size(); i++) {
+            LineRange elseRange = checkElseToDelete(document, ranges.get(i).startOffset(), ranges.get(i).endOffset());
+            textEdits.add(new TextEdit(CommonUtils.toRange(elseRange != null ? elseRange : lineRanges.get(i)), ""));
+        }
+        Map<Path, List<TextEdit>> textEditsMap = new HashMap<>();
+        textEditsMap.put(filePath, textEdits);
+        return gson.toJsonTree(textEditsMap);
+    }
+
     private static JsonElement getTextEditsToDeletedNode(LineRange lineRange, Path filePath,
                                                          Document document, Project project) {
         TextDocument textDocument = document.textDocument();
         int startTextPosition = textDocument.textPositionFrom(lineRange.startLine());
         int endTextPosition = textDocument.textPositionFrom(lineRange.endLine());
 
-        List<TextEdit> textEdits = unusedImportEdits(document, startTextPosition, endTextPosition);
+        List<TextEdit> textEdits = unusedImportEdits(document,
+                List.of(TextRange.from(startTextPosition, endTextPosition - startTextPosition)));
 
         LineRange nodeRangeToDelete = checkElseToDelete(document, startTextPosition, endTextPosition);
         if (nodeRangeToDelete == null) {
@@ -152,12 +180,12 @@ public class DeleteNodeHandler {
         return gson.toJsonTree(textEditsMap);
     }
 
-    // Imports whose prefix has no `prefix:name` reference left once the range is deleted, as the compiler reports them.
-    private static List<TextEdit> unusedImportEdits(Document document, int start, int end) {
+    // Imports with no `prefix:name` reference left once the ranges are deleted, as the compiler reports them.
+    private static List<TextEdit> unusedImportEdits(Document document, List<TextRange> deletedRanges) {
         ModulePartNode root = document.syntaxTree().rootNode();
         Set<String> deletedPrefixes = new HashSet<>();
         Set<String> remainingPrefixes = new HashSet<>();
-        collectModulePrefixes(root, start, end, deletedPrefixes, remainingPrefixes);
+        collectModulePrefixes(root, deletedRanges, deletedPrefixes, remainingPrefixes);
 
         List<TextEdit> textEdits = new ArrayList<>();
         if (deletedPrefixes.isEmpty()) {
@@ -178,18 +206,19 @@ public class DeleteNodeHandler {
         return textEdits;
     }
 
-    private static void collectModulePrefixes(Node node, int start, int end, Set<String> deletedPrefixes,
+    private static void collectModulePrefixes(Node node, List<TextRange> deletedRanges, Set<String> deletedPrefixes,
                                               Set<String> remainingPrefixes) {
         if (node.kind() == SyntaxKind.QUALIFIED_NAME_REFERENCE) {
             TextRange range = node.textRange();
-            boolean deleted = range.startOffset() >= start && range.endOffset() <= end;
+            boolean deleted = deletedRanges.stream().anyMatch(deletedRange ->
+                    range.startOffset() >= deletedRange.startOffset() && range.endOffset() <= deletedRange.endOffset());
             String prefix = ((QualifiedNameReferenceNode) node).modulePrefix().text();
             (deleted ? deletedPrefixes : remainingPrefixes).add(prefix);
             return;
         }
         if (node instanceof NonTerminalNode nonTerminalNode) {
             for (Node child : nonTerminalNode.children()) {
-                collectModulePrefixes(child, start, end, deletedPrefixes, remainingPrefixes);
+                collectModulePrefixes(child, deletedRanges, deletedPrefixes, remainingPrefixes);
             }
         }
     }

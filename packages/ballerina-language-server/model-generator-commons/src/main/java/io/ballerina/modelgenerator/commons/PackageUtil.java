@@ -33,6 +33,7 @@ import io.ballerina.projects.PackageOrg;
 import io.ballerina.projects.PackageVersion;
 import io.ballerina.projects.Project;
 import io.ballerina.projects.ProjectEnvironmentBuilder;
+import io.ballerina.projects.ResolvedPackageDependency;
 import io.ballerina.projects.bala.BalaProject;
 import io.ballerina.projects.directory.BuildProject;
 import io.ballerina.projects.environment.PackageMetadataResponse;
@@ -211,6 +212,7 @@ public class PackageUtil {
     private static final ConcurrentHashMap<Path, SoftReference<Package>> BALA_PACKAGES = new ConcurrentHashMap<>();
 
     private static final Set<String> PREWARMED = ConcurrentHashMap.newKeySet();
+    private static final String AI_PACKAGE = "ai";
 
     private static Optional<Package> loadBalaPackage(Path balaPath) {
         Package[] balaPackage = new Package[1];
@@ -239,6 +241,22 @@ public class PackageUtil {
             CompletableFuture.runAsync(() -> resolveModulePackage(org, packageName, version)
                     .ifPresent(PackageUtil::getCompilation));
         }
+    }
+
+    /**
+     * Compiles the project's {@code ballerina/ai} dependency in the background, since agent nodes and the agent's
+     * forms build their templates from it.
+     *
+     * @param project The project whose resolved {@code ballerina/ai} version to compile
+     */
+    public static void prewarmAgentLibrary(Project project) {
+        project.currentPackage().getResolution().dependencyGraph().getNodes().stream()
+                .map(ResolvedPackageDependency::packageInstance)
+                .filter(pkg -> pkg.packageOrg().value().equals(CommonUtils.BALLERINA_ORG_NAME)
+                        && pkg.packageName().value().equals(AI_PACKAGE))
+                .findFirst()
+                .ifPresent(pkg -> prewarm(CommonUtils.BALLERINA_ORG_NAME, AI_PACKAGE,
+                        pkg.packageVersion().toString()));
     }
 
     /**

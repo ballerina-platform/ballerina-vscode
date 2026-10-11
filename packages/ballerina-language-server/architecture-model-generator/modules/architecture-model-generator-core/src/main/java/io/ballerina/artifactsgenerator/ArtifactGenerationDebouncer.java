@@ -90,8 +90,7 @@ public class ArtifactGenerationDebouncer {
         long effectiveDelay = !delayedMap.containsKey(key) && (lastScheduled == null || now - lastScheduled >= delay)
                 ? 0 : delay;
 
-        // Schedule the task to run after the specified delay.
-        Future<?> scheduledFuture = scheduler.schedule(() -> {
+        Runnable run = () -> {
             try {
                 task.run();
                 promise.complete(null);
@@ -101,14 +100,28 @@ public class ArtifactGenerationDebouncer {
                 delayedMap.remove(key);
                 executeQueuedTasks(key);
             }
-        }, effectiveDelay, TIME_UNIT);
+        };
+        // Schedule the task to run after the specified delay.
+        Future<?> scheduledFuture = scheduler.schedule(run, effectiveDelay, TIME_UNIT);
 
         // Replace any existing scheduled task with the new one.
-        ScheduledTaskHolder prev = delayedMap.put(key, new ScheduledTaskHolder(promise, scheduledFuture));
+        ScheduledTaskHolder prev = delayedMap.put(key, new ScheduledTaskHolder(promise, scheduledFuture, run));
         if (prev != null) {
             prev.future.cancel(true);
             prev.promise.completeExceptionally(new CancellationException("Debounced by a new request"));
         }
+    }
+
+    /**
+     * Runs every pending task now. The delay batches keystrokes; an edit the client applies on purpose is complete
+     * as soon as it lands, so the client flushes after applying it instead of waiting out a burst.
+     */
+    public void flushAll() {
+        delayedMap.values().forEach(holder -> {
+            if (holder.future().cancel(false)) {
+                scheduler.execute(holder.run());
+            }
+        });
     }
 
     /**
@@ -200,7 +213,7 @@ public class ArtifactGenerationDebouncer {
         private static final ArtifactGenerationDebouncer INSTANCE = new ArtifactGenerationDebouncer();
     }
 
-    private record ScheduledTaskHolder(CompletableFuture<Void> promise, Future<?> future) {
+    private record ScheduledTaskHolder(CompletableFuture<Void> promise, Future<?> future, Runnable run) {
     }
 
     private record QueuedTask(String fileKey, Runnable task) {

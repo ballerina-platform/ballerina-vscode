@@ -22,6 +22,7 @@ import { openView, StateMachine } from "../stateMachine";
 import { ExtendedLangClient } from "../core/extended-language-client";
 import { ArtifactsUpdated, ArtifactNotificationHandler } from "./project-artifacts-handler";
 import { isLibraryProject } from "./config";
+import { pickClosestArtifact } from "./state-machine-utils";
 
 // Tracks projects whose artifacts could not be fetched (e.g., the initial load raced with a
 // missing-module pull and the compilation failed). Used to recover with a full rebuild once
@@ -170,6 +171,9 @@ export async function updateProjectArtifacts(publishedArtifacts: ArtifactsNotifi
 
     // Current project structure
     const currentProjectStructure: ProjectStructureResponse = StateMachine.context().projectStructure;
+    // The extension's own edits refresh their view; a change made elsewhere (git, another editor) must be announced.
+    const state = StateMachine.state();
+    const changedElsewhere = !(typeof state === "object" && "viewActive" in state && state.viewActive === "viewEditing");
 
     const rootPath = StateMachine.context().workspacePath ?? StateMachine.context().projectPath;
     if (!rootPath) {
@@ -218,13 +222,15 @@ export async function updateProjectArtifacts(publishedArtifacts: ArtifactsNotifi
         }
 
         const entryLocations = await traverseUpdatedComponents(publishedArtifacts.artifacts, currentProjectStructure, owningProjectPath);
+        // Before anyone hears of the edit, so a refresh it triggers reads the view's new range.
+        updateLocationFromArtifacts(entryLocations);
         const notificationHandler = ArtifactNotificationHandler.getInstance();
         // Publish a notification to the artifact handler
         notificationHandler.publish(ArtifactsUpdated.method, {
             data: entryLocations,
             timestamp: Date.now()
         });
-        StateMachine.updateProjectStructure({ ...currentProjectStructure }); // Update the project structure and refresh the tree
+        StateMachine.updateProjectStructure({ ...currentProjectStructure }, changedElsewhere); // Update the project structure and refresh the tree
     } else {
         const notificationHandler = ArtifactNotificationHandler.getInstance();
         // Publish a notification to the artifact handler
@@ -778,4 +784,45 @@ function resolveEntryGlyph(icon: IconDescriptor | undefined, module: string | un
 function resolveEntryColor(icon: IconDescriptor | undefined, module: string | undefined): string | undefined {
     return icon?.color
         ?? (icon?.source === "trigger-ui-metadata" ? undefined : resolveBrandIcon(module)?.color);
+}
+
+/** Moves the view's location to where the edit put its artifact; returns that artifact, if the edit touched it. */
+export function updateLocationFromArtifacts(artifacts: ProjectStructureArtifactResponse[]): ProjectStructureArtifactResponse | undefined {
+    if (artifacts.length === 0) {
+        return undefined;
+    }
+    const { identifier: currentIdentifier, type: currentType, parentIdentifier, documentUri, position } = StateMachine.context();
+    const matchesIdentifier = (artifact: ProjectStructureArtifactResponse) =>
+        artifact.id === currentIdentifier || artifact.name === currentIdentifier;
+
+    let classArtifact: ProjectStructureArtifactResponse = undefined;
+    let classResource: ProjectStructureArtifactResponse = undefined;
+    const candidates: ProjectStructureArtifactResponse[] = [];
+    for (const artifact of artifacts) {
+        if (currentType && currentType.codedata.node === "CLASS" && currentType.name === artifact.name) {
+            classArtifact = artifact;
+            classResource = artifact.resources?.find(matchesIdentifier);
+            if (classResource) {
+                break;
+            }
+        } else if (matchesIdentifier(artifact)) {
+            candidates.push(artifact);
+        }
+        // Check if parent artifact is matched and has resources and find within those
+        if (parentIdentifier && artifact.name === parentIdentifier && artifact.resources && artifact.resources.length > 0) {
+            const resource = artifact.resources.find(matchesIdentifier);
+            if (resource) {
+                candidates.push(resource);
+            }
+        }
+    }
+    const currentArtifact = classResource ?? pickClosestArtifact(candidates, documentUri, position) ?? classArtifact;
+    if (currentArtifact) {
+        openView(EVENT_TYPE.UPDATE_PROJECT_LOCATION, {
+            documentUri: currentArtifact.path,
+            position: currentArtifact.position,
+            identifier: currentIdentifier,
+        });
+    }
+    return currentArtifact;
 }

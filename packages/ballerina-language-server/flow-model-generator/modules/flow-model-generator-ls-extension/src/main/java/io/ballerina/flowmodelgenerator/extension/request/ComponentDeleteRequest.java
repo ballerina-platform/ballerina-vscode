@@ -20,17 +20,21 @@ package io.ballerina.flowmodelgenerator.extension.request;
 
 import com.google.gson.JsonElement;
 
+import java.util.List;
+
 /**
  * Represents a request to delete a component.
  *
  * @param filePath file path of the source file
  * @param component component to delete
  * @param formatted whether to return the deletion as one formatted edit per document
+ * @param components components of {@code filePath} to delete together instead of {@code component}
  * @since 1.0.0
  */
-public record ComponentDeleteRequest(String filePath, JsonElement component, boolean formatted) {
+public record ComponentDeleteRequest(String filePath, JsonElement component, boolean formatted,
+                                     List<JsonElement> components) {
 
     public ComponentDeleteRequest(String filePath, JsonElement component) {
-        this(filePath, component, false);
+        this(filePath, component, false, null);
     }
 }

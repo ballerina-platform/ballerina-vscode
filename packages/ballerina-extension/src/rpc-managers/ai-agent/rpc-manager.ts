@@ -29,6 +29,8 @@ import {
     AIToolResponse,
     AIToolsRequest,
     AIToolsResponse,
+    BISourceCodeRequest,
+    BISourceCodeResponse,
     FlowNode,
     McpToolUpdateRequest,
     McpToolsRequest,
@@ -195,7 +197,6 @@ export class AiAgentRpcManager implements AIAgentAPI {
         const mcpToolKitVarName = params.updatedNode.properties["variable"].value;
 
         // 1. Use the updatedNode from params for the MCP ToolKit edits
-        let mcpEdits: { [filePath: string]: any[] } = {};
         if (params.updatedNode) {
             if (params.selectedTools.length === 0) {
                 params.updatedNode.properties["permittedTools"].value = `()`;
@@ -235,12 +236,6 @@ export class AiAgentRpcManager implements AIAgentAPI {
                 delete (params.updatedNode.properties as any)["toolScopes"];
             }
 
-            // Use only the template node for generating text edits
-            const mcpToolKitEdits = await StateMachine.langClient().getSourceCode({
-                filePath: connectionsFilePath,
-                flowNode: params.updatedNode,
-            });
-            mcpEdits = mcpToolKitEdits.textEdits;
         }
 
         // Update the agent's tools array with the toolkit variable name.
@@ -280,16 +275,15 @@ export class AiAgentRpcManager implements AIAgentAPI {
         // Set the updated tools value
         agentFlowNode.properties["tools"].value = toolsValue;
 
-        // Generate source code for the updated agent
-        const agentEdits = await StateMachine.langClient().getSourceCode({
-            filePath: agentsFilePath,
-            flowNode: agentFlowNode
-        });
-
-
-        // 3. Apply both edits
-        await updateSourceCode({ textEdits: agentEdits.textEdits });
-        await updateSourceCode({ textEdits: mcpEdits });
+        // 3. Generate the agent and the toolkit together, so both files change in one formatted edit
+        const nodes = [{ filePath: agentsFilePath, flowNode: agentFlowNode }];
+        if (params.updatedNode) {
+            nodes.push({ filePath: connectionsFilePath, flowNode: params.updatedNode });
+        }
+        const source = await StateMachine.langClient().getSourceCode(
+            { filePath: agentsFilePath, flowNode: agentFlowNode, nodes } as BISourceCodeRequest
+        ) as BISourceCodeResponse & { formatted?: boolean };
+        await updateSourceCode({ textEdits: source.textEdits, preformatted: source.formatted });
     }
 
     private parseToolsString(toolsStr: string): string[] {

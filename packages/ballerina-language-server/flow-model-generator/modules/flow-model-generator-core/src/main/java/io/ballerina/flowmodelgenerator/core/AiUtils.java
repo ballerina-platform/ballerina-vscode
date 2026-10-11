@@ -111,6 +111,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -188,6 +190,7 @@ public class AiUtils {
     private static final String VERSION = "version";
     private static final String INIT_METHOD = "init";
     private static final AiComponentDiskCache diskCache = new AiComponentDiskCache();
+    private static final AtomicBoolean catalogPrewarmed = new AtomicBoolean();
 
     public static final String MEMORY_DEFAULT_VALUE = "10";
     public static final String AI_PROMPT_TYPE = "ai:Prompt";
@@ -813,6 +816,19 @@ public class AiUtils {
     public static List<AvailableNode> getShortTermMemoryStores(Project project) {
         buildCategoryCache(project, SHORT_TERM_MEMORY_STORE);
         return cachedShortTermMemoryStoreMap.getOrDefault(getProjectCacheKey(project), List.of());
+    }
+
+    /**
+     * Fetches the Central metadata of the AI component catalog (dependent modules and their keywords) in the
+     * background, so the first catalog view (model providers, memory, knowledge bases) does not wait on Central.
+     *
+     * @param project The project whose ballerina/ai version selects the compatible modules
+     */
+    public static void prewarmCatalog(Project project) {
+        if (catalogPrewarmed.compareAndSet(false, true)) {
+            CompletableFuture.runAsync(() -> ensureKeywordsLoaded(pinUserDeclaredVersions(project,
+                    getLatestCompatibleModules(resolveAiModuleVersion(project)))));
+        }
     }
 
     public static List<AvailableNode> getKnowledgeBases(Project project) {
