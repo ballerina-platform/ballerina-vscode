@@ -599,7 +599,8 @@ const handleConnectionDeletion = async (itemLabel: string, filePath: string) => 
                     } else {
                         console.error(">>> Error updating source code", response);
                     }
-                });
+                })
+                .catch((error) => console.error(">>> Error deleting connection", error));
         } else {
             console.error(">>> Error finding connector", { connectionName: itemLabel });
         }
