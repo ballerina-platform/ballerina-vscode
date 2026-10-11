@@ -95,15 +95,83 @@ export function toResourcePathTemplate(docsPath: string): string {
     return rendered.length > 0 ? `/${rendered.join("/")}` : "/";
 }
 
+// The language server answers from a local package in milliseconds once warm; a cold, large connector can take
+// longer than the docs download, so the docs request starts too if the server has not answered by then.
+const DOCS_FALLBACK_DELAY_MS = 1500;
+
 export async function fetchConnectorActions(
     rpcClient: BallerinaRpcClient,
-    connector: AvailableNode
+    connector: AvailableNode,
+    filePath?: string
 ): Promise<AvailableNode[]> {
     const codedata = connector?.codedata;
     if (!codedata?.org || !codedata?.module || !codedata?.version) {
         throw new Error("The selected connector is missing package coordinates.");
     }
+    if (!filePath) {
+        return fetchActionsFromDocs(rpcClient, connector);
+    }
+    return new Promise<AvailableNode[]>((resolve, reject) => {
+        let settled = false;
+        let docsStarted = false;
+        let failures = 0;
+        const done = (actions: AvailableNode[]) => {
+            if (!settled) {
+                settled = true;
+                clearTimeout(timer);
+                resolve(actions);
+            }
+        };
+        const fail = (error: unknown) => {
+            if (++failures === 2 && !settled) {
+                settled = true;
+                reject(error);
+            }
+        };
+        const startDocs = () => {
+            if (!docsStarted) {
+                docsStarted = true;
+                fetchActionsFromDocs(rpcClient, connector).then(done, fail);
+            }
+        };
+        const timer = setTimeout(startDocs, DOCS_FALLBACK_DELAY_MS);
+        fetchActionsFromLanguageServer(rpcClient, connector, filePath).then(
+            (actions) => (actions.length > 0 ? done(actions) : (fail(new Error("No local actions")), startDocs())),
+            (error) => {
+                fail(error);
+                startDocs();
+            }
+        );
+    });
+}
 
+async function fetchActionsFromLanguageServer(
+    rpcClient: BallerinaRpcClient,
+    connector: AvailableNode,
+    filePath: string
+): Promise<AvailableNode[]> {
+    const response = await rpcClient.getBIDiagramRpcClient().getLibraryActions({
+        filePath,
+        codedata: connector.codedata,
+        offline: true,
+    });
+    const collector = createActionCollector(connector, connector.codedata.object || "Client");
+    ((response?.actions ?? []) as AvailableNode[]).filter(isListedAction).forEach(({ codedata, metadata }) => {
+        const resourcePath = codedata.node === RESOURCE_ACTION_CALL ? codedata.resourcePath : undefined;
+        collector.add(codedata.node, codedata.symbol.trim(), resourcePath, metadata?.description ?? "");
+    });
+    return collector.list();
+}
+
+// The docs list remote and resource actions only, and leave out deprecated ones.
+function isListedAction(item: AvailableNode): boolean {
+    const node = item.codedata?.node;
+    const deprecated = (item.metadata?.data as { isDeprecated?: boolean } | undefined)?.isDeprecated;
+    return (node === REMOTE_ACTION_CALL || node === RESOURCE_ACTION_CALL) && !!item.codedata.symbol?.trim() && !deprecated;
+}
+
+async function fetchActionsFromDocs(rpcClient: BallerinaRpcClient, connector: AvailableNode): Promise<AvailableNode[]> {
+    const codedata = connector.codedata;
     const response = await rpcClient.getLibraryBrowserRPCClient().getLibraryData({
         orgName: codedata.org,
         moduleName: codedata.module,
@@ -124,9 +192,7 @@ export async function fetchConnectorActions(
         throw new Error(`No client found in the documentation for ${codedata.org}/${codedata.module}.`);
     }
 
-    const actions: AvailableNode[] = [];
-    const seen = new Set<string>();
-
+    const collector = createActionCollector(connector, client.name ?? clientName);
     const push = (method: DocsMethod, node: NodeKind) => {
         if (method?.isDeprecated) {
             return;
@@ -138,14 +204,28 @@ export async function fetchConnectorActions(
             return;
         }
         const resourcePath = isResource ? toResourcePathTemplate(docsPath) : docsPath;
+        collector.add(node, symbol, resourcePath, method.description ?? "");
+    };
+
+    (client.remoteMethods ?? []).forEach((method) => push(method, REMOTE_ACTION_CALL));
+    (client.resourceMethods ?? []).forEach((method) => push(method, RESOURCE_ACTION_CALL));
+    return collector.list();
+}
+
+function createActionCollector(connector: AvailableNode, objectName: string) {
+    const codedata = connector.codedata;
+    const actions: AvailableNode[] = [];
+    const seen = new Set<string>();
+
+    const add = (node: NodeKind, symbol: string, resourcePath: string | undefined, rawDescription: string) => {
         const key = `${node}:${symbol}:${resourcePath ?? ""}`;
         if (seen.has(key)) {
             return;
         }
         seen.add(key);
 
-        const description = stripMarkup(method.description ?? "");
-        const label = isResource
+        const description = stripMarkup(rawDescription);
+        const label = node === RESOURCE_ACTION_CALL
             ? firstSentence(description) || formatResourceSignature(symbol, resourcePath)
             : formatActionLabel(symbol);
 
@@ -154,7 +234,7 @@ export async function fetchConnectorActions(
             org: codedata.org,
             module: codedata.module,
             packageName: codedata.packageName ?? codedata.module,
-            object: client.name ?? clientName,
+            object: objectName,
             symbol,
             version: codedata.version,
             ...(resourcePath ? { resourcePath } : {}),
@@ -171,11 +251,8 @@ export async function fetchConnectorActions(
         } as AvailableNode);
     };
 
-    (client.remoteMethods ?? []).forEach((method) => push(method, REMOTE_ACTION_CALL));
-    (client.resourceMethods ?? []).forEach((method) => push(method, RESOURCE_ACTION_CALL));
-
-    actions.sort((a, b) => (a.metadata?.label ?? "").localeCompare(b.metadata?.label ?? ""));
-    return actions;
+    const list = () => actions.sort((a, b) => (a.metadata?.label ?? "").localeCompare(b.metadata?.label ?? ""));
+    return { add, list };
 }
 
 export function normalizeConnectorSearchCategories(

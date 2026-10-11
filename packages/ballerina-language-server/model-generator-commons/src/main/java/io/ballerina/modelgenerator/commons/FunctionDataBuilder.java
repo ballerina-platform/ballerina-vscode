@@ -889,6 +889,7 @@ public class FunctionDataBuilder {
                     returnData.returnError(),
                     returnData.paramForTypeInfer() != null,
                     returnData.importStatements());
+            functionData.setDeprecated(isDeprecated(methodSymbol.annotAttachments()));
 
             // Populate ReturnTypeData with links
             FunctionTypeSymbol methodTypeSymbol = methodSymbol.typeDescriptor();
