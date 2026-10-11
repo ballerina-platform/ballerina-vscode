@@ -121,7 +121,8 @@ public class BallerinaWorkspaceService implements WorkspaceService {
     private void publishProjectReloads(DidChangeWatchedFilesParams params, List<Path> projectRoots) {
         Set<Path> published = new HashSet<>();
         for (FileEvent change : params.getChanges()) {
-            Optional<Path> projectRoot = PathUtil.getPathFromURI(change.getUri())
+            Optional<Path> changedPath = PathUtil.getPathFromURI(change.getUri());
+            Optional<Path> projectRoot = changedPath
                     .flatMap(path -> projectRoots.stream().filter(path::startsWith).findFirst());
             if (projectRoot.isEmpty()) {
                 continue;
@@ -129,7 +130,10 @@ public class BallerinaWorkspaceService implements WorkspaceService {
             // A deleted file cannot locate its project, so the reload is reported against the package manifest.
             Path manifest = projectRoot.get().resolve(ProjectConstants.BALLERINA_TOML);
             boolean deleted = change.getType() == FileChangeType.Deleted;
-            if ((deleted && !Files.exists(manifest)) || !published.add(projectRoot.get())) {
+            // A project the user never opened is not reloaded, so it must not be loaded here either.
+            boolean loaded = (!deleted || Files.exists(manifest))
+                    && this.workspaceManagerProxy.get().project(deleted ? manifest : changedPath.get()).isPresent();
+            if (!loaded || !published.add(projectRoot.get())) {
                 continue;
             }
             String uri = deleted ? manifest.toUri().toString() : change.getUri();
