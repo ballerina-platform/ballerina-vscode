@@ -202,17 +202,29 @@ public class TestWorkspaceManager {
     }
 
     @Test
-    public void testWSEventsChangedOnlyWhenDiskDiffers() throws Exception {
+    public void testWSEventsSkipSavedOpenDocument() throws Exception {
+        Path filePath = RESOURCE_DIRECTORY.resolve("myproject").resolve("main.bal").toAbsolutePath();
+        DidOpenTextDocumentParams openParams = new DidOpenTextDocumentParams(
+                new TextDocumentItem(filePath.toUri().toString(), "ballerina", 1, Files.readString(filePath)));
+        workspaceManager.didOpen(filePath, openParams);
+        Module oldModule = workspaceManager.module(filePath).orElseThrow();
+        FileEvent saved = new FileEvent(filePath.toUri().toString(), FileChangeType.Changed);
+
+        Assert.assertTrue(workspaceManager.didChangeWatched(new DidChangeWatchedFilesParams(List.of(saved, saved)))
+                .isEmpty());
+        Assert.assertSame(workspaceManager.module(filePath).orElseThrow(), oldModule);
+    }
+
+    @Test
+    public void testWSEventsReloadUnreadDocumentChangedOnDisk() throws Exception {
         Path filePath = RESOURCE_DIRECTORY.resolve("myproject").resolve("main.bal").toAbsolutePath();
         String original = Files.readString(filePath);
+        workspaceManager.didClose(filePath,
+                new DidCloseTextDocumentParams(new TextDocumentIdentifier(filePath.toUri().toString())));
         workspaceManager.loadProject(filePath);
         Module oldModule = workspaceManager.module(filePath).orElseThrow();
         DidChangeWatchedFilesParams params = new DidChangeWatchedFilesParams(
                 List.of(new FileEvent(filePath.toUri().toString(), FileChangeType.Changed)));
-
-        Assert.assertTrue(workspaceManager.didChangeWatched(params).isEmpty());
-        Assert.assertSame(workspaceManager.module(filePath).orElseThrow(), oldModule);
-
         try {
             Files.writeString(filePath, original + "\n// changed outside the editor\n");
             Assert.assertFalse(workspaceManager.didChangeWatched(params).isEmpty());
