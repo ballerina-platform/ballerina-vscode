@@ -255,8 +255,10 @@ public class PackageUtil {
                 .filter(pkg -> pkg.packageOrg().value().equals(CommonUtils.BALLERINA_ORG_NAME)
                         && pkg.packageName().value().equals(AI_PACKAGE))
                 .findFirst()
-                .ifPresent(pkg -> prewarm(CommonUtils.BALLERINA_ORG_NAME, AI_PACKAGE,
-                        pkg.packageVersion().toString()));
+                // A project without the dependency yet gets the version its first agent template resolves.
+                .ifPresentOrElse(
+                        pkg -> prewarm(CommonUtils.BALLERINA_ORG_NAME, AI_PACKAGE, pkg.packageVersion().toString()),
+                        () -> prewarm(CommonUtils.BALLERINA_ORG_NAME, AI_PACKAGE, null));
     }
 
     /**

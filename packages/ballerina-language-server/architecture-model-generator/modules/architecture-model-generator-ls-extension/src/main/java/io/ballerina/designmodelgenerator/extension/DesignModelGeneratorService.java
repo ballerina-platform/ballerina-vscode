@@ -71,8 +71,6 @@ public class DesignModelGeneratorService implements ExtendedLanguageServerServic
                 Path filePath = PathUtil.convertUriStringToPath(request.projectPath());
                 WorkspaceManager workspaceManager = workspaceManagerProxy.get(request.projectPath());
                 Project project = workspaceManager.loadProject(filePath);
-                // The overview comes first, so agent flows opened from it find ballerina/ai already compiled.
-                PackageUtil.prewarmAgentLibrary(project);
                 DesignModelGenerator designModelGenerator = new DesignModelGenerator(project.currentPackage());
                 DesignModel designModel = designModelGenerator.generate();
                 response.setDesignModel(designModel);
@@ -91,6 +89,8 @@ public class DesignModelGeneratorService implements ExtendedLanguageServerServic
                 Path projectPath = Path.of(request.projectPath());
                 WorkspaceManager workspaceManager = workspaceManagerProxy.get();
                 Project project = workspaceManager.loadProject(projectPath);
+                // Artifacts load with every project view, so agent forms and flows find ballerina/ai already compiled.
+                PackageUtil.prewarmAgentLibrary(project);
                 response.setArtifacts(ArtifactsGenerator.artifacts(project));
                 response.setUri(request.projectPath());
                 String projectName = project.currentPackage().packageName().value();
