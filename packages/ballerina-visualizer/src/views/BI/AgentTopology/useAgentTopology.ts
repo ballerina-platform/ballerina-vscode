@@ -22,8 +22,6 @@ import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { TopologyAgentArtifact, TopologyInput } from "@wso2/component-diagram";
 import { useProjectContentRefresh } from "../PackageOverview/utils";
 
-const DEFER_MS = 600;
-
 const inputCache = new Map<string, TopologyInput>();
 
 function canonicalTopology(input: TopologyInput): string {
@@ -79,7 +77,6 @@ export function useAgentTopology(
     const [input, setInput] = useState<TopologyInput | undefined>(() => inputCache.get(projectPath));
     const requestIdRef = useRef(0);
     const contentRef = useRef(0);
-    const fetchTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
     const artifacts = useMemo(
         () => [
@@ -89,39 +86,34 @@ export function useAgentTopology(
         [agents, agentDefinitions]
     );
 
-    const scheduleFetch = useCallback(() => {
-        clearTimeout(fetchTimerRef.current);
+    const fetchTopology = useCallback(async () => {
         const requestId = ++requestIdRef.current;
-        fetchTimerRef.current = setTimeout(async () => {
-            const contentAtStart = contentRef.current;
-            try {
-                const response = await rpcClient.getBIDiagramRpcClient().getDesignModel({ projectPath });
-                if (requestId !== requestIdRef.current || contentRef.current !== contentAtStart || !response?.designModel) {
-                    return;
-                }
-                const next: TopologyInput = { model: response.designModel, agents: artifacts };
-                // A refetch that matches what is on screen must not rebuild the diagram.
-                setInput((current) => {
-                    const kept = current && canonicalTopology(current) === canonicalTopology(next) ? current : next;
-                    inputCache.set(projectPath, kept);
-                    return kept;
-                });
-            } catch (error) {
-                console.error(">>> agent topology: failed to load design model", error);
+        const contentAtStart = contentRef.current;
+        try {
+            const response = await rpcClient.getBIDiagramRpcClient().getDesignModel({ projectPath });
+            if (requestId !== requestIdRef.current || contentRef.current !== contentAtStart || !response?.designModel) {
+                return;
             }
-        }, DEFER_MS);
+            const next: TopologyInput = { model: response.designModel, agents: artifacts };
+            // A refetch that matches what is on screen must not rebuild the diagram.
+            setInput((current) => {
+                const kept = current && canonicalTopology(current) === canonicalTopology(next) ? current : next;
+                inputCache.set(projectPath, kept);
+                return kept;
+            });
+        } catch (error) {
+            console.error(">>> agent topology: failed to load design model", error);
+        }
     }, [rpcClient, projectPath, artifacts]);
 
     useEffect(() => {
-        scheduleFetch();
-    }, [scheduleFetch]);
+        void fetchTopology();
+    }, [fetchTopology]);
 
     useProjectContentRefresh(rpcClient, () => {
         contentRef.current++;
-        scheduleFetch();
+        void fetchTopology();
     });
-
-    useEffect(() => () => clearTimeout(fetchTimerRef.current), []);
 
     return input;
 }

@@ -45,6 +45,9 @@ const LazyAddAgentPopup = React.lazy(() => import("../AIChatAgent/AddAgentPopup"
 const LazyAddLibraryArtifactPopup = React.lazy(() => import("./AddLibraryArtifactPopup"));
 const LazyAddMcpServicePopup = React.lazy(() => import("./AddMcpServicePopup"));
 
+// A revisit renders the last structure at once; the fetch on mount replaces it.
+const contextCache = new Map<string, { project: ProjectStructure; isInProject: boolean }>();
+
 const Page = styled.div`
     display: flex;
     flex-direction: column;
@@ -241,9 +244,9 @@ function hasTriggerArtifacts(directoryMap: ProjectStructure["directoryMap"] | un
 
 export function AgentBuilderOverview({ projectPath, agentFocus, isInDevant, isICPSupported }: AgentBuilderOverviewProps) {
     const { rpcClient } = useRpcContext();
-    const [projectStructure, setProjectStructure] = useState<ProjectStructure>();
+    const [projectStructure, setProjectStructure] = useState<ProjectStructure>(() => contextCache.get(projectPath)?.project);
     const [deployCollapsed, setDeployCollapsed] = useState<boolean>(loadDeployCollapsed);
-    const [isInProject, setIsInProject] = useState(false);
+    const [isInProject, setIsInProject] = useState(() => contextCache.get(projectPath)?.isInProject ?? false);
     const [showAddAgent, setShowAddAgent] = useState(false);
     const [showAddLibraryArtifact, setShowAddLibraryArtifact] = useState(false);
     const [showAddMcpService, setShowAddMcpService] = useState(false);
@@ -262,8 +265,10 @@ export function AgentBuilderOverview({ projectPath, agentFocus, isInDevant, isIC
             .getProjectStructure()
             .then((res) => {
                 const project = res.projects.find((p) => isSamePath(p.projectPath, projectPath));
-                setIsInProject(res.workspaceName !== undefined);
+                const inProject = res.workspaceName !== undefined;
+                setIsInProject(inProject);
                 if (project) {
+                    contextCache.set(projectPath, { project, isInProject: inProject });
                     setProjectStructure(project);
                 }
             });
