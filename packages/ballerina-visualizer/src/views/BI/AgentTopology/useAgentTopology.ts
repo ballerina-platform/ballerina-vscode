@@ -20,7 +20,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DIRECTORY_MAP, ProjectStructureArtifactResponse } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { TopologyAgentArtifact, TopologyInput } from "@wso2/component-diagram";
-import { useProjectContentRefresh } from "../PackageOverview/utils";
 
 const inputCache = new Map<string, TopologyInput>();
 
@@ -76,7 +75,6 @@ export function useAgentTopology(
     const { rpcClient } = useRpcContext();
     const [input, setInput] = useState<TopologyInput | undefined>(() => inputCache.get(projectPath));
     const requestIdRef = useRef(0);
-    const contentRef = useRef(0);
 
     const artifacts = useMemo(
         () => [
@@ -86,12 +84,12 @@ export function useAgentTopology(
         [agents, agentDefinitions]
     );
 
+    // The overview refetches the project structure on every content change, which hands in new artifacts and refetches this.
     const fetchTopology = useCallback(async () => {
         const requestId = ++requestIdRef.current;
-        const contentAtStart = contentRef.current;
         try {
             const response = await rpcClient.getBIDiagramRpcClient().getDesignModel({ projectPath });
-            if (requestId !== requestIdRef.current || contentRef.current !== contentAtStart || !response?.designModel) {
+            if (requestId !== requestIdRef.current || !response?.designModel) {
                 return;
             }
             const next: TopologyInput = { model: response.designModel, agents: artifacts };
@@ -109,11 +107,6 @@ export function useAgentTopology(
     useEffect(() => {
         void fetchTopology();
     }, [fetchTopology]);
-
-    useProjectContentRefresh(rpcClient, () => {
-        contentRef.current++;
-        void fetchTopology();
-    });
 
     return input;
 }
