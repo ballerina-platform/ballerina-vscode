@@ -1842,45 +1842,43 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
     }
 
     async formDidOpen(params: FormDidOpenParams): Promise<void> {
-        return new Promise(async (resolve, reject) => {
-            const { filePath } = params;
-            registerFormOpen(filePath);
-            const fileUri = Uri.file(filePath);
-            const exprFileSchema = fileUri.with({ scheme: 'expr' });
+        const { filePath } = params;
+        registerFormOpen(filePath);
+        const fileUri = Uri.file(filePath);
+        const exprFileSchema = fileUri.with({ scheme: 'expr' });
 
-            let languageId: string;
-            let version: number;
-            let text: string;
+        let languageId: string;
+        let version: number;
+        let text: string;
 
-            try {
-                const caseInsensitiveFs = process.platform === "win32" || process.platform === "darwin";
-                const targetPath = caseInsensitiveFs ? fileUri.fsPath.toLowerCase() : fileUri.fsPath;
-                const openDocument = workspace.textDocuments.find((document) =>
-                    (caseInsensitiveFs ? document.uri.fsPath.toLowerCase() : document.uri.fsPath) === targetPath
-                );
-                if (openDocument) {
-                    languageId = openDocument.languageId;
-                    version = openDocument.version;
-                    text = openDocument.getText();
-                } else {
-                    languageId = "ballerina";
-                    version = 1;
-                    text = await fs.promises.readFile(filePath, "utf8");
-                }
-            } catch (error) {
+        try {
+            const caseInsensitiveFs = process.platform === "win32" || process.platform === "darwin";
+            const targetPath = caseInsensitiveFs ? fileUri.fsPath.toLowerCase() : fileUri.fsPath;
+            const openDocument = workspace.textDocuments.find((document) =>
+                (caseInsensitiveFs ? document.uri.fsPath.toLowerCase() : document.uri.fsPath) === targetPath
+            );
+            if (openDocument) {
+                languageId = openDocument.languageId;
+                version = openDocument.version;
+                text = openDocument.getText();
+            } else {
                 languageId = "ballerina";
                 version = 1;
-                text = "";
+                text = await fs.promises.readFile(filePath, "utf8");
             }
+        } catch (error) {
+            languageId = "ballerina";
+            version = 1;
+            text = "";
+        }
 
-            StateMachine.langClient().didOpen({
-                textDocument: {
-                    uri: exprFileSchema.toString(),
-                    languageId,
-                    version,
-                    text
-                }
-            });
+        StateMachine.langClient().didOpen({
+            textDocument: {
+                uri: exprFileSchema.toString(),
+                languageId,
+                version,
+                text
+            }
         });
     }
 
