@@ -160,6 +160,7 @@ export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCode
             return artifactsInFiles(unchangedFiles);
         }
 
+        let stopFinalWait = () => {};
         // Iterate through modificationRequests and apply modifications
         try {
             // <-------- Using simply the text edits to update the source code -------->
@@ -201,6 +202,24 @@ export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCode
                 );
                 timeoutId = setTimeout(() => { unsub(); resolve(); }, 10000);
             });
+
+            // Armed before the last edit: flushArtifacts publishes at once and publish has no replay.
+            let earlyArtifacts: ProjectStructureArtifactResponse[] | undefined;
+            let onFinalArtifacts: ((artifacts: ProjectStructureArtifactResponse[]) => void) | undefined;
+            const armFinalWait = () => {
+                let stopped = false;
+                const unsub = handler.subscribe(ArtifactsUpdated.method, updateSourceCodeRequest.artifactData, (payload) => {
+                    if ((payload.data && payload.data.length > 0) || updateSourceCodeRequest.skipPayloadCheck) {
+                        stopFinalWait();
+                        const artifacts = payload.data ?? [];
+                        onFinalArtifacts ? onFinalArtifacts(artifacts) : (earlyArtifacts = artifacts);
+                    }
+                });
+                stopFinalWait = () => { if (!stopped) { stopped = true; unsub(); } };
+            };
+            if (preformatted) {
+                armFinalWait();
+            }
 
             // Apply all changes at once
             await workspace.applyEdit(workspaceEdit);
@@ -246,6 +265,7 @@ export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCode
             }
 
             if (!preformatted) {
+                armFinalWait();
                 await workspace.applyEdit(formattedWorkspaceEdit);
                 await StateMachine.langClient().flushArtifacts().catch(() => undefined);
             }
@@ -261,35 +281,14 @@ export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCode
 
             return new Promise((resolve, reject) => {
                 if (tomlFilesUpdated && !updateSourceCodeRequest?.skipUpdateViewOnTomlUpdate) {
+                    stopFinalWait();
                     StateMachine.setReadyMode();
                     resolve([]);
                     return;
                 }
-                // Get the artifact notification handler instance
-                const notificationHandler = ArtifactNotificationHandler.getInstance();
-                // Subscribe to artifact updated notifications
-                let unsubscribe = notificationHandler.subscribe(ArtifactsUpdated.method, updateSourceCodeRequest.artifactData, async (payload) => {
-                    if ((payload.data && payload.data.length > 0) || updateSourceCodeRequest.skipPayloadCheck) {
-                        console.log("Received notification:", payload);
-                        if (newArtifactIds?.size) {
-                            payload.data.forEach(entry => {
-                                if (newArtifactIds.has(entry.id)) {
-                                    entry.isNew = true;
-                                }
-                            });
-                        }
-                        clearTimeout(timeoutId);
-                        resolve(payload.data);
-                        StateMachine.setReadyMode();
-                        checkAndNotifyWebview(payload.data, updateSourceCodeRequest, isChangeFromHelperPane);
-                        unsubscribe();
-                    }
-                });
-
-                // Set a timeout to reject if no notification is received within 10 seconds
                 const timeoutId = setTimeout(() => {
                     console.log("No artifact update notification received within 10 seconds");
-                    unsubscribe();
+                    stopFinalWait();
                     StateMachine.setReadyMode();
                     // Don't navigate away while migration enhancement is running — it would
                     // disrupt the agent pipeline and cause repeated "no project found" errors.
@@ -298,15 +297,26 @@ export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCode
                     }
                     reject(new Error("Operation timed out. Please try again."));
                 }, 10000);
-
-                // Clear the timeout when notification is received
-                const originalUnsubscribe = unsubscribe;
-                unsubscribe = () => {
+                onFinalArtifacts = (artifacts) => {
+                    console.log("Received notification:", artifacts);
+                    if (newArtifactIds?.size) {
+                        artifacts.forEach(entry => {
+                            if (newArtifactIds.has(entry.id)) {
+                                entry.isNew = true;
+                            }
+                        });
+                    }
                     clearTimeout(timeoutId);
-                    originalUnsubscribe();
+                    resolve(artifacts);
+                    StateMachine.setReadyMode();
+                    checkAndNotifyWebview(artifacts, updateSourceCodeRequest, isChangeFromHelperPane);
                 };
+                if (earlyArtifacts) {
+                    onFinalArtifacts(earlyArtifacts);
+                }
             });
         } catch (error) {
+            stopFinalWait();
             StateMachine.setReadyMode();
             console.log(">>> error updating source", error);
             throw error;
