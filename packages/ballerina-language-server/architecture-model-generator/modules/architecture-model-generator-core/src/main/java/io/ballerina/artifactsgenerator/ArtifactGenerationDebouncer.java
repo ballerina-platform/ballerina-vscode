@@ -97,7 +97,8 @@ public class ArtifactGenerationDebouncer {
             } catch (Exception ex) {
                 promise.completeExceptionally(ex);
             } finally {
-                delayedMap.remove(key);
+                // A newer task for this key may already be registered; leave it cancellable.
+                delayedMap.computeIfPresent(key, (k, holder) -> holder.promise() == promise ? null : holder);
                 executeQueuedTasks(key);
             }
         };
