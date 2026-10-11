@@ -88,6 +88,7 @@ export function ConnectorBrowser(props: ConnectorBrowserProps) {
     const [loadingActions, setLoadingActions] = useState<boolean>(false);
     const [actionError, setActionError] = useState<string>("");
     const latestConnectorRequest = useRef(0);
+    const latestActionsRequest = useRef(0);
     const lastConnectorQuery = useRef<string | undefined>(undefined);
     const searchDebounce = useRef<ReturnType<typeof setTimeout>>();
 
@@ -200,6 +201,8 @@ export function ConnectorBrowser(props: ConnectorBrowserProps) {
         setSelectedConnectionName(connectionName);
         setSelectedCategory("Connections");
         setActionError("");
+        latestActionsRequest.current++;
+        setLoadingActions(false);
         setActions(actionNodes);
         setStep(WizardStep.ACTION_LIST);
     };
@@ -212,8 +215,13 @@ export function ConnectorBrowser(props: ConnectorBrowserProps) {
         setActionError("");
         setStep(WizardStep.ACTION_LIST);
         setLoadingActions(true);
+        const requestId = ++latestActionsRequest.current;
+        const isStale = () => requestId !== latestActionsRequest.current;
         try {
             const fetched = await fetchConnectorActions(rpcClient, connector, filePath);
+            if (isStale()) {
+                return;
+            }
             if (fetched.length === 0) {
                 setActionError(
                     `No actions were found for ${connector.metadata?.label ?? "this connector"}.` +
@@ -223,12 +231,17 @@ export function ConnectorBrowser(props: ConnectorBrowserProps) {
             setActions(fetched);
         } catch (error) {
             console.error(">>> Error fetching connector actions", error);
+            if (isStale()) {
+                return;
+            }
             setActionError(
                 `Could not load the actions for ${connector.metadata?.label ?? "this connector"}. ` +
                 `Check your internet connection and try again.`
             );
         } finally {
-            setLoadingActions(false);
+            if (!isStale()) {
+                setLoadingActions(false);
+            }
         }
     };
 
