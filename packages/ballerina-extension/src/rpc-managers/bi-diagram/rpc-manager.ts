@@ -1073,26 +1073,22 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
     }
 
     async deleteFlowNode(params: BISourceCodeRequest): Promise<UpdatedArtifactsResponse> {
-        console.log(">>> requesting bi delete node from ls", params);
-
-        return new Promise((resolve) => {
-            StateMachine.langClient()
-                .deleteFlowNode({ ...params, formatted: true } as BISourceCodeRequest)
-                .then(async (model: BISourceCodeResponse & { formatted?: boolean }) => {
-                    console.log(">>> bi delete node from ls", model);
-                    const artifacts = await updateSourceCode({
-                        textEdits: model.textEdits, description: 'Flow Node Deletion - ' + params.flowNode.metadata.label,
-                        skipPayloadCheck: true, preformatted: model.formatted
-                    });
-                    resolve({ artifacts });
-                })
-                .catch((error) => {
-                    console.log(">>> error fetching delete node from ls", error);
-                    return new Promise((resolve) => {
-                        resolve(undefined);
-                    });
-                });
+        const response = await StateMachine.langClient()
+            .deleteFlowNode({ ...params, formatted: true } as BISourceCodeRequest)
+            .catch((error) => {
+                console.error(">>> Error deleting flow node", error);
+                return undefined;
+            }) as (BISourceCodeResponse & { formatted?: boolean }) | undefined;
+        if (!response?.textEdits) {
+            return { artifacts: [], error: "Could not delete the node" };
+        }
+        const artifacts = await updateSourceCode({
+            textEdits: response.textEdits,
+            description: 'Flow Node Deletion - ' + params.flowNode.metadata.label,
+            skipPayloadCheck: true,
+            preformatted: response.formatted,
         });
+        return { artifacts };
     }
 
     async handleReadmeContent(params: ReadmeContentRequest): Promise<ReadmeContentResponse> {
