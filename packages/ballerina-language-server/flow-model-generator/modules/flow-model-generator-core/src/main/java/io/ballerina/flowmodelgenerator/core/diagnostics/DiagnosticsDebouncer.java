@@ -75,11 +75,12 @@ public class DiagnosticsDebouncer {
             try {
                 JsonElement result = request.call();
                 promise.complete(result);
-            } catch (Exception ex) {
+            } catch (Throwable ex) {
                 promise.completeExceptionally(ex);
             } finally {
                 request.revertDocument();
-                delayedMap.remove(key);
+                // A newer request for this key may already be registered; leave it cancellable.
+                delayedMap.computeIfPresent(key, (k, holder) -> holder.promise() == promise ? null : holder);
             }
         }, DELAY, TIME_UNIT);
 

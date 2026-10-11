@@ -129,7 +129,7 @@ public final class ConnectorVersionResolver {
                 }
                 CENTRAL_LOOKUPS_IN_FLIGHT.remove(key, created);
                 created.complete(latest);
-            } catch (RuntimeException e) {
+            } catch (Throwable e) {
                 CENTRAL_LOOKUPS_IN_FLIGHT.remove(key, created);
                 created.completeExceptionally(e);
             }
