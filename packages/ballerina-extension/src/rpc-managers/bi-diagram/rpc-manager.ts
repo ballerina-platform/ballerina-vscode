@@ -1077,8 +1077,9 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                 console.error(">>> Error deleting flow node", error);
                 return undefined;
             }) as (BISourceCodeResponse & { formatted?: boolean }) | undefined;
+        // Thrown, not returned: most callers chain further deletes and would carry on as if this one succeeded.
         if (!response?.textEdits) {
-            return { artifacts: [], error: "Could not delete the node" };
+            throw new Error("Could not delete the node");
         }
         const artifacts = await updateSourceCode({
             textEdits: response.textEdits,
