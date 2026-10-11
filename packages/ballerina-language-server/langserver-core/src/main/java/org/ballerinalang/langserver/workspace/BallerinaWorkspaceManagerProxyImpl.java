@@ -22,6 +22,7 @@ import org.ballerinalang.langserver.common.utils.CommonUtil;
 import org.ballerinalang.langserver.common.utils.PathUtil;
 import org.ballerinalang.langserver.commons.BallerinaCompilerApi;
 import org.ballerinalang.langserver.commons.LanguageServerContext;
+import org.ballerinalang.langserver.commons.eventsync.exceptions.EventSyncException;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceDocumentException;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceManager;
 import org.eclipse.lsp4j.DidChangeTextDocumentParams;
@@ -78,8 +79,11 @@ public class BallerinaWorkspaceManagerProxyImpl implements BallerinaWorkspaceMan
             return;
         }
         if (this.isExprScheme(uri)) {
-            Optional<Project> project = this.baseWorkspaceManager.project(path.get());
-            project.ifPresent(this.clonedWorkspaceManager::open);
+            try {
+                this.clonedWorkspaceManager.open(this.baseWorkspaceManager.loadProject(path.get()));
+            } catch (EventSyncException e) {
+                this.baseWorkspaceManager.project(path.get()).ifPresent(this.clonedWorkspaceManager::open);
+            }
         } else if (this.isAIScheme(uri)) {
             this.aiWorkspaceManager.didOpen(path.get(), params);
         } else {
@@ -141,7 +145,7 @@ public class BallerinaWorkspaceManagerProxyImpl implements BallerinaWorkspaceMan
             Optional<Project> workspaceProject = compilerApi.getWorkspaceProject(project);
             if (workspaceProject.isPresent()) {
                 Project workspaceProjectDuplicate = workspaceProject.get().duplicate();
-                List<Project> workspacePackages = compilerApi.getWorkspaceProjectsInOrder(workspaceProjectDuplicate);
+                List<Project> workspacePackages = compilerApi.getWorkspaceProjects(workspaceProjectDuplicate);
                 for (Project workspacePackage : workspacePackages) {
                     Path packageRoot = workspacePackage.sourceRoot();
                     sourceRootToProject.put(packageRoot, ProjectContext.from(workspacePackage));
