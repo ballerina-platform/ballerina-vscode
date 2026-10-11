@@ -288,6 +288,9 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
 
     const installGraph = useCallback((graph: TopologyGraph) => {
         shownGraphRef.current = graph;
+        // The hovered card is replaced without a mouseleave, so its hover would dim the new graph until the next hover.
+        clearTimeout(hoverTimerRef.current);
+        setHoveredId(undefined);
         const nodeModels = new Map<string, TopologyNodeModel>();
         graph.agents.forEach((agentNode) => nodeModels.set(agentNode.id, new AgentCardNodeModel(agentNode)));
         graph.entries.forEach((entryNode) => nodeModels.set(entryNode.id, new ServiceNodeModel(entryNode)));
