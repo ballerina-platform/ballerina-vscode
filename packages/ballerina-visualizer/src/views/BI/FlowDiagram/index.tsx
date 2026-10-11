@@ -2850,10 +2850,15 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     const handleOnDeleteNode = async (node: FlowNode) => {
         setShowProgressIndicator(true);
 
-        const deleteNodeResponse = await rpcClient.getBIDiagramRpcClient().deleteFlowNode({
-            filePath: model.fileName,
-            flowNode: node,
-        });
+        const deleteNodeResponse = await rpcClient
+            .getBIDiagramRpcClient()
+            .deleteFlowNode({ filePath: model.fileName, flowNode: node })
+            .catch((error): UpdatedArtifactsResponse => ({ artifacts: [], error: String(error) }));
+        if (deleteNodeResponse.error) {
+            console.error(">>> Error deleting node", deleteNodeResponse);
+            setShowProgressIndicator(false);
+            return;
+        }
         if (deleteNodeResponse.artifacts.length === 0) {
             console.error(">>> Error updating source code", deleteNodeResponse);
         }
