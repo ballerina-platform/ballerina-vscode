@@ -134,7 +134,6 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
     const agentDeclRef = useRef<FlowNode>();
     const [agentPanel, setAgentPanel] = useState<AgentPanel>("NONE");
     const suppressAgentTypeReloadRef = useRef(false);
-    const suppressAgentReloadRef = useRef(false);
     const usageFetchTimerRef = useRef<ReturnType<typeof setTimeout>>();
     const usageRequestIdRef = useRef(0);
     const lastUsageFetchAtRef = useRef(0);
@@ -476,10 +475,9 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
     };
 
     const getAgentFocusModel = async (kind: "AGENT" | "TYPED_AGENT", posOverride?: NodePosition) => {
-        const suppressRef = kind === "AGENT" ? suppressAgentReloadRef : suppressAgentTypeReloadRef;
         const logLabel = kind === "AGENT" ? "agent focus" : "agent-type focus";
-        if (suppressRef.current) {
-            suppressRef.current = false;
+        if (kind === "TYPED_AGENT" && suppressAgentTypeReloadRef.current) {
+            suppressAgentTypeReloadRef.current = false;
             return;
         }
         // A refresh of an agent already on screen must not blank the title bar actions or touch the canvas lock
@@ -1087,7 +1085,6 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
             editorLoadingRef.current = loading;
             setShowProgressIndicator(loading);
         },
-        onAgentCreated: () => { (isAgentType ? suppressAgentTypeReloadRef : suppressAgentReloadRef).current = true; },
         resolveAgentNode: (node) => agentDeclRef.current ?? node,
         onChat: (node) => startAgentChat(node, filePath, rpcClient),
         onAddTrigger: (node) => startAddAgentTrigger(node, rpcClient),
