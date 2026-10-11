@@ -18,6 +18,7 @@
 
 package io.ballerina.designmodelgenerator.extension;
 
+import io.ballerina.artifactsgenerator.ArtifactGenerationDebouncer;
 import io.ballerina.artifactsgenerator.ArtifactsCache;
 import io.ballerina.artifactsgenerator.ArtifactsGenerator;
 import io.ballerina.designmodelgenerator.core.DesignModelGenerator;
@@ -28,6 +29,7 @@ import io.ballerina.designmodelgenerator.extension.request.ProjectInfoRequest;
 import io.ballerina.designmodelgenerator.extension.response.ArtifactResponse;
 import io.ballerina.designmodelgenerator.extension.response.GetDesignModelResponse;
 import io.ballerina.designmodelgenerator.extension.response.ProjectInfoResponse;
+import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.projects.Project;
 import org.ballerinalang.annotation.JavaSPIService;
 import org.ballerinalang.langserver.common.utils.PathUtil;
@@ -69,6 +71,8 @@ public class DesignModelGeneratorService implements ExtendedLanguageServerServic
                 Path filePath = PathUtil.convertUriStringToPath(request.projectPath());
                 WorkspaceManager workspaceManager = workspaceManagerProxy.get(request.projectPath());
                 Project project = workspaceManager.loadProject(filePath);
+                // The overview comes first, so agent flows opened from it find ballerina/ai already compiled.
+                PackageUtil.prewarmAgentLibrary(project);
                 DesignModelGenerator designModelGenerator = new DesignModelGenerator(project.currentPackage());
                 DesignModel designModel = designModelGenerator.generate();
                 response.setDesignModel(designModel);
@@ -115,5 +119,16 @@ public class DesignModelGeneratorService implements ExtendedLanguageServerServic
             }
             return response;
         });
+    }
+
+    /**
+     * Publishes pending artifact updates at once, for an edit the client applied on purpose rather than typed.
+     *
+     * @return true once the pending updates are scheduled
+     */
+    @JsonRequest
+    public CompletableFuture<Boolean> flushArtifacts() {
+        ArtifactGenerationDebouncer.getInstance().flushAll();
+        return CompletableFuture.completedFuture(true);
     }
 }

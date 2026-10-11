@@ -16,30 +16,41 @@
 package org.ballerinalang.langserver;
 
 import com.google.gson.JsonObject;
+import io.ballerina.projects.util.ProjectConstants;
 import org.ballerinalang.langserver.command.LSCommandExecutorProvidersHolder;
+import org.ballerinalang.langserver.common.utils.PathUtil;
 import org.ballerinalang.langserver.commons.DidChangeWatchedFilesContext;
+import org.ballerinalang.langserver.commons.DocumentServiceContext;
 import org.ballerinalang.langserver.commons.ExecuteCommandContext;
 import org.ballerinalang.langserver.commons.LanguageServerContext;
 import org.ballerinalang.langserver.commons.capability.LSClientCapabilities;
 import org.ballerinalang.langserver.commons.command.CommandArgument;
 import org.ballerinalang.langserver.commons.command.LSCommandExecutorException;
 import org.ballerinalang.langserver.commons.command.spi.LSCommandExecutor;
+import org.ballerinalang.langserver.commons.eventsync.EventKind;
+import org.ballerinalang.langserver.commons.eventsync.exceptions.EventSyncException;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceDocumentException;
 import org.ballerinalang.langserver.config.LSClientConfigHolder;
 import org.ballerinalang.langserver.contexts.ContextBuilder;
 import org.ballerinalang.langserver.diagnostic.DiagnosticsHelper;
+import org.ballerinalang.langserver.eventsync.EventSyncPubSubHolder;
 import org.ballerinalang.langserver.exception.UserErrorException;
 import org.ballerinalang.langserver.telemetry.TelemetryUtil;
 import org.ballerinalang.langserver.workspace.BallerinaWorkspaceManagerProxy;
 import org.eclipse.lsp4j.DidChangeConfigurationParams;
 import org.eclipse.lsp4j.DidChangeWatchedFilesParams;
 import org.eclipse.lsp4j.ExecuteCommandParams;
+import org.eclipse.lsp4j.FileChangeType;
+import org.eclipse.lsp4j.FileEvent;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.services.WorkspaceService;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -85,6 +96,7 @@ public class BallerinaWorkspaceService implements WorkspaceService {
     public void didChangeWatchedFiles(DidChangeWatchedFilesParams params) {
         try {
             List<Path> paths = this.workspaceManagerProxy.get().didChangeWatched(params);
+            publishProjectReloads(params, paths);
             LSClientCapabilities lsClientCapabilities = this.serverContext.get(LSClientCapabilities.class);
             // Don't publish diagnostics on lightweight mode
             if (!lsClientCapabilities.getInitializationOptions().isEnableLightWeightMode()) {
@@ -101,6 +113,36 @@ public class BallerinaWorkspaceService implements WorkspaceService {
         } catch (WorkspaceDocumentException e) {
             String msg = "Operation 'workspace/didChangeWatchedFiles' failed!";
             this.clientLogger.logError(LSContextOperation.WS_WF_CHANGED, msg, e, null, (Position) null);
+        }
+    }
+
+    // A file changed outside the editor (a git checkout) reloads its project; subscribers such as artifact
+    // publishing only learn of it through this event.
+    private void publishProjectReloads(DidChangeWatchedFilesParams params, List<Path> projectRoots) {
+        Set<Path> published = new HashSet<>();
+        for (FileEvent change : params.getChanges()) {
+            Optional<Path> projectRoot = PathUtil.getPathFromURI(change.getUri())
+                    .flatMap(path -> projectRoots.stream().filter(path::startsWith).findFirst());
+            if (projectRoot.isEmpty()) {
+                continue;
+            }
+            // A deleted file cannot locate its project, so the reload is reported against the package manifest.
+            Path manifest = projectRoot.get().resolve(ProjectConstants.BALLERINA_TOML);
+            boolean deleted = change.getType() == FileChangeType.Deleted;
+            if ((deleted && !Files.exists(manifest)) || !published.add(projectRoot.get())) {
+                continue;
+            }
+            String uri = deleted ? manifest.toUri().toString() : change.getUri();
+            DocumentServiceContext context = ContextBuilder.buildDocumentServiceContext(uri,
+                    this.workspaceManagerProxy.get(), LSContextOperation.RELOAD_PROJECT, this.serverContext);
+            try {
+                EventSyncPubSubHolder.getInstance(this.serverContext)
+                        .getPublisher(EventKind.PROJECT_UPDATE)
+                        .publish(this.languageServer.getClient(), this.serverContext, context);
+            } catch (EventSyncException e) {
+                this.clientLogger.logError(LSContextOperation.WS_WF_CHANGED, "Failed to publish the project reload",
+                        e, null, (Position) null);
+            }
         }
     }
 

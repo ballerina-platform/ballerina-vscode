@@ -24,28 +24,15 @@ import com.google.gson.JsonElement;
 import io.ballerina.flowmodelgenerator.core.model.FlowNode;
 import io.ballerina.flowmodelgenerator.core.model.NodeBuilder;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
-import io.ballerina.compiler.syntax.tree.SyntaxTree;
-import io.ballerina.projects.Project;
-import io.ballerina.projects.directory.BuildProject;
-import io.ballerina.projects.util.ProjectConstants;
-import io.ballerina.tools.text.LinePosition;
-import io.ballerina.tools.text.TextDocument;
-import io.ballerina.tools.text.TextDocuments;
-import org.ballerinalang.formatter.core.Formatter;
-import org.ballerinalang.formatter.core.FormatterException;
-import org.ballerinalang.formatter.core.FormatterUtils;
-import org.ballerinalang.formatter.core.options.FormattingOptions;
+import io.ballerina.modelgenerator.commons.FormattedEdits;
 import org.ballerinalang.langserver.LSClientLogger;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceManager;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.TextEdit;
 
-import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -96,26 +83,40 @@ public class SourceGenerator {
     }
 
     /**
+     * Converts several flow nodes, each against its own file, into one formatted edit per Ballerina document, so
+     * a change spanning nodes (an agent and the tool it gains) is applied in a single step.
+     *
+     * @param workspaceManager The workspace manager holding the current documents.
+     * @param nodes            The nodes to convert, keyed in order by the file each belongs to.
+     * @param lsClientLogger   The client logger.
+     * @return The formatted edits with the merged raw edits; the formatted edits are null when a document could not
+     *         be formatted.
+     */
+    public static FormattedSource toFormattedSourceCode(WorkspaceManager workspaceManager,
+                                                        List<Map.Entry<Path, JsonElement>> nodes,
+                                                        LSClientLogger lsClientLogger) {
+        Map<Path, List<TextEdit>> sourceEdits = new LinkedHashMap<>();
+        for (Map.Entry<Path, JsonElement> node : nodes) {
+            SourceGenerator generator = new SourceGenerator(workspaceManager, node.getKey());
+            generator.generateTextEdits(node.getValue(), lsClientLogger).forEach((path, edits) -> {
+                List<TextEdit> merged = sourceEdits.computeIfAbsent(path, key -> new ArrayList<>());
+                // Nodes generated against the same document can each add the same import.
+                edits.stream().filter(edit -> !merged.contains(edit)).forEach(merged::add);
+            });
+        }
+        SourceGenerator generator = new SourceGenerator(workspaceManager, nodes.get(0).getKey());
+        return new FormattedSource(generator.formatTextEdits(sourceEdits).orElse(null),
+                generator.gson.toJsonTree(sourceEdits));
+    }
+
+    /**
      * Folds the edits of each Ballerina document into one formatted edit; other files keep their edits.
      *
      * @param textEdits The edits per file.
      * @return The folded edits, or empty when a document could not be formatted.
      */
     public Optional<JsonElement> formatTextEdits(Map<Path, List<TextEdit>> textEdits) {
-        Map<Path, List<TextEdit>> formattedEdits = new LinkedHashMap<>();
-        for (Map.Entry<Path, List<TextEdit>> entry : textEdits.entrySet()) {
-            Path path = entry.getKey();
-            if (!path.toString().endsWith(ProjectConstants.BLANG_SOURCE_EXT)) {
-                formattedEdits.put(path, entry.getValue());
-                continue;
-            }
-            Optional<TextEdit> documentEdit = formattedDocumentEdit(path, entry.getValue());
-            if (documentEdit.isEmpty()) {
-                return Optional.empty();
-            }
-            formattedEdits.put(path, List.of(documentEdit.get()));
-        }
-        return Optional.of(gson.toJsonTree(formattedEdits));
+        return FormattedEdits.fold(workspaceManager, textEdits).map(gson::toJsonTree);
     }
 
     /**
@@ -125,52 +126,6 @@ public class SourceGenerator {
      * @param sourceEdits the raw edits produced by the node builder
      */
     public record FormattedSource(JsonElement textEdits, JsonElement sourceEdits) {
-    }
-
-    private Optional<TextEdit> formattedDocumentEdit(Path path, List<TextEdit> edits) {
-        String original = currentText(path);
-        TextDocument document = TextDocuments.from(original);
-        StringBuilder source = new StringBuilder(original);
-        List<TextEdit> ordered = new ArrayList<>(edits);
-        ordered.sort(Comparator.comparingInt(edit -> offset(document, edit.getRange().getStart())));
-        // Applied back to front so earlier offsets stay valid; inserts at one position keep their list order.
-        for (int i = ordered.size() - 1; i >= 0; i--) {
-            TextEdit edit = ordered.get(i);
-            source.replace(offset(document, edit.getRange().getStart()), offset(document, edit.getRange().getEnd()),
-                    edit.getNewText());
-        }
-        try {
-            String formatted = Formatter.format(SyntaxTree.from(TextDocuments.from(source.toString())),
-                    formattingOptions(path)).toSourceCode();
-            LinePosition end = document.linePositionFrom(original.length());
-            return Optional.of(new TextEdit(new Range(new Position(0, 0), new Position(end.line(), end.offset())),
-                    formatted));
-        } catch (FormatterException e) {
-            return Optional.empty();
-        }
-    }
-
-    private String currentText(Path path) {
-        return workspaceManager.document(path)
-                .map(document -> document.textDocument().toString())
-                .orElseGet(() -> {
-                    try {
-                        return Files.exists(path) ? Files.readString(path) : "";
-                    } catch (IOException e) {
-                        return "";
-                    }
-                });
-    }
-
-    private FormattingOptions formattingOptions(Path path) throws FormatterException {
-        Optional<Project> project = workspaceManager.project(path);
-        return project.isPresent() && project.get() instanceof BuildProject buildProject
-                ? FormatterUtils.buildFormattingOptions(buildProject)
-                : FormattingOptions.builder().build();
-    }
-
-    private static int offset(TextDocument document, Position position) {
-        return document.textPositionFrom(LinePosition.from(position.getLine(), position.getCharacter()));
     }
 
     private Map<Path, List<TextEdit>> generateTextEdits(JsonElement diagramNode, LSClientLogger lsClientLogger) {

@@ -46,6 +46,7 @@ import org.ballerinalang.langserver.commons.workspace.WorkspaceDocumentException
 import org.ballerinalang.langserver.contexts.LanguageServerContextImpl;
 import org.ballerinalang.langserver.extensions.ballerina.document.ExecutorPositionsUtil;
 import org.eclipse.lsp4j.DidChangeTextDocumentParams;
+import org.eclipse.lsp4j.DidChangeWatchedFilesParams;
 import org.eclipse.lsp4j.DidCloseTextDocumentParams;
 import org.eclipse.lsp4j.DidOpenTextDocumentParams;
 import org.eclipse.lsp4j.FileChangeType;
@@ -197,6 +198,27 @@ public class TestWorkspaceManager {
             Assert.assertNotSame(oldModule, workspaceManager.module(filePath).orElseThrow());
         } finally {
             Files.deleteIfExists(newFile);
+        }
+    }
+
+    @Test
+    public void testWSEventsChangedOnlyWhenDiskDiffers() throws Exception {
+        Path filePath = RESOURCE_DIRECTORY.resolve("myproject").resolve("main.bal").toAbsolutePath();
+        String original = Files.readString(filePath);
+        workspaceManager.loadProject(filePath);
+        Module oldModule = workspaceManager.module(filePath).orElseThrow();
+        DidChangeWatchedFilesParams params = new DidChangeWatchedFilesParams(
+                List.of(new FileEvent(filePath.toUri().toString(), FileChangeType.Changed)));
+
+        Assert.assertTrue(workspaceManager.didChangeWatched(params).isEmpty());
+        Assert.assertSame(workspaceManager.module(filePath).orElseThrow(), oldModule);
+
+        try {
+            Files.writeString(filePath, original + "\n// changed outside the editor\n");
+            Assert.assertFalse(workspaceManager.didChangeWatched(params).isEmpty());
+            Assert.assertNotSame(workspaceManager.module(filePath).orElseThrow(), oldModule);
+        } finally {
+            Files.writeString(filePath, original);
         }
     }
 

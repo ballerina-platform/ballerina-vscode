@@ -37,6 +37,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
@@ -52,6 +54,13 @@ public final class ConnectorVersionResolver {
     private static final Duration CENTRAL_LOOKUP_TIMEOUT = Duration.ofSeconds(10);
     private static final Duration CENTRAL_LOOKUP_TIMEOUT_WITH_CACHED = Duration.ofSeconds(2);
     private static final Map<String, String> CENTRAL_LATEST_VERSIONS = new ConcurrentHashMap<>();
+    private static final Map<String, CompletableFuture<String>> CENTRAL_LOOKUPS_IN_FLIGHT = new ConcurrentHashMap<>();
+    // Unbounded so a catalog prefetch never queues the lookup a user is waiting on behind the others.
+    private static final ExecutorService CENTRAL_LOOKUP_EXECUTOR = Executors.newCachedThreadPool(runnable -> {
+        Thread thread = new Thread(runnable, "connector-latest-version");
+        thread.setDaemon(true);
+        return thread;
+    });
 
     private ConnectorVersionResolver() {
     }
@@ -84,21 +93,52 @@ public final class ConnectorVersionResolver {
                                                                    String minSupportedVersion) {
         return resolveForNewDependency(minSupportedVersion,
                 () -> PackageUtil.isOffline() ? null : memoizedCentralLatest(orgName + "/" + packageName,
-                        () -> RemoteCentral.getInstance().latestPackageVersion(orgName, packageName)),
+                        centralLatest(orgName, packageName)),
                 () -> PackageUtil.cachedVersion(orgName, packageName));
+    }
+
+    /**
+     * Starts looking up the latest Central version of {@code orgName/packageName} in the background, so a
+     * later {@link #resolveForNewDependency} finds it remembered instead of waiting on Central.
+     */
+    public static void prefetchCentralLatest(String orgName, String packageName) {
+        String key = orgName + "/" + packageName;
+        if (!PackageUtil.isOffline() && !CENTRAL_LATEST_VERSIONS.containsKey(key)) {
+            centralLookup(key, centralLatest(orgName, packageName));
+        }
     }
 
     /** The remembered Central latest version for {@code key}, else the one {@code lookup} finds, remembered. */
     static String memoizedCentralLatest(String key, Supplier<String> lookup) {
         String remembered = CENTRAL_LATEST_VERSIONS.get(key);
-        if (remembered != null) {
-            return remembered;
+        return remembered != null ? remembered : centralLookup(key, lookup).join();
+    }
+
+    // One lookup per package at a time, shared by a prefetch and the request that needs its answer.
+    private static CompletableFuture<String> centralLookup(String key, Supplier<String> lookup) {
+        CompletableFuture<String> created = new CompletableFuture<>();
+        CompletableFuture<String> inFlight = CENTRAL_LOOKUPS_IN_FLIGHT.putIfAbsent(key, created);
+        if (inFlight != null) {
+            return inFlight;
         }
-        String latest = lookup.get();
-        if (latest != null && !latest.isBlank()) {
-            CENTRAL_LATEST_VERSIONS.put(key, latest);
-        }
-        return latest;
+        CENTRAL_LOOKUP_EXECUTOR.execute(() -> {
+            try {
+                String latest = lookup.get();
+                if (latest != null && !latest.isBlank()) {
+                    CENTRAL_LATEST_VERSIONS.put(key, latest);
+                }
+                CENTRAL_LOOKUPS_IN_FLIGHT.remove(key, created);
+                created.complete(latest);
+            } catch (RuntimeException e) {
+                CENTRAL_LOOKUPS_IN_FLIGHT.remove(key, created);
+                created.completeExceptionally(e);
+            }
+        });
+        return created;
+    }
+
+    private static Supplier<String> centralLatest(String orgName, String packageName) {
+        return () -> RemoteCentral.getInstance().latestPackageVersion(orgName, packageName);
     }
 
     static ResolvedConnectorVersion resolveForNewDependency(String minSupportedVersion,

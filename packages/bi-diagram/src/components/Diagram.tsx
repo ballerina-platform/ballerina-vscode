@@ -416,7 +416,6 @@ export function Diagram(props: DiagramProps) {
         return (
             <div style={{
                 opacity: canvasVisible ? 1 : 0,
-                transition: canvasVisible ? "opacity 0.15s ease" : "none",
                 height: "100%",
                 width: "100%",
             }}>

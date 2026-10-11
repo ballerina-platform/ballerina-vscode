@@ -20,5 +20,9 @@ package io.ballerina.servicemodelgenerator.extension.model.request;
 
 import io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel;
 
-public record ServiceInitSourceRequest(String filePath, ServiceInitModel serviceInitModel) {
+public record ServiceInitSourceRequest(String filePath, ServiceInitModel serviceInitModel, boolean formatted) {
+
+    public ServiceInitSourceRequest(String filePath, ServiceInitModel serviceInitModel) {
+        this(filePath, serviceInitModel, false);
+    }
 }

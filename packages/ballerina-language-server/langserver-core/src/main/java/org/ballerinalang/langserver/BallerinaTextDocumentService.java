@@ -580,10 +580,16 @@ class BallerinaTextDocumentService implements TextDocumentService {
     public void didOpen(DidOpenTextDocumentParams params) {
         String fileUri = params.getTextDocument().getUri();
         try {
+            // A file edited on disk while closed (a git checkout) changes on open, so subscribers see a change.
+            boolean contentChanged = PathUtil.getPathFromURI(fileUri)
+                    .flatMap(path -> this.workspaceManagerProxy.get(fileUri).document(path))
+                    .map(document -> !document.textDocument().toString().equals(params.getTextDocument().getText()))
+                    .orElse(false);
             DocumentServiceContext context = ContextBuilder.buildDocumentServiceContext(
                     PathUtil.convertUriSchemeFromBala(fileUri),
                     this.workspaceManagerProxy.get(fileUri),
-                    LSContextOperation.TXT_DID_OPEN, this.serverContext);
+                    contentChanged ? LSContextOperation.TXT_DID_CHANGE : LSContextOperation.TXT_DID_OPEN,
+                    this.serverContext);
             this.workspaceManagerProxy.didOpen(params);
             this.clientLogger.logTrace("Operation '" + LSContextOperation.TXT_DID_OPEN.getName() +
                     "' {fileUri: '" + fileUri + "'} opened");
