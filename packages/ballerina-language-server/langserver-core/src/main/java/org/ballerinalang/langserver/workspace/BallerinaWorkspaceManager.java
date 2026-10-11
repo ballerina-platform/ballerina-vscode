@@ -560,8 +560,9 @@ public class BallerinaWorkspaceManager implements WorkspaceManager {
     }
 
     // The client saving content the workspace already holds (its own edit) changes nothing to reload.
+    // Only an opened document holds its own content; any other is read from disk lazily, so it always matches.
     private boolean isUnchangedOnDisk(Path filePath, FileEvent fileEvent) {
-        if (fileEvent.getType() != FileChangeType.Changed) {
+        if (fileEvent.getType() != FileChangeType.Changed || !this.openedDocuments.contains(filePath)) {
             return false;
         }
         Optional<Document> document = document(filePath);
@@ -968,7 +969,7 @@ public class BallerinaWorkspaceManager implements WorkspaceManager {
                 break;
             }
             case Changed: {
-                if (!this.openedDocuments.contains(filePath)) {
+                if (!this.openedDocuments.contains(filePath) && !syncDocumentFromDisk(filePath, projectContext)) {
                     reloadProject(projectContext, filePath, LSContextOperation.WS_WF_CHANGED.getName());
                 }
                 break;
@@ -1485,13 +1486,37 @@ public class BallerinaWorkspaceManager implements WorkspaceManager {
         }
     }
 
+    // A file of the same name elsewhere in the module (a generated source) is not this document.
+    private Optional<Document> loadedDocumentAt(Path filePath, Project project) {
+        return document(filePath, project, null)
+                .filter(doc -> project.documentPath(doc.documentId()).filter(filePath::equals).isPresent());
+    }
+
+    // Takes the new content of a document already in the project, which is far cheaper than reloading the project.
+    private boolean syncDocumentFromDisk(Path filePath, ProjectContext projectContext) {
+        Lock lock = projectContext.lockAndGet();
+        try {
+            Optional<Document> loadedDocument = loadedDocumentAt(filePath, projectContext.project());
+            if (loadedDocument.isEmpty()) {
+                return false;
+            }
+            String content = Files.readString(filePath);
+            projectContext.setProject(loadedDocument.get().modify().withContent(content).apply().module().project());
+            return true;
+        } catch (IOException e) {
+            return false;
+        } finally {
+            lock.unlock();
+        }
+    }
+
     private void createBalDocument(Path filePath, String content, ProjectContext projectContext)
             throws WorkspaceDocumentException {
         // Lock Project Instance
         Lock lock = projectContext.lockAndGet();
         try {
             // Reloading from disk is only needed to pick up a new file; it also discards the loaded compilation.
-            Optional<Document> loadedDocument = document(filePath, projectContext.project(), null);
+            Optional<Document> loadedDocument = loadedDocumentAt(filePath, projectContext.project());
             if (loadedDocument.isPresent()) {
                 if (!loadedDocument.get().textDocument().toString().equals(content)) {
                     projectContext.setProject(
