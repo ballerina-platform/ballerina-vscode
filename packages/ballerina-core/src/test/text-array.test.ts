@@ -57,6 +57,17 @@ describe("a TEXT_SET field and the source it stands for", () => {
         [['He said "hi"'], '"He said \\"hi\\""'],
         [["", "  "], ""],
         [[], ""],
+        // The list editor hands items over as text-mode string templates.
+        [["string `MANAGER\n`"], '"MANAGER"'],
+        [["string `finance`", "string `manager`"], '["finance", "manager"]'],
+        [["string ``"], ""],
+        [['"finance"'], '"finance"'],
+        [["string `team-${teamId}`"], "string `team-${teamId}`"],
+        // Text that is not one template or one literal is a role name as typed, never an expression.
+        [["string `a` + string `b`"], '"string `a` + string `b`"'],
+        // Templates are written `string ` + backtick, as the language server reads them.
+        [["string`MANAGER`"], '"string`MANAGER`"'],
+        [['"finance" + "manager"'], '"\\"finance\\" + \\"manager\\""'],
     ])("%j writes as %s", (items, expected) => {
         expect(textArraySource(items)).toBe(expected);
     });

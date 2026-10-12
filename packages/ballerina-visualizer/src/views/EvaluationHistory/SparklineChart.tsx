@@ -224,7 +224,7 @@ export function SparklineChart({ runs, onDotClick }: SparklineChartProps) {
                     fontSize={9}
                     fill="var(--vscode-terminal-ansiCyan, #0598bc)"
                 >
-                    {firstTargetPct}% target
+                    needs {firstTargetPct}%
                 </text>
                 <polyline
                     points={points}
@@ -264,8 +264,9 @@ export function SparklineChart({ runs, onDotClick }: SparklineChartProps) {
                     <TtDate>{formatDate(tooltip.run.date)}</TtDate>
                     <TtRate isPassed={tooltip.run.passRate >= tooltip.run.targetPassRate}>
                         {(tooltip.run.passRate * 100).toFixed(0)}%
-                        <TtSep>/</TtSep>
-                        {(tooltip.run.targetPassRate * 100).toFixed(0)}% target
+                        {tooltip.run.passRate < tooltip.run.targetPassRate && (
+                            <TtSep>(needs {(tooltip.run.targetPassRate * 100).toFixed(0)}%)</TtSep>
+                        )}
                     </TtRate>
                     <TtStatus isPassed={tooltip.run.passRate >= tooltip.run.targetPassRate}>
                         {tooltip.run.passRate >= tooltip.run.targetPassRate ? "\u2713 Passed" : "\u2717 Failed"}

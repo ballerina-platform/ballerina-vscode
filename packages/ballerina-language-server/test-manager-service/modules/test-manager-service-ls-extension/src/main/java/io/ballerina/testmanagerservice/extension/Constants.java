@@ -32,6 +32,7 @@ public class Constants {
     public static final String MODULE_AI = "ai";
     public static final String IMPORT_TEST_STMT = "import ballerina/test;";
     public static final String IMPORT_AI_STMT = "import ballerina/ai;";
+    public static final String DEFAULT_MODEL_PROVIDER = "ai:getDefaultModelProvider()";
     public static final String MODULE_AI_EVAL = "ai.eval";
     public static final String AI_EVAL_PREFIX = "eval";
     public static final String IMPORT_AI_EVAL_STMT = "import " + ORG_BALLERINA + "/" + MODULE_AI_EVAL + ";";
@@ -47,10 +48,11 @@ public class Constants {
     public static final String EVALSET_PROVIDER_VAR = "thread";
     public static final String QUERY_PROVIDER_VAR = "query";
     public static final String STRING_TYPE = "string";
-    public static final String STRING_ARRAY_2D_RETURN_TYPE = "string[][]|error";
+    public static final String QUERIES_MAP_RETURN_TYPE = "map<[string]>|error";
 
     public static final String TEST_ANNOTATION = "@test:";
     public static final String CONFIG_GROUPS = "groups";
+    public static final String EVALUATION_GROUP = "evaluations";
     public static final String CONFIG_ENABLED = "enabled";
 
     public static final String OPEN_CURLY_BRACE = "{";

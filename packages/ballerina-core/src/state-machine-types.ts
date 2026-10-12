@@ -42,6 +42,10 @@ export function assistantName(mode: ProductMode): string {
     return ASSISTANT_NAMES[mode];
 }
 
+export function productName(mode: ProductMode): string {
+    return mode === ProductMode.AGENT_BUILDER ? 'WSO2 Agent Builder' : 'WSO2 Integrator';
+}
+
 const SHORT_ASSISTANT_NAMES: Record<ProductMode, string> = {
     [ProductMode.BALLERINA]: 'Ballerina Copilot',
     [ProductMode.INTEGRATOR]: 'Integrator Copilot',
@@ -164,6 +168,7 @@ export enum MACHINE_VIEW {
     BISamplesView = "BI Samples View",
     ReviewMode = "Review Mode SKIP",
     EvalsetViewer = "Evalset Viewer SKIP",
+    EvalsetList = "Evalset List",
     ConfigurationCollector = "Configuration Collector"
 }
 
@@ -218,6 +223,7 @@ export interface VisualizerLocation {
     artifactInfo?: ArtifactInfo;
     reviewData?: ReviewModeData;
     evalsetData?: EvalsetData;
+    evaluationsOpen?: boolean;
 }
 
 export interface ArtifactInfo {

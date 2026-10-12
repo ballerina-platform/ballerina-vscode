@@ -53,6 +53,16 @@ public class DurableAgentAddActivityFormTest extends AbstractLSTest {
         Assert.assertEquals(properties.get("activity").get("value").getAsString(), "lookupBill");
     }
 
+    @Test(description = "A chosen activity's name and description hold no value, so an edit writes nothing new, but "
+            + "their placeholders show what the runtime uses: the function's name and its doc comment")
+    public void testChosenActivityIdentityPlaceholders() throws IOException {
+        Map<String, JsonObject> properties = templateProperties("lookupBill");
+        Assert.assertEquals(properties.get("name").get("value").getAsString(), "");
+        Assert.assertEquals(properties.get("name").get("placeholder").getAsString(), "lookupBill");
+        Assert.assertEquals(properties.get("description").get("value").getAsString(), "");
+        Assert.assertEquals(properties.get("description").get("placeholder").getAsString(), "Look up a bill activity");
+    }
+
     @Test(description = "From the palette the form offers the activity selector and the policies; the entry's "
             + "name and description are still not asked for")
     public void testPaletteFormShowsSelectorAndPoliciesOnly() throws IOException {

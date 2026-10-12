@@ -17,7 +17,8 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { Category, CardList } from "@wso2/ballerina-side-panel";
+import { Category, CardList, Item } from "@wso2/ballerina-side-panel";
+import { GET_DEFAULT_MODEL_PROVIDER } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { RelativeLoader } from "../RelativeLoader";
 import { ConnectionSearchConfig, ConnectionSelectionListProps } from "./types";
@@ -25,6 +26,14 @@ import { convertConnectionCategories, getSearchConfig } from "./utils";
 import { getAiModuleOrg } from "../../views/BI/AIChatAgent/utils";
 import { AI_COMPONENT_PROGRESS_MESSAGE, AI_COMPONENT_PROGRESS_MESSAGE_TIMEOUT, LOADING_MESSAGE } from "../../constants";
 import { LoaderContainer } from "../RelativeLoader/styles";
+import { useAgentManagerModelProviders } from "../AgentManagerModels";
+
+// Every field that opens this list already offers the default WSO2 provider in its dropdown.
+function withoutDefaultProvider(items: Item[]): Item[] {
+    return items
+        .filter((item) => "items" in item || item.metadata?.codedata?.symbol !== GET_DEFAULT_MODEL_PROVIDER)
+        .map((item) => ("items" in item ? { ...item, items: withoutDefaultProvider(item.items) } : item));
+}
 
 export function ConnectionSelectionList(props: ConnectionSelectionListProps): JSX.Element {
     const { connectionKind, selectedNode, onSelect, expandedGroupId, onExpandedGroupChange, fillContainerHeight } = props;
@@ -38,6 +47,7 @@ export function ConnectionSelectionList(props: ConnectionSelectionListProps): JS
     const aiModuleOrg = useRef<string>("");
     const searchConfig = useRef<ConnectionSearchConfig>();
     const progressTimeoutRef = useRef<number | null>(null);
+    const agentManagerSection = useAgentManagerModelProviders(connectionKind, connectionCategories, onSelect);
 
     useEffect(() => {
         initPanel();
@@ -71,7 +81,8 @@ export function ConnectionSelectionList(props: ConnectionSelectionListProps): JS
             searchKind: searchConfig.current.searchKind
         });
 
-        setConnectionCategories(convertConnectionCategories(connectionKind, connectionSearchResponse.categories));
+        const categories = convertConnectionCategories(connectionKind, connectionSearchResponse.categories);
+        setConnectionCategories(connectionKind === "MODEL_PROVIDER" ? withoutDefaultProvider(categories) as Category[] : categories);
     };
 
     return (
@@ -85,6 +96,7 @@ export function ConnectionSelectionList(props: ConnectionSelectionListProps): JS
                 <CardList
                     categories={connectionCategories}
                     onSelect={onSelect}
+                    leadingSection={agentManagerSection}
                     expandedGroupId={expandedGroupId}
                     onExpandedGroupChange={onExpandedGroupChange}
                     fillContainerHeight={fillContainerHeight}

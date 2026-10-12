@@ -18,458 +18,6 @@
   "categories": [
     {
       "metadata": {
-        "label": "Standard Library",
-        "description": "Components supported officially by Ballerina",
-        "keywords": [
-          "Ballerina",
-          "Library"
-        ]
-      },
-      "items": [
-        {
-          "metadata": {
-            "label": "lang.string",
-            "description": "",
-            "keywords": []
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "'join",
-                "description": "Joins zero or more strings together with a separator.\n\n```ballerina\nstring:'join(\" \", \"Ballerina\", \"is\", \"a\", \"programming\", \"language\") ⇒ Ballerina is a programming language\nstring[] array = [\"John\", \"23\", \"USA\", \"Computer Science\", \"Swimmer\"];\nstring:'join(\",\", ...array) ⇒ John,23,USA,Computer Science,Swimmer\n```\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_lang.string_0.0.0.png"
-              },
-              "codedata": {
-                "node": "FUNCTION_CALL",
-                "org": "ballerina",
-                "module": "lang.string",
-                "packageName": "lang.string",
-                "symbol": "'join",
-                "version": "0.0.0"
-              },
-              "enabled": true
-            }
-          ]
-        },
-        {
-          "metadata": {
-            "label": "lang.array",
-            "description": "",
-            "keywords": []
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "'map",
-                "description": "Applies a function to each member of an array and returns an array of the results.\n\n```ballerina\nint[] numbers = [0, 1, 2];\nnumbers.map(n => n * 2) ⇒ [0,2,4]\n```\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_lang.array_0.0.0.png"
-              },
-              "codedata": {
-                "node": "FUNCTION_CALL",
-                "org": "ballerina",
-                "module": "lang.array",
-                "packageName": "lang.array",
-                "symbol": "'map",
-                "version": "0.0.0"
-              },
-              "enabled": true
-            }
-          ]
-        },
-        {
-          "metadata": {
-            "label": "lang.map",
-            "description": "",
-            "keywords": []
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "'map",
-                "description": "Applies a function each member of a map and returns a map of the result.\n\nThe resulting map will have the same keys as the argument map.\n\n```ballerina\nmap<int> marks = {\"Carl\": 85, \"Bob\": 50, \"Max\": 60};\nmarks.map(m => m > 50) ⇒ {\"Carl\":true,\"Bob\":false,\"Max\":true}\n```\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_lang.map_0.0.0.png"
-              },
-              "codedata": {
-                "node": "FUNCTION_CALL",
-                "org": "ballerina",
-                "module": "lang.map",
-                "packageName": "lang.map",
-                "symbol": "'map",
-                "version": "0.0.0"
-              },
-              "enabled": true
-            }
-          ]
-        },
-        {
-          "metadata": {
-            "label": "lang.table",
-            "description": "",
-            "keywords": []
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "'map",
-                "description": "Applies a function to each member of a table and returns a table of the result.\n\n```ballerina\ntable<record {|int id; int math; int physics;|}> students = table [\n    {id: 1, math: 78, physics: 70},\n    {id: 2, math: 83, physics: 80}\n];\nstudents.map(student => {id: student.id, avg: (student.math + student.physics) / 2}) ⇒ [{\"id\":1,\"avg\":74},{\"id\":2,\"avg\":81}]\n```\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_lang.table_0.0.0.png"
-              },
-              "codedata": {
-                "node": "FUNCTION_CALL",
-                "org": "ballerina",
-                "module": "lang.table",
-                "packageName": "lang.table",
-                "symbol": "'map",
-                "version": "0.0.0"
-              },
-              "enabled": true
-            }
-          ]
-        },
-        {
-          "metadata": {
-            "label": "lang.stream",
-            "description": "",
-            "keywords": []
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "'map",
-                "description": "Applies a function to each member of a stream and returns a stream of the results.\n\n```ballerina\nstream<float> ms = [14.5f, 45.5f, 6.8f, 4f].toStream();\nstream<float> cms = ms.map(m => m * 100.0);\ncms.next() ⇒ {\"value\":1450.0}\n```\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_lang.stream_0.0.0.png"
-              },
-              "codedata": {
-                "node": "FUNCTION_CALL",
-                "org": "ballerina",
-                "module": "lang.stream",
-                "packageName": "lang.stream",
-                "symbol": "'map",
-                "version": "0.0.0"
-              },
-              "enabled": true
-            }
-          ]
-        },
-        {
-          "metadata": {
-            "label": "lang.xml",
-            "description": "",
-            "keywords": []
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "'map",
-                "description": "Applies a function to each item in an xml sequence, and returns an xml sequence of the results.\n\nEach item is represented as a singleton value.\n\n```ballerina\nxml x = xml `<book>Hamlet</book><book>Macbeth</book>`;\nx.map(function (xml xmlContent) returns xml => \n  xml `<book kind=\"play\">${xmlContent.children()}</book>`\n) ⇒ <book kind=\"play\">Hamlet</book><book kind=\"play\">Macbeth</book>\n```\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_lang.xml_0.0.0.png"
-              },
-              "codedata": {
-                "node": "FUNCTION_CALL",
-                "org": "ballerina",
-                "module": "lang.xml",
-                "packageName": "lang.xml",
-                "symbol": "'map",
-                "version": "0.0.0"
-              },
-              "enabled": true
-            }
-          ]
-        },
-        {
-          "metadata": {
-            "label": "graphql",
-            "description": "",
-            "keywords": []
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "__addError",
-                "description": "Adds an error to the GraphQL response. Using this to add an error is not recommended.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_graphql_1.17.0.png"
-              },
-              "codedata": {
-                "node": "FUNCTION_CALL",
-                "org": "ballerina",
-                "module": "graphql",
-                "packageName": "graphql",
-                "symbol": "__addError",
-                "version": "1.17.0"
-              },
-              "enabled": true
-            }
-          ]
-        },
-        {
-          "metadata": {
-            "label": "aws.lambda",
-            "description": "",
-            "keywords": []
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "__process",
-                "description": "Process and excute the handler.  ",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_aws.lambda_3.3.0.png"
-              },
-              "codedata": {
-                "node": "FUNCTION_CALL",
-                "org": "ballerinax",
-                "module": "aws.lambda",
-                "packageName": "aws.lambda",
-                "symbol": "__process",
-                "version": "3.3.0"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "__register",
-                "description": "Register a function handler with the function and event type.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_aws.lambda_3.3.0.png"
-              },
-              "codedata": {
-                "node": "FUNCTION_CALL",
-                "org": "ballerinax",
-                "module": "aws.lambda",
-                "packageName": "aws.lambda",
-                "symbol": "__register",
-                "version": "3.3.0"
-              },
-              "enabled": true
-            }
-          ]
-        },
-        {
-          "metadata": {
-            "label": "lang.float",
-            "description": "",
-            "keywords": []
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "abs",
-                "description": "Returns the IEEE absolute value of a float value.\n\n```ballerina\nfloat f = -3.21;\nf.abs() ⇒ 3.21\n```\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_lang.float_0.0.0.png"
-              },
-              "codedata": {
-                "node": "FUNCTION_CALL",
-                "org": "ballerina",
-                "module": "lang.float",
-                "packageName": "lang.float",
-                "symbol": "abs",
-                "version": "0.0.0"
-              },
-              "enabled": true
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "metadata": {
-        "label": "Connectors"
-      },
-      "items": [
-        {
-          "metadata": {
-            "label": "Azure Service Bus Administrator",
-            "description": "Ballerina Service Bus connector provides the capability to access Azure Service Bus SDK.\nService Bus API provides data access to highly reliable queues and publish/subscribe topics of Azure Service Bus with deep feature capabilities.",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_asb_3.9.1.png"
-          },
-          "codedata": {
-            "node": "NEW_CONNECTION",
-            "org": "ballerinax",
-            "module": "asb",
-            "packageName": "asb",
-            "object": "Administrator",
-            "symbol": "init",
-            "version": "3.9.1",
-            "isGenerated": false
-          },
-          "enabled": true
-        },
-        {
-          "metadata": {
-            "label": "Snowflake Advanced",
-            "description": "Represents a Snowflake database client.",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_snowflake_2.2.2.png"
-          },
-          "codedata": {
-            "node": "NEW_CONNECTION",
-            "org": "ballerinax",
-            "module": "snowflake",
-            "packageName": "snowflake",
-            "object": "AdvancedClient",
-            "symbol": "init",
-            "version": "2.2.2",
-            "isGenerated": false
-          },
-          "enabled": true
-        },
-        {
-          "metadata": {
-            "label": "Blobs Blob",
-            "description": "Azure Storage Blob connector allows you to access the Azure Blob service REST API.\nThe Blob service offers the following three resources: the storage account, containers, and blobs.\nThis connector lets you execute operations against the storage account, containers, and blobs.\n",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure_storage_service_4.3.4.png"
-          },
-          "codedata": {
-            "node": "NEW_CONNECTION",
-            "org": "ballerinax",
-            "module": "azure_storage_service.blobs",
-            "packageName": "azure_storage_service",
-            "object": "BlobClient",
-            "symbol": "init",
-            "version": "4.3.4",
-            "isGenerated": false
-          },
-          "enabled": true
-        },
-        {
-          "metadata": {
-            "label": "Google Pub/Sub Caller",
-            "description": "Provides functionality to acknowledge or reject messages received by the listener service.",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_gcloud.pubsub_0.1.1.png"
-          },
-          "codedata": {
-            "node": "NEW_CONNECTION",
-            "org": "ballerinax",
-            "module": "gcloud.pubsub",
-            "packageName": "gcloud.pubsub",
-            "object": "Caller",
-            "symbol": "init",
-            "version": "0.1.1",
-            "isGenerated": false
-          },
-          "enabled": true
-        },
-        {
-          "metadata": {
-            "label": "AWS SQS Caller",
-            "description": "Provides control over message deletion from the queue after processing.",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_aws.sqs_4.1.3.png"
-          },
-          "codedata": {
-            "node": "NEW_CONNECTION",
-            "org": "ballerinax",
-            "module": "aws.sqs",
-            "packageName": "aws.sqs",
-            "object": "Caller",
-            "symbol": "init",
-            "version": "4.1.3",
-            "isGenerated": false
-          },
-          "enabled": true
-        },
-        {
-          "metadata": {
-            "label": "Solace Caller",
-            "description": "Represents a Solace caller, which can be used to mark Solace message as received.",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_solace_0.3.1.png"
-          },
-          "codedata": {
-            "node": "NEW_CONNECTION",
-            "org": "ballerinax",
-            "module": "solace",
-            "packageName": "solace",
-            "object": "Caller",
-            "symbol": "init",
-            "version": "0.3.1",
-            "isGenerated": false
-          },
-          "enabled": true
-        },
-        {
-          "metadata": {
-            "label": "IBM MQ Caller",
-            "description": "Represents a IBM MQ caller, which can be used to mark IBM MQ message as received.",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ibm.ibmmq_1.4.4.png"
-          },
-          "codedata": {
-            "node": "NEW_CONNECTION",
-            "org": "ballerinax",
-            "module": "ibm.ibmmq",
-            "packageName": "ibm.ibmmq",
-            "object": "Caller",
-            "symbol": "init",
-            "version": "1.4.4",
-            "isGenerated": false
-          },
-          "enabled": true
-        },
-        {
-          "metadata": {
-            "label": "SMB Caller",
-            "description": "SMB caller for interacting with SMB servers from within file handlers.\nProvides a convenience wrapper around the Client class with simplified method signatures.",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_smb_1.0.2.png"
-          },
-          "codedata": {
-            "node": "NEW_CONNECTION",
-            "org": "ballerina",
-            "module": "smb",
-            "packageName": "smb",
-            "object": "Caller",
-            "symbol": "init",
-            "version": "1.0.2",
-            "isGenerated": false
-          },
-          "enabled": true
-        },
-        {
-          "metadata": {
-            "label": "Ai Chat",
-            "description": "A client class for interacting with a chat service.",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.1.png"
-          },
-          "codedata": {
-            "node": "NEW_CONNECTION",
-            "org": "ballerina",
-            "module": "ai",
-            "packageName": "ai",
-            "object": "ChatClient",
-            "symbol": "init",
-            "version": "1.11.1",
-            "isGenerated": false
-          },
-          "enabled": true
-        },
-        {
-          "metadata": {
-            "label": "Semp",
-            "description": "SEMP (starting in `v2`) is a RESTful API for configuring, monitoring, and administering a Solace PubSub+ broker. This specification defines the following API:\n\n\nAPI|Base Path|Purpose\n:---|:---|:---\nConfiguration|/SEMP/v2/config|Reading and writing configuration\n\n\n\nThe following APIs are also available:\n\n\nAPI|Base Path|Purpose\n:---|:---|:---\nAction|/SEMP/v2/action|Performing actions\nMonitoring|/SEMP/v2/monitor|Querying operational state\n\n\n\nFor tutorials, architectural and protocol design documentation, and other information about the SEMP API, consult the [SEMP documentation](https://docs.solace.com/Admin/SEMP/Using-SEMP.htm) on the Solace website. The SEMP API specifications are also [available for download](https://solace.com/downloads/).\n\nIf you need additional support, please contact us at [support@solace.com](mailto:support@solace.com).",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/xlibb_solace.semp_0.2.0.png"
-          },
-          "codedata": {
-            "node": "NEW_CONNECTION",
-            "org": "xlibb",
-            "module": "solace.semp",
-            "packageName": "solace.semp",
-            "object": "Client",
-            "symbol": "init",
-            "version": "0.2.0",
-            "isGenerated": false
-          },
-          "enabled": true
-        }
-      ]
-    },
-    {
-      "metadata": {
-        "label": "Imported Functions",
-        "description": "Functions imported from other integrations",
-        "keywords": [
-          "Imported",
-          "Function",
-          "Library"
-        ]
-      },
-      "items": []
-    },
-    {
-      "metadata": {
         "label": "Agent Tools",
         "description": "Functions used as agent tools",
         "keywords": [
@@ -493,6 +41,1029 @@
         ]
       },
       "items": []
+    },
+    {
+      "metadata": {
+        "label": "Imported Functions",
+        "description": "Functions imported from other integrations",
+        "keywords": [
+          "Imported",
+          "Function",
+          "Library"
+        ]
+      },
+      "items": []
+    },
+    {
+      "metadata": {
+        "label": "Standard Library",
+        "description": "Components supported officially by Ballerina",
+        "keywords": [
+          "Ballerina",
+          "Library"
+        ]
+      },
+      "items": [
+        {
+          "metadata": {
+            "label": "io",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "fileReadJson",
+                "description": "Reads file content as a JSON.\n```ballerina\njson|io:Error content = io:fileReadJson(\"./resources/myfile.json\");\n```",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "io",
+                "packageName": "io",
+                "symbol": "fileReadJson",
+                "version": "1.8.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "fileReadString",
+                "description": "Reads the entire file content as a `string`.\nThe resulting string output does not contain the terminal carriage (e.g., `\\r` or `\\n`).\n```ballerina\nstring|io:Error content = io:fileReadString(\"./resources/myfile.txt\");\n```",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "io",
+                "packageName": "io",
+                "symbol": "fileReadString",
+                "version": "1.8.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "fileWriteJson",
+                "description": "Write a JSON to a file.\n```ballerina\njson content = {\"name\": \"Anne\", \"age\": 30};\nio:Error? result = io:fileWriteJson(\"./resources/myfile.json\", content);\n```",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "io",
+                "packageName": "io",
+                "symbol": "fileWriteJson",
+                "version": "1.8.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "fileWriteString",
+                "description": "Write a string content to a file.\n```ballerina\nstring content = \"Hello Universe..!!\";\nio:Error? result = io:fileWriteString(\"./resources/myfile.txt\", content);\n```",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "io",
+                "packageName": "io",
+                "symbol": "fileWriteString",
+                "version": "1.8.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "print",
+                "description": "Prints `any`, `error`, or string templates (such as `The respective int value is ${val}`) value(s) to the `STDOUT`.\n```ballerina\nio:print(\"Start processing the CSV file from \", srcFileName);\n```\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "io",
+                "packageName": "io",
+                "symbol": "print",
+                "version": "1.8.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "println",
+                "description": "Prints `any`, `error` or string templates(such as `The respective int value is ${val}`) value(s) to the STDOUT\nfollowed by a new line.\n```ballerina\nio:println(\"Start processing the CSV file from \", srcFileName);\n```\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "io",
+                "packageName": "io",
+                "symbol": "println",
+                "version": "1.8.0"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "log",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "printDebug",
+                "description": "Prints debug logs.\n```ballerina\nlog:printDebug(\"debug message\", id = 845315)\n```\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_log_2.17.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "log",
+                "packageName": "log",
+                "symbol": "printDebug",
+                "version": "2.17.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "printError",
+                "description": "Prints error logs.\n```ballerina\nerror e = error(\"error occurred\");\nlog:printError(\"error log with cause\", 'error = e, id = 845315);\n```\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_log_2.17.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "log",
+                "packageName": "log",
+                "symbol": "printError",
+                "version": "2.17.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "printInfo",
+                "description": "Prints info logs.\n```ballerina\nlog:printInfo(\"info message\", id = 845315)\n```\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_log_2.17.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "log",
+                "packageName": "log",
+                "symbol": "printInfo",
+                "version": "2.17.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "printWarn",
+                "description": "Prints warn logs.\n```ballerina\nlog:printWarn(\"warn message\", id = 845315)\n```\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_log_2.17.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "log",
+                "packageName": "log",
+                "symbol": "printWarn",
+                "version": "2.17.0"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "time",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "utcFromString",
+                "description": "Converts from RFC 3339 timestamp (e.g., `2007-12-03T10:15:30.00Z`) to Utc.\n```ballerina\ntime:Utc|time:Error utc = time:utcFromString(\"2007-12-03T10:15:30.00Z\");\n```",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "time",
+                "packageName": "time",
+                "symbol": "utcFromString",
+                "version": "2.8.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "utcNow",
+                "description": "Returns the UTC representing the current time (current instant of the system clock in seconds from the epoch of `1970-01-01T00:00:00`).\n```ballerina\ntime:Utc utc = time:utcNow();\n```",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "time",
+                "packageName": "time",
+                "symbol": "utcNow",
+                "version": "2.8.0"
+              },
+              "enabled": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "label": "Extended Library",
+        "description": "Components from the ballerinax organization",
+        "keywords": [
+          "Ballerinax",
+          "Library"
+        ]
+      },
+      "items": []
+    },
+    {
+      "metadata": {
+        "label": "Connectors"
+      },
+      "items": [
+        {
+          "metadata": {
+            "label": "Local"
+          },
+          "items": []
+        },
+        {
+          "metadata": {
+            "label": "Network"
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "HTTP",
+                "description": "The HTTP client provides functionality to connect to remote HTTP services and perform requests using standard HTTP methods like GET, POST, PUT, DELETE, etc.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png",
+                "data": {
+                  "isAgentSupport": false
+                }
+              },
+              "codedata": {
+                "node": "NEW_CONNECTION",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "object": "Client",
+                "symbol": "init",
+                "version": "2.16.2",
+                "isGenerated": false
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "GraphQL",
+                "description": "The Ballerina GraphQL client that can be used to communicate with GraphQL APIs.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_graphql_1.17.0.png",
+                "data": {
+                  "isAgentSupport": false
+                }
+              },
+              "codedata": {
+                "node": "NEW_CONNECTION",
+                "org": "ballerina",
+                "module": "graphql",
+                "packageName": "graphql",
+                "object": "Client",
+                "symbol": "init",
+                "version": "1.17.0",
+                "isGenerated": false
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "WebSocket",
+                "description": "Represents a WebSocket synchronous client endpoint.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_websocket_2.15.2.png",
+                "data": {
+                  "isAgentSupport": false
+                }
+              },
+              "codedata": {
+                "node": "NEW_CONNECTION",
+                "org": "ballerina",
+                "module": "websocket",
+                "packageName": "websocket",
+                "object": "Client",
+                "symbol": "init",
+                "version": "2.15.2",
+                "isGenerated": false
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "TCP",
+                "description": "Initializes the TCP connection client based on the provided configurations.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_tcp_1.13.5.png",
+                "data": {
+                  "isAgentSupport": false
+                }
+              },
+              "codedata": {
+                "node": "NEW_CONNECTION",
+                "org": "ballerina",
+                "module": "tcp",
+                "packageName": "tcp",
+                "object": "Client",
+                "symbol": "init",
+                "version": "1.13.5",
+                "isGenerated": false
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "UDP",
+                "description": "Initializes the UDP connectionless client based on the provided configurations.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_udp_1.13.4.png",
+                "data": {
+                  "isAgentSupport": false
+                }
+              },
+              "codedata": {
+                "node": "NEW_CONNECTION",
+                "org": "ballerina",
+                "module": "udp",
+                "packageName": "udp",
+                "object": "Client",
+                "symbol": "init",
+                "version": "1.13.4",
+                "isGenerated": false
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "FTP",
+                "description": "FTP client for connecting to and managing FTP/SFTP servers.\nSupports reading files in various formats (text, JSON, XML, CSV, bytes) and writing files with overwrite or append options.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ftp_2.19.0.png",
+                "data": {
+                  "isAgentSupport": false
+                }
+              },
+              "codedata": {
+                "node": "NEW_CONNECTION",
+                "org": "ballerina",
+                "module": "ftp",
+                "packageName": "ftp",
+                "object": "Client",
+                "symbol": "init",
+                "version": "2.19.0",
+                "isGenerated": false
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "Database"
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "MySQL",
+                "description": "MySQL database client that enables interaction with MySQL servers and supports standard SQL operations.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_mysql_1.18.0.png",
+                "data": {
+                  "isAgentSupport": false
+                }
+              },
+              "codedata": {
+                "node": "NEW_CONNECTION",
+                "org": "ballerinax",
+                "module": "mysql",
+                "packageName": "mysql",
+                "object": "Client",
+                "symbol": "init",
+                "version": "1.18.0",
+                "isGenerated": false
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "MongoDB",
+                "description": "Represents a MongoDB client that can be used to interact with a MongoDB server.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_mongodb_5.2.4.png",
+                "data": {
+                  "isAgentSupport": false
+                }
+              },
+              "codedata": {
+                "node": "NEW_CONNECTION",
+                "org": "ballerinax",
+                "module": "mongodb",
+                "packageName": "mongodb",
+                "object": "Client",
+                "symbol": "init",
+                "version": "5.2.4",
+                "isGenerated": false
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "PostgreSQL",
+                "description": "PostgreSQL database client that enables interaction with PostgreSQL servers and supports standard SQL operations.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_postgresql_1.18.0.png",
+                "data": {
+                  "isAgentSupport": false
+                }
+              },
+              "codedata": {
+                "node": "NEW_CONNECTION",
+                "org": "ballerinax",
+                "module": "postgresql",
+                "packageName": "postgresql",
+                "object": "Client",
+                "symbol": "init",
+                "version": "1.18.0",
+                "isGenerated": false
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "MS SQL",
+                "description": "MSSQL (Microsoft SQL) client that enables interaction with MSSQL servers and supports standard SQL operations.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_mssql_1.18.0.png",
+                "data": {
+                  "isAgentSupport": false
+                }
+              },
+              "codedata": {
+                "node": "NEW_CONNECTION",
+                "org": "ballerinax",
+                "module": "mssql",
+                "packageName": "mssql",
+                "object": "Client",
+                "symbol": "init",
+                "version": "1.18.0",
+                "isGenerated": false
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "Redis",
+                "description": "Ballerina Redis connector provides the capability to access Redis cache.\nThis connector lets you to perform operations to access and manipulate key-value data stored in a Redis database. \n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_redis_3.2.1.png",
+                "data": {
+                  "isAgentSupport": false
+                }
+              },
+              "codedata": {
+                "node": "NEW_CONNECTION",
+                "org": "ballerinax",
+                "module": "redis",
+                "packageName": "redis",
+                "object": "Client",
+                "symbol": "init",
+                "version": "3.2.1",
+                "isGenerated": false
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "Messaging"
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "Kafka Consumer",
+                "description": "Represents a Kafka consumer endpoint.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_kafka_4.6.5.png",
+                "data": {
+                  "isAgentSupport": false
+                }
+              },
+              "codedata": {
+                "node": "NEW_CONNECTION",
+                "org": "ballerinax",
+                "module": "kafka",
+                "packageName": "kafka",
+                "object": "Consumer",
+                "symbol": "init",
+                "version": "4.6.5",
+                "isGenerated": false
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "Kafka Producer",
+                "description": "Represents a Kafka producer endpoint.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_kafka_4.6.5.png",
+                "data": {
+                  "isAgentSupport": false
+                }
+              },
+              "codedata": {
+                "node": "NEW_CONNECTION",
+                "org": "ballerinax",
+                "module": "kafka",
+                "packageName": "kafka",
+                "object": "Producer",
+                "symbol": "init",
+                "version": "4.6.5",
+                "isGenerated": false
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "RabbitMQ",
+                "description": "The Ballerina interface to provide AMQP Channel related functionality.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_rabbitmq_3.3.3.png",
+                "data": {
+                  "isAgentSupport": false
+                }
+              },
+              "codedata": {
+                "node": "NEW_CONNECTION",
+                "org": "ballerinax",
+                "module": "rabbitmq",
+                "packageName": "rabbitmq",
+                "object": "Client",
+                "symbol": "init",
+                "version": "3.3.3",
+                "isGenerated": false
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "Cloud"
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "AWS S3",
+                "description": "Ballerina Amazon S3 connector provides the capability to access AWS S3 API.\nThis connector lets you to get authorized access to AWS S3 buckets and objects.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_aws.s3_3.5.1.png",
+                "data": {
+                  "isAgentSupport": false
+                }
+              },
+              "codedata": {
+                "node": "NEW_CONNECTION",
+                "org": "ballerinax",
+                "module": "aws.s3",
+                "packageName": "aws.s3",
+                "object": "Client",
+                "symbol": "init",
+                "version": "3.5.1",
+                "isGenerated": false
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "AWS SQS",
+                "description": "The Amazon SQS API Client.\n\nProvides access to Amazon Simple Queue Service (SQS) using the AWS SDK for Java V2.\nSupports static credentials, profile-based credentials, and the default AWS credential\nprovider chain (environment variables, ECS container credentials, EC2 instance profiles, etc.).",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_aws.sqs_4.1.3.png",
+                "data": {
+                  "isAgentSupport": false
+                }
+              },
+              "codedata": {
+                "node": "NEW_CONNECTION",
+                "org": "ballerinax",
+                "module": "aws.sqs",
+                "packageName": "aws.sqs",
+                "object": "Client",
+                "symbol": "init",
+                "version": "4.1.3",
+                "isGenerated": false
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "AWS DynamoDB",
+                "description": "The Ballerina AWS DynamoDB connector provides the capability to access AWS Simple Email Service related operations.\nThis connector lets you to to send email messages to your customers.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_aws.dynamodb_2.3.0.png",
+                "data": {
+                  "isAgentSupport": false
+                }
+              },
+              "codedata": {
+                "node": "NEW_CONNECTION",
+                "org": "ballerinax",
+                "module": "aws.dynamodb",
+                "packageName": "aws.dynamodb",
+                "object": "Client",
+                "symbol": "init",
+                "version": "2.3.0",
+                "isGenerated": false
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "Gmail",
+                "description": "The Gmail API lets you view and manage Gmail mailbox data like threads, messages, and labels.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_googleapis.gmail_4.2.0.png",
+                "data": {
+                  "isAgentSupport": true
+                }
+              },
+              "codedata": {
+                "node": "NEW_CONNECTION",
+                "org": "ballerinax",
+                "module": "googleapis.gmail",
+                "packageName": "googleapis.gmail",
+                "object": "Client",
+                "symbol": "init",
+                "version": "4.2.0",
+                "isGenerated": false
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "Google Calendar",
+                "description": "Manipulates events and other calendar data.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_googleapis.gcalendar_4.0.1.png",
+                "data": {
+                  "isAgentSupport": false
+                }
+              },
+              "codedata": {
+                "node": "NEW_CONNECTION",
+                "org": "ballerinax",
+                "module": "googleapis.gcalendar",
+                "packageName": "googleapis.gcalendar",
+                "object": "Client",
+                "symbol": "init",
+                "version": "4.0.1",
+                "isGenerated": false
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "SaaS"
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "Salesforce",
+                "description": "Ballerina Salesforce connector provides the capability to access Salesforce REST API.\nThis connector lets you to perform operations for SObjects, query using SOQL, search using SOSL, and describe SObjects\nand organizational data.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_salesforce_8.6.3.png",
+                "data": {
+                  "isAgentSupport": false
+                }
+              },
+              "codedata": {
+                "node": "NEW_CONNECTION",
+                "org": "ballerinax",
+                "module": "salesforce",
+                "packageName": "salesforce",
+                "object": "Client",
+                "symbol": "init",
+                "version": "8.6.3",
+                "isGenerated": false
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "Slack",
+                "description": "One way to interact with the Slack platform is its HTTP RPC-based Web API, a collection of methods requiring OAuth 2.0-based user, bot, or workspace tokens blessed with related OAuth scopes.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_slack_5.0.1.png",
+                "data": {
+                  "isAgentSupport": true
+                }
+              },
+              "codedata": {
+                "node": "NEW_CONNECTION",
+                "org": "ballerinax",
+                "module": "slack",
+                "packageName": "slack",
+                "object": "Client",
+                "symbol": "init",
+                "version": "5.0.1",
+                "isGenerated": false
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "Twilio",
+                "description": "This is the public Twilio REST API.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_twilio_5.0.1.png",
+                "data": {
+                  "isAgentSupport": true
+                }
+              },
+              "codedata": {
+                "node": "NEW_CONNECTION",
+                "org": "ballerinax",
+                "module": "twilio",
+                "packageName": "twilio",
+                "object": "Client",
+                "symbol": "init",
+                "version": "5.0.1",
+                "isGenerated": false
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "GitHub",
+                "description": "GitHub's v3 REST API.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_github_5.1.0.png",
+                "data": {
+                  "isAgentSupport": true
+                }
+              },
+              "codedata": {
+                "node": "NEW_CONNECTION",
+                "org": "ballerinax",
+                "module": "github",
+                "packageName": "github",
+                "object": "Client",
+                "symbol": "init",
+                "version": "5.1.0",
+                "isGenerated": false
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "Stripe",
+                "description": "The Stripe REST API. Please see https://stripe.com/docs/api for more details.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_stripe_2.0.1.png",
+                "data": {
+                  "isAgentSupport": true
+                }
+              },
+              "codedata": {
+                "node": "NEW_CONNECTION",
+                "org": "ballerinax",
+                "module": "stripe",
+                "packageName": "stripe",
+                "object": "Client",
+                "symbol": "init",
+                "version": "2.0.1",
+                "isGenerated": false
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "AI"
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "Azure OpenAI Chat",
+                "description": "This is a generated connector from [Azure OpenAI Chat Completions API v2023-12-01-preview](https://learn.microsoft.com/en-us/azure/cognitive-services/openai/reference#chat-completions/) OpenAPI specification.\nThe Azure Azure OpenAI Service REST API Chat Completions Endpoint will create completions for chat messages with the ChatGPT (preview) and GPT-4 (preview) models.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure.openai.chat_3.0.2.png",
+                "data": {
+                  "isAgentSupport": false
+                }
+              },
+              "codedata": {
+                "node": "NEW_CONNECTION",
+                "org": "ballerinax",
+                "module": "azure.openai.chat",
+                "packageName": "azure.openai.chat",
+                "object": "Client",
+                "symbol": "init",
+                "version": "3.0.2",
+                "isGenerated": false
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "OpenAI Chat",
+                "description": "The OpenAI REST API. Please see https://platform.openai.com/docs/api-reference for more details.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_openai.chat_4.0.1.png",
+                "data": {
+                  "isAgentSupport": true
+                }
+              },
+              "codedata": {
+                "node": "NEW_CONNECTION",
+                "org": "ballerinax",
+                "module": "openai.chat",
+                "packageName": "openai.chat",
+                "object": "Client",
+                "symbol": "init",
+                "version": "4.0.1",
+                "isGenerated": false
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "OpenAI Embeddings",
+                "description": "This is a generated connector for the [OpenAI API] (https://platform.openai.com/docs/api-reference/introduction) specification. Use the OpenAI API to access the state-of-the-art language models that can complete sentences, transcribe audio, and generate images. The API also supports natural language processing tasks such as text classification, entity recognition, and sentiment analysis. By using the OpenAI API, you can incorporate advanced AI capabilities into your own applications and services.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_openai.embeddings_1.0.5.png",
+                "data": {
+                  "isAgentSupport": false
+                }
+              },
+              "codedata": {
+                "node": "NEW_CONNECTION",
+                "org": "ballerinax",
+                "module": "openai.embeddings",
+                "packageName": "openai.embeddings",
+                "object": "Client",
+                "symbol": "init",
+                "version": "1.0.5",
+                "isGenerated": false
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "Stability AI",
+                "description": "Welcome to the Stability.ai REST API!\n\nYour DreamStudio API key will be required for authentication: [How to find your API key](https://platform.stability.ai/docs/getting-started/authentication)\n\nAPI operations use the following versioning scheme:\n- `/v*` interface is stable and ready for production workloads\n- `/v*beta*`: interface is stable, preparing for production release\n- `/v*alpha*`: under development and the interface is subject to change\n\nNOTE: The v1alpha and v1beta endpoints from the developer preview are still available, but they\nwill disabled on May 1st, 2023.  Please migrate to the v1 endpoints as soon as possible.\n\nIf you have feedback or encounter any issues with the API, please reach out:\n- [https://github.com/Stability-AI/REST-API](https://github.com/Stability-AI/REST-API)\n- [https://discord.gg/stablediffusion #API channel](https://discord.com/channels/1002292111942635562/1042896447311454361)",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_stabilityai_1.0.1.png",
+                "data": {
+                  "isAgentSupport": false
+                }
+              },
+              "codedata": {
+                "node": "NEW_CONNECTION",
+                "org": "ballerinax",
+                "module": "stabilityai",
+                "packageName": "stabilityai",
+                "object": "Client",
+                "symbol": "init",
+                "version": "1.0.1",
+                "isGenerated": false
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "Mistral",
+                "description": "Our Chat Completion and Embeddings APIs specification. Create your account on [La Plateforme](https://console.mistral.ai) to get access and read the [docs](https://docs.mistral.ai) to learn how to use it.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_mistral_1.0.2.png",
+                "data": {
+                  "isAgentSupport": false
+                }
+              },
+              "codedata": {
+                "node": "NEW_CONNECTION",
+                "org": "ballerinax",
+                "module": "mistral",
+                "packageName": "mistral",
+                "object": "Client",
+                "symbol": "init",
+                "version": "1.0.2",
+                "isGenerated": false
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "WebScraping AI",
+                "description": "This is a generated connector for [WebScraping.AI API v2.0.4](https://webscraping.ai/docs) OpenAPI specification.\nIt provides a web scaping automation API with Chrome JS rendering, rotating proxies and builtin HTML parsing.\nMore information about the WebScraping.AI API can be found at https://webscraping.ai.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_webscraping.ai_1.5.1.png",
+                "data": {
+                  "isAgentSupport": false
+                }
+              },
+              "codedata": {
+                "node": "NEW_CONNECTION",
+                "org": "ballerinax",
+                "module": "webscraping.ai",
+                "packageName": "webscraping.ai",
+                "object": "Client",
+                "symbol": "init",
+                "version": "1.5.1",
+                "isGenerated": false
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "Pinecone Vector",
+                "description": "This is a generated connector for the `Vector Operations` under [Pinecone Vector Database API](https://docs.pinecone.io/reference) OpenAPI specification. Pinecone is a fully managed vector database which supports building developer-friendly, easily scalable, and high-performance vector search applications without infrastructure hassles.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_pinecone.vector_1.0.2.png",
+                "data": {
+                  "isAgentSupport": false
+                }
+              },
+              "codedata": {
+                "node": "NEW_CONNECTION",
+                "org": "ballerinax",
+                "module": "pinecone.vector",
+                "packageName": "pinecone.vector",
+                "object": "Client",
+                "symbol": "init",
+                "version": "1.0.2",
+                "isGenerated": false
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "Pinecone Index",
+                "description": "This is a generated connector for the `Index Operations` under [Pinecone Vector Database API](https://docs.pinecone.io/reference) OpenAPI specification. Pinecone is a fully managed vector database which supports building developer-friendly, easily scalable, and high-performance vector search applications without infrastructure hassles.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_pinecone.index_1.0.2.png",
+                "data": {
+                  "isAgentSupport": false
+                }
+              },
+              "codedata": {
+                "node": "NEW_CONNECTION",
+                "org": "ballerinax",
+                "module": "pinecone.index",
+                "packageName": "pinecone.index",
+                "object": "Client",
+                "symbol": "init",
+                "version": "1.0.2",
+                "isGenerated": false
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "Weaviate",
+                "description": "This is a generated connector for [Weaviate Vector Search Engine API](https://weaviate.io/developers/weaviate/api) OpenAPI specification.\nWeaviate API provide access to the manipulations of weaviate schema, objects and search vectors based on various criterias.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_weaviate_1.0.2.png",
+                "data": {
+                  "isAgentSupport": false
+                }
+              },
+              "codedata": {
+                "node": "NEW_CONNECTION",
+                "org": "ballerinax",
+                "module": "weaviate",
+                "packageName": "weaviate",
+                "object": "Client",
+                "symbol": "init",
+                "version": "1.0.2",
+                "isGenerated": false
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "Milvus",
+                "description": "Milvus is a high-performance, cloud-native vector database built for scalable vector ANN search.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_milvus_1.1.1.png",
+                "data": {
+                  "isAgentSupport": false
+                }
+              },
+              "codedata": {
+                "node": "NEW_CONNECTION",
+                "org": "ballerinax",
+                "module": "milvus",
+                "packageName": "milvus",
+                "object": "Client",
+                "symbol": "init",
+                "version": "1.1.1",
+                "isGenerated": false
+              },
+              "enabled": true
+            }
+          ]
+        }
+      ]
     }
   ]
 }

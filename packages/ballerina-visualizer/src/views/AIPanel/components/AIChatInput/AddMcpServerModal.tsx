@@ -505,6 +505,8 @@ export const AddMcpServerModal: React.FC<Props> = ({ isOpen, servers, hasWorkspa
                 url: url.trim(),
                 ...(Object.keys(headers).length > 0 ? { headers } : {}),
                 ...(Object.keys(headersFromEnv).length > 0 ? { headersFromEnv } : {}),
+                // The dialog has no OAuth fields, so an edit keeps the sign-in settings it was added with.
+                ...(editTarget?.config.type === "http" && editTarget.config.oauth ? { oauth: editTarget.config.oauth } : {}),
             };
         }
         try {

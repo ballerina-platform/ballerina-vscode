@@ -21,6 +21,10 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { getBallerinaPackages } from '../../utils/config';
 
+// New evalsets go to tests/resources/evalsets, but a copied one still loads from anywhere in the package.
+export const EVALSET_GLOB = '**/*.evalset.json';
+export const EVALSET_EXCLUDE = '**/target/**';
+
 export async function ensureEvalsetsDirectory(): Promise<string | undefined> {
     // Check if workspace is open
     if (!vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length === 0) {
@@ -115,8 +119,8 @@ export async function findExistingEvalsets(evalsetsDir: string): Promise<Array<{
     description: string;
     filePath: string;
 }>> {
-    const pattern = new vscode.RelativePattern(evalsetsDir, '*.evalset.json');
-    const files = await vscode.workspace.findFiles(pattern);
+    const packageRoot = path.resolve(evalsetsDir, '..', '..', '..');
+    const files = await vscode.workspace.findFiles(new vscode.RelativePattern(packageRoot, EVALSET_GLOB), EVALSET_EXCLUDE);
 
     return files.map(uri => ({
         label: path.basename(uri.fsPath, '.evalset.json'),

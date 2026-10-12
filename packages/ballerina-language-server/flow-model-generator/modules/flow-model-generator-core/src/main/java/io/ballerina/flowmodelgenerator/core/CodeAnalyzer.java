@@ -4167,6 +4167,10 @@ public class CodeAnalyzer extends NodeVisitor {
                     .module(effectiveModule)
                     .object(name)
                     .symbol(NewConnectionBuilder.INIT_SYMBOL);
+        if (newExpressionNode instanceof ExplicitNewExpressionNode explicitNew) {
+            nodeBuilder.codedata().data(Constants.EXPLICIT_NEW_TYPE_KEY,
+                    explicitNew.typeDescriptor().toSourceCode().strip());
+        }
 
         if (kind == NodeKind.AGENT || kind == NodeKind.TYPED_AGENT) {
             nodeBuilder.codedata().packageName(packageName).version(functionData.version());

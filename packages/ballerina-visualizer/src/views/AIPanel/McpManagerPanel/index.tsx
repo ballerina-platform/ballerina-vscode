@@ -25,6 +25,7 @@ import { McpLoadErrorsDTO, McpMutableScope, McpScope, McpServerConfigDTO, McpSer
 import { AIChatView, DangerActionButton, PrimaryActionButton, SecondaryActionButton } from "../styles";
 import AddMcpServerModal from "../components/AIChatInput/AddMcpServerModal";
 import { Loader } from "../components/Loader";
+import { AgentManagerMcpSuggestions } from "./AgentManagerMcpSuggestions";
 import { SettingsToggle as HeaderInlineToggle } from "../components/SettingsToggle";
 
 interface Props {
@@ -319,6 +320,40 @@ const RowError = styled.div`
     color: var(--vscode-errorForeground);
     word-break: break-word;
 `;
+
+const SignInRow = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 12px 8px 28px;
+    font-size: 11px;
+    color: var(--vscode-descriptionForeground);
+`;
+
+function statusLabel(s: McpServerStatusDTO): string {
+    if (s.status === "connected") {
+        return `${s.tools.length} tool${s.tools.length === 1 ? "" : "s"}`;
+    }
+    if (s.status === "connecting") {
+        return "connecting…";
+    }
+    if (s.signInRequired) {
+        return "not signed in";
+    }
+    return s.status === "failed" ? "failed" : "disabled";
+}
+
+function ServerNotice({ server, onSignIn }: { server: McpServerStatusDTO; onSignIn: () => void }) {
+    if (server.signInRequired) {
+        return (
+            <SignInRow>
+                <span>Sign in to use this server.</span>
+                <ActionButton type="button" onClick={onSignIn}>Sign In</ActionButton>
+            </SignInRow>
+        );
+    }
+    return server.status === "failed" && server.error ? <RowError>{server.error}</RowError> : null;
+}
 
 const ExpandedToolsArea = styled.div`
     padding: 0 12px 10px 28px;
@@ -641,14 +676,7 @@ export const McpManagerPanel: React.FC<Props> = ({ onClose, backTooltip }) => {
         const toolCount = s.tools.length;
         const hasTools = toolCount > 0;
         const dim = !s.enabled;
-        const statusText = s.status === "connected"
-            ? `${toolCount} tool${toolCount === 1 ? "" : "s"}`
-            : s.status === "connecting"
-                ? "connecting…"
-                : s.status === "failed"
-                    ? "failed"
-                    : "disabled";
-        const meta = `${transportName(s.transport)} · ${statusText}${s.shadowed ? " · shadowed by project" : ""}`;
+        const meta = `${transportName(s.transport)} · ${statusLabel(s)}${s.shadowed ? " · shadowed by project" : ""}`;
         const isBuiltIn = s.scope === "builtin";
 
         return (
@@ -663,7 +691,7 @@ export const McpManagerPanel: React.FC<Props> = ({ onClose, backTooltip }) => {
                         </ConfirmRow>
                     ) : (
                         <>
-                            <StatusDot $status={s.status} />
+                            <StatusDot $status={s.signInRequired ? "disconnected" : s.status} />
                             <RowNameButton
                                 type="button"
                                 $clickable={hasTools}
@@ -671,7 +699,7 @@ export const McpManagerPanel: React.FC<Props> = ({ onClose, backTooltip }) => {
                                 title={hasTools ? (isExpanded ? "Hide tools" : "Show tools") : s.name}
                             >
                                 <RowName $dim={dim} title={s.name}>{s.name}</RowName>
-                                <RowMeta $failed={s.status === "failed"}>{meta}</RowMeta>
+                                <RowMeta $failed={s.status === "failed" && !s.signInRequired}>{meta}</RowMeta>
                                 {hasTools && (
                                     <RowExpandChevron>
                                         <span className={`codicon codicon-${isExpanded ? "chevron-down" : "chevron-right"}`} style={{ fontSize: 11 }} />
@@ -718,7 +746,7 @@ export const McpManagerPanel: React.FC<Props> = ({ onClose, backTooltip }) => {
                     )}
                 </RowHeader>
 
-                {s.status === "failed" && s.error && <RowError>{s.error}</RowError>}
+                <ServerNotice server={s} onSignIn={() => rpcClient.getAiPanelRpcClient().signInMcpServer({ scope: s.scope, name: s.name })} />
 
                 {hasTools && isExpanded && (
                     <ExpandedToolsArea>
@@ -851,6 +879,7 @@ export const McpManagerPanel: React.FC<Props> = ({ onClose, backTooltip }) => {
                         )}
                     </>
                 )}
+                {!togglePending && <AgentManagerMcpSuggestions servers={servers} />}
                 {!mcpToolsEnabled ? (
                     <EmptyHint>
                         MCP support is off.

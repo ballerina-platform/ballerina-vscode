@@ -45,7 +45,7 @@
         "prosemirror-schema-list": "1.5.1",
         "prosemirror-state": "1.4.3",
         "prosemirror-tables": "1.8.5",
-        "prosemirror-view": "1.41.3",
+        "prosemirror-view": "1.42.3",
         "react": "18.2.0",
         "react-dom": "18.2.0",
         "react-hook-form": "7.56.4",

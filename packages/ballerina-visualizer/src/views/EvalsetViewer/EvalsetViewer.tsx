@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import React, { useState } from "react";
+import React, { ReactNode, useState } from "react";
 import styled from "@emotion/styled";
 import { EvalSet, EVENT_TYPE, MACHINE_VIEW } from "@wso2/ballerina-core";
 import { EvalThreadViewer } from "./EvalThreadViewer";
@@ -26,14 +26,14 @@ import { useRpcContext } from "@wso2/ballerina-rpc-client";
 
 // --- LAYOUT COMPONENTS ---
 
-const PageWrapper = styled.div`
+export const PageWrapper = styled.div`
     height: 100%;
     width: 100%;
     display: flex;
     flex-direction: column;
 `;
 
-const Container = styled.div`
+export const Container = styled.div`
     flex: 1;
     width: 100%;
     background-color: var(--vscode-editor-background);
@@ -62,8 +62,30 @@ const Header = styled.div`
 
 const HeaderLeft = styled.div`
     display: flex;
+    align-items: flex-start;
+    gap: 12px;
+`;
+
+const HeaderText = styled.div`
+    display: flex;
     flex-direction: column;
     gap: 4px;
+`;
+
+const BackButton = styled.div`
+    padding: 4px;
+    cursor: pointer;
+    border-radius: 4px;
+
+    &:hover {
+        background-color: var(--vscode-toolbar-hoverBackground);
+    }
+
+    & > div:first-child {
+        width: 20px;
+        height: 20px;
+        font-size: 20px;
+    }
 `;
 
 const HeaderRight = styled.div`
@@ -73,6 +95,9 @@ const HeaderRight = styled.div`
 `;
 
 const Title = styled.h1`
+    display: flex;
+    align-items: center;
+    gap: 8px;
     font-size: 18px;
     font-weight: 600;
     margin: 0;
@@ -85,7 +110,7 @@ const Subtitle = styled.p`
     margin: 0;
 `;
 
-const ThreadListContainer = styled.div`
+export const ThreadListContainer = styled.div`
     flex: 1;
     overflow-y: auto;
     padding: 24px;
@@ -95,7 +120,7 @@ const ThreadListContainer = styled.div`
     align-content: start;
 `;
 
-const ThreadCard = styled.div`
+export const ThreadCard = styled.div`
     padding: 16px;
     background-color: var(--vscode-editorWidget-background);
     border: 1px solid var(--vscode-panel-border);
@@ -110,14 +135,17 @@ const ThreadCard = styled.div`
     }
 `;
 
-const ThreadName = styled.div`
+export const ThreadName = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 6px;
     font-size: 14px;
     font-weight: 600;
     color: var(--vscode-foreground);
     margin-bottom: 8px;
 `;
 
-const ThreadMeta = styled.div`
+export const ThreadMeta = styled.div`
     font-size: 12px;
     color: var(--vscode-descriptionForeground);
     display: flex;
@@ -125,7 +153,7 @@ const ThreadMeta = styled.div`
     gap: 4px;
 `;
 
-const DeleteIconButton = styled.div`
+export const DeleteIconButton = styled.div`
     position: absolute;
     top: 8px;
     right: 8px;
@@ -142,7 +170,7 @@ const DeleteIconButton = styled.div`
     }
 `;
 
-const EmptyState = styled.div`
+export const EmptyState = styled.div`
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -161,6 +189,35 @@ const ErrorMessage = styled.div`
     color: var(--vscode-errorForeground);
     margin: 24px;
 `;
+
+export const CardIcon = ({ name }: { name: string }) => (
+    <Icon name={name} isCodicon sx={{ display: "flex" }} iconSx={{ display: "flex", fontSize: "16px" }} />
+);
+
+interface PageHeaderProps {
+    icon?: string;
+    title: string;
+    subtitle: string;
+    onBack: () => void;
+    children: ReactNode;
+}
+
+export function PageHeader({ icon, title, subtitle, onBack, children }: PageHeaderProps) {
+    return (
+        <Header>
+            <HeaderLeft>
+                <BackButton onClick={onBack} title="Back">
+                    <Icon name="bi-arrow-back" iconSx={{ fontSize: "20px", color: "var(--vscode-foreground)" }} />
+                </BackButton>
+                <HeaderText>
+                    <Title>{icon && <CardIcon name={icon} />}{title}</Title>
+                    <Subtitle>{subtitle}</Subtitle>
+                </HeaderText>
+            </HeaderLeft>
+            <HeaderRight>{children}</HeaderRight>
+        </Header>
+    );
+}
 
 interface EvalsetViewerProps {
     projectPath: string;
@@ -250,29 +307,37 @@ export const EvalsetViewer: React.FC<EvalsetViewerProps> = ({ projectPath, fileP
         }
     };
 
+    // Adding or deleting a thread reopens the viewer, so step past every viewer entry.
+    const handleBack = async () => {
+        const history = await rpcClient.getVisualizerRpcClient().getHistory();
+        const index = history.findLastIndex((entry) => entry.location.view !== MACHINE_VIEW.EvalsetViewer);
+        if (index < 0) {
+            rpcClient.getVisualizerRpcClient().goHome();
+            return;
+        }
+        rpcClient.getVisualizerRpcClient().goSelected(index);
+    };
+
     // Render thread list view
     return (
         <PageWrapper>
             <TopNavigationBar projectPath={projectPath} />
             <Container>
-                <Header>
-                    <HeaderLeft>
-                        <Title>{content.name}</Title>
-                        <Subtitle>
-                            {content.threads.length} thread{content.threads.length !== 1 ? 's' : ''}
-                        </Subtitle>
-                    </HeaderLeft>
-                    <HeaderRight>
-                        <Button
-                            onClick={handleAddThread}
-                            disabled={isAddingThread}
-                            appearance="primary"
-                        >
-                            <Icon name="add" isCodicon sx={{ marginRight: "4px" }} />
-                            Add Thread
-                        </Button>
-                    </HeaderRight>
-                </Header>
+                <PageHeader
+                    icon="collection"
+                    title={content.name}
+                    subtitle={`${content.threads.length} thread${content.threads.length !== 1 ? 's' : ''}`}
+                    onBack={handleBack}
+                >
+                    <Button
+                        onClick={handleAddThread}
+                        disabled={isAddingThread}
+                        appearance="primary"
+                    >
+                        <Icon name="add" isCodicon sx={{ marginRight: "4px" }} />
+                        Add Thread
+                    </Button>
+                </PageHeader>
                 {content.threads.length === 0 ? (
                     <EmptyState>
                         <div style={{ fontSize: '13px', fontWeight: 500 }}>No threads yet</div>
@@ -289,7 +354,7 @@ export const EvalsetViewer: React.FC<EvalsetViewerProps> = ({ projectPath, fileP
                                 >
                                     <Icon name="bi-delete" iconSx={{ fontSize: "16px", display: "flex" }} sx={{ display: "flex", alignItems: "center", justifyContent: "center" }} />
                                 </DeleteIconButton>
-                                <ThreadName>{thread.id}</ThreadName>
+                                <ThreadName><CardIcon name="file-text" />{thread.id}</ThreadName>
                                 <ThreadMeta>
                                     <div>{thread.traces.length} turn{thread.traces.length !== 1 ? 's' : ''}</div>
                                     {thread.created_on && (

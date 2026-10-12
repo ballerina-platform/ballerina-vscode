@@ -34,6 +34,7 @@ export interface SeedableProperty {
     value?: unknown;
     types?: FieldType[];
     hidden?: boolean;
+    editable?: boolean;
 }
 
 // The modes that hold text rather than source. A doc box is one of them: it is a single mode, but a
@@ -256,16 +257,17 @@ function select(types: FieldType[], chosen: FieldType): void {
 const ACTIVITY_IDENTITY_KEYS = ["name", "description"];
 
 /**
- * Shows an activity entry's name and description on its edit form. The add template hides both,
- * and an existing entry is where they are set.
+ * Shows an activity entry's name and description on its edit form, read-only: the add template hides both,
+ * and on an existing entry they are shown as declared, or as the defaults the server puts in the placeholders.
  *
  * @param properties the template's properties, edited in place
  */
-export function revealActivityIdentity(properties: Record<string, SeedableProperty> | undefined): void {
+export function showActivityIdentityReadOnly(properties: Record<string, SeedableProperty> | undefined): void {
     for (const key of ACTIVITY_IDENTITY_KEYS) {
         const property = properties?.[key];
         if (property) {
             property.hidden = false;
+            property.editable = false;
         }
     }
 }

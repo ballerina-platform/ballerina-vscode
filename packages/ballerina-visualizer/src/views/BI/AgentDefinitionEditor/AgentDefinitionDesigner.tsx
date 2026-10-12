@@ -1526,6 +1526,7 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
                                         existingNode={editingMcpNode}
                                         onSave={() => completeToolSave()}
                                         onBack={() => editingMcpNode ? handleCloseToolPanel() : setToolPanel("MENU")}
+                                        onSetBackOverride={(handler) => setToolPanelBack(() => handler)}
                                     />
                                 )}
                             </>

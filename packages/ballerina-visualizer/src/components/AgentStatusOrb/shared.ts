@@ -37,7 +37,8 @@ export const ORB_GLOW_CLASS = "orb-glow";
 
 /** Scopes the lift to the orb so sibling chrome in the same button is left alone. */
 export const OrbGlow = styled.span`
-    display: block;
+    position: absolute;
+    inset: 0;
     transition: filter 0.2s ease;
 `;
 export const EDGE_MARGIN = 20;
@@ -221,13 +222,13 @@ export const AmbientFrame = styled.div<AmbientFrameProps>`
 
     &:focus-within {
         box-shadow: ${(props: AmbientFrameProps) => {
-            if (props.$agentBuilder) {
-                const [first, second] = agentBuilderFrameColors(props);
-                return `0 0 22px color-mix(in srgb, ${first} 34%, transparent), 0 0 13px color-mix(in srgb, ${second} 20%, transparent)`;
-            }
-            const base = ambientBase(props);
-            return `0 0 22px color-mix(in srgb, ${base} 34%, transparent), 0 0 13px color-mix(in srgb, ${base} 20%, transparent)`;
-        }};
+        if (props.$agentBuilder) {
+            const [first, second] = agentBuilderFrameColors(props);
+            return `0 0 22px color-mix(in srgb, ${first} 34%, transparent), 0 0 13px color-mix(in srgb, ${second} 20%, transparent)`;
+        }
+        const base = ambientBase(props);
+        return `0 0 22px color-mix(in srgb, ${base} 34%, transparent), 0 0 13px color-mix(in srgb, ${base} 20%, transparent)`;
+    }};
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -590,6 +591,15 @@ export function useAgentRunState(): AgentRunState | undefined {
 
 const miniChatOpenListeners = new Set<(prompt: MiniChatPrompt) => void>();
 
+const IS_MAC = typeof navigator !== "undefined" && /Mac/i.test(navigator.userAgent);
+export const MINI_CHAT_SHORTCUT_LABEL = IS_MAC ? "⌘I" : "Ctrl+I";
+
+// Matches the key labelled I, falling back to its position on non-Latin layouts, where the key isn't a letter.
+export const isMiniChatShortcut = (
+    event: Pick<KeyboardEvent, "metaKey" | "ctrlKey" | "shiftKey" | "altKey" | "key" | "code">
+) => (IS_MAC ? event.metaKey : event.ctrlKey) && !event.shiftKey && !event.altKey
+    && (event.key.toLowerCase() === "i" || (event.code === "KeyI" && !/^[a-z]$/i.test(event.key)));
+
 /**
  * Ask the ambient Copilot surface to open with a contextual prompt.
  * Returns false only when the orb has not mounted, allowing a full-panel fallback.
@@ -686,6 +696,8 @@ const VIEWS_WITH_ORB: ReadonlySet<MACHINE_VIEW> = new Set([
     MACHINE_VIEW.GraphQLDiagram,
     MACHINE_VIEW.DataMapper,
     MACHINE_VIEW.InlineDataMapper,
+    MACHINE_VIEW.EvalsetList,
+    MACHINE_VIEW.EvalsetViewer,
 ]);
 
 export function viewHidesAgentStatusOrb(view: MACHINE_VIEW | null | undefined): boolean {

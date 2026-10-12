@@ -145,20 +145,25 @@ public abstract class SearchCommand {
      * @return List of search results
      */
     public JsonArray execute() {
-        List<Item> items;
+        return GSON.toJsonTree(items()).getAsJsonArray();
+    }
+
+    /**
+     * Runs the search the current search parameters select: the organization search, the default view or the query
+     * search.
+     *
+     * @return List of search results
+     */
+    protected List<Item> items() {
         if (this.filterByCurrentOrg) {
             String currentOrg = project.currentPackage().ballerinaToml()
                     .flatMap(toml -> toml.tomlDocument().toml().getTable("package")
                             .flatMap(table -> table.get("org"))
                             .flatMap(orgValue -> Optional.ofNullable(orgValue.toString())))
                     .orElse(null);
-            items = searchCurrentOrganization(currentOrg);
-        } else if (query.isEmpty()) {
-            items = defaultView();
-        } else {
-            items = search();
+            return searchCurrentOrganization(currentOrg);
         }
-        return GSON.toJsonTree(items).getAsJsonArray();
+        return query.isEmpty() ? defaultView() : search();
     }
 
     /**

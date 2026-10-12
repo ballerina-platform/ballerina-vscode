@@ -143,6 +143,7 @@ import {
     ParseSkillFileResponse,
     listMcpServers,
     setMcpServerEnabled,
+    signInMcpServer,
     openMcpConfig,
     addMcpServer,
     updateMcpServer,
@@ -159,6 +160,7 @@ import {
     openOrCreateAgentsMd,
     McpServerStatusDTO,
     SetMcpServerEnabledRequest,
+    SignInMcpServerRequest,
     AddMcpServerRequest,
     AddMcpServerResponse,
     OpenMcpConfigRequest,
@@ -174,6 +176,9 @@ import {
     listThreads,
     switchThread,
     SwitchThreadRequest,
+    prepareKeyedThread,
+    PrepareKeyedThreadRequest,
+    PrepareKeyedThreadResponse,
     deleteThread,
     DeleteThreadRequest,
     renameThread,
@@ -477,6 +482,10 @@ export class AiPanelRpcClient implements AIPanelAPI {
         return this._messenger.sendRequest(setMcpServerEnabled, HOST_EXTENSION, params);
     }
 
+    signInMcpServer(params: SignInMcpServerRequest): Promise<void> {
+        return this._messenger.sendRequest(signInMcpServer, HOST_EXTENSION, params);
+    }
+
     openMcpConfig(params: OpenMcpConfigRequest): Promise<void> {
         return this._messenger.sendRequest(openMcpConfig, HOST_EXTENSION, params);
     }
@@ -539,6 +548,10 @@ export class AiPanelRpcClient implements AIPanelAPI {
 
     switchThread(params: SwitchThreadRequest): Promise<boolean> {
         return this._messenger.sendRequest(switchThread, HOST_EXTENSION, params);
+    }
+
+    prepareKeyedThread(params: PrepareKeyedThreadRequest): Promise<PrepareKeyedThreadResponse> {
+        return this._messenger.sendRequest(prepareKeyedThread, HOST_EXTENSION, params);
     }
 
     deleteThread(params: DeleteThreadRequest): Promise<void> {

@@ -89,17 +89,17 @@ export function SummaryBar({ data }: SummaryBarProps) {
             <Divider />
             <Stat>
                 <StatValue>{data.tests.length}</StatValue>
-                <StatLabel>evaluation tests</StatLabel>
+                <StatLabel>evaluations</StatLabel>
             </Stat>
             <Divider />
-            <Stat>
+            <Stat title="Evaluations whose latest run passed">
                 <StatValuePass>{passingCount}</StatValuePass>
-                <StatLabel>currently passing</StatLabel>
+                <StatLabel>passing</StatLabel>
             </Stat>
             <Divider />
-            <Stat>
+            <Stat title="Evaluations whose latest run failed">
                 <StatValueFail>{failingCount}</StatValueFail>
-                <StatLabel>currently failing</StatLabel>
+                <StatLabel>failing</StatLabel>
             </Stat>
         </Bar>
     );

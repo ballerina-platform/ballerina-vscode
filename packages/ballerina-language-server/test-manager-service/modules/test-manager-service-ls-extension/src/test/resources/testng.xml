@@ -28,6 +28,7 @@ under the License.
             <class name="io.ballerina.testmanagerservice.extension.UtilsTest"/>
             <class name="io.ballerina.testmanagerservice.extension.TestProjectTestDiscovery"/>
             <class name="io.ballerina.testmanagerservice.extension.TestFileTestDiscovery"/>
+            <class name="io.ballerina.testmanagerservice.extension.TestEvaluationDiscovery"/>
         </classes>
     </test>
 </suite>

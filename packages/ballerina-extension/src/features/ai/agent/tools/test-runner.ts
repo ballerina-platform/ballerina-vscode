@@ -14,6 +14,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import * as path from 'path';
 import { tool } from 'ai';
 import { z } from 'zod';
 import { CopilotEventHandler } from '../../utils/events';
@@ -21,6 +22,8 @@ import { extension } from '../../../../BalExtensionContext';
 import { spawnProcess, killProcessGroup } from './running-service-manager';
 import { BALLERINA_COMMANDS } from '../../../project/cmds/cmd-runner';
 import { DIAGNOSTICS_TOOL_NAME } from './diagnostics';
+import { getWorkspaceTomlValues } from '../../../../utils';
+import { refreshDefaultProviderToken } from '../../utils';
 
 export const TEST_RUNNER_TOOL_NAME = "runTests";
 
@@ -29,9 +32,17 @@ export interface TestRunResult {
     exitCode: number;
 }
 
-const TestRunnerInputSchema = z.object({});
+const TestRunnerInputSchema = z.object({
+    tests: z.array(z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/)).optional()
+        .describe("Plain test function names to run, with no module prefix, wildcard or #row. "
+            + "Omit to run every test except the `evaluations` group."),
+});
 
-const DEFAULT_TEST_TIMEOUT = 120000;
+type TestRunnerInput = z.infer<typeof TestRunnerInputSchema>;
+
+// Evaluations call the model for every row and run, so one can take minutes.
+const DEFAULT_TEST_TIMEOUT = 300000;
+const EVALUATION_GROUP = "evaluations";
 
 export function createTestRunnerTool(
     tempProjectPath: string,
@@ -49,27 +60,33 @@ export function createTestRunnerTool(
 - After modifying existing code, to confirm tests still pass
 - After writing new test cases, to validate them
 
+**Evaluations:** Tests in the \`evaluations\` group call an LLM for every row and run, so they run only when named in \`tests\`. Name only the evaluations you changed.
+
 **Output:** Returns the full raw \`bal test\` output. Read the output carefully to identify which tests passed or failed, then fix any failures before marking the task as complete.
 `,
         inputSchema: TestRunnerInputSchema,
-        execute: async (_input: Record<string, never>, context?: { toolCallId?: string }): Promise<TestRunResult> => {
+        execute: async (input: TestRunnerInput, context?: { toolCallId?: string; abortSignal?: AbortSignal }): Promise<TestRunResult> => {
             const toolCallId = context?.toolCallId || `fallback-${Date.now()}`;
+            const args = input.tests?.length
+                ? [BALLERINA_COMMANDS.TEST, "--tests", input.tests.join(",")]
+                : [BALLERINA_COMMANDS.TEST, "--disable-groups", EVALUATION_GROUP];
+            const command = `bal ${args.join(" ")}`;
 
             eventHandler({
                 type: "tool_call",
                 toolName: TEST_RUNNER_TOOL_NAME,
                 toolCallId,
-                toolInput: { command: "bal test" },
+                toolInput: { command },
             });
 
-            const result = await runBallerinaTests(tempProjectPath);
+            const result = await runBallerinaTests(tempProjectPath, args, context?.abortSignal);
             const status = result.exitCode === 0 ? "completed" : "error";
 
             eventHandler({
                 type: "tool_result",
                 toolName: TEST_RUNNER_TOOL_NAME,
                 toolCallId,
-                toolOutput: { status, summary: parseTestSummary(result.output), command: "bal test", exitCode: result.exitCode, output: result.output },
+                toolOutput: { status, summary: parseTestSummary(result.output, result.exitCode), command, exitCode: result.exitCode, output: result.output },
             });
 
             return result;
@@ -77,7 +94,7 @@ export function createTestRunnerTool(
     });
 }
 
-function parseTestSummary(output: string): string {
+function parseTestSummary(output: string, exitCode: number): string {
     const passingMatch = output.match(/(\d+)\s+passing/);
     const failingMatch = output.match(/(\d+)\s+failing/);
     if (passingMatch) {
@@ -86,16 +103,56 @@ function parseTestSummary(output: string): string {
         const total = passing + failing;
         return `Tests completed: ${passing}/${total} passing`;
     }
-    return "Tests completed";
+    return exitCode === 0 ? "Tests completed" : "Tests did not complete";
 }
 
-async function runBallerinaTests(cwd: string): Promise<TestRunResult> {
+async function packagePaths(projectPath: string): Promise<string[]> {
+    const packages = (await getWorkspaceTomlValues(projectPath))?.workspace?.packages ?? [];
+    return packages.length > 0 ? packages.map((pkg) => path.join(projectPath, pkg)) : [projectPath];
+}
+
+// Same token refresh as a run from the Testing view, without its prompt, which would hold the turn open.
+async function refreshProviderTokens(packages: string[]): Promise<boolean> {
+    for (const packagePath of packages) {
+        if (!(await refreshDefaultProviderToken(packagePath, false))) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// From a workspace root, `bal test` resolves the tests' relative paths against the workspace, not the package.
+async function runBallerinaTests(projectPath: string, args: string[], signal?: AbortSignal): Promise<TestRunResult> {
+    const packages = await packagePaths(projectPath);
+    if (!(await refreshProviderTokens(packages))) {
+        return {
+            output: 'The tests did not run: the project uses the WSO2 default model provider, which is not configured. '
+                + 'Ask the user to run "Configure default WSO2 model provider" from the Command Palette, then run the tests again.',
+            exitCode: -1,
+        };
+    }
+    const results: TestRunResult[] = [];
+    for (const packagePath of packages) {
+        if (signal?.aborted) {
+            break;
+        }
+        const result = await runInPackage(packagePath, args, signal);
+        const heading = packages.length > 1 ? `### Package ${path.relative(projectPath, packagePath)}\n` : '';
+        results.push({ ...result, output: heading + result.output });
+    }
+    return {
+        output: results.map((result) => result.output).join('\n'),
+        exitCode: results.find((result) => result.exitCode !== 0)?.exitCode ?? 0,
+    };
+}
+
+async function runInPackage(cwd: string, args: string[], signal?: AbortSignal): Promise<TestRunResult> {
     const balCmd = extension.ballerinaExtInstance.getBallerinaCmd();
 
     const logs: string[] = [];
     const { process: proc } = spawnProcess(
         balCmd,
-        [BALLERINA_COMMANDS.TEST],
+        args,
         cwd,
         logs
     );
@@ -115,7 +172,7 @@ async function runBallerinaTests(cwd: string): Promise<TestRunResult> {
     const startTime = Date.now();
     const pollInterval = 500;
 
-    while (!exited && (Date.now() - startTime) < DEFAULT_TEST_TIMEOUT) {
+    while (!exited && !signal?.aborted && (Date.now() - startTime) < DEFAULT_TEST_TIMEOUT) {
         await new Promise(resolve => setTimeout(resolve, pollInterval));
     }
 
@@ -123,10 +180,10 @@ async function runBallerinaTests(cwd: string): Promise<TestRunResult> {
 
     if (!exited) {
         await killProcessGroup(proc, 'SIGTERM');
-        return {
-            output: output + `\n\nTest execution timed out after ${DEFAULT_TEST_TIMEOUT}ms.`,
-            exitCode: -1,
-        };
+        const reason = signal?.aborted
+            ? 'The test run was stopped.'
+            : `Test execution timed out after ${DEFAULT_TEST_TIMEOUT / 60000} minutes.`;
+        return { output: `${output}\n\n${reason}`, exitCode: -1 };
     }
 
     return { output, exitCode };

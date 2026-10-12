@@ -476,8 +476,8 @@ export function AgentBuilderOverview({ projectPath, agentFocus, isInDevant, isIC
                     <Button
                         appearance="icon"
                         onClick={handleToggleDeployPanel}
-                        tooltip={deployCollapsed ? "Show deployment panel" : "Hide deployment panel"}
-                        aria-label={deployCollapsed ? "Show deployment panel" : "Hide deployment panel"}
+                        tooltip={deployCollapsed ? "Show Deploy Panel" : "Hide Deploy Panel"}
+                        aria-label={deployCollapsed ? "Show Deploy Panel" : "Hide Deploy Panel"}
                         aria-expanded={!deployCollapsed}
                         buttonSx={{ padding: "4px 8px" }}
                     >
@@ -485,7 +485,7 @@ export function AgentBuilderOverview({ projectPath, agentFocus, isInDevant, isIC
                             name={deployCollapsed ? "layout-sidebar-right-off" : "layout-sidebar-right"}
                             sx={{ marginRight: compactHeader ? 0 : 5 }}
                         />
-                        {!compactHeader && "Deployment"}
+                        {!compactHeader && "Deploy"}
                     </Button>
                 </>
             )}
@@ -586,6 +586,7 @@ export function AgentBuilderOverview({ projectPath, agentFocus, isInDevant, isIC
                                 hasWorkflows={hasWorkflows}
                                 hasAgents={hasAgents}
                                 hasDeployableIntegration={hasDeployable}
+                                isOpen={!deployCollapsed}
                                 {...deploymentControl}
                             />
                         </SidePanel>

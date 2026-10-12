@@ -70,6 +70,7 @@
           }
         ],
         "value": "",
+        "placeholder": "lookupBill",
         "optional": true,
         "editable": true,
         "advanced": false,
@@ -88,6 +89,7 @@
           }
         ],
         "value": "",
+        "placeholder": "Look up a bill activity",
         "optional": true,
         "editable": true,
         "advanced": false,

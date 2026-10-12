@@ -69,6 +69,7 @@ import {
     SkillEnableCancelRequest,
     McpServerStatusDTO,
     SetMcpServerEnabledRequest,
+    SignInMcpServerRequest,
     AddMcpServerRequest,
     AddMcpServerResponse,
     OpenMcpConfigRequest,
@@ -85,6 +86,8 @@ import {
     ParseSkillFileResponse,
     ThreadSummary,
     SwitchThreadRequest,
+    PrepareKeyedThreadRequest,
+    PrepareKeyedThreadResponse,
     DeleteThreadRequest,
     RenameThreadRequest,
     // TODO(auto-memory): temporarily disabled for this release.
@@ -167,6 +170,7 @@ export const cancelSkillEnable: RequestType<SkillEnableCancelRequest, void> = { 
 export const parseSkillFile: RequestType<ParseSkillFileRequest, ParseSkillFileResponse> = { method: `${_preFix}/parseSkillFile` };
 export const listMcpServers: RequestType<void, McpServerStatusDTO[]> = { method: `${_preFix}/listMcpServers` };
 export const setMcpServerEnabled: RequestType<SetMcpServerEnabledRequest, void> = { method: `${_preFix}/setMcpServerEnabled` };
+export const signInMcpServer: RequestType<SignInMcpServerRequest, void> = { method: `${_preFix}/signInMcpServer` };
 export const openMcpConfig: RequestType<OpenMcpConfigRequest, void> = { method: `${_preFix}/openMcpConfig` };
 export const addMcpServer: RequestType<AddMcpServerRequest, AddMcpServerResponse> = { method: `${_preFix}/addMcpServer` };
 export const updateMcpServer: RequestType<UpdateMcpServerRequest, AddMcpServerResponse> = { method: `${_preFix}/updateMcpServer` };
@@ -186,6 +190,7 @@ export const openOrCreateAgentsMd: RequestType<void, void> = { method: `${_preFi
 export const agentsMdFileInfoChanged: NotificationType<AgentsMdFileInfoDTO> = { method: `${_preFix}/agentsMdFileInfoChanged` };
 export const listThreads: RequestType<void, ThreadSummary[]> = { method: `${_preFix}/listThreads` };
 export const switchThread: RequestType<SwitchThreadRequest, void> = { method: `${_preFix}/switchThread` };
+export const prepareKeyedThread: RequestType<PrepareKeyedThreadRequest, PrepareKeyedThreadResponse> = { method: `${_preFix}/prepareKeyedThread` };
 export const deleteThread: RequestType<DeleteThreadRequest, void> = { method: `${_preFix}/deleteThread` };
 export const renameThread: RequestType<RenameThreadRequest, void> = { method: `${_preFix}/renameThread` };
 // TODO(auto-memory): temporarily disabled for this release.

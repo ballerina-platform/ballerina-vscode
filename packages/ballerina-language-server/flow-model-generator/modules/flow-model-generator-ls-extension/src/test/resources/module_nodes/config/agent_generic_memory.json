@@ -1671,7 +1671,10 @@
               "offset": 86
             }
           },
-          "sourceCode": "final ai:ShortTermMemory concreteExplicitMemory = check new ai:ShortTermMemory(store);"
+          "sourceCode": "final ai:ShortTermMemory concreteExplicitMemory = check new ai:ShortTermMemory(store);",
+          "data": {
+            "explicitNewType": "ai:ShortTermMemory"
+          }
         },
         "returning": false,
         "properties": {
@@ -2035,7 +2038,10 @@
               "offset": 68
             }
           },
-          "sourceCode": "final ai:Memory genericMemory = check new ai:ShortTermMemory(store);"
+          "sourceCode": "final ai:Memory genericMemory = check new ai:ShortTermMemory(store);",
+          "data": {
+            "explicitNewType": "ai:ShortTermMemory"
+          }
         },
         "returning": false,
         "properties": {
@@ -2217,7 +2223,10 @@
               "offset": 82
             }
           },
-          "sourceCode": "final ai:ShortTermMemoryStore store = check new ai:InMemoryShortTermMemoryStore();"
+          "sourceCode": "final ai:ShortTermMemoryStore store = check new ai:InMemoryShortTermMemoryStore();",
+          "data": {
+            "explicitNewType": "ai:InMemoryShortTermMemoryStore"
+          }
         },
         "returning": false,
         "properties": {

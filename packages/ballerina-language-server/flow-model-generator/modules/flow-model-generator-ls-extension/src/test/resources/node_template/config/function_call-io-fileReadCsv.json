@@ -17,7 +17,7 @@
     "metadata": {
       "label": "fileReadCsv",
       "description": "Reads file content as a CSV.\nWhen the expected data type is record[], the first entry of the csv file should contain matching headers.\n```ballerina\nstring[][]|io:Error content = io:fileReadCsv(\"./resources/myfile.csv\");\nrecord{}[]|io:Error content = io:fileReadCsv(\"./resources/myfile.csv\");\n```",
-      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.1.png"
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.2.png"
     },
     "codedata": {
       "node": "FUNCTION_CALL",

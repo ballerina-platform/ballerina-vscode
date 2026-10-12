@@ -26,7 +26,6 @@ import io.ballerina.centralconnector.response.DependentPackage;
 import io.ballerina.compiler.api.ModuleID;
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.api.symbols.AnnotationAttachmentSymbol;
-import io.ballerina.compiler.api.symbols.AnnotationSymbol;
 import io.ballerina.compiler.api.symbols.ClassFieldSymbol;
 import io.ballerina.compiler.api.symbols.ClassSymbol;
 import io.ballerina.compiler.api.symbols.Documentation;
@@ -81,6 +80,7 @@ import io.ballerina.flowmodelgenerator.core.model.PropertyType;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
 import io.ballerina.flowmodelgenerator.core.utils.ParamUtils;
 import io.ballerina.modelgenerator.commons.CommonUtils;
+import io.ballerina.modelgenerator.commons.EvalTemplate;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.projects.DependenciesToml;
@@ -187,8 +187,6 @@ public class AiUtils {
     private static final String NAME = "name";
     private static final String VERSION = "version";
     private static final String INIT_METHOD = "init";
-    private static final String EVAL_PACKAGE = "ai.eval";
-    private static final String EVAL_TEMPLATE_ANNOTATION = "EvalTemplate";
     private static final AiComponentDiskCache diskCache = new AiComponentDiskCache();
 
     public static final String MEMORY_DEFAULT_VALUE = "10";
@@ -221,21 +219,7 @@ public class AiUtils {
     }
 
     public static boolean isEvalTemplateFunction(FunctionSymbol function) {
-        if (function == null || function.getModule().filter(AiUtils::isEvalModule).isEmpty()) {
-            return false;
-        }
-        for (AnnotationAttachmentSymbol attachment : function.annotAttachments()) {
-            AnnotationSymbol annotation = attachment.typeDescriptor();
-            if (EVAL_TEMPLATE_ANNOTATION.equals(annotation.getName().orElse(null))
-                    && annotation.getModule().filter(AiUtils::isEvalModule).isPresent()) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static boolean isEvalModule(ModuleSymbol module) {
-        return Ai.BALLERINA_ORG.equals(module.id().orgName()) && EVAL_PACKAGE.equals(module.id().moduleName());
+        return function != null && EvalTemplate.from(function).isPresent();
     }
 
     private static void initFallbackDependentModules() {

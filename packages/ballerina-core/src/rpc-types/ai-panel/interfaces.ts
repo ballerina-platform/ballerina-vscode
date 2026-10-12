@@ -32,7 +32,7 @@ export type AIPanelView = 'settings' | 'mcp' | 'skills';
 
 export type AIPanelPrompt =
     | { type: 'command-template'; command: Command; templateId: TemplateId; text?: string; params?: Record<string, string>; metadata?: Record<string, any>; hiddenContext?: string }
-    | { type: 'text'; text: string; planMode: boolean; codeContext?: CodeContext; autoSubmit?: boolean; hiddenContext?: string; suggestedCommandTemplates?: AIPanelPrompt[];    inputPlaceholder?:string; attachments?: Attachment[]; newThread?: boolean; consoleScaffold?: boolean; }
+    | { type: 'text'; text: string; planMode: boolean; codeContext?: CodeContext; autoSubmit?: boolean; hiddenContext?: string; suggestedCommandTemplates?: AIPanelPrompt[];    inputPlaceholder?:string; attachments?: Attachment[]; newThread?: boolean; threadKey?: string; consoleScaffold?: boolean; }
     | { type: 'skill'; skillId: string; skillName: string; args?: string; tagParams?: Record<string, string>; autoSubmit?: boolean; hiddenContext?: string }
     /** Opens the panel straight onto one of its surfaces, or onto an existing thread. */
     | { type: 'view'; view: AIPanelView }
@@ -640,6 +640,15 @@ export interface SwitchThreadRequest {
     threadId: string;
 }
 
+export interface PrepareKeyedThreadRequest {
+    key: string;
+}
+
+/** `busy` when a run or checkpoint restore is in progress, so nothing was switched or created. */
+export interface PrepareKeyedThreadResponse {
+    status: "reused" | "created" | "busy";
+}
+
 export interface DeleteThreadRequest {
     threadId: string;
 }
@@ -898,7 +907,7 @@ export interface McpToolSummaryDTO {
 }
 export type McpServerConfigDTO =
     | { type: "stdio"; command: string; args?: string[]; env?: Record<string, string> }
-    | { type: "http"; url: string; headers?: Record<string, string>; headersFromEnv?: Record<string, string> };
+    | { type: "http"; url: string; headers?: Record<string, string>; headersFromEnv?: Record<string, string>; oauth?: { clientId: string; callbackPort: number } };
 export interface McpServerStatusDTO {
     name: string;
     scope: McpScope;
@@ -906,11 +915,16 @@ export interface McpServerStatusDTO {
     enabled: boolean;
     status: McpConnectionStatus;
     error?: string;
+    signInRequired?: boolean;
     tools: McpToolSummaryDTO[];
     /** Raw config as stored on disk — used by the Edit dialog to pre-fill fields. */
     config: McpServerConfigDTO;
     /** True when this user-scope server is shadowed by a same-named workspace-scope server. */
     shadowed?: boolean;
+}
+export interface SignInMcpServerRequest {
+    name: string;
+    scope: McpScope;
 }
 export interface SetMcpServerEnabledRequest {
     name: string;

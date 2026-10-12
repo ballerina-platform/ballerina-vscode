@@ -16,28 +16,15 @@
  *  under the License.
  */
 
-package io.ballerina.modelgenerator.commons;
+package io.ballerina.testmanagerservice.extension.model;
+
+import io.ballerina.tools.text.LineRange;
 
 /**
- * Container class for unified search results that includes type information.
+ * A module-level agent that an evaluation runs.
  *
- * @since 1.7.0
+ * @param name      the agent variable name
+ * @param lineRange the range of the agent declaration, which matches the agent artifact's location
  */
-public class UnifiedSearchResult {
-
-    private final String resultType;
-    private final SearchResult searchResult;
-
-    public UnifiedSearchResult(String resultType, SearchResult searchResult) {
-        this.resultType = resultType;
-        this.searchResult = searchResult;
-    }
-
-    public String getResultType() {
-        return resultType;
-    }
-
-    public SearchResult getSearchResult() {
-        return searchResult;
-    }
+public record EvaluationAgent(String name, LineRange lineRange) {
 }

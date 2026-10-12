@@ -1361,14 +1361,33 @@ public class WorkflowUtil {
     private static String roleListSource(List<?> names) {
         List<String> literals = names.stream()
                 .map(item -> item instanceof Map<?, ?> map ? String.valueOf(map.get("value")) : String.valueOf(item))
-                .map(String::trim)
+                .map(WorkflowUtil::roleItemSource)
                 .filter(text -> !text.isEmpty())
-                .map(WorkflowUtil::stringLiteral)
                 .toList();
         if (literals.isEmpty()) {
             return "";
         }
         return literals.size() == 1 ? literals.getFirst() : "[" + String.join(", ", literals) + "]";
+    }
+
+    // The list editor hands each item over as a text-mode string template: one without interpolation is
+    // its text, a literal stays, and an interpolated template is an expression.
+    private static String roleItemSource(String item) {
+        String trimmed = item.trim();
+        String content = trimmed.startsWith("string `") && trimmed.endsWith("`")
+                ? trimmed.substring("string `".length(), trimmed.length() - 1) : null;
+        // One template only: `string `a` + string `b`` is an expression of two.
+        if (content != null && !content.contains("`")) {
+            if (content.contains("${")) {
+                return trimmed;
+            }
+            String text = content.trim();
+            return text.isEmpty() ? "" : stringLiteral(text);
+        }
+        if (isStringLiteral(trimmed)) {
+            return trimmed;
+        }
+        return trimmed.isEmpty() ? "" : stringLiteral(trimmed);
     }
 
     /**

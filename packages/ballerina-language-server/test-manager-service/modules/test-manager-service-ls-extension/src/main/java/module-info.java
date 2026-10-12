@@ -29,4 +29,5 @@ module io.ballerina.servicemodelgenerator.extension {
     requires com.google.gson;
     requires io.ballerina.parser;
     requires io.ballerina.tools.api;
+    requires io.ballerina.model.generator.commons;
 }

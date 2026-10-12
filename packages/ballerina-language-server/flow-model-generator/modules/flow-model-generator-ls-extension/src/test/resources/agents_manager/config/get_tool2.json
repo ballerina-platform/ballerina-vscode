@@ -384,7 +384,7 @@
             "selected": true
           }
         ],
-        "value": "\n@ai:AgentTool\n\n",
+        "value": "@ai:AgentTool",
         "optional": false,
         "editable": false,
         "advanced": false,

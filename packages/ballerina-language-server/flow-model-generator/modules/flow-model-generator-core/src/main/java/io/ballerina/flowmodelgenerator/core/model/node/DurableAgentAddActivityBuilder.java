@@ -19,6 +19,7 @@
 package io.ballerina.flowmodelgenerator.core.model.node;
 
 import io.ballerina.compiler.api.SemanticModel;
+import io.ballerina.compiler.api.symbols.Documentation;
 import io.ballerina.compiler.api.symbols.FunctionSymbol;
 import io.ballerina.compiler.api.symbols.ParameterSymbol;
 import io.ballerina.compiler.api.symbols.SymbolKind;
@@ -138,27 +139,25 @@ public class DurableAgentAddActivityBuilder extends CallBuilder {
                 .stepOut()
                 .addProperty(ACTIVITY_KEY);
         // The fields follow the ActivityDecl record: activity, name, description, bindings, then the policies.
-        addActivityIdentityProperties();
-        addBindingProperties(context, preSelected);
+        Optional<ActivityLookup> activity = preSelected.isEmpty()
+                ? Optional.empty() : findActivity(context, preSelected);
+        String descriptionPlaceholder = activity.flatMap(found -> found.function().documentation())
+                .flatMap(Documentation::description).orElse("");
+        addActivityIdentityProperties(WorkflowUtil.stripModulePrefix(preSelected), descriptionPlaceholder.strip());
+        activity.ifPresent(this::addBindingProperties);
         addPolicyProperties();
         properties().checkError(true);
     }
 
+    // An activity function and the semantic model of the module that declares it.
+    private record ActivityLookup(FunctionSymbol function, SemanticModel semanticModel) {
+    }
+
     /**
-     * Adds a selector for every parameter of the chosen activity the model cannot supply — a
-     * client, typically. Their values are fixed at registration through {@code bindings}, and the
-     * remaining data parameters stay model-controlled. Options are the module-level variables
-     * assignable to the parameter, so a connection is picked rather than typed.
-     *
-     * <p>An entry declared with a module-qualified reference ({@code mod:validate}) arrives here as
-     * written, while symbols carry the bare name — so the qualifier is stripped before the lookup.
-     * Without that, no binding selector is built, the values the analysis hydrated for them have
-     * nowhere to land, and saving the edit drops the entry's {@code bindings} field.
+     * Finds the activity function an entry names. An entry declared with a module-qualified reference
+     * ({@code mod:validate}) arrives as written while symbols carry the bare name, so the qualifier is stripped.
      */
-    private void addBindingProperties(TemplateContext context, String activityName) {
-        if (activityName == null || activityName.isEmpty()) {
-            return;
-        }
+    private static Optional<ActivityLookup> findActivity(TemplateContext context, String activityName) {
         String unqualifiedName = WorkflowUtil.stripModulePrefix(activityName);
         Package currentPackage = PackageUtil.loadProject(context.workspaceManager(), context.filePath())
                 .currentPackage();
@@ -168,6 +167,7 @@ public class DurableAgentAddActivityBuilder extends CallBuilder {
             try {
                 semanticModel = module.getCompilation().getSemanticModel();
             } catch (RuntimeException e) {
+                // A module that does not compile has no symbols to offer.
                 continue;
             }
             Optional<FunctionSymbol> activity = semanticModel.moduleSymbols().stream()
@@ -176,41 +176,52 @@ public class DurableAgentAddActivityBuilder extends CallBuilder {
                     .filter(WorkflowUtil::isActivityFunction)
                     .filter(symbol -> unqualifiedName.equals(symbol.getName().orElse("")))
                     .findFirst();
-            if (activity.isEmpty()) {
+            if (activity.isPresent()) {
+                return Optional.of(new ActivityLookup(activity.get(), semanticModel));
+            }
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Adds a selector for every parameter of the chosen activity the model cannot supply — a
+     * client, typically. Their values are fixed at registration through {@code bindings}, and the
+     * remaining data parameters stay model-controlled. Options are the module-level variables
+     * assignable to the parameter, so a connection is picked rather than typed. Without them, the values the
+     * analysis hydrated for the bindings have nowhere to land, and saving an edit drops the entry's {@code bindings}.
+     */
+    private void addBindingProperties(ActivityLookup activity) {
+        SemanticModel semanticModel = activity.semanticModel();
+        List<ParameterSymbol> params = activity.function().typeDescriptor().params().orElse(List.of());
+        for (ParameterSymbol parameter : params) {
+            TypeSymbol type = parameter.typeDescriptor();
+            if (type.subtypeOf(semanticModel.types().ANYDATA)) {
                 continue;
             }
-            List<ParameterSymbol> params = activity.get().typeDescriptor().params().orElse(List.of());
-            for (ParameterSymbol parameter : params) {
-                TypeSymbol type = parameter.typeDescriptor();
-                if (type.subtypeOf(semanticModel.types().ANYDATA)) {
-                    continue;
-                }
-                String paramName = parameter.getName().orElse("");
-                if (paramName.isEmpty()) {
-                    continue;
-                }
-                properties().custom()
-                        .metadata()
-                            .label(paramName.substring(0, 1).toUpperCase(java.util.Locale.ROOT)
-                                    + paramName.substring(1))
-                            .description("Fixed at registration and hidden from the model: "
-                                    + "the agent cannot supply a '" + type.signature() + "'")
-                            .stepOut()
-                        .type()
-                            .fieldType(Property.ValueType.SINGLE_SELECT)
-                            .ballerinaType(type.signature())
-                            .options(moduleVariablesOfType(semanticModel, type))
-                            .selected(true)
-                            .stepOut()
-                        .codedata()
-                            .kind(ParameterData.Kind.REQUIRED.name())
-                            .stepOut()
-                        .value("")
-                        .editable(true)
-                        .stepOut()
-                        .addProperty(BINDING_KEY_PREFIX + paramName);
+            String paramName = parameter.getName().orElse("");
+            if (paramName.isEmpty()) {
+                continue;
             }
-            return;
+            properties().custom()
+                    .metadata()
+                        .label(paramName.substring(0, 1).toUpperCase(java.util.Locale.ROOT)
+                                + paramName.substring(1))
+                        .description("Fixed at registration and hidden from the model: "
+                                + "the agent cannot supply a '" + type.signature() + "'")
+                        .stepOut()
+                    .type()
+                        .fieldType(Property.ValueType.SINGLE_SELECT)
+                        .ballerinaType(type.signature())
+                        .options(moduleVariablesOfType(semanticModel, type))
+                        .selected(true)
+                        .stepOut()
+                    .codedata()
+                        .kind(ParameterData.Kind.REQUIRED.name())
+                        .stepOut()
+                    .value("")
+                    .editable(true)
+                    .stepOut()
+                    .addProperty(BINDING_KEY_PREFIX + paramName);
         }
     }
 
@@ -226,8 +237,9 @@ public class DurableAgentAddActivityBuilder extends CallBuilder {
     }
 
     // The declaration's optional name/description. Registering an activity asks nothing beyond the policies,
-    // so they stay hidden; the designer reveals them when an existing entry is edited, and values round-trip.
-    private void addActivityIdentityProperties() {
+    // so they stay hidden; the designer shows them read-only on an existing entry, with what the runtime uses
+    // when they are not declared (the function's name and doc) as placeholders, and values round-trip.
+    private void addActivityIdentityProperties(String namePlaceholder, String descriptionPlaceholder) {
         properties().custom()
                 .metadata()
                     .label(ACTIVITY_NAME_LABEL)
@@ -239,6 +251,7 @@ public class DurableAgentAddActivityBuilder extends CallBuilder {
                     .selected(true)
                     .stepOut()
                 .value("")
+                .placeholder(namePlaceholder)
                 .editable(true)
                 .optional(true)
                 .hidden(true)
@@ -255,6 +268,7 @@ public class DurableAgentAddActivityBuilder extends CallBuilder {
                     .selected(true)
                     .stepOut()
                 .value("")
+                .placeholder(descriptionPlaceholder)
                 .editable(true)
                 .optional(true)
                 .hidden(true)

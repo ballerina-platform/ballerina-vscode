@@ -20,8 +20,11 @@ import { GetTestFunctionRequest, GetTestFunctionResponse, AddOrUpdateTestFunctio
 import { SourceUpdateResponse } from "../service-designer/interfaces";
 import {
     GetTestFunctionNamesRequest, GetTestFunctionNamesResponse,
+    EvaluationsRequest, GetEvaluationsResponse, EvaluationFileResponse,
+    RunEvaluationsRequest, StopEvaluationsRequest, EvaluationRunState, EvaluationActionRequest, EvalsetActionRequest,
+    GenerateEvaluationQueriesRequest, GenerateEvaluationQueriesResponse,
     GetEvalsetsRequest, GetEvalsetsResponse,
-    GetEvaluationHistoryRequest, GetEvaluationHistoryResponse,
+    GetEvaluationHistoryRequest, GetEvaluationHistoryResponse, DeleteEvaluationHistoryRequest,
     OpenEvaluationReportRequest,
     GetEvaluationReportRequest, GetEvaluationReportResponse,
     GitDiffRequest, GitDiffResponse,
@@ -33,8 +36,17 @@ export interface TestManagerServiceAPI {
     addTestFunction: (params: AddOrUpdateTestFunctionRequest) => Promise<SourceUpdateResponse>;
     getTestFunction: (params: GetTestFunctionRequest) => Promise<GetTestFunctionResponse>;
     getTestFunctionNames: (params: GetTestFunctionNamesRequest) => Promise<GetTestFunctionNamesResponse>;
+    getEvaluations: (params: EvaluationsRequest) => Promise<GetEvaluationsResponse>;
+    getEvaluationFile: (params: EvaluationsRequest) => Promise<EvaluationFileResponse>;
+    runEvaluations: (params: RunEvaluationsRequest) => Promise<void>;
+    stopEvaluations: (params: StopEvaluationsRequest) => Promise<void>;
+    getEvaluationRunState: (params: EvaluationsRequest) => Promise<EvaluationRunState>;
+    runEvaluationAction: (params: EvaluationActionRequest) => Promise<void>;
+    runEvalsetAction: (params: EvalsetActionRequest) => Promise<void>;
+    generateEvaluationQueries: (params: GenerateEvaluationQueriesRequest) => Promise<GenerateEvaluationQueriesResponse>;
     getEvalsets: (params: GetEvalsetsRequest) => Promise<GetEvalsetsResponse>;
     getEvaluationHistory: (params: GetEvaluationHistoryRequest) => Promise<GetEvaluationHistoryResponse>;
+    deleteEvaluationHistory: (params: DeleteEvaluationHistoryRequest) => Promise<void>;
     openEvaluationReport: (params: OpenEvaluationReportRequest) => Promise<void>;
     getEvaluationReport: (params: GetEvaluationReportRequest) => Promise<GetEvaluationReportResponse>;
     getGitDiff: (params: GitDiffRequest) => Promise<GitDiffResponse>;

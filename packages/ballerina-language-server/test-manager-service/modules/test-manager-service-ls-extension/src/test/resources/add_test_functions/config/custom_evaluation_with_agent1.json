@@ -1,0 +1,115 @@
+{
+  "filePath": "sample_minpassrate/tests/test1.bal",
+  "description": "Custom evaluation that runs the target agent",
+  "function": {
+    "metadata": {
+      "label": "Test Function",
+      "description": "Test Function"
+    },
+    "codedata": {
+      "lineRange": {
+        "fileName": "tests/test1.bal",
+        "startLine": {
+          "line": 3,
+          "offset": 0
+        },
+        "endLine": {
+          "line": 6,
+          "offset": 1
+        }
+      }
+    },
+    "functionName": {
+      "metadata": {
+        "label": "Test Function",
+        "description": "Test function"
+      },
+      "valueType": "IDENTIFIER",
+      "value": "customEvaluation",
+      "optional": false,
+      "editable": true,
+      "advanced": false
+    },
+    "returnType": {
+      "metadata": {
+        "label": "Return Type",
+        "description": "Return type of the function"
+      },
+      "valueType": "TYPE",
+      "optional": true,
+      "editable": true,
+      "advanced": true
+    },
+    "parameters": [],
+    "annotations": [
+      {
+        "metadata": {
+          "label": "Config",
+          "description": "Test Function Configurations"
+        },
+        "org": "ballerina",
+        "module": "test",
+        "name": "Config",
+        "fields": [
+          {
+            "metadata": {
+              "label": "Groups",
+              "description": "Groups to run"
+            },
+            "valueType": "EXPRESSION_SET",
+            "originalName": "groups",
+            "value": [
+              "\"evaluations\""
+            ],
+            "optional": true,
+            "editable": true,
+            "advanced": false
+          },
+          {
+            "metadata": {
+              "label": "Runs",
+              "description": "Number of times to execute this test"
+            },
+            "valueType": "EXPRESSION",
+            "originalName": "runs",
+            "value": "1",
+            "optional": true,
+            "editable": true,
+            "advanced": false
+          },
+          {
+            "metadata": {
+              "label": "Minimum Pass Rate (%)",
+              "description": "Minimum percentage of runs that must pass (0-100)"
+            },
+            "valueType": "SLIDER",
+            "originalName": "minPassRate",
+            "value": "80",
+            "optional": true,
+            "editable": true,
+            "advanced": false
+          }
+        ]
+      }
+    ],
+    "editable": true
+  },
+  "targetAgent": "mathAgent",
+  "output": {
+    "sample_minpassrate/tests/test1.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 1,
+            "character": 22
+          },
+          "end": {
+            "line": 1,
+            "character": 22
+          }
+        },
+        "newText": "@test:Config{\ngroups: [\"evaluations\"],\nminPassRate: 80\n}\nfunction customEvaluation() returns error? {\n    string response = check mathAgent.run(\"Replace with a test query\");\n    test:assertFail(string `Replace this with the checks for the evaluation. The agent responded: ${response}`);\n}"
+      }
+    ]
+  }
+}

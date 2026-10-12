@@ -469,15 +469,25 @@ export function TriggerHandlerForm(props: TriggerHandlerFormProps) {
         return addableCatalogOf(serviceModel).filter((fn) => handlerGroupId(fn) === groupId);
     }, [serviceModel, groupId]);
 
-    // Add mode starts from the group's first addable variant; edit mode from the passed model.
+    // Seeds the form: add mode from the group's first addable variant, edit mode from the passed model.
+    // Seeds once per source model, so a service refetch (e.g. after creating a configurable) that only
+    // renews `addableVariants` does not overwrite in-form edits.
+    const seededRef = useRef<{ isNew: boolean; source?: FunctionModel; seeded: boolean } | null>(null);
     useEffect(() => {
+        const prev = seededRef.current;
+        const sourceUnchanged = prev?.isNew === isNew && prev.source === props.functionModel;
+        if (sourceUnchanged && prev.seeded) {
+            return;
+        }
         if (isNew) {
             const initial = props.functionModel ?? addableVariants[0];
+            seededRef.current = { isNew, source: props.functionModel, seeded: !!initial };
             setFunctionModel(initial ? cloneDeep(initial) : null);
             setArtifactFields(buildOrderedArtifactFields(initial));
             setIsArtifactFieldsValid(true);
             initialSignatureKeyRef.current = null;
         } else {
+            seededRef.current = { isNew, source: props.functionModel, seeded: true };
             setFunctionModel(props.functionModel ? cloneDeep(props.functionModel) : null);
             setArtifactFields(buildOrderedArtifactFields(props.functionModel));
             setIsArtifactFieldsValid(true);

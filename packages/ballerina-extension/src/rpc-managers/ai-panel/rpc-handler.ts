@@ -126,6 +126,8 @@ import {
     listMcpServers,
     setMcpServerEnabled,
     SetMcpServerEnabledRequest,
+    signInMcpServer,
+    SignInMcpServerRequest,
     openMcpConfig,
     addMcpServer,
     AddMcpServerRequest,
@@ -150,6 +152,8 @@ import {
     listThreads,
     switchThread,
     SwitchThreadRequest,
+    prepareKeyedThread,
+    PrepareKeyedThreadRequest,
     deleteThread,
     DeleteThreadRequest,
     renameThread,
@@ -247,6 +251,7 @@ export function registerAiPanelRpcHandlers(messenger: Messenger) {
     messenger.onRequest(parseSkillFile, (args: ParseSkillFileRequest) => rpcManger.parseSkillFile(args));
     messenger.onRequest(listMcpServers, () => rpcManger.listMcpServers());
     messenger.onRequest(setMcpServerEnabled, (args: SetMcpServerEnabledRequest) => rpcManger.setMcpServerEnabled(args));
+    messenger.onRequest(signInMcpServer, (args: SignInMcpServerRequest) => rpcManger.signInMcpServer(args));
     messenger.onRequest(openMcpConfig, (args: OpenMcpConfigRequest) => rpcManger.openMcpConfig(args));
     messenger.onRequest(addMcpServer, (args: AddMcpServerRequest) => rpcManger.addMcpServer(args));
     messenger.onRequest(updateMcpServer, (args: UpdateMcpServerRequest) => rpcManger.updateMcpServer(args));
@@ -263,6 +268,7 @@ export function registerAiPanelRpcHandlers(messenger: Messenger) {
     messenger.onRequest(openOrCreateAgentsMd, () => rpcManger.openOrCreateAgentsMd());
     messenger.onRequest(listThreads, () => rpcManger.listThreads());
     messenger.onRequest(switchThread, (args: SwitchThreadRequest) => rpcManger.switchThread(args));
+    messenger.onRequest(prepareKeyedThread, (args: PrepareKeyedThreadRequest) => rpcManger.prepareKeyedThread(args));
     messenger.onRequest(deleteThread, (args: DeleteThreadRequest) => rpcManger.deleteThread(args));
     messenger.onRequest(renameThread, (args: RenameThreadRequest) => rpcManger.renameThread(args));
     // TODO(auto-memory): temporarily disabled for this release.

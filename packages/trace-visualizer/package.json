@@ -18,7 +18,7 @@
     "@emotion/styled": "11.14.0",
     "@vscode/webview-ui-toolkit": "1.4.0",
     "@wso2/ui-toolkit": "workspace:*",
-    "katex": "0.16.27",
+    "katex": "0.18.2",
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "react-markdown": "10.1.0",

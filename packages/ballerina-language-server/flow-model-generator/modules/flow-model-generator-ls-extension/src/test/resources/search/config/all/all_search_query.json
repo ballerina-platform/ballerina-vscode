@@ -19,6 +19,44 @@
   "categories": [
     {
       "metadata": {
+        "label": "Agent Tools",
+        "description": "Functions used as agent tools",
+        "keywords": [
+          "Project",
+          "Local",
+          "Function"
+        ]
+      },
+      "items": []
+    },
+    {
+      "metadata": {
+        "label": "Current Integration",
+        "description": "Components defined within the current integration",
+        "keywords": [
+          "Project",
+          "Local",
+          "Function",
+          "Types",
+          "Data Mapper"
+        ]
+      },
+      "items": []
+    },
+    {
+      "metadata": {
+        "label": "Imported Functions",
+        "description": "Functions imported from other integrations",
+        "keywords": [
+          "Imported",
+          "Function",
+          "Library"
+        ]
+      },
+      "items": []
+    },
+    {
+      "metadata": {
         "label": "Standard Library",
         "description": "Components supported officially by Ballerina",
         "keywords": [
@@ -27,31 +65,6 @@
         ]
       },
       "items": [
-        {
-          "metadata": {
-            "label": "metrics.logs",
-            "description": "",
-            "keywords": []
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "printMetricsLog",
-                "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_metrics.logs_1.1.0.png"
-              },
-              "codedata": {
-                "node": "FUNCTION_CALL",
-                "org": "ballerinax",
-                "module": "metrics.logs",
-                "packageName": "metrics.logs",
-                "symbol": "printMetricsLog",
-                "version": "1.1.0"
-              },
-              "enabled": true
-            }
-          ]
-        },
         {
           "metadata": {
             "label": "log",
@@ -77,6 +90,22 @@
             },
             {
               "metadata": {
+                "label": "getLoggerRegistry",
+                "description": "Returns the logger registry for discovering and managing registered loggers.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_log_2.17.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "log",
+                "packageName": "log",
+                "symbol": "getLoggerRegistry",
+                "version": "2.17.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
                 "label": "printDebug",
                 "description": "Prints debug logs.\n```ballerina\nlog:printDebug(\"debug message\", id = 845315)\n```\n",
                 "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_log_2.17.0.png"
@@ -87,6 +116,54 @@
                 "module": "log",
                 "packageName": "log",
                 "symbol": "printDebug",
+                "version": "2.17.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "printInfo",
+                "description": "Prints info logs.\n```ballerina\nlog:printInfo(\"info message\", id = 845315)\n```\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_log_2.17.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "log",
+                "packageName": "log",
+                "symbol": "printInfo",
+                "version": "2.17.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "printWarn",
+                "description": "Prints warn logs.\n```ballerina\nlog:printWarn(\"warn message\", id = 845315)\n```\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_log_2.17.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "log",
+                "packageName": "log",
+                "symbol": "printWarn",
+                "version": "2.17.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "fromConfig",
+                "description": "Creates a new logger with the given configuration.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_log_2.17.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "log",
+                "packageName": "log",
+                "symbol": "fromConfig",
                 "version": "2.17.0"
               },
               "enabled": true
@@ -138,6 +215,68 @@
     },
     {
       "metadata": {
+        "label": "Extended Library",
+        "description": "Components from the ballerinax organization",
+        "keywords": [
+          "Ballerinax",
+          "Library"
+        ]
+      },
+      "items": [
+        {
+          "metadata": {
+            "label": "metrics.logs",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "printMetricsLog",
+                "description": "",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_metrics.logs_1.1.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "metrics.logs",
+                "packageName": "metrics.logs",
+                "symbol": "printMetricsLog",
+                "version": "1.1.0"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "edifact.d03a.logistics",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "getEDINames",
+                "description": "",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_edifact.d03a.logistics_1.0.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "edifact.d03a.logistics",
+                "packageName": "edifact.d03a.logistics",
+                "symbol": "getEDINames",
+                "version": "1.0.1"
+              },
+              "enabled": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "metadata": {
         "label": "Connectors"
       },
       "items": [
@@ -145,7 +284,10 @@
           "metadata": {
             "label": "logoraisr",
             "description": "This is a generated connector from [Logoraisr API v1](https://docs.logoraisr.com/) OpenAPI Specification.\nLogoraisr API provides capability to access operations related to your graphic design tasks automatically using best-in-class algorithms and artificial intelligence.",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_logoraisr_1.5.1.png"
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_logoraisr_1.5.1.png",
+            "data": {
+              "isAgentSupport": false
+            }
           },
           "codedata": {
             "node": "NEW_CONNECTION",
@@ -163,7 +305,10 @@
           "metadata": {
             "label": "eBay Logistics",
             "description": "This is a generated connector for [eBay logistics API v1_beta.0.0](https://developer.ebay.com/api-docs/sell/logistics/static/overview.html) OpenAPI Specification.\nThis is an API available only to select developers approved by business units.The Logistics API resources offer the following capabilities: shipping_quote Consolidates into a list a set of live shipping rates, or quotes, from which you can select a rate to ship a package. shipment creates a \"shipment\" for the selected shipping rate. Call createShippingQuote to get a list of live shipping rates. The rates returned are all valid for a specific time window and all quoted prices are at eBay-negotiated rates. Select one of the live rates and using its associated rateId, create a \"shipment\" for the package by calling createFromShippingQuote. Creating a shipment completes an agreement, and the cost of the base service and any added shipping options are summed into the returned totalShippingCost value. This action also generates a shipping label that you can use to ship the package.  The total cost of the shipment is incurred when the package is shipped using the supplied shipping label. Sellers must set up a payment method via their eBay account before they can use the methods in this API to create a shipment and the associated shipping label.",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ebay.logistics_1.5.1.png"
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ebay.logistics_1.5.1.png",
+            "data": {
+              "isAgentSupport": false
+            }
           },
           "codedata": {
             "node": "NEW_CONNECTION",
@@ -181,7 +326,10 @@
           "metadata": {
             "label": "commercetools Auditlog",
             "description": "This is a generated connector for [Commercetools API v1](https://docs.commercetools.com/api/) OpenAPI specification. \nThe commercetools Platform HTTP API(Audit Log) offers an interface for programmatic access to tracks creations, deletions, and updates of platform resources.",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_commercetools.auditlog_1.4.1.png"
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_commercetools.auditlog_1.4.1.png",
+            "data": {
+              "isAgentSupport": false
+            }
           },
           "codedata": {
             "node": "NEW_CONNECTION",
@@ -199,7 +347,10 @@
           "metadata": {
             "label": "1Password",
             "description": "This is a generated connector from [1Password Connect API v1.0](https://1password.com/) OpenAPI specification.\n1Password is the easiest way to store and use strong passwords. Log in to sites and fill forms securely with a single click.",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_onepassword_1.5.1.png"
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_onepassword_1.5.1.png",
+            "data": {
+              "isAgentSupport": false
+            }
           },
           "codedata": {
             "node": "NEW_CONNECTION",
@@ -217,7 +368,10 @@
           "metadata": {
             "label": "Google Vision",
             "description": "This is a generated connector for [Google Cloud Vision API v1](https://cloud.google.com/vision/docs/reference/rest) OpenAPI specification.\nIntegrates Google Vision features, including image labeling, face, logo, and landmark detection, optical character recognition (OCR), and detection of explicit content, into applications.",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_googleapis.vision_1.6.1.png"
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_googleapis.vision_1.6.1.png",
+            "data": {
+              "isAgentSupport": false
+            }
           },
           "codedata": {
             "node": "NEW_CONNECTION",
@@ -230,46 +384,92 @@
             "isGenerated": false
           },
           "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "Elmah",
+            "description": "This is a generated connector for [Elmah.io REST API v3](https://elmah.io) OpenAPI Specification.\nThe public REST API for elmah.io. All of the integrations communicates with elmah.io through this API.\nFor additional help getting started with the API, visit the following help articles:\n<ul><li>[Using the REST API](https://docs.elmah.io/using-the-rest-api/)</li><li>[Where is my API key?](https://docs.elmah.io/where-is-my-api-key/)</li><li>[Where is my log ID?](https://docs.elmah.io/where-is-my-log-id/)</li><li>[How to configure API key permissions](https://docs.elmah.io/how-to-configure-api-key-permissions/)</li></ul>",
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_elmah_1.5.1.png",
+            "data": {
+              "isAgentSupport": false
+            }
+          },
+          "codedata": {
+            "node": "NEW_CONNECTION",
+            "org": "ballerinax",
+            "module": "elmah",
+            "packageName": "elmah",
+            "object": "Client",
+            "symbol": "init",
+            "version": "1.5.1",
+            "isGenerated": false
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "Spotto",
+            "description": "This is a generated connector for [Spotto API v1.0.0](https://api-reference.spotto.io) OpenAPI specification.\nThe Spotto API provides a broad set of operations and resources that allow you to:\n- Access and manage the Spotto registry of assets, locations and readers\n- Control levels of access to Spotto applications and APIs across your account\n- Query the Spotto event log to gain valuable insights into your historical data\n- Setup event based hooks when something significant changes in Spotto.",
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_spotto_1.5.1.png",
+            "data": {
+              "isAgentSupport": false
+            }
+          },
+          "codedata": {
+            "node": "NEW_CONNECTION",
+            "org": "ballerinax",
+            "module": "spotto",
+            "packageName": "spotto",
+            "object": "Client",
+            "symbol": "init",
+            "version": "1.5.1",
+            "isGenerated": false
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "PayPal Invoices",
+            "description": "Use the Invoicing API to create, send, and manage invoices. You can also use the API or webhooks to track invoice payments. When you send an invoice to a customer, the invoice moves from draft to payable state. PayPal then emails the customer a link to the invoice on the PayPal website. Customers with a PayPal account can log in and pay the invoice with PayPal. Alternatively, customers can pay as a guest with a debit card or credit card. For more information, see the <a href=\"/docs/invoicing/\">Invoicing Overview</a> and the <a href=\"/docs/invoicing/basic-integration/\">Invoicing Integration Guide</a>.",
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_paypal.invoices_1.0.2.png",
+            "data": {
+              "isAgentSupport": false
+            }
+          },
+          "codedata": {
+            "node": "NEW_CONNECTION",
+            "org": "ballerinax",
+            "module": "paypal.invoices",
+            "packageName": "paypal.invoices",
+            "object": "Client",
+            "symbol": "init",
+            "version": "1.0.2",
+            "isGenerated": false
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "Azure Anomaly",
+            "description": "This is a generated connector for [Azure Anomaly Detector API v1](https://azure.microsoft.com/en-us/services/cognitive-services/anomaly-detector/) OpenAPI specification.\n\"The Anomaly Detection service detects anomalies automatically in time\\ \\ series data. It supports several functionalities, \\r\\none is for detecting the\\ \\ whole series with model trained by the time series, another is detecting the\\ \\ last point \\r\\nwith model trained by points before. With this service, business\\ \\ customers can discover incidents and establish \\r\\na logic flow for root cause\\ \\ analysis. We also provide change point detection, which is another common scenario\\ \\ on \\r\\ntime series analysis and service monitoring. Change point detection targets\\ \\ to discover tend changes in the time series.\\r\\nTo ensure online service quality\\ \\ is one of the main reasons we developed this service. Our team is dedicated\\ \\ to \\r\\ncontinuing to improve the anomaly detection service to provide precise\\ \\ results.\"",
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure.anomalydetector_1.5.1.png",
+            "data": {
+              "isAgentSupport": false
+            }
+          },
+          "codedata": {
+            "node": "NEW_CONNECTION",
+            "org": "ballerinax",
+            "module": "azure.anomalydetector",
+            "packageName": "azure.anomalydetector",
+            "object": "Client",
+            "symbol": "init",
+            "version": "1.5.1",
+            "isGenerated": false
+          },
+          "enabled": true
         }
       ]
-    },
-    {
-      "metadata": {
-        "label": "Imported Functions",
-        "description": "Functions imported from other integrations",
-        "keywords": [
-          "Imported",
-          "Function",
-          "Library"
-        ]
-      },
-      "items": []
-    },
-    {
-      "metadata": {
-        "label": "Agent Tools",
-        "description": "Functions used as agent tools",
-        "keywords": [
-          "Project",
-          "Local",
-          "Function"
-        ]
-      },
-      "items": []
-    },
-    {
-      "metadata": {
-        "label": "Current Integration",
-        "description": "Components defined within the current integration",
-        "keywords": [
-          "Project",
-          "Local",
-          "Function",
-          "Types",
-          "Data Mapper"
-        ]
-      },
-      "items": []
     }
   ]
 }

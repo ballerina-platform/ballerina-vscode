@@ -384,7 +384,7 @@
             "selected": true
           }
         ],
-        "value": "@ai:AgentTool\n@display {\n    iconPath: \"/path/icon.png\"\n}\n\n",
+        "value": "@ai:AgentTool\n@display {\n    iconPath: \"/path/icon.png\"\n}",
         "optional": false,
         "editable": false,
         "advanced": false,

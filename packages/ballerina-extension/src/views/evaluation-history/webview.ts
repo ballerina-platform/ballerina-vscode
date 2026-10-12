@@ -30,6 +30,7 @@ import {
     getComposerWebViewOptions,
     getLibraryWebViewContent,
 } from "../../utils/webview-utils";
+import { EvaluationHistoryFilter } from "@wso2/ballerina-core";
 import { RPCLayer } from "../../RPCLayer";
 import { extension } from "../../BalExtensionContext";
 
@@ -47,14 +48,15 @@ export class EvaluationHistoryWebview {
         RPCLayer.create(this._panel);
     }
 
-    public static async createOrShow(workspaceRoot: string): Promise<void> {
+    public static async createOrShow(workspaceRoot: string, filter?: EvaluationHistoryFilter): Promise<void> {
         if (EvaluationHistoryWebview.currentPanel) {
-            if (EvaluationHistoryWebview.currentPanel._workspaceRoot !== workspaceRoot) {
+            if (filter || EvaluationHistoryWebview.currentPanel._workspaceRoot !== workspaceRoot) {
                 EvaluationHistoryWebview.currentPanel._workspaceRoot = workspaceRoot;
                 EvaluationHistoryWebview.currentPanel._panel.webview.html =
                     EvaluationHistoryWebview.currentPanel.getWebviewContent(
                         EvaluationHistoryWebview.currentPanel._panel.webview,
-                        workspaceRoot
+                        workspaceRoot,
+                        filter
                     );
             }
             EvaluationHistoryWebview.currentPanel._panel.reveal(
@@ -80,6 +82,10 @@ export class EvaluationHistoryWebview {
                 retainContextWhenHidden: true,
             }
         );
+        panel.iconPath = {
+            light: Uri.file(path.join(extension.context.extensionPath, "resources", "icons", "dark-history.svg")),
+            dark: Uri.file(path.join(extension.context.extensionPath, "resources", "icons", "light-history.svg")),
+        };
 
         EvaluationHistoryWebview.currentPanel = new EvaluationHistoryWebview(
             panel,
@@ -88,19 +94,23 @@ export class EvaluationHistoryWebview {
         EvaluationHistoryWebview.currentPanel._panel.webview.html =
             EvaluationHistoryWebview.currentPanel.getWebviewContent(
                 panel.webview,
-                workspaceRoot
+                workspaceRoot,
+                filter
             );
     }
 
     private getWebviewContent(
         webView: Webview,
-        workspaceRoot: string
+        workspaceRoot: string,
+        filter?: EvaluationHistoryFilter
     ): string {
-        const escapedPath = workspaceRoot
-            .replace(/&/g, "&amp;")
-            .replace(/"/g, "&quot;");
+        const escapeAttribute = (value: string) => value.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+        const escapedPath = escapeAttribute(workspaceRoot);
+        const escapedFilter = escapeAttribute(JSON.stringify(filter ?? {}));
 
-        const body = `<div class="container" id="webview-container" data-project-path="${escapedPath}">
+        // VS Code ignores an unchanged html string, so the timestamp makes a repeated filter reload the page.
+        const body = `<div class="container" id="webview-container" data-project-path="${escapedPath}"
+                data-filter="${escapedFilter}" data-opened-at="${Date.now()}">
                 <div class="loader-wrapper">
                     <div class="loader" /></div>
                 </div>

@@ -78,7 +78,8 @@ export function AgentEditorPanelContent({ controller }: { controller: AgentEdito
             return <UseAgentToolForm agentNode={agent} agentVarName={controller.selectedAgentName}
                 onSave={controller.close} />;
         case "ADD_MCP":
-            return <AddMcpServer agentNode={agent} onSave={controller.close} onBack={controller.back} />;
+            return <AddMcpServer agentNode={agent} onSave={controller.close} onBack={controller.back}
+                onSetBackOverride={controller.setBackHandler} />;
         case "EDIT_MCP":
             return <AddMcpServer editMode name={controller.selectedTool?.name} agentNode={agent}
                 onSave={controller.close} />;

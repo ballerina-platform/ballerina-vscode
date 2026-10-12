@@ -15,7 +15,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { expect, Locator, test } from '@playwright/test';
+import { expect, Frame, Locator, test } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
 import { switchToIFrame } from '@wso2/playwright-vscode-tester';
@@ -37,13 +37,44 @@ async function clickListItem(sidePanel: Locator, name: string): Promise<void> {
     await item.click({ force: true });
 }
 
-// The category header's icon buttons are web components; while the panel is still settling Playwright
-// can report them outside the viewport. Settle, then fall back to a DOM click.
+// Panel controls (the category header's icon buttons, a long form's Save) can be reported outside the
+// viewport while the panel is still settling. Settle, then fall back to a DOM click.
 async function clickPanelControl(control: Locator): Promise<void> {
     await control.waitFor({ state: 'visible', timeout: 60000 });
     await control.scrollIntoViewIfNeeded();
     await page.page.waitForTimeout(500);
     await control.click({ force: true, timeout: 5000 }).catch(() => control.dispatchEvent('click'));
+}
+
+// A capability save hides the form behind an "Applying changes..." loader but keeps the panel open
+// until the refreshed canvas lands, and then refreshes the canvas again on a fixed 1.5s/4s ladder.
+// Waiting for Save to hide is therefore not enough: the next action would race the refresh, which
+// either re-targets the form a later save writes through or closes a panel opened in the meantime.
+async function waitForPanelToClose(webview: Frame): Promise<void> {
+    await webview.getByTestId('side-panel').waitFor({ state: 'detached', timeout: 90000 });
+    await page.page.waitForTimeout(5000);
+}
+
+// The tests share one window, so each one makes sure the durable agent's own diagram is showing.
+async function openDurableAgent(webview: Frame): Promise<void> {
+    const agentBox = webview.getByTestId('durable-agent-run-node');
+    if (await agentBox.isVisible()) {
+        return;
+    }
+    await webview.getByText('billingAgent', { exact: true }).first().waitFor({ timeout: 90000 });
+    await webview.getByText('billingAgent', { exact: true }).first().click({ force: true });
+    await agentBox.waitFor({ state: 'visible', timeout: 60000 });
+}
+
+// Opens the agent's Add Tool/Activity list. The list is recognised by its "Create Activity" header
+// action: an activity name alone also matches the title of an activity's edit form.
+async function openActivityList(webview: Frame): Promise<Locator> {
+    await openDurableAgent(webview);
+    await webview.getByTestId('durable-agent-add-activity').first().click({ force: true });
+    const sidePanel = webview.getByTestId('side-panel');
+    await sidePanel.getByTestId('node-list-action-onAddFunction').first().waitFor({ state: 'visible', timeout: 60000 });
+    await sidePanel.getByText('lookupBill', { exact: true }).first().waitFor({ timeout: 60000 });
+    return sidePanel;
 }
 
 export default function createTests() {
@@ -58,15 +89,10 @@ export default function createTests() {
             if (!webview) {
                 throw new Error(BI_WEBVIEW_NOT_FOUND_ERROR);
             }
-            await webview.getByText('billingAgent', { exact: true }).first().waitFor({ timeout: 90000 });
-            await webview.getByText('billingAgent', { exact: true }).first().click({ force: true });
-            const agentBox = webview.getByTestId('durable-agent-run-node');
-            await agentBox.waitFor({ state: 'visible', timeout: 60000 });
+            await openDurableAgent(webview);
 
             logStep('Open the Add Activity list from the agent box');
-            await webview.getByTestId('durable-agent-affordance-activity').first().click({ force: true });
-            const sidePanel = webview.getByTestId('side-panel');
-            await sidePanel.getByText('lookupBill', { exact: true }).first().waitFor({ timeout: 60000 });
+            const sidePanel = await openActivityList(webview);
 
             logStep('Pick lookupBill and check the registration form');
             await clickListItem(sidePanel, 'lookupBill');
@@ -84,6 +110,7 @@ export default function createTests() {
             await expect.poll(() => fs.readFileSync(path.join(newProjectPath, 'main.bal'), 'utf-8'), {
                 timeout: 60000,
             }).toMatch(/activities:\s*\[[\s\S]*activity:\s*lookupBill[\s\S]*api:\s*billingApi[\s\S]*\]/);
+            await waitForPanelToClose(webview);
             // The registered activity hangs off the agent box as a capability circle.
             const capability = webview.getByTestId('durable-agent-capability-activity-lookupBill');
             await capability.waitFor({ timeout: 60000 });
@@ -91,23 +118,24 @@ export default function createTests() {
             logStep('Open the registered entry and check its edit form');
             await capability.click({ force: true });
             await saveButton.waitFor({ state: 'visible', timeout: 60000 });
-            // An existing entry is where its name and description are set, so the edit form shows them.
+            // The name and description show what the runtime uses, read-only: the function's name and doc comment.
             await expect(webview.getByText('Activity Name', { exact: true })).toBeVisible();
             await expect(webview.getByText('Activity Description', { exact: true })).toBeVisible();
             await expect(webview.getByRole('combobox', { name: 'Api' })).toHaveText(/billingApi/);
+            const name = webview.getByTestId('readonly-field-name');
+            await expect(name).toContainText('lookupBill');
+            const description = webview.locator('vscode-text-area#description');
+            await expect(description).toHaveAttribute('placeholder', 'Look up a bill activity');
+            await expect(description).toHaveAttribute('readonly', 'true');
 
-            logStep('Name the entry and check the canvas shows the text, not the template');
-            // The text box writes a `string `...`` template; the canvas must read it back as text
-            // (wso2/product-integrator#2623).
-            await webview.getByTestId('ex-editor-name').locator('.cm-content, textarea, input').first().click({ force: true });
-            await page.page.keyboard.type('Lookup bill');
-            await page.page.waitForTimeout(1000);
-            await saveButton.click({ force: true });
-            await expect.poll(() => fs.readFileSync(path.join(newProjectPath, 'main.bal'), 'utf-8'), {
-                timeout: 60000,
-            }).toMatch(/name:\s*string `Lookup bill`/);
-            await webview.getByTestId('durable-agent-capability-activity-Lookup_bill').waitFor({ timeout: 60000 });
-            await expect(webview.locator('title', { hasText: 'string `' })).toHaveCount(0);
+            logStep('Saving the edit form leaves the entry without a name');
+            // The edit form is longer than the register form, so Save can sit below the fold, where
+            // Playwright may still report it outside the viewport after scrolling.
+            await clickPanelControl(saveButton);
+            // The panel closes once the edit is written; only then is the source final.
+            await waitForPanelToClose(webview);
+            await webview.getByTestId('durable-agent-capability-activity-lookupBill').waitFor({ timeout: 60000 });
+            expect(fs.readFileSync(path.join(newProjectPath, 'main.bal'), 'utf-8')).not.toMatch(/activity:\s*lookupBill[^}]*name:/);
         });
 
         test('Create a new activity from the agent and register it', async () => {
@@ -116,9 +144,7 @@ export default function createTests() {
                 throw new Error(BI_WEBVIEW_NOT_FOUND_ERROR);
             }
             logStep('Open the Add Activity list and choose to create a new activity');
-            await webview.getByTestId('durable-agent-affordance-activity').first().click({ force: true });
-            const sidePanel = webview.getByTestId('side-panel');
-            await sidePanel.getByText('lookupBill', { exact: true }).first().waitFor({ timeout: 60000 });
+            const sidePanel = await openActivityList(webview);
             await clickPanelControl(sidePanel.getByTestId('node-list-action-onAddFunction').first());
 
             logStep('Fill the Workflow Activity form and save');
@@ -148,6 +174,7 @@ export default function createTests() {
             await expect.poll(() => fs.readFileSync(path.join(newProjectPath, 'main.bal'), 'utf-8'), {
                 timeout: 60000,
             }).toMatch(/activities: \[[\s\S]*notifyCustomer[\s\S]*\]/);
+            await waitForPanelToClose(webview);
             await webview.getByTestId('durable-agent-capability-activity-notifyCustomer').waitFor({ timeout: 60000 });
         });
 
@@ -157,9 +184,7 @@ export default function createTests() {
                 throw new Error(BI_WEBVIEW_NOT_FOUND_ERROR);
             }
             logStep('Open the Add Activity list and choose an activity from a connection');
-            await webview.getByTestId('durable-agent-affordance-activity').first().click({ force: true });
-            const sidePanel = webview.getByTestId('side-panel');
-            await sidePanel.getByText('lookupBill', { exact: true }).first().waitFor({ timeout: 60000 });
+            const sidePanel = await openActivityList(webview);
             await clickPanelControl(sidePanel.getByTestId('node-list-action-onAdd').first());
             // The wizard's first step lists the project's connections to build the activity from.
             await sidePanel.getByText('billingApi', { exact: true }).first().waitFor({ timeout: 60000 });

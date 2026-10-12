@@ -159,7 +159,10 @@
               "offset": 2
             }
           },
-          "sourceCode": "final ai:Agent mathTutorAgent = check new ai:Agent(\n    systemPrompt = {\n        role: string `Customer Support Assistant`,\n        instructions: string `You are a helpful assistant`\n    }, model = customerSupportModel\n);"
+          "sourceCode": "final ai:Agent mathTutorAgent = check new ai:Agent(\n    systemPrompt = {\n        role: string `Customer Support Assistant`,\n        instructions: string `You are a helpful assistant`\n    }, model = customerSupportModel\n);",
+          "data": {
+            "explicitNewType": "ai:Agent"
+          }
         },
         "returning": false,
         "properties": {

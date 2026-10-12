@@ -18,11 +18,13 @@
 
 import styled from "@emotion/styled";
 import { useState } from "react";
-import { Codicon, LinkButton, RadioButtonGroup, ThemeColors } from "@wso2/ui-toolkit";
-import { FieldFactory, FormField } from "@wso2/ballerina-side-panel";
-import { AvailableNode } from "@wso2/ballerina-core";
+import { Codicon, Icon, LinkButton, ProgressRing, RadioButtonGroup, ThemeColors } from "@wso2/ui-toolkit";
+import { FieldFactory, FormField, useFormContext } from "@wso2/ballerina-side-panel";
+import { AvailableNode, EvaluationTemplateOption, unwrapBallerinaString } from "@wso2/ballerina-core";
 import { Badge, HintText, SectionLabel, TemplateIconTile, TitleRow } from "./styles";
-import { DataSourceMode, DataSourceParam, getTemplateIcon, getTemplateKind, partitionTemplateFields } from "./templateUtils";
+import {
+    DataSourceMode, DataSourceParam, getTemplateIcon, getTemplateKind, partitionTemplateFields, templateArgumentSource
+} from "./templateUtils";
 import { EvalsetFileControl } from "./EvalsetFileControl";
 
 const Card = styled.div`
@@ -40,6 +42,10 @@ const Header = styled.div`
     gap: 12px;
     padding: 16px;
     border-bottom: 1px solid var(--vscode-panel-border);
+`;
+
+const Description = styled(HintText)`
+    margin-bottom: 12px;
 `;
 
 const HeaderContent = styled.div`
@@ -74,6 +80,17 @@ const TestInputControls = styled.div`
     }
 `;
 
+const QueriesField = styled.div`
+    position: relative;
+`;
+
+// On the field's label row, which is always its first line.
+const GenerateQueriesAction = styled.div`
+    position: absolute;
+    top: 0;
+    right: 0;
+`;
+
 const OptionalSettings = styled.div`
     margin-top: 24px;
     padding-top: 16px;
@@ -100,24 +117,34 @@ interface TemplateConfigCardProps {
     selectedEvalsetFile: string;
     onCreateEvalset: () => void;
     onOpenEvalset: (evalsetFile: string) => void;
+    onGenerateEvalset?: (options: EvaluationTemplateOption[]) => string;
+    /** Returns queries to append to the ones already entered. */
+    onGenerateQueries?: (existing: string[], options: EvaluationTemplateOption[]) => Promise<string[]>;
     onChangeTemplate: () => void;
+    /** The surrounding modal already names the template and the agent, so the card drops both. */
+    embedded?: boolean;
+    /** Names the template above its description when the modal header names something else. */
+    showTitle?: boolean;
 }
 
 export function TemplateConfigCard(props: TemplateConfigCardProps) {
     const {
         template, templateFields, dataSourceParam, dataSourceMode, onDataSourceModeChange,
         agentFieldKey, evalsetField, queriesField, hasEvalsets, selectedEvalsetFile,
-        onCreateEvalset, onOpenEvalset, onChangeTemplate
+        onCreateEvalset, onOpenEvalset, onGenerateEvalset, onGenerateQueries, onChangeTemplate,
+        embedded, showTitle
     } = props;
     const [showOptionalSettings, setShowOptionalSettings] = useState(false);
 
     const dataSourceField = dataSourceMode === 'queries' ? queriesField : evalsetField;
     const { agentField, requiredFields: requiredTemplateFields, optionalFields: optionalTemplateFields } =
         partitionTemplateFields(templateFields, agentFieldKey);
+    const optionFields = [...requiredTemplateFields, ...optionalTemplateFields];
+    const { form } = useFormContext();
 
-    return (
+    const card = (
         <Card>
-            <Header>
+            {!embedded && <Header>
                 <TemplateIconTile selected>
                     <Codicon name={getTemplateIcon(template)}
                         sx={{ display: 'flex', height: 'auto', width: 'auto' }}
@@ -133,9 +160,9 @@ export function TemplateConfigCard(props: TemplateConfigCardProps) {
                 <LinkButton onClick={onChangeTemplate} sx={{ fontSize: 12, padding: 8, gap: 4 }}>
                     Change Template
                 </LinkButton>
-            </Header>
+            </Header>}
             <Body>
-                {agentField && (
+                {agentField && !embedded && (
                     <FirstFieldRow>
                         <FieldFactory field={{ ...agentField, hidden: false }} />
                     </FirstFieldRow>
@@ -181,9 +208,12 @@ export function TemplateConfigCard(props: TemplateConfigCardProps) {
                                     }}
                                     onCreateEvalset={onCreateEvalset}
                                     onOpenEvalset={onOpenEvalset}
+                                    onGenerateEvalset={onGenerateEvalset
+                                        && (() => onGenerateEvalset(readTemplateOptions(form.getValues, optionFields)))}
                                 />
                             ) : dataSourceField && (
-                                <FieldFactory field={{ ...dataSourceField, hidden: false }} />
+                                <QueriesInput field={dataSourceField} optionFields={optionFields}
+                                    onGenerate={onGenerateQueries} />
                             )}
                         </TestInputControls>
                     </FieldRow>
@@ -221,5 +251,77 @@ export function TemplateConfigCard(props: TemplateConfigCardProps) {
                 )}
             </Body>
         </Card>
+    );
+
+    return embedded ? (
+        <>
+            {showTitle && (
+                <TitleRow>
+                    {template.metadata.label}
+                    <Badge>{getTemplateKind(template)}</Badge>
+                </TitleRow>
+            )}
+            <Description>{template.metadata.description}</Description>
+            {card}
+        </>
+    ) : card;
+}
+
+// Current values, so edits made before generating are included.
+const readTemplateOptions = (getValues: (key: string) => unknown, fields: FormField[]): EvaluationTemplateOption[] =>
+    fields.map(field => ({
+        name: field.label,
+        description: field.documentation,
+        value: templateArgumentSource(getValues(field.key)),
+    }));
+
+interface QueriesInputProps {
+    field: FormField;
+    /** The template's other settings, which tell the generator what the evaluation checks. */
+    optionFields: FormField[];
+    onGenerate?: (existing: string[], options: EvaluationTemplateOption[]) => Promise<string[]>;
+}
+
+function QueriesInput({ field, optionFields, onGenerate }: QueriesInputProps) {
+    const { form } = useFormContext();
+    const [isGenerating, setIsGenerating] = useState(false);
+
+    const readQueries = () => ((form.getValues(field.key) as string[] | undefined) ?? [])
+        .filter(query => unwrapBallerinaString(query).trim());
+
+    const generate = async () => {
+        const options = readTemplateOptions(form.getValues, optionFields);
+        setIsGenerating(true);
+        try {
+            const generated = await onGenerate(readQueries(), options);
+            if (generated.length > 0) {
+                // Re-read, so queries typed while generating are kept.
+                form.setValue(field.key, [...readQueries(), ...generated], { shouldDirty: true });
+            }
+        } catch (error) {
+            // The extension has already told the user why.
+            console.error('Failed to generate queries:', error);
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
+    return (
+        <QueriesField>
+            <FieldFactory field={{ ...field, hidden: false }} />
+            {onGenerate && (
+                <GenerateQueriesAction>
+                    <LinkButton
+                        onClick={isGenerating ? undefined : generate}
+                        sx={{ fontSize: 12, gap: 4, padding: '0 8px', ...(isGenerating && { opacity: 0.6, cursor: 'default' }) }}
+                    >
+                        {isGenerating
+                            ? <ProgressRing sx={{ width: 12, height: 12 }} />
+                            : <Icon name="wand-magic-sparkles-solid" sx={{ width: 12, height: 12 }} iconSx={{ fontSize: '12px' }} />}
+                        {isGenerating ? 'Generating Queries…' : 'Generate Queries'}
+                    </LinkButton>
+                </GenerateQueriesAction>
+            )}
+        </QueriesField>
     );
 }

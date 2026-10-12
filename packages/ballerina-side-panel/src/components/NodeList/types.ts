@@ -41,6 +41,8 @@ export type Node = {
     description: string;
     // The context method the node stands for, shown under the description in the tooltip
     method?: string;
+    // Search-only aliases such as a former label; never rendered
+    keywords?: string[];
     icon?: JSX.Element;
     enabled?: boolean;
     metadata?: any;

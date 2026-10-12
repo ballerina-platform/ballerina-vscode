@@ -22,16 +22,20 @@ import io.ballerina.modelgenerator.commons.trigger.models.Repeatable;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerUISchemaModel;
 import io.ballerina.servicemodelgenerator.extension.builder.function.SchemaDrivenFunctionBuilder;
 import io.ballerina.servicemodelgenerator.extension.connector.adapter.TriggerServiceAdapter;
+import io.ballerina.servicemodelgenerator.extension.connector.adapter.TriggerSourceMerger;
+import io.ballerina.servicemodelgenerator.extension.model.Codedata;
 import io.ballerina.servicemodelgenerator.extension.model.Function;
 import io.ballerina.servicemodelgenerator.extension.model.Parameter;
 import io.ballerina.servicemodelgenerator.extension.model.Service;
 import io.ballerina.servicemodelgenerator.extension.model.Value;
 import io.ballerina.servicemodelgenerator.extension.util.Utils;
 import org.testng.Assert;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Unit test for the wire-level shape of a grouped/repeatable schema function catalog: FTP's file-format
@@ -202,5 +206,45 @@ public class TriggerFunctionExpansionTest {
                 Utils.FunctionAddContext.TRIGGER_ADD, Utils.FunctionSignatureContext.FUNCTION_ADD, new HashMap<>());
         Assert.assertFalse(source.contains("FunctionConfig"),
                 "no enabled mapping fields -> no annotation; got:\n" + source);
+    }
+
+    @DataProvider(name = "moveToSourceValues")
+    public Object[][] moveToSourceValues() {
+        return new Object[][]{
+                {"processedDirectoryPath", "EXPRESSION"},
+                {"\"/tmp/archive\"", "TEXT"},
+                {"string `/tmp/${name}`", "TEXT"}
+        };
+    }
+
+    @Test(dataProvider = "moveToSourceValues")
+    public void testMoveToSelectedTypeAndRoundTripFromSource(String sourceValue, String expectedSelected) {
+        Service service = ftpTemplate();
+        Value sourceAnnotation = new Value.ValueBuilder()
+                .value("{afterProcess: {moveTo: " + sourceValue + "}}")
+                .setCodedata(new Codedata.Builder()
+                        .setType("ANNOTATION_ATTACHMENT").setOriginalName("FunctionConfig").build())
+                .build();
+        Function source = new Function.FunctionBuilder()
+                .kind("REMOTE")
+                .name(new Value.ValueBuilder().value("onFileCsv").build())
+                .accessor(new Value.ValueBuilder().value("").build())
+                .parameters(List.of())
+                .setProperties(Map.of("functionConfig", sourceAnnotation))
+                .build();
+        TriggerSourceMerger.mergeSource(service, List.of(source));
+
+        Function csv = byName(service, "onFileCsv");
+        Value afterProcess = csv.getProperty("afterFileProcessing").getProperties().get("afterProcess");
+        Value moveTo = afterProcess.getProperties().get("action").getChoices().get(0).getProperties().get("moveTo");
+        String selected = moveTo.getTypes().stream().filter(t -> t.selected())
+                .map(t -> t.fieldType().name()).findFirst().orElseThrow();
+        Assert.assertEquals(selected, expectedSelected, "selected type for source value " + sourceValue);
+
+        SchemaDrivenFunctionBuilder.renderComplexAnnotations(csv);
+        String emitted = Utils.generateFunctionDefSource(csv, List.of(),
+                Utils.FunctionAddContext.TRIGGER_ADD, Utils.FunctionSignatureContext.FUNCTION_ADD, new HashMap<>());
+        Assert.assertTrue(emitted.contains("moveTo: " + sourceValue + "}"),
+                "re-save must preserve the source value; got:\n" + emitted);
     }
 }

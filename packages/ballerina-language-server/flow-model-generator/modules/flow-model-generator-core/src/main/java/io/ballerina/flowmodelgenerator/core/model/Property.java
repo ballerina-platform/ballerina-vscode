@@ -907,27 +907,13 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
                     }
                 } else if (matchingValueType == ValueType.REPEATABLE_LIST) {
                     handleListValue(typeSymbol, moduleInfo, builder, value, semanticModel, diagnosticHandler);
+                } else if (selectMatchingOption(builder, value, semanticModel)) {
+                    return this;
                 } else if (matchingValueType == ValueType.EXPRESSION) {
-                    boolean foundMatch = false;
-                    PropertyType expressionPropType = null;
-                    for (PropertyType propType : builder.types) {
-                        if (propType.fieldType() == ValueType.SINGLE_SELECT) {
-                            String valueStr = value.toSourceCode().trim();
-                            for (Option option : propType.options()) {
-                                if (option.value().equals(valueStr)) {
-                                    propType.selected(true);
-                                    foundMatch = true;
-                                    break;
-                                }
-                            }
-                        }
-                        if (propType.fieldType() == ValueType.EXPRESSION) {
-                            expressionPropType = propType;
-                        }
-                    }
-                    if (!foundMatch && expressionPropType != null) {
-                        expressionPropType.selected(true);
-                    }
+                    builder.types.stream()
+                            .filter(propType -> propType.fieldType() == ValueType.EXPRESSION)
+                            .reduce((first, last) -> last)
+                            .ifPresent(propType -> propType.selected(true));
                 } else {
                     ValueType finalMatchingValueType = matchingValueType;
                     builder.types.stream()
@@ -1396,6 +1382,52 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
                 case LIST_BINDING_PATTERN, LIST_CONSTRUCTOR -> ValueType.REPEATABLE_LIST;
                 default -> ValueType.EXPRESSION;
             };
+        }
+
+        private static boolean selectMatchingOption(Builder<?> builder, Node value, SemanticModel semanticModel) {
+            String valueStr = value.toSourceCode().trim();
+            for (int i = 0; i < builder.types.size(); i++) {
+                PropertyType propType = builder.types.get(i);
+                if (propType.fieldType() != ValueType.SINGLE_SELECT) {
+                    continue;
+                }
+                Optional<Option> option = findSelectedOption(propType.options(), value, valueStr, semanticModel);
+                if (option.isPresent()) {
+                    builder.types.set(i, withOptionValue(propType, option.get(), valueStr));
+                    if (option.get().value().equals(builder.placeholder)) {
+                        builder.placeholder = valueStr;
+                    }
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // The matched option takes the source text, so an enum member reference is kept as written on save.
+        private static PropertyType withOptionValue(PropertyType propType, Option selected, String value) {
+            List<Option> options = propType.options().stream()
+                    .map(option -> option == selected ? new Option(option.label(), value) : option)
+                    .toList();
+            return new PropertyType(propType.fieldType(), propType.ballerinaType(), propType.scope(), options,
+                    propType.template(), propType.typeMembers(), propType.recordSelectorType(), true);
+        }
+
+        private static Optional<Option> findSelectedOption(List<Option> options, Node value, String valueStr,
+                                                           SemanticModel semanticModel) {
+            Optional<ConstantSymbol> member = semanticModel == null ? Optional.empty()
+                    : semanticModel.symbol(value)
+                            .filter(ConstantSymbol.class::isInstance)
+                            .map(ConstantSymbol.class::cast);
+            return options.stream()
+                    .filter(option -> option.value().equals(valueStr)
+                            || member.filter(constant -> isMemberOf(constant, option)).isPresent())
+                    .findFirst();
+        }
+
+        // An option stands for an enum member by its name, so a user constant holding the same value is not one.
+        private static boolean isMemberOf(ConstantSymbol constant, Option option) {
+            return constant.getName().filter(option.label()::equals).isPresent()
+                    && constant.typeDescriptor().signature().equals(option.value());
         }
 
         /**

@@ -21,8 +21,10 @@
             <class name="io.ballerina.flowmodelgenerator.core.copilot.CopilotUiSchemaIsolationTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.copilot.central.CentralLibrarySearchAccessorTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.utils.CentralSearchUtilTest"/>
+            <class name="io.ballerina.flowmodelgenerator.core.utils.SearchResultFilterTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.search.FunctionSearchTopUpOrderTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.search.FunctionSearchTopUpMergeTest"/>
+            <class name="io.ballerina.flowmodelgenerator.core.search.AllKindsSearchFallbackTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.utils.WorkflowUtilEventNameEscapingTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.copilot.service.ServiceIndexLoaderTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.copilot.service.SpecMajorGateTest"/>
