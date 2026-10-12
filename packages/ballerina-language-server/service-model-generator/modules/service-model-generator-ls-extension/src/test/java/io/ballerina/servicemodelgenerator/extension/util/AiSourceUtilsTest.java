@@ -144,6 +144,26 @@ public class AiSourceUtilsTest {
                 "a renamed headers parameter must still be removed");
     }
 
+    @Test
+    public void testHeadersParamWithAliasedHttpImportIsDetectedAndRemoved() {
+        String source = "service /chat on aiListener {\n"
+                + "    resource function post chat(@h:Payload ai:ChatReqMessage request, h:Headers headers) "
+                + "returns ai:ChatRespMessage|error {\n"
+                + "        return {message: \"\"};\n"
+                + "    }\n"
+                + "}\n";
+        ServiceDeclarationNode serviceNode = serviceNode(source);
+        Assert.assertTrue(AiSourceUtils.hasHeadersParam(serviceNode),
+                "the headers parameter must be found whatever prefix http is imported under");
+        Assert.assertTrue(AiSourceUtils.headersParamEdits(serviceNode, true).isEmpty(),
+                "adding headers must not add a second parameter next to an aliased one");
+
+        String updated = apply(source, AiSourceUtils.headersParamEdits(serviceNode, false));
+
+        Assert.assertTrue(updated.contains("post chat(@h:Payload ai:ChatReqMessage request) returns"),
+                "an aliased headers parameter must still be removed");
+    }
+
     private static String service(boolean withHeaders) {
         return "service /chat on aiListener {\n"
                 + AiSourceUtils.agentChatResourceSource("supportAgent", ".", withHeaders) + "\n\n"

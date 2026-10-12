@@ -24,6 +24,7 @@ import io.ballerina.compiler.syntax.tree.MethodCallExpressionNode;
 import io.ballerina.compiler.syntax.tree.Node;
 import io.ballerina.compiler.syntax.tree.NonTerminalNode;
 import io.ballerina.compiler.syntax.tree.ParameterNode;
+import io.ballerina.compiler.syntax.tree.QualifiedNameReferenceNode;
 import io.ballerina.compiler.syntax.tree.RemoteMethodCallActionNode;
 import io.ballerina.compiler.syntax.tree.RequiredParameterNode;
 import io.ballerina.compiler.syntax.tree.SeparatedNodeList;
@@ -73,6 +74,7 @@ public final class AiSourceUtils {
     private static final String RESUME_TYPE = "ai:Resume";
     private static final String RESUME_VAR = "resume";
     private static final String HEADERS_TYPE = "http:Headers";
+    private static final String HEADERS_TYPE_NAME = "Headers";
     private static final String HEADERS_PARAM = "headers";
 
     private AiSourceUtils() {
@@ -230,11 +232,18 @@ public final class AiSourceUtils {
             Node typeName = parameter instanceof RequiredParameterNode required ? required.typeName()
                     : parameter instanceof DefaultableParameterNode defaultable ? defaultable.typeName()
                     : null;
-            if (typeName != null && HEADERS_TYPE.equals(typeName.toSourceCode().trim())) {
+            if (isHeadersType(typeName)) {
                 return Optional.of(i);
             }
         }
         return Optional.empty();
+    }
+
+    // The compiler plugin only accepts exactly `http:Headers` here, so the type name is enough, whatever
+    // prefix the file imports http under.
+    private static boolean isHeadersType(Node typeName) {
+        return typeName instanceof QualifiedNameReferenceNode qualifiedName
+                && HEADERS_TYPE_NAME.equals(qualifiedName.identifier().text());
     }
 
     // Removes the parameter together with the comma that separates it from its neighbour: the
