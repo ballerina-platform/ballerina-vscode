@@ -120,21 +120,37 @@ const sidePanelOpens = (webview: Frame, timeout: number) =>
 
 // Opens the node palette from the + below a node. A diagram that already has steps draws a trailing empty
 // node with its own +; a fresh one (Start to End) only shows a + on the edge leaving Start while it is hovered.
+// Right after a save the diagram redraws, and on a loaded runner the model takes a while to come back, so the
+// helper waits for whichever of the two anchors the diagram draws first.
 async function openPaletteBelow(webview: Frame, nodeText: string): Promise<SidePanel> {
     const canvas = webview.getByTestId('bi-diagram-canvas');
     await canvas.waitFor({ timeout: 60000 });
     const sidePanel = new SidePanel(webview, page.page);
-    // Right after a save the diagram redraws; give the trailing empty node a moment to come back.
     const emptyNodeButton = canvas.locator('[data-testid^="empty-node-add-button"]').first();
-    if (await emptyNodeButton.waitFor({ state: 'visible', timeout: 15000 }).then(() => true, () => false)) {
-        await emptyNodeButton.click({ force: true, timeout: 5000 }).catch(() => emptyNodeButton.dispatchEvent('click'));
-        if (!await sidePanelOpens(webview, 5000)) {
-            await emptyNodeButton.dispatchEvent('click');
-        }
-        await sidePanel.init();
-        return sidePanel;
-    }
     const node = canvas.getByText(nodeText, { exact: true }).filter({ visible: true }).last();
+    const deadline = Date.now() + 120000;
+    let hasEmptyNode = false;
+    while (Date.now() < deadline) {
+        if (await emptyNodeButton.isVisible().catch(() => false)) {
+            hasEmptyNode = true;
+            break;
+        }
+        if (await node.isVisible().catch(() => false)) {
+            break;
+        }
+        await page.page.waitForTimeout(1000);
+    }
+    if (hasEmptyNode) {
+        // The + can be redrawn between the check and the click; a few tries before the edge fallback.
+        for (let attempt = 0; attempt < 3; attempt++) {
+            await emptyNodeButton.click({ force: true, timeout: 5000 })
+                .catch(() => emptyNodeButton.dispatchEvent('click', undefined, { timeout: 5000 }).catch(() => undefined));
+            if (await sidePanelOpens(webview, 5000)) {
+                await sidePanel.init();
+                return sidePanel;
+            }
+        }
+    }
     await node.waitFor({ state: 'visible', timeout: 60000 });
     const nodeBox = await node.boundingBox();
     if (!nodeBox) {
@@ -404,8 +420,9 @@ export default function createTests() {
             const saveButton = panel.getByRole('button', { name: 'Save' }).first();
             await waitForEnabled(saveButton);
             await saveButton.click({ force: true });
+            // The id field opens in text mode, which writes a string template; expression mode writes the literal.
             await expect.poll(projectSource, { timeout: 90000 })
-                .toMatch(/string orderRunId = check workflow:runWithId\(orderWorkflow, "order-1"\);/);
+                .toMatch(/string orderRunId = check workflow:runWithId\(orderWorkflow, (?:"order-1"|string `order-1`)\);/);
             await saveButton.waitFor({ state: 'hidden', timeout: 60000 });
 
             logStep('Reopen the node: the form reads the workflow and the id from source');
@@ -420,7 +437,7 @@ export default function createTests() {
                 await reopened.waitFor({ timeout: 60000 });
             }
             await expect(reopened).toHaveText(/orderWorkflow/, { timeout: 60000 });
-            await expect.poll(() => webview.locator('[data-testid="ex-editor-instanceId"] .cm-content').textContent(), { timeout: 30000 }).toBe('"order-1"');
+            await expect.poll(() => webview.locator('[data-testid="ex-editor-instanceId"] .cm-content').textContent(), { timeout: 30000 }).toMatch(/order-1/);
             await expect(panel.getByRole('textbox', { name: /Workflow ID Variable Name/ })).toHaveValue('orderRunId');
             await domClick(webview.getByTestId('close-panel-btn').first());
         });

@@ -153,15 +153,19 @@ public class WorkflowRunWithIdBuilder extends WorkflowRunBuilder {
                 .keyword(SyntaxKind.COMMA_TOKEN)
                 .whiteSpace()
                 .name(input));
-        // The policies are defaultable and the input may be left out, so they are written by name.
-        for (String policy : List.of(IF_RUNNING_KEY, IF_CLOSED_KEY)) {
-            propertyValue(sourceBuilder, policy).ifPresent(value -> sourceBuilder.token()
-                    .keyword(SyntaxKind.COMMA_TOKEN)
-                    .whiteSpace()
-                    .name(policy)
-                    .whiteSpace()
-                    .keyword(SyntaxKind.EQUAL_TOKEN)
-                    .name(value));
+        // The policies are defaultable and the input may be left out, so they are written by name. A
+        // dropdown always shows a choice, so a policy left at its default is not written.
+        for (Map.Entry<String, List<Option>> policy : List.of(Map.entry(IF_RUNNING_KEY, RUNNING_POLICIES),
+                Map.entry(IF_CLOSED_KEY, CLOSED_POLICIES))) {
+            propertyValue(sourceBuilder, policy.getKey())
+                    .filter(value -> !value.equals(policy.getValue().getFirst().value()))
+                    .ifPresent(value -> sourceBuilder.token()
+                            .keyword(SyntaxKind.COMMA_TOKEN)
+                            .whiteSpace()
+                            .name(policy.getKey())
+                            .whiteSpace()
+                            .keyword(SyntaxKind.EQUAL_TOKEN)
+                            .name(value));
         }
         sourceBuilder.token()
                 .keyword(SyntaxKind.CLOSE_PAREN_TOKEN)
