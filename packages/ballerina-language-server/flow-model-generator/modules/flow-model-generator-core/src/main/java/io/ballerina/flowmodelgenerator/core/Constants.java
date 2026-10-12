@@ -126,7 +126,9 @@ public class Constants {
         public static final String AGENT_TOKEN_PARAM = "token";
         public static final String RUN_LABEL = "Run Workflow";
         public static final String RUN_DESCRIPTION = "Run a new workflow instance";
-        public static final String RUN_WITH_ID_LABEL = "Run Workflow with ID";
+        // Short so the tile stays on one line beside Run Workflow; the long name stays searchable.
+        public static final String RUN_WITH_ID_LABEL = "Run with ID";
+        public static final List<String> RUN_WITH_ID_KEYWORDS = List.of("Run Workflow with ID", "Instance ID");
         public static final String RUN_WITH_ID_DESCRIPTION = "Run a new workflow instance under an id you choose";
         public static final String SEND_DATA_METHOD_NAME = "sendData";
         public static final String SEND_DATA_LABEL = "Send Data Event";

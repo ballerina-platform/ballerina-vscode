@@ -52,7 +52,7 @@ public class NodeTemplateGenerator {
 
     /**
      * Maps a function search pick of {@code workflow:run}, {@code workflow:runWithId} or {@code workflow:sendData} to
-     * the Run Workflow, Run Workflow with ID or Send Data node. Their first parameter is a bare {@code function},
+     * the Run Workflow, Run with ID or Send Data node. Their first parameter is a bare {@code function},
      * which the generic function call form cannot fill; the workflow nodes offer the project's workflows in a
      * dropdown instead. The symbol is dropped because those nodes read it as the name of the selected workflow.
      * {@code packageName} and {@code lineRange} are not carried either: no builder reads them, all import

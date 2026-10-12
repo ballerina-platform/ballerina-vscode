@@ -225,16 +225,16 @@ describe("Workflow Nodes", () => {
     // thing for a call the language server still emits as a generic workflow module statement.
     describe("workflow start titles", () => {
         // A start under a chosen id is an action like the plain start, so it keeps its label
-        // rather than the module-prefixed "workflow : Run Workflow with ID".
+        // rather than the module-prefixed "workflow : Run with ID".
         it("titles the id-chosen start by its own label", () => {
             const node = {
                 id: "run-with-id",
-                metadata: { label: "Run Workflow with ID" },
+                metadata: { label: "Run with ID" },
                 codedata: { node: "WORKFLOW_RUN_WITH_ID", org: "ballerina", module: "workflow", symbol: "orderWorkflow" },
                 properties: {},
                 branches: [],
             } as unknown as FlowNode;
-            expect(getNodeTitle(node)).toBe("Run Workflow with ID");
+            expect(getNodeTitle(node)).toBe("Run with ID");
         });
     });
 

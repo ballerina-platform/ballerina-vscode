@@ -4,7 +4,7 @@
     "line": 3,
     "offset": 0
   },
-  "description": "workflow:runWithId picked from the function search opens the Run Workflow with ID node; the only workflow is preselected",
+  "description": "workflow:runWithId picked from the function search opens the Run with ID node; the only workflow is preselected",
   "codedata": {
     "node": "FUNCTION_CALL",
     "org": "ballerina",
@@ -16,7 +16,7 @@
   "output": {
     "id": "31",
     "metadata": {
-      "label": "Run Workflow with ID",
+      "label": "Run with ID",
       "description": "Run a new workflow instance under an id you choose"
     },
     "codedata": {

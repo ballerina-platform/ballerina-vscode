@@ -387,11 +387,11 @@ export default function createTests() {
         });
 
         test('Run the workflow under a chosen id and reopen the node', async () => {
-            logStep('Pick Run Workflow with ID from the palette');
+            logStep('Pick Run with ID from the palette');
             const webview = await getWebview();
             const sidePanel = await openPaletteBelow(webview, 'Start');
             const panel = sidePanel.getLocator();
-            await domClick(await workflowPaletteItem(sidePanel, 'Run Workflow with ID'));
+            await domClick(await workflowPaletteItem(sidePanel, 'Run with ID'));
 
             logStep('The form holds the only workflow and asks for the instance id');
             const workflow = panel.getByRole('combobox', { name: /^Workflow/ });
@@ -411,7 +411,7 @@ export default function createTests() {
             logStep('Reopen the node: the form reads the workflow and the id from source');
             // The node carries its label and, beside it, the workflow it starts; it is the last one added.
             const canvas = webview.getByTestId('bi-diagram-canvas');
-            const node = canvas.getByText(/Run Workflow with ID|orderWorkflow/).filter({ visible: true }).last();
+            const node = canvas.getByText(/Run with ID|orderWorkflow/).filter({ visible: true }).last();
             await node.waitFor({ timeout: 60000 });
             await node.click({ force: true, timeout: 10000 }).catch(() => node.dispatchEvent('click'));
             const reopened = panel.getByRole('combobox', { name: /^Workflow/ });

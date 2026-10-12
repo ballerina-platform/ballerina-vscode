@@ -4,7 +4,7 @@
     "line": 3,
     "offset": 0
   },
-  "description": "Run Workflow with ID node template with the workflow preselected types the input from it",
+  "description": "Run with ID node template with the workflow preselected types the input from it",
   "codedata": {
     "node": "WORKFLOW_RUN_WITH_ID",
     "org": "test",
@@ -15,7 +15,7 @@
   "output": {
     "id": "31",
     "metadata": {
-      "label": "Run Workflow with ID",
+      "label": "Run with ID",
       "description": "Run a new workflow instance under an id you choose"
     },
     "codedata": {
