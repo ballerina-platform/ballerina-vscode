@@ -399,6 +399,13 @@ jobs:
           echo "Using $BAL"
           echo "BAL_LS_CMD=$BAL" >> "$GITHUB_ENV"
 
+      # The LS resolves the fixture's imports from the distribution's bundled packages plus
+      # the central cache, and never fetches from Central itself. The nightly distribution is
+      # not self-consistent: it ships ballerina/http 2.18.0, whose compiled form requires
+      # ballerina/data.jsondata 1.1.4 or newer, but bundles only 1.1.3. 
+      - name: Pre-fetch the package the distribution under-bundles
+        run: bal pull ballerina/data.jsondata
+
       - name: Run agent LS integration tests
         working-directory: packages/ballerina-extension
         run: node ./node_modules/jest/bin/jest.js --config jest.ls-integration.config.js --ci --testPathIgnorePatterns "nodeTemplateInvariants"
