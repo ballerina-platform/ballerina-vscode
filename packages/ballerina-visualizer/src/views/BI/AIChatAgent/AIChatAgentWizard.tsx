@@ -21,7 +21,7 @@ import { cloneDeep } from 'lodash';
 import { CDModel, EVENT_TYPE, FlowNode, LineRange, Property, isDefaultModelProviderExpr } from '@wso2/ballerina-core';
 import { Button, View, ViewContent } from '@wso2/ui-toolkit';
 import styled from '@emotion/styled';
-import { useRpcContext } from '@wso2/ballerina-rpc-client';
+import { BallerinaRpcClient, useRpcContext } from '@wso2/ballerina-rpc-client';
 import { TitleBar } from '../../../components/TitleBar';
 import { TopNavigationBar } from '../../../components/TopNavigationBar';
 import { RelativeLoader } from '../../../components/RelativeLoader';
@@ -66,6 +66,21 @@ const AGENT_FILE_NAME = "agents.bal";
 const BASE_PATH_KEY = "basePath";
 // Service option, not an agent property: stripped from the agent node and set on the service model.
 const REQUEST_HEADERS_KEY = "requestHeaders";
+
+async function fetchRequestHeadersProperty(rpcClient: BallerinaRpcClient, orgName: string): Promise<Property | undefined> {
+    try {
+        const response = await rpcClient.getServiceDesignerRpcClient().getServiceModel({
+            filePath: "",
+            moduleName: "ai",
+            listenerName: AI_CHAT_AGENT_LISTENER,
+            orgName,
+        });
+        return response.service?.properties?.[REQUEST_HEADERS_KEY] as unknown as Property | undefined;
+    } catch (error) {
+        console.error("Unable to read the service template for the request headers option:", error);
+        return undefined;
+    }
+}
 
 function toKebabCase(varName: string): string {
     return varName
@@ -140,17 +155,16 @@ export function AIChatAgentWizard(props: AIChatAgentWizardProps) {
                     editable: true,
                     types: [{ fieldType: "SERVICE_PATH", selected: true }],
                 } as Property;
-                (template.properties as Record<string, Property>)[REQUEST_HEADERS_KEY] = {
-                    metadata: {
-                        label: "Access Request Headers",
-                        description: "Add the HTTP request headers as a parameter of the chat and decision "
-                            + "resources, so the service can read them.",
-                    },
-                    value: "false",
-                    optional: true,
-                    editable: true,
-                    types: [{ fieldType: "FLAG", selected: true }],
-                } as Property;
+                // Offer the option only when the language server provides it, so the wizard never shows
+                // a checkbox the service generator would ignore.
+                const requestHeadersProperty = await fetchRequestHeadersProperty(rpcClient, org);
+                if (cancelled) return;
+                if (requestHeadersProperty) {
+                    (template.properties as Record<string, Property>)[REQUEST_HEADERS_KEY] = {
+                        ...requestHeadersProperty,
+                        value: "false",
+                    };
+                }
 
                 const endOfFile = await getEndOfFileLineRange(AGENT_FILE_NAME, rpcClient);
                 if (cancelled) return;

@@ -393,15 +393,20 @@ because a Ballerina identifier cannot contain a bare hyphen, **every hyphen in t
 escaped with a backslash** (`\-`). The escape is syntax only, it does not appear in the URL the
 client calls.
 
-Do not change the `chat` resource signature, except for one optional addition: a second parameter
-`http:Headers headers`, after the payload. Add no other parameter, and no resource other than
-`decision` below.
+Do not change the `chat` resource signature, except when the user asks for authentication (below):
+then add one second parameter, `http:Headers headers`, after the payload. Add no other parameter,
+and no resource other than `decision` below.
 
 `request.sessionId` is a caller-supplied conversation handle, not an authorization token, it only
-selects which memory bucket `run` continues. When the service itself must authenticate the caller,
-add `http:Headers headers` as the second parameter of `chat` (and of `decision`, when present) and
-check the credential there before calling `run`. Otherwise, if the user's agent will be reachable
-by untrusted or multiple distinct callers, say that keeping one caller's history private is a
+selects which memory bucket `run` continues. Do not add `http:Headers headers` or any credential
+check on your own; generate the plain signature above by default. Only when the user asks for the
+service to authenticate its callers, add `http:Headers headers` as the second parameter of `chat`
+(and of `decision`, when present) and check the credential there before calling `run`. Then tell
+the user that the built-in Agent Chat panel sends no custom headers, so it cannot call this service
+and they have to test it with another client, such as curl.
+
+If the agent will be reachable by multiple distinct callers, with or without authentication, say
+that the session id is not tied to a caller, so keeping one caller's history private is a
 deployment concern outside this resource (a trusted gateway, or access restricted to callers who
 already own their session id) rather than something this trigger enforces itself.
 
@@ -412,7 +417,8 @@ the human's answer has nowhere to go and the paused run can never continue.
 
 A paused run is not a blocked call, `run` returns immediately, and `check` propagates the pause to
 the caller, which the runtime turns into the response the chat client expects. Both resources
-therefore stay ordinary two-line bodies. Resuming is the **same `run` method**: passing a record of
+therefore stay ordinary two-line bodies, apart from the credential check when the user asked for
+authentication, which runs before `run`. Resuming is the **same `run` method**: passing a record of
 decisions instead of a message is what makes it a resume.
 
 ```ballerina
