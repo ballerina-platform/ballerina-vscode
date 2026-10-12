@@ -131,6 +131,8 @@ public class WorkflowRunBuilder extends NodeBuilder {
             if (codedata != null && codedata.symbol() != null) {
                 workflow = codedata.symbol();
             } else if (workflows.size() == 1) {
+                // The label stays the palette's: the user clicked the node, not a workflow, so the form
+                // reads as the node while the dropdown shows the choice made for them.
                 workflow = workflows.getFirst().value();
                 codedata().symbol(workflow);
             }

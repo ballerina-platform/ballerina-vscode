@@ -409,9 +409,9 @@ export default function createTests() {
             await saveButton.waitFor({ state: 'hidden', timeout: 60000 });
 
             logStep('Reopen the node: the form reads the workflow and the id from source');
-            // The node carries its label and, beside it, the workflow it starts; it is the last one added.
+            // By its own label: the Run Workflow node above it shows the same workflow name.
             const canvas = webview.getByTestId('bi-diagram-canvas');
-            const node = canvas.getByText(/Run with ID|orderWorkflow/).filter({ visible: true }).last();
+            const node = canvas.getByText('Run with ID', { exact: true }).filter({ visible: true }).last();
             await node.waitFor({ timeout: 60000 });
             await node.click({ force: true, timeout: 10000 }).catch(() => node.dispatchEvent('click'));
             const reopened = panel.getByRole('combobox', { name: /^Workflow/ });

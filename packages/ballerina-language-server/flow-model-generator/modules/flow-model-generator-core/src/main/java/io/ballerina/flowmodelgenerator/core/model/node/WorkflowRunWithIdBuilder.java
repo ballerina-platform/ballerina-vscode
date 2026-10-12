@@ -93,7 +93,9 @@ public class WorkflowRunWithIdBuilder extends WorkflowRunBuilder {
                     .label(INSTANCE_ID_LABEL)
                     .description(INSTANCE_ID_DOC)
                     .stepOut()
-                .type(Property.ValueType.EXPRESSION, STRING)
+                // Text and expression, the same two modes the node offers when it is read back from source.
+                .type().fieldType(Property.ValueType.TEXT).ballerinaType(STRING).selected(true).stepOut()
+                .type().fieldType(Property.ValueType.EXPRESSION).ballerinaType(STRING).selected(false).stepOut()
                 .placeholder("\"\"")
                 .value("")
                 .editable(true)

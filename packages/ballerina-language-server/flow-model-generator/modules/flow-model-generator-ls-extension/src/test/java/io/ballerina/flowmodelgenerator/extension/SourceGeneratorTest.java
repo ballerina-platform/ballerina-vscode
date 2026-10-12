@@ -212,6 +212,7 @@ public class SourceGeneratorTest extends AbstractLSTest {
                 {"workflow_run_to_source.json", "workflow", "Select a workflow in the Workflow field"},
                 {"send_data_to_source.json", "workflow", "Select a workflow in the Workflow Name field"},
                 {"workflow_run_with_id_to_source.json", "workflow", "Select a workflow in the Workflow field"},
+                {"workflow_run_with_id_to_source.json", "instanceId", "Enter an id in the Instance ID field"},
                 {"child_workflow_run_to_source.json", "workflow", "Select a workflow in the Child Workflow field"},
                 {"child_workflow_call_to_source.json", "workflow", "Select a workflow in the Child Workflow field"}
         };
