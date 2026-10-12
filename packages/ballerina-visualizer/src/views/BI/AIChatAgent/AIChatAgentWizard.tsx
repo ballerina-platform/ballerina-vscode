@@ -21,7 +21,7 @@ import { cloneDeep } from 'lodash';
 import { CDModel, EVENT_TYPE, FlowNode, LineRange, Property, isDefaultModelProviderExpr } from '@wso2/ballerina-core';
 import { Button, View, ViewContent } from '@wso2/ui-toolkit';
 import styled from '@emotion/styled';
-import { BallerinaRpcClient, useRpcContext } from '@wso2/ballerina-rpc-client';
+import { useRpcContext } from '@wso2/ballerina-rpc-client';
 import { TitleBar } from '../../../components/TitleBar';
 import { TopNavigationBar } from '../../../components/TopNavigationBar';
 import { RelativeLoader } from '../../../components/RelativeLoader';
@@ -64,23 +64,6 @@ export interface AIChatAgentWizardProps {
 const AI_CHAT_AGENT_LISTENER = "chatAgentListener";
 const AGENT_FILE_NAME = "agents.bal";
 const BASE_PATH_KEY = "basePath";
-// Service option, not an agent property: stripped from the agent node and set on the service model.
-const REQUEST_HEADERS_KEY = "requestHeaders";
-
-async function fetchRequestHeadersProperty(rpcClient: BallerinaRpcClient, orgName: string): Promise<Property | undefined> {
-    try {
-        const response = await rpcClient.getServiceDesignerRpcClient().getServiceModel({
-            filePath: "",
-            moduleName: "ai",
-            listenerName: AI_CHAT_AGENT_LISTENER,
-            orgName,
-        });
-        return response.service?.properties?.[REQUEST_HEADERS_KEY] as unknown as Property | undefined;
-    } catch (error) {
-        console.error("Unable to read the service template for the request headers option:", error);
-        return undefined;
-    }
-}
 
 function toKebabCase(varName: string): string {
     return varName
@@ -155,16 +138,6 @@ export function AIChatAgentWizard(props: AIChatAgentWizardProps) {
                     editable: true,
                     types: [{ fieldType: "SERVICE_PATH", selected: true }],
                 } as Property;
-                // Offer the option only when the language server provides it, so the wizard never shows
-                // a checkbox the service generator would ignore.
-                const requestHeadersProperty = await fetchRequestHeadersProperty(rpcClient, org);
-                if (cancelled) return;
-                if (requestHeadersProperty) {
-                    (template.properties as Record<string, Property>)[REQUEST_HEADERS_KEY] = {
-                        ...requestHeadersProperty,
-                        value: "false",
-                    };
-                }
 
                 const endOfFile = await getEndOfFileLineRange(AGENT_FILE_NAME, rpcClient);
                 if (cancelled) return;
@@ -188,7 +161,6 @@ export function AIChatAgentWizard(props: AIChatAgentWizardProps) {
 
         const agentVarName = String(updatedNode.properties?.variable?.value ?? "");
         const rawBasePath = String((updatedNode.properties as Record<string, Property>)?.[BASE_PATH_KEY]?.value ?? "").trim();
-        const requestHeaders = String((updatedNode.properties as Record<string, Property>)?.[REQUEST_HEADERS_KEY]?.value) === "true";
         const basePathSegment = rawBasePath.replace(/^\/+/, "") || toKebabCase(agentVarName);
         const servicePath = sanitizedHttpPath(basePathSegment);
 
@@ -207,7 +179,6 @@ export function AIChatAgentWizard(props: AIChatAgentWizardProps) {
             const endOfFile = await getEndOfFileLineRange(AGENT_FILE_NAME, rpcClient);
             const node = cloneDeep(updatedNode);
             delete (node.properties as Record<string, Property>)[BASE_PATH_KEY];
-            delete (node.properties as Record<string, Property>)[REQUEST_HEADERS_KEY];
             node.codedata.lineRange = endOfFile;
             await rpcClient.getBIDiagramRpcClient().getSourceCode({
                 filePath: endOfFile.fileName,
@@ -262,9 +233,6 @@ export function AIChatAgentWizard(props: AIChatAgentWizardProps) {
             serviceConfiguration.properties["listener"].value = AI_CHAT_AGENT_LISTENER;
             serviceConfiguration.properties["basePath"].value = `/${servicePath}`;
             serviceConfiguration.properties["agentName"].value = agentVarName;
-            if (serviceConfiguration.properties[REQUEST_HEADERS_KEY]) {
-                serviceConfiguration.properties[REQUEST_HEADERS_KEY].value = String(requestHeaders);
-            }
 
             const serviceSourceCodeResult = await rpcClient.getServiceDesignerRpcClient().addServiceSourceCode({
                 filePath: "",
@@ -341,7 +309,7 @@ export function AIChatAgentWizard(props: AIChatAgentWizardProps) {
                                 deriveFn: (agentVarName) => deriveBasePath(String(agentVarName ?? "")),
                                 breakOnManualEdit: true,
                             }]}
-                            bottomFields={[BASE_PATH_KEY, REQUEST_HEADERS_KEY]}
+                            bottomFields={[BASE_PATH_KEY]}
                         />
                     </Container>
                 ) : (

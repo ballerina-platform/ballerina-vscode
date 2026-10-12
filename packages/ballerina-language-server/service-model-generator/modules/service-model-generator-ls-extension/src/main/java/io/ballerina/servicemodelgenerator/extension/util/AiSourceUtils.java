@@ -99,25 +99,13 @@ public final class AiSourceUtils {
      * @return the resource source, indented one level for a service body
      */
     public static String agentChatResourceSource(String agentVarName, String operator) {
-        return agentChatResourceSource(agentVarName, operator, false);
-    }
-
-    /**
-     * The {@code chat} resource, optionally taking the request headers as a second parameter.
-     *
-     * @param agentVarName the agent variable to invoke
-     * @param operator     the call operator, from {@link #runOperator(String)}
-     * @param withHeaders  whether to declare an {@code http:Headers} parameter after the payload
-     * @return the resource source, indented one level for a service body
-     */
-    public static String agentChatResourceSource(String agentVarName, String operator, boolean withHeaders) {
         return String.format(
-                "    resource function post chat(@http:Payload ai:ChatReqMessage request%s) " +
+                "    resource function post chat(@http:Payload ai:ChatReqMessage request) " +
                         "returns ai:ChatRespMessage|error {%s" +
                         "        string stringResult = check %s%srun(request.message, request.sessionId);%s" +
                         "        return {message: stringResult};%s" +
                         "    }",
-                headersParamSuffix(withHeaders), NEW_LINE, agentVarName, operator, NEW_LINE, NEW_LINE
+                NEW_LINE, agentVarName, operator, NEW_LINE, NEW_LINE
         );
     }
 
@@ -177,51 +165,125 @@ public final class AiSourceUtils {
     }
 
     /**
-     * Text edits that add or remove the {@code http:Headers} parameter on this service's
-     * {@code chat} and {@code decision} resources.
+     * Text edits that add or remove the {@code http:Headers} parameter on one {@code chat} or
+     * {@code decision} resource.
      *
      * <p>Only the parameter list is touched. The {@code @http:Payload} parameter, the return type
      * and the body are left as they are, so turning headers off while the body still uses them is
      * reported by the compiler rather than silently rewritten.
      *
-     * @param serviceNode the service to edit
-     * @param enable      true to add the parameter where it is missing, false to remove it where it
-     *                    is present
-     * @return the edits, empty when every resource already matches
+     * @param resource the resource to edit
+     * @param enable   true to add the parameter when it is missing, false to remove it when it is
+     *                 present
+     * @return the edits, empty when the resource already matches
      */
-    public static List<TextEdit> headersParamEdits(ServiceDeclarationNode serviceNode, boolean enable) {
-        List<TextEdit> edits = new ArrayList<>();
-        for (FunctionDefinitionNode resource : agentResources(serviceNode)) {
-            SeparatedNodeList<ParameterNode> parameters = resource.functionSignature().parameters();
-            Optional<Integer> headersIndex = headersParamIndex(resource);
-            if (enable && headersIndex.isEmpty()) {
-                // Insert after the last parameter so the edit stays on the signature line, whatever
-                // whitespace precedes the closing parenthesis.
-                if (parameters.isEmpty()) {
-                    edits.add(new TextEdit(
-                            Utils.toRange(resource.functionSignature().openParenToken().lineRange().endLine()),
-                            HEADERS_TYPE + " " + HEADERS_PARAM));
-                } else {
-                    edits.add(new TextEdit(
-                            Utils.toRange(parameters.get(parameters.size() - 1).lineRange().endLine()),
-                            headersParamSuffix(true)));
-                }
-            } else if (!enable && headersIndex.isPresent()) {
-                edits.add(new TextEdit(Utils.toRange(headersParamRemovalRange(parameters, headersIndex.get())), ""));
+    public static List<TextEdit> headersParamEdits(FunctionDefinitionNode resource, boolean enable) {
+        SeparatedNodeList<ParameterNode> parameters = resource.functionSignature().parameters();
+        Optional<Integer> headersIndex = headersParamIndex(resource);
+        if (enable && headersIndex.isEmpty()) {
+            // Insert after the last parameter so the edit stays on the signature line, whatever
+            // whitespace precedes the closing parenthesis.
+            if (parameters.isEmpty()) {
+                return List.of(new TextEdit(
+                        Utils.toRange(resource.functionSignature().openParenToken().lineRange().endLine()),
+                        HEADERS_TYPE + " " + HEADERS_PARAM));
+            }
+            return List.of(new TextEdit(
+                    Utils.toRange(parameters.get(parameters.size() - 1).lineRange().endLine()),
+                    headersParamSuffix(true)));
+        }
+        if (!enable && headersIndex.isPresent()) {
+            return List.of(new TextEdit(Utils.toRange(headersParamRemovalRange(parameters, headersIndex.get())),
+                    ""));
+        }
+        return List.of();
+    }
+
+    /**
+     * Whether this is the {@code post chat} or {@code post decision} resource of an agent service.
+     *
+     * @param member a function declared in a service
+     * @return true for the two resources the dispatcher looks up
+     */
+    public static boolean isAgentResource(FunctionDefinitionNode member) {
+        if (member.kind() != SyntaxKind.RESOURCE_ACCESSOR_DEFINITION
+                || !POST_ACCESSOR.equals(member.functionName().text().trim())) {
+            return false;
+        }
+        String path = Utils.getPath(member.relativeResourcePath());
+        return CHAT_RESOURCE_NAME.equals(path) || DECISION_RESOURCE_NAME.equals(path);
+    }
+
+    /**
+     * Presents the request headers of a {@code chat} or {@code decision} resource model as one
+     * toggleable parameter, the way an HTTP resource offers {@code http:Headers}: enabled when the
+     * source declares it, disabled when it does not. The other parameters are fixed.
+     *
+     * @param resourceModel the resource model read from source
+     */
+    public static void exposeHeadersOption(Function resourceModel) {
+        List<Parameter> parameters = new ArrayList<>();
+        Parameter headers = null;
+        for (Parameter parameter : resourceModel.getParameters()) {
+            if (isHeadersParameter(parameter)) {
+                headers = parameter;
+            } else {
+                parameters.add(parameter);
             }
         }
-        return edits;
+
+        boolean declared = headers != null;
+        if (!declared) {
+            headers = new Parameter.Builder()
+                    .kind(KIND_REQUIRED)
+                    .type(new Value.ValueBuilder()
+                            .value(HEADERS_TYPE)
+                            .types(List.of(PropertyType.types(Value.FieldType.TYPE)))
+                            .enabled(true)
+                            .editable(false)
+                            .build())
+                    .name(new Value.ValueBuilder()
+                            .value(HEADERS_PARAM)
+                            .types(List.of(PropertyType.types(Value.FieldType.IDENTIFIER)))
+                            .enabled(true)
+                            .editable(false)
+                            .build())
+                    .optional(true)
+                    .build();
+        }
+        // Same label and description as the http:Headers option on an HTTP resource.
+        headers.setMetadata(new MetaData("Headers",
+                "Access all HTTP headers sent by the client in the request. This includes standard headers like "
+                        + "Content-Type, Authorization, User-Agent, and any custom headers. Use this to retrieve "
+                        + "and process specific header values."));
+        headers.setEnabled(declared);
+        headers.setEditable(true);
+        headers.setAdvanced(true);
+        parameters.add(headers);
+
+        resourceModel.setParameters(parameters);
+        resourceModel.setCanAddParameters(false);
+    }
+
+    /**
+     * Whether a resource model parameter is the request headers, whatever it is named.
+     *
+     * @param parameter a parameter of a resource model
+     * @return true when its type is {@code http:Headers}, under any import prefix
+     */
+    public static boolean isHeadersParameter(Parameter parameter) {
+        if (parameter.getType() == null || parameter.getType().getValue() == null) {
+            return false;
+        }
+        String type = parameter.getType().getValue().trim();
+        int separator = type.indexOf(':');
+        return separator > 0 && HEADERS_TYPE_NAME.equals(type.substring(separator + 1));
     }
 
     private static List<FunctionDefinitionNode> agentResources(ServiceDeclarationNode serviceNode) {
         return serviceNode.members().stream()
-                .filter(member -> member.kind() == SyntaxKind.RESOURCE_ACCESSOR_DEFINITION)
+                .filter(member -> member instanceof FunctionDefinitionNode resource && isAgentResource(resource))
                 .map(FunctionDefinitionNode.class::cast)
-                .filter(resource -> POST_ACCESSOR.equals(resource.functionName().text().trim()))
-                .filter(resource -> {
-                    String path = Utils.getPath(resource.relativeResourcePath());
-                    return CHAT_RESOURCE_NAME.equals(path) || DECISION_RESOURCE_NAME.equals(path);
-                })
                 .toList();
     }
 
