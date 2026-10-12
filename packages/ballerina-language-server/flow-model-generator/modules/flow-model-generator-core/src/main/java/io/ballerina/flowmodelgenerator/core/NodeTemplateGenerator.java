@@ -16,6 +16,7 @@ import org.ballerinalang.langserver.commons.workspace.WorkspaceManager;
 import java.nio.file.Path;
 
 import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.RUN_METHOD_NAME;
+import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.RUN_WITH_ID_METHOD_NAME;
 import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.SEND_DATA_METHOD_NAME;
 import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.WORKFLOW_MODULE;
 import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.WORKFLOW_ORG;
@@ -50,12 +51,12 @@ public class NodeTemplateGenerator {
     }
 
     /**
-     * Maps a function search pick of {@code workflow:run} or {@code workflow:sendData} to the Run Workflow or Send
-     * Data node. Their first parameter is a bare {@code function}, which the generic function call form cannot fill;
-     * the workflow nodes offer the project's workflows in a dropdown instead. The symbol is dropped because those
-     * nodes read it as the name of the selected workflow. {@code packageName} and {@code lineRange} are not carried
-     * either: neither builder reads them, both import {@code ballerina/workflow} by constant, and the insert position
-     * comes from the template context.
+     * Maps a function search pick of {@code workflow:run}, {@code workflow:runWithId} or {@code workflow:sendData} to
+     * the Run Workflow, Run Workflow with ID or Send Data node. Their first parameter is a bare {@code function},
+     * which the generic function call form cannot fill; the workflow nodes offer the project's workflows in a
+     * dropdown instead. The symbol is dropped because those nodes read it as the name of the selected workflow.
+     * {@code packageName} and {@code lineRange} are not carried either: no builder reads them, all import
+     * {@code ballerina/workflow} by constant, and the insert position comes from the template context.
      */
     private static Codedata toWorkflowCodedata(Codedata codedata) {
         if (codedata.node() != NodeKind.FUNCTION_CALL || !WORKFLOW_ORG.equals(codedata.org())
@@ -65,6 +66,8 @@ public class NodeTemplateGenerator {
         NodeKind workflowNode;
         if (RUN_METHOD_NAME.equals(codedata.symbol())) {
             workflowNode = NodeKind.WORKFLOW_RUN;
+        } else if (RUN_WITH_ID_METHOD_NAME.equals(codedata.symbol())) {
+            workflowNode = NodeKind.WORKFLOW_RUN_WITH_ID;
         } else if (SEND_DATA_METHOD_NAME.equals(codedata.symbol())) {
             workflowNode = NodeKind.SEND_DATA;
         } else {

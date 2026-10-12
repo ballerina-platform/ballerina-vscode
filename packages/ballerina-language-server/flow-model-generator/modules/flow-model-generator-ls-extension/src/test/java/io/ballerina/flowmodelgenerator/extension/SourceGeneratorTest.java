@@ -211,7 +211,7 @@ public class SourceGeneratorTest extends AbstractLSTest {
         return new Object[][]{
                 {"workflow_run_to_source.json", "workflow", "Select a workflow in the Workflow field"},
                 {"send_data_to_source.json", "workflow", "Select a workflow in the Workflow Name field"},
-                {"workflow_run_with_id_to_source.json", "processFunction", "Select a workflow in the Workflow field"},
+                {"workflow_run_with_id_to_source.json", "workflow", "Select a workflow in the Workflow field"},
                 {"child_workflow_run_to_source.json", "workflow", "Select a workflow in the Child Workflow field"},
                 {"child_workflow_call_to_source.json", "workflow", "Select a workflow in the Child Workflow field"}
         };
@@ -222,7 +222,7 @@ public class SourceGeneratorTest extends AbstractLSTest {
         return new Object[][]{
                 {"workflow_run_to_source.json", "workflow", "input"},
                 {"send_data_to_source.json", "workflow", "workflowId"},
-                {"workflow_run_with_id_to_source.json", "processFunction", "instanceId"},
+                {"workflow_run_with_id_to_source.json", "workflow", "instanceId"},
                 {"child_workflow_run_to_source.json", "workflow", "input"},
                 {"child_workflow_call_to_source.json", "workflow", "input"}
         };

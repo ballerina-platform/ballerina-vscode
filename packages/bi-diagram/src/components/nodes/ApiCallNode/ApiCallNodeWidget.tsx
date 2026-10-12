@@ -296,8 +296,9 @@ export function ApiCallNodeWidget(props: ApiCallNodeWidgetProps) {
     // as the selected workflow, and a statement read back from source carries it as the node's
     // second line, so the arrow points at the workflow being run either way.
     const workflowValue = (model.node.properties as any)?.workflow?.value as string | undefined;
-    const isWorkflowTarget = model.node.codedata?.node?.startsWith("CHILD_WORKFLOW")
-        || model.node.codedata?.node === "WORKFLOW_RUN";
+    const isWorkflowRun = model.node.codedata?.node === "WORKFLOW_RUN"
+        || model.node.codedata?.node === "WORKFLOW_RUN_WITH_ID";
+    const isWorkflowTarget = model.node.codedata?.node?.startsWith("CHILD_WORKFLOW") || isWorkflowRun;
     // A child workflow statement carries the workflow it concerns as its second line. A workflow
     // run does not — its second line is the node's own description, so using it here printed the
     // documentation instead of a name. Only the child statements may fall back to it.
@@ -306,9 +307,7 @@ export function ApiCallNodeWidget(props: ApiCallNodeWidgetProps) {
         : undefined;
     // A workflow run keeps the workflow it runs as its symbol — the property the form uses is
     // dropped when the statement is read back, so the symbol is where the name actually is.
-    const runWorkflowTarget = model.node.codedata?.node === "WORKFLOW_RUN"
-        ? model.node.codedata?.symbol
-        : undefined;
+    const runWorkflowTarget = isWorkflowRun ? model.node.codedata?.symbol : undefined;
     const endpointLabel =
         connectionValue ?? fallbackEndpointValue ?? workflowValue ?? childWorkflowTarget ?? runWorkflowTarget ?? "";
     // The workflow the side icon stands for: clicking it opens that workflow, the way clicking a

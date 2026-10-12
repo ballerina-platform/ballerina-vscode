@@ -658,6 +658,8 @@ public class AvailableNodesGenerator {
             if (hasWorkflows) {
                 workflowNodes.add(workflowNode(Workflow.RUN_LABEL, Workflow.RUN_DESCRIPTION,
                         NodeKind.WORKFLOW_RUN));
+                workflowNodes.add(workflowNode(Workflow.RUN_WITH_ID_LABEL, Workflow.RUN_WITH_ID_DESCRIPTION,
+                        NodeKind.WORKFLOW_RUN_WITH_ID));
                 workflowNodes.add(workflowNode(Workflow.SEND_DATA_LABEL, Workflow.SEND_DATA_DESCRIPTION,
                         NodeKind.SEND_DATA));
             }
