@@ -972,6 +972,7 @@ export type BIDeleteByComponentInfoResponse = {
     textEdits: {
         [key: string]: TextEdit[];
     };
+    artifacts?: ProjectStructureArtifactResponse[];
 };
 
 export interface BIAvailableNodesRequest {
