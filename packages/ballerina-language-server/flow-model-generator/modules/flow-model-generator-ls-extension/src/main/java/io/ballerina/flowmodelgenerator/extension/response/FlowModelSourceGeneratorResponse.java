@@ -59,7 +59,15 @@ public class FlowModelSourceGeneratorResponse extends AbstractFlowModelResponse 
         this.formatted = formatted;
     }
 
+    public boolean formatted() {
+        return formatted;
+    }
+
     public void setSourceEdits(JsonElement sourceEdits) {
         this.sourceEdits = sourceEdits;
+    }
+
+    public JsonElement sourceEdits() {
+        return sourceEdits;
     }
 }
