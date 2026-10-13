@@ -82,7 +82,8 @@ public class ArtifactGenerationDebouncer {
      * @param task  The task to execute
      * @param delay The delay in milliseconds
      */
-    public void debounce(String key, Runnable task, long delay) {
+    // Synchronized with the task's cleanup, so an immediate task cannot finish before its entry is registered.
+    public synchronized void debounce(String key, Runnable task, long delay) {
         CompletableFuture<Void> promise = new CompletableFuture<>();
         // Leading edge: a change after a quiet period publishes at once; only a burst waits for the delay.
         long now = System.currentTimeMillis();
@@ -98,7 +99,9 @@ public class ArtifactGenerationDebouncer {
                 promise.completeExceptionally(ex);
             } finally {
                 // A newer task for this key may already be registered; leave it cancellable.
-                delayedMap.computeIfPresent(key, (k, holder) -> holder.promise() == promise ? null : holder);
+                synchronized (this) {
+                    delayedMap.computeIfPresent(key, (k, holder) -> holder.promise() == promise ? null : holder);
+                }
                 executeQueuedTasks(key);
             }
         };
