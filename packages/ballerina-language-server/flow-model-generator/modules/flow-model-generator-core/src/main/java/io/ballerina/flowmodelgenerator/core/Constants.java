@@ -109,6 +109,9 @@ public class Constants {
         public static final String RUN_WITH_ID_METHOD_NAME = "runWithId";
         public static final String RUN_PROCESS_FUNCTION_PARAM = "processFunction";
         public static final String RUN_INPUT_PARAM = "input";
+        public static final String RUN_INSTANCE_ID_PARAM = "instanceId";
+        public static final String RUN_IF_RUNNING_PARAM = "ifRunning";
+        public static final String RUN_IF_CLOSED_PARAM = "ifClosed";
         // Parameter names of the calls the analyzer reads back positionally or by name. A caller may
         // write any of them as a named argument, so each anchor is looked up by this name as well
         // as by its position.
@@ -123,6 +126,10 @@ public class Constants {
         public static final String AGENT_TOKEN_PARAM = "token";
         public static final String RUN_LABEL = "Run Workflow";
         public static final String RUN_DESCRIPTION = "Run a new workflow instance";
+        // Short so the tile stays on one line beside Run Workflow; the long name stays searchable.
+        public static final String RUN_WITH_ID_LABEL = "Run with ID";
+        public static final List<String> RUN_WITH_ID_KEYWORDS = List.of("Run Workflow with ID", "Instance ID");
+        public static final String RUN_WITH_ID_DESCRIPTION = "Run a new workflow instance under an id you choose";
         public static final String SEND_DATA_METHOD_NAME = "sendData";
         public static final String SEND_DATA_LABEL = "Send Data Event";
         public static final String SEND_DATA_DESCRIPTION = "Send a data event to a running workflow instance";

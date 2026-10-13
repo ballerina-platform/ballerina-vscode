@@ -188,6 +188,7 @@ import io.ballerina.flowmodelgenerator.core.model.node.WaitBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.WaitDataBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.WorkflowContextFunctionBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.WorkflowRunBuilder;
+import io.ballerina.flowmodelgenerator.core.model.node.WorkflowRunWithIdBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.XmlPayloadBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.builtin.BuiltinActivityStrategy;
 import io.ballerina.flowmodelgenerator.core.model.node.builtin.EmailActivityStrategy;
@@ -4800,6 +4801,8 @@ public class CodeAnalyzer extends NodeVisitor {
             startNode(NodeKind.NP_FUNCTION_CALL, functionCallExpressionNode.parent());
         } else if (isWorkflowOperation(functionSymbol, RUN_METHOD_NAME)) {
             startNode(NodeKind.WORKFLOW_RUN, functionCallExpressionNode.parent());
+        } else if (isWorkflowOperation(functionSymbol, RUN_WITH_ID_METHOD_NAME)) {
+            startNode(NodeKind.WORKFLOW_RUN_WITH_ID, functionCallExpressionNode.parent());
         } else if (isWorkflowOperation(functionSymbol, SEND_DATA_METHOD_NAME)) {
             startNode(NodeKind.SEND_DATA, functionCallExpressionNode.parent());
         } else {
@@ -4906,45 +4909,48 @@ public class CodeAnalyzer extends NodeVisitor {
                                               FunctionSymbol functionSymbol) {
         if (isWorkflowOperation(functionSymbol, RUN_METHOD_NAME)) {
             overrideSymbolFromFirstArg(functionCallExpressionNode.arguments(), RUN_PROCESS_FUNCTION_PARAM);
-            populateWorkflowRunProperties(functionCallExpressionNode);
+            populateWorkflowRunProperties(functionCallExpressionNode, 1, WorkflowRunBuilder.WORKFLOW_NAME_KEY,
+                    WorkflowRunBuilder.INPUT_KEY, Property.VARIABLE_KEY);
+        } else if (isWorkflowOperation(functionSymbol, RUN_WITH_ID_METHOD_NAME)) {
+            overrideSymbolFromFirstArg(functionCallExpressionNode.arguments(), RUN_PROCESS_FUNCTION_PARAM);
+            populateWorkflowRunProperties(functionCallExpressionNode, 2, WorkflowRunBuilder.WORKFLOW_NAME_KEY,
+                    WorkflowRunWithIdBuilder.INSTANCE_ID_KEY, WorkflowRunBuilder.INPUT_KEY,
+                    WorkflowRunWithIdBuilder.IF_RUNNING_KEY, WorkflowRunWithIdBuilder.IF_CLOSED_KEY,
+                    Property.VARIABLE_KEY);
+            // The policies are rarely set, so the form keeps them in the advanced section as the template does.
+            Map<String, Property> properties = nodeBuilder.properties().build();
+            for (String policy : List.of(WorkflowRunWithIdBuilder.IF_RUNNING_KEY,
+                    WorkflowRunWithIdBuilder.IF_CLOSED_KEY)) {
+                Property property = properties.get(policy);
+                if (property != null) {
+                    properties.put(policy, Property.Builder.copyFrom(property).advanced(true).build());
+                }
+            }
         } else if (isWorkflowOperation(functionSymbol, SEND_DATA_METHOD_NAME)) {
             // The signature types the workflow as a bare function; the template offers a dropdown.
             String workflow = argumentExpression(functionCallExpressionNode.arguments(), 0,
                     SendDataBuilder.WORKFLOW_NAME_KEY).map(expression -> expression.toSourceCode().trim()).orElse("");
             addWorkflowSelectProperty(SendDataBuilder.WORKFLOW_NAME_KEY, SendDataBuilder.WORKFLOW_NAME_LABEL,
                     SendDataBuilder.WORKFLOW_NAME_DOC, workflow);
-        } else if (isWorkflowOperation(functionSymbol, RUN_WITH_ID_METHOD_NAME)) {
-            // Stays a generic function call (no dedicated node); only its workflow argument, the first parameter,
-            // becomes the dropdown. Keyed by the parameter's own name, as the generic path keyed it.
-            // TODO: Drop this special case once function-typed parameters offer the project's matching
-            //  functions in general (wso2/product-integrator#2717).
-            Optional<String> paramName = functionSymbol.typeDescriptor().params()
-                    .filter(params -> !params.isEmpty())
-                    .flatMap(params -> params.getFirst().getName());
-            if (paramName.isEmpty()) {
-                return;
-            }
-            String workflow = argumentExpression(functionCallExpressionNode.arguments(), 0, paramName.get())
-                    .map(expression -> expression.toSourceCode().trim()).orElse("");
-            addWorkflowSelectProperty(ParamUtils.removeLeadingSingleQuote(paramName.get()),
-                    WorkflowRunBuilder.WORKFLOW_NAME_LABEL, WorkflowRunBuilder.WORKFLOW_NAME_DOC, workflow,
-                    paramName.get());
         }
     }
 
     /**
-     * Fixes properties after {@code processFunctionSymbol} runs on a {@code workflow:run(...)} call.
-     * The generic path types the {@code input} property from the library signature of
-     * {@code workflow:run} ({@code anydata input}), which loses the specific input type of the
-     * target workflow function. This re-derives the {@code input} property type from the workflow
-     * function's declared input parameter (the first parameter that is a subtype of {@code anydata};
+     * Fixes properties after {@code processFunctionSymbol} runs on a {@code workflow:run(...)} or
+     * {@code workflow:runWithId(...)} call. The generic path types the {@code input} property from the
+     * library signature ({@code anydata input}), which loses the specific input type of the target
+     * workflow function. This re-derives the {@code input} property type from the workflow function's
+     * declared input parameter (the first parameter that is a subtype of {@code anydata};
      * {@code workflow:Context} and the events record are not anydata), matching the template path in
      * {@link WorkflowRunBuilder}. The raw {@code processFunction} property is dropped because the
      * function reference is carried in {@code codedata.symbol}.
      *
-     * @param callNode the {@code workflow:run(...)} call node
+     * @param callNode    the call node
+     * @param inputIndex  the position of the input argument in the call
+     * @param keysInOrder the keys the form leads with, in the template's order
      */
-    private void populateWorkflowRunProperties(FunctionCallExpressionNode callNode) {
+    private void populateWorkflowRunProperties(FunctionCallExpressionNode callNode, int inputIndex,
+                                               String... keysInOrder) {
         SeparatedNodeList<FunctionArgumentNode> args = callNode.arguments();
         Map<String, Property> currentProps = nodeBuilder.properties().build();
         currentProps.remove(RUN_PROCESS_FUNCTION_PARAM);
@@ -4961,11 +4967,10 @@ public class CodeAnalyzer extends NodeVisitor {
                 WorkflowRunBuilder.WORKFLOW_NAME_DOC, processFunctionExpr.get().toSourceCode().trim());
         Optional<Symbol> resolvedSymbol = semanticModel.symbol(processFunctionExpr.get());
         if (resolvedSymbol.isPresent() && resolvedSymbol.get() instanceof FunctionSymbol workflowFuncSymbol) {
-            retypeWorkflowInput(workflowFuncSymbol, args, 1, RUN_INPUT_PARAM, WorkflowRunBuilder.INPUT_KEY,
+            retypeWorkflowInput(workflowFuncSymbol, args, inputIndex, RUN_INPUT_PARAM, WorkflowRunBuilder.INPUT_KEY,
                     WorkflowRunBuilder.INPUT_LABEL, WorkflowRunBuilder.INPUT_DOC, WorkflowRunBuilder.WORKFLOW_NAME_KEY);
         }
-        WorkflowUtil.reorderProperties(currentProps, WorkflowRunBuilder.WORKFLOW_NAME_KEY, WorkflowRunBuilder.INPUT_KEY,
-                Property.VARIABLE_KEY);
+        WorkflowUtil.reorderProperties(currentProps, keysInOrder);
     }
 
     /**

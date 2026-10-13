@@ -2021,39 +2021,15 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 break;
 
             case "WORKFLOW_RUN":
-                // First click from node list should open searchable workflow list.
+                // From the palette the form opens at once: it carries the project's workflows in its own
+                // dropdown, so a list in front of it only asked the same question twice. The list still
+                // serves the durable agents and the child workflows, whose picks land here too.
                 if (opensListFromPalette(sidePanelView)) {
                     childWorkflowKindRef.current = null;
-        durableAgentObjectVarRef.current = null;
-                    setShowProgressIndicator(true);
-                    const workflowSearchRequest: BISearchRequest = {
-                        position: { startLine: targetRef.current.startLine, endLine: targetRef.current.endLine },
-                        filePath: model?.fileName || fileName,
-                        queryMap: undefined,
-                        searchKind: "WORKFLOW_RUN",
-                    };
-                    const searchPromise = rpcClient.getBIDiagramRpcClient().search(workflowSearchRequest);
-                    searchPromise
-                        .then((response) => {
-                            const panelCategories = convertFunctionCategoriesToSidePanelCategories(
-                                response.categories as Category[],
-                                FUNCTION_TYPE.REGULAR
-                            );
-                            const currentPackageCategory = findCurrentIntegrationCategory(panelCategories);
-                            if (currentPackageCategory && !currentPackageCategory.items.length) {
-                                currentPackageCategory.description = "No workflows defined. Click below to create a new workflow.";
-                            }
-                            setCategories(panelCategories);
-                            setSidePanelView(SidePanelView.WORKFLOW_LIST);
-                            setShowSidePanel(true);
-                        })
-                        .finally(() => {
-                            setShowProgressIndicator(false);
-                        });
-                    break;
+                    durableAgentObjectVarRef.current = null;
                 }
 
-                // Selecting an item from workflow list should open the node template form.
+                // The template form, for the palette's node or the list's pick alike.
                 selectedClientName.current = category;
                 setShowProgressIndicator(true);
                 rpcClient
