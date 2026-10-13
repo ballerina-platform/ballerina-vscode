@@ -16,7 +16,10 @@
 package org.ballerinalang.langserver.workspace;
 
 import io.ballerina.projects.BuildOptions;
+import io.ballerina.projects.Document;
+import io.ballerina.projects.Package;
 import io.ballerina.projects.Project;
+import io.ballerina.projects.ProjectException;
 import org.ballerinalang.langserver.LSContextOperation;
 import org.ballerinalang.langserver.common.utils.CommonUtil;
 import org.ballerinalang.langserver.common.utils.PathUtil;
@@ -28,11 +31,15 @@ import org.ballerinalang.langserver.commons.workspace.WorkspaceManager;
 import org.eclipse.lsp4j.DidChangeTextDocumentParams;
 import org.eclipse.lsp4j.DidCloseTextDocumentParams;
 import org.eclipse.lsp4j.DidOpenTextDocumentParams;
+import org.eclipse.lsp4j.TextDocumentContentChangeEvent;
+import org.eclipse.lsp4j.VersionedTextDocumentIdentifier;
 
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Ballerina workspace manager proxy implementation.
@@ -48,7 +55,7 @@ public class BallerinaWorkspaceManagerProxyImpl implements BallerinaWorkspaceMan
 
     public BallerinaWorkspaceManagerProxyImpl(LanguageServerContext serverContext) {
         this.baseWorkspaceManager = new BallerinaWorkspaceManager(serverContext);
-        this.clonedWorkspaceManager = new ClonedWorkspace(serverContext);
+        this.clonedWorkspaceManager = new ClonedWorkspace(serverContext, this.baseWorkspaceManager);
         this.aiWorkspaceManager = new AIWorkspace(serverContext);
     }
     
@@ -79,10 +86,14 @@ public class BallerinaWorkspaceManagerProxyImpl implements BallerinaWorkspaceMan
             return;
         }
         if (this.isExprScheme(uri)) {
+            Optional<Project> source;
             try {
-                this.clonedWorkspaceManager.open(this.baseWorkspaceManager.loadProject(path.get()));
+                source = Optional.of(this.baseWorkspaceManager.loadProject(path.get()));
             } catch (EventSyncException e) {
-                this.baseWorkspaceManager.project(path.get()).ifPresent(this.clonedWorkspaceManager::open);
+                source = this.baseWorkspaceManager.project(path.get());
+            }
+            if (source.isPresent()) {
+                this.clonedWorkspaceManager.openOrReuse(source.get(), path.get(), params.getTextDocument().getText());
             }
         } else if (this.isAIScheme(uri)) {
             this.aiWorkspaceManager.didOpen(path.get(), params);
@@ -93,6 +104,7 @@ public class BallerinaWorkspaceManagerProxyImpl implements BallerinaWorkspaceMan
             Optional<Project> project = this.clonedWorkspaceManager.project(path.get());
             if (project.isPresent()) {
                 this.clonedWorkspaceManager.didOpen(path.get(), params);
+                this.baseWorkspaceManager.project(path.get()).ifPresent(this.clonedWorkspaceManager::markSynced);
             }
         }
     }
@@ -115,6 +127,7 @@ public class BallerinaWorkspaceManagerProxyImpl implements BallerinaWorkspaceMan
             Optional<Project> project = this.clonedWorkspaceManager.project(path.get());
             if (project.isPresent()) {
                 this.clonedWorkspaceManager.didChange(path.get(), params);
+                this.baseWorkspaceManager.project(path.get()).ifPresent(this.clonedWorkspaceManager::markSynced);
             }
         }
     }
@@ -136,8 +149,27 @@ public class BallerinaWorkspaceManagerProxyImpl implements BallerinaWorkspaceMan
     }
 
     private static class ClonedWorkspace extends BallerinaWorkspaceManager {
-        public ClonedWorkspace(LanguageServerContext serverContext) {
+        private final WorkspaceManager source;
+        // The source package each cloned package last matched; a different instance means the source changed unseen.
+        private final Map<Path, Package> syncedWith = new ConcurrentHashMap<>();
+
+        public ClonedWorkspace(LanguageServerContext serverContext, WorkspaceManager source) {
             super(serverContext);
+            this.source = source;
+        }
+
+        // A clone mirrors the source workspace's loaded state, so it is copied from there rather than read from disk.
+        @Override
+        public Project loadProject(Path filePath) throws ProjectException, WorkspaceDocumentException,
+                EventSyncException {
+            if (source != null && project(filePath).isEmpty()) {
+                synchronized (this) {
+                    if (project(filePath).isEmpty()) {
+                        open(source.loadProject(filePath));
+                    }
+                }
+            }
+            return super.loadProject(filePath);
         }
 
         public void open(Project project) {
@@ -150,14 +182,60 @@ public class BallerinaWorkspaceManagerProxyImpl implements BallerinaWorkspaceMan
                     Path packageRoot = workspacePackage.sourceRoot();
                     sourceRootToProject.put(packageRoot, ProjectContext.from(workspacePackage));
                 }
+            } else {
+                this.sourceRootToProject.put(project.sourceRoot(), ProjectContext.from(project.duplicate()));
+            }
+            markSynced(project);
+        }
+
+        // Reuses the clone while it still matches the source, discarding a previous form's edits to the file.
+        public void openOrReuse(Project sourceProject, Path filePath, String text) throws WorkspaceDocumentException {
+            if (isSyncedWith(sourceProject)) {
+                reset(filePath, text);
                 return;
             }
+            open(sourceProject);
+        }
 
-            this.sourceRootToProject.put(project.sourceRoot(), ProjectContext.from(project.duplicate()));
+        public void markSynced(Project sourceProject) {
+            members(sourceProject).forEach(member -> syncedWith.put(member.sourceRoot(), member.currentPackage()));
+        }
+
+        private boolean isSyncedWith(Project sourceProject) {
+            return members(sourceProject).stream().allMatch(member -> project(member.sourceRoot()).isPresent()
+                    && syncedWith.get(member.sourceRoot()) == member.currentPackage());
+        }
+
+        private static List<Project> members(Project project) {
+            BallerinaCompilerApi compilerApi = BallerinaCompilerApi.getInstance();
+            return compilerApi.getWorkspaceProject(project).map(compilerApi::getWorkspaceProjects)
+                    .orElse(List.of(project));
+        }
+
+        private void reset(Path filePath, String text) throws WorkspaceDocumentException {
+            Optional<Document> document = document(filePath);
+            if (document.isEmpty() || document.get().textDocument().toString().equals(text)) {
+                return;
+            }
+            DidChangeTextDocumentParams params = new DidChangeTextDocumentParams(
+                    new VersionedTextDocumentIdentifier(filePath.toUri().toString(), null),
+                    List.of(new TextDocumentContentChangeEvent(text)));
+            didChange(filePath, params);
         }
 
         @Override
         public void didClose(Path filePath, DidCloseTextDocumentParams params) {
+            if (source != null) {
+                Optional<Document> sourceDocument = source.document(filePath);
+                if (sourceDocument.isPresent()) {
+                    try {
+                        reset(filePath, sourceDocument.get().textDocument().toString());
+                        return;
+                    } catch (WorkspaceDocumentException e) {
+                        this.clientLogger.logTrace("Resetting the cloned document failed: " + e.getMessage());
+                    }
+                }
+            }
             Optional<Project> project = project(filePath);
             if (project.isEmpty()) {
                 return;
@@ -179,7 +257,7 @@ public class BallerinaWorkspaceManagerProxyImpl implements BallerinaWorkspaceMan
     private static class AIWorkspace extends ClonedWorkspace {
 
         public AIWorkspace(LanguageServerContext serverContext) {
-            super(serverContext);
+            super(serverContext, null);
         }
 
         @Override
