@@ -25,6 +25,8 @@ import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { findClassByName, findFunctionByName } from "../FlowDiagram/utils";
 import {
     findAgentScopedNode as findAgentScopedNodeAt,
+    findFlowNodeByModuleVarName,
+    isToolUsedByOtherAgent,
     refreshAgentNodeLineRange,
     removeMcpServerFromAgentNode,
     removeToolFromAgentNode,
@@ -292,17 +294,28 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
                 await deleteMcpVariableAndClass(tool);
                 return;
             }
+            const agentVarName = node.properties?.variable?.value as string;
+            const agentPosition = (artifacts?: ProjectStructureArtifactResponse[]) =>
+                artifacts?.find((artifact) => artifact.name === agentVarName)?.position;
+            const moduleNodes = (await rpcClient.getBIDiagramRpcClient().getModuleNodes()).flowModel;
             const updated = await removeToolFromAgentNode(node, tool.name);
             if (updated) {
-                await refreshAgentNodeLineRange(updated, rpcClient);
+                const current = await findFlowNodeByModuleVarName(agentVarName, rpcClient, moduleNodes);
+                if (current?.codedata?.lineRange) {
+                    updated.codedata.lineRange = current.codedata.lineRange;
+                }
                 const path = (await rpcClient.getVisualizerRpcClient().joinProjectPath({
                     segments: [updated.codedata.lineRange.fileName],
                 })).filePath;
-                await rpcClient.getBIDiagramRpcClient().getSourceCode({ filePath: path, flowNode: updated });
+                const response = await rpcClient.getBIDiagramRpcClient().getSourceCode({ filePath: path, flowNode: updated });
+                nextPosition = agentPosition(response?.artifacts);
             }
-            const resolved = await resolveToolComponent(tool.name);
+            // Another agent may still list the tool; deleting its function would break that agent.
+            const resolved = isToolUsedByOtherAgent(moduleNodes, agentVarName, tool.name)
+                ? null
+                : await resolveToolComponent(tool.name);
             if (resolved) {
-                await rpcClient.getBIDiagramRpcClient().deleteByComponentInfo({
+                const response = await rpcClient.getBIDiagramRpcClient().deleteByComponentInfo({
                     filePath: resolved.documentUri,
                     component: {
                         name: tool.name, filePath: resolved.documentUri,
@@ -311,8 +324,10 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
                         resources: [],
                     },
                 });
+                // Deleting the function can shift the agent, so only this edit's artifacts tell where it is now.
+                nextPosition = agentPosition(response?.artifacts);
             }
-            nextPosition = await resolveAgentNodePosition(node, rpcClient);
+            nextPosition ??= await resolveAgentNodePosition(node, rpcClient);
         } catch (error) {
             console.error("Failed to delete tool", error);
             await rpcClient.getCommonRpcClient().showErrorMessage({
