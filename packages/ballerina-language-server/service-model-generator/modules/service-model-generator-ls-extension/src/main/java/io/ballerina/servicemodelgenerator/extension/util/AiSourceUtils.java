@@ -251,11 +251,8 @@ public final class AiSourceUtils {
                     .optional(true)
                     .build();
         }
-        // Same label and description as the http:Headers option on an HTTP resource.
-        headers.setMetadata(new MetaData("Headers",
-                "Access all HTTP headers sent by the client in the request. This includes standard headers like "
-                        + "Content-Type, Authorization, User-Agent, and any custom headers. Use this to retrieve "
-                        + "and process specific header values."));
+        // The label of the http:Headers option on an HTTP resource, and the first sentence of its description.
+        headers.setMetadata(new MetaData("Headers", "Access all HTTP headers sent by the client in the request."));
         headers.setEnabled(declared);
         headers.setEditable(true);
         headers.setAdvanced(true);
