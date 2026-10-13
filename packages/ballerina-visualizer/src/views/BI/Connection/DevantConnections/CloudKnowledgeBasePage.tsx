@@ -24,7 +24,7 @@ import ButtonCard from "../../../../components/ButtonCard";
 import { BodyTinyInfo } from "../../../styles";
 import { usePlatformExtContext } from "../../../../providers/platform-ext-ctx-provider";
 import { ConnectorsGrid, Section, SectionHeader, SectionTitle } from "../AddConnectionPopup/styles";
-import { KB_SERVICE_TAG, ProgressWrap } from "./utils";
+import { isKnowledgeBaseService, KB_SERVICE_TAG, ProgressWrap } from "./utils";
 
 interface CloudKnowledgeBasePageProps {
     // Opens a blank CloudKnowledgeBase create form (manual entry, no Devant service pre-selected).
@@ -43,7 +43,8 @@ export function CloudKnowledgeBasePage(props: CloudKnowledgeBasePageProps) {
 
     const isSignedIn = !!platformExtState?.isLoggedIn && !!platformExtState?.selectedContext?.project;
 
-    // Use the API's tags filter to filter for knowledge base services.
+    // The API's tags filter trims the payload; the client-side select below keeps the list correct
+    // if an older platform extension or CLI ignores the tag.
     const getMarketPlaceParams: GetMarketplaceItemsParams = {
         limit: 24,
         offset: 0,
@@ -66,6 +67,7 @@ export function CloudKnowledgeBasePage(props: CloudKnowledgeBasePageProps) {
                 request: getMarketPlaceParams,
             }),
         enabled: isSignedIn,
+        select: (data) => ({ ...data, data: (data?.data || []).filter(isKnowledgeBaseService) }),
     });
 
     const items: MarketplaceItem[] = knowledgeBases?.data || [];
