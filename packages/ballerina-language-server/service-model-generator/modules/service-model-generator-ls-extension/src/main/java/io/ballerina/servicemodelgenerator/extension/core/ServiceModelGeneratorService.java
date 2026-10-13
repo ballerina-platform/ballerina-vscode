@@ -246,7 +246,7 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                 ? FormattedEdits.foldByPathString(workspaceManager, textEdits)
                 : Optional.empty();
         return new CommonSourceResponse(formattedEdits.orElse(textEdits), null, null, validations,
-                formattedEdits.isPresent());
+                formattedEdits.isPresent() ? Boolean.TRUE : null);
     }
 
     @Override

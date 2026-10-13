@@ -103,21 +103,21 @@ public final class FormattedEdits {
         String original = currentText(workspaceManager, path);
         TextDocument document = TextDocuments.from(original);
         StringBuilder source = new StringBuilder(original);
-        List<TextEdit> ordered = new ArrayList<>(edits);
-        ordered.sort(Comparator.comparingInt(edit -> offset(document, edit.getRange().getStart())));
-        // Applied back to front so earlier offsets stay valid; inserts at one position keep their list order.
-        for (int i = ordered.size() - 1; i >= 0; i--) {
-            TextEdit edit = ordered.get(i);
-            source.replace(offset(document, edit.getRange().getStart()), offset(document, edit.getRange().getEnd()),
-                    edit.getNewText());
-        }
         try {
+            List<TextEdit> ordered = new ArrayList<>(edits);
+            ordered.sort(Comparator.comparingInt(edit -> offset(document, edit.getRange().getStart())));
+            // Applied back to front so earlier offsets stay valid; inserts at one position keep their list order.
+            for (int i = ordered.size() - 1; i >= 0; i--) {
+                TextEdit edit = ordered.get(i);
+                source.replace(offset(document, edit.getRange().getStart()),
+                        offset(document, edit.getRange().getEnd()), edit.getNewText());
+            }
             String formatted = Formatter.format(SyntaxTree.from(TextDocuments.from(source.toString())),
                     formattingOptions(workspaceManager, path)).toSourceCode();
             LinePosition end = document.linePositionFrom(original.length());
             return Optional.of(new TextEdit(new Range(new Position(0, 0), new Position(end.line(), end.offset())),
                     formatted));
-        } catch (FormatterException e) {
+        } catch (FormatterException | IllegalArgumentException e) {
             return Optional.empty();
         }
     }
