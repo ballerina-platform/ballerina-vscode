@@ -1590,10 +1590,7 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             return;
         }
 
-        // Get Ballerina home path from settings
-        const config = workspace.getConfiguration('ballerina');
-        const ballerinaHome = config.get<string>('home');
-        const balCmd = ballerinaHome ? path.join(ballerinaHome, 'bin', 'bal') : 'bal';
+        const balCmd = extension.ballerinaExtInstance.getBallerinaCmd();
         const buildArgs = docker ? ['build', '--cloud=docker'] : ['build'];
 
         // Run the build command scoped to the resolved project directory so that
