@@ -23,7 +23,6 @@ import {
     tasks,
     TaskDefinition,
     ShellExecution,
-    ShellQuoting,
     TaskExecution,
     DebugAdapterTrackerFactory,
     DebugAdapterTracker,
@@ -52,6 +51,7 @@ import {
 import { getProjectWorkingDirectory } from "../../utils/file-utils";
 import { quoteShellPath } from "../../utils/config";
 import { buildRunArgs } from "./run-args";
+import { resolveBalTaskCommand } from "../../utils/bal-task";
 import { decimal, ExecutableOptions } from 'vscode-languageclient/node';
 import { BAL_NOTEBOOK, getTempFile, NOTEBOOK_CELL_SCHEME } from '../../views/notebook';
 import fileUriToPath from 'file-uri-to-path';
@@ -860,12 +860,9 @@ class BIRunAdapter extends LoggingDebugSession {
                 return;
             }
 
-            // Separate args let VS Code quote the path per shell; PowerShell breaks on a pre-quoted string
-            const execution = new ShellExecution(
-                { value: extension.ballerinaExtInstance.getBallerinaCmd(), quoting: ShellQuoting.Strong },
-                runArgs,
-                { env: env as { [key: string]: string }, cwd: cwd }
-            );
+            // Separate args let VS Code quote per shell; a pre-quoted string breaks PowerShell and cmd.exe
+            const balTask = resolveBalTaskCommand(extension.ballerinaExtInstance.getBallerinaCmd(), env, isWindows());
+            const execution = new ShellExecution(balTask.command, runArgs, { env: balTask.env, cwd: cwd });
             const task = new Task(
                 taskDefinition,
                 TaskScope.Workspace,

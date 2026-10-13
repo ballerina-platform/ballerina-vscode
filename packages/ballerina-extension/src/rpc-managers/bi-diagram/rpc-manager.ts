@@ -187,7 +187,6 @@ import {
 } from "@wso2/wso2-platform-core";
 import {
     ShellExecution,
-    ShellQuoting,
     Task,
     TaskDefinition,
     Uri, ViewColumn, commands,
@@ -225,7 +224,8 @@ import { writeBallerinaFileDidOpen, writeBallerinaFileDidOpenTemp } from "../../
 import { buildProjectsStructure } from "../../utils/project-artifacts";
 import { updateSourceCode } from "../../utils/source-utils";
 import { getView } from "../../utils/state-machine-utils";
-import { isLibraryProject } from "../../utils/config";
+import { isLibraryProject, isWindows } from "../../utils/config";
+import { resolveBalTaskCommand } from "../../utils/bal-task";
 import { PlatformExtRpcManager } from "../platform-ext/rpc-manager";
 import { openAIPanelWithPrompt } from "../../views/ai-panel/aiMachine";
 import { getCurrentBallerinaProject, getCurrentProjectRoot } from "../../utils/project-utils";
@@ -1590,16 +1590,12 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             return;
         }
 
-        const balCmd = extension.ballerinaExtInstance.getBallerinaCmd();
+        const balTask = resolveBalTaskCommand(extension.ballerinaExtInstance.getBallerinaCmd(), process.env, isWindows());
         const buildArgs = docker ? ['build', '--cloud=docker'] : ['build'];
 
         // Run the build command scoped to the resolved project directory so that
         // only that project is compiled (not every project in the workspace).
-        const execution = new ShellExecution(
-            { value: balCmd, quoting: ShellQuoting.Strong },
-            buildArgs,
-            { cwd: targetPath, env: process.env as { [key: string]: string } }
-        );
+        const execution = new ShellExecution(balTask.command, buildArgs, { cwd: targetPath, env: balTask.env });
 
         const task = new Task(
             taskDefinition,
