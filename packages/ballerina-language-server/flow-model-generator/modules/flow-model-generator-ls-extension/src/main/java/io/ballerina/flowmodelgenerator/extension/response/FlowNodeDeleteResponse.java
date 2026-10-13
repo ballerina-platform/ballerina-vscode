@@ -41,4 +41,8 @@ public class FlowNodeDeleteResponse extends AbstractFlowModelResponse {
     public void setFormatted(boolean formatted) {
         this.formatted = formatted;
     }
+
+    public boolean formatted() {
+        return formatted;
+    }
 }
