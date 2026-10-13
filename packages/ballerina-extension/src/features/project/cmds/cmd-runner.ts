@@ -170,7 +170,7 @@ export function runCommandWithConf(file: BallerinaProject | string, executor: st
     }
     let commandText;
     if (cmd === BALLERINA_COMMANDS.OTHER) {
-        commandText = `${quoteShellPath(executor)} ${argsList}`;
+        commandText = `${terminalExecutor(executor)} ${argsList}`;
         terminal = window.createTerminal({ name: TERMINAL_NAME });
     } else {
         let env = {};
@@ -206,7 +206,7 @@ export function runCommandWithConf(file: BallerinaProject | string, executor: st
             }
         }
 
-        commandText = `${quoteShellPath(executor)} ${cmd} ${argsList}`;
+        commandText = `${terminalExecutor(executor)} ${cmd} ${argsList}`;
         if (confPath !== '') {
             const configs = env['BAL_CONFIG_FILES'] ? `${env['BAL_CONFIG_FILES']}:${confPath}` : confPath;
             Object.assign(env, { BAL_CONFIG_FILES: configs });
@@ -227,6 +227,27 @@ export function runCommandWithConf(file: BallerinaProject | string, executor: st
         runTerminals.set(path.resolve(filePath), terminal);
         markTerminalRunStarted(terminal, filePath);
     }
+}
+
+// PowerShell reads a leading quoted string as a value, so a quoted path needs the call operator
+function terminalExecutor(executor: string): string {
+    const quoted = quoteShellPath(executor);
+    return quoted.startsWith('"') && isPowerShellDefaultTerminal() ? `& ${quoted}` : quoted;
+}
+
+function isPowerShellDefaultTerminal(): boolean {
+    if (!isWindows()) {
+        return false;
+    }
+    const config = workspace.getConfiguration('terminal.integrated');
+    const profileName = config.get<string>('defaultProfile.windows');
+    // VS Code falls back to PowerShell on Windows
+    if (!profileName) {
+        return true;
+    }
+    const profile = config.get<Record<string, any>>('profiles.windows')?.[profileName];
+    const shell = [profileName, profile?.source, ...[].concat(profile?.path ?? [])].join(' ');
+    return /powershell|pwsh/i.test(shell);
 }
 
 function isRunCommand(cmd: BALLERINA_COMMANDS): boolean {
