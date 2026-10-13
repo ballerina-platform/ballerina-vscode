@@ -107,10 +107,10 @@ exports[`Component Diagram - Snapshot Tests renders ai agent complex correctly: 
       <svg
         class="css-6"
         style="transform: translate(
-				400px,
-				300px)
+				0px,
+				0px)
 			scale(
-				0
+				1
 			);"
       >
         <g
@@ -282,10 +282,10 @@ exports[`Component Diagram - Snapshot Tests renders ai agent complex correctly: 
       <div
         class="css-6"
         style="transform: translate(
-				400px,
-				300px)
+				0px,
+				0px)
 			scale(
-				0
+				1
 			);"
       >
         <div
@@ -938,10 +938,10 @@ exports[`Component Diagram - Snapshot Tests renders connections complex correctl
       <svg
         class="css-6"
         style="transform: translate(
-				400px,
-				300px)
+				0px,
+				0px)
 			scale(
-				0
+				1
 			);"
       >
         <g
@@ -1058,10 +1058,10 @@ exports[`Component Diagram - Snapshot Tests renders connections complex correctl
       <div
         class="css-6"
         style="transform: translate(
-				400px,
-				300px)
+				0px,
+				0px)
 			scale(
-				0
+				1
 			);"
       >
         <div
@@ -1518,19 +1518,19 @@ exports[`Component Diagram - Snapshot Tests renders empty project correctly: emp
       <svg
         class="css-6"
         style="transform: translate(
-				400px,
-				300px)
+				0px,
+				0px)
 			scale(
-				0
+				1
 			);"
       />
       <div
         class="css-6"
         style="transform: translate(
-				400px,
-				300px)
+				0px,
+				0px)
 			scale(
-				0
+				1
 			);"
       >
         <div
@@ -1723,10 +1723,10 @@ exports[`Component Diagram - Snapshot Tests renders graphql complex correctly: g
       <svg
         class="css-6"
         style="transform: translate(
-				400px,
-				300px)
+				0px,
+				0px)
 			scale(
-				0
+				1
 			);"
       >
         <g
@@ -1953,10 +1953,10 @@ exports[`Component Diagram - Snapshot Tests renders graphql complex correctly: g
       <div
         class="css-6"
         style="transform: translate(
-				400px,
-				300px)
+				0px,
+				0px)
 			scale(
-				0
+				1
 			);"
       >
         <div
@@ -2759,10 +2759,10 @@ exports[`Component Diagram - Snapshot Tests renders multiple connections complex
       <svg
         class="css-6"
         style="transform: translate(
-				400px,
-				300px)
+				0px,
+				0px)
 			scale(
-				0
+				1
 			);"
       >
         <g
@@ -2989,10 +2989,10 @@ exports[`Component Diagram - Snapshot Tests renders multiple connections complex
       <div
         class="css-6"
         style="transform: translate(
-				400px,
-				300px)
+				0px,
+				0px)
 			scale(
-				0
+				1
 			);"
       >
         <div
@@ -3786,10 +3786,10 @@ exports[`Component Diagram - Snapshot Tests renders multiple services correctly:
       <svg
         class="css-6"
         style="transform: translate(
-				400px,
-				300px)
+				0px,
+				0px)
 			scale(
-				0
+				1
 			);"
       >
         <g
@@ -3851,10 +3851,10 @@ exports[`Component Diagram - Snapshot Tests renders multiple services correctly:
       <div
         class="css-6"
         style="transform: translate(
-				400px,
-				300px)
+				0px,
+				0px)
 			scale(
-				0
+				1
 			);"
       >
         <div
@@ -4160,19 +4160,19 @@ exports[`Component Diagram - Snapshot Tests renders only automation correctly: o
       <svg
         class="css-6"
         style="transform: translate(
-				400px,
-				300px)
+				0px,
+				0px)
 			scale(
-				0
+				1
 			);"
       />
       <div
         class="css-6"
         style="transform: translate(
-				400px,
-				300px)
+				0px,
+				0px)
 			scale(
-				0
+				1
 			);"
       >
         <div
@@ -4353,10 +4353,10 @@ exports[`Component Diagram - Snapshot Tests renders simple service correctly: si
       <svg
         class="css-6"
         style="transform: translate(
-				400px,
-				300px)
+				0px,
+				0px)
 			scale(
-				0
+				1
 			);"
       >
         <g
@@ -4418,10 +4418,10 @@ exports[`Component Diagram - Snapshot Tests renders simple service correctly: si
       <div
         class="css-6"
         style="transform: translate(
-				400px,
-				300px)
+				0px,
+				0px)
 			scale(
-				0
+				1
 			);"
       >
         <div
@@ -4739,10 +4739,10 @@ exports[`Component Diagram - Snapshot Tests renders stacked workflows overlap co
       <svg
         class="css-6"
         style="transform: translate(
-				400px,
-				300px)
+				0px,
+				0px)
 			scale(
-				0
+				1
 			);"
       >
         <g
@@ -5079,10 +5079,10 @@ exports[`Component Diagram - Snapshot Tests renders stacked workflows overlap co
       <div
         class="css-6"
         style="transform: translate(
-				400px,
-				300px)
+				0px,
+				0px)
 			scale(
-				0
+				1
 			);"
       >
         <div
@@ -5961,10 +5961,10 @@ exports[`Component Diagram - Snapshot Tests renders workflow function-port overl
       <svg
         class="css-6"
         style="transform: translate(
-				400px,
-				300px)
+				0px,
+				0px)
 			scale(
-				0
+				1
 			);"
       >
         <g
@@ -6246,10 +6246,10 @@ exports[`Component Diagram - Snapshot Tests renders workflow function-port overl
       <div
         class="css-6"
         style="transform: translate(
-				400px,
-				300px)
+				0px,
+				0px)
 			scale(
-				0
+				1
 			);"
       >
         <div
@@ -7116,10 +7116,10 @@ exports[`Component Diagram - Snapshot Tests renders workflow overlap correctly: 
       <svg
         class="css-6"
         style="transform: translate(
-				400px,
-				300px)
+				0px,
+				0px)
 			scale(
-				0
+				1
 			);"
       >
         <g
@@ -7181,10 +7181,10 @@ exports[`Component Diagram - Snapshot Tests renders workflow overlap correctly: 
       <div
         class="css-6"
         style="transform: translate(
-				400px,
-				300px)
+				0px,
+				0px)
 			scale(
-				0
+				1
 			);"
       >
         <div

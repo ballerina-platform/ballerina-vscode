@@ -51,6 +51,8 @@ import { useAgentRunState, useAiPanelOpen } from "../../../components/AgentStatu
  *  fills in a moment later, and the prefetcher usually has it warm before then. */
 const LazyComponentDiagram = React.lazy(() => import("../ComponentDiagram"));
 
+const contextCache = new Map<string, { project: ProjectStructure; isInProject: boolean }>();
+
 const SpinnerContainer = styled.div`
     display: flex;
     justify-content: center;
@@ -354,11 +356,11 @@ export function PackageOverview(props: PackageOverviewProps) {
     const [readmeContent, setReadmeContent] = React.useState<string>("");
     const { platformExtState } = usePlatformExtContext();
     const [showAlert, setShowAlert] = React.useState(false);
-    const [projectStructure, setProjectStructure] = useState<ProjectStructure>();
+    const [projectStructure, setProjectStructure] = useState<ProjectStructure>(() => contextCache.get(projectPath)?.project);
     const hasWorkflows = hasWorkflowArtifacts(projectStructure);
     const hasAgents = hasAgentArtifacts(projectStructure);
-    const [isInProject, setIsInProject] = useState(false);
-    const [isLibrary, setIsLibrary] = useState<boolean>(false);
+    const [isInProject, setIsInProject] = useState(() => contextCache.get(projectPath)?.isInProject ?? false);
+    const [isLibrary, setIsLibrary] = useState<boolean>(() => contextCache.get(projectPath)?.project.isLibrary ?? false);
     const [isNPSupported, setIsNPSupported] = useState<boolean>(false);
     const [overviewView, setOverviewView] = useState<"design" | "readme">("design");
     const [deployCollapsed, setDeployCollapsed] = useState<boolean>(loadDeployCollapsed);
@@ -387,8 +389,10 @@ export function PackageOverview(props: PackageOverviewProps) {
             .getProjectStructure()
             .then((res) => {
                 const project = res.projects.find(project => isSamePath(project.projectPath, projectPath));
-                setIsInProject(res.workspaceName !== undefined);
+                const inProject = res.workspaceName !== undefined;
+                setIsInProject(inProject);
                 if (project) {
+                    contextCache.set(projectPath, { project, isInProject: inProject });
                     setProjectStructure(project);
                     setIsLibrary(project.isLibrary ?? false);
                 }

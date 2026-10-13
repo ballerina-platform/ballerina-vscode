@@ -23,7 +23,7 @@ import { TopologyAgentArtifact, TopologyInput } from "@wso2/component-diagram";
 
 const inputCache = new Map<string, TopologyInput>();
 
-function canonicalTopology(input: TopologyInput): string {
+export function canonicalTopology(input: unknown): string {
     const entityKeys = new Map<string, string>();
     const collect = (value: unknown): void => {
         if (Array.isArray(value)) {
