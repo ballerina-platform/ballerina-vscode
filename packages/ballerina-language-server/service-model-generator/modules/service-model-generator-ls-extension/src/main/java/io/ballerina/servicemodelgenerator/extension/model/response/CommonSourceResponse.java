@@ -35,27 +35,27 @@ import java.util.Map;
  * @param formatted        whether {@code textEdits} hold one formatted edit per Ballerina document
  */
 public record CommonSourceResponse(Map<String, List<TextEdit>> textEdits, String errorMsg, String stacktrace,
-                                   List<ValidationResult> validationErrors, boolean formatted) {
+                                   List<ValidationResult> validationErrors, Boolean formatted) {
 
     public CommonSourceResponse() {
-        this(Map.of(), null, null, List.of(), false);
+        this(Map.of(), null, null, List.of(), null);
     }
 
     public CommonSourceResponse(Map<String, List<TextEdit>> textEdits) {
-        this(textEdits, null, null, List.of(), false);
+        this(textEdits, null, null, List.of(), null);
     }
 
     public CommonSourceResponse(Map<String, List<TextEdit>> textEdits, List<ValidationResult> validationErrors) {
-        this(textEdits, null, null, validationErrors, false);
+        this(textEdits, null, null, validationErrors, null);
     }
 
     public CommonSourceResponse(Throwable e) {
         this(Map.of(), e.getMessage() != null ? e.getMessage() : e.toString(),
-                Arrays.toString(e.getStackTrace()), List.of(), false);
+                Arrays.toString(e.getStackTrace()), List.of(), null);
     }
 
     /** Generation was refused because the model failed validation — no edits are produced. */
     public static CommonSourceResponse validationFailure(List<ValidationResult> validationErrors) {
-        return new CommonSourceResponse(Map.of(), null, null, validationErrors, false);
+        return new CommonSourceResponse(Map.of(), null, null, validationErrors, null);
     }
 }
