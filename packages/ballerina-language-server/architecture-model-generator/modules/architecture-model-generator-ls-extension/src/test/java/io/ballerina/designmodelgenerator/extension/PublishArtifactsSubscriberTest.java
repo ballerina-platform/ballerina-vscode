@@ -268,6 +268,16 @@ public class PublishArtifactsSubscriberTest extends AbstractLSTest {
     }
 
     @Test
+    public void testImmediateTaskReleasesItsKey() throws Exception {
+        ArtifactGenerationDebouncer debouncer = ArtifactGenerationDebouncer.getInstance();
+        for (int i = 0; i < 2000; i++) {
+            String key = "immediate-task-" + i;
+            debouncer.debounce(key, () -> { });
+            waitForDebouncerCompletion(key, 1);
+        }
+    }
+
+    @Test
     public void testMultipleDidChangeEventsOnDifferentFiles() throws Exception {
         // Initialize project cache with artifacts
         initializeProject();
@@ -420,6 +430,10 @@ public class PublishArtifactsSubscriberTest extends AbstractLSTest {
     }
 
     private void waitForDebouncerCompletion(String key) throws Exception {
+        waitForDebouncerCompletion(key, 100);
+    }
+
+    private void waitForDebouncerCompletion(String key, long pollMillis) throws Exception {
         ArtifactGenerationDebouncer debouncer = ArtifactGenerationDebouncer.getInstance();
         long startTime = System.currentTimeMillis();
         long timeout = 5000; // 5 seconds timeout
@@ -432,7 +446,7 @@ public class PublishArtifactsSubscriberTest extends AbstractLSTest {
             if (map.get(key) == null) {
                 return;
             }
-            Thread.sleep(100);
+            Thread.sleep(pollMillis);
         }
         Assert.fail("Timed out waiting for debouncer to finish processing");
     }
