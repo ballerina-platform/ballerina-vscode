@@ -168,8 +168,11 @@ public class SourceGeneratorTest extends AbstractLSTest {
                     new Range(new Position(0, 0), new Position(end.line(), end.offset())));
             String text = edit.getNewText();
             Assert.assertNotEquals(text, original);
+            Assert.assertFalse(text.contains("\r\n") && text.replace("\r\n", "").contains("\n"),
+                    "Edit text mixes line endings");
             try {
-                Assert.assertEquals(Formatter.format(text), text, "Edit text is not formatted");
+                // The formatter's own line ending can differ from the document's, which the edit keeps.
+                Assert.assertEquals(lf(Formatter.format(text)), lf(text), "Edit text is not formatted");
             } catch (FormatterException e) {
                 Assert.fail("Edit text could not be formatted", e);
             }
@@ -178,6 +181,10 @@ public class SourceGeneratorTest extends AbstractLSTest {
                         "Missing raw edit: " + rawEdit.getNewText());
             }
         }
+    }
+
+    private static String lf(String text) {
+        return text.replace("\r\n", "\n");
     }
 
     private static String withoutWhitespace(String text) {
