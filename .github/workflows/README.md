@@ -383,6 +383,27 @@ Gradle's `mavenJava` publication and does not run Gradle's `release` task: that 
 rewrote the `version=` key in `gradle.properties`, which no longer exists now that the
 extension manifest owns the version.
 
+## Agent Builder tests
+
+Which levels run and how to trigger them lives in
+[`docs/agent-builder-test-plan.md`](../../docs/agent-builder-test-plan.md), with the
+commands. Only the CI-specific reasons are here.
+
+**The E2E group gets its own job, not a fifth matrix entry in `BalE2ETest`.** The host reads
+`WSO2_PRODUCT_MODE` once, when VS Code launches, so this group needs its own launch; a leg
+started without the variable skips itself and reports green. Callers name only a group and
+`run-e2e-group` derives the mode from it, because for a mode-specific group the two are the
+same string. The nightly adds `agent-builder` to `e2e-scheduled.yml`'s `groups` output like
+any other name, which keeps that output a flat list the `Report` job can still iterate.
+
+**`LSTest_AgentBuilder` runs the headless LS suite**, separate from `LSTest_Ballerina`'s
+gradle one and kept out of the fast PR job by its config filename. Three details are
+load-bearing: it checks out with `submodules: recursive` because the `rush install` that
+follows needs projects living in the submodule; it pins `BAL_LS_CMD` and fails if no
+distribution is found, since the suite otherwise skips every test and passes having run
+nothing; and it excludes `nodeTemplateInvariants` from the gating step because that file is
+deliberately red (see `docs/TEST_GUIDE.md`), running it afterwards as informational.
+
 ## Language server test coverage
 
 Every LS test run reports coverage to [Codecov](https://codecov.io/gh/ballerina-platform/ballerina-vscode)

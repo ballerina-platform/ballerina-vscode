@@ -59,4 +59,8 @@ jobs:
       # ships straight to users. Was 'stable/ballerina', a branch from the multi-extension repo
       # this was ported from that exists nowhere here — so the condition never fired.
       runBalE2ETests: ${{ contains(github.event.pull_request.labels.*.name, 'Checks/Run Ballerina UI Tests') || endsWith(github.base_ref, '.x') }}
+      # Opt-in on its own label: the group needs a second VS Code launch in Agent Builder
+      # mode, so it is not free to fold into the Ballerina UI run above. Also runs for a PR
+      # into a release line, for the same reason that one does.
+      runAgentBuilderE2ETests: ${{ contains(github.event.pull_request.labels.*.name, 'Checks/Run Agent Builder UI Tests') || endsWith(github.base_ref, '.x') }}
       runLSTests: ${{ contains(github.event.pull_request.labels.*.name, 'Checks/Run LS Tests') || needs.changes.outputs.ls == 'true' }}

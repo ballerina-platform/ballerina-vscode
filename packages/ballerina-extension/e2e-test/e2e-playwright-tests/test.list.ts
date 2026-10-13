@@ -93,6 +93,8 @@ import testExplorer from './test-explorer/test-explorer.spec';
 
 import projectExplorer from './project-explorer/project-explorer.spec';
 
+import startAgentBuilder from './agent-builder/start-agent-builder.spec';
+
 test.describe.configure({ mode: 'default' });
 
 test.beforeAll(async () => {
@@ -220,6 +222,14 @@ test.describe('Ballerina E2E Group 4', { tag: '@group4' }, async () => {
     test.describe(testExplorer);
 
     test.describe(connections);
+});
+
+// Agent Builder mode is read by the extension host from its environment at launch, so
+// this group needs its own VS Code launch with WSO2_PRODUCT_MODE=agent-builder:
+// `pnpm run e2e-test:agent-builder`. Its specs skip themselves when the variable is absent.
+test.describe('Agent Builder E2E', { tag: '@agent-builder' }, async () => {
+    // <----Start Agent Builder Test---->
+    test.describe(startAgentBuilder);
 });
 
 test.afterAll(async () => {

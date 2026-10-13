@@ -32,7 +32,7 @@ jobs:
 
       - id: groups
         run: |
-          echo 'groups=["group1","group2","group3","group4"]' >> "$GITHUB_OUTPUT"
+          echo 'groups=["group1","group2","group3","group4","agent-builder"]' >> "$GITHUB_OUTPUT"
           # Also drives Report's per-platform download and aggregation, and matches the
           # platform label run-e2e-group folds into every artifact name.
           echo 'platforms=["linux","windows"]' >> "$GITHUB_OUTPUT"

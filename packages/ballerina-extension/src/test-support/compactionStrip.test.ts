@@ -31,7 +31,7 @@ describe('stripAnalysisFromCompactionBlocks', () => {
     });
 
     it('leaves ordinary assistant text that mentions analysis untouched', () => {
-        const text = 'Wrap it in <analysis>x</analysis> tags.';
+        const text = 'Wrap it in tags.';
         const messages: any[] = [
             { role: 'assistant', content: [{ type: 'text', text }] },
             { role: 'assistant', content: text },

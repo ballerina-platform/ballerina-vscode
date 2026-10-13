@@ -44,6 +44,7 @@ jobs:
       isReleaseBuild: true
       runFastTests: ${{ inputs.runFrontendTests }}
       runBalE2ETests: ${{ inputs.runFrontendTests }}
+      runAgentBuilderE2ETests: ${{ inputs.runFrontendTests }}
       runLSTests: ${{ inputs.runBackendTests }}
 
   Release:
