@@ -187,6 +187,7 @@ import {
 } from "@wso2/wso2-platform-core";
 import {
     ShellExecution,
+    ShellQuoting,
     Task,
     TaskDefinition,
     Uri, ViewColumn, commands,
@@ -1593,14 +1594,15 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
         const config = workspace.getConfiguration('ballerina');
         const ballerinaHome = config.get<string>('home');
         const balCmd = ballerinaHome ? path.join(ballerinaHome, 'bin', 'bal') : 'bal';
-        const buildCommand = docker ? `${balCmd} build --cloud="docker"` : `${balCmd} build`;
+        const buildArgs = docker ? ['build', '--cloud=docker'] : ['build'];
 
         // Run the build command scoped to the resolved project directory so that
         // only that project is compiled (not every project in the workspace).
-        const execution = new ShellExecution(buildCommand, {
-            cwd: targetPath,
-            env: process.env as { [key: string]: string }
-        });
+        const execution = new ShellExecution(
+            { value: balCmd, quoting: ShellQuoting.Strong },
+            buildArgs,
+            { cwd: targetPath, env: process.env as { [key: string]: string } }
+        );
 
         const task = new Task(
             taskDefinition,

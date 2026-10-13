@@ -23,6 +23,7 @@ import {
     tasks,
     TaskDefinition,
     ShellExecution,
+    ShellQuoting,
     TaskExecution,
     DebugAdapterTrackerFactory,
     DebugAdapterTracker,
@@ -832,15 +833,15 @@ class BIRunAdapter extends LoggingDebugSession {
                 instanceId: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
             };
 
-            let runCommand: string = `${quoteShellPath(extension.ballerinaExtInstance.getBallerinaCmd())} run`;
+            const runArgs: string[] = ['run'];
+
+            if (isSupportedSLVersion(extension.ballerinaExtInstance, createVersionNumber(2201, 13, 0)) && extension.ballerinaExtInstance.enabledExperimentalFeatures()) {
+                runArgs.push('--experimental');
+            }
 
             const programArgs = (args as any).programArgs;
             if (programArgs && programArgs.length > 0) {
-                runCommand = `${runCommand} -- ${programArgs.join(' ')}`;
-            }
-
-            if (isSupportedSLVersion(extension.ballerinaExtInstance, createVersionNumber(2201, 13, 0)) && extension.ballerinaExtInstance.enabledExperimentalFeatures()) {
-                runCommand = `${runCommand} --experimental`;
+                runArgs.push('--', ...programArgs);
             }
 
             // Use the current process environment which should have the updated PATH
@@ -864,10 +865,12 @@ class BIRunAdapter extends LoggingDebugSession {
                 return;
             }
 
-            const execution = new ShellExecution(runCommand, {
-                env: env as { [key: string]: string },
-                cwd: cwd
-            });
+            // Separate args let VS Code quote the path per shell; PowerShell breaks on a pre-quoted string
+            const execution = new ShellExecution(
+                { value: extension.ballerinaExtInstance.getBallerinaCmd(), quoting: ShellQuoting.Strong },
+                runArgs,
+                { env: env as { [key: string]: string }, cwd: cwd }
+            );
             const task = new Task(
                 taskDefinition,
                 TaskScope.Workspace,
