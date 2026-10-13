@@ -5,6 +5,34 @@ All notable changes to the **Ballerina** extension will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/).
 
 
+## [6.0.0](https://github.com/wso2/ballerina-vscode/compare/v5.12.0...v6.0.0) - 2026-10-13
+
+### Added
+
+- **Workflow Integration** — Introduced a durable workflow designer for long-running business processes, with human tasks, timers, wait-for-data events, activities created from connections, child workflows, and durable agentic workflows. Workflow artifacts are detected when deploying to the cloud.
+- **AI Agents** — Added a Voice Agent Service, human-in-the-loop approval for agent tools, memory store display on agent nodes, multi-agent flow visualization in the trace viewer, and evaluation set viewing and reporting from the test explorer.
+- **Knowledge Bases & RAG** — Added WSO2 Cloud Knowledge Bases and more data loaders, such as SharePoint, to the knowledge base and data loader panels.
+- **Copilot Extensibility** — Added Skills (with built-in data mapping, workflow and agent-building skills), MCP server configuration at user and workspace scope, and `AGENTS.md` project instructions for WSO2 Integrator Copilot.
+- **AI Model Providers** — Added AWS Bedrock bring-your-own-key support and EU region routing for the Copilot backend.
+- **Event & File Triggers** — Added Solace, Oracle CDC, MySQL CDC, SAP ECC (JCo), HubSpot, SMB and Azure Storage Files triggers. Trigger forms are now generated from connector-owned metadata.
+- **Library & Language Support** — Added library function lookup from Ballerina Central, Ballerina submodule support in search and helper panes, import aliases, package visibility when publishing libraries, and FreeMarker library support.
+
+### Changed
+
+- **Copilot-First Experience** — Copilot is now the primary surface on the integration overview page, with a floating Copilot orb, improved chat history and scrolling, server-side context compaction, and checkpoint restore. The assistant is named WSO2 Integrator Copilot.
+- **Ballerina 2201.14.0 & Java 25** — The extension and bundled language server now target Ballerina 2201.14.0 and Java 25, and prompt to update dependencies locked before the Java 25 distribution.
+- **Project & Integration Creation** — Simplified project creation, added package org/version configuration, and open new integrations directly after they are created.
+- **Migration Wizard** — Added a keep-structure option, progress reporting, and improved AI enhancement prompts.
+- **Packaging** — The Ballerina TextMate grammar and language server are now built and shipped from this repository.
+
+### Fixed
+
+- **Workflow Designer** — Fixed form hydration data loss, source-writing bugs, node deletion, palette sizing and rendering issues.
+- **Copilot & Agent Reliability** — Fixed checkpoint restore damaging files, file edit tools skipping edits, agent mode leaking into new chats, and output-limit truncation handling.
+- **Forms & Editors** — Fixed array/map editor diagnostics, enum and boolean dropdowns, optional field handling, expression editor completions, and configurable variable handling.
+- **Service Designer & Try It** — Fixed connector version resolution, same-named Kafka service navigation, Fast Run on Java 25, and Try It detection for fast-run services.
+- **Security** — Updated dependencies to address reported vulnerabilities.
+
 ## [5.12.0](https://github.com/wso2/vscode-extensions/compare/ballerina-5.8.2...ballerina-integrator-1.10.0) - 2026-05-18
 
 ### Added
