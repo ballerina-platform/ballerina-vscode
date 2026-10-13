@@ -1696,8 +1696,8 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                         if (componentView?.location?.artifactType && componentView?.location?.identifier) {
                             description = `${this.capitalizeFirstLetter(componentView.location.artifactType)} Deletion - ${componentView.location.identifier}`;
                         }
-                        await updateSourceCode({ textEdits: model.textEdits, description: description, skipPayloadCheck: true, preformatted: model.formatted }); // Skip payload check because the component is deleted
-                        resolve(model);
+                        const artifacts = await updateSourceCode({ textEdits: model.textEdits, description: description, skipPayloadCheck: true, preformatted: model.formatted }); // Skip payload check because the component is deleted
+                        resolve({ ...model, artifacts });
                     })
                     .catch((error) => {
                         console.log(">>> error fetching delete node from ls by componentInfo", error);
@@ -1861,7 +1861,8 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             } else {
                 languageId = "ballerina";
                 version = 1;
-                text = await fs.promises.readFile(filePath, "utf8");
+                // Sync so didOpen reaches the LS before the form's next request; an await here lets that request overtake it.
+                text = fs.readFileSync(filePath, "utf8");
             }
         } catch (error) {
             languageId = "ballerina";

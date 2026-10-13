@@ -144,7 +144,8 @@ export async function updateProjectArtifacts(publishedArtifacts: ArtifactsNotifi
     // missing-module pull), the cached structure is empty and incremental deltas cannot repair
     // it. The LS publishes artifacts once the pull completes and the project is reloaded, so
     // recover here with a full rebuild instead of applying the deltas.
-    if (failedArtifactProjects.size > 0) {
+    const changedPath = URI.parse(publishedArtifacts.uri).fsPath;
+    if ([...failedArtifactProjects].some((failed) => isPathInside(failed, changedPath))) {
         const failedSnapshot = Array.from(failedArtifactProjects);
         console.log("[updateProjectArtifacts] Rebuilding project structure; artifacts previously failed for:",
             failedSnapshot);
