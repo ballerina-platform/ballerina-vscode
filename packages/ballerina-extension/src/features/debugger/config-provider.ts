@@ -51,6 +51,7 @@ import {
 } from "../../utils";
 import { getProjectWorkingDirectory } from "../../utils/file-utils";
 import { quoteShellPath } from "../../utils/config";
+import { buildRunArgs } from "./run-args";
 import { decimal, ExecutableOptions } from 'vscode-languageclient/node';
 import { BAL_NOTEBOOK, getTempFile, NOTEBOOK_CELL_SCHEME } from '../../views/notebook';
 import fileUriToPath from 'file-uri-to-path';
@@ -833,16 +834,10 @@ class BIRunAdapter extends LoggingDebugSession {
                 instanceId: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
             };
 
-            const runArgs: string[] = ['run'];
-
-            if (isSupportedSLVersion(extension.ballerinaExtInstance, createVersionNumber(2201, 13, 0)) && extension.ballerinaExtInstance.enabledExperimentalFeatures()) {
-                runArgs.push('--experimental');
-            }
-
-            const programArgs = (args as any).programArgs;
-            if (programArgs && programArgs.length > 0) {
-                runArgs.push('--', ...programArgs);
-            }
+            const runArgs = buildRunArgs(
+                isSupportedSLVersion(extension.ballerinaExtInstance, createVersionNumber(2201, 13, 0)) && extension.ballerinaExtInstance.enabledExperimentalFeatures(),
+                (args as any).programArgs
+            );
 
             // Use the current process environment which should have the updated PATH
             const env = { ...process.env, ...((args as any)?.env || {}) };
