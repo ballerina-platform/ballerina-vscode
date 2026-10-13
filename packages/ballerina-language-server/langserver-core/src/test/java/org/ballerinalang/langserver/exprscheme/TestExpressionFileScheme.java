@@ -135,4 +135,37 @@ public class TestExpressionFileScheme {
         TestUtil.openDocument(serviceEndpoint, originalUri.toString(), originalContent);
         TestUtil.openDocument(serviceEndpoint, exprUri.toString(), originalContent);
     }
+
+    @Test
+    public void testExprSchemeReopenDiscardsEditsAndFollowsSource() throws IOException {
+        Path filePath = RESOURCE_DIRECTORY.resolve("myproject2").resolve("main.bal");
+        String originalContent = Files.readString(filePath);
+        URI originalUri = URI.create(filePath.toUri().toString());
+        URI exprUri = URI.create(filePath.toUri().toString().replace("file:///", "expr:///"));
+        Position pos = new Position(1, 2);
+
+        TestUtil.openDocument(serviceEndpoint, originalUri.toString(), originalContent);
+        TestUtil.openDocument(serviceEndpoint, exprUri.toString(), originalContent);
+        String freshCompletions = TestUtil.getCompletionResponse(exprUri, pos, serviceEndpoint, "");
+
+        String exprContent = originalContent + System.lineSeparator() + "function exprEdit() {}";
+        TestUtil.didChangeDocument(serviceEndpoint, exprUri, exprContent);
+        Assert.assertTrue(TestUtil.getCompletionResponse(exprUri, pos, serviceEndpoint, "").contains("exprEdit"));
+
+        // A form's edits must not leak into the next form that opens the same file.
+        TestUtil.closeDocument(serviceEndpoint, exprUri.toString());
+        TestUtil.openDocument(serviceEndpoint, exprUri.toString(), originalContent);
+        Assert.assertEquals(TestUtil.getCompletionResponse(exprUri, pos, serviceEndpoint, ""), freshCompletions);
+
+        // Source edits made while the clone is kept must reach it.
+        String sourceContent = originalContent + System.lineSeparator() + "function sourceEdit() {}";
+        TestUtil.didChangeDocument(serviceEndpoint, originalUri, sourceContent);
+        TestUtil.closeDocument(serviceEndpoint, exprUri.toString());
+        TestUtil.openDocument(serviceEndpoint, exprUri.toString(), sourceContent);
+        Assert.assertTrue(TestUtil.getCompletionResponse(exprUri, pos, serviceEndpoint, "").contains("sourceEdit"));
+
+        TestUtil.didChangeDocument(serviceEndpoint, originalUri, originalContent);
+        TestUtil.closeDocument(serviceEndpoint, exprUri.toString());
+        TestUtil.closeDocument(serviceEndpoint, originalUri.toString());
+    }
 }

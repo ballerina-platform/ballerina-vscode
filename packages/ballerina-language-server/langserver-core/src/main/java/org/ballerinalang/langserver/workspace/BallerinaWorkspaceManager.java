@@ -581,7 +581,8 @@ public class BallerinaWorkspaceManager implements WorkspaceManager {
         if (!LSClientConfigHolder.getInstance(serverContext).getConfig().isEnableFileWatcher()) {
             return Collections.emptyList();
         }
-        List<FileEvent> changes = params.getChanges();
+        // Editors can report the same change twice in one batch, which would otherwise take the reload path below.
+        List<FileEvent> changes = params.getChanges().stream().distinct().toList();
         if (changes.size() == 1) {
             FileEvent fileEvent = changes.get(0);
             String uri = fileEvent.getUri();
