@@ -128,7 +128,10 @@ async function openPaletteBelow(webview: Frame, nodeText: string): Promise<SideP
     const sidePanel = new SidePanel(webview, page.page);
     const emptyNodeButton = canvas.locator('[data-testid^="empty-node-add-button"]').first();
     const node = canvas.getByText(nodeText, { exact: true }).filter({ visible: true }).last();
+    // The named node is drawn before the trailing +, so once it shows the + still gets a grace period:
+    // only a fresh Start-to-End diagram has none, and that one takes the edge fallback.
     const deadline = Date.now() + 120000;
+    let nodeSeenAt: number | undefined;
     let hasEmptyNode = false;
     while (Date.now() < deadline) {
         if (await emptyNodeButton.isVisible().catch(() => false)) {
@@ -136,7 +139,10 @@ async function openPaletteBelow(webview: Frame, nodeText: string): Promise<SideP
             break;
         }
         if (await node.isVisible().catch(() => false)) {
-            break;
+            nodeSeenAt ??= Date.now();
+            if (Date.now() - nodeSeenAt > 15000) {
+                break;
+            }
         }
         await page.page.waitForTimeout(1000);
     }
