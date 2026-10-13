@@ -61,7 +61,7 @@ jest.mock("@wso2/ballerina-rpc-client", () => {
 });
 
 import { TestRpcContext } from "../test/rpcHarness";
-import { __resetProductModeForTests, useProductMode } from "./useProductMode";
+import { __resetProductModeForTests, fetchProductMode, useProductMode } from "./useProductMode";
 
 declare global {
     // eslint-disable-next-line no-var
@@ -144,6 +144,63 @@ describe("useProductMode", () => {
         const { client } = makeRpcClient(answer, platformAnswer);
 
         expect(await renderProbe(client)).not.toBe(MockProductMode.AGENT_BUILDER);
+    });
+
+    // A failed lookup must not be remembered as an answer. The hook clears the in-flight
+    // promise on rejection precisely so the next caller asks again; without that, one blip
+    // during startup would pin the whole webview to the wrong mode until a reload.
+    // Asserted through `fetchProductMode`, the entry point MainPanel uses to choose between
+    // the Agent Builder and the normal overview, which shares this cache with the hook.
+    it("asks the host again after a failed lookup", async () => {
+        let attempt = 0;
+        const { client, agentBuilderModeEnabled } = makeRpcClient(async () => {
+            attempt += 1;
+            if (attempt === 1) {
+                throw new Error("rpc unavailable");
+            }
+            return true;
+        });
+
+        expect(await fetchProductMode(client as never)).not.toBe(MockProductMode.AGENT_BUILDER);
+        expect(await fetchProductMode(client as never)).toBe(MockProductMode.AGENT_BUILDER);
+        expect(agentBuilderModeEnabled).toHaveBeenCalledTimes(2);
+    });
+
+    // Once answered, the mode cannot change without a reload, so a second caller must reuse
+    // the first answer instead of paying for another round trip.
+    it("asks the host only once when the lookup succeeds", async () => {
+        const { client, agentBuilderModeEnabled } = makeRpcClient(async () => true);
+
+        expect(await fetchProductMode(client as never)).toBe(MockProductMode.AGENT_BUILDER);
+        expect(await fetchProductMode(client as never)).toBe(MockProductMode.AGENT_BUILDER);
+        expect(agentBuilderModeEnabled).toHaveBeenCalledTimes(1);
+    });
+
+    // A view closed while its lookup is still in flight must not be updated when the answer
+    // lands. The hook guards that with an `active` flag released on unmount.
+    it("does not update a view that was closed before the answer arrived", async () => {
+        let answer: (enabled: boolean) => void = () => undefined;
+        const { client } = makeRpcClient(() => new Promise<boolean>((resolve) => { answer = resolve; }));
+        const errors = jest.spyOn(console, "error").mockImplementation(() => undefined);
+
+        await act(async () => {
+            root.render(
+                <TestRpcContext.Provider value={{ rpcClient: client }}>
+                    <Probe />
+                </TestRpcContext.Provider>
+            );
+        });
+        act(() => root.unmount());
+
+        await act(async () => {
+            answer(true);
+        });
+
+        expect(errors).not.toHaveBeenCalled();
+        expect(container.querySelector("output")).toBeNull();
+        errors.mockRestore();
+        // The root is unmounted; give afterEach a live one to tear down.
+        root = createRoot(container);
     });
 
     // The host seeds `window.productMode` into the webview HTML so the first paint is already

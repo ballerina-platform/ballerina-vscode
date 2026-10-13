@@ -1,0 +1,4 @@
+# CI no longer builds this fixture (it pre-fetches the one package the distribution
+# under-bundles instead), but a developer may still run `bal build` here while debugging.
+target/
+Dependencies.toml

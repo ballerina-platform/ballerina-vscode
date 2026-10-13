@@ -34,33 +34,11 @@ import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 import { ExecutionStep } from "@wso2/ballerina-core";
 
-enum ChatMessageType {
-    MESSAGE = "message",
-    ERROR = "error",
-    APPROVAL = "approval",
-}
-
-interface ChatMessage {
-    type: ChatMessageType;
-    text: string;
-    isUser: boolean;
-    traceId?: string;
-    executionSteps?: ExecutionStep[];
-    // Present when type is APPROVAL: the requests the agent paused on.
-    pendingApproval?: PendingApprovalInfo;
-    // Present once (some or all of) the pending approval above has been resolved.
-    decisions?: Record<string, HumanDecision>;
-    // Set when the user dismisses this batch after it keeps failing to submit. Terminal even
-    // if some requests still lack a decision.
-    unresolvable?: boolean;
-}
-
-function isApprovalUnresolved(msg: ChatMessage): boolean {
-    return msg.type === ChatMessageType.APPROVAL
-        && !!msg.pendingApproval
-        && !msg.unresolvable
-        && msg.pendingApproval.requests.some(r => !msg.decisions?.[r.id]);
-}
+// Moved to a narrow sibling so they can be unit-tested without this module's renderer and
+// rpc dependencies; re-exported here so existing importers are unaffected.
+import { ChatMessage, ChatMessageType, isApprovalUnresolved, toChatMessage } from "./chatHistory";
+export { ChatMessageType, isApprovalUnresolved, toChatMessage };
+export type { ChatMessage };
 
 // ---------- WATER MARK ----------
 const Watermark = styled.div`
@@ -494,23 +472,6 @@ const ClearChatWarningPopup: React.FC<ClearChatWarningPopupProps> = ({ isOpen, o
 
 function cleanBasePath(basePath: string): string {
     return basePath.replace(/\\/g, '');
-}
-
-function toChatMessage(msg: ChatHistoryMessage): ChatMessage {
-    return {
-        type: msg.type === 'error'
-            ? ChatMessageType.ERROR
-            : msg.type === 'approval'
-                ? ChatMessageType.APPROVAL
-                : ChatMessageType.MESSAGE,
-        text: msg.text,
-        isUser: msg.isUser,
-        traceId: msg.traceId,
-        executionSteps: msg.executionSteps,
-        pendingApproval: msg.pendingApproval,
-        decisions: msg.decisions,
-        unresolvable: msg.unresolvable,
-    };
 }
 
 // Preprocess LaTeX delimiters to convert \(...\) and \[...\] to $...$ and $$...$$
