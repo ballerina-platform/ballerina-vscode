@@ -56,6 +56,9 @@ public class ArtifactGenerationDebouncer {
     // Single-thread scheduler to debounce tasks.
     private final ScheduledExecutorService scheduler;
 
+    // Held while a task is registered and while it removes itself, so an immediate task cannot finish first.
+    private final Object registrationLock = new Object();
+
     private ArtifactGenerationDebouncer() {
         scheduler = Executors.newSingleThreadScheduledExecutor();
         delayedMap = new ConcurrentHashMap<>();
@@ -82,8 +85,13 @@ public class ArtifactGenerationDebouncer {
      * @param task  The task to execute
      * @param delay The delay in milliseconds
      */
-    // Synchronized with the task's cleanup, so an immediate task cannot finish before its entry is registered.
-    public synchronized void debounce(String key, Runnable task, long delay) {
+    public void debounce(String key, Runnable task, long delay) {
+        synchronized (registrationLock) {
+            scheduleTask(key, task, delay);
+        }
+    }
+
+    private void scheduleTask(String key, Runnable task, long delay) {
         CompletableFuture<Void> promise = new CompletableFuture<>();
         // Leading edge: a change after a quiet period publishes at once; only a burst waits for the delay.
         long now = System.currentTimeMillis();
@@ -99,7 +107,7 @@ public class ArtifactGenerationDebouncer {
                 promise.completeExceptionally(ex);
             } finally {
                 // A newer task for this key may already be registered; leave it cancellable.
-                synchronized (this) {
+                synchronized (registrationLock) {
                     delayedMap.computeIfPresent(key, (k, holder) -> holder.promise() == promise ? null : holder);
                 }
                 executeQueuedTasks(key);
