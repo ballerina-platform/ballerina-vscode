@@ -123,11 +123,14 @@ public final class FormattedEdits {
     }
 
     private static String currentText(WorkspaceManager workspaceManager, Path path) {
+        if (!Files.exists(path)) {
+            return "";
+        }
         return workspaceManager.document(path)
                 .map(document -> document.textDocument().toString())
                 .orElseGet(() -> {
                     try {
-                        return Files.exists(path) ? Files.readString(path) : "";
+                        return Files.readString(path);
                     } catch (IOException e) {
                         return "";
                     }
@@ -136,7 +139,8 @@ public final class FormattedEdits {
 
     private static FormattingOptions formattingOptions(WorkspaceManager workspaceManager, Path path)
             throws FormatterException {
-        Optional<Project> project = workspaceManager.project(path);
+        // shortcut: a file the edits create formats with default options, not its package's [format] config.
+        Optional<Project> project = Files.exists(path) ? workspaceManager.project(path) : Optional.empty();
         return project.isPresent() && project.get() instanceof BuildProject buildProject
                 ? FormatterUtils.buildFormattingOptions(buildProject)
                 : FormattingOptions.builder().build();
