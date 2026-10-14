@@ -133,7 +133,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
 
     const agentDeclRef = useRef<FlowNode>();
     const [agentPanel, setAgentPanel] = useState<AgentPanel>("NONE");
-    const suppressAgentTypeReloadRef = useRef(false);
+    const agentPanelRef = useRef(agentPanel);
     const usageFetchTimerRef = useRef<ReturnType<typeof setTimeout>>();
     const usageRequestIdRef = useRef(0);
     const lastUsageFetchAtRef = useRef(0);
@@ -201,7 +201,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
             usagesContentRef.current++;
             if (isAgent || isAgentType) {
                 // An editor operation refetches once at the agent's new position when it closes.
-                if (agentEditorViewRef.current !== "NONE" || editorLoadingRef.current) {
+                if (agentEditorViewRef.current !== "NONE" || agentPanelRef.current !== "NONE" || editorLoadingRef.current) {
                     deferredRefreshRef.current = true;
                     return;
                 }
@@ -476,10 +476,6 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
 
     const getAgentFocusModel = async (kind: "AGENT" | "TYPED_AGENT", posOverride?: NodePosition) => {
         const logLabel = kind === "AGENT" ? "agent focus" : "agent-type focus";
-        if (kind === "TYPED_AGENT" && suppressAgentTypeReloadRef.current) {
-            suppressAgentTypeReloadRef.current = false;
-            return;
-        }
         // A refresh of an agent already on screen must not blank the title bar actions or touch the canvas lock
         const isInitialLoad = !agentDeclRef.current;
         if (isInitialLoad) {
@@ -596,7 +592,6 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         if (!updatedNode) {
             return;
         }
-        suppressAgentTypeReloadRef.current = false;
         setSavingAgentForm(true);
         try {
             const fileName = model?.fileName;
@@ -1093,12 +1088,13 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
     });
 
     agentEditorViewRef.current = agentEditor.view;
+    agentPanelRef.current = agentPanel;
     useEffect(() => {
-        if (agentEditor.view === "NONE" && deferredRefreshRef.current) {
+        if (agentEditor.view === "NONE" && agentPanel === "NONE" && deferredRefreshRef.current) {
             deferredRefreshRef.current = false;
             refreshFocusModel();
         }
-    }, [agentEditor.view]);
+    }, [agentEditor.view, agentPanel]);
 
     const isAgentPanelOpen = agentPanel !== "NONE" || showConnectionPanel || agentEditor.view !== "NONE";
     const handleOverlayClick = () => {
@@ -1269,7 +1265,6 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                     fieldOverrides={fieldOverrides}
                     injectedComponents={isAgentType ? agentTypePromptInjection : undefined}
                     hideInfoBanner={isAgentType && Boolean(agentTypePromptInjection)}
-                    onConnectionCreated={isAgentType ? () => { suppressAgentTypeReloadRef.current = true; } : undefined}
                 />
             );
         }
