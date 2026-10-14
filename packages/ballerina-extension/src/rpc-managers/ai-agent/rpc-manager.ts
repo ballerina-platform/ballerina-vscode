@@ -49,6 +49,7 @@ import { URI, Utils } from "vscode-uri";
 import { StateMachine } from "../../stateMachine";
 import { writeBallerinaFileDidOpen } from "../../utils/modification";
 import { updateSourceCode } from "../../utils/source-utils";
+import { ArtifactUpdateWait, startArtifactUpdateWait } from "../../utils/project-artifacts-handler";
 import { addMissingImports, checkProjectDiagnostics, removeUnusedImports } from "../ai-panel/repair-utils";
 import { CONFIGURE_DEFAULT_MODEL_COMMAND } from "../../features/ai/constants";
 import { mcpAccessToken } from "../../features/agent-manager/mcp";
@@ -156,12 +157,21 @@ export class AiAgentRpcManager implements AIAgentAPI {
 
     async fixMissingImports(): Promise<void> {
         const context = StateMachine.context();
+        let artifactUpdate: ArtifactUpdateWait | undefined;
         try {
             const projectDiags = await checkProjectDiagnostics(context.langClient, context.projectPath);
-            await addMissingImports(projectDiags, context.langClient);
-            await removeUnusedImports(projectDiags, context.langClient);
+            // Callers read positions from the project structure next, and an import line moves them.
+            artifactUpdate = startArtifactUpdateWait(() => undefined);
+            const added = await addMissingImports(projectDiags, context.langClient);
+            const removed = await removeUnusedImports(projectDiags, context.langClient);
+            if (added || removed) {
+                await context.langClient.flushArtifacts().catch((): undefined => undefined);
+                await artifactUpdate.notified;
+            }
         } catch (e) {
             console.log("fixMissingImports failed", e);
+        } finally {
+            artifactUpdate?.cancel();
         }
     }
 
