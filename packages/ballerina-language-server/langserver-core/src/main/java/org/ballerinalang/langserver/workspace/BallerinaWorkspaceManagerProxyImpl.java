@@ -98,13 +98,17 @@ public class BallerinaWorkspaceManagerProxyImpl implements BallerinaWorkspaceMan
         } else if (this.isAIScheme(uri)) {
             this.aiWorkspaceManager.didOpen(path.get(), params);
         } else {
+            Optional<Project> project = this.clonedWorkspaceManager.project(path.get());
+            boolean cloneSynced = project.isPresent() && this.baseWorkspaceManager.project(path.get())
+                    .filter(this.clonedWorkspaceManager::isSyncedWith).isPresent();
             this.baseWorkspaceManager.didOpen(path.get(), params);
 
             // Send didOpen if the project is already opened in the cloned workspace
-            Optional<Project> project = this.clonedWorkspaceManager.project(path.get());
             if (project.isPresent()) {
                 this.clonedWorkspaceManager.didOpen(path.get(), params);
-                this.baseWorkspaceManager.project(path.get()).ifPresent(this.clonedWorkspaceManager::markSynced);
+                if (cloneSynced) {
+                    this.baseWorkspaceManager.project(path.get()).ifPresent(this.clonedWorkspaceManager::markSynced);
+                }
             }
         }
     }
@@ -121,13 +125,17 @@ public class BallerinaWorkspaceManagerProxyImpl implements BallerinaWorkspaceMan
         } else if (this.isAIScheme(uri)) {
             this.aiWorkspaceManager.didChange(path.get(), params);
         } else {
+            Optional<Project> project = this.clonedWorkspaceManager.project(path.get());
+            boolean cloneSynced = project.isPresent() && this.baseWorkspaceManager.project(path.get())
+                    .filter(this.clonedWorkspaceManager::isSyncedWith).isPresent();
             this.baseWorkspaceManager.didChange(path.get(), params);
 
             // Send didChange if the project is already opened in the cloned workspace
-            Optional<Project> project = this.clonedWorkspaceManager.project(path.get());
             if (project.isPresent()) {
                 this.clonedWorkspaceManager.didChange(path.get(), params);
-                this.baseWorkspaceManager.project(path.get()).ifPresent(this.clonedWorkspaceManager::markSynced);
+                if (cloneSynced) {
+                    this.baseWorkspaceManager.project(path.get()).ifPresent(this.clonedWorkspaceManager::markSynced);
+                }
             }
         }
     }

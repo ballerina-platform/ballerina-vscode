@@ -19,6 +19,9 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonParser;
 import org.ballerinalang.langserver.util.TestUtil;
 import org.eclipse.lsp4j.CodeActionContext;
+import org.eclipse.lsp4j.DidChangeWatchedFilesParams;
+import org.eclipse.lsp4j.FileChangeType;
+import org.eclipse.lsp4j.FileEvent;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.TextDocumentIdentifier;
@@ -33,6 +36,7 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Tests the expression file scheme based workspace proxy operations.
@@ -164,8 +168,27 @@ public class TestExpressionFileScheme {
         TestUtil.openDocument(serviceEndpoint, exprUri.toString(), sourceContent);
         Assert.assertTrue(TestUtil.getCompletionResponse(exprUri, pos, serviceEndpoint, "").contains("sourceEdit"));
 
+        // A disk change the clone missed must still reach it after a later source edit is forwarded.
+        Path diskFile = filePath.resolveSibling("disk.bal");
+        try {
+            Files.writeString(diskFile, "function diskEdit() {}" + System.lineSeparator());
+            notifyWatched(diskFile, FileChangeType.Created);
+            TestUtil.didChangeDocument(serviceEndpoint, originalUri, originalContent);
+            TestUtil.closeDocument(serviceEndpoint, exprUri.toString());
+            TestUtil.openDocument(serviceEndpoint, exprUri.toString(), originalContent);
+            Assert.assertTrue(TestUtil.getCompletionResponse(exprUri, pos, serviceEndpoint, "").contains("diskEdit"));
+        } finally {
+            Files.deleteIfExists(diskFile);
+            notifyWatched(diskFile, FileChangeType.Deleted);
+        }
+
         TestUtil.didChangeDocument(serviceEndpoint, originalUri, originalContent);
         TestUtil.closeDocument(serviceEndpoint, exprUri.toString());
         TestUtil.closeDocument(serviceEndpoint, originalUri.toString());
+    }
+
+    private void notifyWatched(Path file, FileChangeType type) {
+        serviceEndpoint.notify("workspace/didChangeWatchedFiles",
+                new DidChangeWatchedFilesParams(List.of(new FileEvent(file.toUri().toString(), type))));
     }
 }
