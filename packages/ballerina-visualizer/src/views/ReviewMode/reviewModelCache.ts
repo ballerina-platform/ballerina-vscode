@@ -16,9 +16,11 @@
  * under the License.
  */
 
-import { CDModel, ChangeTypeEnum, Flow, NodePosition, Type } from "@wso2/ballerina-core";
+import { CDModel, ChangeTypeEnum, ExpandedDMModel, Flow, LinePosition, NodePosition, Type } from "@wso2/ballerina-core";
 import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
+import { STKindChecker, STNode } from "@wso2/syntax-tree";
 import { getFlowLookupPosition } from "./position-utils";
+import { toComparablePath } from "./path-utils";
 
 /**
  * Review-session-scoped cache of LS model fetches, keyed by view identity + version.
@@ -121,6 +123,89 @@ export function fetchFlowModelVersion(
     });
 }
 
+export interface DataMapperVersionParams {
+    filePath: string;
+    position: NodePosition;
+    name: string;
+}
+
+/**
+ * The LS reads input ports from the symbols visible at this position, and a function's parameters
+ * are not in scope yet at its own `function` keyword — so the body's expression is what to ask about.
+ */
+async function fetchMappingExprPosition(
+    rpcClient: BallerinaRpcClient,
+    uri: string,
+    startLine: LinePosition,
+    endLine: LinePosition
+): Promise<LinePosition> {
+    try {
+        const st = await rpcClient.getLangClientRpcClient().getSTByRange({
+            documentIdentifier: { uri: uri.replace(/^ai:\/\//i, "file://") },
+            lineRange: {
+                start: { line: startLine.line, character: startLine.offset },
+                end: { line: endLine.line, character: endLine.offset },
+            },
+        });
+        const node = (st as { syntaxTree?: STNode })?.syntaxTree;
+        if (node && STKindChecker.isFunctionDefinition(node) && STKindChecker.isExpressionFunctionBody(node.functionBody)) {
+            const exprPosition = node.functionBody.expression.position;
+            return { line: exprPosition.startLine, offset: exprPosition.startColumn };
+        }
+    } catch (error) {
+        console.error("[Reviewing Changes] Could not resolve the mapping expression position:", error);
+    }
+    return startLine;
+}
+
+/**
+ * Fetch the data-mapping function's expanded model, deduped through the session cache. Only the live
+ * version: the LS's data-mapper service holds the live workspace manager alone, so the frozen `ai://`
+ * baseline has no model to serve.
+ */
+export function fetchDataMapperModelVersion(
+    rpcClient: BallerinaRpcClient,
+    cache: ReviewModelCache,
+    params: DataMapperVersionParams
+): Promise<ExpandedDMModel | null> {
+    const { filePath, position, name } = params;
+    const key = `dataMapper:${filePath}:${positionKey(position)}`;
+    return getOrFetch(cache, key, async () => {
+        // The LS finds the node from this range and unwraps the `=> expr` body itself, so it wants
+        // the whole declaration.
+        const enclosedFn = await rpcClient.getBIDiagramRpcClient().getEnclosedFunction({
+            filePath,
+            position: { line: position.startLine, offset: position.startColumn },
+            useFileSchema: false,
+        });
+        const startLine = enclosedFn?.startLine ?? { line: position.startLine, offset: position.startColumn };
+        const endLine = enclosedFn?.endLine ?? { line: position.endLine, offset: position.endColumn };
+
+        // Unlike the flow-model endpoints, the data-mapper ones resolve this with a bare
+        // `Path.of(...)`, so they need a plain OS path and never a URI.
+        const dataMapperFilePath = toComparablePath(filePath);
+        const modelResponse = await rpcClient.getDataMapperRpcClient().getDataMapperModel({
+            filePath: dataMapperFilePath,
+            codedata: { lineRange: { fileName: dataMapperFilePath, startLine, endLine } },
+            position: await fetchMappingExprPosition(rpcClient, filePath, startLine, endLine),
+            targetField: name,
+        });
+        const { mappingsModel } = modelResponse ?? {};
+        if (!mappingsModel) {
+            console.error("[Reviewing Changes] The language server returned no data mapper model:", modelResponse);
+            return null;
+        }
+        if (!("refs" in mappingsModel)) {
+            return mappingsModel;
+        }
+        const expanded = await rpcClient.getDataMapperRpcClient().getExpandedDMFromDMModel({
+            model: mappingsModel,
+            rootViewId: name,
+        });
+        return expanded?.success ? expanded.expandedModel : null;
+    });
+}
+
 /** Fetch the type-diagram model for one version, deduped through the session cache. */
 export function fetchTypesModel(
     rpcClient: BallerinaRpcClient,
@@ -151,13 +236,14 @@ export function fetchDesignModel(
 
 /** The structural subset of ReviewMode's ReviewView that prefetching needs. */
 export interface PrefetchableReviewView {
-    /** DiagramType value: "flow" | "type" | "component" | "source". */
+    /** DiagramType value: "flow" | "type" | "component" | "source" | "dataMapper". */
     type: string;
     filePath: string;
     position: NodePosition;
     oldPosition?: NodePosition;
     projectPath: string;
     changeType: number;
+    name?: string;
 }
 
 /**
@@ -197,6 +283,13 @@ export function prefetchReviewView(
             break;
         case "component":
             fetches.push(fetchDesignModel(rpcClient, cache, view.projectPath, false));
+            break;
+        case "dataMapper":
+            fetches.push(fetchDataMapperModelVersion(rpcClient, cache, {
+                filePath: view.filePath,
+                position: view.position,
+                name: view.name ?? "",
+            }));
             break;
         default:
             break;
