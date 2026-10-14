@@ -340,6 +340,12 @@ public class FunctionDataBuilder {
                 applyWorkspaceResolution(workspaceResolution.get());
                 return;
             }
+            // Outside a workspace the edited package is no member above; Central lacks it, so a lookup pulls each time.
+            Package currentPackage = project.currentPackage();
+            if (currentPackage.packageOrg().value().equals(moduleInfo.org())
+                    && currentPackage.packageName().value().equals(moduleInfo.packageName())) {
+                return;
+            }
         }
 
         // For external functions: resolve from central repository
