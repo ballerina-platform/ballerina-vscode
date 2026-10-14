@@ -235,7 +235,772 @@
                   "selected": false
                 },
                 {
+                  "fields": [
+                    {
+                      "members": [
+                        {
+                          "typeName": "HTTP_1_1",
+                          "optional": false,
+                          "defaultable": false,
+                          "isRestType": false,
+                          "selected": false
+                        },
+                        {
+                          "typeName": "HTTP_2",
+                          "optional": false,
+                          "defaultable": false,
+                          "isRestType": false,
+                          "selected": false
+                        }
+                      ],
+                      "name": "httpVersion",
+                      "typeName": "enum",
+                      "optional": false,
+                      "typeInfo": {
+                        "name": "HttpVersion",
+                        "orgName": "ballerina",
+                        "moduleName": "oauth2",
+                        "version": "2.15.0"
+                      },
+                      "defaultable": true,
+                      "documentation": "",
+                      "isRestType": false,
+                      "selected": false
+                    },
+                    {
+                      "paramType": {
+                        "typeName": "string",
+                        "optional": false,
+                        "defaultable": false,
+                        "isRestType": false,
+                        "selected": false
+                      },
+                      "name": "customHeaders",
+                      "typeName": "map",
+                      "optional": true,
+                      "defaultable": false,
+                      "documentation": "",
+                      "isRestType": false,
+                      "selected": false
+                    },
+                    {
+                      "name": "customPayload",
+                      "typeName": "string",
+                      "optional": true,
+                      "defaultable": false,
+                      "documentation": "",
+                      "isRestType": false,
+                      "selected": false
+                    },
+                    {
+                      "members": [
+                        {
+                          "fields": [
+                            {
+                              "name": "tokenUrl",
+                              "typeName": "string",
+                              "optional": false,
+                              "defaultable": false,
+                              "documentation": "Token URL of the token endpoint",
+                              "isRestType": false,
+                              "selected": false
+                            },
+                            {
+                              "name": "clientId",
+                              "typeName": "string",
+                              "optional": false,
+                              "defaultable": false,
+                              "documentation": "Client ID of the client authentication",
+                              "isRestType": false,
+                              "selected": false
+                            },
+                            {
+                              "name": "clientSecret",
+                              "typeName": "string",
+                              "optional": false,
+                              "defaultable": false,
+                              "documentation": "Client secret of the client authentication",
+                              "isRestType": false,
+                              "selected": false
+                            },
+                            {
+                              "members": [
+                                {
+                                  "typeName": "string",
+                                  "optional": false,
+                                  "defaultable": false,
+                                  "isRestType": false,
+                                  "selected": false
+                                },
+                                {
+                                  "memberType": {
+                                    "typeName": "string",
+                                    "optional": false,
+                                    "defaultable": false,
+                                    "isRestType": false,
+                                    "selected": false
+                                  },
+                                  "typeName": "array",
+                                  "optional": false,
+                                  "defaultable": false,
+                                  "isRestType": false,
+                                  "selected": false
+                                }
+                              ],
+                              "name": "scopes",
+                              "typeName": "union",
+                              "optional": true,
+                              "defaultable": false,
+                              "documentation": "Scope(s) of the access request",
+                              "isRestType": false,
+                              "selected": false
+                            },
+                            {
+                              "name": "defaultTokenExpTime",
+                              "typeName": "decimal",
+                              "optional": false,
+                              "defaultable": true,
+                              "documentation": "Expiration time (in seconds) of the tokens if the token endpoint response does not contain an `expires_in` field",
+                              "isRestType": false,
+                              "selected": false
+                            },
+                            {
+                              "name": "clockSkew",
+                              "typeName": "decimal",
+                              "optional": false,
+                              "defaultable": true,
+                              "documentation": "Clock skew (in seconds) that can be used to avoid token validation failures due to clock synchronization problems",
+                              "isRestType": false,
+                              "selected": false
+                            },
+                            {
+                              "paramType": {
+                                "typeName": "string",
+                                "optional": false,
+                                "defaultable": false,
+                                "isRestType": false,
+                                "selected": false
+                              },
+                              "name": "optionalParams",
+                              "typeName": "map",
+                              "optional": true,
+                              "defaultable": false,
+                              "documentation": "Map of the optional parameters used for the token endpoint",
+                              "isRestType": false,
+                              "selected": false
+                            },
+                            {
+                              "members": [
+                                {
+                                  "typeName": "AUTH_HEADER_BEARER",
+                                  "optional": false,
+                                  "defaultable": false,
+                                  "isRestType": false,
+                                  "selected": false
+                                },
+                                {
+                                  "typeName": "POST_BODY_BEARER",
+                                  "optional": false,
+                                  "defaultable": false,
+                                  "isRestType": false,
+                                  "selected": false
+                                }
+                              ],
+                              "name": "credentialBearer",
+                              "typeName": "enum",
+                              "optional": false,
+                              "typeInfo": {
+                                "name": "CredentialBearer",
+                                "orgName": "ballerina",
+                                "moduleName": "oauth2",
+                                "version": "2.15.0"
+                              },
+                              "defaultable": true,
+                              "documentation": "Bearer of the authentication credentials, which is sent to the token endpoint",
+                              "isRestType": false,
+                              "selected": false
+                            },
+                            {
+                              "name": "clientConfig",
+                              "optional": false,
+                              "typeInfo": {
+                                "name": "ClientConfiguration",
+                                "orgName": "ballerina",
+                                "moduleName": "oauth2",
+                                "version": "2.15.0"
+                              },
+                              "defaultable": true,
+                              "documentation": "HTTP client configurations, which are used to call the token endpoint",
+                              "isRestType": false,
+                              "selected": false
+                            }
+                          ],
+                          "hasRestType": false,
+                          "name": "ClientCredentialsGrantConfig",
+                          "typeName": "record",
+                          "optional": false,
+                          "typeInfo": {
+                            "name": "ClientCredentialsGrantConfig",
+                            "orgName": "ballerina",
+                            "moduleName": "oauth2",
+                            "version": "2.15.0"
+                          },
+                          "defaultable": false,
+                          "isRestType": false,
+                          "selected": false
+                        },
+                        {
+                          "fields": [
+                            {
+                              "name": "tokenUrl",
+                              "typeName": "string",
+                              "optional": false,
+                              "defaultable": false,
+                              "documentation": "Token URL of the token endpoint",
+                              "isRestType": false,
+                              "selected": false
+                            },
+                            {
+                              "name": "username",
+                              "typeName": "string",
+                              "optional": false,
+                              "defaultable": false,
+                              "documentation": "Username for the password grant type",
+                              "isRestType": false,
+                              "selected": false
+                            },
+                            {
+                              "name": "password",
+                              "typeName": "string",
+                              "optional": false,
+                              "defaultable": false,
+                              "documentation": "Password for the password grant type",
+                              "isRestType": false,
+                              "selected": false
+                            },
+                            {
+                              "name": "clientId",
+                              "typeName": "string",
+                              "optional": true,
+                              "defaultable": false,
+                              "documentation": "Client ID of the client authentication",
+                              "isRestType": false,
+                              "selected": false
+                            },
+                            {
+                              "name": "clientSecret",
+                              "typeName": "string",
+                              "optional": true,
+                              "defaultable": false,
+                              "documentation": "Client secret of the client authentication",
+                              "isRestType": false,
+                              "selected": false
+                            },
+                            {
+                              "members": [
+                                {
+                                  "typeName": "string",
+                                  "optional": false,
+                                  "defaultable": false,
+                                  "isRestType": false,
+                                  "selected": false
+                                },
+                                {
+                                  "memberType": {
+                                    "typeName": "string",
+                                    "optional": false,
+                                    "defaultable": false,
+                                    "isRestType": false,
+                                    "selected": false
+                                  },
+                                  "typeName": "array",
+                                  "optional": false,
+                                  "defaultable": false,
+                                  "isRestType": false,
+                                  "selected": false
+                                }
+                              ],
+                              "name": "scopes",
+                              "typeName": "union",
+                              "optional": true,
+                              "defaultable": false,
+                              "documentation": "Scope(s) of the access request",
+                              "isRestType": false,
+                              "selected": false
+                            },
+                            {
+                              "name": "refreshConfig",
+                              "optional": true,
+                              "defaultable": false,
+                              "documentation": "Configurations for refreshing the access token",
+                              "isRestType": false,
+                              "selected": false
+                            },
+                            {
+                              "name": "defaultTokenExpTime",
+                              "typeName": "decimal",
+                              "optional": false,
+                              "defaultable": true,
+                              "documentation": "Expiration time (in seconds) of the tokens if the token endpoint response does not contain an `expires_in` field",
+                              "isRestType": false,
+                              "selected": false
+                            },
+                            {
+                              "name": "clockSkew",
+                              "typeName": "decimal",
+                              "optional": false,
+                              "defaultable": true,
+                              "documentation": "Clock skew (in seconds) that can be used to avoid token validation failures due to clock synchronization problems",
+                              "isRestType": false,
+                              "selected": false
+                            },
+                            {
+                              "paramType": {
+                                "typeName": "string",
+                                "optional": false,
+                                "defaultable": false,
+                                "isRestType": false,
+                                "selected": false
+                              },
+                              "name": "optionalParams",
+                              "typeName": "map",
+                              "optional": true,
+                              "defaultable": false,
+                              "documentation": "Map of the optional parameters used for the token endpoint",
+                              "isRestType": false,
+                              "selected": false
+                            },
+                            {
+                              "members": [
+                                {
+                                  "typeName": "AUTH_HEADER_BEARER",
+                                  "optional": false,
+                                  "defaultable": false,
+                                  "isRestType": false,
+                                  "selected": false
+                                },
+                                {
+                                  "typeName": "POST_BODY_BEARER",
+                                  "optional": false,
+                                  "defaultable": false,
+                                  "isRestType": false,
+                                  "selected": false
+                                }
+                              ],
+                              "name": "credentialBearer",
+                              "typeName": "enum",
+                              "optional": false,
+                              "typeInfo": {
+                                "name": "CredentialBearer",
+                                "orgName": "ballerina",
+                                "moduleName": "oauth2",
+                                "version": "2.15.0"
+                              },
+                              "defaultable": true,
+                              "documentation": "Bearer of the authentication credentials, which is sent to the token endpoint",
+                              "isRestType": false,
+                              "selected": false
+                            },
+                            {
+                              "name": "clientConfig",
+                              "optional": false,
+                              "typeInfo": {
+                                "name": "ClientConfiguration",
+                                "orgName": "ballerina",
+                                "moduleName": "oauth2",
+                                "version": "2.15.0"
+                              },
+                              "defaultable": true,
+                              "documentation": "HTTP client configurations, which are used to call the token endpoint",
+                              "isRestType": false,
+                              "selected": false
+                            }
+                          ],
+                          "hasRestType": false,
+                          "name": "PasswordGrantConfig",
+                          "typeName": "record",
+                          "optional": false,
+                          "typeInfo": {
+                            "name": "PasswordGrantConfig",
+                            "orgName": "ballerina",
+                            "moduleName": "oauth2",
+                            "version": "2.15.0"
+                          },
+                          "defaultable": false,
+                          "isRestType": false,
+                          "selected": false
+                        },
+                        {
+                          "fields": [
+                            {
+                              "name": "refreshUrl",
+                              "typeName": "string",
+                              "optional": false,
+                              "defaultable": false,
+                              "documentation": "",
+                              "isRestType": false,
+                              "selected": false
+                            },
+                            {
+                              "name": "refreshToken",
+                              "typeName": "string",
+                              "optional": false,
+                              "defaultable": false,
+                              "documentation": "",
+                              "isRestType": false,
+                              "selected": false
+                            },
+                            {
+                              "name": "clientId",
+                              "typeName": "string",
+                              "optional": false,
+                              "defaultable": false,
+                              "documentation": "Client ID of the client authentication",
+                              "isRestType": false,
+                              "selected": false
+                            },
+                            {
+                              "name": "clientSecret",
+                              "typeName": "string",
+                              "optional": false,
+                              "defaultable": false,
+                              "documentation": "Client secret of the client authentication",
+                              "isRestType": false,
+                              "selected": false
+                            },
+                            {
+                              "members": [
+                                {
+                                  "typeName": "string",
+                                  "optional": false,
+                                  "defaultable": false,
+                                  "isRestType": false,
+                                  "selected": false
+                                },
+                                {
+                                  "memberType": {
+                                    "typeName": "string",
+                                    "optional": false,
+                                    "defaultable": false,
+                                    "isRestType": false,
+                                    "selected": false
+                                  },
+                                  "typeName": "array",
+                                  "optional": false,
+                                  "defaultable": false,
+                                  "isRestType": false,
+                                  "selected": false
+                                }
+                              ],
+                              "name": "scopes",
+                              "typeName": "union",
+                              "optional": true,
+                              "defaultable": false,
+                              "documentation": "Scope(s) of the access request",
+                              "isRestType": false,
+                              "selected": false
+                            },
+                            {
+                              "name": "defaultTokenExpTime",
+                              "typeName": "decimal",
+                              "optional": false,
+                              "defaultable": true,
+                              "documentation": "Expiration time (in seconds) of the tokens if the token endpoint response does not contain an `expires_in` field",
+                              "isRestType": false,
+                              "selected": false
+                            },
+                            {
+                              "name": "clockSkew",
+                              "typeName": "decimal",
+                              "optional": false,
+                              "defaultable": true,
+                              "documentation": "Clock skew (in seconds) that can be used to avoid token validation failures due to clock synchronization problems",
+                              "isRestType": false,
+                              "selected": false
+                            },
+                            {
+                              "paramType": {
+                                "typeName": "string",
+                                "optional": false,
+                                "defaultable": false,
+                                "isRestType": false,
+                                "selected": false
+                              },
+                              "name": "optionalParams",
+                              "typeName": "map",
+                              "optional": true,
+                              "defaultable": false,
+                              "documentation": "Map of the optional parameters used for the token endpoint",
+                              "isRestType": false,
+                              "selected": false
+                            },
+                            {
+                              "members": [
+                                {
+                                  "typeName": "AUTH_HEADER_BEARER",
+                                  "optional": false,
+                                  "defaultable": false,
+                                  "isRestType": false,
+                                  "selected": false
+                                },
+                                {
+                                  "typeName": "POST_BODY_BEARER",
+                                  "optional": false,
+                                  "defaultable": false,
+                                  "isRestType": false,
+                                  "selected": false
+                                }
+                              ],
+                              "name": "credentialBearer",
+                              "typeName": "enum",
+                              "optional": false,
+                              "typeInfo": {
+                                "name": "CredentialBearer",
+                                "orgName": "ballerina",
+                                "moduleName": "oauth2",
+                                "version": "2.15.0"
+                              },
+                              "defaultable": true,
+                              "documentation": "Bearer of the authentication credentials, which is sent to the token endpoint",
+                              "isRestType": false,
+                              "selected": false
+                            },
+                            {
+                              "name": "clientConfig",
+                              "optional": false,
+                              "typeInfo": {
+                                "name": "ClientConfiguration",
+                                "orgName": "ballerina",
+                                "moduleName": "oauth2",
+                                "version": "2.15.0"
+                              },
+                              "defaultable": true,
+                              "documentation": "HTTP client configurations, which are used to call the token endpoint",
+                              "isRestType": false,
+                              "selected": false
+                            }
+                          ],
+                          "hasRestType": false,
+                          "name": "RefreshTokenGrantConfig",
+                          "typeName": "record",
+                          "optional": false,
+                          "typeInfo": {
+                            "name": "RefreshTokenGrantConfig",
+                            "orgName": "ballerina",
+                            "moduleName": "oauth2",
+                            "version": "2.15.0"
+                          },
+                          "defaultable": false,
+                          "isRestType": false,
+                          "selected": false
+                        }
+                      ],
+                      "name": "auth",
+                      "typeName": "union",
+                      "optional": true,
+                      "typeInfo": {
+                        "name": "ClientAuth",
+                        "orgName": "ballerina",
+                        "moduleName": "oauth2",
+                        "version": "2.15.0"
+                      },
+                      "defaultable": false,
+                      "documentation": "",
+                      "isRestType": false,
+                      "selected": false
+                    },
+                    {
+                      "fields": [
+                        {
+                          "name": "disable",
+                          "typeName": "boolean",
+                          "optional": false,
+                          "defaultable": true,
+                          "documentation": "",
+                          "isRestType": false,
+                          "selected": false
+                        },
+                        {
+                          "members": [
+                            {
+                              "fields": [
+                                {
+                                  "name": "path",
+                                  "typeName": "string",
+                                  "optional": false,
+                                  "defaultable": false,
+                                  "documentation": "",
+                                  "isRestType": false,
+                                  "selected": false
+                                },
+                                {
+                                  "name": "password",
+                                  "typeName": "string",
+                                  "optional": false,
+                                  "defaultable": false,
+                                  "documentation": "Password for the password grant type",
+                                  "isRestType": false,
+                                  "selected": false
+                                }
+                              ],
+                              "hasRestType": false,
+                              "name": "TrustStore",
+                              "typeName": "record",
+                              "optional": false,
+                              "typeInfo": {
+                                "name": "TrustStore",
+                                "orgName": "ballerina",
+                                "moduleName": "crypto",
+                                "version": "2.12.1"
+                              },
+                              "defaultable": false,
+                              "isRestType": false,
+                              "selected": false
+                            },
+                            {
+                              "typeName": "string",
+                              "optional": false,
+                              "defaultable": false,
+                              "isRestType": false,
+                              "selected": false
+                            }
+                          ],
+                          "name": "cert",
+                          "typeName": "union",
+                          "optional": true,
+                          "defaultable": false,
+                          "documentation": "",
+                          "isRestType": false,
+                          "selected": false
+                        },
+                        {
+                          "members": [
+                            {
+                              "fields": [
+                                {
+                                  "name": "path",
+                                  "typeName": "string",
+                                  "optional": false,
+                                  "defaultable": false,
+                                  "documentation": "",
+                                  "isRestType": false,
+                                  "selected": false
+                                },
+                                {
+                                  "name": "password",
+                                  "typeName": "string",
+                                  "optional": false,
+                                  "defaultable": false,
+                                  "documentation": "Password for the password grant type",
+                                  "isRestType": false,
+                                  "selected": false
+                                }
+                              ],
+                              "hasRestType": false,
+                              "name": "KeyStore",
+                              "typeName": "record",
+                              "optional": false,
+                              "typeInfo": {
+                                "name": "KeyStore",
+                                "orgName": "ballerina",
+                                "moduleName": "crypto",
+                                "version": "2.12.1"
+                              },
+                              "defaultable": false,
+                              "isRestType": false,
+                              "selected": false
+                            },
+                            {
+                              "fields": [
+                                {
+                                  "name": "certFile",
+                                  "typeName": "string",
+                                  "optional": false,
+                                  "defaultable": false,
+                                  "documentation": "",
+                                  "isRestType": false,
+                                  "selected": false
+                                },
+                                {
+                                  "name": "keyFile",
+                                  "typeName": "string",
+                                  "optional": false,
+                                  "defaultable": false,
+                                  "documentation": "",
+                                  "isRestType": false,
+                                  "selected": false
+                                },
+                                {
+                                  "name": "keyPassword",
+                                  "typeName": "string",
+                                  "optional": true,
+                                  "defaultable": false,
+                                  "documentation": "",
+                                  "isRestType": false,
+                                  "selected": false
+                                }
+                              ],
+                              "hasRestType": false,
+                              "name": "CertKey",
+                              "typeName": "record",
+                              "optional": false,
+                              "typeInfo": {
+                                "name": "CertKey",
+                                "orgName": "ballerina",
+                                "moduleName": "oauth2",
+                                "version": "2.15.0"
+                              },
+                              "defaultable": false,
+                              "isRestType": false,
+                              "selected": false
+                            }
+                          ],
+                          "name": "key",
+                          "typeName": "union",
+                          "optional": true,
+                          "defaultable": false,
+                          "documentation": "",
+                          "isRestType": false,
+                          "selected": false
+                        }
+                      ],
+                      "hasRestType": false,
+                      "name": "secureSocket",
+                      "typeName": "record",
+                      "optional": true,
+                      "typeInfo": {
+                        "name": "SecureSocket",
+                        "orgName": "ballerina",
+                        "moduleName": "oauth2",
+                        "version": "2.15.0"
+                      },
+                      "defaultable": false,
+                      "documentation": "",
+                      "isRestType": false,
+                      "selected": false
+                    },
+                    {
+                      "name": "connectTimeout",
+                      "typeName": "decimal",
+                      "optional": true,
+                      "defaultable": false,
+                      "documentation": "",
+                      "isRestType": false,
+                      "selected": false
+                    },
+                    {
+                      "name": "reqTimeout",
+                      "typeName": "decimal",
+                      "optional": true,
+                      "defaultable": false,
+                      "documentation": "",
+                      "isRestType": false,
+                      "selected": false
+                    }
+                  ],
+                  "hasRestType": false,
                   "name": "clientConfig",
+                  "typeName": "record",
                   "optional": false,
                   "typeInfo": {
                     "name": "ClientConfiguration",
@@ -375,7 +1140,6 @@
               "defaultable": true,
               "documentation": "",
               "isRestType": false,
-              "value": "",
               "selected": false
             },
             {
@@ -392,7 +1156,6 @@
               "defaultable": false,
               "documentation": "",
               "isRestType": false,
-              "value": "",
               "selected": false
             },
             {
@@ -402,7 +1165,6 @@
               "defaultable": false,
               "documentation": "",
               "isRestType": false,
-              "value": "",
               "selected": false
             },
             {
@@ -578,7 +1340,7 @@
                       "typeName": "string",
                       "optional": false,
                       "defaultable": false,
-                      "documentation": "",
+                      "documentation": "Username for the password grant type",
                       "isRestType": false,
                       "selected": false
                     },
@@ -587,7 +1349,7 @@
                       "typeName": "string",
                       "optional": false,
                       "defaultable": false,
-                      "documentation": "",
+                      "documentation": "Password for the password grant type",
                       "isRestType": false,
                       "selected": false
                     },
@@ -642,139 +1404,10 @@
                       "selected": false
                     },
                     {
-                      "members": [
-                        {
-                          "fields": [
-                            {
-                              "name": "refreshUrl",
-                              "typeName": "string",
-                              "optional": false,
-                              "defaultable": false,
-                              "documentation": "",
-                              "isRestType": false,
-                              "selected": false
-                            },
-                            {
-                              "members": [
-                                {
-                                  "typeName": "string",
-                                  "optional": false,
-                                  "defaultable": false,
-                                  "isRestType": false,
-                                  "selected": false
-                                },
-                                {
-                                  "memberType": {
-                                    "typeName": "string",
-                                    "optional": false,
-                                    "defaultable": false,
-                                    "isRestType": false,
-                                    "selected": false
-                                  },
-                                  "typeName": "array",
-                                  "optional": false,
-                                  "defaultable": false,
-                                  "isRestType": false,
-                                  "selected": false
-                                }
-                              ],
-                              "name": "scopes",
-                              "typeName": "union",
-                              "optional": true,
-                              "defaultable": false,
-                              "documentation": "Scope(s) of the access request",
-                              "isRestType": false,
-                              "selected": false
-                            },
-                            {
-                              "paramType": {
-                                "typeName": "string",
-                                "optional": false,
-                                "defaultable": false,
-                                "isRestType": false,
-                                "selected": false
-                              },
-                              "name": "optionalParams",
-                              "typeName": "map",
-                              "optional": true,
-                              "defaultable": false,
-                              "documentation": "Map of the optional parameters used for the token endpoint",
-                              "isRestType": false,
-                              "selected": false
-                            },
-                            {
-                              "members": [
-                                {
-                                  "typeName": "AUTH_HEADER_BEARER",
-                                  "optional": false,
-                                  "defaultable": false,
-                                  "isRestType": false,
-                                  "selected": false
-                                },
-                                {
-                                  "typeName": "POST_BODY_BEARER",
-                                  "optional": false,
-                                  "defaultable": false,
-                                  "isRestType": false,
-                                  "selected": false
-                                }
-                              ],
-                              "name": "credentialBearer",
-                              "typeName": "enum",
-                              "optional": false,
-                              "typeInfo": {
-                                "name": "CredentialBearer",
-                                "orgName": "ballerina",
-                                "moduleName": "oauth2",
-                                "version": "2.15.0"
-                              },
-                              "defaultable": true,
-                              "documentation": "Bearer of the authentication credentials, which is sent to the token endpoint",
-                              "isRestType": false,
-                              "selected": false
-                            },
-                            {
-                              "name": "clientConfig",
-                              "optional": false,
-                              "typeInfo": {
-                                "name": "ClientConfiguration",
-                                "orgName": "ballerina",
-                                "moduleName": "oauth2",
-                                "version": "2.15.0"
-                              },
-                              "defaultable": true,
-                              "documentation": "HTTP client configurations, which are used to call the token endpoint",
-                              "isRestType": false,
-                              "selected": false
-                            }
-                          ],
-                          "hasRestType": false,
-                          "name": "RefreshConfig",
-                          "typeName": "record",
-                          "optional": false,
-                          "typeInfo": {
-                            "name": "RefreshConfig",
-                            "orgName": "ballerina",
-                            "moduleName": "oauth2",
-                            "version": "2.15.0"
-                          },
-                          "defaultable": false,
-                          "isRestType": false,
-                          "selected": false
-                        },
-                        {
-                          "typeName": "INFER_REFRESH_CONFIG",
-                          "optional": false,
-                          "defaultable": false,
-                          "isRestType": false,
-                          "selected": false
-                        }
-                      ],
                       "name": "refreshConfig",
-                      "typeName": "union",
                       "optional": true,
                       "defaultable": false,
-                      "documentation": "",
+                      "documentation": "Configurations for refreshing the access token",
                       "isRestType": false,
                       "selected": false
                     },
@@ -1049,7 +1682,6 @@
               "defaultable": false,
               "documentation": "",
               "isRestType": false,
-              "value": "",
               "selected": false
             },
             {
@@ -1061,7 +1693,6 @@
                   "defaultable": true,
                   "documentation": "",
                   "isRestType": false,
-                  "value": "",
                   "selected": false
                 },
                 {
@@ -1082,7 +1713,7 @@
                           "typeName": "string",
                           "optional": false,
                           "defaultable": false,
-                          "documentation": "",
+                          "documentation": "Password for the password grant type",
                           "isRestType": false,
                           "selected": false
                         }
@@ -1115,7 +1746,6 @@
                   "defaultable": false,
                   "documentation": "",
                   "isRestType": false,
-                  "value": "",
                   "selected": false
                 },
                 {
@@ -1136,7 +1766,7 @@
                           "typeName": "string",
                           "optional": false,
                           "defaultable": false,
-                          "documentation": "",
+                          "documentation": "Password for the password grant type",
                           "isRestType": false,
                           "selected": false
                         }
@@ -1152,7 +1782,6 @@
                         "version": "2.12.1"
                       },
                       "defaultable": false,
-                      "documentation": "",
                       "isRestType": false,
                       "selected": false
                     },
@@ -1207,7 +1836,6 @@
                   "defaultable": false,
                   "documentation": "",
                   "isRestType": false,
-                  "value": "",
                   "selected": false
                 }
               ],
@@ -1224,7 +1852,6 @@
               "defaultable": false,
               "documentation": "",
               "isRestType": false,
-              "value": "",
               "selected": false
             },
             {
@@ -1234,7 +1861,6 @@
               "defaultable": false,
               "documentation": "",
               "isRestType": false,
-              "value": "",
               "selected": false
             },
             {
@@ -1244,7 +1870,6 @@
               "defaultable": false,
               "documentation": "",
               "isRestType": false,
-              "value": "",
               "selected": false
             }
           ],
