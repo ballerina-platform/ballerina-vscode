@@ -64,7 +64,7 @@ import { ImplementationBadge } from "../../../components/ImplementationBadge";
 import { FUNCTION_CALL, KNOWLEDGE_BASE_CALL, METHOD_CALL, REMOTE_ACTION_CALL, RESOURCE_ACTION_CALL } from "../../../constants";
 import { NewToolSelectionMode } from "./NewTool";
 import { buildOAuthFields, fetchOAuthConfigProperties, ZERO_LINE_RANGE } from "./utils";
-import { cacheLibrarySection, cachedLibrarySection, PAGINATED_LIBRARY_SECTIONS } from "../../../utils/useFunctionPagination";
+import { cacheLibrarySection, cachedLibrarySection, librarySectionScope, PAGINATED_LIBRARY_SECTIONS } from "../../../utils/useFunctionPagination";
 import { updateResourcePathProperty } from "./agentTools";
 import { AddConnectionPopupContent } from "../Connection/AddConnectionPopup/AddConnectionPopupContent";
 import { ConnectionConfigurationForm } from "../Connection/ConnectionConfigurationPopup";
@@ -568,8 +568,9 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                 // The library sections come from Ballerina Central, so they load after the panel opens.
                 const localFunctions = await handleSearchFunction("", FUNCTION_TYPE.REGULAR, false, { excludeLibrary: "true" });
                 const sectionTitles = PAGINATED_LIBRARY_SECTIONS.map(({ title }) => title);
+                const cacheScope = librarySectionScope(`use-function|${projectPath}`, localFunctions || []);
                 const sections = sectionTitles.map((title): PanelCategory =>
-                    cachedLibrarySection(`use-function|${projectPath}`, title) ?? { title, description: "", items: [], isLoading: true }
+                    cachedLibrarySection(cacheScope, title) ?? { title, description: "", items: [], isLoading: true }
                 );
                 const categories = ensureStandardLibModules(reorderFunctionCategories([
                     ...(localFunctions || []).filter((category) => !sectionTitles.includes(category.title)),
@@ -577,7 +578,7 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                 ]));
                 setCategories(categories);
                 initialCategoriesRef.current = categories;
-                loadLibrarySections(sections.filter((section) => section.isLoading).map((section) => section.title));
+                loadLibrarySections(sections.filter((section) => section.isLoading).map((section) => section.title), cacheScope);
             } catch { } finally {
                 settleLoading();
             }
@@ -749,14 +750,14 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
         return ensureStandardLibModules(convertFunctionCategoriesToSidePanelCategories(filteredResponse, functionType));
     };
 
-    const loadLibrarySections = (titles: string[]) => {
+    const loadLibrarySections = (titles: string[], cacheScope: string) => {
         for (const { title, org } of PAGINATED_LIBRARY_SECTIONS.filter((section) => titles.includes(section.title))) {
             void handleSearchFunction("", FUNCTION_TYPE.REGULAR, false, { orgName: org })
                 .catch((): PanelCategory[] => [])
                 .then((sectionCategories: PanelCategory[] | undefined) => {
                     const section = sectionCategories?.find((category) => category.title === title);
                     if (section?.items.length) {
-                        cacheLibrarySection(`use-function|${projectPath}`, section);
+                        cacheLibrarySection(cacheScope, section);
                     }
                     const updated = initialCategoriesRef.current
                         .map((category) => (category.title === title ? section : category))

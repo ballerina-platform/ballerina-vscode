@@ -90,7 +90,7 @@ import {
 import { PanelOverlayProvider } from "./context/PanelOverlayContext";
 import { PanelOverlayRenderer } from "./PanelOverlayRenderer";
 import { ExpressionFormField, Category as PanelCategory, S } from "@wso2/ballerina-side-panel";
-import { cacheLibrarySection, cachedLibrarySection, PAGINATED_LIBRARY_SECTIONS } from "../../../utils/useFunctionPagination";
+import { cacheLibrarySection, cachedLibrarySection, librarySectionScope, PAGINATED_LIBRARY_SECTIONS } from "../../../utils/useFunctionPagination";
 import { cloneDeep, debounce } from "lodash";
 import { ConnectionKind } from "../../../components/ConnectionSelector";
 import AddAgentPopup from "../AIChatAgent/AddAgentPopup";
@@ -1538,12 +1538,12 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 response.categories as Category[],
                 FUNCTION_TYPE.REGULAR
             ));
-        const cacheScope = `call-function|${projectPath}`;
         const sectionTitles = PAGINATED_LIBRARY_SECTIONS.map(({ title }) => title);
         const localCategories = await searchPage({ excludeLibrary: "true" });
         if (panelNavEpochRef.current !== navEpoch) {
             return false;
         }
+        const cacheScope = librarySectionScope(`call-function|${projectPath}`, localCategories);
         const sections = sectionTitles.map((title): PanelCategory =>
             cachedLibrarySection(cacheScope, title) ?? { title, description: "", items: [], isLoading: true }
         );

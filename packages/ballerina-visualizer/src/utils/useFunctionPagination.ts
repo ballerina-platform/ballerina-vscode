@@ -48,6 +48,11 @@ export function cacheLibrarySection(scope: string, category: PanelCategory) {
     librarySectionCache.set(`${scope}|${category.title}`, { cachedAt: Date.now(), category });
 }
 
+// The language server lists imported modules under Imported Functions instead, so the sections differ per imports.
+export const librarySectionScope = (scope: string, localCategories: PanelCategory[]) =>
+    `${scope}|${localCategories.find((category) => category.title === "Imported Functions")?.items
+        .map((item) => (item as PanelCategory).title).join()}`;
+
 // Counts the leaf function items across a category tree, used to decide whether another page exists.
 export const countFunctionItems = (categories: HelperPaneFunctionCategory[] = []): number =>
     categories.reduce(
