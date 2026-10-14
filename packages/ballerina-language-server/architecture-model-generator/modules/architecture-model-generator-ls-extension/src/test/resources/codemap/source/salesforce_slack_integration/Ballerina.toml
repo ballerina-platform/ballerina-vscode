@@ -1,0 +1,7 @@
+[package]
+org = "wso2"
+name = "salesforce_slack_integration"
+version = "0.1.0"
+title = "salesforce_slack_integration"
+distribution = "2201.13.2"
+

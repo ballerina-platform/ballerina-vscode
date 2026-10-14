@@ -1,0 +1,8 @@
+SERVER_BASE_URL = "http://localhost:9090/fhir/r4"
+
+[healthcare_sample.db]
+host = "localhost"
+port = 3306
+user = "<db_user>"
+password = "<db_password>"
+database = "<db_name>"
