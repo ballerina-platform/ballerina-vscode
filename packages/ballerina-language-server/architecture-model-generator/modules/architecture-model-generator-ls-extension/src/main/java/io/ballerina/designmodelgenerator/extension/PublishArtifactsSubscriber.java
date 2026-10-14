@@ -81,6 +81,8 @@ public class PublishArtifactsSubscriber implements EventSubscriber {
             } catch (WorkspaceDocumentException | EventSyncException e) {
                 return;
             }
+            // Compiled under the workspace lock this event's other subscribers take, so the task below reuses it.
+            context.workspace().waitAndGetPackageCompilation(context.filePath());
 
             // Use the debouncer to schedule the full project artifact generation
             ArtifactGenerationDebouncer.getInstance().debounceProject(projectKey, () -> {
