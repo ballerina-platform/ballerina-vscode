@@ -30,6 +30,7 @@ import {
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Button, Codicon, Icon, ThemeColors, Typography } from "@wso2/ui-toolkit";
 import styled from "@emotion/styled";
+import { useProjectContentRefresh } from "./utils";
 
 // ── Layout ───────────────────────────────────────────────────────────────────
 
@@ -626,16 +627,7 @@ export function LibraryOverview({ projectStructure, isNPSupported, projectPath, 
         fetchReadme();
     }, [rpcClient, fetchReadme]);
 
-    useEffect(() => {
-        if (!rpcClient) {
-            return;
-        }
-        return rpcClient.onProjectContentUpdated((state: boolean) => {
-            if (state) {
-                fetchReadme();
-            }
-        });
-    }, [rpcClient, fetchReadme]);
+    useProjectContentRefresh(rpcClient, fetchReadme);
 
     const showNaturalFunctions = isNPSupported && experimentalEnabled;
 

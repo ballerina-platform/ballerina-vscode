@@ -28,6 +28,7 @@ import { ArrowIcon, ConnectorOptionButtons, ConnectorOptionCard, ConnectorOption
 import { AddConnectionPopupProps } from "./index";
 import { usePlatformExtContext } from "../../../../providers/platform-ext-ctx-provider";
 import { VSCodeLink } from "@vscode/webview-ui-toolkit/react";
+import { useProjectContentRefresh } from "../../PackageOverview/utils";
 
 interface Props extends AddConnectionPopupProps {
     handleDatabaseConnection?: () => void;
@@ -150,13 +151,7 @@ export function AddConnectionPopupContent(props: Props) {
         fetchConnectors();
     }, [filterType, fetchConnectors]);
 
-    useEffect(() => {
-        return rpcClient?.onProjectContentUpdated((state: boolean) => {
-            if (state) {
-                fetchConnectors();
-            }
-        });
-    }, [rpcClient, fetchConnectors]);
+    useProjectContentRefresh(rpcClient, fetchConnectors);
 
     const handleOnSearch = (text: string) => {
         setSearchText(text);

@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
     Type,
     NodePosition,
@@ -52,6 +52,7 @@ import DynamicModal from "../../components/Modal";
 import { BreadcrumbContainer, BreadcrumbItem, BreadcrumbSeparator } from "../BI/Forms/FlowNodeForm";
 import React from "react";
 import { removeForwardSlashes } from "../BI/ServiceDesigner/utils";
+import { useProjectContentRefresh } from "../BI/PackageOverview/utils";
 
 const SpinnerContainer = styled.div`
     display: flex;
@@ -202,12 +203,8 @@ export function GraphQLDiagram(props: GraphQLDiagramProps) {
         enabled: !!filePath && !!rpcClient,
     });
 
-    useEffect(() => rpcClient?.onProjectContentUpdated((state: boolean) => {
-        if (state) {
-            // Instead of calling getGraphqlDesignModel directly, invalidate the query
-            queryClient.invalidateQueries({ queryKey: ["graphqlTypeModel"] });
-        }
-    }), [rpcClient, queryClient]);
+    // Instead of calling getGraphqlDesignModel directly, invalidate the query
+    useProjectContentRefresh(rpcClient, () => queryClient.invalidateQueries({ queryKey: ["graphqlTypeModel"] }));
 
     const handleOnGoToSource = (node: Type) => {
         if (!rpcClient || !node.codedata.lineRange) {
