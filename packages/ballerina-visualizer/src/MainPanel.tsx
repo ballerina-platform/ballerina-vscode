@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import React, { createRef, useCallback, useEffect, useRef, useState } from "react";
+import React, { createRef, useEffect, useRef, useState } from "react";
 import {
     PRODUCT_INTEGRATOR_ISSUES_URL,
     KeyboardNavigationManager,
@@ -218,15 +218,10 @@ const MainPanel = () => {
     useSuppressAgentStatusOrb(viewHidesAgentStatusOrb(activeView) || !!viewError);
     useTraceAnimationBridge();
 
-    // Not debounced: fetchContext drops a superseded navigation itself (navKey).
-    const refetchContext = useCallback(() => {
-        fetchContext();
-    }, []);
-
     useEffect(() => {
         rpcClient?.onStateChanged((newState: MachineStateValue) => {
             if (typeof newState === "object" && "viewActive" in newState && newState.viewActive === "viewReady") {
-                refetchContext();
+                fetchContext();
             }
         });
 
@@ -1016,7 +1011,7 @@ const MainPanel = () => {
     }, [navPending]);
 
     useEffect(() => {
-        refetchContext();
+        fetchContext();
     }, [breakpointState]);
 
     useEffect(() => {

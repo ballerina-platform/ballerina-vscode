@@ -174,12 +174,13 @@ export class VisualizerRpcManager implements VisualizerAPI {
             }
             const publishedArtifacts: ProjectStructureArtifactResponse[] = [];
             const notificationHandler = ArtifactNotificationHandler.getInstance();
-            let unsubscribe = notificationHandler.subscribe(ArtifactsUpdated.method, undefined, async (payload) => {
+            const unsubscribe = notificationHandler.subscribe(ArtifactsUpdated.method, undefined, async (payload) => {
                 publishedArtifacts.push(...payload.data);
                 if (--pendingPublishes > 0) {
                     return;
                 }
                 unsubscribe();
+                clearTimeout(timeoutId);
                 const currentArtifact = await this.updateCurrentArtifactLocation({ artifacts: publishedArtifacts });
                 StateMachine.setReadyMode();
                 const { documentUri, view } = StateMachine.context();
@@ -203,13 +204,6 @@ export class VisualizerRpcManager implements VisualizerAPI {
                 openView(EVENT_TYPE.OPEN_VIEW, { view: MACHINE_VIEW.PackageOverview });
                 reject(new Error("Operation timed out. Please try again."));
             }, 10000);
-
-            // Clear the timeout when notification is received
-            const originalUnsubscribe = unsubscribe;
-            unsubscribe = () => {
-                clearTimeout(timeoutId);
-                originalUnsubscribe();
-            };
         });
     }
 

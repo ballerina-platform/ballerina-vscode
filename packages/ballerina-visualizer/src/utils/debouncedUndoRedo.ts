@@ -49,7 +49,7 @@ class DebouncedUndoRedoManager {
      */
     public debouncedUndo(rpcClient: BallerinaRpcClient): Promise<void> {
         this.undoOperation.count++;
-        return this.flushUndo(rpcClient);
+        return this.flush(this.undoOperation, (count) => this.executeUndo(rpcClient, count));
     }
 
     /**
@@ -57,27 +57,17 @@ class DebouncedUndoRedoManager {
      */
     public debouncedRedo(rpcClient: BallerinaRpcClient): Promise<void> {
         this.redoOperation.count++;
-        return this.flushRedo(rpcClient);
+        return this.flush(this.redoOperation, (count) => this.executeRedo(rpcClient, count));
     }
 
-    private async flushUndo(rpcClient: BallerinaRpcClient): Promise<void> {
-        if (this.undoOperation.isProcessing || this.undoOperation.count === 0) {
+    private async flush(operation: DebouncedOperation, execute: (count: number) => Promise<void>): Promise<void> {
+        if (operation.isProcessing || operation.count === 0) {
             return;
         }
-        const count = this.undoOperation.count;
-        this.undoOperation.count = 0;
-        await this.executeUndo(rpcClient, count);
-        await this.flushUndo(rpcClient);
-    }
-
-    private async flushRedo(rpcClient: BallerinaRpcClient): Promise<void> {
-        if (this.redoOperation.isProcessing || this.redoOperation.count === 0) {
-            return;
-        }
-        const count = this.redoOperation.count;
-        this.redoOperation.count = 0;
-        await this.executeRedo(rpcClient, count);
-        await this.flushRedo(rpcClient);
+        const count = operation.count;
+        operation.count = 0;
+        await execute(count);
+        await this.flush(operation, execute);
     }
 
     /**

@@ -286,10 +286,10 @@ export class AiAgentRpcManager implements AIAgentAPI {
         agentFlowNode.properties["tools"].value = toolsValue;
 
         // 3. Generate the agent and the toolkit together, so both files change in one formatted edit
-        const nodes = [{ filePath: agentsFilePath, flowNode: agentFlowNode }];
-        if (params.updatedNode) {
-            nodes.push({ filePath: connectionsFilePath, flowNode: params.updatedNode });
-        }
+        const nodes = [
+            { filePath: agentsFilePath, flowNode: agentFlowNode },
+            { filePath: connectionsFilePath, flowNode: params.updatedNode },
+        ];
         const source = await StateMachine.langClient().getSourceCode(
             { filePath: agentsFilePath, flowNode: agentFlowNode, nodes } as BISourceCodeRequest
         ) as BISourceCodeResponse & { formatted?: boolean };

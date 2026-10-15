@@ -41,9 +41,6 @@ export class UndoRedoManager implements IUndoRedoManager {
         this.transactionId = null;
     }
 
-    /**
-     * Start a new batch transaction with extension-specific logging
-     */
     public beginGroup(): void {
         this.group = {};
     }
@@ -55,6 +52,9 @@ export class UndoRedoManager implements IUndoRedoManager {
         this.group = null;
     }
 
+    /**
+     * Start a new batch transaction with extension-specific logging
+     */
     public startBatchOperation(): string {
         if (this.currentTransaction) {
             throw new Error('A batch operation is already in progress. Complete it before starting a new one.');
@@ -223,9 +223,7 @@ export class UndoRedoManager implements IUndoRedoManager {
         }
 
         // Pushed newest-first so the oldest undone operation is redone first
-        redoOperations.forEach(operation => {
-            this.redoStack.push(operation);
-        });
+        this.redoStack.push(...redoOperations);
 
         // Limit redo stack size
         while (this.redoStack.length > this.MAX_STACK_SIZE) {
@@ -284,9 +282,7 @@ export class UndoRedoManager implements IUndoRedoManager {
         }
 
         // Pushed in redo order so the newest redone operation is undone first
-        undoOperations.forEach(operation => {
-            this.undoStack.push(operation);
-        });
+        this.undoStack.push(...undoOperations);
 
         // Each file takes its content after the newest redone operation that touched it
         const redoneFiles = new Map<string, string>();
