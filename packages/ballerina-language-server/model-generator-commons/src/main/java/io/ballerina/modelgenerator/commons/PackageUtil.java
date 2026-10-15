@@ -250,15 +250,15 @@ public class PackageUtil {
      * @param project The project whose resolved {@code ballerina/ai} version to compile
      */
     public static void prewarmAgentLibrary(Project project) {
-        project.currentPackage().getResolution().dependencyGraph().getNodes().stream()
+        // A project without the dependency yet gets the version its first agent template resolves.
+        prewarm(CommonUtils.BALLERINA_ORG_NAME, AI_PACKAGE, project.currentPackage().getResolution()
+                .dependencyGraph().getNodes().stream()
                 .map(ResolvedPackageDependency::packageInstance)
                 .filter(pkg -> pkg.packageOrg().value().equals(CommonUtils.BALLERINA_ORG_NAME)
                         && pkg.packageName().value().equals(AI_PACKAGE))
                 .findFirst()
-                // A project without the dependency yet gets the version its first agent template resolves.
-                .ifPresentOrElse(
-                        pkg -> prewarm(CommonUtils.BALLERINA_ORG_NAME, AI_PACKAGE, pkg.packageVersion().toString()),
-                        () -> prewarm(CommonUtils.BALLERINA_ORG_NAME, AI_PACKAGE, null));
+                .map(pkg -> pkg.packageVersion().toString())
+                .orElse(null));
     }
 
     /**

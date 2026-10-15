@@ -116,8 +116,7 @@ public class BallerinaWorkspaceService implements WorkspaceService {
         }
     }
 
-    // A file changed outside the editor (a git checkout) reloads its project; subscribers such as artifact
-    // publishing only learn of it through this event.
+    // Subscribers such as artifact publishing learn of a file changed outside the editor (a git checkout) only here.
     private void publishProjectReloads(DidChangeWatchedFilesParams params, List<Path> projectRoots) {
         Set<Path> published = new HashSet<>();
         for (FileEvent change : params.getChanges()) {
