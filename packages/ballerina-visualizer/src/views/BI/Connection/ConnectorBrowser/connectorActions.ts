@@ -95,8 +95,7 @@ export function toResourcePathTemplate(docsPath: string): string {
     return rendered.length > 0 ? `/${rendered.join("/")}` : "/";
 }
 
-// The language server answers from a local package in milliseconds once warm; a cold, large connector can take
-// longer than the docs download, so the docs request starts too if the server has not answered by then.
+// A cold, large connector can take the language server longer than the docs download, so docs start after this.
 const DOCS_FALLBACK_DELAY_MS = 1500;
 
 export async function fetchConnectorActions(

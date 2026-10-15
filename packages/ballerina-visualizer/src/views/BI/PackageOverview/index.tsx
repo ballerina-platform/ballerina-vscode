@@ -360,7 +360,7 @@ export function PackageOverview(props: PackageOverviewProps) {
     const hasWorkflows = hasWorkflowArtifacts(projectStructure);
     const hasAgents = hasAgentArtifacts(projectStructure);
     const [isInProject, setIsInProject] = useState(() => contextCache.get(projectPath)?.isInProject ?? false);
-    const [isLibrary, setIsLibrary] = useState<boolean>(() => contextCache.get(projectPath)?.project.isLibrary ?? false);
+    const isLibrary = projectStructure?.isLibrary ?? false;
     const [isNPSupported, setIsNPSupported] = useState<boolean>(false);
     const [overviewView, setOverviewView] = useState<"design" | "readme">("design");
     const [deployCollapsed, setDeployCollapsed] = useState<boolean>(loadDeployCollapsed);
@@ -394,7 +394,6 @@ export function PackageOverview(props: PackageOverviewProps) {
                 if (project) {
                     contextCache.set(projectPath, { project, isInProject: inProject });
                     setProjectStructure(project);
-                    setIsLibrary(project.isLibrary ?? false);
                 }
             });
 
