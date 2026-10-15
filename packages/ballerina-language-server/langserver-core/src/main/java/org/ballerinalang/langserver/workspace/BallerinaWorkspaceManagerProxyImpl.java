@@ -34,6 +34,7 @@ import org.eclipse.lsp4j.DidOpenTextDocumentParams;
 import org.eclipse.lsp4j.TextDocumentContentChangeEvent;
 import org.eclipse.lsp4j.VersionedTextDocumentIdentifier;
 
+import java.lang.ref.WeakReference;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Locale;
@@ -159,7 +160,7 @@ public class BallerinaWorkspaceManagerProxyImpl implements BallerinaWorkspaceMan
     private static class ClonedWorkspace extends BallerinaWorkspaceManager {
         private final WorkspaceManager source;
         // The source package each cloned package last matched; a different instance means the source changed unseen.
-        private final Map<Path, Package> syncedWith = new ConcurrentHashMap<>();
+        private final Map<Path, WeakReference<Package>> syncedWith = new ConcurrentHashMap<>();
 
         public ClonedWorkspace(LanguageServerContext serverContext, WorkspaceManager source) {
             super(serverContext);
@@ -206,12 +207,14 @@ public class BallerinaWorkspaceManagerProxyImpl implements BallerinaWorkspaceMan
         }
 
         public void markSynced(Project sourceProject) {
-            members(sourceProject).forEach(member -> syncedWith.put(member.sourceRoot(), member.currentPackage()));
+            members(sourceProject).forEach(member ->
+                    syncedWith.put(member.sourceRoot(), new WeakReference<>(member.currentPackage())));
         }
 
         private boolean isSyncedWith(Project sourceProject) {
             return members(sourceProject).stream().allMatch(member -> project(member.sourceRoot()).isPresent()
-                    && syncedWith.get(member.sourceRoot()) == member.currentPackage());
+                    && Optional.ofNullable(syncedWith.get(member.sourceRoot())).map(WeakReference::get)
+                    .orElse(null) == member.currentPackage());
         }
 
         private static List<Project> members(Project project) {
