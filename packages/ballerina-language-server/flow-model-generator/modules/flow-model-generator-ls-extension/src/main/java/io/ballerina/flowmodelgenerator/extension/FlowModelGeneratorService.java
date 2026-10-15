@@ -76,6 +76,7 @@ import io.ballerina.flowmodelgenerator.extension.response.GetLibraryActionsRespo
 import io.ballerina.flowmodelgenerator.extension.response.SearchNodesResponse;
 import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.FileSystemUtils;
+import io.ballerina.modelgenerator.commons.FormattedEdits;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.projects.Document;
@@ -102,7 +103,6 @@ import org.eclipse.lsp4j.services.LanguageServer;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -585,7 +585,7 @@ public class FlowModelGeneratorService implements ExtendedLanguageServerService 
                 }
                 JsonElement textEdits = deleteNodeHandler.getTextEditsToDeletedNode(document.get(), project);
                 Optional<JsonElement> formattedEdits = request.formatted()
-                        ? new SourceGenerator(workspaceManager, filePath).formatTextEdits(toEditsByPath(textEdits))
+                        ? formatEdits(workspaceManager, textEdits)
                         : Optional.empty();
                 response.setFormatted(formattedEdits.isPresent());
                 response.setTextEdits(formattedEdits.orElse(textEdits));
@@ -596,12 +596,11 @@ public class FlowModelGeneratorService implements ExtendedLanguageServerService 
         });
     }
 
-    private static Map<Path, List<org.eclipse.lsp4j.TextEdit>> toEditsByPath(JsonElement textEdits) {
-        Map<String, List<org.eclipse.lsp4j.TextEdit>> editsByFile = new Gson().fromJson(textEdits,
+    private static Optional<JsonElement> formatEdits(WorkspaceManager workspaceManager, JsonElement textEdits) {
+        Gson gson = new Gson();
+        Map<String, List<org.eclipse.lsp4j.TextEdit>> editsByFile = gson.fromJson(textEdits,
                 new TypeToken<Map<String, List<org.eclipse.lsp4j.TextEdit>>>() { }.getType());
-        Map<Path, List<org.eclipse.lsp4j.TextEdit>> editsByPath = new LinkedHashMap<>();
-        editsByFile.forEach((file, edits) -> editsByPath.put(Path.of(file), edits));
-        return editsByPath;
+        return FormattedEdits.foldByPathString(workspaceManager, editsByFile).map(gson::toJsonTree);
     }
 
     @JsonRequest
@@ -622,7 +621,7 @@ public class FlowModelGeneratorService implements ExtendedLanguageServerService 
                         : DeleteNodeHandler.getTextEditsToDeletedNode(request.component(), filePath, document.get(),
                                 project);
                 Optional<JsonElement> formattedEdits = request.formatted()
-                        ? new SourceGenerator(workspaceManager, filePath).formatTextEdits(toEditsByPath(textEdits))
+                        ? formatEdits(workspaceManager, textEdits)
                         : Optional.empty();
                 response.setFormatted(formattedEdits.isPresent());
                 response.setTextEdits(formattedEdits.orElse(textEdits));
