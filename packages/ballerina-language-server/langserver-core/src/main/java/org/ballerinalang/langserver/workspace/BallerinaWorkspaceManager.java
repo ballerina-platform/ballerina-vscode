@@ -559,8 +559,7 @@ public class BallerinaWorkspaceManager implements WorkspaceManager {
         }
     }
 
-    // The client saving content the workspace already holds (its own edit) changes nothing to reload.
-    // Only an opened document holds its own content; any other is read from disk lazily, so it always matches.
+    // A save of the content an opened document already holds (the client's own edit) needs no reload.
     private boolean isUnchangedOnDisk(Path filePath, FileEvent fileEvent) {
         if (fileEvent.getType() != FileChangeType.Changed || !this.openedDocuments.contains(filePath)) {
             return false;
