@@ -90,7 +90,7 @@ import {
 import { PanelOverlayProvider } from "./context/PanelOverlayContext";
 import { PanelOverlayRenderer } from "./PanelOverlayRenderer";
 import { ExpressionFormField, Category as PanelCategory, S } from "@wso2/ballerina-side-panel";
-import { cacheLibrarySection, cachedLibrarySection, librarySectionScope, PAGINATED_LIBRARY_SECTIONS } from "../../../utils/useFunctionPagination";
+import { loadLibrarySections, PAGINATED_LIBRARY_SECTIONS } from "../../../utils/useFunctionPagination";
 import { cloneDeep, debounce } from "lodash";
 import { ConnectionKind } from "../../../components/ConnectionSelector";
 import AddAgentPopup from "../AIChatAgent/AddAgentPopup";
@@ -1547,44 +1547,30 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 response.categories as Category[],
                 FUNCTION_TYPE.REGULAR
             ));
-        const sectionTitles = PAGINATED_LIBRARY_SECTIONS.map(({ title }) => title);
         const localCategories = await searchPage({ excludeLibrary: "true" });
         if (panelNavEpochRef.current !== navEpoch) {
             return false;
         }
-        const cacheScope = librarySectionScope(`call-function|${projectPath}`, localCategories);
-        const sections = sectionTitles.map((title): PanelCategory =>
-            cachedLibrarySection(cacheScope, title) ?? { title, description: "", items: [], isLoading: true }
-        );
+        const sectionTitles = PAGINATED_LIBRARY_SECTIONS.map(({ title }) => title);
+        const sections = loadLibrarySections(`call-function|${projectPath}`, localCategories,
+            (orgName) => searchPage({ orgName }), (title, section, page) => {
+                if (panelNavEpochRef.current !== navEpoch || functionSearchQueryRef.current) {
+                    return;
+                }
+                setCategories((prev) => prev
+                    .map((category) => (category.title === title ? section : category))
+                    .filter((category) => category !== undefined));
+                setFunctionSectionsWithMore((prev) => ({
+                    ...prev,
+                    [title]: countSectionLeafNodes(page, title) >= FUNCTION_PAGE_SIZE,
+                }));
+            });
         const initialCategories = [
             ...localCategories.filter((category) => !sectionTitles.includes(category.title)),
             ...sections,
         ];
         setCategories(initialCategories);
         seedFunctionPagination(initialCategories, "", FUNCTION_TYPE.REGULAR);
-        for (const { title, org } of PAGINATED_LIBRARY_SECTIONS) {
-            if (!sections.find((section) => section.title === title)?.isLoading) {
-                continue;
-            }
-            void searchPage({ orgName: org })
-                .catch((): PanelCategory[] => [])
-                .then((page) => {
-                    const section = page.find((category) => category.title === title);
-                    if (section?.items.length) {
-                        cacheLibrarySection(cacheScope, section);
-                    }
-                    if (panelNavEpochRef.current !== navEpoch || functionSearchQueryRef.current) {
-                        return;
-                    }
-                    setCategories((prev) => prev
-                        .map((category) => (category.title === title ? section : category))
-                        .filter((category) => category !== undefined));
-                    setFunctionSectionsWithMore((prev) => ({
-                        ...prev,
-                        [title]: countSectionLeafNodes(page, title) >= FUNCTION_PAGE_SIZE,
-                    }));
-                });
-        }
         return true;
     };
 

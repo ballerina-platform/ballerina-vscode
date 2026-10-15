@@ -36,22 +36,31 @@ export const PAGINATED_LIBRARY_SECTIONS: ReadonlyArray<{ title: string; org: str
 const LIBRARY_SECTION_TTL_MS = 30 * 60 * 1000;
 const librarySectionCache = new Map<string, { cachedAt: number; category: PanelCategory }>();
 
-export function cachedLibrarySection(scope: string, title: string): PanelCategory | undefined {
-    const entry = librarySectionCache.get(`${scope}|${title}`);
-    if (!entry || Date.now() - entry.cachedAt > LIBRARY_SECTION_TTL_MS) {
-        return undefined;
-    }
-    return { ...entry.category, items: [...entry.category.items] };
-}
-
-export function cacheLibrarySection(scope: string, category: PanelCategory) {
-    librarySectionCache.set(`${scope}|${category.title}`, { cachedAt: Date.now(), category });
-}
-
-// The language server lists imported modules under Imported Functions instead, so the sections differ per imports.
-export const librarySectionScope = (scope: string, localCategories: PanelCategory[]) =>
-    `${scope}|${localCategories.find((category) => category.title === "Imported Functions")?.items
+// Returns each library section from the cache, or as a loading placeholder whose section loads in the background.
+export function loadLibrarySections(
+    scopePrefix: string,
+    localCategories: PanelCategory[],
+    fetchOrg: (orgName: string) => Promise<PanelCategory[] | undefined>,
+    onLoaded: (title: string, section: PanelCategory | undefined, page: PanelCategory[]) => void
+): PanelCategory[] {
+    // The language server lists imported modules under Imported Functions instead, so the sections differ per imports.
+    const scope = `${scopePrefix}|${localCategories.find((category) => category.title === "Imported Functions")?.items
         .map((item) => (item as PanelCategory).title).join()}`;
+    return PAGINATED_LIBRARY_SECTIONS.map(({ title, org }): PanelCategory => {
+        const entry = librarySectionCache.get(`${scope}|${title}`);
+        if (entry && Date.now() - entry.cachedAt <= LIBRARY_SECTION_TTL_MS) {
+            return { ...entry.category, items: [...entry.category.items] };
+        }
+        void fetchOrg(org).catch((): undefined => undefined).then((page = []) => {
+            const section = page.find((category) => category.title === title);
+            if (section?.items.length) {
+                librarySectionCache.set(`${scope}|${title}`, { cachedAt: Date.now(), category: section });
+            }
+            onLoaded(title, section, page);
+        });
+        return { title, description: "", items: [], isLoading: true };
+    });
+}
 
 // Counts the leaf function items across a category tree, used to decide whether another page exists.
 export const countFunctionItems = (categories: HelperPaneFunctionCategory[] = []): number =>
