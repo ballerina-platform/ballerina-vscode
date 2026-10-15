@@ -49,7 +49,6 @@ export interface AgentEditorHost {
     onAddTrigger?(node: FlowNode): void;
     onDeleteTrigger?(usage: AgentUsage, node: FlowNode): void;
     onTryTrigger?(usage: AgentUsage, node: FlowNode): void;
-    onAgentCreated?(): void;
     resolveAgentNode?(node: FlowNode): FlowNode;
 }
 
@@ -63,7 +62,6 @@ export interface AgentEditorController {
     selectedTool?: ToolData;
     selectedAgentName: string;
     diagramCallbacks: AgentNodeActions;
-    onAgentCreated?: () => void;
     openView(view: AgentEditorView): void;
     selectAgent(name: string): void;
     close(position?: NodePosition): void;
@@ -397,7 +395,7 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
     return {
         view, projectPath: host.projectPath, agentNode, memoryNode, memoryStoreNode, memoryPropertyKey: memoryKeyOf(agentNode),
         selectedTool, selectedAgentName,
-        diagramCallbacks, onAgentCreated: host.onAgentCreated,
+        diagramCallbacks,
         openView, selectAgent, close, cancel, back, setBackHandler,
     };
 }
