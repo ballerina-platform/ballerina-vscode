@@ -72,8 +72,7 @@ export function AgentEditorPanelContent({ controller }: { controller: AgentEdito
                 onSave={controller.close} onBack={controller.back}
                 onSetBackOverride={controller.setBackHandler} />;
         case "NEW_TOOL_AGENT":
-            return <UseAgentTool agentNode={agent} onSelectAgent={controller.selectAgent}
-                onAgentCreated={controller.onAgentCreated} />;
+            return <UseAgentTool agentNode={agent} onSelectAgent={controller.selectAgent} />;
         case "NEW_TOOL_AGENT_FORM":
             return <UseAgentToolForm agentNode={agent} agentVarName={controller.selectedAgentName}
                 onSave={controller.close} />;
