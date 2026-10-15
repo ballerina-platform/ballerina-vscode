@@ -151,7 +151,16 @@ export async function resolveICPPath(): Promise<string | undefined> {
         return configuredPath;
     }
 
-    // 2. Configured path is stale — ask the user to re-detect or open settings.
+    if (process.env.WSO2_INTEGRATOR_ICP_HOME) {
+        // 2. Environment variable is set — use it if valid.
+        const envPath = path.join(process.env.WSO2_INTEGRATOR_ICP_HOME, "bin", process.platform === 'win32' ? ICP_SCRIPT_WIN : ICP_SCRIPT_UNIX);
+        if (existsSync(envPath)) {
+            await config.update('icpPath', envPath, ConfigurationTarget.Global);
+            return envPath;
+        }
+    }
+
+    // 3. Configured path is stale — ask the user to re-detect or open settings.
     if (configuredPath) {
         const action = await window.showErrorMessage(
             `ICP binary not found at the configured path: ${configuredPath}. The product may have been moved, uninstalled, or upgraded.`,
@@ -175,7 +184,7 @@ export async function resolveICPPath(): Promise<string | undefined> {
         }
         // Fall through to the "not installed" prompt below.
     } else {
-        // 3. No configured path — auto-detect silently.
+        // 4. No configured path — auto-detect silently.
         const detected = getDefaultPath();
         if (detected && existsSync(detected)) {
             await config.update('icpPath', detected, ConfigurationTarget.Global);
