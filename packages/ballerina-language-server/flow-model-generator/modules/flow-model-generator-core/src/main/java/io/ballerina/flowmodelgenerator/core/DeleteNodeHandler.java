@@ -55,6 +55,7 @@ import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.node.WaitDataBuilder;
 import io.ballerina.flowmodelgenerator.core.utils.TypeUtils;
 import io.ballerina.modelgenerator.commons.CommonUtils;
+import io.ballerina.modelgenerator.commons.ImportPrefixReader;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.DocumentId;
 import io.ballerina.projects.Project;
@@ -113,7 +114,7 @@ public class DeleteNodeHandler {
         }
 
         LineRange lineRange = nodeToDelete.codedata().lineRange();
-        return getTextEditsToDeletedNode(lineRange, filePath, document, project);
+        return deleteRanges(List.of(lineRange), filePath, document);
     }
 
     public static JsonElement getTextEditsToDeletedNode(JsonElement node, Path filePath,
@@ -130,7 +131,7 @@ public class DeleteNodeHandler {
             }
         }
 
-        return getTextEditsToDeletedNode(lineRange, filePath, document, project);
+        return deleteRanges(List.of(lineRange), filePath, document);
     }
 
     /**
@@ -142,39 +143,18 @@ public class DeleteNodeHandler {
      * @return The text edits keyed by file path
      */
     public static JsonElement getTextEditsToDeletedNodes(List<JsonElement> nodes, Path filePath, Document document) {
+        return deleteRanges(nodes.stream().map(DeleteNodeHandler::getNodeLineRange).toList(), filePath, document);
+    }
+
+    private static JsonElement deleteRanges(List<LineRange> lineRanges, Path filePath, Document document) {
         TextDocument textDocument = document.textDocument();
-        List<LineRange> lineRanges = nodes.stream().map(DeleteNodeHandler::getNodeLineRange).toList();
         List<TextRange> ranges = lineRanges.stream()
-                .map(range -> {
-                    int start = textDocument.textPositionFrom(range.startLine());
-                    return TextRange.from(start, textDocument.textPositionFrom(range.endLine()) - start);
-                })
-                .toList();
+                .map(range -> CommonUtils.toTextRange(textDocument, range)).toList();
         List<TextEdit> textEdits = unusedImportEdits(document, ranges);
         for (int i = 0; i < ranges.size(); i++) {
             LineRange elseRange = checkElseToDelete(document, ranges.get(i).startOffset(), ranges.get(i).endOffset());
             textEdits.add(new TextEdit(CommonUtils.toRange(elseRange != null ? elseRange : lineRanges.get(i)), ""));
         }
-        Map<Path, List<TextEdit>> textEditsMap = new HashMap<>();
-        textEditsMap.put(filePath, textEdits);
-        return gson.toJsonTree(textEditsMap);
-    }
-
-    private static JsonElement getTextEditsToDeletedNode(LineRange lineRange, Path filePath,
-                                                         Document document, Project project) {
-        TextDocument textDocument = document.textDocument();
-        int startTextPosition = textDocument.textPositionFrom(lineRange.startLine());
-        int endTextPosition = textDocument.textPositionFrom(lineRange.endLine());
-
-        List<TextEdit> textEdits = unusedImportEdits(document,
-                List.of(TextRange.from(startTextPosition, endTextPosition - startTextPosition)));
-
-        LineRange nodeRangeToDelete = checkElseToDelete(document, startTextPosition, endTextPosition);
-        if (nodeRangeToDelete == null) {
-            nodeRangeToDelete = lineRange;
-        }
-        TextEdit textEdit = new TextEdit(CommonUtils.toRange(nodeRangeToDelete), "");
-        textEdits.add(textEdit);
         Map<Path, List<TextEdit>> textEditsMap = new HashMap<>();
         textEditsMap.put(filePath, textEdits);
         return gson.toJsonTree(textEditsMap);
@@ -193,7 +173,7 @@ public class DeleteNodeHandler {
         }
         NodeList<ImportDeclarationNode> imports = root.imports();
         for (ImportDeclarationNode importNode : imports) {
-            String prefix = importPrefix(importNode);
+            String prefix = ImportPrefixReader.prefixOf(importNode);
             if (prefix.equals(EXPECTED_PREFIX) || remainingPrefixes.contains(prefix)) {
                 continue;
             }
@@ -221,12 +201,6 @@ public class DeleteNodeHandler {
                 collectModulePrefixes(child, deletedRanges, deletedPrefixes, remainingPrefixes);
             }
         }
-    }
-
-    private static String importPrefix(ImportDeclarationNode importNode) {
-        return importNode.prefix()
-                .map(prefix -> prefix.prefix().text())
-                .orElseGet(() -> importNode.moduleName().get(importNode.moduleName().size() - 1).text());
     }
 
     private static Optional<ImportDeclarationNode> driverImport(NodeList<ImportDeclarationNode> imports,
@@ -297,7 +271,7 @@ public class DeleteNodeHandler {
     private static JsonElement handleWaitDataDeletion(FlowNode flowNode, LineRange lineRange,
                                                        Path filePath, Document document, Project project) {
         // Standard deletion of the wait statement
-        JsonElement standardResult = getTextEditsToDeletedNode(lineRange, filePath, document, project);
+        JsonElement standardResult = deleteRanges(List.of(lineRange), filePath, document);
 
         // Extract field names from the futures property
         Optional<Property> futuresProp = flowNode.getProperty(DATA_WAITS_KEY);
@@ -537,7 +511,7 @@ public class DeleteNodeHandler {
                 endTextPosition - startTextPosition));
 
         if (foundNode == null || foundNode.kind() != SyntaxKind.DO_STATEMENT) {
-            return getTextEditsToDeletedNode(lineRange, filePath, document, project);
+            return deleteRanges(List.of(lineRange), filePath, document);
         }
 
         DoStatementNode doStatementNode = (DoStatementNode) foundNode;

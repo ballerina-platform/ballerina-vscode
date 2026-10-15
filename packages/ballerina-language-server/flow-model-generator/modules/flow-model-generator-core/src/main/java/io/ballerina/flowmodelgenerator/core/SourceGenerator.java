@@ -109,13 +109,7 @@ public class SourceGenerator {
                 generator.gson.toJsonTree(sourceEdits));
     }
 
-    /**
-     * Folds the edits of each Ballerina document into one formatted edit; other files keep their edits.
-     *
-     * @param textEdits The edits per file.
-     * @return The folded edits, or empty when a document could not be formatted.
-     */
-    public Optional<JsonElement> formatTextEdits(Map<Path, List<TextEdit>> textEdits) {
+    private Optional<JsonElement> formatTextEdits(Map<Path, List<TextEdit>> textEdits) {
         return FormattedEdits.fold(workspaceManager, textEdits).map(gson::toJsonTree);
     }
 
