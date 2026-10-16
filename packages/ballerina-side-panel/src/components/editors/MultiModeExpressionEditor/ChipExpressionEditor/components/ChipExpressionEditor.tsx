@@ -509,6 +509,7 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
                 }}>
                     <div ref={editorRef} style={{
                         border: '1px solid var(--vscode-dropdown-border)',
+                        backgroundColor: 'var(--vscode-input-background)',
                         width: '100%',
                         height: '100%',
                         visibility: isValueResolving ? 'hidden' : 'visible'

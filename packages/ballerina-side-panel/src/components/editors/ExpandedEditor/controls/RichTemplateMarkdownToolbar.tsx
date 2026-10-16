@@ -497,7 +497,7 @@ export const RichTemplateMarkdownToolbar = React.forwardRef<HTMLDivElement, Rich
                 <SplitButtonContainer ref={tableDropdownRef}>
                     <SplitButtonMain
                         title="Insert Table"
-                        disabled={!editorView}
+                        disabled={!editorView || cursorInTable}
                         onClick={() => setIsTableDialogOpen(true)}
                         onMouseDown={handleMouseDown}
                     >
