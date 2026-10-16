@@ -196,6 +196,46 @@ describe("resolveICPPath precedence", () => {
     });
 });
 
+describe("resolveICPPath with a setting that points inside a WSO2 Integrator install", () => {
+    // Earlier versions cached auto-detected paths of this shape in the setting.
+    const bundledSegments = ["components", "icp"];
+
+    it("clears the cached path and detects afresh even though it still exists", async () => {
+        settingValue = makeIcpBin(root, "old-app", ...bundledSegments);
+        const envScript = makeIcpBin(root, "env-home");
+        setIcpHome(path.join(root, "env-home"));
+
+        await expect(resolveICPPath()).resolves.toBe(envScript);
+        expect(settingUpdates).toEqual([["icpPath", undefined, vscode.ConfigurationTarget.Global]]);
+        expect(prompts).toEqual([]);
+    });
+
+    it("clears a cached path that is gone without showing the stale-path prompt", async () => {
+        settingValue = path.join(root, "gone-app", ...bundledSegments, "bin", scriptName());
+
+        await expect(resolveICPPath()).resolves.toBeUndefined();
+        expect(settingUpdates).toEqual([["icpPath", undefined, vscode.ConfigurationTarget.Global]]);
+        expect(prompts).toHaveLength(1);
+        expect(prompts[0]).toContain("not installed");
+    });
+
+    it("recognises the bundled layout regardless of letter case", async () => {
+        settingValue = makeIcpBin(root, "WSO2 Integrator.app", "Contents", "Components", "ICP");
+        const envScript = makeIcpBin(root, "env-home");
+        setIcpHome(path.join(root, "env-home"));
+
+        await expect(resolveICPPath()).resolves.toBe(envScript);
+        expect(settingUpdates).toHaveLength(1);
+    });
+
+    it("leaves a custom path alone when it merely contains an icp directory", async () => {
+        settingValue = makeIcpBin(root, "custom", "icp");
+
+        await expect(resolveICPPath()).resolves.toBe(settingValue);
+        expect(settingUpdates).toEqual([]);
+    });
+});
+
 describe("resolveICPPath with a stale configured path", () => {
     beforeEach(() => {
         settingValue = path.join(root, "gone", "bin", scriptName());

@@ -34,6 +34,16 @@ function getICPScriptName(): string {
 }
 
 /**
+ * True when the path points at the ICP bundled inside a WSO2 Integrator install
+ * (`<install-root>/components/icp/bin/icp.sh`). Earlier versions wrote auto-detected paths of
+ * this shape to `ballerina.icpPath`, so such a value is product-managed rather than a user choice.
+ */
+function isBundledICPPath(icpPath: string): boolean {
+    const bundledSuffix = path.join(ICP_BIN_RELATIVE, getICPScriptName()).toLowerCase();
+    return path.normalize(icpPath).toLowerCase().endsWith(bundledSuffix);
+}
+
+/**
  * Derives the ICP binary path from `WSO2_INTEGRATOR_ICP_HOME`.
  * The WSO2 Integrator launcher sets it when the product is installed or upgraded with the
  * update tool, which may relocate the ICP component outside the install root (e.g. under
@@ -168,26 +178,35 @@ function scanDefaultInstallDirs(): string | undefined {
 
 /**
  * Resolves the ICP executable path.
- * 1. Uses the `ballerina.icpPath` setting if it is set and still exists on disk.
- * 2. If the setting is stale, asks the user to re-detect or open settings. Re-detecting
+ * 1. Clears a `ballerina.icpPath` value that points at the ICP bundled with a WSO2 Integrator
+ *    install: earlier versions cached auto-detected paths there, and they go stale on upgrade.
+ * 2. Uses the remaining `ballerina.icpPath` setting if it still exists on disk.
+ * 3. If the setting is stale, asks the user to re-detect or open settings. Re-detecting
  *    clears the stale value so later calls auto-detect silently.
- * 3. Auto-detects via `WSO2_INTEGRATOR_ICP_HOME`, the running WSO2 Integrator extension's
+ * 4. Auto-detects via `WSO2_INTEGRATOR_ICP_HOME`, the running WSO2 Integrator extension's
  *    install location, then the well-known install directories. Detected paths are not
  *    persisted, so an upgraded or relocated install is picked up on the next call.
- * 4. If nothing is found, notifies the user.
+ * 5. If nothing is found, notifies the user.
  *
  * @returns The resolved ICP path, or `undefined` if not found.
  */
 export async function resolveICPPath(): Promise<string | undefined> {
     const config = workspace.getConfiguration('ballerina');
-    const configuredPath = config.get<string>('icpPath');
+    let configuredPath = config.get<string>('icpPath');
 
-    // 1. An explicitly configured path wins while it exists on disk.
+    // 1. A path inside a WSO2 Integrator install was written by our own auto-detection, not the
+    //    user. Drop it and detect afresh so the current install wins over the cached one.
+    if (configuredPath && isBundledICPPath(configuredPath)) {
+        await config.update('icpPath', undefined, ConfigurationTarget.Global);
+        configuredPath = undefined;
+    }
+
+    // 2. An explicitly configured path wins while it exists on disk.
     if (configuredPath && existsSync(configuredPath)) {
         return configuredPath;
     }
 
-    // 2. Configured path is stale — ask the user to re-detect or open settings.
+    // 3. Configured path is stale — ask the user to re-detect or open settings.
     if (configuredPath) {
         const action = await window.showErrorMessage(
             `ICP binary not found at the configured path: ${configuredPath}. The product may have been moved, uninstalled, or upgraded.`,
@@ -208,13 +227,13 @@ export async function resolveICPPath(): Promise<string | undefined> {
         await config.update('icpPath', undefined, ConfigurationTarget.Global);
     }
 
-    // 3. Auto-detect silently.
+    // 4. Auto-detect silently.
     const detected = detectICPPath();
     if (detected) {
         return detected;
     }
 
-    // 4. Not found — notify user.
+    // 5. Not found — notify user.
     const action = await window.showErrorMessage(
         'Integration Control Plane (ICP) is not installed. Please install ICP or set the path manually in settings.',
         'Download ICP',
