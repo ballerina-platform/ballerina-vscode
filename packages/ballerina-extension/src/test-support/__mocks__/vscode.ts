@@ -131,6 +131,12 @@ export enum ViewColumn {
     Two = 2,
 }
 
+export enum ConfigurationTarget {
+    Global = 1,
+    Workspace = 2,
+    WorkspaceFolder = 3,
+}
+
 export class EventEmitter<T = unknown> {
     event = (_listener: (e: T) => unknown) => ({ dispose() {} });
     fire(_data?: T) {}
@@ -151,6 +157,7 @@ export default {
     commands,
     Uri,
     ViewColumn,
+    ConfigurationTarget,
     ProgressLocation,
     Position,
     Range,
