@@ -44,9 +44,15 @@ runs:
 
     - name: Set Up Ballerina
       uses: ./.github/actions/setup-ballerina
-      # TEMPORARY: revert once 2201.14.0 is on dist.ballerina.io (currently HTTP 403).
-      with:
-        distributionVersion: nightly
+
+    # The full `bal version` line tells a pre-GA build from the release that
+    # shares its version string (2201.14.0-<timestamp> vs 2201.14.0).
+    - name: Fingerprint the Ballerina toolchain
+      id: bal-fingerprint
+      shell: pwsh
+      run: |
+        $version = (bal version | Select-Object -First 1) -replace '[^A-Za-z0-9.-]', '_'
+        "value=$version" >> $env:GITHUB_OUTPUT
 
     # The build resolves Ballerina packages into a build-owned home
     # (build/ballerina_dependencies/home) rather than ~/.ballerina, and the
@@ -56,12 +62,14 @@ runs:
     # from older dependency sets, and test-time resolution picks the newest
     # version in the cache — stale entries change test behaviour. When the key
     # misses, the resolveBallerinaDependencies task rebuilds the cache from
-    # scratch.
+    # scratch. The home also holds the BIR that the provisioning `bal build`
+    # compiled, which is tied to that toolchain, so the key covers the installed
+    # `bal` and gradle.properties (ballerinaLangVersion and the test stdlibs) too.
     - name: Cache Ballerina dependencies
       uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: packages/ballerina-language-server/build/ballerina_dependencies
-        key: ${{ runner.os }}-ballerina-${{ inputs.cache-branch }}-${{ hashFiles('packages/ballerina-language-server/build-config/ballerina_dependencies/**') }}
+        key: ${{ runner.os }}-ballerina-${{ inputs.cache-branch }}-${{ steps.bal-fingerprint.outputs.value }}-${{ hashFiles('packages/ballerina-language-server/build-config/ballerina_dependencies/**', 'packages/ballerina-language-server/gradle.properties') }}
 
     - name: Test with Gradle
       shell: bash

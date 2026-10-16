@@ -36,6 +36,8 @@ export interface DeploymentControlState {
     icpEnabled: boolean;
     handleICP: (checked: boolean) => void;
     workflowMgmtEnabled: boolean;
+    // The import is the stable signal; the artifact list needs the annotation resolved first.
+    workflowImported: boolean;
     handleWorkflowManagement: (checked: boolean) => void;
     ampTracingEnabled: boolean;
     handleAmpTracing: (checked: boolean) => void;
@@ -54,6 +56,7 @@ export function useDeploymentControl(
     const { platformExtState } = usePlatformExtContext();
     const [icpEnabled, setIcpEnabled] = useState(false);
     const [workflowMgmtEnabled, setWorkflowMgmtEnabled] = useState(false);
+    const [workflowImported, setWorkflowImported] = useState(false);
 
     const fetchStatus = useCallback(() => {
         if (isICPSupported) {
@@ -63,6 +66,7 @@ export function useDeploymentControl(
         }
         rpcClient.getWorkflowManagementRpcClient().isWorkflowManagementEnabled({ projectPath }).then((res) => {
             setWorkflowMgmtEnabled(res.enabled);
+            setWorkflowImported(res.workflowImported ?? false);
         });
     }, [rpcClient, projectPath, isICPSupported]);
 
@@ -140,6 +144,7 @@ export function useDeploymentControl(
         icpEnabled,
         handleICP,
         workflowMgmtEnabled,
+        workflowImported,
         handleWorkflowManagement,
         ampTracingEnabled,
         handleAmpTracing,

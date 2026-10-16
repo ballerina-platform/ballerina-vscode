@@ -50,10 +50,13 @@ import java.util.List;
  *                            different, unrelated scalar (the model version at onboarding time) --
  *                            overloading it would silently change icon-URL derivation and the picker
  *                            list that already consume it.
+ * @param description a short, human-readable summary of the trigger shown as the picker card's
+ *                    tooltip. {@code null} for an entry not yet backfilled, in which case the picker
+ *                    falls back to a generic description.
  */
 public record TriggerProperty(String name, String orgName, String packageName, List<String> keywords,
                               String triggerName, String version, String kind, String triggerKind,
-                              String minSupportedVersion) {
+                              String minSupportedVersion, String description) {
 
     public String effectiveTriggerKind() {
         return TriggerKind.coalesce(triggerKind, kind);

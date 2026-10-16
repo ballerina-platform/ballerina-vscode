@@ -25,6 +25,7 @@ import { window } from "vscode";
 import {
     disableWorkflowManagementConfig,
     enableWorkflowManagementConfig,
+    setWorkflowRuntimeMode,
 } from "../utils/workflow-config-toml";
 
 let projectPath: string;
@@ -306,5 +307,67 @@ describe("disableWorkflowManagementConfig", () => {
 
         expect(read()).toBe(original);
         expect(fs.statSync(configPath).mtimeMs).toBe(before);
+    });
+});
+
+describe("setWorkflowRuntimeMode", () => {
+    it("creates Config.toml with the mode under ballerina.workflow", () => {
+        expect(setWorkflowRuntimeMode(projectPath, "IN_MEMORY")).toBeUndefined();
+
+        expect(read()).toBe('[ballerina.workflow]\nmode = "IN_MEMORY"\n');
+    });
+
+    it("adds the key to an existing table without touching its other settings", () => {
+        write('[ballerina.workflow]\nurl = "localhost:7233" # dev server\n\n[ballerina.workflow.management.rest]\nport = 9091\n');
+
+        setWorkflowRuntimeMode(projectPath, "IN_MEMORY");
+
+        expect(read()).toBe('[ballerina.workflow]\nmode = "IN_MEMORY"\nurl = "localhost:7233" # dev server\n\n'
+            + '[ballerina.workflow.management.rest]\nport = 9091\n');
+    });
+
+    it("replaces an existing mode and keeps the comment beside it", () => {
+        write('[ballerina.workflow]\nmode = "LOCAL" # temporal server start-dev\n');
+
+        setWorkflowRuntimeMode(projectPath, "IN_MEMORY");
+
+        expect(read()).toBe('[ballerina.workflow]\nmode = "IN_MEMORY" # temporal server start-dev\n');
+    });
+
+    it("does not rewrite a file that already selects the mode", () => {
+        write('[ballerina.workflow]\nmode="IN_MEMORY"\n');
+        const before = fs.statSync(configPath).mtimeMs;
+
+        setWorkflowRuntimeMode(projectPath, "IN_MEMORY");
+
+        expect(read()).toBe('[ballerina.workflow]\nmode="IN_MEMORY"\n');
+        expect(fs.statSync(configPath).mtimeMs).toBe(before);
+    });
+
+    it("leaves a file it cannot parse alone and tells the user", () => {
+        write('[ballerina.workflow\nmode = "LOCAL"\n');
+        const warn = jest.spyOn(window, "showWarningMessage").mockResolvedValue(undefined);
+
+        const message = setWorkflowRuntimeMode(projectPath, "IN_MEMORY");
+
+        expect(read()).toBe('[ballerina.workflow\nmode = "LOCAL"\n');
+        expect(message).toContain('mode = "IN_MEMORY"');
+        expect(warn).toHaveBeenCalledWith(message);
+        warn.mockRestore();
+    });
+
+    it("leaves a table spelled as dotted keys for the author", () => {
+        write('ballerina.workflow.mode = "LOCAL"\n');
+
+        expect(setWorkflowRuntimeMode(projectPath, "IN_MEMORY")).toBeDefined();
+        expect(read()).toBe('ballerina.workflow.mode = "LOCAL"\n');
+    });
+
+    it("keeps the author's line endings", () => {
+        write('[ballerina.workflow]\r\nurl = "localhost:7233"\r\n');
+
+        setWorkflowRuntimeMode(projectPath, "IN_MEMORY");
+
+        expect(read()).toBe('[ballerina.workflow]\r\nmode = "IN_MEMORY"\r\nurl = "localhost:7233"\r\n');
     });
 });

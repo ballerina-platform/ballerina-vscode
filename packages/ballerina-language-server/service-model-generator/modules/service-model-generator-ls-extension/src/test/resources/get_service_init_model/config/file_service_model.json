@@ -12,9 +12,9 @@
       "orgName": "ballerina",
       "packageName": "file",
       "moduleName": "file",
-      "version": "1.13.1",
+      "version": "1.14.0",
       "type": "file",
-      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_file_1.13.1.png",
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_file_1.14.0.png",
       "properties": {
         "listenerVarName": {
           "metadata": {

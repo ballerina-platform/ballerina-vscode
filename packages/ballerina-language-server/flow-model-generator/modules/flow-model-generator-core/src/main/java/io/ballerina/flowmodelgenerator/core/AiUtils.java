@@ -210,6 +210,8 @@ public class AiUtils {
     private static final String AGENT_TOOL_ANNOT = "AgentTool";
     private static final String REQUIRES_APPROVAL = "requiresApproval";
     private static final String DISPLAY_ANNOT = "display";
+    private static final String DISPLAY_GROUPS = "groups";
+    static final String AI_GROUP_PATH_KEY = "aiGroupPath";
     private static final String SYSTEM_PROMPT_ROLE = "role";
     private static final String SYSTEM_PROMPT_INSTRUCTIONS = "instructions";
 
@@ -489,6 +491,11 @@ public class AiUtils {
         return trimmed.startsWith("`") || trimmed.matches("(?s)^string\\s*`.*`$");
     }
 
+    public static void setOptionalPropertiesAdvanced(NodeBuilder nodeBuilder) {
+        nodeBuilder.properties().build().replaceAll((key, property) -> property.optional() && !property.advanced()
+                ? Property.Builder.copyFrom(property).advanced(true).build() : property);
+    }
+
     /**
      * Adds a property to a NodeBuilder by copying all attributes from an existing property with an optional custom
      * value.
@@ -653,6 +660,9 @@ public class AiUtils {
     }
 
     public record Module(String org, String name, String version) {
+    }
+
+    public record GroupSegment(String label, String description, String icon) {
     }
 
     public record AgentPropertyValue(String value, Property.ValueType selectedType) {
@@ -891,34 +901,109 @@ public class AiUtils {
     private static Item buildAdaptiveAiComponentItem(String categoryLabel, List<AvailableNode> components,
                                                      String query) {
         AvailableNode firstComponent = components.getFirst();
-
-        if (components.size() == 1) {
-            return matchesQuery(firstComponent, query) ? firstComponent : null;
-        }
-
+        String org = firstComponent.codedata().org();
         String packageName = firstComponent.codedata().packageName();
         String groupLabel = getPackageDisplayLabel(packageName) + " " + categoryLabel;
-        boolean packageMatches = matchesQuery(groupLabel, packageName, firstComponent.codedata().org(), query);
-        List<AvailableNode> matchingComponents = packageMatches ? components : components.stream()
-                .filter(node -> matchesQuery(node, query))
-                .toList();
-        if (matchingComponents.isEmpty()) {
-            return null;
-        }
 
         // The group icon is the package icon when the selected version is available. For latest-version
         // components, codedata deliberately omits the version, so retain the discovered icon instead of
         // constructing an invalid "null" package-icon URL.
         String packageIcon = firstComponent.codedata().version() == null
                 ? firstComponent.metadata().icon()
-                : CommonUtils.generateIcon(firstComponent.codedata().org(), packageName,
-                        firstComponent.codedata().version());
-        Metadata metadata = new Metadata.Builder<Category.Builder>(null)
-                .label(groupLabel)
-                .description(categoryLabel + " available in " + firstComponent.codedata().org() + "/" + packageName)
-                .icon(packageIcon)
-                .build();
-        return new Category(metadata, new ArrayList<>(matchingComponents));
+                : CommonUtils.generateIcon(org, packageName, firstComponent.codedata().version());
+
+        GroupNode root = new GroupNode(groupLabel, getPackageDisplayLabel(packageName),
+                categoryLabel + " available in " + org + "/" + packageName, packageIcon);
+        for (AvailableNode component : components) {
+            GroupNode current = root;
+            for (GroupSegment segment : groupPathOf(component)) {
+                current = current.subgroup(segment, categoryLabel);
+            }
+            current.children.add(withoutGroupPath(component));
+        }
+
+        Item tree = root.toItem(packageIcon);
+        if (query == null || query.isBlank()) {
+            return tree;
+        }
+        if (tree instanceof AvailableNode leaf) {
+            return matchesQuery(leaf, query) ? leaf : null;
+        }
+        Category category = (Category) tree;
+        return matchesQuery(groupLabel, packageName, org, query) ? category : filterGroupChildren(category, query);
+    }
+
+    private static Item filterGroupTree(Item item, String query) {
+        if (item instanceof AvailableNode node) {
+            return matchesQuery(node, query) ? node : null;
+        }
+        Category category = (Category) item;
+        String lowerQuery = query.toLowerCase(Locale.ROOT);
+        return containsIgnoreCase(category.metadata().label(), lowerQuery)
+                || containsIgnoreCase(category.metadata().description(), lowerQuery)
+                ? category : filterGroupChildren(category, query);
+    }
+
+    private static Category filterGroupChildren(Category category, String query) {
+        List<Item> matches = category.items().stream()
+                .map(child -> filterGroupTree(child, query))
+                .filter(Objects::nonNull)
+                .toList();
+        return matches.isEmpty() ? null : new Category(category.metadata(), new ArrayList<>(matches));
+    }
+
+    private static boolean containsIgnoreCase(String value, String lowerQuery) {
+        return value != null && value.toLowerCase(Locale.ROOT).contains(lowerQuery);
+    }
+
+    private static final class GroupNode {
+
+        private final String label;
+        private final String displayName;
+        private final String fallbackDescription;
+        private final List<Object> children = new ArrayList<>();
+        private final Map<String, GroupNode> subgroups = new HashMap<>();
+        private String description;
+        private String icon;
+
+        private GroupNode(String label, String displayName, String fallbackDescription, String icon) {
+            this.label = label;
+            this.displayName = displayName;
+            this.fallbackDescription = fallbackDescription;
+            this.icon = icon;
+        }
+
+        private GroupNode subgroup(GroupSegment segment, String categoryLabel) {
+            GroupNode subgroup = subgroups.computeIfAbsent(segment.label(), label -> {
+                GroupNode created = new GroupNode(label, label, categoryLabel + " in " + displayName, null);
+                children.add(created);
+                return created;
+            });
+            if (subgroup.description == null) {
+                subgroup.description = segment.description();
+            }
+            if (subgroup.icon == null) {
+                subgroup.icon = segment.icon();
+            }
+            return subgroup;
+        }
+
+        // A group with a single leaf is replaced by that leaf; a group with a single subgroup is kept.
+        private Item toItem(String inheritedIcon) {
+            String resolvedIcon = icon != null ? icon : inheritedIcon;
+            List<Item> items = children.stream()
+                    .map(child -> child instanceof GroupNode group ? group.toItem(resolvedIcon) : (Item) child)
+                    .toList();
+            if (items.size() == 1 && items.getFirst() instanceof AvailableNode leaf) {
+                return leaf;
+            }
+            Metadata metadata = new Metadata.Builder<Category.Builder>(null)
+                    .label(label)
+                    .description(description != null ? description : fallbackDescription)
+                    .icon(resolvedIcon)
+                    .build();
+            return new Category(metadata, new ArrayList<>(items));
+        }
     }
 
     private static boolean matchesQuery(String groupLabel, String packageName, String org, String query) {
@@ -1188,7 +1273,8 @@ public class AiUtils {
         String icon = getDisplayIcon(classSymbol)
                 .orElseGet(() -> CommonUtils.generateIcon(moduleInfo.org(), moduleInfo.packageName(),
                         moduleInfo.version()));
-        Metadata metadata = new Metadata.Builder<>(null).label(label).description(description).icon(icon).build();
+        Metadata metadata = withGroupPath(new Metadata.Builder<>(null).label(label).description(description)
+                .icon(icon), getGroupPath(classSymbol)).build();
         Codedata.Builder<Object> codedataBuilder = new Codedata.Builder<>(null).version(codedataVersion)
                 .packageName(moduleInfo.packageName()).module(moduleInfo.moduleName()).org(moduleInfo.org())
                 .node(kind);
@@ -1205,8 +1291,8 @@ public class AiUtils {
                                                       ModuleInfo moduleInfo, String codedataVersion) {
         String icon = (comp.icon() != null && !comp.icon().isEmpty()) ? comp.icon()
                 : CommonUtils.generateIcon(moduleInfo.org(), moduleInfo.packageName(), moduleInfo.version());
-        Metadata metadata = new Metadata.Builder<>(null).label(comp.label()).description(comp.description())
-                .icon(icon).build();
+        Metadata metadata = withGroupPath(new Metadata.Builder<>(null).label(comp.label())
+                .description(comp.description()).icon(icon), comp.groupPath()).build();
         NodeKind kind = NodeKind.valueOf(comp.category());
         Codedata.Builder<Object> codedataBuilder = new Codedata.Builder<>(null).version(codedataVersion)
                 .packageName(moduleInfo.packageName()).module(moduleInfo.moduleName()).org(moduleInfo.org())
@@ -1223,7 +1309,67 @@ public class AiUtils {
                                                                           AvailableNode node, NodeKind category) {
         String className = classSymbol.getName().orElse("");
         return new AiComponentDiskCache.CachedComponent(className, node.metadata().label(),
-                node.metadata().description(), category.name(), node.codedata().symbol(), node.metadata().icon());
+                node.metadata().description(), category.name(), node.codedata().symbol(), node.metadata().icon(),
+                groupPathOf(node));
+    }
+
+    private static <T> Metadata.Builder<T> withGroupPath(Metadata.Builder<T> builder, List<GroupSegment> path) {
+        return path == null || path.isEmpty() ? builder : builder.addData(AI_GROUP_PATH_KEY, List.copyOf(path));
+    }
+
+    // The path only shapes the tree, so it is not sent to the client with the leaf.
+    private static AvailableNode withoutGroupPath(AvailableNode node) {
+        Metadata metadata = node.metadata();
+        if (metadata == null || metadata.data() == null || !metadata.data().containsKey(AI_GROUP_PATH_KEY)) {
+            return node;
+        }
+        Map<String, Object> data = new LinkedHashMap<>(metadata.data());
+        data.remove(AI_GROUP_PATH_KEY);
+        return new AvailableNode(new Metadata(metadata.label(), metadata.description(), metadata.keywords(),
+                metadata.icon(), metadata.functionKind(), data.isEmpty() ? null : data, metadata.connectors(),
+                metadata.draft()), node.codedata(), node.enabled());
+    }
+
+    private static List<GroupSegment> groupPathOf(AvailableNode node) {
+        Map<String, Object> data = node.metadata() != null ? node.metadata().data() : null;
+        if (data == null || !(data.get(AI_GROUP_PATH_KEY) instanceof List<?> path)) {
+            return List.of();
+        }
+        return path.stream().filter(GroupSegment.class::isInstance).map(GroupSegment.class::cast).toList();
+    }
+
+    static List<GroupSegment> getGroupPath(ClassSymbol classSymbol) {
+        for (AnnotationAttachmentSymbol annot : classSymbol.annotAttachments()) {
+            if (!annot.typeDescriptor().nameEquals(DISPLAY_ANNOT) || annot.attachmentValue().isEmpty()
+                    || !(unwrapConstant(annot.attachmentValue().get()) instanceof Map<?, ?> display)
+                    || !(unwrapConstant(display.get(DISPLAY_GROUPS)) instanceof List<?> path)) {
+                continue;
+            }
+            List<GroupSegment> segments = new ArrayList<>();
+            for (Object element : path) {
+                GroupSegment segment = toGroupSegment(unwrapConstant(element));
+                if (segment == null) {
+                    LOGGER.warning("Ignoring the @display groups of " + classSymbol.getName().orElse("")
+                            + ": each entry must be a label or a record with a label");
+                    return List.of();
+                }
+                segments.add(segment);
+            }
+            return segments;
+        }
+        return List.of();
+    }
+
+    private static GroupSegment toGroupSegment(Object value) {
+        if (value instanceof String label) {
+            return label.isBlank() ? null : new GroupSegment(label.strip(), null, null);
+        }
+        if (value instanceof Map<?, ?> segment && unwrapConstant(segment.get("label")) instanceof String label
+                && !label.isBlank()) {
+            return new GroupSegment(label.strip(), constantString(segment.get("description")),
+                    constantString(segment.get("iconPath")));
+        }
+        return null;
     }
 
     private static Optional<String> getDisplayLabel(ClassSymbol classSymbol) {
@@ -1272,6 +1418,7 @@ public class AiUtils {
                 .replaceAll("(?i)openai", "OpenAI")
                 .replaceAll("(?i)mssql", "MSSQL")
                 .replaceAll("(?i)\\bai\\b", "AI")
+                .replaceAll("(?i)\\baws\\b", "AWS")
                 .replace("Open AI", "OpenAI")
                 .replace("Openrouter", "OpenRouter");
     }

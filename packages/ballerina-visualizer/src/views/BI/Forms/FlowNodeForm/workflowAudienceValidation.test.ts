@@ -35,8 +35,16 @@ describe("validateWorkflowAudience", () => {
         expect(validateWorkflowAudience({}, "ACTIVITY_CALL")).toBeUndefined();
     });
 
+    // User Roles is optional on the Human Task form, so this rule alone keeps an empty audience from saving.
+    it("refuses a human task whose role and user lists are both empty", () => {
+        expect(validateWorkflowAudience({ userRoles: [], users: [] }, "HUMAN_TASK")?.fieldKey).toBe("userRoles");
+        expect(validateWorkflowAudience({ userRoles: "()", users: [] }, "HUMAN_TASK")).toBeDefined();
+        expect(validateWorkflowAudience({ userRoles: [], users: ["alice"] }, "HUMAN_TASK")).toBeUndefined();
+        expect(validateWorkflowAudience({ userRoles: ["manager"], users: [] }, "HUMAN_TASK")).toBeUndefined();
+    });
+
     it("treats the empty shapes a cleared field leaves behind as naming nobody", () => {
-        const emptyValues: unknown[] = ["", "   ", "()", "[]", [], null, undefined];
+        const emptyValues: unknown[] = ["", "   ", "()", "( )", " ( ) ", "[]", [], null, undefined];
         for (const empty of emptyValues) {
             expect(validateWorkflowAudience({ retryPolicy: "ManualRetry", retryUserRoles: empty })).toBeDefined();
         }

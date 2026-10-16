@@ -16,13 +16,13 @@
  * under the License.
  */
 
-import { Frame, Locator, Page } from "@playwright/test";
+import { Frame, FrameLocator, Locator, Page } from "@playwright/test";
 import { domClick } from "../helpers";
 
 export class SidePanel {
     private sidePanel!: Locator;
 
-    constructor(private _container: Frame, private _page: Page) { }
+    constructor(private _container: Frame | FrameLocator, private _page: Page) { }
 
     public async init() {
         this.sidePanel = this._container.getByTestId('side-panel');

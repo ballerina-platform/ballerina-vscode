@@ -16,10 +16,13 @@
  * under the License.
  */
 
-import { WorkflowManagementResponse, WorkflowManagementRequest } from "../../interfaces/extended-lang-client";
+import { WorkflowManagementResponse, WorkflowManagementRequest, WorkflowRuntimeStatusResponse } from "../../interfaces/extended-lang-client";
 
 export interface WorkflowManagementServiceAPI {
     isWorkflowManagementEnabled: (params: WorkflowManagementRequest) => Promise<WorkflowManagementResponse>;
     addWorkflowManagement: (params: WorkflowManagementRequest) => Promise<WorkflowManagementResponse>;
     disableWorkflowManagement: (params: WorkflowManagementRequest) => Promise<WorkflowManagementResponse>;
+    getWorkflowRuntimeStatus: (params: WorkflowManagementRequest) => Promise<WorkflowRuntimeStatusResponse>;
+    useInMemoryWorkflowRuntime: (params: WorkflowManagementRequest) => Promise<WorkflowRuntimeStatusResponse>;
+    useLocalWorkflowRuntime: (params: WorkflowManagementRequest) => Promise<WorkflowRuntimeStatusResponse>;
 }

@@ -51,6 +51,7 @@ import { ResourceAccordion } from "./components/ResourceAccordion";
 import { ResourceAccordionV2 } from "./components/ResourceAccordionV2";
 import { FunctionConfigForm } from "./Forms/FunctionConfigForm";
 import { FunctionForm } from "./Forms/FunctionForm";
+import { AiResourceForm, findHeadersOption } from "./Forms/AiResourceForm";
 import { ResourceForm } from "./Forms/ResourceForm";
 import { removeForwardSlashes, canDataBind, getReadableListenerName } from "./utils";
 import { DatabindForm } from "./Forms/DatabindForm";
@@ -1169,10 +1170,9 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
                                                             resource={resource}
                                                             readOnly={serviceModel.properties.hasOwnProperty('serviceTypeName')}
                                                             // A chat agent's chat/decision pair is fixed, generated surface (see
-                                                            // AiChatServiceBuilder) rather than something the user hand-edits
-                                                            // through the generic HTTP resource form, so editing is disabled —
-                                                            // deleting is still allowed, same as any other resource here.
-                                                            onEditResource={isAiService ? null : handleFunctionEdit}
+                                                            // AiChatServiceBuilder), so it opens a small form for its one setting
+                                                            // (the request headers) rather than the generic HTTP resource form.
+                                                            onEditResource={handleFunctionEdit}
                                                             onDeleteResource={handleFunctionDelete}
                                                             onResourceImplement={handleOpenDiagram}
                                                             deletionTypeLabel="resource"
@@ -1339,8 +1339,25 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
                                 </PanelContainer>
                             )}
 
+                            {/* This is for editing a chat agent's chat or decision resource */}
+                            {isAiService && !isNew && findHeadersOption(functionModel) && (
+                                <PanelContainer
+                                    title={"Resource Configuration"}
+                                    show={showForm}
+                                    onClose={handleNewFunctionClose}
+                                    width={400}
+                                >
+                                    <AiResourceForm
+                                        model={functionModel}
+                                        isSaving={isSaving}
+                                        onSave={handleFunctionSubmit}
+                                        onClose={handleNewFunctionClose}
+                                    />
+                                </PanelContainer>
+                            )}
+
                             {/* This is for adding or editing functions with data binding */}
-                            {functionModel && !isHttpService
+                            {functionModel && !isHttpService && !isAiService
                                 && !isSchemaTriggerService && canDataBind(functionModel) && (
                                 <PanelContainer
                                     title={"Message Handler Configuration"}
@@ -1367,7 +1384,7 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
                             )}
 
                             {/* This is for adding or editing functions */}
-                            {functionModel && !isHttpService
+                            {functionModel && !isHttpService && !isAiService
                                 && !isSchemaTriggerService && !canDataBind(functionModel) && (
                                 <PanelContainer
                                     title={"Function Configuration"}

@@ -18,7 +18,7 @@
             }
           },
           "scope": "GLOBAL",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png?wso2_icon",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png?wso2_icon",
           "dependentFunctions": [],
           "dependentConnection": [],
           "kind": "Model Provider",
@@ -41,7 +41,7 @@
             }
           },
           "scope": "GLOBAL",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png",
           "dependentFunctions": [],
           "dependentConnection": [
             "eae80007-edba-31a3-4093-da38c8924b62"
@@ -51,7 +51,7 @@
           "modelProvider": {
             "symbol": "claimModel",
             "type": "Wso2ModelProvider",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png?wso2_icon"
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png?wso2_icon"
           },
           "typeName": "Agent",
           "uuid": "1dd03195-7bae-7038-f558-ed910d4ba4c4",
@@ -72,7 +72,7 @@
             }
           },
           "scope": "GLOBAL",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.17.1.png",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.18.0.png",
           "dependentFunctions": [],
           "dependentConnection": [],
           "kind": "Connection",
@@ -106,7 +106,7 @@
               "value": "8080"
             }
           ],
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.17.1.png",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.18.0.png",
           "uuid": "99bf500a-5b3d-c689-8fd2-6588d43c38c4",
           "enableFlowModel": false,
           "sortText": "services.bal6"
@@ -228,7 +228,7 @@
           ],
           "absolutePath": "/agent ",
           "type": "http:Service",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.17.1.png",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.18.0.png",
           "uuid": "ce749be6-389d-49c8-060b-b22f07a1d79a",
           "enableFlowModel": true,
           "sortText": "services.bal6"

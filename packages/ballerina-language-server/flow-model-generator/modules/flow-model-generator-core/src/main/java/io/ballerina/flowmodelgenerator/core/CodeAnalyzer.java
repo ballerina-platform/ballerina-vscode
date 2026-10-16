@@ -257,6 +257,7 @@ import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.RUN_DURABL
 import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.RUN_INPUT_PARAM;
 import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.RUN_METHOD_NAME;
 import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.RUN_PROCESS_FUNCTION_PARAM;
+import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.RUN_WITH_ID_METHOD_NAME;
 import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.SEND_DATA_METHOD_NAME;
 import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.SLEEP_DESCRIPTION;
 import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.SLEEP_LABEL;
@@ -676,15 +677,13 @@ public class CodeAnalyzer extends NodeVisitor {
     // The workflow dropdown every form that picks a workflow carries, with the package's workflow
     // functions as its options. Re-adding at an existing key keeps that key's position.
     private void addWorkflowSelectProperty(String key, String label, String doc, String value) {
-        nodeBuilder.properties().custom()
-                .metadata().label(label).description(doc).stepOut()
-                .type().fieldType(Property.ValueType.SINGLE_SELECT)
-                    .options(workflowOptions()).selected(true).stepOut()
-                .codedata().kind(ParameterData.Kind.REQUIRED.name()).stepOut()
-                .value(value)
-                .editable(true)
-                .stepOut()
-                .addProperty(key);
+        addWorkflowSelectProperty(key, label, doc, value, null);
+    }
+
+    // As above, for a dropdown that stands in for a signature parameter: originalName keeps that parameter's name.
+    private void addWorkflowSelectProperty(String key, String label, String doc, String value, String originalName) {
+        WorkflowUtil.addWorkflowSelectProperty(nodeBuilder.properties(), key, label, doc, workflowOptions(), value,
+                originalName);
     }
 
     // Walking every module's symbols is not free and a diagram holds many of these nodes, so the
@@ -4200,7 +4199,7 @@ public class CodeAnalyzer extends NodeVisitor {
             }
         }
         if (kind == NodeKind.MCP_TOOL_KIT) {
-            McpToolKitBuilder.setOptionalPropertiesAdvanced(nodeBuilder);
+            AiUtils.setOptionalPropertiesAdvanced(nodeBuilder);
         }
 
         ClassSymbol clientClassSymbol = getClientClassSymbol(semanticModel, functionData, name)
@@ -4224,6 +4223,7 @@ public class CodeAnalyzer extends NodeVisitor {
             } else {
                 genAgentData(newExpressionNode, argumentNodes, classSymbol, new HashMap<>(), false);
             }
+            AiUtils.setOptionalPropertiesAdvanced(nodeBuilder);
         }
 
         if (kind == NodeKind.TYPED_AGENT) {
@@ -4938,6 +4938,22 @@ public class CodeAnalyzer extends NodeVisitor {
                     SendDataBuilder.WORKFLOW_NAME_KEY).map(expression -> expression.toSourceCode().trim()).orElse("");
             addWorkflowSelectProperty(SendDataBuilder.WORKFLOW_NAME_KEY, SendDataBuilder.WORKFLOW_NAME_LABEL,
                     SendDataBuilder.WORKFLOW_NAME_DOC, workflow);
+        } else if (isWorkflowOperation(functionSymbol, RUN_WITH_ID_METHOD_NAME)) {
+            // Stays a generic function call (no dedicated node); only its workflow argument, the first parameter,
+            // becomes the dropdown. Keyed by the parameter's own name, as the generic path keyed it.
+            // TODO: Drop this special case once function-typed parameters offer the project's matching
+            //  functions in general (wso2/product-integrator#2717).
+            Optional<String> paramName = functionSymbol.typeDescriptor().params()
+                    .filter(params -> !params.isEmpty())
+                    .flatMap(params -> params.getFirst().getName());
+            if (paramName.isEmpty()) {
+                return;
+            }
+            String workflow = argumentExpression(functionCallExpressionNode.arguments(), 0, paramName.get())
+                    .map(expression -> expression.toSourceCode().trim()).orElse("");
+            addWorkflowSelectProperty(ParamUtils.removeLeadingSingleQuote(paramName.get()),
+                    WorkflowRunBuilder.WORKFLOW_NAME_LABEL, WorkflowRunBuilder.WORKFLOW_NAME_DOC, workflow,
+                    paramName.get());
         }
     }
 

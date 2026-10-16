@@ -54,7 +54,7 @@
       "userRoles": {
         "metadata": {
           "label": "User Roles",
-          "description": "One or more roles permitted to complete this task"
+          "description": "Role(s) permitted to complete this task; may be left empty when users are named"
         },
         "types": [
           {
@@ -69,8 +69,8 @@
           }
         ],
         "value": [],
-        "placeholder": "()",
-        "optional": false,
+        "placeholder": "",
+        "optional": true,
         "editable": true,
         "advanced": false,
         "hidden": false,
@@ -78,7 +78,7 @@
           "kind": "INCLUDED_FIELD",
           "originalName": "userRoles"
         },
-        "defaultValue": "()"
+        "defaultValue": ""
       },
       "taskInput": {
         "metadata": {
@@ -107,9 +107,10 @@
           {
             "fieldType": "EXPRESSION",
             "ballerinaType": "map<json>",
-            "selected": false
+            "selected": true
           }
         ],
+        "value": "{}",
         "placeholder": "{}",
         "optional": false,
         "editable": true,
@@ -146,7 +147,7 @@
           "kind": "INCLUDED_FIELD",
           "originalName": "title"
         },
-        "defaultValue": "()"
+        "defaultValue": ""
       },
       "$description": {
         "metadata": {
@@ -174,7 +175,7 @@
           "kind": "INCLUDED_FIELD",
           "originalName": "description"
         },
-        "defaultValue": "()"
+        "defaultValue": ""
       },
       "timeout": {
         "metadata": {
@@ -188,7 +189,7 @@
             "typeMembers": [
               {
                 "type": "Duration",
-                "packageInfo": "ballerina:workflow:0.10.0",
+                "packageInfo": "ballerina:workflow:1.0.0",
                 "packageName": "workflow",
                 "kind": "RECORD_TYPE",
                 "selected": false
@@ -211,7 +212,7 @@
           "kind": "INCLUDED_FIELD",
           "originalName": "timeout"
         },
-        "defaultValue": "()"
+        "defaultValue": ""
       },
       "databindingType": {
         "metadata": {
@@ -283,7 +284,7 @@
           }
         ],
         "value": [],
-        "placeholder": "\"\"",
+        "placeholder": "",
         "optional": true,
         "editable": true,
         "advanced": true,
@@ -292,7 +293,7 @@
           "kind": "INCLUDED_FIELD",
           "originalName": "users"
         },
-        "defaultValue": "\"\""
+        "defaultValue": ""
       },
       "excludedUsers": {
         "metadata": {
@@ -312,7 +313,7 @@
           }
         ],
         "value": [],
-        "placeholder": "\"\"",
+        "placeholder": "",
         "optional": true,
         "editable": true,
         "advanced": true,
@@ -321,7 +322,7 @@
           "kind": "INCLUDED_FIELD",
           "originalName": "excludedUsers"
         },
-        "defaultValue": "\"\""
+        "defaultValue": ""
       },
       "excludedRoles": {
         "metadata": {
@@ -341,7 +342,7 @@
           }
         ],
         "value": [],
-        "placeholder": "\"\"",
+        "placeholder": "",
         "optional": true,
         "editable": true,
         "advanced": true,
@@ -350,7 +351,7 @@
           "kind": "INCLUDED_FIELD",
           "originalName": "excludedRoles"
         },
-        "defaultValue": "\"\""
+        "defaultValue": ""
       },
       "administratorRoles": {
         "metadata": {
@@ -370,7 +371,7 @@
           }
         ],
         "value": [],
-        "placeholder": "\"\"",
+        "placeholder": "",
         "optional": true,
         "editable": true,
         "advanced": true,
@@ -379,7 +380,7 @@
           "kind": "INCLUDED_FIELD",
           "originalName": "administratorRoles"
         },
-        "defaultValue": "\"\""
+        "defaultValue": ""
       },
       "administratorUsers": {
         "metadata": {
@@ -399,7 +400,7 @@
           }
         ],
         "value": [],
-        "placeholder": "\"\"",
+        "placeholder": "",
         "optional": true,
         "editable": true,
         "advanced": true,
@@ -408,7 +409,7 @@
           "kind": "INCLUDED_FIELD",
           "originalName": "administratorUsers"
         },
-        "defaultValue": "\"\""
+        "defaultValue": ""
       },
       "taskInputType": {
         "metadata": {

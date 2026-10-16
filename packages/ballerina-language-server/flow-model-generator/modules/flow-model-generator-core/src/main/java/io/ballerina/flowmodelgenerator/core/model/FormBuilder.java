@@ -837,8 +837,11 @@ public class FormBuilder<T> extends FacetedBuilder<T> {
 
         NodeList<Node> docLineNodes = ((MarkdownDocumentationNode) docNode).documentationLines();
         for (Node docLineNode : docLineNodes) {
-            String docLine = docLineNode.toSourceCode().trim();
-            docLineJoiner.add(docLine.replaceFirst("# ", ""));
+            // Skip leading comments; documentElements() would drop parameter lines
+            int leadingMinutiaeLength = docLineNode.textRange().startOffset()
+                    - docLineNode.textRangeWithMinutiae().startOffset();
+            String docLine = docLineNode.toSourceCode().substring(leadingMinutiaeLength).trim();
+            docLineJoiner.add(docLine.replaceFirst("^# ?", ""));
         }
 
         return docLineJoiner.toString();

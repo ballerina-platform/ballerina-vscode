@@ -607,18 +607,23 @@ export function AgentStatusOrb() {
     const label = state === "idle" ? undefined : activeStateLabel(status);
     const showLabel = !dragging && !snapping && state !== "idle" && !miniOpen;
 
+    /** Opens a fresh mini chat, seeded with `prompt` when there is one to hand over. */
+    const openMiniChat = (prompt?: MiniChatPrompt) => {
+        if (prompt) {
+            miniPromptRef.current = prompt;
+        }
+        setMiniChatKey((key) => key + 1);
+        setMiniOpen(true);
+    };
+
     // Typing into the invite starts the conversation in the mini chat — every
     // orb interaction stays in the ambient surface; the full panel is reached
     // via the mini's maximize button.
     const submitInvite = (input: HTMLInputElement) => {
         const text = inviteText.trim();
-        if (text) {
-            miniPromptRef.current = createMiniChatPrompt(text, { autoSubmit: true });
-        }
         setInviteText("");
         input.blur();
-        setMiniChatKey((key) => key + 1);
-        setMiniOpen(true);
+        openMiniChat(text ? createMiniChatPrompt(text, { autoSubmit: true }) : undefined);
     };
 
     const handlePointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
@@ -681,7 +686,13 @@ export function AgentStatusOrb() {
         if (dragPos !== null || event.detail >= 2) {
             return;
         }
-        setMiniOpen((open) => !open);
+        if (miniOpen) {
+            setMiniOpen(false);
+            return;
+        }
+        // An unsent invite draft moves into the mini chat's input, unsent, instead of
+        // being wiped when the mini chat takes over.
+        openMiniChat(inviteText.trim() ? createMiniChatPrompt(inviteText) : undefined);
     };
 
     const handleContextMenu = (event: React.MouseEvent<HTMLButtonElement>) => {

@@ -19,66 +19,70 @@
 import { useCallback, useRef, useState } from "react";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Category as PanelCategory, HelperPaneFunctionCategory, HelperPaneFunctionInfo } from "@wso2/ballerina-side-panel";
-import { Category, LineRange } from "@wso2/ballerina-core";
+import { BISearchResponse, Category, FunctionPageInfo, FunctionSearchPagination, LineRange } from "@wso2/ballerina-core";
 import { convertToHelperPaneFunction } from "./bi";
+import { countSectionLeafNodes } from "../views/BI/FlowDiagram/utils";
+import { assertFunctionSearchSuccess, FUNCTIONS_PAGE_SIZE, getFunctionSectionPage,
+    PAGINATED_LIBRARY_SECTIONS } from "./function-pagination";
+import { useFunctionPaginationController } from "./useFunctionPaginationController";
 
-// Default page size for the paginated function list. Shared across the function pickers so they stay in sync.
-export const FUNCTIONS_PAGE_SIZE = 60;
-
-// Library sections that paginate independently, each mapping a category title (as emitted by the language server)
-// to the Central organization whose next page it loads.
-export const PAGINATED_LIBRARY_SECTIONS: ReadonlyArray<{ title: string; org: string }> = [
-    { title: "Standard Library", org: "ballerina" },
-    { title: "Extended Library", org: "ballerinax" }
-];
+export { FUNCTIONS_PAGE_SIZE, PAGINATED_LIBRARY_SECTIONS } from "./function-pagination";
 
 // The library sections come from Ballerina Central, which rarely changes within a session.
 const LIBRARY_SECTION_TTL_MS = 30 * 60 * 1000;
-const librarySectionCache = new Map<string, { cachedAt: number; category: PanelCategory }>();
+const librarySectionCache = new Map<string, { cachedAt: number; category: PanelCategory; page: FunctionPageInfo }>();
 
-// Returns each library section from the cache, or as a loading placeholder whose section loads in the background.
-export function loadLibrarySections(
-    scopePrefix: string,
-    localCategories: PanelCategory[],
-    fetchOrg: (orgName: string) => Promise<PanelCategory[] | undefined>,
-    onLoaded: (title: string, section: PanelCategory | undefined, page: PanelCategory[]) => void
-): PanelCategory[] {
+// Builds a panel's first view from a page fetched with excludeLibrary: each library section comes from the cache or
+// as a loading placeholder. Seed the controller with `pagination`, then fetch each `pending` section's first page.
+export function withLibrarySections(scopePrefix: string, localCategories: PanelCategory[]) {
     // The language server lists imported modules under Imported Functions instead, so the sections differ per imports.
     const scope = `${scopePrefix}|${localCategories.find((category) => category.title === "Imported Functions")?.items
         .map((item) => (item as PanelCategory).title).join()}`;
-    return PAGINATED_LIBRARY_SECTIONS.map(({ title, org }): PanelCategory => {
+    const pagination: FunctionSearchPagination = {};
+    const pending: string[] = [];
+    const sections = PAGINATED_LIBRARY_SECTIONS.map(({ title, org }): PanelCategory => {
         const entry = librarySectionCache.get(`${scope}|${title}`);
         if (entry && Date.now() - entry.cachedAt <= LIBRARY_SECTION_TTL_MS) {
+            pagination[org] = entry.page;
             return { ...entry.category, items: [...entry.category.items] };
         }
-        void fetchOrg(org).catch((): undefined => undefined).then((page = []) => {
-            const section = page.find((category) => category.title === title);
-            if (section?.items.length) {
-                librarySectionCache.set(`${scope}|${title}`, { cachedAt: Date.now(), category: section });
-            }
-            onLoaded(title, section, page);
-        });
+        pending.push(title);
         return { title, description: "", items: [], isLoading: true };
     });
+    const titles = PAGINATED_LIBRARY_SECTIONS.map(({ title }) => title);
+    const categories = [...localCategories.filter((category) => !titles.includes(category.title)), ...sections];
+    // Takes a pending section's first page and returns the cursor its next page continues from.
+    const fillSection = (title: string, response: BISearchResponse, page: PanelCategory[],
+        setCategories: (update: (prev: PanelCategory[]) => PanelCategory[]) => void): FunctionPageInfo => {
+        const { org } = PAGINATED_LIBRARY_SECTIONS.find((entry) => entry.title === title);
+        const section = page.find((category) => category.title === title);
+        const cursor = getFunctionSectionPage(response.functionPagination, org, countSectionLeafNodes(page, title),
+            FUNCTIONS_PAGE_SIZE);
+        setCategories((prev) => settleLibrarySection(prev, title, section));
+        if (section?.items.length) {
+            librarySectionCache.set(`${scope}|${title}`, { cachedAt: Date.now(), category: section, page: cursor });
+        }
+        return cursor;
+    };
+    return { categories, pagination, pending, fillSection };
 }
 
-// Counts the leaf function items across a category tree, used to decide whether another page exists.
-export const countFunctionItems = (categories: HelperPaneFunctionCategory[] = []): number =>
-    categories.reduce(
-        (total, category) =>
-            total + (category.items?.length ?? 0) + countFunctionItems(category.subCategory),
-        0
-    );
+// Swaps a section's placeholder for its loaded page, or drops it when the page failed or came back empty.
+export const settleLibrarySection = (categories: PanelCategory[], title: string, section?: PanelCategory) =>
+    categories.flatMap((category) => category.title === title && category.isLoading
+        ? (section ? [section] : [])
+        : [category]);
 
-// Merges a newly fetched page into the accumulated categories, appending items to matching
-// categories/subcategories (matched by label) and adding any categories that are new.
+export const countFunctionItems = (categories: HelperPaneFunctionCategory[] = []): number =>
+    categories.reduce((total, category) =>
+        total + (category.items?.length ?? 0) + countFunctionItems(category.subCategory), 0);
+
 export const mergeFunctionCategories = (
-    prev: HelperPaneFunctionCategory[],
-    next: HelperPaneFunctionCategory[]
+    prev: HelperPaneFunctionCategory[], next: HelperPaneFunctionCategory[]
 ): HelperPaneFunctionCategory[] => {
-    const merged = prev.map((category) => ({ ...category }));
+    const merged = prev.map(category => ({ ...category }));
     for (const incoming of next) {
-        const existing = merged.find((category) => category.label === incoming.label);
+        const existing = merged.find(category => category.label === incoming.label);
         if (!existing) {
             merged.push({ ...incoming });
             continue;
@@ -99,170 +103,65 @@ type UseFunctionPaginationArgs = {
     pageSize?: number;
 };
 
-type UseFunctionPaginationResult = {
-    info: HelperPaneFunctionInfo | undefined;
-    // Per library section (keyed by category title): whether it has more pages, and whether it is currently loading.
-    sectionsWithMore: Record<string, boolean>;
-    loadingSections: Record<string, boolean>;
-    // Resets pagination and loads the first page (page 0 of every section) for a fresh query. Returns the fetch
-    // promise so callers can coordinate their own loading UI.
-    loadFirstPage: (searchText: string) => Promise<void>;
-    // Loads the next page of a single library section and merges it in.
-    loadMoreSection: (sectionTitle: string) => void;
-};
-
-/**
- * Encapsulates per-section pagination for the helper-pane function pickers (searchKind "FUNCTION"). Each library
- * section (standard/extended) is paged independently by its own offset and merged in on demand; callers own the
- * rendering and decide when to call {@link loadMoreSection} (e.g. on scroll).
- *
- * Control flags live in refs so callers can trigger loads without stale closures and without double-fetching.
- */
+/** Helper-browser adapter; the shared controller owns all section cursors and loading transitions. */
 export const useFunctionPagination = ({
-    fileName,
-    targetLineRange,
-    pageSize = FUNCTIONS_PAGE_SIZE
-}: UseFunctionPaginationArgs): UseFunctionPaginationResult => {
+    fileName, targetLineRange, pageSize = FUNCTIONS_PAGE_SIZE
+}: UseFunctionPaginationArgs) => {
     const { rpcClient } = useRpcContext();
     const [info, setInfo] = useState<HelperPaneFunctionInfo | undefined>(undefined);
-    const [sectionsWithMore, setSectionsWithMore] = useState<Record<string, boolean>>({});
-    const [loadingSections, setLoadingSections] = useState<Record<string, boolean>>({});
-    const sectionOffsetsRef = useRef<Record<string, number>>({});
-    const sectionLoadingRef = useRef<Record<string, boolean>>({});
-    const searchValueRef = useRef<string>("");
-    // Bumped on every fresh search so late responses from a superseded query are discarded instead of merging
-    // stale pages into the current results.
-    const searchGenerationRef = useRef<number>(0);
+    const { sectionsWithMore, loadingSections, reset, seed, loadSection } = useFunctionPaginationController(pageSize);
+    const searchValueRef = useRef("");
+    const searchGenerationRef = useRef(0);
 
-    const loadFirstPage = useCallback(
-        (searchText: string) => {
-            searchValueRef.current = searchText;
-            // A fresh search supersedes any in-flight section loads and any earlier first-page fetch.
-            const generation = ++searchGenerationRef.current;
-            return rpcClient
-                .getBIDiagramRpcClient()
-                .search({
-                    position: targetLineRange,
-                    filePath: fileName,
-                    queryMap: {
-                        q: searchText.trim(),
-                        limit: pageSize,
-                        offset: 0,
-                        includeAvailableFunctions: "true"
-                    },
-                    searchKind: "FUNCTION"
-                })
-                .then((response) => {
-                    if (generation !== searchGenerationRef.current) {
-                        return;
-                    }
-                    const page = convertToHelperPaneFunction((response.categories ?? []) as Category[]);
-                    setInfo(page);
-                    const withMore: Record<string, boolean> = {};
-                    for (const { title } of PAGINATED_LIBRARY_SECTIONS) {
-                        sectionOffsetsRef.current[title] = 0;
-                        withMore[title] =
-                            countFunctionItems(page.category.filter((c) => c.label === title)) >= pageSize;
-                    }
-                    sectionLoadingRef.current = {};
-                    setSectionsWithMore(withMore);
-                    setLoadingSections({});
-                })
-                .catch((error) => {
-                    // A newer search already owns the view; leave its results untouched.
-                    if (generation !== searchGenerationRef.current) {
-                        return;
-                    }
-                    // Clear so a failed fresh load doesn't present the previous query's results as current. The
-                    // returned promise resolves, so callers' loading UI still settles.
-                    console.error(">>> Error loading functions", error);
-                    setInfo(undefined);
-                    setSectionsWithMore({});
-                    setLoadingSections({});
-                    sectionOffsetsRef.current = {};
-                    sectionLoadingRef.current = {};
-                });
-        },
-        [rpcClient, fileName, targetLineRange, pageSize]
-    );
-
-    const loadMoreSection = useCallback(
-        (sectionTitle: string) => {
-            const section = PAGINATED_LIBRARY_SECTIONS.find((s) => s.title === sectionTitle);
-            if (!section || sectionLoadingRef.current[sectionTitle]) {
+    const loadFirstPage = useCallback(async (searchText: string) => {
+        searchValueRef.current = searchText;
+        const generation = ++searchGenerationRef.current;
+        reset();
+        try {
+            const response = await rpcClient.getBIDiagramRpcClient().search({
+                position: targetLineRange,
+                filePath: fileName,
+                queryMap: { q: searchText.trim(), limit: pageSize, offset: 0, includeAvailableFunctions: "true" },
+                searchKind: "FUNCTION"
+            });
+            if (generation !== searchGenerationRef.current) {
                 return;
             }
-            sectionLoadingRef.current[sectionTitle] = true;
-            setLoadingSections((prev) => ({ ...prev, [sectionTitle]: true }));
-            const nextOffset = (sectionOffsetsRef.current[sectionTitle] ?? 0) + pageSize;
-            // Capture the active search so a page that arrives after a new search is discarded, not merged.
-            const generation = searchGenerationRef.current;
-            rpcClient
-                .getBIDiagramRpcClient()
-                .search({
-                    position: targetLineRange,
-                    filePath: fileName,
-                    queryMap: {
-                        q: searchValueRef.current.trim(),
-                        limit: pageSize,
-                        offset: nextOffset,
-                        orgName: section.org,
-                        includeAvailableFunctions: "true"
-                    },
-                    searchKind: "FUNCTION"
-                })
-                .then((response) => {
-                    if (generation !== searchGenerationRef.current) {
-                        return;
-                    }
-                    const page = convertToHelperPaneFunction((response.categories ?? []) as Category[]);
-                    // Merge only the target section: the org-scoped response may also carry an Imported Functions
-                    // category (imported modules of the same org) which must not be duplicated into that section.
-                    const sectionOnly = page.category.filter((c) => c.label === sectionTitle);
-                    const sectionItems = countFunctionItems(sectionOnly);
-                    sectionOffsetsRef.current[sectionTitle] = nextOffset;
-                    setSectionsWithMore((prev) => ({ ...prev, [sectionTitle]: sectionItems >= pageSize }));
-                    if (sectionItems > 0) {
-                        setInfo((prev) =>
-                            prev
-                                ? { category: mergeFunctionCategories(prev.category, sectionOnly) }
-                                : { category: sectionOnly }
-                        );
-                    }
-                })
-                .catch((error) => {
-                    // The offset/has-more are advanced only on success, so a failed page leaves the section
-                    // unchanged and retryable on the next scroll.
-                    console.error(">>> Error loading more functions", error);
-                })
-                .finally(() => {
-                    // A newer search already reset the loading flags; don't clobber the state it now owns.
-                    if (generation !== searchGenerationRef.current) {
-                        return;
-                    }
-                    sectionLoadingRef.current[sectionTitle] = false;
-                    setLoadingSections((prev) => ({ ...prev, [sectionTitle]: false }));
-                });
-        },
-        [rpcClient, fileName, targetLineRange, pageSize]
-    );
+            assertFunctionSearchSuccess(response);
+            const page = convertToHelperPaneFunction(response.categories as Category[]);
+            setInfo(page);
+            seed(response.functionPagination, title => countFunctionItems(page.category.filter(c => c.label === title)));
+        } catch (error) {
+            if (generation !== searchGenerationRef.current) {
+                return;
+            }
+            console.error(">>> Error loading functions", error);
+            setInfo(undefined);
+            reset();
+        }
+    }, [rpcClient, fileName, targetLineRange, pageSize, reset, seed]);
+
+    const loadMoreSection = useCallback((sectionTitle: string) => {
+        const generation = searchGenerationRef.current;
+        void loadSection(sectionTitle, (org, cursor) => rpcClient.getBIDiagramRpcClient().search({
+            position: targetLineRange,
+            filePath: fileName,
+            queryMap: {
+                q: searchValueRef.current.trim(), limit: pageSize, offset: cursor.nextOffset,
+                orgName: org, functionSource: cursor.source, includeAvailableFunctions: "true"
+            },
+            searchKind: "FUNCTION"
+        }), response => {
+            const page = convertToHelperPaneFunction(response.categories as Category[]);
+            // Imported Functions in an org-scoped response must not be duplicated into the library section.
+            const sectionOnly = page.category.filter(c => c.label === sectionTitle);
+            const count = countFunctionItems(sectionOnly);
+            if (count > 0) {
+                setInfo(prev => ({ category: mergeFunctionCategories(prev?.category ?? [], sectionOnly) }));
+            }
+            return count;
+        }, () => generation === searchGenerationRef.current);
+    }, [rpcClient, fileName, targetLineRange, pageSize, loadSection]);
 
     return { info, sectionsWithMore, loadingSections, loadFirstPage, loadMoreSection };
-};
-
-/**
- * Loads the next page of the first library section (in PAGINATED_LIBRARY_SECTIONS order) that still has more and is
- * not already loading. Shared by scroll handlers so the standard library pages before the extended library.
- */
-export const loadNextAvailableSection = (
-    sectionsWithMore: Record<string, boolean>,
-    loadingSections: Record<string, boolean>,
-    loadMoreSection: (sectionTitle: string) => void
-): void => {
-    const next = PAGINATED_LIBRARY_SECTIONS.find(
-        (s) => sectionsWithMore[s.title] && !loadingSections[s.title]
-    );
-    if (next) {
-        loadMoreSection(next.title);
-    }
 };

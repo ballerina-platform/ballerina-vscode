@@ -88,6 +88,7 @@ import {
     filterUnsupportedDiagnostics,
     getFormProperties,
     getImportsForFormFields,
+    mergeFormImports,
     calculateExpressionOffsets,
     injectHighlightTheme,
     removeDuplicateDiagnostics,
@@ -1052,16 +1053,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
 
     const handleUpdateImports = (key: string, imports: Imports, codedata?: CodeData) => {
         importsCodedataRef.current = codedata;
-        const importKey = Object.keys(imports)?.[0];
-
-        const prevImports = formImportsRef.current;
-        if (key in prevImports) {
-            if (importKey && importKey in prevImports[key]) {
-                formImportsRef.current = { ...prevImports, [key]: { ...prevImports[key], ...imports } };
-            }
-        } else {
-            formImportsRef.current = { ...prevImports, [key]: imports };
-        }
+        formImportsRef.current = mergeFormImports(formImportsRef.current, key, imports);
     }
 
     const handleTypeCreated = (type: Type | string, imports?: Imports) => {
@@ -1687,7 +1679,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
 
     const expressionEditor = useMemo(() => {
         return {
-            completions: completions,
+            completions: filteredCompletions,
             triggerCharacters: TRIGGER_CHARACTERS,
             retrieveCompletions: handleRetrieveCompletions,
             extractArgsFromFunction: extractArgsFromFunction,

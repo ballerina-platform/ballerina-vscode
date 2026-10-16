@@ -25,8 +25,10 @@ import io.ballerina.compiler.syntax.tree.NodeList;
 import io.ballerina.compiler.syntax.tree.ServiceDeclarationNode;
 import io.ballerina.servicemodelgenerator.extension.model.Codedata;
 import io.ballerina.servicemodelgenerator.extension.model.Function;
+import io.ballerina.servicemodelgenerator.extension.model.Parameter;
 import io.ballerina.servicemodelgenerator.extension.model.context.AddModelContext;
 import io.ballerina.servicemodelgenerator.extension.model.context.ModelFromSourceContext;
+import io.ballerina.servicemodelgenerator.extension.model.context.UpdateModelContext;
 import io.ballerina.servicemodelgenerator.extension.util.AiSourceUtils;
 import io.ballerina.servicemodelgenerator.extension.util.Utils;
 import io.ballerina.tools.text.LineRange;
@@ -37,6 +39,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.AI;
@@ -78,9 +81,34 @@ public final class AiFunctionBuilder extends AbstractFunctionBuilder {
                 && isResource(functionDefinitionNode)) {
             Function functionModel = Utils.getFunctionModel(functionDefinitionNode, Map.of());
             functionModel.setEditable(true);
+            if (AiSourceUtils.isAgentResource(functionDefinitionNode)) {
+                AiSourceUtils.exposeHeadersOption(functionModel);
+            }
             return functionModel;
         }
         return super.getModelFromSource(context);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>The only thing a {@code chat} or {@code decision} resource lets the user change is whether
+     * it takes the request headers, so only that parameter is edited. The generic update rebuilds
+     * the whole signature, and drops {@code @http:Payload} while doing it.
+     */
+    @Override
+    public Map<String, List<TextEdit>> updateModel(UpdateModelContext context) {
+        FunctionDefinitionNode resource = context.functionNode();
+        if (!AiSourceUtils.isAgentResource(resource)) {
+            return super.updateModel(context);
+        }
+        Optional<Parameter> headers = context.function().getParameters().stream()
+                .filter(AiSourceUtils::isHeadersParameter)
+                .findFirst();
+        List<TextEdit> edits = headers
+                .map(parameter -> AiSourceUtils.headersParamEdits(resource, parameter.isEnabled()))
+                .orElse(List.of());
+        return Map.of(context.filePath(), edits);
     }
 
     /**
@@ -110,8 +138,10 @@ public final class AiFunctionBuilder extends AbstractFunctionBuilder {
         // blank line, matching how buildServiceNodeBody joins them.
         NodeList<Node> members = serviceNode.members();
         String separator = members.isEmpty() ? NEW_LINE : TWO_NEW_LINES;
+        // Match the chat resource: when it takes the request headers, so does decision.
         String resourceSource = separator
-                + AiSourceUtils.agentDecisionResourceSource(agentCall.agentVarName(), agentCall.operator());
+                + AiSourceUtils.agentDecisionResourceSource(agentCall.agentVarName(), agentCall.operator(),
+                AiSourceUtils.hasHeadersParam(serviceNode));
 
         LineRange anchor = members.isEmpty()
                 ? serviceNode.openBraceToken().lineRange()

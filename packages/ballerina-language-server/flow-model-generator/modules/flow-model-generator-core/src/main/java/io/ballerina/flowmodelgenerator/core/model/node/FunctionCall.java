@@ -20,6 +20,7 @@ package io.ballerina.flowmodelgenerator.core.model.node;
 
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.flowmodelgenerator.core.Constants;
+import io.ballerina.flowmodelgenerator.core.UserFacingException;
 import io.ballerina.flowmodelgenerator.core.model.Codedata;
 import io.ballerina.flowmodelgenerator.core.model.FlowNode;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
@@ -28,11 +29,13 @@ import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
 import io.ballerina.flowmodelgenerator.core.utils.FlowNodeUtil;
 import io.ballerina.modelgenerator.commons.FunctionData;
 import io.ballerina.modelgenerator.commons.PackageUtil;
+import io.ballerina.modelgenerator.commons.ParameterData;
 import org.eclipse.lsp4j.TextEdit;
 
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -46,6 +49,10 @@ public class FunctionCall extends CallBuilder {
     public Map<Path, List<TextEdit>> toSource(SourceBuilder sourceBuilder) {
         FlowNode flowNode = sourceBuilder.flowNode;
         Codedata codedata = flowNode.codedata();
+        if (isRunWithId(codedata) && !sourceBuilder.isForDiagnostics() && isWorkflowArgumentBlank(flowNode)) {
+            throw new UserFacingException("Select a workflow in the " + WorkflowRunBuilder.WORKFLOW_NAME_LABEL
+                    + " field");
+        }
         if (isGetDefaultModelCall(codedata)) {
             sourceBuilder.token().keyword(SyntaxKind.FINAL_KEYWORD);
         }
@@ -82,6 +89,34 @@ public class FunctionCall extends CallBuilder {
                 .textEdit()
                 .acceptImportWithVariableType()
                 .build();
+    }
+
+    // A node without the workflow argument is treated as blank, or the call would be written without it.
+    private static boolean isWorkflowArgumentBlank(FlowNode flowNode) {
+        return workflowArgumentKey(flowNode)
+                .map(key -> flowNode.properties().get(key))
+                .map(property -> property.value() == null || property.value().toString().isBlank())
+                .orElse(true);
+    }
+
+    /**
+     * The key of {@code workflow:runWithId}'s workflow argument: its first required parameter, which the template
+     * and the re-read node both place first and render as the workflow dropdown.
+     *
+     * @param flowNode a {@code workflow:runWithId} call node
+     * @return the key of the workflow dropdown, or empty when the node has none
+     */
+    public static Optional<String> workflowArgumentKey(FlowNode flowNode) {
+        if (flowNode.properties() == null) {
+            return Optional.empty();
+        }
+        return flowNode.properties().entrySet().stream()
+                .filter(entry -> entry.getValue().codedata() != null
+                        && ParameterData.Kind.REQUIRED.name().equals(entry.getValue().codedata().kind()))
+                .findFirst()
+                .filter(entry -> entry.getValue().types() != null && entry.getValue().types().stream()
+                        .anyMatch(type -> type.fieldType() == Property.ValueType.SINGLE_SELECT))
+                .map(Map.Entry::getKey);
     }
 
     private boolean isGetDefaultModelCall(Codedata codedata) {

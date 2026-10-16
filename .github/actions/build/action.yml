@@ -66,9 +66,6 @@ runs:
     - name: Install Ballerina
       id: ballerina
       uses: ./.github/actions/setup-ballerina
-      # TEMPORARY: revert once 2201.14.0 is on dist.ballerina.io (currently HTTP 403).
-      with:
-        distributionVersion: nightly
 
     - name: Validate build mode
       if: ${{ inputs.nightly == 'true' && inputs.isPreRelease != 'true' }}

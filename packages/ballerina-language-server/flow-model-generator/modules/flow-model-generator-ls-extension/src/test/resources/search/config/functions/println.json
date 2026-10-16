@@ -62,25 +62,9 @@
           "items": [
             {
               "metadata": {
-                "label": "println",
-                "description": "Prints `any`, `error` or string templates(such as `The respective int value is ${val}`) value(s) to the STDOUT\nfollowed by a new line.\n```ballerina\nio:println(\"Start processing the CSV file from \", srcFileName);\n```\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.0.png"
-              },
-              "codedata": {
-                "node": "FUNCTION_CALL",
-                "org": "ballerina",
-                "module": "io",
-                "packageName": "io",
-                "symbol": "println",
-                "version": "1.8.0"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
                 "label": "fprintln",
-                "description": "Prints `any`, `error`, or string templates(such as `The respective int value is ${val}`) value(s) to\na given stream(STDOUT or STDERR) followed by a new line.\n```ballerina\nio:fprintln(io:stderr, \"Unexpected error occurred\");\n```",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.0.png"
+                "description": "Prints `any`, `error`, or string templates value(s) to a given stream(STDOUT or STDERR) and terminates the line.\n```ballerina\nio:fprintln(io:stderr, \"Unexpected error occurred\");\n```",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.2.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -88,7 +72,23 @@
                 "module": "io",
                 "packageName": "io",
                 "symbol": "fprintln",
-                "version": "1.8.0"
+                "version": "1.8.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "println",
+                "description": "Prints `any`, `error` or string templates value(s) to the standard output stream and terminates the line.\n```ballerina\nio:println(\"Start processing the CSV file from \", srcFileName);\n```\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.2.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "io",
+                "packageName": "io",
+                "symbol": "println",
+                "version": "1.8.2"
               },
               "enabled": true
             }

@@ -17,16 +17,15 @@
  */
 
 import { extension } from "../BalExtensionContext";
-import { StateMachine } from "../stateMachine";
+import { onModulePullProgress } from "./module-pull-state";
 
 export function handlePullModuleProgress() {
-    // Handle pull module progress notifications
-    const progressDisposable = StateMachine.langClient().onNotification('$/progress', (params: any) => {
-        if (params.token && params.token.startsWith('pull-module')) {
-            extension.hasPullModuleNotification = true;
-            if (params.value.kind === 'report') {
-                extension.hasPullModuleResolved = true;
-            }
+    // Handle pull module progress notifications. Not via onNotification('$/progress'): that
+    // replaces the client's own progress dispatch, and disposing it removes it for the session.
+    const stopListening = onModulePullProgress((kind) => {
+        extension.hasPullModuleNotification = true;
+        if (kind === 'report') {
+            extension.hasPullModuleResolved = true;
         }
     });
 
@@ -34,12 +33,12 @@ export function handlePullModuleProgress() {
     const checkInterval = setInterval(() => {
         if (extension.hasPullModuleResolved) {
             // Clean up the notification listener
-            progressDisposable.dispose();
+            stopListening();
             clearInterval(checkInterval);
         }
     }, 5000); // Check every 5 seconds
 
     // Add both disposables to context for clean extension shutdown
-    extension.context.subscriptions.push(progressDisposable);
+    extension.context.subscriptions.push({ dispose: stopListening });
     extension.context.subscriptions.push({ dispose: () => clearInterval(checkInterval) });
 }

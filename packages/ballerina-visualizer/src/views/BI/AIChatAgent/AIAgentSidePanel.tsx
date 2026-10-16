@@ -30,6 +30,8 @@ import {
     FUNCTION_TYPE,
     ParentPopupData,
     BISearchRequest,
+    BISearchResponse,
+    FunctionSearchPagination,
     CodeData,
     NodeMetadata,
     FunctionNode,
@@ -64,7 +66,10 @@ import { ImplementationBadge } from "../../../components/ImplementationBadge";
 import { FUNCTION_CALL, KNOWLEDGE_BASE_CALL, METHOD_CALL, REMOTE_ACTION_CALL, RESOURCE_ACTION_CALL } from "../../../constants";
 import { NewToolSelectionMode } from "./NewTool";
 import { buildOAuthFields, fetchOAuthConfigProperties, ZERO_LINE_RANGE } from "./utils";
-import { loadLibrarySections, PAGINATED_LIBRARY_SECTIONS } from "../../../utils/useFunctionPagination";
+import { assertFunctionSearchSuccess, FUNCTIONS_PAGE_SIZE, PAGINATED_LIBRARY_SECTIONS } from "../../../utils/function-pagination";
+import { settleLibrarySection, withLibrarySections } from "../../../utils/useFunctionPagination";
+import { useFunctionPaginationController } from "../../../utils/useFunctionPaginationController";
+import { countSectionLeafNodes, mergePanelCategories } from "../FlowDiagram/utils";
 import { updateResourcePathProperty } from "./agentTools";
 import { AddConnectionPopupContent } from "../Connection/AddConnectionPopup/AddConnectionPopupContent";
 import { ConnectionConfigurationForm } from "../Connection/ConnectionConfigurationPopup";
@@ -446,7 +451,18 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
     const addedAgentConnectionNamesRef = useRef<string[]>([]);
     const pendingDependencyRefreshRef = useRef<boolean>(false);
     const initialCategoriesRef = useRef<PanelCategory[]>([]);
-    const functionSearchTextRef = useRef<string>("");
+    // The first function page behind initialCategoriesRef, so clearing a search restores its Load more too.
+    const initialFunctionPaginationRef = useRef<FunctionSearchPagination | undefined>(undefined);
+    const functionQueryRef = useRef<string>("");
+    const functionSearchSeqRef = useRef(0);
+    const {
+        sectionsWithMore: functionSectionsWithMore,
+        loadingSections: loadingFunctionSections,
+        reset: resetFunctionPagination,
+        seed: seedFunctionSections,
+        setSectionCursor: setFunctionSectionCursor,
+        loadSection: loadFunctionSection,
+    } = useFunctionPaginationController();
     const selectedNodeRef = useRef<AvailableNode>(undefined);
     const agentFilePath = useRef<string>(Utils.joinPath(URI.file(projectPath), agentNode?.codedata?.lineRange?.fileName || "agents.bal").fsPath);
     const functionFilePath = useRef<string>(Utils.joinPath(URI.file(projectPath), "functions.bal").fsPath);
@@ -565,24 +581,7 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
         // FUNCTION mode: skip getAvailableNodes entirely — connections are not needed
         if (mode === NewToolSelectionMode.FUNCTION) {
             try {
-                // The library sections come from Ballerina Central, so they load after the panel opens.
-                const localFunctions = await handleSearchFunction("", FUNCTION_TYPE.REGULAR, false, { excludeLibrary: "true" });
-                const sectionTitles = PAGINATED_LIBRARY_SECTIONS.map(({ title }) => title);
-                const sections = loadLibrarySections(`use-function|${projectPath}`, localFunctions || [],
-                    (orgName) => handleSearchFunction("", FUNCTION_TYPE.REGULAR, false, { orgName }), (title, section) => {
-                        initialCategoriesRef.current = ensureStandardLibModules(initialCategoriesRef.current
-                            .map((category) => (category.title === title ? section : category))
-                            .filter((category) => category !== undefined));
-                        if (!functionSearchTextRef.current) {
-                            setCategories(initialCategoriesRef.current);
-                        }
-                    });
-                const categories = ensureStandardLibModules(reorderFunctionCategories([
-                    ...(localFunctions || []).filter((category) => !sectionTitles.includes(category.title)),
-                    ...sections,
-                ]));
-                setCategories(categories);
-                initialCategoriesRef.current = categories;
+                await loadDefaultFunctionList();
             } catch { } finally {
                 settleLoading();
             }
@@ -665,6 +664,9 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
             // ALL mode: also fetch functions — CONNECTION mode only needs connections
             if (mode !== NewToolSelectionMode.CONNECTION) {
                 const filteredFunctions = await handleSearchFunction("", FUNCTION_TYPE.REGULAR, false);
+                if (filteredFunctions === undefined) {
+                    return;
+                }
                 filteredCategories = convertedCategories.concat(reorderFunctionCategories(filteredFunctions));
             }
 
@@ -701,37 +703,8 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
         });
     }, [agentNode, dependencyMode]);
 
-    const handleSearchFunction = async (
-        searchText: string,
-        functionType: FUNCTION_TYPE,
-        isSearching: boolean = true,
-        defaultQuery?: BISearchRequest["queryMap"]
-    ) => {
-        if (isSearching) {
-            functionSearchTextRef.current = searchText;
-        }
-        if (isSearching && !searchText) {
-            setCategories(initialCategoriesRef.current); // Reset the categories list when the search input is empty
-            return;
-        }
-        const request: BISearchRequest = {
-            position: {
-                startLine: targetRef.current.startLine,
-                endLine: targetRef.current.endLine,
-            },
-            filePath: agentFilePath.current,
-            queryMap: searchText.trim()
-                ? {
-                    q: searchText,
-                    limit: 12,
-                    offset: 0,
-                    includeAvailableFunctions: "true",
-                }
-                : defaultQuery,
-            searchKind: "FUNCTION",
-        };
-        const response = await rpcClient.getBIDiagramRpcClient().search(request);
-
+    // Drops agent tools, which cannot become tools again, and converts the rest for the panel.
+    const toToolCandidateCategories = (response: BISearchResponse, functionType: FUNCTION_TYPE): PanelCategory[] => {
         const filteredResponse = response.categories.filter((category) => {
             return category.metadata.label !== "Agent Tools";
         });
@@ -743,15 +716,125 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                 return !(item.metadata?.data as NodeMetadata)?.isAgentTool;
             });
         }
+        return convertFunctionCategoriesToSidePanelCategories(filteredResponse as Category[], functionType);
+    };
 
-        if (isSearching && searchText) {
-            setCategories(ensureStandardLibModules(reorderFunctionCategories(convertFunctionCategoriesToSidePanelCategories(filteredResponse, functionType))));
+    // Returns the default view's categories when not searching, or undefined when a newer search superseded it.
+    const handleSearchFunction = async (
+        searchText: string,
+        functionType: FUNCTION_TYPE,
+        isSearching: boolean = true
+    ): Promise<PanelCategory[] | undefined> => {
+        const searchSeq = ++functionSearchSeqRef.current;
+        if (isSearching && !searchText) {
+            setCategories(initialCategoriesRef.current); // Reset the categories list when the search input is empty
+            functionQueryRef.current = "";
+            seedFunctionSections(initialFunctionPaginationRef.current,
+                title => countSectionLeafNodes(initialCategoriesRef.current, title));
             return;
         }
-        if (!response || !filteredResponse) {
-            return [];
+        // Disable the previous query's continuation while this first page is in flight.
+        resetFunctionPagination();
+        const query = isSearching ? searchText.trim() : "";
+        const request: BISearchRequest = {
+            position: {
+                startLine: targetRef.current.startLine,
+                endLine: targetRef.current.endLine,
+            },
+            filePath: agentFilePath.current,
+            queryMap: { q: query, limit: FUNCTIONS_PAGE_SIZE, offset: 0, includeAvailableFunctions: "true" },
+            searchKind: "FUNCTION",
+        };
+        const response = await rpcClient.getBIDiagramRpcClient().search(request);
+        if (searchSeq !== functionSearchSeqRef.current) {
+            return;
         }
-        return ensureStandardLibModules(convertFunctionCategoriesToSidePanelCategories(filteredResponse, functionType));
+        assertFunctionSearchSuccess(response);
+        const categories = ensureStandardLibModules(toToolCandidateCategories(response, functionType));
+        functionQueryRef.current = query;
+        seedFunctionSections(response.functionPagination, title => countSectionLeafNodes(categories, title));
+        if (isSearching) {
+            setCategories(reorderFunctionCategories(categories));
+            return;
+        }
+        initialFunctionPaginationRef.current = response.functionPagination;
+        return categories;
+    };
+
+    // The library sections come from Ballerina Central, so they load after the panel opens.
+    const loadDefaultFunctionList = async () => {
+        const searchSeq = ++functionSearchSeqRef.current;
+        resetFunctionPagination();
+        const search = (queryMap: BISearchRequest["queryMap"]) => rpcClient.getBIDiagramRpcClient().search({
+            position: { startLine: targetRef.current.startLine, endLine: targetRef.current.endLine },
+            filePath: agentFilePath.current,
+            queryMap: { q: "", limit: FUNCTIONS_PAGE_SIZE, offset: 0, includeAvailableFunctions: "true", ...queryMap },
+            searchKind: "FUNCTION",
+        });
+        const response = await search({ excludeLibrary: "true" });
+        if (searchSeq !== functionSearchSeqRef.current) {
+            return;
+        }
+        assertFunctionSearchSuccess(response);
+        const { categories, pagination, pending, fillSection } = withLibrarySections(`use-function|${projectPath}`,
+            toToolCandidateCategories(response, FUNCTION_TYPE.REGULAR));
+        initialCategoriesRef.current = reorderFunctionCategories(ensureStandardLibModules(categories));
+        initialFunctionPaginationRef.current = pagination;
+        functionQueryRef.current = "";
+        setCategories(initialCategoriesRef.current);
+        seedFunctionSections(pagination, title => countSectionLeafNodes(categories, title));
+        // A section fills the default list, which a newer default list replaces and an active search keeps hidden.
+        const setDefaultCategories = (update: (prev: PanelCategory[]) => PanelCategory[]) => {
+            if (initialFunctionPaginationRef.current !== pagination) {
+                return;
+            }
+            initialCategoriesRef.current = ensureStandardLibModules(update(initialCategoriesRef.current));
+            if (!functionQueryRef.current) {
+                setCategories(initialCategoriesRef.current);
+            }
+        };
+        for (const title of pending) {
+            const { org } = PAGINATED_LIBRARY_SECTIONS.find((section) => section.title === title);
+            search({ orgName: org })
+                .then((page) => {
+                    assertFunctionSearchSuccess(page);
+                    const cursor = fillSection(title, page, toToolCandidateCategories(page, FUNCTION_TYPE.REGULAR),
+                        setDefaultCategories);
+                    if (initialFunctionPaginationRef.current === pagination) {
+                        pagination[org] = cursor;
+                        if (!functionQueryRef.current) {
+                            setFunctionSectionCursor(title, cursor);
+                        }
+                    }
+                })
+                .catch((error) => {
+                    console.error(">>> Error loading a library section", error);
+                    setDefaultCategories((prev) => settleLibrarySection(prev, title));
+                });
+        }
+    };
+
+    // Appends the next page of one library section. The page belongs to the query and list it was requested for.
+    const loadMoreFunctionSection = async (sectionTitle: string) => {
+        const searchSeq = functionSearchSeqRef.current;
+        await loadFunctionSection(sectionTitle, (org, cursor) => rpcClient.getBIDiagramRpcClient().search({
+            position: { startLine: targetRef.current.startLine, endLine: targetRef.current.endLine },
+            filePath: agentFilePath.current,
+            queryMap: {
+                q: functionQueryRef.current, limit: FUNCTIONS_PAGE_SIZE, offset: cursor.nextOffset,
+                orgName: org, functionSource: cursor.source, includeAvailableFunctions: "true",
+            },
+            searchKind: "FUNCTION",
+        }), response => {
+            const pageCategories = toToolCandidateCategories(response, FUNCTION_TYPE.REGULAR);
+            const sectionLeafCount = countSectionLeafNodes(pageCategories, sectionTitle);
+            if (sectionLeafCount > 0) {
+                // An org-scoped page must only extend its own section.
+                const sectionOnly = pageCategories.filter(category => category.title === sectionTitle);
+                setCategories(prev => mergePanelCategories(prev, sectionOnly));
+            }
+            return sectionLeafCount;
+        }, () => searchSeq === functionSearchSeqRef.current);
     };
 
     const isResultTypeField = (field: FormField) =>
@@ -777,7 +860,7 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
 
     // Fetch the project's own module-level functions (excluding the tool's own function, when it is
     // one — connection-based tools have no local function to exclude) as approval-predicate
-    // candidates. Reuses the FUNCTION search with excludeLibrary set, which returns the current
+    // candidates. Reuses the FUNCTION search with a limit of 0, which returns the current
     // module's functions; imported/agent-tool categories are filtered out by the collector.
     // Shared by both the "Use Function" and "Use Connection" tool-creation paths. Return-type/
     // signature compatibility is verified by the compiler after generation.
@@ -793,7 +876,8 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                     endLine: targetRef.current.endLine,
                 },
                 filePath: agentFilePath.current,
-                queryMap: { excludeLibrary: "true" },
+                // Only local functions are collected, so the library sources are skipped.
+                queryMap: { q: "", limit: 0, offset: 0 },
                 searchKind: "FUNCTION",
             };
             const response = await rpcClient.getBIDiagramRpcClient().search(request);
@@ -1498,7 +1582,12 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                         onAddConnection={dependencyMode ? handleAddDependency : handleOnAddConnection}
                         connectionAddLabel={dependencyMode ? "Add Connection" : undefined}
                         onAddFunction={() => handleOnAddFunction(MACHINE_VIEW.BIFunctionForm, DIRECTORY_MAP.FUNCTION)}
-                        onSearchTextChange={mode !== NewToolSelectionMode.CONNECTION ? (searchText) => handleSearchFunction(searchText, FUNCTION_TYPE.REGULAR, true) : undefined}
+                        onSearchTextChange={mode !== NewToolSelectionMode.CONNECTION ? (searchText) => handleSearchFunction(searchText, FUNCTION_TYPE.REGULAR, true).catch((error) => console.error(">>> Error searching functions", error)) : undefined}
+                        {...(mode !== NewToolSelectionMode.CONNECTION ? {
+                            onLoadMoreSection: loadMoreFunctionSection,
+                            sectionsWithMore: functionSectionsWithMore,
+                            loadingSections: loadingFunctionSections,
+                        } : {})}
                         title={"Functions"}
                         description={listDescription}
                         searchPlaceholder={searchPlaceholder}

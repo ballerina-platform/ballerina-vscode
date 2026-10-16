@@ -2,6 +2,7 @@
   "projectPath": "proj4",
   "description": "Project with the workflow management REST import in main.bal",
   "response": {
-    "enabled": true
+    "enabled": true,
+    "workflowImported": false
   }
 }

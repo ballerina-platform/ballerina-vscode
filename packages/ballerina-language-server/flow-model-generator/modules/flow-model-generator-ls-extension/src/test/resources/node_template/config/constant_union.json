@@ -65,7 +65,7 @@
           "kind": "DEFAULTABLE",
           "originalName": "level"
         },
-        "defaultValue": "loud"
+        "defaultValue": "\"loud\""
       }
     },
     "flags": 0

@@ -65,6 +65,42 @@ public class SearchDatabaseManagerFunctionSearchTest {
         return Set.of(mod(BALLERINA, "os"), mod(BALLERINA, "time"));
     }
 
+    @Test(description = "Org-scoped raw pages tile the entire eligible source for default and typed queries")
+    public void testOrgScopedPagesTileTheSource() {
+        for (String query : List.of("", "workflow", "print", "int")) {
+            for (String org : List.of(BALLERINA, BALLERINAX)) {
+                List<SearchResult> expected = dbManager.searchFunctions(query, Integer.MAX_VALUE, 0).stream()
+                        .filter(row -> org.equals(row.packageInfo().org())).toList();
+                List<SearchResult> actual = new ArrayList<>();
+                for (int offset = 0; ; offset += 23) {
+                    List<SearchResult> page = dbManager.searchFunctions(query, 23, offset, org);
+                    actual.addAll(page);
+                    if (page.size() < 23) {
+                        break;
+                    }
+                }
+                Assert.assertEquals(actual, expected, org + "/" + query);
+            }
+        }
+    }
+
+    @Test(description = "Organization predicates apply to both FTS-only and LIKE-only matches before paging")
+    public void testOrgFilterCoversBothSearchBranches() {
+        List<SearchResult> standard = dbManager.searchFunctions("int", Integer.MAX_VALUE, 0, BALLERINA);
+        Assert.assertTrue(standard.stream().allMatch(row -> BALLERINA.equals(row.packageInfo().org())));
+        Assert.assertTrue(standard.stream().anyMatch(row -> "lang.int".equals(row.packageInfo().moduleName())
+                && "abs".equals(row.name())), "Description/module FTS-only match must remain reachable");
+        Assert.assertTrue(standard.stream().anyMatch(row -> "lang.string".equals(row.packageInfo().moduleName())
+                && "codePointCompare".equals(row.name())), "Function-name LIKE-only match must remain reachable");
+        Assert.assertEquals(standard.stream().filter(row -> "io".equals(row.packageInfo().moduleName())
+                && "fprintln".equals(row.name())).count(), 1L, "A match in both branches must be deduplicated");
+        List<SearchResult> extended = dbManager.searchFunctions("int", Integer.MAX_VALUE, 0, BALLERINAX);
+        Assert.assertFalse(extended.isEmpty());
+        Assert.assertTrue(extended.stream().allMatch(row -> BALLERINAX.equals(row.packageInfo().org())));
+        Assert.assertTrue(dbManager.searchFunctions("int", 100, 0, ABSENT_ORG).isEmpty());
+        Assert.assertTrue(dbManager.searchFunctions("", 100, 0, ABSENT_ORG).isEmpty());
+    }
+
     @Test(description = "A query for one org's module must not return a same-named module from another org")
     public void testSearchFunctionsByPackagesMatchesRequestedOrgOnly() {
         List<SearchResult> ballerinaResults =

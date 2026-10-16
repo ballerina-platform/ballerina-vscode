@@ -175,7 +175,12 @@
       // Security fix: path traversal via source map auto-loading.
       "postcss@8": "8.5.23",
       "prismjs": "1.30.0",
+      // One copy of each: a second model or state copy breaks the editor.
+      "prosemirror-keymap@>=1 <1.2.3": "1.2.3",
+      "prosemirror-model@>=1 <1.25.9": "1.25.9",
+      "prosemirror-state@>=1 <1.4.4": "1.4.4",
       // Security fix: also lifts the 1.41.9 transitive, not only the direct pin.
+      // Bump prosemirror-model and -state with it when its ranges for them move.
       "prosemirror-view@>=1 <1.42.3": "1.42.3",
       "protobufjs@>=7 <8": "7.6.5",
       "proxy-addr": "2.0.8",

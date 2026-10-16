@@ -471,18 +471,27 @@ const runCommand = (command: string) => async () => {
 };
 const reviewAndCommit = runCommand("workbench.view.scm");
 
-const SOURCE_FIXES: Record<SourceStepId, (projectPath: string, autoInstrumentation?: boolean) => Promise<string | void>> = {
+/** The plain Git fixes, shared with the MCP server flow so both sources of the same step behave alike. */
+export const GIT_FIXES = {
     gitMissing: async () => {
         await vscode.env.openExternal(vscode.Uri.parse("https://git-scm.com/downloads"));
     },
+    detached: runCommand("git.checkout"),
+    commit: reviewAndCommit,
+    publishBranch: runCommand("git.publish"),
+    push: runCommand("git.push"),
+};
+
+const SOURCE_FIXES: Record<SourceStepId, (projectPath: string, autoInstrumentation?: boolean) => Promise<string | void>> = {
+    gitMissing: GIT_FIXES.gitMissing,
     prepare: prepareProject,
     publishRepo: runCommand("github.publish"),
     nonGitHub: async () => undefined,
-    detached: runCommand("git.checkout"),
-    commitFirst: reviewAndCommit,
-    publishBranch: runCommand("git.publish"),
-    commit: reviewAndCommit,
-    push: runCommand("git.push"),
+    detached: GIT_FIXES.detached,
+    commitFirst: GIT_FIXES.commit,
+    publishBranch: GIT_FIXES.publishBranch,
+    commit: GIT_FIXES.commit,
+    push: GIT_FIXES.push,
     syncGitHub: async (projectPath) => ((await readFacts(projectPath)).dirty > 0 ? reviewAndCommit() : runCommand("git.push")()),
     refreshSpec: async (projectPath) => {
         writeOpenApiSpec(projectPath, (await detectInterface(projectPath)).spec);

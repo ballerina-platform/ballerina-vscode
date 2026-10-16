@@ -85,11 +85,34 @@ import createProject from './project-overview/project-creation.spec';
 
 import diagram from './diagram/diagram.spec';
 import durableAgentActivity from './workflow/durable-agent-activity.spec';
+import workflowForms from './workflow/workflow-forms.spec';
+import durableAgentRoleFields from './workflow/durable-agent-role-fields.spec';
+import workflowRoleFields from './workflow/workflow-role-fields.spec';
+import workflowRuntimeSection from './workflow/workflow-runtime-section.spec';
 import automationFlowNodes from './diagram/flow-nodes.spec';
 
 import httpTryItExisting from './tryit/http-try-it-existing.spec';
 
 import testExplorer from './test-explorer/test-explorer.spec';
+
+import docsBuildDurableWorkflow from './workflow-docs/quickstarts/build-durable-workflow.spec';
+import docsBuildDurableAgent from './workflow-docs/quickstarts/build-durable-agent.spec';
+import docsCreateWorkflow from './workflow-docs/durable-workflow/create.spec';
+import docsStartWorkflow from './workflow-docs/durable-workflow/start.spec';
+import docsActivities from './workflow-docs/durable-workflow/activities.spec';
+import docsPrebuiltActivities from './workflow-docs/durable-workflow/prebuilt-activities.spec';
+import docsDataEvents from './workflow-docs/durable-workflow/data-events.spec';
+import docsSendDataEvent from './workflow-docs/durable-workflow/send-data-event.spec';
+import docsAwaitHumanTask from './workflow-docs/durable-workflow/await-human-task.spec';
+import docsDurableTimers from './workflow-docs/durable-workflow/durable-timers.spec';
+import docsErrorHandling from './workflow-docs/durable-workflow/review-activity-and-error-handling.spec';
+import docsDeploymentModes from './workflow-docs/durable-workflow/deployment-modes.spec';
+import docsManagementApi from './workflow-docs/durable-workflow/management-api.spec';
+import docsCreateDurableAgent from './workflow-docs/durable-agentic-workflow/create-durable-agent.spec';
+import docsRunDurableAgent from './workflow-docs/durable-agentic-workflow/run-durable-agent.spec';
+import docsSendAgentDataEvent from './workflow-docs/durable-agentic-workflow/send-agent-data-event.spec';
+import docsGetAgentResult from './workflow-docs/durable-agentic-workflow/get-agent-result.spec';
+import docsGetDataEventResult from './workflow-docs/durable-agentic-workflow/get-data-event-result.spec';
 
 import projectExplorer from './project-explorer/project-explorer.spec';
 
@@ -167,9 +190,15 @@ test.describe('Ballerina E2E Group 2', { tag: '@group2' }, async () => {
 
     // <----Other Artifacts Test---->
     test.describe(functionArtifact);
+    // Workflow forms built from an empty project; Group 2 has the time for them, Group 4 is at its limit.
+    test.describe(workflowForms);
 
     // <----Project Explorer Test---->
     test.describe(projectExplorer);
+
+    // <----Workflow Test---->
+    test.describe(workflowRoleFields);
+    test.describe(workflowRuntimeSection);
 });
 
 test.describe('Ballerina E2E Group 3', { tag: '@group3' }, async () => {
@@ -215,11 +244,39 @@ test.describe('Ballerina E2E Group 4', { tag: '@group4' }, async () => {
     // <----Diagram Test---->
     test.describe(diagram);
     test.describe(durableAgentActivity);
+    test.describe(durableAgentRoleFields);
 
     // <----Test Explorer Test---->
     test.describe(testExplorer);
 
     test.describe(connections);
+});
+
+// Each workflow docs page followed as written; differences from the page are reported as doc-finding annotations.
+test.describe('Ballerina E2E Group 5', { tag: '@group5' }, async () => {
+    // <----Workflow Docs: Quickstarts---->
+    test.describe(docsBuildDurableWorkflow);
+    test.describe(docsBuildDurableAgent);
+
+    // <----Workflow Docs: Durable Workflow---->
+    test.describe(docsCreateWorkflow);
+    test.describe(docsStartWorkflow);
+    test.describe(docsActivities);
+    test.describe(docsPrebuiltActivities);
+    test.describe(docsDataEvents);
+    test.describe(docsSendDataEvent);
+    test.describe(docsAwaitHumanTask);
+    test.describe(docsDurableTimers);
+    test.describe(docsErrorHandling);
+    test.describe(docsDeploymentModes);
+    test.describe(docsManagementApi);
+
+    // <----Workflow Docs: Durable Agentic Workflow---->
+    test.describe(docsCreateDurableAgent);
+    test.describe(docsRunDurableAgent);
+    test.describe(docsSendAgentDataEvent);
+    test.describe(docsGetAgentResult);
+    test.describe(docsGetDataEventResult);
 });
 
 test.afterAll(async () => {

@@ -726,6 +726,17 @@ export function TriggerHandlerForm(props: TriggerHandlerFormProps) {
             : prev);
     };
 
+    const handleAnnotationImportsChange = (annotationKey: string, imports: Imports) => {
+        setFunctionModel((prev) => {
+            const annotation = prev?.properties?.[annotationKey] as PropertyModel | undefined;
+            if (!prev || !annotation) {
+                return prev;
+            }
+            const updated = { ...annotation, imports: { ...(annotation.imports ?? {}), ...imports } };
+            return { ...prev, properties: { ...prev.properties, [annotationKey]: updated } };
+        });
+    };
+
     // ----- expression diagnostics (annotation leaves) -----
 
     const fieldRefs = useRef<Record<string, AnnotationExpressionFieldHandle | null>>({});
@@ -1046,6 +1057,7 @@ export function TriggerHandlerForm(props: TriggerHandlerFormProps) {
                 targetLineRange={functionModel.codedata?.lineRange}
                 disabled={isSaving}
                 onChange={handleAnnotationChange}
+                onImportsChange={handleAnnotationImportsChange}
                 registerFieldRef={registerFieldRef}
                 onDiagnosticsChange={handleFieldDiagnostics}
                 onValidationStateChange={handleFieldValidationState}

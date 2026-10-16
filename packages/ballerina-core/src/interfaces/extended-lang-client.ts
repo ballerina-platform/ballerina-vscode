@@ -683,8 +683,21 @@ export interface WorkflowManagementRequest {
     projectPath: string;
 }
 
+// `mode` under `[ballerina.workflow]` in Config.toml; the module default is LOCAL.
+export type WorkflowRuntimeMode = "LOCAL" | "IN_MEMORY" | "SELF_HOSTED" | "CLOUD";
+
+export interface WorkflowRuntimeStatusResponse {
+    mode: WorkflowRuntimeMode;
+    url: string;
+    // Undefined when the mode is not probed (IN_MEMORY, CLOUD).
+    reachable?: boolean;
+    errorMsg?: string;
+}
+
 export interface WorkflowManagementResponse {
     enabled?: boolean;
+    // Syntax-level signal that this is a workflow integration; stable while artifacts are still resolving.
+    workflowImported?: boolean;
     errorMsg?: string;
     stacktrace?: string;
 }
@@ -1020,9 +1033,11 @@ export type SearchQueryParams = {
     limit?: number;
     offset?: number;
     orgName?: string;
-    includeAvailableFunctions?: string;
-    /** FUNCTION search: "true" returns only the project's own functions, skipping the Central lookup. */
+    /** Keeps raw pagination offsets tied to the source that emitted them. */
+    functionSource?: "central" | "index";
+    /** FUNCTION search: "true" returns workspace and imported functions without the library sections. */
     excludeLibrary?: string;
+    includeAvailableFunctions?: string;
     filterByCurrentOrg?: boolean;
     /** ACTIVITY_CALL search: "true" hides the prebuilt (builtin) activities. */
     excludeBuiltins?: string;
@@ -1062,8 +1077,20 @@ export type BISearchRequest = {
     searchKind: SearchKind;
 }
 
+export type FunctionPageInfo = {
+    hasMore: boolean;
+    /** Offset in the underlying search source, before version/category filtering. */
+    nextOffset: number;
+    /** Continuation requests must stay on this source, whose ordering owns the offset. */
+    source?: "central" | "index";
+};
+
+export type FunctionSearchPagination = Partial<Record<"ballerina" | "ballerinax", FunctionPageInfo>>;
+
 export type BISearchResponse = {
     categories: Category[];
+    /** Absent with older language servers; consumers retain legacy pagination in that case. */
+    functionPagination?: FunctionSearchPagination;
 }
 
 export interface WorkflowDataRequest {

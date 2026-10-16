@@ -1,0 +1,17 @@
+{
+  "source": "workflow_project/main.bal",
+  "description": "Event types are named as the module's code names them: an optional record comes back unqualified (PaymentData|()), not as org/pkg:version:PaymentData?",
+  "workflowName": "refundWorkflow",
+  "output": {
+    "data": [
+      {
+        "name": "refund",
+        "type": "PaymentData|()"
+      },
+      {
+        "name": "lineItems",
+        "type": "int[]"
+      }
+    ]
+  }
+}

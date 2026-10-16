@@ -86,6 +86,26 @@ export async function buildProjectsStructure(
     return response;
 }
 
+function emptyDirectoryMap(): ProjectStructure["directoryMap"] {
+    return {
+        [DIRECTORY_MAP.AUTOMATION]: [],
+        [DIRECTORY_MAP.SERVICE]: [],
+        [DIRECTORY_MAP.LISTENER]: [],
+        [DIRECTORY_MAP.FUNCTION]: [],
+        [DIRECTORY_MAP.CONNECTION]: [],
+        [DIRECTORY_MAP.TYPE]: [],
+        [DIRECTORY_MAP.CONFIGURABLE]: [],
+        [DIRECTORY_MAP.DATA_MAPPER]: [],
+        [DIRECTORY_MAP.NP_FUNCTION]: [],
+        [DIRECTORY_MAP.AGENT]: [],
+        [DIRECTORY_MAP.AGENT_DEFINITION]: [],
+        [DIRECTORY_MAP.LOCAL_CONNECTORS]: [],
+        [DIRECTORY_MAP.WORKFLOW]: [],
+        [DIRECTORY_MAP.ACTIVITY]: [],
+        [DIRECTORY_MAP.AGENT_TOOL]: [],
+    };
+}
+
 async function buildProjectArtifactsStructure(
     projectPath: string,
     packageName: string,
@@ -99,23 +119,7 @@ async function buildProjectArtifactsStructure(
         // Workaround to check if the project is a library project.
         // This will be removed once the projectInfo is updated to include the library flag.
         isLibrary: await isLibraryProject(projectPath),
-        directoryMap: {
-            [DIRECTORY_MAP.AUTOMATION]: [],
-            [DIRECTORY_MAP.SERVICE]: [],
-            [DIRECTORY_MAP.LISTENER]: [],
-            [DIRECTORY_MAP.FUNCTION]: [],
-            [DIRECTORY_MAP.CONNECTION]: [],
-            [DIRECTORY_MAP.TYPE]: [],
-            [DIRECTORY_MAP.CONFIGURABLE]: [],
-            [DIRECTORY_MAP.DATA_MAPPER]: [],
-            [DIRECTORY_MAP.NP_FUNCTION]: [],
-            [DIRECTORY_MAP.AGENT]: [],
-            [DIRECTORY_MAP.AGENT_DEFINITION]: [],
-            [DIRECTORY_MAP.LOCAL_CONNECTORS]: [],
-            [DIRECTORY_MAP.WORKFLOW]: [],
-            [DIRECTORY_MAP.ACTIVITY]: [],
-            [DIRECTORY_MAP.AGENT_TOOL]: [],
-        }
+        directoryMap: emptyDirectoryMap()
     };
     const designArtifacts = await langClient.getProjectArtifacts({ projectPath });
     console.log("designArtifacts", designArtifacts);
@@ -322,6 +326,41 @@ async function rebuildAndPublishArtifacts(
     ArtifactNotificationHandler.getInstance().publish(ArtifactsUpdated.method, {
         data: entryLocations,
         timestamp: Date.now()
+    });
+}
+
+/**
+ * Re-reads the positions of `artifacts` from the LS's current view of the package that owns
+ * `fileUri`. For a notification that cannot be tied to a document state: `getProjectArtifacts`
+ * is answered after every document change sent before it, so its positions match the current text.
+ */
+export async function refreshArtifactPositions(
+    fileUri: string,
+    artifacts: ProjectStructureArtifactResponse[]
+): Promise<ProjectStructureArtifactResponse[]> {
+    const projectStructure = StateMachine.context().projectStructure;
+    const owningProjectPath = projectStructure && resolveOwningProjectPath(fileUri, projectStructure);
+    const project = projectStructure?.projects?.find(project => isSamePath(project.projectPath, owningProjectPath));
+    if (!project) {
+        return artifacts;
+    }
+    // Not buildProjectArtifactsStructure: it also updates failedArtifactProjects, and clearing that
+    // flag here would skip the full rebuild a load that failed during a pull still needs.
+    const designArtifacts = await StateMachine.langClient().getProjectArtifacts({ projectPath: project.projectPath });
+    if (!designArtifacts?.artifacts) {
+        return artifacts;
+    }
+    const current: ProjectStructure = { ...project, directoryMap: emptyDirectoryMap() };
+    await traverseComponents(designArtifacts.artifacts, project.projectPath, current);
+    const entriesByKey = new Map<string, ProjectStructureArtifactResponse>();
+    for (const entries of Object.values(current.directoryMap)) {
+        for (const entry of entries ?? []) {
+            entriesByKey.set(artifactKey(entry.type, entry.id), entry);
+        }
+    }
+    return artifacts.map(artifact => {
+        const entry = entriesByKey.get(artifactKey(artifact.type, artifact.id));
+        return entry ? { ...artifact, position: entry.position } : artifact;
     });
 }
 

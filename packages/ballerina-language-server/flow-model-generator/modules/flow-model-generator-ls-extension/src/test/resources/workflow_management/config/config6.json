@@ -1,0 +1,8 @@
+{
+  "projectPath": "proj6",
+  "description": "Project that imports ballerina/workflow but not the management REST API",
+  "response": {
+    "enabled": false,
+    "workflowImported": true
+  }
+}

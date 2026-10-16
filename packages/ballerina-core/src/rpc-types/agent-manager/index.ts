@@ -289,6 +289,48 @@ export interface AgentManagerCreateRequest {
     config: AgentManagerConfigInput;
 }
 
+export type AgentManagerMcpUpstreamSecurity = "apiKey" | "none";
+
+export interface AgentManagerPublishedMcpProxy {
+    id: string;
+    name: string;
+    url: string;
+    toolCount?: number;
+    deployed: boolean;
+    consoleUrl: string;
+    upstreamSecurity: AgentManagerMcpUpstreamSecurity;
+    upstreamHeader?: string;
+}
+
+export type AgentManagerMcpSourceStepId = "gitMissing" | "publishRepo" | "detached" | "commit" | "publishBranch" | "push";
+
+export interface AgentManagerMcpSourceStep {
+    id: AgentManagerMcpSourceStepId;
+    message: string;
+    actionLabel: string;
+}
+
+export interface AgentManagerMcpSourceFixRequest {
+    projectPath: string;
+    step: AgentManagerMcpSourceStepId;
+}
+
+export interface AgentManagerMcpPublishStatus extends AgentManagerSession {
+    endpointReady: boolean;
+    servicePath?: string;
+    source?: AgentManagerMcpSourceStep;
+    published?: AgentManagerPublishedMcpProxy;
+    error?: string;
+}
+
+export interface AgentManagerMcpPublishRequest {
+    projectPath: string;
+    url: string;
+    security: AgentManagerMcpUpstreamSecurity;
+    header?: string;
+    apiKey?: string;
+}
+
 export interface AgentManagerAPI {
     getAgentManagerStatus: (params: AgentManagerStatusRequest) => Promise<AgentManagerStatus>;
     runAgentManagerAction: (params: AgentManagerActionRequest) => Promise<AgentManagerActionResponse>;
@@ -307,4 +349,8 @@ export interface AgentManagerAPI {
     getAgentManagerRepoDetails: (params: AgentManagerRepoRequest) => Promise<AgentManagerRepoDetails>;
     checkAgentManagerSource: (params: AgentManagerSourceCheckRequest) => Promise<AgentManagerSourceCheck>;
     createAgentManagerAgent: (params: AgentManagerCreateRequest) => Promise<AgentManagerActionResponse>;
+    getAgentManagerMcpPublishStatus: (params: AgentManagerStatusRequest) => Promise<AgentManagerMcpPublishStatus>;
+    prepareAgentManagerMcpEndpoint: (params: AgentManagerStatusRequest) => Promise<AgentManagerActionResponse>;
+    publishAgentManagerMcpProxy: (params: AgentManagerMcpPublishRequest) => Promise<AgentManagerActionResponse>;
+    fixAgentManagerMcpSource: (params: AgentManagerMcpSourceFixRequest) => Promise<AgentManagerActionResponse>;
 }

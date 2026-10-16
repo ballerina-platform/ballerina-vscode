@@ -2,6 +2,7 @@
   "projectPath": "proj3",
   "description": "Project with the workflow management REST import without a prefix",
   "response": {
-    "enabled": true
+    "enabled": true,
+    "workflowImported": false
   }
 }

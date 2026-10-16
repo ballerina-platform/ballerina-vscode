@@ -88,9 +88,6 @@ jobs:
 
       - name: Set up Ballerina for language-server publication
         uses: ./.github/actions/setup-ballerina
-        # TEMPORARY: revert once 2201.14.0 is on dist.ballerina.io (currently HTTP 403).
-        with:
-          distributionVersion: nightly
 
       - name: Get version
         id: vsix

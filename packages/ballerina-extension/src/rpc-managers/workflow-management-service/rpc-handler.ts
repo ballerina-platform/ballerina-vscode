@@ -20,6 +20,9 @@ import {
     isWorkflowManagementEnabled,
     addWorkflowManagement,
     disableWorkflowManagement,
+    getWorkflowRuntimeStatus,
+    useInMemoryWorkflowRuntime,
+    useLocalWorkflowRuntime,
     WorkflowManagementRequest,
 } from "@wso2/ballerina-core";
 import { Messenger } from "vscode-messenger";
@@ -33,4 +36,10 @@ export function registerWorkflowManagementServiceRpcHandlers(messenger: Messenge
         (args: WorkflowManagementRequest) => rpcManger.addWorkflowManagement(args));
     messenger.onRequest(disableWorkflowManagement,
         (args: WorkflowManagementRequest) => rpcManger.disableWorkflowManagement(args));
+    messenger.onRequest(getWorkflowRuntimeStatus,
+        (args: WorkflowManagementRequest) => rpcManger.getWorkflowRuntimeStatus(args));
+    messenger.onRequest(useInMemoryWorkflowRuntime,
+        (args: WorkflowManagementRequest) => rpcManger.useInMemoryWorkflowRuntime(args));
+    messenger.onRequest(useLocalWorkflowRuntime,
+        (args: WorkflowManagementRequest) => rpcManger.useLocalWorkflowRuntime(args));
 }

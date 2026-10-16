@@ -628,7 +628,6 @@ public class Type {
 
     private static String getDefaultValue(RecordFieldSymbol fieldSymbol, SemanticModel semanticModel,
                                           String packageName) {
-        TypeSymbol typeDescriptor = fieldSymbol.typeDescriptor();
         Package resolvedPackage = null;
 
         // Try to resolve the package using the field symbol's module information and provided packageName
@@ -644,8 +643,7 @@ public class Type {
         }
 
         // Use CommonUtils API to extract default values from syntax tree
-        String extractedDefaultValue = CommonUtils.resolveDefaultValue(fieldSymbol, typeDescriptor, semanticModel,
-                resolvedPackage);
+        String extractedDefaultValue = CommonUtils.resolveDefaultValue(fieldSymbol, semanticModel, resolvedPackage);
         if (extractedDefaultValue != null && !extractedDefaultValue.isEmpty()) {
             return extractedDefaultValue;
         }

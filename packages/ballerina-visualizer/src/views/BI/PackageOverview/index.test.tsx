@@ -37,7 +37,7 @@ import type { TraceStatus } from "@wso2/ballerina-core";
 jest.mock("@wso2/ballerina-core", () => ({
     __esModule: true,
     EVENT_TYPE: { OPEN_VIEW: "OPEN_VIEW" },
-    MACHINE_VIEW: { BIComponentView: "BIComponentView", PackageOverview: "Overview" },
+    MACHINE_VIEW: { BIComponentView: "BIComponentView", PackageOverview: "Overview", ViewConfigVariables: "View Config Variables" },
     BuildMode: {},
     BI_COMMANDS: {},
     // The real enum, so the fixtures and the real `hasWorkflowArtifacts` below agree on the keys.
@@ -75,6 +75,7 @@ jest.mock("@wso2/ui-toolkit", () => ({
     Icon: (): null => null,
     Divider: (): null => null,
     CheckBox: (): null => null,
+    Tooltip: ({ children }: any) => <>{children}</>,
     ProgressIndicator: (): null => null,
     ProgressRing: () => <div data-testid="progress-ring" />,
     Overlay: (): null => null,
@@ -141,6 +142,17 @@ jest.mock("../ComponentDiagram", () => ({
 
 import { TestRpcContext } from "../../../test/rpcHarness";
 import { PackageOverview } from "./index";
+import {
+    CONFIGURE_RUNTIME_LABEL,
+    IN_MEMORY_RUNTIME,
+    MANAGED_RUNTIME,
+    NO_RUNTIME_TITLE,
+    RUNTIME_CHECK_FAILED,
+    RUNTIME_DETECTED,
+    SWITCH_FAILED,
+    USE_IN_MEMORY_LABEL,
+    USE_LOCAL_LABEL,
+} from "../../../components/DeploymentControl/WorkflowSection";
 
 (global as any).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -155,9 +167,35 @@ function emptyDirectoryMap(): Record<string, unknown[]> {
     };
 }
 
-function makeRpc(directoryMap: Record<string, unknown[]>) {
+interface WorkflowRpc {
+    workflowImported?: boolean;
+    runtime?: { mode: string; url: string; reachable?: boolean };
+    runtimeCheckRejects?: boolean;
+    recheckHangs?: boolean;
+    switchRejects?: boolean;
+}
+
+function makeRpc(directoryMap: Record<string, unknown[]>, workflow: WorkflowRpc = {}) {
     // Typed argument so `mock.calls[0][0]` is a real element rather than an empty tuple.
     const openView = jest.fn(async (_request: { type: string; location: { view: string } }): Promise<void> => undefined);
+    const runtime = workflow.runtime ?? { mode: "LOCAL", url: "localhost:7233", reachable: true };
+    const useInMemoryWorkflowRuntime = jest.fn(async () => {
+        if (workflow.switchRejects) {
+            throw new Error("write failed");
+        }
+        return { mode: "IN_MEMORY", url: runtime.url };
+    });
+    const useLocalWorkflowRuntime = jest.fn(async () => ({ mode: "LOCAL", url: runtime.url, reachable: false }));
+    // The first check answers; a later one (a re-check) hangs when asked to, to see what stays on screen.
+    const getWorkflowRuntimeStatus = jest.fn(async () => {
+        if (workflow.runtimeCheckRejects) {
+            throw new Error("rpc down");
+        }
+        if (workflow.recheckHangs && getWorkflowRuntimeStatus.mock.calls.length > 1) {
+            return new Promise<never>(() => undefined);
+        }
+        return runtime;
+    });
     const rpcClient = {
         getVisualizerRpcClient: () => ({ openView, goBack: jest.fn() }),
         getBIDiagramRpcClient: () => ({
@@ -169,7 +207,12 @@ function makeRpc(directoryMap: Record<string, unknown[]>) {
         }),
         getCommonRpcClient: () => ({ isNPSupported: async () => false, agentBuilderModeEnabled: async () => false }),
         getICPRpcClient: () => ({ isIcpEnabled: async () => ({ enabled: false }) }),
-        getWorkflowManagementRpcClient: () => ({ isWorkflowManagementEnabled: async () => ({ enabled: false }) }),
+        getWorkflowManagementRpcClient: () => ({
+            isWorkflowManagementEnabled: async () => ({ enabled: false, workflowImported: workflow.workflowImported }),
+            getWorkflowRuntimeStatus,
+            useInMemoryWorkflowRuntime,
+            useLocalWorkflowRuntime,
+        }),
         getAiPanelRpcClient: () => ({ showSignInAlert: async () => false }),
         getAgentChatRpcClient: () => ({
             getTracingStatus: async (): Promise<TraceStatus> => ({ enabled: false, provider: undefined }),
@@ -177,7 +220,7 @@ function makeRpc(directoryMap: Record<string, unknown[]>) {
         }),
         onProjectContentUpdated: jest.fn(() => (): void => undefined),
     };
-    return { rpcClient, openView };
+    return { rpcClient, openView, useInMemoryWorkflowRuntime, useLocalWorkflowRuntime, getWorkflowRuntimeStatus };
 }
 
 describe("PackageOverview add-artifact entry point", () => {
@@ -273,5 +316,172 @@ describe("PackageOverview add-artifact entry point", () => {
             );
             expect(addIntegration).toHaveLength(0);
         }
+    });
+});
+
+// The Workflow section is shown from the import, not only from the artifact list, which goes empty
+// on a structure rebuilt mid-compilation.
+describe("PackageOverview workflow section", () => {
+    let container: HTMLDivElement;
+    let root: Root;
+
+    beforeEach(() => {
+        container = document.createElement("div");
+        document.body.appendChild(container);
+        root = createRoot(container);
+    });
+
+    afterEach(() => {
+        act(() => root.unmount());
+        container.remove();
+    });
+
+    const renderOverview = async (rpcClient: any) => {
+        await act(async () => {
+            root.render(
+                <TestRpcContext.Provider value={{ rpcClient }}>
+                    <PackageOverview projectPath={PROJECT_PATH} isInDevant={false} />
+                </TestRpcContext.Provider>
+            );
+        });
+        for (let i = 0; i < 10; i++) {
+            await act(async () => undefined);
+        }
+        // The section sits in a collapsed item of the Deployment drawer.
+        await act(async () => {
+            Array.from(container.querySelectorAll("button"))
+                .find((b) => (b.textContent ?? "").startsWith("Workflow Management"))?.click();
+        });
+    };
+
+    const text = () => container.textContent ?? "";
+    const sectionShown = () => container.querySelector('[data-testid="workflow-section"]') !== null;
+    const buttonNamed = (label: string) =>
+        Array.from(container.querySelectorAll("button")).find((b) => (b.textContent ?? "").trim() === label);
+
+    const withWorkflow = () => ({ ...emptyDirectoryMap(), WORKFLOW: [{ name: "approve" }] });
+
+    it("shows the section when the project imports ballerina/workflow but lists no workflow yet", async () => {
+        const { rpcClient } = makeRpc(emptyDirectoryMap(), { workflowImported: true });
+        await renderOverview(rpcClient);
+
+        expect(sectionShown()).toBe(true);
+    });
+
+    it("shows the section from the artifact list alone, for a language server without the flag", async () => {
+        const { rpcClient } = makeRpc(withWorkflow());
+        await renderOverview(rpcClient);
+
+        expect(sectionShown()).toBe(true);
+    });
+
+    it("hides the section when neither signal is present", async () => {
+        const { rpcClient } = makeRpc(emptyDirectoryMap(), { workflowImported: false });
+        await renderOverview(rpcClient);
+
+        expect(sectionShown()).toBe(false);
+    });
+
+    it("reports a detected runtime at its URL", async () => {
+        const { rpcClient } = makeRpc(withWorkflow(), { runtime: { mode: "LOCAL", url: "localhost:7233", reachable: true } });
+        await renderOverview(rpcClient);
+
+        expect(text()).toContain(`${RUNTIME_DETECTED} at localhost:7233.`);
+        expect(text()).not.toContain(NO_RUNTIME_TITLE);
+    });
+
+    it("offers the in-memory and configure options when nothing listens at the configured URL", async () => {
+        const { rpcClient, openView, useInMemoryWorkflowRuntime } = makeRpc(withWorkflow(),
+            { runtime: { mode: "LOCAL", url: "localhost:7233", reachable: false } });
+        await renderOverview(rpcClient);
+
+        expect(text()).toContain(`${NO_RUNTIME_TITLE} at localhost:7233.`);
+
+        await act(async () => {
+            buttonNamed(CONFIGURE_RUNTIME_LABEL)!.click();
+        });
+        expect(openView).toHaveBeenCalledWith({ type: "OPEN_VIEW", location: { view: "View Config Variables" } });
+
+        await act(async () => {
+            buttonNamed(USE_IN_MEMORY_LABEL)!.click();
+        });
+        for (let i = 0; i < 5; i++) {
+            await act(async () => undefined);
+        }
+        expect(useInMemoryWorkflowRuntime).toHaveBeenCalledWith({ projectPath: PROJECT_PATH });
+        expect(text()).toContain(IN_MEMORY_RUNTIME);
+        expect(text()).not.toContain(NO_RUNTIME_TITLE);
+    });
+
+    it("offers only the configure option when a self-hosted server is unreachable", async () => {
+        // A one-click switch would overwrite a deliberate mode while the server is merely down.
+        const { rpcClient } = makeRpc(withWorkflow(),
+            { runtime: { mode: "SELF_HOSTED", url: "temporal.internal:7233", reachable: false } });
+        await renderOverview(rpcClient);
+
+        expect(text()).toContain(`${NO_RUNTIME_TITLE} at temporal.internal:7233.`);
+        expect(buttonNamed(USE_IN_MEMORY_LABEL)).toBeUndefined();
+        expect(buttonNamed(CONFIGURE_RUNTIME_LABEL)).toBeDefined();
+    });
+
+    it("offers a way back to the local runtime from in-memory", async () => {
+        const { rpcClient, useLocalWorkflowRuntime } = makeRpc(withWorkflow(),
+            { runtime: { mode: "IN_MEMORY", url: "localhost:7233" } });
+        await renderOverview(rpcClient);
+
+        expect(text()).toContain(IN_MEMORY_RUNTIME);
+        await act(async () => {
+            buttonNamed(USE_LOCAL_LABEL)!.click();
+        });
+        for (let i = 0; i < 5; i++) {
+            await act(async () => undefined);
+        }
+        expect(useLocalWorkflowRuntime).toHaveBeenCalledWith({ projectPath: PROJECT_PATH });
+        expect(text()).toContain(NO_RUNTIME_TITLE);
+        expect(text()).not.toContain(IN_MEMORY_RUNTIME);
+    });
+
+    it("re-checks when the window regains focus and keeps the last status meanwhile", async () => {
+        const { rpcClient, getWorkflowRuntimeStatus } = makeRpc(withWorkflow(), { recheckHangs: true });
+        await renderOverview(rpcClient);
+        expect(text()).toContain(RUNTIME_DETECTED);
+
+        await act(async () => {
+            window.dispatchEvent(new Event("focus"));
+        });
+        expect(getWorkflowRuntimeStatus).toHaveBeenCalledTimes(2);
+        expect(text()).toContain(RUNTIME_DETECTED);
+        expect(text()).not.toContain("Checking for a workflow runtime");
+    });
+
+    it("does not probe a managed runtime, and says where it is configured", async () => {
+        const { rpcClient } = makeRpc(withWorkflow(), { runtime: { mode: "CLOUD", url: "ns.acct.example:7233" } });
+        await renderOverview(rpcClient);
+
+        expect(text()).toContain(`${MANAGED_RUNTIME} at ns.acct.example:7233.`);
+    });
+
+    it("offers a retry instead of checking forever when the runtime check itself fails", async () => {
+        const { rpcClient } = makeRpc(withWorkflow(), { runtimeCheckRejects: true });
+        await renderOverview(rpcClient);
+
+        expect(text()).toContain(RUNTIME_CHECK_FAILED);
+        expect(text()).not.toContain("Checking for a workflow runtime");
+        expect(container.querySelector('[data-testid="workflow-runtime-recheck"]')).not.toBeNull();
+    });
+
+    it("keeps the not-detected state and says so when the in-memory switch fails", async () => {
+        const { rpcClient } = makeRpc(withWorkflow(),
+            { runtime: { mode: "LOCAL", url: "localhost:7233", reachable: false }, switchRejects: true });
+        await renderOverview(rpcClient);
+
+        await act(async () => {
+            buttonNamed(USE_IN_MEMORY_LABEL)!.click();
+        });
+        for (let i = 0; i < 5; i++) {
+            await act(async () => undefined);
+        }
+        expect(text()).toContain(SWITCH_FAILED);
+        expect(text()).toContain(NO_RUNTIME_TITLE);
     });
 });

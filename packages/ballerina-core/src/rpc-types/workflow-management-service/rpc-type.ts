@@ -15,7 +15,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { WorkflowManagementResponse, WorkflowManagementRequest } from "../../interfaces/extended-lang-client";
+import { WorkflowManagementResponse, WorkflowManagementRequest, WorkflowRuntimeStatusResponse } from "../../interfaces/extended-lang-client";
 import { RequestType } from "vscode-messenger-common";
 
 const _preFix = "workflow-management-service";
@@ -25,3 +25,9 @@ export const addWorkflowManagement: RequestType<WorkflowManagementRequest, Workf
     { method: `${_preFix}/addWorkflowManagement` };
 export const disableWorkflowManagement: RequestType<WorkflowManagementRequest, WorkflowManagementResponse> =
     { method: `${_preFix}/disableWorkflowManagement` };
+export const getWorkflowRuntimeStatus: RequestType<WorkflowManagementRequest, WorkflowRuntimeStatusResponse> =
+    { method: `${_preFix}/getWorkflowRuntimeStatus` };
+export const useInMemoryWorkflowRuntime: RequestType<WorkflowManagementRequest, WorkflowRuntimeStatusResponse> =
+    { method: `${_preFix}/useInMemoryWorkflowRuntime` };
+export const useLocalWorkflowRuntime: RequestType<WorkflowManagementRequest, WorkflowRuntimeStatusResponse> =
+    { method: `${_preFix}/useLocalWorkflowRuntime` };

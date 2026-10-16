@@ -17,7 +17,6 @@
  */
 
 import React, { useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import styled from "@emotion/styled";
 import { useQuery } from "@tanstack/react-query";
 import { AgentManagerAction, AgentManagerBuild, AgentManagerLink, AgentManagerLinkCandidate, AgentManagerSource, AgentManagerStatus } from "@wso2/ballerina-core";
@@ -26,19 +25,12 @@ import { Button, CheckBox, Codicon, ContextMenu, ProgressRing } from "@wso2/ui-t
 import { VSCodeLink } from "@vscode/webview-ui-toolkit/react";
 import { ErrorText, Muted as Detail } from "./AgentManagerConfigFields";
 import { AgentManagerCreateForm } from "./AgentManagerCreateForm";
-import { PopupModal, PopupModalStep } from "../PopupModal";
-import { CloseButton, HeaderTitleContainer, PopupHeader, PopupSubtitle, PopupTitle } from "../../views/BI/Connection/styles";
+import { Actions, DeployPopup, Dot, Row, Stack } from "./shared";
 
 const SLOW_START_MS = 3 * 60 * 1000;
 
 const Muted = styled.span`
     color: var(--vscode-descriptionForeground);
-`;
-
-const Stack = styled.div`
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
 `;
 
 const Section = styled.div`
@@ -47,31 +39,10 @@ const Section = styled.div`
     gap: 4px;
 `;
 
-const Actions = styled.div`
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-`;
-
-const Row = styled.div`
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    min-width: 0;
-`;
-
 const Header = styled(Row)`
     justify-content: space-between;
     font-size: 14px;
     font-weight: 600;
-`;
-
-const Dot = styled.span<{ color: string }>`
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    flex-shrink: 0;
-    background: ${(props: { color: string }) => props.color};
 `;
 
 const ProgressTrack = styled.div`
@@ -243,24 +214,10 @@ export function AgentManagerSection({ projectPath, part, active, ampTracingEnabl
     return (
         <div>
             {isLoading ? <ProgressRing /> : part === "deploy" ? renderDeploy() : renderMonitor()}
-            {creating && status?.signedIn && createPortal(
-                <PopupModal onClose={closeForm} autoHeight maxWidth={560} dismissOnEscape>
-                    {(close) => (
-                        <PopupModalStep>
-                            <PopupHeader>
-                                <HeaderTitleContainer>
-                                    <PopupTitle variant="h2">Create Agent in Agent Manager</PopupTitle>
-                                    <PopupSubtitle variant="body2">{status.org}</PopupSubtitle>
-                                </HeaderTitleContainer>
-                                <CloseButton appearance="icon" onClick={close}>
-                                    <Codicon name="close" />
-                                </CloseButton>
-                            </PopupHeader>
-                            <AgentManagerCreateForm projectPath={projectPath} onDone={close} onCancel={close} />
-                        </PopupModalStep>
-                    )}
-                </PopupModal>,
-                document.body
+            {creating && status?.signedIn && (
+                <DeployPopup title="Create Agent in Agent Manager" subtitle={status.org} onClose={closeForm} maxWidth={560}>
+                    {(close) => <AgentManagerCreateForm projectPath={projectPath} onDone={close} onCancel={close} />}
+                </DeployPopup>
             )}
         </div>
     );

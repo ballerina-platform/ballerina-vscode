@@ -44,6 +44,8 @@ export type Node = {
     // Search-only aliases such as a former label; never rendered
     keywords?: string[];
     icon?: JSX.Element;
+    // Main icon for a grouped child; `icon` becomes its badge.
+    contextIcon?: JSX.Element;
     enabled?: boolean;
     metadata?: any;
 };

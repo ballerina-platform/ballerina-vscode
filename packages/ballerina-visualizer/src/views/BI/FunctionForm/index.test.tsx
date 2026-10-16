@@ -54,10 +54,15 @@ jest.mock("@wso2/ballerina-rpc-client", () => {
     return { __esModule: true, useRpcContext: h.useRpcContext, Context: h.TestRpcContext };
 });
 
-// The form body itself is irrelevant here; its presence is the assertion.
+// The form body itself is irrelevant here; its presence is the assertion. Its props are kept so a
+// test can submit the form.
+let mockArtifactFormProps: { onSubmit: (data: Record<string, unknown>) => Promise<void> } | undefined;
 jest.mock("../Forms/ArtifactForm", () => ({
     __esModule: true,
-    default: () => <div data-testid="artifact-form" />,
+    default: (props: any) => {
+        mockArtifactFormProps = props;
+        return <div data-testid="artifact-form" />;
+    },
 }));
 
 jest.mock("../../../components/TitleBar", () => ({ __esModule: true, TitleBar: (): null => null }));
@@ -273,5 +278,81 @@ describe("FunctionForm load failures", () => {
 
         expect(errorCard()).toBe(false);
         expect(form()).not.toBeNull();
+    });
+});
+
+// L2: what the form shows while creating a workflow artifact waits on Central. Saving adds the
+// workflow import, and the project's first compile then pulls workflow's dependencies before the
+// save can finish (wso2/product-integrator#2731).
+describe("FunctionForm pulling status while saving", () => {
+    const SAVE_PULL_TEXT = "Please wait while the workflow's dependencies are being pulled.";
+    let container: HTMLDivElement;
+    let root: Root;
+
+    beforeEach(() => {
+        // Only timers are faked: act and the RPC promises need real microtasks and ticks.
+        jest.useFakeTimers({ doNotFake: ["nextTick", "setImmediate", "queueMicrotask"] });
+        container = document.createElement("div");
+        document.body.appendChild(container);
+        root = createRoot(container);
+        mockArtifactFormProps = undefined;
+        jest.spyOn(console, "log").mockImplementation(() => undefined);
+    });
+
+    afterEach(() => {
+        act(() => root.unmount());
+        container.remove();
+        jest.restoreAllMocks();
+        jest.useRealTimers();
+    });
+
+    const flush = async () => {
+        for (let i = 0; i < 10; i++) {
+            await act(async () => undefined);
+        }
+    };
+
+    /** Renders a create form and submits it; the save stays in flight on `getSourceCode`. */
+    const submitCreate = async (kind: { isWorkflow?: boolean; isDurableAgent?: boolean; isActivity?: boolean }) => {
+        const pendingSave = deferred<unknown>();
+        const rpc = makeRpc({ getSourceCode: () => pendingSave.promise });
+        await act(async () => {
+            root.render(
+                <TestRpcContext.Provider value={{ rpcClient: rpc }}>
+                    <FunctionForm filePath={FILE_PATH} projectPath={PROJECT_PATH} functionName={undefined} {...kind} />
+                </TestRpcContext.Provider>
+            );
+        });
+        await flush();
+        expect(mockArtifactFormProps).toBeDefined();
+        await act(async () => {
+            void mockArtifactFormProps!.onSubmit({ functionName: "orderFlow" });
+        });
+        await flush();
+    };
+
+    const pullCard = () => container.textContent?.includes(SAVE_PULL_TEXT) ?? false;
+    const loadingRing = () => container.querySelector('[data-testid="loading-ring"]');
+
+    // All three create flows import ballerina/workflow, so all three can wait on its dependencies.
+    it.each([
+        ["Durable Workflow", { isWorkflow: true }],
+        ["Durable Agentic Workflow", { isDurableAgent: true }],
+        ["Workflow Activity", { isActivity: true }],
+    ])("%s: shows the plain loader first, then the pulling status once the save runs past the delay", async (_, kind) => {
+        await submitCreate(kind);
+        expect(loadingRing()).not.toBeNull();
+        expect(pullCard()).toBe(false);
+
+        await act(async () => { jest.advanceTimersByTime(3000); });
+        expect(pullCard()).toBe(true);
+        expect(loadingRing()).toBeNull();
+    });
+
+    it("keeps the plain loader for an artifact that pulls no workflow package", async () => {
+        await submitCreate({});
+        await act(async () => { jest.advanceTimersByTime(3000); });
+        expect(pullCard()).toBe(false);
+        expect(loadingRing()).not.toBeNull();
     });
 });

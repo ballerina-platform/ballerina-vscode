@@ -88,6 +88,33 @@ public class ModelGeneratorTest extends AbstractLSTest {
                 "Submodule function call should not expose navigation");
     }
 
+    @Test
+    public void testRunWithIdWorkflowIsADropdown() throws IOException {
+        String source = "workflow_run_with_id.bal";
+        FlowModelGeneratorRequest request = new FlowModelGeneratorRequest(
+                getSourcePath(source), LinePosition.from(11, 0), LinePosition.from(13, 1));
+        JsonObject response = getResponseAndCloseFile(request, source);
+
+        Assert.assertFalse(response.has("errorMsg"), "Flow model generation failed: " + response);
+        JsonObject runWithId = null;
+        for (JsonElement node : response.getAsJsonObject("flowModel").getAsJsonArray("nodes")) {
+            JsonObject codedata = node.getAsJsonObject().getAsJsonObject("codedata");
+            if (codedata != null && codedata.has("symbol")
+                    && "runWithId".equals(codedata.get("symbol").getAsString())) {
+                runWithId = node.getAsJsonObject();
+                break;
+            }
+        }
+        Assert.assertNotNull(runWithId, "workflow:runWithId call was not generated");
+        JsonObject workflow = runWithId.getAsJsonObject("properties").getAsJsonObject("processFunction");
+        JsonObject type = workflow.getAsJsonArray("types").get(0).getAsJsonObject();
+        Assert.assertEquals(type.get("fieldType").getAsString(), "SINGLE_SELECT");
+        Assert.assertEquals(type.getAsJsonArray("options").get(0).getAsJsonObject().get("value").getAsString(),
+                "orderWorkflow");
+        Assert.assertEquals(workflow.get("value").getAsString(), "orderWorkflow");
+        Assert.assertEquals(workflow.getAsJsonObject("codedata").get("originalName").getAsString(), "processFunction");
+    }
+
     @Override
     protected String[] skipList() {
         return new String[]{

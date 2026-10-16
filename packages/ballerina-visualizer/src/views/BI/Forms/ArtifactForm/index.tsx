@@ -63,6 +63,7 @@ import {
     convertToVisibleTypes,
     filterUnsupportedDiagnostics,
     getImportsForFormFields,
+    mergeFormImports,
     calculateExpressionOffsets,
     injectHighlightTheme,
     removeDuplicateDiagnostics,
@@ -747,6 +748,10 @@ export function ArtifactForm(props: ArtifactFormProps) {
                                 }
                             });
                         }
+                        const formFieldImports = formImportsRef.current[key];
+                        const updatedProperty = formFieldImports
+                            ? { ...property, imports: { ...(property.imports || {}), ...formFieldImports } }
+                            : property;
                         const response = await rpcClient.getBIDiagramRpcClient().getExpressionDiagnostics({
                             filePath: fileName,
                             context: {
@@ -755,7 +760,7 @@ export function ArtifactForm(props: ArtifactFormProps) {
                                 lineOffset: 0,
                                 offset: 0,
                                 codedata: field.codedata,
-                                property: property,
+                                property: updatedProperty,
                             },
                         });
 
@@ -935,19 +940,9 @@ export function ArtifactForm(props: ArtifactFormProps) {
 
     const handleUpdateImports = (key: string, imports: Imports, codedata?: CodeData) => {
         importsCodedataRef.current = codedata;
-        const importKey = Object.keys(imports)?.[0];
-
-        if (Object.keys(formImports).includes(key)) {
-            if (importKey && !Object.keys(formImports[key]).includes(importKey)) {
-                const updatedImports = { ...formImports, [key]: { ...formImports[key], ...imports } };
-                formImportsRef.current = updatedImports;
-                setFormImports(updatedImports);
-            }
-        } else {
-            const updatedImports = { ...formImports, [key]: imports };
-            formImportsRef.current = updatedImports;
-            setFormImports(updatedImports);
-        }
+        const updatedImports = mergeFormImports(formImportsRef.current, key, imports);
+        formImportsRef.current = updatedImports;
+        setFormImports(updatedImports);
     }
 
     const onCloseTypeEditor = () => {

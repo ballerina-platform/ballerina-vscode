@@ -34,6 +34,9 @@ import {
     AgentManagerMcpBinding,
     AgentManagerMcpOffer,
     AgentManagerMcpProxies,
+    AgentManagerMcpPublishRequest,
+    AgentManagerMcpPublishStatus,
+    AgentManagerMcpSourceFixRequest,
     AgentManagerModelBindRequest,
     AgentManagerModelProviders,
     AgentManagerSession,
@@ -78,3 +81,11 @@ export const checkAgentManagerSource: RequestType<AgentManagerSourceCheckRequest
     { method: `${_preFix}/checkAgentManagerSource` };
 export const createAgentManagerAgent: RequestType<AgentManagerCreateRequest, AgentManagerActionResponse> =
     { method: `${_preFix}/createAgentManagerAgent` };
+export const getAgentManagerMcpPublishStatus: RequestType<AgentManagerStatusRequest, AgentManagerMcpPublishStatus> =
+    { method: `${_preFix}/getAgentManagerMcpPublishStatus` };
+export const prepareAgentManagerMcpEndpoint: RequestType<AgentManagerStatusRequest, AgentManagerActionResponse> =
+    { method: `${_preFix}/prepareAgentManagerMcpEndpoint` };
+export const publishAgentManagerMcpProxy: RequestType<AgentManagerMcpPublishRequest, AgentManagerActionResponse> =
+    { method: `${_preFix}/publishAgentManagerMcpProxy` };
+export const fixAgentManagerMcpSource: RequestType<AgentManagerMcpSourceFixRequest, AgentManagerActionResponse> =
+    { method: `${_preFix}/fixAgentManagerMcpSource` };

@@ -23,6 +23,8 @@ import { Uri } from 'vscode';
 import { ArtifactData, EVENT_TYPE, isSamePath, MACHINE_VIEW, ProjectStructureArtifactResponse, STModification, TextEdit } from '@wso2/ballerina-core';
 import { openView, StateMachine, undoRedoManager } from '../stateMachine';
 import { ArtifactsUpdated, ArtifactNotificationHandler } from './project-artifacts-handler';
+import { refreshArtifactPositions } from './project-artifacts';
+import { startPullAwareTimeout } from './module-pull-state';
 import { existsSync, writeFileSync, mkdirSync } from 'fs';
 import * as path from 'path';
 import { notifyCurrentWebview } from '../RPCLayer';
@@ -186,8 +188,10 @@ export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCode
             let newArtifactIds: Set<string> | undefined;
             // Pre-formatted edits are final, so their single notification goes to the final subscriber below.
             const preformatted = updateSourceCodeRequest.preformatted;
+            let rawEditTimedOut = false;
             const rawEditNotification = preformatted ? Promise.resolve() : new Promise<void>((resolve) => {
-                let timeoutId: ReturnType<typeof setTimeout>;
+                // Pull-aware: the raw edit's first compile can wait on a module pull it triggered.
+                const timeout = startPullAwareTimeout(() => { rawEditTimedOut = true; unsub(); resolve(); }, 10000);
                 const unsub = handler.subscribe(
                     ArtifactsUpdated.method, updateSourceCodeRequest.artifactData,
                     (payload) => {
@@ -196,11 +200,10 @@ export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCode
                             newArtifactIds = new Set(
                                 artifactData.filter(a => a.isNew).map(a => a.id)
                             );
-                            clearTimeout(timeoutId); unsub(); resolve();
+                            timeout.cancel(); unsub(); resolve();
                         }
                     }
                 );
-                timeoutId = setTimeout(() => { unsub(); resolve(); }, 10000);
             });
 
             // Armed before the last edit: flushArtifacts publishes at once and publish has no replay.
@@ -286,8 +289,9 @@ export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCode
                     resolve([]);
                     return;
                 }
-                const timeoutId = setTimeout(() => {
-                    console.log("No artifact update notification received within 10 seconds");
+                // Reject if no notification is received within 10 seconds outside a module pull
+                const timeout = startPullAwareTimeout(() => {
+                    console.log("No artifact update notification received within 10 seconds outside a module pull");
                     stopFinalWait();
                     StateMachine.setReadyMode();
                     // Don't navigate away while migration enhancement is running — it would
@@ -297,19 +301,38 @@ export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCode
                     }
                     reject(new Error("Operation timed out. Please try again."));
                 }, 10000);
-                onFinalArtifacts = (artifacts) => {
+                onFinalArtifacts = async (artifacts) => {
                     console.log("Received notification:", artifacts);
+                    timeout.cancel();
+                    let data = artifacts;
+                    if (rawEditTimedOut) {
+                        // The raw edit's notification did not arrive before formatting, so this can be
+                        // it, with positions in the unformatted text. Read the formatted text's instead.
+                        let refreshTimeoutId: ReturnType<typeof setTimeout>;
+                        const refreshTimedOut = new Promise<undefined>(done => {
+                            refreshTimeoutId = setTimeout(() => done(undefined), 10000);
+                        });
+                        try {
+                            data = (await Promise.race([
+                                refreshArtifactPositions(Object.keys(modificationRequests)[0], data),
+                                refreshTimedOut
+                            ])) ?? data;
+                        } catch (error) {
+                            console.error("Failed to refresh artifact positions:", error);
+                        } finally {
+                            clearTimeout(refreshTimeoutId);
+                        }
+                    }
                     if (newArtifactIds?.size) {
-                        artifacts.forEach(entry => {
+                        data.forEach(entry => {
                             if (newArtifactIds.has(entry.id)) {
                                 entry.isNew = true;
                             }
                         });
                     }
-                    clearTimeout(timeoutId);
-                    resolve(artifacts);
+                    resolve(data);
                     StateMachine.setReadyMode();
-                    checkAndNotifyWebview(artifacts, updateSourceCodeRequest, isChangeFromHelperPane);
+                    checkAndNotifyWebview(data, updateSourceCodeRequest, isChangeFromHelperPane);
                 };
                 if (earlyArtifacts) {
                     onFinalArtifacts(earlyArtifacts);

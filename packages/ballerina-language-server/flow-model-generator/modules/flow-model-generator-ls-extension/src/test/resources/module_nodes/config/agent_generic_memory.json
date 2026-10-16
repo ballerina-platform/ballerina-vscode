@@ -10,7 +10,7 @@
         "metadata": {
           "label": "Agent",
           "description": "Represents an agent.",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png",
           "data": {
             "agentInfo": {
               "systemPrompt": {
@@ -23,7 +23,7 @@
                   "size": "10",
                   "store": {
                     "name": "store",
-                    "path": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png",
+                    "path": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png",
                     "type": "ai"
                   }
                 }
@@ -31,7 +31,7 @@
               "modelProvider": {
                 "presentation": {
                   "name": "model",
-                  "path": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png",
+                  "path": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png",
                   "type": "Wso2ModelProvider"
                 }
               },
@@ -46,7 +46,7 @@
           "packageName": "ai",
           "object": "Agent",
           "symbol": "init",
-          "version": "1.15.0",
+          "version": "1.16.0",
           "lineRange": {
             "fileName": "main.bal",
             "startLine": {
@@ -130,7 +130,7 @@
                 "typeMembers": [
                   {
                     "type": "SystemPrompt",
-                    "packageInfo": "ballerina:ai:1.15.0",
+                    "packageInfo": "ballerina:ai:1.16.0",
                     "packageName": "ai",
                     "kind": "RECORD_TYPE",
                     "selected": true
@@ -154,7 +154,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "systemPrompt"
             },
-            "defaultValue": "{role: \"\", instructions: \"\"}"
+            "defaultValue": ""
           },
           "memory": {
             "metadata": {
@@ -178,7 +178,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "memory"
             },
-            "defaultValue": "()"
+            "defaultValue": ""
           },
           "model": {
             "metadata": {
@@ -202,7 +202,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "model"
             },
-            "defaultValue": "object {}"
+            "defaultValue": ""
           },
           "tools": {
             "metadata": {
@@ -221,7 +221,7 @@
                       "typeMembers": [
                         {
                           "type": "ToolConfig",
-                          "packageInfo": "ballerina:ai:1.15.0",
+                          "packageInfo": "ballerina:ai:1.16.0",
                           "packageName": "ai",
                           "kind": "RECORD_TYPE",
                           "selected": false
@@ -296,7 +296,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "maxIter"
             },
-            "defaultValue": "INFER_TOOL_COUNT"
+            "defaultValue": "\"INFER_TOOL_COUNT\""
           },
           "verbose": {
             "metadata": {
@@ -361,7 +361,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "toolLoadingStrategy"
             },
-            "defaultValue": "NO_FILTER"
+            "defaultValue": "\"NO_FILTER\""
           },
           "executeToolCallsInParallel": {
             "metadata": {
@@ -403,7 +403,7 @@
                 "typeMembers": [
                   {
                     "type": "Credential",
-                    "packageInfo": "ballerina:ai:1.15.0",
+                    "packageInfo": "ballerina:ai:1.16.0",
                     "packageName": "ai",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -426,7 +426,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "credential"
             },
-            "defaultValue": "{id: \"\", secret: \"\"}"
+            "defaultValue": ""
           },
           "checkError": {
             "metadata": {
@@ -519,7 +519,7 @@
         "metadata": {
           "label": "Agent",
           "description": "Represents an agent.",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png",
           "data": {
             "agentInfo": {
               "systemPrompt": {
@@ -532,7 +532,7 @@
                   "size": "10",
                   "store": {
                     "name": "store",
-                    "path": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png",
+                    "path": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png",
                     "type": "ai"
                   }
                 }
@@ -540,7 +540,7 @@
               "modelProvider": {
                 "presentation": {
                   "name": "model",
-                  "path": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png",
+                  "path": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png",
                   "type": "Wso2ModelProvider"
                 }
               },
@@ -555,7 +555,7 @@
           "packageName": "ai",
           "object": "Agent",
           "symbol": "init",
-          "version": "1.15.0",
+          "version": "1.16.0",
           "lineRange": {
             "fileName": "main.bal",
             "startLine": {
@@ -639,7 +639,7 @@
                 "typeMembers": [
                   {
                     "type": "SystemPrompt",
-                    "packageInfo": "ballerina:ai:1.15.0",
+                    "packageInfo": "ballerina:ai:1.16.0",
                     "packageName": "ai",
                     "kind": "RECORD_TYPE",
                     "selected": true
@@ -663,7 +663,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "systemPrompt"
             },
-            "defaultValue": "{role: \"\", instructions: \"\"}"
+            "defaultValue": ""
           },
           "memory": {
             "metadata": {
@@ -687,7 +687,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "memory"
             },
-            "defaultValue": "()"
+            "defaultValue": ""
           },
           "model": {
             "metadata": {
@@ -711,7 +711,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "model"
             },
-            "defaultValue": "object {}"
+            "defaultValue": ""
           },
           "tools": {
             "metadata": {
@@ -730,7 +730,7 @@
                       "typeMembers": [
                         {
                           "type": "ToolConfig",
-                          "packageInfo": "ballerina:ai:1.15.0",
+                          "packageInfo": "ballerina:ai:1.16.0",
                           "packageName": "ai",
                           "kind": "RECORD_TYPE",
                           "selected": false
@@ -805,7 +805,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "maxIter"
             },
-            "defaultValue": "INFER_TOOL_COUNT"
+            "defaultValue": "\"INFER_TOOL_COUNT\""
           },
           "verbose": {
             "metadata": {
@@ -870,7 +870,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "toolLoadingStrategy"
             },
-            "defaultValue": "NO_FILTER"
+            "defaultValue": "\"NO_FILTER\""
           },
           "executeToolCallsInParallel": {
             "metadata": {
@@ -912,7 +912,7 @@
                 "typeMembers": [
                   {
                     "type": "Credential",
-                    "packageInfo": "ballerina:ai:1.15.0",
+                    "packageInfo": "ballerina:ai:1.16.0",
                     "packageName": "ai",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -935,7 +935,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "credential"
             },
-            "defaultValue": "{id: \"\", secret: \"\"}"
+            "defaultValue": ""
           },
           "checkError": {
             "metadata": {
@@ -1028,7 +1028,7 @@
         "metadata": {
           "label": "Agent",
           "description": "Represents an agent.",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png",
           "data": {
             "agentInfo": {
               "systemPrompt": {
@@ -1041,7 +1041,7 @@
                   "size": "10",
                   "store": {
                     "name": "store",
-                    "path": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png",
+                    "path": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png",
                     "type": "ai"
                   }
                 }
@@ -1049,7 +1049,7 @@
               "modelProvider": {
                 "presentation": {
                   "name": "model",
-                  "path": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png",
+                  "path": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png",
                   "type": "Wso2ModelProvider"
                 }
               },
@@ -1064,7 +1064,7 @@
           "packageName": "ai",
           "object": "Agent",
           "symbol": "init",
-          "version": "1.15.0",
+          "version": "1.16.0",
           "lineRange": {
             "fileName": "main.bal",
             "startLine": {
@@ -1148,7 +1148,7 @@
                 "typeMembers": [
                   {
                     "type": "SystemPrompt",
-                    "packageInfo": "ballerina:ai:1.15.0",
+                    "packageInfo": "ballerina:ai:1.16.0",
                     "packageName": "ai",
                     "kind": "RECORD_TYPE",
                     "selected": true
@@ -1172,7 +1172,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "systemPrompt"
             },
-            "defaultValue": "{role: \"\", instructions: \"\"}"
+            "defaultValue": ""
           },
           "memory": {
             "metadata": {
@@ -1196,7 +1196,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "memory"
             },
-            "defaultValue": "()"
+            "defaultValue": ""
           },
           "model": {
             "metadata": {
@@ -1220,7 +1220,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "model"
             },
-            "defaultValue": "object {}"
+            "defaultValue": ""
           },
           "tools": {
             "metadata": {
@@ -1239,7 +1239,7 @@
                       "typeMembers": [
                         {
                           "type": "ToolConfig",
-                          "packageInfo": "ballerina:ai:1.15.0",
+                          "packageInfo": "ballerina:ai:1.16.0",
                           "packageName": "ai",
                           "kind": "RECORD_TYPE",
                           "selected": false
@@ -1314,7 +1314,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "maxIter"
             },
-            "defaultValue": "INFER_TOOL_COUNT"
+            "defaultValue": "\"INFER_TOOL_COUNT\""
           },
           "verbose": {
             "metadata": {
@@ -1379,7 +1379,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "toolLoadingStrategy"
             },
-            "defaultValue": "NO_FILTER"
+            "defaultValue": "\"NO_FILTER\""
           },
           "executeToolCallsInParallel": {
             "metadata": {
@@ -1421,7 +1421,7 @@
                 "typeMembers": [
                   {
                     "type": "Credential",
-                    "packageInfo": "ballerina:ai:1.15.0",
+                    "packageInfo": "ballerina:ai:1.16.0",
                     "packageName": "ai",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -1444,7 +1444,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "credential"
             },
-            "defaultValue": "{id: \"\", secret: \"\"}"
+            "defaultValue": ""
           },
           "checkError": {
             "metadata": {
@@ -1537,7 +1537,7 @@
         "metadata": {
           "label": "Model Provider",
           "description": "Creates a default model provider based on the provided `wso2ProviderConfig`.",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png"
         },
         "codedata": {
           "node": "MODEL_PROVIDER",
@@ -1652,7 +1652,7 @@
         "metadata": {
           "label": "Memory",
           "description": "Initializes short-term memory with an optional store and overflow configuration.\n",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png"
         },
         "codedata": {
           "node": "MEMORY",
@@ -1714,14 +1714,14 @@
                 "typeMembers": [
                   {
                     "type": "TrimOverflowHandlerConfiguration",
-                    "packageInfo": "ballerina:ai:1.15.0",
+                    "packageInfo": "ballerina:ai:1.16.0",
                     "packageName": "ai",
                     "kind": "RECORD_TYPE",
                     "selected": false
                   },
                   {
                     "type": "ModelAssistedOverflowHandlerConfiguration",
-                    "packageInfo": "ballerina:ai:1.15.0",
+                    "packageInfo": "ballerina:ai:1.16.0",
                     "packageName": "ai",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -1837,7 +1837,7 @@
         "metadata": {
           "label": "Memory",
           "description": "Initializes short-term memory with an optional store and overflow configuration.\n",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png"
         },
         "codedata": {
           "node": "MEMORY",
@@ -1896,14 +1896,14 @@
                 "typeMembers": [
                   {
                     "type": "TrimOverflowHandlerConfiguration",
-                    "packageInfo": "ballerina:ai:1.15.0",
+                    "packageInfo": "ballerina:ai:1.16.0",
                     "packageName": "ai",
                     "kind": "RECORD_TYPE",
                     "selected": false
                   },
                   {
                     "type": "ModelAssistedOverflowHandlerConfiguration",
-                    "packageInfo": "ballerina:ai:1.15.0",
+                    "packageInfo": "ballerina:ai:1.16.0",
                     "packageName": "ai",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -2019,7 +2019,7 @@
         "metadata": {
           "label": "Memory",
           "description": "Initializes short-term memory with an optional store and overflow configuration.\n",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png"
         },
         "codedata": {
           "node": "MEMORY",
@@ -2081,14 +2081,14 @@
                 "typeMembers": [
                   {
                     "type": "TrimOverflowHandlerConfiguration",
-                    "packageInfo": "ballerina:ai:1.15.0",
+                    "packageInfo": "ballerina:ai:1.16.0",
                     "packageName": "ai",
                     "kind": "RECORD_TYPE",
                     "selected": false
                   },
                   {
                     "type": "ModelAssistedOverflowHandlerConfiguration",
-                    "packageInfo": "ballerina:ai:1.15.0",
+                    "packageInfo": "ballerina:ai:1.16.0",
                     "packageName": "ai",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -2204,7 +2204,7 @@
         "metadata": {
           "label": "Memory Store",
           "description": "Initializes a new in-memory store.\n",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png"
         },
         "codedata": {
           "node": "SHORT_TERM_MEMORY_STORE",

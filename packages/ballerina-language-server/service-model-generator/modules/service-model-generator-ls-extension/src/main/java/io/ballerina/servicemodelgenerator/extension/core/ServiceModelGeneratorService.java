@@ -141,6 +141,7 @@ import org.eclipse.lsp4j.services.LanguageServer;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -362,9 +363,14 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
 
                 List<TextEdit> edits = new ArrayList<>();
                 LineRange lineRange = modulePartNode.lineRange();
+                Set<String> importStmts = new LinkedHashSet<>();
                 if (!importExists(modulePartNode, listener.getOrgName(), listener.getModuleName())) {
-                    String importText = getImportStmt(listener.getOrgName(), listener.getModuleName());
-                    edits.add(new TextEdit(Utils.toRange(lineRange.startLine()), importText));
+                    importStmts.add(getImportStmt(listener.getOrgName(), listener.getModuleName()));
+                }
+                importStmts.addAll(Utils.getMissingPropertyImportStmts(modulePartNode, listener.getProperties()));
+                if (!importStmts.isEmpty()) {
+                    edits.add(new TextEdit(Utils.toRange(lineRange.startLine()),
+                            String.join(NEW_LINE, importStmts)));
                 }
                 String listenerDeclaration = listener.getListenerDeclaration();
                 edits.add(new TextEdit(Utils.toRange(lineRange.endLine()), NEW_LINE + listenerDeclaration));
@@ -979,6 +985,13 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                 // Add imports required by the FTP coordination config type cast
                 FTPListenerUtil.addCoordinationConfigImports(listenerDeclaration, modulePartNode, edits);
 
+                Set<String> propertyImportStmts = Utils.getMissingPropertyImportStmts(modulePartNode,
+                        listener.getProperties());
+                if (!propertyImportStmts.isEmpty()) {
+                    edits.addFirst(new TextEdit(Utils.toRange(modulePartNode.lineRange().startLine()),
+                            String.join(NEW_LINE, propertyImportStmts)));
+                }
+
                 Map<String, List<TextEdit>> allEdits = new LinkedHashMap<>();
                 allEdits.put(request.filePath(), edits);
                 PlatformDependencyEditUtil.addDriverDependenciesIfPresent(allEdits, project,
@@ -1520,10 +1533,14 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
         }
 
         return getTriggerBasicInfoByName(triggerProperty.orgName(), triggerProperty.name())
-                .map(original -> new TriggerBasicInfo(original.id(), triggerProperty.triggerName(), original.orgName(),
-                        original.packageName(), original.moduleName(), original.version(), original.type(),
-                        original.displayName(), original.documentation(), original.listenerProtocol(),
-                        original.icon(), original.triggerKind()));
+                .map(original -> {
+                    String documentation = triggerProperty.description() != null
+                            ? triggerProperty.description() : original.documentation();
+                    return new TriggerBasicInfo(original.id(), triggerProperty.triggerName(), original.orgName(),
+                            original.packageName(), original.moduleName(), original.version(), original.type(),
+                            original.displayName(), documentation, original.listenerProtocol(),
+                            original.icon(), original.triggerKind());
+                });
     }
 
     /** Builds {@link TriggerBasicInfo} straight from a self-describing {@link TriggerProperty} entry. */
@@ -1533,8 +1550,9 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
         int id = triggerProperty.name().hashCode();
         String icon = CommonUtils.generateIcon(triggerProperty.orgName(), triggerProperty.packageName(),
                 triggerProperty.version());
+        String documentation = triggerProperty.description() != null ? triggerProperty.description() : "";
         return new TriggerBasicInfo(id, label, triggerProperty.orgName(), triggerProperty.packageName(),
-                triggerProperty.name(), triggerProperty.version(), triggerProperty.kind(), label, "",
+                triggerProperty.name(), triggerProperty.version(), triggerProperty.kind(), label, documentation,
                 protocol, icon, TriggerKind.effectiveOrNull(triggerProperty.triggerKind(), triggerProperty.kind()));
     }
 }

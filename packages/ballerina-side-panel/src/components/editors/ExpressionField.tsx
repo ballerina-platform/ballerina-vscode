@@ -64,7 +64,6 @@ export interface ExpressionFieldProps {
         currentArgIndex: number;
         documentation?: FnSignatureDocumentation;
     }>;
-    onCompletionSelect?: (value: string, item: CompletionItem) => void;
     onFocus?: () => void;
     onBlur?: () => void;
     onSave?: (value: string) => void;

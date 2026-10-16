@@ -19,8 +19,10 @@
 package io.ballerina.flowmodelgenerator.extension;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
 import io.ballerina.flowmodelgenerator.extension.request.FlowModelSourceGeneratorRequest;
 import io.ballerina.modelgenerator.commons.AbstractLSTest;
@@ -29,11 +31,13 @@ import io.ballerina.tools.text.LinePosition;
 import io.ballerina.tools.text.TextDocuments;
 import org.ballerinalang.formatter.core.Formatter;
 import org.ballerinalang.formatter.core.FormatterException;
+import org.ballerinalang.langserver.util.TestUtil;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.TextEdit;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
@@ -44,6 +48,7 @@ import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Tests for the flow model source generator service.
@@ -51,6 +56,8 @@ import java.util.Map;
  * @since 1.0.0
  */
 public class SourceGeneratorTest extends AbstractLSTest {
+
+    private static final String UNDEFINED_VARIABLE = "undefinedVariable";
 
     private static final Type textEditListType = new TypeToken<Map<String, List<TextEdit>>>() { }.getType();
 
@@ -195,6 +202,136 @@ public class SourceGeneratorTest extends AbstractLSTest {
         TestConfig config = gson.fromJson(Files.newBufferedReader(configDir.resolve(configName)), TestConfig.class);
         return new FlowModelSourceGeneratorRequest(sourceDir.resolve(config.source()).toAbsolutePath().toString(),
                 config.diagram());
+    }
+
+    @Test(dataProvider = "blank-workflow")
+    public void testBlankWorkflowIsReported(String config, String workflowKey, String expectedMessage)
+            throws IOException {
+        JsonObject response = requestWithBlankWorkflow(config, workflowKey, getApiName());
+        Assert.assertEquals(response.get("errorMsg").getAsString(), expectedMessage);
+    }
+
+    @Test(dataProvider = "blank-workflow-diagnostics")
+    public void testBlankWorkflowStillGetsDiagnostics(String config, String workflowKey, String otherKey)
+            throws IOException {
+        // The form asks for diagnostics on every edit, before a workflow is picked too: another field with an
+        // undefined variable still gets its diagnostic.
+        JsonObject response = requestWithBlankWorkflow(config, workflowKey, otherKey, "diagnostics");
+        Assert.assertFalse(response.has("errorMsg"), "Diagnostics failed: " + response);
+        Assert.assertTrue(response.has("flowNode") && response.get("flowNode").isJsonObject(),
+                "Diagnostics returned no flow node: " + response);
+        JsonObject properties = response.getAsJsonObject("flowNode").getAsJsonObject("properties");
+        // The empty workflow is only reported on save ("Select a workflow..."); the dropdown carries no compiler text.
+        JsonObject workflow = properties.getAsJsonObject(workflowKey);
+        Assert.assertNotNull(workflow, "No '" + workflowKey + "' field in: " + response);
+        Assert.assertFalse(workflow.has("diagnostics") && workflow.getAsJsonObject("diagnostics").get("hasDiagnostics")
+                .getAsBoolean(), "The blank '" + workflowKey + "' field carries diagnostics: " + workflow);
+        JsonObject other = properties.getAsJsonObject(otherKey);
+        Assert.assertNotNull(other, "No '" + otherKey + "' field in: " + response);
+        Assert.assertTrue(other.has("diagnostics") && other.getAsJsonObject("diagnostics").get("hasDiagnostics")
+                .getAsBoolean(), "No diagnostic on '" + otherKey + "': " + other);
+        Assert.assertTrue(other.getAsJsonObject("diagnostics").toString().contains(UNDEFINED_VARIABLE),
+                "The diagnostic on '" + otherKey + "' does not name the undefined variable: " + other);
+    }
+
+    @Test
+    public void testBlankWorkflowInBlockStillGetsDiagnostics() throws IOException {
+        // A block's children are written by child source builders, which must take the diagnostics path too.
+        TestConfig testConfig = gson.fromJson(Files.newBufferedReader(configDir.resolve("workflow_run_to_source.json")),
+                TestConfig.class);
+        JsonObject runNode = testConfig.diagram().getAsJsonObject().deepCopy();
+        runNode.getAsJsonObject("codedata").remove("symbol");
+        runNode.getAsJsonObject("codedata").remove("isNew");
+        runNode.getAsJsonObject("properties").getAsJsonObject("input").addProperty("value", UNDEFINED_VARIABLE);
+
+        JsonObject condition = new JsonObject();
+        condition.addProperty("valueType", "EXPRESSION");
+        condition.addProperty("value", "true");
+        JsonObject branchProperties = new JsonObject();
+        branchProperties.add("condition", condition);
+        JsonObject branchCodedata = new JsonObject();
+        branchCodedata.addProperty("node", "CONDITIONAL");
+        JsonArray children = new JsonArray();
+        children.add(runNode);
+        JsonObject thenBranch = new JsonObject();
+        thenBranch.addProperty("label", "Then");
+        thenBranch.addProperty("kind", "BLOCK");
+        thenBranch.add("codedata", branchCodedata);
+        thenBranch.add("properties", branchProperties);
+        thenBranch.add("children", children);
+        JsonArray branches = new JsonArray();
+        branches.add(thenBranch);
+
+        JsonObject ifCodedata = testConfig.diagram().getAsJsonObject().getAsJsonObject("codedata").deepCopy();
+        ifCodedata.addProperty("node", "IF");
+        ifCodedata.remove("org");
+        ifCodedata.remove("module");
+        ifCodedata.remove("symbol");
+        JsonObject ifNode = new JsonObject();
+        ifNode.addProperty("id", "1");
+        ifNode.add("codedata", ifCodedata);
+        ifNode.add("branches", branches);
+        ifNode.add("properties", new JsonObject());
+
+        FlowModelSourceGeneratorRequest request = new FlowModelSourceGeneratorRequest(
+                sourceDir.resolve(testConfig.source()).toAbsolutePath().toString(), ifNode);
+        CompletableFuture<?> result = serviceEndpoint.request(getServiceName() + "/diagnostics", request);
+        JsonObject response = JsonParser.parseString(TestUtil.getResponseString(result))
+                .getAsJsonObject().getAsJsonObject("result");
+        Assert.assertFalse(response.has("errorMsg"), "Diagnostics failed: " + response);
+        Assert.assertTrue(response.has("flowNode") && response.get("flowNode").isJsonObject(),
+                "Diagnostics returned no flow node: " + response);
+    }
+
+    private JsonObject requestWithBlankWorkflow(String config, String workflowKey, String api) throws IOException {
+        return requestWithBlankWorkflow(config, workflowKey, null, api);
+    }
+
+    private JsonObject requestWithBlankWorkflow(String config, String workflowKey, String otherKey, String api)
+            throws IOException {
+        TestConfig testConfig = gson.fromJson(Files.newBufferedReader(configDir.resolve(config)), TestConfig.class);
+        // The form opened from the function search has no workflow until one is picked from the dropdown.
+        JsonObject diagram = testConfig.diagram().getAsJsonObject().deepCopy();
+        JsonObject codedata = diagram.getAsJsonObject("codedata");
+        // The workflow nodes fall back to the codedata symbol; for runWithId the symbol names the function called.
+        if (!"FUNCTION_CALL".equals(codedata.get("node").getAsString())) {
+            codedata.remove("symbol");
+        }
+        JsonObject workflow = diagram.getAsJsonObject("properties").getAsJsonObject(workflowKey);
+        if (workflow != null) {
+            workflow.addProperty("value", "");
+        }
+        if (otherKey != null) {
+            diagram.getAsJsonObject("properties").getAsJsonObject(otherKey).addProperty("value", UNDEFINED_VARIABLE);
+        }
+
+        FlowModelSourceGeneratorRequest request = new FlowModelSourceGeneratorRequest(
+                sourceDir.resolve(testConfig.source()).toAbsolutePath().toString(), diagram);
+        // getResponse fails the test on any error, so the error response is read directly.
+        CompletableFuture<?> result = serviceEndpoint.request(getServiceName() + "/" + api, request);
+        return JsonParser.parseString(TestUtil.getResponseString(result)).getAsJsonObject().getAsJsonObject("result");
+    }
+
+    @DataProvider(name = "blank-workflow")
+    private Object[][] blankWorkflowConfigs() {
+        return new Object[][]{
+                {"workflow_run_to_source.json", "workflow", "Select a workflow in the Workflow field"},
+                {"send_data_to_source.json", "workflow", "Select a workflow in the Workflow Name field"},
+                {"workflow_run_with_id_to_source.json", "processFunction", "Select a workflow in the Workflow field"},
+                {"child_workflow_run_to_source.json", "workflow", "Select a workflow in the Child Workflow field"},
+                {"child_workflow_call_to_source.json", "workflow", "Select a workflow in the Child Workflow field"}
+        };
+    }
+
+    @DataProvider(name = "blank-workflow-diagnostics")
+    private Object[][] blankWorkflowDiagnosticsConfigs() {
+        return new Object[][]{
+                {"workflow_run_to_source.json", "workflow", "input"},
+                {"send_data_to_source.json", "workflow", "workflowId"},
+                {"workflow_run_with_id_to_source.json", "processFunction", "instanceId"},
+                {"child_workflow_run_to_source.json", "workflow", "input"},
+                {"child_workflow_call_to_source.json", "workflow", "input"}
+        };
     }
 
     @AfterClass

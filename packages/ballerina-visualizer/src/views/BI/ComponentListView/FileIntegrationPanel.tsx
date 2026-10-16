@@ -22,7 +22,7 @@ import { EVENT_TYPE, MACHINE_VIEW, SCOPE, ServiceModel, TriggerModelsResponse } 
 import { CardGrid, PanelViewMore, Title, TitleWrapper } from './styles';
 import { BodyText } from '../../styles';
 import ButtonCard from '../../../components/ButtonCard';
-import { ARTIFACT_CATEGORY_META } from '../components/artifactCards';
+import { ARTIFACT_CATEGORY_META, ARTIFACT_TOOLTIP_MAX_WIDTH, triggerTooltip } from '../components/artifactCards';
 import { cardMatchesSearch, OutOfScopeComponentTooltip } from './componentListUtils';
 import { RelativeLoader } from '../../../components/RelativeLoader';
 import { effectiveTriggerKind } from './triggerKind';
@@ -89,7 +89,8 @@ export function FileIntegrationPanel(props: FileIntegrationPanelProps) {
                                     handleOnSelect(item);
                                 }}
                                 disabled={isDisabled}
-                                tooltip={isDisabled ? OutOfScopeComponentTooltip : ""}
+                                tooltip={isDisabled ? OutOfScopeComponentTooltip : triggerTooltip(item, "file")}
+                                tooltipMaxWidth={ARTIFACT_TOOLTIP_MAX_WIDTH}
                             />
                         );
                     })}

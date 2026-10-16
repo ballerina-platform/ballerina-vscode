@@ -18,12 +18,18 @@
 
 import React, { useMemo, useState } from 'react';
 import { Label, Slider, SwitchWrapper } from './styles';
-import { InputMode } from '../editors/MultiModeExpressionEditor/ChipExpressionEditor/types';
+import { InputMode, getInputModeLabel } from '../editors/MultiModeExpressionEditor/ChipExpressionEditor/types';
 import { getDefaultExpressionMode, getSecondaryMode } from '../editors/MultiModeExpressionEditor/ChipExpressionEditor/utils';
 import { InputType } from '@wso2/ballerina-core';
 import { getEditorConfiguration } from '../editors/ExpressionField';
 import { useFormContext } from '../../context';
 import WarningPopup from '../WarningPopup';
+
+// Show the full mode name as a tooltip only when the label is ellipsized at its max width.
+const showTitleIfTruncated = (event: React.MouseEvent<HTMLElement>) => {
+    const label = event.currentTarget;
+    label.title = label.scrollWidth > label.clientWidth ? label.dataset.text ?? '' : '';
+};
 
 interface ModeSwitcherProps {
     value: InputMode;
@@ -90,13 +96,15 @@ const ModeSwitcher: React.FC<ModeSwitcherProps> = ({ value, isRecordTypeField, o
     };
 
     const isChecked = value === secondaryMode;
+    const defaultLabel = getInputModeLabel(defaultMode);
+    const secondaryLabel = getInputModeLabel(secondaryMode);
 
     return (
         <>
             <SwitchWrapper>
                 <Slider checked={isChecked} data-testid={`mode-switcher-slider-${fieldKey}`}>
-                    <Label data-testid="primary-mode" active={!isChecked} onClick={() => handleModeSwitch(defaultMode)}>{defaultMode}</Label>
-                    <Label data-testid="expression-mode" active={isChecked} onClick={() => handleModeSwitch(secondaryMode)}>{secondaryMode}</Label>
+                    <Label data-testid="primary-mode" active={!isChecked} onMouseEnter={showTitleIfTruncated} data-text={defaultLabel} onClick={() => handleModeSwitch(defaultMode)}>{defaultLabel}</Label>
+                    <Label data-testid="expression-mode" active={isChecked} onMouseEnter={showTitleIfTruncated} data-text={secondaryLabel} onClick={() => handleModeSwitch(secondaryMode)}>{secondaryLabel}</Label>
                 </Slider>
             </SwitchWrapper>
             <WarningPopup
