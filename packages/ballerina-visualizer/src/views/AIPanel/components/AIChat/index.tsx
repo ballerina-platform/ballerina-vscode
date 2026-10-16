@@ -34,7 +34,6 @@ import {
     FileChanges,
     CodeContext,
     ApprovalOverlayState,
-    WebToolToggle,
     LoginMethod,
     RunningServiceInfo,
     ThreadSummary,
@@ -92,7 +91,7 @@ import { getOnboardingOpens, incrementOnboardingOpens, convertToUIMessages, isCo
 import { applyGenerationStatus, deriveReviewBarState, PanelMessage } from "./utils/reviewBarState";
 import { backTooltipFor, isNavigationPrompt, PanelRoute, routeInitialPrompt } from "./utils/panelNav";
 import { upsertToolResult,
-    serializeStream, parseStream, appendToLastEntry, upsertComponent, upsertRequestCard,
+    serializeStream, parseStream, appendToLastEntry, upsertComponent, upsertRequestCard, foldThinkingEvent,
     buildRequestCardData, buildPlanItem, applyPlanApprovalResolution, appendAbortMarker, applyTaskWriteResult,
     COMPACTION_DISABLED_NOTICE,
 } from "./utils/streamSerialization";
@@ -449,8 +448,6 @@ const AIChat: React.FC = () => {
     const popPanel = () => setPanelStack(s => s.slice(0, -1));
     const backTooltip = backTooltipFor(panelStack);
     const [isAutoApproveEnabled, setIsAutoApproveEnabled] = useState(false);
-    const [isWebToolsEnabled, setIsWebToolsEnabled] = useState(false);
-    const userWebSearchPreferenceRef = useRef(false);
     const [agentMode, _setAgentMode] = useState<AgentMode>(AgentMode.Edit);
     const agentModeRef = useRef<AgentMode>(AgentMode.Edit);
     const setAgentMode = (mode: AgentMode) => {
@@ -918,12 +915,6 @@ const AIChat: React.FC = () => {
         };
 
         rpcClient.onApprovalOverlayState(handleApprovalOverlay);
-    }, [rpcClient]);
-
-    useEffect(() => {
-        rpcClient.onWebToolToggle((payload: WebToolToggle) => {
-            setIsWebToolsEnabled(payload.active ? true : userWebSearchPreferenceRef.current);
-        });
     }, [rpcClient]);
 
     // Initial fetch covers services started before the webview opened;
@@ -1448,6 +1439,16 @@ const AIChat: React.FC = () => {
                 return msgs;
             });
 
+        } else if (type === "thinking_start" || type === "thinking_delta" || type === "thinking_end") {
+            setMessages(prevMessages => {
+                const msgs = [...prevMessages];
+                const targetIndex = ensureAssistantMessage(msgs);
+                const last = msgs[targetIndex];
+                const updated = foldThinkingEvent(parseStream(last.content), response);
+                msgs[targetIndex] = { ...last, content: serializeStream(updated, last.content) };
+                return msgs;
+            });
+
         } else if (type === "tool_call") {
             const newItem: StreamItem = { kind: "tool_call", toolCallId: response.toolCallId, toolName: response.toolName, toolInput: response.toolInput };
             setMessages(prevMessages => {
@@ -1680,7 +1681,6 @@ const AIChat: React.FC = () => {
 
         } else if (type === "stop") {
             console.log("Received stop signal");
-            setIsWebToolsEnabled(userWebSearchPreferenceRef.current);
             setWebToolApprovalRequest(null);
             setApprovalRequest(null);
             setIsCompacting(false);
@@ -1699,7 +1699,6 @@ const AIChat: React.FC = () => {
             console.log("Received abort signal");
             abortHandledRef.current = true;
             activeScaffoldKeyRef.current = null;
-            setIsWebToolsEnabled(userWebSearchPreferenceRef.current);
             setWebToolApprovalRequest(null);
             setApprovalRequest(null);
             setMessages(prevMessages => {
@@ -2375,7 +2374,7 @@ const AIChat: React.FC = () => {
         await rpcClient.getAiPanelRpcClient().generateAgent({
             generationId: activeRunGenerationIdRef.current,
             promptSource: 'ai-panel',
-            usecase: useCase, hiddenContext: currentHiddenContext, consoleScaffold, isPlanMode: agentModeRef.current === AgentMode.Plan, codeContext: currentCodeContext, operationType, fileAttachmentContents: fileAttatchments, webSearchEnabled: isWebToolsEnabled
+            usecase: useCase, hiddenContext: currentHiddenContext, consoleScaffold, isPlanMode: agentModeRef.current === AgentMode.Plan, codeContext: currentCodeContext, operationType, fileAttachmentContents: fileAttatchments
         });
     }
 
@@ -2485,12 +2484,6 @@ const AIChat: React.FC = () => {
     const handleToggleAutoApprove = () => {
         const newValue = !isAutoApproveEnabled;
         setIsAutoApproveEnabled(newValue);
-    };
-
-    const handleToggleWebSearch = () => {
-        const next = !isWebToolsEnabled;
-        userWebSearchPreferenceRef.current = next;
-        setIsWebToolsEnabled(next);
     };
 
     const handleChangeAgentMode = (mode: AgentMode) => {
@@ -3222,8 +3215,6 @@ const AIChat: React.FC = () => {
                             onChangeAgentMode={handleChangeAgentMode}
                             isAutoApproveEnabled={isAutoApproveEnabled}
                             onDisableAutoApprove={handleToggleAutoApprove}
-                            isWebToolsEnabled={isWebToolsEnabled}
-                            onToggleWebSearch={handleToggleWebSearch}
                             disabled={isUsageExceeded}
                             contextUsage={showContextUsage ? contextUsage : null}
                             mcpToolsEnabled={mcpToolsEnabled}

@@ -453,7 +453,37 @@ export type ChatNotify = (
     | MigrationProgressEvent
     | FollowupSuggestionsEvent
     | GenerationStatusEvent
+    | ThinkingStartEvent
+    | ThinkingDeltaEvent
+    | ThinkingEndEvent
 ) & ChatNotifyMeta;
+
+/** A reasoning block opened on the stream: a reasoning summary or a progress note between tool calls. */
+export interface ThinkingStartEvent {
+    type: "thinking_start";
+    /** The AI SDK's reasoning-block id; ties the deltas and the end to their block. */
+    thinkingId: string;
+    /**
+     * Epoch ms, stamped when the host emits the event, so both persisting webviews fold the same value
+     * (identical transcripts) and a replayed block keeps its real duration.
+     */
+    timestamp: number;
+}
+
+/** More text for an open reasoning block. */
+export interface ThinkingDeltaEvent {
+    type: "thinking_delta";
+    thinkingId: string;
+    content: string;
+}
+
+/** A reasoning block closed, on its own or flushed on abort, error or finish. */
+export interface ThinkingEndEvent {
+    type: "thinking_end";
+    thinkingId: string;
+    /** Epoch ms; see ThinkingStartEvent.timestamp. */
+    timestamp: number;
+}
 
 /** A single clickable follow-up suggestion shown after a completed turn. */
 export interface FollowupSuggestion {
@@ -993,6 +1023,8 @@ export interface Generation {
     followupSuggestions?: FollowupSuggestion[];
     /** Summary of this turn published to the WSO2 Integration Platform console (cloud editor only). Persisted, so a revert after a reload can still remove it */
     consoleSummary?: string;
+    /** This turn restarted from its own summary after a server-side compaction: `modelMessages` begins with that summary, and the model's history starts here. Persisted */
+    restartedFromSummary?: boolean;
     /** Generation metadata */
     metadata: GenerationMetadata;
 }

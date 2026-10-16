@@ -37,7 +37,14 @@ import {
     storeBiIntelCredentials,
     getAuthCredentials
 } from '../../utils/ai/auth';
-import { getBedrockRegionalPrefix } from '../../features/ai/utils/ai-client';
+import { ANTHROPIC_HAIKU, getBedrockRegionalPrefix } from '../../features/ai/utils/ai-client';
+import {
+    anthropicAwsModelNotFoundMessage,
+    bedrockModelAccessMessage,
+    isAnthropicModelNotFound,
+    isBedrockModelAccessError,
+    vertexModelNotFoundMessage,
+} from './modelAccess';
 import { setBackendRegion } from '../../features/ai/utils';
 import { WICommandIds } from '@wso2/wso2-platform-core';
 import { copilotName } from '../../utils/config';
@@ -154,7 +161,7 @@ export const validateApiKey = async (apiKey: string, loginMethod: LoginMethod): 
         });
 
         await generateText({
-            model: directAnthropic('claude-haiku-4-5-20251001'),
+            model: directAnthropic('claude-haiku-5-5'),
             maxOutputTokens: 1,
             messages: [{ role: 'user', content: 'Hi' }]
         });
@@ -218,6 +225,10 @@ export const validateAwsCredentials = async (credentials: {
         throw new Error(`Invalid AWS region. Please select a valid region like us-east-1, us-west-2, etc.`);
     }
 
+    // Get regional prefix based on AWS region and construct model ID
+    const regionalPrefix = getBedrockRegionalPrefix(region);
+    const modelId = `${regionalPrefix}.anthropic.claude-haiku-5-5`;
+
     try {
         const bedrock = createAmazonBedrock({
             region: region,
@@ -226,9 +237,6 @@ export const validateAwsCredentials = async (credentials: {
             sessionToken: sessionToken,
         });
 
-        // Get regional prefix based on AWS region and construct model ID
-        const regionalPrefix = getBedrockRegionalPrefix(region);
-        const modelId = `${regionalPrefix}.anthropic.claude-haiku-4-5-20251001-v1:0`;
         const bedrockClient = bedrock(modelId);
 
         // Make a minimal test call to validate credentials
@@ -254,6 +262,10 @@ export const validateAwsCredentials = async (credentials: {
 
     } catch (error) {
         console.error('AWS Bedrock validation failed:', error);
+        const detail = error instanceof Error ? error.message : String(error);
+        if (isBedrockModelAccessError(detail)) {
+            throw new Error(bedrockModelAccessMessage(modelId, region, detail));
+        }
         throw new Error('Validation failed. Please check the log for more details.');
     }
 };
@@ -292,7 +304,7 @@ export const validateVertexAiCredentials = async (credentials: {
         });
 
         await generateText({
-            model: vertexAnthropic('claude-haiku-4-5@20251001'),
+            model: vertexAnthropic('claude-haiku-5-5'),
             maxOutputTokens: 1,
             messages: [{ role: 'user', content: 'Hi' }]
         });
@@ -317,7 +329,7 @@ export const validateVertexAiCredentials = async (credentials: {
         } else if (detail.includes('403') || detail.includes('PERMISSION_DENIED')) {
             throw new Error(`Permission denied. Please ensure your service account has access to Vertex AI. (${detail})`);
         } else if (detail.includes('404') || detail.includes('NOT_FOUND')) {
-            throw new Error(`Project or location not found, or the model is not available in this region. (${detail})`);
+            throw new Error(vertexModelNotFoundMessage(location, detail));
         } else if (detail.includes('429') || detail.includes('Too Many Requests') || detail.includes('RESOURCE_EXHAUSTED')) {
             throw new Error(`Quota exceeded. Your GCP project may have 0 quota for this Anthropic model — request a quota increase in GCP Console → IAM & Admin → Quotas. (${detail})`);
         }
@@ -369,7 +381,7 @@ export const validateAnthropicAwsCredentials = async (credentials: {
 
     try {
         await generateText({
-            model: anthropicAws('claude-haiku-4-5-20251001'),
+            model: anthropicAws('claude-haiku-5-5'),
             maxOutputTokens: 1,
             messages: [{ role: 'user', content: 'Hi' }]
         });
@@ -395,10 +407,12 @@ export const validateAnthropicAwsCredentials = async (credentials: {
                 throw new Error('Access denied. Ensure your workspace ID is correct and your API key has access.');
             }
             throw new Error('Access denied. Ensure your IAM user has AnthropicInferenceAccess policy and the workspace ID is correct.');
-        } else if (detail.includes('404') || detail.includes('ResourceNotFoundException')) {
-            throw new Error('Workspace not found. Please verify your workspace ID from the Claude Console.');
         } else if (detail.includes('429') || detail.includes('ThrottlingException')) {
             throw new Error('Too many requests. Please wait a moment and try again.');
+        } else if (isAnthropicModelNotFound(detail, ANTHROPIC_HAIKU)) {
+            throw new Error(anthropicAwsModelNotFoundMessage(region, detail));
+        } else if (detail.includes('404') || detail.includes('ResourceNotFoundException')) {
+            throw new Error('Workspace not found. Please verify your workspace ID from the Claude Console.');
         }
         throw new Error(`Validation failed. Please check your credentials and try again. (${detail})`);
     }

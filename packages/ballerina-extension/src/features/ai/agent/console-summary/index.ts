@@ -19,7 +19,7 @@
 import { generateObject } from "ai";
 import { commands } from "vscode";
 import { chatStateStorage } from "../../../../views/ai-panel/chatStateStorage";
-import { ANTHROPIC_HAIKU, getAnthropicClient } from "../../utils/ai-client";
+import { ANTHROPIC_HAIKU, getAnthropicClient, getHaikuObjectModelOptions } from "../../utils/ai-client";
 import { extractAssistantText } from "../message-text";
 import { TASK_WRITE_TOOL_NAME } from "../tools/task-writer";
 import {
@@ -180,11 +180,14 @@ async function generateSummary(
     }
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
     try {
-        const model = await untilAborted(getAnthropicClient(ANTHROPIC_HAIKU), controller.signal);
+        const [model, providerOptions] = await untilAborted(
+            Promise.all([getAnthropicClient(ANTHROPIC_HAIKU), getHaikuObjectModelOptions('low')]),
+            controller.signal,
+        );
         const { object } = await generateObject({
             model,
-            maxOutputTokens: 512,
-            temperature: 0.2,
+            maxOutputTokens: 2048, // Thinking shares this cap with the reply.
+            providerOptions,
             messages: buildConsoleSummaryMessages(input),
             schema: consoleSummarySchema,
             abortSignal: controller.signal,

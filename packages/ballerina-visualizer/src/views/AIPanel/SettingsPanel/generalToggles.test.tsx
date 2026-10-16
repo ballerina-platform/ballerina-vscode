@@ -53,6 +53,7 @@ import { SettingsPanel } from "./index";
 
 const CHAT_TOGGLES = [
     ["Follow-up suggestions", "followupSuggestions"],
+    ["Web search", "enableWebSearch"],
 ] as const;
 
 function makeRpcClient(orbVisible: boolean, chatValue = orbVisible) {
@@ -63,6 +64,7 @@ function makeRpcClient(orbVisible: boolean, chatValue = orbVisible) {
         setCopilotOrbVisible,
         getCopilotToggleSettings: jest.fn().mockResolvedValue({
             followupSuggestions: chatValue,
+            enableWebSearch: chatValue,
         }),
         setCopilotToggleSetting,
         getMcpToolsEnabled: jest.fn().mockResolvedValue(false),

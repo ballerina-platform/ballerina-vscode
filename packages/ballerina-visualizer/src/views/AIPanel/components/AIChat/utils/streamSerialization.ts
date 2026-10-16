@@ -145,6 +145,96 @@ export function upsertComponent(
 }
 
 /**
+ * The three thinking events as both chat surfaces receive them. Only start and end carry a time,
+ * stamped by the host when it emits them.
+ */
+export type ThinkingEvent =
+    | { type: "thinking_start"; thinkingId: string; timestamp: number }
+    | { type: "thinking_delta"; thinkingId: string; content: string }
+    | { type: "thinking_end"; thinkingId: string; timestamp: number };
+
+/**
+ * The one fold both chat surfaces apply to a thinking event. Whichever surface saves last writes the
+ * persisted transcript, so both must produce the same bytes: a delta never stamps a local time, and
+ * start and end keep the host's, which also gives a replayed block its real duration.
+ */
+export function foldThinkingEvent(entries: StreamEntry[], evt: ThinkingEvent): StreamEntry[] {
+    return evt.type === "thinking_delta"
+        ? upsertThinking(entries, evt.thinkingId, evt.content, false)
+        : upsertThinking(entries, evt.thinkingId, "", evt.type === "thinking_end", evt.timestamp);
+}
+
+/**
+ * Fold one reasoning block's text and state into the transcript, keyed by its `id`.
+ *
+ * Follows the content_block merge-into-trailing-item pattern rather than
+ * `upsertComponent`'s search-whole-transcript pattern: a reasoning block is always
+ * the item actively being appended to, never a stale one elsewhere. An id that
+ * doesn't match the trailing item opens a new item (also the defensive fallback
+ * for an orphaned delta after a flush).
+ */
+export function upsertThinking(
+    entries: StreamEntry[],
+    id: string,
+    delta: string,
+    done: boolean,
+    timestamp?: number,
+): StreamEntry[] {
+    if (entries.length > 0) {
+        const lastEntry = entries[entries.length - 1];
+        const lastItem = lastEntry.items[lastEntry.items.length - 1];
+        if (lastItem?.kind === "thinking" && lastItem.id === id) {
+            // An explicit `endedAt: undefined` serializes identically to an absent key
+            // (JSON.stringify drops it), so plain fields beat conditional spreads here.
+            const updatedItem = {
+                ...lastItem,
+                text: lastItem.text + delta,
+                done: done || lastItem.done,
+                endedAt: lastItem.endedAt ?? (done ? timestamp : undefined),
+            };
+            const items = [...lastEntry.items.slice(0, -1), updatedItem];
+            return [...entries.slice(0, -1), { ...lastEntry, items }];
+        }
+    }
+    if (done && delta === "") {
+        // The end of a block whose start is gone (a truncated replay): nothing to show.
+        return entries;
+    }
+    return appendToLastEntry(entries, {
+        kind: "thinking",
+        id,
+        text: delta,
+        done,
+        startedAt: timestamp,
+        endedAt: done ? timestamp : undefined,
+    });
+}
+
+/**
+ * Label for a completed thinking block, shared by both chat surfaces.
+ * Falls back to "Thought" when a block never closed (e.g. host restart
+ * mid-reasoning) or carries inconsistent timestamps.
+ */
+export function describeThinkingDuration(item: { startedAt?: number; endedAt?: number }): string {
+    if (item.startedAt !== undefined && item.endedAt !== undefined && item.endedAt >= item.startedAt) {
+        const seconds = Math.max(1, Math.round((item.endedAt - item.startedAt) / 1000));
+        return `Thought for ${seconds}s`;
+    }
+    return "Thought";
+}
+
+/**
+ * The paragraph a collapsed thinking block shows inline: its last non-empty one. On Claude Sonnet 5.5
+ * the notes the model writes between tool calls arrive as thinking, so a fully collapsed block would
+ * hide them. `hasMore` says whether expanding shows anything beyond it.
+ */
+export function thinkingPreview(text: string): { preview: string; hasMore: boolean } {
+    const paragraphs = text.split(/\n\s*\n/).map(paragraph => paragraph.trim()).filter(Boolean);
+    const preview = paragraphs[paragraphs.length - 1] ?? "";
+    return { preview, hasMore: paragraphs.length > 1 };
+}
+
+/**
  * Card items that a backend request drives through stages, keyed by `data.requestId`.
  *
  * Derived from `StreamItem` so adding a data-carrying item kind can't silently desync

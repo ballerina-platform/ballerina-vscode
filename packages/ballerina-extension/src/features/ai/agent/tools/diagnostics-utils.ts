@@ -33,13 +33,19 @@ export interface DiagnosticsCheckResult {
  * baseline. Querying ai:// would report diagnostics for the code as it was before this
  * generation's edits, never surfacing errors the agent's own changes introduced.
  *
- * @param updatedSourceFiles - Array of source files in the current session (not used, kept for compatibility)
- * @param updatedFileNames - Array of file names in the current session (not used, kept for compatibility)
  * @returns DiagnosticsCheckResult with enriched diagnostics
  */
-export async function checkCompilationErrors(
+export async function checkCompilationErrors(tempProjectPath: string): Promise<DiagnosticsCheckResult> {
+    return (await checkCompilationErrorsWithRaw(tempProjectPath)).result;
+}
+
+/**
+ * `checkCompilationErrors`, plus the language server's diagnostics behind the result whenever the
+ * result shows them, so the caller can record them as seen by the model.
+ */
+export async function checkCompilationErrorsWithRaw(
     tempProjectPath: string
-): Promise<DiagnosticsCheckResult> {
+): Promise<{ result: DiagnosticsCheckResult; raw?: Diagnostics[] }> {
     try {
         // Get language client from state machine
         const langClient = StateMachine.langClient();
@@ -61,10 +67,13 @@ export async function checkCompilationErrors(
             if (hasInvalidClientModuleImport) {
                 console.log(`[DiagnosticsUtils] Detected invalid client module import 'ballerinax/client.config'.`);
                 return {
-                    diagnostics: enrichedDiagnosticsTry,
-                    message: `Found a module resolution error: the import 'import ballerinax/client.config;' is invalid. ` +
-                        `Fix this by replacing the import statement with 'import ballerinax/'client.config;'. ` +
-                        `After applying the fix, call the ${DIAGNOSTICS_TOOL_NAME} tool again to verify there are no remaining errors.`
+                    result: {
+                        diagnostics: enrichedDiagnosticsTry,
+                        message: `Found a module resolution error: the import 'import ballerinax/client.config;' is invalid. ` +
+                            `Fix this by replacing the import statement with 'import ballerinax/'client.config;'. ` +
+                            `After applying the fix, call the ${DIAGNOSTICS_TOOL_NAME} tool again to verify there are no remaining errors.`
+                    },
+                    raw: diagnostics,
                 };
             }
         } catch (diagError) {
@@ -94,15 +103,18 @@ export async function checkCompilationErrors(
         if (errorCount === 0) {
             console.log(`[DiagnosticsUtils] No compilation errors found.`);
             return {
-                diagnostics: [],
-                message: "No compilation errors found. Code compiles successfully.",
+                result: { diagnostics: [], message: "No compilation errors found. Code compiles successfully." },
+                raw: diagnostics,
             };
         }
 
         console.log(`[DiagnosticsUtils] Enriched Diagnostics:`, enrichedDiagnostics);
         return {
-            diagnostics: enrichedDiagnostics,
-            message: `Found ${errorCount} compilation error(s). Review and fix the errors before proceeding.`
+            result: {
+                diagnostics: enrichedDiagnostics,
+                message: `Found ${errorCount} compilation error(s). Review and fix the errors before proceeding.`
+            },
+            raw: diagnostics,
         };
     } catch (error) {
         console.error("[DiagnosticsUtils] Error checking compilation errors:", error);
@@ -112,20 +124,24 @@ export async function checkCompilationErrors(
             // stale sticky Dependencies.toml) — distinct from an LS malfunction. Tell the
             // agent the real cause so it can inform the user instead of silently finishing.
             return {
-                diagnostics: [{ message: reason }],
-                message: `<CRITICAL_ERROR> The Ballerina package failed to compile, so diagnostics could not be produced.
+                result: {
+                    diagnostics: [{ message: reason }],
+                    message: `<CRITICAL_ERROR> The Ballerina package failed to compile, so diagnostics could not be produced.
 Reason: ${reason}
 This is an environment/dependency problem, not something to fix with code edits. Do not attempt further code changes for it. Inform the user that the project currently fails to compile with the reason above, and suggest running 'bal build --sticky=false' in the project to refresh its dependency resolution (Dependencies.toml) if the reason mentions a module or dependency; a plain 'bal build' keeps the versions a sticky project has locked, such as ones from before the Java 25 distribution.
 </CRITICAL_ERROR>`,
+                },
             };
         }
         return {
-            diagnostics: [{
-                message: "Internal error occurred while checking compilation errors."
-            }],
-            message: `<CRITICAL_ERROR> Failed to check compilation errors due to an internal error. Avoid try to resolve this with code changes. Acknowledge the failure, consider the task is done.
+            result: {
+                diagnostics: [{
+                    message: "Internal error occurred while checking compilation errors."
+                }],
+                message: `<CRITICAL_ERROR> Failed to check compilation errors due to an internal error. Avoid try to resolve this with code changes. Acknowledge the failure, consider the task is done.
 Reason: ${reason}
 </CRITICAL_ERROR>`,
+            },
         };
     }
 }
