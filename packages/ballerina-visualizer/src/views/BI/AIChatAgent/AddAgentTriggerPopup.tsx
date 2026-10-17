@@ -185,7 +185,7 @@ export function AddAgentTriggerPopup(props: AddAgentTriggerPopupProps) {
                     <PopupHeader>
                         {channel && (
                             <BackButton appearance="icon" onClick={() => showChannel(null, "backward")}>
-                                <Codicon name="chevron-left" />
+                                <Codicon name="arrow-left" />
                             </BackButton>
                         )}
                         <HeaderTitleContainer>

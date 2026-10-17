@@ -76,6 +76,11 @@ describe('describeToolCall', () => {
         expect(describeToolCall('runTests')).toBe('Running tests');
     });
 
+    it('names what is being run in the product term', () => {
+        expect(describeToolCall('runBallerinaPackage')).toBe('Running the integration');
+        expect(describeToolCall('runBallerinaPackage', undefined, 'agentic integration')).toBe('Running the agentic integration');
+    });
+
     it('names the tool behind an MCP call, and falls back for unknown tools', () => {
         expect(describeToolCall('mcp__github__create_issue')).toBe('Using create_issue');
         expect(describeToolCall('some_future_tool')).toBe('Running some_future_tool');

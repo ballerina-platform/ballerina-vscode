@@ -720,7 +720,7 @@
               "metadata": {
                 "label": "createReadableChannel",
                 "description": "Creates an in-memory channel, which will be a reference stream of bytes.\n```ballerina\nvar byteChannel = io:createReadableChannel(content);\n```\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.3.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -728,7 +728,7 @@
                 "module": "io",
                 "packageName": "io",
                 "symbol": "createReadableChannel",
-                "version": "1.8.2"
+                "version": "1.8.3"
               },
               "enabled": true
             },
@@ -736,7 +736,7 @@
               "metadata": {
                 "label": "fileReadBlocksAsStream",
                 "description": "Reads the entire file content as a stream of blocks.\n```ballerina\nstream<io:Block, io:Error?>|io:Error content = io:fileReadBlocksAsStream(\"./resources/myfile.txt\", 1000);\n```",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.3.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -744,7 +744,7 @@
                 "module": "io",
                 "packageName": "io",
                 "symbol": "fileReadBlocksAsStream",
-                "version": "1.8.2"
+                "version": "1.8.3"
               },
               "enabled": true
             },
@@ -752,7 +752,7 @@
               "metadata": {
                 "label": "fileReadBytes",
                 "description": "Reads the entire file content as a byte array.\n```ballerina\nbyte[]|io:Error content = io:fileReadBytes(\"./resources/myfile.txt\");\n```",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.3.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -760,7 +760,7 @@
                 "module": "io",
                 "packageName": "io",
                 "symbol": "fileReadBytes",
-                "version": "1.8.2"
+                "version": "1.8.3"
               },
               "enabled": true
             },
@@ -768,7 +768,7 @@
               "metadata": {
                 "label": "fileReadCsv",
                 "description": "Reads file content as a CSV.\nWhen the expected data type is record[], the first entry of the csv file should contain matching headers.\n```ballerina\nstring[][]|io:Error content = io:fileReadCsv(\"./resources/myfile.csv\");\nrecord{}[]|io:Error content = io:fileReadCsv(\"./resources/myfile.csv\");\n```",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.3.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -776,7 +776,7 @@
                 "module": "io",
                 "packageName": "io",
                 "symbol": "fileReadCsv",
-                "version": "1.8.2"
+                "version": "1.8.3"
               },
               "enabled": true
             },
@@ -784,7 +784,7 @@
               "metadata": {
                 "label": "fileReadCsvAsStream",
                 "description": "Reads file content as a CSV.\nWhen the expected data type is stream<record, io:Error?>, the first entry of the csv file should contain matching headers.\n```ballerina\nstream<string[]|io:Error content = io:fileReadCsvAsStream(\"./resources/myfile.csv\");\nstream<record{}, io:Error?>|io:Error content = io:fileReadCsvAsStream(\"./resources/myfile.csv\");\n```",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.3.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -792,7 +792,7 @@
                 "module": "io",
                 "packageName": "io",
                 "symbol": "fileReadCsvAsStream",
-                "version": "1.8.2"
+                "version": "1.8.3"
               },
               "enabled": true
             },
@@ -800,7 +800,7 @@
               "metadata": {
                 "label": "fileReadJson",
                 "description": "Reads file content as a JSON.\n```ballerina\njson|io:Error content = io:fileReadJson(\"./resources/myfile.json\");\n```",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.3.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -808,7 +808,7 @@
                 "module": "io",
                 "packageName": "io",
                 "symbol": "fileReadJson",
-                "version": "1.8.2"
+                "version": "1.8.3"
               },
               "enabled": true
             },
@@ -816,7 +816,7 @@
               "metadata": {
                 "label": "fileReadLines",
                 "description": "Reads the entire file content as a list of lines.\nThe resulting string array does not contain the terminal carriage (e.g., `\\r` or `\\n`).\n```ballerina\nstring[]|io:Error content = io:fileReadLines(\"./resources/myfile.txt\");\n```",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.3.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -824,7 +824,7 @@
                 "module": "io",
                 "packageName": "io",
                 "symbol": "fileReadLines",
-                "version": "1.8.2"
+                "version": "1.8.3"
               },
               "enabled": true
             },
@@ -832,7 +832,7 @@
               "metadata": {
                 "label": "fileReadLinesAsStream",
                 "description": "Reads file content as a stream of lines.\nThe resulting stream does not contain the terminal carriage (e.g., `\\r` or `\\n`).\n```ballerina\nstream<string, io:Error?>|io:Error content = io:fileReadLinesAsStream(\"./resources/myfile.txt\");\n```",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.3.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -840,7 +840,7 @@
                 "module": "io",
                 "packageName": "io",
                 "symbol": "fileReadLinesAsStream",
-                "version": "1.8.2"
+                "version": "1.8.3"
               },
               "enabled": true
             },
@@ -848,7 +848,7 @@
               "metadata": {
                 "label": "fileReadString",
                 "description": "Reads the entire file content as a `string`.\nThe resulting string output does not contain the terminal carriage (e.g., `\\r` or `\\n`).\n```ballerina\nstring|io:Error content = io:fileReadString(\"./resources/myfile.txt\");\n```",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.3.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -856,7 +856,7 @@
                 "module": "io",
                 "packageName": "io",
                 "symbol": "fileReadString",
-                "version": "1.8.2"
+                "version": "1.8.3"
               },
               "enabled": true
             },
@@ -864,7 +864,7 @@
               "metadata": {
                 "label": "fileReadXml",
                 "description": "Reads file content as an XML.\n```ballerina\nxml|io:Error content = io:fileReadXml(\"./resources/myfile.xml\");\n```",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.3.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -872,7 +872,7 @@
                 "module": "io",
                 "packageName": "io",
                 "symbol": "fileReadXml",
-                "version": "1.8.2"
+                "version": "1.8.3"
               },
               "enabled": true
             },
@@ -880,7 +880,7 @@
               "metadata": {
                 "label": "fileWriteBlocksFromStream",
                 "description": "Writes a byte stream to a file.\n```ballerina\nbyte[] content = [[60, 78, 39, 28]];\nstream<byte[], io:Error?> byteStream = content.toStream();\nio:Error? result = io:fileWriteBlocksFromStream(\"./resources/myfile.txt\", byteStream);\n```",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.3.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -888,7 +888,7 @@
                 "module": "io",
                 "packageName": "io",
                 "symbol": "fileWriteBlocksFromStream",
-                "version": "1.8.2"
+                "version": "1.8.3"
               },
               "enabled": true
             },
@@ -896,7 +896,7 @@
               "metadata": {
                 "label": "fileWriteBytes",
                 "description": "Writes a set of bytes to a file.\n```ballerina\nbyte[] content = [60, 78, 39, 28];\nio:Error? result = io:fileWriteBytes(\"./resources/myfile.txt\", content);\n```",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.3.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -904,7 +904,7 @@
                 "module": "io",
                 "packageName": "io",
                 "symbol": "fileWriteBytes",
-                "version": "1.8.2"
+                "version": "1.8.3"
               },
               "enabled": true
             },
@@ -912,7 +912,7 @@
               "metadata": {
                 "label": "fileWriteCsv",
                 "description": "Writes CSV content to a file.\nWhen the input is a record[] type in `OVERWRITE`, headers will be written to the CSV file.\nFor `APPEND`, order of the existing csv file is inferred using the headers.\n```ballerina\ntype Coord record {int x;int y;};\nCoord[] contentRecord = [{x: 1,y: 2},{x: 1,y: 2}]\nstring[][] content = [[\"Anne\", \"Johnson\", \"SE\"], [\"John\", \"Cameron\", \"QA\"]];\nio:Error? result = io:fileWriteCsv(\"./resources/myfile.csv\", content);\nio:Error? resultRecord = io:fileWriteCsv(\"./resources/myfileRecord.csv\", contentRecord);\n```",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.3.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -920,7 +920,7 @@
                 "module": "io",
                 "packageName": "io",
                 "symbol": "fileWriteCsv",
-                "version": "1.8.2"
+                "version": "1.8.3"
               },
               "enabled": true
             },
@@ -928,7 +928,7 @@
               "metadata": {
                 "label": "fileWriteCsvFromStream",
                 "description": "Writes CSV record stream to a file.\nWhen the input is a `stream<record, io:Error?>` in `OVERWRITE`, headers will be written to the CSV file.\nFor `APPEND`, order of the existing csv file is inferred using the headers.\n```ballerina\ntype Coord record {int x;int y;};\nCoord[] contentRecord = [{x: 1,y: 2},{x: 1,y: 2}]\nstring[][] content = [[\"Anne\", \"Johnson\", \"SE\"], [\"John\", \"Cameron\", \"QA\"]];\nstream<string[], io:Error?> stringStream = content.toStream();\nstream<Coord, io:Error?> recordStream = contentRecord.toStream();\nio:Error? result = io:fileWriteCsvFromStream(\"./resources/myfile.csv\", stringStream);\nio:Error? resultRecord = io:fileWriteCsvFromStream(\"./resources/myfileRecord.csv\", recordStream);\n```",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.3.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -936,7 +936,7 @@
                 "module": "io",
                 "packageName": "io",
                 "symbol": "fileWriteCsvFromStream",
-                "version": "1.8.2"
+                "version": "1.8.3"
               },
               "enabled": true
             },
@@ -944,7 +944,7 @@
               "metadata": {
                 "label": "fileWriteJson",
                 "description": "Writes a JSON to a file.\n```ballerina\njson content = {\"name\": \"Anne\", \"age\": 30};\nio:Error? result = io:fileWriteJson(\"./resources/myfile.json\", content);\n```",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.3.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -952,7 +952,7 @@
                 "module": "io",
                 "packageName": "io",
                 "symbol": "fileWriteJson",
-                "version": "1.8.2"
+                "version": "1.8.3"
               },
               "enabled": true
             },
@@ -960,7 +960,7 @@
               "metadata": {
                 "label": "fileWriteLines",
                 "description": "Writes an array of lines to a file.\nDuring the writing operation, a newline character `\\n` will be added after each line.\n```ballerina\nstring[] content = [\"Hello Universe..!!\", \"How are you?\"];\nio:Error? result = io:fileWriteLines(\"./resources/myfile.txt\", content);\n```",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.3.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -968,7 +968,7 @@
                 "module": "io",
                 "packageName": "io",
                 "symbol": "fileWriteLines",
-                "version": "1.8.2"
+                "version": "1.8.3"
               },
               "enabled": true
             },
@@ -976,7 +976,7 @@
               "metadata": {
                 "label": "fileWriteLinesFromStream",
                 "description": "Writes a stream of lines to a file.\nDuring the writing operation, a newline character `\\n` will be added after each line.\n```ballerina\nstring content = [\"Hello Universe..!!\", \"How are you?\"];\nstream<string, io:Error?> lineStream = content.toStream();\nio:Error? result = io:fileWriteLinesFromStream(\"./resources/myfile.txt\", lineStream);\n```",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.3.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -984,7 +984,7 @@
                 "module": "io",
                 "packageName": "io",
                 "symbol": "fileWriteLinesFromStream",
-                "version": "1.8.2"
+                "version": "1.8.3"
               },
               "enabled": true
             },
@@ -992,7 +992,7 @@
               "metadata": {
                 "label": "fileWriteString",
                 "description": "Writes a string content to a file.\n```ballerina\nstring content = \"Hello Universe..!!\";\nio:Error? result = io:fileWriteString(\"./resources/myfile.txt\", content);\n```",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.3.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -1000,7 +1000,7 @@
                 "module": "io",
                 "packageName": "io",
                 "symbol": "fileWriteString",
-                "version": "1.8.2"
+                "version": "1.8.3"
               },
               "enabled": true
             },
@@ -1008,7 +1008,7 @@
               "metadata": {
                 "label": "fileWriteXml",
                 "description": "Writes XML content to a file.\n```ballerina\nxml content = xml `<book>The Lost World</book>`;\nio:Error? result = io:fileWriteXml(\"./resources/myfile.xml\", content);\n```",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.3.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -1016,7 +1016,7 @@
                 "module": "io",
                 "packageName": "io",
                 "symbol": "fileWriteXml",
-                "version": "1.8.2"
+                "version": "1.8.3"
               },
               "enabled": true
             },
@@ -1024,7 +1024,7 @@
               "metadata": {
                 "label": "fprint",
                 "description": "Prints `any`, `error`, or string templates value(s) to a given stream(STDOUT or STDERR).\n```ballerina\nio:fprint(io:stderr, \"Unexpected error occurred\");\n```",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.3.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -1032,7 +1032,7 @@
                 "module": "io",
                 "packageName": "io",
                 "symbol": "fprint",
-                "version": "1.8.2"
+                "version": "1.8.3"
               },
               "enabled": true
             },
@@ -1040,7 +1040,7 @@
               "metadata": {
                 "label": "fprintln",
                 "description": "Prints `any`, `error`, or string templates value(s) to a given stream(STDOUT or STDERR) and terminates the line.\n```ballerina\nio:fprintln(io:stderr, \"Unexpected error occurred\");\n```",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.3.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -1048,7 +1048,7 @@
                 "module": "io",
                 "packageName": "io",
                 "symbol": "fprintln",
-                "version": "1.8.2"
+                "version": "1.8.3"
               },
               "enabled": true
             },
@@ -1056,7 +1056,7 @@
               "metadata": {
                 "label": "openReadableCsvFile",
                 "description": "Retrieves a readable CSV channel from a given file path.\n```ballerina\nio:ReadableCSVChannel rCsvChannel = check io:openReadableCsvFile(srcFileName);\n```\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.3.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -1064,7 +1064,7 @@
                 "module": "io",
                 "packageName": "io",
                 "symbol": "openReadableCsvFile",
-                "version": "1.8.2"
+                "version": "1.8.3"
               },
               "enabled": true
             },
@@ -1072,7 +1072,7 @@
               "metadata": {
                 "label": "openReadableFile",
                 "description": "Retrieves a readable byte channel from a given file path.\n```ballerina\nio:ReadableByteChannel readableFieldResult = check io:openReadableFile(\"./files/sample.txt\");\n```\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.3.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -1080,7 +1080,7 @@
                 "module": "io",
                 "packageName": "io",
                 "symbol": "openReadableFile",
-                "version": "1.8.2"
+                "version": "1.8.3"
               },
               "enabled": true
             },
@@ -1088,7 +1088,7 @@
               "metadata": {
                 "label": "openWritableCsvFile",
                 "description": "Retrieves a writable CSV channel from a given file path.\n```ballerina\nio:WritableCSVChannel wCsvChannel = check io:openWritableCsvFile(srcFileName);\n```\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.3.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -1096,7 +1096,7 @@
                 "module": "io",
                 "packageName": "io",
                 "symbol": "openWritableCsvFile",
-                "version": "1.8.2"
+                "version": "1.8.3"
               },
               "enabled": true
             },
@@ -1104,7 +1104,7 @@
               "metadata": {
                 "label": "openWritableFile",
                 "description": "Retrieves a writable byte channel from a given file path.\n```ballerina\nio:WritableByteChannel writableFileResult = check io:openWritableFile(\"./files/sampleResponse.txt\");\n```\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.3.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -1112,7 +1112,7 @@
                 "module": "io",
                 "packageName": "io",
                 "symbol": "openWritableFile",
-                "version": "1.8.2"
+                "version": "1.8.3"
               },
               "enabled": true
             },
@@ -1120,7 +1120,7 @@
               "metadata": {
                 "label": "print",
                 "description": "Prints `any`, `error`, or string template value(s) to the standard output stream.\n```ballerina\nio:print(\"Start processing the CSV file from \", srcFileName);\n```\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.3.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -1128,7 +1128,7 @@
                 "module": "io",
                 "packageName": "io",
                 "symbol": "print",
-                "version": "1.8.2"
+                "version": "1.8.3"
               },
               "enabled": true
             },
@@ -1136,7 +1136,7 @@
               "metadata": {
                 "label": "println",
                 "description": "Prints `any`, `error` or string templates value(s) to the standard output stream and terminates the line.\n```ballerina\nio:println(\"Start processing the CSV file from \", srcFileName);\n```\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.3.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -1144,7 +1144,7 @@
                 "module": "io",
                 "packageName": "io",
                 "symbol": "println",
-                "version": "1.8.2"
+                "version": "1.8.3"
               },
               "enabled": true
             },
@@ -1152,7 +1152,7 @@
               "metadata": {
                 "label": "readln",
                 "description": "Reads a line of input from the standard input (STDIN).\nIf an argument is provided, it will be printed as a prompt before reading the input.\n```ballerina\nstring choice = io:readln(\"Enter choice 1 - 5: \");\nstring choice = io:readln();\n```\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.3.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -1160,7 +1160,7 @@
                 "module": "io",
                 "packageName": "io",
                 "symbol": "readln",
-                "version": "1.8.2"
+                "version": "1.8.3"
               },
               "enabled": true
             }

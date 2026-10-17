@@ -329,9 +329,9 @@ function TriggerGlyph({ trigger }: { trigger: ProjectStructureArtifactResponse }
     }
 
     const isLight = document.body.classList.contains("vscode-light");
-    const imageUrl = isLight
+    const imageUrl = (isLight
         ? trigger.iconLight ?? trigger.iconDark
-        : trigger.iconDark ?? trigger.iconLight;
+        : trigger.iconDark ?? trigger.iconLight) ?? trigger.iconUrl;
 
     return imageUrl ? <ImageWithFallback imageUrl={imageUrl} fallbackEl={glyph} size={TRIGGER_ICON_SIZE} /> : glyph;
 }

@@ -35,6 +35,7 @@ import { getDefaultHint } from './defaultHint';
 import { buildValidate } from '../Form/validationRules';
 import { useFieldDiagnostics } from '../Form/useFieldDiagnostics';
 import { WarningBanner } from '../Form/WarningBanner';
+import { CollapsibleDescription } from './CollapsibleDescription';
 import { dedupeMessages } from '../Form/DiagnosticsStore';
 import { FormField, FormExpressionEditorProps, HelperpaneOnChangeOptions } from '../Form/types';
 import { useFormContext, useFormFieldLoadingContext } from '../../context';
@@ -707,7 +708,11 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
                                         documentation ? <SkeletonBase height="13px" width="80%" /> : null
                                     ) : (
                                         <S.EditorMdContainer>
-                                            {documentation && <ReactMarkdown>{documentation}</ReactMarkdown>}
+                                            {documentation && (
+                                                <CollapsibleDescription>
+                                                    <ReactMarkdown>{documentation}</ReactMarkdown>
+                                                </CollapsibleDescription>
+                                            )}
                                         </S.EditorMdContainer>
                                     )}
                                 </S.HeaderMain>

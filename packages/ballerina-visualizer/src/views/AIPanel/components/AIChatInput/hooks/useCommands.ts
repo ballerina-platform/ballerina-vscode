@@ -22,7 +22,8 @@ import { CommandTemplates } from "../../../commandTemplates/data/commandTemplate
 import { Tag } from "../../../commandTemplates/models/tag.model";
 import { matchCommandTemplate } from "../utils/utils"
 import { PlaceholderTagMap } from "../../../commandTemplates/data/placeholderTags.const";
-import { Command, SkillCommandTemplate, SkillEntry, SkillTier, TemplateId } from "@wso2/ballerina-core";
+import { Command, ProductMode, SkillCommandTemplate, SkillEntry, SkillTier, TemplateId } from "@wso2/ballerina-core";
+import { useProductMode } from "../../../../../hooks/useProductMode";
 import { TemplateDefinition } from "../../../commandTemplates/models/template.model";
 
 export enum SuggestionType {
@@ -42,6 +43,8 @@ function skillTierSortKey(skill: SkillEntry): number {
     return SKILL_TIER_ORDER[skill.tier] ?? 99;
 }
 
+
+const AGENT_BUILDER_HIDDEN_COMMANDS: Command[] = [Command.OpenAPI, Command.Doc, Command.NaturalProgramming];
 
 const COMMAND_META: Record<string, { icon: string; description: string }> = {
     "/ask":                                { icon: "codicon-comment-discussion", description: "Ask questions from Ballerina documentation" },
@@ -100,6 +103,7 @@ type SuggestionHandlerParams = {
 };
 
 export function useCommands({ commandTemplate, skills }: UseCommandsParams) {
+    const agentBuilder = useProductMode() === ProductMode.AGENT_BUILDER;
     const [filteredSuggestions, setFilteredSuggestions] = useState<Suggestion[]>([]);
     const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(0);
     const [activeSuggestionValue, setActiveSuggestionValue] = useState<string | null>(null);
@@ -161,7 +165,8 @@ export function useCommands({ commandTemplate, skills }: UseCommandsParams) {
             // Show the command suggestions if the input starts with a slash (/) and no commands are present
             if (text.startsWith("/")) {
                 const query = text.toLowerCase();
-                const commands = getPublicCommands(commandTemplate);
+                const commands = getPublicCommands(commandTemplate)
+                    .filter((cmd) => !(agentBuilder && AGENT_BUILDER_HIDDEN_COMMANDS.includes(cmd)));
                 filtered = commands.filter((cmd) => cmd.toLowerCase().startsWith(query)).map((cmd) => ({
                     text: cmd,
                     type: SuggestionType.Command,

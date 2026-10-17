@@ -460,8 +460,9 @@ async function getEntryValue(artifact: BaseArtifact, projectPath: string, icon: 
             const serviceIcon = toIconDescriptor(artifact.icon);
             entryValue.icon = resolveEntryGlyph(serviceIcon, artifact.module);
             entryValue.iconColor = resolveEntryColor(serviceIcon, artifact.module);
-            entryValue.iconLight = serviceIcon?.light ?? serviceIcon?.url;
-            entryValue.iconDark = serviceIcon?.dark ?? serviceIcon?.url;
+            entryValue.iconLight = serviceIcon?.light;
+            entryValue.iconDark = serviceIcon?.dark;
+            entryValue.iconUrl = serviceIcon?.url;
             entryValue.triggerKind = artifact.triggerKind;
             entryValue.kind = serviceIcon?.kind;
             // Chat agent services (module `ai`) carry their resources (`chat`, and now the
@@ -490,16 +491,21 @@ async function getEntryValue(artifact: BaseArtifact, projectPath: string, icon: 
             const listenerIcon = toIconDescriptor(artifact.icon);
             entryValue.icon = resolveEntryGlyph(listenerIcon, artifact.module);
             entryValue.iconColor = resolveEntryColor(listenerIcon, artifact.module);
-            entryValue.iconLight = listenerIcon?.light ?? listenerIcon?.url;
-            entryValue.iconDark = listenerIcon?.dark ?? listenerIcon?.url;
+            entryValue.iconLight = listenerIcon?.light;
+            entryValue.iconDark = listenerIcon?.dark;
+            entryValue.iconUrl = listenerIcon?.url;
             entryValue.triggerKind = artifact.triggerKind;
             entryValue.kind = listenerIcon?.kind;
             break;
         case DIRECTORY_MAP.CONNECTION:
             entryValue.icon = icon;
             const connectionIcon = toIconDescriptor(artifact.icon);
-            entryValue.iconLight = connectionIcon?.light ?? connectionIcon?.url;
-            entryValue.iconDark = connectionIcon?.dark ?? connectionIcon?.url;
+            entryValue.iconLight = connectionIcon?.light;
+            entryValue.iconDark = connectionIcon?.dark;
+            entryValue.iconUrl = connectionIcon?.url;
+            if (artifact.metadata?.connectorType !== "persist") {
+                entryValue.kind = artifact.metadata?.connectorType;
+            }
             break;
         case DIRECTORY_MAP.AGENT:
             entryValue.icon = icon;

@@ -18,7 +18,7 @@
 
 import React, { ReactNode } from "react";
 import styled from "@emotion/styled";
-import { PopupForm } from "./Form";
+import { PopupForm, PopupFormBreadcrumb } from "./Form";
 
 export type PopupProps = {
     children: ReactNode;
@@ -26,6 +26,10 @@ export type PopupProps = {
     width?: number;
     height?: number;
     title: string;
+    onBack?: () => void;
+    breadcrumbs?: PopupFormBreadcrumb[];
+    transitionKey?: string;
+    transitionDirection?: "forward" | "back";
 };
 
 const PopupContentContainer = styled.div`
@@ -47,13 +51,24 @@ const Popup: React.FC<PopupProps> = ({
     onClose,
     width,
     height,
-    title
+    title,
+    onBack,
+    breadcrumbs,
+    transitionKey,
+    transitionDirection
 }) => {
-
-
     return (
         <PopupContentContainer>
-            <PopupForm onClose={onClose} height={height} width={width} title={title}>
+            <PopupForm
+                onClose={onClose}
+                height={height}
+                width={width}
+                title={title}
+                onBack={onBack}
+                breadcrumbs={breadcrumbs}
+                transitionKey={transitionKey}
+                transitionDirection={transitionDirection}
+            >
                 {children}
             </PopupForm>
         </PopupContentContainer>

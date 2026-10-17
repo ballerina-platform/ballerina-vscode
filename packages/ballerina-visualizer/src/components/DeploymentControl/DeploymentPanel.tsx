@@ -255,10 +255,13 @@ function DrawerItem({ title, tag, isExpanded, onToggle, children }: DrawerItemPr
     return (
         <ItemContainer isExpanded={isExpanded}>
             <ItemHeader type="button" aria-expanded={isExpanded} onClick={onToggle}>
-                <Codicon
-                    name={isExpanded ? "triangle-down" : "triangle-right"}
-                    sx={{ color: isExpanded ? "var(--vscode-textLink-foreground)" : "inherit" }}
-                />
+                {/* The codicon glyph would otherwise lead the button's accessible name. */}
+                <span aria-hidden="true" style={{ display: "contents" }}>
+                    <Codicon
+                        name={isExpanded ? "triangle-down" : "triangle-right"}
+                        sx={{ color: isExpanded ? "var(--vscode-textLink-foreground)" : "inherit" }}
+                    />
+                </span>
                 <span>{title}</span>
                 {tag && !isExpanded && <Tag>{tag}</Tag>}
             </ItemHeader>

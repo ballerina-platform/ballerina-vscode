@@ -114,6 +114,8 @@ export default function createTests() {
             // The registered activity hangs off the agent box as a capability circle.
             const capability = webview.getByTestId('durable-agent-capability-activity-lookupBill');
             await capability.waitFor({ timeout: 60000 });
+            // On slow runners the post-save refresh is still settling and swallows an immediate click on the circle.
+            await page.page.waitForTimeout(5000);
 
             logStep('Open the registered entry and check its edit form');
             await capability.click({ force: true });

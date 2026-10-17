@@ -18,18 +18,32 @@
 
 package org.ballerinalang.langserver.launchers.stdio;
 
+import org.eclipse.lsp4j.InitializeParams;
+import org.eclipse.lsp4j.InitializeResult;
+import org.eclipse.lsp4j.jsonrpc.Launcher;
+import org.eclipse.lsp4j.services.LanguageClient;
+import org.eclipse.lsp4j.services.LanguageServer;
+import org.eclipse.lsp4j.services.TextDocumentService;
+import org.eclipse.lsp4j.services.WorkspaceService;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
 /**
- * Tests for {@link Main#protectJsonRpcStream()}, which guards the JSON-RPC (stdout) stream of the stdio launcher
- * against stray writes that would otherwise corrupt the protocol and crash the client connection.
+ * Tests for the stdio launcher's {@link Main}: the JSON-RPC stream guard ({@link Main#protectJsonRpcStream()}) and
+ * the process lifecycle ({@link Main#serve(Main.ServerRun)}, {@link Main#onExit(ProcessHandle, Runnable)}) that
+ * makes the server JVM end when its client is gone instead of lingering as an orphan.
  *
  * @since 1.7.3
  */
@@ -108,5 +122,114 @@ public class MainTest {
 
         Assert.assertEquals(protocolBuffer.toString(StandardCharsets.UTF_8), "{\"jsonrpc\":\"2.0\"}",
                 "The stdout reference captured before protection must still write to the protocol stream");
+    }
+
+    // ---- Process lifecycle: the JVM must end once the client is gone ----
+
+    @Test(description = "lsp4j stops listening when the client's end of the stream closes, so startServer returns")
+    public void testListeningEndsOnEndOfInput() throws Exception {
+        Launcher<LanguageClient> launcher = Launcher.createLauncher(new NoOpLanguageServer(), LanguageClient.class,
+                new ByteArrayInputStream(new byte[0]), new ByteArrayOutputStream());
+
+        // A client that was killed (window reload, dead extension host) closes our stdin without ever sending
+        // shutdown/exit. Main#serve relies on this returning rather than blocking forever.
+        launcher.startListening().get(10, TimeUnit.SECONDS);
+    }
+
+    @Test(description = "A run that ends normally maps to a zero exit status")
+    public void testServeMapsNormalCompletionToExitOk() {
+        Assert.assertEquals(Main.serve(() -> { }), Main.EXIT_OK);
+    }
+
+    @Test(description = "A run that fails maps to a non-zero exit status")
+    public void testServeMapsExecutionFailureToExitFailure() {
+        Assert.assertEquals(Main.serve(() -> {
+            throw new ExecutionException(new IOException("broken pipe"));
+        }), Main.EXIT_FAILURE);
+    }
+
+    @Test(description = "An interrupted run maps to a non-zero exit status and keeps the interrupt flag")
+    public void testServeMapsInterruptionToExitFailure() {
+        try {
+            Assert.assertEquals(Main.serve(() -> {
+                throw new InterruptedException();
+            }), Main.EXIT_FAILURE);
+            Assert.assertTrue(Thread.currentThread().isInterrupted(),
+                    "serve() must re-assert the interrupt flag it swallowed");
+        } finally {
+            // Clear the flag so it cannot leak into later tests.
+            Assert.assertTrue(Thread.interrupted());
+        }
+    }
+
+    @Test(description = "The exit action runs once the watched process has ended, and not before")
+    public void testOnExitRunsActionOnlyAfterProcessEnds() throws Exception {
+        String java = ProcessHandle.current().info().command()
+                .orElseThrow(() -> new IllegalStateException("cannot locate the running java binary"));
+        // A child that stays alive until its stdin is closed stands in for the extension host that launched us.
+        Process watched = new ProcessBuilder(java, "-cp", System.getProperty("java.class.path"),
+                BlockOnStdin.class.getName())
+                .redirectErrorStream(true)
+                .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+                .start();
+        CountDownLatch exited = new CountDownLatch(1);
+        try {
+            Main.onExit(watched.toHandle(), exited::countDown);
+
+            Assert.assertFalse(exited.await(500, TimeUnit.MILLISECONDS),
+                    "the exit action must not run while the watched process is alive");
+
+            watched.getOutputStream().close();
+
+            Assert.assertTrue(exited.await(30, TimeUnit.SECONDS),
+                    "the exit action must run after the watched process ends");
+        } finally {
+            watched.destroyForcibly();
+        }
+    }
+
+    /**
+     * Child-process entry point for {@link #testOnExitRunsActionOnlyAfterProcessEnds()}: lives until stdin closes.
+     */
+    public static final class BlockOnStdin {
+
+        private BlockOnStdin() {
+        }
+
+        public static void main(String[] args) throws IOException {
+            while (System.in.read() != -1) {
+                // drain until end-of-input
+            }
+        }
+    }
+
+    /**
+     * The smallest {@link LanguageServer} lsp4j accepts as a local service.
+     */
+    private static final class NoOpLanguageServer implements LanguageServer {
+
+        @Override
+        public CompletableFuture<InitializeResult> initialize(InitializeParams params) {
+            return CompletableFuture.completedFuture(new InitializeResult());
+        }
+
+        @Override
+        public CompletableFuture<Object> shutdown() {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public void exit() {
+        }
+
+        @Override
+        public TextDocumentService getTextDocumentService() {
+            return null;
+        }
+
+        @Override
+        public WorkspaceService getWorkspaceService() {
+            return null;
+        }
     }
 }

@@ -33,11 +33,13 @@ import io.ballerina.compiler.api.symbols.TypeSymbol;
 import io.ballerina.compiler.syntax.tree.BlockStatementNode;
 import io.ballerina.compiler.syntax.tree.DoStatementNode;
 import io.ballerina.compiler.syntax.tree.ElseBlockNode;
+import io.ballerina.compiler.syntax.tree.ExpressionNode;
 import io.ballerina.compiler.syntax.tree.FunctionDefinitionNode;
 import io.ballerina.compiler.syntax.tree.IfElseStatementNode;
 import io.ballerina.compiler.syntax.tree.ImportDeclarationNode;
 import io.ballerina.compiler.syntax.tree.ImportOrgNameNode;
 import io.ballerina.compiler.syntax.tree.ImportPrefixNode;
+import io.ballerina.compiler.syntax.tree.ListenerDeclarationNode;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
 import io.ballerina.compiler.syntax.tree.Node;
 import io.ballerina.compiler.syntax.tree.NodeList;
@@ -45,6 +47,7 @@ import io.ballerina.compiler.syntax.tree.NonTerminalNode;
 import io.ballerina.compiler.syntax.tree.ParameterNode;
 import io.ballerina.compiler.syntax.tree.QualifiedNameReferenceNode;
 import io.ballerina.compiler.syntax.tree.SeparatedNodeList;
+import io.ballerina.compiler.syntax.tree.ServiceDeclarationNode;
 import io.ballerina.compiler.syntax.tree.StatementNode;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.compiler.syntax.tree.Token;
@@ -58,11 +61,14 @@ import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.ImportPrefixReader;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.DocumentId;
+import io.ballerina.projects.Module;
 import io.ballerina.projects.Project;
+import io.ballerina.tools.diagnostics.Location;
 import io.ballerina.tools.text.LinePosition;
 import io.ballerina.tools.text.LineRange;
 import io.ballerina.tools.text.TextDocument;
 import io.ballerina.tools.text.TextRange;
+import org.ballerinalang.langserver.common.utils.PositionUtil;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.TextEdit;
@@ -71,11 +77,13 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static io.ballerina.flowmodelgenerator.core.model.node.WaitDataBuilder.DATA_WAITS_KEY;
@@ -150,18 +158,37 @@ public class DeleteNodeHandler {
         TextDocument textDocument = document.textDocument();
         List<TextRange> ranges = lineRanges.stream()
                 .map(range -> CommonUtils.toTextRange(textDocument, range)).toList();
-        List<TextEdit> textEdits = unusedImportEdits(document, ranges);
+        List<ListenerRemoval> unusedListeners = ranges.stream()
+                .flatMap(range -> unusedListenersOf(document, range.startOffset(), range.endOffset()).stream())
+                .toList();
+        Map<DocumentId, List<TextRange>> removals = new LinkedHashMap<>();
+        removals.put(document.documentId(), new ArrayList<>(ranges));
+        unusedListeners.forEach(listener -> removals.computeIfAbsent(listener.documentId(), id -> new ArrayList<>())
+                .add(listener.node().textRange()));
+        Function<DocumentId, Path> pathOf = documentId -> documentId.equals(document.documentId()) ? filePath
+                : document.module().project().documentPath(documentId).orElseThrow();
+
+        Map<Path, List<TextEdit>> textEditsMap = new HashMap<>();
+        removals.forEach((documentId, removed) -> {
+            boolean otherFile = !documentId.equals(document.documentId());
+            textEditsMap.put(pathOf.apply(documentId),
+                    unusedImportEdits(document.module().document(documentId), removed, otherFile));
+        });
+        List<TextEdit> textEdits = textEditsMap.get(filePath);
         for (int i = 0; i < ranges.size(); i++) {
             LineRange elseRange = checkElseToDelete(document, ranges.get(i).startOffset(), ranges.get(i).endOffset());
             textEdits.add(new TextEdit(CommonUtils.toRange(elseRange != null ? elseRange : lineRanges.get(i)), ""));
         }
-        Map<Path, List<TextEdit>> textEditsMap = new HashMap<>();
-        textEditsMap.put(filePath, textEdits);
+        for (ListenerRemoval listener : unusedListeners) {
+            textEditsMap.get(pathOf.apply(listener.documentId()))
+                    .add(new TextEdit(CommonUtils.toRange(listener.node().lineRange()), ""));
+        }
         return gson.toJsonTree(textEditsMap);
     }
 
     // Imports with no `prefix:name` reference left once the ranges are deleted, as the compiler reports them.
-    private static List<TextEdit> unusedImportEdits(Document document, List<TextRange> deletedRanges) {
+    private static List<TextEdit> unusedImportEdits(Document document, List<TextRange> deletedRanges,
+                                                    boolean keepAlreadyUnused) {
         ModulePartNode root = document.syntaxTree().rootNode();
         Set<String> deletedPrefixes = new HashSet<>();
         Set<String> remainingPrefixes = new HashSet<>();
@@ -174,7 +201,8 @@ public class DeleteNodeHandler {
         NodeList<ImportDeclarationNode> imports = root.imports();
         for (ImportDeclarationNode importNode : imports) {
             String prefix = ImportPrefixReader.prefixOf(importNode);
-            if (prefix.equals(EXPECTED_PREFIX) || remainingPrefixes.contains(prefix)) {
+            if (prefix.equals(EXPECTED_PREFIX) || remainingPrefixes.contains(prefix)
+                    || (keepAlreadyUnused && !deletedPrefixes.contains(prefix))) {
                 continue;
             }
             textEdits.add(new TextEdit(CommonUtils.toRange(importNode.lineRange()), ""));
@@ -214,6 +242,56 @@ public class DeleteNodeHandler {
                     .equals(driverModuleName)) {
                 return Optional.of(importNode);
             }
+        }
+        return Optional.empty();
+    }
+
+    private record ListenerRemoval(DocumentId documentId, ListenerDeclarationNode node) {
+    }
+
+    // A service's named listeners go with it unless something else uses them; a public one may be used elsewhere.
+    private static List<ListenerRemoval> unusedListenersOf(Document document, int start, int end) {
+        ModulePartNode root = document.syntaxTree().rootNode();
+        Optional<ServiceDeclarationNode> service = root.members().stream()
+                .filter(member -> member.kind() == SyntaxKind.SERVICE_DECLARATION
+                        && start <= member.textRange().startOffset() && member.textRange().endOffset() <= end)
+                .map(ServiceDeclarationNode.class::cast)
+                .findFirst();
+        if (service.isEmpty()) {
+            return List.of();
+        }
+        SemanticModel semanticModel = document.module().getCompilation().getSemanticModel();
+        Map<LineRange, ListenerRemoval> unused = new LinkedHashMap<>();
+        for (ExpressionNode expression : service.get().expressions()) {
+            Optional<Symbol> symbol = semanticModel.symbol(expression);
+            Optional<Location> declared = symbol.flatMap(Symbol::getLocation);
+            if (declared.isEmpty()) {
+                continue;
+            }
+            listenerDeclaration(document.module(), declared.get())
+                    .filter(listener -> listener.node().visibilityQualifier().isEmpty())
+                    .filter(listener -> semanticModel.references(symbol.get()).stream()
+                            .allMatch(ref -> ref.lineRange().equals(declared.get().lineRange())
+                                    || (ref.lineRange().fileName().equals(document.name())
+                                    && PositionUtil.isWithinLineRange(ref.lineRange(), service.get().lineRange()))))
+                    .ifPresent(listener -> unused.putIfAbsent(listener.node().lineRange(), listener));
+        }
+        return List.copyOf(unused.values());
+    }
+
+    private static Optional<ListenerRemoval> listenerDeclaration(Module module, Location declared) {
+        for (DocumentId documentId : module.documentIds()) {
+            Document document = module.document(documentId);
+            if (!document.name().equals(declared.lineRange().fileName())) {
+                continue;
+            }
+            ModulePartNode root = document.syntaxTree().rootNode();
+            return root.members().stream()
+                    .filter(member -> member.kind() == SyntaxKind.LISTENER_DECLARATION)
+                    .map(ListenerDeclarationNode.class::cast)
+                    .filter(listener -> listener.variableName().lineRange().equals(declared.lineRange()))
+                    .findFirst()
+                    .map(listener -> new ListenerRemoval(documentId, listener));
         }
         return Optional.empty();
     }

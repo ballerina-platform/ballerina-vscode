@@ -1,0 +1,7 @@
+[package]
+org = "delete_tests"
+name = "delete_component_listener_project"
+version = "0.1.0"
+
+[build-options]
+observabilityIncluded = false

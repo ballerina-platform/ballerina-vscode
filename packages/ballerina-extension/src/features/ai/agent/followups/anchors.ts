@@ -40,3 +40,14 @@ export const ANCHOR_ACTIONS: AnchorAction[] = [
     { label: "Explain how it works", description: "walk through what the integration does" },
     { label: "Add a connector", description: "connect to another system or service, such as a database, API, or SaaS app" },
 ];
+
+export const AGENT_BUILDER_ANCHOR_ACTIONS: AnchorAction[] = [
+    { label: "Try it out", description: "chat with the agent and see it working" },
+    { label: "Add a tool", description: "give the agent a new tool so it can act on another system or service, such as a database, API, or SaaS app" },
+    { label: "Add knowledge", description: "connect the agent to a knowledge base so it can answer from the user's own documents" },
+    { label: "Add evaluations", description: "add evaluations that check the agent answers and uses its tools as expected" },
+    { label: "Add human approval", description: "have a person approve sensitive tool calls before they run" },
+    { label: "Add a trigger", description: "let the agent be started from another channel, such as Slack, WhatsApp, an HTTP call, or an event" },
+    { label: "Refine the instructions", description: "improve the agent's instructions so it behaves more reliably" },
+    { label: "Explain how it works", description: "walk through what the agent does and which tools it uses" },
+];

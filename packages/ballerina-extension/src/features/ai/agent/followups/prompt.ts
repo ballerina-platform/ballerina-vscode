@@ -17,8 +17,8 @@
  */
 
 import { ModelMessage } from "ai";
-import { ANCHOR_ACTIONS } from "./anchors";
 import { copilotName } from '../../../../utils/config';
+import { FollowupWording, getCopilotProfile } from "../copilot-profile";
 
 /** How the turn these suggestions belong to ended. */
 export type FollowupSituation = "completed" | "aborted" | "error" | "usage_limit";
@@ -45,30 +45,30 @@ export interface FollowupPromptInput {
 }
 
 // Descriptions only: a label listed here gets copied verbatim onto the chip.
-const anchorGuidance = ANCHOR_ACTIONS.map((a) => `- ${a.description}`).join("\n");
+const anchorGuidance = (w: FollowupWording) => w.anchors.map((a) => `- ${a.description}`).join("\n");
 
-const COMPLETED_FRAMING = `The Copilot builds integrations for the user. Given the user's last message and the Copilot's response, propose 2-3 short, specific follow-up actions the user is most likely to want next. Each is shown as a clickable chip; clicking one sends its prompt to the Copilot as the user's next message.
+const completedFraming = (w: FollowupWording) => `The Copilot builds ${w.builds} for the user. Given the user's last message and the Copilot's response, propose 2-3 short, specific follow-up actions the user is most likely to want next. Each is shown as a clickable chip; clicking one sends its prompt to the Copilot as the user's next message.
 
 Prefer these high-value actions when one fits what just happened, and phrase it for the current context:
-${anchorGuidance}
+${anchorGuidance(w)}
 
 If none fit, suggest a next step that clearly follows from the last exchange.`;
 
-const ABORTED_FRAMING = `The Copilot builds integrations for the user. The user stopped it part-way, so the response below is cut short and the work is unfinished. Propose up to 2 short, specific ways the user might take the work in a DIFFERENT direction from where it stopped. Each is shown as a clickable chip; clicking one sends its prompt to the Copilot as the user's next message.
+const abortedFraming = (w: FollowupWording) => `The Copilot builds ${w.builds} for the user. The user stopped it part-way, so the response below is cut short and the work is unfinished. Propose up to 2 short, specific ways the user might take the work in a DIFFERENT direction from where it stopped. Each is shown as a clickable chip; clicking one sends its prompt to the Copilot as the user's next message.
 
 A separate "Continue" action is already offered to the user, so never suggest continuing, resuming, finishing, or completing the interrupted work — that is covered. People usually stop the Copilot because it was heading somewhere they did not want, so suggest plausible course corrections based on what it had started doing.`;
 
-const ERROR_FRAMING = `The Copilot builds integrations for the user. This turn FAILED part-way, so the work is unfinished and whatever it was doing did not complete. The failure reason is given below. Propose up to 2 short, specific things the user can do about it.
+const errorFraming = (w: FollowupWording) => `The Copilot builds ${w.builds} for the user. This turn FAILED part-way, so the work is unfinished and whatever it was doing did not complete. The failure reason is given below. Propose up to 2 short, specific things the user can do about it.
 
 Base the suggestions on the failure: if it looks like something the user can resolve or work around, suggest that; if the work was simply interrupted, suggest getting it finished. Never pretend the work succeeded, and never ask the user to debug the product itself.`;
 
-const SHARED_RULES = `Scope — only suggest things the Copilot can actually do: build, change, explain, run, or test the user's integration, or connect it to other systems or services. Never suggest anything else, because it will be refused — in particular, no deploying to a container or cloud platform, and no infrastructure, CI/CD, or cloud-provider setup.
+const sharedRules = (w: FollowupWording) => `Scope — only suggest things the Copilot can actually do: ${w.scope}. Never suggest anything else, because it will be refused — in particular, no deploying to a container or cloud platform, and no infrastructure, CI/CD, or cloud-provider setup.
 
-Audience — the user builds integrations in a friendly, low-code product and may not be a programmer. Write every label and prompt in plain, outcome-focused language: say what the user gets, not how it is built. Never expose implementation details — no programming-language or Ballerina specifics, no command-line commands, no code, annotation, or configuration syntax, no file, module, or library names, and no technical keywords or type names.
+Audience — the user builds ${w.builds} in a friendly, low-code product and may not be a programmer. Write every label and prompt in plain, outcome-focused language: say what the user gets, not how it is built. Never expose implementation details — no programming-language or Ballerina specifics, no command-line commands, no code, annotation, or configuration syntax, no file, module, or library names, and no technical keywords or type names.
 
 Output:
 - Each suggestion has a "label" (imperative chip text, at most 4 words) and a "prompt" (a natural first-person message the user would send, e.g. "Add tests for the order service").
-- Make the label specific to this integration rather than a generic category — "Retry failed payments", not "Handle errors". The same generic labels on every turn read as a fixed menu.
+- Make the label specific to ${w.labelSpecificTo} rather than a generic category — "Retry failed payments", not "Handle errors". The same generic labels on every turn read as a fixed menu.
 - The "prompt" is spoken by the user, so it is always an instruction and never a question. Never ask the user anything in it, and never carry over a question the Copilot asked.
 - Base every suggestion on what actually happened in this exchange — be specific, never generic filler.
 - Earlier turns, when provided, are background only: use them to understand what has already been built and to avoid repeating it. Suggest next steps for the latest exchange, not for the earlier ones.
@@ -79,14 +79,15 @@ const COMPLETED_ONLY_RULE = `
 - Never suggest something the Copilot already did in its response.`;
 
 function buildSystemPrompt(situation: FollowupSituation): string {
-    const framing = situation === "aborted" ? ABORTED_FRAMING
-        : situation === "error" ? ERROR_FRAMING
-        : COMPLETED_FRAMING;
+    const wording = getCopilotProfile().followups;
+    const framing = situation === "aborted" ? abortedFraming(wording)
+        : situation === "error" ? errorFraming(wording)
+        : completedFraming(wording);
     return `You help users of the ${copilotName()} decide what to do next.
 
 ${framing}
 
-${SHARED_RULES}${situation === "completed" ? COMPLETED_ONLY_RULE : ""}`;
+${sharedRules(wording)}${situation === "completed" ? COMPLETED_ONLY_RULE : ""}`;
 }
 
 export function buildFollowupPrompt(input: FollowupPromptInput): { system: string; messages: ModelMessage[] } {

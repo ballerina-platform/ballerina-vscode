@@ -46,7 +46,7 @@ jest.mock("@wso2/ballerina-core", () => ({
     SHARED_COMMANDS: {},
     isSamePath: (a: string, b: string) => a === b,
     isPathInside: () => false,
-    toIconDescriptor: () => undefined,
+    toIconDescriptor: (icon?: unknown) => (typeof icon === "string" ? { url: icon } : icon),
     resolveBrandIcon: () => undefined,
     resolveKindDefaultIcon: () => undefined,
 }));
@@ -117,5 +117,28 @@ describe("durable agents in the project structure", () => {
             PROJECT_PATH
         );
         expect(structure.directoryMap[DIRECTORY_MAP.AGENT]).toEqual([]);
+    });
+});
+
+describe("connections in the project structure", () => {
+    it("passes the AI component kind through and keeps an image URL out of the SVG icons", async () => {
+        const structure = emptyStructure();
+        const iconUrl = "https://central.ballerina.io/icon.png";
+        const artifacts = {
+            [ARTIFACT_TYPE.Connections]: {
+                openAi: { ...artifact("openAi", DIRECTORY_MAP.CONNECTION, "ai"), icon: iconUrl,
+                    metadata: { connectorType: "modelProvider" } },
+                dbClient: { ...artifact("dbClient", DIRECTORY_MAP.CONNECTION), metadata: { connectorType: "persist" } },
+            },
+        } as unknown as Artifacts;
+
+        await traverseComponents(artifacts, PROJECT_PATH, structure);
+
+        const connections = structure.directoryMap[DIRECTORY_MAP.CONNECTION];
+        const openAi = connections.find((entry) => entry.name === "openAi");
+        expect(openAi).toMatchObject({ kind: "modelProvider", iconUrl });
+        expect(openAi.iconLight).toBeUndefined();
+        expect(openAi.iconDark).toBeUndefined();
+        expect(connections.find((entry) => entry.name === "dbClient").kind).toBeUndefined();
     });
 });

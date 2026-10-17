@@ -50,7 +50,7 @@ import { ErrorBoundary, ProgressIndicator, ThemeColors, Typography } from "@wso2
 import { prefetchAfterView } from "./utils/viewPrefetch";
 import { PanelType, useModalStack, useVisualizerContext } from "./Context";
 import { VSCodeProgressRing } from "@vscode/webview-ui-toolkit/react";
-import Popup from "./components/Popup";
+import { ModalStack } from "./components/Popup/ModalStack";
 
 const globalStyles = css`
     *,
@@ -195,7 +195,7 @@ const ConditionalPanelFallback = (): null => null;
 const MainPanel = () => {
     const { rpcClient } = useRpcContext();
     const { sidePanel, setSidePanel, popupMessage, setPopupMessage, activePanel, showOverlay, setShowOverlay } = useVisualizerContext();
-    const { modalStack, closeModal } = useModalStack()
+    const { modalStack } = useModalStack()
     const errorBoundaryRef = createRef<any>();
     const [viewComponent, setViewComponent] = useState<React.ReactNode>();
     const [viewError, setViewError] = useState<string>();
@@ -732,6 +732,18 @@ const MainPanel = () => {
                             );
                             break;
                         }
+                        case MACHINE_VIEW.AddModelProvider: {
+                            const { default: AddModelProviderPopup } = await import("./views/BI/Connection/AddModelProviderPopup");
+                            if (isStaleNavigation()) return;
+                            setViewComponent(
+                                <AddModelProviderPopup
+                                    key={remountKey}
+                                    projectPath={value.projectPath}
+                                    onNavigateToOverview={handleNavigateToOverview}
+                                />
+                            );
+                            break;
+                        }
                         case MACHINE_VIEW.AddAgentDefinition: {
                             const { default: AddAgentDefinition } = await import("./views/BI/AIChatAgent/AddAgentDefinition");
                             if (isStaleNavigation()) return;
@@ -1048,10 +1060,6 @@ const MainPanel = () => {
         }
     };
 
-    const handlePopupClose = (id: string) => {
-        closeModal(id);
-    }
-
     return (
         <>
             <Global styles={globalStyles} />
@@ -1128,14 +1136,7 @@ const MainPanel = () => {
                             <LazyEndpointList applyModifications={applyModifications} />
                         </React.Suspense>
                     )}
-                    {
-                        modalStack.map((modal) => (
-                            <Popup title={modal.title} onClose={() => {
-                                modal.onClose && modal.onClose();
-                                handlePopupClose(modal.id)
-                            }} key={modal.id} width={modal.width} height={modal.height}>{modal.modal}</Popup>
-                        ))
-                    }
+                    <ModalStack />
                 </ErrorBoundary>
             </VisualizerContainer>
         </>

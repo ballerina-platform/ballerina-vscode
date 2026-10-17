@@ -2381,6 +2381,7 @@ export interface BaseArtifact<T = any> {
     icon?: IconDescriptor | string; // Resolved icon descriptor; a bare string (legacy URL) is accepted
     children?: Record<string, BaseArtifact>; // To allow nested structures
     accessor?: string; // Specific to Entry Points
+    metadata?: { connectorType?: string };
     value?: T; // Generic value property to hold different types
 }
 

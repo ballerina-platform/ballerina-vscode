@@ -1,0 +1,25 @@
+{
+  "description": "Delete a service keeps a listener a function still references",
+  "filePath": "delete_component_listener_project/cases.bal",
+  "startLine": 24,
+  "startColumn": 0,
+  "endLine": 28,
+  "endColumn": 1,
+  "output": {
+    "delete_component_listener_project/cases.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 24,
+            "character": 0
+          },
+          "end": {
+            "line": 28,
+            "character": 1
+          }
+        },
+        "newText": ""
+      }
+    ]
+  }
+}

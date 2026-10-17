@@ -53,7 +53,7 @@ export default function createTests() {
             await webview.getByTestId('durable-agent-run-node').waitFor({ state: 'visible', timeout: 60000 });
 
             logStep('Register HumanTask: user roles () and a named user');
-            await webview.getByTestId('durable-agent-affordance-humanTask').first().click({ force: true });
+            await webview.getByTestId('durable-agent-add-humanTask').first().click({ force: true });
             const panel = webview.getByTestId('side-panel');
             await fillTextField(panel, 'Task Name', 'agentTask');
             await expandAdvanced(panel);
@@ -69,7 +69,8 @@ export default function createTests() {
             await saveButton.waitFor({ state: 'hidden', timeout: 60000 });
 
             logStep('Register lookupBill with a Human Approval whose reviewer roles are ()');
-            await webview.getByTestId('durable-agent-affordance-activity').first().click({ force: true });
+            // Not forced: the new human task re-lays out the canvas, and a forced click can land on the tile's old spot.
+            await webview.getByTestId('durable-agent-add-activity').first().click();
             const item = panel.getByText('lookupBill', { exact: true }).first();
             await item.waitFor({ state: 'visible', timeout: 60000 });
             await item.scrollIntoViewIfNeeded();

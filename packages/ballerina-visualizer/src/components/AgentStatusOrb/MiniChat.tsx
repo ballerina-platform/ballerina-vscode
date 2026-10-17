@@ -56,6 +56,7 @@ import {
     MiniChatPrompt,
 } from "./promptHandoff";
 import { useAssistantName, useProductMode } from "../../hooks/useProductMode";
+import { useProductTerms } from "../../views/BI/ProjectForm/useProductTerms";
 
 /**
  * Minimized Copilot chat — a compact overlay opened by clicking the floating
@@ -153,7 +154,7 @@ type UnmodelledNotifyType =
     | "generation_status";
 
 /** Friendly one-line label for a tool call (mirrors the status-bar phrasing). */
-function describeTool(toolName: string, toolInput: any): string {
+function describeTool(toolName: string, toolInput: any, workUnit: string): string {
     // The file tools emit `toolInput: { fileName }` (emitFileToolCall, host-side
     // agent/tools/text-editor.ts). `file_path` is the raw-Zod-input spelling carried by
     // pass-through tools; `filePath` matches neither emitter and is kept only as a
@@ -172,7 +173,7 @@ function describeTool(toolName: string, toolInput: any): string {
         case "runTests":
             return "Running tests";
         case "runBallerinaPackage":
-            return "Running the integration";
+            return `Running the ${workUnit}`;
         case "TaskWrite":
             return "Updating the plan";
         case "Clarify":
@@ -649,7 +650,7 @@ function toolRowNode(key: string, label: string, state: "running" | "pending" | 
  * with no `<agentstream>` blob (plain text) renders as a single markdown block.
  * Non-happy-path items (plan/config/…) are skipped — they escalate to the panel.
  */
-function renderTranscript(msgs: MiniMsg[], streaming: boolean): React.ReactNode[] {
+function renderTranscript(msgs: MiniMsg[], streaming: boolean, workUnit: string): React.ReactNode[] {
     const nodes: React.ReactNode[] = [];
     msgs.forEach((m, mi) => {
         if (m.role === "user") {
@@ -680,12 +681,12 @@ function renderTranscript(msgs: MiniMsg[], streaming: boolean): React.ReactNode[
                         );
                     }
                 } else if (item.kind === "tool_call") {
-                    nodes.push(toolRowNode(key, describeTool(item.toolName ?? "", item.toolInput), streaming ? "running" : "pending"));
+                    nodes.push(toolRowNode(key, describeTool(item.toolName ?? "", item.toolInput, workUnit), streaming ? "running" : "pending"));
                 } else if (item.kind === "tool_result" && isToolResultInProgress(item)) {
                     // A partial result (progress report): still running, worded with what it is doing right now.
                     nodes.push(toolRowNode(key, getToolResultDisplay(item.toolName, item.toolOutput).label, streaming ? "running" : "pending"));
                 } else if (item.kind === "tool_result") {
-                    nodes.push(toolRowNode(key, describeTool(item.toolName ?? "", undefined), item.failed ? "failed" : "done"));
+                    nodes.push(toolRowNode(key, describeTool(item.toolName ?? "", undefined, workUnit), item.failed ? "failed" : "done"));
                 }
             });
         });
@@ -775,6 +776,7 @@ export function MiniChat({ anchor, focusRequest, onClose, takeInitialPrompt }: M
     const assistantName = useAssistantName();
     const productMode = useProductMode();
     const shortName = shortAssistantName(productMode);
+    const workUnit = useProductTerms().integrationNoun;
     // The transcript, in the persisted store's own shape (ground truth).
     const [msgs, setMsgs] = useState<MiniMsg[]>([]);
     // Transient run signals (stop/error/review) that aren't part of the store.
@@ -1073,7 +1075,7 @@ export function MiniChat({ anchor, focusRequest, onClose, takeInitialPrompt }: M
         inputRef.current?.focus();
     }, [focusRequest]);
 
-    const transcript = renderTranscript(msgs, streaming);
+    const transcript = renderTranscript(msgs, streaming, workUnit);
 
     return (
         <Panel
@@ -1110,7 +1112,7 @@ export function MiniChat({ anchor, focusRequest, onClose, takeInitialPrompt }: M
                         <div>
                             {draftPrompt.codeContext?.type === "addition"
                                 ? "What would you like to add here?"
-                                : "How can I help with your integration?"}
+                                : `How can I help with your ${workUnit}?`}
                         </div>
                         <div style={{ fontSize: 11 }}>You can continue this conversation in the full chat.</div>
                     </EmptyState>

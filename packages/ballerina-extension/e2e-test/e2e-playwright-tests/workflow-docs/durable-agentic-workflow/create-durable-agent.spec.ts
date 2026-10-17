@@ -83,7 +83,7 @@ export default function createTests() {
             // the template's claimAgent carries them.
             view = await openArtifact(j, ui, 'ClaimHandler', 'claimAgent', /claimAgent/);
             await j.step('activities', 'Click **+** on the activity anchor, click `payClaim`: **Retry Policy**; under **Advanced Configurations** **Activity Name**, **Activity Description**, **Requires Approval**, **Reviewer Roles**.', async () => {
-                await j.click(view.getByTestId('durable-agent-affordance-activity').first());
+                await j.click(view.getByTestId('durable-agent-add-activity').first());
                 await ui.clickText(await ui.panel('payClaim'), 'payClaim');
                 const panel = await ui.panel(/Retry Policy/);
                 await ui.expectFields(panel, [{ label: 'Retry Policy' }, { label: 'Activity Name', advanced: true },
@@ -91,13 +91,13 @@ export default function createTests() {
                 await j.click((await ui.view()).getByTestId('close-panel-btn').first()).catch(() => ui.dismiss());
             });
             await j.step('events', 'Click **+** on the event anchor at the bottom left of the agent node. The **Register Data Event** form: **Event Name**, **Request Type**, **Response Type**, **Cardinality**.', async () => {
-                await j.click(view.getByTestId('durable-agent-affordance-event').first());
+                await j.click(view.getByTestId('durable-agent-add-event').first());
                 const panel = await ui.panel();
                 await ui.expectFields(panel, [{ label: 'Event Name' }, { label: 'Request Type' }, { label: 'Response Type' }, { label: 'Cardinality' }]);
                 await j.click((await ui.view()).getByTestId('close-panel-btn').first()).catch(() => ui.dismiss());
             });
             await j.step('humanTasks', 'Click **+** on the human task anchor. The **Register HumanTask** form: **Task Name**, **User Roles**, **Title**, **Description**, **Timeout**, **Completion Type**.', async () => {
-                await j.click(view.getByTestId('durable-agent-affordance-humanTask').first());
+                await j.click(view.getByTestId('durable-agent-add-humanTask').first());
                 const panel = await ui.panel();
                 await ui.expectFields(panel, [{ label: 'Task Name' }, { label: 'User Roles' }, { label: 'Title' }, { label: 'Description' },
                     { label: 'Timeout' }, { label: 'Completion Type' }]);

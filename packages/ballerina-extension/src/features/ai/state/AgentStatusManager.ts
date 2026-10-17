@@ -21,7 +21,7 @@ import { AgentRunStatus, AgentRunState, ChatNotify, agentRunStatusChanged, SHARE
 import { RPCLayer } from '../../../RPCLayer';
 import { VisualizerWebview } from '../../../views/visualizer/webview';
 import { describeToolCall, describeToolResultProgress } from './toolLabels';
-import { copilotName, copilotShortName } from '../../../utils/config';
+import { copilotName, copilotShortName, getProductMode, ProductMode } from '../../../utils/config';
 
 /** How long a terminal (completed/error) status stays visible before resetting to idle. */
 const TERMINAL_STATE_RESET_MS = 20000;
@@ -110,7 +110,7 @@ class AgentStatusManager {
                 this.update({ state: 'running', label: 'Writing a response' });
                 break;
             case 'tool_call':
-                this.update({ state: 'running', label: describeToolCall(msg.toolName, msg.toolInput) });
+                this.update({ state: 'running', label: describeToolCall(msg.toolName, msg.toolInput, getProductMode() === ProductMode.AGENT_BUILDER ? 'agentic integration' : 'integration') });
                 break;
             case 'tool_result': {
                 // Only a partial result (a progress report) moves the label; final results leave the last call's wording.

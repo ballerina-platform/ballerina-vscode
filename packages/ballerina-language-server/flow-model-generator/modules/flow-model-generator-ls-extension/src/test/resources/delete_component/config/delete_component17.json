@@ -1,0 +1,25 @@
+{
+  "description": "Delete a service keeps its public listener",
+  "filePath": "delete_component_listener_project/cases.bal",
+  "startLine": 18,
+  "startColumn": 0,
+  "endLine": 22,
+  "endColumn": 1,
+  "output": {
+    "delete_component_listener_project/cases.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 18,
+            "character": 0
+          },
+          "end": {
+            "line": 22,
+            "character": 1
+          }
+        },
+        "newText": ""
+      }
+    ]
+  }
+}

@@ -21,6 +21,7 @@ import { z } from 'zod';
 import * as crypto from "crypto";
 import { CopilotEventHandler } from '../../utils/events';
 import { approvalManager } from '../../state/ApprovalManager';
+import { getCopilotProfile } from '../copilot-profile';
 
 export const CLARIFY_TOOL = "Clarify";
 
@@ -45,19 +46,20 @@ const ClarifyInputSchema = z.object({
 export type ClarifyInput = z.infer<typeof ClarifyInputSchema>;
 
 export function createClarifyTool(eventHandler: CopilotEventHandler) {
+    const profile = getCopilotProfile();
     return tool({
         description: `Use this tool to ask the user clarifying questions when the request is ambiguous at the requirements level — where a wrong assumption would produce an integration the user did not want.
 
 Call this ONLY for genuine requirement gaps. Use smart defaults first:
 
-1. Entry point: Default to HTTP for simple service requests. Ask only when the trigger type is ambiguous and the choice materially affects the design.
+1. Entry point: ${profile.clarifyEntryPointDefault}
 
 2. Storage / external system: Default to in-memory for simple apps. When a category is explicitly required but the specific technology is unspecified, infer from context — otherwise ask.
 
 When asking, include a recommended option labelled with "(recommended)".
 Offer only options you could carry out if picked; if one depends on something the user may not have, say so in its label and don't recommend it.
 Do NOT ask about library/connector selection or implementation details that can be defaulted.
-Call AT MOST ONCE per task — batch all questions into a single call.`,
+Call AT MOST ONCE per task — batch all questions into a single call.${profile.clarifyScopeRule}`,
         inputSchema: ClarifyInputSchema,
         execute: async (input, context?: { toolCallId?: string }): Promise<{ answers: Array<{ question: string; answers: string[] }> } | { skipped: boolean }> => {
             const toolCallId = context?.toolCallId || `fallback-${Date.now()}`;

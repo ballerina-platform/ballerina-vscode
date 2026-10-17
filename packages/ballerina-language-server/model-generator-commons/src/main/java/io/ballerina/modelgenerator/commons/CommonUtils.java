@@ -145,6 +145,13 @@ public class CommonUtils {
     private static final String AGENT_TOOL = "AgentTool";
     public static final String CONNECTOR_TYPE = "connectorType";
     public static final String PERSIST = "persist";
+    public static final String MODEL_PROVIDER = "modelProvider";
+    public static final String EMBEDDING_PROVIDER = "embeddingProvider";
+    public static final String VECTOR_STORE = "vectorStore";
+    public static final String KNOWLEDGE_BASE = "knowledgeBase";
+    public static final String MEMORY_STORE = "memoryStore";
+    public static final String CHUNKER = "chunker";
+    public static final String DATA_LOADER = "dataLoader";
     public static final String PERSIST_MODEL_FILE = "persistModelFile";
     public static final String PERSIST_DB_CLIENT_FIELD = "dbClient";
     public static final String DEFAULT_PERSIST_MODEL_FILE = "model.bal";

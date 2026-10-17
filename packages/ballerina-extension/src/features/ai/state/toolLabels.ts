@@ -31,7 +31,7 @@
 
 import * as path from 'path';
 
-export function describeToolCall(toolName: string, toolInput?: any): string {
+export function describeToolCall(toolName: string, toolInput?: any, workUnit = 'integration'): string {
     // The file tools emit `toolInput: { fileName }` (emitFileToolCall in
     // agent/tools/text-editor.ts), while tools that pass their raw Zod input
     // straight through — migration_source_read, the MCP bridge — carry the
@@ -55,7 +55,7 @@ export function describeToolCall(toolName: string, toolInput?: any): string {
         case 'runTests':
             return 'Running tests';
         case 'runBallerinaPackage':
-            return 'Running the integration';
+            return `Running the ${workUnit}`;
         case 'getServiceLogs':
             return 'Reading service logs';
         case 'stopBallerinaService':
