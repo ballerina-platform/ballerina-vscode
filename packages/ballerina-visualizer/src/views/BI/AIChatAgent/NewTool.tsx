@@ -26,7 +26,7 @@ import { URI, Utils } from "vscode-uri";
 import { Banner } from "../../../components/Banner";
 import { AIAgentSidePanel, ExtendedAgentToolRequest } from "./AIAgentSidePanel";
 import { RelativeLoader } from "../../../components/RelativeLoader";
-import { addToolToAgentNode, buildAgentToolNode, refreshAgentNodeLineRange, resolveAgentNodePosition, updateFlowNodePropertyValuesWithKeys } from "./utils";
+import { buildAgentToolNode, resolveAgentNodePosition, saveToolOnAgent, updateFlowNodePropertyValuesWithKeys } from "./utils";
 import { FUNCTION_CALL } from "../../../constants";
 import { AgentToolForm } from "./AgentToolForm";
 
@@ -70,18 +70,11 @@ export function NewTool(props: NewToolProps): JSX.Element {
             return;
         }
         try {
-            const updatedAgentNode = await addToolToAgentNode(agentNode, functionName);
+            const updatedAgentNode = await saveToolOnAgent(agentNode, functionName, rpcClient, artifacts);
             if (!updatedAgentNode) {
                 console.error("Failed to add tool to agent node");
                 return;
             }
-
-            await refreshAgentNodeLineRange(updatedAgentNode, rpcClient, artifacts);
-
-            const { filePath: agentFile } = await rpcClient.getVisualizerRpcClient().joinProjectPath({
-                segments: [updatedAgentNode.codedata.lineRange.fileName],
-            });
-            await rpcClient.getBIDiagramRpcClient().getSourceCode({ filePath: agentFile, flowNode: updatedAgentNode });
             await rpcClient.getAIAgentRpcClient().fixMissingImports();
 
             onSave?.(await resolveAgentNodePosition(updatedAgentNode, rpcClient));
@@ -160,20 +153,12 @@ export function NewTool(props: NewToolProps): JSX.Element {
                 return;
             }
 
-            const updatedAgentNode = await addToolToAgentNode(agentNode, data.toolName);
+            const updatedAgentNode = await saveToolOnAgent(agentNode, data.toolName, rpcClient, toolResponse.artifacts);
             if (!updatedAgentNode) {
                 console.error("Failed to add tool to agent node");
                 setError("The tool was created but could not be attached to the agent.");
                 return;
             }
-            await refreshAgentNodeLineRange(updatedAgentNode, rpcClient, toolResponse.artifacts);
-
-            const { filePath } = await rpcClient.getVisualizerRpcClient().joinProjectPath({
-                segments: [updatedAgentNode.codedata.lineRange.fileName],
-            });
-
-            // Generate the source code
-            await rpcClient.getBIDiagramRpcClient().getSourceCode({ filePath, flowNode: updatedAgentNode });
 
             // Safety net: fix any missing imports after all edits are applied
             await rpcClient.getAIAgentRpcClient().fixMissingImports();

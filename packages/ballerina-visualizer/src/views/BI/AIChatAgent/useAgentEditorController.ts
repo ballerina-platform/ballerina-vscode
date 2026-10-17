@@ -17,7 +17,7 @@
  */
 
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { AgentNodeActions } from "@wso2/bi-diagram";
 import { AgentUsage, EVENT_TYPE, FlowNode, MACHINE_VIEW, NodeMetadata, NodePosition, ProjectStructureArtifactResponse, SearchNodesQuery, ToolData }
     from "@wso2/ballerina-core";
@@ -31,6 +31,8 @@ import {
     removeMcpServerFromAgentNode,
     removeToolFromAgentNode,
     resolveAgentNodePosition,
+    serializeAgentToolsEdit,
+    withCurrentAgentTools,
 } from "./utils";
 
 export type AgentEditorView =
@@ -85,6 +87,13 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
     const [selectedTool, setSelectedTool] = useState<ToolData>();
     const [selectedAgentName, setSelectedAgentName] = useState("");
     const [backOverride, setBackOverride] = useState<(() => void) | null>(null);
+    // A save that finishes after the user opened another panel must not close that panel.
+    const sessionRef = useRef(0);
+    const [session, setSession] = useState(0);
+    const startSession = useCallback(() => {
+        sessionRef.current += 1;
+        setSession(sessionRef.current);
+    }, []);
     const activate = useCallback((node: FlowNode) => {
         setAgentNode(node);
         host.onSelectionChange?.(node);
@@ -101,12 +110,15 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
         setSelectedAgentName("");
         setAgentNode(undefined);
         host.onSelectionChange?.(undefined);
-    }, [host]);
+        startSession();
+    }, [host, startSession]);
 
     const close = useCallback((position?: NodePosition) => {
-        resetView();
+        if (session === sessionRef.current) {
+            resetView();
+        }
         void host.onRefresh(position);
-    }, [resetView, host]);
+    }, [resetView, host, session]);
 
     const cancel = useCallback(() => {
         resetView();
@@ -155,8 +167,9 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
         const value = (node.properties as any)?.[memoryKeyOf(node)]?.value;
         setMemoryNode(await findAgentScopedNode(node, "MEMORY", typeof value === "string" ? value : undefined));
         setBackOverride(null);
+        startSession();
         setView("MEMORY");
-    }, [activate, findAgentScopedNode]);
+    }, [activate, findAgentScopedNode, startSession]);
 
     const selectMemoryStore = useCallback(async (node: FlowNode) => {
         activate(node);
@@ -167,8 +180,9 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
         }
         setMemoryStoreNode(store);
         setBackOverride(null);
+        startSession();
         setView("MEMORY_STORE");
-    }, [activate, findAgentScopedNode]);
+    }, [activate, findAgentScopedNode, startSession]);
 
     const deleteMemory = useCallback(async (node: FlowNode) => {
         activate(node);
@@ -282,13 +296,16 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
         try {
             await rpcClient.getVisualizerRpcClient().beginUndoGroup();
             if (tool.type?.includes("MCP Server")) {
-                const updated = removeMcpServerFromAgentNode(node, tool.name);
-                if (updated) {
-                    const path = (await rpcClient.getVisualizerRpcClient().joinProjectPath({
-                        segments: [node.codedata.lineRange.fileName],
-                    })).filePath;
-                    await rpcClient.getBIDiagramRpcClient().getSourceCode({ filePath: path, flowNode: updated });
-                }
+                await serializeAgentToolsEdit(async () => {
+                    const latest = await withCurrentAgentTools(node, rpcClient);
+                    const updated = removeMcpServerFromAgentNode(latest.node, tool.name);
+                    if (updated) {
+                        const path = (await rpcClient.getVisualizerRpcClient().joinProjectPath({
+                            segments: [updated.codedata.lineRange.fileName],
+                        })).filePath;
+                        await rpcClient.getBIDiagramRpcClient().getSourceCode({ filePath: path, flowNode: updated });
+                    }
+                });
                 await deleteMcpVariableAndClass(tool);
                 return;
             }
@@ -296,18 +313,24 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
             const agentPosition = (artifacts?: ProjectStructureArtifactResponse[]) =>
                 artifacts?.find((artifact) => artifact.name === agentVarName)?.position;
             const moduleNodes = (await rpcClient.getBIDiagramRpcClient().getModuleNodes()).flowModel;
-            const updated = await removeToolFromAgentNode(node, tool.name);
-            if (updated) {
-                const current = await findFlowNodeByModuleVarName(agentVarName, rpcClient, moduleNodes);
-                if (current?.codedata?.lineRange) {
-                    updated.codedata.lineRange = current.codedata.lineRange;
+            nextPosition = await serializeAgentToolsEdit(async () => {
+                const latest = await withCurrentAgentTools(node, rpcClient);
+                const updated = await removeToolFromAgentNode(latest.node, tool.name);
+                if (!updated) {
+                    return undefined;
+                }
+                if (!latest.current) {
+                    const current = await findFlowNodeByModuleVarName(agentVarName, rpcClient, moduleNodes);
+                    if (current?.codedata?.lineRange) {
+                        updated.codedata.lineRange = current.codedata.lineRange;
+                    }
                 }
                 const path = (await rpcClient.getVisualizerRpcClient().joinProjectPath({
                     segments: [updated.codedata.lineRange.fileName],
                 })).filePath;
                 const response = await rpcClient.getBIDiagramRpcClient().getSourceCode({ filePath: path, flowNode: updated });
-                nextPosition = agentPosition(response?.artifacts);
-            }
+                return agentPosition(response?.artifacts);
+            });
             // Another agent may still list the tool; deleting its function would break that agent.
             const resolved = isToolUsedByOtherAgent(moduleNodes, agentVarName, tool.name)
                 ? null
@@ -345,13 +368,13 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
 
     const diagramCallbacks = useMemo<AgentNodeActions>(() => ({
         onModelSelect: (node) => { const n = resolve(node); activate(n); host.onModelSelect(n); },
-        onAddTool: (node) => { setBackOverride(null); activate(resolve(node)); setView("ADD_TOOL"); },
+        onAddTool: (node) => { setBackOverride(null); activate(resolve(node)); startSession(); setView("ADD_TOOL"); },
         onAddMcpServer: (node) => {
-            setBackOverride(null); activate(resolve(node)); setSelectedTool(undefined); setView("ADD_MCP");
+            setBackOverride(null); activate(resolve(node)); setSelectedTool(undefined); startSession(); setView("ADD_MCP");
         },
         onSelectTool: (tool, node) => void openTool(tool, resolve(node), true),
         onSelectMcpToolkit: (tool, node) => {
-            setBackOverride(null); activate(resolve(node)); setSelectedTool(tool); setView("EDIT_MCP");
+            setBackOverride(null); activate(resolve(node)); setSelectedTool(tool); startSession(); setView("EDIT_MCP");
         },
         onDeleteTool: (tool, node) => void deleteTool(tool, resolve(node)),
         goToTool: (tool, node) => void openTool(tool, resolve(node), false),
@@ -362,7 +385,7 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
         onAddTrigger: host.onAddTrigger && ((node) => host.onAddTrigger(resolve(node))),
         onDeleteTrigger: host.onDeleteTrigger && ((usage, node) => host.onDeleteTrigger(usage, resolve(node))),
         onTryTrigger: host.onTryTrigger && ((usage, node) => host.onTryTrigger(usage, resolve(node))),
-    }), [activate, deleteMemory, deleteTool, host, openTool, resolve, selectMemory, selectMemoryStore]);
+    }), [activate, deleteMemory, deleteTool, host, openTool, resolve, selectMemory, selectMemoryStore, startSession]);
 
     const setBackHandler = useCallback(
         (handler: (() => void) | null) => setBackOverride(() => handler),
