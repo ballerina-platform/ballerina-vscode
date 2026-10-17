@@ -196,7 +196,7 @@ function useCompactHeader() {
     return compact;
 }
 
-const OVERVIEW_TITLE = "Agent Overview";
+const OVERVIEW_TITLE = "Overview";
 
 export interface AgentFocusRequest {
     path: string;

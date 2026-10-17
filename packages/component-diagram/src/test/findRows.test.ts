@@ -63,7 +63,7 @@ const graph: TopologyGraph = (() => {
         { id: "review->deploy", sourceId: "review", targetId: "deploy", kind: "trigger" as const, handlers: [{ triggerId: "hotfix", order: 2 }] },
         runs("main", "main", "cost"),
     ];
-    return { agents, entries, handlers: entries.flatMap((candidate) => candidate.handlers), edges, wiredNothing: false, legendKinds: [] };
+    return { agents, entries, handlers: entries.flatMap((candidate) => candidate.handlers), edges, wiredNothing: false };
 })();
 
 describe("buildFindRows", () => {
