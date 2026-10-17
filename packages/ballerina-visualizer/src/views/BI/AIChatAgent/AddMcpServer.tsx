@@ -21,7 +21,7 @@ import { RequiresAuthCheckbox } from "./Mcp/RequiresAuthCheckbox";
 import { attemptValueResolution, createMockTools, extractOriginalValues, generateToolKitName } from "./Mcp/utils";
 import { cleanServerUrl } from "./formUtils";
 import { Container } from "./styles";
-import { extractAccessToken, getEndOfFileLineRange, refreshAgentNodeLineRange, removeQuotes, resolveAgentNodePosition, resolveVariableValue, resolveAuthConfig, checkAiPackageVersionSupport } from "./utils";
+import { extractAccessToken, getEndOfFileLineRange, refreshAgentNodeLineRange, removeQuotes, resolveAgentNodePosition, resolveVariableValue, resolveAuthConfig, checkAiPackageVersionSupport, serializeAgentToolsEdit, withCurrentAgentTools } from "./utils";
 
 interface Tool {
     name: string;
@@ -504,13 +504,18 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
                     classLineRange: agentDefinition.classLineRange,
                 });
             } else {
-                targetAgentNode = cloneDeep(agentNode);
-                await refreshAgentNodeLineRange(targetAgentNode, rpcClient);
-                await rpcClient.getAIAgentRpcClient().updateMCPToolKit({
-                    agentFlowNode: targetAgentNode,
-                    selectedTools: Array.from(selectedMcpTools),
-                    updatedNode: node,
-                    toolScopes: Object.keys(filteredScopes).length > 0 ? filteredScopes : undefined,
+                await serializeAgentToolsEdit(async () => {
+                    const latest = await withCurrentAgentTools(agentNode, rpcClient);
+                    targetAgentNode = latest.node;
+                    if (!latest.current) {
+                        await refreshAgentNodeLineRange(targetAgentNode, rpcClient);
+                    }
+                    await rpcClient.getAIAgentRpcClient().updateMCPToolKit({
+                        agentFlowNode: targetAgentNode,
+                        selectedTools: Array.from(selectedMcpTools),
+                        updatedNode: node,
+                        toolScopes: Object.keys(filteredScopes).length > 0 ? filteredScopes : undefined,
+                    });
                 });
             }
 
