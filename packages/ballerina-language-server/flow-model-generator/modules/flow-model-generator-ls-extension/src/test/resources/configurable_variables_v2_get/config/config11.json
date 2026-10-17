@@ -41,7 +41,20 @@
               "optional": false,
               "editable": true,
               "advanced": false,
-              "hidden": false
+              "hidden": false,
+              "codedata": {
+                "lineRange": {
+                  "fileName": "main.bal",
+                  "startLine": {
+                    "line": 0,
+                    "offset": 20
+                  },
+                  "endLine": {
+                    "line": 0,
+                    "offset": 31
+                  }
+                }
+              }
             },
             "type": {
               "metadata": {
@@ -165,7 +178,20 @@
               "optional": false,
               "editable": true,
               "advanced": false,
-              "hidden": false
+              "hidden": false,
+              "codedata": {
+                "lineRange": {
+                  "fileName": "main.bal",
+                  "startLine": {
+                    "line": 1,
+                    "offset": 20
+                  },
+                  "endLine": {
+                    "line": 1,
+                    "offset": 30
+                  }
+                }
+              }
             },
             "type": {
               "metadata": {
