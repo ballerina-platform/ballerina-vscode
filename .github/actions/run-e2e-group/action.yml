@@ -53,6 +53,23 @@ runs:
       shell: bash
       run: cd packages/ballerina-extension && npx playwright install
 
+    # Linux only: hosted Linux legs have been torn down mid-test ("The runner has received a
+    # shutdown signal"), most likely by memory or disk exhaustion. This samples both every
+    # 15 s so the next occurrence can be attributed — see the README's "Resource diagnostics".
+    - name: Start resource sampler
+      shell: bash
+      if: runner.os == 'Linux'
+      env:
+        SAMPLER: ${{ github.action_path }}/resource-sampler.sh
+      run: |
+        echo "--- free -m"; free -m
+        echo "--- df -h"; df -h
+        LOG="$GITHUB_WORKSPACE/packages/ballerina-extension/e2e-reports/resource-usage.log"
+        mkdir -p "$(dirname "$LOG")"
+        echo "# run_attempt=${{ github.run_attempt }}" >> "$LOG"
+        setsid nohup bash "$SAMPLER" "$LOG" 15 > /dev/null 2>&1 &
+        echo "$!" > "$RUNNER_TEMP/resource-sampler.pid"
+
     - name: Run Ballerina e2e Test (First Attempt)
       shell: bash
       id: run-tests-first
@@ -141,6 +158,42 @@ runs:
         export DISPLAY=:98.0
         cd packages/ballerina-extension
         xvfb-run --server-num 98.0 -s "-ac -screen 0 1920x1080x24" bash -c 'ffmpeg -y -nostdin -f x11grab -r 30 -s 1920x1080 -i :98.0 -c:v libx264 -preset ultrafast -pix_fmt yuv420p -movflags +faststart -hide_banner -loglevel error record.mp4 & pnpm exec playwright test -c e2e-test/playwright.config.js --grep "$RERUN_GREP"'
+
+    - name: Stop resource sampler
+      shell: bash
+      if: always() && runner.os == 'Linux'
+      run: |
+        PID_FILE="$RUNNER_TEMP/resource-sampler.pid"
+        if [ -f "$PID_FILE" ]; then
+          # setsid made the sampler its own process-group leader; kill the whole group so
+          # an in-flight `sleep` doesn't outlive it.
+          kill -- "-$(cat "$PID_FILE")" 2>/dev/null || kill "$(cat "$PID_FILE")" 2>/dev/null || true
+        fi
+
+    - name: Resource usage summary
+      shell: bash
+      if: always() && runner.os == 'Linux'
+      env:
+        GROUP: ${{ inputs.group }}
+      run: |
+        LOG=packages/ballerina-extension/e2e-reports/resource-usage.log
+        if [ -f "$LOG" ]; then
+          {
+            echo "### Resource usage tail (linux $GROUP, attempt ${{ github.run_attempt }})"
+            echo '```'
+            tail -n 60 "$LOG"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+        fi
+
+    - name: Upload resource usage log
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      if: always() && runner.os == 'Linux'
+      with:
+        name: Ballerina-e2e-resource-usage-${{ steps.platform.outputs.label }}-${{ inputs.group }}-${{ github.run_attempt }}
+        path: packages/ballerina-extension/e2e-reports/resource-usage.log
+        if-no-files-found: ignore
+        retention-days: 5
 
     - name: Upload Ballerina e2e Test results
       uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

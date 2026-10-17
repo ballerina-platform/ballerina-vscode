@@ -288,6 +288,18 @@ in-run retry history to lean on instead. The `Surface first-attempt failure` ste
 because that resume-only condition removes the one step that would otherwise fail the job on a genuine
 first-attempt failure; the two are a pair — drop them together if this design changes.
 
+**Linux legs log memory and disk usage.** Hosted Linux legs have been ending mid-test with "The runner
+has received a shutdown signal" (job timeouts not reached, no new push), which looks like the VM being
+torn down by memory or disk exhaustion. On Linux only, `run-e2e-group` prints `free -m` and `df -h`
+before the run and starts `resource-sampler.sh`, which appends a timestamp, `free -m`, `df -h` for the
+workspace and `/tmp`, and the five largest processes by RSS to
+`packages/ballerina-extension/e2e-reports/resource-usage.log` every 15 s; the sampler is stopped after
+the run. The log tail is written to the step summary and the file is uploaded as its own
+`Ballerina-e2e-resource-usage-linux-<group>-<attempt>` artifact by `always()` steps, so it is kept on
+cancellation too (it is also inside the results artifact, which a cancelled job does not upload). If the
+VM disappears outright no step runs, so check the summary/artifact of the attempt for a steady climb in
+used memory or a filesystem at 100% just before the cut-off. Windows legs are unchanged.
+
 **Handles GitHub's "Re-run failed jobs" across the whole pipeline.** A matrix group can be
 re-run independently, advancing only its own `github.run_attempt`; `run-e2e-group` restores the
 previous attempt's `e2e-results*.json` report so `extract-failed-serial-groups.js` can resume
