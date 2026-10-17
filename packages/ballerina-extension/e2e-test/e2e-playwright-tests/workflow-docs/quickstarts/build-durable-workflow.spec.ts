@@ -338,12 +338,8 @@ export default function createTests() {
                 // The inline Path Parameter editor opens with its Name box focused and holding `param`; Type
                 // already defaults to `string`.
                 await j.clickUntil(await ui.text(panel, '+ Path Param'), panel.getByText('Path Parameter', { exact: true }));
-                // Focus lands on the Name box asynchronously, so typing before it does goes nowhere.
-                const editor = panel.getByText('Path Parameter', { exact: true }).locator('xpath=ancestor::*[.//button[normalize-space()="Save"] or .//vscode-button[normalize-space()="Save"]][1]');
-                await j.click(await ui.field(editor, 'Name'));
-                await j.typeFocused('orderId');
-                // Keystrokes sent before the editor has focused its Name box are lost, leaving `param`; type into
-                // the box itself then.
+                // Focus lands on the Name box asynchronously, so keystrokes sent before then are lost, leaving
+                // `param`; type into the box itself when that happened.
                 const nameBox = pathParameterEditor(panel).locator('input').first();
                 const name = () => nameBox.inputValue().catch(() => '');
                 if (await name() !== 'orderId') {
