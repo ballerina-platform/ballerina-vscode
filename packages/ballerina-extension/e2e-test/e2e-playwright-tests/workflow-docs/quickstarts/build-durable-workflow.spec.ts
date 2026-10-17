@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { expect, test } from '@playwright/test';
+import { expect, Locator, test } from '@playwright/test';
 import { initTest, newProjectPath, stopAllRunningIntegrations } from '../../utils/helpers';
 import { projectSources, QUICKSTARTS, WORKFLOW_QUICKSTART_TEMPLATE } from '../common';
 import { DocJourney } from '../doc-journey';
@@ -339,12 +339,20 @@ export default function createTests() {
                 // already defaults to `string`.
                 await j.clickUntil(await ui.text(panel, '+ Path Param'), panel.getByText('Path Parameter', { exact: true }));
                 await j.typeFocused('orderId');
+                // Keystrokes sent before the editor has focused its Name box are lost, leaving `param`; type into
+                // the box itself then.
+                const nameBox = pathParameterEditor(panel).locator('input').first();
+                const name = () => nameBox.inputValue().catch(() => '');
+                if (await name() !== 'orderId') {
+                    await j.click(nameBox);
+                    await j.typeFocused('orderId');
+                }
+                await expect.poll(name, { message: 'Path Parameter name' }).toBe('orderId');
             });
             await j.step('9.4', 'Click **Save**. The segment lands in **Resource Path** as `[string orderId]`. Complete the path so it reads `[string orderId]/payment`.', async () => {
                 const panel = await ui.panel('New Resource Configuration');
                 // The editor's own Save, inside the Path Parameter box; the form's Save stays for Step 9.5.
-                const editor = panel.getByText('Path Parameter', { exact: true }).locator('xpath=ancestor::*[.//button[normalize-space()="Save"] or .//vscode-button[normalize-space()="Save"]][1]');
-                await j.click(editor.getByRole('button', { name: 'Save' }).first());
+                await j.click(pathParameterEditor(panel).getByRole('button', { name: 'Save' }).first());
                 await expect(panel.getByText('Path Parameter', { exact: true })).toBeHidden();
                 const resourcePath = await ui.field(panel, 'Resource Path');
                 const pathValue = async () => resourcePath.inputValue().catch(() => resourcePath.locator('input').inputValue()).catch(() => '');
@@ -430,6 +438,12 @@ export default function createTests() {
             });
         });
     });
+}
+
+// Steps 9.3 and 9.4: the inline Path Parameter editor, the nearest box around its title that holds its own Save.
+function pathParameterEditor(panel: Locator): Locator {
+    return panel.getByText('Path Parameter', { exact: true })
+        .locator('xpath=ancestor::*[.//button[normalize-space()="Save"] or .//vscode-button[normalize-space()="Save"]][1]');
 }
 
 // Steps 8.5 and 9.2. The page sets the method on the resource form; the UI asks for it first, in a "Select HTTP Method
