@@ -284,11 +284,11 @@ export default function createTests() {
 async function openActivityAnchor(j: DocJourney, ui: Integrator, checkPosition: boolean) {
     const view = await ui.view();
     const node = view.getByTestId('durable-agent-run-node').first();
-    const anchor = view.getByTestId('durable-agent-affordance-activity').first();
+    const anchor = view.getByTestId('durable-agent-add-activity').first();
     await anchor.waitFor({ state: 'visible', timeout: 60000 });
     if (checkPosition) {
         // The node's test id sits on a wrapper wider than the box, so compare with the other anchors on its edge.
-        const left = await view.getByTestId('durable-agent-affordance-humanTask').first().boundingBox();
+        const left = await view.getByTestId('durable-agent-add-humanTask').first().boundingBox();
         const title = await node.getByText(/Agent$/).first().boundingBox();
         const a = await anchor.boundingBox();
         if (left && title && a) {

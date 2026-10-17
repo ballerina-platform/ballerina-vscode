@@ -33,6 +33,7 @@ import io.ballerina.projects.PackageOrg;
 import io.ballerina.projects.PackageVersion;
 import io.ballerina.projects.Project;
 import io.ballerina.projects.ProjectEnvironmentBuilder;
+import io.ballerina.projects.ProjectException;
 import io.ballerina.projects.bala.BalaProject;
 import io.ballerina.projects.directory.BuildProject;
 import io.ballerina.projects.environment.PackageMetadataResponse;
@@ -143,6 +144,8 @@ public class PackageUtil {
 
     // Concurrent map to store locks for each project
     private static final ConcurrentHashMap<Path, ReentrantLock> PROJECT_LOCKS = new ConcurrentHashMap<>();
+    private static final String PLUGIN_INIT_FAILURE_PREFIX = "Failed to initialize the compiler plugin";
+    private static final int MAX_COMPILATION_ATTEMPTS = 3;
 
     /**
      * Session cache for sample-project module resolutions, keyed by
@@ -790,6 +793,12 @@ public class PackageUtil {
     /**
      * Safely retrieves compilation from a project using a lock to ensure thread safety.
      *
+     * <p>The lock only serializes callers of this method. The workspace manager compiles other snapshots of the same
+     * project under its own lock, and every snapshot shares the environment's {@code CompilerPluginCache}, whose
+     * unsynchronized map can hand a plugin {@code null} user data while a freshly loaded project is first compiled
+     * on both paths (e.g. {@code HttpCompilerPlugin.init} failing with "ctxData is null"). A failed compilation is
+     * not cached, so such a plugin initialization failure is retried.</p>
+     *
      * @param balPackage The package from which to retrieve the compilation
      * @return The compilation of the project
      */
@@ -798,7 +807,17 @@ public class PackageUtil {
         ReentrantLock lock = PROJECT_LOCKS.computeIfAbsent(id, k -> new ReentrantLock());
         lock.lock();
         try {
-            return balPackage.getCompilation();
+            for (int attempt = 1; ; attempt++) {
+                try {
+                    return balPackage.getCompilation();
+                } catch (ProjectException e) {
+                    if (attempt >= MAX_COMPILATION_ATTEMPTS || e.getMessage() == null
+                            || !e.getMessage().startsWith(PLUGIN_INIT_FAILURE_PREFIX)) {
+                        throw e;
+                    }
+                    LOGGER.log(Level.FINE, "Retrying compilation after a compiler plugin failed to initialize", e);
+                }
+            }
         } finally {
             lock.unlock();
         }

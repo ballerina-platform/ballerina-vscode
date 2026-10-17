@@ -53,7 +53,7 @@ export default function createTests() {
             await webview.getByTestId('durable-agent-run-node').waitFor({ state: 'visible', timeout: 60000 });
 
             logStep('Register HumanTask: user roles () and a named user');
-            await webview.getByTestId('durable-agent-affordance-humanTask').first().click({ force: true });
+            await webview.getByTestId('durable-agent-add-humanTask').first().click({ force: true });
             const panel = webview.getByTestId('side-panel');
             await fillTextField(panel, 'Task Name', 'agentTask');
             await expandAdvanced(panel);
@@ -66,10 +66,12 @@ export default function createTests() {
             await saveButton.click({ force: true });
             await expect.poll(mainSource, { timeout: 90000 })
                 .toMatch(/humanTasks: \[\{name: "agentTask", userRoles: \(\), users: "alice"/);
-            await saveButton.waitFor({ state: 'hidden', timeout: 60000 });
+            await panel.waitFor({ state: 'detached', timeout: 90000 });
+            await page.page.waitForTimeout(5000);
 
             logStep('Register lookupBill with a Human Approval whose reviewer roles are ()');
-            await webview.getByTestId('durable-agent-affordance-activity').first().click({ force: true });
+            await webview.getByTestId('durable-agent-add-activity').first().click({ force: true });
+            await panel.getByTestId('node-list-action-onAddFunction').first().waitFor({ state: 'visible', timeout: 60000 });
             const item = panel.getByText('lookupBill', { exact: true }).first();
             await item.waitFor({ state: 'visible', timeout: 60000 });
             await item.scrollIntoViewIfNeeded();
