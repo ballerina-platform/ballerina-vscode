@@ -315,6 +315,8 @@ public class CodeAnalyzer extends NodeVisitor {
     private NodeBuilder nodeBuilder;
     private final List<FlowNode> flowNodeList;
     private final Stack<NodeBuilder> flowNodeBuilderStack;
+    // Each lookup walks the disk to the package root, and every call node with an inferred type needs it.
+    private Optional<Module> fileModule;
     private TypedBindingPatternNode typedBindingPatternNode;
     private static final String AI_AGENT = "ai";
     public static final String ICON_PATH = CommonUtils.generateIcon(BALLERINA_ORG_NAME, "mcp", "0.4.2");
@@ -3028,7 +3030,7 @@ public class CodeAnalyzer extends NodeVisitor {
             addOptionalFlagProperty(isNilable, false);
         }
 
-        ((WaitDataBuilder) nodeBuilder).addAdvancedProperties(workspaceManager.module(filePath)
+        ((WaitDataBuilder) nodeBuilder).addAdvancedProperties(fileModule()
                 .orElse(project.currentPackage().getDefaultModule()), workspaceManager, filePath);
     }
 
@@ -5106,7 +5108,7 @@ public class CodeAnalyzer extends NodeVisitor {
 
             // Generate the property of the inferred type param
             nodeBuilder.codedata().inferredReturnType(functionData.returnError() ? returnType : null);
-            Module module = workspaceManager.module(filePath)
+            Module module = fileModule()
                     .orElse(project.currentPackage().getDefaultModule());
             CallBuilder.buildInferredTypeProperty(nodeBuilder, paramResult, inferredTypeName, module, targetVarType,
                     callNode);
@@ -5114,6 +5116,13 @@ public class CodeAnalyzer extends NodeVisitor {
         });
         AgentCallBuilder.fixQueryPromptType(nodeBuilder, false);
         AgentRunBuilder.fixQueryPromptType(nodeBuilder, false);
+    }
+
+    private Optional<Module> fileModule() {
+        if (fileModule == null) {
+            fileModule = workspaceManager.module(filePath);
+        }
+        return fileModule;
     }
 
     private static String deriveInferredType(String variableType, String returnType, String key) {
