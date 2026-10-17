@@ -355,3 +355,89 @@ describe("FunctionForm pulling status while saving", () => {
         expect(loadingRing()).not.toBeNull();
     });
 });
+
+// L2: an edit after the name was renamed in place (wso2/product-integrator#2799). The name field
+// renames through the LS before Save, which moves the end of the signature; rewriting the range
+// read at load time then cut into the data mapper's `=>` and left it a block-bodied function.
+describe("FunctionForm save after an in-place rename", () => {
+    let container: HTMLDivElement;
+    let root: Root;
+
+    const LOADED_RANGE = { fileName: "data_mappings.bal", startLine: { line: 4, offset: 0 }, endLine: { line: 4, offset: 52 } };
+    const RENAMED_RANGE = { fileName: "data_mappings.bal", startLine: { line: 4, offset: 0 }, endLine: { line: 4, offset: 47 } };
+
+    const dataMapper = (name: string, lineRange: typeof LOADED_RANGE) => ({
+        codedata: { node: "DATA_MAPPER_DEFINITION", lineRange },
+        properties: { functionName: { value: name } },
+    });
+
+    beforeEach(() => {
+        container = document.createElement("div");
+        document.body.appendChild(container);
+        root = createRoot(container);
+        mockArtifactFormProps = undefined;
+        jest.spyOn(console, "log").mockImplementation(() => undefined);
+        jest.spyOn(console, "error").mockImplementation(() => undefined);
+    });
+
+    afterEach(() => {
+        act(() => root.unmount());
+        container.remove();
+        jest.restoreAllMocks();
+    });
+
+    const flush = async () => {
+        for (let i = 0; i < 10; i++) {
+            await act(async () => undefined);
+        }
+    };
+
+    /** Loads `transformPerson`, submits the form with `formName`, and returns the saved node. */
+    const saveAs = async (formName: string, getFunctionNode: jest.Mock) => {
+        const getSourceCode = jest.fn(async () => ({ artifacts: [] as unknown[] }));
+        const rpc = {
+            ...makeRpc({ getFunctionNode, getSourceCode }),
+            getCommonRpcClient: () => ({ showErrorMessage: jest.fn() }),
+        };
+        await act(async () => {
+            root.render(
+                <TestRpcContext.Provider value={{ rpcClient: rpc }}>
+                    <FunctionForm filePath={FILE_PATH} projectPath={PROJECT_PATH} functionName="transformPerson" isDataMapper />
+                </TestRpcContext.Provider>
+            );
+        });
+        await flush();
+        expect(mockArtifactFormProps).toBeDefined();
+        await act(async () => {
+            await mockArtifactFormProps!.onSubmit({ functionName: formName });
+        });
+        await flush();
+        expect(getSourceCode).toHaveBeenCalledTimes(1);
+        return (getSourceCode.mock.calls[0] as any)[0].flowNode;
+    };
+
+    it("rewrites the signature at its range under the new name", async () => {
+        const getFunctionNode = jest.fn(async ({ functionName }: { functionName: string }) => ({
+            functionDefinition: functionName === "transformPerson"
+                ? dataMapper("transformPerson", LOADED_RANGE)
+                : dataMapper(functionName, RENAMED_RANGE),
+        }));
+
+        const flowNode = await saveAs("toEmp", getFunctionNode);
+
+        expect(getFunctionNode).toHaveBeenLastCalledWith(expect.objectContaining({ functionName: "toEmp" }));
+        expect(flowNode.codedata.lineRange).toEqual(RENAMED_RANGE);
+        expect(flowNode.codedata.node).toBe("DATA_MAPPER_DEFINITION");
+    });
+
+    it("keeps the loaded range when the definition cannot be re-read", async () => {
+        const getFunctionNode = jest
+            .fn()
+            .mockResolvedValueOnce({ functionDefinition: dataMapper("transformPerson", LOADED_RANGE) })
+            .mockResolvedValueOnce(undefined);
+
+        const flowNode = await saveAs("transformPerson", getFunctionNode);
+
+        expect(flowNode.codedata.lineRange).toEqual(LOADED_RANGE);
+    });
+});

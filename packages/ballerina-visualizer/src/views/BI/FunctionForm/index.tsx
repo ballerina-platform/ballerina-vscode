@@ -98,7 +98,6 @@ export function FunctionForm(props: FunctionFormProps) {
     // only the newest attempt may write state — otherwise a slow failure can raise the error card
     // over an already-loaded form. Mirrors `useServiceInitModel`'s `cancelled` flag.
     const loadSeqRef = useRef(0);
-    const functionNodeRef = useRef<FunctionNode>();
 
     useEffect(() => {
         isMountedRef.current = true;
@@ -110,10 +109,6 @@ export function FunctionForm(props: FunctionFormProps) {
     /** Whether a load that started with `seq` may still write state: it must be the newest one,
      *  and the component must still be mounted (the file's existing post-await convention). */
     const isCurrentLoad = (seq: number) => isMountedRef.current && seq === loadSeqRef.current;
-
-    useEffect(() => {
-        functionNodeRef.current = functionNode;
-    }, [functionNode]);
 
     // Building the node template for a workflow artifact pulls ballerina/workflow from Central the
     // first time, and saving it pulls workflow's own dependencies on the project's first compile.
@@ -252,46 +247,6 @@ export function FunctionForm(props: FunctionFormProps) {
 
         setFunctionFields(fields);
     }, [functionNode]);
-
-    useEffect(() => {
-        const subscription = rpcClient.onIdentifierUpdated(async (response) => {
-            if (!isMountedRef.current || !response?.length) return;
-            console.log("Identifier Updated: ", response);
-
-            // Only this function's own update matters: rebuilding the fields for another artifact,
-            // such as a type just created from the input type field, would discard what was typed.
-            if (!functionName) return;
-            const artifact = response.find(res => res.name === functionName || res.context === functionName);
-            if (!artifact?.name) return;
-
-            const changedFunctionNode = await rpcClient
-                .getBIDiagramRpcClient()
-                .getFunctionNode({
-                    functionName: artifact.name,
-                    fileName,
-                    projectPath
-                });
-            if (!isMountedRef.current) return;
-
-            const flowNode = changedFunctionNode.functionDefinition;
-            const currentFunctionNode = functionNodeRef.current;
-            if (!currentFunctionNode?.codedata?.lineRange || !flowNode?.codedata?.lineRange) return;
-
-            setFunctionNode({
-                ...currentFunctionNode,
-                codedata: {
-                    ...currentFunctionNode.codedata,
-                    lineRange: {
-                        ...flowNode.codedata.lineRange
-                    }
-                }
-            });
-        });
-
-        return () => {
-            subscription?.();
-        };
-    }, [rpcClient, functionName, fileName, projectPath]);
 
     const getFunctionNode = async (kind: NodeKind) => {
         const seq = ++loadSeqRef.current;
@@ -462,6 +417,30 @@ export function FunctionForm(props: FunctionFormProps) {
         }
     };
 
+    /**
+     * The source an edit rewrites is the signature the LS read at load time, so its range is
+     * stale once the source moves underneath the form. The name field renames in place through
+     * the LS (IdentifierEditor), which shifts the end of the signature by the change in length:
+     * a stale range then cuts into the return type or, for a shorter name, swallows the `=>` of
+     * a data mapper and turns it into a block-bodied function. Re-read the range by the name the
+     * source now carries; that name is the form's value only once a rename has been applied.
+     */
+    const getCurrentCodedata = async (codedata: FunctionNode["codedata"], formName: unknown) => {
+        const currentName = typeof formName === "string" && formName ? formName : functionName;
+        try {
+            const res = await rpcClient
+                .getBIDiagramRpcClient()
+                .getFunctionNode({ functionName: currentName, fileName, projectPath });
+            const lineRange = res?.functionDefinition?.codedata?.lineRange;
+            if (lineRange) {
+                return { ...codedata, lineRange };
+            }
+        } catch (error) {
+            console.error("Failed to refresh the function's line range:", error);
+        }
+        return codedata;
+    };
+
     const onSubmit = async (data: FormValues, formImports?: FormImports) => {
         console.log("Function Form Data: ", data);
         const functionNodeCopy = { ...functionNode };
@@ -564,6 +543,10 @@ export function FunctionForm(props: FunctionFormProps) {
                     }
                 }
             }
+        }
+
+        if (functionName) {
+            functionNodeCopy.codedata = await getCurrentCodedata(functionNodeCopy.codedata, data?.functionName);
         }
 
         console.log("Updated function node: ", functionNodeCopy);
