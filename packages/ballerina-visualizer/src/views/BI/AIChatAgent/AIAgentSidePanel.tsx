@@ -1820,7 +1820,7 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                     onCreateNode={handleCreateNode}
                     groups={toolFormGroups}
                     opensPrefilled
-                    submitText={"Save Tool"}
+                    submitText={submittingTool ? "Saving..." : "Save Tool"}
                     isSaving={submittingTool}
                     helperPaneSide="left"
                     customDiagnosticFilter={customDiagnosticFilter}

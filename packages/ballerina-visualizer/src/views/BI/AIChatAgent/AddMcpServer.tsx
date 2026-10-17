@@ -640,7 +640,7 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
             fileName={mcpToolKitNodeRef.current?.codedata?.lineRange?.fileName ? mcpToolKitNodeRef.current.codedata.lineRange?.fileName : agentFileEndLineRangeRef.current?.fileName}
             targetLineRange={mcpToolKitNodeRef.current?.codedata?.lineRange ? mcpToolKitNodeRef.current.codedata.lineRange : agentFileEndLineRangeRef.current}
             nodeFormTemplate={mcpToolKitNodeTemplateRef.current}
-            submitText={"Save"}
+            submitText={isSaving ? "Saving..." : "Save"}
             node={mcpToolKitNodeRef.current}
             onSubmit={handleSave}
             onChange={(fieldKey, value) => {
