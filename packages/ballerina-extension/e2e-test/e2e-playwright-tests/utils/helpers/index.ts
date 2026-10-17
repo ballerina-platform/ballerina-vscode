@@ -35,6 +35,9 @@ export {
     executeBallPullCommand
 } from './setup';
 
+// Re-export from processes
+export { descendantProcesses, javaDescendants, killProcesses, stillRunning } from './processes';
+
 // Re-export from webview
 export { getWebview, webviewFrame } from './webview';
 

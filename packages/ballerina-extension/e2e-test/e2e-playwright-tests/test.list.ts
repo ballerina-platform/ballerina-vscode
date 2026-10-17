@@ -361,6 +361,9 @@ test.afterAll(async () => {
         try {
             const electronProcess = helpers.vscode.process?.();
             if (electronProcess && !electronProcess.killed) {
+                // Listed before the kill: the language server's JVM survives it, and once Electron is gone the
+                // JVM is re-parented and can no longer be found from it.
+                const children = helpers.descendantProcesses(electronProcess.pid);
                 await new Promise<void>((resolve) => {
                     let settled = false;
                     const done = () => {
@@ -378,7 +381,8 @@ test.afterAll(async () => {
                         done();
                     }
                 });
-                console.log('✅ VS Code Electron app terminated');
+                const leftover = helpers.killProcesses(helpers.stillRunning(children));
+                console.log(`✅ VS Code Electron app terminated${leftover > 0 ? ` (stopped ${leftover} process(es) it left running)` : ''}`);
             } else {
                 console.log('ℹ️  No live Electron process to terminate');
             }

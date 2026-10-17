@@ -78,10 +78,27 @@ runs:
           pnpm exec playwright test -c e2e-test/playwright.config.js --grep "$TEST_GROUP"
           exit
         fi
+        # Memory over the run, in the job log: a runner that runs out of memory is shut down mid-step and uploads
+        # no artifacts, so the log is the only record of what filled it. Once a minute, with the largest processes.
+        ( while true; do
+            echo "::group::Resource usage $(date -u +%H:%M:%S)"
+            free -m | awk 'NR==2 {printf "mem used=%sMB available=%sMB", $3, $7} NR==3 {printf " swap used=%sMB\n", $3}'
+            echo "java processes: $(pgrep -c java || true)"
+            ps -eo rss=,pid=,ppid=,etimes=,comm= --sort=-rss | head -8 \
+              | awk '{printf "  %6d MB pid=%s ppid=%s age=%ss %s\n", $1 / 1024, $2, $3, $4, $5}'
+            echo "::endgroup::"
+            sleep 60
+          done ) &
+        MONITOR_PID=$!
         export $(dbus-launch)
         export DISPLAY=:98.0
         cd packages/ballerina-extension
-        xvfb-run --server-num 98.0 -s "-ac -screen 0 1920x1080x24" bash -c 'ffmpeg -y -nostdin -f x11grab -r 30 -s 1920x1080 -i :98.0 -c:v libx264 -preset ultrafast -pix_fmt yuv420p -movflags +faststart -hide_banner -loglevel error record.mp4 & pnpm exec playwright test -c e2e-test/playwright.config.js --grep "$TEST_GROUP"'
+        # Not left to `-e`: the monitor must be stopped either way, or it holds the step's output open.
+        STATUS=0
+        xvfb-run --server-num 98.0 -s "-ac -screen 0 1920x1080x24" bash -c 'ffmpeg -y -nostdin -f x11grab -r 30 -s 1920x1080 -i :98.0 -c:v libx264 -preset ultrafast -pix_fmt yuv420p -movflags +faststart -hide_banner -loglevel error record.mp4 & pnpm exec playwright test -c e2e-test/playwright.config.js --grep "$TEST_GROUP"' || STATUS=$?
+        pkill -P "$MONITOR_PID" 2>/dev/null || true
+        kill "$MONITOR_PID" 2>/dev/null || true
+        exit "$STATUS"
 
     # The first-attempt step is continue-on-error, and the re-run below — the only step
     # that turns a test failure into a job failure — now only runs on the manual re-run

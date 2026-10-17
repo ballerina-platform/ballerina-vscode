@@ -24,6 +24,7 @@ import { execFileSync, execSync } from 'child_process';
 import { getWebview } from './webview';
 import { BI_INTEGRATOR_LABEL, BI_WEBVIEW_NOT_FOUND_ERROR, DEFAULT_PROJECT_FOLDER_NAME, DEFAULT_PROJECT_NAME } from './constants';
 import { waitForBISidebarTreeView } from './sidebar';
+import { javaDescendants, killProcesses, stillRunning } from './processes';
 
 /** Runtime test workspace lives under e2e-test/data (sibling of e2e-playwright-tests). */
 export const dataFolder = path.join(__dirname, '..', '..', '..', 'data');
@@ -560,6 +561,9 @@ export function initTest(newProject: boolean = true, skipProjectCreation: boolea
             // one, which will re-launch VS Code cleanly via the `!vscode`
             // branch above. The global afterAll in test.list.ts will close
             // Electron during worker teardown so the worker can exit.
+            // The JVMs the window started (its language server, a `bal run` program) are not stopped by the reload;
+            // the ones still running once the new window is up are stopped then.
+            const previousWindowJvms = javaDescendants(vscode.process?.()?.pid);
             await withTimeout((async () => {
                 await page.executePaletteCommand('Reload Window');
                 await page.page.waitForTimeout(3000);
@@ -569,7 +573,8 @@ export function initTest(newProject: boolean = true, skipProjectCreation: boolea
                 console.log('  ⏳ Waiting for BI extension to initialize after reload...');
                 await waitForBISidebarTreeView(page);
             })(), RELOAD_TIMEOUT_MS, `Reload Window did not complete within ${RELOAD_TIMEOUT_MS}ms`);
-            console.log('  ✅ BI extension ready after reload');
+            const stopped = killProcesses(stillRunning(previousWindowJvms));
+            console.log(`  ✅ BI extension ready after reload${stopped > 0 ? ` (stopped ${stopped} JVM(s) the previous window left running)` : ''}`);
         }
         await toggleNotifications(true);
         // Skip the github popup if there is any
