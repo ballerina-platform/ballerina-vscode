@@ -72,8 +72,11 @@ public final class Main {
             return EXIT_OK;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+            // stderr is the diagnostic channel; stdout carries the JSON-RPC frames.
+            e.printStackTrace(System.err);
             return EXIT_FAILURE;
         } catch (ExecutionException e) {
+            e.printStackTrace(System.err);
             return EXIT_FAILURE;
         }
     }
