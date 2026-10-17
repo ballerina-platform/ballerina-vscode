@@ -39,8 +39,18 @@ export default function createTests() {
                 view = await ui.view(/Add Artifact/i, 120000);
             });
             await j.step('2', 'In the right panel, below **Integration Control Plane**, find the **Workflow** section.', async () => {
-                await expect(view.getByRole('heading', { name: 'Integration Control Plane' })).toBeVisible();
-                await expect(view.getByRole('heading', { name: 'Workflow', exact: true })).toBeVisible();
+                // The Deploy panel lists both as collapsible items under Management; the workflow one is collapsed.
+                await expect(view.getByRole('button', { name: /^Integration Control Plane/ })).toBeVisible({ timeout: 60000 });
+                const workflowItem = view.getByRole('button', { name: /^Workflow Management/ });
+                await expect(workflowItem).toBeVisible();
+                await j.finding({
+                    kind: 'label',
+                    says: 'A **Workflow** section below **Integration Control Plane**',
+                    actual: 'It is a collapsed **Workflow Management** item under **Management** in the Deploy panel; it has to be expanded first',
+                    suggestion: 'Say "In the Deploy panel, under **Management**, expand **Workflow Management**".',
+                });
+                await j.click(workflowItem);
+                await view.getByTestId('workflow-section').waitFor({ state: 'visible', timeout: 60000 });
             });
             await j.step('3', 'Select **Enable Workflow Management REST API**. Selecting it adds the `ballerina/workflow.management.rest` import to `main.bal`.', async () => {
                 await j.click(view.getByRole('checkbox', { name: /Enable Workflow Management REST API/ }));

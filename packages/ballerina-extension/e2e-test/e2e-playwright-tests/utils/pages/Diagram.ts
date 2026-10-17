@@ -89,6 +89,25 @@ export class Diagram {
         const matches = (typeof nodeText === 'string' ? canvas.getByText(nodeText, { exact: true }) : canvas.getByText(nodeText))
             .filter({ visible: true });
         await matches.last().waitFor({ state: 'visible', timeout: 60000 });
+        // A save redraws the canvas: the node can be replaced while it is measured, and the edge leaving it can be
+        // laid out after the node shows. Measure again until the layout holds.
+        const deadline = Date.now() + 30000;
+        for (;;) {
+            const found = await this.findAddButtonBelow(matches, nodeText, nth);
+            if (typeof found !== 'string') {
+                await found();
+                return;
+            }
+            if (Date.now() >= deadline) {
+                throw new Error(found);
+            }
+            await this._page.waitForTimeout(500);
+        }
+    }
+
+    // The action that clicks the + below the node, or why none could be found in the current layout.
+    private async findAddButtonBelow(matches: Locator, nodeText: string | RegExp, nth: number): Promise<(() => Promise<void>) | string> {
+        const frame = this.frame();
         // An open side panel can list the same name (the Activities panel's cards); the node is on the canvas.
         let node = matches.last();
         for (const candidate of (await matches.all()).reverse()) {
@@ -97,29 +116,30 @@ export class Diagram {
                 break;
             }
         }
-        const nodeBox = await node.boundingBox();
+        const nodeBox = await node.boundingBox().catch(() => null);
         if (!nodeBox) {
-            throw new Error(`node '${nodeText}' has no position`);
+            return `node '${nodeText}' has no position`;
         }
         // In some diagrams (a resource, inside a do block) the + under a node belongs to an empty node drawn there.
         const centre = nodeBox.x + nodeBox.width / 2;
         for (const button of await frame.locator('[data-testid^="empty-node-add-button"]').all()) {
-            const b = await button.boundingBox();
+            const b = await button.boundingBox().catch(() => null);
             if (b && Math.abs(b.x + b.width / 2 - centre) < 60 && b.y > nodeBox.y && b.y < nodeBox.y + nodeBox.height + 160) {
-                await button.click({ force: true });
-                if (!await this.sidePanelOpens(1500)) {
-                    await button.dispatchEvent('click');
-                }
-                await this.expectSidePanel(`the + under '${nodeText}'`);
-                return;
+                return async () => {
+                    await button.click({ force: true });
+                    if (!await this.sidePanelOpens(1500)) {
+                        await button.dispatchEvent('click');
+                    }
+                    await this.expectSidePanel(`the + under '${nodeText}'`);
+                };
             }
         }
         const seen: string[] = [];
         const candidates: Array<{ id: string; top: number; left: number; el: Locator }> = [];
         const textBottom = nodeBox.y + nodeBox.height;
         for (const edge of await frame.locator('[data-testid^="diagram-link-"]').all()) {
-            const box = await edge.boundingBox();
-            const id = (await edge.getAttribute('data-testid')) ?? '';
+            const box = await edge.boundingBox().catch(() => null);
+            const id = (await edge.getAttribute('data-testid').catch(() => null)) ?? '';
             seen.push(`${id}@${box ? `${Math.round(box.x)},${Math.round(box.y)} ${Math.round(box.width)}x${Math.round(box.height)}` : 'none'}`);
             // An edge leaving the node starts at or a little above the label and runs on below it; edges into the
             // node end above the label, side arrows stay level.
@@ -131,9 +151,9 @@ export class Diagram {
         candidates.sort((a, b) => (Math.abs(a.top - b.top) < 5 ? a.left - b.left : a.top - b.top));
         const edge = candidates[nth];
         if (!edge) {
-            throw new Error(`no edge leaves '${nodeText}' (label at y ${Math.round(nodeBox.y)}..${Math.round(textBottom)}; edges ${seen.join(', ')})`);
+            return `no edge leaves '${nodeText}' (label at y ${Math.round(nodeBox.y)}..${Math.round(textBottom)}; edges ${seen.join(', ')})`;
         }
-        await this.clickEdgeAddButton(edge.el, edge.id);
+        return () => this.clickEdgeAddButton(edge.el, edge.id);
     }
 
     /**
