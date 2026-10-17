@@ -29,6 +29,8 @@ import {
     AIToolResponse,
     AIToolsRequest,
     AIToolsResponse,
+    BISourceCodeRequest,
+    BISourceCodeResponse,
     FlowNode,
     McpToolUpdateRequest,
     McpToolsRequest,
@@ -47,6 +49,7 @@ import { URI, Utils } from "vscode-uri";
 import { StateMachine } from "../../stateMachine";
 import { writeBallerinaFileDidOpen } from "../../utils/modification";
 import { updateSourceCode } from "../../utils/source-utils";
+import { ArtifactUpdateWait, startArtifactUpdateWait } from "../../utils/project-artifacts-handler";
 import { addMissingImports, checkProjectDiagnostics, removeUnusedImports } from "../ai-panel/repair-utils";
 import { CONFIGURE_DEFAULT_MODEL_COMMAND } from "../../features/ai/constants";
 import { mcpAccessToken } from "../../features/agent-manager/mcp";
@@ -154,12 +157,21 @@ export class AiAgentRpcManager implements AIAgentAPI {
 
     async fixMissingImports(): Promise<void> {
         const context = StateMachine.context();
+        let artifactUpdate: ArtifactUpdateWait | undefined;
         try {
             const projectDiags = await checkProjectDiagnostics(context.langClient, context.projectPath);
-            await addMissingImports(projectDiags, context.langClient);
-            await removeUnusedImports(projectDiags, context.langClient);
+            // Callers read positions from the project structure next, and an import line moves them.
+            artifactUpdate = startArtifactUpdateWait(() => undefined);
+            const added = await addMissingImports(projectDiags, context.langClient);
+            const removed = await removeUnusedImports(projectDiags, context.langClient);
+            if (added || removed) {
+                await context.langClient.flushArtifacts().catch((): undefined => undefined);
+                await artifactUpdate.notified;
+            }
         } catch (e) {
             console.log("fixMissingImports failed", e);
+        } finally {
+            artifactUpdate?.cancel();
         }
     }
 
@@ -195,7 +207,6 @@ export class AiAgentRpcManager implements AIAgentAPI {
         const mcpToolKitVarName = params.updatedNode.properties["variable"].value;
 
         // 1. Use the updatedNode from params for the MCP ToolKit edits
-        let mcpEdits: { [filePath: string]: any[] } = {};
         if (params.updatedNode) {
             if (params.selectedTools.length === 0) {
                 params.updatedNode.properties["permittedTools"].value = `()`;
@@ -235,12 +246,6 @@ export class AiAgentRpcManager implements AIAgentAPI {
                 delete (params.updatedNode.properties as any)["toolScopes"];
             }
 
-            // Use only the template node for generating text edits
-            const mcpToolKitEdits = await StateMachine.langClient().getSourceCode({
-                filePath: connectionsFilePath,
-                flowNode: params.updatedNode,
-            });
-            mcpEdits = mcpToolKitEdits.textEdits;
         }
 
         // Update the agent's tools array with the toolkit variable name.
@@ -280,16 +285,15 @@ export class AiAgentRpcManager implements AIAgentAPI {
         // Set the updated tools value
         agentFlowNode.properties["tools"].value = toolsValue;
 
-        // Generate source code for the updated agent
-        const agentEdits = await StateMachine.langClient().getSourceCode({
-            filePath: agentsFilePath,
-            flowNode: agentFlowNode
-        });
-
-
-        // 3. Apply both edits
-        await updateSourceCode({ textEdits: agentEdits.textEdits });
-        await updateSourceCode({ textEdits: mcpEdits });
+        // 3. Generate the agent and the toolkit together, so both files change in one formatted edit
+        const nodes = [
+            { filePath: agentsFilePath, flowNode: agentFlowNode },
+            { filePath: connectionsFilePath, flowNode: params.updatedNode },
+        ];
+        const source = await StateMachine.langClient().getSourceCode(
+            { filePath: agentsFilePath, flowNode: agentFlowNode, nodes } as BISourceCodeRequest
+        ) as BISourceCodeResponse & { formatted?: boolean };
+        await updateSourceCode({ textEdits: source.textEdits, preformatted: source.formatted });
     }
 
     private parseToolsString(toolsStr: string): string[] {

@@ -969,7 +969,7 @@ describe("deleting components whose positions have moved", () => {
 describe("clearing an agent call from a handler", () => {
     const flowNode = (expression: string, line: number) => ({
         properties: { expression: { value: expression } },
-        codedata: { lineRange: { startLine: { line } } },
+        codedata: { lineRange: { startLine: { line, offset: 8 }, endLine: { line, offset: 40 } } },
     });
 
     const trigger = (orphansService: boolean): AgentUsageTrigger => ({
@@ -1031,11 +1031,15 @@ describe("clearing an agent call from a handler", () => {
 
         await clearAgentCallFromHandler(client, trigger(true));
 
-        expect(deleteFlowNode).toHaveBeenCalledTimes(1);
+        expect(deleteFlowNode).not.toHaveBeenCalled();
         expect(getDesignModel).toHaveBeenCalledTimes(1);
-        expect(deleteByComponentInfo).toHaveBeenCalledWith(
-            expect.objectContaining({ component: expect.objectContaining({ name: "runAgent" }) })
-        );
+        expect(deleteByComponentInfo).toHaveBeenCalledTimes(1);
+        expect(deleteByComponentInfo).toHaveBeenCalledWith(expect.objectContaining({
+            components: [
+                expect.objectContaining({ startLine: 11, startColumn: 8, endLine: 11, endColumn: 40 }),
+                expect.objectContaining({ name: "runAgent", startLine: 40 }),
+            ],
+        }));
     });
 
     it("deletes the helper even when a sibling reaches a different agent, as long as it does not call this helper", async () => {
@@ -1043,10 +1047,10 @@ describe("clearing an agent call from a handler", () => {
 
         await clearAgentCallFromHandler(client, trigger(false));
 
-        expect(deleteFlowNode).toHaveBeenCalledTimes(1);
-        expect(deleteByComponentInfo).toHaveBeenCalledWith(
-            expect.objectContaining({ component: expect.objectContaining({ name: "runAgent" }) })
-        );
+        expect(deleteFlowNode).not.toHaveBeenCalled();
+        expect(deleteByComponentInfo).toHaveBeenCalledWith(expect.objectContaining({
+            components: [expect.objectContaining({ startLine: 11 }), expect.objectContaining({ name: "runAgent" })],
+        }));
     });
 
     it("keeps the helper a sibling still calls by name", async () => {
@@ -1054,8 +1058,11 @@ describe("clearing an agent call from a handler", () => {
 
         await clearAgentCallFromHandler(client, trigger(false));
 
-        expect(deleteFlowNode).toHaveBeenCalledTimes(1);
-        expect(deleteByComponentInfo).not.toHaveBeenCalled();
+        expect(deleteFlowNode).not.toHaveBeenCalled();
+        expect(deleteByComponentInfo).toHaveBeenCalledTimes(1);
+        expect(deleteByComponentInfo).toHaveBeenCalledWith(expect.objectContaining({
+            components: [expect.objectContaining({ startLine: 11 })],
+        }));
     });
 });
 

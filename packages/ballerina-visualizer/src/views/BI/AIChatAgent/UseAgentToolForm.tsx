@@ -28,7 +28,7 @@ import { RelativeLoader } from "../../../components/RelativeLoader";
 import { ImplementationBadge } from "../../../components/ImplementationBadge";
 import { getImportsForProperty } from "../../../utils/bi";
 import { INCLUDE_CONTEXT_KEY, RESULT_TYPE_GROUP, buildIncludeContextField, buildToolFormGroups } from "./toolForm";
-import { addToolToAgentNode, AgentToolHostClass, buildAgentCallToolNode, buildOAuthFields, fetchAgentRunReturnType, fetchOAuthConfigProperties, refreshAgentNodeLineRange, resolveAgentNodePosition, ZERO_LINE_RANGE } from "./utils";
+import { AgentToolHostClass, buildAgentCallToolNode, buildOAuthFields, fetchAgentRunReturnType, fetchOAuthConfigProperties, resolveAgentNodePosition, saveToolOnAgent, ZERO_LINE_RANGE } from "./utils";
 import { buildAgentToolFields, buildApprovalToolData, buildRequiresApprovalField,
     collectLocalFunctionNames, createRequiresApprovalField, extractRecordTypeFieldsFromEntries,
     stripCodeFencesInline } from "./formUtils";
@@ -194,15 +194,8 @@ export function UseAgentToolForm(props: UseAgentToolFormProps): JSX.Element {
             });
             let agentPosition: NodePosition | undefined;
             if (!hostClass && agentNode) {
-                const updatedAgentNode = await addToolToAgentNode(agentNode, toolName);
+                const updatedAgentNode = await saveToolOnAgent(agentNode, toolName, rpcClient, toolResponse?.artifacts);
                 if (updatedAgentNode) {
-                    await refreshAgentNodeLineRange(updatedAgentNode, rpcClient, toolResponse?.artifacts);
-                    const { filePath: agentFile } = await rpcClient.getVisualizerRpcClient().joinProjectPath({
-                        segments: [updatedAgentNode.codedata.lineRange.fileName],
-                    });
-                    await rpcClient
-                        .getBIDiagramRpcClient()
-                        .getSourceCode({ filePath: agentFile, flowNode: updatedAgentNode });
                     agentPosition = await resolveAgentNodePosition(updatedAgentNode, rpcClient);
                 }
             }

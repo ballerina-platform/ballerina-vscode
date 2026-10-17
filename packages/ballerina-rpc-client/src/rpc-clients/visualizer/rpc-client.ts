@@ -48,6 +48,8 @@ import {
     redo,
     reopenApprovalView,
     resetUndoRedoStack,
+    beginUndoGroup,
+    endUndoGroup,
     saveEvalThread,
     undo,
     undoRedoState,
@@ -112,6 +114,14 @@ export class VisualizerRpcClient implements VisualizerAPI {
 
     resetUndoRedoStack(): void {
         return this._messenger.sendNotification(resetUndoRedoStack, HOST_EXTENSION);
+    }
+
+    beginUndoGroup(): Promise<void> {
+        return this._messenger.sendRequest(beginUndoGroup, HOST_EXTENSION);
+    }
+
+    endUndoGroup(description?: string): Promise<void> {
+        return this._messenger.sendRequest(endUndoGroup, HOST_EXTENSION, description);
     }
 
     joinProjectPath(params: JoinProjectPathRequest): Promise<JoinProjectPathResponse> {

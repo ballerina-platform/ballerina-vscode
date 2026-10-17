@@ -43,6 +43,7 @@ public class FunctionData {
     private final boolean inferredReturnType;
     private final String importStatements;
     private boolean agentToolCompatible;
+    private boolean deprecated;
     private Map<String, ParameterData> parameters;
     private String packageId;
     private ReturnTypeData returnTypeData;
@@ -144,6 +145,14 @@ public class FunctionData {
 
     public ReturnTypeData returnTypeData() {
         return returnTypeData;
+    }
+
+    public void setDeprecated(boolean deprecated) {
+        this.deprecated = deprecated;
+    }
+
+    public boolean deprecated() {
+        return deprecated;
     }
 
     public boolean agentToolCompatible() {

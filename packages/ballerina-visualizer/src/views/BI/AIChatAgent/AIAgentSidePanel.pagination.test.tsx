@@ -96,6 +96,16 @@ const response = (standard: string[], extended: string[], standardMore = true): 
     },
 });
 
+// The default view loads workspace and imported functions first, then each library section's first page.
+const mockDefaultView = (search: jest.Mock, standard: string[], extended: string[]) => search
+    .mockResolvedValueOnce({ categories: [] as Category[] })
+    .mockResolvedValueOnce({ categories: [library("Standard Library", standard)] as Category[],
+        functionPagination: { ballerina: { hasMore: true, nextOffset: 100, source: "central" } } })
+    .mockResolvedValueOnce({ categories: [library("Extended Library", extended)] as Category[],
+        functionPagination: { ballerinax: { hasMore: true, nextOffset: 60, source: "index" } } });
+
+const lastQuery = (search: jest.Mock) => search.mock.calls[search.mock.calls.length - 1][0].queryMap;
+
 const sectionNames = (title: string): string[] =>
     nodeListProps.categories.find((category: { title: string }) => category.title === title)
         .items.map((item: { label: string }) => item.label);
@@ -118,42 +128,50 @@ describe("agent tool function picker pagination", () => {
         container.remove();
     });
 
-    const mount = async () => {
+    // Library sections are cached per project, so each test uses its own project.
+    const mount = async (projectPath = "/workspace") => {
         const rpcClient = { getBIDiagramRpcClient: () => ({ search }), onParentPopupSubmitted: jest.fn() };
         await act(async () => {
             root.render(
                 <TestRpcContext.Provider value={{ rpcClient }}>
-                    <AIAgentSidePanel {...{ agentNode: { codedata: {} }, projectPath: "/workspace",
+                    <AIAgentSidePanel {...{ agentNode: { codedata: {} }, projectPath,
                         mode: NewToolSelectionMode.FUNCTION } as any} />
                 </TestRpcContext.Provider>
             );
         });
+        // Lets the library sections, which load after the panel opens, settle.
+        await act(async () => { await Promise.resolve(); });
     };
 
     it("pages library sections from the default view and from a search", async () => {
-        search.mockResolvedValueOnce(response(["println"], ["toEdiString"]));
+        mockDefaultView(search, ["println"], ["toEdiString"]);
         await mount();
         expect(search.mock.calls[0][0].queryMap).toEqual(
-            { q: "", limit: 60, offset: 0, includeAvailableFunctions: "true" });
+            { q: "", limit: 60, offset: 0, includeAvailableFunctions: "true", excludeLibrary: "true" });
+        expect(search.mock.calls[1][0].queryMap).toEqual(
+            { q: "", limit: 60, offset: 0, includeAvailableFunctions: "true", orgName: "ballerina" });
+        expect(search.mock.calls[2][0].queryMap).toEqual(
+            { q: "", limit: 60, offset: 0, includeAvailableFunctions: "true", orgName: "ballerinax" });
+        expect(sectionNames("Standard Library")).toEqual(["println"]);
         expect(nodeListProps.sectionsWithMore).toEqual({ "Standard Library": true, "Extended Library": true });
 
         search.mockResolvedValueOnce({ categories: [library("Standard Library", ["printInfo"])] as Category[],
             functionPagination: { ballerina: { hasMore: false, nextOffset: 200, source: "central" } } });
         await act(async () => { await nodeListProps.onLoadMoreSection("Standard Library"); });
-        expect(search.mock.calls[1][0].queryMap).toEqual({ q: "", limit: 60, offset: 100, orgName: "ballerina",
+        expect(lastQuery(search)).toEqual({ q: "", limit: 60, offset: 100, orgName: "ballerina",
             functionSource: "central", includeAvailableFunctions: "true" });
         expect(sectionNames("Standard Library")).toEqual(["println", "printInfo"]);
         expect(nodeListProps.sectionsWithMore["Standard Library"]).toBe(false);
 
         search.mockResolvedValueOnce(response(["fromEdiString"], ["edifactFn"], false));
         await act(async () => { await nodeListProps.onSearchTextChange("edi"); });
-        expect(search.mock.calls[2][0].queryMap).toEqual(
+        expect(lastQuery(search)).toEqual(
             { q: "edi", limit: 60, offset: 0, includeAvailableFunctions: "true" });
         expect(nodeListProps.sectionsWithMore).toEqual({ "Standard Library": false, "Extended Library": true });
 
         search.mockResolvedValueOnce({ categories: [library("Extended Library", ["edifactFn2"])] as Category[] });
         await act(async () => { await nodeListProps.onLoadMoreSection("Extended Library"); });
-        expect(search.mock.calls[3][0].queryMap).toMatchObject({ q: "edi", offset: 60, orgName: "ballerinax",
+        expect(lastQuery(search)).toMatchObject({ q: "edi", offset: 60, orgName: "ballerinax",
             functionSource: "index" });
         expect(sectionNames("Extended Library")).toEqual(["edifactFn", "edifactFn2"]);
 
@@ -164,8 +182,8 @@ describe("agent tool function picker pagination", () => {
     });
 
     it("ignores a search response that a newer search superseded", async () => {
-        search.mockResolvedValueOnce(response(["println"], []));
-        await mount();
+        mockDefaultView(search, ["println"], []);
+        await mount("/workspace-superseded");
         let resolveOld!: (value: BISearchResponse) => void;
         search.mockReturnValueOnce(new Promise(resolve => { resolveOld = resolve; }));
         search.mockResolvedValueOnce(response(["fromEdiString"], [], false));

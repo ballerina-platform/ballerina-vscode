@@ -964,12 +964,15 @@ export type BIDeleteByComponentInfoRequest = {
     filePath: string;
     component: ComponentInfo;
     nodeType?: string;
+    // Components of filePath deleted together in one edit instead of component.
+    components?: ComponentInfo[];
 }
 
 export type BIDeleteByComponentInfoResponse = {
     textEdits: {
         [key: string]: TextEdit[];
     };
+    artifacts?: ProjectStructureArtifactResponse[];
 };
 
 export interface BIAvailableNodesRequest {
@@ -987,6 +990,8 @@ export type BIAvailableNodesResponse = {
 export interface BILibraryActionsRequest {
     filePath: string;
     codedata: CodeData;
+    // Answer only from packages already in the local repositories, never pulling from Central.
+    offline?: boolean;
 }
 
 export type BILibraryActionsResponse = {
@@ -1030,6 +1035,8 @@ export type SearchQueryParams = {
     orgName?: string;
     /** Keeps raw pagination offsets tied to the source that emitted them. */
     functionSource?: "central" | "index";
+    /** FUNCTION search: "true" returns workspace and imported functions without the library sections. */
+    excludeLibrary?: string;
     includeAvailableFunctions?: string;
     filterByCurrentOrg?: boolean;
     /** ACTIVITY_CALL search: "true" hides the prebuilt (builtin) activities. */

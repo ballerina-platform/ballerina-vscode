@@ -147,7 +147,6 @@ src/
 │   │   │       ├── GraphQLServiceWidget.tsx
 │   │   │       └── GeneralWidget.tsx
 │   │   └── ListenerNode/      # Listener node (HTTP, GraphQL listeners)
-│   └── OverlayLayer/          # Loading overlay
 ├── resources/
 │   ├── constants.ts           # Constants and configuration
 │   ├── dagre/                 # Graph layout engine
@@ -504,10 +503,8 @@ DiagramModel (Graph Container)
 Layers
   ├─ NodeLayer (Default)
   │   └─ Nodes (EntryNode, ListenerNode, ConnectionNode)
-  ├─ LinkLayer (Default)
-  │   └─ Links (NodeLink)
-  └─ OverlayLayer (Custom)
-      └─ Loading Overlay
+  └─ LinkLayer (Default)
+      └─ Links (NodeLink)
 ```
 
 ### Factory Registration
@@ -518,7 +515,6 @@ engine.getLinkFactories().registerFactory(new NodeLinkFactory());
 engine.getNodeFactories().registerFactory(new ListenerNodeFactory());
 engine.getNodeFactories().registerFactory(new EntryNodeFactory());
 engine.getNodeFactories().registerFactory(new ConnectionNodeFactory());
-engine.getLayerFactories().registerFactory(new OverlayLayerFactory());
 ```
 
 ### Widget Pattern

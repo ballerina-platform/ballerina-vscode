@@ -315,6 +315,8 @@ public class CodeAnalyzer extends NodeVisitor {
     private NodeBuilder nodeBuilder;
     private final List<FlowNode> flowNodeList;
     private final Stack<NodeBuilder> flowNodeBuilderStack;
+    // Each lookup walks the disk to the package root, and every call node with an inferred type needs it.
+    private Optional<Module> fileModule;
     private TypedBindingPatternNode typedBindingPatternNode;
     private static final String AI_AGENT = "ai";
     public static final String ICON_PATH = CommonUtils.generateIcon(BALLERINA_ORG_NAME, "mcp", "0.4.2");
@@ -3028,7 +3030,7 @@ public class CodeAnalyzer extends NodeVisitor {
             addOptionalFlagProperty(isNilable, false);
         }
 
-        ((WaitDataBuilder) nodeBuilder).addAdvancedProperties(workspaceManager.module(filePath)
+        ((WaitDataBuilder) nodeBuilder).addAdvancedProperties(fileModule()
                 .orElse(project.currentPackage().getDefaultModule()), workspaceManager, filePath);
     }
 
@@ -3272,16 +3274,12 @@ public class CodeAnalyzer extends NodeVisitor {
                                        RemoteMethodCallActionNode remoteMethodCallActionNode,
                                        MethodSymbol functionSymbol, String objName,
                                        Map<String, Object> metadataData) {
-        Optional<Package> resolvedPackage = moduleInfo != null ?
-                PackageUtil.resolveModulePackage(moduleInfo.org(), moduleInfo.packageName(), moduleInfo.version()) :
-                Optional.empty();
-
         FunctionDataBuilder functionDataBuilder = new FunctionDataBuilder()
                 .name(functionName)
                 .functionSymbol(functionSymbol)
                 .semanticModel(semanticModel)
                 .userModuleInfo(moduleInfo)
-                .resolvedPackage(resolvedPackage.orElse(null));
+                .resolvedPackage(calleePackage(functionSymbol).orElse(null));
         FunctionData functionData = functionDataBuilder.build();
 
         nodeBuilder
@@ -3298,6 +3296,15 @@ public class CodeAnalyzer extends NodeVisitor {
                 .properties().callConnection(expressionNode, Property.CONNECTION_KEY, metadataData);
         processFunctionSymbol(remoteMethodCallActionNode, remoteMethodCallActionNode.arguments(), functionSymbol,
                 functionData);
+    }
+
+    // Default values are read from the callee's source: the current package for a local client, its bala otherwise.
+    private Optional<Package> calleePackage(MethodSymbol functionSymbol) {
+        if (CommonUtils.isWithinPackage(functionSymbol, moduleInfo)) {
+            return Optional.of(project.currentPackage());
+        }
+        return functionSymbol.getModule().map(ModuleSymbol::id)
+                .flatMap(id -> PackageUtil.resolveModulePackage(id.orgName(), id.packageName(), id.version()));
     }
 
     private String getDefaultMemoryManagerName(ClassSymbol classSymbol) {
@@ -4126,6 +4133,8 @@ public class CodeAnalyzer extends NodeVisitor {
         if (kind == NodeKind.AGENT) {
             nodeBuilder.properties().reserveProperty(AgentCallBuilder.ROLE)
                     .reserveProperty(AgentCallBuilder.INSTRUCTIONS);
+            PackageUtil.prewarmAgentLibrary(project);
+            AiUtils.prewarmCatalog(project);
         }
         Optional<MethodSymbol> optMethodSymbol = classSymbol.initMethod();
         FunctionDataBuilder functionDataBuilder = new FunctionDataBuilder()
@@ -5099,7 +5108,7 @@ public class CodeAnalyzer extends NodeVisitor {
 
             // Generate the property of the inferred type param
             nodeBuilder.codedata().inferredReturnType(functionData.returnError() ? returnType : null);
-            Module module = workspaceManager.module(filePath)
+            Module module = fileModule()
                     .orElse(project.currentPackage().getDefaultModule());
             CallBuilder.buildInferredTypeProperty(nodeBuilder, paramResult, inferredTypeName, module, targetVarType,
                     callNode);
@@ -5107,6 +5116,13 @@ public class CodeAnalyzer extends NodeVisitor {
         });
         AgentCallBuilder.fixQueryPromptType(nodeBuilder, false);
         AgentRunBuilder.fixQueryPromptType(nodeBuilder, false);
+    }
+
+    private Optional<Module> fileModule() {
+        if (fileModule == null) {
+            fileModule = workspaceManager.module(filePath);
+        }
+        return fileModule;
     }
 
     private static String deriveInferredType(String variableType, String returnType, String key) {

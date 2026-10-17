@@ -367,7 +367,9 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
         console.log(">>> requesting bi source code from ls", params);
         try {
             this.ensureTargetFileExists(params.filePath);
-            const model = await StateMachine.langClient().getSourceCode(params) as BISourceCodeResponse;
+            const model = await StateMachine.langClient().getSourceCode(
+                { ...params, formatted: true } as BISourceCodeRequest
+            ) as BISourceCodeResponse & { formatted?: boolean; sourceEdits?: BISourceCodeResponse["textEdits"] };
             console.log(">>> bi source code from ls", model);
 
             if (model?.errorMsg) {
@@ -388,7 +390,9 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             }
 
             if (params?.isConnector) {
-                const artifacts = await updateSourceCode({ textEdits: model.textEdits, description: this.getSourceDescription(params) });
+                const artifacts = await updateSourceCode({
+                    textEdits: model.textEdits, description: this.getSourceDescription(params), preformatted: model.formatted
+                });
                 return { artifacts };
             }
 
@@ -397,9 +401,12 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             // Read off the edits the LS actually produced, before they are applied. Whether the
             // default provider was declared is the LS's decision, so reporting what it emitted is
             // the only answer that cannot drift from it — see UpdatedArtifactsResponse.
-            const declaredDefaultModelProvider = declaresDefaultModelProvider(model.textEdits);
+            const declaredDefaultModelProvider = declaresDefaultModelProvider(model.sourceEdits ?? model.textEdits);
             const artifacts = await updateSourceCode(
-                { textEdits: model.textEdits, artifactData, description: this.getSourceDescription(params) },
+                {
+                    textEdits: model.textEdits, artifactData, description: this.getSourceDescription(params),
+                    preformatted: model.formatted
+                },
                 params.isHelperPaneChange
             );
             if (typeof nodeKind === "string" && nodeKind.startsWith("DURABLE_AGENT")) {
@@ -789,9 +796,7 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                 })
                 .catch((error) => {
                     console.log(">>> error fetching node template from ls", error);
-                    return new Promise((resolve) => {
-                        resolve(undefined);
-                    });
+                    resolve(undefined);
                 });
         });
     }
@@ -1066,23 +1071,23 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
     }
 
     async deleteFlowNode(params: BISourceCodeRequest): Promise<UpdatedArtifactsResponse> {
-        console.log(">>> requesting bi delete node from ls", params);
-
-        return new Promise((resolve) => {
-            StateMachine.langClient()
-                .deleteFlowNode(params)
-                .then(async (model) => {
-                    console.log(">>> bi delete node from ls", model);
-                    const artifacts = await updateSourceCode({ textEdits: model.textEdits, description: 'Flow Node Deletion - ' + params.flowNode.metadata.label, skipPayloadCheck: true });
-                    resolve({ artifacts });
-                })
-                .catch((error) => {
-                    console.log(">>> error fetching delete node from ls", error);
-                    return new Promise((resolve) => {
-                        resolve(undefined);
-                    });
-                });
+        const response = await StateMachine.langClient()
+            .deleteFlowNode({ ...params, formatted: true } as BISourceCodeRequest)
+            .catch((error) => {
+                console.error(">>> Error deleting flow node", error);
+                return undefined;
+            }) as (BISourceCodeResponse & { formatted?: boolean }) | undefined;
+        // Thrown, not returned: most callers chain further deletes and would carry on as if this one succeeded.
+        if (!response?.textEdits) {
+            throw new Error("Could not delete the node");
+        }
+        const artifacts = await updateSourceCode({
+            textEdits: response.textEdits,
+            description: 'Flow Node Deletion - ' + params.flowNode.metadata.label,
+            skipPayloadCheck: true,
+            preformatted: response.formatted,
         });
+        return { artifacts };
     }
 
     async handleReadmeContent(params: ReadmeContentRequest): Promise<ReadmeContentResponse> {
@@ -1169,9 +1174,7 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                 })
                 .catch((error) => {
                     console.log(">>> error fetching node template from ls", error);
-                    return new Promise((resolve) => {
-                        resolve(undefined);
-                    });
+                    resolve(undefined);
                 });
         });
     }
@@ -1682,15 +1685,15 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
         const performDelete = async (): Promise<any> => {
             return new Promise((resolve, reject) => {
                 StateMachine.langClient()
-                    .deleteByComponentInfo(params)
-                    .then(async (model) => {
+                    .deleteByComponentInfo({ ...params, formatted: true } as BIDeleteByComponentInfoRequest)
+                    .then(async (model: BISourceCodeResponse & { formatted?: boolean }) => {
                         console.log(">>> bi delete node from ls by componentInfo", model);
                         let description = 'Component Deletion';
                         if (componentView?.location?.artifactType && componentView?.location?.identifier) {
                             description = `${this.capitalizeFirstLetter(componentView.location.artifactType)} Deletion - ${componentView.location.identifier}`;
                         }
-                        await updateSourceCode({ textEdits: model.textEdits, description: description, skipPayloadCheck: true }); // Skip payload check because the component is deleted
-                        resolve(model);
+                        const artifacts = await updateSourceCode({ textEdits: model.textEdits, description: description, skipPayloadCheck: true, preformatted: model.formatted }); // Skip payload check because the component is deleted
+                        resolve({ ...model, artifacts });
                     })
                     .catch((error) => {
                         console.log(">>> error fetching delete node from ls by componentInfo", error);
@@ -1832,35 +1835,44 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
     }
 
     async formDidOpen(params: FormDidOpenParams): Promise<void> {
-        return new Promise(async (resolve, reject) => {
-            const { filePath } = params;
-            registerFormOpen(filePath);
-            const fileUri = Uri.file(filePath);
-            const exprFileSchema = fileUri.with({ scheme: 'expr' });
+        const { filePath } = params;
+        registerFormOpen(filePath);
+        const fileUri = Uri.file(filePath);
+        const exprFileSchema = fileUri.with({ scheme: 'expr' });
 
-            let languageId: string;
-            let version: number;
-            let text: string;
+        let languageId: string;
+        let version: number;
+        let text: string;
 
-            try {
-                const textDocument = await workspace.openTextDocument(fileUri);
-                languageId = textDocument.languageId;
-                version = textDocument.version;
-                text = textDocument.getText();
-            } catch (error) {
+        try {
+            const caseInsensitiveFs = process.platform === "win32" || process.platform === "darwin";
+            const targetPath = caseInsensitiveFs ? fileUri.fsPath.toLowerCase() : fileUri.fsPath;
+            const openDocument = workspace.textDocuments.find((document) =>
+                (caseInsensitiveFs ? document.uri.fsPath.toLowerCase() : document.uri.fsPath) === targetPath
+            );
+            if (openDocument) {
+                languageId = openDocument.languageId;
+                version = openDocument.version;
+                text = openDocument.getText();
+            } else {
                 languageId = "ballerina";
                 version = 1;
-                text = "";
+                // Sync so didOpen reaches the LS before the form's next request; an await here lets that request overtake it.
+                text = fs.readFileSync(filePath, "utf8");
             }
+        } catch (error) {
+            languageId = "ballerina";
+            version = 1;
+            text = "";
+        }
 
-            StateMachine.langClient().didOpen({
-                textDocument: {
-                    uri: exprFileSchema.toString(),
-                    languageId,
-                    version,
-                    text
-                }
-            });
+        StateMachine.langClient().didOpen({
+            textDocument: {
+                uri: exprFileSchema.toString(),
+                languageId,
+                version,
+                text
+            }
         });
     }
 

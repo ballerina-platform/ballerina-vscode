@@ -64,7 +64,7 @@ export function AgentEditorPanelContent({ controller }: { controller: AgentEdito
         case "NEW_TOOL_CONNECTION":
         case "NEW_TOOL_FUNCTION":
         case "NEW_TOOL_KNOWLEDGE_BASE":
-            return <NewTool agentNode={agent}
+            return <NewTool agentNode={agent} projectPath={controller.projectPath}
                 mode={controller.view === "NEW_TOOL_CUSTOM" ? NewToolSelectionMode.CUSTOM_TOOL
                     : controller.view === "NEW_TOOL_CONNECTION" ? NewToolSelectionMode.CONNECTION
                         : controller.view === "NEW_TOOL_KNOWLEDGE_BASE" ? NewToolSelectionMode.KNOWLEDGE_BASE
@@ -72,8 +72,7 @@ export function AgentEditorPanelContent({ controller }: { controller: AgentEdito
                 onSave={controller.close} onBack={controller.back}
                 onSetBackOverride={controller.setBackHandler} />;
         case "NEW_TOOL_AGENT":
-            return <UseAgentTool agentNode={agent} onSelectAgent={controller.selectAgent}
-                onAgentCreated={controller.onAgentCreated} />;
+            return <UseAgentTool agentNode={agent} onSelectAgent={controller.selectAgent} />;
         case "NEW_TOOL_AGENT_FORM":
             return <UseAgentToolForm agentNode={agent} agentVarName={controller.selectedAgentName}
                 onSave={controller.close} />;

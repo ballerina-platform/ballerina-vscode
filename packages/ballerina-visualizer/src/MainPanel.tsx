@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import React, { createRef, useCallback, useEffect, useRef, useState } from "react";
+import React, { createRef, useEffect, useRef, useState } from "react";
 import {
     PRODUCT_INTEGRATOR_ISSUES_URL,
     KeyboardNavigationManager,
@@ -36,7 +36,6 @@ import {
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { BiWsClientProvider } from "./views/BI/wsManager/WsClientContext";
 import { Global, css } from "@emotion/react";
-import { debounce } from "lodash";
 import styled from "@emotion/styled";
 import { LoadingRing } from "./components/Loader";
 import { WebviewErrorState } from "./components/WebviewErrorState";
@@ -219,17 +218,10 @@ const MainPanel = () => {
     useSuppressAgentStatusOrb(viewHidesAgentStatusOrb(activeView) || !!viewError);
     useTraceAnimationBridge();
 
-    // Leading edge so an ordinary navigation fetches immediately; trailing kept for bursts.
-    const debounceFetchContext = useCallback(
-        debounce(() => {
-            fetchContext();
-        }, 200, { leading: true, trailing: true }), []
-    );
-
     useEffect(() => {
         rpcClient?.onStateChanged((newState: MachineStateValue) => {
             if (typeof newState === "object" && "viewActive" in newState && newState.viewActive === "viewReady") {
-                debounceFetchContext();
+                fetchContext();
             }
         });
 
@@ -426,49 +418,16 @@ const MainPanel = () => {
                         case MACHINE_VIEW.BIDiagram:
                             const { default: DiagramWrapper } = await import("./views/BI/DiagramWrapper");
                             if (isStaleNavigation()) return;
-                            // Awaited so the code after the switch sees the view as settled.
-                            await rpcClient.getLangClientRpcClient().getSTByRange({
-                                documentIdentifier: {
-                                    uri: URI.file(value.documentUri).toString(),
-                                },
-                                lineRange: {
-                                    start: {
-                                        line: value?.position?.startLine,
-                                        character: value?.position?.startColumn,
-                                    },
-                                    end: {
-                                        line: value?.position?.endLine,
-                                        character: value?.position?.endColumn,
-                                    },
-                                },
-                            }).then((st) => {
-                                if (isStaleNavigation()) return;
-                                setViewComponent(
-                                    <DiagramWrapper
-                                        key={[value?.documentUri, value?.identifier, value?.navigationKey].filter(Boolean).join('#')}
-                                        syntaxTree={st.syntaxTree}
-                                        projectPath={value?.projectPath}
-                                        filePath={value?.documentUri}
-                                        artifactType={value?.artifactType}
-                                        view={value?.focusFlowDiagramView}
-                                        breakpointState={breakpointStateRef.current}
-                                    />
-                                );
-                            }).catch((error) => {
-                                console.error("Error fetching ST:", error);
-                                if (isStaleNavigation()) return;
-                                // Fallback to render without waiting
-                                setViewComponent(
-                                    <DiagramWrapper
-                                        key={[value?.documentUri, value?.identifier, value?.navigationKey].filter(Boolean).join('#')}
-                                        projectPath={value?.projectPath}
-                                        filePath={value?.documentUri}
-                                        artifactType={value?.artifactType}
-                                        view={value?.focusFlowDiagramView}
-                                        breakpointState={breakpointStateRef.current}
-                                    />
-                                );
-                            });
+                            setViewComponent(
+                                <DiagramWrapper
+                                    key={[value?.documentUri, value?.identifier, value?.navigationKey].filter(Boolean).join('#')}
+                                    projectPath={value?.projectPath}
+                                    filePath={value?.documentUri}
+                                    artifactType={value?.artifactType}
+                                    view={value?.focusFlowDiagramView}
+                                    breakpointState={breakpointStateRef.current}
+                                />
+                            );
                             break;
                         case MACHINE_VIEW.ERDiagram: {
                             const { ERDiagram } = await import("./views/ERDiagram");
@@ -1064,7 +1023,7 @@ const MainPanel = () => {
     }, [navPending]);
 
     useEffect(() => {
-        debounceFetchContext();
+        fetchContext();
     }, [breakpointState]);
 
     useEffect(() => {

@@ -60,9 +60,8 @@ import {
     agentCallerProtocols,
     clearAgentCallFromHandler,
     deleteComponentAt,
-    deleteEachResolved,
+    deleteServiceWithListeners,
     findAgentUsages,
-    findListenerPosition,
     getAgentTriggerScopes,
     findAgentToolTargets,
     getCachedToolTargets,
@@ -99,6 +98,7 @@ import { PanelOverlayRenderer } from "../FlowDiagram/PanelOverlayRenderer";
 import { createPromptHelperPane } from "./utils";
 import { useAssistantName } from "../../../hooks/useProductMode";
 
+const USAGE_REFETCH_WINDOW_MS = 600;
 
 const Container = styled.div<{ embedded?: boolean }>`
     width: 100%;
@@ -133,14 +133,20 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
 
     const agentDeclRef = useRef<FlowNode>();
     const [agentPanel, setAgentPanel] = useState<AgentPanel>("NONE");
-    const suppressAgentTypeReloadRef = useRef(false);
-    const suppressAgentReloadRef = useRef(false);
+    const agentPanelRef = useRef(agentPanel);
     const usageFetchTimerRef = useRef<ReturnType<typeof setTimeout>>();
     const usageRequestIdRef = useRef(0);
+    const lastUsageFetchAtRef = useRef(0);
     const usagesDirtyRef = useRef(true);
     const usagesContentRef = useRef(0);
     const deletingTriggerRef = useRef(false);
+    const focusFetchRef = useRef({ running: false, again: false });
+    const agentEditorViewRef = useRef("NONE");
+    const editorLoadingRef = useRef(false);
+    const deferredRefreshRef = useRef(false);
     const [agentFormKey, setAgentFormKey] = useState(0);
+    const [savingAgentForm, setSavingAgentForm] = useState(false);
+    const [loadingConnectionTemplate, setLoadingConnectionTemplate] = useState(false);
 
     const [model, setModel] = useState<Flow>();
     const [suggestedModel, setSuggestedModel] = useState<Flow>();
@@ -193,12 +199,13 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
             }
             usagesDirtyRef.current = true;
             usagesContentRef.current++;
-            if (isAgent) {
-                debouncedGetAgentModel();
-                return;
-            }
-            if (isAgentType) {
-                debouncedGetAgentTypeModel();
+            if (isAgent || isAgentType) {
+                // An editor operation refetches once at the agent's new position when it closes.
+                if (agentEditorViewRef.current !== "NONE" || agentPanelRef.current !== "NONE" || editorLoadingRef.current) {
+                    deferredRefreshRef.current = true;
+                    return;
+                }
+                refreshFocusModel();
                 return;
             }
             fetchNodes(topNodeRef.current, targetRef.current, true);
@@ -208,12 +215,8 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
             if (!parent?.recentIdentifier && !parent?.artifactType) {
                 return;
             }
-            if (isAgent) {
-                debouncedGetAgentModel();
-                return;
-            }
-            if (isAgentType) {
-                debouncedGetAgentTypeModel();
+            if (isAgent || isAgentType) {
+                refreshFocusModel();
                 return;
             }
             const toNode = topNodeRef.current;
@@ -232,19 +235,22 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         [rpcClient]
     );
 
-    const debouncedGetAgentModel = useCallback(
-        debounce(() => {
-            getAgentModel();
-        }, 300),
-        [rpcClient]
-    );
-
-    const debouncedGetAgentTypeModel = useCallback(
-        debounce(() => {
-            getAgentTypeModel();
-        }, 300),
-        [rpcClient]
-    );
+    // One fetch at a time; changes that land during it get exactly one more fetch.
+    const refreshFocusModel = useCallback(() => {
+        const state = focusFetchRef.current;
+        if (state.running) {
+            state.again = true;
+            return;
+        }
+        state.running = true;
+        void (isAgentType ? getAgentTypeModel() : getAgentModel()).finally(() => {
+            state.running = false;
+            if (state.again) {
+                state.again = false;
+                refreshFocusModel();
+            }
+        });
+    }, [rpcClient]);
 
     const getFlowModel = () => {
         setShowProgressIndicator(true);
@@ -317,7 +323,10 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         if (!cached) {
             setUsagesLoading(true);
         }
+        // Leading edge: a single change refetches at once; only bursts wait out the window.
+        const inBurst = cached && Date.now() - lastUsageFetchAtRef.current < USAGE_REFETCH_WINDOW_MS;
         usageFetchTimerRef.current = setTimeout(async () => {
+            lastUsageFetchAtRef.current = Date.now();
             const contentAtStart = usagesContentRef.current;
             try {
                 const location = await rpcClient.getVisualizerLocation();
@@ -366,7 +375,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                     setUsagesLoading(false);
                 }
             }
-        }, 600);
+        }, inBurst ? USAGE_REFETCH_WINDOW_MS : 0);
     };
 
     useEffect(() => () => clearTimeout(usageFetchTimerRef.current), []);
@@ -447,15 +456,12 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                 await deleteComponentAt(
                     rpcClient, entryPoint.label, entryPoint.documentUri, entryPoint.position);
             } else {
-                await deleteComponentAt(
-                    rpcClient, trigger.serviceName, trigger.documentUri, trigger.position);
-                await deleteEachResolved(rpcClient, trigger.listeners,
-                    (model, listener) => findListenerPosition(model, listener.symbol, listener.documentUri));
+                await deleteServiceWithListeners(rpcClient, trigger);
             }
             await rpcClient.getAIAgentRpcClient().fixMissingImports();
             usagesDirtyRef.current = true;
             usagesContentRef.current++;
-            debouncedGetAgentModel();
+            refreshFocusModel();
         } catch (error) {
             console.error(">>> agent focus: failed to delete trigger", error);
             rpcClient.getCommonRpcClient().showErrorMessage({
@@ -469,14 +475,13 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
     };
 
     const getAgentFocusModel = async (kind: "AGENT" | "TYPED_AGENT", posOverride?: NodePosition) => {
-        const suppressRef = kind === "AGENT" ? suppressAgentReloadRef : suppressAgentTypeReloadRef;
         const logLabel = kind === "AGENT" ? "agent focus" : "agent-type focus";
-        if (suppressRef.current) {
-            suppressRef.current = false;
-            return;
+        // A refresh of an agent already on screen must not blank the title bar actions or touch the canvas lock
+        const isInitialLoad = !agentDeclRef.current;
+        if (isInitialLoad) {
+            setShowProgressIndicator(true);
+            onUpdate();
         }
-        setShowProgressIndicator(true);
-        onUpdate();
         try {
             const location = await rpcClient.getVisualizerLocation();
             const pos = posOverride ?? (embedded ? embeddedPositionRef.current : location?.position) ?? location?.position;
@@ -527,7 +532,9 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         } catch (error) {
             console.error(`>>> ${logLabel}: error building model`, error);
         } finally {
-            setShowProgressIndicator(false);
+            if (isInitialLoad) {
+                setShowProgressIndicator(false);
+            }
             onReady(undefined, undefined, undefined);
         }
     };
@@ -585,15 +592,14 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         if (!updatedNode) {
             return;
         }
-        suppressAgentTypeReloadRef.current = false;
-        setShowProgressIndicator(true);
+        setSavingAgentForm(true);
         try {
             const fileName = model?.fileName;
             await rpcClient.getBIDiagramRpcClient().getSourceCode({ filePath: fileName, flowNode: updatedNode });
         } catch (error) {
             console.error(">>> agent focus: error saving agent form", error);
         } finally {
-            setShowProgressIndicator(false);
+            setSavingAgentForm(false);
             handleCloseAgentPanel();
         }
     };
@@ -990,7 +996,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
     };
 
     const handleSelectConnection = async (nodeId: string, metadata?: any) => {
-        setShowProgressIndicator(true);
+        setLoadingConnectionTemplate(true);
 
         try {
             const { flowNode, connectionKind } = await getNodeTemplateForConnection(
@@ -1005,13 +1011,11 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
             setSelectedConnectionKind(connectionKind as ConnectionKind);
             setConnectionView(SidePanelView.CONNECTION_CREATE);
         } finally {
-            setShowProgressIndicator(false);
+            setLoadingConnectionTemplate(false);
         }
     };
 
     const handleUpdateNodeWithConnection = async (selectedNode: FlowNode) => {
-        setShowProgressIndicator(true);
-
         const clonedNode = structuredClone(selectedNode);
 
         const isNpFunction = clonedNode.codedata.node === "NP_FUNCTION";
@@ -1022,7 +1026,6 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
             .getBIDiagramRpcClient()
             .getSourceCode({ filePath: model?.fileName, flowNode: clonedNode, isFunctionNodeUpdate: isNpFunction });
         handleCloseConnectionPanel();
-        setShowProgressIndicator(false);
     };
 
     const createHelperPane = useCallback<GetHelperPaneFunction>((
@@ -1069,15 +1072,29 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         projectPath,
         filePath,
         onModelSelect: handleEditAgentModel,
-        onRefresh: (position) => { void (isAgentType ? getAgentTypeModel(position) : getAgentModel(position)); },
-        onLoadingChange: setShowProgressIndicator,
-        onAgentCreated: () => { (isAgentType ? suppressAgentTypeReloadRef : suppressAgentReloadRef).current = true; },
+        onRefresh: (position) => {
+            deferredRefreshRef.current = false;
+            void (isAgentType ? getAgentTypeModel(position) : getAgentModel(position));
+        },
+        onLoadingChange: (loading) => {
+            editorLoadingRef.current = loading;
+            setShowProgressIndicator(loading);
+        },
         resolveAgentNode: (node) => agentDeclRef.current ?? node,
         onChat: (node) => startAgentChat(node, filePath, rpcClient),
         onAddTrigger: (node) => startAddAgentTrigger(node, rpcClient),
         onDeleteTrigger: (usage) => void deleteAgentTrigger(usage),
         onTryTrigger: (usage) => void tryAgentTrigger(usage),
     });
+
+    agentEditorViewRef.current = agentEditor.view;
+    agentPanelRef.current = agentPanel;
+    useEffect(() => {
+        if (agentEditor.view === "NONE" && agentPanel === "NONE" && deferredRefreshRef.current) {
+            deferredRefreshRef.current = false;
+            refreshFocusModel();
+        }
+    }, [agentEditor.view, agentPanel]);
 
     const isAgentPanelOpen = agentPanel !== "NONE" || showConnectionPanel || agentEditor.view !== "NONE";
     const handleOverlayClick = () => {
@@ -1242,13 +1259,12 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                     projectPath={projectPath}
                     editForm={true}
                     onSubmit={handleSubmitAgentForm}
-                    submitText={showProgressIndicator ? "Saving..." : "Save"}
-                    showProgressIndicator={showProgressIndicator}
-                    disableSaveButton={showProgressIndicator}
+                    submitText={savingAgentForm ? "Saving..." : "Save"}
+                    showProgressIndicator={savingAgentForm}
+                    disableSaveButton={savingAgentForm}
                     fieldOverrides={fieldOverrides}
                     injectedComponents={isAgentType ? agentTypePromptInjection : undefined}
                     hideInfoBanner={isAgentType && Boolean(agentTypePromptInjection)}
-                    onConnectionCreated={isAgentType ? () => { suppressAgentTypeReloadRef.current = true; } : undefined}
                 />
             );
         }
@@ -1258,7 +1274,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
     return (
         <PanelOverlayProvider>
             <View>
-                {(showProgressIndicator) && model && (
+                {(showProgressIndicator || loadingConnectionTemplate) && model && (
                     <ProgressIndicator color={ThemeColors.PRIMARY} />
                 )}
                 <Container embedded={embedded}>

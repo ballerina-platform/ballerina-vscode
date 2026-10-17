@@ -44,6 +44,9 @@ public class ArtifactGenerationDebouncer {
     // Map to hold scheduled tasks
     private final ConcurrentHashMap<String, ScheduledTaskHolder> delayedMap;
 
+    // When each key last scheduled a task, to tell a single change from a burst
+    private final ConcurrentHashMap<String, Long> lastScheduledAt = new ConcurrentHashMap<>();
+
     // Map to track project to file relationships
     private final ConcurrentHashMap<String, List<String>> projectFileMap;
 
@@ -52,6 +55,9 @@ public class ArtifactGenerationDebouncer {
 
     // Single-thread scheduler to debounce tasks.
     private final ScheduledExecutorService scheduler;
+
+    // Held while a task is registered and while it removes itself, so an immediate task cannot finish first.
+    private final Object registrationLock = new Object();
 
     private ArtifactGenerationDebouncer() {
         scheduler = Executors.newSingleThreadScheduledExecutor();
@@ -80,27 +86,54 @@ public class ArtifactGenerationDebouncer {
      * @param delay The delay in milliseconds
      */
     public void debounce(String key, Runnable task, long delay) {
-        CompletableFuture<Void> promise = new CompletableFuture<>();
+        synchronized (registrationLock) {
+            scheduleTask(key, task, delay);
+        }
+    }
 
-        // Schedule the task to run after the specified delay.
-        Future<?> scheduledFuture = scheduler.schedule(() -> {
+    private void scheduleTask(String key, Runnable task, long delay) {
+        CompletableFuture<Void> promise = new CompletableFuture<>();
+        // Leading edge: a change after a quiet period publishes at once; only a burst waits for the delay.
+        long now = System.currentTimeMillis();
+        Long lastScheduled = lastScheduledAt.put(key, now);
+        long effectiveDelay = !delayedMap.containsKey(key) && (lastScheduled == null || now - lastScheduled >= delay)
+                ? 0 : delay;
+
+        Runnable run = () -> {
             try {
                 task.run();
                 promise.complete(null);
             } catch (Exception ex) {
                 promise.completeExceptionally(ex);
             } finally {
-                delayedMap.remove(key);
+                // A newer task for this key may already be registered; leave it cancellable.
+                synchronized (registrationLock) {
+                    delayedMap.computeIfPresent(key, (k, holder) -> holder.promise() == promise ? null : holder);
+                }
                 executeQueuedTasks(key);
             }
-        }, delay, TIME_UNIT);
+        };
+        // Schedule the task to run after the specified delay.
+        Future<?> scheduledFuture = scheduler.schedule(run, effectiveDelay, TIME_UNIT);
 
         // Replace any existing scheduled task with the new one.
-        ScheduledTaskHolder prev = delayedMap.put(key, new ScheduledTaskHolder(promise, scheduledFuture));
+        ScheduledTaskHolder prev = delayedMap.put(key, new ScheduledTaskHolder(promise, scheduledFuture, run));
         if (prev != null) {
             prev.future.cancel(true);
             prev.promise.completeExceptionally(new CancellationException("Debounced by a new request"));
         }
+    }
+
+    /**
+     * Runs every pending task now. The delay batches keystrokes; an edit the client applies on purpose is complete
+     * as soon as it lands, so the client flushes after applying it instead of waiting out a burst.
+     */
+    public void flushAll() {
+        delayedMap.values().forEach(holder -> {
+            if (holder.future().cancel(false)) {
+                scheduler.execute(holder.run());
+            }
+        });
     }
 
     /**
@@ -192,7 +225,7 @@ public class ArtifactGenerationDebouncer {
         private static final ArtifactGenerationDebouncer INSTANCE = new ArtifactGenerationDebouncer();
     }
 
-    private record ScheduledTaskHolder(CompletableFuture<Void> promise, Future<?> future) {
+    private record ScheduledTaskHolder(CompletableFuture<Void> promise, Future<?> future, Runnable run) {
     }
 
     private record QueuedTask(String fileKey, Runnable task) {

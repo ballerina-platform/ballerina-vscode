@@ -16,16 +16,17 @@
  * under the License.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import styled from "@emotion/styled";
-import { FlowNode, Property } from "@wso2/ballerina-core";
+import { FlowNode, Property, ProjectStructureArtifactResponse } from "@wso2/ballerina-core";
 import { Button } from "@wso2/ui-toolkit";
 import { NodePosition } from "@wso2/syntax-tree";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
+import { URI, Utils } from "vscode-uri";
 import { Banner } from "../../../components/Banner";
 import { AIAgentSidePanel, ExtendedAgentToolRequest } from "./AIAgentSidePanel";
 import { RelativeLoader } from "../../../components/RelativeLoader";
-import { addToolToAgentNode, buildAgentToolNode, refreshAgentNodeLineRange, resolveAgentNodePosition, updateFlowNodePropertyValuesWithKeys } from "./utils";
+import { buildAgentToolNode, resolveAgentNodePosition, saveToolOnAgent, updateFlowNodePropertyValuesWithKeys } from "./utils";
 import { FUNCTION_CALL } from "../../../constants";
 import { AgentToolForm } from "./AgentToolForm";
 
@@ -46,6 +47,7 @@ export enum NewToolSelectionMode {
 
 interface NewToolProps {
     agentNode: FlowNode;
+    projectPath: string;
     mode?: NewToolSelectionMode;
     onBack?: () => void;
     onSave?: (agentPosition?: NodePosition) => void;
@@ -53,46 +55,26 @@ interface NewToolProps {
 }
 
 export function NewTool(props: NewToolProps): JSX.Element {
-    const { agentNode: agentNodeProp, mode = NewToolSelectionMode.ALL, onSave, onBack, onSetBackOverride } = props;
+    const { agentNode: agentNodeProp, projectPath, mode = NewToolSelectionMode.ALL, onSave, onBack, onSetBackOverride } = props;
     const { rpcClient } = useRpcContext();
 
     const agentNode = agentNodeProp ?? null;
     const [savingForm, setSavingForm] = useState<boolean>(false);
-    const [ready, setReady] = useState<boolean>(false);
     const [error, setError] = useState<string>("");
 
-    const agentFilePath = useRef<string>("");
-    const projectPath = useRef<string>("");
+    const agentFilePath = Utils.joinPath(URI.file(projectPath), "agents.bal").fsPath;
 
-    useEffect(() => {
-        initPanel();
-    }, [agentNodeProp]);
-
-    const initPanel = async () => {
-        const visualizerContext = await rpcClient.getVisualizerLocation();
-        agentFilePath.current = (await rpcClient.getVisualizerRpcClient().joinProjectPath({ segments: ['agents.bal'] })).filePath;
-        projectPath.current = visualizerContext.projectPath;
-        setReady(true);
-    };
-
-    const handleAgentToolCreated = async (functionName: string) => {
+    const handleAgentToolCreated = async (functionName: string, artifacts?: ProjectStructureArtifactResponse[]) => {
         if (!agentNode) {
             console.error("Agent node not found");
             return;
         }
         try {
-            const updatedAgentNode = await addToolToAgentNode(agentNode, functionName);
+            const updatedAgentNode = await saveToolOnAgent(agentNode, functionName, rpcClient, artifacts);
             if (!updatedAgentNode) {
                 console.error("Failed to add tool to agent node");
                 return;
             }
-
-            await refreshAgentNodeLineRange(updatedAgentNode, rpcClient);
-
-            const { filePath: agentFile } = await rpcClient.getVisualizerRpcClient().joinProjectPath({
-                segments: [updatedAgentNode.codedata.lineRange.fileName],
-            });
-            await rpcClient.getBIDiagramRpcClient().getSourceCode({ filePath: agentFile, flowNode: updatedAgentNode });
             await rpcClient.getAIAgentRpcClient().fixMissingImports();
 
             onSave?.(await resolveAgentNodePosition(updatedAgentNode, rpcClient));
@@ -135,6 +117,7 @@ export function NewTool(props: NewToolProps): JSX.Element {
         setSavingForm(true);
 
         try {
+            await rpcClient.getVisualizerRpcClient().beginUndoGroup();
             if (flowNode.codedata) {
                 flowNode.codedata.isNew = true;
                 flowNode.codedata.lineRange = {
@@ -159,7 +142,7 @@ export function NewTool(props: NewToolProps): JSX.Element {
             }
 
             const toolResponse = await rpcClient.getBIDiagramRpcClient().getSourceCode({
-                filePath: agentFilePath.current,
+                filePath: agentFilePath,
                 flowNode: buildAgentToolNode(flowNode, data.toolName, data.description, connection, data.toolParameters,
                     undefined, data.includeContext),
             });
@@ -170,20 +153,12 @@ export function NewTool(props: NewToolProps): JSX.Element {
                 return;
             }
 
-            const updatedAgentNode = await addToolToAgentNode(agentNode, data.toolName);
+            const updatedAgentNode = await saveToolOnAgent(agentNode, data.toolName, rpcClient, toolResponse.artifacts);
             if (!updatedAgentNode) {
                 console.error("Failed to add tool to agent node");
                 setError("The tool was created but could not be attached to the agent.");
                 return;
             }
-            await refreshAgentNodeLineRange(updatedAgentNode, rpcClient, toolResponse.artifacts);
-
-            const { filePath } = await rpcClient.getVisualizerRpcClient().joinProjectPath({
-                segments: [updatedAgentNode.codedata.lineRange.fileName],
-            });
-
-            // Generate the source code
-            await rpcClient.getBIDiagramRpcClient().getSourceCode({ filePath, flowNode: updatedAgentNode });
 
             // Safety net: fix any missing imports after all edits are applied
             await rpcClient.getAIAgentRpcClient().fixMissingImports();
@@ -193,6 +168,7 @@ export function NewTool(props: NewToolProps): JSX.Element {
             console.error("Error saving tool", { error });
             setError(`The tool could not be saved. ${error instanceof Error ? error.message : ""}`.trim());
         } finally {
+            await rpcClient.getVisualizerRpcClient().endUndoGroup().catch((): undefined => undefined);
             setSavingForm(false);
         }
     };
@@ -210,18 +186,18 @@ export function NewTool(props: NewToolProps): JSX.Element {
                     />
                 </div>
             )}
-            {ready && !savingForm && (
+            {!savingForm && (
                 mode === NewToolSelectionMode.CUSTOM_TOOL ? (
                     <AgentToolForm
-                        filePath={agentFilePath.current}
-                        projectPath={projectPath.current}
+                        filePath={agentFilePath}
+                        projectPath={projectPath}
                         onSave={handleAgentToolCreated}
                         onBack={onBack}
                     />
                 ) : (
                     <AIAgentSidePanel
                         agentNode={agentNode}
-                        projectPath={projectPath.current}
+                        projectPath={projectPath}
                         onSubmit={handleOnSubmit}
                         mode={mode}
                         onViewChange={(_view, navigateBack) => {
@@ -231,7 +207,7 @@ export function NewTool(props: NewToolProps): JSX.Element {
                     />
                 )
             )}
-            {(!ready || savingForm) && (
+            {savingForm && (
                 <LoaderContainer>
                     <RelativeLoader />
                 </LoaderContainer>

@@ -46,6 +46,7 @@ import org.ballerinalang.langserver.commons.workspace.WorkspaceDocumentException
 import org.ballerinalang.langserver.contexts.LanguageServerContextImpl;
 import org.ballerinalang.langserver.extensions.ballerina.document.ExecutorPositionsUtil;
 import org.eclipse.lsp4j.DidChangeTextDocumentParams;
+import org.eclipse.lsp4j.DidChangeWatchedFilesParams;
 import org.eclipse.lsp4j.DidCloseTextDocumentParams;
 import org.eclipse.lsp4j.DidOpenTextDocumentParams;
 import org.eclipse.lsp4j.FileChangeType;
@@ -197,6 +198,39 @@ public class TestWorkspaceManager {
             Assert.assertNotSame(oldModule, workspaceManager.module(filePath).orElseThrow());
         } finally {
             Files.deleteIfExists(newFile);
+        }
+    }
+
+    @Test
+    public void testWSEventsSkipSavedOpenDocument() throws Exception {
+        Path filePath = RESOURCE_DIRECTORY.resolve("myproject").resolve("main.bal").toAbsolutePath();
+        DidOpenTextDocumentParams openParams = new DidOpenTextDocumentParams(
+                new TextDocumentItem(filePath.toUri().toString(), "ballerina", 1, Files.readString(filePath)));
+        workspaceManager.didOpen(filePath, openParams);
+        Module oldModule = workspaceManager.module(filePath).orElseThrow();
+        FileEvent saved = new FileEvent(filePath.toUri().toString(), FileChangeType.Changed);
+
+        Assert.assertTrue(workspaceManager.didChangeWatched(new DidChangeWatchedFilesParams(List.of(saved, saved)))
+                .isEmpty());
+        Assert.assertSame(workspaceManager.module(filePath).orElseThrow(), oldModule);
+    }
+
+    @Test
+    public void testWSEventsReloadUnreadDocumentChangedOnDisk() throws Exception {
+        Path filePath = RESOURCE_DIRECTORY.resolve("myproject").resolve("main.bal").toAbsolutePath();
+        String original = Files.readString(filePath);
+        workspaceManager.didClose(filePath,
+                new DidCloseTextDocumentParams(new TextDocumentIdentifier(filePath.toUri().toString())));
+        workspaceManager.loadProject(filePath);
+        Module oldModule = workspaceManager.module(filePath).orElseThrow();
+        DidChangeWatchedFilesParams params = new DidChangeWatchedFilesParams(
+                List.of(new FileEvent(filePath.toUri().toString(), FileChangeType.Changed)));
+        try {
+            Files.writeString(filePath, original + "\n// changed outside the editor\n");
+            Assert.assertFalse(workspaceManager.didChangeWatched(params).isEmpty());
+            Assert.assertNotSame(workspaceManager.module(filePath).orElseThrow(), oldModule);
+        } finally {
+            Files.writeString(filePath, original);
         }
     }
 

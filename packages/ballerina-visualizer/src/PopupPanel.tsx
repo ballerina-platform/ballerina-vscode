@@ -17,20 +17,23 @@
  */
 
 import styled from "@emotion/styled";
-import React, { useEffect, useState } from "react";
+import React, { lazy, Suspense, useEffect, useState } from "react";
 import { AvailableNode, MACHINE_VIEW, NodeKind, ParentPopupData, PopupMachineStateValue, PopupVisualizerLocation } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { ThemeColors, Overlay } from "@wso2/ui-toolkit";
 import { URI, Utils } from "vscode-uri";
 import { CONNECTIONS_FILE } from "./constants";
-import { FunctionForm } from "./views/BI/FunctionForm";
-import { DataMapper } from "./views/DataMapper";
-import AddConnectionPopup from "./views/BI/Connection/AddConnectionPopup";
-import AddAgentPopup from "./views/BI/AIChatAgent/AddAgentPopup";
-import AddAgentTriggerPopup from "./views/BI/AIChatAgent/AddAgentTriggerPopup";
-import { ConnectionConfigurationPopup } from "./views/BI/Connection/ConnectionConfigurationPopup";
-import EditConnectionPopup from "./views/BI/Connection/EditConnectionPopup";
-import { ConfigurationCollector } from "./views/AIPanel/components/ConfigurationCollector";
+// Each popup loads only its own code: opening the trigger picker must not load the connector marketplace (swagger-ui).
+const FunctionForm = lazy(() => import("./views/BI/FunctionForm").then((m) => ({ default: m.FunctionForm })));
+const DataMapper = lazy(() => import("./views/DataMapper").then((m) => ({ default: m.DataMapper })));
+const AddConnectionPopup = lazy(() => import("./views/BI/Connection/AddConnectionPopup"));
+const AddAgentPopup = lazy(() => import("./views/BI/AIChatAgent/AddAgentPopup"));
+const AddAgentTriggerPopup = lazy(() => import("./views/BI/AIChatAgent/AddAgentTriggerPopup"));
+const ConnectionConfigurationPopup = lazy(() => import("./views/BI/Connection/ConnectionConfigurationPopup")
+    .then((m) => ({ default: m.ConnectionConfigurationPopup })));
+const EditConnectionPopup = lazy(() => import("./views/BI/Connection/EditConnectionPopup"));
+const ConfigurationCollector = lazy(() => import("./views/AIPanel/components/ConfigurationCollector")
+    .then((m) => ({ default: m.ConfigurationCollector })));
 
 const ViewContainer = styled.div<{ isFullScreen?: boolean }>`
     position: fixed;
@@ -292,7 +295,7 @@ const PopupPanel = (props: PopupPanelProps) => {
 
     return (
         <ViewContainer isFullScreen={isFullScreen}>
-            {viewComponent}
+            <Suspense fallback={null}>{viewComponent}</Suspense>
         </ViewContainer>
     );
 };

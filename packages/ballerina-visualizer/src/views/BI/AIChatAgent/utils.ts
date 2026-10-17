@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { AgentEventChannel, AgentKind, AgentToolData, AvailableNode, CodeData, ConfigVariable, DIRECTORY_MAP, ELineRange, EVENT_TYPE, FlowNode, GET_DEFAULT_MODEL_PROVIDER, isAgentDeclarationNode, LinePosition, LineRange, MACHINE_VIEW, NodeKind, NodePosition, ProjectStructureArtifactResponse, Property, SearchNodesQuery, ToolData, ToolParameters, VisualizerLocation } from "@wso2/ballerina-core";
+import { AgentEventChannel, AgentKind, AgentToolData, AvailableNode, CodeData, ConfigVariable, DIRECTORY_MAP, ELineRange, EVENT_TYPE, Flow, FlowNode, GET_DEFAULT_MODEL_PROVIDER, isAgentDeclarationNode, isSamePath, LinePosition, LineRange, MACHINE_VIEW, NodeKind, NodePosition, ProjectStructureArtifactResponse, Property, SearchNodesQuery, ToolData, ToolParameters, VisualizerLocation } from "@wso2/ballerina-core";
 import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
 import { FormField } from "@wso2/ballerina-side-panel";
 import { cloneDeep } from "lodash";
@@ -116,6 +116,16 @@ function refreshNodeLineRangeFromArtifacts(
     node.codedata.lineRange.endLine.offset = artifact.position.endColumn;
 }
 
+// Read after our own edit: updateSourceCode waits for the republished artifacts, so these positions are current.
+const currentPackageAgents = async (rpcClient: BallerinaRpcClient): Promise<ProjectStructureArtifactResponse[]> => {
+    const [{ projectPath }, structure] = await Promise.all([
+        rpcClient.getVisualizerLocation(),
+        rpcClient.getBIDiagramRpcClient().getProjectStructure(),
+    ]);
+    const project = structure?.projects?.find((p) => isSamePath(p.projectPath, projectPath));
+    return project?.directoryMap?.[DIRECTORY_MAP.AGENT] ?? [];
+};
+
 export const refreshAgentNodeLineRange = async (
     agentNode: FlowNode,
     rpcClient: BallerinaRpcClient,
@@ -142,6 +152,10 @@ export const resolveAgentNodePosition = async (
     const agentVarName = agentNode?.properties?.variable?.value;
     if (typeof agentVarName !== "string") {
         return undefined;
+    }
+    const position = (await currentPackageAgents(rpcClient)).find((artifact) => artifact.name === agentVarName)?.position;
+    if (position) {
+        return position;
     }
     const range = (await findFlowNodeByModuleVarName(agentVarName, rpcClient))?.codedata?.lineRange;
     return range
@@ -343,12 +357,12 @@ export const getMainFilePath = async (rpcClient: BallerinaRpcClient) => {
     return mainFilePath;
 };
 
-export const findFlowNodeByModuleVarName = async (variableName: string, rpcClient: BallerinaRpcClient) => {
+export const findFlowNodeByModuleVarName = async (variableName: string, rpcClient: BallerinaRpcClient, moduleNodes?: Flow) => {
     try {
         const sanitizedVarName = variableName.trim().replace(/\n/g, "");
 
         // Get connections either from parameter or by fetching module nodes
-        const nodeList = (await rpcClient.getBIDiagramRpcClient().getModuleNodes()).flowModel;
+        const nodeList = moduleNodes ?? (await rpcClient.getBIDiagramRpcClient().getModuleNodes()).flowModel;
 
         // Find the node with matching variable name
         let flowNode = nodeList?.connections.find((node) => {
@@ -693,6 +707,58 @@ export const removeMcpServerFromAgentNode = (agentNode: FlowNode, toolkitNameToR
     return updatedAgentNode;
 };
 
+let agentToolsEdits: Promise<unknown> = Promise.resolve();
+
+// Each edit writes back the whole tool list, so two in flight would drop each other's tool.
+export const serializeAgentToolsEdit = <T>(edit: () => Promise<T>): Promise<T> => {
+    const run = agentToolsEdits.then(edit, edit);
+    agentToolsEdits = run.then((): undefined => undefined, (): undefined => undefined);
+    return run;
+};
+
+// A panel's agent copy dates from when it opened, so it misses tools saved since.
+export const withCurrentAgentTools = async (
+    agentNode: FlowNode,
+    rpcClient: BallerinaRpcClient
+): Promise<{ node: FlowNode; current: boolean }> => {
+    const node = cloneDeep(agentNode);
+    const agentVarName = node?.properties?.variable?.value;
+    if (typeof agentVarName !== "string" || !agentVarName) {
+        return { node, current: false };
+    }
+    const latest = await findFlowNodeByModuleVarName(agentVarName, rpcClient);
+    if (latest?.codedata?.node !== "AGENT" || !latest.properties?.tools || !node.properties?.tools) {
+        return { node, current: false };
+    }
+    node.properties.tools.value = cloneDeep(latest.properties.tools.value);
+    if (latest.codedata.lineRange) {
+        node.codedata.lineRange = latest.codedata.lineRange;
+    }
+    return { node, current: true };
+};
+
+export const saveToolOnAgent = (
+    agentNode: FlowNode,
+    toolName: string,
+    rpcClient: BallerinaRpcClient,
+    artifacts?: ProjectStructureArtifactResponse[]
+): Promise<FlowNode | null> =>
+    serializeAgentToolsEdit(async () => {
+        const { node, current } = await withCurrentAgentTools(agentNode, rpcClient);
+        const updatedAgentNode = await addToolToAgentNode(node, toolName);
+        if (!updatedAgentNode) {
+            return null;
+        }
+        if (!current) {
+            await refreshAgentNodeLineRange(updatedAgentNode, rpcClient, artifacts);
+        }
+        const { filePath } = await rpcClient.getVisualizerRpcClient().joinProjectPath({
+            segments: [updatedAgentNode.codedata.lineRange.fileName],
+        });
+        await rpcClient.getBIDiagramRpcClient().getSourceCode({ filePath, flowNode: updatedAgentNode });
+        return updatedAgentNode;
+    });
+
 export const addToolToAgentNode = async (agentNode: FlowNode, toolName: string) => {
     if (!agentNode || agentNode.codedata?.node !== "AGENT") return null;
     // clone the node to avoid modifying the original
@@ -961,6 +1027,20 @@ export const updateFlowNodePropertyValuesWithKeys = (flowNode: FlowNode) => {
         }
     }
 };
+
+const agentToolNames = (agent: FlowNode): string[] => {
+    const tools = agent.properties?.tools?.value;
+    if (typeof tools === "string") {
+        return parseToolsString(tools.replace(/\n/g, ""));
+    }
+    return Array.isArray(tools) ? (tools as Property[]).map((tool) => tool.value as string) : [];
+};
+
+export const isToolUsedByOtherAgent = (moduleNodes: Flow | undefined, agentVarName: string, toolName: string): boolean =>
+    [...(moduleNodes?.connections ?? []), ...(moduleNodes?.variables ?? [])].some((node) =>
+        node.codedata?.node === "AGENT"
+        && node.properties?.variable?.value !== agentVarName
+        && agentToolNames(node).includes(toolName));
 
 export const parseToolsString = (toolsStr: string, removeQuotes: boolean = false): string[] => {
     // Remove brackets and split by comma
