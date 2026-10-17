@@ -1040,6 +1040,8 @@ export type SearchQueryParams = {
     /** AGENT search: `org/name:version` — lists the agent definitions inside that package. */
     package?: string;
     connectorSet?: "GROUPED";
+    /** AI component search: "true" returns only the components the LS already knows, without calling Central. */
+    cachedOnly?: string;
 }
 
 export type SearchKind =

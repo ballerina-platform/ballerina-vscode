@@ -19,8 +19,6 @@
 package io.ballerina.flowmodelgenerator.core;
 
 import com.google.gson.Gson;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
 import io.ballerina.centralconnector.RemoteCentral;
 import io.ballerina.centralconnector.response.DependentPackage;
 import io.ballerina.compiler.api.ModuleID;
@@ -153,7 +151,9 @@ public class AiUtils {
     private static final Logger LOGGER = Logger.getLogger(AiUtils.class.getName());
 
     private static final Map<String, Set<NodeKind>> versionToFeatures = new HashMap<>();
-    private static final Map<String, List<Module>> dependentModules = new HashMap<>();
+    static final String CATALOG_FALLBACK_FILE = "ai_catalog_fallback.json";
+    private static final CatalogFallback FALLBACK_CATALOG = loadFallbackCatalog();
+    private static volatile Map<String, List<Module>> dependentModules = FALLBACK_CATALOG.modules();
     private static final Map<String, List<AvailableNode>> cachedModelProviderMap = new HashMap<>();
     private static final Map<String, List<AvailableNode>> cachedEmbeddingProviderMap = new HashMap<>();
     private static final Map<String, List<AvailableNode>> cachedVectorStoreMap = new HashMap<>();
@@ -187,6 +187,8 @@ public class AiUtils {
     private static final String NAME = "name";
     private static final String VERSION = "version";
     private static final String INIT_METHOD = "init";
+    // Tells the UI that opening the component's form downloads its package first.
+    private static final String PULL_REQUIRED_KEY = "pullRequired";
     private static final AiComponentDiskCache diskCache = new AiComponentDiskCache();
 
     public static final String MEMORY_DEFAULT_VALUE = "10";
@@ -217,36 +219,25 @@ public class AiUtils {
                 Set.of(MODEL_PROVIDERS, EMBEDDING_PROVIDERS, VECTOR_STORES, KNOWLEDGE_BASES));
         versionToFeatures.put("1.3.0", Set.of(CHUNKERS, DATA_LOADERS));
         versionToFeatures.put("1.6.0", Set.of(SHORT_TERM_MEMORY_STORE));
-        initFallbackDependentModules();
     }
 
     public static boolean isEvalTemplateFunction(FunctionSymbol function) {
         return function != null && EvalTemplate.from(function).isPresent();
     }
 
-    private static void initFallbackDependentModules() {
-        InputStream is = AiUtils.class.getClassLoader()
-                .getResourceAsStream("dependent_modules_fallback.json");
+    private static CatalogFallback loadFallbackCatalog() {
+        InputStream is = AiUtils.class.getClassLoader().getResourceAsStream(CATALOG_FALLBACK_FILE);
         if (is == null) {
-            LOGGER.log(Level.WARNING, "dependent_modules_fallback.json not found on classpath");
-            return;
+            LOGGER.log(Level.WARNING, CATALOG_FALLBACK_FILE + " not found on classpath");
+            return new CatalogFallback(Map.of(), Map.of());
         }
         try (InputStreamReader reader = new InputStreamReader(is, StandardCharsets.UTF_8)) {
-            JsonObject json = new Gson().fromJson(reader, JsonObject.class);
-            for (Map.Entry<String, JsonElement> entry : json.entrySet()) {
-                List<Module> modules = new ArrayList<>();
-                for (JsonElement elem : entry.getValue().getAsJsonArray()) {
-                    JsonObject obj = elem.getAsJsonObject();
-                    modules.add(new Module(
-                            obj.get("org").getAsString(),
-                            obj.get("name").getAsString(),
-                            obj.get("version").getAsString()
-                    ));
-                }
-                dependentModules.put(entry.getKey(), List.copyOf(modules));
-            }
+            CatalogFallback catalog = new Gson().fromJson(reader, CatalogFallback.class);
+            return new CatalogFallback(Map.copyOf(Objects.requireNonNullElse(catalog.modules(), Map.of())),
+                    Map.copyOf(Objects.requireNonNullElse(catalog.components(), Map.of())));
         } catch (IOException | RuntimeException e) {
-            LOGGER.log(Level.WARNING, "Failed to load dependent_modules_fallback.json", e);
+            LOGGER.log(Level.WARNING, "Failed to load " + CATALOG_FALLBACK_FILE, e);
+            return new CatalogFallback(Map.of(), Map.of());
         }
     }
 
@@ -659,6 +650,11 @@ public class AiUtils {
     public record Module(String org, String name, String version) {
     }
 
+    // Bundled with the LS: compatible modules per ballerina/ai version, and components per "org:name:version".
+    record CatalogFallback(Map<String, List<Module>> modules,
+                           Map<String, List<AiComponentDiskCache.CachedComponent>> components) {
+    }
+
     public record GroupSegment(String label, String description, String icon) {
     }
 
@@ -727,16 +723,18 @@ public class AiUtils {
             }
         }
 
-        // Replace the fallback map with fresh data from Central
-        dependentModules.clear();
-        dependentModules.putAll(resolved);
+        dependentModules = Map.copyOf(resolved);
     }
 
     public static List<Module> getLatestCompatibleModules(String version) {
         ensureDependentModulesResolved();
+        return latestCompatibleModules(version, dependentModules);
+    }
+
+    static List<Module> latestCompatibleModules(String version, Map<String, List<Module>> moduleMap) {
         Collection<List<Module>> candidateModules = (version == null)
-                ? dependentModules.values()
-                : dependentModules.entrySet().stream()
+                ? moduleMap.values()
+                : moduleMap.entrySet().stream()
                 .filter(entry -> compareMajorMinor(version, entry.getKey()) >= 0)
                 .map(Map.Entry::getValue)
                 .toList();
@@ -795,39 +793,24 @@ public class AiUtils {
         return 0;
     }
 
-    public static List<AvailableNode> getModelProviders(Project project) {
-        buildCategoryCache(project, MODEL_PROVIDER);
-        return cachedModelProviderMap.getOrDefault(getProjectCacheKey(project), List.of());
-    }
-
-    public static List<AvailableNode> getEmbeddingProviders(Project project) {
-        buildCategoryCache(project, EMBEDDING_PROVIDER);
-        return cachedEmbeddingProviderMap.getOrDefault(getProjectCacheKey(project), List.of());
-    }
-
-    public static List<AvailableNode> getVectorStores(Project project) {
-        buildCategoryCache(project, VECTOR_STORE);
-        return cachedVectorStoreMap.getOrDefault(getProjectCacheKey(project), List.of());
-    }
-
-    public static List<AvailableNode> getChunkers(Project project) {
-        buildCategoryCache(project, CHUNKER);
-        return cachedChunkerMap.getOrDefault(getProjectCacheKey(project), List.of());
-    }
-
-    public static List<AvailableNode> getDataLoaders(Project project) {
-        buildCategoryCache(project, DATA_LOADER);
-        return cachedDataLoaderMap.getOrDefault(getProjectCacheKey(project), List.of());
-    }
-
-    public static List<AvailableNode> getShortTermMemoryStores(Project project) {
-        buildCategoryCache(project, SHORT_TERM_MEMORY_STORE);
-        return cachedShortTermMemoryStoreMap.getOrDefault(getProjectCacheKey(project), List.of());
-    }
-
-    public static List<AvailableNode> getKnowledgeBases(Project project) {
-        buildCategoryCache(project, KNOWLEDGE_BASE);
-        return cachedKnowledgeBaseMap.getOrDefault(getProjectCacheKey(project), List.of());
+    /**
+     * Returns the AI components of a category that are compatible with the project's {@code ballerina/ai} version.
+     *
+     * @param project    the project whose dependencies select the compatible modules
+     * @param category   the AI component category
+     * @param cachedOnly when true, returns at once from the bundled catalog and the disk cache, without calling
+     *                   Ballerina Central or pulling packages
+     * @return the components of the category
+     */
+    public static List<AvailableNode> getComponents(Project project, NodeKind category, boolean cachedOnly) {
+        if (cachedOnly) {
+            String aiModuleVersion = resolveAiModuleVersion(project);
+            return collectComponents(project, category, aiModuleVersion,
+                    pinUserDeclaredVersions(project, latestCompatibleModules(aiModuleVersion, dependentModules)),
+                    false);
+        }
+        buildCategoryCache(project, category);
+        return getCategoryCache(category).getOrDefault(getProjectCacheKey(project), List.of());
     }
 
     private static String getProjectCacheKey(Project project) {
@@ -1029,76 +1012,94 @@ public class AiUtils {
 
     private static synchronized void buildCategoryCache(Project project, NodeKind category) {
         String cacheKey = getProjectCacheKey(project);
-        // Use resolveAiModuleVersion for internal resolution (falls back to local distribution)
-        String aiModuleVersion = resolveAiModuleVersion(project);
         Set<NodeKind> completed = completedCategories.computeIfAbsent(cacheKey, k -> new HashSet<>());
         if (completed.contains(category)) {
             return;
         }
-
-        List<Module> allModules = getLatestCompatibleModules(aiModuleVersion);
-        boolean hasDependenciesToml = project.currentPackage().dependenciesToml().isPresent();
-        allModules = pinUserDeclaredVersions(project, allModules);
-        ensureKeywordsLoaded(allModules);
-
-        List<ModuleInfo> modules = allModules.stream()
-                .filter(m -> moduleMatchesCategory(m, category))
-                .map(m -> new ModuleInfo(m.org(), m.name(), m.name(), m.version()))
-                .toList();
-
-        List<AvailableNode> categoryNodes = new ArrayList<>();
-
-        for (ModuleInfo module : modules) {
-            // Include version in codedata only if the project has a Dependencies.toml.
-            // Omitting version (null) means "use latest from Central".
-            String codedataVersion = hasDependenciesToml ? module.version() : null;
-
-            // Try disk cache first — avoids expensive semantic model loading
-            Optional<List<AiComponentDiskCache.CachedComponent>> cached =
-                    diskCache.load(module.org(), module.packageName(), module.version());
-            if (cached.isPresent()) {
-                for (AiComponentDiskCache.CachedComponent comp : cached.get()) {
-                    if (!category.name().equals(comp.category())) {
-                        continue;
-                    }
-                    categoryNodes.add(reconstructFromCache(comp, module, codedataVersion));
-                }
-                continue;
-            }
-
-            // Cache miss — load semantic model (expensive)
-            Optional<SemanticModel> semanticModel;
-            try {
-                semanticModel = getSemanticModel(module);
-            } catch (Exception e) {
-                continue;
-            }
-            if (semanticModel.isEmpty()) {
-                continue;
-            }
-
-            List<AiComponentDiskCache.CachedComponent> toCache = new ArrayList<>();
-            Stream<ClassSymbol> classSymbols = semanticModel.get().moduleSymbols().stream()
-                    .filter(ClassSymbol.class::isInstance).map(ClassSymbol.class::cast);
-
-            for (var classSymbol : classSymbols.toList()) {
-                NodeKind classKind = classifyComponent(classSymbol);
-                if (classKind == null) {
-                    continue;
-                }
-                AvailableNode node = buildAvailableNode(classSymbol, module, codedataVersion, classKind);
-                toCache.add(toCachedComponent(classSymbol, node, classKind));
-                if (classKind == category) {
-                    categoryNodes.add(node);
-                }
-            }
-
-            // Persist ALL discovered components to disk (even if empty — caches "no components")
-            diskCache.save(module.org(), module.packageName(), module.version(), toCache);
-        }
-
-        mergeIntoCache(getCategoryCache(category), cacheKey, categoryNodes);
+        // Use resolveAiModuleVersion for internal resolution (falls back to local distribution)
+        String aiModuleVersion = resolveAiModuleVersion(project);
+        List<Module> modules = pinUserDeclaredVersions(project, getLatestCompatibleModules(aiModuleVersion));
+        ensureKeywordsLoaded(modules);
+        mergeIntoCache(getCategoryCache(category), cacheKey,
+                collectComponents(project, category, aiModuleVersion, modules, true));
         completed.add(category);
+    }
+
+    // An unscanned or unscannable module falls back to its bundled version, so cached and refreshed lists agree.
+    private static List<AvailableNode> collectComponents(Project project, NodeKind category, String aiModuleVersion,
+                                                         List<Module> modules, boolean scan) {
+        boolean hasDependenciesToml = project.currentPackage().dependenciesToml().isPresent();
+        Map<String, Module> bundledVersions = pinUserDeclaredVersions(project,
+                latestCompatibleModules(aiModuleVersion, FALLBACK_CATALOG.modules())).stream()
+                .collect(Collectors.toMap(AiUtils::moduleKey, Function.identity(), (first, second) -> first));
+        List<AvailableNode> nodes = new ArrayList<>();
+        for (Module module : modules) {
+            Module bundled = bundledVersions.getOrDefault(moduleKey(module), module);
+            componentsOf(module, category, scan, hasDependenciesToml)
+                    .or(() -> componentsOf(bundled, category, false, hasDependenciesToml))
+                    .ifPresent(nodes::addAll);
+        }
+        nodes.sort(Comparator.comparing(n -> n.codedata().module()));
+        return nodes;
+    }
+
+    private static Optional<List<AvailableNode>> componentsOf(Module module, NodeKind category, boolean scan,
+                                                              boolean hasDependenciesToml) {
+        ModuleInfo moduleInfo = new ModuleInfo(module.org(), module.name(), module.name(), module.version());
+        // Omitting the version (null) in codedata means "use latest from Central".
+        String codedataVersion = hasDependenciesToml ? module.version() : null;
+        return cachedComponents(moduleInfo)
+                .or(() -> scan && moduleMatchesCategory(module, category) ? scanAndCache(moduleInfo) : Optional.empty())
+                .map(components -> {
+                    boolean pullRequired = module.version() == null
+                            || PackageUtil.isModuleUnresolved(module.org(), module.name(), module.version());
+                    return components.stream()
+                            .filter(component -> category.name().equals(component.category()))
+                            .map(component -> reconstructFromCache(component, moduleInfo, codedataVersion,
+                                    pullRequired))
+                            .toList();
+                });
+    }
+
+    private static String moduleKey(Module module) {
+        return module.org() + ":" + module.name();
+    }
+
+    static String componentKey(String org, String name, String version) {
+        return org + ":" + name + ":" + version;
+    }
+
+    private static Optional<List<AiComponentDiskCache.CachedComponent>> cachedComponents(ModuleInfo module) {
+        return Optional.ofNullable(FALLBACK_CATALOG.components()
+                        .get(componentKey(module.org(), module.packageName(), module.version())))
+                .or(() -> diskCache.load(module.org(), module.packageName(), module.version()));
+    }
+
+    private static Optional<List<AiComponentDiskCache.CachedComponent>> scanAndCache(ModuleInfo module) {
+        Optional<List<AiComponentDiskCache.CachedComponent>> components = scanModule(module);
+        // Saves an empty list too: "no components here" is as expensive to compute as a non-empty one.
+        components.ifPresent(found -> diskCache.save(module.org(), module.packageName(), module.version(), found));
+        return components;
+    }
+
+    // Pulls the package if it is not local; empty when it cannot be resolved or compiled.
+    static Optional<List<AiComponentDiskCache.CachedComponent>> scanModule(ModuleInfo module) {
+        Optional<SemanticModel> semanticModel;
+        try {
+            semanticModel = getSemanticModel(module);
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Failed to load AI module " + module.org() + "/" + module.packageName() + ":"
+                    + module.version(), e);
+            return Optional.empty();
+        }
+        return semanticModel.map(model -> model.moduleSymbols().stream()
+                .filter(ClassSymbol.class::isInstance)
+                .map(ClassSymbol.class::cast)
+                .flatMap(classSymbol -> Optional.ofNullable(classifyComponent(classSymbol))
+                        .map(kind -> toCachedComponent(classSymbol,
+                                buildAvailableNode(classSymbol, module, module.version(), kind), kind))
+                        .stream())
+                .toList());
     }
 
     private static NodeKind classifyComponent(ClassSymbol classSymbol) {
@@ -1272,11 +1273,16 @@ public class AiUtils {
     }
 
     private static AvailableNode reconstructFromCache(AiComponentDiskCache.CachedComponent comp,
-                                                      ModuleInfo moduleInfo, String codedataVersion) {
+                                                      ModuleInfo moduleInfo, String codedataVersion,
+                                                      boolean pullRequired) {
         String icon = (comp.icon() != null && !comp.icon().isEmpty()) ? comp.icon()
                 : CommonUtils.generateIcon(moduleInfo.org(), moduleInfo.packageName(), moduleInfo.version());
-        Metadata metadata = withGroupPath(new Metadata.Builder<>(null).label(comp.label())
-                .description(comp.description()).icon(icon), comp.groupPath()).build();
+        Metadata.Builder<Object> metadataBuilder = withGroupPath(new Metadata.Builder<>(null).label(comp.label())
+                .description(comp.description()).icon(icon), comp.groupPath());
+        if (pullRequired) {
+            metadataBuilder.data(PULL_REQUIRED_KEY, true);
+        }
+        Metadata metadata = metadataBuilder.build();
         NodeKind kind = NodeKind.valueOf(comp.category());
         Codedata.Builder<Object> codedataBuilder = new Codedata.Builder<>(null).version(codedataVersion)
                 .packageName(moduleInfo.packageName()).module(moduleInfo.moduleName()).org(moduleInfo.org())

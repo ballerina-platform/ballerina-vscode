@@ -20,6 +20,7 @@ import { useEffect, useRef, ReactNode } from "react";
 import { Button, ThemeColors, Typography } from "@wso2/ui-toolkit";
 import { PanelContainer, NodeList, CardList, ExpressionFormField } from "@wso2/ballerina-side-panel";
 import {
+    AvailableNode,
     FlowNode,
     LineRange,
     SubPanel,
@@ -34,6 +35,8 @@ import styled from "@emotion/styled";
 import { FormSubmitOptions } from ".";
 import { ConnectionConfig, ConnectionCreator, ConnectionSelectionList, ConnectionKind } from "../../../components/ConnectionSelector";
 import { AgentManagerModelProviderSection } from "../../../components/AgentManagerModels";
+import { AiCatalogRefreshIndicator } from "../../../components/AiCatalogRefreshIndicator";
+import { ComponentFormLoader } from "../../../components/ComponentFormLoader";
 import { RelativeLoader } from "../../../components/RelativeLoader";
 import { LoaderContainer } from "../../../components/RelativeLoader/styles";
 import { ConnectionListItem } from "@wso2/wso2-platform-core";
@@ -117,6 +120,8 @@ interface PanelManagerProps {
     canGoBack?: boolean;
     selectedConnectionKind?: ConnectionKind;
     showProgressSpinner?: boolean;
+    refreshingAiComponents?: boolean;
+    formLoadingNode?: AvailableNode;
     progressMessage?: string;
     progressTitle?: string;
     errorMessage?: string;
@@ -204,6 +209,8 @@ export function PanelManager(props: PanelManagerProps) {
         canGoBack,
         selectedConnectionKind,
         showProgressSpinner = false,
+        refreshingAiComponents = false,
+        formLoadingNode,
         progressMessage = "Loading...",
         progressTitle,
         setSidePanelView,
@@ -261,6 +268,7 @@ export function PanelManager(props: PanelManagerProps) {
         onRefreshDevantConnections,
         wso2CloudKbListSection,
     } = props;
+    const aiCatalogRefreshIndicator = refreshingAiComponents ? <AiCatalogRefreshIndicator /> : undefined;
 
     const findSubPanelComponent = (subPanel: SubPanel) => {
         switch (subPanel.view) {
@@ -425,6 +433,7 @@ export function PanelManager(props: PanelManagerProps) {
                         categories={categories}
                         onSelect={onSelectNode}
                         leadingSection={<AgentManagerModelProviderSection categories={categories} onSelect={onSelectNode} />}
+                        extraSection={aiCatalogRefreshIndicator}
                         onClose={onClose}
                         title={"Model Providers"}
                         searchPlaceholder={"Search model providers"}
@@ -455,6 +464,7 @@ export function PanelManager(props: PanelManagerProps) {
                     <CardList
                         categories={categories}
                         onSelect={onSelectNode}
+                        extraSection={aiCatalogRefreshIndicator}
                         onClose={onClose}
                         title={"Vector Stores"}
                         searchPlaceholder={"Search vector stores"}
@@ -487,6 +497,7 @@ export function PanelManager(props: PanelManagerProps) {
                     <CardList
                         categories={categories}
                         onSelect={onSelectNode}
+                        extraSection={aiCatalogRefreshIndicator}
                         onClose={onClose}
                         title={"Embedding Providers"}
                         searchPlaceholder={"Search embedding providers"}
@@ -519,6 +530,7 @@ export function PanelManager(props: PanelManagerProps) {
                     <CardList
                         categories={categories}
                         onSelect={onSelectNode}
+                        extraSection={aiCatalogRefreshIndicator}
                         onClose={onClose}
                         title={"Knowledge Bases"}
                         searchPlaceholder={"Search knowledge bases"}
@@ -564,6 +576,7 @@ export function PanelManager(props: PanelManagerProps) {
                     <CardList
                         categories={categories}
                         onSelect={onSelectNode}
+                        extraSection={aiCatalogRefreshIndicator}
                         onClose={onClose}
                         title={"Data Loaders"}
                         searchPlaceholder={"Search data loaders"}
@@ -596,6 +609,7 @@ export function PanelManager(props: PanelManagerProps) {
                     <CardList
                         categories={categories}
                         onSelect={onSelectNode}
+                        extraSection={aiCatalogRefreshIndicator}
                         onClose={onClose}
                         title={"Chunkers"}
                         searchPlaceholder={"Search chunkers"}
@@ -782,11 +796,13 @@ export function PanelManager(props: PanelManagerProps) {
             subPanel={findSubPanelComponent(subPanel)}
         >
             <Container onClick={onDiscardSuggestions}>
-                {showProgressSpinner ? (
+                {showProgressSpinner && formLoadingNode && <ComponentFormLoader node={formLoadingNode} />}
+                {showProgressSpinner && !formLoadingNode && (
                     <LoaderContainer>
                         <RelativeLoader message={progressMessage} />
                     </LoaderContainer>
-                ) : (
+                )}
+                {!showProgressSpinner && (
                     renderPanelContent()
                 )}
             </Container>
