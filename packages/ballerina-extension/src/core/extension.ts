@@ -83,6 +83,7 @@ import axios, { AxiosRequestConfig, AxiosResponse } from 'axios';
 import AdmZip from 'adm-zip';
 import fs from 'fs';
 import path from 'path';
+import { findLauncherDirOnPath, resolveDistributionFromFiles } from "../utils/ballerina-distribution";
 import * as glob from 'glob';
 import { RPCLayer } from "../RPCLayer";
 import { VisualizerWebview } from "../views/visualizer/webview";
@@ -166,6 +167,8 @@ export class BallerinaExtension {
     public telemetryReporter: TelemetryReporter;
     public ballerinaHome: string;
     private ballerinaCmd: string;
+    // Home resolved from the distribution files by the last getBallerinaVersion, so autoDetectBallerinaHome needn't run `bal home`.
+    private resolvedDistributionHome: string | undefined;
     public ballerinaVersion: string;
     public biSupported: boolean;
     public isNPSupported: boolean;
@@ -1814,6 +1817,7 @@ export class BallerinaExtension {
     async getBallerinaVersion(ballerinaHome: string, overrideBallerinaHome: boolean): Promise<string> {
         debug("[VERSION] Starting Ballerina version detection...");
         debug(`[VERSION] Input parameters - ballerinaHome: '${ballerinaHome}', overrideBallerinaHome: ${overrideBallerinaHome}`);
+        this.resolvedDistributionHome = undefined;
 
         // Use WSO2_INTEGRATOR_BALLERINA_HOME in WSO2 Integrator if set, otherwise fallback to system PATH
         if (process.env.WSO2_INTEGRATOR_RUNTIME && process.env.WSO2_INTEGRATOR_BALLERINA_HOME) {
@@ -1927,7 +1931,9 @@ export class BallerinaExtension {
             // PATH is locked, or where VSCode's inherited PATH is still stale), we run a
             // proactive directory search here so that we can use an absolute path instead
             // of relying on PATH resolution.
-            const detectedBinPath = findWindowsBallerinaPath();
+            // The synced PATH already holds the registry entries, so the registry search is the fallback.
+            const onPath = findLauncherDirOnPath("bal.bat");
+            const detectedBinPath = onPath ? onPath + sep : findWindowsBallerinaPath();
             if (detectedBinPath) {
                 distPath = detectedBinPath;
                 debug(`[VERSION] Windows fallback search found Ballerina bin: ${distPath}`);
@@ -1981,6 +1987,19 @@ export class BallerinaExtension {
                 balExecutablePath = 'bal';
                 debug("[VERSION] WSL detected with native Linux installation, using 'bal version'");
             }
+        }
+
+        // `bal version` and `bal home` each start a JVM; reading the launcher's files avoids both.
+        if (!isWSL()) {
+            const launcherDir = distPath || findLauncherDirOnPath('bal' + exeExtension);
+            const distribution = launcherDir ? await resolveDistributionFromFiles(launcherDir) : undefined;
+            if (distribution) {
+                this.ballerinaCmd = (distPath + 'bal' + exeExtension).trim();
+                this.resolvedDistributionHome = distribution.home;
+                debug(`[VERSION] Resolved from distribution files: '${distribution.version}' at ${distribution.home}`);
+                return distribution.version;
+            }
+            debug("[VERSION] Distribution files not recognised; running 'bal version'");
         }
 
         // Quote the executable path to handle spaces in directory names
@@ -2246,6 +2265,10 @@ export class BallerinaExtension {
 
     autoDetectBallerinaHome(): { home: string, isOldBallerinaDist: boolean, isBallerinaNotFound: boolean } {
         debug("[AUTO_DETECT] Starting Ballerina home auto-detection...");
+        if (this.resolvedDistributionHome) {
+            debug(`[AUTO_DETECT] Using the home resolved from distribution files: ${this.resolvedDistributionHome}`);
+            return { home: this.resolvedDistributionHome, isOldBallerinaDist: false, isBallerinaNotFound: false };
+        }
 
         let balHomeOutput = "",
             isBallerinaNotFound = false,
