@@ -1,0 +1,105 @@
+{
+  "source": "durable_agent_keyed.bal",
+  "description": "Register a data event on an agent whose events are the 1.0 keyed map: appended as a keyed entry (wso2/product-integrator#2809)",
+  "diagram": {
+    "id": "1",
+    "metadata": {
+      "label": "Register Event",
+      "description": "Register Event"
+    },
+    "codedata": {
+      "node": "DURABLE_AGENT_REGISTER_EVENT",
+      "org": "ballerina",
+      "module": "workflow",
+      "object": "DurableAgent",
+      "symbol": "registerUpdateEvents",
+      "parentSymbol": "keyedAgent",
+      "lineRange": {
+        "fileName": "durable_agent_keyed.bal",
+        "startLine": {
+          "line": 6,
+          "offset": 0
+        },
+        "endLine": {
+          "line": 6,
+          "offset": 0
+        }
+      },
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "name": {
+        "metadata": {
+          "label": "Name",
+          "description": "Name"
+        },
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "selected": true,
+            "ballerinaType": "string"
+          }
+        ],
+        "value": "payment",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "requestType": {
+        "metadata": {
+          "label": "Request Type",
+          "description": "Request Type"
+        },
+        "types": [
+          {
+            "fieldType": "TYPE",
+            "selected": true,
+            "ballerinaType": "json"
+          }
+        ],
+        "value": "Payment",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "cardinality": {
+        "metadata": {
+          "label": "Cardinality",
+          "description": "Cardinality"
+        },
+        "types": [
+          {
+            "fieldType": "SINGLE_SELECT",
+            "selected": true
+          }
+        ],
+        "value": "SINGLE_EVENT",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      }
+    },
+    "flags": 0
+  },
+  "output": {
+    "durable_agent_keyed.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 11,
+            "character": 29
+          },
+          "end": {
+            "line": 11,
+            "character": 29
+          }
+        },
+        "newText": "\n,\n        payment: {request: Payment, cardinality: workflow:SINGLE_EVENT}"
+      }
+    ]
+  }
+}

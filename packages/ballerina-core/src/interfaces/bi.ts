@@ -700,6 +700,7 @@ export type NodeKind =
     | "WHILE"
     | "WORKFLOW"
     | "WORKFLOW_RUN"
+    | "WORKFLOW_RUN_WITH_ID"
     | "CHILD_WORKFLOW_RUN"
     | "CHILD_WORKFLOW_CALL"
     | "CHILD_WORKFLOW_WAIT"

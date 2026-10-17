@@ -805,6 +805,11 @@ export class NodeFactoryVisitor implements BaseVisitor {
         }
     }
 
+    // A start under a chosen id is the same action with one more argument.
+    beginVisitWorkflowRunWithId(node: FlowNode, parent?: FlowNode): void {
+        this.beginVisitWorkflowRun(node, parent);
+    }
+
     beginVisitSendData(node: FlowNode, parent?: FlowNode): void {
         if (!this.validateNode(node)) return;
         if (node.id) {

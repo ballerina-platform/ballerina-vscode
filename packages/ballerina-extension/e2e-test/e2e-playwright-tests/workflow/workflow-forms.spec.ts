@@ -27,7 +27,8 @@ import {
 } from '../utils/helpers';
 import { DEFAULT_PROJECT_NAME } from '../utils/helpers/constants';
 import { logStep } from '../utils/helpers/progress';
-import { ProjectExplorer, SidePanel } from '../utils/pages';
+import { ProjectExplorer } from '../utils/pages';
+import { fillUnderLabel, openPaletteBelow, workflowPaletteItem } from './palette';
 
 // Workflow forms built from an empty project, then reopened: what the designer wrote must come back
 // from source (wso2/product-integrator#2624, #2493, #2422).
@@ -65,107 +66,11 @@ async function fillExEditor(webview: Frame, key: string, value: string): Promise
     }, value);
 }
 
-// The control under a form label: the nearest ancestor of the label text that holds a control, then that
-// control. Covers text fields, web-component fields, dropdowns and CodeMirror editors, which the Await Data
-// entry's Data Type is (the side panel also holds the form's own numeric editor, so the label is the anchor).
-function controlUnder(scope: Locator, label: string): Locator {
-    const labelText = `translate(normalize-space(.), '*', '')='${label}'`;
-    const controls = 'self::input or self::textarea or self::vscode-text-field or self::vscode-text-area or self::vscode-dropdown '
-        + 'or self::select or @role="combobox" or @role="textbox" or contains(@class,"cm-content")';
-    return scope.locator(`xpath=.//*[not(self::script)][${labelText}][not(.//*[${labelText}])]`).first()
-        .locator(`xpath=ancestor::*[.//*[${controls}]][1]`)
-        .locator(`xpath=.//*[${controls}]`).filter({ visible: true }).first();
-}
-
-async function fillUnderLabel(scope: Locator, label: string, value: string): Promise<void> {
-    let input = controlUnder(scope, label);
-    await input.waitFor({ state: 'visible', timeout: 30000 });
-    const kind = await input.evaluate((e) => (e.classList.contains('cm-content') || e.closest('.cm-editor') ? 'cm' : e.tagName.toLowerCase()));
-    if (kind === 'cm') {
-        await input.evaluate((element, text) => {
-            const view = (element as HTMLElement & { cmView?: { view?: any } }).cmView?.view;
-            if (!view) {
-                throw new Error('CodeMirror view not found under the label');
-            }
-            view.focus();
-            view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: text } });
-        }, value);
-        await expect.poll(() => input.textContent(), { timeout: 10000 }).toBe(value);
-    } else {
-        if (kind === 'vscode-text-field' || kind === 'vscode-text-area') {
-            input = input.locator('input, textarea').first();
-        }
-        // Explicit timeouts: the suite's actions otherwise wait without limit and a stuck one burns the
-        // 20-minute test budget three times over, past the e2e job's limit.
-        await input.click({ timeout: 10000 });
-        await input.fill('', { timeout: 10000 });
-        await input.pressSequentially(value, { timeout: 10000 });
-        await expect.poll(() => input.inputValue(), { timeout: 10000 }).toBe(value);
-    }
-    await page.page.waitForTimeout(400);
-    // The type helper popup stays open over the fields below it; the next click would land in it.
-    await page.page.keyboard.press('Escape');
-}
-
 // The identifier fields validate after each edit, and Save stays disabled until the last result is in.
 async function waitForEnabled(button: Locator): Promise<void> {
     await button.waitFor({ state: 'visible', timeout: 60000 });
     await expect.poll(() => button.getAttribute('disabled'), { timeout: 30000 }).toBeNull();
     await page.page.waitForTimeout(500);
-}
-
-const sidePanelOpens = (webview: Frame, timeout: number) =>
-    webview.getByTestId('side-panel').filter({ visible: true }).last()
-        .waitFor({ state: 'visible', timeout }).then(() => true, () => false);
-
-// Opens the node palette from the + below a node. A diagram that already has steps draws a trailing empty
-// node with its own +; a fresh one (Start to End) only shows a + on the edge leaving Start while it is hovered.
-async function openPaletteBelow(webview: Frame, nodeText: string): Promise<SidePanel> {
-    const canvas = webview.getByTestId('bi-diagram-canvas');
-    await canvas.waitFor({ timeout: 60000 });
-    const sidePanel = new SidePanel(webview, page.page);
-    // Right after a save the diagram redraws; give the trailing empty node a moment to come back.
-    const emptyNodeButton = canvas.locator('[data-testid^="empty-node-add-button"]').first();
-    if (await emptyNodeButton.waitFor({ state: 'visible', timeout: 15000 }).then(() => true, () => false)) {
-        await emptyNodeButton.click({ force: true, timeout: 5000 }).catch(() => emptyNodeButton.dispatchEvent('click'));
-        if (!await sidePanelOpens(webview, 5000)) {
-            await emptyNodeButton.dispatchEvent('click');
-        }
-        await sidePanel.init();
-        return sidePanel;
-    }
-    const node = canvas.getByText(nodeText, { exact: true }).filter({ visible: true }).last();
-    await node.waitFor({ state: 'visible', timeout: 60000 });
-    const nodeBox = await node.boundingBox();
-    if (!nodeBox) {
-        throw new Error(`node '${nodeText}' has no position`);
-    }
-    const nodeBottom = nodeBox.y + nodeBox.height;
-    for (let attempt = 0; attempt < 3; attempt++) {
-        // The edge leaving the node starts at or just above its label and runs on below it.
-        for (const edge of await webview.locator('[data-testid^="diagram-link-"]').all()) {
-            const box = await edge.boundingBox();
-            if (!box || box.y < nodeBox.y - 40 || box.y > nodeBottom + 90 || box.y + box.height <= nodeBottom + 15) {
-                continue;
-            }
-            const buttonId = ((await edge.getAttribute('data-testid')) ?? '').replace('diagram-link-', 'link-add-button-');
-            const button = webview.locator(`[data-testid="${buttonId}"]`).first();
-            // Hovered by position: an edge path can measure fine yet count as invisible to Playwright.
-            await page.page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-            // The + is drawn on hover; give it time to render before falling back to a click on the edge.
-            if (await button.waitFor({ state: 'visible', timeout: 3000 }).then(() => true, () => false)) {
-                await button.click({ force: true, timeout: 3000 }).catch(() => page.page.mouse.click(box.x + box.width / 2, box.y + box.height / 2));
-            } else {
-                await page.page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
-            }
-            if (await sidePanelOpens(webview, 3000)) {
-                await sidePanel.init();
-                return sidePanel;
-            }
-        }
-        await page.page.waitForTimeout(1000);
-    }
-    throw new Error(`the + below '${nodeText}' did not open the side panel`);
 }
 
 // Fills the Workflow Activity form's name and saves it; returns once the activity is in the source.
@@ -323,18 +228,7 @@ export default function createTests() {
             await webview.getByTestId('start-node').waitFor({ timeout: 60000 });
             const sidePanel = await openPaletteBelow(webview, 'Start');
             const panel = sidePanel.getLocator();
-            // The Workflow category is expanded by default and its state is remembered, so a click on its header
-            // while the items are still rendering collapses it: give the item time first, then toggle if needed.
-            const sendData = panel.getByText('Send Data Event', { exact: true }).last();
-            const shows = (ms: number) => sendData.waitFor({ state: 'visible', timeout: ms }).then(() => true, () => false);
-            for (let attempt = 0; attempt < 2 && !await shows(10000); attempt++) {
-                await sidePanel.expandSection('Workflow');
-            }
-            if (!await shows(30000)) {
-                const shown = (await panel.innerText().catch(() => '')).replace(/\s+/g, ' ').slice(0, 400);
-                throw new Error(`the automation's palette does not offer Send Data Event; the panel shows: ${shown}`);
-            }
-            await domClick(sendData);
+            await domClick(await workflowPaletteItem(sidePanel, 'Send Data Event'));
 
             logStep('The only workflow is selected and its data event offered');
             const workflowName = panel.getByRole('combobox', { name: /Workflow Name/ });
@@ -356,6 +250,69 @@ export default function createTests() {
             await expect(panel.getByRole('combobox', { name: /Workflow Name/ })).toHaveText(/orderWorkflow/, { timeout: 60000 });
             await expect(panel.getByRole('combobox', { name: /Data Name/ })).toHaveText(/payment/, { timeout: 60000 });
             await expect.poll(() => webview.locator('[data-testid="ex-editor-workflowId"] .cm-content').textContent(), { timeout: 30000 }).toBe('"wf-1"');
+            await domClick(webview.getByTestId('close-panel-btn').first());
+        });
+
+        test('Run the workflow from the automation: the form opens at once with the only workflow selected', async () => {
+            logStep('Pick Run Workflow from the palette');
+            const webview = await getWebview();
+            const sidePanel = await openPaletteBelow(webview, 'Start');
+            const panel = sidePanel.getLocator();
+            await domClick(await workflowPaletteItem(sidePanel, 'Run Workflow'));
+
+            logStep('No workflow list in between: the form holds the project\'s only workflow');
+            const workflow = panel.getByRole('combobox', { name: /^Workflow/ });
+            await workflow.waitFor({ timeout: 60000 });
+            await expect(workflow).toHaveText(/orderWorkflow/, { timeout: 60000 });
+            await expect(panel.getByText('Current Integration', { exact: true })).toBeHidden();
+            // The workflow takes no input, so the form offers none; the id variable keeps its default.
+            await expect(panel.getByRole('textbox', { name: /Workflow ID Variable Name/ })).toHaveValue('workflowId');
+            await expect(panel.getByText(/^Input\*?$/)).toBeHidden();
+            const saveButton = panel.getByRole('button', { name: 'Save' }).first();
+            await waitForEnabled(saveButton);
+            await saveButton.click({ force: true });
+            await expect.poll(projectSource, { timeout: 90000 }).toMatch(/string workflowId = check workflow:run\(orderWorkflow\);/);
+            await saveButton.waitFor({ state: 'hidden', timeout: 60000 });
+        });
+
+        test('Run the workflow under a chosen id and reopen the node', async () => {
+            logStep('Pick Run with ID from the palette');
+            const webview = await getWebview();
+            const sidePanel = await openPaletteBelow(webview, 'Start');
+            const panel = sidePanel.getLocator();
+            await domClick(await workflowPaletteItem(sidePanel, 'Run with ID'));
+
+            logStep('The form holds the only workflow and asks for the instance id');
+            const workflow = panel.getByRole('combobox', { name: /^Workflow/ });
+            await workflow.waitFor({ timeout: 60000 });
+            await expect(workflow).toHaveText(/orderWorkflow/, { timeout: 60000 });
+            await fillExEditor(webview, 'instanceId', '"order-1"');
+            const variable = panel.getByRole('textbox', { name: /Workflow ID Variable Name/ }).first();
+            await variable.fill('orderRunId');
+            await variable.press('Tab');
+            const saveButton = panel.getByRole('button', { name: 'Save' }).first();
+            await waitForEnabled(saveButton);
+            await saveButton.click({ force: true });
+            // The id field opens in text mode, which writes a string template; expression mode writes the literal.
+            await expect.poll(projectSource, { timeout: 90000 })
+                .toMatch(/string orderRunId = check workflow:runWithId\(orderWorkflow, (?:"order-1"|string `order-1`)\);/);
+            await saveButton.waitFor({ state: 'hidden', timeout: 60000 });
+
+            logStep('Reopen the node: the form reads the workflow and the id from source');
+            // By its own label: the Run Workflow node above it shows the same workflow name.
+            const canvas = webview.getByTestId('bi-diagram-canvas');
+            const node = canvas.getByText('Run with ID', { exact: true }).filter({ visible: true }).last();
+            await node.waitFor({ timeout: 60000 });
+            await node.click({ force: true, timeout: 10000 }).catch(() => node.dispatchEvent('click'));
+            const reopened = panel.getByRole('combobox', { name: /^Workflow/ });
+            if (!await reopened.waitFor({ timeout: 15000 }).then(() => true, () => false)) {
+                await node.dispatchEvent('click');
+                await reopened.waitFor({ timeout: 60000 });
+            }
+            await expect(reopened).toHaveText(/orderWorkflow/, { timeout: 60000 });
+            await expect.poll(() => webview.locator('[data-testid="ex-editor-instanceId"] .cm-content').textContent(), { timeout: 30000 }).toMatch(/order-1/);
+            await expect(panel.getByRole('textbox', { name: /Workflow ID Variable Name/ })).toHaveValue('orderRunId');
+            await domClick(webview.getByTestId('close-panel-btn').first());
         });
     });
 }

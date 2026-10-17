@@ -108,7 +108,7 @@
             "character": 0
           }
         },
-        "newText": "\nstring|error eventToken = supportAgent.sendData(instanceId, \"billSubmitted\", {amount: 10});"
+        "newText": "\n_ = supportAgent.sendData(instanceId, \"billSubmitted\", {amount: 10});"
       }
     ]
   }

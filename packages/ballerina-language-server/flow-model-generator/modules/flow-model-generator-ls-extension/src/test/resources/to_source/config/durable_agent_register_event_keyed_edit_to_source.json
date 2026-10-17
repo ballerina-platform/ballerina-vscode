@@ -1,0 +1,123 @@
+{
+  "source": "durable_agent_keyed.bal",
+  "description": "Edit a keyed data event: the entry is rewritten in place, keyed by its name",
+  "diagram": {
+    "id": "1",
+    "metadata": {
+      "label": "Register Event",
+      "description": "Register Event"
+    },
+    "codedata": {
+      "node": "DURABLE_AGENT_REGISTER_EVENT",
+      "org": "ballerina",
+      "module": "workflow",
+      "object": "DurableAgent",
+      "symbol": "registerUpdateEvents",
+      "parentSymbol": "keyedAgent",
+      "lineRange": {
+        "fileName": "durable_agent_keyed.bal",
+        "startLine": {
+          "line": 11,
+          "offset": 8
+        },
+        "endLine": {
+          "line": 11,
+          "offset": 29
+        }
+      },
+      "isNew": false
+    },
+    "returning": false,
+    "properties": {
+      "name": {
+        "metadata": {
+          "label": "Name",
+          "description": "Name"
+        },
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "selected": true,
+            "ballerinaType": "string"
+          }
+        ],
+        "value": "bill",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "requestType": {
+        "metadata": {
+          "label": "Request Type",
+          "description": "Request Type"
+        },
+        "types": [
+          {
+            "fieldType": "TYPE",
+            "selected": true,
+            "ballerinaType": "json"
+          }
+        ],
+        "value": "Bill",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "cardinality": {
+        "metadata": {
+          "label": "Cardinality",
+          "description": "Cardinality"
+        },
+        "types": [
+          {
+            "fieldType": "SINGLE_SELECT",
+            "selected": true
+          }
+        ],
+        "value": "",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "responseType": {
+        "metadata": {
+          "label": "Response Type",
+          "description": "Response Type"
+        },
+        "types": [
+          {
+            "fieldType": "TYPE",
+            "selected": true,
+            "ballerinaType": "json"
+          }
+        ],
+        "value": "string",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      }
+    },
+    "flags": 0
+  },
+  "output": {
+    "durable_agent_keyed.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 11,
+            "character": 8
+          },
+          "end": {
+            "line": 11,
+            "character": 29
+          }
+        },
+        "newText": "bill: {request: Bill, response: string}"
+      }
+    ]
+  }
+}

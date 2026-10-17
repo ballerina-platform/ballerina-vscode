@@ -26,6 +26,7 @@ import io.ballerina.flowmodelgenerator.core.model.Option;
 import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
 import io.ballerina.flowmodelgenerator.core.utils.FlowNodeUtil;
+import org.ballerinalang.langserver.common.utils.NameUtil;
 import io.ballerina.flowmodelgenerator.core.utils.WorkflowUtil;
 import io.ballerina.modelgenerator.commons.FileSystemUtils;
 import io.ballerina.modelgenerator.commons.ParameterData;
@@ -67,6 +68,8 @@ public class DurableAgentUpdateBuilder extends FunctionCall {
 
     private static final String STRING_TYPE = "string";
     private static final String DEFAULT_TOKEN_VAR = "eventToken";
+    private static final String RESULT_DOC = "Name of the result variable: the correlation token to read the "
+            + "channel's response with. Left aside on a one-way channel, which has no response to read";
 
     @Override
     public void setConcreteConstData() {
@@ -155,8 +158,9 @@ public class DurableAgentUpdateBuilder extends FunctionCall {
                 .stepOut()
                 .addProperty(DATA_KEY);
 
-        properties().data(DEFAULT_TOKEN_VAR, context.getAllVisibleSymbolNames(),
-                Property.RESULT_NAME, Property.RESULT_DOC, false);
+        // Optional: a one-way channel's send has no readable result, and the token is discarded.
+        properties().data(Property.RESULT_NAME, RESULT_DOC,
+                NameUtil.generateVariableName(DEFAULT_TOKEN_VAR, context.getAllVisibleSymbolNames()), true);
         properties().checkError(true);
     }
 
@@ -179,14 +183,21 @@ public class DurableAgentUpdateBuilder extends FunctionCall {
                 + "(" + String.join(", ", List.of(agentId, eventName, data)) + ")";
 
         // sendData answers `string|error` on every channel: that value is the turn's correlation
-        // token, never the channel's declared `response`. The response is read back later through
-        // Get Agent Data Result, so whether a channel declares one changes nothing here.
-        sourceBuilder.token()
-                .name(checkError ? STRING_TYPE : STRING_TYPE + "|error")
-                .whiteSpace()
-                .name(variableName)
-                .whiteSpace()
-                .keyword(SyntaxKind.EQUAL_TOKEN);
+        // token, never the channel's declared `response`. On a channel that declares one, the token
+        // is what Get Agent Data Result reads the response with; on a one-way channel there is
+        // nothing to read, the compiler plugin rejects binding the token, and it is discarded.
+        boolean oneWay = !WorkflowUtil.agentEventDeclaresResponse(sourceBuilder.workspaceManager,
+                sourceBuilder.filePath, agent, WorkflowUtil.capabilityName(eventName));
+        if (oneWay) {
+            sourceBuilder.token().name("_").whiteSpace().keyword(SyntaxKind.EQUAL_TOKEN);
+        } else {
+            sourceBuilder.token()
+                    .name(checkError ? STRING_TYPE : STRING_TYPE + "|error")
+                    .whiteSpace()
+                    .name(variableName)
+                    .whiteSpace()
+                    .keyword(SyntaxKind.EQUAL_TOKEN);
+        }
         if (checkError) {
             sourceBuilder.token().keyword(SyntaxKind.CHECK_KEYWORD);
         }
