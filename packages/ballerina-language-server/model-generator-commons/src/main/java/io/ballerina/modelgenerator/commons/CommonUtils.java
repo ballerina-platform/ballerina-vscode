@@ -1968,6 +1968,16 @@ public class CommonUtils {
         }
         Project project = pkg.project();
         Module defaultModule = pkg.getDefaultModule();
+        if (project.kind() == ProjectKind.BALA_PROJECT) {
+            // BalaProject.documentId walks the disk to the package root before this same name match.
+            for (DocumentId documentId : defaultModule.documentIds()) {
+                Document document = defaultModule.document(documentId);
+                if (document.name().equals(path)) {
+                    return document;
+                }
+            }
+            return null;
+        }
         String module = pkg.packageName().value();
         // TODO: Unify the supported for the submodules
         Path docPath = project.sourceRoot().resolve("modules").resolve(module).resolve(path);
