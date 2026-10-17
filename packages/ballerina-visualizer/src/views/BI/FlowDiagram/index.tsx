@@ -99,6 +99,7 @@ import { assertFunctionSearchSuccess, FUNCTIONS_PAGE_SIZE, PAGINATED_LIBRARY_SEC
 import { useFunctionPaginationController } from "../../../utils/useFunctionPaginationController";
 import { settleLibrarySection, withLibrarySections } from "../../../utils/useFunctionPagination";
 import { cloneDeep, debounce } from "lodash";
+import { createFlowModelRefresher } from "./flowModelRefresh";
 import { ConnectionKind } from "../../../components/ConnectionSelector";
 import AddAgentPopup from "../AIChatAgent/AddAgentPopup";
 import { DiagramSkeleton } from "../../../components/Skeletons";
@@ -191,6 +192,15 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     // Responses can arrive out of order; only the latest request reflects the newest source.
     const latestFetchRef = useRef(0);
     const refreshingRef = useRef(false);
+    // Callbacks created once (subscriptions, the refreshers) must call the current render's functions.
+    const getFlowModelRef = useRef<() => void>(() => undefined);
+    const fetchFlowModelRef = useRef<() => Promise<unknown>>(() => Promise.resolve());
+    const flowModelRefresher = useMemo(() => createFlowModelRefresher(
+        () => fetchFlowModelRef.current(),
+        () => getFlowModelRef.current(),
+        DIAGRAM_REFRESH_DEBOUNCE_MS
+    ), []);
+    const markFlowModelStale = flowModelRefresher.markStale;
     // A silent refresh leaves the old flow on screen, and its positions are stale until the new one lands.
     const blockStaleInput = (event: SyntheticEvent) => {
         if (refreshingRef.current) {
@@ -411,15 +421,19 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             // Pending refreshes would setState on an unmounted diagram.
             clearRefreshTimers();
             clearCapabilityFailsafe();
+            flowModelRefresher.dispose();
+            debouncedGetFlowModelForBreakpoints.cancel();
         };
     }, []);
 
     useEffect(() => {
+        markFlowModelStale();
         debouncedGetFlowModelForBreakpoints();
     }, [breakpointState]);
 
     useEffect(() => {
         const unsubscribeProjectContent = rpcClient.onProjectContentUpdated(() => {
+            markFlowModelStale();
             // Mid undo/redo the view location is not yet moved to the edited source; the applied refresh covers it.
             if (debouncedUndoRedoManager.isProcessing()) {
                 return;
@@ -479,7 +493,10 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             });
 
         // The user's own undo/redo is not a burst to wait out.
-        const unsubscribeUndoRedo = debouncedUndoRedoManager.onApplied(() => getFlowModel());
+        const unsubscribeUndoRedo = debouncedUndoRedoManager.onApplied(() => {
+            markFlowModelStale();
+            getFlowModelRef.current();
+        });
 
         return () => {
             unsubscribeProjectContent();
@@ -528,18 +545,11 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     }
 
     // Leading edge: a single save refreshes at once; only bursts (e.g. Copilot live edits) wait out the delay.
-    const debouncedGetFlowModel = useCallback(
-        debounce(() => {
-            getFlowModel();
-        }, DIAGRAM_REFRESH_DEBOUNCE_MS, { leading: true, trailing: true }),
-        [hasDraft]
-    );
+    const debouncedGetFlowModel = flowModelRefresher.refresh;
 
     // Shorter debounce specifically for breakpoint changes (faster feedback); its mount call is the first load.
-    const debouncedGetFlowModelForBreakpoints = useCallback(
-        debounce(() => {
-            getFlowModel();
-        }, 200, { leading: true, trailing: true }),
+    const debouncedGetFlowModelForBreakpoints = useMemo(
+        () => debounce(() => getFlowModelRef.current(), 200, { leading: true, trailing: true }),
         []
     );
 
@@ -959,6 +969,11 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             return;
         }
         skippedRefreshRef.current = false;
+        flowModelRefresher.fetch();
+    };
+    getFlowModelRef.current = getFlowModel;
+
+    const fetchFlowModel = () => {
         const fetchId = ++latestFetchRef.current;
         refreshingRef.current = true;
         // Refreshing a flow already on screen must not blank the title bar actions or lock the canvas.
@@ -976,12 +991,12 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 setIsUserAuthenticated(false);
             });
 
-        rpcClient
+        return rpcClient
             .getBIDiagramRpcClient()
             .getBreakpointInfo()
             .then((response) => {
                 setBreakpointInfo(response);
-                rpcClient
+                return rpcClient
                     .getBIDiagramRpcClient()
                     .getFlowModel({})
                     .then((model) => {
@@ -1065,6 +1080,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                     });
             });
     };
+    fetchFlowModelRef.current = fetchFlowModel;
 
     // Every way the side panel closes ends a placement; catch up on any refresh it held back.
     useEffect(() => {
@@ -1312,15 +1328,22 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         }
     };
 
+    // Raw text edits that raise no content notification: each retry must fetch again.
     const scheduleFlowModelRefreshes = (...delaysMs: number[]) => {
         delaysMs.forEach((delay) =>
-            refreshTimersRef.current.push(setTimeout(() => debouncedGetFlowModel(), delay))
+            refreshTimersRef.current.push(setTimeout(() => {
+                markFlowModelStale();
+                debouncedGetFlowModel();
+            }, delay))
         );
     };
 
     const closeSidePanelAndFetchUpdatedFlowModel = (afterCapabilityWrite = false) => {
         resetNodeSelectionStates();
         clearRefreshTimers();
+        if (afterCapabilityWrite) {
+            markFlowModelStale();
+        }
         // Fetch the updated flow model
         debouncedGetFlowModel();
         // Capability writes on the agent declaration are raw text edits with no artifact
@@ -1345,6 +1368,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         pendingCapabilityCloseRef.current = true;
         setShowProgressSpinner(true);
         setProgressMessage("Applying changes...");
+        markFlowModelStale();
         debouncedGetFlowModel();
         scheduleFlowModelRefreshes(1500, 4000);
         // Failsafe: never leave the loader stuck if the refresh cannot land.
@@ -1895,7 +1919,14 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     }, [searchText, debouncedSearch]);
 
     const updateArtifactLocation = async (artifacts: UpdatedArtifactsResponse) => {
-        await rpcClient.getVisualizerRpcClient().updateCurrentArtifactLocation(artifacts);
+        const artifact = await rpcClient.getVisualizerRpcClient().updateCurrentArtifactLocation(artifacts);
+        // getFlowModel reads the flow at the view's location; a fetch begun before the artifact moved is stale.
+        const previous = visualizerLocationRef.current;
+        if (artifact && (artifact.path !== previous?.documentUri
+            || artifact.position?.startLine !== previous?.position?.startLine
+            || artifact.position?.startColumn !== previous?.position?.startColumn)) {
+            markFlowModelStale();
+        }
 
         if (isCreatingNewModelProvider.current) {
             isCreatingNewModelProvider.current = false;
