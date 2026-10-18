@@ -54,7 +54,7 @@ import { ConnectionConfig, ConnectionCreator, ConnectionSelectionList } from "..
 import { FlowNodeForm } from "../Forms/FlowNodeForm";
 import { AgentEditorPanelContent, getAgentEditorPanelTitle } from "../AIChatAgent/AgentEditorPanelContent";
 import { AgentEditorView, useAgentEditorController } from "../AIChatAgent/useAgentEditorController";
-import { drawnFlowKey, goToAgent, goToAgentDefinitionFromInstance, hideDeletingTools, resolveAgentDefinitionLocation, saveAgentDeclaration, startAddAgentTrigger, startAgentChat } from "../AIChatAgent/utils";
+import { drawnFlowKey, drawToolEdits, goToAgent, goToAgentDefinitionFromInstance, resolveAgentDefinitionLocation, saveAgentDeclaration, startAddAgentTrigger, startAgentChat } from "../AIChatAgent/utils";
 import { buildAgentRenderNode, withAgentUsages } from "./agent";
 import {
     agentCallerProtocols,
@@ -1098,14 +1098,14 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
     });
 
     agentEditorViewRef.current = agentEditor.view;
-    const { syncDeletingTools } = agentEditor;
+    const { syncToolEdits } = agentEditor;
     useEffect(() => {
-        syncDeletingTools(model);
-    }, [model, syncDeletingTools]);
+        syncToolEdits(model);
+    }, [model, syncToolEdits]);
 
     // A new model object rebuilds the canvas and closes any open menu, so an unchanged picture keeps the old object.
     const drawnModelRef = useRef<{ key: string; flow?: Flow }>({ key: "" });
-    const shownModel = hideDeletingTools(flowModel, agentEditor.deletingTools);
+    const shownModel = drawToolEdits(flowModel, agentEditor.deletingTools, agentEditor.addingTools);
     const shownKey = drawnFlowKey(shownModel);
     if (drawnModelRef.current.key !== shownKey) {
         drawnModelRef.current = { key: shownKey, flow: shownModel };

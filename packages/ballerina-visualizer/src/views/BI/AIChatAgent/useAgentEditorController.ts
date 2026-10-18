@@ -24,8 +24,9 @@ import { AgentUsage, EVENT_TYPE, Flow, FlowNode, MACHINE_VIEW, NodeMetadata, Nod
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { findClassByName, findFunctionByName } from "../FlowDiagram/utils";
 import {
+    AddingTool,
     DeletingTool,
-    drawsDeletingTool,
+    drawsAgentTool,
     findAgentScopedNode as findAgentScopedNodeAt,
     findFlowNodeByModuleVarName,
     isToolUsedByOtherAgent,
@@ -36,6 +37,7 @@ import {
     serializeAgentToolsEdit,
     withCurrentAgentTools,
 } from "./utils";
+import { getExistingToolNames } from "./toolForm";
 
 export type AgentEditorView =
     | "NONE" | "MEMORY" | "MEMORY_STORE" | "ADD_TOOL" | "NEW_TOOL_CUSTOM" | "NEW_TOOL_CONNECTION"
@@ -74,13 +76,16 @@ export interface AgentEditorController {
     cancel(): void;
     back(): void;
     setBackHandler(handler: (() => void) | null): void;
-    // Tools being deleted; hosts draw the agent without them (hideDeletingTools) until the source catches up.
+    // Tool edits on their way to the source; hosts draw them over the model (drawToolEdits) until it catches up.
     deletingTools: DeletingTool[];
-    // Hosts pass each flow they fetch, so a finished deletion stops being hidden once the source shows it.
-    syncDeletingTools(flow?: Flow): void;
+    addingTools: AddingTool[];
+    // Hosts pass each flow they fetch, so a finished edit stops being drawn over the model once the source shows it.
+    syncToolEdits(flow?: Flow): void;
+    // Closes the panel and shows the tool at once; `save` runs in the tool-edit queue and returns the agent's position.
+    addToolInBackground(tool: ToolData, save: () => Promise<NodePosition | undefined>): void;
 }
 
-type ToolDeletionOutcome = { ok: boolean; position?: NodePosition };
+type ToolEditOutcome = { ok: boolean; position?: NodePosition };
 
 const memoryKeyOf = (node?: FlowNode): string =>
     (node?.metadata?.data as NodeMetadata)?.agentInfo?.memory?.propertyKey || "memory";
@@ -98,8 +103,9 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
     const [selectedAgentName, setSelectedAgentName] = useState("");
     const [backOverride, setBackOverride] = useState<(() => void) | null>(null);
     const [deletingTools, setDeletingTools] = useState<DeletingTool[]>([]);
-    const queuedDeletes = useRef(0);
-    const lastDeletePosition = useRef<NodePosition>();
+    const [addingTools, setAddingTools] = useState<AddingTool[]>([]);
+    const queuedEdits = useRef(0);
+    const lastEditPosition = useRef<NodePosition>();
     // A save that finishes after the user opened another panel must not close that panel.
     const sessionRef = useRef(0);
     const [session, setSession] = useState(0);
@@ -305,8 +311,36 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
         });
     }, [rpcClient]);
 
+    // The canvas already shows the edit's outcome, so nothing waits on it; one refresh follows once the queue empties.
+    const runToolEdit = useCallback((edit: () => Promise<ToolEditOutcome>, settle: (ok: boolean) => void) => {
+        queuedEdits.current += 1;
+        if (queuedEdits.current === 1) {
+            host.onBackgroundSaveChange?.(true);
+        }
+        void serializeAgentToolsEdit(edit)
+            .catch((): ToolEditOutcome => ({ ok: false }))
+            .then(async ({ ok, position }) => {
+                settle(ok);
+                lastEditPosition.current = position ?? lastEditPosition.current;
+                queuedEdits.current -= 1;
+                if (queuedEdits.current > 0) {
+                    return;
+                }
+                host.onBackgroundSaveChange?.(false);
+                const refreshAt = lastEditPosition.current;
+                lastEditPosition.current = undefined;
+                const refreshed = host.onRefresh(refreshAt);
+                if (refreshed) {
+                    // The model now comes from the source, so settled edits need no more drawing over it.
+                    await refreshed.catch((): undefined => undefined);
+                    setDeletingTools((current) => current.filter((item) => !item.settled));
+                    setAddingTools((current) => current.filter((item) => !item.settled));
+                }
+            });
+    }, [host]);
+
     // Runs in the tool-list queue, so it reads the agent and the function as the previous edits left them.
-    const removeToolFromSource = useCallback(async (tool: ToolData, node: FlowNode): Promise<ToolDeletionOutcome> => {
+    const removeToolFromSource = useCallback(async (tool: ToolData, node: FlowNode): Promise<ToolEditOutcome> => {
         let nextPosition: NodePosition | undefined;
         const write = async (flowNode: FlowNode) => {
             const path = (await rpcClient.getVisualizerRpcClient().joinProjectPath({
@@ -388,37 +422,50 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
         if (view === "EDIT_MCP" && selectedTool?.name === tool.name) {
             resetView();
         }
-        queuedDeletes.current += 1;
-        if (queuedDeletes.current === 1) {
-            host.onBackgroundSaveChange?.(true);
-        }
-        void serializeAgentToolsEdit(() => removeToolFromSource(tool, node))
-            .catch((): ToolDeletionOutcome => ({ ok: false }))
-            .then(async ({ ok, position }) => {
-                // A failed deletion leaves the tool in the source, so it shows again at once.
-                setDeletingTools((current) => ok
-                    ? current.map((item) => (item === entry ? { ...item, settled: true } : item))
-                    : current.filter((item) => item !== entry));
-                lastDeletePosition.current = position ?? lastDeletePosition.current;
-                queuedDeletes.current -= 1;
-                if (queuedDeletes.current > 0) {
-                    return;
-                }
-                host.onBackgroundSaveChange?.(false);
-                const refreshAt = lastDeletePosition.current;
-                lastDeletePosition.current = undefined;
-                const refreshed = host.onRefresh(refreshAt);
-                if (refreshed) {
-                    // The model now comes from the source, so settled deletions need no more hiding.
-                    await refreshed.catch((): undefined => undefined);
-                    setDeletingTools((current) => current.filter((item) => !item.settled));
-                }
-            });
-    }, [host, removeToolFromSource, resetView, selectedTool, view]);
+        // A failed deletion leaves the tool in the source, so it shows again at once.
+        runToolEdit(() => removeToolFromSource(tool, node), (ok) => setDeletingTools((current) => ok
+            ? current.map((item) => (item === entry ? { ...item, settled: true } : item))
+            : current.filter((item) => item !== entry)));
+    }, [removeToolFromSource, resetView, runToolEdit, selectedTool, view]);
 
-    const syncDeletingTools = useCallback((flow?: Flow) => {
+    const addToolInBackground = useCallback((tool: ToolData, save: () => Promise<NodePosition | undefined>) => {
+        const agentName = agentNode?.properties?.variable?.value;
+        const entry: AddingTool = { agentName: typeof agentName === "string" ? agentName : undefined, name: tool.name, tool };
+        setAddingTools((current) => [...current, entry]);
+        resetView();
+        const saveTool = async (): Promise<ToolEditOutcome> => {
+            try {
+                // The form checked the name against the source, which an earlier queued add may not have reached yet.
+                if (agentNode && getExistingToolNames((await withCurrentAgentTools(agentNode, rpcClient)).node).includes(tool.name)) {
+                    throw new Error("A tool with this name is already on the agent.");
+                }
+                await rpcClient.getVisualizerRpcClient().beginUndoGroup();
+                try {
+                    return { ok: true, position: await save() };
+                } finally {
+                    await rpcClient.getVisualizerRpcClient().endUndoGroup().catch((): undefined => undefined);
+                }
+            } catch (error) {
+                console.error("Failed to add tool", error);
+                await rpcClient.getCommonRpcClient().showErrorMessage({
+                    message: `Failed to add the tool ${tool.name}. ${error instanceof Error ? error.message : ""}`.trim(),
+                });
+                return { ok: false };
+            }
+        };
+        // A failed addition is not in the source, so it disappears at once.
+        runToolEdit(saveTool, (ok) => setAddingTools((current) => ok
+            ? current.map((item) => (item === entry ? { ...item, settled: true } : item))
+            : current.filter((item) => item !== entry)));
+    }, [agentNode, resetView, rpcClient, runToolEdit]);
+
+    const syncToolEdits = useCallback((flow?: Flow) => {
         setDeletingTools((current) => {
-            const kept = current.filter((item) => !item.settled || drawsDeletingTool(flow, item));
+            const kept = current.filter((item) => !item.settled || drawsAgentTool(flow, item));
+            return kept.length === current.length ? current : kept;
+        });
+        setAddingTools((current) => {
+            const kept = current.filter((item) => !item.settled || !drawsAgentTool(flow, item));
             return kept.length === current.length ? current : kept;
         });
     }, []);
@@ -481,6 +528,6 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
         selectedTool, selectedAgentName,
         diagramCallbacks,
         openView, selectAgent, close, cancel, back, setBackHandler,
-        deletingTools, syncDeletingTools,
+        deletingTools, addingTools, syncToolEdits, addToolInBackground,
     };
 }

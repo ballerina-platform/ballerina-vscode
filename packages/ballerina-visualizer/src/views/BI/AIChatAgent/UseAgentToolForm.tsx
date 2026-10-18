@@ -19,7 +19,7 @@
 import { useEffect, useMemo, useState } from "react";
 import styled from "@emotion/styled";
 import { ArtifactData, AvailableNode, BISearchRequest, Category, FlowNode, LinePosition, NodePosition, Property,
-    RecordTypeField } from "@wso2/ballerina-core";
+    RecordTypeField, ToolData } from "@wso2/ballerina-core";
 import { FieldGroup, FormField, FormImports, FormValues } from "@wso2/ballerina-side-panel";
 import { Icon } from "@wso2/ui-toolkit";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
@@ -28,7 +28,7 @@ import { RelativeLoader } from "../../../components/RelativeLoader";
 import { ImplementationBadge } from "../../../components/ImplementationBadge";
 import { getImportsForProperty } from "../../../utils/bi";
 import { INCLUDE_CONTEXT_KEY, RESULT_TYPE_GROUP, buildIncludeContextField, buildToolFormGroups } from "./toolForm";
-import { AgentToolHostClass, buildAgentCallToolNode, buildOAuthFields, fetchAgentRunReturnType, fetchOAuthConfigProperties, resolveAgentNodePosition, saveToolOnAgent, ZERO_LINE_RANGE } from "./utils";
+import { addToolToCurrentAgent, AgentToolHostClass, buildAgentCallToolNode, buildOAuthFields, fetchAgentRunReturnType, fetchOAuthConfigProperties, resolveAgentNodePosition, saveToolOnAgent, ZERO_LINE_RANGE } from "./utils";
 import { buildAgentToolFields, buildApprovalToolData, buildRequiresApprovalField,
     collectLocalFunctionNames, createRequiresApprovalField, extractRecordTypeFieldsFromEntries,
     stripCodeFencesInline } from "./formUtils";
@@ -51,11 +51,13 @@ interface UseAgentToolFormProps {
     onSave?: (agentPosition?: NodePosition) => void;
     onToolSaved?: (toolName: string) => void;
     hostClass?: AgentToolHostClass;
+    // Takes over saving a tool for `agentNode`: shows it on the agent at once and runs `save` in the background.
+    onAddTool?: (tool: ToolData, save: () => Promise<NodePosition | undefined>) => void;
 }
 
 export function UseAgentToolForm(props: UseAgentToolFormProps): JSX.Element {
     const { agentNode, agentVarName, agentReceiver, agentLabel = agentVarName, submitText = "Save Tool", onBeforeSave,
-        onSave, onToolSaved, hostClass, artifactData } = props;
+        onSave, onToolSaved, hostClass, artifactData, onAddTool } = props;
     const { rpcClient } = useRpcContext();
 
     const [agentFilePath, setAgentFilePath] = useState<string>("");
@@ -152,11 +154,14 @@ export function UseAgentToolForm(props: UseAgentToolFormProps): JSX.Element {
     const overriddenReturnType = (submitted: string): string =>
         submitted.trim() === defaultReturnType.trim() ? "" : submitted;
 
+    // A tool saved in the background closes the panel at once, so the form shows no saving state.
+    const inBackground = Boolean(onAddTool && agentNode) && !hostClass;
+
     const handleSubmit = async (data: FormValues, formImports?: FormImports) => {
         if (saving) {
             return;
         }
-        setSaving(true);
+        setSaving(!inBackground);
         try {
             await onBeforeSave?.();
             const toolName = String(data["name"] ?? "").trim() || `${agentVarName}Tool`;
@@ -185,6 +190,27 @@ export function UseAgentToolForm(props: UseAgentToolFormProps): JSX.Element {
             }
             if (Object.keys(authConfig).length > 0) {
                 toolNode.codedata.data = { ...toolNode.codedata.data, auth: JSON.stringify(authConfig) };
+            }
+
+            if (inBackground) {
+                // "Agent" is the type the LS reports for an agent delegation tool, so it draws with the agent icon at once.
+                onAddTool({ name: toolName, description, type: "Agent" }, async () => {
+                    const created = await rpcClient.getBIDiagramRpcClient().getSourceCode({
+                        filePath: toolFilePath,
+                        flowNode: toolNode,
+                        artifactData,
+                    });
+                    if (!created || created.error) {
+                        throw new Error(created?.error || "The tool could not be generated.");
+                    }
+                    const updatedAgentNode = await addToolToCurrentAgent(agentNode, toolName, rpcClient, created.artifacts);
+                    if (!updatedAgentNode) {
+                        throw new Error("The tool was created but could not be attached to the agent.");
+                    }
+                    return await resolveAgentNodePosition(updatedAgentNode, rpcClient);
+                });
+                onToolSaved?.(toolName);
+                return;
             }
 
             const toolResponse = await rpcClient.getBIDiagramRpcClient().getSourceCode({

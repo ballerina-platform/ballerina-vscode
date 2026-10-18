@@ -36,8 +36,10 @@ jest.mock("./toolForm", () => ({ OAUTH_GROUP: "oauth" }));
 
 import { debouncedUndoRedoManager } from "../../../utils/debouncedUndoRedo";
 import {
+    addToolToCurrentAgent,
     drawnFlowKey,
-    drawsDeletingTool,
+    drawsAgentTool,
+    drawToolEdits,
     hideDeletingTools,
     saveAgentDeclaration,
     saveToolOnAgent,
@@ -181,9 +183,9 @@ describe("drawing an agent without the tools being deleted", () => {
 
     it("tells whether a fetched flow still draws the tool", () => {
         const entry = { nodeId: "a", agentName: "aiAgent", name: "t1" };
-        expect(drawsDeletingTool(flowOf(rendered("a", ["t1"], "aiAgent")), entry)).toBe(true);
-        expect(drawsDeletingTool(flowOf(rendered("a", ["t2"], "aiAgent")), entry)).toBe(false);
-        expect(drawsDeletingTool(undefined, entry)).toBe(false);
+        expect(drawsAgentTool(flowOf(rendered("a", ["t1"], "aiAgent")), entry)).toBe(true);
+        expect(drawsAgentTool(flowOf(rendered("a", ["t2"], "aiAgent")), entry)).toBe(false);
+        expect(drawsAgentTool(undefined, entry)).toBe(false);
     });
 });
 
@@ -252,5 +254,56 @@ describe("saving an agent declaration edited from an older copy", () => {
         } as unknown as Flow);
         expect(drawnFlowKey(flow("[t1, t2]", ["t2"]))).toBe(drawnFlowKey(flow("[t2]", ["t2"])));
         expect(drawnFlowKey(flow("[t2]", ["t2"]))).not.toBe(drawnFlowKey(flow("[t2]", ["t2", "t3"])));
+    });
+});
+
+describe("drawing an agent with tools still being added", () => {
+    const rendered = (id: string, tools: string[], agentName = id): FlowNode => ({
+        id,
+        codedata: { node: "AGENT" },
+        properties: { variable: { value: agentName } },
+        metadata: { label: id, data: { agentInfo: { tools: tools.map((name) => ({ name })) } } },
+        branches: [],
+    } as unknown as FlowNode);
+    const drawn = (node: FlowNode) =>
+        ((node.metadata.data as { agentInfo: { tools: { name: string; pending?: boolean }[] } }).agentInfo.tools)
+            .map((tool) => tool.name + (tool.pending ? " (pending)" : ""));
+    const flowOf = (...nodes: unknown[]) => ({ fileName: "agents.bal", connections: [], nodes } as unknown as Flow);
+    const adding = (name: string, agentName = "aiAgent") => ({ agentName, name, tool: { name } });
+
+    it("shows an added tool as pending on its agent only", () => {
+        const flow = flowOf(rendered("a", ["t1"], "aiAgent"), rendered("b", ["t1"], "other"));
+        const result = drawToolEdits(flow, [], [adding("t2")]);
+        expect(result.nodes.map(drawn)).toEqual([["t1", "t2 (pending)"], ["t1"]]);
+    });
+
+    it("draws the real tool once the source has it, without a pending copy", () => {
+        const flow = flowOf(rendered("a", ["t1", "t2"], "aiAgent"));
+        expect(drawToolEdits(flow, [], [adding("t2")]).nodes.map(drawn)).toEqual([["t1", "t2"]]);
+    });
+
+    it("applies deletions and additions together", () => {
+        const flow = flowOf(rendered("a", ["t1", "t2"], "aiAgent"));
+        const result = drawToolEdits(flow, [{ agentName: "aiAgent", name: "t1" }], [adding("t3")]);
+        expect(result.nodes.map(drawn)).toEqual([["t2", "t3 (pending)"]]);
+    });
+
+    it("tells when a fetched flow has the added tool, so the pending copy can go", () => {
+        expect(drawsAgentTool(flowOf(rendered("a", ["t1", "t2"], "aiAgent")), adding("t2"))).toBe(true);
+        expect(drawsAgentTool(flowOf(rendered("a", ["t1"], "aiAgent")), adding("t2"))).toBe(false);
+    });
+});
+
+describe("adding a tool to the agent from inside the queue", () => {
+    it("reports a failed agent write instead of treating it as saved", async () => {
+        const agentNode = agent("[]", 3);
+        const rpcClient = {
+            getBIDiagramRpcClient: () => ({
+                getModuleNodes: async () => ({ flowModel: { connections: [] as FlowNode[], variables: [agentNode] } }),
+                getSourceCode: async () => ({ error: "edit rejected" }),
+            }),
+            getVisualizerRpcClient: () => ({ joinProjectPath: async () => ({ filePath: "/p/agents.bal" }) }),
+        } as unknown as BallerinaRpcClient;
+        await expect(addToolToCurrentAgent(agentNode, "t1", rpcClient)).rejects.toThrow("edit rejected");
     });
 });

@@ -90,6 +90,8 @@ interface AgentToolFormProps {
     editContext?: AgentToolEditContext;
     nestedForm?: boolean;
     onSave: (toolName: string, artifacts?: ProjectStructureArtifactResponse[]) => void | Promise<void>;
+    // Takes over a new tool: `write` adds its function later, in the caller's queue, and the form returns at once.
+    onCreateInBackground?: (toolName: string, write: () => Promise<ProjectStructureArtifactResponse[]>) => void;
     onBack?: () => void;
 }
 
@@ -256,7 +258,7 @@ function findAgentToolAnnotation(model: FunctionModel): { key: string; value: st
 }
 
 export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
-    const { filePath, projectPath, hostClass, targetLineRange, editContext, nestedForm, onSave, onBack } = props;
+    const { filePath, projectPath, hostClass, targetLineRange, editContext, nestedForm, onSave, onCreateInBackground, onBack } = props;
     const { rpcClient } = useRpcContext();
     const [toolNode, setToolNode] = useState<FlowNode>();
     const [functionModel, setFunctionModel] = useState<FunctionModel>();
@@ -653,14 +655,18 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
         }
     };
 
+    const background = Boolean(onCreateInBackground) && !isEdit && !hostClass;
+
     const handleSubmit = async (data: FormValues, formImports?: FormImports) => {
         if (isClassEdit) {
             return handleClassEditSubmit(data, formImports);
         }
         if (!toolNode || saving) return;
-        setSaving(true);
+        setSaving(!background);
         try {
-            await rpcClient.getVisualizerRpcClient().beginUndoGroup();
+            if (!background) {
+                await rpcClient.getVisualizerRpcClient().beginUndoGroup();
+            }
             const updatedNode = cloneDeep(toolNode);
             const properties = updatedNode.properties as Record<string, Property>;
 
@@ -747,6 +753,25 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
                     }
                 }
             }
+            if (background) {
+                onCreateInBackground(String(properties.functionName.value), async () => {
+                    // The form read the end of the file when it opened; edits queued since may have moved it.
+                    if (!targetLineRange) {
+                        const end = await rpcClient.getBIDiagramRpcClient().getEndOfFile({ filePath });
+                        updatedNode.codedata.lineRange = { ...updatedNode.codedata.lineRange, startLine: end, endLine: end };
+                    }
+                    const created = await rpcClient.getBIDiagramRpcClient().getSourceCode({
+                        filePath,
+                        flowNode: updatedNode,
+                        artifactData: { artifactType: DIRECTORY_MAP.AGENT_TOOL },
+                    });
+                    if (!created?.artifacts?.length) {
+                        throw new Error(created?.error || "Agent tool source generation returned no artifacts");
+                    }
+                    return created.artifacts;
+                });
+                return;
+            }
             // A class-hosted tool becomes a method of the agent class, which publishes as AGENT_DEFINITION.
             const response = await rpcClient.getBIDiagramRpcClient().getSourceCode({
                 filePath,
@@ -766,8 +791,10 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
                 message: `Failed to ${isEdit ? "update" : "create"} the agent tool.`,
             });
         } finally {
-            await rpcClient.getVisualizerRpcClient().endUndoGroup().catch((): undefined => undefined);
-            setSaving(false);
+            if (!background) {
+                await rpcClient.getVisualizerRpcClient().endUndoGroup().catch((): undefined => undefined);
+                setSaving(false);
+            }
         }
     };
 

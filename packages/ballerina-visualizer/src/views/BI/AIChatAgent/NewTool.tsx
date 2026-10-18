@@ -16,26 +16,14 @@
  * under the License.
  */
 
-import { useState } from "react";
-import styled from "@emotion/styled";
-import { FlowNode, Property, ProjectStructureArtifactResponse } from "@wso2/ballerina-core";
-import { Button } from "@wso2/ui-toolkit";
+import { FlowNode, Property, ProjectStructureArtifactResponse, ToolData } from "@wso2/ballerina-core";
 import { NodePosition } from "@wso2/syntax-tree";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { URI, Utils } from "vscode-uri";
-import { Banner } from "../../../components/Banner";
 import { AIAgentSidePanel, ExtendedAgentToolRequest } from "./AIAgentSidePanel";
-import { RelativeLoader } from "../../../components/RelativeLoader";
-import { buildAgentToolNode, resolveAgentNodePosition, saveToolOnAgent, updateFlowNodePropertyValuesWithKeys } from "./utils";
+import { addToolToCurrentAgent, addToolToReadAgent, buildAgentToolNode, resolveAgentNodePosition, saveToolOnAgent, withCurrentAgentTools } from "./utils";
 import { FUNCTION_CALL } from "../../../constants";
 import { AgentToolForm } from "./AgentToolForm";
-
-const LoaderContainer = styled.div`
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100%;
-`;
 
 export enum NewToolSelectionMode {
     CONNECTION = "connection",
@@ -51,16 +39,16 @@ interface NewToolProps {
     mode?: NewToolSelectionMode;
     onBack?: () => void;
     onSave?: (agentPosition?: NodePosition) => void;
+    // Takes over a submitted tool: shows it on the agent at once and runs `save` in the background.
+    onAddTool: (tool: ToolData, save: () => Promise<NodePosition | undefined>) => void;
     onSetBackOverride?: (handler: (() => void) | null) => void;
 }
 
 export function NewTool(props: NewToolProps): JSX.Element {
-    const { agentNode: agentNodeProp, projectPath, mode = NewToolSelectionMode.ALL, onSave, onBack, onSetBackOverride } = props;
+    const { agentNode: agentNodeProp, projectPath, mode = NewToolSelectionMode.ALL, onSave, onAddTool, onBack, onSetBackOverride } = props;
     const { rpcClient } = useRpcContext();
 
     const agentNode = agentNodeProp ?? null;
-    const [savingForm, setSavingForm] = useState<boolean>(false);
-    const [error, setError] = useState<string>("");
 
     const agentFilePath = Utils.joinPath(URI.file(projectPath), "agents.bal").fsPath;
 
@@ -81,6 +69,23 @@ export function NewTool(props: NewToolProps): JSX.Element {
         } catch (error) {
             console.error("Error handling custom agent tool creation", { error });
         }
+    };
+
+    // A custom tool: the form hands over writing its function, and both edits run in the background queue.
+    const handleCustomToolInBackground = (toolName: string, write: () => Promise<ProjectStructureArtifactResponse[]>) => {
+        if (!agentNode) {
+            console.error("Agent node not found");
+            return;
+        }
+        onAddTool({ name: toolName }, async () => {
+            const artifacts = await write();
+            const updatedAgentNode = await addToolToCurrentAgent(agentNode, toolName, rpcClient, artifacts);
+            if (!updatedAgentNode) {
+                throw new Error("The tool was created but could not be attached to the agent.");
+            }
+            await rpcClient.getAIAgentRpcClient().fixMissingImports();
+            return await resolveAgentNodePosition(updatedAgentNode, rpcClient);
+        });
     };
 
     const handleOnSubmit = async (data: ExtendedAgentToolRequest) => {
@@ -113,105 +118,69 @@ export function NewTool(props: NewToolProps): JSX.Element {
             connection = data.connectionName || data.selectedCodeData.parentSymbol || "";
         }
 
-        setError("");
-        setSavingForm(true);
+        // Merge parameter type imports onto a flowNode property so genTool includes them
+        if (data.parameterImports && flowNode.properties) {
+            const props = flowNode.properties as Record<string, Property>;
+            const targetKey = props["type"] ? "type" : Object.keys(props)[0];
+            if (targetKey && props[targetKey]) {
+                // Strip version suffix to match the format the backend expects (e.g. "ballerina/time" not "ballerina/time:2.8.0")
+                const cleanedImports: Record<string, string> = {};
+                for (const [prefix, moduleId] of Object.entries(data.parameterImports)) {
+                    cleanedImports[prefix] = moduleId.replace(/:[^/]+$/, "");
+                }
+                props[targetKey].imports = { ...props[targetKey].imports, ...cleanedImports };
+            }
+        }
 
-        try {
-            await rpcClient.getVisualizerRpcClient().beginUndoGroup();
+        // Runs in the tool-edit queue, after any edits the user made before this one.
+        const save = async (): Promise<NodePosition | undefined> => {
+            // The tool function goes right above the agent, which earlier queued edits may have moved.
+            const { node: currentAgent } = await withCurrentAgentTools(agentNode, rpcClient);
             if (flowNode.codedata) {
                 flowNode.codedata.isNew = true;
                 flowNode.codedata.lineRange = {
-                    ...agentNode.codedata.lineRange,
-                    endLine: agentNode.codedata.lineRange.startLine,
+                    ...currentAgent.codedata.lineRange,
+                    endLine: currentAgent.codedata.lineRange.startLine,
                 };
             }
-
-            // Merge parameter type imports onto a flowNode property so genTool includes them
-            console.log(">>> parameter imports", { parameterImports: data.parameterImports, flowNode });
-            if (data.parameterImports && flowNode.properties) {
-                const props = flowNode.properties as Record<string, Property>;
-                const targetKey = props["type"] ? "type" : Object.keys(props)[0];
-                if (targetKey && props[targetKey]) {
-                    // Strip version suffix to match the format the backend expects (e.g. "ballerina/time" not "ballerina/time:2.8.0")
-                    const cleanedImports: Record<string, string> = {};
-                    for (const [prefix, moduleId] of Object.entries(data.parameterImports)) {
-                        cleanedImports[prefix] = moduleId.replace(/:[^/]+$/, "");
-                    }
-                    props[targetKey].imports = { ...props[targetKey].imports, ...cleanedImports };
-                }
-            }
-
             const toolResponse = await rpcClient.getBIDiagramRpcClient().getSourceCode({
                 filePath: agentFilePath,
                 flowNode: buildAgentToolNode(flowNode, data.toolName, data.description, connection, data.toolParameters,
                     undefined, data.includeContext),
             });
-
             if (!toolResponse || toolResponse.error) {
-                console.error("Tool generation failed", { error: toolResponse?.error });
-                setError("The tool could not be generated. Please try again.");
-                return;
+                throw new Error(toolResponse?.error || "The tool could not be generated.");
             }
-
-            const updatedAgentNode = await saveToolOnAgent(agentNode, data.toolName, rpcClient, toolResponse.artifacts);
+            const updatedAgentNode = await addToolToReadAgent(currentAgent, data.toolName, rpcClient, toolResponse.artifacts);
             if (!updatedAgentNode) {
-                console.error("Failed to add tool to agent node");
-                setError("The tool was created but could not be attached to the agent.");
-                return;
+                throw new Error("The tool was created but could not be attached to the agent.");
             }
-
             // Safety net: fix any missing imports after all edits are applied
             await rpcClient.getAIAgentRpcClient().fixMissingImports();
-
-            onSave?.(await resolveAgentNodePosition(updatedAgentNode, rpcClient));
-        } catch (error) {
-            console.error("Error saving tool", { error });
-            setError(`The tool could not be saved. ${error instanceof Error ? error.message : ""}`.trim());
-        } finally {
-            await rpcClient.getVisualizerRpcClient().endUndoGroup().catch((): undefined => undefined);
-            setSavingForm(false);
-        }
+            return await resolveAgentNodePosition(updatedAgentNode, rpcClient);
+        };
+        const icon = (flowNode.metadata as { icon?: string } | undefined)?.icon;
+        onAddTool({ name: data.toolName, description: data.description, path: icon }, save);
     };
 
-    return (
-        <>
-            {error && (
-                <div style={{ margin: "12px 16px" }}>
-                    <Banner
-                        variant="error"
-                        message={error}
-                        actions={
-                            <Button appearance="secondary" onClick={() => setError("")}>Dismiss</Button>
-                        }
-                    />
-                </div>
-            )}
-            {!savingForm && (
-                mode === NewToolSelectionMode.CUSTOM_TOOL ? (
-                    <AgentToolForm
-                        filePath={agentFilePath}
-                        projectPath={projectPath}
-                        onSave={handleAgentToolCreated}
-                        onBack={onBack}
-                    />
-                ) : (
-                    <AIAgentSidePanel
-                        agentNode={agentNode}
-                        projectPath={projectPath}
-                        onSubmit={handleOnSubmit}
-                        mode={mode}
-                        onViewChange={(_view, navigateBack) => {
-                            onSetBackOverride?.(navigateBack || null);
-                        }}
-                        onCancel={onBack}
-                    />
-                )
-            )}
-            {savingForm && (
-                <LoaderContainer>
-                    <RelativeLoader />
-                </LoaderContainer>
-            )}
-        </>
+    return mode === NewToolSelectionMode.CUSTOM_TOOL ? (
+        <AgentToolForm
+            filePath={agentFilePath}
+            projectPath={projectPath}
+            onSave={handleAgentToolCreated}
+            onCreateInBackground={handleCustomToolInBackground}
+            onBack={onBack}
+        />
+    ) : (
+        <AIAgentSidePanel
+            agentNode={agentNode}
+            projectPath={projectPath}
+            onSubmit={handleOnSubmit}
+            mode={mode}
+            onViewChange={(_view, navigateBack) => {
+                onSetBackOverride?.(navigateBack || null);
+            }}
+            onCancel={onBack}
+        />
     );
 }
