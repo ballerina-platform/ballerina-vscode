@@ -34,6 +34,7 @@ import {
 } from '../../utils';
 import { readOrWriteReadmeContent, resolveReadmePath } from '../bi-diagram/utils';
 import { README_FILE } from '../../utils/bi';
+import { detectEol } from '../../features/ai/utils/eol-utils';
 
 const PACKAGE_FILE = "PACKAGE.md";
 
@@ -55,8 +56,9 @@ export function getUpdatedSource(
 
 export function addToTargetPosition(currentContent: string, position: NodePosition, codeSnippet: string): string {
 
-    const splitContent: string[] = currentContent.split(/\n/g) || [];
-    const splitCodeSnippet: string[] = codeSnippet.trimEnd().split(/\n/g) || [];
+    const eol = detectEol(currentContent);
+    const splitContent: string[] = currentContent.split(/\r?\n/g) || [];
+    const splitCodeSnippet: string[] = codeSnippet.trimEnd().split(/\r?\n/g) || [];
     const noOfLines: number = position.endLine - position.startLine + 1;
     const startLine = splitContent[position.startLine].slice(0, position.startColumn);
     const endLine = isFinite(position?.endLine) ?
@@ -78,7 +80,7 @@ export function addToTargetPosition(currentContent: string, position: NodePositi
 
     splitContent.splice(position.startLine, noOfLines, ...replacements);
 
-    return splitContent.join('\n');
+    return splitContent.join(eol);
 }
 
 export async function askProjectPath() {
