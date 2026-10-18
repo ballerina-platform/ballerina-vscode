@@ -53,6 +53,8 @@ import { ArtifactNotificationHandler, ArtifactsUpdated } from "../../utils/proje
 import { updateLocationFromArtifacts } from "../../utils/project-artifacts";
 import { refreshDataMapper } from "../data-mapper/utils";
 
+let undoRedoChain: Promise<unknown> = Promise.resolve();
+
 export class VisualizerRpcManager implements VisualizerAPI {
 
     openView(params: OpenViewRequest): Promise<void> {
@@ -137,11 +139,18 @@ export class VisualizerRpcManager implements VisualizerAPI {
     }
 
     async undo(count: number): Promise<string> {
-        return this.applyUndoRedo(undoRedoManager.undo(count), "Undo successful");
+        return this.queueUndoRedo(() => undoRedoManager.undo(count), "Undo successful");
     }
 
     async redo(count: number): Promise<string> {
-        return this.applyUndoRedo(undoRedoManager.redo(count), "Redo successful");
+        return this.queueUndoRedo(() => undoRedoManager.redo(count), "Redo successful");
+    }
+
+    // Each run waits for its own artifact publishes, so overlapping runs would take each other's.
+    private queueUndoRedo(take: () => Map<string, string> | null, successMessage: string): Promise<string> {
+        const run = undoRedoChain.then(() => this.applyUndoRedo(take(), successMessage));
+        undoRedoChain = run.catch(() => undefined);
+        return run;
     }
 
     private applyUndoRedo(revertedFiles: Map<string, string> | null, successMessage: string): Promise<string> {
