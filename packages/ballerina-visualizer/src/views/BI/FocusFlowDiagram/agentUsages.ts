@@ -587,9 +587,10 @@ export function deleteComponentAt(
 // The service and the listeners in its file go in one edit; listeners elsewhere are deleted after it.
 export async function deleteServiceWithListeners(
     rpcClient: BallerinaRpcClient,
-    trigger: AgentUsageTrigger
+    trigger: AgentUsageTrigger,
+    designModel?: CDModel
 ): Promise<void> {
-    const model = await currentDesignModel(rpcClient);
+    const model = designModel ?? await currentDesignModel(rpcClient);
     const together = trigger.listeners
         .filter((listener) => samePath(listener.documentUri, trigger.documentUri))
         .map((listener) => ({ listener, position: findListenerPosition(model, listener.symbol, listener.documentUri) }))
@@ -747,7 +748,7 @@ export async function deleteEventSender(rpcClient: BallerinaRpcClient, sender: A
         return;
     }
     if (members(service).length === 1) {
-        await deleteServiceWithListeners(rpcClient, triggerFor(model, service));
+        await deleteServiceWithListeners(rpcClient, triggerFor(model, service), model);
     } else {
         await deleteComponentAt(rpcClient, sender.label, sender.documentUri, sender.position);
     }

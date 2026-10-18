@@ -89,7 +89,7 @@ interface AgentToolFormProps {
     targetLineRange?: LineRange;
     editContext?: AgentToolEditContext;
     nestedForm?: boolean;
-    onSave: (toolName: string, artifacts?: ProjectStructureArtifactResponse[]) => void | Promise<void>;
+    onSave?: (toolName: string, artifacts?: ProjectStructureArtifactResponse[]) => void | Promise<void>;
     // Takes over a new tool: `write` adds its function later, in the caller's queue, and the form returns at once.
     onCreateInBackground?: (toolName: string, write: () => Promise<ProjectStructureArtifactResponse[]>) => void;
     onBack?: () => void;
@@ -646,7 +646,7 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
                 artifactType: DIRECTORY_MAP.TYPE,
             } as any);
             await rpcClient.getAIAgentRpcClient().fixMissingImports();
-            await onSave(String(updatedModel.name.value));
+            await onSave?.(String(updatedModel.name.value));
         } catch {
             await rpcClient.getCommonRpcClient().showErrorMessage({ message: "Failed to update the agent tool." });
         } finally {
@@ -785,7 +785,7 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
                 throw new Error("Agent tool source generation returned no artifacts");
             }
             await rpcClient.getAIAgentRpcClient().fixMissingImports();
-            await onSave(String(properties.functionName.value), response.artifacts);
+            await onSave?.(String(properties.functionName.value), response.artifacts);
         } catch {
             await rpcClient.getCommonRpcClient().showErrorMessage({
                 message: `Failed to ${isEdit ? "update" : "create"} the agent tool.`,

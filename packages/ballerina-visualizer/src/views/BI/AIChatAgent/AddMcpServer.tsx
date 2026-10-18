@@ -443,33 +443,42 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
     // A new server saved in the background closes the panel at once, so the form shows no saving state.
     const inBackground = Boolean(onAddTool) && !editMode && !agentDefinition;
 
+    // Writes the server onto the agent as the edits queued before it left the agent.
+    const writeServerToAgent = async (node: FlowNode, selectedTools: string[], scopesByTool: Record<string, string[]>) => {
+        const latest = await withCurrentAgentTools(agentNode, rpcClient);
+        if (!latest.current) {
+            await refreshAgentNodeLineRange(latest.node, rpcClient);
+        }
+        await rpcClient.getAIAgentRpcClient().updateMCPToolKit({
+            agentFlowNode: latest.node,
+            selectedTools,
+            updatedNode: node,
+            toolScopes: Object.keys(scopesByTool).length > 0 ? scopesByTool : undefined,
+        });
+        return latest.node;
+    };
+
+    const commitPickedProxy = async (picked: typeof pickedProxy.current) => {
+        if (picked) {
+            const { projectPath } = await rpcClient.getVisualizerLocation();
+            await rpcClient.getAgentManagerRpcClient().commitAgentManagerMcpProxy({ projectPath, proxyId: picked.proxyId });
+        }
+    };
+
     const addServerInBackground = (node: FlowNode, scopesByTool: Record<string, string[]>) => {
         const picked = pickedProxy.current;
         pickedProxy.current = undefined;
         const selectedTools = Array.from(selectedMcpTools);
-        const scopes = Object.keys(scopesByTool).length > 0 ? scopesByTool : undefined;
         onAddTool({ name: String(node.properties?.variable?.value ?? ""), type: "MCP Server" }, async () => {
             // The form read the end of the file when it opened; edits queued since may have moved it.
             const fileName = node.codedata?.lineRange?.fileName;
             if (fileName) {
                 node.codedata.lineRange = await getEndOfFileLineRange(fileName, rpcClient);
             }
-            const latest = await withCurrentAgentTools(agentNode, rpcClient);
-            if (!latest.current) {
-                await refreshAgentNodeLineRange(latest.node, rpcClient);
-            }
-            await rpcClient.getAIAgentRpcClient().updateMCPToolKit({
-                agentFlowNode: latest.node,
-                selectedTools,
-                updatedNode: node,
-                toolScopes: scopes,
-            });
+            const agent = await writeServerToAgent(node, selectedTools, scopesByTool);
             await rpcClient.getAIAgentRpcClient().fixMissingImports().catch((): undefined => undefined);
-            if (picked) {
-                const { projectPath } = await rpcClient.getVisualizerLocation();
-                await rpcClient.getAgentManagerRpcClient().commitAgentManagerMcpProxy({ projectPath, proxyId: picked.proxyId });
-            }
-            return await resolveAgentNodePosition(latest.node, rpcClient);
+            await commitPickedProxy(picked);
+            return await resolveAgentNodePosition(agent, rpcClient);
         });
     };
 
@@ -545,17 +554,7 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
                 });
             } else {
                 await serializeAgentToolsEdit(async () => {
-                    const latest = await withCurrentAgentTools(agentNode, rpcClient);
-                    targetAgentNode = latest.node;
-                    if (!latest.current) {
-                        await refreshAgentNodeLineRange(targetAgentNode, rpcClient);
-                    }
-                    await rpcClient.getAIAgentRpcClient().updateMCPToolKit({
-                        agentFlowNode: targetAgentNode,
-                        selectedTools: Array.from(selectedMcpTools),
-                        updatedNode: node,
-                        toolScopes: Object.keys(filteredScopes).length > 0 ? filteredScopes : undefined,
-                    });
+                    targetAgentNode = await writeServerToAgent(node, Array.from(selectedMcpTools), filteredScopes);
                 });
             }
 
@@ -564,10 +563,7 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
             const picked = pickedProxy.current;
             pickedProxy.current = undefined;
             onSave?.(targetAgentNode ? await resolveAgentNodePosition(targetAgentNode, rpcClient) : undefined);
-            if (picked) {
-                const { projectPath } = await rpcClient.getVisualizerLocation();
-                await rpcClient.getAgentManagerRpcClient().commitAgentManagerMcpProxy({ projectPath, proxyId: picked.proxyId });
-            }
+            await commitPickedProxy(picked);
         } catch (error) {
             console.error("Error saving MCP server:", error);
             rpcClient.getCommonRpcClient().showErrorMessage({

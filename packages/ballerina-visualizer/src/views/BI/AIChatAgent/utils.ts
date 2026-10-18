@@ -719,6 +719,29 @@ export const serializeAgentToolsEdit = <T>(edit: () => Promise<T>): Promise<T> =
     return run;
 };
 
+// Everything `edit` writes becomes one undo step.
+export const withUndoGroup = async <T>(rpcClient: BallerinaRpcClient, edit: () => Promise<T>): Promise<T> => {
+    await rpcClient.getVisualizerRpcClient().beginUndoGroup();
+    try {
+        return await edit();
+    } finally {
+        await rpcClient.getVisualizerRpcClient().endUndoGroup().catch((): undefined => undefined);
+    }
+};
+
+// A queued edit's entry once saved: marked settled, or dropped at once when the save failed.
+export const settleEntry = <T extends { settled?: boolean }>(entry: T, ok: boolean) => (current: T[]): T[] =>
+    ok ? current.map((item) => (item === entry ? { ...item, settled: true } : item)) : current.filter((item) => item !== entry);
+
+// The same array when nothing is dropped, so the state does not change.
+export const keepIf = <T>(keep: (item: T) => boolean) => (current: T[]): T[] => {
+    const kept = current.filter(keep);
+    return kept.length === current.length ? current : kept;
+};
+
+const allNodes = (nodes: FlowNode[] = []): FlowNode[] =>
+    nodes.flatMap((node) => [node, ...(node.branches ?? []).flatMap((branch) => allNodes(branch.children))]);
+
 // A local agent is no module variable, so it is read from the flow of the function that declares it.
 const findLocalAgent = async (agentNode: FlowNode, name: string, rpcClient: BallerinaRpcClient) => {
     const range = agentNode.codedata?.lineRange;
@@ -733,19 +756,8 @@ const findLocalAgent = async (agentNode: FlowNode, name: string, rpcClient: Ball
     const flow = (await rpcClient.getBIDiagramRpcClient().getFlowModel({
         filePath, startLine: fn.startLine, endLine: fn.endLine,
     }))?.flowModel;
-    const find = (nodes: FlowNode[] = []): FlowNode | undefined => {
-        for (const candidate of nodes) {
-            if (candidate.codedata?.node === "AGENT" && candidate.properties?.variable?.value === name) {
-                return candidate;
-            }
-            const nested = candidate.branches?.map((branch) => find(branch.children)).find(Boolean);
-            if (nested) {
-                return nested;
-            }
-        }
-        return undefined;
-    };
-    return find(flow?.nodes);
+    return allNodes(flow?.nodes)
+        .find((candidate) => candidate.codedata?.node === "AGENT" && candidate.properties?.variable?.value === name);
 };
 
 // A panel's agent copy dates from when it opened, so it misses tools saved since.
@@ -841,13 +853,9 @@ export const drawToolEdits = (flow: Flow | undefined, deleting: DeletingTool[], 
     showAddingTools(hideDeletingTools(flow, deleting), adding);
 
 // Whether a fetched flow draws the tool on its agent; ends a settled deletion (false) or addition (true).
-export const drawsAgentTool = (flow: Flow | undefined, entry: DeletingTool): boolean => {
-    const visit = (nodes: FlowNode[] = []): boolean => nodes.some((node) =>
-        (drawsAgent(node, entry)
-            && ((node.metadata?.data as NodeMetadata | undefined)?.agentInfo?.tools ?? []).some((tool) => tool.name === entry.name))
-        || (node.branches ?? []).some((branch) => visit(branch.children)));
-    return visit(flow?.nodes);
-};
+export const drawsAgentTool = (flow: Flow | undefined, entry: DeletingTool): boolean =>
+    allNodes(flow?.nodes).some((node) => drawsAgent(node, entry)
+        && ((node.metadata?.data as NodeMetadata | undefined)?.agentInfo?.tools ?? []).some((tool) => tool.name === entry.name));
 
 // Keeps the agent's current tools unless this edit changed them, so a stale form never brings back a deleted tool.
 export const saveAgentDeclaration = <T>(
@@ -882,15 +890,7 @@ export const addToolToCurrentAgent = async (
     artifacts?: ProjectStructureArtifactResponse[]
 ): Promise<FlowNode | null> => {
     const { node, current } = await withCurrentAgentTools(agentNode, rpcClient);
-    const updatedAgentNode = await addToolToAgentNode(node, toolName);
-    if (!updatedAgentNode) {
-        return null;
-    }
-    if (!current) {
-        await refreshAgentNodeLineRange(updatedAgentNode, rpcClient, artifacts);
-    }
-    await writeAgentNode(updatedAgentNode, rpcClient);
-    return updatedAgentNode;
+    return addToolToReadAgent(node, toolName, rpcClient, artifacts, !current);
 };
 
 // For an agent read earlier in the same queued edit: only the edit whose `artifacts` are given can have moved it.
@@ -898,18 +898,21 @@ export const addToolToReadAgent = async (
     agentNode: FlowNode,
     toolName: string,
     rpcClient: BallerinaRpcClient,
-    artifacts?: ProjectStructureArtifactResponse[]
+    artifacts?: ProjectStructureArtifactResponse[],
+    refresh = true
 ): Promise<FlowNode | null> => {
     const updatedAgentNode = await addToolToAgentNode(agentNode, toolName);
     if (!updatedAgentNode) {
         return null;
     }
-    await refreshAgentNodeLineRange(updatedAgentNode, rpcClient, artifacts);
+    if (refresh) {
+        await refreshAgentNodeLineRange(updatedAgentNode, rpcClient, artifacts);
+    }
     await writeAgentNode(updatedAgentNode, rpcClient);
     return updatedAgentNode;
 };
 
-const writeAgentNode = async (agentNode: FlowNode, rpcClient: BallerinaRpcClient): Promise<void> => {
+export const writeAgentNode = async (agentNode: FlowNode, rpcClient: BallerinaRpcClient) => {
     const { filePath } = await rpcClient.getVisualizerRpcClient().joinProjectPath({
         segments: [agentNode.codedata.lineRange.fileName],
     });
@@ -917,6 +920,7 @@ const writeAgentNode = async (agentNode: FlowNode, rpcClient: BallerinaRpcClient
     if (response?.error) {
         throw new Error(response.error);
     }
+    return response;
 };
 
 export const addToolToAgentNode = async (agentNode: FlowNode, toolName: string) => {
