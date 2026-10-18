@@ -76,7 +76,6 @@ import io.ballerina.projects.PackageManifest;
 import io.ballerina.projects.PackageName;
 import io.ballerina.projects.PackageOrg;
 import io.ballerina.projects.Project;
-import io.ballerina.projects.ResolvedPackageDependency;
 import io.ballerina.tools.text.LinePosition;
 import io.ballerina.tools.text.LineRange;
 import io.ballerina.tools.text.TextRange;
@@ -265,34 +264,24 @@ public class WorkflowUtil {
 
 
     /**
-     * Checks whether the function symbol carries the {@code @ai:AgentTool} annotation.
-     *
-     * @param symbol the symbol to check
-     * @return true for an agent tool function
-     */
-    /**
-     * Pulls {@code ballerina/workflow} for a template unless the project already resolves it, which skips the
-     * Central version lookup and sample-project resolution on every form open.
+     * Pulls {@code ballerina/workflow} for a template only when the local repositories do not hold it yet, so a
+     * form opens without a Central version lookup.
      *
      * @param context the template context
      */
     public static void pullWorkflowModuleIfMissing(NodeBuilder.TemplateContext context) {
-        boolean resolved;
-        try {
-            resolved = PackageUtil.loadProject(context.workspaceManager(), context.filePath()).currentPackage()
-                    .getResolution().dependencyGraph().getNodes().stream()
-                    .map(ResolvedPackageDependency::packageInstance)
-                    .anyMatch(pkg -> WORKFLOW_ORG.equals(pkg.packageOrg().value())
-                            && WORKFLOW_MODULE.equals(pkg.packageName().value()));
-        } catch (RuntimeException e) {
-            resolved = false;
-        }
-        if (!resolved) {
+        if (PackageUtil.getModulePackageOffline(WORKFLOW_ORG, WORKFLOW_MODULE).isEmpty()) {
             PackageUtil.pullModuleAndNotify(context.lsClientLogger(),
                     new ModuleInfo(WORKFLOW_ORG, WORKFLOW_MODULE, WORKFLOW_MODULE, null));
         }
     }
 
+    /**
+     * Checks whether the function symbol carries the {@code @ai:AgentTool} annotation.
+     *
+     * @param symbol the symbol to check
+     * @return true for an agent tool function
+     */
     public static boolean isAiAgentToolFunction(Symbol symbol) {
         if (symbol == null || symbol.kind() != SymbolKind.FUNCTION) {
             return false;
