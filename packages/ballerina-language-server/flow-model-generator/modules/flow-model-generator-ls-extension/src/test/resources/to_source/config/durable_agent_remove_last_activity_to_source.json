@@ -1,0 +1,62 @@
+{
+  "source": "workflow_function/agent.bal",
+  "description": "Remove the only activity entry: the activities field goes with it, comma included",
+  "diagram": {
+    "id": "1",
+    "metadata": {
+      "label": "myActivity",
+      "description": "Register a workflow activity as a durable agent activity"
+    },
+    "codedata": {
+      "node": "DURABLE_AGENT_ADD_ACTIVITY",
+      "org": "ballerina",
+      "module": "workflow",
+      "object": "DurableAgent",
+      "symbol": "registerActivity",
+      "parentSymbol": "claimAgent",
+      "lineRange": {
+        "fileName": "agent.bal",
+        "startLine": {
+          "line": 19,
+          "offset": 8
+        },
+        "endLine": {
+          "line": 19,
+          "offset": 18
+        }
+      }
+    },
+    "returning": false,
+    "properties": {
+      "__delete": {
+        "metadata": {
+          "label": "Delete"
+        },
+        "valueType": "EXPRESSION",
+        "value": "true",
+        "optional": true,
+        "editable": false,
+        "advanced": false,
+        "hidden": true
+      }
+    },
+    "flags": 0
+  },
+  "output": {
+    "workflow_function/agent.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 17,
+            "character": 21
+          },
+          "end": {
+            "line": 20,
+            "character": 5
+          }
+        },
+        "newText": ""
+      }
+    ]
+  }
+}

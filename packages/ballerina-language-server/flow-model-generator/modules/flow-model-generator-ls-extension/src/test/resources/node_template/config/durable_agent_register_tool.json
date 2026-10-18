@@ -257,7 +257,7 @@
             "approvalTimeout": {
               "metadata": {
                 "label": "Timeout",
-                "description": "How long to wait for a decision, in days, hours and minutes from when the review opens, e.g. {days: 1, hours: 2, minutes: 30}. Empty waits indefinitely."
+                "description": "How long to wait for a decision, in days, hours and minutes from when the review opens, for example 1 day 2 hours 30 minutes. Empty waits indefinitely."
               },
               "types": [
                 {
@@ -489,7 +489,7 @@
       "approvalTimeout": {
         "metadata": {
           "label": "Timeout",
-          "description": "How long to wait for a decision, in days, hours and minutes from when the review opens, e.g. {days: 1, hours: 2, minutes: 30}. Empty waits indefinitely."
+          "description": "How long to wait for a decision, in days, hours and minutes from when the review opens, for example 1 day 2 hours 30 minutes. Empty waits indefinitely."
         },
         "types": [
           {

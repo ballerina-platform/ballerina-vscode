@@ -37,7 +37,7 @@ import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Option;
 import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
-import io.ballerina.modelgenerator.commons.ModuleInfo;
+import io.ballerina.flowmodelgenerator.core.utils.WorkflowUtil;
 import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.modelgenerator.commons.ParameterData;
 import io.ballerina.projects.DocumentId;
@@ -107,8 +107,7 @@ public class DurableAgentBuilder extends FunctionDefinitionBuilder {
 
     @Override
     public void setConcreteTemplateData(TemplateContext context) {
-        ModuleInfo workflowModuleInfo = new ModuleInfo(WORKFLOW_ORG, WORKFLOW_MODULE, WORKFLOW_MODULE, null);
-        PackageUtil.pullModuleAndNotify(context.lsClientLogger(), workflowModuleInfo);
+        WorkflowUtil.pullWorkflowModuleIfMissing(context);
         properties().functionNameTemplate("durableAgenticWorkflow", context.getAllVisibleSymbolNames(),
                 FunctionDefinitionBuilder.FUNCTION_NAME_LABEL, NAME_DOC);
         WorkflowBuilder.setMandatoryProperties(this, RETURN_TYPE, "", "");

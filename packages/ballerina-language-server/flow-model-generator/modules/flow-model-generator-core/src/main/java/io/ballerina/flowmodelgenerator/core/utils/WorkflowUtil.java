@@ -64,6 +64,7 @@ import io.ballerina.flowmodelgenerator.core.model.PropertyType;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
 import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.FileSystemUtils;
+import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.modelgenerator.commons.ParameterData;
 import io.ballerina.projects.DependencyManifest;
@@ -75,6 +76,7 @@ import io.ballerina.projects.PackageManifest;
 import io.ballerina.projects.PackageName;
 import io.ballerina.projects.PackageOrg;
 import io.ballerina.projects.Project;
+import io.ballerina.projects.ResolvedPackageDependency;
 import io.ballerina.tools.text.LinePosition;
 import io.ballerina.tools.text.LineRange;
 import io.ballerina.tools.text.TextRange;
@@ -268,6 +270,29 @@ public class WorkflowUtil {
      * @param symbol the symbol to check
      * @return true for an agent tool function
      */
+    /**
+     * Pulls {@code ballerina/workflow} for a template unless the project already resolves it, which skips the
+     * Central version lookup and sample-project resolution on every form open.
+     *
+     * @param context the template context
+     */
+    public static void pullWorkflowModuleIfMissing(NodeBuilder.TemplateContext context) {
+        boolean resolved;
+        try {
+            resolved = PackageUtil.loadProject(context.workspaceManager(), context.filePath()).currentPackage()
+                    .getResolution().dependencyGraph().getNodes().stream()
+                    .map(ResolvedPackageDependency::packageInstance)
+                    .anyMatch(pkg -> WORKFLOW_ORG.equals(pkg.packageOrg().value())
+                            && WORKFLOW_MODULE.equals(pkg.packageName().value()));
+        } catch (RuntimeException e) {
+            resolved = false;
+        }
+        if (!resolved) {
+            PackageUtil.pullModuleAndNotify(context.lsClientLogger(),
+                    new ModuleInfo(WORKFLOW_ORG, WORKFLOW_MODULE, WORKFLOW_MODULE, null));
+        }
+    }
+
     public static boolean isAiAgentToolFunction(Symbol symbol) {
         if (symbol == null || symbol.kind() != SymbolKind.FUNCTION) {
             return false;
@@ -291,11 +316,13 @@ public class WorkflowUtil {
             return false;
         }
         TypeSymbol rawType = CommonUtils.getRawType(variableSymbol.typeDescriptor());
-        return rawType instanceof ClassSymbol classSymbol
-                && classSymbol.getName().map(name -> name.endsWith("ToolKit")).orElse(false)
-                && classSymbol.getModule()
-                        .map(module -> "ai".equals(module.id().moduleName()))
-                        .orElse(false);
+        if (!(rawType instanceof ClassSymbol classSymbol)) {
+            return false;
+        }
+        // An MCP server added through the designer is a project class that includes ai:McpBaseToolKit.
+        return CommonUtils.isAiMcpBaseToolKit(classSymbol)
+                || (classSymbol.getName().map(name -> name.endsWith("ToolKit")).orElse(false)
+                && classSymbol.getModule().map(module -> "ai".equals(module.id().moduleName())).orElse(false));
     }
 
     /**
@@ -425,7 +452,8 @@ public class WorkflowUtil {
         }
         MappingConstructorExpressionNode config = declaration.config();
 
-        LinePosition insertAt = null;
+        LinePosition from = null;
+        LinePosition to = null;
         String newText = null;
         for (MappingFieldNode field : config.fields()) {
             if (!(field instanceof SpecificFieldNode specificField)
@@ -435,13 +463,16 @@ public class WorkflowUtil {
             if (specificField.valueExpr().isPresent()
                     && specificField.valueExpr().get() instanceof ListConstructorExpressionNode list) {
                 if (list.expressions().isEmpty()) {
-                    insertAt = list.closeBracket().lineRange().startLine();
-                    newText = entryText;
+                    // Replaced whole: a bare insertion would get a statement's leading line break.
+                    from = list.openBracket().lineRange().startLine();
+                    to = list.closeBracket().lineRange().endLine();
+                    newText = "[" + entryText + "]";
                 } else {
                     // After the last entry: on its own line at the entries' indentation when the list
                     // is laid out that way, inline otherwise.
                     Node last = list.expressions().get(list.expressions().size() - 1);
-                    insertAt = last.lineRange().endLine();
+                    from = last.lineRange().endLine();
+                    to = from;
                     LinePosition start = last.lineRange().startLine();
                     boolean multiLine = start.line() != list.openBracket().lineRange().startLine().line();
                     newText = (multiLine ? ",\n" + indentOf(last, start) : ", ") + entryText;
@@ -455,18 +486,17 @@ public class WorkflowUtil {
                     + "' is not a list literal, so it cannot be edited from the designer: "
                     + "inline it as a list in the agent declaration and try again");
         }
-        if (insertAt == null) {
+        if (from == null) {
             // A new list field follows the last config field, as any other appended field does.
             Map<Path, List<org.eclipse.lsp4j.TextEdit>> edits = new HashMap<>();
             edits.put(declaration.filePath(),
                     List.of(appendConfigFields(config, Map.of(fieldName, "[" + entryText + "]"))));
             return edits;
         }
-        org.eclipse.lsp4j.Position position =
-                new org.eclipse.lsp4j.Position(insertAt.line(), insertAt.offset());
         Map<Path, List<org.eclipse.lsp4j.TextEdit>> edits = new HashMap<>();
-        edits.put(declaration.filePath(), List.of(new org.eclipse.lsp4j.TextEdit(
-                new org.eclipse.lsp4j.Range(position, position), newText)));
+        edits.put(declaration.filePath(), List.of(new org.eclipse.lsp4j.TextEdit(new org.eclipse.lsp4j.Range(
+                new org.eclipse.lsp4j.Position(from.line(), from.offset()),
+                new org.eclipse.lsp4j.Position(to.line(), to.offset())), newText)));
         return edits;
     }
 
@@ -1750,7 +1780,7 @@ public class WorkflowUtil {
 
     /**
      * Removes a capability entry (the flow node's line range) from its declaration config list,
-     * consuming the adjacent comma so the list stays valid; a now-empty list is left as {@code []}.
+     * consuming the adjacent comma so the list stays valid; the last entry takes its field with it.
      *
      * @param sourceBuilder the source builder whose flow node's line range is the entry range
      * @return the text edits keyed by file path
@@ -1763,8 +1793,10 @@ public class WorkflowUtil {
         if (declaration == null || entryRange == null) {
             throw new UserFacingException("Cannot locate the durable agent capability entry to remove");
         }
-        for (MappingFieldNode field : declaration.config().fields()) {
-            if (!(field instanceof SpecificFieldNode specificField)
+        MappingConstructorExpressionNode config = declaration.config();
+        SeparatedNodeList<MappingFieldNode> fields = config.fields();
+        for (int f = 0; f < fields.size(); f++) {
+            if (!(fields.get(f) instanceof SpecificFieldNode specificField)
                     || specificField.valueExpr().isEmpty()
                     || !(specificField.valueExpr().get()
                             instanceof ListConstructorExpressionNode list)) {
@@ -1772,34 +1804,38 @@ public class WorkflowUtil {
             }
             var expressions = list.expressions();
             for (int i = 0; i < expressions.size(); i++) {
-                Node item = expressions.get(i);
-                if (!item.lineRange().startLine().equals(entryRange.startLine())) {
+                if (!expressions.get(i).lineRange().startLine().equals(entryRange.startLine())) {
                     continue;
                 }
-                LinePosition from;
-                LinePosition to;
-                if (expressions.size() == 1) {
-                    // Only element: clear the list interior, leaving `field: []`.
-                    from = list.openBracket().lineRange().endLine();
-                    to = list.closeBracket().lineRange().startLine();
-                } else if (i > 0) {
-                    // Delete from the end of the previous element (consumes the separating comma).
-                    from = expressions.get(i - 1).lineRange().endLine();
-                    to = item.lineRange().endLine();
-                } else {
-                    // First of several: delete up to the next element's start (consumes the comma).
-                    from = item.lineRange().startLine();
-                    to = expressions.get(1).lineRange().startLine();
-                }
+                org.eclipse.lsp4j.Range range = expressions.size() == 1
+                        ? removalRange(fields, f, config.openBrace(), config.closeBrace())
+                        : removalRange(expressions, i, list.openBracket(), list.closeBracket());
                 Map<Path, List<org.eclipse.lsp4j.TextEdit>> edits = new HashMap<>();
-                edits.put(declaration.filePath(), new ArrayList<>(List.of(
-                        new org.eclipse.lsp4j.TextEdit(new org.eclipse.lsp4j.Range(
-                                new org.eclipse.lsp4j.Position(from.line(), from.offset()),
-                                new org.eclipse.lsp4j.Position(to.line(), to.offset())), ""))));
+                edits.put(declaration.filePath(),
+                        new ArrayList<>(List.of(new org.eclipse.lsp4j.TextEdit(range, ""))));
                 return edits;
             }
         }
         throw new UserFacingException("The capability entry was not found in the agent declaration");
+    }
+
+    // Deleting from the previous item's end, or up to the next item's start, consumes the separating comma.
+    private static org.eclipse.lsp4j.Range removalRange(SeparatedNodeList<? extends Node> items, int index,
+                                                        Node open, Node close) {
+        LinePosition from;
+        LinePosition to;
+        if (items.size() == 1) {
+            from = open.lineRange().endLine();
+            to = close.lineRange().startLine();
+        } else if (index > 0) {
+            from = items.get(index - 1).lineRange().endLine();
+            to = items.get(index).lineRange().endLine();
+        } else {
+            from = items.get(index).lineRange().startLine();
+            to = items.get(1).lineRange().startLine();
+        }
+        return new org.eclipse.lsp4j.Range(new org.eclipse.lsp4j.Position(from.line(), from.offset()),
+                new org.eclipse.lsp4j.Position(to.line(), to.offset()));
     }
 
     /**

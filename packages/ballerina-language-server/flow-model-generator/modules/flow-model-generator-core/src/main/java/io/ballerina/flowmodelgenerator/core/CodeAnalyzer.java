@@ -1853,7 +1853,10 @@ public class CodeAnalyzer extends NodeVisitor {
                 name = declaredName != null ? declaredName : refName;
             }
             if (name != null && !name.isBlank()) {
-                out.add(new AgentCapabilityData(name, capabilityType, item.lineRange(), values));
+                boolean mcpToolKit = "tool".equals(capabilityType) && item instanceof ExpressionNode expression
+                        && resolveMcpToolKitClassName(expression).isPresent();
+                out.add(new AgentCapabilityData(name, capabilityType, item.lineRange(), values,
+                        mcpToolKit ? ICON_PATH : null));
             }
         }
     }
@@ -1876,7 +1879,7 @@ public class CodeAnalyzer extends NodeVisitor {
             if (entry.config() != null) {
                 collectCapabilityFields(entry.config(), capabilityType, refField, fieldToPropertyKey, values);
             }
-            out.add(new AgentCapabilityData(entry.name(), capabilityType, entry.node().lineRange(), values));
+            out.add(new AgentCapabilityData(entry.name(), capabilityType, entry.node().lineRange(), values, null));
         }
     }
 
@@ -1992,7 +1995,8 @@ public class CodeAnalyzer extends NodeVisitor {
         return stripQuotes(valueExpr.toSourceCode().trim());
     }
 
-    private record AgentCapabilityData(String name, String type, LineRange lineRange, Map<String, String> values) {
+    private record AgentCapabilityData(String name, String type, LineRange lineRange, Map<String, String> values,
+                                       String path) {
     }
 
     /**

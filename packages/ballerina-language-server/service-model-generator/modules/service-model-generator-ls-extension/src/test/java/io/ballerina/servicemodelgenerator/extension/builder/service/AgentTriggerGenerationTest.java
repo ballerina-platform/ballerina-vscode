@@ -1372,6 +1372,18 @@ public class AgentTriggerGenerationTest {
     }
 
     @Test
+    public void testDurableAgentChatTakesTheQuotedFormChannel() {
+        ServiceInitModel form = durableForm("ballerina", "ai", "/claims");
+        form.addProperty("chatChannel", new Value.ValueBuilder()
+                .enabled(true).editable(true).value("\"chat\"").build());
+        String src = render(AgentTriggerServiceBuilder.buildEdits(form, null, channel("ballerina", "ai"),
+                rootOf("\n"), "main.bal"));
+
+        Assert.assertTrue(src.contains("string token = check claimAgent.sendData(instanceId, \"chat\", text);"),
+                "the text field's quotes are not quoted again: " + src);
+    }
+
+    @Test
     public void testDurableEventRunLogsTheInstanceId() {
         String src = generateForAgent("trigger.shopify", "claimAgent", null, DURABLE);
 

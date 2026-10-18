@@ -34,7 +34,6 @@ import io.ballerina.flowmodelgenerator.core.utils.WorkflowUtil;
 import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.FileSystemUtils;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
-import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.tools.text.LineRange;
 import org.eclipse.lsp4j.TextEdit;
 
@@ -108,8 +107,7 @@ public class WorkflowBuilder extends FunctionDefinitionBuilder {
 
     @Override
     public void setConcreteTemplateData(TemplateContext context) {
-        ModuleInfo workflowModuleInfo = new ModuleInfo(WORKFLOW_ORG, WORKFLOW_MODULE, WORKFLOW_MODULE, null);
-        PackageUtil.pullModuleAndNotify(context.lsClientLogger(), workflowModuleInfo);
+        WorkflowUtil.pullWorkflowModuleIfMissing(context);
         // Add function name (workflow-specific label/doc so it reads as a workflow identifier)
         properties().functionNameTemplate("workflow", context.getAllVisibleSymbolNames(),
                 FunctionDefinitionBuilder.FUNCTION_NAME_LABEL, NAME_DOC);
