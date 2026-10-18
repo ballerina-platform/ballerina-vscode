@@ -140,7 +140,7 @@ public class HumanTaskBuilder extends CallBuilder {
     private static final String TITLE_DOC = "Short summary shown in the inbox";
     private static final String DESCRIPTION_DOC = "Additional context shown alongside the form";
     private static final String TIMEOUT_DOC = "Maximum time to wait, in days, hours and minutes, "
-            + "e.g. {days: 1, hours: 2, minutes: 30}; omit to wait indefinitely";
+            + "for example 1 day 2 hours 30 minutes; omit to wait indefinitely";
 
     // Ballerina type signatures used by the fallback form fields.
     private static final String STRING_TYPE = "string";

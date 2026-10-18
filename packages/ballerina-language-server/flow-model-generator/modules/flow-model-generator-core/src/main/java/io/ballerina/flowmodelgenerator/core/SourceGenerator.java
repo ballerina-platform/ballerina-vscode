@@ -142,7 +142,10 @@ public class SourceGenerator {
             for (TextEdit edit : edits) {
                 Range range = edit.getRange();
                 if (!range.getStart().equals(new Position(0, 0)) && range.getStart().equals(range.getEnd())) {
-                    edit.setNewText(System.lineSeparator() + edit.getNewText());
+                    // A list continuation keeps its comma on the line of the element it follows.
+                    if (!edit.getNewText().startsWith(",")) {
+                        edit.setNewText(System.lineSeparator() + edit.getNewText());
+                    }
                     break;
                 }
             }
