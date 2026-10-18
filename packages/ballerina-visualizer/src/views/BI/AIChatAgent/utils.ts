@@ -16,8 +16,9 @@
  * under the License.
  */
 
-import { AgentEventChannel, AgentKind, AgentToolData, AvailableNode, CodeData, ConfigVariable, DIRECTORY_MAP, ELineRange, EVENT_TYPE, Flow, FlowNode, GET_DEFAULT_MODEL_PROVIDER, isAgentDeclarationNode, isSamePath, LinePosition, LineRange, MACHINE_VIEW, NodeKind, NodeMetadata, NodePosition, ProjectStructureArtifactResponse, Property, SearchNodesQuery, ToolData, ToolParameters, VisualizerLocation } from "@wso2/ballerina-core";
+import { AgentEventChannel, AgentKind, AgentToolData, AvailableNode, CodeData, ConfigVariable, DIRECTORY_MAP, ELineRange, EVENT_TYPE, Flow, FlowNode, GET_DEFAULT_MODEL_PROVIDER, isAgentDeclarationNode, isSamePath, LinePosition, LineRange, MACHINE_VIEW, NodeKind, NodeMetadata, NodePosition, ProjectStructureArtifactResponse, Property, SearchNodesQuery, ToolData, ToolParameters, VisualizerLocation, AgentUsage, triggerScopeNoun } from "@wso2/ballerina-core";
 import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
+import type { TriggerDeletionChoice } from "../FocusFlowDiagram/agentUsages";
 import { FormField } from "@wso2/ballerina-side-panel";
 import { cloneDeep } from "lodash";
 import { URI, Utils } from "vscode-uri";
@@ -1482,3 +1483,45 @@ export const resolveAuthConfig = async (
 
     return resolvedAuth;
 };
+
+export async function confirmTriggerDeletion(
+    rpcClient: BallerinaRpcClient,
+    usage: AgentUsage
+): Promise<TriggerDeletionChoice | undefined> {
+    const trigger = usage.trigger;
+    const listeners = trigger.listeners.map((listener) => listener.symbol).join(", ");
+    const listenerNote = listeners
+        ? ` Its listener ${listeners} will also be deleted because no other service uses it.`
+        : "";
+
+    if (!trigger.entryPoint) {
+        const confirmed = await rpcClient.getCommonRpcClient().showInformationModal({
+            message: `Are you sure you want to delete the ${trigger.serviceName} trigger?`,
+            detail: `The agent will no longer run when this trigger fires.${listenerNote}`,
+            items: ["Delete Trigger"],
+        });
+        return confirmed === "Delete Trigger" ? "service" : undefined;
+    }
+
+    const isEndpoint = trigger.scope === "ENTRY_POINT";
+    const label = triggerScopeNoun(trigger.scope);
+    const only = `Delete ${label}`;
+    const withService = `Delete ${label} and Service`;
+    const consequence = isEndpoint
+        ? "The agent will no longer be reachable at this endpoint."
+        : "The agent will no longer run when this event occurs.";
+    const remainder = trigger.orphansService
+        ? `No other ${label.toLowerCase()} on ${trigger.serviceName} uses the agent, `
+        + `so the service can be deleted as well.${listenerNote}`
+        : `Other ${label.toLowerCase()}s on ${trigger.serviceName} are unaffected.`;
+
+    const choice = await rpcClient.getCommonRpcClient().showInformationModal({
+        message: `Are you sure you want to delete the ${trigger.entryPoint.label} ${label.toLowerCase()}?`,
+        detail: `${consequence} ${remainder}`,
+        items: trigger.orphansService ? [only, withService] : [only],
+    });
+    if (choice === only) {
+        return "endpoint";
+    }
+    return choice === withService ? "service" : undefined;
+}

@@ -20,7 +20,7 @@ import { capabilityValueText, seedCapabilityValue, SeedableProperty, showActivit
 import { SyntheticEvent, useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import styled from "@emotion/styled";
-import { drawToolEdits, goToAgent, startAddAgentTrigger, startAddDurableEventTrigger, startAgentChat } from "../AIChatAgent/utils";
+import { confirmTriggerDeletion, drawnFlowKey, drawToolEdits, goToAgent, removeQuotes, serializeAgentToolsEdit, startAddAgentTrigger, startAddDurableEventTrigger, startAgentChat } from "../AIChatAgent/utils";
 import { DIAGRAM_REFRESH_DEBOUNCE_MS } from "../diagramRefreshDebounce";
 import { MemoizedDiagram } from "@wso2/bi-diagram";
 import {
@@ -57,6 +57,7 @@ import {
     EditorDisplayMode,
     GET_DEFAULT_EMBEDDING_PROVIDER,
     GET_DEFAULT_MODEL_PROVIDER,
+    AgentUsage,
 } from "@wso2/ballerina-core";
 
 import {
@@ -74,7 +75,9 @@ import {
 import { findCurrentIntegrationCategory } from "../../../utils/function-category";
 import { pollActivityList } from "./activityRefresh";
 import { useDraftNodeManager } from "./hooks/useDraftNodeManager";
-import { useDurableAgentUsages } from "./durableAgentUsages";
+import { findDurableAgentBox, useDurableAgentUsages, withKnownDurableUsages, withoutDurableUsage } from "./durableAgentUsages";
+import { deleteEventSender, removeAgentTrigger } from "../FocusFlowDiagram/agentUsages";
+import { capabilityListOf, drawDurableEdits, DurableCapabilityList, durableCapabilities, DurableEdit, durableEditLanded, withoutRegisteredCapabilities } from "./durableCapabilityEdits";
 import { NodePosition } from "@wso2/syntax-tree";
 import { View, ProgressIndicator, ThemeColors } from "@wso2/ui-toolkit";
 import { applyModifications, textToModifications } from "../../../utils/utils";
@@ -203,7 +206,8 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     const markFlowModelStale = flowModelRefresher.markStale;
     // A silent refresh leaves the old flow on screen, and its positions are stale until the new one lands.
     const blockStaleInput = (event: SyntheticEvent) => {
-        if (refreshingRef.current) {
+        // The durable agent's canvas draws pending changes itself, so its positions are not stale during a refresh.
+        if (refreshingRef.current && !agentOnlyView) {
             event.stopPropagation();
         }
     };
@@ -357,6 +361,10 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     // the loader (content not editable) and closes only when the refreshed flow model
     // lands — matching how the other flow diagrams hold the panel through an operation.
     const pendingCapabilityCloseRef = useRef<boolean>(false);
+    // Durable agent capability changes on their way to the source, drawn over the model until it shows them.
+    const [durableEdits, setDurableEdits] = useState<DurableEdit[]>([]);
+    const durableQueueRef = useRef(0);
+    const displayModelRef = useRef<Flow>();
     // A refresh while a new node is being placed would replace the model and drop its draft.
     const pendingInsertRef = useRef(false);
     const skippedRefreshRef = useRef(false);
@@ -1667,10 +1675,10 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                         buildMasterSearchCategories(initialCategoriesRef.current, searchCategories, searchText)
                     );
                 } else {
-                    const currentCategories = convertFunctionCategoriesToSidePanelCategories(
-                        [...response.categories] as Category[],
-                        functionType
-                    );
+                    const searched = searchKind === "ACTIVITY_CALL" && durableAgentActivityListRef.current
+                        ? withoutRegisteredCapabilities(response.categories as Category[], findDurableAgentBox(displayModelRef.current))
+                        : [...response.categories] as Category[];
+                    const currentCategories = convertFunctionCategoriesToSidePanelCategories(searched, functionType);
                     const currentPackageCategory = findCurrentIntegrationCategory(currentCategories);
                     if (currentPackageCategory && !currentPackageCategory.items.length) {
                         if (isWorkflowSearch) {
@@ -2298,43 +2306,43 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                     });
                 break;
 
-            case "DURABLE_AGENT_REGISTER_TOOL":
+            case "DURABLE_AGENT_REGISTER_TOOL": {
                 // A tool picked from the Add Tool/Activity list (an @ai:AgentTool function or a
                 // toolkit variable) — append it to the agent declaration's tools list directly.
-                setShowProgressIndicator(true);
-                rpcClient
-                    .getBIDiagramRpcClient()
-                    .getNodeTemplate({
-                        position: targetRef.current.startLine,
-                        filePath: model?.fileName || fileName,
+                const toolName = node.codedata.symbol;
+                if (drawnDurableCapability("tools", toolName)) {
+                    rpcClient.getCommonRpcClient().showErrorMessage({ message: `'${toolName}' is already on the agent.` });
+                    break;
+                }
+                const agentVar = resolveDurableAgentVar();
+                const insertAt = targetRef.current.startLine;
+                const filePath = model?.fileName || fileName;
+                closeSidePanelForBackgroundEdit();
+                const preview = { values: {}, mcp: node.metadata?.icon === "bi-mcp" };
+                runDurableEdit({ op: "add", list: "tools", name: toolName, preview }, async (afterOthers) => {
+                    const position = (afterOthers ? durableBoxStart(await latestDurableBox())?.startLine : undefined) ?? insertAt;
+                    const { flowNode: toolNode } = await rpcClient.getBIDiagramRpcClient().getNodeTemplate({
+                        position,
+                        filePath,
                         id: { node: "DURABLE_AGENT_REGISTER_TOOL" },
-                    })
-                    .then(async (response) => {
-                        const toolNode = applyDurableAgentObjectTarget(response.flowNode);
-                        const toolProperty = (toolNode.properties as any)?.["tool"];
-                        if (toolProperty) {
-                            toolProperty.value = node.codedata.symbol;
-                        }
-                        toolNode.codedata.isNew = true;
-                        toolNode.codedata.lineRange = {
-                            fileName: model?.fileName,
-                            startLine: targetRef.current.startLine,
-                            endLine: targetRef.current.startLine,
-                        } as any;
-                        await rpcClient.getBIDiagramRpcClient().getSourceCode({
-                            filePath: model.fileName,
-                            flowNode: toolNode,
-                        });
-                        durableAgentActivityListRef.current = false;
-                        finishCapabilityOpAfterRefresh();
-                    })
-                    .catch((error) => {
-                        console.error(">>> Error adding the tool to the agent", error);
-                    })
-                    .finally(() => {
-                        setShowProgressIndicator(false);
                     });
+                    const toolProperty = (toolNode.properties as any)?.["tool"];
+                    if (toolProperty) {
+                        toolProperty.value = toolName;
+                    }
+                    toolNode.codedata = {
+                        ...toolNode.codedata,
+                        ...(agentVar ? { object: "DurableAgent", parentSymbol: agentVar } : {}),
+                        isNew: true,
+                        lineRange: { fileName: model?.fileName, startLine: position, endLine: position },
+                    } as any;
+                    const response = await rpcClient.getBIDiagramRpcClient().getSourceCode({ filePath: model.fileName, flowNode: toolNode });
+                    if (response?.error) {
+                        throw new Error(response.error);
+                    }
+                });
                 break;
+            }
 
             case "MCP_TOOL_KIT":
                 // "Use MCP Server" from the Add Tool/Activity list: open the toolkit creation
@@ -2630,6 +2638,10 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             updatedNode.codedata.lineRange = selectedCodedata.lineRange;
         }
 
+        if (!options?.isChangeFromHelperPane && savedDurableEditInBackground(updatedNode, editorConfig)) {
+            return;
+        }
+
         setShowProgressIndicator(true);
         // TODO: Uncomment this when the draft added with AI agent is implemented
         // savingDraft(); 
@@ -2716,7 +2728,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         if (NODES_TO_SKIP_ARTIFACT.includes(updatedNode?.codedata?.node)) {
             skipArtifact = true;
         }
-        rpcClient
+        const writeSource = () => rpcClient
             .getBIDiagramRpcClient()
             .getSourceCode({
                 filePath: model.fileName,
@@ -2725,58 +2737,10 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 isHelperPaneChange: options?.isChangeFromHelperPane,
                 artifactData: !skipArtifact ? getArtifactData(editorConfig) : undefined,
 
-            })
+            });
+        // On the durable agent's canvas, its own edits wait for queued capability changes to the same declaration.
+        (agentOnlyView ? serializeAgentToolsEdit(writeSource) : writeSource())
             .then(async (response) => {
-                // A toolkit created from the durable agent's Add Tool/Activity list:
-                // register the new variable on the agent declaration's tools list.
-                const pendingMcpAgent = pendingDurableMcpAgentRef.current;
-                if (pendingMcpAgent && nodeToSubmit?.codedata?.node === "MCP_TOOL_KIT") {
-                    pendingDurableMcpAgentRef.current = null;
-                    const toolKitVarName = (nodeToSubmit.properties as any)?.variable?.value;
-                    const mcpAgentVar = pendingMcpAgent.agentVar ?? resolveDurableAgentVar();
-                    if (response?.error) {
-                        // `getSourceCode` reports LS failures as `{ artifacts: [], error }` rather
-                        // than rejecting, so without this the agent would get a `tools:` entry
-                        // naming a toolkit variable the failed write never declared.
-                        console.error(">>> MCP toolkit was not created; skipping tool registration", response.error);
-                    } else if (toolKitVarName && mcpAgentVar) {
-                        try {
-                            const template = await rpcClient.getBIDiagramRpcClient().getNodeTemplate({
-                                position: pendingMcpAgent.insertBefore.startLine,
-                                filePath: model?.fileName,
-                                id: { node: "DURABLE_AGENT_REGISTER_TOOL" },
-                            });
-                            const toolNode = template.flowNode;
-                            toolNode.codedata = {
-                                ...toolNode.codedata,
-                                object: "DurableAgent",
-                                parentSymbol: mcpAgentVar,
-                                isNew: true,
-                                lineRange: {
-                                    fileName: model?.fileName,
-                                    startLine: pendingMcpAgent.insertBefore.startLine,
-                                    endLine: pendingMcpAgent.insertBefore.startLine,
-                                },
-                            } as any;
-                            const toolProperty = (toolNode.properties as any)?.["tool"];
-                            if (toolProperty) {
-                                toolProperty.value = toolKitVarName;
-                            }
-                            await rpcClient.getBIDiagramRpcClient().getSourceCode({
-                                filePath: model.fileName,
-                                flowNode: toolNode,
-                            });
-                        } catch (error) {
-                            console.error(">>> Error registering the MCP toolkit on the agent", error);
-                        }
-                    }
-                    // The toolkit is created and registered; hold the panel with the loader
-                    // until the refreshed agent box has rendered.
-                    selectedNodeRef.current = undefined;
-                    finishCapabilityOpAfterRefresh();
-                    setShowProgressIndicator(false);
-                    return;
-                }
                 if (response.artifacts.length > 0) {
                     await settlePendingSetup(nodeTemplateRef.current, true);
 
@@ -3838,6 +3802,177 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         return node;
     };
 
+    // The canvas already shows the change, so nothing waits on its save; one refresh follows once the queue empties.
+    const runDurableEdit = (edit: DurableEdit | undefined, write: (afterOthers: boolean) => Promise<void>) => {
+        if (edit) {
+            setDurableEdits((current) => [...current, edit]);
+        }
+        const afterOthers = durableQueueRef.current > 0;
+        durableQueueRef.current += 1;
+        void serializeAgentToolsEdit(() => write(afterOthers))
+            .then(() => true, (error) => {
+                console.error(">>> Durable agent change was not saved", error);
+                rpcClient.getCommonRpcClient().showErrorMessage({
+                    message: `The change to the agent was not saved. ${error instanceof Error ? error.message : ""}`.trim(),
+                });
+                return false;
+            })
+            .then((saved) => {
+                if (edit) {
+                    // A change that failed is not in the source, so the canvas drops it at once.
+                    setDurableEdits((current) => saved
+                        ? current.map((item) => (item === edit ? { ...item, settled: true } : item))
+                        : current.filter((item) => item !== edit));
+                }
+                durableQueueRef.current -= 1;
+                if (durableQueueRef.current === 0) {
+                    markFlowModelStale();
+                    debouncedGetFlowModel();
+                }
+            });
+    };
+
+    // A change queued behind others cannot trust the line ranges drawn when it was made.
+    const latestDurableBox = async (): Promise<FlowNode | undefined> =>
+        findDurableAgentBox((await rpcClient.getBIDiagramRpcClient().getFlowModel({}))?.flowModel);
+
+    const durableBoxStart = (box: FlowNode | undefined): LineRange | undefined => {
+        const range = box?.codedata?.lineRange;
+        return range ? { fileName: range.fileName, startLine: range.startLine, endLine: range.startLine } as LineRange : undefined;
+    };
+
+    const durableCapabilityRange = (box: FlowNode | undefined, list: DurableCapabilityList, name: string) =>
+        durableCapabilities(box, list).find((capability) => capability.name === name)?.lineRange as LineRange | undefined;
+
+    const drawnDurableCapability = (list: DurableCapabilityList, name: string) =>
+        durableCapabilities(findDurableAgentBox(displayModelRef.current), list).some((capability) => capability.name === name);
+
+    const capabilityNameOf = (node: FlowNode): string | undefined => {
+        const properties = node.properties as Record<string, { value?: unknown }> | undefined;
+        for (const key of ["taskName", "name", "activity", "tool", "agent"]) {
+            const value = properties?.[key]?.value;
+            if (typeof value === "string" && value.trim()) {
+                return removeQuotes(value);
+            }
+        }
+        return node.metadata?.label;
+    };
+
+    // The change saves in the background and the canvas already shows it, so the panel closes at once.
+    const closeSidePanelForBackgroundEdit = () => {
+        panelNavEpochRef.current += 1;
+        clearCapabilityFailsafe();
+        pendingCapabilityCloseRef.current = false;
+        pendingDurableMcpAgentRef.current = null;
+        durableAgentActivityListRef.current = false;
+        resetNodeSelectionStates();
+    };
+
+    const saveDurableCapabilityInBackground = (node: FlowNode, editorConfig?: EditorConfig) => {
+        const type = Object.keys(DURABLE_CAPABILITY_NODE_KINDS).find((key) => DURABLE_CAPABILITY_NODE_KINDS[key] === node.codedata.node);
+        const list = capabilityListOf(type);
+        const isNew = node.codedata.isNew !== false;
+        const name = isNew ? capabilityNameOf(node) : node.metadata?.label;
+        if (isNew && list && name && drawnDurableCapability(list, name)) {
+            rpcClient.getCommonRpcClient().showErrorMessage({ message: `'${name}' is already on the agent.` });
+            return;
+        }
+        const filePath = model.fileName;
+        const isFunctionNodeUpdate = editorConfig?.displayMode !== EditorDisplayMode.NONE;
+        const artifactData = getArtifactData(editorConfig);
+        closeSidePanelForBackgroundEdit();
+        const preview = { values: {} };
+        runDurableEdit(isNew && list && name ? { op: "add", list, name, preview } : undefined, async (afterOthers) => {
+            if (afterOthers && list && name) {
+                const box = await latestDurableBox();
+                const range = isNew ? durableBoxStart(box) : durableCapabilityRange(box, list, name);
+                node.codedata.lineRange = (range ?? node.codedata.lineRange) as typeof node.codedata.lineRange;
+            }
+            const response = await rpcClient.getBIDiagramRpcClient().getSourceCode({
+                filePath,
+                flowNode: node,
+                isFunctionNodeUpdate,
+                artifactData,
+            });
+            if (response?.error) {
+                throw new Error(response.error);
+            }
+        });
+    };
+
+    // A toolkit created from the agent's Add Tool/Activity list, then registered on the agent: one undo step.
+    const addDurableMcpToolKitInBackground = (toolKitNode: FlowNode, editorConfig?: EditorConfig) => {
+        const pending = pendingDurableMcpAgentRef.current;
+        const toolKitVarName = (toolKitNode.properties as any)?.variable?.value as string;
+        const agentVar = pending.agentVar ?? resolveDurableAgentVar();
+        if (toolKitVarName && drawnDurableCapability("tools", toolKitVarName)) {
+            rpcClient.getCommonRpcClient().showErrorMessage({ message: `'${toolKitVarName}' is already on the agent.` });
+            return;
+        }
+        const filePath = model.fileName;
+        const isFunctionNodeUpdate = editorConfig?.displayMode !== EditorDisplayMode.NONE;
+        const artifactData = getArtifactData(editorConfig);
+        closeSidePanelForBackgroundEdit();
+        const edit: DurableEdit = toolKitVarName && agentVar
+            ? { op: "add", list: "tools", name: toolKitVarName, preview: { mcp: true, values: {} } }
+            : undefined;
+        runDurableEdit(edit, async () => {
+            const visualizer = rpcClient.getVisualizerRpcClient();
+            await visualizer.beginUndoGroup();
+            try {
+                const created = await rpcClient.getBIDiagramRpcClient().getSourceCode({
+                    filePath,
+                    flowNode: toolKitNode,
+                    isFunctionNodeUpdate,
+                    artifactData,
+                });
+                if (created?.error) {
+                    throw new Error(created.error);
+                }
+                if (!edit) {
+                    return;
+                }
+                const insertAt = pending.insertBefore.startLine;
+                const { flowNode: toolNode } = await rpcClient.getBIDiagramRpcClient().getNodeTemplate({
+                    position: insertAt,
+                    filePath,
+                    id: { node: "DURABLE_AGENT_REGISTER_TOOL" },
+                });
+                toolNode.codedata = {
+                    ...toolNode.codedata,
+                    object: "DurableAgent",
+                    parentSymbol: agentVar,
+                    isNew: true,
+                    lineRange: { fileName: filePath, startLine: insertAt, endLine: insertAt },
+                } as any;
+                const toolProperty = (toolNode.properties as any)?.["tool"];
+                if (toolProperty) {
+                    toolProperty.value = toolKitVarName;
+                }
+                const registered = await rpcClient.getBIDiagramRpcClient().getSourceCode({ filePath, flowNode: toolNode });
+                if (registered?.error) {
+                    throw new Error(registered.error);
+                }
+            } finally {
+                await visualizer.endUndoGroup().catch((): undefined => undefined);
+            }
+        });
+    };
+
+    // Durable agent capability submits save in the background; true when this submit was one of them.
+    const savedDurableEditInBackground = (node: FlowNode, editorConfig?: EditorConfig): boolean => {
+        if ((node.codedata as any)?.object === "DurableAgent"
+            && Object.values(DURABLE_CAPABILITY_NODE_KINDS).includes(node.codedata.node)) {
+            saveDurableCapabilityInBackground(cloneDeep(node), editorConfig);
+            return true;
+        }
+        if (pendingDurableMcpAgentRef.current && node.codedata?.node === "MCP_TOOL_KIT") {
+            addDurableMcpToolKitInBackground(cloneDeep(node), editorConfig);
+            return true;
+        }
+        return false;
+    };
+
     // Opens the registration form for a project activity picked from the agent's activity list.
     // The activity itself is already chosen (its selector arrives pre-selected and hidden), so
     // the form presents the registration config: retry policy, approval gating, and a binding
@@ -3895,7 +4030,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             })
             .then((response) => {
                 const panelCategories = convertFunctionCategoriesToSidePanelCategories(
-                    response.categories as Category[],
+                    withoutRegisteredCapabilities(response.categories as Category[], findDurableAgentBox(displayModelRef.current)),
                     FUNCTION_TYPE.REGULAR
                 );
                 const currentIntegrationCategory = findCurrentIntegrationCategory(panelCategories);
@@ -3938,6 +4073,15 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 // template or the form renders empty. The declaration target and insert range
                 // must be stamped here — the generic form submit sends the node as-is.
                 const taskNode = applyDurableAgentObjectTarget(response.flowNode);
+                // The name field's placeholder reads like a value, so offer it as one, unique on this agent.
+                const nameProperty = (taskNode.properties as any)?.taskName;
+                if (nameProperty && !nameProperty.value && nameProperty.placeholder) {
+                    let name = nameProperty.placeholder;
+                    for (let suffix = 2; drawnDurableCapability("humanTasks", name); suffix++) {
+                        name = `${nameProperty.placeholder}${suffix}`;
+                    }
+                    nameProperty.value = name;
+                }
                 taskNode.codedata.isNew = true;
                 taskNode.codedata.lineRange = {
                     fileName: model?.fileName,
@@ -4095,28 +4239,41 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     const handleOnDeleteDurableCapability = async (runNode: FlowNode, capability: any) => {
         const lineRange = capability?.lineRange;
         const agentVar = agentVarFromRunNode(runNode);
-        if (!lineRange || !agentVar) {
-            return;
-        }
-        durableAgentObjectVarRef.current = agentVar;
         const nodeKind = durableCapabilityNodeKind(capability?.type);
-        if (!nodeKind) {
-            // Better to do nothing than to act on the wrong form: an unhandled kind used to fall
-            // through to the human task form, showing another capability's values.
-            console.error(">>> No form for capability kind", capability?.type, capability);
+        const list = capabilityListOf(capability?.type);
+        const name: string = capability?.name;
+        if (!lineRange || !agentVar || !nodeKind || !list || !name) {
+            console.error(">>> Cannot remove the capability", capability);
             return;
         }
-        setShowProgressIndicator(true);
-        try {
-            const response = await rpcClient.getBIDiagramRpcClient().getNodeTemplate({
-                position: lineRange.startLine,
-                filePath: model?.fileName,
+        const filePath = model?.fileName;
+        // An event's triggers send to it, so they cannot outlive it.
+        const senders = capability?.type === "event"
+            ? (((runNode.metadata?.data as any)?.usages ?? []) as AgentUsage[]).filter((usage) => usage.channel === name)
+            : [];
+        if (senders.length > 0) {
+            const choice = await rpcClient.getCommonRpcClient().showInformationModal({
+                message: `Are you sure you want to delete the ${name} data event?`,
+                detail: senders.length === 1
+                    ? "A trigger sends to it, so the trigger will be deleted too."
+                    : `${senders.length} triggers send to it, so they will be deleted too.`,
+                items: ["Delete Data Event"],
+            });
+            if (choice !== "Delete Data Event") {
+                return;
+            }
+        }
+        runDurableEdit({ op: "remove", list, name }, async (afterOthers) => {
+            const range = afterOthers ? durableCapabilityRange(await latestDurableBox(), list, name) : lineRange;
+            if (!range) {
+                return;
+            }
+            const { flowNode: node } = await rpcClient.getBIDiagramRpcClient().getNodeTemplate({
+                position: range.startLine,
+                filePath,
                 id: { node: nodeKind } as any,
             });
-            const node = response.flowNode;
-            node.codedata.lineRange = lineRange;
-            node.codedata.isNew = false;
-            applyDurableAgentObjectTarget(node);
+            node.codedata = { ...node.codedata, object: "DurableAgent", parentSymbol: agentVar, isNew: false, lineRange: range } as any;
             (node.properties as any)["__delete"] = {
                 value: "true",
                 optional: true,
@@ -4124,14 +4281,42 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 advanced: false,
                 hidden: true,
             };
-            await rpcClient.getBIDiagramRpcClient().getSourceCode({ filePath: model?.fileName, flowNode: node });
-            // The entry removal is a raw text edit on the declaration — no artifact event
-            // follows, so refresh the canvas explicitly.
-            closeSidePanelAndFetchUpdatedFlowModel(true);
-        } finally {
-            setShowProgressIndicator(false);
-            durableAgentObjectVarRef.current = null;
+            const visualizer = rpcClient.getVisualizerRpcClient();
+            await visualizer.beginUndoGroup();
+            try {
+                const response = await rpcClient.getBIDiagramRpcClient().getSourceCode({ filePath, flowNode: node });
+                if (response?.error) {
+                    throw new Error(response.error);
+                }
+                for (const sender of senders) {
+                    await deleteEventSender(rpcClient, sender);
+                }
+            } finally {
+                await visualizer.endUndoGroup().catch((): undefined => undefined);
+            }
+        });
+    };
+
+    // Deletes a trigger of the durable agent: its row goes at once and the edit saves in the background.
+    const handleOnDeleteDurableTrigger = async (usage: AgentUsage) => {
+        const trigger = usage.trigger;
+        if (!trigger) {
+            return;
         }
+        const choice = await confirmTriggerDeletion(rpcClient, usage);
+        if (!choice) {
+            return;
+        }
+        const { flow, restore } = withoutDurableUsage(model, projectPath, usage);
+        setModel(flow);
+        runDurableEdit(undefined, async () => {
+            try {
+                await removeAgentTrigger(rpcClient, trigger, choice);
+            } catch (error) {
+                restore();
+                throw error;
+            }
+        });
     };
 
     const handleOnEditDurableAgentModel = (agentCallNode: FlowNode) => {
@@ -4171,6 +4356,10 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     const { syncToolEdits } = agentEditor;
     useEffect(() => {
         syncToolEdits(model);
+        setDurableEdits((current) => {
+            const kept = current.filter((edit) => !durableEditLanded(model, edit));
+            return kept.length === current.length ? current : kept;
+        });
     }, [model, syncToolEdits]);
 
     const prevAgentViewRef = useRef<AgentEditorView>("NONE");
@@ -4206,9 +4395,10 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             setSidePanelView(SidePanelView.FORM);
             return;
         }
-        await rpcClient
+        const writeSource = () => rpcClient
             .getBIDiagramRpcClient()
             .getSourceCode({ filePath: projectPath, flowNode: selectedNode });
+        await (agentOnlyView ? serializeAgentToolsEdit(writeSource) : writeSource());
         closeSidePanelAndFetchUpdatedFlowModel();
     };
 
@@ -4309,18 +4499,26 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     // visitor links the pair with a non-editable edge.
     const agentOnlyView = !!hideAgentConfiguration && !!flowModel?.nodes?.some(isDurableAgentBoxNode);
     const durableUsagesLoaded = useDurableAgentUsages(agentOnlyView, model, projectPath, setModel);
-    const displayModel = useMemo(
-        () => drawToolEdits(agentOnlyView
-            ? {
+    const shownModel = useMemo(
+        () => drawDurableEdits(drawToolEdits(agentOnlyView
+            ? withKnownDurableUsages({
                 ...flowModel,
                 nodes: [
                     ...flowModel.nodes.filter((node) => node.codedata?.node === "EVENT_START"),
                     ...flowModel.nodes.filter(isDurableAgentBoxNode),
                 ],
-            }
-            : flowModel, agentEditor.deletingTools, agentEditor.addingTools),
-        [flowModel, agentOnlyView, agentEditor.deletingTools, agentEditor.addingTools]
+            }, projectPath)
+            : flowModel, agentEditor.deletingTools, agentEditor.addingTools), durableEdits),
+        [flowModel, agentOnlyView, projectPath, agentEditor.deletingTools, agentEditor.addingTools, durableEdits]
     );
+    // A new model object rebuilds the canvas and closes any open menu, so an unchanged agent box keeps the old object.
+    const drawnModelRef = useRef<{ key: string; flow?: Flow }>({ key: "" });
+    const shownKey = useMemo(() => (agentOnlyView ? drawnFlowKey(shownModel) : ""), [agentOnlyView, shownModel]);
+    if (agentOnlyView && drawnModelRef.current.key !== shownKey) {
+        drawnModelRef.current = { key: shownKey, flow: shownModel };
+    }
+    const displayModel = agentOnlyView ? drawnModelRef.current.flow : shownModel;
+    displayModelRef.current = displayModel;
 
     // No RHS side panel in the agent-only view: node clicks (the Start pill) are inert;
     // the agent box hosts its own affordances. While a side panel is already open,
@@ -4378,6 +4576,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 onAddEventTrigger: agentOnlyView ? (node: FlowNode, event: ToolData) => startAddDurableEventTrigger(node, event, rpcClient) : undefined,
                 onEditCapability: handleOnEditDurableCapability,
                 onDeleteCapability: handleOnDeleteDurableCapability,
+                onDeleteTrigger: agentOnlyView ? handleOnDeleteDurableTrigger : agentEditor.diagramCallbacks.onDeleteTrigger,
                 // Outside the declaration canvas the durable agent box is a read-only
                 // reference; clicks navigate to the agent's own model.
                 durableAgentReference: !agentOnlyView,
@@ -4412,6 +4611,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         }),
         [
             flowModel,
+            displayModel,
             hideAgentConfiguration,
             fetchingAiSuggestions,
             projectOrg,
