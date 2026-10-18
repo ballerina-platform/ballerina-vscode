@@ -54,6 +54,7 @@ import { addMissingImports, checkProjectDiagnostics, removeUnusedImports } from 
 import { CONFIGURE_DEFAULT_MODEL_COMMAND } from "../../features/ai/constants";
 import { mcpAccessToken } from "../../features/agent-manager/mcp";
 
+const FIX_MISSING_IMPORTS_TIMEOUT_MS = 20000;
 
 interface EntryPosition {
     filePath: string;
@@ -156,6 +157,22 @@ export class AiAgentRpcManager implements AIAgentAPI {
     }
 
     async fixMissingImports(): Promise<void> {
+        // Every tool save awaits this, so a Language Server response that never comes must not hang the save.
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        const timedOut = new Promise<void>((resolve) => {
+            timer = setTimeout(() => {
+                console.log(`fixMissingImports gave up after ${FIX_MISSING_IMPORTS_TIMEOUT_MS} ms`);
+                resolve();
+            }, FIX_MISSING_IMPORTS_TIMEOUT_MS);
+        });
+        try {
+            await Promise.race([this.applyImportFixes(), timedOut]);
+        } finally {
+            clearTimeout(timer);
+        }
+    }
+
+    private async applyImportFixes(): Promise<void> {
         const context = StateMachine.context();
         let artifactUpdate: ArtifactUpdateWait | undefined;
         try {
