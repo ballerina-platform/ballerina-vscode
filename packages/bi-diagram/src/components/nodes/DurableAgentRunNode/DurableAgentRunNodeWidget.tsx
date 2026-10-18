@@ -491,7 +491,12 @@ function UsageRow({ usage, index, boxEdgeX, codedata, markerId, targetY = 25, an
         <g
             data-testid="durable-agent-usage-row"
             transform={`translate(0, ${index * AGENT_USAGE_ROW_PITCH})`}
-            onClick={() => onOpen(usage)}
+            onClick={(event) => {
+                // A double-click's second click belongs to whatever was here first, e.g. a deleted trigger.
+                if (event.detail <= 1) {
+                    onOpen(usage);
+                }
+            }}
             css={css`
                 cursor: pointer;
                 > g {

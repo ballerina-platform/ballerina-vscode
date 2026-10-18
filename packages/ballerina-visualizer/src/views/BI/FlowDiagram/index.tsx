@@ -3807,11 +3807,17 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 if (durableQueueRef.current === 0) {
                     markFlowModelStale();
                     debouncedGetFlowModel();
+                    // An undo before the refresh would leave a settled edit drawn over the source for good.
+                    void flowModelRefresher.upToDate().then(() => {
+                        if (durableQueueRef.current === 0) {
+                            setDurableEdits(keepIf((item: DurableEdit) => !item.settled));
+                        }
+                    });
                 }
             });
     };
 
-    // A change queued behind others cannot trust the line ranges drawn when it was made.
+    // Earlier edits move lines, so a queued change reads the agent again instead of trusting what was drawn.
     const latestDurableBox = async (): Promise<FlowNode | undefined> =>
         findDurableAgentBox((await rpcClient.getBIDiagramRpcClient().getFlowModel({}))?.flowModel);
 
@@ -3889,9 +3895,12 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         closeSidePanelForBackgroundEdit();
         const preview = { values: {} };
         runDurableEdit(isNew && list && name ? { op: "add", list, name, preview } : undefined, async (afterOthers) => {
-            if (afterOthers && list && name) {
+            if (list && name && (afterOthers || !isNew)) {
                 const box = await latestDurableBox();
                 const range = isNew ? durableBoxStart(box) : durableCapabilityRange(box, list, name);
+                if (!range && !isNew) {
+                    throw new Error(`'${name}' was not found on the agent.`);
+                }
                 node.codedata.lineRange = (range ?? node.codedata.lineRange) as typeof node.codedata.lineRange;
             }
             const response = await rpcClient.getBIDiagramRpcClient().getSourceCode({
@@ -4241,10 +4250,10 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 return;
             }
         }
-        runDurableEdit({ op: "remove", list, name }, async (afterOthers) => {
-            const range = afterOthers ? durableCapabilityRange(await latestDurableBox(), list, name) : lineRange;
+        runDurableEdit({ op: "remove", list, name }, async () => {
+            const range = durableCapabilityRange(await latestDurableBox(), list, name);
             if (!range) {
-                return;
+                throw new Error(`'${name}' was not found on the agent.`);
             }
             const { flowNode: node } = await rpcClient.getBIDiagramRpcClient().getNodeTemplate({
                 position: range.startLine,
@@ -4316,7 +4325,11 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             setSidePanelView(SidePanelView.CONNECTION_CONFIG);
             setShowSidePanel(true);
         },
-        onRefresh: () => debouncedGetFlowModel(),
+        onRefresh: () => {
+            markFlowModelStale();
+            debouncedGetFlowModel();
+            return flowModelRefresher.upToDate();
+        },
         onSelectionChange: (node) => {
             selectedNodeRef.current = node;
             setSelectedNodeId(node?.id);

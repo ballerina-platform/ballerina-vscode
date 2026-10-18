@@ -159,28 +159,34 @@ export class AiAgentRpcManager implements AIAgentAPI {
     async fixMissingImports(): Promise<void> {
         // Every tool save awaits this, so a Language Server response that never comes must not hang the save.
         let timer: ReturnType<typeof setTimeout> | undefined;
+        let gaveUp = false;
         const timedOut = new Promise<void>((resolve) => {
             timer = setTimeout(() => {
+                gaveUp = true;
                 console.log(`fixMissingImports gave up after ${FIX_MISSING_IMPORTS_TIMEOUT_MS} ms`);
                 resolve();
             }, FIX_MISSING_IMPORTS_TIMEOUT_MS);
         });
         try {
-            await Promise.race([this.applyImportFixes(), timedOut]);
+            await Promise.race([this.applyImportFixes(() => gaveUp), timedOut]);
         } finally {
             clearTimeout(timer);
         }
     }
 
-    private async applyImportFixes(): Promise<void> {
+    // The fixes write whole files, so once the caller has moved on they would overwrite its later edits.
+    private async applyImportFixes(gaveUp: () => boolean): Promise<void> {
         const context = StateMachine.context();
         let artifactUpdate: ArtifactUpdateWait | undefined;
         try {
             const projectDiags = await checkProjectDiagnostics(context.langClient, context.projectPath);
+            if (gaveUp()) {
+                return;
+            }
             // Callers read positions from the project structure next, and an import line moves them.
             artifactUpdate = startArtifactUpdateWait(() => undefined);
             const added = await addMissingImports(projectDiags, context.langClient);
-            const removed = await removeUnusedImports(projectDiags, context.langClient);
+            const removed = !gaveUp() && await removeUnusedImports(projectDiags, context.langClient);
             if (added || removed) {
                 await context.langClient.flushArtifacts().catch((): undefined => undefined);
                 await artifactUpdate.notified;
