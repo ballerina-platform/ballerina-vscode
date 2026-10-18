@@ -52,7 +52,7 @@ import { ConnectionConfig, ConnectionCreator, ConnectionSelectionList } from "..
 import { FlowNodeForm } from "../Forms/FlowNodeForm";
 import { AgentEditorPanelContent, getAgentEditorPanelTitle } from "../AIChatAgent/AgentEditorPanelContent";
 import { AgentEditorView, useAgentEditorController, useStableFlow } from "../AIChatAgent/useAgentEditorController";
-import { confirmTriggerDeletion, drawToolEdits, goToAgent, goToAgentDefinitionFromInstance, resolveAgentDefinitionLocation, saveAgentDeclaration, startAddAgentTrigger, startAgentChat } from "../AIChatAgent/utils";
+import { confirmTriggerDeletion, drawToolEdits, goToAgent, goToAgentDefinitionFromInstance, resolveAgentDefinitionLocation, saveAgentDeclaration, serializeAgentToolsEdit, startAddAgentTrigger, startAgentChat } from "../AIChatAgent/utils";
 import { buildAgentRenderNode, withAgentUsages } from "./agent";
 import {
     agentCallerProtocols,
@@ -409,7 +409,8 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         setShowProgressIndicator(true);
         deletingTriggerRef.current = true;
         try {
-            await removeAgentTrigger(rpcClient, trigger, scope);
+            // Queued with the tool edits, so its changes never join a tool deletion's undo step.
+            await serializeAgentToolsEdit(() => removeAgentTrigger(rpcClient, trigger, scope));
             usagesDirtyRef.current = true;
             usagesContentRef.current++;
             refreshFocusModel();
