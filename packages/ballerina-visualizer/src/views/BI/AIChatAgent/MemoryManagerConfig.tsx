@@ -24,7 +24,7 @@ import { cloneDeep } from "lodash";
 import { useEffect, useRef, useState } from "react";
 import { RelativeLoader } from "../../../components/RelativeLoader";
 import { FlowNodeForm } from "../Forms/FlowNodeForm";
-import { findAgentScopedNode, getAiModuleOrg, getNodeTemplate, refreshAgentNodeLineRange, resolveAgentNodePosition, resolveFilePath } from "./utils";
+import { findAgentScopedNode, getAiModuleOrg, getNodeTemplate, refreshAgentNodeLineRange, resolveAgentNodePosition, resolveFilePath, saveAgentDeclaration } from "./utils";
 import { MemoryStoreConfig } from "./MemoryStoreConfig";
 import { usePanelOverlay } from "../FlowDiagram/hooks/usePanelOverlay";
 import { ConnectionSelectionList } from "../../../components/ConnectionSelector/ConnectionSelectionList";
@@ -291,10 +291,9 @@ export function MemoryManagerConfig(props: MemoryConfigProps): JSX.Element {
             );
             (updatedAgentNode.properties as any)[memoryPropertyKey].value = updatedNode?.properties.variable.value || "";
 
-            const agentResponse = await rpcClient.getBIDiagramRpcClient().getSourceCode({
-                filePath: agentNodeFilePath,
-                flowNode: updatedAgentNode,
-            });
+            // The panel's agent copy dates from when it opened; the agent keeps the tools it has now.
+            const agentResponse = await saveAgentDeclaration(updatedAgentNode, undefined, rpcClient, (flowNode) =>
+                rpcClient.getBIDiagramRpcClient().getSourceCode({ filePath: agentNodeFilePath, flowNode }));
 
             const savedAgentPosition = agentResponse?.artifacts?.find((a) => a.name === agentVarName)?.position
                 ?? await resolveAgentNodePosition(updatedAgentNode, rpcClient);

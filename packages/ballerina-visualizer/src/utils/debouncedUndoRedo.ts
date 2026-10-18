@@ -36,6 +36,13 @@ class DebouncedUndoRedoManager {
 
     private appliedListeners = new Set<() => void>();
 
+    private pendingEdits: Promise<unknown> = Promise.resolve();
+
+    // An undo pressed while an edit the user already sees as done is still saving must not undo the one before it.
+    public waitFor(edit: Promise<unknown>): void {
+        this.pendingEdits = Promise.allSettled([this.pendingEdits, edit]);
+    }
+
     /**
      * Notifies once an undo/redo has been applied and the extension has moved the view to the edited source.
      */
@@ -66,6 +73,7 @@ class DebouncedUndoRedoManager {
         }
         const count = operation.count;
         operation.count = 0;
+        await this.pendingEdits;
         await execute(count);
         await this.flush(operation, execute);
     }
