@@ -16,7 +16,7 @@
  * under the License.
  */
 /** @jsxImportSource @emotion/react */
-import React, { ReactNode, useEffect, useState } from "react";
+import React, { ReactNode, useEffect, useMemo, useState } from "react";
 import styled from "@emotion/styled";
 import { DiagramEngine, PortWidget } from "@projectstorm/react-diagrams-core";
 import { AgentNodeModel } from "./AgentNodeModel";
@@ -829,6 +829,16 @@ function TraceAccentLine({ isActive, aiColor, baseStroke, baseDashArray, markerI
     );
 }
 
+const MENU_ITEM_HEIGHT = 32;
+
+// The toolkit Popover never keeps a menu inside the window, so one that would run past the bottom opens upward.
+function menuOrigin(anchor: Element | null, itemCount: number): { vertical: "top" | "bottom"; horizontal: "left" } {
+    const rect = anchor?.getBoundingClientRect();
+    const height = itemCount * MENU_ITEM_HEIGHT + 16;
+    const opensUp = rect !== undefined && rect.top + height > window.innerHeight && rect.bottom - height >= 0;
+    return { vertical: opensUp ? "bottom" : "top", horizontal: "left" };
+}
+
 export function AgentNodeWidget(props: AgentNodeWidgetProps) {
     const { model, engine, onClick, variant = model.getType() === NodeTypes.TYPED_AGENT_NODE ? "typedAgent" : "agent" } = props;
     const controller = useAgentNodeController(model);
@@ -1097,6 +1107,9 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
             onClick: () => onDeleteTool(tool),
         }] : []),
     ];
+    const toolMenuItemCount = selectedTool ? toolMenuItems(selectedTool).length : 0;
+    // Memoized: the Popover repositions whenever the origin object changes.
+    const toolMenuOrigin = useMemo(() => menuOrigin(toolAnchorEl, toolMenuItemCount), [toolAnchorEl, toolMenuItemCount]);
 
     const memoryMenuItems: Item[] = [
         {
@@ -2013,6 +2026,8 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                 {!toolsReadOnly && <Popover
                     open={isToolMenuOpen}
                     anchorEl={toolAnchorEl}
+                    anchorOrigin={toolMenuOrigin}
+                    transformOrigin={toolMenuOrigin}
                     handleClose={handleToolMenuClose}
                     sx={{
                         padding: 0,
