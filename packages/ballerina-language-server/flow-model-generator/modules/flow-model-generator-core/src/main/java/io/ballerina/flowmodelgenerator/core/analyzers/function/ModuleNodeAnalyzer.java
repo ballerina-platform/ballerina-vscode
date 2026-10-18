@@ -294,9 +294,7 @@ public class ModuleNodeAnalyzer extends NodeVisitor {
             endingNodeLineRange = prompt.get(prompt.size() - 1).lineRange();
             String stringContent = String.join("", prompt.stream().map(Node::toSourceCode).toList());
             // Remove last newline character that are always present
-            promptContent = stringContent.endsWith(System.lineSeparator())
-                    ? stringContent.substring(0, stringContent.length() - System.lineSeparator().length())
-                    : stringContent;
+            promptContent = stringContent.replaceFirst("\\R\\z", "");
         }
         LineRange promptLineRange = LineRange.from(startingNodeLineRange.fileName(), startingNodeLineRange.startLine(),
                 endingNodeLineRange.endLine());

@@ -111,7 +111,7 @@ public interface AgentTriggerChannel {
     }
 
     static String indent(String source) {
-        return INDENT + source.replace(NEW_LINE, NEW_LINE + INDENT);
+        return INDENT + source.replaceAll("\\R", NEW_LINE + INDENT);
     }
 
     // Reuses Integrator's own HTTP listener chooser (Shared Listener / Custom Listener) rather than re-authoring it.

@@ -152,6 +152,22 @@ public class CommonUtilsTest {
     }
 
     @Test
+    public void testSingleLineStringTemplateBecomesLiteral() {
+        Assert.assertEquals(CommonUtils.extractLiteralFromStringTemplate("string `Hello`"), "\"Hello\"");
+    }
+
+    @DataProvider(name = "lineBreaks")
+    public Object[][] lineBreaks() {
+        return new Object[][]{{"\n"}, {"\r\n"}, {"\r"}};
+    }
+
+    @Test(dataProvider = "lineBreaks", description = "A string literal can't hold a raw line break")
+    public void testMultiLineStringTemplateStaysTemplate(String lineBreak) {
+        String template = "string `Hello" + lineBreak + "World`";
+        Assert.assertEquals(CommonUtils.extractLiteralFromStringTemplate(template), template);
+    }
+
+    @Test
     public void testModuleNameRoundTrip() {
         String raw = "hubspot.crm.import";
         String escaped = CommonUtils.escapeModuleName(raw);
