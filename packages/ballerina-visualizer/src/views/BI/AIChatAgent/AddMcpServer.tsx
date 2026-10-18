@@ -7,7 +7,7 @@
  * You may not alter or remove any copyright or other notice from copies of this content.
  */
 
-import { AgentManagerMcpBinding, FlowNode, LineRange, NodePosition, ProductMode } from "@wso2/ballerina-core";
+import { AgentManagerMcpBinding, FlowNode, LineRange, NodePosition, ProductMode, ToolData } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { cloneDeep, debounce } from "lodash";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -39,6 +39,8 @@ interface AddMcpServerProps {
         reservedNames?: string[];
     };
     onSave?: (agentPosition?: NodePosition) => void;
+    // Takes over adding a new server to `agentNode`: shows it on the agent at once and runs `save` in the background.
+    onAddTool?: (tool: ToolData, save: () => Promise<NodePosition | undefined>) => void;
     onBack?: () => void;
     onSetBackOverride?: (handler: (() => void) | null) => void;
 }
@@ -61,7 +63,7 @@ const uniqueName = (base: string, reserved: Set<string>): string => {
 };
 
 export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
-    const { agentNode, agentDefinition, onSave, editMode = false } = props;
+    const { agentNode, agentDefinition, onSave, onAddTool, editMode = false } = props;
     const { rpcClient } = useRpcContext();
     const agentBuilder = useProductMode() === ProductMode.AGENT_BUILDER;
 
@@ -438,8 +440,41 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
         fetchToolsFromServer(serverUrl, auth);
     }, [serverUrl, auth, fetchToolsFromServer]);
 
+    // A new server saved in the background closes the panel at once, so the form shows no saving state.
+    const inBackground = Boolean(onAddTool) && !editMode && !agentDefinition;
+
+    const addServerInBackground = (node: FlowNode, scopesByTool: Record<string, string[]>) => {
+        const picked = pickedProxy.current;
+        pickedProxy.current = undefined;
+        const selectedTools = Array.from(selectedMcpTools);
+        const scopes = Object.keys(scopesByTool).length > 0 ? scopesByTool : undefined;
+        onAddTool({ name: String(node.properties?.variable?.value ?? ""), type: "MCP Server" }, async () => {
+            // The form read the end of the file when it opened; edits queued since may have moved it.
+            const fileName = node.codedata?.lineRange?.fileName;
+            if (fileName) {
+                node.codedata.lineRange = await getEndOfFileLineRange(fileName, rpcClient);
+            }
+            const latest = await withCurrentAgentTools(agentNode, rpcClient);
+            if (!latest.current) {
+                await refreshAgentNodeLineRange(latest.node, rpcClient);
+            }
+            await rpcClient.getAIAgentRpcClient().updateMCPToolKit({
+                agentFlowNode: latest.node,
+                selectedTools,
+                updatedNode: node,
+                toolScopes: scopes,
+            });
+            await rpcClient.getAIAgentRpcClient().fixMissingImports().catch((): undefined => undefined);
+            if (picked) {
+                const { projectPath } = await rpcClient.getVisualizerLocation();
+                await rpcClient.getAgentManagerRpcClient().commitAgentManagerMcpProxy({ projectPath, proxyId: picked.proxyId });
+            }
+            return await resolveAgentNodePosition(latest.node, rpcClient);
+        });
+    };
+
     const handleSave = async (node?: FlowNode) => {
-        setIsSaving(true);
+        setIsSaving(!inBackground);
         try {
             if (!node) {
                 return;
@@ -494,6 +529,11 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
                 };
             } else {
                 delete (node.properties as any)[INCLUDE_CONTEXT_PROPERTY];
+            }
+
+            if (inBackground) {
+                addServerInBackground(node, filteredScopes);
+                return;
             }
 
             let targetAgentNode: FlowNode | undefined;

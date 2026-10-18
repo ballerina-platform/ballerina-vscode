@@ -146,6 +146,8 @@ export type ToolData = {
     targetAgent?: AgentToolTarget;
     // MCP toolkit's module-qualified class name, used to match dev-time trace spans.
     className?: string;
+    // Drawn before its save reaches the source; the canvas shows it dimmed and offers no actions on it.
+    pending?: boolean;
 };
 
 export type AgentToolTarget = {

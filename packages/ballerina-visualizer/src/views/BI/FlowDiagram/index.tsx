@@ -20,7 +20,7 @@ import { capabilityValueText, seedCapabilityValue, SeedableProperty, showActivit
 import { SyntheticEvent, useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import styled from "@emotion/styled";
-import { goToAgent, hideDeletingTools, startAddAgentTrigger, startAddDurableEventTrigger, startAgentChat } from "../AIChatAgent/utils";
+import { drawToolEdits, goToAgent, startAddAgentTrigger, startAddDurableEventTrigger, startAgentChat } from "../AIChatAgent/utils";
 import { DIAGRAM_REFRESH_DEBOUNCE_MS } from "../diagramRefreshDebounce";
 import { MemoizedDiagram } from "@wso2/bi-diagram";
 import {
@@ -4168,10 +4168,10 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         onChat: handleOnChatWithAgent,
     });
 
-    const { syncDeletingTools } = agentEditor;
+    const { syncToolEdits } = agentEditor;
     useEffect(() => {
-        syncDeletingTools(model);
-    }, [model, syncDeletingTools]);
+        syncToolEdits(model);
+    }, [model, syncToolEdits]);
 
     const prevAgentViewRef = useRef<AgentEditorView>("NONE");
     useEffect(() => {
@@ -4310,7 +4310,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     const agentOnlyView = !!hideAgentConfiguration && !!flowModel?.nodes?.some(isDurableAgentBoxNode);
     const durableUsagesLoaded = useDurableAgentUsages(agentOnlyView, model, projectPath, setModel);
     const displayModel = useMemo(
-        () => hideDeletingTools(agentOnlyView
+        () => drawToolEdits(agentOnlyView
             ? {
                 ...flowModel,
                 nodes: [
@@ -4318,8 +4318,8 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                     ...flowModel.nodes.filter(isDurableAgentBoxNode),
                 ],
             }
-            : flowModel, agentEditor.deletingTools),
-        [flowModel, agentOnlyView, agentEditor.deletingTools]
+            : flowModel, agentEditor.deletingTools, agentEditor.addingTools),
+        [flowModel, agentOnlyView, agentEditor.deletingTools, agentEditor.addingTools]
     );
 
     // No RHS side panel in the agent-only view: node clicks (the Start pill) are inert;

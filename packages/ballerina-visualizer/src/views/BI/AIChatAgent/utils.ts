@@ -773,6 +773,9 @@ export const withCurrentAgentTools = async (
 // A tool whose deletion is queued or saving; `settled` once its edits are in the source.
 export type DeletingTool = { nodeId?: string; agentName?: string; name: string; settled?: boolean };
 
+// A tool whose addition is queued or saving, drawn as `tool` (pending) until the source has it.
+export type AddingTool = DeletingTool & { tool: ToolData };
+
 const drawsAgent = (node: FlowNode, entry: DeletingTool) =>
     (entry.nodeId !== undefined && node.id === entry.nodeId)
     || (entry.agentName !== undefined && node.codedata?.node === "AGENT" && node.properties?.variable?.value === entry.agentName);
@@ -808,8 +811,36 @@ export const drawnFlowKey = (flow: Flow | undefined): string =>
         key === "animateUsages" || key === "sourceCode" || (key === "tools" && value && !Array.isArray(value))
             ? undefined : value);
 
-// Whether a freshly fetched flow still draws the tool on its agent; a settled deletion stops hiding once it doesn't.
-export const drawsDeletingTool = (flow: Flow | undefined, entry: DeletingTool): boolean => {
+// The flow drawn with tools still being added: each shows on its agent, dimmed, until the source has the real one.
+export const showAddingTools = (flow: Flow | undefined, adding: AddingTool[]): Flow | undefined => {
+    if (!flow || adding.length === 0) {
+        return flow;
+    }
+    const add = (node: FlowNode): FlowNode => {
+        const data = node.metadata?.data as NodeMetadata | undefined;
+        const tools = data?.agentInfo?.tools ?? [];
+        const missing = adding
+            .filter((entry) => drawsAgent(node, entry) && !tools.some((tool) => tool.name === entry.name))
+            .map((entry) => ({ ...entry.tool, name: entry.name, pending: true }));
+        const added = missing.length > 0 && data?.agentInfo
+            ? {
+                ...node,
+                metadata: { ...node.metadata, data: { ...data, agentInfo: { ...data.agentInfo, tools: [...tools, ...missing] } } },
+            } as FlowNode
+            : node;
+        return added.branches?.length
+            ? { ...added, branches: added.branches.map((branch) => ({ ...branch, children: branch.children?.map(add) })) }
+            : added;
+    };
+    return { ...flow, nodes: flow.nodes?.map(add) };
+};
+
+// The flow with the tool edits that have not reached the source yet: deletions hidden, additions shown pending.
+export const drawToolEdits = (flow: Flow | undefined, deleting: DeletingTool[], adding: AddingTool[]): Flow | undefined =>
+    showAddingTools(hideDeletingTools(flow, deleting), adding);
+
+// Whether a fetched flow draws the tool on its agent; ends a settled deletion (false) or addition (true).
+export const drawsAgentTool = (flow: Flow | undefined, entry: DeletingTool): boolean => {
     const visit = (nodes: FlowNode[] = []): boolean => nodes.some((node) =>
         (drawsAgent(node, entry)
             && ((node.metadata?.data as NodeMetadata | undefined)?.agentInfo?.tools ?? []).some((tool) => tool.name === entry.name))
@@ -840,21 +871,52 @@ export const saveToolOnAgent = (
     rpcClient: BallerinaRpcClient,
     artifacts?: ProjectStructureArtifactResponse[]
 ): Promise<FlowNode | null> =>
-    serializeAgentToolsEdit(async () => {
-        const { node, current } = await withCurrentAgentTools(agentNode, rpcClient);
-        const updatedAgentNode = await addToolToAgentNode(node, toolName);
-        if (!updatedAgentNode) {
-            return null;
-        }
-        if (!current) {
-            await refreshAgentNodeLineRange(updatedAgentNode, rpcClient, artifacts);
-        }
-        const { filePath } = await rpcClient.getVisualizerRpcClient().joinProjectPath({
-            segments: [updatedAgentNode.codedata.lineRange.fileName],
-        });
-        await rpcClient.getBIDiagramRpcClient().getSourceCode({ filePath, flowNode: updatedAgentNode });
-        return updatedAgentNode;
+    serializeAgentToolsEdit(() => addToolToCurrentAgent(agentNode, toolName, rpcClient, artifacts));
+
+// saveToolOnAgent's edit, for code that already runs in the tool-list queue.
+export const addToolToCurrentAgent = async (
+    agentNode: FlowNode,
+    toolName: string,
+    rpcClient: BallerinaRpcClient,
+    artifacts?: ProjectStructureArtifactResponse[]
+): Promise<FlowNode | null> => {
+    const { node, current } = await withCurrentAgentTools(agentNode, rpcClient);
+    const updatedAgentNode = await addToolToAgentNode(node, toolName);
+    if (!updatedAgentNode) {
+        return null;
+    }
+    if (!current) {
+        await refreshAgentNodeLineRange(updatedAgentNode, rpcClient, artifacts);
+    }
+    await writeAgentNode(updatedAgentNode, rpcClient);
+    return updatedAgentNode;
+};
+
+// For an agent read earlier in the same queued edit: only the edit whose `artifacts` are given can have moved it.
+export const addToolToReadAgent = async (
+    agentNode: FlowNode,
+    toolName: string,
+    rpcClient: BallerinaRpcClient,
+    artifacts?: ProjectStructureArtifactResponse[]
+): Promise<FlowNode | null> => {
+    const updatedAgentNode = await addToolToAgentNode(agentNode, toolName);
+    if (!updatedAgentNode) {
+        return null;
+    }
+    await refreshAgentNodeLineRange(updatedAgentNode, rpcClient, artifacts);
+    await writeAgentNode(updatedAgentNode, rpcClient);
+    return updatedAgentNode;
+};
+
+const writeAgentNode = async (agentNode: FlowNode, rpcClient: BallerinaRpcClient): Promise<void> => {
+    const { filePath } = await rpcClient.getVisualizerRpcClient().joinProjectPath({
+        segments: [agentNode.codedata.lineRange.fileName],
     });
+    const response = await rpcClient.getBIDiagramRpcClient().getSourceCode({ filePath, flowNode: agentNode });
+    if (response?.error) {
+        throw new Error(response.error);
+    }
+};
 
 export const addToolToAgentNode = async (agentNode: FlowNode, toolName: string) => {
     if (!agentNode || agentNode.codedata?.node !== "AGENT") return null;
