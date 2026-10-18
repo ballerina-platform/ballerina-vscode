@@ -141,13 +141,7 @@ public class PackageUtil {
     private static final PerThread<PackageRepository> LOCAL_REPOSITORY = new PerThread<>(() -> BallerinaUserHome.from(
             getSampleProject().projectEnvironmentContext().environment()).localPackageRepository());
 
-    /**
-     * A value per thread, keyed by the {@link Thread} itself rather than held in a {@link ThreadLocal}: the JDK's
-     * common-pool workers ({@code InnocuousForkJoinWorkerThread}) erase every ThreadLocal after each task, which
-     * rebuilt the sample project on every LS request. Weak keys let a dead thread's value be collected.
-     *
-     * @param <T> the per-thread value
-     */
+    // Not a ThreadLocal: common-pool workers erase those after each task; weak keys free a dead thread's value.
     private static final class PerThread<T> {
 
         private final Map<Thread, T> values = Collections.synchronizedMap(new WeakHashMap<>());
@@ -287,11 +281,8 @@ public class PackageUtil {
                             && pkg.packageName().value().equals(library))
                     .findFirst()
                     .map(pkg -> pkg.packageVersion().toString());
-            if (resolved.isPresent()) {
-                prewarm(CommonUtils.BALLERINA_ORG_NAME, library, resolved.get());
-            } else {
-                prewarmLatestRelease(CommonUtils.BALLERINA_ORG_NAME, library);
-            }
+            resolved.ifPresentOrElse(version -> prewarm(CommonUtils.BALLERINA_ORG_NAME, library, version),
+                    () -> prewarmLatestRelease(CommonUtils.BALLERINA_ORG_NAME, library));
         }
     }
 

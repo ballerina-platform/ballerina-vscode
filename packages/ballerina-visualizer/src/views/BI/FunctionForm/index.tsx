@@ -676,7 +676,7 @@ export function FunctionForm(props: FunctionFormProps) {
             showErrorNotification();
         } finally {
             // openView is not awaited, so resetting after a create remounts the form and reopens its LS documents.
-            if (!(navigated && !functionName)) {
+            if (!navigated || functionName) {
                 setSaving(false);
             }
         }

@@ -69,15 +69,15 @@ export function AgentEditorPanelContent({ controller }: { controller: AgentEdito
                     : controller.view === "NEW_TOOL_CONNECTION" ? NewToolSelectionMode.CONNECTION
                         : controller.view === "NEW_TOOL_KNOWLEDGE_BASE" ? NewToolSelectionMode.KNOWLEDGE_BASE
                             : NewToolSelectionMode.FUNCTION}
-                onSave={controller.close} onAddTool={controller.addToolInBackground} onBack={controller.back}
+                onAddTool={controller.addToolInBackground} onBack={controller.back}
                 onSetBackOverride={controller.setBackHandler} />;
         case "NEW_TOOL_AGENT":
             return <UseAgentTool agentNode={agent} onSelectAgent={controller.selectAgent} />;
         case "NEW_TOOL_AGENT_FORM":
             return <UseAgentToolForm agentNode={agent} agentVarName={controller.selectedAgentName}
-                onSave={controller.close} onAddTool={controller.addToolInBackground} />;
+                onAddTool={controller.addToolInBackground} />;
         case "ADD_MCP":
-            return <AddMcpServer agentNode={agent} onSave={controller.close} onAddTool={controller.addToolInBackground}
+            return <AddMcpServer agentNode={agent} onAddTool={controller.addToolInBackground}
                 onBack={controller.back}
                 onSetBackOverride={controller.setBackHandler} />;
         case "EDIT_MCP":

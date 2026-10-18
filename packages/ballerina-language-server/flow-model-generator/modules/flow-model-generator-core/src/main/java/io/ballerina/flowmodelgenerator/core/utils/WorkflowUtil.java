@@ -483,9 +483,8 @@ public class WorkflowUtil {
             return edits;
         }
         Map<Path, List<org.eclipse.lsp4j.TextEdit>> edits = new HashMap<>();
-        edits.put(declaration.filePath(), List.of(new org.eclipse.lsp4j.TextEdit(new org.eclipse.lsp4j.Range(
-                new org.eclipse.lsp4j.Position(from.line(), from.offset()),
-                new org.eclipse.lsp4j.Position(to.line(), to.offset())), newText)));
+        edits.put(declaration.filePath(),
+                List.of(new org.eclipse.lsp4j.TextEdit(CommonUtils.toRange(from, to), newText)));
         return edits;
     }
 
@@ -1823,8 +1822,7 @@ public class WorkflowUtil {
             from = items.get(index).lineRange().startLine();
             to = items.get(1).lineRange().startLine();
         }
-        return new org.eclipse.lsp4j.Range(new org.eclipse.lsp4j.Position(from.line(), from.offset()),
-                new org.eclipse.lsp4j.Position(to.line(), to.offset()));
+        return CommonUtils.toRange(from, to);
     }
 
     /**

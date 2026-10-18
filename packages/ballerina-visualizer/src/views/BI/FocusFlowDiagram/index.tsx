@@ -51,8 +51,8 @@ import { PanelContainer } from "@wso2/ballerina-side-panel";
 import { ConnectionConfig, ConnectionCreator, ConnectionSelectionList } from "../../../components/ConnectionSelector";
 import { FlowNodeForm } from "../Forms/FlowNodeForm";
 import { AgentEditorPanelContent, getAgentEditorPanelTitle } from "../AIChatAgent/AgentEditorPanelContent";
-import { AgentEditorView, useAgentEditorController } from "../AIChatAgent/useAgentEditorController";
-import { confirmTriggerDeletion, drawnFlowKey, drawToolEdits, goToAgent, goToAgentDefinitionFromInstance, resolveAgentDefinitionLocation, saveAgentDeclaration, startAddAgentTrigger, startAgentChat } from "../AIChatAgent/utils";
+import { AgentEditorView, useAgentEditorController, useStableFlow } from "../AIChatAgent/useAgentEditorController";
+import { confirmTriggerDeletion, drawToolEdits, goToAgent, goToAgentDefinitionFromInstance, resolveAgentDefinitionLocation, saveAgentDeclaration, startAddAgentTrigger, startAgentChat } from "../AIChatAgent/utils";
 import { buildAgentRenderNode, withAgentUsages } from "./agent";
 import {
     agentCallerProtocols,
@@ -540,14 +540,14 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         setAgentPanel("FORM");
     };
 
-    const handleSubmitAgentForm = async (updatedNode: FlowNode | undefined, formNode: FlowNode | undefined) => {
+    const handleSubmitAgentForm = async (updatedNode: FlowNode | undefined) => {
         if (!updatedNode) {
             return;
         }
         setSavingAgentForm(true);
         try {
             const fileName = model?.fileName;
-            await saveAgentDeclaration(updatedNode, formNode, rpcClient, (flowNode) =>
+            await saveAgentDeclaration(updatedNode, agentFormNode, rpcClient, (flowNode) =>
                 rpcClient.getBIDiagramRpcClient().getSourceCode({ filePath: fileName, flowNode }));
         } catch (error) {
             console.error(">>> agent focus: error saving agent form", error);
@@ -1051,14 +1051,9 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         syncToolEdits(model);
     }, [model, syncToolEdits]);
 
-    // A new model object rebuilds the canvas and closes any open menu, so an unchanged picture keeps the old object.
-    const drawnModelRef = useRef<{ key: string; flow?: Flow }>({ key: "" });
-    const shownModel = drawToolEdits(flowModel, agentEditor.deletingTools, agentEditor.addingTools);
-    const shownKey = drawnFlowKey(shownModel);
-    if (drawnModelRef.current.key !== shownKey) {
-        drawnModelRef.current = { key: shownKey, flow: shownModel };
-    }
-    const drawnModel = drawnModelRef.current.flow;
+    const { deletingTools, addingTools } = agentEditor;
+    const shownModel = useMemo(() => drawToolEdits(flowModel, deletingTools, addingTools), [flowModel, deletingTools, addingTools]);
+    const drawnModel = useStableFlow(shownModel);
     agentPanelRef.current = agentPanel;
     useEffect(() => {
         if (agentEditor.view === "NONE" && agentPanel === "NONE" && deferredRefreshRef.current) {
@@ -1228,7 +1223,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                     targetLineRange={node.codedata?.lineRange as any}
                     projectPath={projectPath}
                     editForm={true}
-                    onSubmit={(updatedNode) => handleSubmitAgentForm(updatedNode, node)}
+                    onSubmit={handleSubmitAgentForm}
                     submitText={savingAgentForm ? "Saving..." : "Save"}
                     showProgressIndicator={savingAgentForm}
                     disableSaveButton={savingAgentForm}
