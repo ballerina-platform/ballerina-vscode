@@ -1200,6 +1200,12 @@ describe("findDurableAgentUsages", () => {
         expect(usages[4].parentAgent).toBe(true);
     });
 
+    it("lets a channel sender be deleted like any other endpoint", () => {
+        const usages = findDurableAgentUsages(durableModel, { filePath: AGENTS_BAL, startLine: 3, symbol: "claimAgent" }, HTTP_CHANNELS);
+        expect(usages[1].channel).toBe("chat");
+        expect(usages[1].trigger).toMatchObject({ scope: "ENTRY_POINT", documentUri: SERVICES_BAL });
+    });
+
     it("falls back to the symbol when the declaration moved, and returns nothing for an agent the model lacks", () => {
         expect(findDurableAgentUsages(durableModel, { filePath: AGENTS_BAL, startLine: 99, symbol: "claimAgent" })).toHaveLength(5);
         expect(findDurableAgentUsages(durableModel, { filePath: AGENTS_BAL, startLine: 99, symbol: "nobody" })).toEqual([]);

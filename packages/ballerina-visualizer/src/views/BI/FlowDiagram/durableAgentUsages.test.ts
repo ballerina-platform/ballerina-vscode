@@ -25,8 +25,8 @@ import { useRpcContext } from "@wso2/ballerina-rpc-client";
 jest.mock("@wso2/ballerina-rpc-client", () => ({ useRpcContext: jest.fn() }));
 jest.mock("../FocusFlowDiagram/agentUsages", () => ({ ...jest.requireActual("../FocusFlowDiagram/agentUsages"), findDurableAgentUsages: jest.fn() }));
 
-import { findDurableAgentUsages } from "../FocusFlowDiagram/agentUsages";
-import { durableAgentRefOf, durableUsagesReady, findDurableAgentBox, sameUsages, useDurableAgentUsages, withDurableUsages } from "./durableAgentUsages";
+import { findDurableAgentUsages, setCachedUsages, usageCacheKey } from "../FocusFlowDiagram/agentUsages";
+import { durableAgentRefOf, durableUsagesReady, findDurableAgentBox, sameUsages, useDurableAgentUsages, withDurableUsages, withKnownDurableUsages } from "./durableAgentUsages";
 
 const AGENTS_BAL = "/proj/agents.bal";
 
@@ -75,6 +75,14 @@ describe("durable agent usages on the flow model", () => {
         expect(durableUsagesReady(box, "k", { key: "k", usages: [] })).toBe(true);
         expect(durableUsagesReady(box, "k", { key: "other", usages: [] })).toBe(false);
         expect(durableUsagesReady(undefined, undefined, undefined)).toBe(true);
+    });
+
+    it("draws a refreshed model with the last known usages, and leaves a model that has its own alone", () => {
+        expect(withKnownDurableUsages(flow, "/known")).toBe(flow);
+        setCachedUsages(usageCacheKey("/known", AGENTS_BAL, "claimAgent"), [usage]);
+        expect((findDurableAgentBox(withKnownDurableUsages(flow, "/known")).metadata.data as { usages?: AgentUsage[] }).usages).toEqual([usage]);
+        const fresh = withDurableUsages(flow, []);
+        expect(withKnownDurableUsages(fresh, "/known")).toBe(fresh);
     });
 });
 

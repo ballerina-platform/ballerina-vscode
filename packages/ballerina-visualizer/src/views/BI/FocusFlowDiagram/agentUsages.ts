@@ -388,7 +388,7 @@ function findDurableAgentWorkflow(model: CDModel, agent: AgentRef): CDWorkflow |
 
 function durableRows(fn: DurableCaller, uuid: string, row: AgentUsage): AgentUsage[] {
     const runs = fn.workflows?.includes(uuid) ? [row] : [];
-    const sends = (fn.workflowSendData?.[uuid] ?? []).map((channel): AgentUsage => ({ ...row, channel, trigger: undefined, tryIt: undefined }));
+    const sends = (fn.workflowSendData?.[uuid] ?? []).map((channel): AgentUsage => ({ ...row, channel, tryIt: undefined }));
     return [...runs, ...sends];
 }
 
@@ -715,4 +715,40 @@ async function currentDesignModel(rpcClient: BallerinaRpcClient): Promise<CDMode
     const location = await rpcClient.getVisualizerLocation();
     return (await rpcClient.getBIDiagramRpcClient().getDesignModel({ projectPath: location?.projectPath }))
         ?.designModel;
+}
+
+// What a confirmed trigger deletion removes: the endpoint alone, or its whole service.
+export type TriggerDeletionChoice = "endpoint" | "service";
+
+export async function removeAgentTrigger(
+    rpcClient: BallerinaRpcClient,
+    trigger: AgentUsageTrigger,
+    choice: TriggerDeletionChoice
+): Promise<void> {
+    if (choice === "endpoint" && trigger.scope === "ENTRY_POINT_BODY") {
+        await clearAgentCallFromHandler(rpcClient, trigger);
+    } else if (choice === "endpoint") {
+        const entryPoint = trigger.entryPoint;
+        await deleteComponentAt(rpcClient, entryPoint.label, entryPoint.documentUri, entryPoint.position);
+    } else {
+        await deleteServiceWithListeners(rpcClient, trigger);
+    }
+    await rpcClient.getAIAgentRpcClient().fixMissingImports();
+}
+
+// Deletes the entry point that sends to a removed data event, and its service when nothing else is left in it.
+export async function deleteEventSender(rpcClient: BallerinaRpcClient, sender: AgentUsage): Promise<void> {
+    const model = await currentDesignModel(rpcClient);
+    const members = (service: CDService) => [...(service.resourceFunctions ?? []), ...(service.remoteFunctions ?? [])];
+    const service = (model?.services ?? []).find((candidate) => members(candidate).some((member) =>
+        samePath(member.location.filePath, sender.documentUri)
+        && toPosition(member.location).startLine === sender.position?.startLine));
+    if (!service) {
+        return;
+    }
+    if (members(service).length === 1) {
+        await deleteServiceWithListeners(rpcClient, triggerFor(model, service));
+    } else {
+        await deleteComponentAt(rpcClient, sender.label, sender.documentUri, sender.position);
+    }
 }

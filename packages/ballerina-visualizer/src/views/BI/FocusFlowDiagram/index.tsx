@@ -44,23 +44,19 @@ import {
     NodePosition,
     NodeMetadata,
     AgentUsage,
-    AgentUsageTrigger,
     FOCUS_FLOW_DIAGRAM_VIEW,
     FocusFlowDiagramView,
-    triggerScopeNoun
 } from "@wso2/ballerina-core";
 import { PanelContainer } from "@wso2/ballerina-side-panel";
 import { ConnectionConfig, ConnectionCreator, ConnectionSelectionList } from "../../../components/ConnectionSelector";
 import { FlowNodeForm } from "../Forms/FlowNodeForm";
 import { AgentEditorPanelContent, getAgentEditorPanelTitle } from "../AIChatAgent/AgentEditorPanelContent";
 import { AgentEditorView, useAgentEditorController } from "../AIChatAgent/useAgentEditorController";
-import { drawnFlowKey, drawToolEdits, goToAgent, goToAgentDefinitionFromInstance, resolveAgentDefinitionLocation, saveAgentDeclaration, startAddAgentTrigger, startAgentChat } from "../AIChatAgent/utils";
+import { confirmTriggerDeletion, drawnFlowKey, drawToolEdits, goToAgent, goToAgentDefinitionFromInstance, resolveAgentDefinitionLocation, saveAgentDeclaration, startAddAgentTrigger, startAgentChat } from "../AIChatAgent/utils";
 import { buildAgentRenderNode, withAgentUsages } from "./agent";
 import {
     agentCallerProtocols,
-    clearAgentCallFromHandler,
-    deleteComponentAt,
-    deleteServiceWithListeners,
+    removeAgentTrigger,
     findAgentUsages,
     getAgentTriggerScopes,
     findAgentToolTargets,
@@ -383,45 +379,6 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
 
     useEffect(() => () => clearTimeout(usageFetchTimerRef.current), []);
 
-    const confirmTriggerDeletion = async (usage: AgentUsage): Promise<"endpoint" | "service" | undefined> => {
-        const trigger = usage.trigger;
-        const listeners = trigger.listeners.map((listener) => listener.symbol).join(", ");
-        const listenerNote = listeners
-            ? ` Its listener ${listeners} will also be deleted because no other service uses it.`
-            : "";
-
-        if (!trigger.entryPoint) {
-            const confirmed = await rpcClient.getCommonRpcClient().showInformationModal({
-                message: `Are you sure you want to delete the ${trigger.serviceName} trigger?`,
-                detail: `The agent will no longer run when this trigger fires.${listenerNote}`,
-                items: ["Delete Trigger"],
-            });
-            return confirmed === "Delete Trigger" ? "service" : undefined;
-        }
-
-        const isEndpoint = trigger.scope === "ENTRY_POINT";
-        const label = triggerScopeNoun(trigger.scope);
-        const only = `Delete ${label}`;
-        const withService = `Delete ${label} and Service`;
-        const consequence = isEndpoint
-            ? "The agent will no longer be reachable at this endpoint."
-            : "The agent will no longer run when this event occurs.";
-        const remainder = trigger.orphansService
-            ? `No other ${label.toLowerCase()} on ${trigger.serviceName} uses the agent, `
-            + `so the service can be deleted as well.${listenerNote}`
-            : `Other ${label.toLowerCase()}s on ${trigger.serviceName} are unaffected.`;
-
-        const choice = await rpcClient.getCommonRpcClient().showInformationModal({
-            message: `Are you sure you want to delete the ${trigger.entryPoint.label} ${label.toLowerCase()}?`,
-            detail: `${consequence} ${remainder}`,
-            items: trigger.orphansService ? [only, withService] : [only],
-        });
-        if (choice === only) {
-            return "endpoint";
-        }
-        return choice === withService ? "service" : undefined;
-    };
-
     const tryAgentTrigger = async (usage: AgentUsage) => {
         const tryIt = usage.tryIt;
         if (!tryIt) {
@@ -445,23 +402,14 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         if (!trigger) {
             return;
         }
-        const scope = await confirmTriggerDeletion(usage);
+        const scope = await confirmTriggerDeletion(rpcClient, usage);
         if (!scope) {
             return;
         }
         setShowProgressIndicator(true);
         deletingTriggerRef.current = true;
         try {
-            if (scope === "endpoint" && trigger.scope === "ENTRY_POINT_BODY") {
-                await clearAgentCallFromHandler(rpcClient, trigger);
-            } else if (scope === "endpoint") {
-                const entryPoint = trigger.entryPoint;
-                await deleteComponentAt(
-                    rpcClient, entryPoint.label, entryPoint.documentUri, entryPoint.position);
-            } else {
-                await deleteServiceWithListeners(rpcClient, trigger);
-            }
-            await rpcClient.getAIAgentRpcClient().fixMissingImports();
+            await removeAgentTrigger(rpcClient, trigger, scope);
             usagesDirtyRef.current = true;
             usagesContentRef.current++;
             refreshFocusModel();
