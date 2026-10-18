@@ -430,6 +430,8 @@ export function AgentStatusOrb() {
     const [status, setStatus] = useState<AgentRunStatus | null>(null);
     const statusRef = useRef<AgentRunStatus | null>(null);
     const [hovered, setHovered] = useState(false);
+    // A panel closing over a still pointer still fires an enter, so the invite waits for a move away from this point.
+    const enteredAtRef = useRef<{ x: number; y: number } | null>(null);
     /** Tab-to-orb has no hover, so this is what lets the keyboard reach the invite. */
     const [orbFocused, setOrbFocused] = useState(false);
     const [anchor, setAnchor] = useState<Anchor>(loadAnchor);
@@ -771,8 +773,19 @@ export function AgentStatusOrb() {
             )}
             <Wrapper
                 style={{ ...wrapperStyle, flexDirection }}
-                onMouseEnter={() => setHovered(true)}
-                onMouseLeave={() => setHovered(false)}
+                onMouseEnter={(event) => {
+                    enteredAtRef.current = { x: event.clientX, y: event.clientY };
+                }}
+                onMouseMove={(event) => {
+                    const entered = enteredAtRef.current;
+                    if (!hovered && (!entered || entered.x !== event.clientX || entered.y !== event.clientY)) {
+                        setHovered(true);
+                    }
+                }}
+                onMouseLeave={() => {
+                    enteredAtRef.current = null;
+                    setHovered(false);
+                }}
             >
                 {inviteHosted && (
                     <InviteHitBridge visible={inviteVisible} floating={dragPos !== null}>
