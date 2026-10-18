@@ -241,6 +241,7 @@ public class PackageUtil {
 
     private static final Set<String> PREWARMED = ConcurrentHashMap.newKeySet();
     private static final String AI_PACKAGE = "ai";
+    private static final String WORKFLOW_PACKAGE = "workflow";
 
     private static Optional<Package> loadBalaPackage(Path balaPath) {
         Package[] balaPackage = new Package[1];
@@ -272,21 +273,42 @@ public class PackageUtil {
     }
 
     /**
-     * Compiles the project's {@code ballerina/ai} dependency in the background, since agent nodes and the agent's
-     * forms build their templates from it.
+     * Compiles the project's {@code ballerina/ai} and {@code ballerina/workflow} dependencies in the background,
+     * since agent and durable agent nodes and their forms build their templates from them. A library the project
+     * does not depend on yet is fetched at its latest release, so the first agent added to it starts there.
      *
-     * @param project The project whose resolved {@code ballerina/ai} version to compile
+     * @param project The project whose resolved library versions to compile
      */
-    public static void prewarmAgentLibrary(Project project) {
-        // A project without the dependency yet gets the version its first agent template resolves.
-        prewarm(CommonUtils.BALLERINA_ORG_NAME, AI_PACKAGE, project.currentPackage().getResolution()
-                .dependencyGraph().getNodes().stream()
-                .map(ResolvedPackageDependency::packageInstance)
-                .filter(pkg -> pkg.packageOrg().value().equals(CommonUtils.BALLERINA_ORG_NAME)
-                        && pkg.packageName().value().equals(AI_PACKAGE))
-                .findFirst()
-                .map(pkg -> pkg.packageVersion().toString())
-                .orElse(null));
+    public static void prewarmAgentLibraries(Project project) {
+        for (String library : List.of(AI_PACKAGE, WORKFLOW_PACKAGE)) {
+            Optional<String> resolved = project.currentPackage().getResolution().dependencyGraph().getNodes().stream()
+                    .map(ResolvedPackageDependency::packageInstance)
+                    .filter(pkg -> pkg.packageOrg().value().equals(CommonUtils.BALLERINA_ORG_NAME)
+                            && pkg.packageName().value().equals(library))
+                    .findFirst()
+                    .map(pkg -> pkg.packageVersion().toString());
+            if (resolved.isPresent()) {
+                prewarm(CommonUtils.BALLERINA_ORG_NAME, library, resolved.get());
+            } else {
+                prewarmLatestRelease(CommonUtils.BALLERINA_ORG_NAME, library);
+            }
+        }
+    }
+
+    private static void prewarmLatestRelease(String org, String packageName) {
+        if (PREWARMED.add(org + "/" + packageName + ":latest")) {
+            CompletableFuture.runAsync(() -> resolveModulePackage(org, packageName,
+                    latestReleaseOrNull(org, packageName)).ifPresent(PackageUtil::getCompilation));
+        }
+    }
+
+    // Central can be unreachable; a null version falls back to the newest release already in the local repositories.
+    private static String latestReleaseOrNull(String org, String packageName) {
+        try {
+            return fetchVersionIfNotExists(new ModuleInfo(org, packageName, packageName, null)).version();
+        } catch (RuntimeException e) {
+            return null;
+        }
     }
 
     /**

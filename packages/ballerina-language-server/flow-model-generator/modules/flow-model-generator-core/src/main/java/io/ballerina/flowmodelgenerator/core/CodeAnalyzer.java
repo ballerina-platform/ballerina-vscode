@@ -4137,7 +4137,7 @@ public class CodeAnalyzer extends NodeVisitor {
         if (kind == NodeKind.AGENT) {
             nodeBuilder.properties().reserveProperty(AgentCallBuilder.ROLE)
                     .reserveProperty(AgentCallBuilder.INSTRUCTIONS);
-            PackageUtil.prewarmAgentLibrary(project);
+            PackageUtil.prewarmAgentLibraries(project);
             AiUtils.prewarmCatalog(project);
         }
         Optional<MethodSymbol> optMethodSymbol = classSymbol.initMethod();
