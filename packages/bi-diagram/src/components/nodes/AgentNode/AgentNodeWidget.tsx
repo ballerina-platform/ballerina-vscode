@@ -1819,7 +1819,13 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                             transform={`translate(0, ${(index + 1) * (NODE_HEIGHT + AGENT_NODE_TOOL_GAP) + AGENT_NODE_TOOL_SECTION_GAP
                                 })`}
                             opacity={toolsReadOnly ? 0.55 : undefined}
-                            onClick={toolsReadOnly ? undefined : () => tool.type == "MCP Server" ? onToolClick(tool) : onImplementTool(tool)}
+                            onClick={toolsReadOnly ? undefined : (event) => {
+                                // A double-click's second click belongs to whatever was here first, e.g. a deleted tool's menu.
+                                if (event.detail > 1) {
+                                    return;
+                                }
+                                tool.type == "MCP Server" ? onToolClick(tool) : onImplementTool(tool);
+                            }}
                             onContextMenu={(e) => {
                                 if (!readOnly && !toolsReadOnly) {
                                     e.preventDefault();
