@@ -482,7 +482,7 @@ export function FunctionForm(props: FunctionFormProps) {
         }
     };
 
-    const onSubmit = async (data: FormValues, formImports?: FormImports) => {
+    const onSubmit = async (data: FormValues, formImports?: FormImports): Promise<boolean> => {
         console.log("Function Form Data: ", data);
         const functionNodeCopy = { ...functionNode };
 
@@ -607,17 +607,18 @@ export function FunctionForm(props: FunctionFormProps) {
                 }
                 if (isPopup) {
                     handleClosePopup(functionNodeCopy.properties.functionName.value as string);
-                    return;
+                    return true;
                 }
                 rpcClient.getVisualizerRpcClient().openView({ type: EVENT_TYPE.OPEN_VIEW, location: { documentUri: newArtifact.path, position: newArtifact.position } });
-                return;
+                return true;
             }
             const updatedArtifact = sourceCode.artifacts.find(res => !res.isNew && (res.name === functionName || res.context === functionName || res.name === data?.functionName));
             if (updatedArtifact) {
                 rpcClient.getVisualizerRpcClient().openView({ type: EVENT_TYPE.OPEN_VIEW, location: { documentUri: updatedArtifact.path, position: updatedArtifact.position } });
-                return;
+                return true;
             }
         }
+        return false;
     };
 
     // Workspace-unique name guard for new durable agentic workflows: surface a field
@@ -667,17 +668,17 @@ export function FunctionForm(props: FunctionFormProps) {
             }
         }
 
+        let navigated = false;
         try {
-            await onSubmit(data, formImports);
+            navigated = await onSubmit(data, formImports);
         } catch (error) {
             console.error("Error submitting form: ", error);
             showErrorNotification();
         } finally {
-            // A create replaces the form with a full-screen loader, so leaving `saving` set
-            // strands the user on "Creating the ..." — both when onSubmit throws and when it
-            // returns without matching an artifact to navigate to. On success the view has
-            // already been swapped out, so resetting here is a no-op.
-            setSaving(false);
+            // openView is not awaited, so resetting after a create remounts the form and reopens its LS documents.
+            if (!(navigated && !functionName)) {
+                setSaving(false);
+            }
         }
     };
 
