@@ -115,6 +115,44 @@ public class ModelGeneratorTest extends AbstractLSTest {
         Assert.assertEquals(workflow.getAsJsonObject("codedata").get("originalName").getAsString(), "processFunction");
     }
 
+    @Test
+    public void testAgentSystemPromptFromVariable() throws IOException {
+        JsonObject agent = getAgentNode(4, 111);
+        JsonObject systemPrompt = agent.getAsJsonObject("metadata").getAsJsonObject("data")
+                .getAsJsonObject("agentInfo").getAsJsonObject("systemPrompt");
+        Assert.assertEquals(systemPrompt.get("role").getAsString(), "\"Assistant\"");
+        Assert.assertEquals(systemPrompt.get("instructions").getAsString(), "Answer clearly.");
+        JsonObject properties = agent.getAsJsonObject("properties");
+        Assert.assertEquals(properties.getAsJsonObject("instructions").get("value").getAsString(), "Answer clearly.");
+    }
+
+    @Test
+    public void testAgentSystemPromptFieldVariables() throws IOException {
+        JsonObject agent = getAgentNode(9, 139);
+        JsonObject systemPrompt = agent.getAsJsonObject("metadata").getAsJsonObject("data")
+                .getAsJsonObject("agentInfo").getAsJsonObject("systemPrompt");
+        Assert.assertEquals(systemPrompt.get("role").getAsString(), "Tutor");
+        Assert.assertEquals(systemPrompt.get("instructions").getAsString(), "Explain step by step.");
+        JsonObject properties = agent.getAsJsonObject("properties");
+        Assert.assertEquals(properties.getAsJsonObject("role").get("value").getAsString(), "role");
+        Assert.assertEquals(properties.getAsJsonObject("instructions").get("value").getAsString(),
+                "tutorInstructions");
+    }
+
+    private JsonObject getAgentNode(int line, int endOffset) throws IOException {
+        String source = "agent_system_prompt_variable.bal";
+        FlowModelGeneratorRequest request = new FlowModelGeneratorRequest(
+                getSourcePath(source), LinePosition.from(line, 0), LinePosition.from(line, endOffset));
+        JsonObject response = getResponseAndCloseFile(request, source);
+        Assert.assertFalse(response.has("errorMsg"), "Flow model generation failed: " + response);
+        for (JsonElement node : response.getAsJsonObject("flowModel").getAsJsonArray("nodes")) {
+            if ("AGENT".equals(node.getAsJsonObject().getAsJsonObject("codedata").get("node").getAsString())) {
+                return node.getAsJsonObject();
+            }
+        }
+        throw new AssertionError("Agent node was not generated");
+    }
+
     @Override
     protected String[] skipList() {
         return new String[]{

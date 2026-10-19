@@ -783,8 +783,13 @@ public class CodeAnalyzer extends NodeVisitor {
             }
             return findFieldInitAssignment(fieldSymbol.get()).flatMap(assign -> getNewExpr(assign.expression()));
         }
-        Optional<Symbol> symbol = semanticModel.symbol(expressionNode);
-        if (symbol.isEmpty() || !(symbol.get() instanceof VariableSymbol variableSymbol)) {
+        return getVariableInitializer(expressionNode).flatMap(this::getNewExpr);
+    }
+
+    private Optional<ExpressionNode> getVariableInitializer(Node node) {
+        Optional<Symbol> symbol = semanticModel.symbol(node);
+        if (symbol.isEmpty() || !(symbol.get() instanceof VariableSymbol variableSymbol)
+                || variableSymbol.qualifiers().contains(Qualifier.CONFIGURABLE)) {
             return Optional.empty();
         }
         Optional<Location> optLocation = variableSymbol.getLocation();
@@ -799,8 +804,7 @@ public class CodeAnalyzer extends NodeVisitor {
         if (varNodeOpt.isEmpty()) {
             return Optional.empty();
         }
-        ExpressionNode initializerExpr = getInitializerFromVariableNode(varNodeOpt.get());
-        return initializerExpr == null ? Optional.empty() : getNewExpr(initializerExpr);
+        return Optional.ofNullable(getInitializerFromVariableNode(varNodeOpt.get()));
     }
 
     private ExpressionNode getInitializerFromVariableNode(NonTerminalNode varNode) {
@@ -948,16 +952,12 @@ public class CodeAnalyzer extends NodeVisitor {
             agentInfo.put(AiUtils.AGENT_TOOLS_KEY, toolsData);
         }
 
+        if (systemPromptArg != null && systemPromptArg.kind() == SyntaxKind.SIMPLE_NAME_REFERENCE) {
+            systemPromptArg = getVariableInitializer(systemPromptArg).orElse(systemPromptArg);
+        }
         if (systemPromptArg != null && systemPromptArg.kind() == SyntaxKind.MAPPING_CONSTRUCTOR) {
-            parseSystemPromptFields((MappingConstructorExpressionNode) systemPromptArg, agentData);
-
-            Map<String, String> systemPrompt = new HashMap<>();
-            for (String field : List.of("role", "instructions")) {
-                AiUtils.AgentPropertyValue value = agentData.get(field);
-                if (value != null) {
-                    systemPrompt.put(field, value.value());
-                }
-            }
+            Map<String, String> systemPrompt =
+                    parseSystemPromptFields((MappingConstructorExpressionNode) systemPromptArg, agentData);
             if (!systemPrompt.isEmpty()) {
                 agentInfo.put(AiUtils.AGENT_SYSTEM_PROMPT_KEY, systemPrompt);
             }
@@ -1020,34 +1020,39 @@ public class CodeAnalyzer extends NodeVisitor {
         nodeBuilder.codedata().addData(Constants.Ai.AGENT_CODEDATA, codedata);
     }
 
-    private void parseSystemPromptFields(MappingConstructorExpressionNode mappingCtr,
-                                         Map<String, AiUtils.AgentPropertyValue> agentData) {
+    // Puts the form values into agentData and returns the role/instructions text shown on the agent card.
+    private Map<String, String> parseSystemPromptFields(MappingConstructorExpressionNode mappingCtr,
+                                                        Map<String, AiUtils.AgentPropertyValue> agentData) {
+        Map<String, String> cardText = new HashMap<>();
         for (MappingFieldNode field : mappingCtr.fields()) {
             if (field.kind() != SyntaxKind.SPECIFIC_FIELD) {
                 continue;
             }
             SpecificFieldNode specificFieldNode = (SpecificFieldNode) field;
+            String fieldName = specificFieldNode.fieldName().toString().trim();
             Optional<ExpressionNode> valueExprOpt = specificFieldNode.valueExpr();
-            if (valueExprOpt.isEmpty()) {
-                continue;
+            AiUtils.AgentPropertyValue value = valueExprOpt.map(CodeAnalyzer::toAgentPropertyValue)
+                    .orElse(new AiUtils.AgentPropertyValue(fieldName, Property.ValueType.EXPRESSION));
+            agentData.put(fieldName, value);
+            if (List.of("role", "instructions").contains(fieldName)) {
+                // The form keeps a variable reference so saving does not inline its value.
+                Node valueNode = valueExprOpt.isPresent() ? valueExprOpt.get() : specificFieldNode;
+                cardText.put(fieldName,
+                        getVariableInitializer(valueNode).map(this::extractPromptText).orElse(value.value()));
             }
-            ExpressionNode valueExpr = valueExprOpt.get();
-            String value;
-            Property.ValueType selectedType;
-            if (valueExpr.kind() == SyntaxKind.STRING_TEMPLATE_EXPRESSION) {
-                TemplateExpressionNode templateExpr = (TemplateExpressionNode) valueExpr;
-                value = templateExpr.content().stream()
-                        .map(Node::toString)
-                        .collect(Collectors.joining());
-                value = AiUtils.restoreBackticksFromStringTemplate(value);
-                selectedType = Property.ValueType.PROMPT;
-            } else {
-                value = valueExpr.toString().trim();
-                selectedType = Property.ValueType.EXPRESSION;
-            }
-            agentData.put(specificFieldNode.fieldName().toString().trim(),
-                    new AiUtils.AgentPropertyValue(value, selectedType));
         }
+        return cardText;
+    }
+
+    private static AiUtils.AgentPropertyValue toAgentPropertyValue(ExpressionNode valueExpr) {
+        if (valueExpr.kind() != SyntaxKind.STRING_TEMPLATE_EXPRESSION) {
+            return new AiUtils.AgentPropertyValue(valueExpr.toString().trim(), Property.ValueType.EXPRESSION);
+        }
+        String value = ((TemplateExpressionNode) valueExpr).content().stream()
+                .map(Node::toString)
+                .collect(Collectors.joining());
+        return new AiUtils.AgentPropertyValue(AiUtils.restoreBackticksFromStringTemplate(value),
+                Property.ValueType.PROMPT);
     }
 
     private boolean isWorkflowOperation(FunctionSymbol functionSymbol, String operationName) {
