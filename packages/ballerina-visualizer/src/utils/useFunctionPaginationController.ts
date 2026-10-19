@@ -55,6 +55,12 @@ export const useFunctionPaginationController = (pageSize = FUNCTIONS_PAGE_SIZE) 
         setSectionsWithMore(withMore);
     }, [pageSize, reset]);
 
+    // A section whose first page was fetched on its own continues from that page's cursor.
+    const setSectionCursor = useCallback((title: string, page: FunctionPageInfo) => {
+        cursors.current[title] = page;
+        setSectionsWithMore(prev => ({ ...prev, [title]: page.hasMore }));
+    }, []);
+
     const loadSection = useCallback(async (
         title: string,
         fetch: (org: "ballerina" | "ballerinax", cursor: FunctionPageInfo) => Promise<BISearchResponse>,
@@ -96,5 +102,5 @@ export const useFunctionPaginationController = (pageSize = FUNCTIONS_PAGE_SIZE) 
         }
     }, [pageSize]);
 
-    return { sectionsWithMore, loadingSections, invalidate, reset, seed, loadSection };
+    return { sectionsWithMore, loadingSections, invalidate, reset, seed, setSectionCursor, loadSection };
 };
