@@ -969,7 +969,7 @@ describe("deleting components whose positions have moved", () => {
                 { accessor: "post", path: "b", location: { filePath: SERVICES_BAL, ...range(lines.b) } },
             ],
         }],
-        listeners: [],
+        listeners: [] as unknown[],
     });
 
     it("deletes an event's sender where it is now, not where it was drawn", async () => {
@@ -988,7 +988,7 @@ describe("deleting components whose positions have moved", () => {
             serviceName: "/orders",
             documentUri: SERVICES_BAL,
             position: { startLine: 6 },
-            listeners: [],
+            listeners: [] as unknown[],
             scope: "ENTRY_POINT",
             entryPoint: { label: "POST /b", documentUri: SERVICES_BAL, position: { startLine: 12 } },
         };
