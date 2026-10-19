@@ -38,12 +38,17 @@
  * Pre-releases use this same derivation. The stamp is hour-granular, so a nightly
  * and a pre-release collide only if they are cut within the same UTC hour.
  *
- * Usage: node common/scripts/nightly-version.js [--timestamp <YYMMDDHH>]
+ * A pre-release cut from a branch whose concrete version is already released (e.g. a
+ * feature branch still carrying 6.0.0 after v6.0.0 shipped) uses '--after-release'
+ * instead, see deriveAfterReleaseVersion() below.
+ *
+ * Usage: node common/scripts/nightly-version.js [--after-release] [--timestamp <YYMMDDHH>]
  *
  * Exit codes:
  * - 0: version printed on stdout
- * - 1: the extension version is not a 'major.minor.patch-SNAPSHOT' with a positive even minor,
- *      or the stamp is not exactly 8 decimal digits with a non-zero leading digit
+ * - 1: the extension version is not a 'major.minor.patch-SNAPSHOT' with a positive even minor
+ *      (or, with '--after-release', not a concrete 'major.minor.patch'), or the stamp is not
+ *      exactly 8 decimal digits with a non-zero leading digit
  */
 
 const fs = require('fs');
@@ -51,6 +56,7 @@ const path = require('path');
 
 const REPO_ROOT = path.join(__dirname, '..', '..');
 const SNAPSHOT_VERSION = /^(\d+)\.(\d+)\.\d+-SNAPSHOT$/;
+const CONCRETE_VERSION = /^(\d+)\.(\d+)\.(\d+)$/;
 
 /**
  * YYMMDDHH, UTC. Mirrors the shell in updateVersion/action.yml, which computes the
@@ -67,9 +73,9 @@ function timestamp(now) {
 }
 
 /**
- * Derive an odd-minor nightly version from the next even-minor release snapshot.
+ * Reject anything but a YYMMDDHH stamp before it can reach a published version.
  */
-function deriveNightlyVersion(extensionVersion, stamp) {
+function validateStamp(stamp) {
   // Exactly 8 digits, leading digit non-zero: a stamp is either the computed YYMMDDHH
   // or a hand-typed '--timestamp' override, and a typo that is still a valid integer
   // (an extra or dropped digit) would publish a version that outranks every genuine
@@ -85,6 +91,13 @@ function deriveNightlyVersion(extensionVersion, stamp) {
       `non-zero leading digit (YYMMDDHH, UTC).`
     );
   }
+}
+
+/**
+ * Derive an odd-minor nightly version from the next even-minor release snapshot.
+ */
+function deriveNightlyVersion(extensionVersion, stamp) {
+  validateStamp(stamp);
 
   const match = SNAPSHOT_VERSION.exec(extensionVersion);
   if (!match) {
@@ -122,18 +135,61 @@ function deriveNightlyVersion(extensionVersion, stamp) {
   return `${major}.${minor - 1}.${stamp}`;
 }
 
+/**
+ * Derive a pre-release version from a concrete version that is already released.
+ *
+ * Release lines and staging branches carry a concrete version, which a pre-release
+ * normally ships as authored. Once that version has a GitHub Release, shipping it again
+ * would reuse the tag, the release's assets and a Marketplace version that cannot be
+ * re-published, so the pre-release moves to the pre-release channel just above it:
+ *
+ *     even minor: major.(minor + 1).<YYMMDDHH>    6.0.0 -> 6.1.26101902
+ *     odd minor:  major.minor.<YYMMDDHH>          5.13.4 -> 5.13.26101902
+ *
+ * Both sort above the released version and below the next even-minor release.
+ */
+function deriveAfterReleaseVersion(extensionVersion, stamp) {
+  validateStamp(stamp);
+
+  const match = CONCRETE_VERSION.exec(extensionVersion);
+  if (!match) {
+    throw new Error(
+      `Cannot derive a pre-release version from "${extensionVersion}": '--after-release' ` +
+      `expects a concrete 'major.minor.patch' version.`
+    );
+  }
+
+  const major = Number(match[1]);
+  const minor = Number(match[2]);
+  const patch = Number(match[3]);
+
+  if (minor % 2 === 0) {
+    return `${major}.${minor + 1}.${stamp}`;
+  }
+
+  // Already on the odd channel: the stamp replaces the patch, so it must outrank it.
+  if (patch >= Number(stamp)) {
+    throw new Error(
+      `Cannot derive a pre-release version from "${extensionVersion}": its patch ${patch} ` +
+      `is not below the stamp ${stamp}, so the pre-release would not sort above it.`
+    );
+  }
+  return `${major}.${minor}.${stamp}`;
+}
+
 /** Validate CLI arguments, derive the version, and print it for workflow callers. */
 function main() {
   const args = process.argv.slice(2);
   const flagIndex = args.indexOf('--timestamp');
   const stamp = flagIndex !== -1 ? args[flagIndex + 1] : timestamp(new Date());
+  const derive = args.includes('--after-release') ? deriveAfterReleaseVersion : deriveNightlyVersion;
 
   const extensionVersion = JSON.parse(
     fs.readFileSync(path.join(REPO_ROOT, 'packages', 'ballerina-extension', 'package.json'), 'utf8')
   ).version;
 
   try {
-    console.log(deriveNightlyVersion(extensionVersion, stamp));
+    console.log(derive(extensionVersion, stamp));
   } catch (error) {
     console.error(error.message);
     process.exit(1);
@@ -144,4 +200,4 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { deriveNightlyVersion, timestamp };
+module.exports = { deriveNightlyVersion, deriveAfterReleaseVersion, timestamp };

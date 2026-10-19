@@ -214,6 +214,14 @@ runs:
             echo "${existingRelease}" >&2
             exit 1
           fi
+          # Reuse is for re-running the same release. A release of the other kind under
+          # this tag means a different build landed on the same version (e.g. a
+          # pre-release from a branch still carrying an already-released version).
+          existingPrerelease=$(echo "${existingRelease}" | jq -r '.prerelease')
+          if [ "${existingPrerelease}" != "${PRERELEASE}" ]; then
+            echo "::error::${TAG} already exists with prerelease=${existingPrerelease}, but this run asked for prerelease=${PRERELEASE}. Refusing to modify it; bump the extension version." >&2
+            exit 1
+          fi
           echo "::notice::Reusing existing release ${id} for ${TAG}."
         fi
 
@@ -233,6 +241,22 @@ runs:
           local file="$1"
           local name
           name="$(basename "${file}")"
+
+          # A published asset is never replaced with different bytes: a version names
+          # one build. Same bytes means a re-run of this release (its Build job
+          # artifact is reused), so there is nothing to upload.
+          local existingDigest localDigest
+          existingDigest=$(echo "${existingAssets}" | jq -r --arg n "${name}" \
+            '.[] | select(.name == $n) | .digest // "missing"' | head -n 1)
+          if [ -n "${existingDigest}" ]; then
+            localDigest="sha256:$(sha256sum "${file}" | cut -d' ' -f1)"
+            if [ "${existingDigest}" = "${localDigest}" ]; then
+              echo "${name} is already attached with the same digest; skipping."
+              return 0
+            fi
+            echo "::error::${TAG} already has ${name} (${existingDigest}), which differs from this build (${localDigest}). Refusing to replace it." >&2
+            return 1
+          fi
 
           # Clear any temp asset left behind by a previously failed run, or this
           # upload would 422.
@@ -259,16 +283,6 @@ runs:
             echo "Failed to upload ${file} to release ${id}:" >&2
             echo "${uploadResponse}" >&2
             return 1
-          fi
-
-          # The new artifact is safely uploaded — only now retire the old one.
-          local oldId
-          oldId=$(echo "${existingAssets}" | jq -r --arg n "${name}" \
-            '.[] | select(.name == $n) | .id' | head -n 1)
-          if [ -n "${oldId}" ]; then
-            echo "Deleting superseded asset ${oldId} (${name})"
-            "${CURL_API[@]}" -X DELETE -H "Authorization:token ${GH_TOKEN}" \
-              "${API}/releases/assets/${oldId}"
           fi
 
           local renameResponse
