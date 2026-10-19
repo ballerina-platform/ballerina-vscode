@@ -72,7 +72,7 @@
           "kind": "DEFAULTABLE",
           "originalName": "config"
         },
-        "defaultValue": "{}"
+        "defaultValue": ""
       },
       "serviceUrl": {
         "metadata": {
@@ -100,7 +100,7 @@
           "kind": "DEFAULTABLE",
           "originalName": "serviceUrl"
         },
-        "defaultValue": "\"\""
+        "defaultValue": ""
       },
       "type": {
         "metadata": {

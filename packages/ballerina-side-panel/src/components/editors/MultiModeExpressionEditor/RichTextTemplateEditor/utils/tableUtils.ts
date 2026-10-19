@@ -23,7 +23,7 @@
  * markdown-it emits:   th_open → inline → th_close
  * ProseMirror needs:   th_open → paragraph_open → inline → paragraph_close → th_close
  *
- * Table cells with cellContent "block+" require at least one block node.
+ * Table cells with cellContent "paragraph+" require at least one paragraph.
  * Without this wrapper the inline content is rejected by the schema and
  * cells are silently dropped.
  */

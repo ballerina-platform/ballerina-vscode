@@ -67,15 +67,20 @@ runs:
       # pre-release channel, so 5.14.0 is followed by 5.16.0-SNAPSHOT. Bumping to 5.15.0-SNAPSHOT
       # would sit main on the pre-release line, and its nightlies would then derive 5.14.<ts> —
       # colliding with the 5.14.x line just released.
+      #
+      # Not release-blocking: the release is already published, and the bump can be opened by hand.
       - name: Open next-snapshot PR against main
         shell: bash
         if: ${{ inputs.isPreRelease == 'false' }}
         id: snapshot_pr
+        continue-on-error: true
         run: |
           set -euo pipefail
           released="${{ steps.ver.outputs.version }}"
 
-          git fetch origin main
+          # Only package.json is needed; recursing would fetch main's submodule SHA, which the
+          # submodule remote may not advertise ('not our ref').
+          git fetch --no-recurse-submodules origin main
           mainVersion=$(git show origin/main:packages/ballerina-extension/package.json | jq -r '.version')
 
           # Only main is bumped, and only when it is sitting on the very snapshot this release
@@ -121,8 +126,15 @@ runs:
         env:
           GH_TOKEN: ${{ github.token }}
 
-      # The head branch already exists: actions/release pushed it earlier in this same job,
-      # together with the version commit it points at.
+      - name: Report a failed next-snapshot PR
+        if: ${{ inputs.isPreRelease == 'false' && steps.snapshot_pr.outcome == 'failure' }}
+        shell: bash
+        run: |
+          echo "::warning::Could not open the next-snapshot PR against main." \
+               "If main is at ${{ steps.ver.outputs.version }}-SNAPSHOT, bump it by hand."
+
+      # The head branch normally exists: actions/release pushed it earlier in this same job,
+      # together with the version commit it points at. That push is not release-blocking.
       #
       # The 'X.Y.x' line branch, by contrast, is cut by hand — when a line opens is a human
       # decision — so it can legitimately not exist yet. Skipped with a notice rather than
@@ -136,6 +148,11 @@ runs:
           set -euo pipefail
           baseBranch="${{ steps.ver.outputs.line }}"
           headBranch="${{ steps.ver.outputs.releaseBranch }}"
+          # The release branch push is continue-on-error in actions/release, so it may be missing.
+          if ! git ls-remote --exit-code --heads origin "${headBranch}" >/dev/null 2>&1; then
+            echo "::warning::${headBranch} was not pushed, so no release PR was opened."
+            exit 0
+          fi
           if ! git ls-remote --exit-code --heads origin "${baseBranch}" >/dev/null 2>&1; then
             echo "::notice::No ${baseBranch} branch, so no release PR was opened." \
                  "Cut ${baseBranch} and merge ${headBranch} into it to open the line."

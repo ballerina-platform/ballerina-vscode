@@ -35,6 +35,8 @@ export const useFieldContext = () => {
     return context;
 };
 
+export const useOptionalFieldContext = () => useContext(FieldContext);
+
 export const FieldProvider = ({ children, initialField, triggerCharacters }: { children: ReactNode; initialField?: FormField, triggerCharacters: readonly string[] }) => {
     const [field, setField] = useState<FormField | null>(initialField ?? null);
 

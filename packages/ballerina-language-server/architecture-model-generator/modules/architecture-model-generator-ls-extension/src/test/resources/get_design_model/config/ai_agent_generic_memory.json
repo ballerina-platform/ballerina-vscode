@@ -18,7 +18,7 @@
             }
           },
           "scope": "GLOBAL",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png",
           "dependentFunctions": [],
           "dependentConnection": [
             "545dd0f1-3f9d-c899-02ea-e8cf5fb1c79f"
@@ -28,7 +28,7 @@
           "modelProvider": {
             "symbol": "model",
             "type": "Wso2ModelProvider",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png?wso2_icon"
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png?wso2_icon"
           },
           "memory": {
             "symbol": "genericMemory",
@@ -53,7 +53,7 @@
             }
           },
           "scope": "GLOBAL",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png",
           "dependentFunctions": [],
           "dependentConnection": [],
           "kind": "Connection",
@@ -75,7 +75,7 @@
             }
           },
           "scope": "GLOBAL",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png",
           "dependentFunctions": [],
           "dependentConnection": [],
           "kind": "Connection",
@@ -97,7 +97,7 @@
             }
           },
           "scope": "GLOBAL",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png",
           "dependentFunctions": [],
           "dependentConnection": [
             "c640bd16-43b9-2dac-d235-61120a3b2480",
@@ -108,7 +108,7 @@
           "modelProvider": {
             "symbol": "model",
             "type": "Wso2ModelProvider",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png?wso2_icon"
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png?wso2_icon"
           },
           "memory": {
             "symbol": "concreteImplicitMemory",
@@ -133,7 +133,7 @@
             }
           },
           "scope": "GLOBAL",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png?wso2_icon",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png?wso2_icon",
           "dependentFunctions": [],
           "dependentConnection": [],
           "kind": "Model Provider",
@@ -156,7 +156,7 @@
             }
           },
           "scope": "GLOBAL",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png",
           "dependentFunctions": [],
           "dependentConnection": [
             "44773bbe-a52b-eba6-fa9b-1a6f40d055b0",
@@ -167,7 +167,7 @@
           "modelProvider": {
             "symbol": "model",
             "type": "Wso2ModelProvider",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png?wso2_icon"
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png?wso2_icon"
           },
           "memory": {
             "symbol": "concreteExplicitMemory",
@@ -192,7 +192,7 @@
             }
           },
           "scope": "GLOBAL",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png",
           "dependentFunctions": [],
           "dependentConnection": [],
           "kind": "Connection",
@@ -214,7 +214,7 @@
             }
           },
           "scope": "GLOBAL",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png",
           "dependentFunctions": [],
           "dependentConnection": [],
           "kind": "Connection",

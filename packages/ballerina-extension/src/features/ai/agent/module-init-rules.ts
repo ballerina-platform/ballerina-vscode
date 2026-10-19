@@ -35,3 +35,8 @@ export const MODULE_INIT_CODING_RULES = `## Module-level initialization
   - Declare the variable without an initializer, as \`final\`; drop \`final\` only if it is reassigned after \`init()\`.
   - Assign it in the \`init()\` function. If there is a conditinal assignement needed, Assign it in every branch of the conditional. Otherwise the compiler reports the variable as uninitialized.
 `;
+
+export const AGENT_MODULE_INIT_CODING_RULES = `## Module-level initialization
+- Initialize module-level variables at their declaration.
+- Never write a module \`init()\` function in a package that declares an agent: it does not compile, and the error reports the agent as uninitialized. Put one-time startup work (ingesting documents into a knowledge base, seeding a cache) in \`main\` instead, as the agent-builder skill shows.
+`;

@@ -45,12 +45,21 @@ const FormContainer = styled.div<{ $fullWidth?: boolean }>`
     flex-direction: column;
     max-width: ${(props: { $fullWidth?: boolean }) => props.$fullWidth ? "none" : "600px"};
     gap: 20px;
+    ${(props: { $fullWidth?: boolean }) => props.$fullWidth && "flex: 1; min-height: 0;"}
 `;
 
-const Container = styled.div`
+const Container = styled.div<{ $fill?: boolean }>`
     display: "flex";
     flex-direction: "column";
     gap: 10;
+    ${(props: { $fill?: boolean }) =>
+        props.$fill &&
+        `
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        min-height: 0;
+    `}
 `;
 
 interface FunctionFormShellProps {
@@ -145,18 +154,19 @@ export function FunctionForm(props: FunctionFormProps) {
     }, [functionNode]);
 
     // Building the node template for a workflow artifact pulls ballerina/workflow from Central the
-    // first time, which leaves the user on a bare spinner for a long while. Tell them what the wait
-    // is, the same way the service artifacts do.
+    // first time, and saving it pulls workflow's own dependencies on the project's first compile.
+    // Both leave the user on a bare spinner for a long while. Tell them what the wait is, the same
+    // way the service artifacts and the Chat Agent Service form do.
     // Only creating pulls: opening an existing workflow resolves a package the project already has.
     const pullsWorkflowPackage = !functionName && (isWorkflow || isDurableAgent || isActivity);
     useEffect(() => {
-        if (!isLoading || !pullsWorkflowPackage) {
+        if (!(isLoading || saving) || !pullsWorkflowPackage) {
             setIsPullingPackage(false);
             return;
         }
         const timer = setTimeout(() => setIsPullingPackage(true), PACKAGE_PULL_MESSAGE_DELAY);
         return () => clearTimeout(timer);
-    }, [isLoading, pullsWorkflowPackage]);
+    }, [isLoading, saving, pullsWorkflowPackage]);
 
     const hideTypeDescriptionField = (flowNode: FunctionNode): FunctionNode => {
         if (flowNode?.properties?.typeDescription) {
@@ -758,7 +768,7 @@ export function FunctionForm(props: FunctionFormProps) {
             title={formType.current}
             subtitle={titleSubtitle}
         >
-            <Container>
+            <Container $fill={embedded}>
                 {isPopup && (
                     <>
                         <TopBar>
@@ -782,11 +792,13 @@ export function FunctionForm(props: FunctionFormProps) {
                 />
                 {(isLoading || (saving && !functionName)) && (
                     <LoadingContainer>
-                        {isPullingPackage && !saving ? (
+                        {isPullingPackage ? (
                             <StatusCard>
                                 <DownloadIcon color={ThemeColors.ON_SURFACE} />
                                 <Typography variant="body2">
-                                    Please wait while the workflow package is being pulled...
+                                    {saving
+                                        ? "Please wait while the workflow's dependencies are being pulled. This may take a few moments."
+                                        : "Please wait while the workflow package is being pulled..."}
                                 </Typography>
                             </StatusCard>
                         ) : (
@@ -820,7 +832,8 @@ export function FunctionForm(props: FunctionFormProps) {
                     {filePath && targetLineRange && functionFields.length > 0 && !(saving && !functionName) &&
                         <ArtifactForm
                             fileName={filePath}
-                            nestedForm={true}
+                            nestedForm={!embedded}
+                            footerActionButton={embedded}
                             targetLineRange={targetLineRange}
                             fields={functionFields}
                             recordTypeFields={recordTypeFields}

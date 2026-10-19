@@ -1,0 +1,25 @@
+{
+  "description": "Delete a statement inside a service keeps the service's listener",
+  "filePath": "delete_component_listener_project/main.bal",
+  "startLine": 16,
+  "startColumn": 8,
+  "endLine": 16,
+  "endColumn": 19,
+  "output": {
+    "delete_component_listener_project/main.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 16,
+            "character": 8
+          },
+          "end": {
+            "line": 16,
+            "character": 19
+          }
+        },
+        "newText": ""
+      }
+    ]
+  }
+}

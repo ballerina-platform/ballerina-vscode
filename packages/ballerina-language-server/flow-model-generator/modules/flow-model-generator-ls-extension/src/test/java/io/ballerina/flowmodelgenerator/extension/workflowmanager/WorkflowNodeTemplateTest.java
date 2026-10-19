@@ -51,11 +51,14 @@ public class WorkflowNodeTemplateTest extends AbstractLSTest {
                 {Path.of("child_workflow_send_data_node_template.json")},
                 {Path.of("child_workflow_wait_node_template.json")},
                 {Path.of("human_task_node_template.json")},
+                {Path.of("run_with_id_function_call.json")},
                 {Path.of("send_data_node_template.json")},
+                {Path.of("send_data_from_function_call.json")},
                 {Path.of("sleep_node_template.json")},
                 {Path.of("wait_data_node_template.json")},
                 {Path.of("workflow_node_template.json")},
-                {Path.of("workflow_run_node_template.json")}
+                {Path.of("workflow_run_node_template.json")},
+                {Path.of("workflow_run_from_function_call.json")}
         };
     }
 

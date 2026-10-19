@@ -1,0 +1,4 @@
+[package]
+org = "discoverytest"
+name = "issue2697transitive"
+version = "0.1.0"

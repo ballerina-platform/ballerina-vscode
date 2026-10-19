@@ -18,6 +18,7 @@
 
 export * from "./components/Panel";
 export * from "./components/NodeList";
+export * from "./components/LoadMoreButton";
 export * from "./components/NodeList/types";
 export * from "./components/Form";
 export * from "./components/Form/types";

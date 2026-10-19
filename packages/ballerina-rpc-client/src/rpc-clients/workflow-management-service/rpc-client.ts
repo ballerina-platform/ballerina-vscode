@@ -16,8 +16,9 @@
  * under the License.
  */
 import {
-    WorkflowManagementResponse, WorkflowManagementRequest,
-    addWorkflowManagement, disableWorkflowManagement, isWorkflowManagementEnabled, WorkflowManagementServiceAPI
+    WorkflowManagementResponse, WorkflowManagementRequest, WorkflowRuntimeStatusResponse,
+    addWorkflowManagement, disableWorkflowManagement, isWorkflowManagementEnabled, WorkflowManagementServiceAPI,
+    getWorkflowRuntimeStatus, useInMemoryWorkflowRuntime, useLocalWorkflowRuntime
 } from "@wso2/ballerina-core";
 import { HOST_EXTENSION } from "vscode-messenger-common";
 import { Messenger } from "vscode-messenger-webview";
@@ -39,5 +40,17 @@ export class WorkflowManagementServiceRpcClient implements WorkflowManagementSer
 
     disableWorkflowManagement(params: WorkflowManagementRequest): Promise<WorkflowManagementResponse> {
         return this._messenger.sendRequest(disableWorkflowManagement, HOST_EXTENSION, params);
+    }
+
+    getWorkflowRuntimeStatus(params: WorkflowManagementRequest): Promise<WorkflowRuntimeStatusResponse> {
+        return this._messenger.sendRequest(getWorkflowRuntimeStatus, HOST_EXTENSION, params);
+    }
+
+    useInMemoryWorkflowRuntime(params: WorkflowManagementRequest): Promise<WorkflowRuntimeStatusResponse> {
+        return this._messenger.sendRequest(useInMemoryWorkflowRuntime, HOST_EXTENSION, params);
+    }
+
+    useLocalWorkflowRuntime(params: WorkflowManagementRequest): Promise<WorkflowRuntimeStatusResponse> {
+        return this._messenger.sendRequest(useLocalWorkflowRuntime, HOST_EXTENSION, params);
     }
 }

@@ -27,6 +27,8 @@ const KEY = 'enableManagementApi';
 // configurable, so they are cleared from there whenever the toggle runs.
 const STALE_TABLE = 'ballerina.workflow.management';
 const STALE_KEYS = [KEY, 'port', 'enableBasicAuth'];
+const RUNTIME_TABLE = 'ballerina.workflow';
+const MODE_KEY = 'mode';
 
 const ALREADY_TRUE = /=[ \t]*true[ \t]*(?:#[^\r\n]*)?\r?$/;
 // Captures around the value so a flip rewrites it alone, leaving any trailing comment.
@@ -38,10 +40,14 @@ const LOG = '[WorkflowManagement]';
 // Config.toml this editor leaves alone is a half-applied change: say so rather than letting the
 // checkbox flip back with the reason in a console nobody is looking at.
 function reportUnchanged(reason: string, enabled: boolean): void {
-    const message = `Workflow management: ${reason}. Set ${KEY} = ${enabled} under [${TABLE}] `
-        + 'in Config.toml by hand.';
+    reportManualEdit('Workflow management', reason, `${KEY} = ${enabled}`, TABLE);
+}
+
+function reportManualEdit(subject: string, reason: string, assignment: string, table: string): string {
+    const message = `${subject}: ${reason}. Set ${assignment} under [${table}] in Config.toml by hand.`;
     console.error(`${LOG} ${message}`);
     window.showWarningMessage(message);
+    return message;
 }
 
 /**
@@ -71,6 +77,42 @@ export function disableWorkflowManagementConfig(projectPath: string): void {
     }
 }
 
+// Writes `mode` under `[ballerina.workflow]`; returns the user-facing message when the file was left alone.
+export function setWorkflowRuntimeMode(projectPath: string, mode: string): string | undefined {
+    const configPath = path.join(projectPath, 'Config.toml');
+    const content = fs.existsSync(configPath) ? fs.readFileSync(configPath, 'utf-8') : '';
+    const before = parseToml(content);
+    if (before === undefined) {
+        return reportManualEdit('Workflow runtime', 'Config.toml could not be parsed, so it was left unchanged',
+            `${MODE_KEY} = "${mode}"`, RUNTIME_TABLE);
+    }
+    if (before.ballerina?.workflow?.[MODE_KEY] === mode) {
+        return undefined;
+    }
+    const literal = `"${mode}"`;
+    const table = findTable(content, RUNTIME_TABLE);
+    const key = table && keyLine(MODE_KEY).exec(table.body);
+    let updated: string;
+    if (!key) {
+        updated = appendKey(content, table, RUNTIME_TABLE, `${MODE_KEY} = ${literal}`);
+    } else {
+        const start = table.bodyStart + key.index;
+        updated = content.slice(0, start) + key[0].replace(VALUE, `$1${literal}$3`) + content.slice(start + key[0].length);
+    }
+    const expected = structuredClone(before);
+    expected.ballerina = expected.ballerina ?? {};
+    expected.ballerina.workflow = expected.ballerina.workflow ?? {};
+    expected.ballerina.workflow[MODE_KEY] = mode;
+    const after = parseToml(updated);
+    if (after === undefined || !sameValue(pruneEmpty(expected), pruneEmpty(after))) {
+        return reportManualEdit('Workflow runtime',
+            `Config.toml declares ${RUNTIME_TABLE} in a form this editor does not rewrite`,
+            `${MODE_KEY} = "${mode}"`, RUNTIME_TABLE);
+    }
+    fs.writeFileSync(configPath, updated, 'utf-8');
+    return undefined;
+}
+
 type Toml = Record<string, any>;
 
 /**
@@ -91,7 +133,7 @@ function withManagementApi(original: string, enabled: boolean): string {
     const key = table && keyLine(KEY).exec(table.body);
     let updated: string;
     if (!key) {
-        updated = enabled ? appendKey(content, table) : content;
+        updated = enabled ? appendKey(content, table, TABLE, `${KEY} = true`) : content;
     } else {
         const start = table.bodyStart + key.index;
         const end = start + key[0].length;
@@ -233,17 +275,17 @@ function findTable(content: string, name: string): Table | undefined {
     return { headerStart: header.index, bodyStart, body: next ? rest.slice(0, next.index) : rest };
 }
 
-function appendKey(content: string, table: Table | undefined): string {
+function appendKey(content: string, table: Table | undefined, tableName: string, line: string): string {
     const eol = content.includes('\r\n') ? '\r\n' : '\n';
     if (table) {
         const head = content.slice(0, table.bodyStart);
         const separator = head === '' || head.endsWith('\n') ? '' : eol;
-        return head + separator + `${KEY} = true${eol}` + content.slice(table.bodyStart);
+        return head + separator + `${line}${eol}` + content.slice(table.bodyStart);
     }
     let out = content;
     if (out.length > 0 && !out.endsWith('\n')) { out += eol; }
     if (out.length > 0 && !out.endsWith('\n\n') && !out.endsWith('\r\n\r\n')) { out += eol; }
-    return out + `[${TABLE}]${eol}${KEY} = true${eol}`;
+    return out + `[${tableName}]${eol}${line}${eol}`;
 }
 
 function dropStaleKeys(content: string): string {

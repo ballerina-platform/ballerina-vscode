@@ -19,13 +19,17 @@ import {
     WorkflowManagementServiceAPI,
     WorkflowManagementRequest,
     WorkflowManagementResponse,
+    WorkflowRuntimeStatusResponse,
 } from "@wso2/ballerina-core";
+import { window } from "vscode";
 import { StateMachine } from "../../stateMachine";
 import { updateSourceCode } from "../../utils/source-utils";
 import {
     disableWorkflowManagementConfig,
     enableWorkflowManagementConfig,
+    setWorkflowRuntimeMode,
 } from "../../utils/workflow-config-toml";
+import { getWorkflowRuntimeStatus } from "../../utils/workflow-runtime";
 
 export class WorkflowManagementServiceRpcManager implements WorkflowManagementServiceAPI {
 
@@ -73,5 +77,30 @@ export class WorkflowManagementServiceRpcManager implements WorkflowManagementSe
             console.log(error);
             return { enabled: false };
         }
+    }
+
+    async getWorkflowRuntimeStatus(params: WorkflowManagementRequest): Promise<WorkflowRuntimeStatusResponse> {
+        const projectPath: string = params.projectPath || StateMachine.context().projectPath;
+        return getWorkflowRuntimeStatus(projectPath);
+    }
+
+    async useInMemoryWorkflowRuntime(params: WorkflowManagementRequest): Promise<WorkflowRuntimeStatusResponse> {
+        return this.switchWorkflowRuntime(params, "IN_MEMORY");
+    }
+
+    async useLocalWorkflowRuntime(params: WorkflowManagementRequest): Promise<WorkflowRuntimeStatusResponse> {
+        return this.switchWorkflowRuntime(params, "LOCAL");
+    }
+
+    // The switch edits Config.toml without opening it, so a notice says what changed.
+    private async switchWorkflowRuntime(params: WorkflowManagementRequest, mode: string): Promise<WorkflowRuntimeStatusResponse> {
+        const projectPath: string = params.projectPath || StateMachine.context().projectPath;
+        const errorMsg = setWorkflowRuntimeMode(projectPath, mode);
+        const status = await getWorkflowRuntimeStatus(projectPath);
+        if (errorMsg) {
+            return { ...status, errorMsg };
+        }
+        window.showInformationMessage(`Workflow runtime mode set to ${mode} in Config.toml.`);
+        return status;
     }
 }

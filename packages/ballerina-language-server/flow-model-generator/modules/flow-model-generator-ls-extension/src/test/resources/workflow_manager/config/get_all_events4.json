@@ -1,0 +1,13 @@
+{
+  "source": "workflow_project/main.bal",
+  "description": "Get all data for a workflow whose data record is its only parameter",
+  "workflowName": "pollWorkflow",
+  "output": {
+    "data": [
+      {
+        "name": "answer",
+        "type": "PaymentData"
+      }
+    ]
+  }
+}

@@ -53,7 +53,7 @@
         "hidden": false,
         "imports": {
           "nats": "ballerinax/nats:3.2.0",
-          "http": "ballerina/http:2.16.6"
+          "http": "ballerina/http:2.18.0"
         }
       },
       "parameters": {

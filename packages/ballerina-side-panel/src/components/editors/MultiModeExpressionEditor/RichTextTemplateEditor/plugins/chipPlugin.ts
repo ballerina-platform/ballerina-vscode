@@ -114,7 +114,8 @@ const chipNodeSpec: NodeSpec = {
 export function createChipSchema(): Schema {
     const tNodes = tableNodes({
         tableGroup: "block",
-        cellContent: "block+",
+        // A Markdown pipe-table cell holds one line of inline text, so no tables, lists or headings inside.
+        cellContent: "paragraph+",
         cellAttributes: {
             alignment: {
                 default: null,

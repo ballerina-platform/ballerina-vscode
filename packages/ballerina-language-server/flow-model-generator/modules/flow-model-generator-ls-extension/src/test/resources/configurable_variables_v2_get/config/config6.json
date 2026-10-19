@@ -556,7 +556,7 @@
                   "typeMembers": [
                     {
                       "type": "LogFormat",
-                      "packageInfo": "ballerina:log:2.17.0",
+                      "packageInfo": "ballerina:log:2.17.1",
                       "packageName": "log",
                       "kind": "BASIC_TYPE",
                       "selected": false
@@ -680,7 +680,7 @@
                   "typeMembers": [
                     {
                       "type": "Level",
-                      "packageInfo": "ballerina:log:2.17.0",
+                      "packageInfo": "ballerina:log:2.17.1",
                       "packageName": "log",
                       "kind": "BASIC_TYPE",
                       "selected": false

@@ -228,7 +228,7 @@
               "kind": "DEFAULTABLE",
               "originalName": "serviceUrl"
             },
-            "defaultValue": "DEFAULT_OPENAI_SERVICE_URL"
+            "defaultValue": ""
           },
           "maxTokens": {
             "metadata": {
@@ -256,7 +256,7 @@
               "kind": "DEFAULTABLE",
               "originalName": "maxTokens"
             },
-            "defaultValue": "DEFAULT_MAX_TOKEN_COUNT"
+            "defaultValue": ""
           },
           "temperature": {
             "metadata": {
@@ -284,7 +284,7 @@
               "kind": "DEFAULTABLE",
               "originalName": "temperature"
             },
-            "defaultValue": "DEFAULT_TEMPERATURE"
+            "defaultValue": ""
           },
           "httpVersion": {
             "metadata": {
@@ -316,7 +316,7 @@
                 "selected": false
               }
             ],
-            "placeholder": "\"2.0\"",
+            "placeholder": "",
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -328,7 +328,7 @@
             "imports": {
               "http": "ballerina/http"
             },
-            "defaultValue": "http:HTTP_2_0"
+            "defaultValue": ""
           },
           "http1Settings": {
             "metadata": {
@@ -342,7 +342,7 @@
                 "typeMembers": [
                   {
                     "type": "ClientHttp1Settings",
-                    "packageInfo": "ballerina:http:2.17.1",
+                    "packageInfo": "ballerina:http:2.18.0",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -368,7 +368,7 @@
             "imports": {
               "http": "ballerina/http"
             },
-            "defaultValue": "{}"
+            "defaultValue": ""
           },
           "http2Settings": {
             "metadata": {
@@ -382,7 +382,7 @@
                 "typeMembers": [
                   {
                     "type": "ClientHttp2Settings",
-                    "packageInfo": "ballerina:http:2.17.1",
+                    "packageInfo": "ballerina:http:2.18.0",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -408,7 +408,7 @@
             "imports": {
               "http": "ballerina/http"
             },
-            "defaultValue": "{}"
+            "defaultValue": ""
           },
           "timeout": {
             "metadata": {
@@ -436,7 +436,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "timeout"
             },
-            "defaultValue": "60"
+            "defaultValue": ""
           },
           "forwarded": {
             "metadata": {
@@ -464,7 +464,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "forwarded"
             },
-            "defaultValue": "\"disable\""
+            "defaultValue": ""
           },
           "poolConfig": {
             "metadata": {
@@ -478,7 +478,7 @@
                 "typeMembers": [
                   {
                     "type": "PoolConfiguration",
-                    "packageInfo": "ballerina:http:2.17.1",
+                    "packageInfo": "ballerina:http:2.18.0",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -504,7 +504,7 @@
             "imports": {
               "http": "ballerina/http"
             },
-            "defaultValue": "{}"
+            "defaultValue": ""
           },
           "cache": {
             "metadata": {
@@ -518,7 +518,7 @@
                 "typeMembers": [
                   {
                     "type": "CacheConfig",
-                    "packageInfo": "ballerina:http:2.17.1",
+                    "packageInfo": "ballerina:http:2.18.0",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -544,7 +544,7 @@
             "imports": {
               "http": "ballerina/http"
             },
-            "defaultValue": "{}"
+            "defaultValue": ""
           },
           "compression": {
             "metadata": {
@@ -588,7 +588,7 @@
             "imports": {
               "http": "ballerina/http"
             },
-            "defaultValue": "http:COMPRESSION_AUTO"
+            "defaultValue": ""
           },
           "circuitBreaker": {
             "metadata": {
@@ -602,7 +602,7 @@
                 "typeMembers": [
                   {
                     "type": "CircuitBreakerConfig",
-                    "packageInfo": "ballerina:http:2.17.1",
+                    "packageInfo": "ballerina:http:2.18.0",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -628,7 +628,7 @@
             "imports": {
               "http": "ballerina/http"
             },
-            "defaultValue": "{}"
+            "defaultValue": ""
           },
           "retryConfig": {
             "metadata": {
@@ -642,7 +642,7 @@
                 "typeMembers": [
                   {
                     "type": "RetryConfig",
-                    "packageInfo": "ballerina:http:2.17.1",
+                    "packageInfo": "ballerina:http:2.18.0",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -668,7 +668,7 @@
             "imports": {
               "http": "ballerina/http"
             },
-            "defaultValue": "{}"
+            "defaultValue": ""
           },
           "responseLimits": {
             "metadata": {
@@ -682,7 +682,7 @@
                 "typeMembers": [
                   {
                     "type": "ResponseLimitConfigs",
-                    "packageInfo": "ballerina:http:2.17.1",
+                    "packageInfo": "ballerina:http:2.18.0",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -708,7 +708,7 @@
             "imports": {
               "http": "ballerina/http"
             },
-            "defaultValue": "{}"
+            "defaultValue": ""
           },
           "secureSocket": {
             "metadata": {
@@ -722,7 +722,7 @@
                 "typeMembers": [
                   {
                     "type": "ClientSecureSocket",
-                    "packageInfo": "ballerina:http:2.17.1",
+                    "packageInfo": "ballerina:http:2.18.0",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -748,7 +748,7 @@
             "imports": {
               "http": "ballerina/http"
             },
-            "defaultValue": "{}"
+            "defaultValue": ""
           },
           "proxy": {
             "metadata": {
@@ -762,7 +762,7 @@
                 "typeMembers": [
                   {
                     "type": "ProxyConfig",
-                    "packageInfo": "ballerina:http:2.17.1",
+                    "packageInfo": "ballerina:http:2.18.0",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -788,7 +788,7 @@
             "imports": {
               "http": "ballerina/http"
             },
-            "defaultValue": "{}"
+            "defaultValue": ""
           },
           "validation": {
             "metadata": {
@@ -816,7 +816,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "validation"
             },
-            "defaultValue": "true"
+            "defaultValue": ""
           },
           "checkError": {
             "metadata": {
@@ -1127,7 +1127,7 @@
               "kind": "DEFAULTABLE",
               "originalName": "serviceUrl"
             },
-            "defaultValue": "DEFAULT_OPENAI_SERVICE_URL"
+            "defaultValue": ""
           },
           "maxTokens": {
             "metadata": {
@@ -1155,7 +1155,7 @@
               "kind": "DEFAULTABLE",
               "originalName": "maxTokens"
             },
-            "defaultValue": "DEFAULT_MAX_TOKEN_COUNT"
+            "defaultValue": ""
           },
           "temperature": {
             "metadata": {
@@ -1183,7 +1183,7 @@
               "kind": "DEFAULTABLE",
               "originalName": "temperature"
             },
-            "defaultValue": "DEFAULT_TEMPERATURE"
+            "defaultValue": ""
           },
           "httpVersion": {
             "metadata": {
@@ -1215,7 +1215,7 @@
                 "selected": false
               }
             ],
-            "placeholder": "\"2.0\"",
+            "placeholder": "",
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -1227,7 +1227,7 @@
             "imports": {
               "http": "ballerina/http"
             },
-            "defaultValue": "http:HTTP_2_0"
+            "defaultValue": ""
           },
           "http1Settings": {
             "metadata": {
@@ -1241,7 +1241,7 @@
                 "typeMembers": [
                   {
                     "type": "ClientHttp1Settings",
-                    "packageInfo": "ballerina:http:2.17.1",
+                    "packageInfo": "ballerina:http:2.18.0",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -1267,7 +1267,7 @@
             "imports": {
               "http": "ballerina/http"
             },
-            "defaultValue": "{}"
+            "defaultValue": ""
           },
           "http2Settings": {
             "metadata": {
@@ -1281,7 +1281,7 @@
                 "typeMembers": [
                   {
                     "type": "ClientHttp2Settings",
-                    "packageInfo": "ballerina:http:2.17.1",
+                    "packageInfo": "ballerina:http:2.18.0",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -1307,7 +1307,7 @@
             "imports": {
               "http": "ballerina/http"
             },
-            "defaultValue": "{}"
+            "defaultValue": ""
           },
           "timeout": {
             "metadata": {
@@ -1335,7 +1335,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "timeout"
             },
-            "defaultValue": "60"
+            "defaultValue": ""
           },
           "forwarded": {
             "metadata": {
@@ -1363,7 +1363,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "forwarded"
             },
-            "defaultValue": "\"disable\""
+            "defaultValue": ""
           },
           "poolConfig": {
             "metadata": {
@@ -1377,7 +1377,7 @@
                 "typeMembers": [
                   {
                     "type": "PoolConfiguration",
-                    "packageInfo": "ballerina:http:2.17.1",
+                    "packageInfo": "ballerina:http:2.18.0",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -1403,7 +1403,7 @@
             "imports": {
               "http": "ballerina/http"
             },
-            "defaultValue": "{}"
+            "defaultValue": ""
           },
           "cache": {
             "metadata": {
@@ -1417,7 +1417,7 @@
                 "typeMembers": [
                   {
                     "type": "CacheConfig",
-                    "packageInfo": "ballerina:http:2.17.1",
+                    "packageInfo": "ballerina:http:2.18.0",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -1443,7 +1443,7 @@
             "imports": {
               "http": "ballerina/http"
             },
-            "defaultValue": "{}"
+            "defaultValue": ""
           },
           "compression": {
             "metadata": {
@@ -1487,7 +1487,7 @@
             "imports": {
               "http": "ballerina/http"
             },
-            "defaultValue": "http:COMPRESSION_AUTO"
+            "defaultValue": ""
           },
           "circuitBreaker": {
             "metadata": {
@@ -1501,7 +1501,7 @@
                 "typeMembers": [
                   {
                     "type": "CircuitBreakerConfig",
-                    "packageInfo": "ballerina:http:2.17.1",
+                    "packageInfo": "ballerina:http:2.18.0",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -1527,7 +1527,7 @@
             "imports": {
               "http": "ballerina/http"
             },
-            "defaultValue": "{}"
+            "defaultValue": ""
           },
           "retryConfig": {
             "metadata": {
@@ -1541,7 +1541,7 @@
                 "typeMembers": [
                   {
                     "type": "RetryConfig",
-                    "packageInfo": "ballerina:http:2.17.1",
+                    "packageInfo": "ballerina:http:2.18.0",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -1567,7 +1567,7 @@
             "imports": {
               "http": "ballerina/http"
             },
-            "defaultValue": "{}"
+            "defaultValue": ""
           },
           "responseLimits": {
             "metadata": {
@@ -1581,7 +1581,7 @@
                 "typeMembers": [
                   {
                     "type": "ResponseLimitConfigs",
-                    "packageInfo": "ballerina:http:2.17.1",
+                    "packageInfo": "ballerina:http:2.18.0",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -1607,7 +1607,7 @@
             "imports": {
               "http": "ballerina/http"
             },
-            "defaultValue": "{}"
+            "defaultValue": ""
           },
           "secureSocket": {
             "metadata": {
@@ -1621,7 +1621,7 @@
                 "typeMembers": [
                   {
                     "type": "ClientSecureSocket",
-                    "packageInfo": "ballerina:http:2.17.1",
+                    "packageInfo": "ballerina:http:2.18.0",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -1647,7 +1647,7 @@
             "imports": {
               "http": "ballerina/http"
             },
-            "defaultValue": "{}"
+            "defaultValue": ""
           },
           "proxy": {
             "metadata": {
@@ -1661,7 +1661,7 @@
                 "typeMembers": [
                   {
                     "type": "ProxyConfig",
-                    "packageInfo": "ballerina:http:2.17.1",
+                    "packageInfo": "ballerina:http:2.18.0",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -1687,7 +1687,7 @@
             "imports": {
               "http": "ballerina/http"
             },
-            "defaultValue": "{}"
+            "defaultValue": ""
           },
           "validation": {
             "metadata": {
@@ -1715,7 +1715,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "validation"
             },
-            "defaultValue": "true"
+            "defaultValue": ""
           },
           "checkError": {
             "metadata": {
@@ -2026,7 +2026,7 @@
               "kind": "DEFAULTABLE",
               "originalName": "serviceUrl"
             },
-            "defaultValue": "DEFAULT_OPENAI_SERVICE_URL"
+            "defaultValue": ""
           },
           "maxTokens": {
             "metadata": {
@@ -2054,7 +2054,7 @@
               "kind": "DEFAULTABLE",
               "originalName": "maxTokens"
             },
-            "defaultValue": "DEFAULT_MAX_TOKEN_COUNT"
+            "defaultValue": ""
           },
           "temperature": {
             "metadata": {
@@ -2082,7 +2082,7 @@
               "kind": "DEFAULTABLE",
               "originalName": "temperature"
             },
-            "defaultValue": "DEFAULT_TEMPERATURE"
+            "defaultValue": ""
           },
           "httpVersion": {
             "metadata": {
@@ -2114,7 +2114,7 @@
                 "selected": false
               }
             ],
-            "placeholder": "\"2.0\"",
+            "placeholder": "",
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -2126,7 +2126,7 @@
             "imports": {
               "http": "ballerina/http"
             },
-            "defaultValue": "http:HTTP_2_0"
+            "defaultValue": ""
           },
           "http1Settings": {
             "metadata": {
@@ -2140,7 +2140,7 @@
                 "typeMembers": [
                   {
                     "type": "ClientHttp1Settings",
-                    "packageInfo": "ballerina:http:2.17.1",
+                    "packageInfo": "ballerina:http:2.18.0",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -2166,7 +2166,7 @@
             "imports": {
               "http": "ballerina/http"
             },
-            "defaultValue": "{}"
+            "defaultValue": ""
           },
           "http2Settings": {
             "metadata": {
@@ -2180,7 +2180,7 @@
                 "typeMembers": [
                   {
                     "type": "ClientHttp2Settings",
-                    "packageInfo": "ballerina:http:2.17.1",
+                    "packageInfo": "ballerina:http:2.18.0",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -2206,7 +2206,7 @@
             "imports": {
               "http": "ballerina/http"
             },
-            "defaultValue": "{}"
+            "defaultValue": ""
           },
           "timeout": {
             "metadata": {
@@ -2234,7 +2234,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "timeout"
             },
-            "defaultValue": "60"
+            "defaultValue": ""
           },
           "forwarded": {
             "metadata": {
@@ -2262,7 +2262,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "forwarded"
             },
-            "defaultValue": "\"disable\""
+            "defaultValue": ""
           },
           "poolConfig": {
             "metadata": {
@@ -2276,7 +2276,7 @@
                 "typeMembers": [
                   {
                     "type": "PoolConfiguration",
-                    "packageInfo": "ballerina:http:2.17.1",
+                    "packageInfo": "ballerina:http:2.18.0",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -2302,7 +2302,7 @@
             "imports": {
               "http": "ballerina/http"
             },
-            "defaultValue": "{}"
+            "defaultValue": ""
           },
           "cache": {
             "metadata": {
@@ -2316,7 +2316,7 @@
                 "typeMembers": [
                   {
                     "type": "CacheConfig",
-                    "packageInfo": "ballerina:http:2.17.1",
+                    "packageInfo": "ballerina:http:2.18.0",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -2342,7 +2342,7 @@
             "imports": {
               "http": "ballerina/http"
             },
-            "defaultValue": "{}"
+            "defaultValue": ""
           },
           "compression": {
             "metadata": {
@@ -2386,7 +2386,7 @@
             "imports": {
               "http": "ballerina/http"
             },
-            "defaultValue": "http:COMPRESSION_AUTO"
+            "defaultValue": ""
           },
           "circuitBreaker": {
             "metadata": {
@@ -2400,7 +2400,7 @@
                 "typeMembers": [
                   {
                     "type": "CircuitBreakerConfig",
-                    "packageInfo": "ballerina:http:2.17.1",
+                    "packageInfo": "ballerina:http:2.18.0",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -2426,7 +2426,7 @@
             "imports": {
               "http": "ballerina/http"
             },
-            "defaultValue": "{}"
+            "defaultValue": ""
           },
           "retryConfig": {
             "metadata": {
@@ -2440,7 +2440,7 @@
                 "typeMembers": [
                   {
                     "type": "RetryConfig",
-                    "packageInfo": "ballerina:http:2.17.1",
+                    "packageInfo": "ballerina:http:2.18.0",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -2466,7 +2466,7 @@
             "imports": {
               "http": "ballerina/http"
             },
-            "defaultValue": "{}"
+            "defaultValue": ""
           },
           "responseLimits": {
             "metadata": {
@@ -2480,7 +2480,7 @@
                 "typeMembers": [
                   {
                     "type": "ResponseLimitConfigs",
-                    "packageInfo": "ballerina:http:2.17.1",
+                    "packageInfo": "ballerina:http:2.18.0",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -2506,7 +2506,7 @@
             "imports": {
               "http": "ballerina/http"
             },
-            "defaultValue": "{}"
+            "defaultValue": ""
           },
           "secureSocket": {
             "metadata": {
@@ -2520,7 +2520,7 @@
                 "typeMembers": [
                   {
                     "type": "ClientSecureSocket",
-                    "packageInfo": "ballerina:http:2.17.1",
+                    "packageInfo": "ballerina:http:2.18.0",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -2546,7 +2546,7 @@
             "imports": {
               "http": "ballerina/http"
             },
-            "defaultValue": "{}"
+            "defaultValue": ""
           },
           "proxy": {
             "metadata": {
@@ -2560,7 +2560,7 @@
                 "typeMembers": [
                   {
                     "type": "ProxyConfig",
-                    "packageInfo": "ballerina:http:2.17.1",
+                    "packageInfo": "ballerina:http:2.18.0",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -2586,7 +2586,7 @@
             "imports": {
               "http": "ballerina/http"
             },
-            "defaultValue": "{}"
+            "defaultValue": ""
           },
           "validation": {
             "metadata": {
@@ -2614,7 +2614,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "validation"
             },
-            "defaultValue": "true"
+            "defaultValue": ""
           },
           "checkError": {
             "metadata": {

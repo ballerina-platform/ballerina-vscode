@@ -50,7 +50,7 @@
         "metadata": {
           "label": "Run Child",
           "description": "auditClaim",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.10.0.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_1.0.0.png"
         },
         "codedata": {
           "node": "CHILD_WORKFLOW_RUN",
@@ -230,7 +230,7 @@
         "metadata": {
           "label": "Send to Child",
           "description": "auditClaim",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.10.0.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_1.0.0.png"
         },
         "codedata": {
           "node": "CHILD_WORKFLOW_SEND_DATA",
@@ -239,7 +239,7 @@
           "packageName": "workflow",
           "object": "Context",
           "symbol": "sendDataToChildWorkflow",
-          "version": "0.10.0",
+          "version": "1.0.0",
           "lineRange": {
             "fileName": "workflow_child_operations.bal",
             "startLine": {
@@ -376,7 +376,7 @@
         "metadata": {
           "label": "Await Child",
           "description": "auditClaim",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.10.0.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_1.0.0.png"
         },
         "codedata": {
           "node": "CHILD_WORKFLOW_WAIT",
@@ -385,7 +385,7 @@
           "packageName": "workflow",
           "object": "Context",
           "symbol": "waitForChildWorkflow",
-          "version": "0.10.0",
+          "version": "1.0.0",
           "lineRange": {
             "fileName": "workflow_child_operations.bal",
             "startLine": {
@@ -486,7 +486,7 @@
         "metadata": {
           "label": "Call Child",
           "description": "settleClaim",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.10.0.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_1.0.0.png"
         },
         "codedata": {
           "node": "CHILD_WORKFLOW_CALL",

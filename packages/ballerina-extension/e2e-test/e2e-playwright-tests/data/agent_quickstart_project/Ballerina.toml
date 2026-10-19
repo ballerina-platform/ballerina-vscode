@@ -1,0 +1,9 @@
+[package]
+org = "demo"
+name = "claimhandler"
+version = "0.1.0"
+distribution = "2201.13.2"
+title = "ClaimHandler"
+
+[build-options]
+sticky = true

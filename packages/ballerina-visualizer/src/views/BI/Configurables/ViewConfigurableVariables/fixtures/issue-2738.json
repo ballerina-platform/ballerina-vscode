@@ -1,0 +1,137 @@
+{
+    "_comment": "getConfigVariablesV2 shaped like a project importing ballerina/workflow.management.rest (issue 2738): libraries with configurables in a default module plus submodules, only a default module, only one submodule, and only several submodules.",
+    "configVariables": {
+        "wso2/sample": {
+            "": [
+                {
+                    "properties": {
+                        "variable": {
+                            "value": "apiKey"
+                        }
+                    }
+                }
+            ]
+        },
+        "ballerina/workflow": {
+            "": [
+                {
+                    "properties": {
+                        "variable": {
+                            "value": "mode"
+                        },
+                        "defaultValue": {
+                            "value": "\"LOCAL\""
+                        }
+                    }
+                },
+                {
+                    "properties": {
+                        "variable": {
+                            "value": "url"
+                        },
+                        "defaultValue": {
+                            "value": "\"localhost:7233\""
+                        }
+                    }
+                }
+            ],
+            "management": [
+                {
+                    "properties": {
+                        "variable": {
+                            "value": "maxPageSize"
+                        },
+                        "defaultValue": {
+                            "value": "100"
+                        }
+                    }
+                }
+            ],
+            "management.rest": [
+                {
+                    "properties": {
+                        "variable": {
+                            "value": "enableManagementApi"
+                        },
+                        "defaultValue": {
+                            "value": "false"
+                        }
+                    }
+                },
+                {
+                    "properties": {
+                        "variable": {
+                            "value": "apiKeyValue"
+                        }
+                    }
+                }
+            ],
+            "observe": [
+                {
+                    "properties": {
+                        "variable": {
+                            "value": "enableTracing"
+                        },
+                        "defaultValue": {
+                            "value": "false"
+                        }
+                    }
+                }
+            ]
+        },
+        "ballerina/log": {
+            "": [
+                {
+                    "properties": {
+                        "variable": {
+                            "value": "level"
+                        },
+                        "defaultValue": {
+                            "value": "\"INFO\""
+                        }
+                    }
+                }
+            ]
+        },
+        "wso2/notifier": {
+            "email": [
+                {
+                    "properties": {
+                        "variable": {
+                            "value": "timeout"
+                        },
+                        "defaultValue": {
+                            "value": "30"
+                        }
+                    }
+                }
+            ]
+        },
+        "wso2/messaging": {
+            "kafka": [
+                {
+                    "properties": {
+                        "variable": {
+                            "value": "bootstrapServers"
+                        },
+                        "defaultValue": {
+                            "value": "\"localhost:9092\""
+                        }
+                    }
+                }
+            ],
+            "rabbitmq": [
+                {
+                    "properties": {
+                        "variable": {
+                            "value": "host"
+                        },
+                        "defaultValue": {
+                            "value": "\"localhost\""
+                        }
+                    }
+                }
+            ]
+        }
+    }
+}

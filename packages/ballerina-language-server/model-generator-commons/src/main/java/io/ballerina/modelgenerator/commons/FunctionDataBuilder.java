@@ -66,6 +66,7 @@ import io.ballerina.projects.Package;
 import io.ballerina.projects.PackageDescriptor;
 import io.ballerina.projects.Project;
 import io.ballerina.projects.ProjectException;
+import io.ballerina.projects.ProjectKind;
 import io.ballerina.runtime.api.utils.IdentifierUtils;
 import io.ballerina.tools.text.LinePosition;
 import org.ballerinalang.langserver.LSClientLogger;
@@ -86,6 +87,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.stream.Stream;
 
 import static io.ballerina.modelgenerator.commons.FunctionData.Kind.isAiClassKind;
@@ -110,9 +113,12 @@ public class FunctionDataBuilder {
     private static final String WSO2_MODEL_PROVIDER_TYPE_NAME = "Wso2ModelProvider";
     private static final String WSO2_EMBEDDING_PROVIDER_TYPE_NAME = "Wso2EmbeddingProvider";
     private static final String MODEL_TYPE_PARAMETER_NAME = "modelType";
+    private static final Logger LOGGER = Logger.getLogger(FunctionDataBuilder.class.getName());
     private SemanticModel semanticModel;
     private TypeSymbol errorTypeSymbol;
     private Package resolvedPackage;
+    private final Map<ModuleId, SemanticModel> declaringModuleSemanticModels = new HashMap<>();
+    private final Set<ModuleId> failedDeclaringModules = new HashSet<>();
     private Document document;
     private FunctionSymbol functionSymbol;
     private FunctionData.Kind functionKind;
@@ -193,6 +199,71 @@ public class FunctionDataBuilder {
                 .map(Module::moduleId)
                 .orElseGet(() -> resolvedPackage.getDefaultModule().moduleId());
         semanticModel(PackageUtil.getCompilation(resolvedPackage).getSemanticModel(targetModuleId));
+    }
+
+    /**
+     * The semantic model of the module that declares a parameter or record field, which is the module of the
+     * document its default is read from.
+     * <p>
+     * This is not necessarily {@code semanticModel}, which a caller may supply from the user's project: there the
+     * connector is a dependency loaded from its compiled form, so a node of its source resolves to nothing.
+     * <p>
+     * A project the workspace manager holds is not compiled here: the workspace manager compiles it under its own
+     * lock, and a second compilation running beside it can fail, as the compiler's plugin cache is shared by the
+     * project and not safe for concurrent use. Its model is taken from the workspace manager, or, without one, is
+     * {@code semanticModel} when the module is that of the document. Any other package, such as a dependency loaded
+     * from its bala, has an environment of its own and is compiled.
+     * <p>
+     * Resolved only once a default names a constant or an enum member, and kept for each module. When compiling a
+     * module fails, such a default it declares is presented as the name it is written with, and the module is not
+     * compiled again for the defaults that follow. Defaults declared by other modules are still resolved.
+     */
+    private SemanticModel declaringModuleSemanticModel(Module module) {
+        if (failedDeclaringModules.contains(module.moduleId())) {
+            return null;
+        }
+        SemanticModel heldModel = declaringModuleSemanticModels.get(module.moduleId());
+        if (heldModel != null) {
+            return heldModel;
+        }
+        // TODO: Compile the module directly once the compiler's plugin cache is safe for concurrent use
+        //  (https://github.com/wso2/product-integrator/issues/2733).
+        if (module.project().kind() != ProjectKind.BALA_PROJECT) {
+            Optional<SemanticModel> workspaceModel = workspaceSemanticModel(module);
+            if (workspaceModel.isPresent()) {
+                declaringModuleSemanticModels.put(module.moduleId(), workspaceModel.get());
+                return workspaceModel.get();
+            }
+            if (workspaceManager == null && semanticModel != null && document != null
+                    && document.module().moduleId().equals(module.moduleId())) {
+                return semanticModel;
+            }
+        }
+        try {
+            return declaringModuleSemanticModels.computeIfAbsent(module.moduleId(),
+                    moduleId -> PackageUtil.getCompilation(module.packageInstance()).getSemanticModel(moduleId));
+        } catch (RuntimeException e) {
+            failedDeclaringModules.add(module.moduleId());
+            LOGGER.log(Level.WARNING, "Failed to compile module '" + module.descriptor().name()
+                    + "' to resolve the constant defaults it declares", e);
+            return null;
+        }
+    }
+
+    /**
+     * The semantic model of a module from the workspace manager, read through a file of the module, when the
+     * workspace manager holds its project.
+     */
+    private Optional<SemanticModel> workspaceSemanticModel(Module module) {
+        if (workspaceManager == null) {
+            return Optional.empty();
+        }
+        Optional<Path> modulePath = module.documentIds().stream().findFirst()
+                .flatMap(documentId -> module.project().documentPath(documentId));
+        if (modulePath.isEmpty() || workspaceManager.project(modulePath.get()).isEmpty()) {
+            return Optional.empty();
+        }
+        return workspaceManager.semanticModel(modulePath.get());
     }
 
     public FunctionDataBuilder name(String name) {
@@ -944,8 +1015,8 @@ public class FunctionDataBuilder {
                 }
             }
             placeholder = DefaultValueGeneratorUtil.getDefaultValueForType(typeSymbol);
-            defaultValue = CommonUtils.resolveDefaultValue(paramSymbol, typeSymbol, semanticModel, resolvedPackage,
-                    document);
+            defaultValue = CommonUtils.resolveDefaultValue(paramSymbol, this::declaringModuleSemanticModel,
+                    resolvedPackage);
             paramType = getTypeSignature(typeSymbol, false, paramAllocator);
         }
         ParameterData parameterData = ParameterData.from(paramName, paramDescription,
@@ -1080,8 +1151,8 @@ public class FunctionDataBuilder {
             }
 
             String placeholder = DefaultValueGeneratorUtil.getDefaultValueForType(fieldType);
-            String defaultValue = CommonUtils.resolveDefaultValue(recordFieldSymbol, fieldType, semanticModel,
-                    resolvedPackage, document);
+            String defaultValue = CommonUtils.resolveDefaultValue(recordFieldSymbol,
+                    this::declaringModuleSemanticModel, resolvedPackage);
             String paramType = getTypeSignature(typeSymbol);
             boolean optional = recordFieldSymbol.isOptional() || recordFieldSymbol.hasDefaultValue();
             boolean advanced = recordFieldSymbol.isOptional();

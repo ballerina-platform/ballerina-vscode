@@ -1,0 +1,90 @@
+{
+  "description": "Artifacts generation for an AI KnowledgeBase connection",
+  "source": "knowledge_base.bal",
+  "packageName": ".",
+  "output": {
+    "Connections": {
+      "embeddingProvider": {
+        "id": "embeddingProvider",
+        "location": {
+          "fileName": "knowledge_base.bal",
+          "startLine": {
+            "line": 2,
+            "offset": 0
+          },
+          "endLine": {
+            "line": 2,
+            "offset": 105
+          }
+        },
+        "type": "CONNECTION",
+        "name": "embeddingProvider",
+        "scope": "Global",
+        "visibility": "module",
+        "icon": {
+          "url": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png",
+          "source": "ballerina-central"
+        },
+        "module": "ai",
+        "children": {},
+        "metadata": {
+          "connectorType": "embeddingProvider"
+        }
+      },
+      "knowledgeBase": {
+        "id": "knowledgeBase",
+        "location": {
+          "fileName": "knowledge_base.bal",
+          "startLine": {
+            "line": 4,
+            "offset": 0
+          },
+          "endLine": {
+            "line": 4,
+            "offset": 82
+          }
+        },
+        "type": "CONNECTION",
+        "name": "knowledgeBase",
+        "scope": "Global",
+        "visibility": "module",
+        "icon": {
+          "url": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png",
+          "source": "ballerina-central"
+        },
+        "module": "ai",
+        "children": {},
+        "metadata": {
+          "connectorType": "knowledgeBase"
+        }
+      },
+      "vectorStore": {
+        "id": "vectorStore",
+        "location": {
+          "fileName": "knowledge_base.bal",
+          "startLine": {
+            "line": 3,
+            "offset": 0
+          },
+          "endLine": {
+            "line": 3,
+            "offset": 53
+          }
+        },
+        "type": "CONNECTION",
+        "name": "vectorStore",
+        "scope": "Global",
+        "visibility": "module",
+        "icon": {
+          "url": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png",
+          "source": "ballerina-central"
+        },
+        "module": "ai",
+        "children": {},
+        "metadata": {
+          "connectorType": "vectorStore"
+        }
+      }
+    }
+  }
+}

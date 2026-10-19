@@ -342,7 +342,7 @@
                 "metadata": {
                   "label": "printError",
                   "description": "Prints error logs.\n```ballerina\nerror e = error(\"error occurred\");\nlog:printError(\"error log with cause\", 'error = e, id = 845315);\n```\n",
-                  "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_log_2.17.0.png"
+                  "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_log_2.17.1.png"
                 },
                 "codedata": {
                   "node": "FUNCTION_CALL",
@@ -350,7 +350,7 @@
                   "module": "log",
                   "packageName": "log",
                   "symbol": "printError",
-                  "version": "2.17.0",
+                  "version": "2.17.1",
                   "lineRange": {
                     "fileName": "inferred_type.bal",
                     "startLine": {

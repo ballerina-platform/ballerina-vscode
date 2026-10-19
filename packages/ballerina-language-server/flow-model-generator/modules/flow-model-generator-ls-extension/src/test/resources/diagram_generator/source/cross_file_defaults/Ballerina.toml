@@ -1,0 +1,4 @@
+[package]
+org = "wso2"
+name = "cross_file_defaults"
+version = "0.1.0"

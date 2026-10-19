@@ -1,0 +1,38 @@
+{
+  "description": "Delete a service attached twice to one listener removes the listener once",
+  "filePath": "delete_component_listener_project/cases.bal",
+  "startLine": 41,
+  "startColumn": 0,
+  "endLine": 45,
+  "endColumn": 1,
+  "output": {
+    "delete_component_listener_project/cases.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 41,
+            "character": 0
+          },
+          "end": {
+            "line": 45,
+            "character": 1
+          }
+        },
+        "newText": ""
+      },
+      {
+        "range": {
+          "start": {
+            "line": 10,
+            "character": 0
+          },
+          "end": {
+            "line": 10,
+            "character": 50
+          }
+        },
+        "newText": ""
+      }
+    ]
+  }
+}

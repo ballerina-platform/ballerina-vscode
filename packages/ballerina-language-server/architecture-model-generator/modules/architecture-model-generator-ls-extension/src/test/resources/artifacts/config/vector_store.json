@@ -1,0 +1,36 @@
+{
+  "description": "Artifacts generation for an AI VectorStore connection",
+  "source": "vector_store.bal",
+  "packageName": ".",
+  "output": {
+    "Connections": {
+      "vectorStore": {
+        "id": "vectorStore",
+        "location": {
+          "fileName": "vector_store.bal",
+          "startLine": {
+            "line": 2,
+            "offset": 0
+          },
+          "endLine": {
+            "line": 2,
+            "offset": 53
+          }
+        },
+        "type": "CONNECTION",
+        "name": "vectorStore",
+        "scope": "Global",
+        "visibility": "module",
+        "icon": {
+          "url": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png",
+          "source": "ballerina-central"
+        },
+        "module": "ai",
+        "children": {},
+        "metadata": {
+          "connectorType": "vectorStore"
+        }
+      }
+    }
+  }
+}

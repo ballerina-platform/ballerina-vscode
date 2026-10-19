@@ -265,6 +265,56 @@
               "enabled": true
             }
           ]
+        },
+        {
+          "metadata": {
+            "label": "lang.float",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "abs",
+                "description": "Returns the IEEE absolute value of a float value.\n\n```ballerina\nfloat f = -3.21;\nf.abs() ⇒ 3.21\n```\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_lang.float_0.0.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "lang.float",
+                "packageName": "lang.float",
+                "symbol": "abs",
+                "version": "0.0.0"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "lang.int",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "abs",
+                "description": "Returns the absolute value of an int value.\n\n```ballerina\nint n = -25;\nn.abs() ⇒ 25\nint:abs(-30) ⇒ 30\n```\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_lang.int_0.0.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "lang.int",
+                "packageName": "lang.int",
+                "symbol": "abs",
+                "version": "0.0.0"
+              },
+              "enabled": true
+            }
+          ]
         }
       ]
     },
@@ -314,6 +364,152 @@
                 "packageName": "aws.lambda",
                 "symbol": "__register",
                 "version": "3.3.0"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "azure_storage_service.blobs",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "addAuthorizationHeader",
+                "description": "Add authentication header to the request if it uses Shared Key Authentication.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure_storage_service_4.3.4.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "azure_storage_service.blobs",
+                "packageName": "azure_storage_service",
+                "symbol": "addAuthorizationHeader",
+                "version": "4.3.4"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "health.fhir.r4.terminology",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "addCodeSystem",
+                "description": "Add a new CodeSystem.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4.terminology_7.0.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "health.fhir.r4.terminology",
+                "packageName": "health.fhir.r4.terminology",
+                "symbol": "addCodeSystem",
+                "version": "7.0.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "addCodeSystems",
+                "description": "Add a list of new CodeSystems.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4.terminology_7.0.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "health.fhir.r4.terminology",
+                "packageName": "health.fhir.r4.terminology",
+                "symbol": "addCodeSystems",
+                "version": "7.0.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "addCodeSystemsAsJson",
+                "description": "Add a list of new CodeSystems as a json or json array.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4.terminology_7.0.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "health.fhir.r4.terminology",
+                "packageName": "health.fhir.r4.terminology",
+                "symbol": "addCodeSystemsAsJson",
+                "version": "7.0.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "addConceptMap",
+                "description": "",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4.terminology_7.0.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "health.fhir.r4.terminology",
+                "packageName": "health.fhir.r4.terminology",
+                "symbol": "addConceptMap",
+                "version": "7.0.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "addValueSet",
+                "description": "Add a new ValueSet.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4.terminology_7.0.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "health.fhir.r4.terminology",
+                "packageName": "health.fhir.r4.terminology",
+                "symbol": "addValueSet",
+                "version": "7.0.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "addValueSets",
+                "description": "Add a list of new ValueSets.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4.terminology_7.0.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "health.fhir.r4.terminology",
+                "packageName": "health.fhir.r4.terminology",
+                "symbol": "addValueSets",
+                "version": "7.0.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "addValueSetsAsJson",
+                "description": "Add a list of new ValueSet as a json or json array.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4.terminology_7.0.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "health.fhir.r4.terminology",
+                "packageName": "health.fhir.r4.terminology",
+                "symbol": "addValueSetsAsJson",
+                "version": "7.0.1"
               },
               "enabled": true
             }

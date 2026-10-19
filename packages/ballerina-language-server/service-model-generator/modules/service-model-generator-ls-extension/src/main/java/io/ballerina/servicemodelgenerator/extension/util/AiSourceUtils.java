@@ -18,12 +18,18 @@
 
 package io.ballerina.servicemodelgenerator.extension.util;
 
+import io.ballerina.compiler.syntax.tree.DefaultableParameterNode;
 import io.ballerina.compiler.syntax.tree.FunctionDefinitionNode;
 import io.ballerina.compiler.syntax.tree.MethodCallExpressionNode;
 import io.ballerina.compiler.syntax.tree.Node;
 import io.ballerina.compiler.syntax.tree.NonTerminalNode;
+import io.ballerina.compiler.syntax.tree.ParameterNode;
+import io.ballerina.compiler.syntax.tree.QualifiedNameReferenceNode;
 import io.ballerina.compiler.syntax.tree.RemoteMethodCallActionNode;
+import io.ballerina.compiler.syntax.tree.RequiredParameterNode;
+import io.ballerina.compiler.syntax.tree.SeparatedNodeList;
 import io.ballerina.compiler.syntax.tree.ServiceDeclarationNode;
+import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.servicemodelgenerator.extension.model.Codedata;
 import io.ballerina.servicemodelgenerator.extension.model.Function;
 import io.ballerina.servicemodelgenerator.extension.model.FunctionReturnType;
@@ -31,6 +37,8 @@ import io.ballerina.servicemodelgenerator.extension.model.MetaData;
 import io.ballerina.servicemodelgenerator.extension.model.Parameter;
 import io.ballerina.servicemodelgenerator.extension.model.PropertyType;
 import io.ballerina.servicemodelgenerator.extension.model.Value;
+import io.ballerina.tools.text.LineRange;
+import org.eclipse.lsp4j.TextEdit;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -65,6 +73,9 @@ public final class AiSourceUtils {
     private static final String CHAT_RESPONSE_TYPE = "ai:ChatRespMessage|error";
     private static final String RESUME_TYPE = "ai:Resume";
     private static final String RESUME_VAR = "resume";
+    private static final String HEADERS_TYPE = "http:Headers";
+    private static final String HEADERS_TYPE_NAME = "Headers";
+    private static final String HEADERS_PARAM = "headers";
 
     private AiSourceUtils() {
     }
@@ -110,16 +121,203 @@ public final class AiSourceUtils {
      * @return the resource source, indented one level for a service body
      */
     public static String agentDecisionResourceSource(String agentVarName, String operator) {
+        return agentDecisionResourceSource(agentVarName, operator, false);
+    }
+
+    /**
+     * The {@code decision} resource, optionally taking the request headers as a second parameter.
+     *
+     * @param agentVarName the agent variable to invoke
+     * @param operator     the call operator, from {@link #runOperator(String)}
+     * @param withHeaders  whether to declare an {@code http:Headers} parameter after the payload
+     * @return the resource source, indented one level for a service body
+     */
+    public static String agentDecisionResourceSource(String agentVarName, String operator, boolean withHeaders) {
         return String.format(
-                "    resource function %s %s(@http:Payload %s request) " +
+                "    resource function %s %s(@http:Payload %s request%s) " +
                         "returns %s {%s" +
                         "        %s %s = {decisions: request.decisions};%s" +
                         "        string result = check %s%srun(%s, request.sessionId);%s" +
                         "        return {message: result};%s" +
                         "    }",
-                POST_ACCESSOR, DECISION_RESOURCE_NAME, DECISION_MESSAGE_TYPE, CHAT_RESPONSE_TYPE,
-                NEW_LINE, RESUME_TYPE, RESUME_VAR, NEW_LINE, agentVarName, operator, RESUME_VAR, NEW_LINE, NEW_LINE
+                POST_ACCESSOR, DECISION_RESOURCE_NAME, DECISION_MESSAGE_TYPE, headersParamSuffix(withHeaders),
+                CHAT_RESPONSE_TYPE, NEW_LINE, RESUME_TYPE, RESUME_VAR, NEW_LINE, agentVarName, operator, RESUME_VAR,
+                NEW_LINE, NEW_LINE
         );
+    }
+
+    private static String headersParamSuffix(boolean withHeaders) {
+        return withHeaders ? ", " + HEADERS_TYPE + " " + HEADERS_PARAM : "";
+    }
+
+    /**
+     * Whether this service's {@code chat} resource declares an {@code http:Headers} parameter.
+     *
+     * <p>Matched on the type rather than the name, so a renamed parameter still counts.
+     *
+     * @param serviceNode the service to inspect
+     * @return true when the {@code chat} resource takes the request headers
+     */
+    public static boolean hasHeadersParam(ServiceDeclarationNode serviceNode) {
+        return agentResources(serviceNode).stream()
+                .filter(resource -> CHAT_RESOURCE_NAME.equals(Utils.getPath(resource.relativeResourcePath())))
+                .anyMatch(resource -> headersParamIndex(resource).isPresent());
+    }
+
+    /**
+     * Text edits that add or remove the {@code http:Headers} parameter on one {@code chat} or
+     * {@code decision} resource.
+     *
+     * <p>Only the parameter list is touched. The {@code @http:Payload} parameter, the return type
+     * and the body are left as they are, so turning headers off while the body still uses them is
+     * reported by the compiler rather than silently rewritten.
+     *
+     * @param resource the resource to edit
+     * @param enable   true to add the parameter when it is missing, false to remove it when it is
+     *                 present
+     * @return the edits, empty when the resource already matches
+     */
+    public static List<TextEdit> headersParamEdits(FunctionDefinitionNode resource, boolean enable) {
+        SeparatedNodeList<ParameterNode> parameters = resource.functionSignature().parameters();
+        Optional<Integer> headersIndex = headersParamIndex(resource);
+        if (enable && headersIndex.isEmpty()) {
+            // Insert after the last parameter so the edit stays on the signature line, whatever
+            // whitespace precedes the closing parenthesis.
+            if (parameters.isEmpty()) {
+                return List.of(new TextEdit(
+                        Utils.toRange(resource.functionSignature().openParenToken().lineRange().endLine()),
+                        HEADERS_TYPE + " " + HEADERS_PARAM));
+            }
+            return List.of(new TextEdit(
+                    Utils.toRange(parameters.get(parameters.size() - 1).lineRange().endLine()),
+                    headersParamSuffix(true)));
+        }
+        if (!enable && headersIndex.isPresent()) {
+            return List.of(new TextEdit(Utils.toRange(headersParamRemovalRange(parameters, headersIndex.get())),
+                    ""));
+        }
+        return List.of();
+    }
+
+    /**
+     * Whether this is the {@code post chat} or {@code post decision} resource of an agent service.
+     *
+     * @param member a function declared in a service
+     * @return true for the two resources the dispatcher looks up
+     */
+    public static boolean isAgentResource(FunctionDefinitionNode member) {
+        if (member.kind() != SyntaxKind.RESOURCE_ACCESSOR_DEFINITION
+                || !POST_ACCESSOR.equals(member.functionName().text().trim())) {
+            return false;
+        }
+        String path = Utils.getPath(member.relativeResourcePath());
+        return CHAT_RESOURCE_NAME.equals(path) || DECISION_RESOURCE_NAME.equals(path);
+    }
+
+    /**
+     * Presents the request headers of a {@code chat} or {@code decision} resource model as one
+     * toggleable parameter, the way an HTTP resource offers {@code http:Headers}: enabled when the
+     * source declares it, disabled when it does not. The other parameters are fixed.
+     *
+     * @param resourceModel the resource model read from source
+     */
+    public static void exposeHeadersOption(Function resourceModel) {
+        List<Parameter> parameters = new ArrayList<>();
+        Parameter headers = null;
+        for (Parameter parameter : resourceModel.getParameters()) {
+            if (isHeadersParameter(parameter)) {
+                headers = parameter;
+            } else {
+                parameters.add(parameter);
+            }
+        }
+
+        boolean declared = headers != null;
+        if (!declared) {
+            headers = new Parameter.Builder()
+                    .kind(KIND_REQUIRED)
+                    .type(new Value.ValueBuilder()
+                            .value(HEADERS_TYPE)
+                            .types(List.of(PropertyType.types(Value.FieldType.TYPE)))
+                            .enabled(true)
+                            .editable(false)
+                            .build())
+                    .name(new Value.ValueBuilder()
+                            .value(HEADERS_PARAM)
+                            .types(List.of(PropertyType.types(Value.FieldType.IDENTIFIER)))
+                            .enabled(true)
+                            .editable(false)
+                            .build())
+                    .optional(true)
+                    .build();
+        }
+        // The label of the http:Headers option on an HTTP resource, and the first sentence of its description.
+        headers.setMetadata(new MetaData("Headers", "Access all HTTP headers sent by the client in the request."));
+        headers.setEnabled(declared);
+        headers.setEditable(true);
+        headers.setAdvanced(true);
+        parameters.add(headers);
+
+        resourceModel.setParameters(parameters);
+        resourceModel.setCanAddParameters(false);
+    }
+
+    /**
+     * Whether a resource model parameter is the request headers, whatever it is named.
+     *
+     * @param parameter a parameter of a resource model
+     * @return true when its type is {@code http:Headers}, under any import prefix
+     */
+    public static boolean isHeadersParameter(Parameter parameter) {
+        if (parameter.getType() == null || parameter.getType().getValue() == null) {
+            return false;
+        }
+        String type = parameter.getType().getValue().trim();
+        int separator = type.indexOf(':');
+        return separator > 0 && HEADERS_TYPE_NAME.equals(type.substring(separator + 1));
+    }
+
+    private static List<FunctionDefinitionNode> agentResources(ServiceDeclarationNode serviceNode) {
+        return serviceNode.members().stream()
+                .filter(member -> member instanceof FunctionDefinitionNode resource && isAgentResource(resource))
+                .map(FunctionDefinitionNode.class::cast)
+                .toList();
+    }
+
+    private static Optional<Integer> headersParamIndex(FunctionDefinitionNode resource) {
+        SeparatedNodeList<ParameterNode> parameters = resource.functionSignature().parameters();
+        for (int i = 0; i < parameters.size(); i++) {
+            ParameterNode parameter = parameters.get(i);
+            Node typeName = parameter instanceof RequiredParameterNode required ? required.typeName()
+                    : parameter instanceof DefaultableParameterNode defaultable ? defaultable.typeName()
+                    : null;
+            if (isHeadersType(typeName)) {
+                return Optional.of(i);
+            }
+        }
+        return Optional.empty();
+    }
+
+    // The compiler plugin only accepts exactly `http:Headers` here, so the type name is enough, whatever
+    // prefix the file imports http under.
+    private static boolean isHeadersType(Node typeName) {
+        return typeName instanceof QualifiedNameReferenceNode qualifiedName
+                && HEADERS_TYPE_NAME.equals(qualifiedName.identifier().text());
+    }
+
+    // Removes the parameter together with the comma that separates it from its neighbour: the
+    // preceding one when there is one, otherwise the following one.
+    private static LineRange headersParamRemovalRange(SeparatedNodeList<ParameterNode> parameters, int index) {
+        LineRange paramRange = parameters.get(index).lineRange();
+        if (index > 0) {
+            return LineRange.from(paramRange.fileName(), parameters.get(index - 1).lineRange().endLine(),
+                    paramRange.endLine());
+        }
+        if (parameters.size() > 1) {
+            return LineRange.from(paramRange.fileName(), paramRange.startLine(),
+                    parameters.get(1).lineRange().startLine());
+        }
+        return paramRange;
     }
 
     /**

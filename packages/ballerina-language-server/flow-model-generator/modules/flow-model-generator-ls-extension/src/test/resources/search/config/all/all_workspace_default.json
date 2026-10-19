@@ -207,8 +207,8 @@
             {
               "metadata": {
                 "label": "finishSpan",
-                "description": "Finish the current span.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_observe_1.7.1.png"
+                "description": "Finish the current span.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_observe_1.8.0.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -216,15 +216,15 @@
                 "module": "observe",
                 "packageName": "observe",
                 "symbol": "finishSpan",
-                "version": "1.7.1"
+                "version": "1.8.0"
               },
               "enabled": true
             },
             {
               "metadata": {
                 "label": "finishSpanWithError",
-                "description": "Finish the current span.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_observe_1.7.1.png"
+                "description": "Finish the current span.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_observe_1.8.0.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -232,7 +232,189 @@
                 "module": "observe",
                 "packageName": "observe",
                 "symbol": "finishSpanWithError",
-                "version": "1.7.1"
+                "version": "1.8.0"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "lang.float",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "floor",
+                "description": "Rounds a float down to the closest integral value.\n\n```ballerina\nfloat f = 3.51;\nf.floor() ⇒ 3.0\n```\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_lang.float_0.0.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "lang.float",
+                "packageName": "lang.float",
+                "symbol": "floor",
+                "version": "0.0.0"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "xlsx",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "fromFile",
+                "description": "Open an XLSX workbook from a file path.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_xlsx_1.0.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "xlsx",
+                "packageName": "xlsx",
+                "symbol": "fromFile",
+                "version": "1.0.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "fromBytes",
+                "description": "Open an XLSX workbook from an in-memory byte array.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_xlsx_1.0.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "xlsx",
+                "packageName": "xlsx",
+                "symbol": "fromBytes",
+                "version": "1.0.1"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "pdf",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "fileExtractText",
+                "description": "Extracts text content from each page of a PDF file.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_pdf_0.9.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "pdf",
+                "packageName": "pdf",
+                "symbol": "fileExtractText",
+                "version": "0.9.1"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "lang.value",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "first",
+                "description": "Returns the first argument.\n\n```ballerina\nvalue:first(1, 2, 3) ⇒ 1\n```\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_lang.value_0.0.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "lang.value",
+                "packageName": "lang.value",
+                "symbol": "first",
+                "version": "0.0.0"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "log",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "fromConfig",
+                "description": "Creates a new logger with the given configuration.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_log_2.17.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "log",
+                "packageName": "log",
+                "symbol": "fromConfig",
+                "version": "2.17.0"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "io",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "fileReadJson",
+                "description": "Reads file content as a JSON.\n```ballerina\njson|io:Error content = io:fileReadJson(\"./resources/myfile.json\");\n```",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "io",
+                "packageName": "io",
+                "symbol": "fileReadJson",
+                "version": "1.8.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "fileReadXml",
+                "description": "Reads file content as an XML.\n```ballerina\nxml|io:Error content = io:fileReadXml(\"./resources/myfile.xml\");\n```",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "io",
+                "packageName": "io",
+                "symbol": "fileReadXml",
+                "version": "1.8.0"
               },
               "enabled": true
             }
@@ -288,6 +470,22 @@
                 "version": "6.3.2"
               },
               "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "fhirResourceJsonSerializer",
+                "description": "Serializes a FHIR Resource to a JSON representation\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4_6.3.2.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "health.fhir.r4",
+                "packageName": "health.fhir.r4",
+                "symbol": "fhirResourceJsonSerializer",
+                "version": "6.3.2"
+              },
+              "enabled": true
             }
           ]
         },
@@ -326,6 +524,22 @@
                 "module": "health.fhir.r5",
                 "packageName": "health.fhir.r5",
                 "symbol": "fhirBundleXmlSerializer",
+                "version": "1.0.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "fhirResourceJsonSerializer",
+                "description": "Serializes a FHIR Resource to a JSON representation\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r5_1.0.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "health.fhir.r5",
+                "packageName": "health.fhir.r5",
+                "symbol": "fhirResourceJsonSerializer",
                 "version": "1.0.1"
               },
               "enabled": true

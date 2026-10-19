@@ -30,6 +30,8 @@ const NODE_ICON_MAP: Record<string, string> = {
     DATA_LOADER: "bi-data-table",
     CHUNKER: "bi-cut",
     SHORT_TERM_MEMORY_STORE: "bi-memory",
+    KNOWLEDGE_BASE: "bi-db-kb",
+    KNOWLEDGE_BASES: "bi-db-kb",
     AGENT: "bi-ai-agent",
     TYPED_AGENT: "bi-ai-agent",
     NEW_CONNECTION: "bi-connection",
@@ -47,10 +49,23 @@ function getFallbackIcon(codedata: CodeData): React.ReactElement {
 
 const UrlIcon: React.FC<{ url: string; fallback: React.ReactElement }> = ({ url, fallback }) => {
     const [errored, setErrored] = useState(false);
-    return errored ? fallback : <img src={url} alt="" style={{ width: ICON_SIZE, height: ICON_SIZE }} onError={() => setErrored(true)} />;
+    return errored ? fallback : <img src={url} alt="" style={{ width: ICON_SIZE, height: ICON_SIZE, objectFit: "contain" }} onError={() => setErrored(true)} />;
 };
 
+const IconSlot = styled.span`
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: ${ICON_SIZE}px;
+    height: ${ICON_SIZE}px;
+`;
+
 export function getNodeReferenceIcon(codedata: CodeData, iconUrl?: string): React.ReactElement {
+    return <IconSlot>{resolveNodeReferenceIcon(codedata, iconUrl)}</IconSlot>;
+}
+
+function resolveNodeReferenceIcon(codedata: CodeData, iconUrl?: string): React.ReactElement {
     const iconSx = { width: ICON_SIZE, height: ICON_SIZE, fontSize: ICON_SIZE };
 
     // Check AI module icon map first (e.g. OpenAI, Anthropic, etc.)

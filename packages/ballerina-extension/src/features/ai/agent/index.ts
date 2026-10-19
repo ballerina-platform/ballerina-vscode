@@ -22,6 +22,7 @@ import { AICommandConfig } from "../executors/base/AICommandExecutor";
 import { createWebviewEventHandler } from "../utils/events";
 import { AgentExecutor } from './AgentExecutor';
 import { getMigrationSourcePathForProject } from "../migration/orchestrator";
+import { getProductMode, ProductMode } from "../../../utils/config";
 import {
     sendTelemetryEvent,
     TM_EVENT_BALLERINA_AI_GENERATION_SUBMITTED,
@@ -161,7 +162,7 @@ export async function generateAgent(params: GenerateAgentCodeRequest): Promise<b
 
         // Inject migration source tools for projects that have been AI-enhanced
         const migrationSourcePath = getMigrationSourcePathForProject(projectRootPath);
-        if (migrationSourcePath) {
+        if (migrationSourcePath && getProductMode() !== ProductMode.AGENT_BUILDER) {
             config.toolOptions = { ...config.toolOptions, migrationSourcePath };
         }
 

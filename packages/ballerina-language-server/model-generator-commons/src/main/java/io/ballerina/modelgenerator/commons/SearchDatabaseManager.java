@@ -117,7 +117,13 @@ public class SearchDatabaseManager {
      * @throws RuntimeException if there is an error executing the search
      */
     public List<SearchResult> searchFunctions(String q, int limit, int offset) {
+        return searchFunctions(q, limit, offset, null);
+    }
+
+    /** Searches a single organization using a stable raw pagination window. */
+    public List<SearchResult> searchFunctions(String q, int limit, int offset, String org) {
         String sanitizedQuery = sanitizeQuery(q);
+        String orgFilter = org == null ? "" : " AND p.org = ?";
         Page page = Page.of(limit, offset);
         String sql;
         if (sanitizedQuery.isEmpty()) {
@@ -135,10 +141,11 @@ public class SearchDatabaseManager {
                         p.version AS package_version
                     FROM Function AS f
                     JOIN Package AS p ON f.package_id = p.id
-                    ORDER BY f.name, p.name, p.org
+                    WHERE 1 = 1%ORG_FILTER%
+                    ORDER BY f.name, p.name, p.org, f.id
                     LIMIT ?
                     OFFSET ?;
-                    """;
+                    """.replace("%ORG_FILTER%", orgFilter);
         } else {
             sql = """
                     SELECT id, function_name, function_description, package_id,
@@ -158,7 +165,7 @@ public class SearchDatabaseManager {
                         FROM FunctionFTS AS fts
                         JOIN Function AS f ON fts.rowid = f.id
                         JOIN Package AS p ON f.package_id = p.id
-                        WHERE fts.FunctionFTS MATCH ?
+                        WHERE fts.FunctionFTS MATCH ?%ORG_FILTER%
                         UNION ALL
                         SELECT
                             f.id,
@@ -172,7 +179,7 @@ public class SearchDatabaseManager {
                             %LIKE_MATCH_RANK AS rank
                         FROM Function AS f
                         JOIN Package AS p ON f.package_id = p.id
-                        WHERE f.name LIKE ? COLLATE NOCASE
+                        WHERE f.name LIKE ? COLLATE NOCASE%ORG_FILTER%
                     )
                     GROUP BY id
                     -- package_org separates same-named modules from different organizations, and id is unique
@@ -180,14 +187,22 @@ public class SearchDatabaseManager {
                     -- duplicate or drop across a LIMIT/OFFSET boundary.
                     ORDER BY rank, function_name, module_name, package_org, id
                     LIMIT ?
-                    OFFSET ?;""".replace("%LIKE_MATCH_RANK", LIKE_MATCH_RANK);
+                    OFFSET ?;""".replace("%LIKE_MATCH_RANK", LIKE_MATCH_RANK)
+                    .replace("%ORG_FILTER%", orgFilter);
         }
 
         return queryList(sql, "searching functions", stmt -> {
             int paramIndex = 1;
             if (!sanitizedQuery.isEmpty()) {
                 stmt.setString(paramIndex++, sanitizedQuery + "*");
+                if (org != null) {
+                    stmt.setString(paramIndex++, org);
+                }
                 stmt.setString(paramIndex++, "%" + sanitizedQuery + "%");
+            }
+            if (org != null) {
+                // Empty queries have one predicate; searched queries bind the second (LIKE) branch here.
+                stmt.setString(paramIndex++, org);
             }
             page.bind(stmt, paramIndex);
         }, rs -> readRow(rs, "function_name", "function_description"));

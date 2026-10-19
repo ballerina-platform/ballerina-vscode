@@ -27,7 +27,7 @@ import {
 import { StateMachine } from "../../stateMachine";
 import { fetchJson, getSession } from "./auth";
 import { addMissingImportsTo, AGENT_ID_ENV, envBase, localConfigValues, undeclared, writeEnvConfigurable } from "./bindings";
-import { api, consoleOrgUrl, DEFAULT_ENVIRONMENT, McpProxyDetails, readManifest, updateManifest } from "./client";
+import { api, consoleOrgUrl, DEFAULT_ENVIRONMENT, endpointFor, McpProxyDetails, McpProxyEndpoint, readManifest, updateManifest } from "./client";
 
 const AGENT_ID_VARIABLES = {
     tokenUrl: "agentIdTokenUrl",
@@ -36,7 +36,6 @@ const AGENT_ID_VARIABLES = {
     scopes: "agentIdScopes",
 };
 
-type Endpoint = NonNullable<McpProxyDetails["endpoints"]>[number];
 const NOT_IN_ENVIRONMENT = `Not set up for the ${DEFAULT_ENVIRONMENT} environment.`;
 
 export async function listMcpProxies(projectPath: string): Promise<AgentManagerMcpProxies> {
@@ -64,12 +63,8 @@ export async function listMcpProxies(projectPath: string): Promise<AgentManagerM
     }
 }
 
-function endpointFor(proxy: McpProxyDetails, environmentId?: string): Endpoint | undefined {
-    return proxy.endpoints?.find((endpoint) => endpoint.environments?.some((env) => env.environmentUuid === environmentId));
-}
-
 // API-key proxies get no generated auth: ballerina/mcp can't send the custom header yet, so that stays in code.
-const usesOAuth = (endpoint: Endpoint) => !!endpoint.security?.enabled && !!endpoint.security.identity?.enabled;
+const usesOAuth = (endpoint: McpProxyEndpoint) => !!endpoint.security?.enabled && !!endpoint.security.identity?.enabled;
 
 function describe(proxy: McpProxyDetails, environmentId?: string): AgentManagerMcpProxy {
     const endpoint = endpointFor(proxy, environmentId);

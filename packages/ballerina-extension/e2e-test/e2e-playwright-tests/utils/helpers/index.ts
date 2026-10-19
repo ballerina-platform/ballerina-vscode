@@ -36,13 +36,13 @@ export {
 } from './setup';
 
 // Re-export from webview
-export { getWebview } from './webview';
+export { getWebview, webviewFrame } from './webview';
 
 // Re-export from artifacts
-export { addArtifact, createArtifactAndGetWebview, enableICP, submitArtifactCreation, domClick } from './artifacts';
+export { addArtifact, clickArtifactCard, createArtifactAndGetWebview, enableICP, submitArtifactCreation, domClick } from './artifacts';
 
 // Re-export from serviceActions
-export { confirmSaveChangesAndGoBack, deleteArtifactFromTree } from './serviceActions';
+export { confirmSaveChangesAndGoBack, deleteArtifactFromTree, stopAllRunningIntegrations } from './serviceActions';
 
 // Re-export from verification
 export { verifyGeneratedSource, verifyRecordFields } from './verification';

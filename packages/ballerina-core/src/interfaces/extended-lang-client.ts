@@ -683,8 +683,21 @@ export interface WorkflowManagementRequest {
     projectPath: string;
 }
 
+// `mode` under `[ballerina.workflow]` in Config.toml; the module default is LOCAL.
+export type WorkflowRuntimeMode = "LOCAL" | "IN_MEMORY" | "SELF_HOSTED" | "CLOUD";
+
+export interface WorkflowRuntimeStatusResponse {
+    mode: WorkflowRuntimeMode;
+    url: string;
+    // Undefined when the mode is not probed (IN_MEMORY, CLOUD).
+    reachable?: boolean;
+    errorMsg?: string;
+}
+
 export interface WorkflowManagementResponse {
     enabled?: boolean;
+    // Syntax-level signal that this is a workflow integration; stable while artifacts are still resolving.
+    workflowImported?: boolean;
     errorMsg?: string;
     stacktrace?: string;
 }
@@ -1015,9 +1028,9 @@ export type SearchQueryParams = {
     limit?: number;
     offset?: number;
     orgName?: string;
+    /** Keeps raw pagination offsets tied to the source that emitted them. */
+    functionSource?: "central" | "index";
     includeAvailableFunctions?: string;
-    /** FUNCTION search: "true" returns only the project's own functions, skipping the Central lookup. */
-    excludeLibrary?: string;
     filterByCurrentOrg?: boolean;
     /** ACTIVITY_CALL search: "true" hides the prebuilt (builtin) activities. */
     excludeBuiltins?: string;
@@ -1057,8 +1070,20 @@ export type BISearchRequest = {
     searchKind: SearchKind;
 }
 
+export type FunctionPageInfo = {
+    hasMore: boolean;
+    /** Offset in the underlying search source, before version/category filtering. */
+    nextOffset: number;
+    /** Continuation requests must stay on this source, whose ordering owns the offset. */
+    source?: "central" | "index";
+};
+
+export type FunctionSearchPagination = Partial<Record<"ballerina" | "ballerinax", FunctionPageInfo>>;
+
 export type BISearchResponse = {
     categories: Category[];
+    /** Absent with older language servers; consumers retain legacy pagination in that case. */
+    functionPagination?: FunctionSearchPagination;
 }
 
 export interface WorkflowDataRequest {
@@ -2349,6 +2374,7 @@ export interface BaseArtifact<T = any> {
     icon?: IconDescriptor | string; // Resolved icon descriptor; a bare string (legacy URL) is accepted
     children?: Record<string, BaseArtifact>; // To allow nested structures
     accessor?: string; // Specific to Entry Points
+    metadata?: { connectorType?: string };
     value?: T; // Generic value property to hold different types
 }
 

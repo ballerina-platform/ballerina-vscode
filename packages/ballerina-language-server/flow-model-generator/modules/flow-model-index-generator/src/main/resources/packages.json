@@ -2,17 +2,17 @@
   "ballerinax": [
     {
       "name": "aayu.mftg.as2",
-      "version": "1.3.1",
+      "version": "1.3.2",
       "description": "Connects to [MFT Gateway API by Aayu Technologies](https://aayutechnologies.com/docs/product/mft-gateway/) from Ballerina"
     },
     {
       "name": "ably",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Ably API](https://ably.com/documentation/rest-api) from Ballerina"
     },
     {
       "name": "activecampaign",
-      "version": "1.3.1",
+      "version": "1.3.2",
       "description": "Connects to [ActiveCampaign API](https://developers.activecampaign.com/reference/overview) from Ballerina."
     },
     {
@@ -22,17 +22,17 @@
     },
     {
       "name": "adobe.analytics",
-      "version": "1.3.1",
+      "version": "1.3.2",
       "description": "Connects to [Adobe Analytics API](https://developer.adobe.com/analytics-apis/docs/2.0/) from Ballerina."
     },
     {
       "name": "adp.paystatements",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [ADP Pay Statements](https://developers.adp.com/articles/api/pay-statements-v1-api) from Ballerina"
     },
     {
       "name": "adp.workerpayrollinstructions",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [ADP Worker Payroll Instructions](https://developers.adp.com/articles/api/worker-payroll-instructions-v1-api) from Ballerina"
     },
     {
@@ -42,73 +42,103 @@
     },
     {
       "name": "ai.anthropic",
-      "version": "1.3.2",
+      "version": "1.3.5",
       "description": "Anthropic provides high-performance, safe, and reliable large language models (LLMs)."
     },
     {
+      "name": "ai.aws.dynamodb",
+      "version": "1.1.0",
+      "description": "This module provides a DynamoDB-backed short-term memory store to use with AI messages (e.g., with AI agents, model providers, etc.)."
+    },
+    {
       "name": "ai.azure",
-      "version": "1.4.2",
+      "version": "1.5.1",
       "description": "Azure OpenAI Service provides access to OpenAI's powerful language models within the Microsoft Azure platform."
     },
     {
       "name": "ai.deepseek",
-      "version": "1.1.2",
+      "version": "1.1.5",
       "description": "DeepSeek provides high-performance large language models (LLMs) optimized for various natural language processing tasks."
     },
     {
       "name": "ai.devant",
-      "version": "1.0.3",
+      "version": "1.0.5",
       "description": "The `ai.devant` module provides APIs to interact with [Devant by WSO2](https://wso2.com/devant/), enabling document chunking and loading documents from a directory in the format expected by the Devant Chunker. It integrates seamlessly with the [`ai`](https://central.ballerina.io/ballerina/ai/latest) module to provide a smooth workflow for processing AI documents using Devant AI services."
     },
     {
       "name": "ai.googleapis.vertex",
-      "version": "1.0.0",
+      "version": "1.0.3",
       "description": "This module offers APIs for connecting with models hosted on"
     },
     {
       "name": "ai.memory.mssql",
-      "version": "1.2.0",
+      "version": "1.4.1",
       "description": "This module provides an MS SQL-backed short-term memory store to use with AI messages (e.g., with AI agents, model providers, etc.)."
     },
     {
-      "name": "ai.milvus",
+      "name": "ai.memory.postgresql",
+      "version": "1.1.0",
+      "description": "This module provides a PostgreSQL-backed short-term memory store to use with AI messages (e.g., with AI agents, model providers, etc.)."
+    },
+    {
+      "name": "ai.memory.redis",
+      "version": "1.2.0",
+      "description": "This module provides a Redis-backed short-term memory store to use with AI messages (e.g., with AI agents, model providers, etc.)."
+    },
+    {
+      "name": "ai.microsoft.sharepoint",
       "version": "1.0.2",
+      "description": "The `ballerinax/ai.microsoft.sharepoint` module provides a `TextDataLoader` that retrieves documents from SharePoint document libraries and returns them as `ai:TextDocument` values, ready to be chunked, embedded, and indexed by the [Ballerina AI](https://central.ballerina.io/ballerina/ai) module. Inherently textual files are decoded directly, while PDF documents have their text extracted with Apache Tika."
+    },
+    {
+      "name": "ai.milvus",
+      "version": "1.0.5",
       "description": "The Ballerina Milvus vector store module provides a comprehensive API for integrating with Milvus vector database, enabling efficient storage, retrieval, and management of high-dimensional vectors. This module implements the Ballerina AI `VectorStore` interface and supports multiple vector search algorithms including dense, sparse, and hybrid vector search modes."
     },
     {
       "name": "ai.mistral",
-      "version": "1.2.2",
+      "version": "1.2.5",
       "description": "Mistral AI provides high-performance, open-weights large language models (LLMs) designed for efficiency and versatility. The Mistral connector enables integration with Mistral AI's models, allowing you to build advanced natural language processing applications."
     },
     {
       "name": "ai.ollama",
-      "version": "1.2.2",
+      "version": "1.2.5",
       "description": "Ollama allows you to run open-source large language models (LLMs), such as Llama 3, Mistral, and Gemma, locally."
     },
     {
       "name": "ai.openai",
-      "version": "1.3.2",
+      "version": "1.4.1",
       "description": "OpenAI provides powerful AI models for natural language processing, image generation, and other advanced tasks."
     },
     {
       "name": "ai.openrouter",
-      "version": "1.0.0",
+      "version": "1.0.3",
       "description": "This module offers APIs for connecting with 200+ Large Language Models (LLMs) through the"
     },
     {
       "name": "ai.pgvector",
-      "version": "1.0.3",
-      "description": "Pgvector is a PostgreSQL extension that introduces a vector data type and similarity search capabilities for working with embeddings."
+      "version": "1.0.6",
+      "description": "Pgvector is an open-source vector similarity search extension for PostgreSQL. The pgvector connector provides specialized support for vector operations within PostgreSQL, enabling the storage and search of high-dimensional vectors directly in the database."
     },
     {
       "name": "ai.pinecone",
-      "version": "1.1.3",
+      "version": "1.1.6",
       "description": "Pinecone is a fully managed vector database that makes it easy to build high-performance vector search applications. The Pinecone connector provides an API to interact with Pinecone indexes, enabling efficient management and search of vector embeddings in the cloud."
     },
     {
+      "name": "ai.sqlite",
+      "version": "1.1.0",
+      "description": "This module provides a SQLite-backed short-term memory store to use with AI messages (e.g., with AI agents, model providers, etc.)."
+    },
+    {
       "name": "ai.weaviate",
-      "version": "1.0.3",
+      "version": "1.0.6",
       "description": "Weaviate is an open-source vector database that allows you to store data objects and vector embeddings from your favorite ML-models. The Weaviate connector enables seamless interaction with Weaviate instances, supporting complex vector searches and data management."
+    },
+    {
+      "name": "ai.wso2.integration",
+      "version": "1.1.0",
+      "description": "The `ai.wso2.integration` module provides a Ballerina `ai:KnowledgeBase` implementation for retrieving relevant content from a WSO2 Integration knowledge base."
     },
     {
       "name": "alfresco",
@@ -117,17 +147,17 @@
     },
     {
       "name": "amadeus.flightcreateorders",
-      "version": "1.3.1",
+      "version": "1.3.2",
       "description": "Connects to [Amadeus Flight Create Orders API](https://developers.amadeus.com/) from Ballerina"
     },
     {
       "name": "amadeus.flightoffersprice",
-      "version": "1.3.1",
+      "version": "1.3.2",
       "description": "Connects to [Amadeus Flight Offers Price API](https://developers.amadeus.com/self-service/category/air/api-doc/flight-offers-price) from Ballerina"
     },
     {
       "name": "amadeus.flightofferssearch",
-      "version": "1.3.1",
+      "version": "1.3.2",
       "description": "Connects to [Amadeus Flight Offers Search API](https://developers.amadeus.com/self-service/category/air/api-doc/flight-offers-search) from Ballerina"
     },
     {
@@ -137,28 +167,33 @@
     },
     {
       "name": "api2pdf",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Api2Pdf REST API](https://www.api2pdf.com/) from Ballerina"
     },
     {
       "name": "apideck.accounting",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Apideck Accounting](https://docs.apideck.com/apis/accounting/reference) from Ballerina"
     },
     {
       "name": "apideck.lead",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Apideck Lead API](https://www.apideck.com/lead-api) from Ballerina"
     },
     {
       "name": "apideck.proxy",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Apideck Proxy API](https://www.apideck.com/lead-api) from Ballerina"
     },
     {
       "name": "apple.appstore",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to Apple App Store Connect API from Ballerina"
+    },
+    {
+      "name": "ardoq",
+      "version": "1.0.0",
+      "description": "[Ardoq](https://www.ardoq.com/) is a data-driven enterprise architecture platform that helps organizations model, analyze, and visualize their business and IT landscapes as connected data."
     },
     {
       "name": "asana",
@@ -167,7 +202,7 @@
     },
     {
       "name": "asb",
-      "version": "3.9.1",
+      "version": "3.10.2",
       "description": "The [Azure Service Bus](https://docs.microsoft.com/en-us/azure/service-bus-messaging/) is a fully managed enterprise message broker with message queues and publish-subscribe topics. It"
     },
     {
@@ -177,52 +212,52 @@
     },
     {
       "name": "atspoke",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [atSpoke API](https://askspoke.com/api/reference) from Ballerina"
     },
     {
       "name": "automata",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Automata](https://byautomata.io/api/) from Ballerina"
     },
     {
       "name": "avatax",
-      "version": "1.3.1",
+      "version": "1.3.2",
       "description": "Connects to [Avalara AvaTax](https://developer.avalara.com/api-reference/avatax/rest/v2/) from Ballerina"
     },
     {
       "name": "avaza",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Avaza API v1](https://api.avaza.com/swagger/ui/index) from Ballerina"
     },
     {
       "name": "aws",
-      "version": "1.0.0",
-      "description": "AWS is a comprehensive cloud computing platform offering over 200 services, all authenticated through a common scheme: IAM credentials and AWS Signature Version 4 request signing."
+      "version": "1.0.2",
+      "description": "[AWS](https://aws.amazon.com/) is a comprehensive cloud computing platform offering over 200 services, all authenticated through a common scheme: IAM credentials and [AWS Signature Version 4](https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_aws-signing.html) request signing. This library implements that scheme once, so it does not need to be re-implemented per AWS service."
     },
     {
       "name": "aws.dynamodb",
-      "version": "2.3.0",
-      "description": "Connects to AWS DynamoDB from Ballerina"
-    },
-    {
-      "name": "aws.dynamodbstreams",
-      "version": "1.0.0",
+      "version": "3.0.0",
       "description": "[Amazon DynamoDB](https://aws.amazon.com/dynamodb/) is a fully managed, serverless, key-value NoSQL database designed to run high-performance applications at any scale. DynamoDB offers built-in security, continuous backups, automated multi-region replication, in-memory caching, and data export tools."
     },
     {
+      "name": "aws.dynamodbstreams",
+      "version": "2.0.0",
+      "description": "[Amazon DynamoDB Streams](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Streams.html) captures a time-ordered sequence of item-level modifications made to an [Amazon DynamoDB](https://aws.amazon.com/dynamodb/) table and stores them for up to 24 hours, so applications can react to data changes in near real time. Each modification produces one stream record, and the records of a stream are distributed across shards that a consumer reads through shard iterators."
+    },
+    {
       "name": "aws.lambda",
-      "version": "3.3.0",
-      "description": "This module provides the capabilities of creating [AWS Lambda](https://aws.amazon.com/lambda/) functions using Ballerina. "
+      "version": "3.3.1",
+      "description": "This module provides the capabilities of creating [AWS Lambda](https://aws.amazon.com/lambda/) functions using Ballerina."
     },
     {
       "name": "aws.marketplace.mpe",
-      "version": "0.2.1",
+      "version": "1.0.0",
       "description": "[AWS Marketplace Entitlement Service](https://docs.aws.amazon.com/marketplace/latest/userguide/entitlement.html) is a service that allows AWS Marketplace sellers to determine the entitlements of customers who have subscribed to their products."
     },
     {
       "name": "aws.marketplace.mpm",
-      "version": "0.2.1",
+      "version": "1.0.0",
       "description": "[AWS Marketplace Metering Service](https://docs.aws.amazon.com/marketplacemetering/latest/APIReference/Welcome.html) is a usage and billing service that allows AWS Marketplace sellers to report the usage of their products for billing purposes. This service supports both software-as-a-service (SaaS) products and metering products sold through AWS Marketplace."
     },
     {
@@ -232,42 +267,42 @@
     },
     {
       "name": "aws.redshift.driver",
-      "version": "1.1.1",
+      "version": "1.1.2",
       "description": "The AWS Redshift driver provides a reliable and high-performance connectivity to Amazon Redshift data warehouses. It enables efficient execution of SQL queries, updates, and other database operations. The driver is designed to provide a seamless experience for interacting with AWS Redshift, supporting various data types and advanced features of the data warehouse."
     },
     {
       "name": "aws.redshiftdata",
-      "version": "1.1.0",
+      "version": "2.0.0",
       "description": "[Amazon Redshift](https://docs.aws.amazon.com/redshift/latest/mgmt/welcome.html) is a powerful and fully-managed data warehouse service provided by Amazon Web Services (AWS), designed to efficiently analyze large datasets with high performance and scalability."
     },
     {
       "name": "aws.s3",
-      "version": "3.5.1",
-      "description": "Connects to AWS S3 from Ballerina"
+      "version": "4.0.1",
+      "description": "[Amazon S3](https://aws.amazon.com/s3/) (Simple Storage Service) is a highly scalable, durable, and secure object storage service provided by Amazon Web Services (AWS). It is designed to store and retrieve any amount of data from anywhere on the web, making it ideal for a wide range of use cases, including data backup, archiving, content distribution, and big data analytics."
     },
     {
       "name": "aws.secretmanager",
-      "version": "0.4.1",
-      "description": "[AWS Secrets Manager](https://docs.aws.amazon.com/secretsmanager/latest/userguide/intro.html) helps you protect sensitive information, such as database credentials, API keys, and other secrets, by securely storing and managing access to them."
+      "version": "1.0.1",
+      "description": "[AWS Secrets Manager](https://docs.aws.amazon.com/secretsmanager/latest/userguide/intro.html) is a service that helps you protect sensitive information, such as database credentials, API keys, and other secrets, by securely storing and managing access to them."
     },
     {
       "name": "aws.ses",
-      "version": "2.1.0",
-      "description": "Connects to AWS SES from Ballerina"
+      "version": "3.0.0",
+      "description": "[Amazon Simple Email Service (Amazon SES)](https://aws.amazon.com/ses/) is a cost-effective, flexible, and scalable email service that lets applications send mail from within any application — transactional messages, marketing campaigns, and bulk communications alike. Its flexible IP deployment and email authentication options help drive deliverability and protect sender reputation, while sending analytics measure the impact of each message."
     },
     {
       "name": "aws.simpledb",
-      "version": "2.2.0",
-      "description": "Connects to AWS simpledb from Ballerina"
+      "version": "3.0.0",
+      "description": ""
     },
     {
       "name": "aws.sns",
-      "version": "3.2.0",
+      "version": "4.0.2",
       "description": "[Amazon SNS](https://aws.amazon.com/sns/) (Simple Notification Service) is a fully managed messaging service for both application-to-application (A2A) and application-to-person (A2P) communication. It enables developers to send notifications from their applications to various endpoints, including email, SMS, and mobile push, as well as to other AWS services like SQS, Lambda, and HTTP/S webhooks."
     },
     {
       "name": "aws.sqs",
-      "version": "4.1.3",
+      "version": "5.0.1",
       "description": "Amazon Simple Queue Service (SQS) is a fully managed message queuing service that enables you to decouple and scale microservices, distributed systems, and serverless applications. It provides a reliable and highly scalable way to exchange messages between different components. The AWS SQS connector allows you to interact with SQS queues, enabling efficient message processing in the cloud."
     },
     {
@@ -287,17 +322,17 @@
     },
     {
       "name": "azure.analysisservices",
-      "version": "1.3.1",
+      "version": "1.3.2",
       "description": "Connects to [Azure Analysis Services API](https://azure.microsoft.com/en-us/services/analysis-services/) from Ballerina"
     },
     {
       "name": "azure.anomalydetector",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Azure Anomaly Detector API](https://azure.microsoft.com/en-us/services/cognitive-services/anomaly-detector/) from Ballerina"
     },
     {
       "name": "azure.datalake",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Azure Data Lake Storage(Gen2) API](https://docs.microsoft.com/en-us/rest/api/storageservices/data-lake-storage-gen2) from Ballerina"
     },
     {
@@ -307,67 +342,77 @@
     },
     {
       "name": "azure.iotcentral",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Azure IoT Central API](https://azure.microsoft.com/en-us/services/time-series-insights/) from Ballerina"
     },
     {
       "name": "azure.iothub",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Azure IoT Hub API](https://azure.microsoft.com/en-us/services/iot-hub/) from Ballerina"
     },
     {
       "name": "azure.keyvault",
-      "version": "1.6.0",
+      "version": "1.6.1",
       "description": "Connects to [Azure Key Vault API](https://azure.microsoft.com/en-us/services/key-vault/) from Ballerina"
     },
     {
       "name": "azure.openai.chat",
-      "version": "3.0.2",
-      "description": "Connects to [Azure OpenAI Chat Completions API](https://learn.microsoft.com/en-us/azure/cognitive-services/openai/reference#chat-completions/) from Ballerina."
+      "version": "4.0.0",
+      "description": "[Azure OpenAI](https://learn.microsoft.com/en-us/azure/ai-services/openai/) provides access to OpenAI's powerful language models including GPT-4o, GPT-4, and o-series models through Microsoft Azure's enterprise-grade infrastructure. It combines OpenAI's advanced AI capabilities with Azure's security, compliance, and regional availability features."
     },
     {
       "name": "azure.openai.deployment",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "description": "Connects to [Azure OpenAI Deployments API](https://learn.microsoft.com/en-us/rest/api/cognitiveservices/azureopenaistable/deployments/) from Ballerina."
     },
     {
       "name": "azure.openai.embeddings",
-      "version": "1.0.2",
+      "version": "1.0.3",
       "description": "Connects to [Azure OpenAI Embeddings API](https://learn.microsoft.com/en-us/azure/cognitive-services/openai/reference#embeddings/) from Ballerina."
     },
     {
       "name": "azure.openai.finetunes",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "description": "Connects to [Azure OpenAI Files API](https://learn.microsoft.com/en-us/rest/api/cognitiveservices/azureopenaistable/files/),"
     },
     {
+      "name": "azure.openai.responses",
+      "version": "1.0.0",
+      "description": "[Azure OpenAI](https://learn.microsoft.com/en-us/azure/ai-services/openai/) provides access to OpenAI's powerful language models including GPT-4o, GPT-4, and o-series models through Microsoft Azure's enterprise-grade infrastructure. It combines OpenAI's advanced AI capabilities with Azure's security, compliance, and regional availability features."
+    },
+    {
       "name": "azure.openai.text",
-      "version": "1.0.3",
+      "version": "1.0.4",
       "description": "Connects to [Azure OpenAI Completions API](https://learn.microsoft.com/en-us/azure/cognitive-services/openai/reference#completions/) from Ballerina."
     },
     {
       "name": "azure.qnamaker",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Azure QnA Maker API](https://docs.microsoft.com/en-us/rest/api/cognitiveservices-qnamaker/QnAMaker4.0/) from Ballerina"
     },
     {
       "name": "azure.sqldb",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Azure SQL DB API 2017-03-01-preview](https://docs.microsoft.com/en-us/azure/azure-sql/database/sql-database-paas-overview) from Ballerina"
     },
     {
+      "name": "azure.storage.files",
+      "version": "1.0.3",
+      "description": "[Azure Files](https://learn.microsoft.com/en-us/azure/storage/files/storage-files-introduction) offers fully managed file shares in the cloud, accessible via the industry-standard SMB and NFS protocols and a REST API."
+    },
+    {
       "name": "azure.textanalytics",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Azure Text Analytics API](https://docs.microsoft.com/en-us/azure/cognitive-services/text-analytics/) from Ballerina"
     },
     {
       "name": "azure.timeseries",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Azure Time Series Insights API](https://azure.microsoft.com/en-us/services/time-series-insights/) from Ballerina"
     },
     {
       "name": "azure_cosmosdb",
-      "version": "4.2.0",
+      "version": "4.3.0",
       "description": "Connects to [Azure Cosmos DB(SQL) API](https://docs.microsoft.com/en-us/rest/api/cosmos-db/)  from Ballerina."
     },
     {
@@ -382,47 +427,47 @@
     },
     {
       "name": "beezup.merchant",
-      "version": "1.6.0",
+      "version": "1.6.1",
       "description": "Connects to [BeezUP Merchant API](https://api-docs.beezup.com/) from Ballerina"
     },
     {
       "name": "bing.autosuggest",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Bing Autosuggest API](https://www.microsoft.com/en-us/bing/apis/bing-autosuggest-api) from Ballerina"
     },
     {
       "name": "bintable",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to BINTable API from Ballerina"
     },
     {
       "name": "bisstats",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [BIS statistical data and metadata API](https://stats.bis.org/api-doc/v1/) from Ballerina"
     },
     {
       "name": "bitbucket",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [BitBucket](https://developer.atlassian.com/bitbucket/api/2/reference/) from Ballerina"
     },
     {
       "name": "bitly",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Bitly API v4.0.0](https://dev.bitly.com/api-reference) from Ballerina"
     },
     {
       "name": "bmc.truesightpresentationserver",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Hardware Sentry TrueSight Presentation Server REST API](https://docs.bmc.com/docs/display/tsps107/Getting+started) from Ballerina."
     },
     {
       "name": "botify",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Botify API](https://developers.botify.com/reference) from Ballerina"
     },
     {
       "name": "box",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Box Platform API](https://developer.box.com/reference/) from Ballerina."
     },
     {
@@ -432,22 +477,22 @@
     },
     {
       "name": "brex.onboarding",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Brex Onboarding API v0.1](https://developer.brex.com/openapi/onboarding_api/) from Ballerina"
     },
     {
       "name": "brex.team",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Brex Team API v0.1](https://developer.brex.com/openapi/onboarding_api/) from Ballerina"
     },
     {
       "name": "browshot",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Browshot](https://browshot.com/api/documentation) from Ballerina"
     },
     {
       "name": "bulksms",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [BulkSMS.com](https://www.bulksms.com/) services from Ballerina"
     },
     {
@@ -457,7 +502,7 @@
     },
     {
       "name": "capsulecrm",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Capsule CRM API](https://developer.capsulecrm.com/v2/overview/getting-started) from Ballerina"
     },
     {
@@ -472,27 +517,27 @@
     },
     {
       "name": "cdc",
-      "version": "1.3.1",
+      "version": "1.4.0",
       "description": "The Change Data Capture (CDC) connector provides APIs to capture and process database change events in real-time. It enables developers to define services that handle change capture events such as inserts, updates, and deletes. Built on top of the Debezium framework, it supports popular databases like MySQL, Microsoft SQL Server, PostgreSQL, and Oracle."
     },
     {
       "name": "cdc.schema.aws.s3.driver",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "description": "This library provides the necessary drivers required for the CDC (Change Data Capture) connector to use AWS S3 as an internal schema history storage in Ballerina."
     },
     {
       "name": "cdc.schema.azure.blob.driver",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "description": "This library provides the necessary drivers required for the CDC (Change Data Capture) connector to use Azure Blob Storage as an internal schema history storage in Ballerina."
     },
     {
       "name": "cdc.schema.rocketmq.driver",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "description": "This library provides the necessary drivers required for the CDC (Change Data Capture) connector to use RocketMQ as an internal schema history storage in Ballerina."
     },
     {
       "name": "chaingateway",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Chaingateway API](https://chaingateway.io/docs-ethereum) from Ballerina"
     },
     {
@@ -502,7 +547,7 @@
     },
     {
       "name": "clever.data",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Clever Data](https://dev.clever.com/v1.2/docs/) from Ballerina."
     },
     {
@@ -512,82 +557,82 @@
     },
     {
       "name": "cloudmersive.barcode",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Cloudmersive Barcode API](https://api.cloudmersive.com/docs/barcode.asp) from Ballerina"
     },
     {
       "name": "cloudmersive.currency",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Cloudmersive Currency API](https://api.cloudmersive.com/docs/currency.asp) from Ballerina"
     },
     {
       "name": "cloudmersive.security",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Cloudmersive Security API](https://api.cloudmersive.com/docs/security.asp) from Ballerina"
     },
     {
       "name": "cloudmersive.validate",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Cloudmersive Validate API](https://api.cloudmersive.com/docs/validate.asp) from Ballerina"
     },
     {
       "name": "cloudmersive.virusscan",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Cloudmersive Virus Scan API](https://api.cloudmersive.com/docs/virus.asp) from Ballerina"
     },
     {
       "name": "commercetools.auditlog",
-      "version": "1.4.1",
+      "version": "1.4.2",
       "description": "Connects to [Commercetools API v1](https://docs.commercetools.com/api/)) from Ballerina"
     },
     {
       "name": "commercetools.cartsordershoppinglists",
-      "version": "1.4.1",
+      "version": "1.4.2",
       "description": "Connects to [Commercetools API v1](https://docs.commercetools.com/api/)) from Ballerina"
     },
     {
       "name": "commercetools.configuration",
-      "version": "1.4.1",
+      "version": "1.4.2",
       "description": "Connects to [Commercetools API v1](https://docs.commercetools.com/api/)) from Ballerina"
     },
     {
       "name": "commercetools.customer",
-      "version": "1.4.1",
+      "version": "1.4.2",
       "description": "Connects to [Commercetools API v1](https://docs.commercetools.com/api/)) from Ballerina"
     },
     {
       "name": "commercetools.customizebehavior",
-      "version": "1.4.1",
+      "version": "1.4.2",
       "description": "Connects to [Commercetools API v1](https://docs.commercetools.com/api/)) from Ballerina"
     },
     {
       "name": "commercetools.customizedata",
-      "version": "1.4.1",
+      "version": "1.4.2",
       "description": "Connects to [Commercetools API v1](https://docs.commercetools.com/api/)) from Ballerina"
     },
     {
       "name": "commercetools.pricingdiscount",
-      "version": "1.4.1",
+      "version": "1.4.2",
       "description": "Connects to [Commercetools API v1](https://docs.commercetools.com/api/)) from Ballerina"
     },
     {
       "name": "commercetools.productcatalog",
-      "version": "1.4.1",
+      "version": "1.4.2",
       "description": "Connects to [Commercetools API v1](https://docs.commercetools.com/api/)) from Ballerina"
     },
     {
       "name": "confluent.cavroserdes",
-      "version": "1.0.3",
+      "version": "1.0.5",
       "description": "[Avro Serializer/Deserializer for Confluent Schema Registry](https://docs.confluent.io/platform/current/schema-registry/fundamentals/serdes-develop/serdes-avro.html) is an Avro serializer/deserializer designed to work with the Confluent Schema Registry. It is designed to not include the message schema in the message payload but instead includes the schema ID."
     },
     {
       "name": "confluent.cregistry",
-      "version": "0.4.4",
+      "version": "0.4.5",
       "description": "[Confluent Schema Registry](https://docs.confluent.io/platform/current/schema-registry/) serves as a centralized repository for managing Avro schemas, ensuring data consistency and compatibility in serialization and deserialization processes."
     },
     {
       "name": "constantcontact",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Constant Contact API](https://v3.developer.constantcontact.com/api_guide/index.html) from Ballerina"
     },
     {
@@ -597,12 +642,12 @@
     },
     {
       "name": "covid19",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Novel COVID-19 API](https://disease.sh/docs/) from Ballerina."
     },
     {
       "name": "dataflowkit",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Dataflow Kit](https://dataflowkit.com/doc-api) from Ballerina"
     },
     {
@@ -612,7 +657,7 @@
     },
     {
       "name": "dev.to",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [DEV API v0.9.7](https://developers.forem.com/api/) from Ballerina."
     },
     {
@@ -622,17 +667,17 @@
     },
     {
       "name": "disqus",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Disqus API](https://disqus.com/api/docs) from Ballerina"
     },
     {
       "name": "docusign.admin",
-      "version": "1.3.1",
+      "version": "1.3.2",
       "description": "Connects to [DocuSign Admin API](https://developers.docusign.com/docs/admin-api/) from Ballerina."
     },
     {
       "name": "docusign.click",
-      "version": "1.3.1",
+      "version": "1.3.2",
       "description": "Connects to [DocuSign Click API](https://developers.docusign.com/docs/click-api/) from Ballerina."
     },
     {
@@ -652,82 +697,82 @@
     },
     {
       "name": "docusign.monitor",
-      "version": "1.3.1",
+      "version": "1.3.2",
       "description": "Connects to [DocuSign Monitor API](https://developers.docusign.com/docs/monitor-api/monitor101/) from Ballerina."
     },
     {
       "name": "docusign.rooms",
-      "version": "1.3.1",
+      "version": "1.3.2",
       "description": "Connects to [DocuSign Rooms API](https://developers.docusign.com/docs/rooms-api/) from Ballerina."
     },
     {
       "name": "dracoon.public",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Dracoon REST API](https://cloud.support.dracoon.com/hc/en-us/articles/115005447729-API-overview) from Ballerina"
     },
     {
       "name": "dropbox",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Dropbox API v2](https://www.dropbox.com/developers/documentation/http/documentation) from Ballerina."
     },
     {
       "name": "earthref.fiesta",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [EarthRef.org's FIESTA API v1.2.0](https://api.earthref.org/v1) from Ballerina"
     },
     {
       "name": "ebay.account",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [eBay Account](https://developer.ebay.com/api-docs/sell/account/overview.html) from Ballerina"
     },
     {
       "name": "ebay.analytics",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to Ebay Analytics API from Ballerina"
     },
     {
       "name": "ebay.browse",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to Ebay Browse API from Ballerina"
     },
     {
       "name": "ebay.compliance",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [eBay Compliance API v1.4.1](https://developer.ebay.com) from Ballerina"
     },
     {
       "name": "ebay.finances",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [eBay Finances API](https://developer.ebay.com/api-docs/sell/finances/static/overview.html) from Ballerina"
     },
     {
       "name": "ebay.inventory",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to Ebay Inventory API from Ballerina"
     },
     {
       "name": "ebay.listing",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [eBay Listing API v1_beta.3.0](https://developer.ebay.com) from Ballerina"
     },
     {
       "name": "ebay.logistics",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to eBay Logistics from Ballerina"
     },
     {
       "name": "ebay.metadata",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [eBay Metadata API v1.4.1](https://developer.ebay.com) from Ballerina"
     },
     {
       "name": "ebay.negotiation",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to eBay Negotiation from Ballerina"
     },
     {
       "name": "ebay.recommendation",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Ebay Recommendation API v1.1.0](https://developer.ebay.com) from Ballerina"
     },
     {
@@ -767,7 +812,7 @@
     },
     {
       "name": "edocs",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [eDocs API v1.0.0](https://www.opentext.com/products-and-solutions/industries/legal/legal-content-management-edocs) from Ballerina"
     },
     {
@@ -777,7 +822,7 @@
     },
     {
       "name": "elasticsearch",
-      "version": "1.3.1",
+      "version": "1.3.2",
       "description": "Connects to [Elasticsearch API](https://www.elastic.co/elasticsearch/) from Ballerina"
     },
     {
@@ -792,47 +837,47 @@
     },
     {
       "name": "elmah",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Elmah.io REST API](https://docs.elmah.io/using-the-rest-api/) from Ballerina"
     },
     {
       "name": "eloqua",
-      "version": "1.3.1",
+      "version": "1.3.2",
       "description": "Connects to [Oracle Eloqua API](https://docs.oracle.com/en/cloud/saas/marketing/eloqua-develop/Developers/GettingStarted/Tutorials/tutorials.htm) from Ballerina"
     },
     {
       "name": "eventbrite",
-      "version": "1.6.1",
+      "version": "1.6.2",
       "description": "Connects to [Eventbrite API](https://www.eventbrite.com/platform/api) from Ballerina"
     },
     {
       "name": "exchangerates",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to ExchangeRate API from Ballerina"
     },
     {
       "name": "extpose",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to Extpose API from Ballerina"
     },
     {
       "name": "facebook.ads",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Facebook Marketing API v12.0](https://developers.facebook.com/docs/marketing-apis) from Ballerina."
     },
     {
       "name": "figshare",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Figshare API v2.0.0](https://docs.figshare.com/) from Ballerina"
     },
     {
       "name": "file360",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [file360 API v1.0](https://developer.opentext.com/apis/ebc5860f-3e04-4d1b-a8be-b2683738c701/File360) from Ballerina"
     },
     {
       "name": "files.com",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Files.com API](https://www.files.com/) from Ballerina"
     },
     {
@@ -862,47 +907,47 @@
     },
     {
       "name": "flatapi",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Flat API](https://flat.io/developers/docs/api/) from Ballerina"
     },
     {
       "name": "formstack",
-      "version": "1.3.1",
+      "version": "1.3.2",
       "description": "Connects to [Formstack](https://formstack.readme.io/docs/api-overview) from Ballerina"
     },
     {
       "name": "fraudlabspro.frauddetection",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [FraudLabsPro Fraud Detection API](https://www.fraudlabspro.com/developer/api/screen-order) from Ballerina"
     },
     {
       "name": "fraudlabspro.smsverification",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [FraudLabsPro SMS Verification API](https://www.fraudlabspro.com/developer/api/send-verification) from Ballerina"
     },
     {
       "name": "freemarker",
-      "version": "1.0.1",
-      "description": "Provides a Ballerina interface to Apache FreeMarker, a Java-based template engine for generating text output (HTML, email, configuration files, source code, etc.) from templates and data."
+      "version": "1.0.2",
+      "description": "The `ballerinax/freemarker` library provides a Ballerina interface to [Apache FreeMarker](https://freemarker.apache.org/), a Java-based template engine for generating text output (HTML, email, configuration files, source code, etc.) from templates and data."
     },
     {
       "name": "freshbooks",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [FreshBooks API v1](https://www.freshbooks.com/api/start) from Ballerina."
     },
     {
       "name": "freshdesk",
-      "version": "1.3.1",
+      "version": "1.3.2",
       "description": "Connects to [Freshdesk](https://developers.freshdesk.com/api/#intro) from Ballerina"
     },
     {
       "name": "fungenerators.barcode",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to  from Ballerina"
     },
     {
       "name": "fungenerators.uuid",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to fungenerators.UUID from Ballerina"
     },
     {
@@ -912,97 +957,97 @@
     },
     {
       "name": "geonames",
-      "version": "1.3.1",
+      "version": "1.3.2",
       "description": "Connects to [Geonames API](https://www.geonames.org/export/JSON-webservices.html) from Ballerina"
     },
     {
       "name": "giphy",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Giphy](https://developers.giphy.com/docs/api/) from Ballerina"
     },
     {
       "name": "github",
-      "version": "5.1.0",
+      "version": "6.1.0",
       "description": "[GitHub](https://github.com/) is a widely used platform for version control and collaboration, allowing developers to work together on projects from anywhere. It hosts a vast array of both open-source and private projects, providing a suite of development tools for collaborative software development."
     },
     {
       "name": "gitlab",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [GitLab REST API](https://docs.gitlab.com/ee/api/api_resources.html) from Ballerina"
     },
     {
       "name": "godaddy.abuse",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [GoDaddy Abuse](https://developer.godaddy.com/doc/endpoint/abuse) from Ballerina"
     },
     {
       "name": "godaddy.aftermarket",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [GoDaddy Aftermarket](https://developer.godaddy.com/doc/endpoint/aftermarket) from Ballerina"
     },
     {
       "name": "godaddy.agreements",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [GoDaddy agreements](https://developer.godaddy.com/doc/endpoint/agreements) from Ballerina"
     },
     {
       "name": "godaddy.certificates",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [GoDaddy Certificates](https://developer.godaddy.com/doc/endpoint/certificates) from Ballerina"
     },
     {
       "name": "godaddy.countries",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [GoDaddy Countries](https://developer.godaddy.com/doc/endpoint/countries) from Ballerina"
     },
     {
       "name": "godaddy.domains",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [GoDaddy Domains](https://developer.godaddy.com/doc/endpoint/domains) from Ballerina"
     },
     {
       "name": "godaddy.orders",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [GoDaddy Orders](https://developer.godaddy.com/doc/endpoint/orders) from Ballerina"
     },
     {
       "name": "godaddy.shopper",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [GoDaddy Shoppers](https://developer.godaddy.com/doc/endpoint/shoppers) from Ballerina"
     },
     {
       "name": "godaddy.subscriptions",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [GoDaddy Subscriptions](https://developer.godaddy.com/doc/endpoint/subscriptions) from Ballerina"
     },
     {
       "name": "googleapis.abusiveexperiencereport",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Google Abusive Experience Report API](https://developers.google.com/abusive-experience-report/) from Ballerina"
     },
     {
       "name": "googleapis.appsscript",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Google Apps Script API](https://developers.google.com/apps-script/api/) from Ballerina"
     },
     {
       "name": "googleapis.bigquery",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Google BigQuery API v2.0](https://cloud.google.com/bigquery/docs/reference/rest) from Ballerina"
     },
     {
       "name": "googleapis.bigquery.datatransfer",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Google BigQuery Data Transfer API v1](https://cloud.google.com/bigquery/docs/reference/rest) from Ballerina"
     },
     {
       "name": "googleapis.blogger",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Google Blogger API](https://developers.google.com/blogger/docs/3.0/getting_started) from Ballerina"
     },
     {
       "name": "googleapis.books",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Google Books API v1](https://developers.google.com/books) from Ballerina"
     },
     {
@@ -1011,108 +1056,113 @@
       "description": "Connects to Google Calendar from Ballerina"
     },
     {
+      "name": "googleapis.chat",
+      "version": "0.1.1",
+      "description": "[Google Chat](https://workspace.google.com/products/chat/) is a communication platform from Google, designed for teams and businesses as part of Google Workspace."
+    },
+    {
       "name": "googleapis.classroom",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Google Classroom API](https://developers.google.com/classroom/guides/get-started) from Ballerina"
     },
     {
       "name": "googleapis.cloudbillingaccount",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Google Cloud Billing Account API](https://cloud.google.com/billing/docs/apis) from Ballerina"
     },
     {
       "name": "googleapis.cloudbuild",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Google Cloud Build](https://cloud.google.com/build/docs/api/reference/rest) from Ballerina"
     },
     {
       "name": "googleapis.clouddatastore",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Google Cloud Datastore](https://cloud.google.com/datastore/docs/reference/data/rest) from Ballerina"
     },
     {
       "name": "googleapis.cloudfilestore",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Google Cloud Filestore](https://cloud.google.com/filestore/docs/reference/rest) from Ballerina"
     },
     {
       "name": "googleapis.cloudfunctions",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Google Cloud Functions](https://cloud.google.com/functions/docs/reference/rest) from Ballerina"
     },
     {
       "name": "googleapis.cloudnaturallanguage",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Google Cloud Natural Language API](https://cloud.google.com/natural-language/) from Ballerina"
     },
     {
       "name": "googleapis.cloudpubsub",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Google Cloud Pub/Sub](https://cloud.google.com/pubsub/docs/reference/rest) from Ballerina"
     },
     {
       "name": "googleapis.cloudscheduler",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Google Cloud Scheduler](https://cloud.google.com/scheduler/docs/reference/rest) from Ballerina"
     },
     {
       "name": "googleapis.cloudtalentsolution",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Google Cloud Talent Solution API](https://cloud.google.com/talent-solution/job-search/docs/) from Ballerina"
     },
     {
       "name": "googleapis.cloudtranslation",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Google Cloud Translation API](https://cloud.google.com/translate/docs/quickstarts) from Ballerina"
     },
     {
       "name": "googleapis.discovery",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Google Discovery API](https://developers.google.com/discovery/v1/reference) from Ballerina"
     },
     {
       "name": "googleapis.docs",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Google Docs API v1.0](https://developers.google.com/docs/api) from Ballerina"
     },
     {
       "name": "googleapis.drive",
-      "version": "3.4.1",
-      "description": "Connects to [Google Drive API](https://developers.google.com/drive) from Ballerina"
+      "version": "3.5.0",
+      "description": "[Google Drive](https://www.google.com/drive/) is a cloud-based storage service that allows users to store, share, and collaborate on files and folders across various devices. It provides a secure and accessible platform for managing digital content."
     },
     {
       "name": "googleapis.gcalendar",
-      "version": "4.0.1",
-      "description": "The Ballerina Google Calendar Connector provides the capability to manage events and calendar operations. It also provides the capability to support service account authorization that can provide delegated domain-wide access to the GSuite domain and support admins to do operations on behalf of the domain users."
+      "version": "4.0.2",
+      "description": "The Google Calendar connector provides the capability to manage events and calendar operations. It also provides the capability to support service account authorization that can provide delegated domain-wide access to the GSuite domain and support admins to do operations on behalf of the domain users. This module supports [Google Calendar API V3](https://developers.google.com/calendar/api)."
     },
     {
       "name": "googleapis.gmail",
-      "version": "4.2.0",
-      "description": "[Gmail](https://blog.google/products/gmail/) is a widely-used email service provided by Google LLC, enabling users to send and receive emails over the internet."
+      "version": "4.2.1",
+      "description": "[Gmail](https://www.google.com/gmail/) is an email service provided by Google LLC, enabling users to send and receive emails over the internet. It offers powerful features for organizing, searching, and managing electronic communications."
     },
     {
       "name": "googleapis.manufacturercenter",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Google Manufacturer Center API](https://developers.google.com/manufacturers/) from Ballerina"
     },
     {
       "name": "googleapis.mybusiness",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Google My Business API](https://developers.google.com/my-business/) from Ballerina"
     },
     {
       "name": "googleapis.oauth2",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to Google OAuth2 API from Ballerina"
     },
     {
       "name": "googleapis.people",
-      "version": "2.4.0",
+      "version": "2.4.1",
       "description": "Connects to [Google People API](https://developers.google.com/people/api/rest) from Ballerina."
     },
     {
       "name": "googleapis.retail",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Google Retail API](https://cloud.google.com/retail/docs/overview) from Ballerina"
     },
     {
@@ -1122,57 +1172,57 @@
     },
     {
       "name": "googleapis.slides",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Google Slides API v1](https://developers.google.com/slides/api) from Ballerina"
     },
     {
       "name": "googleapis.tasks",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Google Tasks API](https://developers.google.com/tasks/get_started) from Ballerina"
     },
     {
       "name": "googleapis.vault",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Google Vault](https://developers.google.com/vault/reference/rest) from Ballerina"
     },
     {
       "name": "googleapis.vision",
-      "version": "1.6.1",
+      "version": "1.6.2",
       "description": "Connects to [Google Cloud Vision API](https://cloud.google.com/vision/docs/reference/rest) from Ballerina"
     },
     {
       "name": "googleapis.youtube.analytics",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Youtube Analytics API](https://developers.google.com/youtube/reporting) from Ballerina"
     },
     {
       "name": "googleapis.youtube.data",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Youtube Data API](https://developers.google.com/youtube/v3/docs) from Ballerina"
     },
     {
       "name": "googleapis.youtube.reporting",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Youtube Reporting API](https://developers.google.com/youtube/reporting) from Ballerina"
     },
     {
       "name": "gotomeeting",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [GoToMeeting](https://developer.goto.com/GoToMeetingV1) from Ballerina"
     },
     {
       "name": "gototraining",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [GoToTraining](https://developer.goto.com/GoToTrainingV1/) from Ballerina"
     },
     {
       "name": "gotowebinar",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [GoToWebinar](https://developer.goto.com/GoToWebinarV2/) from Ballerina"
     },
     {
       "name": "graphhopper.directions",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to GraphHopper Directions API from Ballerina"
     },
     {
@@ -1247,7 +1297,7 @@
     },
     {
       "name": "health.fhir.r4",
-      "version": "6.3.2",
+      "version": "6.3.3",
       "description": "Core FHIR R4 base package for Ballerina containing fundamental data types, base resources, parsers, validators, utilities, and error types. It is the foundation used by all profile and utility packages in this repository."
     },
     {
@@ -1352,7 +1402,7 @@
     },
     {
       "name": "health.fhir.r4.international401",
-      "version": "4.0.3",
+      "version": "4.0.4",
       "description": "FHIR International R4 (4.0.1) model package containing base international profile records. It enables type-safe handling of standard FHIR R4 resources across global interoperability use cases."
     },
     {
@@ -1377,7 +1427,7 @@
     },
     {
       "name": "health.fhir.r4.terminology",
-      "version": "7.0.1",
+      "version": "7.0.2",
       "description": "FHIR terminology utilities package for interacting with terminology services and terminology resources such as CodeSystem, ValueSet, and ConceptMap. It supports common terminology operations required in clinical interoperability."
     },
     {
@@ -1532,13 +1582,18 @@
     },
     {
       "name": "health.hl7v2",
-      "version": "3.0.9",
+      "version": "3.0.10",
       "description": "Package containing core HL7v2 capabilities to implement HL7v2 related integration"
     },
     {
       "name": "health.hl7v2.utils.v2tofhirr4",
       "version": "4.0.4",
       "description": "Package containing HL7v2.x to FHIR pre-built mapping functionalities. "
+    },
+    {
+      "name": "health.hl7v22",
+      "version": "1.0.1",
+      "description": "Package containing HL7 messages, segments, data types and utilities to implement HL7 v2.2 specification related "
     },
     {
       "name": "health.hl7v23",
@@ -1597,122 +1652,97 @@
     },
     {
       "name": "hubspot.analytics",
-      "version": "2.3.1",
+      "version": "2.3.2",
       "description": "Connects to [HubSpot Analytics API](https://developers.hubspot.com/docs/api/overview) from Ballerina"
     },
     {
       "name": "hubspot.automation.actions",
-      "version": "1.0.0",
+      "version": "2.0.0",
       "description": "[HubSpot](https://www.hubspot.com/) is an AI-powered customer relationship management (CRM) platform."
     },
     {
       "name": "hubspot.crm.associations",
-      "version": "2.0.1",
+      "version": "2.0.2",
       "description": "[HubSpot](https://developers.hubspot.com) is an AI-powered customer relationship management (CRM) platform."
     },
     {
       "name": "hubspot.crm.associations.schema",
-      "version": "2.0.1",
+      "version": "2.0.2",
       "description": "[HubSpot](https://www.hubspot.com/) is an AI-powered customer relationship management (CRM) platform."
     },
     {
       "name": "hubspot.crm.commerce.carts",
-      "version": "2.0.1",
+      "version": "2.0.2",
       "description": "[HubSpot](https://www.hubspot.com) is an AI-powered customer relationship management (CRM) platform."
     },
     {
       "name": "hubspot.crm.commerce.discounts",
-      "version": "2.0.1",
+      "version": "2.0.2",
       "description": "[HubSpot](https://www.hubspot.com/our-story) is an AI-powered customer relationship management (CRM) platform."
     },
     {
       "name": "hubspot.crm.commerce.orders",
-      "version": "2.0.1",
+      "version": "2.0.2",
       "description": "[HubSpot](https://www.hubspot.com) is an AI-powered customer relationship management (CRM) platform."
     },
     {
       "name": "hubspot.crm.commerce.quotes",
-      "version": "2.0.1",
+      "version": "2.0.2",
       "description": "[HubSpot](https://www.hubspot.com) is an AI-powered customer relationship management (CRM) platform."
     },
     {
       "name": "hubspot.crm.commerce.taxes",
-      "version": "2.0.1",
+      "version": "2.0.2",
       "description": "[HubSpot](https://www.hubspot.com) is an AI-powered customer relationship management (CRM) platform."
     },
     {
-      "name": "hubspot.crm.company",
-      "version": "2.3.1",
-      "description": "Connects to [HubSpot CRM API](https://developers.hubspot.com/docs/api/overview) from Ballerina"
-    },
-    {
-      "name": "hubspot.crm.contact",
-      "version": "2.3.1",
-      "description": "Connects to [HubSpot CRM API](https://developers.hubspot.com/docs/api/overview) from Ballerina"
-    },
-    {
-      "name": "hubspot.crm.deal",
-      "version": "2.3.1",
-      "description": "Connects to [HubSpot CRM API](https://developers.hubspot.com/docs/api/overview) from Ballerina"
-    },
-    {
       "name": "hubspot.crm.engagement.meeting",
-      "version": "1.0.0",
-      "description": "[HubSpot ](https://www.hubspot.com/) is an AI-powered customer relationship management (CRM) platform."
+      "version": "2.0.0",
+      "description": "[HubSpot](https://www.hubspot.com/) is an AI-powered customer relationship management (CRM) platform."
     },
     {
       "name": "hubspot.crm.engagement.notes",
-      "version": "2.0.1",
+      "version": "2.0.2",
       "description": "[HubSpot](https://www.hubspot.com/) is an AI-powered customer relationship management (CRM) platform."
     },
     {
       "name": "hubspot.crm.engagements.calls",
-      "version": "2.0.1",
+      "version": "2.0.2",
       "description": "[HubSpot](https://www.hubspot.com/) is an AI-powered customer relationship management (CRM) platform."
     },
     {
       "name": "hubspot.crm.engagements.communications",
-      "version": "2.0.1",
+      "version": "2.0.2",
       "description": "[HubSpot](https://developers.hubspot.com) is an AI-powered customer relationship management (CRM) platform."
     },
     {
       "name": "hubspot.crm.engagements.email",
-      "version": "2.0.1",
+      "version": "2.0.2",
       "description": "[HubSpot](https://www.hubspot.com) is an AI-powered customer relationship management (CRM) platform. "
     },
     {
       "name": "hubspot.crm.engagements.tasks",
-      "version": "2.0.1",
+      "version": "2.0.2",
       "description": "[HubSpot](https://www.hubspot.com/) is an AI-powered customer relationship management (CRM) platform."
     },
     {
       "name": "hubspot.crm.extensions.timelines",
-      "version": "2.0.1",
+      "version": "2.0.2",
       "description": "[HubSpot](https://www.hubspot.com/) is an AI-powered customer relationship management (CRM) platform."
     },
     {
       "name": "hubspot.crm.extensions.videoconferencing",
-      "version": "2.0.1",
+      "version": "2.0.2",
       "description": "[HubSpot](https://developers.hubspot.com) is an AI-powered customer relationship management (CRM) platform."
     },
     {
-      "name": "hubspot.crm.feedback",
-      "version": "2.3.1",
-      "description": "Connects to [HubSpot CRM API](https://developers.hubspot.com/docs/api/overview) from Ballerina"
-    },
-    {
       "name": "hubspot.crm.import",
-      "version": "4.0.1",
+      "version": "4.0.2",
       "description": "[HubSpot](https://www.hubspot.com/our-story) is an AI-powered customer relationship management (CRM) platform."
     },
     {
-      "name": "hubspot.crm.lineitem",
-      "version": "2.3.1",
-      "description": "Connects to [HubSpot CRM API](https://developers.hubspot.com/docs/api/overview) from Ballerina"
-    },
-    {
       "name": "hubspot.crm.lists",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "description": "[HubSpot](https://www.hubspot.com/) is an AI-powered customer relationship management (CRM) platform."
     },
     {
@@ -1722,133 +1752,113 @@
     },
     {
       "name": "hubspot.crm.obj.contacts",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "description": "[HubSpot](https://www.hubspot.com) is an AI-powered customer relationship management (CRM) platform."
     },
     {
       "name": "hubspot.crm.obj.deals",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "description": "[HubSpot](https://www.hubspot.com) is an AI-powered customer relationship management (CRM) platform."
     },
     {
       "name": "hubspot.crm.obj.feedback",
-      "version": "2.0.1",
+      "version": "2.0.2",
       "description": "[HubSpot](https://www.hubspot.com) is an AI-powered customer relationship management (CRM) platform."
     },
     {
       "name": "hubspot.crm.obj.leads",
-      "version": "2.0.1",
+      "version": "2.0.2",
       "description": "[HubSpot](https://www.hubspot.com) is an AI-powered customer relationship management (CRM) platform."
     },
     {
       "name": "hubspot.crm.obj.lineitems",
-      "version": "2.0.1",
+      "version": "2.0.2",
       "description": "[HubSpot](https://www.hubspot.com) is an AI-powered customer relationship management (CRM) platform."
     },
     {
       "name": "hubspot.crm.obj.products",
-      "version": "2.0.1",
+      "version": "2.0.2",
       "description": "[HubSpot](https://www.hubspot.com) is an AI-powered customer relationship management (CRM) platform."
     },
     {
       "name": "hubspot.crm.obj.schemas",
-      "version": "2.0.1",
+      "version": "2.0.2",
       "description": "[HubSpot](https://www.hubspot.com) is an AI-powered customer relationship management (CRM) platform."
     },
     {
       "name": "hubspot.crm.obj.tickets",
-      "version": "2.0.1",
+      "version": "2.0.2",
       "description": "[HubSpot](https://www.hubspot.com) is an AI-powered customer relationship management (CRM) platform."
     },
     {
       "name": "hubspot.crm.owners",
-      "version": "2.0.1",
+      "version": "2.0.2",
       "description": "[HubSpot](https://developers.hubspot.com) is an AI-powered customer relationship management (CRM) platform."
     },
     {
-      "name": "hubspot.crm.pipeline",
-      "version": "2.3.1",
-      "description": "Connects to [HubSpot CRM API](https://developers.hubspot.com/docs/api/overview) from Ballerina"
-    },
-    {
       "name": "hubspot.crm.pipelines",
-      "version": "2.0.1",
+      "version": "2.0.2",
       "description": "[HubSpot](https://www.hubspot.com/our-story) is an AI-powered customer relationship management (CRM) platform."
     },
     {
-      "name": "hubspot.crm.product",
-      "version": "2.3.1",
-      "description": "Connects to [HubSpot CRM API](https://developers.hubspot.com/docs/api/overview) from Ballerina"
-    },
-    {
       "name": "hubspot.crm.properties",
-      "version": "2.0.1",
+      "version": "2.0.2",
       "description": "[HubSpot ](https://www.hubspot.com/) is an AI-powered customer relationship management (CRM) platform."
     },
     {
-      "name": "hubspot.crm.property",
-      "version": "2.3.1",
-      "description": "Connects to [HubSpot CRM API](https://developers.hubspot.com/docs/api/overview) from Ballerina"
-    },
-    {
-      "name": "hubspot.crm.quote",
-      "version": "2.3.1",
-      "description": "Connects to [HubSpot CRM API](https://developers.hubspot.com/docs/api/overview) from Ballerina"
-    },
-    {
       "name": "hubspot.crm.schema",
-      "version": "2.3.1",
-      "description": "Connects to [HubSpot CRM API](https://developers.hubspot.com/docs/api/overview) from Ballerina"
-    },
-    {
-      "name": "hubspot.crm.ticket",
-      "version": "2.3.1",
+      "version": "2.3.2",
       "description": "Connects to [HubSpot CRM API](https://developers.hubspot.com/docs/api/overview) from Ballerina"
     },
     {
       "name": "hubspot.events",
-      "version": "2.3.1",
+      "version": "2.3.2",
       "description": "Connects to [HubSpot Events API](https://developers.hubspot.com/docs/api/overview) from Ballerina"
     },
     {
+      "name": "hubspot.events.completions",
+      "version": "1.0.1",
+      "description": "[HubSpot](https://www.hubspot.com/) is a CRM platform that lets you track custom behavioral events for the contacts and objects in your account. The Events Send Event Completions API lets external systems report that a custom-defined event occurred, so that HubSpot workflows, reporting, and CRM timelines stay up to date with real-world activity happening outside of HubSpot."
+    },
+    {
       "name": "hubspot.files",
-      "version": "2.3.1",
+      "version": "2.3.2",
       "description": "Connects to [HubSpot Files API](https://developers.hubspot.com/docs/api/overview) from Ballerina"
     },
     {
-      "name": "hubspot.marketing",
-      "version": "2.3.1",
-      "description": "Connects to [HubSpot Marketing API](https://developers.hubspot.com/docs/api/overview) from Ballerina"
-    },
-    {
       "name": "hubspot.marketing.campaigns",
-      "version": "2.0.1",
+      "version": "2.0.2",
       "description": "[HubSpot](https://www.hubspot.com) is an AI-powered customer relationship management (CRM) platform."
     },
     {
       "name": "hubspot.marketing.emails",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "description": "[HubSpot](https://www.hubspot.com) is an AI-powered customer relationship management (CRM) platform. "
     },
     {
       "name": "hubspot.marketing.events",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "description": "[HubSpot](https://www.hubspot.com/) is an AI-powered customer relationship management (CRM) platform."
     },
     {
       "name": "hubspot.marketing.forms",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "description": "[HubSpot](https://www.hubspot.com/) is an AI-powered customer relationship management (CRM) platform."
     },
     {
       "name": "hubspot.marketing.subscriptions",
-      "version": "2.0.1",
+      "version": "2.0.2",
       "description": "[HubSpot](https://www.hubspot.com) is an AI-powered customer relationship management (CRM) platform."
     },
     {
       "name": "hubspot.marketing.transactional",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "description": "[HubSpot](https://www.hubspot.com/) is an AI-powered customer relationship management (CRM) platform."
+    },
+    {
+      "name": "hubspot.trigger",
+      "version": "0.12.0",
+      "description": "The [Ballerina](https://ballerina.io/) listener for Hubspot allows you to listen to the following events in a HubSpot account, grouped by the CRM object they relate to."
     },
     {
       "name": "ibm.ctg",
@@ -1857,12 +1867,12 @@
     },
     {
       "name": "ibm.ibmmq",
-      "version": "1.4.4",
+      "version": "1.4.5",
       "description": "IBM MQ is a robust, reliable, and secure messaging middleware that enables applications to communicate across different platforms. It provides a proven infrastructure for distributed messaging in enterprise environments. The IBM MQ connector provides a comprehensive API to interact with IBM MQ queue managers, allowing you to manage queues and exchange messages efficiently."
     },
     {
       "name": "icons8",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Icons8](https://developers.icons8.com/docs/getting-started) from Ballerina"
     },
     {
@@ -1872,22 +1882,22 @@
     },
     {
       "name": "impala",
-      "version": "1.3.1",
+      "version": "1.3.2",
       "description": "Connects to [Impala](https://docs.impala.travel/docs/booking-api/branches/v1.003/YXBpOjQwMDYwNDY-impala-hotel-booking-api) from Ballerina"
     },
     {
       "name": "insightly.custom",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Insightly API v3.1](https://www.insightly.com/) from Ballerina."
     },
     {
       "name": "instagram",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Instagram Basic Display API v12.0](https://developers.facebook.com/docs/instagram-basic-display-api) from Ballerina."
     },
     {
       "name": "instagram.bussiness",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Instagram Graph API v12.0](https://developers.facebook.com/docs/instagram-basic-display-api) from Ballerina."
     },
     {
@@ -1897,7 +1907,7 @@
     },
     {
       "name": "interzoid.convertcurrency",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Interzoid Convert Currency API](https://www.interzoid.com/services/convertcurrency) from Ballerina."
     },
     {
@@ -1907,108 +1917,108 @@
     },
     {
       "name": "interzoid.currencyrate",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Interzoid Currency Rate API v1.0.0](https://interzoid.com/services/getcurrencyrate) from Ballerina."
     },
     {
       "name": "interzoid.emailinfo",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Interzoid Email Info API](https://interzoid.com/services/getemailinfo) from Ballerina."
     },
     {
       "name": "interzoid.globalnumberinfo",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Interzoid Global Phone Number Information API v1.0.0](https://interzoid.com/services/getglobalnumberinfo) from Ballerina."
     },
     {
       "name": "interzoid.globalpageload",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Interzoid Global Page Load Performance API](https://interzoid.com/services/globalpageload) from Ballerina."
     },
     {
       "name": "interzoid.globaltime",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Interzoid Get Global Time API](https://www.interzoid.com/services/getglobaltime) from Ballerina."
     },
     {
       "name": "interzoid.statedata",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Interzoid State Data API](https://www.interzoid.com/services/getstateabbreviation) from Ballerina."
     },
     {
       "name": "interzoid.weatherzip",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Interzoid Weather Zip API](https://interzoid.com/services/getweatherzip) from Ballerina."
     },
     {
       "name": "interzoid.zipinfo",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Interzoid Zip Code Detailed Information API](https://www.interzoid.com/services/getzipcodeinfo) from Ballerina."
     },
     {
       "name": "ip2whois",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to IP2WHOIS API from Ballerina"
     },
     {
       "name": "ipgeolocation",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [IP Geolocation API ](https://www.abstractapi.com/ip-geolocation-api#docs) from Ballerina."
     },
     {
       "name": "iptwist",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [ipTwist API v1](https://iptwist.com/) from Ballerina"
     },
     {
       "name": "iris.disputeresponder",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [IRIS Dispute Responder API](https://www.iriscrm.com/api) from Ballerina"
     },
     {
       "name": "iris.esignature",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [IRIS E-Signature API](https://www.iriscrm.com/api) from Ballerina"
     },
     {
       "name": "iris.helpdesk",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [IRIS Helpdesk API](https://www.iriscrm.com/api) from Ballerina"
     },
     {
       "name": "iris.lead",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [IRIS Lead API](https://www.iriscrm.com/api) from Ballerina"
     },
     {
       "name": "iris.merchants",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [IRIS Merchants API](https://www.iriscrm.com/api) from Ballerina"
     },
     {
       "name": "iris.residuals",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [IRIS Residuals API](https://www.iriscrm.com/api) from Ballerina"
     },
     {
       "name": "iris.subscriptions",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [IRIS Subscriptions API](https://www.iriscrm.com/api) from Ballerina"
     },
     {
       "name": "isbndb",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [ISBNdb API](https://isbndb.com/apidocs/v2) from Ballerina."
     },
     {
       "name": "isendpro",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [iSendPro](https://www.isendpro.com/docs/?type=7) from Ballerina."
     },
     {
       "name": "jaeger",
-      "version": "1.1.0",
-      "description": "The Jaeger Observability Extension is one of the tracing extensions of the<a target=\"_blank\" href=\"https://ballerina.io/\"> Ballerina</a> language."
+      "version": "1.1.2",
+      "description": "The Jaeger Observability Extension provides an implementation for tracing and publishing traces to a [Jaeger](https://www.jaegertracing.io/) Agent."
     },
     {
       "name": "java.jdbc",
@@ -2017,7 +2027,7 @@
     },
     {
       "name": "java.jms",
-      "version": "1.2.1",
+      "version": "1.2.2",
       "description": "Java Message Service (JMS) is a standard API for sending messages between two or more clients. It provides a common way for programs to create, send, receive, and read distributed enterprise messages. The JMS connector enables seamless integration with JMS providers, supporting various messaging patterns such as publish-subscribe and point-to-point."
     },
     {
@@ -2027,77 +2037,77 @@
     },
     {
       "name": "jira.servicemanagement",
-      "version": "1.3.1",
+      "version": "1.3.2",
       "description": "Connects to [Jira Service Management Cloud REST API](https://developer.atlassian.com/cloud/jira/service-desk/) from Ballerina."
     },
     {
       "name": "journey.io",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Journey.io API](https://developers.journy.io/) from Ballerina"
     },
     {
       "name": "kafka",
-      "version": "4.6.5",
+      "version": "4.6.6",
       "description": "Apache Kafka is a distributed event streaming platform used for high-performance data pipelines, streaming analytics, data integration, and mission-critical applications. The Kafka connector allows you to integrate with Kafka, providing the ability to produce and consume events from Kafka topics. It supports high-throughput, fault-tolerant, and scalable messaging, making it ideal for building real-time data processing systems."
     },
     {
       "name": "karbon",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Karbon API](https://developers.karbonhq.com/api) from Ballerina"
     },
     {
       "name": "keap",
-      "version": "1.3.1",
+      "version": "1.3.2",
       "description": "Connects to [Keap API](https://developer.infusionsoft.com/docs/rest) from Ballerina"
     },
     {
       "name": "kinto",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Kinto](https://docs.kinto-storage.org/en/stable/api/index.html) from Ballerina"
     },
     {
       "name": "launchdarkly",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [LaunchDarkly](https://apidocs.launchdarkly.com/) from Ballerina"
     },
     {
       "name": "leanix.integrationapi",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [LeanIX Integration API](https://eu.leanix.net/services/integration-api/v1/docs/) from Ballerina."
     },
     {
       "name": "listen.notes",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Listen Notes API v2.0](https://www.listennotes.com/) from Ballerina"
     },
     {
       "name": "livestorm",
-      "version": "2.6.0",
+      "version": "2.6.1",
       "description": "Connects to [Livestorm API](https://developers.livestorm.co/docs) from Ballerina"
     },
     {
       "name": "logoraisr",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Logoraisr API](https://docs.logoraisr.com/) from Ballerina."
     },
     {
       "name": "magento.address",
-      "version": "1.3.1",
+      "version": "1.3.2",
       "description": "Connects to [Magento REST API v2](https://devdocs.magento.com/guides/v2.4/get-started/rest_front.html) from Ballerina"
     },
     {
       "name": "magento.async.customer",
-      "version": "1.3.1",
+      "version": "1.3.2",
       "description": "Connects to [Magento Magento Asynchronous Customer REST endpoints API v2.3.5](https://devdocs.magento.com/guides/v2.4/get-started/rest_front.html) from Ballerina"
     },
     {
       "name": "magento.cart",
-      "version": "1.3.1",
+      "version": "1.3.2",
       "description": "Connects to [Magento REST API v2](https://devdocs.magento.com/guides/v2.4/get-started/rest_front.html) from Ballerina"
     },
     {
       "name": "mailchimp",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to Mailchimp Marketing API from Ballerina"
     },
     {
@@ -2112,17 +2122,17 @@
     },
     {
       "name": "mailscript",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Mailscript](https://docs.mailscript.com/#api) from Ballerina."
     },
     {
       "name": "mathtools.numbers",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Numbers API](https://math.tools/api/numbers/) from Ballerina."
     },
     {
       "name": "medium",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "The `ballerinax\\medium` is a [Ballerina](https://ballerina.io/) connector for Medium."
     },
     {
@@ -2131,9 +2141,154 @@
       "description": "The Metrics Logs Observability Extension is used to enable Ballerina metrics logs to be observed by OpenSearch."
     },
     {
-      "name": "microsoft.dynamics365.finance",
-      "version": "0.2.0",
-      "description": ""
+      "name": "microsoft.dynamics365.finance.budget",
+      "version": "0.8.1",
+      "description": "[Microsoft Dynamics 365 Finance](https://www.microsoft.com/en-us/dynamics-365/products/finance) is Microsoft's cloud ERP solution for financial management, covering general ledger, accounts receivable and payable, fixed assets, budgeting, cash and bank management, and tax."
+    },
+    {
+      "name": "microsoft.dynamics365.finance.cashmanagement",
+      "version": "0.8.1",
+      "description": "[Microsoft Dynamics 365 Finance](https://www.microsoft.com/en-us/dynamics-365/products/finance) is Microsoft's cloud ERP solution for financial management, covering general ledger, accounts receivable and payable, fixed assets, budgeting, cash and bank management, and tax."
+    },
+    {
+      "name": "microsoft.dynamics365.finance.core",
+      "version": "0.8.1",
+      "description": "[Microsoft Dynamics 365 Finance](https://www.microsoft.com/en-us/dynamics-365/products/finance) is Microsoft's cloud ERP solution for financial management, covering general ledger, accounts receivable and payable, fixed assets, budgeting, cash and bank management, and tax."
+    },
+    {
+      "name": "microsoft.dynamics365.finance.coreorg",
+      "version": "0.8.1",
+      "description": "[Microsoft Dynamics 365 Finance](https://www.microsoft.com/en-us/dynamics-365/products/finance) is Microsoft's cloud ERP solution for financial management, covering general ledger, accounts receivable and payable, fixed assets, budgeting, cash and bank management, and tax."
+    },
+    {
+      "name": "microsoft.dynamics365.finance.customer",
+      "version": "0.8.2",
+      "description": "[Microsoft Dynamics 365 Finance](https://www.microsoft.com/en-us/dynamics-365/products/finance) is Microsoft's cloud ERP solution for financial management, covering general ledger, accounts receivable and payable, fixed assets, budgeting, cash and bank management, and tax."
+    },
+    {
+      "name": "microsoft.dynamics365.finance.customeraccount",
+      "version": "0.8.2",
+      "description": "[Microsoft Dynamics 365 Finance](https://www.microsoft.com/en-us/dynamics-365/products/finance) is Microsoft's cloud ERP solution for financial management, covering general ledger, accounts receivable and payable, fixed assets, budgeting, cash and bank management, and tax."
+    },
+    {
+      "name": "microsoft.dynamics365.finance.customermain",
+      "version": "0.8.2",
+      "description": "[Microsoft Dynamics 365 Finance](https://www.microsoft.com/en-us/dynamics-365/products/finance) is Microsoft's cloud ERP solution for financial management, covering general ledger, accounts receivable and payable, fixed assets, budgeting, cash and bank management, and tax."
+    },
+    {
+      "name": "microsoft.dynamics365.finance.document",
+      "version": "0.8.2",
+      "description": "[Microsoft Dynamics 365 Finance](https://www.microsoft.com/en-us/dynamics-365/products/finance) is Microsoft's cloud ERP solution for financial management, covering general ledger, accounts receivable and payable, fixed assets, budgeting, cash and bank management, and tax."
+    },
+    {
+      "name": "microsoft.dynamics365.finance.expense",
+      "version": "0.8.1",
+      "description": "[Microsoft Dynamics 365 Finance](https://www.microsoft.com/en-us/dynamics-365/products/finance) is Microsoft's cloud ERP solution for financial management, covering general ledger, accounts receivable and payable, fixed assets, budgeting, cash and bank management, and tax."
+    },
+    {
+      "name": "microsoft.dynamics365.finance.fiscal",
+      "version": "0.8.1",
+      "description": "[Microsoft Dynamics 365 Finance](https://www.microsoft.com/en-us/dynamics-365/products/finance) is Microsoft's cloud ERP solution for financial management, covering general ledger, accounts receivable and payable, fixed assets, budgeting, cash and bank management, and tax."
+    },
+    {
+      "name": "microsoft.dynamics365.finance.fixedasset",
+      "version": "0.8.1",
+      "description": "[Microsoft Dynamics 365 Finance](https://www.microsoft.com/en-us/dynamics-365/products/finance) is Microsoft's cloud ERP solution for financial management, covering general ledger, accounts receivable and payable, fixed assets, budgeting, cash and bank management, and tax."
+    },
+    {
+      "name": "microsoft.dynamics365.finance.hr",
+      "version": "0.8.2",
+      "description": "[Microsoft Dynamics 365 Finance](https://www.microsoft.com/en-us/dynamics-365/products/finance) is Microsoft's cloud ERP solution for financial management, covering general ledger, accounts receivable and payable, fixed assets, budgeting, cash and bank management, and tax."
+    },
+    {
+      "name": "microsoft.dynamics365.finance.hrdev",
+      "version": "0.8.2",
+      "description": "[Microsoft Dynamics 365 Finance](https://www.microsoft.com/en-us/dynamics-365/products/finance) is Microsoft's cloud ERP solution for financial management, covering general ledger, accounts receivable and payable, fixed assets, budgeting, cash and bank management, and tax."
+    },
+    {
+      "name": "microsoft.dynamics365.finance.journalentry",
+      "version": "0.8.1",
+      "description": "[Microsoft Dynamics 365 Finance](https://www.microsoft.com/en-us/dynamics-365/products/finance) is Microsoft's cloud ERP solution for financial management, covering general ledger, accounts receivable and payable, fixed assets, budgeting, cash and bank management, and tax."
+    },
+    {
+      "name": "microsoft.dynamics365.finance.ledger",
+      "version": "0.8.1",
+      "description": "[Microsoft Dynamics 365 Finance](https://www.microsoft.com/en-us/dynamics-365/products/finance) is Microsoft's cloud ERP solution for financial management, covering general ledger, accounts receivable and payable, fixed assets, budgeting, cash and bank management, and tax."
+    },
+    {
+      "name": "microsoft.dynamics365.finance.mainaccount",
+      "version": "0.8.1",
+      "description": "[Microsoft Dynamics 365 Finance](https://www.microsoft.com/en-us/dynamics-365/products/finance) is Microsoft's cloud ERP solution for financial management, covering general ledger, accounts receivable and payable, fixed assets, budgeting, cash and bank management, and tax."
+    },
+    {
+      "name": "microsoft.dynamics365.finance.payment",
+      "version": "0.8.1",
+      "description": "[Microsoft Dynamics 365 Finance](https://www.microsoft.com/en-us/dynamics-365/products/finance) is Microsoft's cloud ERP solution for financial management, covering general ledger, accounts receivable and payable, fixed assets, budgeting, cash and bank management, and tax."
+    },
+    {
+      "name": "microsoft.dynamics365.finance.procurement",
+      "version": "0.8.2",
+      "description": "[Microsoft Dynamics 365 Finance](https://www.microsoft.com/en-us/dynamics-365/products/finance) is Microsoft's cloud ERP solution for financial management, covering general ledger, accounts receivable and payable, fixed assets, budgeting, cash and bank management, and tax."
+    },
+    {
+      "name": "microsoft.dynamics365.finance.project",
+      "version": "0.8.2",
+      "description": "[Microsoft Dynamics 365 Finance](https://www.microsoft.com/en-us/dynamics-365/products/finance) is Microsoft's cloud ERP solution for financial management, covering general ledger, accounts receivable and payable, fixed assets, budgeting, cash and bank management, and tax."
+    },
+    {
+      "name": "microsoft.dynamics365.finance.receivable",
+      "version": "0.8.2",
+      "description": "[Microsoft Dynamics 365 Finance](https://www.microsoft.com/en-us/dynamics-365/products/finance) is Microsoft's cloud ERP solution for financial management, covering general ledger, accounts receivable and payable, fixed assets, budgeting, cash and bank management, and tax."
+    },
+    {
+      "name": "microsoft.dynamics365.finance.sysconfig",
+      "version": "0.8.2",
+      "description": "[Microsoft Dynamics 365 Finance](https://www.microsoft.com/en-us/dynamics-365/products/finance) is Microsoft's cloud ERP solution for financial management, covering general ledger, accounts receivable and payable, fixed assets, budgeting, cash and bank management, and tax."
+    },
+    {
+      "name": "microsoft.dynamics365.finance.system",
+      "version": "0.8.2",
+      "description": "[Microsoft Dynamics 365 Finance](https://www.microsoft.com/en-us/dynamics-365/products/finance) is Microsoft's cloud ERP solution for financial management, covering general ledger, accounts receivable and payable, fixed assets, budgeting, cash and bank management, and tax."
+    },
+    {
+      "name": "microsoft.dynamics365.finance.tax",
+      "version": "0.8.2",
+      "description": "[Microsoft Dynamics 365 Finance](https://www.microsoft.com/en-us/dynamics-365/products/finance) is Microsoft's cloud ERP solution for financial management, covering general ledger, accounts receivable and payable, fixed assets, budgeting, cash and bank management, and tax."
+    },
+    {
+      "name": "microsoft.dynamics365.finance.taxregion",
+      "version": "0.8.2",
+      "description": "[Microsoft Dynamics 365 Finance](https://www.microsoft.com/en-us/dynamics-365/products/finance) is Microsoft's cloud ERP solution for financial management, covering general ledger, accounts receivable and payable, fixed assets, budgeting, cash and bank management, and tax."
+    },
+    {
+      "name": "microsoft.dynamics365.finance.trade",
+      "version": "0.8.2",
+      "description": "[Microsoft Dynamics 365 Finance](https://www.microsoft.com/en-us/dynamics-365/products/finance) is Microsoft's cloud ERP solution for financial management, covering general ledger, accounts receivable and payable, fixed assets, budgeting, cash and bank management, and tax."
+    },
+    {
+      "name": "microsoft.dynamics365.finance.users",
+      "version": "0.8.2",
+      "description": "[Microsoft Dynamics 365 Finance](https://www.microsoft.com/en-us/dynamics-365/products/finance) is Microsoft's cloud ERP solution for financial management, covering general ledger, accounts receivable and payable, fixed assets, budgeting, cash and bank management, and tax."
+    },
+    {
+      "name": "microsoft.dynamics365.finance.vendor",
+      "version": "0.8.2",
+      "description": "[Microsoft Dynamics 365 Finance](https://www.microsoft.com/en-us/dynamics-365/products/finance) is Microsoft's cloud ERP solution for financial management, covering general ledger, accounts receivable and payable, fixed assets, budgeting, cash and bank management, and tax."
+    },
+    {
+      "name": "microsoft.dynamics365.finance.vendorextended",
+      "version": "0.8.2",
+      "description": "[Microsoft Dynamics 365 Finance](https://www.microsoft.com/en-us/dynamics-365/products/finance) is Microsoft's cloud ERP solution for financial management, covering general ledger, accounts receivable and payable, fixed assets, budgeting, cash and bank management, and tax."
+    },
+    {
+      "name": "microsoft.dynamics365.finance.vendorpayment",
+      "version": "0.8.2",
+      "description": "[Microsoft Dynamics 365 Finance](https://www.microsoft.com/en-us/dynamics-365/products/finance) is Microsoft's cloud ERP solution for financial management, covering general ledger, accounts receivable and payable, fixed assets, budgeting, cash and bank management, and tax."
+    },
+    {
+      "name": "microsoft.dynamics365.finance.workflow",
+      "version": "0.8.2",
+      "description": "[Microsoft Dynamics 365 Finance](https://www.microsoft.com/en-us/dynamics-365/products/finance) is Microsoft's cloud ERP solution for financial management, covering general ledger, accounts receivable and payable, fixed assets, budgeting, cash and bank management, and tax."
     },
     {
       "name": "microsoft.dynamics365.scm",
@@ -2142,12 +2297,12 @@
     },
     {
       "name": "microsoft.dynamics365businesscentral",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Dynamics 365 Business Central API](https://dynamics.microsoft.com/en-us/business-central/overview/) from Ballerina"
     },
     {
       "name": "microsoft.excel",
-      "version": "2.4.0",
+      "version": "2.4.1",
       "description": "Connects to Microsoft Excel from Ballerina"
     },
     {
@@ -2157,23 +2312,38 @@
     },
     {
       "name": "microsoft.onenote",
-      "version": "2.4.0",
+      "version": "2.4.1",
       "description": "Connects to Microsoft OneNote from Ballerina"
     },
     {
       "name": "microsoft.outlook.calendar",
-      "version": "2.4.0",
+      "version": "2.4.1",
       "description": "Connects to Microsoft Outlook Calendar from Ballerina"
     },
     {
       "name": "microsoft.outlook.mail",
-      "version": "2.4.0",
-      "description": "Connects to Microsoft Outlook Mail from Ballerina"
+      "version": "3.1.0",
+      "description": "[Microsoft Outlook Mail](https://outlook.live.com/owa/) is a widely used email service from Microsoft, available as part of the Microsoft 365 suite."
+    },
+    {
+      "name": "microsoft.sharepoint.lists",
+      "version": "1.0.0",
+      "description": "[Microsoft SharePoint](https://www.microsoft.com/en-us/microsoft-365/sharepoint/collaboration) is a collaborative platform that enables organizations to create, manage, and share content, documents, and data through customizable sites, lists, and libraries deeply integrated with the Microsoft 365 ecosystem."
+    },
+    {
+      "name": "microsoft.sharepoint.pages",
+      "version": "1.1.1",
+      "description": "[Microsoft SharePoint](https://www.microsoft.com/en-us/microsoft-365/sharepoint/collaboration) is a cloud-based collaboration and content management platform that enables organizations to create, manage, and share pages, sites, and documents seamlessly across teams and enterprises."
+    },
+    {
+      "name": "microsoft.sharepoint.sites",
+      "version": "1.0.2",
+      "description": "[Microsoft SharePoint](https://www.microsoft.com/en-us/microsoft-365/sharepoint/collaboration) is a cloud-based collaboration and content management platform that enables organizations to create, share, and manage sites, documents, and resources securely across teams and enterprises."
     },
     {
       "name": "microsoft.teams",
-      "version": "2.4.0",
-      "description": "Connects to Microsoft Teams from Ballerina."
+      "version": "3.0.0",
+      "description": "[Microsoft Teams](https://www.microsoft.com/en-us/microsoft-teams/group-chat-software) is a proprietary business communication platform developed by Microsoft, offering workspace chat, video conferencing, file storage, and application integration."
     },
     {
       "name": "milvus",
@@ -2187,7 +2357,7 @@
     },
     {
       "name": "mitto.sms",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Mitto SMS and Bulk SMS APIs](https://docs.mitto.ch/sms-api-reference/) from Ballerina"
     },
     {
@@ -2202,27 +2372,27 @@
     },
     {
       "name": "mssql",
-      "version": "1.18.0",
+      "version": "1.19.1",
       "description": "This module provides the functionality required to access and manipulate data stored in an MSSQL database. It enables seamless integration with Microsoft SQL Server, supporting various data types and advanced database features."
     },
     {
       "name": "mssql.cdc.driver",
-      "version": "1.0.2",
+      "version": "1.1.0",
       "description": "The MSSQL Change Data Capture (CDC) driver enables capturing and tracking data changes in Microsoft SQL Server databases in real-time. It provides a reliable way to stream data modifications (Insert, Update, Delete) to downstream systems for processing or synchronization. The CDC driver is essential for building real-time data integration and synchronization pipelines."
     },
     {
       "name": "mssql.driver",
-      "version": "1.7.0",
-      "description": "This Package bundles the latest MSSQL driver so that the mssql connector can be used in ballerina projects easily."
+      "version": "1.7.1",
+      "description": "The MSSQL driver provides a reliable and high-performance connectivity to Microsoft SQL Server databases. It enables efficient execution of SQL queries, updates, and other database operations. The driver is designed to provide a seamless experience for interacting with MSSQL, supporting various data types and advanced features of the database."
     },
     {
       "name": "mysql",
-      "version": "1.18.0",
+      "version": "1.19.1",
       "description": "This module provides the functionality required to access and manipulate data stored in a MySQL database. It enables seamless integration with MySQL, supporting various data types and advanced database features."
     },
     {
       "name": "mysql.cdc.driver",
-      "version": "1.0.2",
+      "version": "1.1.0",
       "description": "The MySQL Change Data Capture (CDC) driver enables capturing and tracking data changes in MySQL databases in real-time. It provides a reliable way to stream data modifications (Insert, Update, Delete) to downstream systems for processing or synchronization. The CDC driver is essential for building real-time data integration and synchronization pipelines."
     },
     {
@@ -2232,12 +2402,12 @@
     },
     {
       "name": "namsor",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [NamSor](https://v2.namsor.com/NamSorAPIv2/index.html) from Ballerina"
     },
     {
       "name": "nats",
-      "version": "3.3.1",
+      "version": "3.3.2",
       "description": "NATS is a cloud-native, open-source messaging system that provides a high-performance, lightweight, and scalable communication infrastructure for modern distributed systems. The NATS connector enables seamless integration with NATS, making it easy to build reactive and event-driven applications. It supports various messaging patterns, including publish-subscribe, request-reply, and load-balanced queues, and provides advanced features such as JetStream for persistent messaging."
     },
     {
@@ -2247,7 +2417,7 @@
     },
     {
       "name": "neutrino",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Neutrino API](https://www.neutrinoapi.com/api/api-basics/) from Ballerina"
     },
     {
@@ -2257,17 +2427,17 @@
     },
     {
       "name": "newsapi",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [News API](https://newsapi.org/docs) from Ballerina"
     },
     {
       "name": "notion",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to Notion API from Ballerina"
     },
     {
       "name": "nowpayments",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to NOWPayments API from Ballerina"
     },
     {
@@ -2277,62 +2447,62 @@
     },
     {
       "name": "nytimes.archive",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [New York Times Archive API](https://developer.nytimes.com/docs/archive-product/1/overview) from Ballerina"
     },
     {
       "name": "nytimes.articlesearch",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [New York Times Article Search API](https://developer.nytimes.com/docs/articlesearch-product/1/overview) from Ballerina"
     },
     {
       "name": "nytimes.books",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [New York Times Books API](https://developer.nytimes.com/docs/books-product/1/overview) from Ballerina"
     },
     {
       "name": "nytimes.mostpopular",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [New York Times Most Popular API](https://developer.nytimes.com/docs/most-popular-product/1/overview) from Ballerina"
     },
     {
       "name": "nytimes.moviereviews",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [New York Times Movie Reviews API](https://developer.nytimes.com/docs/movie-reviews-api/1/overview) from Ballerina"
     },
     {
       "name": "nytimes.newswire",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [New York Times Newswire API](https://developer.nytimes.com/docs/timeswire-product/1/overview) from Ballerina"
     },
     {
       "name": "nytimes.semantic",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [New York Times Semantic API](https://developer.nytimes.com/docs/semantic-api-product/1/overview) from Ballerina"
     },
     {
       "name": "nytimes.timestags",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [New York Times TimesTags API](https://developer.nytimes.com/docs/timestags-product/1/overview) from Ballerina"
     },
     {
       "name": "nytimes.topstories",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [New York Times Top Stories API](https://developer.nytimes.com/docs/top-stories-product/1/overview) from Ballerina"
     },
     {
       "name": "ocpi",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to Open Charge Networks(OCNs) from Ballerina"
     },
     {
       "name": "odweather",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [ODWeather](https://api.oceandrivers.com/) from Ballerina"
     },
     {
       "name": "onepassword",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [1Password Connect API API](https://1password.com/) from Ballerina"
     },
     {
@@ -2347,12 +2517,12 @@
     },
     {
       "name": "openai.chat",
-      "version": "4.0.1",
-      "description": "[OpenAI](https://openai.com/), an AI research organization focused on creating friendly AI for humanity, offers the [OpenAI API](https://platform.openai.com/docs/api-reference/introduction) to access its powerful AI models for tasks like natural language processing and image generation."
+      "version": "5.0.0",
+      "description": "[OpenAI](https://openai.com/) offers powerful AI models for tasks like natural language processing, audio transcription, and image generation."
     },
     {
       "name": "openai.embeddings",
-      "version": "1.0.5",
+      "version": "1.0.6",
       "description": "Connects to the OpenAI Embeddings API from Ballerina with the `ballerinax/openai.embeddings` package."
     },
     {
@@ -2367,58 +2537,68 @@
     },
     {
       "name": "openai.moderations",
-      "version": "1.0.5",
+      "version": "1.0.6",
       "description": "Connects to the OpenAI Moderations API from Ballerina with the `ballerinax/openai.moderations` package."
     },
     {
+      "name": "openai.responses",
+      "version": "1.0.0",
+      "description": "[OpenAI](https://openai.com/), an AI research organization focused on creating friendly AI for humanity, offers the [OpenAI API](https://platform.openai.com/docs/api-reference/introduction) to access its powerful AI models for tasks like natural language processing and image generation."
+    },
+    {
       "name": "openai.text",
-      "version": "1.0.5",
+      "version": "1.0.6",
       "description": "Connects to the OpenAI Completions API from Ballerina with the `ballerinax/openai.text` package."
     },
     {
       "name": "openair",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [OpenAir](https://www.openair.com/download/OpenAirRESTAPIGuide.pdf) from Ballerina"
     },
     {
       "name": "opendesign",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Open Design REST API v0.3.4](https://opendesign.dev/docs/api-reference/introduction) from Ballerina"
     },
     {
       "name": "openfigi",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [OpenFIGI](https://www.openfigi.com/) from Ballerina"
     },
     {
       "name": "openrouter",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "description": "[OpenRouter](https://openrouter.ai/) is a unified API platform that provides access to multiple AI language models from various providers, allowing developers to easily switch between and compare different models through a single interface."
     },
     {
       "name": "openweathermap",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Openweathermap API](https://openweathermap.org/) from Ballerina."
     },
     {
       "name": "optimizely",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Optimizely API v2](https://www.optimizely.com/) from Ballerina."
     },
     {
       "name": "optirtc.public",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Optirtc Public API](https://docs.optirtc.com/api/opti-publicapi-v1.html) from Ballerina"
     },
     {
       "name": "optitune",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [OptiTune API](https://manage.opti-tune.com/help/site/articles/api/default.html) from Ballerina"
     },
     {
       "name": "oracledb",
-      "version": "1.16.0",
+      "version": "1.17.2",
       "description": "This module provides the functionality required to access and manipulate data stored in an Oracle database. It enables seamless integration with OracleDB, supporting various data types and advanced database features."
+    },
+    {
+      "name": "oracledb.cdc.driver",
+      "version": "1.0.0",
+      "description": "The Oracle Change Data Capture (CDC) driver enables capturing and tracking data changes in Oracle databases in real-time. It provides a reliable way to stream data modifications (Insert, Update, Delete) to downstream systems for processing or synchronization. The CDC driver is essential for building real-time data integration and synchronization pipelines."
     },
     {
       "name": "oracledb.driver",
@@ -2426,28 +2606,38 @@
       "description": "The OracleDB driver provides a reliable and high-performance connectivity to Oracle databases. It enables efficient execution of SQL queries, updates, and other database operations. The driver is designed to provide a seamless experience for interacting with OracleDB, supporting various data types and advanced features of the database."
     },
     {
+      "name": "oraclefusion.common.scheduler",
+      "version": "0.1.0",
+      "description": "[Oracle Fusion Cloud Applications](https://www.oracle.com/applications/) run their long-running background work — data imports, reports, period-close processes — as *scheduled processes* on the Enterprise Scheduler Service (ESS)."
+    },
+    {
+      "name": "oraclefusion.erp.integrations",
+      "version": "0.2.0",
+      "description": "[Oracle Fusion Cloud ERP](https://www.oracle.com/erp/) is Oracle's cloud application suite for financials, procurement, project management, risk management, and related enterprise processes."
+    },
+    {
       "name": "orbitcrm",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Orbit CRM API](https://docs.orbit.love/reference/about-the-orbit-api) from Ballerina."
     },
     {
       "name": "owler",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Owler API](https://corp.owler.com/) from Ballerina"
     },
     {
       "name": "pagerduty",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Pagerduty API](https://developer.pagerduty.com/api-reference/) from Ballerina"
     },
     {
       "name": "pandadoc",
-      "version": "1.3.1",
+      "version": "1.3.2",
       "description": "Connects to [PandaDoc API](https://developers.pandadoc.com/reference/about) from Ballerina"
     },
     {
       "name": "paylocity",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Paylocity](https://www.paylocity.com/our-products/integrations/api-library/) from Ballerina"
     },
     {
@@ -2457,7 +2647,7 @@
     },
     {
       "name": "paypal.orders",
-      "version": "2.0.2",
+      "version": "2.0.3",
       "description": "[PayPal](https://www.paypal.com/) is a global online payment platform that enables individuals and businesses to securely send and receive money, process transactions, and access merchant services."
     },
     {
@@ -2467,12 +2657,12 @@
     },
     {
       "name": "paypal.subscriptions",
-      "version": "1.0.2",
+      "version": "1.0.3",
       "description": "[PayPal](https://www.paypal.com/) is a global online payment platform that enables individuals and businesses to securely send and receive money, process transactions, and access merchant services."
     },
     {
       "name": "pdfbroker",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [PDFBroker.io](https://www.pdfbroker.io/) from Ballerina."
     },
     {
@@ -2502,167 +2692,177 @@
     },
     {
       "name": "pinecone.index",
-      "version": "1.0.2",
+      "version": "1.0.3",
       "description": "Connects to the `Index Operations` under [Pinecone Vector Database API](https://docs.pinecone.io/reference) from Ballerina."
     },
     {
       "name": "pinecone.vector",
-      "version": "1.0.2",
+      "version": "1.0.3",
       "description": "Connects to the `Vector Operations` under [Pinecone Vector Database API](https://docs.pinecone.io/reference) from Ballerina."
     },
     {
       "name": "pipedrive",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Pipedrive API](https://developers.pipedrive.com/docs/api/v1) from Ballerina"
     },
     {
       "name": "plaid",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Plaid API](https://plaid.com/docs/api/) from Ballerina"
     },
     {
       "name": "pocketsmith",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [PocketSmith REST API](https://developers.pocketsmith.com/reference) from Ballerina"
     },
     {
       "name": "postgresql",
-      "version": "1.18.0",
+      "version": "1.19.1",
       "description": "This module provides the functionality required to access and manipulate data stored in a PostgreSQL database. It enables seamless integration with PostgreSQL, supporting various data types and advanced database features."
     },
     {
       "name": "postgresql.cdc.driver",
-      "version": "1.0.2",
+      "version": "1.1.0",
       "description": "The PostgreSQL Change Data Capture (CDC) driver enables capturing and tracking data changes in PostgreSQL databases in real-time. It provides a reliable way to stream data modifications (Insert, Update, Delete) to downstream systems for processing or synchronization. The CDC driver is essential for building real-time data integration and synchronization pipelines."
     },
     {
       "name": "postgresql.driver",
-      "version": "1.6.3",
+      "version": "1.7.0",
       "description": "The PostgreSQL driver provides a reliable and high-performance connectivity to PostgreSQL databases. It enables efficient execution of SQL queries, updates, and other database operations. The driver is designed to provide a seamless experience for interacting with PostgreSQL, supporting various data types and advanced features of the database."
     },
     {
       "name": "power.bi",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Power BI API v1.0](https://powerbi.microsoft.com/en-us/) from Ballerina."
     },
     {
       "name": "powertoolsdeveloper.collections",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Apptigent Powertools Developer Collections API](https://portal.apptigent.com/node/612) from Ballerina"
     },
     {
       "name": "powertoolsdeveloper.data",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Apptigent Powertools Developer Data API](https://portal.apptigent.com/node/612) from Ballerina"
     },
     {
       "name": "powertoolsdeveloper.datetime",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Apptigent Powertools Developer DataTime API](https://portal.apptigent.com/node/612) from Ballerina"
     },
     {
       "name": "powertoolsdeveloper.files",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Apptigent Powertools Developer Files API](https://portal.apptigent.com/node/612) from Ballerina"
     },
     {
       "name": "powertoolsdeveloper.finance",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Apptigent Powertools Developer Finance API](https://portal.apptigent.com/node/612) from Ballerina"
     },
     {
       "name": "powertoolsdeveloper.math",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Apptigent Powertools Developer Math API](https://portal.apptigent.com/node/612) from Ballerina"
     },
     {
       "name": "powertoolsdeveloper.text",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Apptigent Powertools Developer Text API](https://portal.apptigent.com/node/612) from Ballerina"
     },
     {
       "name": "powertoolsdeveloper.weather",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Apptigent Powertools Developer Weather API](https://portal.apptigent.com/node/904) from Ballerina"
     },
     {
+      "name": "pricefx",
+      "version": "0.2.0",
+      "description": "[Pricefx](https://www.pricefx.com/) is a cloud-native pricing and revenue management platform that helps enterprises manage price lists, calculation grids, quotes, contracts, and rebate agreements across their sales organization."
+    },
+    {
       "name": "prodpad",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [ProdPad API v1.0](https://www.prodpad.com/) from Ballerina"
     },
     {
       "name": "prometheus",
-      "version": "1.0.0",
-      "description": "The Prometheus Observability Extension is one of the metrics extensions of the <a target=\"_blank\" href=\"https://ballerina.io/\">Ballerina</a> language."
+      "version": "1.0.1",
+      "description": "The Prometheus Observability Extension provides an implementation for exporting metrics to a [Prometheus](https://prometheus.io/) Server."
     },
     {
       "name": "pushcut",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Pushcut API](https://www.pushcut.io/webapi.html) from Ballerina"
     },
     {
       "name": "quickbase",
-      "version": "1.3.1",
+      "version": "1.3.2",
       "description": "Connects to [Quickbase API v1](https://developer.quickbase.com/) from Ballerina."
     },
     {
       "name": "quickbooks.online",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [QuickBooks API v3](https://developer.intuit.com/app/developer/qbo/docs/get-started) from Ballerina."
     },
     {
+      "name": "quickbooks.trigger",
+      "version": "0.1.0",
+      "description": "The [Ballerina](https://ballerina.io/) listener for QuickBooks allows you to listen to entity change events in a QuickBooks Online company, grouped by the accounting object they relate to."
+    },
+    {
       "name": "rabbitmq",
-      "version": "3.3.3",
+      "version": "3.6.1",
       "description": "RabbitMQ is a widely used open-source message broker that implements the Advanced Message Queuing Protocol (AMQP). It provides a reliable and scalable platform for asynchronous messaging, enabling decoupled communication between different components of a distributed system. The RabbitMQ connector provides a comprehensive API to interact with RabbitMQ, allowing you to manage exchanges, queues, and bindings, and to produce and consume messages efficiently."
     },
     {
       "name": "readme",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Readme](https://docs.readme.com/reference) from Ballerina"
     },
     {
       "name": "reckon.one",
-      "version": "1.3.1",
+      "version": "1.3.2",
       "description": "Connects to [Reckon One API](https://developer.reckon.com/api-details#api=reckon-one-api-v2) from Ballerina"
     },
     {
       "name": "recurly",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Recurly API](https://developers.recurly.com/api/v2021-02-25/index.html) from Ballerina"
     },
     {
       "name": "redis",
-      "version": "3.2.1",
+      "version": "3.4.1",
       "description": "[Redis](https://redis.io/) is an open-source, in-memory data structure store that can be used as a database, cache, and message broker. It supports various data structures such as strings, hashes, lists, sets, and more."
     },
     {
       "name": "ritekit",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [RiteKit](https://documenter.getpostman.com/view/2010712/SzS7Qku5?version=latest) from Ballerina"
     },
     {
       "name": "ronin",
-      "version": "1.5.2",
+      "version": "1.5.3",
       "description": "Connects to [Ronin API](https://www.roninapp.com/api) from Ballerina"
     },
     {
       "name": "rumble.run",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Rumble](https://www.rumble.run/docs/) from Ballerina"
     },
     {
       "name": "sakari",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to Sakari SMS API from Ballerina"
     },
     {
       "name": "salesforce",
-      "version": "8.6.3",
+      "version": "8.7.2",
       "description": "Salesforce Sales Cloud is a leading Customer Relationship Management (CRM) software provided by Salesforce Inc. It enables users to efficiently manage sales and customer relationships through its APIs, robust and secure databases, and analytics services. Sales Cloud provides several API packages to perform operations on sObjects and metadata, execute queries and searches, and listen to change events through API calls using REST, SOAP, and CometD protocols."
     },
     {
       "name": "salesforce.einstein",
-      "version": "1.3.1",
+      "version": "1.3.2",
       "description": "Connects to [Einstein Vision and Einstein Language Services API](https://metamind.readme.io/reference#predictive-vision-service-api) from Ballerina."
     },
     {
@@ -2672,18 +2872,98 @@
     },
     {
       "name": "salesforce.pardot",
-      "version": "1.3.1",
+      "version": "1.3.2",
       "description": "Connects to [Salesforce Pardot API v5](https://developer.salesforce.com/docs/marketing/pardot/guide/version5overview.html) from Ballerina."
     },
     {
+      "name": "salesforce.pubsub",
+      "version": "0.1.0",
+      "description": "[Salesforce Pub/Sub API](https://developer.salesforce.com/docs/platform/pub-sub-api/overview) is a gRPC-based, protocol-buffer API that publishes and consumes platform events, custom notifications, and Change Data Capture (CDC) events using Apache Avro binary encoding. It replaces the older CometD-based streaming API with a single high-throughput streaming interface for real-time event-driven integration."
+    },
+    {
       "name": "samcart",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [SamCart API](https://developer.samcart.com/) from Ballerina"
     },
     {
       "name": "sap",
-      "version": "1.3.1",
+      "version": "1.4.0",
       "description": "[SAP](https://www.sap.com/index.html) is a global leader in enterprise resource planning (ERP) software. Beyond ERP, SAP offers a diverse range of solutions including human capital management (HCM), customer relationship management (CRM), enterprise performance management (EPM), product lifecycle management (PLM), supplier relationship management (SRM), supply chain management (SCM), and business technology platform (BTP)."
+    },
+    {
+      "name": "sap.businessone",
+      "version": "1.0.2",
+      "description": "[ballerinax/sap.businessone](https://central.ballerina.io/ballerinax/sap.businessone/latest) is a generic HTTP client for the [SAP Business One Service Layer](https://help.sap.com/docs/SAP_BUSINESS_ONE_ONE_BRANCH/6e2367407c0b4d048272fdfb47b4207f) (OData V3)."
+    },
+    {
+      "name": "sap.businessone.administration",
+      "version": "1.0.2",
+      "description": "[SAP Business One](https://www.sap.com/products/erp/business-one.html) is an enterprise resource planning (ERP)"
+    },
+    {
+      "name": "sap.businessone.banking",
+      "version": "1.0.2",
+      "description": "[SAP Business One](https://www.sap.com/products/erp/business-one.html) is an enterprise resource planning (ERP)"
+    },
+    {
+      "name": "sap.businessone.businesspartners",
+      "version": "1.0.2",
+      "description": "[SAP Business One](https://www.sap.com/products/erp/business-one.html) is an enterprise resource planning (ERP)"
+    },
+    {
+      "name": "sap.businessone.crm",
+      "version": "1.0.2",
+      "description": "[SAP Business One](https://www.sap.com/products/erp/business-one.html) is an enterprise resource planning (ERP)"
+    },
+    {
+      "name": "sap.businessone.financials",
+      "version": "1.0.2",
+      "description": "[SAP Business One](https://www.sap.com/products/erp/business-one.html) is an enterprise resource planning (ERP)"
+    },
+    {
+      "name": "sap.businessone.fixedassets",
+      "version": "1.0.2",
+      "description": "[SAP Business One](https://www.sap.com/products/erp/business-one.html) is an enterprise resource planning (ERP)"
+    },
+    {
+      "name": "sap.businessone.humanresources",
+      "version": "1.0.2",
+      "description": "[SAP Business One](https://www.sap.com/products/erp/business-one.html) is an enterprise resource planning (ERP)"
+    },
+    {
+      "name": "sap.businessone.inventory",
+      "version": "1.0.2",
+      "description": "[SAP Business One](https://www.sap.com/products/erp/business-one.html) is an enterprise resource planning (ERP)"
+    },
+    {
+      "name": "sap.businessone.localization",
+      "version": "1.0.2",
+      "description": "[SAP Business One](https://www.sap.com/products/erp/business-one.html) is an enterprise resource planning (ERP)"
+    },
+    {
+      "name": "sap.businessone.production",
+      "version": "1.0.2",
+      "description": "[SAP Business One](https://www.sap.com/products/erp/business-one.html) is an enterprise resource planning (ERP)"
+    },
+    {
+      "name": "sap.businessone.projects",
+      "version": "1.0.2",
+      "description": "[SAP Business One](https://www.sap.com/products/erp/business-one.html) is an enterprise resource planning (ERP)"
+    },
+    {
+      "name": "sap.businessone.purchasing",
+      "version": "1.0.2",
+      "description": "[SAP Business One](https://www.sap.com/products/erp/business-one.html) is an enterprise resource planning (ERP)"
+    },
+    {
+      "name": "sap.businessone.sales",
+      "version": "1.0.2",
+      "description": "[SAP Business One](https://www.sap.com/products/erp/business-one.html) is an enterprise resource planning (ERP)"
+    },
+    {
+      "name": "sap.businessone.service",
+      "version": "1.0.2",
+      "description": "[SAP Business One](https://www.sap.com/products/erp/business-one.html) is an enterprise resource planning (ERP)"
     },
     {
       "name": "sap.commerce.webservices",
@@ -2692,67 +2972,182 @@
     },
     {
       "name": "sap.fieldglass.approval",
-      "version": "1.3.1",
+      "version": "1.3.2",
       "description": "Connects to [SAP Fieldglass Approval API API v1.0.0](https://api.sap.com/api/approvals/overview) from Ballerina"
     },
     {
       "name": "sap.jco",
-      "version": "1.0.0",
+      "version": "2.1.2",
       "description": "[SAP](https://www.sap.com/india/index.html) is a global leader in enterprise resource planning (ERP) software. Beyond"
     },
     {
       "name": "sap.s4hana.api_sales_inquiry_srv",
-      "version": "2.0.0",
+      "version": "2.1.0",
       "description": "[S/4HANA](https://www.sap.com/india/products/erp/s4hana.html) is a robust enterprise resource planning (ERP) solution,"
     },
     {
       "name": "sap.s4hana.api_sales_order_simulation_srv",
-      "version": "2.0.0",
+      "version": "2.1.0",
       "description": "[S/4HANA](https://www.sap.com/india/products/erp/s4hana.html) is a robust enterprise resource planning (ERP) solution,"
     },
     {
       "name": "sap.s4hana.api_sales_order_srv",
-      "version": "2.0.0",
+      "version": "2.1.0",
       "description": "[S/4HANA](https://www.sap.com/india/products/erp/s4hana.html) is a robust enterprise resource planning (ERP) solution,"
     },
     {
       "name": "sap.s4hana.api_sales_quotation_srv",
-      "version": "2.0.0",
+      "version": "2.1.0",
       "description": "[S/4HANA](https://www.sap.com/india/products/erp/s4hana.html) is a robust enterprise resource planning (ERP) solution,"
     },
     {
       "name": "sap.s4hana.api_salesdistrict_srv",
-      "version": "2.0.0",
+      "version": "2.1.0",
       "description": "[S/4HANA](https://www.sap.com/india/products/erp/s4hana.html) is a robust enterprise resource planning (ERP) solution,"
     },
     {
       "name": "sap.s4hana.api_salesorganization_srv",
-      "version": "2.0.0",
+      "version": "2.1.0",
       "description": "[S/4HANA](https://www.sap.com/india/products/erp/s4hana.html) is a robust enterprise resource planning (ERP) solution,"
     },
     {
       "name": "sap.s4hana.api_sd_incoterms_srv",
-      "version": "2.0.0",
+      "version": "2.1.0",
       "description": "[S/4HANA](https://www.sap.com/india/products/erp/s4hana.html) is a robust enterprise resource planning (ERP) solution,"
     },
     {
       "name": "sap.s4hana.api_sd_sa_soldtopartydetn",
-      "version": "2.0.0",
+      "version": "2.1.0",
+      "description": "[S/4HANA](https://www.sap.com/india/products/erp/s4hana.html) is a robust enterprise resource planning (ERP) solution,"
+    },
+    {
+      "name": "sap.s4hana.api_slspricingconditionrecord_srv",
+      "version": "0.3.0",
       "description": "[S/4HANA](https://www.sap.com/india/products/erp/s4hana.html) is a robust enterprise resource planning (ERP) solution,"
     },
     {
       "name": "sap.s4hana.ce_salesorder_0001",
-      "version": "2.0.0",
+      "version": "2.1.0",
       "description": "[S/4HANA](https://www.sap.com/india/products/erp/s4hana.html) is a robust enterprise resource planning (ERP) solution,"
     },
     {
       "name": "sap.s4hana.salesarea_0001",
-      "version": "2.0.0",
+      "version": "2.1.0",
       "description": "[S/4HANA](https://www.sap.com/india/products/erp/s4hana.html) is a robust enterprise resource planning (ERP) solution,"
     },
     {
+      "name": "sap.signavio",
+      "version": "1.0.0",
+      "description": ""
+    },
+    {
+      "name": "sap.successfactors.ecadvances",
+      "version": "2.0.0",
+      "description": "[SAP SuccessFactors Employee Central](https://www.sap.com/products/hcm/core-hr-payroll.html) is a comprehensive human"
+    },
+    {
+      "name": "sap.successfactors.ecalternativecostdistribution",
+      "version": "2.0.0",
+      "description": "[SAP SuccessFactors Employee Central](https://www.sap.com/products/hcm/core-hr-payroll.html) is a comprehensive human"
+    },
+    {
+      "name": "sap.successfactors.ecapprenticemanagement",
+      "version": "2.0.0",
+      "description": "[SAP SuccessFactors Employee Central](https://www.sap.com/products/hcm/core-hr-payroll.html) is a comprehensive human"
+    },
+    {
+      "name": "sap.successfactors.eccompensationinformation",
+      "version": "2.0.0",
+      "description": "[SAP SuccessFactors Employee Central](https://www.sap.com/products/hcm/core-hr-payroll.html) is a comprehensive human"
+    },
+    {
+      "name": "sap.successfactors.ecdismissalprotection",
+      "version": "2.0.0",
+      "description": "[SAP SuccessFactors Employee Central](https://www.sap.com/products/hcm/core-hr-payroll.html) is a comprehensive human"
+    },
+    {
+      "name": "sap.successfactors.ecemployeecentralpayroll",
+      "version": "2.0.0",
+      "description": "[SAP SuccessFactors Employee Central](https://www.sap.com/products/hcm/core-hr-payroll.html) is a comprehensive human"
+    },
+    {
+      "name": "sap.successfactors.ecemployeeprofile",
+      "version": "2.0.0",
+      "description": "[SAP SuccessFactors Employee Central](https://www.sap.com/products/hcm/core-hr-payroll.html) is a comprehensive human"
+    },
+    {
+      "name": "sap.successfactors.ecemploymentinformation",
+      "version": "2.0.0",
+      "description": "[SAP SuccessFactors Employee Central](https://www.sap.com/products/hcm/core-hr-payroll.html) is a comprehensive human"
+    },
+    {
+      "name": "sap.successfactors.ecfoundationorganization",
+      "version": "2.0.0",
+      "description": "[SAP SuccessFactors Employee Central](https://www.sap.com/products/hcm/core-hr-payroll.html) is a comprehensive human"
+    },
+    {
+      "name": "sap.successfactors.ecglobalassignment",
+      "version": "2.0.0",
+      "description": "[SAP SuccessFactors Employee Central](https://www.sap.com/products/hcm/core-hr-payroll.html) is a comprehensive human"
+    },
+    {
+      "name": "sap.successfactors.ecglobalbenefits",
+      "version": "2.0.0",
+      "description": "[SAP SuccessFactors Employee Central](https://www.sap.com/products/hcm/core-hr-payroll.html) is a comprehensive human"
+    },
+    {
+      "name": "sap.successfactors.ecincometaxdeclaration",
+      "version": "2.0.0",
+      "description": "[SAP SuccessFactors Employee Central](https://www.sap.com/products/hcm/core-hr-payroll.html) is a comprehensive human"
+    },
+    {
+      "name": "sap.successfactors.ecmasterdatareplication",
+      "version": "2.0.0",
+      "description": "[SAP SuccessFactors Employee Central](https://www.sap.com/products/hcm/core-hr-payroll.html) is a comprehensive human"
+    },
+    {
+      "name": "sap.successfactors.ecpaymentinformation",
+      "version": "2.0.0",
+      "description": "[SAP SuccessFactors Employee Central](https://www.sap.com/products/hcm/core-hr-payroll.html) is a comprehensive human"
+    },
+    {
+      "name": "sap.successfactors.ecpayrolltimesheets",
+      "version": "2.0.0",
+      "description": "[SAP SuccessFactors Employee Central](https://www.sap.com/products/hcm/core-hr-payroll.html) is a comprehensive human"
+    },
+    {
+      "name": "sap.successfactors.ecpersonalinformation",
+      "version": "2.0.0",
+      "description": "[SAP SuccessFactors Employee Central](https://www.sap.com/products/hcm/core-hr-payroll.html) is a comprehensive human"
+    },
+    {
+      "name": "sap.successfactors.ecpositionmanagement",
+      "version": "2.0.0",
+      "description": "[SAP SuccessFactors Employee Central](https://www.sap.com/products/hcm/core-hr-payroll.html) is a comprehensive human"
+    },
+    {
+      "name": "sap.successfactors.ecskillsmanagement",
+      "version": "2.0.0",
+      "description": "[SAP SuccessFactors Employee Central](https://www.sap.com/products/hcm/core-hr-payroll.html) is a comprehensive human"
+    },
+    {
+      "name": "sap.successfactors.ectimeoff",
+      "version": "2.0.0",
+      "description": "[SAP SuccessFactors Employee Central](https://www.sap.com/products/hcm/core-hr-payroll.html) is a comprehensive human"
+    },
+    {
+      "name": "sap.successfactors.ecworkflow",
+      "version": "2.0.0",
+      "description": "[SAP SuccessFactors Employee Central](https://www.sap.com/products/hcm/core-hr-payroll.html) is a comprehensive human"
+    },
+    {
+      "name": "sap.successfactors.employeecentralec",
+      "version": "2.0.0",
+      "description": "[SAP SuccessFactors Employee Central](https://www.sap.com/products/hcm/core-hr-payroll.html) is a comprehensive human"
+    },
+    {
       "name": "sap.successfactors.litmos",
-      "version": "1.3.1",
+      "version": "1.3.2",
       "description": "Connects to [SAP SuccessFactors Litmos API v1.0](https://api.sap.com/api/LitmosAPIdetails/resource) from Ballerina"
     },
     {
@@ -2832,47 +3227,47 @@
     },
     {
       "name": "selz",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Selz API](https://developer.selz.com/api/reference) from Ballerina"
     },
     {
       "name": "sendgrid",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Sendgrid API](https://docs.sendgrid.com/for-developers) from Ballerina."
     },
     {
       "name": "servicenow",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [ServiceNow REST API ](https://developer.servicenow.com/dev.do#!/reference/api/quebec/rest) from Ballerina."
     },
     {
       "name": "shippit",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Shippit API](https://developer.shippit.com) from Ballerina"
     },
     {
       "name": "shipstation",
-      "version": "1.4.1",
+      "version": "1.4.2",
       "description": "Connects to [ShipStation API](https://www.shipstation.com/docs/api/) from Ballerina"
     },
     {
       "name": "shipwire.carrier",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Shipwire Carrier API](https://www.shipwire.com/developers/carrier/) from Ballerina"
     },
     {
       "name": "shipwire.containers",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Shipwire Containers API](https://www.shipwire.com/developers/container/) from Ballerina"
     },
     {
       "name": "shipwire.receivings",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Shipwire Receivings API](https://www.shipwire.com/developers/receiving) from Ballerina"
     },
     {
       "name": "shipwire.warehouse",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Shipwire Warehouses API](https://www.shipwire.com/developers/warehouse) from Ballerina"
     },
     {
@@ -2882,47 +3277,47 @@
     },
     {
       "name": "shortcut",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Shortcut API](https://shortcut.com/api/rest/v3) from Ballerina"
     },
     {
       "name": "shorten.rest",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Shorten.REST](https://docs.shorten.rest/) from Ballerina"
     },
     {
       "name": "siemens.analytics.anomalydetection",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Siemens Analytics Anomaly Detection API](https://developer.mindsphere.io/apis/analytics-anomalydetection/api-anomalydetection-api-swagger-3-4-0.html) from Ballerina"
     },
     {
       "name": "siemens.iotandstorage.iotfileservice",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Siemens IoT File Service API](https://developer.mindsphere.io/apis/iot-iotfile/api-iotfile-overview.html) from Ballerina"
     },
     {
       "name": "siemens.platformcore.identitymanagement",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Siemens Identity Management API](https://developer.mindsphere.io/apis/core-identitymanagement/api-identitymanagement-overview.html) from Ballerina"
     },
     {
       "name": "sinch.conversation",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Sinch Conversation API v1.0](https://www.sinch.com/) from Ballerina"
     },
     {
       "name": "sinch.sms",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Sinch SMS API v1](https://www.sinch.com/) from Ballerina"
     },
     {
       "name": "sinch.verification",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Sinch Verification API v2.0](https://www.sinch.com/) from Ballerina"
     },
     {
       "name": "sinch.voice",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Sinch Voice API v1.0.0](https://www.sinch.com/) from Ballerina"
     },
     {
@@ -2947,37 +3342,42 @@
     },
     {
       "name": "solace",
-      "version": "0.3.1",
+      "version": "1.0.4",
+      "description": "[Solace PubSub+](https://docs.solace.com/) is an advanced event-broker platform that enables event-driven communication across distributed applications using multiple messaging patterns such as publish/subscribe, request/reply, and queue-based messaging. It supports standard messaging protocols, including JMS, MQTT, AMQP, and REST, enabling seamless integration across diverse systems and environments."
+    },
+    {
+      "name": "solace.jms",
+      "version": "1.0.2",
       "description": "Solace PubSub+ is a powerful event broker that supports multiple protocols and messaging patterns. It provides high-performance, reliable, and scalable messaging for modern event-driven architectures. The Solace connector allows you to integrate with Solace event brokers, enabling efficient event distribution across various environments."
     },
     {
       "name": "soundcloud",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [SoundCloud services](https://developers.soundcloud.com/docs/api/explorer/open-api) from Ballerina"
     },
     {
       "name": "spotify",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Spotify Web API](https://developer.spotify.com/documentation/web-api/) from Ballerina. "
     },
     {
       "name": "spotto",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Spotto API](https://api-reference.spotto.io) from Ballerina"
     },
     {
       "name": "squareup",
-      "version": "1.3.1",
+      "version": "1.3.2",
       "description": "Connects to [SquareUp API](https://developer.squareup.com/) from Ballerina"
     },
     {
       "name": "stabilityai",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "description": "Connects to [Stability.ai REST API (v1)](https://platform.stability.ai/rest-api) from Ballerina."
     },
     {
       "name": "storecove",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Storecove](https://app.storecove.com/docs) from Ballerina"
     },
     {
@@ -2987,42 +3387,47 @@
     },
     {
       "name": "sugarcrm",
-      "version": "1.4.1",
+      "version": "1.4.2",
       "description": "Connects to [SugarCRM API](https://support.sugarcrm.com/Documentation/Sugar_Developer/Sugar_Developer_Guide_12.0/Integration/Web_Services/REST_API/) from Ballerina"
     },
     {
       "name": "supportbee",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [SupportBee API](https://supportbee.com/api) from Ballerina"
     },
     {
       "name": "symantotextanalytics",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Symanto API](https://symanto-research.github.io/symanto-docs/#introduction) from Ballerina."
     },
     {
       "name": "tableau",
-      "version": "1.4.1",
-      "description": "Connects to [Tableau](https://help.tableau.com/current/api/rest_api/en-us/REST/TAG/index.html) from Ballerina"
+      "version": "1.4.2",
+      "description": "This is a generated connector for [Tableau API v3.11](https://help.tableau.com/current/api/rest_api/en-us/REST/TAG/index.html) OpenAPI specification."
     },
     {
       "name": "techport",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to Techport API from Ballerina"
     },
     {
+      "name": "telegram",
+      "version": "0.9.4",
+      "description": "The [Telegram Bot API](https://core.telegram.org/bots/api) lets bots send and receive messages, manage chats, answer inline/callback queries, and more, over a simple HTTPS REST API."
+    },
+    {
       "name": "text2data",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Text Analytics & Sentiment Analysis API v3.4](http://api.text2data.com/swagger/ui/index#/)from Ballerina."
     },
     {
       "name": "themoviedb",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [The Movie Database(TMDB) API](https://developers.themoviedb.org/3/getting-started/introduction) from Ballerina"
     },
     {
       "name": "thinkific",
-      "version": "1.3.1",
+      "version": "1.3.2",
       "description": "Connects to [Thinkific API](https://developers.thinkific.com/api/using-the-api) from Ballerina."
     },
     {
@@ -3052,7 +3457,7 @@
     },
     {
       "name": "trigger.github",
-      "version": "0.11.0",
+      "version": "0.12.0",
       "description": "The GitHub Trigger module allows you to listen to following events occur in GitHub. "
     },
     {
@@ -3077,8 +3482,8 @@
     },
     {
       "name": "trigger.hubspot",
-      "version": "0.10.0",
-      "description": "The [Ballerina](https://ballerina.io/) listener for Hubspot allows you to listen to the following events in a HubSpot account."
+      "version": "0.12.1",
+      "description": "The [Ballerina](https://ballerina.io/) listener for Hubspot allows you to listen to the following events in a HubSpot account, grouped by the CRM object they relate to."
     },
     {
       "name": "trigger.identityserver",
@@ -3091,13 +3496,8 @@
       "description": "The QuickBooks trigger allows you to listen to [QuickBooks webhook notifications](https://developer.intuit.com/app/developer/qbo/docs/develop/webhooks)."
     },
     {
-      "name": "trigger.salesforce",
-      "version": "0.10.0",
-      "description": "Listen to [Salesforce Streaming API](https://developer.salesforce.com/docs/atlas.en-us.api_streaming.meta/api_streaming/intro_stream.htm) from Ballerina"
-    },
-    {
       "name": "trigger.shopify",
-      "version": "1.6.0",
+      "version": "1.6.1",
       "description": "The Shopify trigger allows you to listen to [Shopify webhook notifications](https://shopify.dev/apps/webhooks)."
     },
     {
@@ -3107,13 +3507,13 @@
     },
     {
       "name": "trigger.twilio",
-      "version": "0.10.0",
+      "version": "0.10.1",
       "description": "The Twilio trigger allows you to listen to Twilio SMS and call status change events similar to the following."
     },
     {
       "name": "twilio",
-      "version": "5.0.1",
-      "description": "Twilio is a cloud communications platform that allows software developers to programmatically make and receive phone calls, send and receive text messages, and perform other communication functions using its web service APIs. "
+      "version": "5.0.2",
+      "description": "[Twilio](https://www.twilio.com/) is a cloud communications platform that enables software developers to programmatically make and receive phone calls, send and receive text messages, and perform other communication functions using its web service APIs."
     },
     {
       "name": "twitter",
@@ -3122,137 +3522,137 @@
     },
     {
       "name": "uber",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to Uber API services from Ballerina"
     },
     {
       "name": "vimeo",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Vimeo API](https://developer.vimeo.com/)) from Ballerina"
     },
     {
       "name": "visiblethread",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [VisibleThread](https://api.visiblethread.com/example/index.html) from Ballerina"
     },
     {
       "name": "vonage.numberinsight",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Vonage Number Insight API](https://nexmo-api-specification.herokuapp.com/number-insight) from Ballerina"
     },
     {
       "name": "vonage.numbers",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Vonage Numbers API](https://nexmo-api-specification.herokuapp.com/numbers) from Ballerina"
     },
     {
       "name": "vonage.sms",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Vonage SMS API](https://nexmo-api-specification.herokuapp.com/sms) from Ballerina"
     },
     {
       "name": "vonage.verify",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Vonage Verify API](https://nexmo-api-specification.herokuapp.com/verify) from Ballerina"
     },
     {
       "name": "vonage.voice",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Vonage Voice API](https://nexmo-api-specification.herokuapp.com/api/voice) from Ballerina"
     },
     {
       "name": "weaviate",
-      "version": "1.0.2",
+      "version": "1.0.3",
       "description": "Connects to the [Weaviate Vector Search Engine API](https://weaviate.io/developers/weaviate/api) from Ballerina."
     },
     {
       "name": "webscraping.ai",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [WebScraping.AI API](https://webscraping.ai/docs) from Ballerina"
     },
     {
       "name": "whatsapp.business",
-      "version": "1.5.1",
-      "description": "Connects to [WhatsApp Business](https://developers.facebook.com/docs/whatsapp/) from Ballerina"
+      "version": "2.1.1",
+      "description": "[WhatsApp Business Cloud API](https://developers.facebook.com/docs/whatsapp/cloud-api) is Meta's hosted API for sending and receiving WhatsApp messages, managing business phone numbers, message templates, and more, over the Meta Graph API."
     },
     {
       "name": "whohoststhis",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Who Hosts This](https://www.who-hosts-this.com/Documentation) from Ballerina"
     },
     {
       "name": "wordnik",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Wordnik API v4.0](https://developer.wordnik.com/docs) from Ballerina"
     },
     {
       "name": "wordpress",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [WordPress API v1.0](https://developer.wordpress.org/rest-api/) from Ballerina."
     },
     {
       "name": "workday.absencemanagement",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Workday Absence Management API v1](https://community.workday.com/sites/default/files/file-hosting/restapi/index.html) from Ballerina."
     },
     {
       "name": "workday.accountspayable",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Workday Accounts Payable API v1](https://community.workday.com/sites/default/files/file-hosting/restapi/index.html) from Ballerina."
     },
     {
       "name": "workday.businessprocess",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Workday Business Process API v1](https://community.workday.com/sites/default/files/file-hosting/restapi/index.html) from Ballerina."
     },
     {
       "name": "workday.common",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Workday common service API v1](https://community.workday.com/sites/default/files/file-hosting/restapi/index.html) from Ballerina."
     },
     {
       "name": "workday.compensation",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Workday compensation service API v1](https://community.workday.com/sites/default/files/file-hosting/restapi/index.html) from Ballerina."
     },
     {
       "name": "workday.connect",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Workday connect service API v2](https://community.workday.com/sites/default/files/file-hosting/restapi/index.html) from Ballerina."
     },
     {
       "name": "workday.coreaccounting",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Workday Core Accounting service API v1](https://community.workday.com/sites/default/files/file-hosting/restapi/index.html) from Ballerina."
     },
     {
       "name": "workday.customeraccounts",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Workday Customer Accounts service API v1](https://community.workday.com/sites/default/files/file-hosting/restapi/index.html) from Ballerina."
     },
     {
       "name": "workday.expense",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Workday Expense API v1](https://community.workday.com/sites/default/files/file-hosting/restapi/index.html) from Ballerina."
     },
     {
       "name": "workday.payroll",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Workday payroll service API v2](https://community.workday.com/sites/default/files/file-hosting/restapi/index.html) from Ballerina."
     },
     {
       "name": "worldbank",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [World Bank API](https://datahelpdesk.worldbank.org/knowledgebase/articles/889392-about-the-indicators-api-documentation) from Ballerina."
     },
     {
       "name": "worldtimeapi",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to World Time API from Ballerina"
     },
     {
       "name": "wso2.apim.catalog",
-      "version": "1.2.3",
+      "version": "1.3.0",
       "description": "The WSO2 APIM Catalog Publisher connector provides service management tools for publishing service data to [WSO2 API Manager](https://wso2.com/api-manager/) service catalogs."
     },
     {
@@ -3262,47 +3662,47 @@
     },
     {
       "name": "xero.accounts",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Xero Accounts API](https://developer.xero.com/documentation/api/accounting/overview) from Ballerina"
     },
     {
       "name": "xero.appstore",
-      "version": "1.4.1",
+      "version": "1.4.2",
       "description": "Connects to [Xero AppStore](https://developer.xero.com/documentation/api/xero-app-store/overview) from Ballerina"
     },
     {
       "name": "xero.assets",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Xero Assets API](https://developer.xero.com/documentation/api/assets/assets/) from Ballerina"
     },
     {
       "name": "xero.bankfeeds",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Xero Bank Feeds API](https://developer.xero.com/documentation/api/bankfeeds/overview) from Ballerina"
     },
     {
       "name": "xero.files",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Xero Files](https://developer.xero.com/documentation/api/files/overview) from Ballerina"
     },
     {
       "name": "xero.finance",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Xero Finance API](https://developer.xero.com/documentation/api/finance/overview) from Ballerina"
     },
     {
       "name": "xero.projects",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Xero Projects](https://developer.xero.com/documentation/api/projects/overview) from Ballerina"
     },
     {
       "name": "ynab",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [YNAB API](https://api.youneedabudget.com) from Ballerina"
     },
     {
       "name": "yodlee",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Yodlee Core REST API](https://developer.yodlee.com/api-reference) from Ballerina"
     },
     {
@@ -3317,22 +3717,22 @@
     },
     {
       "name": "zoho.books",
-      "version": "1.3.1",
+      "version": "1.3.2",
       "description": "Connects to [Zoho Books](https://www.zoho.com/books/api/v3/) from Ballerina"
     },
     {
       "name": "zoho.crm.rest",
-      "version": "1.3.1",
+      "version": "1.3.2",
       "description": "Connects to [Zoho CRM](https://www.zoho.com/crm/) from Ballerina."
     },
     {
       "name": "zoho.people",
-      "version": "1.3.1",
+      "version": "1.3.2",
       "description": "Connects to [Zoho People](https://www.zoho.com/people/overview.html) from Ballerina."
     },
     {
       "name": "zoom",
-      "version": "1.7.1",
+      "version": "1.7.2",
       "description": "Connects to [Zoom API](https://marketplace.zoom.us/docs/api-reference/zoom-api) from Ballerina."
     },
     {
@@ -3347,280 +3747,25 @@
     },
     {
       "name": "zuora.collection",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Zuora Collection V1 API](https://www.zuora.com/developer/collect-api/#section/Introduction) from Ballerina"
     },
     {
       "name": "zuora.revenue",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "description": "Connects to [Zuora Revenue V2021-08-12 API](https://www.zuora.com/developer/revpro-api/#section/Introduction) from Ballerina"
     }
   ],
   "ballerina": [
     {
-      "name": "http",
-      "version": "2.16.2",
-      "description": "This module provides APIs for connecting and interacting with HTTP and HTTP2 endpoints. It facilitates two types of network entry points as the `Client` and `Listener`."
-    },
-    {
-      "name": "crypto",
-      "version": "2.12.0",
-      "description": "This module provides common cryptographic mechanisms based on different algorithms."
-    },
-    {
-      "name": "time",
-      "version": "2.8.0",
-      "description": "This module provides a set of APIs that have the capabilities to generate and manipulate UTC and localized time."
-    },
-    {
-      "name": "log",
-      "version": "2.17.0",
-      "description": "This module provides APIs to log information when running applications, with support for contextual logging, configurable log levels, formats, destinations, and key-value context."
-    },
-    {
-      "name": "io",
-      "version": "1.8.0",
-      "description": "This module provides file read/write APIs and console print/read APIs. The file APIs allow read and write operations on different kinds of file types such as bytes, text, CSV, JSON, and XML. Further, these file APIs can be categorized as streaming and non-streaming APIs."
-    },
-    {
-      "name": "observe",
-      "version": "1.7.1",
-      "description": "This module provides an API for observing Ballerina services."
-    },
-    {
-      "name": "url",
-      "version": "2.6.1",
-      "description": "This module provides the URL encoding/decoding functions."
-    },
-    {
-      "name": "task",
-      "version": "2.11.1",
-      "description": "This module provides APIs to schedule a Ballerina job either once or periodically and to manage the execution of those jobs."
-    },
-    {
-      "name": "oauth2",
-      "version": "2.15.0",
-      "description": "This module provides a framework for interacting with OAuth2 authorization servers as specified in the [RFC 6749](https://datatracker.ietf.org/doc/html/rfc6749) and [RFC 7662](https://datatracker.ietf.org/doc/html/rfc7662)."
-    },
-    {
-      "name": "jwt",
-      "version": "2.15.1",
-      "description": "This module provides a framework for authentication/authorization with JWTs and generation/validation of JWTs as specified in the [RFC 7519](https://datatracker.ietf.org/doc/html/rfc7519), [RFC 7515](https://datatracker.ietf.org/doc/html/rfc7515), and [RFC 7517](https://datatracker.ietf.org/doc/html/rfc7517)."
-    },
-    {
-      "name": "auth",
-      "version": "2.14.0",
-      "description": "This module provides a framework for authentication/authorization based on the Basic Authentication scheme specified in [RFC 7617](https://datatracker.ietf.org/doc/html/rfc7617)."
-    },
-    {
-      "name": "constraint",
-      "version": "1.7.0",
-      "description": "This module provides features to validate the values with respect to the constraints defined to the respective Ballerina types."
-    },
-    {
-      "name": "mime",
-      "version": "2.12.1",
-      "description": "This module provides a set of APIs to work with messages, which follow the Multipurpose Internet Mail Extensions (MIME) specification as specified in the [RFC 2045 standard](https://www.ietf.org/rfc/rfc2045.txt)."
-    },
-    {
-      "name": "file",
-      "version": "1.13.0",
-      "description": "This module provides APIs to create, delete, rename the file/directory, retrieve metadata of the given file, and manipulate the file paths in a way that is compatible with the operating system, and a `Directory Listener`, which is used to listen to the file changes in a directory in the local file system."
-    },
-    {
-      "name": "regex",
-      "version": "1.3.2",
-      "description": "This module provides APIs for searching, splitting, and replacing the set of characters of a string. These APIs are using a"
-    },
-    {
-      "name": "cloud",
-      "version": "4.0.0",
-      "description": "This module provides the capabilities to generate cloud artifacts for Ballerina programs."
-    },
-    {
-      "name": "cache",
-      "version": "3.10.0",
-      "description": "This module provides APIs for in-memory caching by using a semi-persistent mapping from keys to values. Cache entries are added to the cache manually and are stored in the cache until either evicted or invalidated manually."
-    },
-    {
-      "name": "os",
-      "version": "1.10.1",
-      "description": "This module provides APIs to retrieve information about the environment variables and the current users of the Operating System."
-    },
-    {
-      "name": "protobuf",
-      "version": "1.8.0",
-      "description": "This module provides APIs to represent a set of pre-defined protobuf types."
-    },
-    {
-      "name": "sql",
-      "version": "1.19.0",
-      "description": "This module provides the generic interface and functionality to interact with an SQL database. The corresponding"
-    },
-    {
-      "name": "websocket",
-      "version": "2.15.2",
-      "description": "This module provides APIs for connecting and interacting with WebSocket endpoints. "
-    },
-    {
-      "name": "data.jsondata",
-      "version": "1.1.3",
-      "description": "The Ballerina JSON Data Library is a comprehensive toolkit designed to facilitate the handling and manipulation of JSON data within Ballerina applications. It streamlines the process of converting JSON data to native Ballerina data types, enabling developers to work with JSON content seamlessly and efficiently."
-    },
-    {
-      "name": "graphql",
-      "version": "1.17.0",
-      "description": "This module provides APIs for connecting and interacting with GraphQL endpoints."
-    },
-    {
-      "name": "grpc",
-      "version": "1.14.5",
-      "description": "This module provides APIs for connecting and interacting with gRPC endpoints. "
-    },
-    {
-      "name": "data.xmldata",
-      "version": "1.6.2",
-      "description": "The Ballerina XML Data Library is a comprehensive toolkit designed to facilitate the handling and manipulation of XML data within Ballerina applications. It streamlines the process of converting XML data to native Ballerina data types, enabling developers to work with XML content seamlessly and efficiently."
-    },
-    {
-      "name": "uuid",
-      "version": "1.10.0",
-      "description": "This module provides APIs to generate and inspect UUIDs (Universally Unique Identifiers)."
-    },
-    {
-      "name": "websubhub",
-      "version": "1.16.0",
-      "description": "This module provides APIs for a WebSub Hub service and WebSub Publisher client."
-    },
-    {
-      "name": "random",
-      "version": "1.7.0",
-      "description": "This module provides APIs to generate pseudo-random numbers."
-    },
-    {
-      "name": "openapi",
-      "version": "2.4.1",
-      "description": "This module provides comprehensive annotations and utilities to enhance the seamless interoperability between Ballerina and OpenAPI specifications."
-    },
-    {
       "name": "ai",
-      "version": "1.11.1",
+      "version": "1.16.0",
       "description": "This module provides APIs for building AI-powered applications and agents using Large Language Models (LLMs)."
     },
     {
-      "name": "xmldata",
-      "version": "2.9.1",
-      "description": ""
-    },
-    {
-      "name": "mcp",
-      "version": "1.0.3",
-      "description": "This module offers APIs for developing MCP (Model Context Protocol) clients and servers in Ballerina."
-    },
-    {
-      "name": "websub",
-      "version": "2.15.0",
-      "description": "This module provides APIs for a WebSub Subscriber Service."
-    },
-    {
-      "name": "ftp",
-      "version": "2.19.0",
-      "description": "This module provides an FTP/SFTP client and an FTP/SFTP server listener implementation to facilitate an FTP/SFTP connection connected to a remote location. Additionally, it supports FTPS (FTP over SSL/TLS) to facilitate secure file transfers."
-    },
-    {
-      "name": "tcp",
-      "version": "1.13.5",
-      "description": "This module provides APIs for sending/receiving messages to/from another application process (local or remote) over the connection-oriented TCP protocol."
-    },
-    {
-      "name": "avro",
-      "version": "1.2.1",
-      "description": "Avro is an open-source data serialization system that enables efficient binary serialization and deserialization. It allows users to define schemas for structured data, providing better representation and fast serialization/deserialization. Avro's schema evolution capabilities ensure compatibility and flexibility in evolving data systems."
-    },
-    {
-      "name": "email",
-      "version": "2.13.0",
-      "description": "This module provides APIs to perform email operations such as sending and reading emails using the SMTP, POP3, and IMAP4 protocols."
-    },
-    {
-      "name": "data.csv",
-      "version": "0.8.2",
-      "description": "The Ballerina CSV Data Library is a comprehensive toolkit designed to facilitate the handling and manipulation of CSV data within Ballerina applications. It streamlines the process of converting CSV data to native Ballerina data types, enabling developers to work with CSV content seamlessly and efficiently."
-    },
-    {
-      "name": "messaging",
-      "version": "1.0.0",
-      "description": "Ballerina developers often face challenges when integrating with diverse message brokers or database clients for "
-    },
-    {
-      "name": "yaml",
-      "version": "0.8.0",
-      "description": "This module provides APIs to convert a YAML configuration file to json, and vice-versa."
-    },
-    {
-      "name": "udp",
-      "version": "1.13.4",
-      "description": "This module provides APIs for sending/receiving datagrams to/from another application process (local or remote) using UDP."
-    },
-    {
-      "name": "math.vector",
-      "version": "1.2.0",
-      "description": "This package provides functions for doing vector operations including calculating the `L1` and `L2` norm, dot product, cosine similarity, Euclidean distance, and Manhattan distance."
-    },
-    {
-      "name": "persist",
-      "version": "1.7.0",
-      "description": "This module provides Ballerina `persist` features, which enable you to store and query data conveniently through a data model."
-    },
-    {
-      "name": "jballerina.java.arrays",
-      "version": "1.6.1",
-      "description": "This module provides APIs to create new Java array instances, get elements from arrays, set elements, etc. "
-    },
-    {
-      "name": "soap",
-      "version": "2.3.1",
-      "description": "This module offers a set of APIs that facilitate the transmission of XML requests to a SOAP backend. It excels in managing security policies within SOAP requests, ensuring the transmission of secured SOAP envelopes. Moreover, it possesses the capability to efficiently extract data from security-applied SOAP responses."
-    },
-    {
-      "name": "ldap",
-      "version": "1.4.0",
-      "description": "LDAP (Lightweight Directory Access Protocol) is a vendor-neutral software protocol for accessing and maintaining distributed directory information services. It allows users to locate organizations, individuals, and other resources such as files and devices in a network. LDAP is used in various applications for directory-based authentication and authorization."
-    },
-    {
-      "name": "xslt",
-      "version": "2.9.1",
-      "description": "This module provides an API to transform XML content to another XML/HTML/plain text format using XSL transformations."
-    },
-    {
-      "name": "workflow",
-      "version": "0.8.3",
-      "description": "The `ballerina/workflow` library provides durable, fault-tolerant workflow orchestration for Ballerina applications. It lets you define long-running business processes — spanning minutes, hours, or days — that automatically recover from crashes and process restarts without losing progress."
-    },
-    {
-      "name": "edi",
-      "version": "1.6.0",
-      "description": "Electronic Data Interchange (EDI) is a standard for exchanging business documents — purchase orders, invoices, shipping notices — between trading partners in a structured, machine-readable format. The two most widely used standards are **X12** (North America) and **EDIFACT** (international)."
-    },
-    {
-      "name": "smb",
-      "version": "1.0.2",
-      "description": "This module provides an SMB client and an SMB server listener implementation to facilitate connections to remote SMB (Server Message Block) file shares. SMB is a network file sharing protocol that allows applications to read and write to files and request services from server programs in a computer network."
-    },
-    {
-      "name": "toml",
-      "version": "0.8.0",
-      "description": "This module provides APIs to convert a TOML configuration file to `map<json>`, and vice-versa."
-    },
-    {
-      "name": "np",
-      "version": "0.3.0",
-      "description": "The natural programming library module provides seamless integration with Large Language Models (LLMs). It offers a first-class approach to integrate LLM calls with automatic detection of expected response formats and parsing of responses to corresponding Ballerina types."
-    },
-    {
-      "name": "mqtt",
-      "version": "1.4.0",
-      "description": "This module provides an implementation to interact with MQTT servers via MQTT client and listener."
+      "name": "ai.eval",
+      "version": "0.9.0",
+      "description": "This module provides evaluation templates for AI agents built with the `ballerina/ai` module. Each"
     },
     {
       "name": "ai.np",
@@ -3628,24 +3773,114 @@
       "description": "This is the library module for natural programming - specifically the compile-time code generation component of natural programming. This module also generates JSON schema corresponding to types used with natural expressions."
     },
     {
-      "name": "pdf",
-      "version": "0.9.1",
-      "description": "The `ballerina/pdf` module provides functionality to convert HTML content to PDF documents and read data from existing PDFs. It processes HTML strings — including full documents, fragments, and messy real-world markup — and produces PDF byte arrays suitable for writing to files or sending over the network."
+      "name": "auth",
+      "version": "2.14.1",
+      "description": "This module provides a framework for authentication and authorization based on the Basic Authentication scheme specified in [RFC 7617](https://datatracker.ietf.org/doc/html/rfc7617), used to define auth providers for clients and listeners of different protocol connectors."
+    },
+    {
+      "name": "avro",
+      "version": "1.2.6",
+      "description": "Avro is an open-source data serialization system for defining schemas and performing efficient binary serialization and deserialization, with schema evolution support for compatibility as data systems change. This module provides the capability to serialize and deserialize data using Avro schemas."
+    },
+    {
+      "name": "cache",
+      "version": "3.10.1",
+      "description": "This module provides APIs for in-memory caching using a semi-persistent mapping from keys to values, based on the Least Recently Used (LRU) eviction algorithm. Cache entries are added manually and stored until evicted or invalidated, with thread-safe access for concurrent use."
+    },
+    {
+      "name": "cloud",
+      "version": "4.1.0",
+      "description": "This module provides the capabilities to generate cloud artifacts for Ballerina programs."
+    },
+    {
+      "name": "constraint",
+      "version": "1.7.1",
+      "description": "This module provides annotations to add constraints to Ballerina types and an API to validate values with respect to the constraints defined in the respective types."
+    },
+    {
+      "name": "crypto",
+      "version": "2.13.0",
+      "description": "This module provides common cryptographic mechanisms based on different algorithms. It provides APIs for hashing, HMAC generation, checksum generation, encryption and decryption, and digital signing and verification."
+    },
+    {
+      "name": "data.csv",
+      "version": "1.0.0",
+      "description": "This module provides APIs to convert CSV data — as a string, byte array, or stream — into native Ballerina records or lists, and to transform Ballerina data back into CSV format, with support for large-file streaming and fail-safe error handling."
+    },
+    {
+      "name": "data.jsondata",
+      "version": "1.1.5",
+      "description": "This module provides APIs to convert JSON data — as a Ballerina JSON value, string, byte array, or stream — into native Ballerina types, with support for selective conversion via projection."
+    },
+    {
+      "name": "data.xmldata",
+      "version": "1.7.0",
+      "description": "The Ballerina XML Data Library is a comprehensive toolkit designed to facilitate the handling and manipulation of XML data within Ballerina applications. It streamlines the process of converting XML data to native Ballerina data types, enabling developers to work with XML content seamlessly and efficiently."
     },
     {
       "name": "data.yaml",
-      "version": "0.8.0",
-      "description": "The Ballerina data.yaml library provides robust and flexible functionalities for working with YAML data within "
+      "version": "1.0.0",
+      "description": "The Ballerina data.yaml library provides robust and flexible functionalities for working with YAML data within"
+    },
+    {
+      "name": "edi",
+      "version": "1.7.1",
+      "description": "Electronic Data Interchange (EDI) is a standard for exchanging business documents — purchase orders, invoices, shipping notices — between trading partners in a structured, machine-readable format. The two most widely used standards are **X12** (North America) and **EDIFACT** (international)."
+    },
+    {
+      "name": "email",
+      "version": "2.14.1",
+      "description": "This module provides APIs to perform email operations such as sending and reading emails using the SMTP, POP3, and IMAP4 protocols."
     },
     {
       "name": "etl",
-      "version": "0.8.0",
+      "version": "0.8.1",
       "description": "This package provides a collection of APIs designed for data processing and manipulation, enabling seamless ETL workflows and supporting a variety of use cases."
     },
     {
-      "name": "test",
-      "version": "2201.10.4",
-      "description": "This module facilitates writing tests for Ballerina code in a simple manner. It provides a number of capabilities such as configuring the setup and cleanup steps at different levels, ordering and grouping of tests, providing value-sets to tests, and independence from external functions and endpoints via mocking capabilities."
+      "name": "file",
+      "version": "1.14.0",
+      "description": "This module provides APIs to create, delete, and rename files and directories, retrieve file metadata, manipulate file paths in an OS-compatible way, and listen to file system changes via a Directory Listener."
+    },
+    {
+      "name": "ftp",
+      "version": "2.22.0",
+      "description": "This module provides an FTP/SFTP client and an FTP/SFTP server listener implementation to facilitate an FTP/SFTP connection connected to a remote location. Additionally, it supports FTPS (FTP over SSL/TLS) to facilitate secure file transfers."
+    },
+    {
+      "name": "graphql",
+      "version": "1.18.2",
+      "description": "This module provides APIs for connecting to and interacting with GraphQL endpoints, using HTTP as the underlying protocol. GraphQL lets clients define the structure of the data they need, avoiding over-fetching and reducing the number of requests to the server."
+    },
+    {
+      "name": "grpc",
+      "version": "1.16.0",
+      "description": "This module provides APIs for connecting to and interacting with gRPC endpoints, an inter-process communication technology layered over HTTP/2 that uses Protocol Buffers for efficient message marshaling."
+    },
+    {
+      "name": "http",
+      "version": "2.18.0",
+      "description": "This module provides APIs for connecting to and interacting with HTTP and HTTP2 endpoints, through two types of network entry points: the `Client` and the `Listener`."
+    },
+    {
+      "name": "io",
+      "version": "1.8.2",
+      "description": "The io module provides file read/write and console I/O capabilities for working with common data formats. It supports bytes, text, CSV, JSON, and XML content through both streaming and non-streaming operations."
+    },
+    {
+      "name": "jballerina.java",
+      "version": "2201.13.2",
+      "description": "This module provides library operations required for Java interoperability in Ballerina. It includes a set of"
+    },
+    {
+      "name": "jballerina.java.arrays",
+      "version": "1.6.2",
+      "description": "This module provides APIs to create new Java array instances, get elements from arrays, set elements, and convert between Ballerina and Java arrays."
+    },
+    {
+      "name": "jwt",
+      "version": "2.15.2",
+      "description": "This module provides a framework for authentication and authorization with JWTs, including generating and validating JWTs as specified in [RFC 7519](https://datatracker.ietf.org/doc/html/rfc7519), [RFC 7515](https://datatracker.ietf.org/doc/html/rfc7515), and [RFC 7517](https://datatracker.ietf.org/doc/html/rfc7517), and defines auth providers for clients and listeners of different protocol connectors."
     },
     {
       "name": "lang.array",
@@ -3753,18 +3988,198 @@
       "description": "The `lang.xml` module corresponds to the `xml` basic type."
     },
     {
-      "name": "jballerina.java",
-      "version": "2201.13.2",
-      "description": "This module provides library operations required for Java interoperability in Ballerina. It includes a set of"
+      "name": "ldap",
+      "version": "1.4.2",
+      "description": "This module provides the capability to connect, authenticate, and interact with LDAP (Lightweight Directory Access Protocol) directory servers, supporting authentication, authorization, and directory-based operations such as searching, adding, and modifying entries."
+    },
+    {
+      "name": "log",
+      "version": "2.17.1",
+      "description": "This module provides APIs to log information when running applications, with support for contextual logging, configurable log levels, formats, destinations, and key-value context."
+    },
+    {
+      "name": "math.vector",
+      "version": "1.2.1",
+      "description": "This package provides functions for doing vector operations including calculating the `L1` and `L2` norm, dot product, cosine similarity, Euclidean distance, and Manhattan distance."
+    },
+    {
+      "name": "mcp",
+      "version": "1.3.0",
+      "description": "This module offers APIs for developing MCP (Model Context Protocol) clients and servers in Ballerina."
+    },
+    {
+      "name": "messaging",
+      "version": "1.0.1",
+      "description": "This module provides a message store interface and a message store listener to implement guaranteed message delivery in Ballerina applications, offering a unified API across different message store technologies."
+    },
+    {
+      "name": "mime",
+      "version": "2.12.3",
+      "description": "This module provides a set of APIs to work with messages, which follow the Multipurpose Internet Mail Extensions (MIME) specification as specified in the [RFC 2045 standard](https://www.ietf.org/rfc/rfc2045.txt)."
+    },
+    {
+      "name": "mqtt",
+      "version": "1.4.3",
+      "description": "This module provides an implementation to interact with MQTT servers via an MQTT client and listener, using the lightweight, publish-subscribe MQTT protocol for machine-to-machine messaging."
+    },
+    {
+      "name": "np",
+      "version": "0.3.0",
+      "description": "The natural programming library module provides seamless integration with Large Language Models (LLMs). It offers a first-class approach to integrate LLM calls with automatic detection of expected response formats and parsing of responses to corresponding Ballerina types."
+    },
+    {
+      "name": "oauth2",
+      "version": "2.15.1",
+      "description": "This module provides a framework for interacting with OAuth2 authorization servers as specified in [RFC 6749](https://datatracker.ietf.org/doc/html/rfc6749) and [RFC 7662](https://datatracker.ietf.org/doc/html/rfc7662), enabling third-party applications to obtain limited access to HTTP services, and defines auth providers for clients and listeners of different protocol connectors."
+    },
+    {
+      "name": "observe",
+      "version": "1.8.0",
+      "description": "This module provides internal configurations and an API for observing Ballerina services, enabled via the `--observability-included` build flag or `--b7a.observability.enabled=true` runtime flag."
+    },
+    {
+      "name": "openapi",
+      "version": "2.4.2",
+      "description": "This module provides comprehensive annotations and utilities to enhance the seamless interoperability between Ballerina and OpenAPI specifications."
+    },
+    {
+      "name": "os",
+      "version": "1.10.2",
+      "description": "This module provides APIs to retrieve information about the environment variables and the current users of the Operating System. The APIs are platform-independent, uniform across all operating systems."
+    },
+    {
+      "name": "otel",
+      "version": "1.0.0",
+      "description": "The Otel Observability Extension provides an implementation for tracing and publishing traces to a [Otel](https://www.oteltracing.io/) Agent."
+    },
+    {
+      "name": "pdf",
+      "version": "0.9.3",
+      "description": "The `pdf` module provides functionality to convert HTML content to PDF documents and extract data from existing PDFs, with all processing done locally and no external service dependencies."
+    },
+    {
+      "name": "persist",
+      "version": "1.7.0",
+      "description": "This module provides Ballerina `persist` features, which enable you to store and query data conveniently through a data model."
+    },
+    {
+      "name": "protobuf",
+      "version": "1.8.0",
+      "description": "This module provides APIs to represent a set of pre-defined protobuf types."
+    },
+    {
+      "name": "random",
+      "version": "1.7.1",
+      "description": "This module provides APIs to generate pseudo-random numbers. The generated values are selected pseudo-randomly with uniform distribution from a particular range."
+    },
+    {
+      "name": "regex",
+      "version": "1.3.2",
+      "description": "This module provides APIs for searching, splitting, and replacing the set of characters of a string. These APIs are using a"
+    },
+    {
+      "name": "smb",
+      "version": "2.0.2",
+      "description": "This module provides an SMB client and an SMB listener for working with files on remote SMB (Server Message Block) file shares — the protocol behind Windows file servers, NAS appliances, and Samba. The client connects to a share to read, write, move, copy, and list files. The listener polls a directory on a share and dispatches each added or deleted file to a service, handing the service a caller it can use to act on the share while processing a file."
+    },
+    {
+      "name": "smpp",
+      "version": "1.0.0",
+      "description": "This module provides a `Client` and a `Listener` for **SMPP v3.4** (Short Message Peer-to-Peer), the protocol used by an ESME (External Short Messaging Entity) to exchange SMS traffic with a Short Message Service Centre (SMSC). It wraps the Java library [`org.jsmpp:jsmpp`](https://jsmpp.org/) through Ballerina's Java interoperability."
+    },
+    {
+      "name": "soap",
+      "version": "2.3.2",
+      "description": "This module provides APIs to transmit XML requests to a SOAP backend, abstracting the creation of SOAP envelopes, headers, and message bodies. It manages security policies within SOAP requests and can extract data from security-applied SOAP responses."
+    },
+    {
+      "name": "sql",
+      "version": "1.19.0",
+      "description": "This module provides the generic interface and functionality to interact with an SQL database. The corresponding"
+    },
+    {
+      "name": "task",
+      "version": "2.11.3",
+      "description": "This module provides APIs to schedule a Ballerina job either once or periodically and to manage the execution of those jobs."
+    },
+    {
+      "name": "tcp",
+      "version": "1.14.0",
+      "description": "This module provides a client-server implementation for sending and receiving messages between application processes over the connection-oriented TCP protocol, including support for TLS."
+    },
+    {
+      "name": "test",
+      "version": "2201.10.4",
+      "description": "This module facilitates writing tests for Ballerina code in a simple manner. It provides a number of capabilities such as configuring the setup and cleanup steps at different levels, ordering and grouping of tests, providing value-sets to tests, and independence from external functions and endpoints via mocking capabilities."
+    },
+    {
+      "name": "time",
+      "version": "2.8.3",
+      "description": "This module provides APIs to generate and manipulate UTC and localized time, with nanosecond precision and support for complex cases such as leap seconds and daylight saving time."
+    },
+    {
+      "name": "toml",
+      "version": "0.8.1",
+      "description": "This module provides APIs to convert a TOML configuration file to `map<json>`, and vice-versa, using a non-recursive, linear-time LL(1) parser."
+    },
+    {
+      "name": "udp",
+      "version": "1.14.0",
+      "description": "This module provides APIs for sending and receiving datagrams to and from another application process (local or remote) using UDP."
+    },
+    {
+      "name": "url",
+      "version": "2.6.4",
+      "description": "This module provides URL encoding and decoding functions. Encoding replaces certain characters in a URL with percent-encoded triplets, while decoding reverses the process."
+    },
+    {
+      "name": "uuid",
+      "version": "1.10.1",
+      "description": "This module provides APIs to generate and inspect UUIDs (Universally Unique Identifiers) based on the RFC 4122 standard, supporting four UUID versions."
+    },
+    {
+      "name": "websocket",
+      "version": "2.16.0",
+      "description": "This module provides APIs for connecting to and interacting with WebSocket endpoints, through two types of network entry points: the `Client` and the `Listener`."
+    },
+    {
+      "name": "websub",
+      "version": "2.15.2",
+      "description": "This module provides APIs for a [WebSub](https://www.w3.org/TR/websub/) Subscriber Service, an implementation of the [WebSub Subscriber](https://www.w3.org/TR/websub/#subscriber) role that discovers a resource's hub and topic, subscribes to updates, and accepts content distribution requests."
+    },
+    {
+      "name": "websubhub",
+      "version": "1.16.2",
+      "description": "This module provides APIs for a WebSub Hub service and WebSub Publisher client. [**WebSub**](https://www.w3.org/TR/websub/) is a mechanism for publisher-subscriber communication over HTTP webhooks, where a [**WebSub Hub**](https://www.w3.org/TR/websub/#hub) handles subscriptions and distributes updates, and a [**WebSub Publisher**](https://www.w3.org/TR/websub/#publisher) advertises topics and hub URLs."
+    },
+    {
+      "name": "workflow",
+      "version": "1.0.0",
+      "description": "Workflows and activities are ordinary Ballerina functions:"
     },
     {
       "name": "xlsx",
-      "version": "1.0.1",
-      "description": "Provides functionality to read and write Microsoft Excel files in the XLSX format with type-safe data binding."
+      "version": "1.0.2",
+      "description": "This module provides functionality to read and write Microsoft Excel files in the XLSX format with type-safe data binding to Ballerina records, processed entirely locally with no external service dependencies."
+    },
+    {
+      "name": "xmldata",
+      "version": "2.9.2",
+      "description": ""
+    },
+    {
+      "name": "xslt",
+      "version": "2.9.2",
+      "description": "This module provides an API to transform XML content to another XML/HTML/plain text format using XSL transformations, based on the Extensible Stylesheet Language Transformations (XSLT) standard. This module supports XSLT version 1.0."
+    },
+    {
+      "name": "yaml",
+      "version": "0.8.0",
+      "description": "This module provides APIs to convert a YAML configuration file to json, and vice-versa."
     },
     {
       "name": "zip",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "description": "The `zip` library provides APIs to create and read ZIP archives from Ballerina."
     }
   ]

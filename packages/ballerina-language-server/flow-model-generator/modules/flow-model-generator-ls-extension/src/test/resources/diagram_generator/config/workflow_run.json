@@ -92,7 +92,7 @@
         "metadata": {
           "label": "Run Workflow",
           "description": "Run a workflow instance",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.10.0.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_1.0.0.png"
         },
         "codedata": {
           "node": "WORKFLOW_RUN",
@@ -256,7 +256,7 @@
         "metadata": {
           "label": "println",
           "description": "Prints `any`, `error` or string templates value(s) to the standard output stream and terminates the line.\n```ballerina\nio:println(\"Start processing the CSV file from \", srcFileName);\n```\n",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.2.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.3.png"
         },
         "codedata": {
           "node": "FUNCTION_CALL",
@@ -264,7 +264,7 @@
           "module": "io",
           "packageName": "io",
           "symbol": "println",
-          "version": "1.8.2",
+          "version": "1.8.3",
           "lineRange": {
             "fileName": "workflow_operations.bal",
             "startLine": {
@@ -382,7 +382,7 @@
         "metadata": {
           "label": "Send Data",
           "description": "Send data to an existing workflow instance",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.10.0.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_1.0.0.png"
         },
         "codedata": {
           "node": "SEND_DATA",
@@ -390,7 +390,7 @@
           "module": "workflow",
           "packageName": "workflow",
           "symbol": "sendData",
-          "version": "0.10.0",
+          "version": "1.0.0",
           "lineRange": {
             "fileName": "workflow_operations.bal",
             "startLine": {

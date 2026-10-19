@@ -36,6 +36,7 @@ import io.ballerina.flowmodelgenerator.core.Constants;
 import io.ballerina.flowmodelgenerator.core.UserFacingException;
 import io.ballerina.flowmodelgenerator.core.model.Codedata;
 import io.ballerina.flowmodelgenerator.core.model.FlowNode;
+import io.ballerina.flowmodelgenerator.core.model.FormBuilder;
 import io.ballerina.flowmodelgenerator.core.model.ItemOption;
 import io.ballerina.flowmodelgenerator.core.model.Metadata;
 import io.ballerina.flowmodelgenerator.core.model.NodeBuilder;
@@ -980,16 +981,16 @@ public class ActivityCallBuilder extends CallBuilder {
     static Map<String, Property> reviewSubProperties(ReviewKeys keys, String titleDoc, String descriptionDoc,
                                                      boolean dualModeText) {
         Map<String, Property> fields = new LinkedHashMap<>();
-        fields.put(keys.userRoles(), buildReviewerRolesSubProperty(RETRY_USER_ROLES_LABEL, RETRY_USER_ROLES_DOC));
-        fields.put(keys.users(), buildReviewerRolesSubProperty(RETRY_USERS_LABEL, RETRY_USERS_DOC));
+        fields.put(keys.userRoles(), buildReviewerRolesSubProperty(RETRY_USER_ROLES_LABEL, RETRY_USER_ROLES_DOC, true));
+        fields.put(keys.users(), buildReviewerRolesSubProperty(RETRY_USERS_LABEL, RETRY_USERS_DOC, false));
         fields.put(keys.excludedUsers(),
-                buildReviewerRolesSubProperty(RETRY_EXCLUDED_USERS_LABEL, RETRY_EXCLUDED_USERS_DOC));
+                buildReviewerRolesSubProperty(RETRY_EXCLUDED_USERS_LABEL, RETRY_EXCLUDED_USERS_DOC, false));
         fields.put(keys.excludedRoles(),
-                buildReviewerRolesSubProperty(RETRY_EXCLUDED_ROLES_LABEL, RETRY_EXCLUDED_ROLES_DOC));
+                buildReviewerRolesSubProperty(RETRY_EXCLUDED_ROLES_LABEL, RETRY_EXCLUDED_ROLES_DOC, false));
         fields.put(keys.administratorRoles(),
-                buildReviewerRolesSubProperty(RETRY_ADMINISTRATOR_ROLES_LABEL, RETRY_ADMINISTRATOR_ROLES_DOC));
+                buildReviewerRolesSubProperty(RETRY_ADMINISTRATOR_ROLES_LABEL, RETRY_ADMINISTRATOR_ROLES_DOC, false));
         fields.put(keys.administratorUsers(),
-                buildReviewerRolesSubProperty(RETRY_ADMINISTRATOR_USERS_LABEL, RETRY_ADMINISTRATOR_USERS_DOC));
+                buildReviewerRolesSubProperty(RETRY_ADMINISTRATOR_USERS_LABEL, RETRY_ADMINISTRATOR_USERS_DOC, false));
         // Title and description offer a plain-text box as well as the expression editor, so a
         // wording typed as text is quoted on save while a reference to one is written as it stands.
         fields.put(keys.title(), dualModeText ? buildReviewTextSubProperty(RETRY_TITLE_LABEL, titleDoc)
@@ -1031,16 +1032,16 @@ public class ActivityCallBuilder extends CallBuilder {
         // The audience values are shaped for the list mode (names as a list, anything else as the
         // expression it is), the way the sub-form's role fields edit them.
         addHiddenRoleProperty(nodeBuilder, keys.userRoles(), RETRY_USER_ROLES_LABEL, RETRY_USER_ROLES_DOC,
-                review.userRoles());
-        addHiddenRoleProperty(nodeBuilder, keys.users(), RETRY_USERS_LABEL, RETRY_USERS_DOC, review.users());
+                review.userRoles(), true);
+        addHiddenRoleProperty(nodeBuilder, keys.users(), RETRY_USERS_LABEL, RETRY_USERS_DOC, review.users(), false);
         addHiddenRoleProperty(nodeBuilder, keys.excludedUsers(), RETRY_EXCLUDED_USERS_LABEL,
-                RETRY_EXCLUDED_USERS_DOC, review.excludedUsers());
+                RETRY_EXCLUDED_USERS_DOC, review.excludedUsers(), false);
         addHiddenRoleProperty(nodeBuilder, keys.excludedRoles(), RETRY_EXCLUDED_ROLES_LABEL,
-                RETRY_EXCLUDED_ROLES_DOC, review.excludedRoles());
+                RETRY_EXCLUDED_ROLES_DOC, review.excludedRoles(), false);
         addHiddenRoleProperty(nodeBuilder, keys.administratorRoles(), RETRY_ADMINISTRATOR_ROLES_LABEL,
-                RETRY_ADMINISTRATOR_ROLES_DOC, review.administratorRoles());
+                RETRY_ADMINISTRATOR_ROLES_DOC, review.administratorRoles(), false);
         addHiddenRoleProperty(nodeBuilder, keys.administratorUsers(), RETRY_ADMINISTRATOR_USERS_LABEL,
-                RETRY_ADMINISTRATOR_USERS_DOC, review.administratorUsers());
+                RETRY_ADMINISTRATOR_USERS_DOC, review.administratorUsers(), false);
         if (dualModeText) {
             addHiddenReviewTextProperty(nodeBuilder, keys.title(), RETRY_TITLE_LABEL, titleDoc, review.title());
             addHiddenReviewTextProperty(nodeBuilder, keys.description(), RETRY_DESCRIPTION_LABEL, descriptionDoc,
@@ -1061,13 +1062,14 @@ public class ActivityCallBuilder extends CallBuilder {
      * sub-properties, except the role field offers every mode a role field offers elsewhere —
      * see {@link WorkflowUtil#addRoleFieldTypes}.
      */
-    private static Property buildReviewerRolesSubProperty(String label, String description) {
-        return WorkflowUtil.addRoleFieldTypes(
-                        new Property.Builder<Void>(null)
-                                .metadata()
-                                    .label(label)
-                                    .description(description)
-                                    .stepOut())
+    // `deciding` marks the reviewer roles themselves, whose expression mode takes `()`.
+    private static Property buildReviewerRolesSubProperty(String label, String description, boolean deciding) {
+        Property.Builder<Void> builder = new Property.Builder<Void>(null)
+                .metadata()
+                    .label(label)
+                    .description(description)
+                    .stepOut();
+        return (deciding ? WorkflowUtil.addDecidingRoleFieldTypes(builder) : WorkflowUtil.addRoleFieldTypes(builder))
                 .value("")
                 .editable(true)
                 // Optional on purpose: an empty role list is the documented "any role may decide"
@@ -1111,11 +1113,16 @@ public class ActivityCallBuilder extends CallBuilder {
                 .build();
     }
 
+    // `deciding` marks the reviewer roles themselves, whose expression mode takes `()`.
     private static void addHiddenRoleProperty(NodeBuilder nodeBuilder, String key, String label, String description,
-                                              String source) {
-        WorkflowUtil.addRoleFieldTypes(nodeBuilder.properties().custom()
-                .metadata().label(label).description(description).stepOut(), WorkflowUtil.roleFieldValue(source))
-                .editable(true).optional(true).hidden(true)
+                                              String source, boolean deciding) {
+        Property.Builder<FormBuilder<NodeBuilder>> builder = nodeBuilder.properties().custom()
+                .metadata().label(label).description(description).stepOut();
+        Object value = WorkflowUtil.roleFieldValue(source);
+        Property.Builder<FormBuilder<NodeBuilder>> typed = deciding
+                ? WorkflowUtil.addDecidingRoleFieldTypes(builder, value)
+                : WorkflowUtil.addRoleFieldTypes(builder, value);
+        typed.editable(true).optional(true).hidden(true)
                 .stepOut()
                 .addProperty(key);
     }

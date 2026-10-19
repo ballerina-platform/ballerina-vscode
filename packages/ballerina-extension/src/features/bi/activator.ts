@@ -118,6 +118,10 @@ export function activate(context: BallerinaExtension) {
         await handleCommandWithContext(item, MACHINE_VIEW.AddAgentDefinition);
     });
 
+    commands.registerCommand(BI_COMMANDS.ADD_MODEL_PROVIDER, async (item?: TreeItem) => {
+        await handleCommandWithContext(item, MACHINE_VIEW.AddModelProvider);
+    });
+
 
     commands.registerCommand(BI_COMMANDS.ADD_CUSTOM_CONNECTOR, async (item?: TreeItem) => {
         await handleCommandWithContext(item, MACHINE_VIEW.AddConnectionWizard);

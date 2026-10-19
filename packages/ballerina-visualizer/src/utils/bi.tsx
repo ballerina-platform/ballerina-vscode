@@ -92,7 +92,6 @@ import { FUNCTION_REGEX } from "../resources/constants";
 import { ConnectionKind, getConnectionKindDisplayName } from "../components/ConnectionSelector";
 import { ConnectionListItem } from "@wso2/wso2-platform-core";
 import { handleRepeatableProperty } from "./node-property-utils";
-export { updateNodeProperties } from "./node-property-utils";
 import {
     IconFactory,
     applyGroupedChildIcons,
@@ -100,6 +99,9 @@ import {
     chunkerIconFactory,
     vectorStoreIconFactory,
 } from "./group-icons";
+
+export { updateNodeProperties, mergeFormImports } from "./node-property-utils";
+
 hljs.registerLanguage("ballerina", ballerina);
 
 function convertAvailableNodeToPanelNode(
@@ -282,7 +284,7 @@ export function convertAgentCategoriesToSidePanelCategories(categories: Category
 export function convertModelProviderCategoriesToSidePanelCategories(categories: Category[]): PanelCategory[] {
     return convertCategoriesToSidePanelCategoriesWithIcon(categories, (codedata, iconUrl) => (
         <AIModelIcon type={codedata?.module === "ai" ? codedata.object : codedata?.module} codedata={codedata} iconUrl={iconUrl} />
-    ));
+    ), true);
 }
 
 export function convertVectorStoreCategoriesToSidePanelCategories(categories: Category[]): PanelCategory[] {
@@ -307,7 +309,8 @@ export function convertKnowledgeBaseCategoriesToSidePanelCategories(categories: 
 
 export function convertCategoriesToSidePanelCategoriesWithIcon(
     categories: Category[],
-    iconFactory: IconFactory
+    iconFactory: IconFactory,
+    useClassBadges = false
 ): PanelCategory[] {
     const panelCategories = categories.map((category) => convertDiagramCategoryToSidePanelCategory(category));
     panelCategories.forEach((category, index) => {
@@ -317,7 +320,8 @@ export function convertCategoriesToSidePanelCategoriesWithIcon(
                 const iconUrl = (item as PanelNode)?.metadata?.metadata?.icon;
                 item.icon = iconFactory(codedata, iconUrl);
             } else if ((item as PanelCategory).items) {
-                applyGroupedChildIcons(item as PanelCategory, categories[index]?.items as any[], iconFactory);
+                applyGroupedChildIcons(item as PanelCategory, categories[index]?.items as any[], iconFactory,
+                    useClassBadges);
             }
         });
     });

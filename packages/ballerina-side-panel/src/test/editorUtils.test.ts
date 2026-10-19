@@ -37,6 +37,7 @@ import {
     stringToRawObjectEntries,
     buildStringArray,
     buildStringMap,
+    withHeldValue,
 } from "../components/editors/utils";
 
 describe("capitalize", () => {
@@ -164,5 +165,45 @@ describe("buildStringArray / buildStringMap", () => {
             [{ value: "b" }, { value: "2" }],
         ] as any;
         expect(buildStringMap(pairs)).toBe("{ a: 1, b: 2}");
+    });
+});
+
+// A policy sub-form's role field (Reviewers, Administrator Users) is defined with the list mode
+// selected and takes its loaded value from the hidden root property of the same key. The value's
+// shape says which mode can show it (wso2/product-integrator#2716).
+describe("withHeldValue on a list-or-expression field", () => {
+    const roleField = (): any => ({
+        key: "retryUsers",
+        label: "Reviewers",
+        type: "TEXT_SET",
+        types: [
+            { fieldType: "TEXT_SET", ballerinaType: "string[]", selected: true },
+            { fieldType: "EXPRESSION", ballerinaType: "string|[string, string...]", selected: false },
+        ],
+        value: "",
+        optional: true,
+        editable: true,
+        enabled: true,
+        documentation: "",
+    });
+    const selected = (field: any) => field.types.find((type: any) => type.selected).fieldType;
+
+    it("opens a reference in the expression mode", () => {
+        const field = withHeldValue(roleField(), { retryUsers: "input.id" });
+        expect(field.value).toBe("input.id");
+        expect(selected(field)).toBe("EXPRESSION");
+    });
+    it("opens a list of names in the list mode", () => {
+        const field = withHeldValue(roleField(), { retryUsers: ["alice", "bob"] });
+        expect(selected(field)).toBe("TEXT_SET");
+    });
+    it("keeps the definition's mode when nothing or an empty text is held", () => {
+        expect(selected(withHeldValue(roleField(), {}))).toBe("TEXT_SET");
+        expect(selected(withHeldValue(roleField(), { retryUsers: "" }))).toBe("TEXT_SET");
+    });
+    it("does not touch the definition's own type objects", () => {
+        const definition = roleField();
+        withHeldValue(definition, { retryUsers: "input.id" });
+        expect(selected(definition)).toBe("TEXT_SET");
     });
 });

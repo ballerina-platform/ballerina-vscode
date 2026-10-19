@@ -59,7 +59,8 @@ function isBlank(value: unknown): boolean {
     if (Array.isArray(value)) {
         return value.length === 0;
     }
-    const text = String(value).trim();
+    // `( )` with spacing is still nil, as the compiler reads it.
+    const text = String(value).replace(/\s/g, "");
     return text === "" || text === "()" || text === "[]";
 }
 

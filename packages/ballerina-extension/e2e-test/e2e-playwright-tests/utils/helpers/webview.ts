@@ -16,8 +16,16 @@
  * under the License.
  */
 
+import { FrameLocator, Page } from "@playwright/test";
 import { ExtendedPage, switchToIFrame } from "@wso2/playwright-vscode-tester";
+import { BI_INTEGRATOR_LABEL } from "./constants";
 import { waitForBISidebarTreeView } from "./sidebar";
+
+// The same frame switchToIFrame finds, as a FrameLocator: it re-resolves on each use, so it outlives a webview or
+// window that VS Code replaces, where a held Frame detaches.
+export function webviewFrame(page: Page, viewName: string = BI_INTEGRATOR_LABEL): FrameLocator {
+    return page.frameLocator('iframe.webview.ready:visible').last().frameLocator(`iframe[title="${viewName}"]`);
+}
 
 /**
  * Get webview frame with retry logic

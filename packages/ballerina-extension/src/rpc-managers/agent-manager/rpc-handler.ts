@@ -44,6 +44,12 @@ import {
     getAgentManagerRepoDetails,
     checkAgentManagerSource,
     createAgentManagerAgent,
+    AgentManagerMcpPublishRequest,
+    AgentManagerMcpSourceFixRequest,
+    getAgentManagerMcpPublishStatus,
+    prepareAgentManagerMcpEndpoint,
+    publishAgentManagerMcpProxy,
+    fixAgentManagerMcpSource,
 } from "@wso2/ballerina-core";
 import { Messenger } from "vscode-messenger";
 import { addMcpServers, getMcpOffer } from "../../features/agent-manager/copilot";
@@ -54,6 +60,7 @@ import { bindModelProvider, commitModelProvider, listModelProviders } from "../.
 import { bindMcpProxy, commitMcpProxy, listMcpProxies } from "../../features/agent-manager/mcp";
 import { removeConfigurables } from "../../features/agent-manager/bindings";
 import { checkSource, createAgent, getCreateForm, getRepoDetails, linkAgent } from "../../features/agent-manager/create";
+import { fixMcpSource, getMcpPublishStatus, prepareMcpEndpoint, publishMcpProxy } from "../../features/agent-manager/mcp-publish";
 
 export function registerAgentManagerRpcHandlers(messenger: Messenger) {
     messenger.onRequest(getAgentManagerStatus, (args: AgentManagerStatusRequest) => getStatus(args.projectPath));
@@ -74,4 +81,8 @@ export function registerAgentManagerRpcHandlers(messenger: Messenger) {
     messenger.onRequest(getAgentManagerRepoDetails, (args: AgentManagerRepoRequest) => getRepoDetails(args));
     messenger.onRequest(checkAgentManagerSource, (args: AgentManagerSourceCheckRequest) => checkSource(args));
     messenger.onRequest(createAgentManagerAgent, (args: AgentManagerCreateRequest) => createAgent(args));
+    messenger.onRequest(getAgentManagerMcpPublishStatus, (args: AgentManagerStatusRequest) => getMcpPublishStatus(args.projectPath));
+    messenger.onRequest(prepareAgentManagerMcpEndpoint, (args: AgentManagerStatusRequest) => prepareMcpEndpoint(args.projectPath));
+    messenger.onRequest(publishAgentManagerMcpProxy, (args: AgentManagerMcpPublishRequest) => publishMcpProxy(args));
+    messenger.onRequest(fixAgentManagerMcpSource, (args: AgentManagerMcpSourceFixRequest) => fixMcpSource(args.projectPath, args.step));
 }

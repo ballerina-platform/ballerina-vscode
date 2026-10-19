@@ -290,7 +290,11 @@ const PopupPanel = (props: PopupPanelProps) => {
         });
     };
 
-    return <ViewContainer isFullScreen={isFullScreen}>{viewComponent}</ViewContainer>;
+    return (
+        <ViewContainer isFullScreen={isFullScreen}>
+            {viewComponent}
+        </ViewContainer>
+    );
 };
 
 export default PopupPanel;

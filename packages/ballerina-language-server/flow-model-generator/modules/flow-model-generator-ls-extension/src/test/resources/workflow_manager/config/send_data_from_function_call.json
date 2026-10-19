@@ -1,0 +1,124 @@
+{
+  "source": "workflow_function/functions.bal",
+  "position": {
+    "line": 3,
+    "offset": 0
+  },
+  "description": "workflow:sendData picked from the function search opens the workflow node with no workflow preselected",
+  "codedata": {
+    "node": "FUNCTION_CALL",
+    "org": "ballerina",
+    "module": "workflow",
+    "packageName": "workflow",
+    "symbol": "sendData",
+    "version": "1.0.0"
+  },
+  "output": {
+    "id": "31",
+    "metadata": {
+      "label": "Send Data",
+      "description": "Send data to an existing workflow instance"
+    },
+    "codedata": {
+      "node": "SEND_DATA",
+      "org": "ballerina",
+      "module": "workflow",
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "workflow": {
+        "metadata": {
+          "label": "Workflow Name",
+          "description": "The workflow function to send the data to"
+        },
+        "types": [
+          {
+            "fieldType": "SINGLE_SELECT",
+            "options": [
+              {
+                "label": "orderWorkflow",
+                "value": "orderWorkflow"
+              }
+            ],
+            "selected": true
+          }
+        ],
+        "value": "",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED"
+        }
+      },
+      "workflowId": {
+        "metadata": {
+          "label": "Target Workflow Id",
+          "description": "The unique workflow ID to send the data to (obtained from `run`)"
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string",
+            "selected": false
+          }
+        ],
+        "value": "",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED"
+        }
+      },
+      "dataName": {
+        "metadata": {
+          "label": "Data Name",
+          "description": "The name of the data field to send"
+        },
+        "types": [
+          {
+            "fieldType": "SINGLE_SELECT",
+            "ballerinaType": "string",
+            "options": [],
+            "selected": true
+          }
+        ],
+        "value": "",
+        "optional": false,
+        "editable": false,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED"
+        }
+      },
+      "data": {
+        "metadata": {
+          "label": "Data",
+          "description": "The data payload"
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "anydata",
+            "selected": false
+          }
+        ],
+        "placeholder": "{}",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED",
+          "originalName": "data"
+        }
+      }
+    },
+    "flags": 0
+  }
+}

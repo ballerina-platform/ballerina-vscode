@@ -60,7 +60,7 @@
           "kind": "DEFAULTABLE",
           "originalName": "serviceUrl"
         },
-        "defaultValue": "\"\""
+        "defaultValue": ""
       },
       "allowHeaders": {
         "metadata": {
@@ -106,7 +106,7 @@
           "kind": "INCLUDED_FIELD",
           "originalName": "allowHeaders"
         },
-        "defaultValue": "[]"
+        "defaultValue": ""
       },
       "allowMethods": {
         "metadata": {
@@ -152,7 +152,7 @@
           "kind": "INCLUDED_FIELD",
           "originalName": "allowMethods"
         },
-        "defaultValue": "[]"
+        "defaultValue": ""
       },
       "allowOrigins": {
         "metadata": {
@@ -198,7 +198,7 @@
           "kind": "INCLUDED_FIELD",
           "originalName": "allowOrigins"
         },
-        "defaultValue": "[]"
+        "defaultValue": ""
       },
       "exposeHeaders": {
         "metadata": {
@@ -244,7 +244,7 @@
           "kind": "INCLUDED_FIELD",
           "originalName": "exposeHeaders"
         },
-        "defaultValue": "[]"
+        "defaultValue": ""
       },
       "allowCredentials": {
         "metadata": {
@@ -272,7 +272,7 @@
           "kind": "INCLUDED_FIELD",
           "originalName": "allowCredentials"
         },
-        "defaultValue": "false"
+        "defaultValue": ""
       },
       "maxAge": {
         "metadata": {
@@ -300,7 +300,7 @@
           "kind": "INCLUDED_FIELD",
           "originalName": "maxAge"
         },
-        "defaultValue": "0.0d"
+        "defaultValue": ""
       },
       "type": {
         "metadata": {

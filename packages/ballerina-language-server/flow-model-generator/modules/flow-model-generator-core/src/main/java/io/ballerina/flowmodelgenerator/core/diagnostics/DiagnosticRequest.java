@@ -113,7 +113,7 @@ public class DiagnosticRequest implements Callable<JsonElement> {
         }
 
         // Generate text edits using SourceBuilder (similar to SourceGenerator)
-        SourceBuilder sourceBuilder = new SourceBuilder(flowNodeObj, workspaceManager, path);
+        SourceBuilder sourceBuilder = new SourceBuilder(flowNodeObj, workspaceManager, path).forDiagnostics();
         Map<Path, List<TextEdit>> textEdits = NodeBuilder
                 .getNodeFromKind(flowNodeObj.codedata().node())
                 .semanticModel(semanticModelOp.get())

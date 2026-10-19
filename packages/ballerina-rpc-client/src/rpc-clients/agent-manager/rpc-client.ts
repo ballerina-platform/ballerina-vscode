@@ -28,6 +28,9 @@ import {
     AgentManagerMcpBinding,
     AgentManagerMcpOffer,
     AgentManagerMcpProxies,
+    AgentManagerMcpPublishRequest,
+    AgentManagerMcpPublishStatus,
+    AgentManagerMcpSourceFixRequest,
     AgentManagerModelBindRequest,
     AgentManagerModelProviders,
     AgentManagerSession,
@@ -56,6 +59,10 @@ import {
     getAgentManagerRepoDetails,
     checkAgentManagerSource,
     createAgentManagerAgent,
+    getAgentManagerMcpPublishStatus,
+    prepareAgentManagerMcpEndpoint,
+    publishAgentManagerMcpProxy,
+    fixAgentManagerMcpSource,
 } from "@wso2/ballerina-core";
 import { HOST_EXTENSION } from "vscode-messenger-common";
 import { Messenger } from "vscode-messenger-webview";
@@ -133,5 +140,21 @@ export class AgentManagerRpcClient implements AgentManagerAPI {
 
     createAgentManagerAgent(params: AgentManagerCreateRequest): Promise<AgentManagerActionResponse> {
         return this._messenger.sendRequest(createAgentManagerAgent, HOST_EXTENSION, params);
+    }
+
+    getAgentManagerMcpPublishStatus(params: AgentManagerStatusRequest): Promise<AgentManagerMcpPublishStatus> {
+        return this._messenger.sendRequest(getAgentManagerMcpPublishStatus, HOST_EXTENSION, params);
+    }
+
+    prepareAgentManagerMcpEndpoint(params: AgentManagerStatusRequest): Promise<AgentManagerActionResponse> {
+        return this._messenger.sendRequest(prepareAgentManagerMcpEndpoint, HOST_EXTENSION, params);
+    }
+
+    publishAgentManagerMcpProxy(params: AgentManagerMcpPublishRequest): Promise<AgentManagerActionResponse> {
+        return this._messenger.sendRequest(publishAgentManagerMcpProxy, HOST_EXTENSION, params);
+    }
+
+    fixAgentManagerMcpSource(params: AgentManagerMcpSourceFixRequest): Promise<AgentManagerActionResponse> {
+        return this._messenger.sendRequest(fixAgentManagerMcpSource, HOST_EXTENSION, params);
     }
 }

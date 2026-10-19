@@ -33,9 +33,9 @@ import {
 import { keymap } from "prosemirror-keymap";
 import { EditorState, NodeSelection } from "prosemirror-state";
 
-// Delete the entire table when cells are selected and Backspace/Delete is pressed.
+// Backspace/Delete on selected rows, columns or the whole table removes them.
 // When cursor is adjacent to a table, first press selects it, second deletes it.
-const handleTableDelete = (state: EditorState, dispatch?: (tr: any) => void): boolean => {
+export const handleTableDelete = (state: EditorState, dispatch?: (tr: any) => void): boolean => {
     const sel = state.selection;
 
     // Check for CellSelection by constructor name (bundling can rename the class)
@@ -43,45 +43,21 @@ const handleTableDelete = (state: EditorState, dispatch?: (tr: any) => void): bo
         sel.constructor.name === "_CellSelection" ||
         sel.constructor.name === "CellSelection";
 
-    // If cells are selected, check if all cells are selected
+    // Whole rows or columns go; a partial selection falls through so tableEditing() clears the cells.
     if (isCellSel) {
-        const $anchor = (sel as any).$anchorCell;
-        let tableNode = null;
-        if ($anchor) {
-            for (let d = $anchor.depth; d >= 0; d--) {
-                if ($anchor.node(d).type.name === "table") {
-                    tableNode = $anchor.node(d);
-                    break;
-                }
-            }
+        const cellSel = sel as CellSelection;
+        const fullRows = cellSel.isRowSelection();
+        const fullCols = cellSel.isColSelection();
+        if (fullRows && fullCols) {
+            return deleteTable(state, dispatch);
         }
-
-        if (tableNode) {
-            let totalCells = 0;
-            tableNode.descendants((node: any) => {
-                if (node.type.name === "table_cell" || node.type.name === "table_header") {
-                    totalCells++;
-                }
-            });
-
-            const ranges = (sel as any).ranges;
-            const selectedCells = ranges ? ranges.length : 0;
-
-            if (selectedCells >= totalCells) {
-                return deleteTable(state, dispatch);
-            } else {
-                const colCount = tableNode.firstChild ? tableNode.firstChild.childCount : 0;
-                const rowCount = tableNode.childCount;
-                const isFullRows = colCount > 0 && selectedCells % colCount === 0;
-                const isFullCols = rowCount > 0 && selectedCells % rowCount === 0;
-
-                if (isFullCols && (!isFullRows || selectedCells / rowCount <= selectedCells / colCount)) {
-                    return deleteColumn(state, dispatch);
-                } else {
-                    return deleteRow(state, dispatch);
-                }
-            }
+        if (fullRows) {
+            return deleteRow(state, dispatch);
         }
+        if (fullCols) {
+            return deleteColumn(state, dispatch);
+        }
+        return false;
     }
 
     // If a table node is already selected (via NodeSelection), delete it
@@ -123,7 +99,8 @@ const handleTableDelete = (state: EditorState, dispatch?: (tr: any) => void): bo
     // If cursor is right after a table, select the table node
     if (sel.empty && !isInTable(state)) {
         const { $from } = sel;
-        const posBefore = $from.before($from.depth);
+        // A gap cursor after a top-level table sits at depth 0, which has no position before it.
+        const posBefore = $from.depth > 0 ? $from.before($from.depth) : $from.pos;
         if (posBefore > 0) {
             const nodeBefore = state.doc.resolve(posBefore).nodeBefore;
             if (nodeBefore && nodeBefore.type.name === "table") {
@@ -159,7 +136,8 @@ export function createTablePlugins() {
 export const insertTable = (rows: number, cols: number) => {
     return (state: EditorState, dispatch?: (tr: any) => void): boolean => {
         const { table, table_row, table_cell, table_header } = state.schema.nodes;
-        if (!table || !table_row || !table_cell || !table_header) return false;
+        // Inside a cell the table would split the one around it; Markdown has no nested tables.
+        if (!table || !table_row || !table_cell || !table_header || isInTable(state)) return false;
 
         const headerCells = [];
         for (let j = 0; j < cols; j++) {

@@ -147,8 +147,9 @@ interface PanelManagerProps {
     onUpdateExpressionField: (updatedExpressionField: ExpressionFormField) => void;
     onResetUpdatedExpressionField: () => void;
     onSearchFunction?: (searchText: string, functionType: FUNCTION_TYPE) => void;
-    // Scroll pagination for the function list.
+    // Load more pagination for the function list.
     onLoadMoreFunctionSection?: (sectionTitle: string) => void;
+    onShowMoreFunctions?: () => void;
     functionSectionsWithMore?: Record<string, boolean>;
     loadingFunctionSections?: Record<string, boolean>;
     onSearchWorkflow?: (searchText: string, functionType: FUNCTION_TYPE) => void;
@@ -232,6 +233,7 @@ export function PanelManager(props: PanelManagerProps) {
         onResetUpdatedExpressionField,
         onSearchFunction,
         onLoadMoreFunctionSection,
+        onShowMoreFunctions,
         functionSectionsWithMore,
         loadingFunctionSections,
         onSearchWorkflow,
@@ -295,9 +297,12 @@ export function PanelManager(props: PanelManagerProps) {
                     />
                 );
 
+            // Each list picked from the palette is its own NodeList: the component keeps its search box in its
+            // own state, so a list reached through the palette's search otherwise inherits that search text and
+            // hides its empty sections (wso2/product-integrator#2624).
             case SidePanelView.FUNCTION_LIST:
                 return (
-                    <NodeList
+                    <NodeList key={SidePanelView.FUNCTION_LIST}
                         categories={categories}
                         onSelect={onSelectNode}
                         onSearchTextChange={(searchText) => onSearchFunction?.(searchText, FUNCTION_TYPE.REGULAR)}
@@ -315,7 +320,7 @@ export function PanelManager(props: PanelManagerProps) {
 
             case SidePanelView.WORKFLOW_LIST:
                 return (
-                    <NodeList
+                    <NodeList key={SidePanelView.WORKFLOW_LIST}
                         categories={categories}
                         onSelect={onSelectNode}
                         onSearchTextChange={(searchText) => onSearchWorkflow?.(searchText, FUNCTION_TYPE.REGULAR)}
@@ -329,7 +334,7 @@ export function PanelManager(props: PanelManagerProps) {
 
             case SidePanelView.ACTIVITY_LIST:
                 return (
-                    <NodeList
+                    <NodeList key={SidePanelView.ACTIVITY_LIST}
                         categories={categories}
                         onSelect={onSelectNode}
                         onSearchTextChange={(searchText) => onSearchActivity?.(searchText, FUNCTION_TYPE.REGULAR)}
@@ -355,7 +360,7 @@ export function PanelManager(props: PanelManagerProps) {
 
             case SidePanelView.NP_FUNCTION_LIST:
                 return (
-                    <NodeList
+                    <NodeList key={SidePanelView.NP_FUNCTION_LIST}
                         categories={categories}
                         onSelect={onSelectNode}
                         onSearchTextChange={(searchText) => onSearchAll?.(searchText, FUNCTION_TYPE.REGULAR)}
@@ -369,7 +374,7 @@ export function PanelManager(props: PanelManagerProps) {
 
             case SidePanelView.DATA_MAPPER_LIST:
                 return (
-                    <NodeList
+                    <NodeList key={SidePanelView.DATA_MAPPER_LIST}
                         categories={categories}
                         onSelect={onSelectNode}
                         onSearchTextChange={(searchText) =>
@@ -385,7 +390,7 @@ export function PanelManager(props: PanelManagerProps) {
 
             case SidePanelView.AGENT_LIST:
                 return (
-                    <NodeList
+                    <NodeList key={SidePanelView.AGENT_LIST}
                         categories={categories}
                         onSelect={onSelectNode}
                         onAdd={onAddAgent}
@@ -400,7 +405,7 @@ export function PanelManager(props: PanelManagerProps) {
 
             case SidePanelView.MODEL_PROVIDER_LIST:
                 return (
-                    <NodeList
+                    <NodeList key={SidePanelView.MODEL_PROVIDER_LIST}
                         categories={categories}
                         onSelect={onSelectNode}
                         onAdd={onAddModelProvider}
@@ -431,7 +436,7 @@ export function PanelManager(props: PanelManagerProps) {
 
             case SidePanelView.VECTOR_STORE_LIST:
                 return (
-                    <NodeList
+                    <NodeList key={SidePanelView.VECTOR_STORE_LIST}
                         categories={categories}
                         onSelect={onSelectNode}
                         onAdd={onAddVectorStore}
@@ -461,7 +466,7 @@ export function PanelManager(props: PanelManagerProps) {
 
             case SidePanelView.EMBEDDING_PROVIDER_LIST:
                 return (
-                    <NodeList
+                    <NodeList key={SidePanelView.EMBEDDING_PROVIDER_LIST}
                         categories={categories}
                         onSelect={onSelectNode}
                         onAdd={onAddEmbeddingProvider}
@@ -493,7 +498,7 @@ export function PanelManager(props: PanelManagerProps) {
 
             case SidePanelView.KNOWLEDGE_BASE_LIST:
                 return (
-                    <NodeList
+                    <NodeList key={SidePanelView.KNOWLEDGE_BASE_LIST}
                         categories={categories}
                         onSelect={onSelectNode}
                         onAdd={onAddVectorKnowledgeBase}
@@ -538,7 +543,7 @@ export function PanelManager(props: PanelManagerProps) {
 
             case SidePanelView.DATA_LOADER_LIST:
                 return (
-                    <NodeList
+                    <NodeList key={SidePanelView.DATA_LOADER_LIST}
                         categories={categories}
                         onSelect={onSelectNode}
                         onAdd={onAddDataLoader}
@@ -570,7 +575,7 @@ export function PanelManager(props: PanelManagerProps) {
 
             case SidePanelView.CHUNKER_LIST:
                 return (
-                    <NodeList
+                    <NodeList key={SidePanelView.CHUNKER_LIST}
                         categories={categories}
                         onSelect={onSelectNode}
                         onAdd={onAddChunker}
@@ -706,6 +711,7 @@ export function PanelManager(props: PanelManagerProps) {
                         title={"All Components"}
                         searchPlaceholder={"Search all components"}
                         onBack={canGoBack ? onBack : undefined}
+                        onShowMoreFunctions={onShowMoreFunctions}
                     />
                 );
 

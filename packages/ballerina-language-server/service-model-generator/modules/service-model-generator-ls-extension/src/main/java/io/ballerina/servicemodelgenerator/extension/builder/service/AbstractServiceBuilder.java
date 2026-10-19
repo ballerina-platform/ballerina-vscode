@@ -151,10 +151,7 @@ public abstract class AbstractServiceBuilder implements ServiceNodeBuilder {
                 .append(CLOSE_BRACE).append(NEW_LINE);
 
         List<TextEdit> edits = new ArrayList<>();
-        if (!importExists(modulePartNode, serviceInitModel.getOrgName(), serviceInitModel.getModuleName())) {
-            String importText = getImportStmt(serviceInitModel.getOrgName(), serviceInitModel.getModuleName());
-            edits.add(new TextEdit(Utils.toRange(modulePartNode.lineRange().startLine()), importText));
-        }
+        Utils.getServiceInitImportEdit(modulePartNode, serviceInitModel).ifPresent(edits::add);
         edits.add(new TextEdit(Utils.toRange(modulePartNode.lineRange().endLine()), builder.toString()));
 
         return Map.of(context.filePath(), edits);
@@ -427,6 +424,8 @@ public abstract class AbstractServiceBuilder implements ServiceNodeBuilder {
         edits.add(new TextEdit(Utils.toRange(rootNode.lineRange().endLine()), serviceBuilder.toString()));
 
         Set<String> importStmts = new HashSet<>();
+        Set<String> coveredModules = new HashSet<>();
+        coveredModules.add(service.getOrgName() + "/" + service.getModuleName());
         if (!importExists(rootNode, service.getOrgName(), service.getModuleName())) {
             importStmts.add(Utils.getImportStmt(service.getOrgName(), service.getModuleName()));
         }
@@ -434,10 +433,12 @@ public abstract class AbstractServiceBuilder implements ServiceNodeBuilder {
             String[] importParts = moduleId.split("/");
             String orgName = importParts[0];
             String moduleName = importParts[1].split(":")[0];
+            coveredModules.add(orgName + "/" + moduleName);
             if (!importExists(rootNode, orgName, moduleName)) {
                 importStmts.add(getImportStmt(orgName, moduleName));
             }
         });
+        importStmts.addAll(Utils.getMissingPropertyImportStmts(rootNode, service.getProperties(), coveredModules));
 
         if (!importStmts.isEmpty()) {
             String importsStmts = String.join(NEW_LINE, importStmts);
@@ -503,7 +504,28 @@ public abstract class AbstractServiceBuilder implements ServiceNodeBuilder {
             String stmt = getDefaultListenerDeclarationStmt(defaultListener);
             edits.add(new TextEdit(Utils.toRange(defaultListener.linePosition()), stmt));
         }
+        addPropertyImportEdits(service, serviceNode, edits);
         return Map.of(context.filePath(), edits);
+    }
+
+    /**
+     * Adds the import declarations the service's properties carry (e.g. a module referenced from the
+     * service annotation's expression) that the file does not already declare.
+     *
+     * @param service     the service model
+     * @param serviceNode the service declaration node being updated
+     * @param edits       the edits to append the import declaration edit to
+     */
+    private static void addPropertyImportEdits(Service service, ServiceDeclarationNode serviceNode,
+                                               List<TextEdit> edits) {
+        if (!(serviceNode.syntaxTree().rootNode() instanceof ModulePartNode rootNode)) {
+            return;
+        }
+        Set<String> importStmts = Utils.getMissingPropertyImportStmts(rootNode, service.getProperties());
+        if (!importStmts.isEmpty()) {
+            edits.addFirst(new TextEdit(Utils.toRange(rootNode.lineRange().startLine()),
+                    String.join(NEW_LINE, importStmts)));
+        }
     }
 
     @Override

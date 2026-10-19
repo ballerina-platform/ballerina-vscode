@@ -1,0 +1,53 @@
+{
+  "description": "Delete a service with a listener no other service uses",
+  "filePath": "delete_component_listener_project/main.bal",
+  "startLine": 14,
+  "startColumn": 0,
+  "endLine": 18,
+  "endColumn": 1,
+  "output": {
+    "delete_component_listener_project/listeners.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 4,
+            "character": 0
+          },
+          "end": {
+            "line": 4,
+            "character": 48
+          }
+        },
+        "newText": ""
+      }
+    ],
+    "delete_component_listener_project/main.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 22
+          }
+        },
+        "newText": ""
+      },
+      {
+        "range": {
+          "start": {
+            "line": 14,
+            "character": 0
+          },
+          "end": {
+            "line": 18,
+            "character": 1
+          }
+        },
+        "newText": ""
+      }
+    ]
+  }
+}

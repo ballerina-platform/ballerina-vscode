@@ -543,10 +543,10 @@ export interface ProjectStructureResponse {
 
 /**
  * `triggerKind` is the canonical semantic integration kind from trigger metadata. `kind` is retained
- * for compatibility with older language-server responses.
+ * for compatibility with older language-server responses; for a connection it is its AI component kind.
  * `iconColor` is an optional tint for a monochrome brand glyph (e.g. "#f60"); `iconLight`/`iconDark`
  * are theme-specific raw SVG documents paired with each other, used when `icon` alone isn't
- * theme-aware.
+ * theme-aware. `iconUrl` is the artifact's image URL (e.g. its Central package icon).
  */
 export interface ProjectStructureArtifactResponse {
     id: string;
@@ -559,6 +559,7 @@ export interface ProjectStructureArtifactResponse {
     iconColor?: string;
     iconLight?: string;
     iconDark?: string;
+    iconUrl?: string;
     context?: string;
     moduleName?: string;
     position?: NodePosition;

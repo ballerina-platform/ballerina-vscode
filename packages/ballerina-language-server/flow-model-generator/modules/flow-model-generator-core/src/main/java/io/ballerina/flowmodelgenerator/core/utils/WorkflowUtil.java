@@ -55,6 +55,7 @@ import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.compiler.syntax.tree.SyntaxTree;
 import io.ballerina.flowmodelgenerator.core.Constants;
 import io.ballerina.flowmodelgenerator.core.UserFacingException;
+import io.ballerina.flowmodelgenerator.core.model.FormBuilder;
 import io.ballerina.flowmodelgenerator.core.model.NodeBuilder;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Option;
@@ -64,6 +65,7 @@ import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
 import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.FileSystemUtils;
 import io.ballerina.modelgenerator.commons.PackageUtil;
+import io.ballerina.modelgenerator.commons.ParameterData;
 import io.ballerina.projects.DependencyManifest;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.DocumentId;
@@ -129,6 +131,40 @@ public class WorkflowUtil {
                 .filter(name -> !name.isEmpty())
                 .forEach(name -> options.add(new Option(name, name))));
         return options;
+    }
+
+    /**
+     * Adds the workflow dropdown that every form picking a workflow carries. Adding at an existing
+     * key keeps that key's position.
+     *
+     * @param form         the form to add the property to
+     * @param key          the property key
+     * @param label        the field label
+     * @param doc          the field description
+     * @param options      the workflows to offer, see {@link #workflowFunctionOptions(Package)}
+     * @param value        the selected workflow, or empty for none
+     * @param originalName the signature parameter the dropdown stands in for, or null when it stands in for none
+     */
+    public static <T> void addWorkflowSelectProperty(FormBuilder<T> form, String key, String label, String doc,
+                                                     List<Option> options, String value, String originalName) {
+        form.custom()
+                .metadata()
+                    .label(label)
+                    .description(doc)
+                    .stepOut()
+                .type()
+                    .fieldType(Property.ValueType.SINGLE_SELECT)
+                    .options(options)
+                    .selected(true)
+                    .stepOut()
+                .codedata()
+                    .kind(ParameterData.Kind.REQUIRED.name())
+                    .originalName(originalName)
+                    .stepOut()
+                .value(value)
+                .editable(true)
+                .stepOut()
+                .addProperty(key);
     }
 
     /**
@@ -1227,9 +1263,14 @@ public class WorkflowUtil {
         return nodeKind != null && AGENT_DECLARATION_NODES.contains(nodeKind);
     }
 
-    // A role field edits one role as text, or an expression yielding a role or a list of them.
+    private static final String NIL_SOURCE = "()";
+
+    // A role field edits one role as text, or an expression yielding a role or a non-empty list of
+    // them: the module's own type, so what the editor accepts is what the compiler accepts.
     private static final String ROLE_LIST_TYPE = "string[]";
-    private static final String ROLE_UNION_TYPE = "string|string[]";
+    private static final String ROLE_UNION_TYPE = "string|[string, string...]";
+    // The roles that decide a task may also be nil: the named users alone decide.
+    private static final String NILABLE_ROLE_UNION_TYPE = ROLE_UNION_TYPE + "?";
 
     /**
      * Declares the input modes a reviewer/user role field offers: a list of roles entered one by
@@ -1257,11 +1298,41 @@ public class WorkflowUtil {
      * @return the same builder, for fluent chaining
      */
     public static <T> Property.Builder<T> addRoleFieldTypes(Property.Builder<T> builder, Object value) {
+        return addRoleFieldTypes(builder, value, ROLE_UNION_TYPE);
+    }
+
+    /**
+     * Declares the input modes of the roles that decide a task or review. The module lets this
+     * field be nil when users are named, so its expression mode accepts {@code ()}.
+     *
+     * @param builder the property builder
+     * @param <T>     the builder's step-out target
+     * @return the same builder, for fluent chaining
+     */
+    public static <T> Property.Builder<T> addDecidingRoleFieldTypes(Property.Builder<T> builder) {
+        return addDecidingRoleFieldTypes(builder, "");
+    }
+
+    /**
+     * Declares the deciding-role input modes and sets the value, as {@link #addRoleFieldTypes(Property.Builder,
+     * Object)} does for the other audience fields.
+     *
+     * @param builder the property builder
+     * @param value   the value as {@link #roleFieldValue} shaped it
+     * @param <T>     the builder's step-out target
+     * @return the same builder, for fluent chaining
+     */
+    public static <T> Property.Builder<T> addDecidingRoleFieldTypes(Property.Builder<T> builder, Object value) {
+        return addRoleFieldTypes(builder, value, NILABLE_ROLE_UNION_TYPE);
+    }
+
+    private static <T> Property.Builder<T> addRoleFieldTypes(Property.Builder<T> builder, Object value,
+                                                             String expressionType) {
         boolean expression = value instanceof String text && !text.isBlank();
         return builder
                 .type().fieldType(Property.ValueType.TEXT_SET).ballerinaType(ROLE_LIST_TYPE)
                     .selected(!expression).stepOut()
-                .type().fieldType(Property.ValueType.EXPRESSION).ballerinaType(ROLE_UNION_TYPE)
+                .type().fieldType(Property.ValueType.EXPRESSION).ballerinaType(expressionType)
                     .selected(expression).stepOut()
                 .value(value);
     }
@@ -1284,7 +1355,10 @@ public class WorkflowUtil {
             PropertyType declared = existing.types() == null ? null : existing.types().stream()
                     .filter(type -> type.fieldType() == Property.ValueType.EXPRESSION)
                     .findFirst().orElse(null);
-            Property.Builder<Object> builder = Property.Builder.copyFrom(existing).clearTypes();
+            // The signature's placeholder is the default's source (`()`, `""`), which a list item shows as a role.
+            // Optional even when the module requires it: empty emits `()`; the audience rule demands a role or user.
+            Property.Builder<Object> builder = Property.Builder.copyFrom(existing).clearTypes().placeholder("")
+                    .optional(true);
             builder.type().fieldType(Property.ValueType.TEXT_SET).ballerinaType(ROLE_LIST_TYPE)
                     .selected(!expression).stepOut();
             if (declared == null) {
@@ -1409,18 +1483,31 @@ public class WorkflowUtil {
         if (property.value() instanceof List<?> names) {
             return roleListSource(names);
         }
+        // An empty value names nobody; toSourceCode would hand back the field's placeholder instead.
+        if (property.value() == null || property.value().toString().isBlank()) {
+            return "";
+        }
         String source = property.toSourceCode().trim();
-        if (source.isEmpty()) {
+        // `()` — typed as an expression, with any spacing — names nobody, the same as an empty field.
+        if (source.isEmpty() || NIL_SOURCE.equals(source.replaceAll("\\s", ""))) {
             return "";
         }
         // In expression mode the value IS the expression: a bare `financeRoles` names a module-level
         // variable, and quoting it would rewrite that reference into a role literal of the same
-        // spelling. Only a value that arrived without an expression mode selected can be a bare role
-        // name needing quotes.
-        if (isExpressionModeSelected(property)) {
+        // spelling. The same holds for text reaching a hidden root property that offers the list
+        // mode: a policy sub-form edits such a field through the root's value alone, so the mode
+        // flag stays at the definition's list mode while names typed there arrive as a list — text
+        // can only have come from the expression editor. Anything else can be a bare role name
+        // needing quotes.
+        if (isExpressionModeSelected(property) || (property.hidden() && offersListMode(property))) {
             return source;
         }
         return quoteIfBareRole(source);
+    }
+
+    private static boolean offersListMode(Property property) {
+        return property.types() != null && property.types().stream()
+                .anyMatch(type -> type.fieldType() == Property.ValueType.TEXT_SET);
     }
 
     /**

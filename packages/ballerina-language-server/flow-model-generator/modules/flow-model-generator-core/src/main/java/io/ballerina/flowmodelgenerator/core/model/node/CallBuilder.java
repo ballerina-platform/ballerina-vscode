@@ -39,6 +39,7 @@ import io.ballerina.flowmodelgenerator.core.model.PropertyType;
 import io.ballerina.flowmodelgenerator.core.model.RecordSelectorType;
 import io.ballerina.flowmodelgenerator.core.utils.FlowNodeUtil;
 import io.ballerina.flowmodelgenerator.core.utils.ParamUtils;
+import io.ballerina.flowmodelgenerator.core.utils.WorkflowUtil;
 import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.FileSystemUtils;
 import io.ballerina.modelgenerator.commons.FunctionData;
@@ -60,6 +61,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.RUN_WITH_ID_METHOD_NAME;
+import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.WORKFLOW_MODULE;
+import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.WORKFLOW_ORG;
 import static io.ballerina.flowmodelgenerator.core.TypesManager.mergeWithTargetVarRecordSelectorType;
 
 /**
@@ -145,6 +149,18 @@ public abstract class CallBuilder extends NodeBuilder {
                     .addProperty(Property.CONNECTION_KEY);
         }
         setParameterProperties(functionData, module);
+        if (functionNodeKind == NodeKind.FUNCTION_CALL && isRunWithId(codedata)
+                && !functionData.parameters().isEmpty()) {
+            // The signature types the workflow as a bare function; offer the project's workflows instead.
+            // Re-adding at the first parameter's key keeps the field's position.
+            // TODO: Drop this special case once function-typed parameters offer the project's matching
+            //  functions in general (wso2/product-integrator#2717).
+            ParameterData workflowParam = functionData.parameters().values().iterator().next();
+            WorkflowUtil.addWorkflowSelectProperty(properties(),
+                    ParamUtils.removeLeadingSingleQuote(workflowParam.name()), WorkflowRunBuilder.WORKFLOW_NAME_LABEL,
+                    WorkflowRunBuilder.WORKFLOW_NAME_DOC, SendDataBuilder.getAvailableWorkflowFunctions(context), "",
+                    workflowParam.name());
+        }
 
         if (CommonUtils.hasReturn(functionData.returnType())) {
             setReturnTypeProperties(functionData, context, Property.RESULT_NAME, Property.RESULT_DOC, false);
@@ -445,6 +461,18 @@ public abstract class CallBuilder extends NodeBuilder {
                 && CommonUtil.BALLERINA_ORG_NAME.equals(codedata.org())
                 && codedata.module() != null
                 && codedata.module().startsWith("lang.");
+    }
+
+    /**
+     * Whether the codedata is a {@code ballerina/workflow} {@code runWithId} call, whose workflow argument is a
+     * dropdown.
+     *
+     * @param codedata the node's codedata
+     * @return true for {@code workflow:runWithId}
+     */
+    protected static boolean isRunWithId(Codedata codedata) {
+        return codedata != null && WORKFLOW_ORG.equals(codedata.org()) && WORKFLOW_MODULE.equals(codedata.module())
+                && RUN_WITH_ID_METHOD_NAME.equals(codedata.symbol());
     }
 
     protected static String resolveLangLibReturnType(WorkspaceManager workspaceManager, Path filePath,

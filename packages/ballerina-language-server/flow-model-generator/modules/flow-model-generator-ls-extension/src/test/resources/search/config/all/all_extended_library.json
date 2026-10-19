@@ -64,7 +64,213 @@
           "Library"
         ]
       },
-      "items": []
+      "items": [
+        {
+          "metadata": {
+            "label": "pdf",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "parseHtml",
+                "description": "Converts HTML content to PDF bytes.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_pdf_0.9.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "pdf",
+                "packageName": "pdf",
+                "symbol": "parseHtml",
+                "version": "0.9.1"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "data.xmldata",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "parseAsType",
+                "description": "Converts XML to record type with projection.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_data.xmldata_1.6.2.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "data.xmldata",
+                "packageName": "data.xmldata",
+                "symbol": "parseAsType",
+                "version": "1.6.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "parseBytes",
+                "description": "Converts XML byte[] to record type with projection.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_data.xmldata_1.6.2.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "data.xmldata",
+                "packageName": "data.xmldata",
+                "symbol": "parseBytes",
+                "version": "1.6.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "parseString",
+                "description": "Converts XML string to record type with projection.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_data.xmldata_1.6.2.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "data.xmldata",
+                "packageName": "data.xmldata",
+                "symbol": "parseString",
+                "version": "1.6.2"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "data.jsondata",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "parseBytes",
+                "description": "Converts JSON byte[] to subtype of anydata.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_data.jsondata_1.1.3.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "data.jsondata",
+                "packageName": "data.jsondata",
+                "symbol": "parseBytes",
+                "version": "1.1.3"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "parseString",
+                "description": "Converts JSON string to subtype of anydata.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_data.jsondata_1.1.3.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "data.jsondata",
+                "packageName": "data.jsondata",
+                "symbol": "parseString",
+                "version": "1.1.3"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "parseAsType",
+                "description": "Convert value of type `json` to subtype of `anydata`.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_data.jsondata_1.1.3.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "data.jsondata",
+                "packageName": "data.jsondata",
+                "symbol": "parseAsType",
+                "version": "1.1.3"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "parseStream",
+                "description": "Converts JSON byte-block-stream to subtype of anydata.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_data.jsondata_1.1.3.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "data.jsondata",
+                "packageName": "data.jsondata",
+                "symbol": "parseStream",
+                "version": "1.1.3"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "ai",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "parseOpenApiSpec",
+                "description": "Parses the given OpenAPI specification as a JSON to a OpenApiSpec object.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "ai",
+                "packageName": "ai",
+                "symbol": "parseOpenApiSpec",
+                "version": "1.11.1"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "xlsx",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "parseTable",
+                "description": "Parse an Excel table by name into records, maps, or a string grid.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_xlsx_1.0.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "xlsx",
+                "packageName": "xlsx",
+                "symbol": "parseTable",
+                "version": "1.0.1"
+              },
+              "enabled": true
+            }
+          ]
+        }
+      ]
     },
     {
       "metadata": {

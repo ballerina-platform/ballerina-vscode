@@ -14,7 +14,7 @@
       "metadata": {
         "label": "Embedding Provider",
         "description": "Initializes a new `Wso2EmbeddingProvider` instance.\n The embedding vectors have a dimension of 1536.",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png"
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png"
       },
       "codedata": {
         "node": "EMBEDDING_PROVIDER",
@@ -23,7 +23,7 @@
         "packageName": "ai",
         "object": "Wso2EmbeddingProvider",
         "symbol": "init",
-        "version": "1.15.0",
+        "version": "1.16.0",
         "isNew": true
       },
       "returning": false,
@@ -163,7 +163,7 @@
           "imports": {
             "http": "ballerina/http"
           },
-          "defaultValue": "http:HTTP_2_0"
+          "defaultValue": "\"2.0\""
         },
         "http1Settings": {
           "metadata": {
@@ -177,7 +177,7 @@
               "typeMembers": [
                 {
                   "type": "ClientHttp1Settings",
-                  "packageInfo": "ballerina:http:2.17.1",
+                  "packageInfo": "ballerina:http:2.18.0",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -217,7 +217,7 @@
               "typeMembers": [
                 {
                   "type": "ClientHttp2Settings",
-                  "packageInfo": "ballerina:http:2.17.1",
+                  "packageInfo": "ballerina:http:2.18.0",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -313,7 +313,7 @@
               "typeMembers": [
                 {
                   "type": "PoolConfiguration",
-                  "packageInfo": "ballerina:http:2.17.1",
+                  "packageInfo": "ballerina:http:2.18.0",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -339,7 +339,7 @@
           "imports": {
             "http": "ballerina/http"
           },
-          "defaultValue": "{}"
+          "defaultValue": ""
         },
         "cache": {
           "metadata": {
@@ -353,7 +353,7 @@
               "typeMembers": [
                 {
                   "type": "CacheConfig",
-                  "packageInfo": "ballerina:http:2.17.1",
+                  "packageInfo": "ballerina:http:2.18.0",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -423,7 +423,7 @@
           "imports": {
             "http": "ballerina/http"
           },
-          "defaultValue": "AUTO"
+          "defaultValue": "\"AUTO\""
         },
         "circuitBreaker": {
           "metadata": {
@@ -437,7 +437,7 @@
               "typeMembers": [
                 {
                   "type": "CircuitBreakerConfig",
-                  "packageInfo": "ballerina:http:2.17.1",
+                  "packageInfo": "ballerina:http:2.18.0",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -463,7 +463,7 @@
           "imports": {
             "http": "ballerina/http"
           },
-          "defaultValue": "{}"
+          "defaultValue": ""
         },
         "retryConfig": {
           "metadata": {
@@ -477,7 +477,7 @@
               "typeMembers": [
                 {
                   "type": "RetryConfig",
-                  "packageInfo": "ballerina:http:2.17.1",
+                  "packageInfo": "ballerina:http:2.18.0",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -503,7 +503,7 @@
           "imports": {
             "http": "ballerina/http"
           },
-          "defaultValue": "{}"
+          "defaultValue": ""
         },
         "responseLimits": {
           "metadata": {
@@ -517,7 +517,7 @@
               "typeMembers": [
                 {
                   "type": "ResponseLimitConfigs",
-                  "packageInfo": "ballerina:http:2.17.1",
+                  "packageInfo": "ballerina:http:2.18.0",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -557,7 +557,7 @@
               "typeMembers": [
                 {
                   "type": "ClientSecureSocket",
-                  "packageInfo": "ballerina:http:2.17.1",
+                  "packageInfo": "ballerina:http:2.18.0",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -583,7 +583,7 @@
           "imports": {
             "http": "ballerina/http"
           },
-          "defaultValue": "{}"
+          "defaultValue": ""
         },
         "proxy": {
           "metadata": {
@@ -597,7 +597,7 @@
               "typeMembers": [
                 {
                   "type": "ProxyConfig",
-                  "packageInfo": "ballerina:http:2.17.1",
+                  "packageInfo": "ballerina:http:2.18.0",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -623,7 +623,7 @@
           "imports": {
             "http": "ballerina/http"
           },
-          "defaultValue": "{}"
+          "defaultValue": ""
         },
         "validation": {
           "metadata": {

@@ -19,6 +19,9 @@
 package io.ballerina.flowmodelgenerator.extension.response;
 
 import com.google.gson.JsonArray;
+import io.ballerina.flowmodelgenerator.core.search.SearchCommand;
+
+import java.util.Map;
 
 /**
  * Represents the response for the flow model getAvailableNodes API.
@@ -28,6 +31,15 @@ import com.google.gson.JsonArray;
 public class FlowModelAvailableNodesResponse extends AbstractFlowModelResponse {
 
     private JsonArray categories;
+    private Map<String, SearchCommand.FunctionPagination> functionPagination;
+
+    public void setFunctionPagination(Map<String, SearchCommand.FunctionPagination> functionPagination) {
+        this.functionPagination = functionPagination;
+    }
+
+    public Map<String, SearchCommand.FunctionPagination> functionPagination() {
+        return functionPagination;
+    }
 
     public void setCategories(JsonArray categories) {
         this.categories = categories;

@@ -1,0 +1,53 @@
+{
+  "description": "Delete a service keeps another file's already unused import",
+  "filePath": "delete_component_listener_project/cases.bal",
+  "startLine": 47,
+  "startColumn": 0,
+  "endLine": 51,
+  "endColumn": 1,
+  "output": {
+    "delete_component_listener_project/stale.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 22
+          }
+        },
+        "newText": ""
+      },
+      {
+        "range": {
+          "start": {
+            "line": 3,
+            "character": 0
+          },
+          "end": {
+            "line": 3,
+            "character": 54
+          }
+        },
+        "newText": ""
+      }
+    ],
+    "delete_component_listener_project/cases.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 47,
+            "character": 0
+          },
+          "end": {
+            "line": 51,
+            "character": 1
+          }
+        },
+        "newText": ""
+      }
+    ]
+  }
+}

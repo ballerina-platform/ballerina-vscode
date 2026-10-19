@@ -1,0 +1,13 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`ViewConfigurableVariables imported libraries lays out the library tree 1`] = `
+"  Integration ⚠1
+▾ Imported libraries
+  ▾ ballerina/workflow ⚠1 *
+      management
+      management.rest ⚠1 *
+      observe
+    ballerina/log
+    wso2/notifier
+  ▸ wso2/messaging"
+`;

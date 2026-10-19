@@ -93,6 +93,8 @@ public class SourceBuilder {
     private final Map<Path, ModulePrefixContext> prefixContexts;
     private final LSClientLogger lsClientLogger;
     private Range defaultRange;
+    /** True when the edits are only applied to compute the form's diagnostics and are reverted afterwards. */
+    private boolean forDiagnostics;
 
     // Project file names
     private static final String CONNECTIONS_BAL = "connections.bal";
@@ -136,6 +138,21 @@ public class SourceBuilder {
 
     public SourceBuilder(FlowNode flowNode, WorkspaceManager workspaceManager, Path filePath) {
         this(flowNode, workspaceManager, filePath, null);
+    }
+
+    /**
+     * Marks the edits as a diagnostics pass: they are applied to compute the form's diagnostics and then
+     * reverted, so a builder writes what it can for an incomplete form instead of rejecting it.
+     *
+     * @return this source builder
+     */
+    public SourceBuilder forDiagnostics() {
+        this.forDiagnostics = true;
+        return this;
+    }
+
+    public boolean isForDiagnostics() {
+        return forDiagnostics;
     }
 
     private Path resolveFromData(Codedata codedata, Path requestFilePath) {
@@ -738,6 +755,7 @@ public class SourceBuilder {
     public SourceBuilder children(List<FlowNode> flowNodes) {
         for (FlowNode node : flowNodes) {
             SourceBuilder sourceBuilder = new SourceBuilder(node, workspaceManager, filePath, lsClientLogger);
+            sourceBuilder.forDiagnostics = forDiagnostics;
             Map<Path, List<TextEdit>> textEdits =
                     NodeBuilder.getNodeFromKind(node.codedata().node()).toSource(sourceBuilder);
             List<TextEdit> filePathTextEdits = textEdits.get(filePath);

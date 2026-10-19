@@ -112,7 +112,7 @@
           "kind": "INCLUDED_FIELD",
           "originalName": "username"
         },
-        "defaultValue": "\"\""
+        "defaultValue": ""
       },
       "password": {
         "metadata": {
@@ -140,7 +140,7 @@
           "kind": "INCLUDED_FIELD",
           "originalName": "password"
         },
-        "defaultValue": "\"\""
+        "defaultValue": ""
       },
       "virtualHost": {
         "metadata": {
@@ -168,7 +168,7 @@
           "kind": "INCLUDED_FIELD",
           "originalName": "virtualHost"
         },
-        "defaultValue": "\"\""
+        "defaultValue": ""
       },
       "connectionTimeout": {
         "metadata": {
@@ -196,7 +196,7 @@
           "kind": "INCLUDED_FIELD",
           "originalName": "connectionTimeout"
         },
-        "defaultValue": "0.0d"
+        "defaultValue": ""
       },
       "handshakeTimeout": {
         "metadata": {
@@ -224,7 +224,7 @@
           "kind": "INCLUDED_FIELD",
           "originalName": "handshakeTimeout"
         },
-        "defaultValue": "0.0d"
+        "defaultValue": ""
       },
       "shutdownTimeout": {
         "metadata": {
@@ -252,7 +252,7 @@
           "kind": "INCLUDED_FIELD",
           "originalName": "shutdownTimeout"
         },
-        "defaultValue": "0.0d"
+        "defaultValue": ""
       },
       "heartbeat": {
         "metadata": {
@@ -280,7 +280,7 @@
           "kind": "INCLUDED_FIELD",
           "originalName": "heartbeat"
         },
-        "defaultValue": "0.0d"
+        "defaultValue": ""
       },
       "validation": {
         "metadata": {
@@ -345,7 +345,7 @@
           "kind": "INCLUDED_FIELD",
           "originalName": "secureSocket"
         },
-        "defaultValue": "{cert: {path: \"\", password: \"\"}}"
+        "defaultValue": ""
       },
       "auth": {
         "metadata": {
@@ -382,7 +382,7 @@
           "kind": "INCLUDED_FIELD",
           "originalName": "auth"
         },
-        "defaultValue": "{username: \"\", password: \"\"}"
+        "defaultValue": ""
       },
       "failoverAddresses": {
         "metadata": {

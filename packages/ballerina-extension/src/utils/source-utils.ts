@@ -23,6 +23,8 @@ import { Uri } from 'vscode';
 import { ArtifactData, EVENT_TYPE, MACHINE_VIEW, ProjectStructureArtifactResponse, STModification, TextEdit } from '@wso2/ballerina-core';
 import { openView, StateMachine, undoRedoManager } from '../stateMachine';
 import { ArtifactsUpdated, ArtifactNotificationHandler } from './project-artifacts-handler';
+import { refreshArtifactPositions } from './project-artifacts';
+import { startPullAwareTimeout } from './module-pull-state';
 import { existsSync, writeFileSync, mkdirSync } from 'fs';
 import * as path from 'path';
 import { notifyCurrentWebview } from '../RPCLayer';
@@ -168,8 +170,10 @@ export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCode
             // Capture IDs of newly added artifacts so we can re-apply isNew on the formatted edit notification.
             const handler = ArtifactNotificationHandler.getInstance();
             let newArtifactIds: Set<string> | undefined;
+            let rawEditTimedOut = false;
             const rawEditNotification = new Promise<void>((resolve) => {
-                let timeoutId: ReturnType<typeof setTimeout>;
+                // Pull-aware: the raw edit's first compile can wait on a module pull it triggered.
+                const timeout = startPullAwareTimeout(() => { rawEditTimedOut = true; unsub(); resolve(); }, 10000);
                 const unsub = handler.subscribe(
                     ArtifactsUpdated.method, updateSourceCodeRequest.artifactData,
                     (payload) => {
@@ -178,11 +182,10 @@ export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCode
                             newArtifactIds = new Set(
                                 artifactData.filter(a => a.isNew).map(a => a.id)
                             );
-                            clearTimeout(timeoutId); unsub(); resolve();
+                            timeout.cancel(); unsub(); resolve();
                         }
                     }
                 );
-                timeoutId = setTimeout(() => { unsub(); resolve(); }, 10000);
             });
 
             // Apply all changes at once
@@ -244,24 +247,45 @@ export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCode
                 let unsubscribe = notificationHandler.subscribe(ArtifactsUpdated.method, updateSourceCodeRequest.artifactData, async (payload) => {
                     if ((payload.data && payload.data.length > 0) || updateSourceCodeRequest.skipPayloadCheck) {
                         console.log("Received notification:", payload);
+                        let data = payload.data;
+                        if (rawEditTimedOut) {
+                            // The raw edit's notification did not arrive before formatting, so this can be
+                            // it, with positions in the unformatted text. Read the formatted text's instead.
+                            unsubscribe();
+                            // Bounded: the save's own timeout no longer applies once unsubscribed.
+                            let refreshTimeoutId: ReturnType<typeof setTimeout>;
+                            const refreshTimedOut = new Promise<undefined>(done => {
+                                refreshTimeoutId = setTimeout(() => done(undefined), 10000);
+                            });
+                            try {
+                                data = (await Promise.race([
+                                    refreshArtifactPositions(Object.keys(modificationRequests)[0], data),
+                                    refreshTimedOut
+                                ])) ?? data;
+                            } catch (error) {
+                                console.error("Failed to refresh artifact positions:", error);
+                            } finally {
+                                clearTimeout(refreshTimeoutId);
+                            }
+                        }
                         if (newArtifactIds?.size) {
-                            payload.data.forEach(entry => {
+                            data.forEach(entry => {
                                 if (newArtifactIds.has(entry.id)) {
                                     entry.isNew = true;
                                 }
                             });
                         }
-                        clearTimeout(timeoutId);
-                        resolve(payload.data);
+                        timeout.cancel();
+                        resolve(data);
                         StateMachine.setReadyMode();
-                        checkAndNotifyWebview(payload.data, updateSourceCodeRequest, isChangeFromHelperPane);
+                        checkAndNotifyWebview(data, updateSourceCodeRequest, isChangeFromHelperPane);
                         unsubscribe();
                     }
                 });
 
-                // Set a timeout to reject if no notification is received within 10 seconds
-                const timeoutId = setTimeout(() => {
-                    console.log("No artifact update notification received within 10 seconds");
+                // Set a timeout to reject if no notification is received within 10 seconds outside a module pull
+                const timeout = startPullAwareTimeout(() => {
+                    console.log("No artifact update notification received within 10 seconds outside a module pull");
                     unsubscribe();
                     StateMachine.setReadyMode();
                     // Don't navigate away while migration enhancement is running — it would
@@ -275,7 +299,7 @@ export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCode
                 // Clear the timeout when notification is received
                 const originalUnsubscribe = unsubscribe;
                 unsubscribe = () => {
-                    clearTimeout(timeoutId);
+                    timeout.cancel();
                     originalUnsubscribe();
                 };
             });

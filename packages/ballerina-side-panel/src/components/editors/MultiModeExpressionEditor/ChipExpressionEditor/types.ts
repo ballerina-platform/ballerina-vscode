@@ -32,6 +32,14 @@ export enum InputMode {
   SIMPLE_TEXT = "Info"
 };
 
+// Display names for the mode switcher. An InputMode value is an identifier and must stay
+// unique, so wording that differs from it (or would collide with another mode) goes here.
+const INPUT_MODE_LABELS: Partial<Record<InputMode, string>> = {
+  [InputMode.TEXT_ARRAY]: "Array"
+};
+
+export const getInputModeLabel = (mode: InputMode): string => INPUT_MODE_LABELS[mode] ?? mode;
+
 export const INPUT_MODE_MAP = {
   string: InputMode.TEXT,
   int: InputMode.NUMBER,

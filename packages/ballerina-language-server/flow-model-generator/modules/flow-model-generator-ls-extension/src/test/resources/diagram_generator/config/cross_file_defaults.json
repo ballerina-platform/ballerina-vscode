@@ -1,0 +1,289 @@
+{
+  "start": {
+    "line": 0,
+    "offset": 0
+  },
+  "end": {
+    "line": 2,
+    "offset": 1
+  },
+  "source": "cross_file_defaults/main.bal",
+  "description": "Existing function call whose defaults are declared in other files of the project than the one being edited",
+  "diagram": {
+    "fileName": "main.bal",
+    "nodes": [
+      {
+        "id": "32520",
+        "metadata": {
+          "label": "Start",
+          "data": {
+            "kind": "Function",
+            "label": "main",
+            "isServiceFunction": false
+          }
+        },
+        "codedata": {
+          "node": "EVENT_START",
+          "lineRange": {
+            "fileName": "main.bal",
+            "startLine": {
+              "line": 0,
+              "offset": 23
+            },
+            "endLine": {
+              "line": 2,
+              "offset": 1
+            }
+          },
+          "sourceCode": "public function main() {\n    deploy();\n}"
+        },
+        "returning": false,
+        "flags": 0
+      },
+      {
+        "id": "32873",
+        "metadata": {
+          "label": "deploy",
+          "description": ""
+        },
+        "codedata": {
+          "node": "FUNCTION_CALL",
+          "org": "wso2",
+          "module": "cross_file_defaults",
+          "packageName": "cross_file_defaults",
+          "symbol": "deploy",
+          "version": "0.1.0",
+          "lineRange": {
+            "fileName": "main.bal",
+            "startLine": {
+              "line": 1,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 1,
+              "offset": 13
+            }
+          },
+          "sourceCode": "deploy();"
+        },
+        "returning": false,
+        "properties": {
+          "view": {
+            "metadata": {
+              "label": "View",
+              "description": "Function definition location"
+            },
+            "types": [
+              {
+                "fieldType": "VIEW",
+                "selected": true
+              }
+            ],
+            "value": {
+              "fileName": "functions.bal",
+              "startLine": {
+                "line": 0,
+                "offset": 0
+              },
+              "endLine": {
+                "line": 2,
+                "offset": 1
+              }
+            },
+            "optional": false,
+            "editable": false,
+            "advanced": false,
+            "hidden": false
+          },
+          "region": {
+            "metadata": {
+              "label": "Region"
+            },
+            "types": [
+              {
+                "fieldType": "SINGLE_SELECT",
+                "options": [
+                  {
+                    "label": "US_EAST",
+                    "value": "\"us-east-1\""
+                  },
+                  {
+                    "label": "EU_WEST",
+                    "value": "\"eu-west-1\""
+                  },
+                  {
+                    "label": "AP_SOUTH",
+                    "value": "\"ap-south-1\""
+                  }
+                ],
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "Region",
+                "selected": false
+              }
+            ],
+            "placeholder": "\"eu-west-1\"",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "DEFAULTABLE",
+              "originalName": "region"
+            },
+            "defaultValue": "\"eu-west-1\""
+          },
+          "backupRegion": {
+            "metadata": {
+              "label": "Backup Region"
+            },
+            "types": [
+              {
+                "fieldType": "SINGLE_SELECT",
+                "options": [
+                  {
+                    "label": "US_EAST",
+                    "value": "\"us-east-1\""
+                  },
+                  {
+                    "label": "EU_WEST",
+                    "value": "\"eu-west-1\""
+                  },
+                  {
+                    "label": "AP_SOUTH",
+                    "value": "\"ap-south-1\""
+                  }
+                ],
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "Region",
+                "selected": false
+              }
+            ],
+            "placeholder": "\"ap-south-1\"",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "DEFAULTABLE",
+              "originalName": "backupRegion"
+            },
+            "defaultValue": "\"ap-south-1\""
+          },
+          "priority": {
+            "metadata": {
+              "label": "Priority"
+            },
+            "types": [
+              {
+                "fieldType": "SINGLE_SELECT",
+                "options": [
+                  {
+                    "label": "high",
+                    "value": "\"high\""
+                  },
+                  {
+                    "label": "low",
+                    "value": "\"low\""
+                  }
+                ],
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "Priority",
+                "selected": false
+              }
+            ],
+            "placeholder": "\"high\"",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "DEFAULTABLE",
+              "originalName": "priority"
+            },
+            "defaultValue": "\"high\""
+          },
+          "fallbackRegion": {
+            "metadata": {
+              "label": "Fallback Region",
+              "description": ""
+            },
+            "types": [
+              {
+                "fieldType": "SINGLE_SELECT",
+                "options": [
+                  {
+                    "label": "US_EAST",
+                    "value": "\"us-east-1\""
+                  },
+                  {
+                    "label": "EU_WEST",
+                    "value": "\"eu-west-1\""
+                  },
+                  {
+                    "label": "AP_SOUTH",
+                    "value": "\"ap-south-1\""
+                  }
+                ],
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "Region",
+                "selected": false
+              }
+            ],
+            "placeholder": "\"us-east-1\"",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "INCLUDED_FIELD",
+              "originalName": "fallbackRegion"
+            },
+            "defaultValue": "\"us-east-1\""
+          },
+          "retries": {
+            "metadata": {
+              "label": "Retries",
+              "description": ""
+            },
+            "types": [
+              {
+                "fieldType": "NUMBER",
+                "ballerinaType": "int",
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "int",
+                "selected": false
+              }
+            ],
+            "placeholder": "0",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "INCLUDED_FIELD",
+              "originalName": "retries"
+            },
+            "defaultValue": "3"
+          }
+        },
+        "flags": 0
+      }
+    ],
+    "connections": []
+  }
+}

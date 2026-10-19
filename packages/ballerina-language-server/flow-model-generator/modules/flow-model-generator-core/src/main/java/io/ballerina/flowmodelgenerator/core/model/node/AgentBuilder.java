@@ -124,12 +124,17 @@ public class AgentBuilder extends CallBuilder {
         metadata().addData(PARAMS_TO_HIDE, List.of(TOOLS, TYPE));
         hideAgentConfigProperties(this);
         AgentCallBuilder.setAdditionalAgentProperties(this, null, false);
+        AiUtils.setOptionalPropertiesAdvanced(this);
     }
 
     @Override
     protected void setReturnTypeProperties(FunctionData functionData, TemplateContext context,
                                            String label, String doc, boolean hidden) {
-        super.setReturnTypeProperties(functionData, context, "Agent Name", "Name of the agent", hidden);
+        properties()
+                .type(functionData.returnType(), false, functionData.importStatements(), hidden,
+                        Property.RESULT_TYPE_LABEL)
+                .data(functionData.returnType(), context.getAllVisibleSymbolNames(), "Agent Name",
+                        "Name of the agent", true);
     }
 
     public static void hideAgentConfigProperties(NodeBuilder nodeBuilder) {
