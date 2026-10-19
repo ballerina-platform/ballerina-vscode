@@ -73,7 +73,6 @@ async function openActivityList(webview: Frame): Promise<Locator> {
     await webview.getByTestId('durable-agent-add-activity').first().click({ force: true });
     const sidePanel = webview.getByTestId('side-panel');
     await sidePanel.getByTestId('node-list-action-onAddFunction').first().waitFor({ state: 'visible', timeout: 60000 });
-    await sidePanel.getByText('lookupBill', { exact: true }).first().waitFor({ timeout: 60000 });
     return sidePanel;
 }
 
@@ -95,6 +94,8 @@ export default function createTests() {
             const sidePanel = await openActivityList(webview);
 
             logStep('Pick lookupBill and check the registration form');
+            // The list leaves out what the agent already has, so lookupBill is offered only before it is registered.
+            await sidePanel.getByText('lookupBill', { exact: true }).first().waitFor({ timeout: 60000 });
             await clickListItem(sidePanel, 'lookupBill');
             const saveButton = webview.getByRole('button', { name: 'Save' });
             await saveButton.waitFor({ state: 'visible', timeout: 60000 });
