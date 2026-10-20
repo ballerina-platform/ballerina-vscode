@@ -61,6 +61,16 @@ interface EntryPosition {
     position: NodePosition;
 }
 
+function textEditsOrThrow(source: BISourceCodeResponse | undefined): BISourceCodeResponse["textEdits"] {
+    if (source?.errorMsg) {
+        throw new Error(source.errorMsg);
+    }
+    if (!source?.textEdits) {
+        throw new Error("No text edits were returned for the MCP toolkit.");
+    }
+    return source.textEdits;
+}
+
 export class AiAgentRpcManager implements AIAgentAPI {
     private async ensureAgentsFile(projectPath: string): Promise<string> {
         const agentsFilePath = Utils.joinPath(URI.file(projectPath), "agents.bal").fsPath;
@@ -316,7 +326,7 @@ export class AiAgentRpcManager implements AIAgentAPI {
         const source = await StateMachine.langClient().getSourceCode(
             { filePath: agentsFilePath, flowNode: agentFlowNode, nodes } as BISourceCodeRequest
         ) as BISourceCodeResponse & { formatted?: boolean };
-        await updateSourceCode({ textEdits: source.textEdits, preformatted: source.formatted });
+        await updateSourceCode({ textEdits: textEditsOrThrow(source), preformatted: source.formatted });
     }
 
     private parseToolsString(toolsStr: string): string[] {
