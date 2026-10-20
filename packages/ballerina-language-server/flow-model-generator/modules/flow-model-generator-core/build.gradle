@@ -128,6 +128,16 @@ test {
     maxHeapSize = "2g"
 }
 
+// Pulls and scans AI packages from Ballerina Central; run through scripts/update_ai_catalog_fallback.py.
+task generateAiCatalogFallback(type: JavaExec) {
+    dependsOn copyStdlibs
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = "io.ballerina.flowmodelgenerator.core.AiCatalogFallbackGenerator"
+    systemProperty "ballerina.home", balDistribution
+    workingDir = projectDir
+    maxHeapSize = "2g"
+}
+
 shadowJar {
     configurations = [project.configurations.runtimeClasspath]
     dependencies {
