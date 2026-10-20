@@ -144,14 +144,14 @@ const Footer = styled.div`
 
 const RowPort = styled(PortWidget)<{ offset: number }>`
     position: absolute;
-    right: -6px;
+    right: -${NODE_BORDER_WIDTH}px;
     top: ${(props) => props.offset}px;
     transform: translateY(-50%);
 `;
 
 const CardPort = styled(PortWidget)<{ vertical: boolean }>`
     position: absolute;
-    ${(props) => (props.vertical ? `bottom: -6px; left: ${ENTRY_CARD_WIDTH / 2}px;` : `right: -6px; top: ${ENTRY_HEADER_HEIGHT / 2}px;`)}
+    ${(props) => (props.vertical ? `bottom: -${NODE_BORDER_WIDTH}px; left: ${ENTRY_CARD_WIDTH / 2}px;` : `right: -${NODE_BORDER_WIDTH}px; top: ${ENTRY_HEADER_HEIGHT / 2}px;`)}
     transform: ${(props) => (props.vertical ? "translateX(-50%)" : "translateY(-50%)")};
 `;
 
