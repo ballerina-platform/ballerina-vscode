@@ -1073,13 +1073,14 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
     async deleteFlowNode(params: BISourceCodeRequest): Promise<UpdatedArtifactsResponse> {
         const response = await StateMachine.langClient()
             .deleteFlowNode({ ...params, formatted: true } as BISourceCodeRequest)
-            .catch((error) => {
-                console.error(">>> Error deleting flow node", error);
-                return undefined;
-            }) as (BISourceCodeResponse & { formatted?: boolean }) | undefined;
+            .catch((error): BISourceCodeResponse => ({ errorMsg: error instanceof Error ? error.message : String(error) })
+            ) as BISourceCodeResponse & { formatted?: boolean };
         // Thrown, not returned: most callers chain further deletes and would carry on as if this one succeeded.
         if (!response?.textEdits) {
-            throw new Error("Could not delete the node");
+            const errorMessage = response?.errorMsg ?? "the language server returned no edits";
+            console.error(">>> Error deleting flow node", { errorMessage, stacktrace: response?.stacktrace });
+            window.showErrorMessage(`Failed to delete the node: ${errorMessage}`);
+            throw new Error(errorMessage);
         }
         const artifacts = await updateSourceCode({
             textEdits: response.textEdits,

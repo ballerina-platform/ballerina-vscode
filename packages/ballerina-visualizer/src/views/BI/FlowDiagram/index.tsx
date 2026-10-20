@@ -2910,6 +2910,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         clearRefreshTimers();
         // Stay locked until the flow without the node is on screen, so a quick next delete cannot hit a stale range.
         setShowProgressIndicator(true);
+        markFlowModelStale();
         getFlowModel();
     };
 
