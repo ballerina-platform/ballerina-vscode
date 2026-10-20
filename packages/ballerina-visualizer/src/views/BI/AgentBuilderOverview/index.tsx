@@ -87,6 +87,7 @@ const Stage = styled.div`
     min-width: 0;
 `;
 
+// Fade only: the diagram measures its ports from the DOM while the canvas fades in, and a transform skews them.
 const Layer = styled.div<{ $show?: boolean }>`
     grid-area: 1 / 1;
     display: flex;
@@ -94,9 +95,8 @@ const Layer = styled.div<{ $show?: boolean }>`
     min-height: 0;
     min-width: 0;
     opacity: ${(props: { $show?: boolean }) => (props.$show ? 1 : 0)};
-    transform: ${(props: { $show?: boolean }) => (props.$show ? "none" : "scale(0.99)")};
     pointer-events: ${(props: { $show?: boolean }) => (props.$show ? "auto" : "none")};
-    transition: opacity 500ms ease, transform 500ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    transition: opacity 500ms ease;
 
     @media (prefers-reduced-motion: reduce) {
         transition: none;
