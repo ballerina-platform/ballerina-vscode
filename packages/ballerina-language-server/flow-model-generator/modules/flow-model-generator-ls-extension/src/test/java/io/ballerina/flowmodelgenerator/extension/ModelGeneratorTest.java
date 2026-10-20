@@ -150,6 +150,27 @@ public class ModelGeneratorTest extends AbstractLSTest {
         Assert.assertEquals(properties.getAsJsonObject("instructions").get("value").getAsString(), formInstructions);
     }
 
+    @Test
+    public void testPromptVariableMetadata() throws IOException {
+        JsonObject properties = getAgentNode("fieldVarAgent").getAsJsonObject("properties");
+        JsonObject instructions = getPromptVariable(properties, "instructions");
+        Assert.assertEquals(instructions.get("name").getAsString(), "tutorInstructions");
+        Assert.assertEquals(instructions.get("value").getAsString(), "Explain step by step.");
+        Assert.assertEquals(instructions.get("references").getAsInt(), 2);
+        Assert.assertEquals(instructions.getAsJsonObject("lineRange").getAsJsonObject("startLine").get("line")
+                .getAsInt(), 6);
+        Assert.assertEquals(getPromptVariable(properties, "role").get("value").getAsString(), "Tutor");
+
+        JsonObject configurable = getAgentNode("configurableAgent").getAsJsonObject("properties");
+        Assert.assertNull(getPromptVariable(configurable, "role"));
+        Assert.assertNull(getPromptVariable(configurable, "instructions"));
+    }
+
+    private static JsonObject getPromptVariable(JsonObject properties, String key) {
+        JsonObject data = properties.getAsJsonObject(key).getAsJsonObject("metadata").getAsJsonObject("data");
+        return data == null ? null : data.getAsJsonObject("promptVariable");
+    }
+
     private JsonObject getAgentNode(String agentName) throws IOException {
         String source = "agent_system_prompt_variable.bal";
         List<String> lines = Files.readAllLines(sourceDir.resolve(source));
