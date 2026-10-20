@@ -15,7 +15,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { expect, Locator, test } from '@playwright/test';
+import { expect, Frame, Locator, test } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
 import { switchToIFrame } from '@wso2/playwright-vscode-tester';
@@ -47,6 +47,48 @@ async function clickListItem(sidePanel: Locator, name: string, until?: Locator):
             throw new Error(`clicking '${name}' in the panel did not open its form`);
         }
     }
+}
+
+// Opens a registered capability's edit form from its circle on the agent box. The designer ignores the click
+// while a side panel is still open, and the previous form's panel can outlive the save that wrote the entry;
+// a circle drawn before the last refresh has no source range to edit either. Wait for the panel to go, then
+// click until the form shows.
+async function openCapability(webview: Frame, capability: Locator, formReady: Locator): Promise<void> {
+    await expect.poll(() => webview.getByTestId('side-panel').filter({ visible: true }).count(), { timeout: 60000 })
+        .toBe(0).catch(() => undefined);
+    await capability.waitFor({ state: 'visible', timeout: 60000 });
+    for (let attempt = 0; attempt < 8; attempt++) {
+        await capability.click({ force: true, timeout: 5000 }).catch(() => capability.dispatchEvent('click'));
+        if (await formReady.waitFor({ state: 'visible', timeout: 8000 }).then(() => true, () => false)) {
+            return;
+        }
+        await page.page.waitForTimeout(2000);
+    }
+    throw new Error('clicking the registered capability did not open its edit form');
+}
+
+// Types the name of a new activity. The form fills the field from a template that can arrive after the form
+// opens, over anything typed before then: wait until the default has held, type, and retype if the template
+// still landed on top.
+async function fillActivityName(input: Locator, value: string): Promise<void> {
+    const current = () => input.inputValue().catch(() => '');
+    let last = await current();
+    for (let stable = 0, i = 0; stable < 4 && i < 60; i++) {
+        await page.page.waitForTimeout(250);
+        const now = await current();
+        stable = now === last && now !== '' ? stable + 1 : 0;
+        last = now;
+    }
+    for (let attempt = 0; attempt < 5; attempt++) {
+        await input.fill(value);
+        // The identifier field validates on blur and Save stays disabled until it has.
+        await input.press('Tab');
+        await page.page.waitForTimeout(1000);
+        if (await current() === value) {
+            return;
+        }
+    }
+    throw new Error(`the Activity Name field did not keep '${value}'`);
 }
 
 // Clicks a form's Save and repeats it while the form stays open: a click that lands while the form is
@@ -136,12 +178,9 @@ export default function createTests() {
             // The registered activity hangs off the agent box as a capability circle.
             const capability = webview.getByTestId('durable-agent-capability-activity-lookupBill');
             await capability.waitFor({ timeout: 60000 });
-            // On slow runners the post-save refresh is still settling and swallows an immediate click on the circle.
-            await page.page.waitForTimeout(5000);
 
             logStep('Open the registered entry and check its edit form');
-            await capability.click({ force: true });
-            await saveButton.waitFor({ state: 'visible', timeout: 60000 });
+            await openCapability(webview, capability, saveButton);
             // The name and description show what the runtime uses, read-only: the function's name and doc comment.
             await expect(webview.getByText('Activity Name', { exact: true })).toBeVisible();
             await expect(webview.getByText('Activity Description', { exact: true })).toBeVisible();
@@ -174,12 +213,14 @@ export default function createTests() {
             logStep('Fill the Workflow Activity form and save');
             const nameInput = webview.getByRole('textbox', { name: /Activity Name/ }).first();
             await nameInput.waitFor({ timeout: 60000 });
-            await nameInput.fill('notifyCustomer');
-            // The identifier field validates on blur and Save stays disabled until it has.
-            await nameInput.press('Tab');
+            await fillActivityName(nameInput, 'notifyCustomer');
             const createButton = webview.getByRole('button', { name: 'Save' }).first();
             await expect.poll(() => createButton.getAttribute('disabled'), { timeout: 30000 }).toBeNull();
             await page.page.waitForTimeout(500);
+            if (await nameInput.inputValue().catch(() => '') !== 'notifyCustomer') {
+                await fillActivityName(nameInput, 'notifyCustomer');
+                await expect.poll(() => createButton.getAttribute('disabled'), { timeout: 30000 }).toBeNull();
+            }
             // A Save that lands while the form is still settling is dropped and the function is never written.
             await saveUntilSource(createButton, () => {
                 const file = path.join(newProjectPath, 'functions.bal');

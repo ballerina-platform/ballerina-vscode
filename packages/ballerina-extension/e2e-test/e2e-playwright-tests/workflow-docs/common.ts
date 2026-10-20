@@ -66,19 +66,32 @@ export async function openArtifact(j: DocJourney, ui: Integrator, project: strin
             return frame;
         }
         const onCanvas = canvas.getByText(expect).filter({ visible: true }).first();
-        return onCanvas.waitFor({ state: 'visible', timeout: timeoutMs }).then(() => frame, () => undefined);
+        if (!await onCanvas.waitFor({ state: 'visible', timeout: timeoutMs }).then(() => true, () => false)) {
+            return undefined;
+        }
+        // The designer opens a just-created artifact on its own, a moment after its source lands. A sidebar click
+        // that arrives first shows the artifact asked for until that navigation replaces it; only a canvas that
+        // holds for a while is the one the step will act on.
+        await j.page.waitForTimeout(1500);
+        return await onCanvas.isVisible().catch(() => false) ? frame : undefined;
     };
-    await ui.sidebar(name);
-    let opened = await arrivedOn(await ui.view(expect, 20000).catch(() => undefined), 10000);
-    if (!opened) {
-        // Clicking the row that is already selected does not reopen it; the breadcrumb does.
-        opened = await arrivedOn(await ui.crumb(name, expect).catch(() => undefined), 10000);
-    }
-    if (!opened) {
-        // A click on the row while the tree was refreshing (a new artifact had just been created) is dropped.
+    const open = async (): Promise<FrameLocator | undefined> => {
         await ui.sidebar(name);
-        opened = await arrivedOn(await ui.view(expect, 30000).catch(() => undefined), 20000);
-    }
+        let opened = await arrivedOn(await ui.view(expect, 20000).catch(() => undefined), 10000);
+        if (!opened) {
+            // Clicking the row that is already selected does not reopen it; the breadcrumb does.
+            opened = await arrivedOn(await ui.crumb(name, expect).catch(() => undefined), 10000);
+        }
+        if (!opened) {
+            // A click on the row while the tree was refreshing (a new artifact had just been created) is dropped.
+            await ui.sidebar(name);
+            opened = await arrivedOn(await ui.view(expect, 30000).catch(() => undefined), 20000);
+        }
+        return opened;
+    };
+    // A navigation that replaced the canvas also moved the tree's selection, so a second round's sidebar click
+    // reopens the artifact.
+    const opened = await open() ?? await open();
     if (!opened) {
         throw new Error(`Step ${j.stepId}: opening '${name}' did not show '${expect}' on its diagram`);
     }

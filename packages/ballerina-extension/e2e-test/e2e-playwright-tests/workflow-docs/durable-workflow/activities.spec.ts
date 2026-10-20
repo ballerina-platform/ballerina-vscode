@@ -71,6 +71,11 @@ export default function createTests() {
                 await ui.fillAccepted(view, 'Activity Name', 'chargeCard', create);
                 await j.click(create);
                 await expect.poll(source, { timeout: 60000 }).toMatch(/function chargeCard\(/);
+                // Once the source is in, the designer opens the new activity's own diagram, a few seconds later on
+                // a slow runner. The next step reopens the workflow; a click that lands before this navigation is
+                // undone by it, so wait for the activity's diagram first.
+                await view.getByText('chargeCard', { exact: true }).filter({ visible: true }).first()
+                    .waitFor({ state: 'visible', timeout: 30000 }).catch(() => undefined);
             });
 
             await j.step('connection.1', 'On the workflow diagram, click **+**, then click **Call Activity**. The **Activities** panel opens.', async () => {
