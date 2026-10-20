@@ -36,13 +36,12 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 /**
  * Tests for the stdio launcher's {@link Main}: the JSON-RPC stream guard ({@link Main#protectJsonRpcStream()}) and
- * the process lifecycle ({@link Main#serve(Main.ServerRun)}, {@link Main#onExit(ProcessHandle, Runnable)}) that
+ * the process lifecycle ({@link Main#serve(Main.ServerRun)}) that
  * makes the server JVM end when its client is gone instead of lingering as an orphan.
  *
  * @since 1.7.3
@@ -159,47 +158,6 @@ public class MainTest {
         } finally {
             // Clear the flag so it cannot leak into later tests.
             Assert.assertTrue(Thread.interrupted());
-        }
-    }
-
-    @Test(description = "The exit action runs once the watched process has ended, and not before")
-    public void testOnExitRunsActionOnlyAfterProcessEnds() throws Exception {
-        String java = ProcessHandle.current().info().command()
-                .orElseThrow(() -> new IllegalStateException("cannot locate the running java binary"));
-        // A child that stays alive until its stdin is closed stands in for the extension host that launched us.
-        Process watched = new ProcessBuilder(java, "-cp", System.getProperty("java.class.path"),
-                BlockOnStdin.class.getName())
-                .redirectErrorStream(true)
-                .redirectOutput(ProcessBuilder.Redirect.DISCARD)
-                .start();
-        CountDownLatch exited = new CountDownLatch(1);
-        try {
-            Main.onExit(watched.toHandle(), exited::countDown);
-
-            Assert.assertFalse(exited.await(500, TimeUnit.MILLISECONDS),
-                    "the exit action must not run while the watched process is alive");
-
-            watched.getOutputStream().close();
-
-            Assert.assertTrue(exited.await(30, TimeUnit.SECONDS),
-                    "the exit action must run after the watched process ends");
-        } finally {
-            watched.destroyForcibly();
-        }
-    }
-
-    /**
-     * Child-process entry point for {@link #testOnExitRunsActionOnlyAfterProcessEnds()}: lives until stdin closes.
-     */
-    public static final class BlockOnStdin {
-
-        private BlockOnStdin() {
-        }
-
-        public static void main(String[] args) throws IOException {
-            while (System.in.read() != -1) {
-                // drain until end-of-input
-            }
         }
     }
 

@@ -90,31 +90,8 @@ public final class Main {
                 ExtendedLanguageClient.class, in, out);
         ExtendedLanguageClient client = launcher.getRemoteProxy();
         server.connect(client);
-        exitWhenParentExits();
         Future<?> startListening = launcher.startListening();
         startListening.get();
-    }
-
-    /**
-     * Ends this process as soon as the process that launched it is gone.
-     * <p>
-     * End-of-input on stdin already covers the common case of a client that dies. This is the second line of
-     * defence for a client that exits while something else still holds the write end of our stdin open, which
-     * would otherwise keep the server listening on a pipe nobody will ever write to again.
-     */
-    static void exitWhenParentExits() {
-        ProcessHandle.current().parent().ifPresent(parent -> onExit(parent, () -> System.exit(EXIT_OK)));
-    }
-
-    /**
-     * Runs {@code action} once {@code process} has exited. Extracted so the wiring can be tested without exiting
-     * the test JVM.
-     *
-     * @param process the process to watch
-     * @param action  what to do when it is gone
-     */
-    static void onExit(ProcessHandle process, Runnable action) {
-        process.onExit().thenRun(action);
     }
 
     /**
