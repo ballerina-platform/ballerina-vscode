@@ -41,7 +41,7 @@ const rpcClient = {
         getModuleNodes: async () => ({ flowModel: { connections: [] as FlowNode[], variables: [current] } }),
     }),
     getCommonRpcClient: () => ({ showErrorMessage }),
-    getVisualizerRpcClient: () => ({ beginUndoGroup: async () => undefined, endUndoGroup: async () => undefined }),
+    getVisualizerRpcClient: () => ({ beginUndoGroup: async (): Promise<void> => undefined, endUndoGroup: async (): Promise<void> => undefined }),
 };
 jest.mock("@wso2/ballerina-rpc-client", () => ({ useRpcContext: () => ({ rpcClient }) }));
 

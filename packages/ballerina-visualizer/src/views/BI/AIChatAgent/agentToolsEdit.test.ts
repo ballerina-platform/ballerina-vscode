@@ -114,7 +114,7 @@ describe("agent tool-list edits", () => {
         const local = { ...agent("[t1, t2]", 7), properties: { variable: { value: "localAgent" }, tools: { value: "[t2]" } } };
         const rpcClient = {
             getBIDiagramRpcClient: () => ({
-                getModuleNodes: async () => ({ flowModel: { connections: [], variables: [] } }),
+                getModuleNodes: async () => ({ flowModel: { connections: [] as FlowNode[], variables: [] as FlowNode[] } }),
                 getEnclosedFunction: async () => ({ startLine: { line: 2, offset: 0 }, endLine: { line: 9, offset: 1 } }),
                 getFlowModel: async () => ({ flowModel: { nodes: [{ codedata: { node: "EVENT_START" } }, local] } }),
             }),
