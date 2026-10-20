@@ -68,6 +68,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
@@ -242,19 +243,54 @@ public class PackageUtil {
     private static final Set<String> PREWARMED = ConcurrentHashMap.newKeySet();
     private static final String AI_PACKAGE = "ai";
 
+    // One load per bala at a time, outside BALA_PACKAGES so a slow load never blocks other balas.
+    private static final ConcurrentHashMap<Path, CompletableFuture<Package>> BALA_LOADS = new ConcurrentHashMap<>();
+
     private static Optional<Package> loadBalaPackage(Path balaPath) {
-        Package[] balaPackage = new Package[1];
-        BALA_PACKAGES.compute(balaPath, (path, cached) -> {
-            balaPackage[0] = cached == null ? null : cached.get();
-            if (balaPackage[0] != null) {
-                return cached;
+        Package cached = cachedBalaPackage(balaPath);
+        if (cached != null) {
+            return Optional.of(cached);
+        }
+        CompletableFuture<Package> load = new CompletableFuture<>();
+        CompletableFuture<Package> inFlight = BALA_LOADS.putIfAbsent(balaPath, load);
+        if (inFlight != null) {
+            return Optional.of(joinBalaLoad(inFlight));
+        }
+        try {
+            Package loaded = cachedBalaPackage(balaPath);
+            if (loaded == null) {
+                ProjectEnvironmentBuilder defaultBuilder = ProjectEnvironmentBuilder.getDefaultBuilder();
+                defaultBuilder.addCompilationCacheFactory(TempDirCompilationCache::from);
+                loaded = BalaProject.loadProject(defaultBuilder, balaPath, balaBuildOptions()).currentPackage();
+                BALA_PACKAGES.put(balaPath, new SoftReference<>(loaded));
             }
-            ProjectEnvironmentBuilder defaultBuilder = ProjectEnvironmentBuilder.getDefaultBuilder();
-            defaultBuilder.addCompilationCacheFactory(TempDirCompilationCache::from);
-            balaPackage[0] = BalaProject.loadProject(defaultBuilder, path, balaBuildOptions()).currentPackage();
-            return new SoftReference<>(balaPackage[0]);
-        });
-        return Optional.of(balaPackage[0]);
+            load.complete(loaded);
+            return Optional.of(loaded);
+        } catch (Throwable e) {
+            load.completeExceptionally(e);
+            throw e;
+        } finally {
+            BALA_LOADS.remove(balaPath, load);
+        }
+    }
+
+    private static Package cachedBalaPackage(Path balaPath) {
+        SoftReference<Package> cached = BALA_PACKAGES.get(balaPath);
+        return cached == null ? null : cached.get();
+    }
+
+    private static Package joinBalaLoad(CompletableFuture<Package> load) {
+        try {
+            return load.join();
+        } catch (CompletionException e) {
+            if (e.getCause() instanceof RuntimeException cause) {
+                throw cause;
+            }
+            if (e.getCause() instanceof Error cause) {
+                throw cause;
+            }
+            throw e;
+        }
     }
 
     /**
@@ -609,7 +645,7 @@ public class PackageUtil {
         // Memoize the immutable offline bala path under a distinct "offline:" key — kept separate
         // from getModulePackage's latest-version cache, whose miss may pull a newer online version —
         // so repeat lookups skip the resolver entirely. Only the resolve touches the thread-local
-        // resolver; the bala load uses a fresh environment per call (see loadBalaPackage).
+        // resolver; the loaded bala package is cached and shared (see loadBalaPackage).
         return memoizedSampleBala(OFFLINE_RESOLUTION_KEY_PREFIX + sampleResolutionKey(org, name, version, null),
                 () -> resolveOfflineModuleBala(org, name, version)).flatMap(PackageUtil::loadBalaPackage);
     }

@@ -154,6 +154,10 @@ public class BallerinaWorkspaceManagerProxyImpl implements BallerinaWorkspaceMan
             this.aiWorkspaceManager.didClose(path.get(), params);
         } else {
             this.baseWorkspaceManager.didClose(path.get(), params);
+            // A project the base evicted on its last close would otherwise live on in its clone.
+            if (this.baseWorkspaceManager.project(path.get()).isEmpty()) {
+                this.clonedWorkspaceManager.evict(path.get());
+            }
         }
     }
 
@@ -204,6 +208,13 @@ public class BallerinaWorkspaceManagerProxyImpl implements BallerinaWorkspaceMan
                 return;
             }
             open(sourceProject);
+        }
+
+        public void evict(Path filePath) {
+            project(filePath).ifPresent(project -> {
+                sourceRootToProject.remove(project.sourceRoot());
+                syncedWith.remove(project.sourceRoot());
+            });
         }
 
         public void markSynced(Project sourceProject) {
