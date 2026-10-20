@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { AgentEventChannel, AgentKind, AgentToolData, AvailableNode, CodeData, ConfigVariable, DIRECTORY_MAP, ELineRange, EVENT_TYPE, FlowNode, GET_DEFAULT_MODEL_PROVIDER, isAgentDeclarationNode, LinePosition, LineRange, MACHINE_VIEW, NodeKind, NodePosition, ProjectStructureArtifactResponse, Property, SearchNodesQuery, ToolData, ToolParameters, VisualizerLocation } from "@wso2/ballerina-core";
+import { AgentEventChannel, AgentKind, AgentToolData, AvailableNode, BISearchRequest, BISearchResponse, CodeData, ConfigVariable, DIRECTORY_MAP, ELineRange, EVENT_TYPE, FlowNode, GET_DEFAULT_MODEL_PROVIDER, isAgentDeclarationNode, LinePosition, LineRange, MACHINE_VIEW, NodeKind, NodePosition, ProjectStructureArtifactResponse, Property, SearchKind, SearchNodesQuery, ToolData, ToolParameters, VisualizerLocation } from "@wso2/ballerina-core";
 import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
 import { FormField } from "@wso2/ballerina-side-panel";
 import { cloneDeep } from "lodash";
@@ -327,6 +327,31 @@ export const getAiModuleOrg = async (rpcClient: BallerinaRpcClient, nodeKind?: N
     console.log(">>> agent org", aiModuleOrgResponse.orgName);
     return aiModuleOrgResponse.orgName;
 }
+
+const AI_COMPONENT_SEARCH_KINDS: SearchKind[] = [
+    "MODEL_PROVIDER", "EMBEDDING_PROVIDER", "VECTOR_STORE", "CHUNKER", "DATA_LOADER", "SHORT_TERM_MEMORY_STORE",
+    "KNOWLEDGE_BASE",
+];
+
+// Answers first with the components the LS already knows, then again with the list refreshed from Ballerina Central.
+// onSlowLoad fires only when nothing is known locally, so callers show a loader just for the slow path.
+export const searchAiComponents = async (
+    rpcClient: BallerinaRpcClient,
+    request: BISearchRequest,
+    onResponse: (response: BISearchResponse, refreshing: boolean) => void,
+    onSlowLoad?: () => void
+): Promise<void> => {
+    const diagramClient = rpcClient.getBIDiagramRpcClient();
+    const cached = AI_COMPONENT_SEARCH_KINDS.includes(request.searchKind)
+        ? await diagramClient.search({ ...request, queryMap: { ...request.queryMap, cachedOnly: "true" } })
+        : undefined;
+    if (cached?.categories?.some((category) => category.items?.length > 0)) {
+        onResponse(cached, true);
+    } else {
+        onSlowLoad?.();
+    }
+    onResponse(await diagramClient.search(request), false);
+};
 
 export const getNPFilePath = async (rpcClient: BallerinaRpcClient) => {
     const visualizerContext = await rpcClient.getVisualizerLocation();

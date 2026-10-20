@@ -17,11 +17,10 @@
  */
 
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { FormField, FormValues, FormImports } from "@wso2/ballerina-side-panel";
+import { FormField, FormLoadingState, FormValues, FormImports } from "@wso2/ballerina-side-panel";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { PanelOverlayContext } from "../../views/BI/FlowDiagram/context/PanelOverlayContext";
 import { ArtifactForm } from "../../views/BI/Forms/ArtifactForm";
-import { RelativeLoader } from "../RelativeLoader";
 import { InfoBox } from "../InfoBox";
 import { ConnectionCreatorProps } from "./types";
 import { getConnectionSpecialConfig } from "./config";
@@ -30,7 +29,6 @@ import { useCreateNode } from "./useCreateNode";
 import { updateFormFieldsWithData, updateNodeTemplateProperties, updateNodeWithConnectionVariable, updateNodeLineRange } from "./utils";
 import { cloneDeep } from "lodash";
 import { GET_DEFAULT_EMBEDDING_PROVIDER, GET_DEFAULT_MODEL_PROVIDER, LineRange, RecordTypeField, getPrimaryInputType, PropertyTypeMemberInfo } from "@wso2/ballerina-core";
-import { LoaderContainer } from "../RelativeLoader/styles";
 import { URI, Utils } from "vscode-uri";
 import { CONNECTIONS_FILE } from "../../constants";
 import { settlePendingSetup } from "../../views/BI/FlowDiagram/utils";
@@ -46,7 +44,7 @@ export function ConnectionCreator(props: ConnectionCreatorProps): JSX.Element {
     const isInPopup = !useContext(PanelOverlayContext);
     const [connectionFields, setConnectionFields] = useState<FormField[]>([]);
     const [recordTypeFields, setRecordTypeFields] = useState<RecordTypeField[]>([]);
-    const [loading, setLoading] = useState<boolean>(false);
+    const [loading, setLoading] = useState<boolean>(true);
     const [savingForm, setSavingForm] = useState<boolean>(false);
 
     const projectPath = useRef<string>("");
@@ -149,11 +147,7 @@ export function ConnectionCreator(props: ConnectionCreatorProps): JSX.Element {
 
     return (
         <>
-            {loading && (
-                <LoaderContainer>
-                    <RelativeLoader />
-                </LoaderContainer>
-            )}
+            {loading && <FormLoadingState />}
             {!loading && connectionFields?.length > 0 && (
                 <>
                     <ArtifactForm

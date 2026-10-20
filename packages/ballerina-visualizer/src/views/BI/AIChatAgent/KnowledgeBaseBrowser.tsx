@@ -23,6 +23,9 @@ import { Category as PanelCategory, Node as PanelNode } from "@wso2/ballerina-si
 import { AvailableNode, Category, CodeData, LinePosition } from "@wso2/ballerina-core";
 import { convertBICategoriesToSidePanelCategories, convertKnowledgeBaseCategoriesToSidePanelCategories } from "../../../utils/bi";
 import { RelativeLoader } from "../../../components/RelativeLoader";
+import { AiCatalogRefreshIndicator } from "../../../components/AiCatalogRefreshIndicator";
+import { isPullRequired, PackageDownloadState } from "../../../components/ComponentFormLoader";
+import { searchAiComponents } from "./utils";
 import { ActionSelection, ConnectorActionList, ConnectorList, WizardStep } from "../Connection/ConnectorBrowser";
 import { AI_COMPONENT_PROGRESS_MESSAGE, AI_COMPONENT_PROGRESS_MESSAGE_TIMEOUT, LOADING_MESSAGE } from "../../../constants";
 
@@ -51,8 +54,9 @@ export function KnowledgeBaseBrowser(props: KnowledgeBaseBrowserProps) {
 
     const [step, setStep] = useState<WizardStep>(WizardStep.CONNECTOR_LIST);
     const [instanceCategories, setInstanceCategories] = useState<PanelCategory[]>([]);
-    const [typeCategories, setTypeCategories] = useState<PanelCategory[]>([]);
-    const [loading, setLoading] = useState<boolean>(true);
+    const [typeCategories, setTypeCategories] = useState<PanelCategory[]>();
+    const [loading, setLoading] = useState<boolean>(false);
+    const [refreshing, setRefreshing] = useState<boolean>(false);
     const [progressMessage, setProgressMessage] = useState<string>(LOADING_MESSAGE);
     const [searchText, setSearchText] = useState<string>("");
 
@@ -93,28 +97,31 @@ export function KnowledgeBaseBrowser(props: KnowledgeBaseBrowserProps) {
             progressTimeoutRef.current = null;
         }, AI_COMPONENT_PROGRESS_MESSAGE_TIMEOUT);
         try {
-            const [instancesResponse, typesResponse] = await Promise.all([
-                rpcClient.getBIDiagramRpcClient().getAvailableVectorKnowledgeBases({
-                    position: target,
-                    filePath,
-                }),
-                rpcClient.getBIDiagramRpcClient().search({
-                    position: { startLine: target, endLine: target },
-                    filePath,
-                    queryMap: undefined,
-                    searchKind: "KNOWLEDGE_BASE",
-                }),
-            ]);
+            const instancesResponse = await rpcClient.getBIDiagramRpcClient().getAvailableVectorKnowledgeBases({
+                position: target,
+                filePath,
+            });
             setInstanceCategories(
                 convertBICategoriesToSidePanelCategories(instancesResponse.categories as Category[])
             );
-            setTypeCategories(
-                convertKnowledgeBaseCategoriesToSidePanelCategories(typesResponse.categories as Category[])
-            );
+            await searchAiComponents(rpcClient, {
+                position: { startLine: target, endLine: target },
+                filePath,
+                queryMap: undefined,
+                searchKind: "KNOWLEDGE_BASE",
+            }, (typesResponse, isRefreshing) => {
+                setTypeCategories(
+                    convertKnowledgeBaseCategoriesToSidePanelCategories(typesResponse.categories as Category[])
+                );
+                setLoading(false);
+                setRefreshing(isRefreshing);
+            }, () => setLoading(true));
         } catch (error) {
             console.error(">>> Error loading knowledge bases", error);
+            setTypeCategories((current) => current ?? []);
         } finally {
             setLoading(false);
+            setRefreshing(false);
         }
     };
 
@@ -149,11 +156,17 @@ export function KnowledgeBaseBrowser(props: KnowledgeBaseBrowserProps) {
         if (!node?.codedata) {
             return;
         }
-        setSelectedKnowledgeBase(node);
-        setSelectedInstanceName(undefined);
-        setActions([]);
-        setStep(WizardStep.ACTION_LIST);
-        setLoadingActions(true);
+        const showActions = () => {
+            setSelectedKnowledgeBase(node);
+            setSelectedInstanceName(undefined);
+            setStep(WizardStep.ACTION_LIST);
+        };
+        // A local package answers fast, so the list stays put instead of flashing a loader.
+        if (isPullRequired(node)) {
+            setActions([]);
+            showActions();
+            setLoadingActions(true);
+        }
         try {
             const response = await rpcClient.getBIDiagramRpcClient().getLibraryActions({
                 filePath,
@@ -162,7 +175,9 @@ export function KnowledgeBaseBrowser(props: KnowledgeBaseBrowserProps) {
             setActions((response.actions ?? []).filter(isSupportedAction));
         } catch (error) {
             console.error(">>> Error loading knowledge base actions", error);
+            setActions([]);
         } finally {
+            showActions();
             setLoadingActions(false);
         }
     };
@@ -175,7 +190,14 @@ export function KnowledgeBaseBrowser(props: KnowledgeBaseBrowserProps) {
         );
     }
 
+    if (!typeCategories) {
+        return null;
+    }
+
     if (step === WizardStep.ACTION_LIST) {
+        if (loadingActions && isPullRequired(selectedKnowledgeBase)) {
+            return <PackageDownloadState label={selectedKnowledgeBase.metadata.label} />;
+        }
         if (loadingActions) {
             return (
                 <LoaderWrapper>
@@ -207,6 +229,7 @@ export function KnowledgeBaseBrowser(props: KnowledgeBaseBrowserProps) {
             onSelectConnection={handleSelectInstance}
             description="Pick an existing knowledge base or a knowledge base type to browse its actions."
             searchPlaceholder="Search knowledge bases"
+            extraSection={refreshing ? <AiCatalogRefreshIndicator /> : undefined}
         />
     );
 }

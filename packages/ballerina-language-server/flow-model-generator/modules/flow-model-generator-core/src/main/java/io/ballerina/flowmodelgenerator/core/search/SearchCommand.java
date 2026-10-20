@@ -52,6 +52,8 @@ public abstract class SearchCommand {
     protected final int limit;
     protected final int offset;
     private final boolean filterByCurrentOrg;
+    // AI component searches: return only what the LS already knows, without calling Central or pulling packages.
+    protected final boolean cachedOnly;
     final SearchDatabaseManager dbManager;
 
     protected static final String DATA_MAPPER_FILE_NAME = "data_mappings.bal";
@@ -99,12 +101,14 @@ public abstract class SearchCommand {
             this.limit = DEFAULT_LIMIT;
             this.offset = DEFAULT_OFFSET;
             this.filterByCurrentOrg = DEFAULT_FILTER_BY_CURRENT_ORG;
+            this.cachedOnly = false;
         } else {
             this.query = queryMap.getOrDefault("q", "");
             this.limit = parseIntParam(queryMap.get("limit"), DEFAULT_LIMIT);
             this.offset = parseIntParam(queryMap.get("offset"), DEFAULT_OFFSET);
             this.filterByCurrentOrg = parseBooleanParam(queryMap.get("filterByCurrentOrg"),
                     DEFAULT_FILTER_BY_CURRENT_ORG);
+            this.cachedOnly = parseBooleanParam(queryMap.get("cachedOnly"), false);
         }
     }
 
