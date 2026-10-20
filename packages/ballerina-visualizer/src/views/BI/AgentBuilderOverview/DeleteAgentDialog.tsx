@@ -16,11 +16,11 @@
  * under the License.
  */
 
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import styled from "@emotion/styled";
-import { AgentUsage, ProjectDirectoryMap } from "@wso2/ballerina-core";
-import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
+import { AgentUsage, DIRECTORY_MAP, PopupVisualizerLocation } from "@wso2/ballerina-core";
+import { BallerinaRpcClient, useRpcContext } from "@wso2/ballerina-rpc-client";
 import { AgentSelection } from "@wso2/component-diagram";
 import { Button, CheckBox, Codicon, ThemeColors, Typography } from "@wso2/ui-toolkit";
 import { PopupModal, PopupModalStep } from "../../../components/PopupModal";
@@ -34,7 +34,8 @@ import {
     loadAgentDeletion,
     triggerKey,
 } from "../FocusFlowDiagram/agentDeletion";
-import { AgentRef } from "../FocusFlowDiagram/agentUsages";
+import { AgentRef, samePath } from "../FocusFlowDiagram/agentUsages";
+import { withUndoGroup } from "../AIChatAgent/utils";
 
 const Section = styled.div`
     display: flex;
@@ -234,25 +235,30 @@ function DeleteAgentDialog({ name, noun, deletion, onCancel, onConfirm }: Delete
 
 type PendingDeletion = { agent: AgentSelection; ref: AgentRef; kind: DeletableAgentKind; deletion: AgentDeletion };
 
-export function useAgentDeletion(rpcClient: BallerinaRpcClient, projectPath: string, directoryMap?: ProjectDirectoryMap) {
+export function useAgentDeletion(rpcClient: BallerinaRpcClient, projectPath: string, onDone?: (deleted: boolean) => void) {
     const [pending, setPending] = useState<PendingDeletion>();
 
     const request = useCallback(async (agent: AgentSelection) => {
         const ref: AgentRef = { filePath: agent.path, startLine: agent.startLine, symbol: agent.name };
         const kind = agent.kind ?? "agent";
         try {
-            setPending({ agent, ref, kind, deletion: await loadAgentDeletion(rpcClient, projectPath, ref, kind, directoryMap) });
+            setPending({ agent, ref, kind, deletion: await loadAgentDeletion(rpcClient, projectPath, ref, kind) });
         } catch (error) {
             console.error(">>> agent overview: failed to prepare the agent deletion", error);
             rpcClient.getCommonRpcClient().showErrorMessage({ message: `Unable to check what uses ${agent.name}.` });
+            onDone?.(false);
         }
-    }, [rpcClient, projectPath, directoryMap]);
+    }, [rpcClient, projectPath, onDone]);
 
     const confirm = async (cleanup: CleanupGroup[], kept: Set<string>) => {
         const { agent, ref, kind, deletion } = pending;
+        let deleted = false;
         try {
-            await deleteAgentWithTriggers(rpcClient, projectPath, ref, kind, deletion, cleanup, kept);
-            await rpcClient.getAIAgentRpcClient().fixMissingImports();
+            await withUndoGroup(rpcClient, async () => {
+                await deleteAgentWithTriggers(rpcClient, projectPath, ref, kind, deletion, cleanup, kept);
+                await rpcClient.getAIAgentRpcClient().fixMissingImports();
+            }, `${kind === "workflow" ? "Workflow" : "Agent"} Deletion - ${agent.name}`);
+            deleted = true;
         } catch (error) {
             console.error(">>> agent overview: failed to delete agent", error);
             rpcClient.getCommonRpcClient().showErrorMessage({
@@ -260,6 +266,7 @@ export function useAgentDeletion(rpcClient: BallerinaRpcClient, projectPath: str
             });
         } finally {
             setPending(undefined);
+            onDone?.(deleted);
         }
     };
 
@@ -268,10 +275,51 @@ export function useAgentDeletion(rpcClient: BallerinaRpcClient, projectPath: str
             name={pending.agent.name}
             noun={pending.kind === "workflow" ? "Workflow" : "Agent"}
             deletion={pending.deletion}
-            onCancel={() => setPending(undefined)}
+            onCancel={() => {
+                setPending(undefined);
+                onDone?.(false);
+            }}
             onConfirm={confirm}
         />
     );
 
     return { request, dialog };
+}
+
+async function deletableKindOf(rpcClient: BallerinaRpcClient, projectPath: string, location: PopupVisualizerLocation): Promise<DeletableAgentKind> {
+    if (location.artifactType === DIRECTORY_MAP.WORKFLOW) {
+        return "workflow";
+    }
+    const structure = await rpcClient.getBIDiagramRpcClient().getProjectStructure();
+    const agents = structure?.projects?.find((project) => samePath(project.projectPath, projectPath))?.directoryMap?.[DIRECTORY_MAP.AGENT];
+    const artifact = agents?.find((agent) => samePath(agent.path, location.documentUri) && agent.position?.startLine === location.metadata?.target?.line);
+    return artifact?.kind === DIRECTORY_MAP.DURABLE_AGENT ? "durable" : "agent";
+}
+
+export function DeleteAgentPopup({ location, onClose }: { location: PopupVisualizerLocation; onClose: () => void }) {
+    const { rpcClient } = useRpcContext();
+    const [projectPath, setProjectPath] = useState<string>();
+    const startLine = location.metadata?.target?.line;
+    const onDone = useCallback(async (deleted: boolean) => {
+        const shown = deleted && await rpcClient.getVisualizerLocation();
+        onClose();
+        if (shown && samePath(shown.documentUri, location.documentUri) && shown.position?.startLine === startLine) {
+            rpcClient.getVisualizerRpcClient().goHome({ isPackageOverview: true });
+        }
+    }, [rpcClient, location, startLine, onClose]);
+    const { request, dialog } = useAgentDeletion(rpcClient, projectPath, onDone);
+
+    useEffect(() => {
+        void rpcClient.getVisualizerLocation().then((shown) => setProjectPath(shown.projectPath));
+    }, []);
+
+    useEffect(() => {
+        if (!projectPath) {
+            return;
+        }
+        void deletableKindOf(rpcClient, projectPath, location).then((kind) =>
+            request({ path: location.documentUri, startLine, name: location.identifier, kind }));
+    }, [projectPath]);
+
+    return dialog || null;
 }

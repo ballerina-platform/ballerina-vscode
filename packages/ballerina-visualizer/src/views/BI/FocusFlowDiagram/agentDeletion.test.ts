@@ -242,6 +242,7 @@ describe("checking what else uses the agent", () => {
     const client = {
         getBIDiagramRpcClient: () => ({
             getDesignModel: jest.fn().mockResolvedValue({ designModel: model }),
+            getProjectStructure: jest.fn().mockResolvedValue({ projects: [{ projectPath: "/proj", directoryMap }] }),
             getDeclarationReferences: jest.fn(({ filePath, startLine }) =>
                 Promise.resolve({ references: referencesByDeclaration[`${filePath}:${startLine.line}`] })),
             getModuleNodes: jest.fn().mockResolvedValue({ flowModel: { connections: [
@@ -261,7 +262,7 @@ describe("checking what else uses the agent", () => {
     } as never;
 
     it("warns about uses outside what gets deleted, and offers only what nothing else uses, the memory's own store included", async () => {
-        const deletion = await loadAgentDeletion(client, "/proj", { filePath: AGENTS_BAL, startLine: 4, symbol: "mathTutorAgent" }, "agent", directoryMap);
+        const deletion = await loadAgentDeletion(client, "/proj", { filePath: AGENTS_BAL, startLine: 4, symbol: "mathTutorAgent" }, "agent");
 
         expect(deletion.plan.triggers.map((usage) => usage.label)).toEqual(["Agent Chat"]);
         expect(deletion.dangling.map((place) => [place.label, place.serviceName])).toEqual([["GET /state", "/api"], ["Tests", undefined]]);

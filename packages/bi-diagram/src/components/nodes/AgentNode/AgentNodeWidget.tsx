@@ -1598,7 +1598,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                         {menuItems.map((item) => (
                                             <MenuItem key={item.id} item={item} />
                                         ))}
-                                        {!isTypeDefinition && <BreakpointMenu
+                                        {!isTypeDefinition && addBreakpoint && <BreakpointMenu
                                             hasBreakpoint={hasBreakpoint}
                                             onAddBreakpoint={onAddBreakpoint}
                                             onRemoveBreakpoint={onRemoveBreakpoint}

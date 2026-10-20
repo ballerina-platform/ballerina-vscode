@@ -328,10 +328,11 @@ export async function loadAgentDeletion(
     rpcClient: BallerinaRpcClient,
     projectPath: string,
     agent: AgentRef,
-    kind: DeletableAgentKind,
-    directoryMap?: ProjectDirectoryMap
+    kind: DeletableAgentKind
 ): Promise<AgentDeletion> {
-    const [model, localScopes] = await Promise.all([designModelOf(rpcClient, projectPath), getAgentTriggerScopes(rpcClient)]);
+    const [model, localScopes, directoryMap] = await Promise.all([
+        designModelOf(rpcClient, projectPath), getAgentTriggerScopes(rpcClient), directoryMapOf(rpcClient, projectPath),
+    ]);
     const protocols = usagesOf(model, agent, kind).map((usage) => modulePrefix(usage.type)).filter(Boolean);
     const scopes = await resolveTriggerScopes(rpcClient, localScopes, protocols);
     const plan = planAgentDeletion(model, agent, kind, scopes);
@@ -358,10 +359,13 @@ export async function loadAgentDeletion(
     };
 }
 
-async function locate(rpcClient: BallerinaRpcClient, projectPath: string, declaration: Declaration): Promise<NodePosition | undefined> {
+async function directoryMapOf(rpcClient: BallerinaRpcClient, projectPath: string): Promise<ProjectDirectoryMap | undefined> {
     const structure = await rpcClient.getBIDiagramRpcClient().getProjectStructure();
-    const project = structure?.projects?.find((candidate) => samePath(candidate.projectPath, projectPath));
-    const artifact = artifactsOf(project?.directoryMap)
+    return structure?.projects?.find((candidate) => samePath(candidate.projectPath, projectPath))?.directoryMap;
+}
+
+async function locate(rpcClient: BallerinaRpcClient, projectPath: string, declaration: Declaration): Promise<NodePosition | undefined> {
+    const artifact = artifactsOf(await directoryMapOf(rpcClient, projectPath))
         .find((candidate) => candidate.name === declaration.name && samePath(candidate.path, declaration.filePath));
     if (artifact) {
         return artifact.position;

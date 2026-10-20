@@ -409,7 +409,7 @@ export function AgentBuilderOverview({ projectPath, agentFocus, isInDevant, isIC
         });
     }, [rpcClient]);
 
-    const agentDeletion = useAgentDeletion(rpcClient, projectPath, projectStructure?.directoryMap);
+    const agentDeletion = useAgentDeletion(rpcClient, projectPath);
 
     const handleAddTriggerFromCanvas = useCallback(async (agent: AgentSelection) => {
         if (agent.moduleName === "workflow") {

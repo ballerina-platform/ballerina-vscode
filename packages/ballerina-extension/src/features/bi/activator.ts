@@ -31,6 +31,7 @@ import {
 } from "@wso2/ballerina-core";
 import { BallerinaExtension } from "../../core";
 import { openView } from "../../stateMachine";
+import { openPopupView } from "../../stateMachinePopup";
 import { ENABLE_DEBUG_LOG, ENABLE_TRACE_LOG, TRACE_SERVER } from "../../core/preferences";
 import { prepareAndGenerateConfig } from "../config-generator/configGenerator";
 import { StateMachine } from "../../stateMachine";
@@ -296,7 +297,9 @@ export function activate(context: BallerinaExtension) {
 
         console.log(">>> delete component", item);
 
-        if (item.contextValue === DIRECTORY_MAP.CONNECTION || item.contextValue === DIRECTORY_MAP.AGENT) {
+        if ((item.contextValue === DIRECTORY_MAP.AGENT || item.contextValue === DIRECTORY_MAP.WORKFLOW) && item.position) {
+            await openAgentDeletion(item.contextValue, item.label as string, item.info, item.position);
+        } else if (item.contextValue === DIRECTORY_MAP.CONNECTION || item.contextValue === DIRECTORY_MAP.AGENT) {
             await handleConnectionDeletion(item.contextValue, item.label as string, item.info, item.position);
         } else if (item.contextValue === DIRECTORY_MAP.LOCAL_CONNECTORS) {
             await handleLocalModuleDeletion(item.label as string, item.info);
@@ -571,6 +574,24 @@ const handleComponentDeletion = async (componentType: string, itemLabel: string,
     }
     console.error(`Component ${itemLabel} not found in project structure`);
     window.showErrorMessage(`Component '${itemLabel}' not found — deletion failed`);
+};
+
+const openAgentDeletion = async (artifactType: DIRECTORY_MAP, name: string, filePath: string, position: NodePosition) => {
+    const projectRoot = await findBallerinaPackageRoot(filePath);
+    const { projectPath, projectInfo } = StateMachine.context();
+    if (projectRoot && (!projectPath || !isSamePath(projectRoot, projectPath))) {
+        await StateMachine.updateProjectRootAndInfo(projectRoot, projectInfo);
+    }
+    if (!VisualizerWebview.currentPanel) {
+        openView(EVENT_TYPE.OPEN_VIEW, { view: MACHINE_VIEW.PackageOverview, projectPath: projectRoot });
+    }
+    openPopupView(EVENT_TYPE.OPEN_VIEW, {
+        view: MACHINE_VIEW.DeleteAgent,
+        documentUri: filePath,
+        identifier: name,
+        artifactType,
+        metadata: { target: { line: position.startLine, offset: position.startColumn } },
+    });
 };
 
 const handleLocalModuleDeletion = async (moduleName: string, filePath: string) => {
