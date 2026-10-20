@@ -382,7 +382,7 @@ describe("FunctionForm save after an in-place rename", () => {
     });
 
     /** Loads `transformPerson`, submits the form with `formName`, and returns the save's mocks. */
-    const submitAs = async (formName: string, getFunctionNode: jest.Mock) => {
+    const submitAs = async (formName: string, getFunctionNode: jest.Mock, extra: Record<string, unknown> = {}) => {
         const getSourceCode = jest.fn(async (_request: BISourceCodeRequest) => ({ artifacts: [] as unknown[] }));
         const showErrorMessage = jest.fn();
         const rpc = {
@@ -399,15 +399,15 @@ describe("FunctionForm save after an in-place rename", () => {
         await flush();
         expect(mockArtifactFormProps).toBeDefined();
         await act(async () => {
-            await mockArtifactFormProps!.onSubmit({ functionName: formName });
+            await mockArtifactFormProps!.onSubmit({ functionName: formName, ...extra });
         });
         await flush();
         return { getSourceCode, showErrorMessage };
     };
 
     /** Submits as `formName` and returns the node the save sent to the LS. */
-    const saveAs = async (formName: string, getFunctionNode: jest.Mock) => {
-        const { getSourceCode } = await submitAs(formName, getFunctionNode);
+    const saveAs = async (formName: string, getFunctionNode: jest.Mock, extra: Record<string, unknown> = {}) => {
+        const { getSourceCode } = await submitAs(formName, getFunctionNode, extra);
         expect(getSourceCode).toHaveBeenCalledTimes(1);
         return getSourceCode.mock.calls[0][0].flowNode;
     };
@@ -442,6 +442,54 @@ describe("FunctionForm save after an in-place rename", () => {
 
         expect(getFunctionNode).toHaveBeenCalledTimes(1);
         expect(flowNode.codedata.lineRange).toEqual(LOADED_RANGE);
+    });
+
+    /** A parameter loaded from source as `person`, now named `name` in the form. Its name is
+     *  renamed in place unless `identifierEditable` (as for data mappers, whose names the save rewrites). */
+    const loadedParam = (name: string, identifierEditable = false) => ({
+        key: "person",
+        identifierEditable,
+        identifierRange: { fileName: "data_mappings.bal", startLine: { line: 4, offset: 30 }, endLine: { line: 4, offset: 36 } },
+        formValues: { type: "Person", variable: name },
+    });
+
+    // A parameter renamed in place moves the end of the signature just as a function rename does.
+    it("re-reads the range when a parameter was renamed in place under an unchanged name", async () => {
+        getFunctionNode = lookups({ transformPerson: { functionDefinition: dataMapper("transformPerson", RENAMED_RANGE) } });
+
+        const flowNode = await saveAs("transformPerson", getFunctionNode, { parameters: [loadedParam("p")] });
+
+        expect(getFunctionNode).toHaveBeenCalledTimes(2);
+        expect(getFunctionNode).toHaveBeenLastCalledWith(expect.objectContaining({ functionName: "transformPerson" }));
+        expect(flowNode.codedata.lineRange).toEqual(RENAMED_RANGE);
+    });
+
+    it("keeps the loaded range when parameters are untouched or newly added", async () => {
+        getFunctionNode = lookups({});
+        const added = { key: "", identifierEditable: true, identifierRange: undefined as unknown, formValues: { type: "int", variable: "age" } };
+
+        const flowNode = await saveAs("transformPerson", getFunctionNode, { parameters: [loadedParam("person"), added] });
+
+        expect(getFunctionNode).toHaveBeenCalledTimes(1);
+        expect(flowNode.codedata.lineRange).toEqual(LOADED_RANGE);
+    });
+
+    it("keeps the loaded range when an editable parameter name changes", async () => {
+        getFunctionNode = lookups({});
+
+        const flowNode = await saveAs("transformPerson", getFunctionNode, { parameters: [loadedParam("p", true)] });
+
+        expect(getFunctionNode).toHaveBeenCalledTimes(1);
+        expect(flowNode.codedata.lineRange).toEqual(LOADED_RANGE);
+    });
+
+    it("aborts the save when re-reading after a parameter rename fails", async () => {
+        getFunctionNode = lookups({ transformPerson: undefined });
+
+        const { getSourceCode, showErrorMessage } = await submitAs("transformPerson", getFunctionNode, { parameters: [loadedParam("p")] });
+
+        expect(getSourceCode).not.toHaveBeenCalled();
+        expect(showErrorMessage).toHaveBeenCalledTimes(1);
     });
 
     // The form takes the new name whenever renameIdentifier resolves, including when the LS
