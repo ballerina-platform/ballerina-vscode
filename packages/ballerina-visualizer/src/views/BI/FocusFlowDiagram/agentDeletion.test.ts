@@ -16,8 +16,8 @@
  * under the License.
  */
 
-import { AgentUsage, AgentUsageTrigger, CDModel, ProjectDirectoryMap } from "@wso2/ballerina-core";
-import { AgentDeletion, agentDeletionScope, deleteAgentWithTriggers, loadAgentDeletion, planAgentDeletion, triggerKey } from "./agentDeletion";
+import { AgentUsage, AgentUsageTrigger, CDFunction, CDModel, ProjectDirectoryMap } from "@wso2/ballerina-core";
+import { AgentDeletion, AgentDeletionPlan, agentDeletionScope, deleteAgentWithTriggers, loadAgentDeletion, planAgentDeletion, triggerKey } from "./agentDeletion";
 import { AgentTriggerScopes } from "./agentUsages";
 
 const AGENT_UUID = "c371fce0-2d2e-4e47-2f32-13911cf544a8";
@@ -51,8 +51,8 @@ describe("deleting an agent with its triggers", () => {
         location: { filePath, ...range(line) },
         attachedListeners: [`${uuid}-listener`],
         connections: [...new Set(resources.flatMap((fn) => fn.connections))],
-        functions: [],
-        remoteFunctions: [],
+        functions: [] as CDFunction[],
+        remoteFunctions: [] as CDFunction[],
         resourceFunctions: resources,
         absolutePath: `/${uuid}`,
         type,
@@ -131,7 +131,7 @@ describe("deleting an agent with its triggers", () => {
         const deletions: unknown[][] = [];
         const deleteByComponentInfo = jest.fn((request) => {
             state = Math.min(state + 1, models.length - 1);
-            deletions.push(...(request.components ?? [request.component]).map((component) => [component.name, component.startLine]));
+            deletions.push(...(request.components ?? [request.component]).map((component: { name: string; startLine: number }) => [component.name, component.startLine]));
             return Promise.resolve({});
         });
         return {
@@ -275,8 +275,8 @@ describe("deleting the parts the user picked", () => {
     it("re-locates each one after the agent is gone, since its lines may have moved", async () => {
         const agentModel = (line: number) => ({
             connections: [{ symbol: "mathTutorAgent", location: { filePath: AGENTS_BAL, ...range(line) }, scope: "GLOBAL", kind: "Agent", uuid: AGENT_UUID }],
-            listeners: [],
-            services: [],
+            listeners: [] as CDModel["listeners"],
+            services: [] as CDModel["services"],
         });
         const getDesignModel = jest.fn().mockResolvedValue({ designModel: agentModel(4) });
         const deleteByComponentInfo = jest.fn().mockResolvedValue({});
@@ -285,7 +285,7 @@ describe("deleting the parts the user picked", () => {
         });
         const client = { getBIDiagramRpcClient: () => ({ getDesignModel, deleteByComponentInfo, getProjectStructure }) } as never;
         const ref = { filePath: AGENTS_BAL, startLine: 4, symbol: "mathTutorAgent" };
-        const plan = { triggers: [], blockers: [], shared: [] };
+        const plan: AgentDeletionPlan = { triggers: [], blockers: [], shared: [] };
 
         await deleteAgentWithTriggers(client, "/proj", ref, "agent", { plan, scopes: new Map(), chatServices: 0, dangling: [], cleanup: [] }, [
             { key: "tools", declarations: [{ name: "sumTool", filePath: AGENTS_BAL, position: { startLine: 12, startColumn: 0, endLine: 14, endColumn: 1 } }] },
