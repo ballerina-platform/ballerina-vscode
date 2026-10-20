@@ -11,8 +11,11 @@
           {
             "metadata": {
               "label": "Azure Embedding Provider",
-              "description": "EmbeddingProvider provides an interface for interacting with Azure OpenAI Embedding Models.",
-              "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.azure_1.4.4.png"
+              "description": "EmbeddingProvider provides an interface for interacting with Azure OpenAI Embedding Models.\n\nThe concrete wire route depends on the shape of the `serviceUrl`: a URL ending with `/v1` targets the Azure OpenAI\n**v1 GA** surface (`POST {serviceUrl}/embeddings`, with the deployment sent as `model` in the body and no\n`api-version` required), while any other URL targets the **legacy** deployment-scoped route\n(`POST {legacyBase}/deployments/{deploymentId}/embeddings?api-version=...`) through the generated\n`ballerinax/azure.openai.embeddings` connector, where `legacyBase` is the `serviceUrl` completed with `/openai`\nwhen it is a bare origin and used verbatim when it already carries a path.",
+              "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.azure_1.5.1.png",
+              "data": {
+                "pullRequired": true
+              }
             },
             "codedata": {
               "node": "EMBEDDING_PROVIDER",
@@ -28,7 +31,10 @@
             "metadata": {
               "label": "OpenAI Embedding Provider",
               "description": "EmbeddingProvider provides an interface for interacting with OpenAI Embedding Models.",
-              "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.openai_1.3.5.png"
+              "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.openai_1.4.1.png",
+              "data": {
+                "pullRequired": true
+              }
             },
             "codedata": {
               "node": "EMBEDDING_PROVIDER",
@@ -44,7 +50,10 @@
             "metadata": {
               "label": "OpenRouter Embedding Provider",
               "description": "EmbeddingProvider is a client class that provides an interface for generating\nvector embeddings via the OpenRouter unified API, which supports embedding models\nfrom OpenAI, Google, Mistral, and other providers.",
-              "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.openrouter_1.0.2.png"
+              "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.openrouter_1.0.3.png",
+              "data": {
+                "pullRequired": true
+              }
             },
             "codedata": {
               "node": "EMBEDDING_PROVIDER",

@@ -17,7 +17,7 @@
  */
 
 import styled from "@emotion/styled";
-import { CodeData, FlowNode, NodeMetadata, NodePosition, ProjectStructureArtifactResponse } from "@wso2/ballerina-core";
+import { AvailableNode, CodeData, FlowNode, NodeMetadata, NodePosition, ProjectStructureArtifactResponse } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Codicon, Dropdown } from "@wso2/ui-toolkit";
 import { cloneDeep } from "lodash";
@@ -30,6 +30,7 @@ import { usePanelOverlay } from "../FlowDiagram/hooks/usePanelOverlay";
 import { ConnectionSelectionList } from "../../../components/ConnectionSelector/ConnectionSelectionList";
 import { ConnectionCreator } from "../../../components/ConnectionSelector/ConnectionCreator";
 import { getNodeTemplateForConnection } from "../FlowDiagram/utils";
+import { ComponentFormLoader } from "../../../components/ComponentFormLoader";
 
 const Container = styled.div`
     padding: 24px 16px 0;
@@ -381,11 +382,7 @@ export function MemoryManagerConfig(props: MemoryConfigProps): JSX.Element {
         // and reveals the already-mounted selection panel (no slide-in).
         const createId = openOverlay({
             title: "Create Memory Store",
-            content: (
-                <LoaderContainer>
-                    <RelativeLoader />
-                </LoaderContainer>
-            ),
+            content: <ComponentFormLoader node={(metadata as { node?: AvailableNode })?.node} />,
             onBack: closeTopOverlay,
             // Fires from closeTopOverlay, backdrop click, and X button — catches every close path
             onClose: () => {

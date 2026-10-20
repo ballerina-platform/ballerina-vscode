@@ -123,6 +123,8 @@ export type NodeMetadata = {
     agentInfo?: AgentNodeInfo;
     // The workflow context method a palette node stands for, e.g. "awaitHumanTask"; shown in its tooltip
     method?: string;
+    // AI component whose package is not downloaded yet; opening its form pulls it first
+    pullRequired?: boolean;
 };
 
 export type ParentMetadata = {

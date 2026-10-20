@@ -68,7 +68,10 @@
             "metadata": {
               "label": "Devant Chunker",
               "description": "Splits documents loaded by the `devant:BinaryDataLoader` into smaller chunks \nusing the Devant AI service.",
-              "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.devant_1.0.4.png"
+              "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.devant_1.0.5.png",
+              "data": {
+                "pullRequired": true
+              }
             },
             "codedata": {
               "node": "CHUNKER",

@@ -1,0 +1,3802 @@
+{
+  "modules": {
+    "1.0.0": [
+      {
+        "org": "ballerinax",
+        "name": "ai.openai",
+        "version": "1.0.0"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.azure",
+        "version": "1.0.0"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.anthropic",
+        "version": "1.0.0"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.deepseek",
+        "version": "1.0.0"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.ollama",
+        "version": "1.0.0"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.mistral",
+        "version": "1.0.0"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.pinecone",
+        "version": "1.0.0"
+      }
+    ],
+    "1.1.0": [
+      {
+        "org": "ballerinax",
+        "name": "ai.openai",
+        "version": "1.1.0"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.anthropic",
+        "version": "1.0.1"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.azure",
+        "version": "1.0.1"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.deepseek",
+        "version": "1.0.1"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.mistral",
+        "version": "1.0.1"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.pinecone",
+        "version": "1.0.1"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.ollama",
+        "version": "1.0.1"
+      }
+    ],
+    "1.1.1": [
+      {
+        "org": "ballerinax",
+        "name": "ai.azure",
+        "version": "1.1.0"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.openai",
+        "version": "1.2.0"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.anthropic",
+        "version": "1.1.0"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.mistral",
+        "version": "1.1.0"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.ollama",
+        "version": "1.1.0"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.deepseek",
+        "version": "1.0.2"
+      }
+    ],
+    "1.1.2": [
+      {
+        "org": "ballerinax",
+        "name": "ai.openai",
+        "version": "1.2.1"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.azure",
+        "version": "1.1.1"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.anthropic",
+        "version": "1.1.1"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.mistral",
+        "version": "1.1.1"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.ollama",
+        "version": "1.1.1"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.deepseek",
+        "version": "1.0.3"
+      }
+    ],
+    "1.1.3": [],
+    "1.1.4": [],
+    "1.2.0": [],
+    "1.3.0": [
+      {
+        "org": "ballerinax",
+        "name": "ai.devant",
+        "version": "1.0.0"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.openai",
+        "version": "1.2.2"
+      }
+    ],
+    "1.3.1": [],
+    "1.4.0": [],
+    "1.4.1": [],
+    "1.5.0": [
+      {
+        "org": "ballerinax",
+        "name": "ai.pinecone",
+        "version": "1.1.0"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.milvus",
+        "version": "1.0.0"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.pgvector",
+        "version": "1.0.0"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.weaviate",
+        "version": "1.0.0"
+      }
+    ],
+    "1.5.1": [
+      {
+        "org": "ballerinax",
+        "name": "ai.pgvector",
+        "version": "1.0.1"
+      }
+    ],
+    "1.5.2": [
+      {
+        "org": "ballerinax",
+        "name": "ai.weaviate",
+        "version": "1.0.1"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.pgvector",
+        "version": "1.0.2"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.milvus",
+        "version": "1.0.1"
+      }
+    ],
+    "1.5.3": [
+      {
+        "org": "ballerinax",
+        "name": "ai.pinecone",
+        "version": "1.1.1"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.devant",
+        "version": "1.0.1"
+      }
+    ],
+    "1.5.4": [
+      {
+        "org": "ballerinax",
+        "name": "ai.anthropic",
+        "version": "1.1.2"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.azure",
+        "version": "1.1.2"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.deepseek",
+        "version": "1.0.4"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.mistral",
+        "version": "1.1.2"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.ollama",
+        "version": "1.1.2"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.openai",
+        "version": "1.2.3"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.devant",
+        "version": "1.0.2"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.pinecone",
+        "version": "1.1.2"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.weaviate",
+        "version": "1.0.2"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.pgvector",
+        "version": "1.0.3"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.milvus",
+        "version": "1.0.2"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.azure",
+        "version": "1.2.0"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.azure",
+        "version": "1.3.0"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.weaviate",
+        "version": "1.0.3"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.devant",
+        "version": "1.0.3"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.pgvector",
+        "version": "1.0.4"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.weaviate",
+        "version": "1.0.4"
+      }
+    ],
+    "1.6.0": [
+      {
+        "org": "ballerinax",
+        "name": "ai.memory.mssql",
+        "version": "1.0.0"
+      }
+    ],
+    "1.6.1": [],
+    "1.7.0": [
+      {
+        "org": "ballerinax",
+        "name": "ai.openai",
+        "version": "1.3.0"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.ollama",
+        "version": "1.2.0"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.deepseek",
+        "version": "1.1.0"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.mistral",
+        "version": "1.2.0"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.azure",
+        "version": "1.4.0"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.anthropic",
+        "version": "1.2.0"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.memory.mssql",
+        "version": "1.0.1"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.memory.mssql",
+        "version": "1.1.0"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.azure",
+        "version": "1.4.1"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.openai",
+        "version": "1.3.1"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.ollama",
+        "version": "1.2.1"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.mistral",
+        "version": "1.2.1"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.deepseek",
+        "version": "1.1.1"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.anthropic",
+        "version": "1.2.1"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.mistral",
+        "version": "1.2.2"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.azure",
+        "version": "1.4.2"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.deepseek",
+        "version": "1.1.2"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.openai",
+        "version": "1.3.2"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.ollama",
+        "version": "1.2.2"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.deepseek",
+        "version": "1.1.3"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.mistral",
+        "version": "1.2.3"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.openai",
+        "version": "1.3.3"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.azure",
+        "version": "1.4.3"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.openai",
+        "version": "1.3.4"
+      }
+    ],
+    "1.8.0": [],
+    "1.9.0": [
+      {
+        "org": "ballerinax",
+        "name": "ai.memory.mssql",
+        "version": "1.2.0"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.anthropic",
+        "version": "1.3.0"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.anthropic",
+        "version": "1.3.1"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.openrouter",
+        "version": "1.0.0"
+      }
+    ],
+    "1.10.0": [
+      {
+        "org": "ballerinax",
+        "name": "ai.pinecone",
+        "version": "1.1.3"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.pinecone",
+        "version": "1.1.4"
+      }
+    ],
+    "1.11.0": [
+      {
+        "org": "ballerinax",
+        "name": "ai.googleapis.vertex",
+        "version": "1.0.0"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.anthropic",
+        "version": "1.3.2"
+      }
+    ],
+    "1.11.1": [],
+    "1.11.2": [
+      {
+        "org": "ballerinax",
+        "name": "ai.anthropic",
+        "version": "1.3.3"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.openrouter",
+        "version": "1.0.1"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.googleapis.vertex",
+        "version": "1.0.1"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.ollama",
+        "version": "1.2.3"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.milvus",
+        "version": "1.0.3"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.memory.redis",
+        "version": "1.0.0"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.microsoft.sharepoint",
+        "version": "1.0.0"
+      }
+    ],
+    "1.12.0": [
+      {
+        "org": "ballerinax",
+        "name": "ai.azure",
+        "version": "1.4.4"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.openai",
+        "version": "1.3.5"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.deepseek",
+        "version": "1.1.4"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.microsoft.sharepoint",
+        "version": "1.0.1"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.openrouter",
+        "version": "1.0.2"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.devant",
+        "version": "1.0.4"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.memory.redis",
+        "version": "1.0.1"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.milvus",
+        "version": "1.0.4"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.pinecone",
+        "version": "1.1.5"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.weaviate",
+        "version": "1.0.5"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.ollama",
+        "version": "1.2.4"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.memory.mssql",
+        "version": "1.2.1"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.anthropic",
+        "version": "1.3.4"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.googleapis.vertex",
+        "version": "1.0.2"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.mistral",
+        "version": "1.2.4"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.pgvector",
+        "version": "1.0.5"
+      }
+    ],
+    "1.13.0": [
+      {
+        "org": "ballerinax",
+        "name": "ai.memory.redis",
+        "version": "1.1.0"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.memory.postgresql",
+        "version": "1.0.0"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.memory.mssql",
+        "version": "1.3.0"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.sqlite",
+        "version": "1.0.0"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.aws.dynamodb",
+        "version": "1.0.0"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.openai",
+        "version": "1.4.0"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.azure",
+        "version": "1.5.0"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.wso2.integration",
+        "version": "1.0.0"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.memory.mssql",
+        "version": "1.3.1"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.memory.postgresql",
+        "version": "1.0.1"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.sqlite",
+        "version": "1.0.1"
+      }
+    ],
+    "1.14.0": [],
+    "1.14.1": [],
+    "1.15.0": [
+      {
+        "org": "ballerinax",
+        "name": "ai.memory.mssql",
+        "version": "1.4.0"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.devant",
+        "version": "1.0.5"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.anthropic",
+        "version": "1.3.5"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.pinecone",
+        "version": "1.1.6"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.wso2.integration",
+        "version": "1.0.1"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.mistral",
+        "version": "1.2.5"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.weaviate",
+        "version": "1.0.6"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.ollama",
+        "version": "1.2.5"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.googleapis.vertex",
+        "version": "1.0.3"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.azure",
+        "version": "1.5.1"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.deepseek",
+        "version": "1.1.5"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.pgvector",
+        "version": "1.0.6"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.openrouter",
+        "version": "1.0.3"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.openai",
+        "version": "1.4.1"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.microsoft.sharepoint",
+        "version": "1.0.2"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.milvus",
+        "version": "1.0.5"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.memory.postgresql",
+        "version": "1.1.0"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.memory.redis",
+        "version": "1.2.0"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.aws.dynamodb",
+        "version": "1.1.0"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.sqlite",
+        "version": "1.1.0"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.memory.mssql",
+        "version": "1.4.1"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.wso2.integration",
+        "version": "1.1.0"
+      }
+    ],
+    "1.16.0": []
+  },
+  "components": {
+    "ballerina:ai:1.0.0": [
+      {
+        "className": "Wso2EmbeddingProvider",
+        "label": "Default Embedding Provider (WSO2)",
+        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "category": "EMBEDDING_PROVIDER",
+        "symbol": "getDefaultEmbeddingProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.0.0.png"
+      },
+      {
+        "className": "Wso2ModelProvider",
+        "label": "Default Model Provider (WSO2)",
+        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "getDefaultModelProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.0.0.png"
+      },
+      {
+        "className": "VectorKnowledgeBase",
+        "label": "Vector Knowledge Base",
+        "description": "Represents a vector knowledge base for managing chunk indexing and retrieval operations.\nThe `VectorKnowledgeBase` handles converting chunks to embeddings,\nstoring them in a vector store, and enabling retrieval through a `Retriever`.",
+        "category": "KNOWLEDGE_BASE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.0.0.png"
+      },
+      {
+        "className": "InMemoryVectorStore",
+        "label": "In Memory Vector Store",
+        "description": "An in-memory vector store implementation that provides simple storage for vector entries.",
+        "category": "VECTOR_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.0.0.png"
+      }
+    ],
+    "ballerina:ai:1.1.0": [
+      {
+        "className": "Wso2EmbeddingProvider",
+        "label": "Default Embedding Provider (WSO2)",
+        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "category": "EMBEDDING_PROVIDER",
+        "symbol": "getDefaultEmbeddingProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.1.0.png"
+      },
+      {
+        "className": "Wso2ModelProvider",
+        "label": "Default Model Provider (WSO2)",
+        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "getDefaultModelProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.1.0.png"
+      },
+      {
+        "className": "VectorKnowledgeBase",
+        "label": "Vector Knowledge Base",
+        "description": "Represents a vector knowledge base for managing chunk indexing and retrieval operations.\nThe `VectorKnowledgeBase` handles converting chunks to embeddings,\nstoring them in a vector store, and enabling retrieval through a `Retriever`.",
+        "category": "KNOWLEDGE_BASE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.1.0.png"
+      },
+      {
+        "className": "InMemoryVectorStore",
+        "label": "In Memory Vector Store",
+        "description": "An in-memory vector store implementation that provides simple storage for vector entries.",
+        "category": "VECTOR_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.1.0.png"
+      }
+    ],
+    "ballerina:ai:1.1.1": [
+      {
+        "className": "Wso2EmbeddingProvider",
+        "label": "Default Embedding Provider (WSO2)",
+        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "category": "EMBEDDING_PROVIDER",
+        "symbol": "getDefaultEmbeddingProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.1.1.png"
+      },
+      {
+        "className": "Wso2ModelProvider",
+        "label": "Default Model Provider (WSO2)",
+        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "getDefaultModelProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.1.1.png"
+      },
+      {
+        "className": "VectorKnowledgeBase",
+        "label": "Vector Knowledge Base",
+        "description": "Represents a vector knowledge base for managing chunk indexing and retrieval operations.\nThe `VectorKnowledgeBase` handles converting chunks to embeddings,\nstoring them in a vector store, and enabling retrieval through a `Retriever`.",
+        "category": "KNOWLEDGE_BASE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.1.1.png"
+      },
+      {
+        "className": "InMemoryVectorStore",
+        "label": "In Memory Vector Store",
+        "description": "An in-memory vector store implementation that provides simple storage for vector entries.",
+        "category": "VECTOR_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.1.1.png"
+      }
+    ],
+    "ballerina:ai:1.1.2": [
+      {
+        "className": "Wso2EmbeddingProvider",
+        "label": "Default Embedding Provider (WSO2)",
+        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "category": "EMBEDDING_PROVIDER",
+        "symbol": "getDefaultEmbeddingProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.1.2.png"
+      },
+      {
+        "className": "Wso2ModelProvider",
+        "label": "Default Model Provider (WSO2)",
+        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "getDefaultModelProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.1.2.png"
+      },
+      {
+        "className": "VectorKnowledgeBase",
+        "label": "Vector Knowledge Base",
+        "description": "Represents a vector knowledge base for managing chunk indexing and retrieval operations.\nThe `VectorKnowledgeBase` handles converting chunks to embeddings,\nstoring them in a vector store, and enabling retrieval through a `Retriever`.",
+        "category": "KNOWLEDGE_BASE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.1.2.png"
+      },
+      {
+        "className": "InMemoryVectorStore",
+        "label": "In Memory Vector Store",
+        "description": "An in-memory vector store implementation that provides simple storage for vector entries.",
+        "category": "VECTOR_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.1.2.png"
+      }
+    ],
+    "ballerina:ai:1.1.3": [
+      {
+        "className": "Wso2EmbeddingProvider",
+        "label": "Default Embedding Provider (WSO2)",
+        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "category": "EMBEDDING_PROVIDER",
+        "symbol": "getDefaultEmbeddingProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.1.3.png"
+      },
+      {
+        "className": "Wso2ModelProvider",
+        "label": "Default Model Provider (WSO2)",
+        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "getDefaultModelProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.1.3.png"
+      },
+      {
+        "className": "VectorKnowledgeBase",
+        "label": "Vector Knowledge Base",
+        "description": "Represents a vector knowledge base for managing chunk indexing and retrieval operations.\nThe `VectorKnowledgeBase` handles converting chunks to embeddings,\nstoring them in a vector store, and enabling retrieval through a `Retriever`.",
+        "category": "KNOWLEDGE_BASE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.1.3.png"
+      },
+      {
+        "className": "InMemoryVectorStore",
+        "label": "In Memory Vector Store",
+        "description": "An in-memory vector store implementation that provides simple storage for vector entries.",
+        "category": "VECTOR_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.1.3.png"
+      }
+    ],
+    "ballerina:ai:1.1.4": [
+      {
+        "className": "Wso2EmbeddingProvider",
+        "label": "Default Embedding Provider (WSO2)",
+        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "category": "EMBEDDING_PROVIDER",
+        "symbol": "getDefaultEmbeddingProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.1.4.png"
+      },
+      {
+        "className": "Wso2ModelProvider",
+        "label": "Default Model Provider (WSO2)",
+        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "getDefaultModelProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.1.4.png"
+      },
+      {
+        "className": "VectorKnowledgeBase",
+        "label": "Vector Knowledge Base",
+        "description": "Represents a vector knowledge base for managing chunk indexing and retrieval operations.\nThe `VectorKnowledgeBase` handles converting chunks to embeddings,\nstoring them in a vector store, and enabling retrieval through a `Retriever`.",
+        "category": "KNOWLEDGE_BASE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.1.4.png"
+      },
+      {
+        "className": "InMemoryVectorStore",
+        "label": "In Memory Vector Store",
+        "description": "An in-memory vector store implementation that provides simple storage for vector entries.",
+        "category": "VECTOR_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.1.4.png"
+      }
+    ],
+    "ballerina:ai:1.10.0": [
+      {
+        "className": "GenericRecursiveChunker",
+        "label": "Generic Recursive Chunker",
+        "description": "Represents a Genereric document chunker.\nProvides functionality to recursively chunk a text document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.10.0.png"
+      },
+      {
+        "className": "MarkdownChunker",
+        "label": "Markdown Chunker",
+        "description": "Represents a Markdown document chunker.\nProvides functionality to recursively chunk a markdown document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.10.0.png"
+      },
+      {
+        "className": "HtmlChunker",
+        "label": "Html Chunker",
+        "description": "Represents an HTML document chunker.\nProvides functionality to recursively chunk a HTML document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.10.0.png"
+      },
+      {
+        "className": "TextDataLoader",
+        "label": "Text Data Loader",
+        "description": "Dataloader that can be used to load supported file types as `TextDocument`s.\nCurrently only supports `pdf`, `docx`, `markdown`, `html`, and `pptx` file types.",
+        "category": "DATA_LOADER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.10.0.png"
+      },
+      {
+        "className": "Wso2EmbeddingProvider",
+        "label": "Default Embedding Provider (WSO2)",
+        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "category": "EMBEDDING_PROVIDER",
+        "symbol": "getDefaultEmbeddingProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.10.0.png"
+      },
+      {
+        "className": "Wso2ModelProvider",
+        "label": "Default Model Provider (WSO2)",
+        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "getDefaultModelProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.10.0.png"
+      },
+      {
+        "className": "VectorKnowledgeBase",
+        "label": "Vector Knowledge Base",
+        "description": "Represents a vector knowledge base for managing chunk indexing and retrieval operations.\nThe `VectorKnowledgeBase` handles converting chunks to embeddings,\nstoring them in a vector store, and enabling retrieval through a `Retriever`.",
+        "category": "KNOWLEDGE_BASE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.10.0.png"
+      },
+      {
+        "className": "InMemoryShortTermMemoryStore",
+        "label": "In Memory Short Term Memory Store",
+        "description": "Provides an in-memory chat message store.",
+        "category": "SHORT_TERM_MEMORY_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.10.0.png"
+      },
+      {
+        "className": "InMemoryVectorStore",
+        "label": "In Memory Vector Store",
+        "description": "An in-memory vector store implementation that provides simple storage for vector entries.",
+        "category": "VECTOR_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.10.0.png"
+      }
+    ],
+    "ballerina:ai:1.11.0": [
+      {
+        "className": "GenericRecursiveChunker",
+        "label": "Generic Recursive Chunker",
+        "description": "Represents a Genereric document chunker.\nProvides functionality to recursively chunk a text document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.0.png"
+      },
+      {
+        "className": "MarkdownChunker",
+        "label": "Markdown Chunker",
+        "description": "Represents a Markdown document chunker.\nProvides functionality to recursively chunk a markdown document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.0.png"
+      },
+      {
+        "className": "HtmlChunker",
+        "label": "Html Chunker",
+        "description": "Represents an HTML document chunker.\nProvides functionality to recursively chunk a HTML document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.0.png"
+      },
+      {
+        "className": "TextDataLoader",
+        "label": "Text Data Loader",
+        "description": "Dataloader that can be used to load supported file types as `TextDocument`s.\nCurrently only supports `pdf`, `docx`, `markdown`, `html`, and `pptx` file types.",
+        "category": "DATA_LOADER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.0.png"
+      },
+      {
+        "className": "Wso2EmbeddingProvider",
+        "label": "Default Embedding Provider (WSO2)",
+        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "category": "EMBEDDING_PROVIDER",
+        "symbol": "getDefaultEmbeddingProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.0.png"
+      },
+      {
+        "className": "Wso2ModelProvider",
+        "label": "Default Model Provider (WSO2)",
+        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "getDefaultModelProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.0.png"
+      },
+      {
+        "className": "VectorKnowledgeBase",
+        "label": "Vector Knowledge Base",
+        "description": "Represents a vector knowledge base for managing chunk indexing and retrieval operations.\nThe `VectorKnowledgeBase` handles converting chunks to embeddings,\nstoring them in a vector store, and enabling retrieval through a `Retriever`.",
+        "category": "KNOWLEDGE_BASE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.0.png"
+      },
+      {
+        "className": "InMemoryShortTermMemoryStore",
+        "label": "In Memory Short Term Memory Store",
+        "description": "Provides an in-memory chat message store.",
+        "category": "SHORT_TERM_MEMORY_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.0.png"
+      },
+      {
+        "className": "InMemoryVectorStore",
+        "label": "In Memory Vector Store",
+        "description": "An in-memory vector store implementation that provides simple storage for vector entries.",
+        "category": "VECTOR_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.0.png"
+      }
+    ],
+    "ballerina:ai:1.11.1": [
+      {
+        "className": "GenericRecursiveChunker",
+        "label": "Generic Recursive Chunker",
+        "description": "Represents a Genereric document chunker.\nProvides functionality to recursively chunk a text document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.1.png"
+      },
+      {
+        "className": "MarkdownChunker",
+        "label": "Markdown Chunker",
+        "description": "Represents a Markdown document chunker.\nProvides functionality to recursively chunk a markdown document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.1.png"
+      },
+      {
+        "className": "HtmlChunker",
+        "label": "Html Chunker",
+        "description": "Represents an HTML document chunker.\nProvides functionality to recursively chunk a HTML document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.1.png"
+      },
+      {
+        "className": "TextDataLoader",
+        "label": "Text Data Loader",
+        "description": "Dataloader that can be used to load supported file types as `TextDocument`s.\nCurrently only supports `pdf`, `docx`, `markdown`, `html`, and `pptx` file types.",
+        "category": "DATA_LOADER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.1.png"
+      },
+      {
+        "className": "Wso2EmbeddingProvider",
+        "label": "Default Embedding Provider (WSO2)",
+        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "category": "EMBEDDING_PROVIDER",
+        "symbol": "getDefaultEmbeddingProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.1.png"
+      },
+      {
+        "className": "Wso2ModelProvider",
+        "label": "Default Model Provider (WSO2)",
+        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "getDefaultModelProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.1.png"
+      },
+      {
+        "className": "VectorKnowledgeBase",
+        "label": "Vector Knowledge Base",
+        "description": "Represents a vector knowledge base for managing chunk indexing and retrieval operations.\nThe `VectorKnowledgeBase` handles converting chunks to embeddings,\nstoring them in a vector store, and enabling retrieval through a `Retriever`.",
+        "category": "KNOWLEDGE_BASE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.1.png"
+      },
+      {
+        "className": "InMemoryShortTermMemoryStore",
+        "label": "In Memory Short Term Memory Store",
+        "description": "Provides an in-memory chat message store.",
+        "category": "SHORT_TERM_MEMORY_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.1.png"
+      },
+      {
+        "className": "InMemoryVectorStore",
+        "label": "In Memory Vector Store",
+        "description": "An in-memory vector store implementation that provides simple storage for vector entries.",
+        "category": "VECTOR_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.1.png"
+      }
+    ],
+    "ballerina:ai:1.11.2": [
+      {
+        "className": "GenericRecursiveChunker",
+        "label": "Generic Recursive Chunker",
+        "description": "Represents a Genereric document chunker.\nProvides functionality to recursively chunk a text document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.2.png"
+      },
+      {
+        "className": "MarkdownChunker",
+        "label": "Markdown Chunker",
+        "description": "Represents a Markdown document chunker.\nProvides functionality to recursively chunk a markdown document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.2.png"
+      },
+      {
+        "className": "HtmlChunker",
+        "label": "Html Chunker",
+        "description": "Represents an HTML document chunker.\nProvides functionality to recursively chunk a HTML document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.2.png"
+      },
+      {
+        "className": "TextDataLoader",
+        "label": "Text Data Loader",
+        "description": "Dataloader that can be used to load supported file types as `TextDocument`s.\nCurrently only supports `pdf`, `docx`, `markdown`, `html`, and `pptx` file types.",
+        "category": "DATA_LOADER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.2.png"
+      },
+      {
+        "className": "Wso2EmbeddingProvider",
+        "label": "Default Embedding Provider (WSO2)",
+        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "category": "EMBEDDING_PROVIDER",
+        "symbol": "getDefaultEmbeddingProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.2.png"
+      },
+      {
+        "className": "Wso2ModelProvider",
+        "label": "Default Model Provider (WSO2)",
+        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "getDefaultModelProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.2.png"
+      },
+      {
+        "className": "VectorKnowledgeBase",
+        "label": "Vector Knowledge Base",
+        "description": "Represents a vector knowledge base for managing chunk indexing and retrieval operations.\nThe `VectorKnowledgeBase` handles converting chunks to embeddings,\nstoring them in a vector store, and enabling retrieval through a `Retriever`.",
+        "category": "KNOWLEDGE_BASE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.2.png"
+      },
+      {
+        "className": "InMemoryShortTermMemoryStore",
+        "label": "In Memory Short Term Memory Store",
+        "description": "Provides an in-memory chat message store.",
+        "category": "SHORT_TERM_MEMORY_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.2.png"
+      },
+      {
+        "className": "InMemoryVectorStore",
+        "label": "In Memory Vector Store",
+        "description": "An in-memory vector store implementation that provides simple storage for vector entries.",
+        "category": "VECTOR_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.2.png"
+      }
+    ],
+    "ballerina:ai:1.12.0": [
+      {
+        "className": "GenericRecursiveChunker",
+        "label": "Generic Recursive Chunker",
+        "description": "Represents a Genereric document chunker.\nProvides functionality to recursively chunk a text document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.12.0.png"
+      },
+      {
+        "className": "MarkdownChunker",
+        "label": "Markdown Chunker",
+        "description": "Represents a Markdown document chunker.\nProvides functionality to recursively chunk a markdown document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.12.0.png"
+      },
+      {
+        "className": "HtmlChunker",
+        "label": "Html Chunker",
+        "description": "Represents an HTML document chunker.\nProvides functionality to recursively chunk a HTML document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.12.0.png"
+      },
+      {
+        "className": "TextDataLoader",
+        "label": "Text Data Loader",
+        "description": "Dataloader that can be used to load supported file types as `TextDocument`s.\nCurrently only supports `pdf`, `docx`, `markdown`, `html`, and `pptx` file types.",
+        "category": "DATA_LOADER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.12.0.png"
+      },
+      {
+        "className": "Wso2EmbeddingProvider",
+        "label": "Default Embedding Provider (WSO2)",
+        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "category": "EMBEDDING_PROVIDER",
+        "symbol": "getDefaultEmbeddingProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.12.0.png"
+      },
+      {
+        "className": "Wso2ModelProvider",
+        "label": "Default Model Provider (WSO2)",
+        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "getDefaultModelProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.12.0.png"
+      },
+      {
+        "className": "VectorKnowledgeBase",
+        "label": "Vector Knowledge Base",
+        "description": "Represents a vector knowledge base for managing chunk indexing and retrieval operations.\nThe `VectorKnowledgeBase` handles converting chunks to embeddings,\nstoring them in a vector store, and enabling retrieval through a `Retriever`.",
+        "category": "KNOWLEDGE_BASE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.12.0.png"
+      },
+      {
+        "className": "InMemoryShortTermMemoryStore",
+        "label": "In Memory Short Term Memory Store",
+        "description": "Provides an in-memory chat message store.",
+        "category": "SHORT_TERM_MEMORY_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.12.0.png"
+      },
+      {
+        "className": "InMemoryVectorStore",
+        "label": "In Memory Vector Store",
+        "description": "An in-memory vector store implementation that provides simple storage for vector entries.",
+        "category": "VECTOR_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.12.0.png"
+      }
+    ],
+    "ballerina:ai:1.13.0": [
+      {
+        "className": "GenericRecursiveChunker",
+        "label": "Generic Recursive Chunker",
+        "description": "Represents a Genereric document chunker.\nProvides functionality to recursively chunk a text document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png"
+      },
+      {
+        "className": "MarkdownChunker",
+        "label": "Markdown Chunker",
+        "description": "Represents a Markdown document chunker.\nProvides functionality to recursively chunk a markdown document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png"
+      },
+      {
+        "className": "HtmlChunker",
+        "label": "Html Chunker",
+        "description": "Represents an HTML document chunker.\nProvides functionality to recursively chunk a HTML document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png"
+      },
+      {
+        "className": "TextDataLoader",
+        "label": "Text Data Loader",
+        "description": "Dataloader that can be used to load supported file types as `TextDocument`s.\nCurrently only supports `pdf`, `docx`, `markdown`, `html`, and `pptx` file types.",
+        "category": "DATA_LOADER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png"
+      },
+      {
+        "className": "Wso2EmbeddingProvider",
+        "label": "Default Embedding Provider (WSO2)",
+        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "category": "EMBEDDING_PROVIDER",
+        "symbol": "getDefaultEmbeddingProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png"
+      },
+      {
+        "className": "Wso2ModelProvider",
+        "label": "Default Model Provider (WSO2)",
+        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "getDefaultModelProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png"
+      },
+      {
+        "className": "VectorKnowledgeBase",
+        "label": "Vector Knowledge Base",
+        "description": "Represents a vector knowledge base for managing chunk indexing and retrieval operations.\nThe `VectorKnowledgeBase` handles converting chunks to embeddings,\nstoring them in a vector store, and enabling retrieval through a `Retriever`.",
+        "category": "KNOWLEDGE_BASE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png"
+      },
+      {
+        "className": "InMemoryShortTermMemoryStore",
+        "label": "In Memory Short Term Memory Store",
+        "description": "Provides an in-memory chat message store.",
+        "category": "SHORT_TERM_MEMORY_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png"
+      },
+      {
+        "className": "InMemoryVectorStore",
+        "label": "In Memory Vector Store",
+        "description": "An in-memory vector store implementation that provides simple storage for vector entries.",
+        "category": "VECTOR_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png"
+      }
+    ],
+    "ballerina:ai:1.14.0": [
+      {
+        "className": "GenericRecursiveChunker",
+        "label": "Generic Recursive Chunker",
+        "description": "Represents a Genereric document chunker.\nProvides functionality to recursively chunk a text document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.14.0.png"
+      },
+      {
+        "className": "MarkdownChunker",
+        "label": "Markdown Chunker",
+        "description": "Represents a Markdown document chunker.\nProvides functionality to recursively chunk a markdown document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.14.0.png"
+      },
+      {
+        "className": "HtmlChunker",
+        "label": "Html Chunker",
+        "description": "Represents an HTML document chunker.\nProvides functionality to recursively chunk a HTML document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.14.0.png"
+      },
+      {
+        "className": "TextDataLoader",
+        "label": "Text Data Loader",
+        "description": "Dataloader that can be used to load supported file types as `TextDocument`s.\nCurrently only supports `pdf`, `docx`, `markdown`, `html`, and `pptx` file types.",
+        "category": "DATA_LOADER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.14.0.png"
+      },
+      {
+        "className": "Wso2EmbeddingProvider",
+        "label": "Default Embedding Provider (WSO2)",
+        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "category": "EMBEDDING_PROVIDER",
+        "symbol": "getDefaultEmbeddingProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.14.0.png"
+      },
+      {
+        "className": "Wso2ModelProvider",
+        "label": "Default Model Provider (WSO2)",
+        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "getDefaultModelProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.14.0.png"
+      },
+      {
+        "className": "VectorKnowledgeBase",
+        "label": "Vector Knowledge Base",
+        "description": "Represents a vector knowledge base for managing chunk indexing and retrieval operations.\nThe `VectorKnowledgeBase` handles converting chunks to embeddings,\nstoring them in a vector store, and enabling retrieval through a `Retriever`.",
+        "category": "KNOWLEDGE_BASE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.14.0.png"
+      },
+      {
+        "className": "InMemoryShortTermMemoryStore",
+        "label": "In Memory Short Term Memory Store",
+        "description": "Provides an in-memory chat message store.",
+        "category": "SHORT_TERM_MEMORY_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.14.0.png"
+      },
+      {
+        "className": "InMemoryVectorStore",
+        "label": "In Memory Vector Store",
+        "description": "An in-memory vector store implementation that provides simple storage for vector entries.",
+        "category": "VECTOR_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.14.0.png"
+      }
+    ],
+    "ballerina:ai:1.14.1": [
+      {
+        "className": "GenericRecursiveChunker",
+        "label": "Generic Recursive Chunker",
+        "description": "Represents a Genereric document chunker.\nProvides functionality to recursively chunk a text document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.14.1.png"
+      },
+      {
+        "className": "MarkdownChunker",
+        "label": "Markdown Chunker",
+        "description": "Represents a Markdown document chunker.\nProvides functionality to recursively chunk a markdown document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.14.1.png"
+      },
+      {
+        "className": "HtmlChunker",
+        "label": "Html Chunker",
+        "description": "Represents an HTML document chunker.\nProvides functionality to recursively chunk a HTML document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.14.1.png"
+      },
+      {
+        "className": "TextDataLoader",
+        "label": "Text Data Loader",
+        "description": "Dataloader that can be used to load supported file types as `TextDocument`s.\nCurrently only supports `pdf`, `docx`, `markdown`, `html`, and `pptx` file types.",
+        "category": "DATA_LOADER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.14.1.png"
+      },
+      {
+        "className": "Wso2EmbeddingProvider",
+        "label": "Default Embedding Provider (WSO2)",
+        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "category": "EMBEDDING_PROVIDER",
+        "symbol": "getDefaultEmbeddingProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.14.1.png"
+      },
+      {
+        "className": "Wso2ModelProvider",
+        "label": "Default Model Provider (WSO2)",
+        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "getDefaultModelProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.14.1.png"
+      },
+      {
+        "className": "VectorKnowledgeBase",
+        "label": "Vector Knowledge Base",
+        "description": "Represents a vector knowledge base for managing chunk indexing and retrieval operations.\nThe `VectorKnowledgeBase` handles converting chunks to embeddings,\nstoring them in a vector store, and enabling retrieval through a `Retriever`.",
+        "category": "KNOWLEDGE_BASE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.14.1.png"
+      },
+      {
+        "className": "InMemoryShortTermMemoryStore",
+        "label": "In Memory Short Term Memory Store",
+        "description": "Provides an in-memory chat message store.",
+        "category": "SHORT_TERM_MEMORY_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.14.1.png"
+      },
+      {
+        "className": "InMemoryVectorStore",
+        "label": "In Memory Vector Store",
+        "description": "An in-memory vector store implementation that provides simple storage for vector entries.",
+        "category": "VECTOR_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.14.1.png"
+      }
+    ],
+    "ballerina:ai:1.15.0": [
+      {
+        "className": "GenericRecursiveChunker",
+        "label": "Generic Recursive Chunker",
+        "description": "Represents a Genereric document chunker.\nProvides functionality to recursively chunk a text document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png"
+      },
+      {
+        "className": "MarkdownChunker",
+        "label": "Markdown Chunker",
+        "description": "Represents a Markdown document chunker.\nProvides functionality to recursively chunk a markdown document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png"
+      },
+      {
+        "className": "HtmlChunker",
+        "label": "Html Chunker",
+        "description": "Represents an HTML document chunker.\nProvides functionality to recursively chunk a HTML document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png"
+      },
+      {
+        "className": "TextDataLoader",
+        "label": "Text Data Loader",
+        "description": "Dataloader that can be used to load supported file types as `TextDocument`s.\nCurrently only supports `pdf`, `docx`, `markdown`, `html`, and `pptx` file types.",
+        "category": "DATA_LOADER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png"
+      },
+      {
+        "className": "Wso2EmbeddingProvider",
+        "label": "Default Embedding Provider (WSO2)",
+        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "category": "EMBEDDING_PROVIDER",
+        "symbol": "getDefaultEmbeddingProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png"
+      },
+      {
+        "className": "Wso2ModelProvider",
+        "label": "Default Model Provider (WSO2)",
+        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "getDefaultModelProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png"
+      },
+      {
+        "className": "VectorKnowledgeBase",
+        "label": "Vector Knowledge Base",
+        "description": "Represents a vector knowledge base for managing chunk indexing and retrieval operations.\nThe `VectorKnowledgeBase` handles converting chunks to embeddings,\nstoring them in a vector store, and enabling retrieval through a `Retriever`.",
+        "category": "KNOWLEDGE_BASE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png"
+      },
+      {
+        "className": "InMemoryShortTermMemoryStore",
+        "label": "In Memory Short Term Memory Store",
+        "description": "Provides an in-memory chat message store.",
+        "category": "SHORT_TERM_MEMORY_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png"
+      },
+      {
+        "className": "InMemoryVectorStore",
+        "label": "In Memory Vector Store",
+        "description": "An in-memory vector store implementation that provides simple storage for vector entries.",
+        "category": "VECTOR_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png"
+      }
+    ],
+    "ballerina:ai:1.16.0": [
+      {
+        "className": "GenericRecursiveChunker",
+        "label": "Generic Recursive Chunker",
+        "description": "Represents a Genereric document chunker.\nProvides functionality to recursively chunk a text document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png"
+      },
+      {
+        "className": "MarkdownChunker",
+        "label": "Markdown Chunker",
+        "description": "Represents a Markdown document chunker.\nProvides functionality to recursively chunk a markdown document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png"
+      },
+      {
+        "className": "HtmlChunker",
+        "label": "Html Chunker",
+        "description": "Represents an HTML document chunker.\nProvides functionality to recursively chunk a HTML document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png"
+      },
+      {
+        "className": "TextDataLoader",
+        "label": "Text Data Loader",
+        "description": "Dataloader that can be used to load supported file types as `TextDocument`s.\nCurrently only supports `pdf`, `docx`, `markdown`, `html`, and `pptx` file types.",
+        "category": "DATA_LOADER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png"
+      },
+      {
+        "className": "Wso2EmbeddingProvider",
+        "label": "Default Embedding Provider (WSO2)",
+        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "category": "EMBEDDING_PROVIDER",
+        "symbol": "getDefaultEmbeddingProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png"
+      },
+      {
+        "className": "Wso2ModelProvider",
+        "label": "Default Model Provider (WSO2)",
+        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "getDefaultModelProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png"
+      },
+      {
+        "className": "VectorKnowledgeBase",
+        "label": "Vector Knowledge Base",
+        "description": "Represents a vector knowledge base for managing chunk indexing and retrieval operations.\nThe `VectorKnowledgeBase` handles converting chunks to embeddings,\nstoring them in a vector store, and enabling retrieval through a `Retriever`.",
+        "category": "KNOWLEDGE_BASE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png"
+      },
+      {
+        "className": "InMemoryShortTermMemoryStore",
+        "label": "In Memory Short Term Memory Store",
+        "description": "Provides an in-memory chat message store.",
+        "category": "SHORT_TERM_MEMORY_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png"
+      },
+      {
+        "className": "InMemoryVectorStore",
+        "label": "In Memory Vector Store",
+        "description": "An in-memory vector store implementation that provides simple storage for vector entries.",
+        "category": "VECTOR_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png"
+      }
+    ],
+    "ballerina:ai:1.2.0": [
+      {
+        "className": "Wso2EmbeddingProvider",
+        "label": "Default Embedding Provider (WSO2)",
+        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "category": "EMBEDDING_PROVIDER",
+        "symbol": "getDefaultEmbeddingProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.2.0.png"
+      },
+      {
+        "className": "Wso2ModelProvider",
+        "label": "Default Model Provider (WSO2)",
+        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "getDefaultModelProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.2.0.png"
+      },
+      {
+        "className": "VectorKnowledgeBase",
+        "label": "Vector Knowledge Base",
+        "description": "Represents a vector knowledge base for managing chunk indexing and retrieval operations.\nThe `VectorKnowledgeBase` handles converting chunks to embeddings,\nstoring them in a vector store, and enabling retrieval through a `Retriever`.",
+        "category": "KNOWLEDGE_BASE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.2.0.png"
+      },
+      {
+        "className": "InMemoryVectorStore",
+        "label": "In Memory Vector Store",
+        "description": "An in-memory vector store implementation that provides simple storage for vector entries.",
+        "category": "VECTOR_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.2.0.png"
+      }
+    ],
+    "ballerina:ai:1.3.0": [
+      {
+        "className": "GenericRecursiveChunker",
+        "label": "Generic Recursive Chunker",
+        "description": "Represents a Genereric document chunker.\nProvides functionality to recursively chunk a text document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.3.0.png"
+      },
+      {
+        "className": "MarkdownChunker",
+        "label": "Markdown Chunker",
+        "description": "Represents a Markdown document chunker.\nProvides functionality to recursively chunk a markdown document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.3.0.png"
+      },
+      {
+        "className": "Wso2EmbeddingProvider",
+        "label": "Default Embedding Provider (WSO2)",
+        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "category": "EMBEDDING_PROVIDER",
+        "symbol": "getDefaultEmbeddingProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.3.0.png"
+      },
+      {
+        "className": "Wso2ModelProvider",
+        "label": "Default Model Provider (WSO2)",
+        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "getDefaultModelProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.3.0.png"
+      },
+      {
+        "className": "VectorKnowledgeBase",
+        "label": "Vector Knowledge Base",
+        "description": "Represents a vector knowledge base for managing chunk indexing and retrieval operations.\nThe `VectorKnowledgeBase` handles converting chunks to embeddings,\nstoring them in a vector store, and enabling retrieval through a `Retriever`.",
+        "category": "KNOWLEDGE_BASE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.3.0.png"
+      },
+      {
+        "className": "InMemoryVectorStore",
+        "label": "In Memory Vector Store",
+        "description": "An in-memory vector store implementation that provides simple storage for vector entries.",
+        "category": "VECTOR_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.3.0.png"
+      }
+    ],
+    "ballerina:ai:1.3.1": [
+      {
+        "className": "GenericRecursiveChunker",
+        "label": "Generic Recursive Chunker",
+        "description": "Represents a Genereric document chunker.\nProvides functionality to recursively chunk a text document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.3.1.png"
+      },
+      {
+        "className": "MarkdownChunker",
+        "label": "Markdown Chunker",
+        "description": "Represents a Markdown document chunker.\nProvides functionality to recursively chunk a markdown document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.3.1.png"
+      },
+      {
+        "className": "Wso2EmbeddingProvider",
+        "label": "Default Embedding Provider (WSO2)",
+        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "category": "EMBEDDING_PROVIDER",
+        "symbol": "getDefaultEmbeddingProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.3.1.png"
+      },
+      {
+        "className": "Wso2ModelProvider",
+        "label": "Default Model Provider (WSO2)",
+        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "getDefaultModelProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.3.1.png"
+      },
+      {
+        "className": "VectorKnowledgeBase",
+        "label": "Vector Knowledge Base",
+        "description": "Represents a vector knowledge base for managing chunk indexing and retrieval operations.\nThe `VectorKnowledgeBase` handles converting chunks to embeddings,\nstoring them in a vector store, and enabling retrieval through a `Retriever`.",
+        "category": "KNOWLEDGE_BASE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.3.1.png"
+      },
+      {
+        "className": "InMemoryVectorStore",
+        "label": "In Memory Vector Store",
+        "description": "An in-memory vector store implementation that provides simple storage for vector entries.",
+        "category": "VECTOR_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.3.1.png"
+      }
+    ],
+    "ballerina:ai:1.4.0": [
+      {
+        "className": "GenericRecursiveChunker",
+        "label": "Generic Recursive Chunker",
+        "description": "Represents a Genereric document chunker.\nProvides functionality to recursively chunk a text document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.4.0.png"
+      },
+      {
+        "className": "MarkdownChunker",
+        "label": "Markdown Chunker",
+        "description": "Represents a Markdown document chunker.\nProvides functionality to recursively chunk a markdown document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.4.0.png"
+      },
+      {
+        "className": "HtmlChunker",
+        "label": "Html Chunker",
+        "description": "Represents an HTML document chunker.\nProvides functionality to recursively chunk a HTML document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.4.0.png"
+      },
+      {
+        "className": "Wso2EmbeddingProvider",
+        "label": "Default Embedding Provider (WSO2)",
+        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "category": "EMBEDDING_PROVIDER",
+        "symbol": "getDefaultEmbeddingProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.4.0.png"
+      },
+      {
+        "className": "Wso2ModelProvider",
+        "label": "Default Model Provider (WSO2)",
+        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "getDefaultModelProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.4.0.png"
+      },
+      {
+        "className": "VectorKnowledgeBase",
+        "label": "Vector Knowledge Base",
+        "description": "Represents a vector knowledge base for managing chunk indexing and retrieval operations.\nThe `VectorKnowledgeBase` handles converting chunks to embeddings,\nstoring them in a vector store, and enabling retrieval through a `Retriever`.",
+        "category": "KNOWLEDGE_BASE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.4.0.png"
+      },
+      {
+        "className": "InMemoryVectorStore",
+        "label": "In Memory Vector Store",
+        "description": "An in-memory vector store implementation that provides simple storage for vector entries.",
+        "category": "VECTOR_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.4.0.png"
+      }
+    ],
+    "ballerina:ai:1.4.1": [
+      {
+        "className": "GenericRecursiveChunker",
+        "label": "Generic Recursive Chunker",
+        "description": "Represents a Genereric document chunker.\nProvides functionality to recursively chunk a text document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.4.1.png"
+      },
+      {
+        "className": "MarkdownChunker",
+        "label": "Markdown Chunker",
+        "description": "Represents a Markdown document chunker.\nProvides functionality to recursively chunk a markdown document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.4.1.png"
+      },
+      {
+        "className": "HtmlChunker",
+        "label": "Html Chunker",
+        "description": "Represents an HTML document chunker.\nProvides functionality to recursively chunk a HTML document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.4.1.png"
+      },
+      {
+        "className": "Wso2EmbeddingProvider",
+        "label": "Default Embedding Provider (WSO2)",
+        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "category": "EMBEDDING_PROVIDER",
+        "symbol": "getDefaultEmbeddingProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.4.1.png"
+      },
+      {
+        "className": "Wso2ModelProvider",
+        "label": "Default Model Provider (WSO2)",
+        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "getDefaultModelProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.4.1.png"
+      },
+      {
+        "className": "VectorKnowledgeBase",
+        "label": "Vector Knowledge Base",
+        "description": "Represents a vector knowledge base for managing chunk indexing and retrieval operations.\nThe `VectorKnowledgeBase` handles converting chunks to embeddings,\nstoring them in a vector store, and enabling retrieval through a `Retriever`.",
+        "category": "KNOWLEDGE_BASE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.4.1.png"
+      },
+      {
+        "className": "InMemoryVectorStore",
+        "label": "In Memory Vector Store",
+        "description": "An in-memory vector store implementation that provides simple storage for vector entries.",
+        "category": "VECTOR_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.4.1.png"
+      }
+    ],
+    "ballerina:ai:1.5.0": [
+      {
+        "className": "GenericRecursiveChunker",
+        "label": "Generic Recursive Chunker",
+        "description": "Represents a Genereric document chunker.\nProvides functionality to recursively chunk a text document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.5.0.png"
+      },
+      {
+        "className": "MarkdownChunker",
+        "label": "Markdown Chunker",
+        "description": "Represents a Markdown document chunker.\nProvides functionality to recursively chunk a markdown document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.5.0.png"
+      },
+      {
+        "className": "HtmlChunker",
+        "label": "Html Chunker",
+        "description": "Represents an HTML document chunker.\nProvides functionality to recursively chunk a HTML document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.5.0.png"
+      },
+      {
+        "className": "TextDataLoader",
+        "label": "Text Data Loader",
+        "description": "Dataloader that can be used to load supported file types as `TextDocument`s.\nCurrently only supports `pdf`, `docx` and `pptx` file types.",
+        "category": "DATA_LOADER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.5.0.png"
+      },
+      {
+        "className": "Wso2EmbeddingProvider",
+        "label": "Default Embedding Provider (WSO2)",
+        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "category": "EMBEDDING_PROVIDER",
+        "symbol": "getDefaultEmbeddingProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.5.0.png"
+      },
+      {
+        "className": "Wso2ModelProvider",
+        "label": "Default Model Provider (WSO2)",
+        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "getDefaultModelProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.5.0.png"
+      },
+      {
+        "className": "VectorKnowledgeBase",
+        "label": "Vector Knowledge Base",
+        "description": "Represents a vector knowledge base for managing chunk indexing and retrieval operations.\nThe `VectorKnowledgeBase` handles converting chunks to embeddings,\nstoring them in a vector store, and enabling retrieval through a `Retriever`.",
+        "category": "KNOWLEDGE_BASE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.5.0.png"
+      },
+      {
+        "className": "InMemoryVectorStore",
+        "label": "In Memory Vector Store",
+        "description": "An in-memory vector store implementation that provides simple storage for vector entries.",
+        "category": "VECTOR_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.5.0.png"
+      }
+    ],
+    "ballerina:ai:1.5.1": [
+      {
+        "className": "GenericRecursiveChunker",
+        "label": "Generic Recursive Chunker",
+        "description": "Represents a Genereric document chunker.\nProvides functionality to recursively chunk a text document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.5.1.png"
+      },
+      {
+        "className": "MarkdownChunker",
+        "label": "Markdown Chunker",
+        "description": "Represents a Markdown document chunker.\nProvides functionality to recursively chunk a markdown document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.5.1.png"
+      },
+      {
+        "className": "HtmlChunker",
+        "label": "Html Chunker",
+        "description": "Represents an HTML document chunker.\nProvides functionality to recursively chunk a HTML document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.5.1.png"
+      },
+      {
+        "className": "TextDataLoader",
+        "label": "Text Data Loader",
+        "description": "Dataloader that can be used to load supported file types as `TextDocument`s.\nCurrently only supports `pdf`, `docx` and `pptx` file types.",
+        "category": "DATA_LOADER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.5.1.png"
+      },
+      {
+        "className": "Wso2EmbeddingProvider",
+        "label": "Default Embedding Provider (WSO2)",
+        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "category": "EMBEDDING_PROVIDER",
+        "symbol": "getDefaultEmbeddingProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.5.1.png"
+      },
+      {
+        "className": "Wso2ModelProvider",
+        "label": "Default Model Provider (WSO2)",
+        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "getDefaultModelProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.5.1.png"
+      },
+      {
+        "className": "VectorKnowledgeBase",
+        "label": "Vector Knowledge Base",
+        "description": "Represents a vector knowledge base for managing chunk indexing and retrieval operations.\nThe `VectorKnowledgeBase` handles converting chunks to embeddings,\nstoring them in a vector store, and enabling retrieval through a `Retriever`.",
+        "category": "KNOWLEDGE_BASE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.5.1.png"
+      },
+      {
+        "className": "InMemoryVectorStore",
+        "label": "In Memory Vector Store",
+        "description": "An in-memory vector store implementation that provides simple storage for vector entries.",
+        "category": "VECTOR_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.5.1.png"
+      }
+    ],
+    "ballerina:ai:1.5.2": [
+      {
+        "className": "GenericRecursiveChunker",
+        "label": "Generic Recursive Chunker",
+        "description": "Represents a Genereric document chunker.\nProvides functionality to recursively chunk a text document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.5.2.png"
+      },
+      {
+        "className": "MarkdownChunker",
+        "label": "Markdown Chunker",
+        "description": "Represents a Markdown document chunker.\nProvides functionality to recursively chunk a markdown document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.5.2.png"
+      },
+      {
+        "className": "HtmlChunker",
+        "label": "Html Chunker",
+        "description": "Represents an HTML document chunker.\nProvides functionality to recursively chunk a HTML document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.5.2.png"
+      },
+      {
+        "className": "TextDataLoader",
+        "label": "Text Data Loader",
+        "description": "Dataloader that can be used to load supported file types as `TextDocument`s.\nCurrently only supports `pdf`, `docx` and `pptx` file types.",
+        "category": "DATA_LOADER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.5.2.png"
+      },
+      {
+        "className": "Wso2EmbeddingProvider",
+        "label": "Default Embedding Provider (WSO2)",
+        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "category": "EMBEDDING_PROVIDER",
+        "symbol": "getDefaultEmbeddingProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.5.2.png"
+      },
+      {
+        "className": "Wso2ModelProvider",
+        "label": "Default Model Provider (WSO2)",
+        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "getDefaultModelProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.5.2.png"
+      },
+      {
+        "className": "VectorKnowledgeBase",
+        "label": "Vector Knowledge Base",
+        "description": "Represents a vector knowledge base for managing chunk indexing and retrieval operations.\nThe `VectorKnowledgeBase` handles converting chunks to embeddings,\nstoring them in a vector store, and enabling retrieval through a `Retriever`.",
+        "category": "KNOWLEDGE_BASE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.5.2.png"
+      },
+      {
+        "className": "InMemoryVectorStore",
+        "label": "In Memory Vector Store",
+        "description": "An in-memory vector store implementation that provides simple storage for vector entries.",
+        "category": "VECTOR_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.5.2.png"
+      }
+    ],
+    "ballerina:ai:1.5.3": [
+      {
+        "className": "GenericRecursiveChunker",
+        "label": "Generic Recursive Chunker",
+        "description": "Represents a Genereric document chunker.\nProvides functionality to recursively chunk a text document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.5.3.png"
+      },
+      {
+        "className": "MarkdownChunker",
+        "label": "Markdown Chunker",
+        "description": "Represents a Markdown document chunker.\nProvides functionality to recursively chunk a markdown document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.5.3.png"
+      },
+      {
+        "className": "HtmlChunker",
+        "label": "Html Chunker",
+        "description": "Represents an HTML document chunker.\nProvides functionality to recursively chunk a HTML document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.5.3.png"
+      },
+      {
+        "className": "TextDataLoader",
+        "label": "Text Data Loader",
+        "description": "Dataloader that can be used to load supported file types as `TextDocument`s.\nCurrently only supports `pdf`, `docx` and `pptx` file types.",
+        "category": "DATA_LOADER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.5.3.png"
+      },
+      {
+        "className": "Wso2EmbeddingProvider",
+        "label": "Default Embedding Provider (WSO2)",
+        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "category": "EMBEDDING_PROVIDER",
+        "symbol": "getDefaultEmbeddingProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.5.3.png"
+      },
+      {
+        "className": "Wso2ModelProvider",
+        "label": "Default Model Provider (WSO2)",
+        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "getDefaultModelProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.5.3.png"
+      },
+      {
+        "className": "VectorKnowledgeBase",
+        "label": "Vector Knowledge Base",
+        "description": "Represents a vector knowledge base for managing chunk indexing and retrieval operations.\nThe `VectorKnowledgeBase` handles converting chunks to embeddings,\nstoring them in a vector store, and enabling retrieval through a `Retriever`.",
+        "category": "KNOWLEDGE_BASE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.5.3.png"
+      },
+      {
+        "className": "InMemoryVectorStore",
+        "label": "In Memory Vector Store",
+        "description": "An in-memory vector store implementation that provides simple storage for vector entries.",
+        "category": "VECTOR_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.5.3.png"
+      }
+    ],
+    "ballerina:ai:1.5.4": [
+      {
+        "className": "GenericRecursiveChunker",
+        "label": "Generic Recursive Chunker",
+        "description": "Represents a Genereric document chunker.\nProvides functionality to recursively chunk a text document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.5.4.png"
+      },
+      {
+        "className": "MarkdownChunker",
+        "label": "Markdown Chunker",
+        "description": "Represents a Markdown document chunker.\nProvides functionality to recursively chunk a markdown document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.5.4.png"
+      },
+      {
+        "className": "HtmlChunker",
+        "label": "Html Chunker",
+        "description": "Represents an HTML document chunker.\nProvides functionality to recursively chunk a HTML document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.5.4.png"
+      },
+      {
+        "className": "TextDataLoader",
+        "label": "Text Data Loader",
+        "description": "Dataloader that can be used to load supported file types as `TextDocument`s.\nCurrently only supports `pdf`, `docx`, `markdown`, `html`, and `pptx` file types.",
+        "category": "DATA_LOADER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.5.4.png"
+      },
+      {
+        "className": "Wso2EmbeddingProvider",
+        "label": "Default Embedding Provider (WSO2)",
+        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "category": "EMBEDDING_PROVIDER",
+        "symbol": "getDefaultEmbeddingProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.5.4.png"
+      },
+      {
+        "className": "Wso2ModelProvider",
+        "label": "Default Model Provider (WSO2)",
+        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "getDefaultModelProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.5.4.png"
+      },
+      {
+        "className": "VectorKnowledgeBase",
+        "label": "Vector Knowledge Base",
+        "description": "Represents a vector knowledge base for managing chunk indexing and retrieval operations.\nThe `VectorKnowledgeBase` handles converting chunks to embeddings,\nstoring them in a vector store, and enabling retrieval through a `Retriever`.",
+        "category": "KNOWLEDGE_BASE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.5.4.png"
+      },
+      {
+        "className": "InMemoryVectorStore",
+        "label": "In Memory Vector Store",
+        "description": "An in-memory vector store implementation that provides simple storage for vector entries.",
+        "category": "VECTOR_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.5.4.png"
+      }
+    ],
+    "ballerina:ai:1.6.0": [
+      {
+        "className": "GenericRecursiveChunker",
+        "label": "Generic Recursive Chunker",
+        "description": "Represents a Genereric document chunker.\nProvides functionality to recursively chunk a text document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.6.0.png"
+      },
+      {
+        "className": "MarkdownChunker",
+        "label": "Markdown Chunker",
+        "description": "Represents a Markdown document chunker.\nProvides functionality to recursively chunk a markdown document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.6.0.png"
+      },
+      {
+        "className": "HtmlChunker",
+        "label": "Html Chunker",
+        "description": "Represents an HTML document chunker.\nProvides functionality to recursively chunk a HTML document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.6.0.png"
+      },
+      {
+        "className": "TextDataLoader",
+        "label": "Text Data Loader",
+        "description": "Dataloader that can be used to load supported file types as `TextDocument`s.\nCurrently only supports `pdf`, `docx`, `markdown`, `html`, and `pptx` file types.",
+        "category": "DATA_LOADER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.6.0.png"
+      },
+      {
+        "className": "Wso2EmbeddingProvider",
+        "label": "Default Embedding Provider (WSO2)",
+        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "category": "EMBEDDING_PROVIDER",
+        "symbol": "getDefaultEmbeddingProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.6.0.png"
+      },
+      {
+        "className": "Wso2ModelProvider",
+        "label": "Default Model Provider (WSO2)",
+        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "getDefaultModelProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.6.0.png"
+      },
+      {
+        "className": "VectorKnowledgeBase",
+        "label": "Vector Knowledge Base",
+        "description": "Represents a vector knowledge base for managing chunk indexing and retrieval operations.\nThe `VectorKnowledgeBase` handles converting chunks to embeddings,\nstoring them in a vector store, and enabling retrieval through a `Retriever`.",
+        "category": "KNOWLEDGE_BASE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.6.0.png"
+      },
+      {
+        "className": "InMemoryShortTermMemoryStore",
+        "label": "In Memory Short Term Memory Store",
+        "description": "Provides an in-memory chat message store.",
+        "category": "SHORT_TERM_MEMORY_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.6.0.png"
+      },
+      {
+        "className": "InMemoryVectorStore",
+        "label": "In Memory Vector Store",
+        "description": "An in-memory vector store implementation that provides simple storage for vector entries.",
+        "category": "VECTOR_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.6.0.png"
+      }
+    ],
+    "ballerina:ai:1.6.1": [
+      {
+        "className": "GenericRecursiveChunker",
+        "label": "Generic Recursive Chunker",
+        "description": "Represents a Genereric document chunker.\nProvides functionality to recursively chunk a text document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.6.1.png"
+      },
+      {
+        "className": "MarkdownChunker",
+        "label": "Markdown Chunker",
+        "description": "Represents a Markdown document chunker.\nProvides functionality to recursively chunk a markdown document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.6.1.png"
+      },
+      {
+        "className": "HtmlChunker",
+        "label": "Html Chunker",
+        "description": "Represents an HTML document chunker.\nProvides functionality to recursively chunk a HTML document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.6.1.png"
+      },
+      {
+        "className": "TextDataLoader",
+        "label": "Text Data Loader",
+        "description": "Dataloader that can be used to load supported file types as `TextDocument`s.\nCurrently only supports `pdf`, `docx`, `markdown`, `html`, and `pptx` file types.",
+        "category": "DATA_LOADER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.6.1.png"
+      },
+      {
+        "className": "Wso2EmbeddingProvider",
+        "label": "Default Embedding Provider (WSO2)",
+        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "category": "EMBEDDING_PROVIDER",
+        "symbol": "getDefaultEmbeddingProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.6.1.png"
+      },
+      {
+        "className": "Wso2ModelProvider",
+        "label": "Default Model Provider (WSO2)",
+        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "getDefaultModelProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.6.1.png"
+      },
+      {
+        "className": "VectorKnowledgeBase",
+        "label": "Vector Knowledge Base",
+        "description": "Represents a vector knowledge base for managing chunk indexing and retrieval operations.\nThe `VectorKnowledgeBase` handles converting chunks to embeddings,\nstoring them in a vector store, and enabling retrieval through a `Retriever`.",
+        "category": "KNOWLEDGE_BASE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.6.1.png"
+      },
+      {
+        "className": "InMemoryShortTermMemoryStore",
+        "label": "In Memory Short Term Memory Store",
+        "description": "Provides an in-memory chat message store.",
+        "category": "SHORT_TERM_MEMORY_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.6.1.png"
+      },
+      {
+        "className": "InMemoryVectorStore",
+        "label": "In Memory Vector Store",
+        "description": "An in-memory vector store implementation that provides simple storage for vector entries.",
+        "category": "VECTOR_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.6.1.png"
+      }
+    ],
+    "ballerina:ai:1.7.0": [
+      {
+        "className": "GenericRecursiveChunker",
+        "label": "Generic Recursive Chunker",
+        "description": "Represents a Genereric document chunker.\nProvides functionality to recursively chunk a text document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.7.0.png"
+      },
+      {
+        "className": "MarkdownChunker",
+        "label": "Markdown Chunker",
+        "description": "Represents a Markdown document chunker.\nProvides functionality to recursively chunk a markdown document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.7.0.png"
+      },
+      {
+        "className": "HtmlChunker",
+        "label": "Html Chunker",
+        "description": "Represents an HTML document chunker.\nProvides functionality to recursively chunk a HTML document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.7.0.png"
+      },
+      {
+        "className": "TextDataLoader",
+        "label": "Text Data Loader",
+        "description": "Dataloader that can be used to load supported file types as `TextDocument`s.\nCurrently only supports `pdf`, `docx`, `markdown`, `html`, and `pptx` file types.",
+        "category": "DATA_LOADER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.7.0.png"
+      },
+      {
+        "className": "Wso2EmbeddingProvider",
+        "label": "Default Embedding Provider (WSO2)",
+        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "category": "EMBEDDING_PROVIDER",
+        "symbol": "getDefaultEmbeddingProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.7.0.png"
+      },
+      {
+        "className": "Wso2ModelProvider",
+        "label": "Default Model Provider (WSO2)",
+        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "getDefaultModelProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.7.0.png"
+      },
+      {
+        "className": "VectorKnowledgeBase",
+        "label": "Vector Knowledge Base",
+        "description": "Represents a vector knowledge base for managing chunk indexing and retrieval operations.\nThe `VectorKnowledgeBase` handles converting chunks to embeddings,\nstoring them in a vector store, and enabling retrieval through a `Retriever`.",
+        "category": "KNOWLEDGE_BASE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.7.0.png"
+      },
+      {
+        "className": "InMemoryShortTermMemoryStore",
+        "label": "In Memory Short Term Memory Store",
+        "description": "Provides an in-memory chat message store.",
+        "category": "SHORT_TERM_MEMORY_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.7.0.png"
+      },
+      {
+        "className": "InMemoryVectorStore",
+        "label": "In Memory Vector Store",
+        "description": "An in-memory vector store implementation that provides simple storage for vector entries.",
+        "category": "VECTOR_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.7.0.png"
+      }
+    ],
+    "ballerina:ai:1.8.0": [
+      {
+        "className": "GenericRecursiveChunker",
+        "label": "Generic Recursive Chunker",
+        "description": "Represents a Genereric document chunker.\nProvides functionality to recursively chunk a text document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.8.0.png"
+      },
+      {
+        "className": "MarkdownChunker",
+        "label": "Markdown Chunker",
+        "description": "Represents a Markdown document chunker.\nProvides functionality to recursively chunk a markdown document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.8.0.png"
+      },
+      {
+        "className": "HtmlChunker",
+        "label": "Html Chunker",
+        "description": "Represents an HTML document chunker.\nProvides functionality to recursively chunk a HTML document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.8.0.png"
+      },
+      {
+        "className": "TextDataLoader",
+        "label": "Text Data Loader",
+        "description": "Dataloader that can be used to load supported file types as `TextDocument`s.\nCurrently only supports `pdf`, `docx`, `markdown`, `html`, and `pptx` file types.",
+        "category": "DATA_LOADER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.8.0.png"
+      },
+      {
+        "className": "Wso2EmbeddingProvider",
+        "label": "Default Embedding Provider (WSO2)",
+        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "category": "EMBEDDING_PROVIDER",
+        "symbol": "getDefaultEmbeddingProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.8.0.png"
+      },
+      {
+        "className": "Wso2ModelProvider",
+        "label": "Default Model Provider (WSO2)",
+        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "getDefaultModelProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.8.0.png"
+      },
+      {
+        "className": "VectorKnowledgeBase",
+        "label": "Vector Knowledge Base",
+        "description": "Represents a vector knowledge base for managing chunk indexing and retrieval operations.\nThe `VectorKnowledgeBase` handles converting chunks to embeddings,\nstoring them in a vector store, and enabling retrieval through a `Retriever`.",
+        "category": "KNOWLEDGE_BASE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.8.0.png"
+      },
+      {
+        "className": "InMemoryShortTermMemoryStore",
+        "label": "In Memory Short Term Memory Store",
+        "description": "Provides an in-memory chat message store.",
+        "category": "SHORT_TERM_MEMORY_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.8.0.png"
+      },
+      {
+        "className": "InMemoryVectorStore",
+        "label": "In Memory Vector Store",
+        "description": "An in-memory vector store implementation that provides simple storage for vector entries.",
+        "category": "VECTOR_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.8.0.png"
+      }
+    ],
+    "ballerina:ai:1.9.0": [
+      {
+        "className": "GenericRecursiveChunker",
+        "label": "Generic Recursive Chunker",
+        "description": "Represents a Genereric document chunker.\nProvides functionality to recursively chunk a text document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.9.0.png"
+      },
+      {
+        "className": "MarkdownChunker",
+        "label": "Markdown Chunker",
+        "description": "Represents a Markdown document chunker.\nProvides functionality to recursively chunk a markdown document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.9.0.png"
+      },
+      {
+        "className": "HtmlChunker",
+        "label": "Html Chunker",
+        "description": "Represents an HTML document chunker.\nProvides functionality to recursively chunk a HTML document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.9.0.png"
+      },
+      {
+        "className": "TextDataLoader",
+        "label": "Text Data Loader",
+        "description": "Dataloader that can be used to load supported file types as `TextDocument`s.\nCurrently only supports `pdf`, `docx`, `markdown`, `html`, and `pptx` file types.",
+        "category": "DATA_LOADER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.9.0.png"
+      },
+      {
+        "className": "Wso2EmbeddingProvider",
+        "label": "Default Embedding Provider (WSO2)",
+        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "category": "EMBEDDING_PROVIDER",
+        "symbol": "getDefaultEmbeddingProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.9.0.png"
+      },
+      {
+        "className": "Wso2ModelProvider",
+        "label": "Default Model Provider (WSO2)",
+        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "getDefaultModelProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.9.0.png"
+      },
+      {
+        "className": "VectorKnowledgeBase",
+        "label": "Vector Knowledge Base",
+        "description": "Represents a vector knowledge base for managing chunk indexing and retrieval operations.\nThe `VectorKnowledgeBase` handles converting chunks to embeddings,\nstoring them in a vector store, and enabling retrieval through a `Retriever`.",
+        "category": "KNOWLEDGE_BASE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.9.0.png"
+      },
+      {
+        "className": "InMemoryShortTermMemoryStore",
+        "label": "In Memory Short Term Memory Store",
+        "description": "Provides an in-memory chat message store.",
+        "category": "SHORT_TERM_MEMORY_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.9.0.png"
+      },
+      {
+        "className": "InMemoryVectorStore",
+        "label": "In Memory Vector Store",
+        "description": "An in-memory vector store implementation that provides simple storage for vector entries.",
+        "category": "VECTOR_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.9.0.png"
+      }
+    ],
+    "ballerinax:ai.anthropic:1.0.0": [
+      {
+        "className": "ModelProvider",
+        "label": "Anthropic Model Provider",
+        "description": "Provider is a client class that provides an interface for interacting with Anthropic Large Language Models.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.anthropic_1.0.0.png"
+      }
+    ],
+    "ballerinax:ai.anthropic:1.1.1": [
+      {
+        "className": "ModelProvider",
+        "label": "Anthropic Model Provider",
+        "description": "Provider is a client class that provides an interface for interacting with Anthropic Large Language Models.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.anthropic_1.1.1.png"
+      }
+    ],
+    "ballerinax:ai.anthropic:1.1.2": [
+      {
+        "className": "ModelProvider",
+        "label": "Anthropic Model Provider",
+        "description": "Provider is a client class that provides an interface for interacting with Anthropic Large Language Models.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.anthropic_1.1.2.png"
+      }
+    ],
+    "ballerinax:ai.anthropic:1.2.1": [
+      {
+        "className": "ModelProvider",
+        "label": "Anthropic Model Provider",
+        "description": "Provider is a client class that provides an interface for interacting with Anthropic Large Language Models.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.anthropic_1.2.1.png"
+      }
+    ],
+    "ballerinax:ai.anthropic:1.3.1": [
+      {
+        "className": "ModelProvider",
+        "label": "Anthropic Model Provider",
+        "description": "Provider is a client class that provides an interface for interacting with Anthropic Large Language Models.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.anthropic_1.3.1.png"
+      }
+    ],
+    "ballerinax:ai.anthropic:1.3.3": [
+      {
+        "className": "ModelProvider",
+        "label": "Anthropic Model Provider",
+        "description": "Provider is a client class that provides an interface for interacting with Anthropic Large Language Models.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.anthropic_1.3.3.png"
+      }
+    ],
+    "ballerinax:ai.anthropic:1.3.4": [
+      {
+        "className": "ModelProvider",
+        "label": "Anthropic Model Provider",
+        "description": "Provider is a client class that provides an interface for interacting with Anthropic Large Language Models.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.anthropic_1.3.4.png"
+      }
+    ],
+    "ballerinax:ai.anthropic:1.3.5": [
+      {
+        "className": "ModelProvider",
+        "label": "Anthropic Model Provider",
+        "description": "Provider is a client class that provides an interface for interacting with Anthropic Large Language Models.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.anthropic_1.3.5.png"
+      }
+    ],
+    "ballerinax:ai.aws.dynamodb:1.0.0": [
+      {
+        "className": "ShortTermMemoryStore",
+        "label": "Amazon DynamoDB Short Term Memory Store",
+        "description": "Represents a DynamoDB-backed short-term memory store for messages.",
+        "category": "SHORT_TERM_MEMORY_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.aws.dynamodb_1.0.0.png"
+      }
+    ],
+    "ballerinax:ai.aws.dynamodb:1.1.0": [
+      {
+        "className": "ShortTermMemoryStore",
+        "label": "Amazon DynamoDB Short Term Memory Store",
+        "description": "Represents a DynamoDB-backed short-term memory store for messages.",
+        "category": "SHORT_TERM_MEMORY_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.aws.dynamodb_1.1.0.png"
+      }
+    ],
+    "ballerinax:ai.azure:1.0.0": [
+      {
+        "className": "OpenAiModelProvider",
+        "label": "Azure OpenAI Model Provider",
+        "description": "OpenAiProvider is a client class that provides an interface for interacting with Azure-hosted OpenAI language models.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.azure_1.0.0.png"
+      }
+    ],
+    "ballerinax:ai.azure:1.1.1": [
+      {
+        "className": "OpenAiModelProvider",
+        "label": "Azure OpenAI Model Provider",
+        "description": "OpenAiProvider is a client class that provides an interface for interacting with Azure-hosted OpenAI language models.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.azure_1.1.1.png"
+      }
+    ],
+    "ballerinax:ai.azure:1.3.0": [
+      {
+        "className": "AiSearchKnowledgeBase",
+        "label": "Azure AI Search Knowledge Base",
+        "description": "Represents the Azure Search Knowledge Base implementation.",
+        "category": "KNOWLEDGE_BASE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.azure_1.3.0.png"
+      },
+      {
+        "className": "EmbeddingProvider",
+        "label": "Azure Embedding Provider",
+        "description": "EmbeddingProvider provides an interface for interacting with Azure OpenAI Embedding Models.",
+        "category": "EMBEDDING_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.azure_1.3.0.png"
+      },
+      {
+        "className": "OpenAiModelProvider",
+        "label": "Azure OpenAI Model Provider",
+        "description": "OpenAiProvider is a client class that provides an interface for interacting with Azure-hosted OpenAI language models.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.azure_1.3.0.png"
+      }
+    ],
+    "ballerinax:ai.azure:1.4.3": [
+      {
+        "className": "AiSearchKnowledgeBase",
+        "label": "Azure AI Search Knowledge Base",
+        "description": "Represents the Azure Search Knowledge Base implementation.",
+        "category": "KNOWLEDGE_BASE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.azure_1.4.3.png"
+      },
+      {
+        "className": "EmbeddingProvider",
+        "label": "Azure Embedding Provider",
+        "description": "EmbeddingProvider provides an interface for interacting with Azure OpenAI Embedding Models.",
+        "category": "EMBEDDING_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.azure_1.4.3.png"
+      },
+      {
+        "className": "OpenAiModelProvider",
+        "label": "Azure OpenAI Model Provider",
+        "description": "OpenAiProvider is a client class that provides an interface for interacting with Azure-hosted OpenAI language models.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.azure_1.4.3.png"
+      }
+    ],
+    "ballerinax:ai.azure:1.4.4": [
+      {
+        "className": "AiSearchKnowledgeBase",
+        "label": "Azure AI Search Knowledge Base",
+        "description": "Represents the Azure Search Knowledge Base implementation.",
+        "category": "KNOWLEDGE_BASE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.azure_1.4.4.png"
+      },
+      {
+        "className": "EmbeddingProvider",
+        "label": "Azure Embedding Provider",
+        "description": "EmbeddingProvider provides an interface for interacting with Azure OpenAI Embedding Models.",
+        "category": "EMBEDDING_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.azure_1.4.4.png"
+      },
+      {
+        "className": "OpenAiModelProvider",
+        "label": "Azure OpenAI Model Provider",
+        "description": "OpenAiProvider is a client class that provides an interface for interacting with Azure-hosted OpenAI language models.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.azure_1.4.4.png"
+      }
+    ],
+    "ballerinax:ai.azure:1.5.0": [
+      {
+        "className": "AiSearchKnowledgeBase",
+        "label": "Azure AI Search Knowledge Base",
+        "description": "Represents the Azure Search Knowledge Base implementation.",
+        "category": "KNOWLEDGE_BASE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.azure_1.5.0.png"
+      },
+      {
+        "className": "EmbeddingProvider",
+        "label": "Azure Embedding Provider",
+        "description": "EmbeddingProvider provides an interface for interacting with Azure OpenAI Embedding Models.\n\nThe concrete wire route depends on the shape of the `serviceUrl`: a URL ending with `/v1` targets the Azure OpenAI\n**v1 GA** surface (`POST {serviceUrl}/embeddings`, with the deployment sent as `model` in the body and no\n`api-version` required), while any other URL targets the **legacy** deployment-scoped route\n(`POST {legacyBase}/deployments/{deploymentId}/embeddings?api-version=...`) through the generated\n`ballerinax/azure.openai.embeddings` connector, where `legacyBase` is the `serviceUrl` completed with `/openai`\nwhen it is a bare origin and used verbatim when it already carries a path.",
+        "category": "EMBEDDING_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.azure_1.5.0.png"
+      },
+      {
+        "className": "OpenAiModelProvider",
+        "label": "Azure OpenAI Model Provider",
+        "description": "`OpenAiModelProvider` is a client class that provides an interface for interacting with Azure-hosted OpenAI\nlanguage models.\n\nThe provider can target either the Azure OpenAI **Chat Completions API** (the default) or the **Responses API**,\nselected through the `apiType` parameter. The concrete wire route additionally depends on the shape of the\n`serviceUrl`: a URL ending with `/v1` targets the Azure OpenAI **v1 GA** surface through the generated\n`ballerinax/azure.openai.chat` / `ballerinax/azure.openai.responses` connectors, while any other URL targets the\n**legacy** route (`?api-version=...`) through a raw HTTP client. See the `ApiType` documentation for the full\nrouting matrix.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.azure_1.5.0.png"
+      }
+    ],
+    "ballerinax:ai.azure:1.5.1": [
+      {
+        "className": "AiSearchKnowledgeBase",
+        "label": "Azure AI Search Knowledge Base",
+        "description": "Represents the Azure Search Knowledge Base implementation.",
+        "category": "KNOWLEDGE_BASE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.azure_1.5.1.png"
+      },
+      {
+        "className": "EmbeddingProvider",
+        "label": "Azure Embedding Provider",
+        "description": "EmbeddingProvider provides an interface for interacting with Azure OpenAI Embedding Models.\n\nThe concrete wire route depends on the shape of the `serviceUrl`: a URL ending with `/v1` targets the Azure OpenAI\n**v1 GA** surface (`POST {serviceUrl}/embeddings`, with the deployment sent as `model` in the body and no\n`api-version` required), while any other URL targets the **legacy** deployment-scoped route\n(`POST {legacyBase}/deployments/{deploymentId}/embeddings?api-version=...`) through the generated\n`ballerinax/azure.openai.embeddings` connector, where `legacyBase` is the `serviceUrl` completed with `/openai`\nwhen it is a bare origin and used verbatim when it already carries a path.",
+        "category": "EMBEDDING_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.azure_1.5.1.png"
+      },
+      {
+        "className": "OpenAiModelProvider",
+        "label": "Azure OpenAI Model Provider",
+        "description": "`OpenAiModelProvider` is a client class that provides an interface for interacting with Azure-hosted OpenAI\nlanguage models.\n\nThe provider can target either the Azure OpenAI **Chat Completions API** (the default) or the **Responses API**,\nselected through the `apiType` parameter. The concrete wire route additionally depends on the shape of the\n`serviceUrl`: a URL ending with `/v1` targets the Azure OpenAI **v1 GA** surface through the generated\n`ballerinax/azure.openai.chat` / `ballerinax/azure.openai.responses` connectors, while any other URL targets the\n**legacy** route (`?api-version=...`) through a raw HTTP client. See the `ApiType` documentation for the full\nrouting matrix.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.azure_1.5.1.png"
+      }
+    ],
+    "ballerinax:ai.deepseek:1.0.0": [
+      {
+        "className": "ModelProvider",
+        "label": "Deepseek Model Provider",
+        "description": "Deepseek is a client class that provides an interface for interacting with Deepseek Large Language Models.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.deepseek_1.0.0.png"
+      }
+    ],
+    "ballerinax:ai.deepseek:1.0.3": [
+      {
+        "className": "ModelProvider",
+        "label": "Deepseek Model Provider",
+        "description": "Deepseek is a client class that provides an interface for interacting with Deepseek Large Language Models.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.deepseek_1.0.3.png"
+      }
+    ],
+    "ballerinax:ai.deepseek:1.0.4": [
+      {
+        "className": "ModelProvider",
+        "label": "Deepseek Model Provider",
+        "description": "Deepseek is a client class that provides an interface for interacting with Deepseek Large Language Models.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.deepseek_1.0.4.png"
+      }
+    ],
+    "ballerinax:ai.deepseek:1.1.3": [
+      {
+        "className": "ModelProvider",
+        "label": "Deepseek Model Provider",
+        "description": "Deepseek is a client class that provides an interface for interacting with Deepseek Large Language Models.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.deepseek_1.1.3.png"
+      }
+    ],
+    "ballerinax:ai.deepseek:1.1.4": [
+      {
+        "className": "ModelProvider",
+        "label": "Deepseek Model Provider",
+        "description": "Deepseek is a client class that provides an interface for interacting with Deepseek Large Language Models.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.deepseek_1.1.4.png"
+      }
+    ],
+    "ballerinax:ai.deepseek:1.1.5": [
+      {
+        "className": "ModelProvider",
+        "label": "Deepseek Model Provider",
+        "description": "Deepseek is a client class that provides an interface for interacting with Deepseek Large Language Models.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.deepseek_1.1.5.png"
+      }
+    ],
+    "ballerinax:ai.devant:1.0.0": [
+      {
+        "className": "Chunker",
+        "label": "Devant Chunker",
+        "description": "Splits documents loaded by the `devant:BinaryDataLoader` into smaller chunks \nusing the Devant AI service.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.devant_1.0.0.png"
+      },
+      {
+        "className": "BinaryDataLoader",
+        "label": "Devant Binary Data Loader",
+        "description": "Loads documents as `ai:BinaryDocument` instances from a specified file or directory path.\nThis loader can handle either a single file or a directory containing multiple files.\nTypically used in conjunction with `devant:Chunker` to split documents into chunks for processing.",
+        "category": "DATA_LOADER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.devant_1.0.0.png"
+      }
+    ],
+    "ballerinax:ai.devant:1.0.3": [
+      {
+        "className": "Chunker",
+        "label": "Devant Chunker",
+        "description": "Splits documents loaded by the `devant:BinaryDataLoader` into smaller chunks \nusing the Devant AI service.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.devant_1.0.3.png"
+      },
+      {
+        "className": "BinaryDataLoader",
+        "label": "Devant Binary Data Loader",
+        "description": "Loads documents as `ai:BinaryDocument` instances from a specified file or directory path.\nThis loader can handle either a single file or a directory containing multiple files.\nTypically used in conjunction with `devant:Chunker` to split documents into chunks for processing.",
+        "category": "DATA_LOADER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.devant_1.0.3.png"
+      }
+    ],
+    "ballerinax:ai.devant:1.0.4": [
+      {
+        "className": "Chunker",
+        "label": "Devant Chunker",
+        "description": "Splits documents loaded by the `devant:BinaryDataLoader` into smaller chunks \nusing the Devant AI service.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.devant_1.0.4.png"
+      },
+      {
+        "className": "BinaryDataLoader",
+        "label": "Devant Binary Data Loader",
+        "description": "Loads documents as `ai:BinaryDocument` instances from a specified file or directory path.\nThis loader can handle either a single file or a directory containing multiple files.\nTypically used in conjunction with `devant:Chunker` to split documents into chunks for processing.",
+        "category": "DATA_LOADER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.devant_1.0.4.png"
+      }
+    ],
+    "ballerinax:ai.devant:1.0.5": [
+      {
+        "className": "Chunker",
+        "label": "Devant Chunker",
+        "description": "Splits documents loaded by the `devant:BinaryDataLoader` into smaller chunks \nusing the Devant AI service.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.devant_1.0.5.png"
+      },
+      {
+        "className": "BinaryDataLoader",
+        "label": "Devant Binary Data Loader",
+        "description": "Loads documents as `ai:BinaryDocument` instances from a specified file or directory path.\nThis loader can handle either a single file or a directory containing multiple files.\nTypically used in conjunction with `devant:Chunker` to split documents into chunks for processing.",
+        "category": "DATA_LOADER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.devant_1.0.5.png"
+      }
+    ],
+    "ballerinax:ai.googleapis.vertex:1.0.1": [
+      {
+        "className": "EmbeddingProvider",
+        "label": "Google Vertex Embedding Provider",
+        "description": "EmbeddingProvider is a client class that provides an interface for generating\nvector embeddings using Google Vertex AI text embedding models.",
+        "category": "EMBEDDING_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.googleapis.vertex_1.0.1.png"
+      },
+      {
+        "className": "ModelProvider",
+        "label": "Google Vertex Model Provider",
+        "description": "ModelProvider is a client class that provides an interface for interacting with\nmodels hosted on Google Vertex AI, including Google Gemini models and partner\nmodels (Anthropic Claude, Mistral) available through Vertex AI Model Garden.\n\nThe `model` parameter uses `\"publisher/model-name\"` format, which determines both\nthe endpoint path and the wire format used for requests:\n- `\"google/gemini-2.0-flash\"` — Vertex AI `generateContent` API\n- `\"anthropic/claude-sonnet-4-6\"` — Anthropic Messages API via `rawPredict`\n- `\"mistralai/mistral-medium-3\"` — OpenAI-compatible format via `rawPredict`\n- `\"meta/llama-4-maverick-17b-128e-instruct-maas\"` — OpenAI-compatible open-models endpoint\n- `\"deepseek-ai/deepseek-v3-0324\"` — OpenAI-compatible open-models endpoint\n- `\"qwen/qwen3-235b-a22b\"` — OpenAI-compatible open-models endpoint\n- `\"kimi/kimi-k2\"` — OpenAI-compatible open-models endpoint\n- `\"minimax/minimax-m2\"` — OpenAI-compatible open-models endpoint",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.googleapis.vertex_1.0.1.png"
+      }
+    ],
+    "ballerinax:ai.googleapis.vertex:1.0.2": [
+      {
+        "className": "EmbeddingProvider",
+        "label": "Google Vertex Embedding Provider",
+        "description": "EmbeddingProvider is a client class that provides an interface for generating\nvector embeddings using Google Vertex AI text embedding models.",
+        "category": "EMBEDDING_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.googleapis.vertex_1.0.2.png"
+      },
+      {
+        "className": "ModelProvider",
+        "label": "Google Vertex Model Provider",
+        "description": "ModelProvider is a client class that provides an interface for interacting with\nmodels hosted on Google Vertex AI, including Google Gemini models and partner\nmodels (Anthropic Claude, Mistral) available through Vertex AI Model Garden.\n\nThe `model` parameter uses `\"publisher/model-name\"` format, which determines both\nthe endpoint path and the wire format used for requests:\n- `\"google/gemini-2.0-flash\"` — Vertex AI `generateContent` API\n- `\"anthropic/claude-sonnet-4-6\"` — Anthropic Messages API via `rawPredict`\n- `\"mistralai/mistral-medium-3\"` — OpenAI-compatible format via `rawPredict`\n- `\"meta/llama-4-maverick-17b-128e-instruct-maas\"` — OpenAI-compatible open-models endpoint\n- `\"deepseek-ai/deepseek-v3-0324\"` — OpenAI-compatible open-models endpoint\n- `\"qwen/qwen3-235b-a22b\"` — OpenAI-compatible open-models endpoint\n- `\"kimi/kimi-k2\"` — OpenAI-compatible open-models endpoint\n- `\"minimax/minimax-m2\"` — OpenAI-compatible open-models endpoint",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.googleapis.vertex_1.0.2.png"
+      }
+    ],
+    "ballerinax:ai.googleapis.vertex:1.0.3": [
+      {
+        "className": "EmbeddingProvider",
+        "label": "Google Vertex Embedding Provider",
+        "description": "EmbeddingProvider is a client class that provides an interface for generating\nvector embeddings using Google Vertex AI text embedding models.",
+        "category": "EMBEDDING_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.googleapis.vertex_1.0.3.png"
+      },
+      {
+        "className": "ModelProvider",
+        "label": "Google Vertex Model Provider",
+        "description": "ModelProvider is a client class that provides an interface for interacting with\nmodels hosted on Google Vertex AI, including Google Gemini models and partner\nmodels (Anthropic Claude, Mistral) available through Vertex AI Model Garden.\n\nThe `model` parameter uses `\"publisher/model-name\"` format, which determines both\nthe endpoint path and the wire format used for requests:\n- `\"google/gemini-2.0-flash\"` — Vertex AI `generateContent` API\n- `\"anthropic/claude-sonnet-4-6\"` — Anthropic Messages API via `rawPredict`\n- `\"mistralai/mistral-medium-3\"` — OpenAI-compatible format via `rawPredict`\n- `\"meta/llama-4-maverick-17b-128e-instruct-maas\"` — OpenAI-compatible open-models endpoint\n- `\"deepseek-ai/deepseek-v3-0324\"` — OpenAI-compatible open-models endpoint\n- `\"qwen/qwen3-235b-a22b\"` — OpenAI-compatible open-models endpoint\n- `\"kimi/kimi-k2\"` — OpenAI-compatible open-models endpoint\n- `\"minimax/minimax-m2\"` — OpenAI-compatible open-models endpoint",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.googleapis.vertex_1.0.3.png"
+      }
+    ],
+    "ballerinax:ai.memory.mssql:1.0.0": [
+      {
+        "className": "ShortTermMemoryStore",
+        "label": "MSSQL Short Term Memory Store",
+        "description": "Represents an MS SQL-backed short-term memory store for messages.",
+        "category": "SHORT_TERM_MEMORY_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.memory.mssql_1.0.0.png"
+      }
+    ],
+    "ballerinax:ai.memory.mssql:1.1.0": [
+      {
+        "className": "ShortTermMemoryStore",
+        "label": "MSSQL Short Term Memory Store",
+        "description": "Represents an MS SQL-backed short-term memory store for messages.",
+        "category": "SHORT_TERM_MEMORY_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.memory.mssql_1.1.0.png"
+      }
+    ],
+    "ballerinax:ai.memory.mssql:1.2.0": [
+      {
+        "className": "ShortTermMemoryStore",
+        "label": "MSSQL Short Term Memory Store",
+        "description": "Represents an MS SQL-backed short-term memory store for messages.",
+        "category": "SHORT_TERM_MEMORY_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.memory.mssql_1.2.0.png"
+      }
+    ],
+    "ballerinax:ai.memory.mssql:1.2.1": [
+      {
+        "className": "ShortTermMemoryStore",
+        "label": "MSSQL Short Term Memory Store",
+        "description": "Represents an MS SQL-backed short-term memory store for messages.",
+        "category": "SHORT_TERM_MEMORY_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.memory.mssql_1.2.1.png"
+      }
+    ],
+    "ballerinax:ai.memory.mssql:1.3.1": [
+      {
+        "className": "ShortTermMemoryStore",
+        "label": "MSSQL Short Term Memory Store",
+        "description": "Represents an MS SQL-backed short-term memory store for messages.",
+        "category": "SHORT_TERM_MEMORY_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.memory.mssql_1.3.1.png"
+      }
+    ],
+    "ballerinax:ai.memory.mssql:1.4.1": [
+      {
+        "className": "ShortTermMemoryStore",
+        "label": "MSSQL Short Term Memory Store",
+        "description": "Represents an MS SQL-backed short-term memory store for messages.",
+        "category": "SHORT_TERM_MEMORY_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.memory.mssql_1.4.1.png"
+      }
+    ],
+    "ballerinax:ai.memory.postgresql:1.0.1": [
+      {
+        "className": "ShortTermMemoryStore",
+        "label": "PostgreSQL Short Term Memory Store",
+        "description": "Represents a PostgreSQL-backed short-term memory store for messages.",
+        "category": "SHORT_TERM_MEMORY_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.memory.postgresql_1.0.1.png"
+      }
+    ],
+    "ballerinax:ai.memory.postgresql:1.1.0": [
+      {
+        "className": "ShortTermMemoryStore",
+        "label": "PostgreSQL Short Term Memory Store",
+        "description": "Represents a PostgreSQL-backed short-term memory store for messages.",
+        "category": "SHORT_TERM_MEMORY_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.memory.postgresql_1.1.0.png"
+      }
+    ],
+    "ballerinax:ai.memory.redis:1.0.0": [
+      {
+        "className": "ShortTermMemoryStore",
+        "label": "Redis Short Term Memory Store",
+        "description": "Represents a Redis-backed short-term memory store for messages.",
+        "category": "SHORT_TERM_MEMORY_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.memory.redis_1.0.0.png"
+      }
+    ],
+    "ballerinax:ai.memory.redis:1.0.1": [
+      {
+        "className": "ShortTermMemoryStore",
+        "label": "Redis Short Term Memory Store",
+        "description": "Represents a Redis-backed short-term memory store for messages.",
+        "category": "SHORT_TERM_MEMORY_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.memory.redis_1.0.1.png"
+      }
+    ],
+    "ballerinax:ai.memory.redis:1.1.0": [
+      {
+        "className": "ShortTermMemoryStore",
+        "label": "Redis Short Term Memory Store",
+        "description": "Represents a Redis-backed short-term memory store for messages.",
+        "category": "SHORT_TERM_MEMORY_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.memory.redis_1.1.0.png"
+      }
+    ],
+    "ballerinax:ai.memory.redis:1.2.0": [
+      {
+        "className": "ShortTermMemoryStore",
+        "label": "Redis Short Term Memory Store",
+        "description": "Represents a Redis-backed short-term memory store for messages.",
+        "category": "SHORT_TERM_MEMORY_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.memory.redis_1.2.0.png"
+      }
+    ],
+    "ballerinax:ai.microsoft.sharepoint:1.0.0": [
+      {
+        "className": "TextDataLoader",
+        "label": "Microsoft SharePoint Text Data Loader",
+        "description": "A data loader that retrieves documents from SharePoint document libraries as text.",
+        "category": "DATA_LOADER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.microsoft.sharepoint_1.0.0.png"
+      }
+    ],
+    "ballerinax:ai.microsoft.sharepoint:1.0.1": [
+      {
+        "className": "TextDataLoader",
+        "label": "Microsoft SharePoint Text Data Loader",
+        "description": "A data loader that retrieves documents from SharePoint document libraries as text.",
+        "category": "DATA_LOADER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.microsoft.sharepoint_1.0.1.png"
+      }
+    ],
+    "ballerinax:ai.microsoft.sharepoint:1.0.2": [
+      {
+        "className": "TextDataLoader",
+        "label": "Microsoft SharePoint Text Data Loader",
+        "description": "A data loader that retrieves documents from SharePoint document libraries as text.",
+        "category": "DATA_LOADER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.microsoft.sharepoint_1.0.2.png"
+      }
+    ],
+    "ballerinax:ai.milvus:1.0.2": [
+      {
+        "className": "VectorStore",
+        "label": "Milvus Vector Store",
+        "description": "Milvus Vector Store implementation with support for Dense, Sparse, and Hybrid vector search modes.\n\nThis class implements the ai:VectorStore interface and integrates with the Milvus vector database\nto provide functionality for vector upsert, query, and deletion.\n",
+        "category": "VECTOR_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.milvus_1.0.2.png"
+      }
+    ],
+    "ballerinax:ai.milvus:1.0.3": [
+      {
+        "className": "VectorStore",
+        "label": "Milvus Vector Store",
+        "description": "Milvus Vector Store implementation with support for Dense, Sparse, and Hybrid vector search modes.\n\nThis class implements the ai:VectorStore interface and integrates with the Milvus vector database\nto provide functionality for vector upsert, query, and deletion.\n",
+        "category": "VECTOR_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.milvus_1.0.3.png"
+      }
+    ],
+    "ballerinax:ai.milvus:1.0.4": [
+      {
+        "className": "VectorStore",
+        "label": "Milvus Vector Store",
+        "description": "Milvus Vector Store implementation with support for Dense, Sparse, and Hybrid vector search modes.\n\nThis class implements the ai:VectorStore interface and integrates with the Milvus vector database\nto provide functionality for vector upsert, query, and deletion.\n",
+        "category": "VECTOR_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.milvus_1.0.4.png"
+      }
+    ],
+    "ballerinax:ai.milvus:1.0.5": [
+      {
+        "className": "VectorStore",
+        "label": "Milvus Vector Store",
+        "description": "Milvus Vector Store implementation with support for Dense, Sparse, and Hybrid vector search modes.\n\nThis class implements the ai:VectorStore interface and integrates with the Milvus vector database\nto provide functionality for vector upsert, query, and deletion.\n",
+        "category": "VECTOR_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.milvus_1.0.5.png"
+      }
+    ],
+    "ballerinax:ai.mistral:1.0.0": [
+      {
+        "className": "ModelProvider",
+        "label": "Mistral Model Provider",
+        "description": "MistralAiProvider is a client class that provides an interface for interacting with Mistral AI Large Language Models.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.mistral_1.0.0.png"
+      }
+    ],
+    "ballerinax:ai.mistral:1.1.1": [
+      {
+        "className": "ModelProvider",
+        "label": "Mistral Model Provider",
+        "description": "MistralAiProvider is a client class that provides an interface for interacting with Mistral AI Large Language Models.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.mistral_1.1.1.png"
+      }
+    ],
+    "ballerinax:ai.mistral:1.1.2": [
+      {
+        "className": "ModelProvider",
+        "label": "Mistral Model Provider",
+        "description": "MistralAiProvider is a client class that provides an interface for interacting with Mistral AI Large Language Models.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.mistral_1.1.2.png"
+      }
+    ],
+    "ballerinax:ai.mistral:1.2.3": [
+      {
+        "className": "ModelProvider",
+        "label": "Mistral Model Provider",
+        "description": "MistralAiProvider is a client class that provides an interface for interacting with Mistral AI Large Language Models.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.mistral_1.2.3.png"
+      }
+    ],
+    "ballerinax:ai.mistral:1.2.4": [
+      {
+        "className": "ModelProvider",
+        "label": "Mistral Model Provider",
+        "description": "MistralAiProvider is a client class that provides an interface for interacting with Mistral AI Large Language Models.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.mistral_1.2.4.png"
+      }
+    ],
+    "ballerinax:ai.mistral:1.2.5": [
+      {
+        "className": "ModelProvider",
+        "label": "Mistral Model Provider",
+        "description": "MistralAiProvider is a client class that provides an interface for interacting with Mistral AI Large Language Models.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.mistral_1.2.5.png"
+      }
+    ],
+    "ballerinax:ai.ollama:1.0.0": [
+      {
+        "className": "ModelProvider",
+        "label": "Ollama Model Provider",
+        "description": "Provider represents a client for interacting with an Ollama language models.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.ollama_1.0.0.png"
+      }
+    ],
+    "ballerinax:ai.ollama:1.1.1": [
+      {
+        "className": "ModelProvider",
+        "label": "Ollama Model Provider",
+        "description": "Provider represents a client for interacting with an Ollama language models.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.ollama_1.1.1.png"
+      }
+    ],
+    "ballerinax:ai.ollama:1.1.2": [
+      {
+        "className": "ModelProvider",
+        "label": "Ollama Model Provider",
+        "description": "Provider represents a client for interacting with an Ollama language models.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.ollama_1.1.2.png"
+      }
+    ],
+    "ballerinax:ai.ollama:1.2.2": [
+      {
+        "className": "ModelProvider",
+        "label": "Ollama Model Provider",
+        "description": "Provider represents a client for interacting with an Ollama language models.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.ollama_1.2.2.png"
+      }
+    ],
+    "ballerinax:ai.ollama:1.2.3": [
+      {
+        "className": "ModelProvider",
+        "label": "Ollama Model Provider",
+        "description": "Provider represents a client for interacting with an Ollama language models.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.ollama_1.2.3.png"
+      }
+    ],
+    "ballerinax:ai.ollama:1.2.4": [
+      {
+        "className": "ModelProvider",
+        "label": "Ollama Model Provider",
+        "description": "Provider represents a client for interacting with an Ollama language models.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.ollama_1.2.4.png"
+      }
+    ],
+    "ballerinax:ai.ollama:1.2.5": [
+      {
+        "className": "ModelProvider",
+        "label": "Ollama Model Provider",
+        "description": "Provider represents a client for interacting with an Ollama language models.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.ollama_1.2.5.png"
+      }
+    ],
+    "ballerinax:ai.openai:1.0.0": [
+      {
+        "className": "EmbeddingProvider",
+        "label": "OpenAI Embedding Provider",
+        "description": "EmbeddingProvider provides an interface for interacting with OpenAI Embedding Models.",
+        "category": "EMBEDDING_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.openai_1.0.0.png"
+      },
+      {
+        "className": "ModelProvider",
+        "label": "OpenAI Model Provider",
+        "description": "ModelProvider is a client class that provides an interface for interacting with OpenAI Large Language Models.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.openai_1.0.0.png"
+      }
+    ],
+    "ballerinax:ai.openai:1.2.1": [
+      {
+        "className": "EmbeddingProvider",
+        "label": "OpenAI Embedding Provider",
+        "description": "EmbeddingProvider provides an interface for interacting with OpenAI Embedding Models.",
+        "category": "EMBEDDING_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.openai_1.2.1.png"
+      },
+      {
+        "className": "ModelProvider",
+        "label": "OpenAI Model Provider",
+        "description": "ModelProvider is a client class that provides an interface for interacting with OpenAI Large Language Models.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.openai_1.2.1.png"
+      }
+    ],
+    "ballerinax:ai.openai:1.2.2": [
+      {
+        "className": "EmbeddingProvider",
+        "label": "OpenAI Embedding Provider",
+        "description": "EmbeddingProvider provides an interface for interacting with OpenAI Embedding Models.",
+        "category": "EMBEDDING_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.openai_1.2.2.png"
+      },
+      {
+        "className": "ModelProvider",
+        "label": "OpenAI Model Provider",
+        "description": "ModelProvider is a client class that provides an interface for interacting with OpenAI Large Language Models.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.openai_1.2.2.png"
+      }
+    ],
+    "ballerinax:ai.openai:1.2.3": [
+      {
+        "className": "EmbeddingProvider",
+        "label": "OpenAI Embedding Provider",
+        "description": "EmbeddingProvider provides an interface for interacting with OpenAI Embedding Models.",
+        "category": "EMBEDDING_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.openai_1.2.3.png"
+      },
+      {
+        "className": "ModelProvider",
+        "label": "OpenAI Model Provider",
+        "description": "ModelProvider is a client class that provides an interface for interacting with OpenAI Large Language Models.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.openai_1.2.3.png"
+      }
+    ],
+    "ballerinax:ai.openai:1.3.4": [
+      {
+        "className": "EmbeddingProvider",
+        "label": "OpenAI Embedding Provider",
+        "description": "EmbeddingProvider provides an interface for interacting with OpenAI Embedding Models.",
+        "category": "EMBEDDING_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.openai_1.3.4.png"
+      },
+      {
+        "className": "ModelProvider",
+        "label": "OpenAI Model Provider",
+        "description": "ModelProvider is a client class that provides an interface for interacting with OpenAI Large Language Models.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.openai_1.3.4.png"
+      }
+    ],
+    "ballerinax:ai.openai:1.3.5": [
+      {
+        "className": "EmbeddingProvider",
+        "label": "OpenAI Embedding Provider",
+        "description": "EmbeddingProvider provides an interface for interacting with OpenAI Embedding Models.",
+        "category": "EMBEDDING_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.openai_1.3.5.png"
+      },
+      {
+        "className": "ModelProvider",
+        "label": "OpenAI Model Provider",
+        "description": "ModelProvider is a client class that provides an interface for interacting with OpenAI Large Language Models.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.openai_1.3.5.png"
+      }
+    ],
+    "ballerinax:ai.openai:1.4.0": [
+      {
+        "className": "EmbeddingProvider",
+        "label": "OpenAI Embedding Provider",
+        "description": "EmbeddingProvider provides an interface for interacting with OpenAI Embedding Models.",
+        "category": "EMBEDDING_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.openai_1.4.0.png"
+      },
+      {
+        "className": "ModelProvider",
+        "label": "OpenAI Model Provider",
+        "description": "ModelProvider is a client class that provides an interface for interacting with OpenAI Large Language Models.\nSupports both the Chat Completions API (default) and the Responses API, selected via the `apiType` configuration.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.openai_1.4.0.png"
+      }
+    ],
+    "ballerinax:ai.openai:1.4.1": [
+      {
+        "className": "EmbeddingProvider",
+        "label": "OpenAI Embedding Provider",
+        "description": "EmbeddingProvider provides an interface for interacting with OpenAI Embedding Models.",
+        "category": "EMBEDDING_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.openai_1.4.1.png"
+      },
+      {
+        "className": "ModelProvider",
+        "label": "OpenAI Model Provider",
+        "description": "ModelProvider is a client class that provides an interface for interacting with OpenAI Large Language Models.\nSupports both the Chat Completions API (default) and the Responses API, selected via the `apiType` configuration.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.openai_1.4.1.png"
+      }
+    ],
+    "ballerinax:ai.openrouter:1.0.0": [
+      {
+        "className": "EmbeddingProvider",
+        "label": "OpenRouter Embedding Provider",
+        "description": "EmbeddingProvider is a client class that provides an interface for generating\nvector embeddings via the OpenRouter unified API, which supports embedding models\nfrom OpenAI, Google, Mistral, and other providers.",
+        "category": "EMBEDDING_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.openrouter_1.0.0.png"
+      },
+      {
+        "className": "ModelProvider",
+        "label": "OpenRouter Model Provider",
+        "description": "ModelProvider is a client class that provides an interface for interacting with\nLLMs via the OpenRouter unified API, which supports models from OpenAI, Anthropic,\nGoogle, Meta, Mistral, and many other providers.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.openrouter_1.0.0.png"
+      }
+    ],
+    "ballerinax:ai.openrouter:1.0.1": [
+      {
+        "className": "EmbeddingProvider",
+        "label": "OpenRouter Embedding Provider",
+        "description": "EmbeddingProvider is a client class that provides an interface for generating\nvector embeddings via the OpenRouter unified API, which supports embedding models\nfrom OpenAI, Google, Mistral, and other providers.",
+        "category": "EMBEDDING_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.openrouter_1.0.1.png"
+      },
+      {
+        "className": "ModelProvider",
+        "label": "OpenRouter Model Provider",
+        "description": "ModelProvider is a client class that provides an interface for interacting with\nLLMs via the OpenRouter unified API, which supports models from OpenAI, Anthropic,\nGoogle, Meta, Mistral, and many other providers.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.openrouter_1.0.1.png"
+      }
+    ],
+    "ballerinax:ai.openrouter:1.0.2": [
+      {
+        "className": "EmbeddingProvider",
+        "label": "OpenRouter Embedding Provider",
+        "description": "EmbeddingProvider is a client class that provides an interface for generating\nvector embeddings via the OpenRouter unified API, which supports embedding models\nfrom OpenAI, Google, Mistral, and other providers.",
+        "category": "EMBEDDING_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.openrouter_1.0.2.png"
+      },
+      {
+        "className": "ModelProvider",
+        "label": "OpenRouter Model Provider",
+        "description": "ModelProvider is a client class that provides an interface for interacting with\nLLMs via the OpenRouter unified API, which supports models from OpenAI, Anthropic,\nGoogle, Meta, Mistral, and many other providers.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.openrouter_1.0.2.png"
+      }
+    ],
+    "ballerinax:ai.openrouter:1.0.3": [
+      {
+        "className": "EmbeddingProvider",
+        "label": "OpenRouter Embedding Provider",
+        "description": "EmbeddingProvider is a client class that provides an interface for generating\nvector embeddings via the OpenRouter unified API, which supports embedding models\nfrom OpenAI, Google, Mistral, and other providers.",
+        "category": "EMBEDDING_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.openrouter_1.0.3.png"
+      },
+      {
+        "className": "ModelProvider",
+        "label": "OpenRouter Model Provider",
+        "description": "ModelProvider is a client class that provides an interface for interacting with\nLLMs via the OpenRouter unified API, which supports models from OpenAI, Anthropic,\nGoogle, Meta, Mistral, and many other providers.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.openrouter_1.0.3.png"
+      }
+    ],
+    "ballerinax:ai.pgvector:1.0.4": [
+      {
+        "className": "VectorStore",
+        "label": "Pgvector Vector Store",
+        "description": "Pgvector Vector Store implementation with support for Dense, Sparse, and Hybrid vector search modes.\n\nThis class implements the ai:VectorStore interface and integrates with the Pgvector vector database\nto provide functionality for vector upsert, query, and deletion.\n",
+        "category": "VECTOR_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.pgvector_1.0.4.png"
+      }
+    ],
+    "ballerinax:ai.pgvector:1.0.5": [
+      {
+        "className": "VectorStore",
+        "label": "Pgvector Vector Store",
+        "description": "Pgvector Vector Store implementation with support for Dense, Sparse, and Hybrid vector search modes.\n\nThis class implements the ai:VectorStore interface and integrates with the Pgvector vector database\nto provide functionality for vector upsert, query, and deletion.\n",
+        "category": "VECTOR_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.pgvector_1.0.5.png"
+      }
+    ],
+    "ballerinax:ai.pgvector:1.0.6": [
+      {
+        "className": "VectorStore",
+        "label": "Pgvector Vector Store",
+        "description": "Pgvector Vector Store implementation with support for Dense, Sparse, and Hybrid vector search modes.\n\nThis class implements the ai:VectorStore interface and integrates with the Pgvector vector database\nto provide functionality for vector upsert, query, and deletion.\n",
+        "category": "VECTOR_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.pgvector_1.0.6.png"
+      }
+    ],
+    "ballerinax:ai.pinecone:1.0.0": [
+      {
+        "className": "VectorStore",
+        "label": "Pinecone Vector Store",
+        "description": "Pinecone Vector Store implementation with support for Dense, Sparse, and Hybrid vector search modes.\n\nThis class implements the ai:VectorStore interface and integrates with the Pinecone vector database\nto provide functionality for vector upsert, query, and deletion.\n\n- pineconeClient: Underlying client used to communicate with Pinecone\n- queryMode: The search mode (DENSE, SPARSE, or HYBRID)\n- namespace: Optional namespace to isolate vectors within Pinecone\n- filters: Metadata filters applied during search\n- similarityTopK: Number of top similar vectors to return in queries\n- id: Unique identifier for the vector store instance",
+        "category": "VECTOR_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.pinecone_1.0.0.png"
+      }
+    ],
+    "ballerinax:ai.pinecone:1.0.1": [
+      {
+        "className": "VectorStore",
+        "label": "Pinecone Vector Store",
+        "description": "Pinecone Vector Store implementation with support for Dense, Sparse, and Hybrid vector search modes.\n\nThis class implements the ai:VectorStore interface and integrates with the Pinecone vector database\nto provide functionality for vector upsert, query, and deletion.\n\n- pineconeClient: Underlying client used to communicate with Pinecone\n- queryMode: The search mode (DENSE, SPARSE, or HYBRID)\n- namespace: Optional namespace to isolate vectors within Pinecone\n- filters: Metadata filters applied during search\n- similarityTopK: Number of top similar vectors to return in queries\n- id: Unique identifier for the vector store instance",
+        "category": "VECTOR_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.pinecone_1.0.1.png"
+      }
+    ],
+    "ballerinax:ai.pinecone:1.1.2": [
+      {
+        "className": "VectorStore",
+        "label": "Pinecone Vector Store",
+        "description": "Pinecone Vector Store implementation with support for Dense, Sparse, and Hybrid vector search modes.\n\nThis class implements the ai:VectorStore interface and integrates with the Pinecone vector database\nto provide functionality for vector upsert, query, and deletion.\n\n- pineconeClient: Underlying client used to communicate with Pinecone\n- queryMode: The search mode (DENSE, SPARSE, or HYBRID)\n- namespace: Optional namespace to isolate vectors within Pinecone\n- filters: Metadata filters applied during search\n- similarityTopK: Number of top similar vectors to return in queries\n- id: Unique identifier for the vector store instance",
+        "category": "VECTOR_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.pinecone_1.1.2.png"
+      }
+    ],
+    "ballerinax:ai.pinecone:1.1.4": [
+      {
+        "className": "VectorStore",
+        "label": "Pinecone Vector Store",
+        "description": "Pinecone Vector Store implementation with support for Dense, Sparse, and Hybrid vector search modes.\n\nThis class implements the ai:VectorStore interface and integrates with the Pinecone vector database\nto provide functionality for vector upsert, query, and deletion.\n\n- pineconeClient: Underlying client used to communicate with Pinecone\n- queryMode: The search mode (DENSE, SPARSE, or HYBRID)\n- namespace: Optional namespace to isolate vectors within Pinecone\n- filters: Metadata filters applied during search\n- similarityTopK: Number of top similar vectors to return in queries\n- id: Unique identifier for the vector store instance",
+        "category": "VECTOR_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.pinecone_1.1.4.png"
+      }
+    ],
+    "ballerinax:ai.pinecone:1.1.5": [
+      {
+        "className": "VectorStore",
+        "label": "Pinecone Vector Store",
+        "description": "Pinecone Vector Store implementation with support for Dense, Sparse, and Hybrid vector search modes.\n\nThis class implements the ai:VectorStore interface and integrates with the Pinecone vector database\nto provide functionality for vector upsert, query, and deletion.\n\n- pineconeClient: Underlying client used to communicate with Pinecone\n- queryMode: The search mode (DENSE, SPARSE, or HYBRID)\n- namespace: Optional namespace to isolate vectors within Pinecone\n- filters: Metadata filters applied during search\n- similarityTopK: Number of top similar vectors to return in queries\n- id: Unique identifier for the vector store instance",
+        "category": "VECTOR_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.pinecone_1.1.5.png"
+      }
+    ],
+    "ballerinax:ai.pinecone:1.1.6": [
+      {
+        "className": "VectorStore",
+        "label": "Pinecone Vector Store",
+        "description": "Pinecone Vector Store implementation with support for Dense, Sparse, and Hybrid vector search modes.\n\nThis class implements the ai:VectorStore interface and integrates with the Pinecone vector database\nto provide functionality for vector upsert, query, and deletion.\n\n- pineconeClient: Underlying client used to communicate with Pinecone\n- queryMode: The search mode (DENSE, SPARSE, or HYBRID)\n- namespace: Optional namespace to isolate vectors within Pinecone\n- filters: Metadata filters applied during search\n- similarityTopK: Number of top similar vectors to return in queries\n- id: Unique identifier for the vector store instance",
+        "category": "VECTOR_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.pinecone_1.1.6.png"
+      }
+    ],
+    "ballerinax:ai.sqlite:1.0.1": [
+      {
+        "className": "ShortTermMemoryStore",
+        "label": "SQLite Short Term Memory Store",
+        "description": "Represents a SQLite-backed short-term memory store for messages.",
+        "category": "SHORT_TERM_MEMORY_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.sqlite_1.0.1.png"
+      }
+    ],
+    "ballerinax:ai.sqlite:1.1.0": [
+      {
+        "className": "ShortTermMemoryStore",
+        "label": "SQLite Short Term Memory Store",
+        "description": "Represents a SQLite-backed short-term memory store for messages.",
+        "category": "SHORT_TERM_MEMORY_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.sqlite_1.1.0.png"
+      }
+    ],
+    "ballerinax:ai.weaviate:1.0.4": [
+      {
+        "className": "VectorStore",
+        "label": "Weaviate Vector Store",
+        "description": "Weaviate Vector Store implementation with support for Dense, Sparse, and Hybrid vector search modes.\n\nThis class implements the ai:VectorStore interface and integrates with the Weaviate vector database\nto provide functionality for vector upsert, query, and deletion.\n",
+        "category": "VECTOR_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.weaviate_1.0.4.png"
+      }
+    ],
+    "ballerinax:ai.weaviate:1.0.5": [
+      {
+        "className": "VectorStore",
+        "label": "Weaviate Vector Store",
+        "description": "Weaviate Vector Store implementation with support for Dense, Sparse, and Hybrid vector search modes.\n\nThis class implements the ai:VectorStore interface and integrates with the Weaviate vector database\nto provide functionality for vector upsert, query, and deletion.\n",
+        "category": "VECTOR_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.weaviate_1.0.5.png"
+      }
+    ],
+    "ballerinax:ai.weaviate:1.0.6": [
+      {
+        "className": "VectorStore",
+        "label": "Weaviate Vector Store",
+        "description": "Weaviate Vector Store implementation with support for Dense, Sparse, and Hybrid vector search modes.\n\nThis class implements the ai:VectorStore interface and integrates with the Weaviate vector database\nto provide functionality for vector upsert, query, and deletion.\n",
+        "category": "VECTOR_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.weaviate_1.0.6.png"
+      }
+    ],
+    "ballerinax:ai.wso2.integration:1.0.0": [
+      {
+        "className": "CloudKnowledgeBase",
+        "label": "WSO2 Cloud Knowledge Base",
+        "description": "Represents a WSO2 Cloud knowledge base for retrieval.",
+        "category": "KNOWLEDGE_BASE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.wso2.integration_1.0.0.png"
+      }
+    ],
+    "ballerinax:ai.wso2.integration:1.1.0": [
+      {
+        "className": "CloudKnowledgeBase",
+        "label": "WSO2 Cloud Knowledge Base",
+        "description": "Represents a WSO2 Cloud knowledge base for retrieval.",
+        "category": "KNOWLEDGE_BASE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.wso2.integration_1.1.0.png"
+      }
+    ]
+  }
+}

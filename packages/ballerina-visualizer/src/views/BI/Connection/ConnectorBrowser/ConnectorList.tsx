@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import styled from "@emotion/styled";
 import { Category as PanelCategory, Node as PanelNode } from "@wso2/ballerina-side-panel";
 import { Codicon, ProgressRing, SearchBox, ThemeColors, Typography } from "@wso2/ui-toolkit";
@@ -174,6 +174,8 @@ interface ConnectorListProps {
     onSelectConnection?: (connectionName: string, actions: PanelNode[]) => void;
     description?: string;
     searchPlaceholder?: string;
+    // Rendered after the last section, inside the scroll area.
+    extraSection?: ReactNode;
 }
 
 const nodesOf = (category: PanelCategory): PanelNode[] =>
@@ -233,6 +235,7 @@ export function ConnectorList(props: ConnectorListProps) {
         onSelectConnection,
         description,
         searchPlaceholder = "Search connectors",
+        extraSection,
     } = props;
 
     const [category, setCategory] = useState<string>("");
@@ -427,6 +430,7 @@ export function ConnectorList(props: ConnectorListProps) {
                         </Section>
                     ))
                 )}
+                {extraSection}
             </ScrollArea>
 
         </Container>
