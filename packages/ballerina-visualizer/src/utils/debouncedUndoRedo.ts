@@ -26,7 +26,7 @@ interface QueuedRun {
 class DebouncedUndoRedoManager {
     // Presses in the order made, a run of the same kind merged; one at a time, so an undo and a redo never overlap.
     private runs: QueuedRun[] = [];
-    private running = false;
+    private drain?: Promise<void>;
 
     private appliedListeners = new Set<() => void>();
 
@@ -59,17 +59,18 @@ class DebouncedUndoRedoManager {
         return this.enqueue(true, rpcClient);
     }
 
-    private async enqueue(redo: boolean, rpcClient: BallerinaRpcClient): Promise<void> {
+    private enqueue(redo: boolean, rpcClient: BallerinaRpcClient): Promise<void> {
         const last = this.runs[this.runs.length - 1];
         if (last?.redo === redo) {
             last.count++;
         } else {
             this.runs.push({ redo, count: 1 });
         }
-        if (this.running) {
-            return;
-        }
-        this.running = true;
+        this.drain ??= this.runAll(rpcClient);
+        return this.drain;
+    }
+
+    private async runAll(rpcClient: BallerinaRpcClient): Promise<void> {
         try {
             while (this.runs.length) {
                 await this.pendingEdits;
@@ -77,7 +78,7 @@ class DebouncedUndoRedoManager {
                 await (run.redo ? this.executeRedo(rpcClient, run.count) : this.executeUndo(rpcClient, run.count));
             }
         } finally {
-            this.running = false;
+            this.drain = undefined;
         }
     }
 
@@ -171,7 +172,7 @@ class DebouncedUndoRedoManager {
      * Check if any operations are currently processing
      */
     public isProcessing(): boolean {
-        return this.running;
+        return this.drain !== undefined;
     }
 }
 

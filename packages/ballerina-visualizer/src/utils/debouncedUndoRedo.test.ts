@@ -52,3 +52,31 @@ test("presses run one at a time in the order made, a run of the same kind merged
     expect(calls).toEqual(["undo 3", "redo 2", "undo 1"]);
     expect(debouncedUndoRedoManager.isProcessing()).toBe(false);
 });
+
+test("presses made during a run resolve only after their merged run", async () => {
+    const releases: (() => void)[] = [];
+    const undo = jest.fn(() => new Promise<void>((resolve) => releases.push(resolve)));
+    const rpcClient = {
+        getVisualizerRpcClient: () => ({
+            undoRedoState: async () => ({ canUndo: true, undoCount: 10 }),
+            undo,
+        }),
+    } as unknown as BallerinaRpcClient;
+    const tick = () => new Promise((resolve) => setTimeout(resolve));
+
+    const first = debouncedUndoRedoManager.debouncedUndo(rpcClient);
+    await tick();
+    let secondDone = false;
+    const second = debouncedUndoRedoManager.debouncedUndo(rpcClient).then(() => { secondDone = true; });
+    const third = debouncedUndoRedoManager.debouncedUndo(rpcClient);
+
+    releases[0]();
+    await tick();
+    expect(secondDone).toBe(false);
+    expect(undo).toHaveBeenLastCalledWith(2);
+
+    releases[1]();
+    await Promise.all([first, second, third]);
+    expect(undo).toHaveBeenCalledTimes(2);
+    expect(debouncedUndoRedoManager.isProcessing()).toBe(false);
+});
