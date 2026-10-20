@@ -25,7 +25,9 @@
 import React from "react";
 import { createRoot, Root } from "react-dom/client";
 import { act } from "react-dom/test-utils";
-import type { BISourceCodeRequest } from "@wso2/ballerina-core";
+import type { BISourceCodeRequest, Property } from "@wso2/ballerina-core";
+import type { FormField, Parameter } from "@wso2/ballerina-side-panel";
+import { handleRepeatableProperty } from "../../../utils/node-property-utils";
 
 // The core barrel pulls in ESM-only LS transport modules that jest cannot load. Only the
 // values this view reads are needed.
@@ -361,9 +363,23 @@ describe("FunctionForm save after an in-place rename", () => {
     const LOADED_RANGE = { fileName: "data_mappings.bal", startLine: { line: 4, offset: 0 }, endLine: { line: 4, offset: 52 } };
     const RENAMED_RANGE = { fileName: "data_mappings.bal", startLine: { line: 4, offset: 0 }, endLine: { line: 4, offset: 47 } };
 
+    const PERSON_RANGE = { fileName: "data_mappings.bal", startLine: { line: 4, offset: 30 }, endLine: { line: 4, offset: 36 } };
+
+    /** The `parameters` property of a definition with one `Person person` input, as the LS sends it. */
+    const personParameters = (editable = false) => ({
+        value: {
+            person: {
+                value: {
+                    type: { value: "Person" },
+                    variable: { value: "person", editable, codedata: { lineRange: PERSON_RANGE } },
+                },
+            },
+        },
+    });
+
     const dataMapper = (name: string, lineRange: typeof LOADED_RANGE) => ({
         codedata: { node: "DATA_MAPPER_DEFINITION", lineRange },
-        properties: { functionName: { value: name } },
+        properties: { functionName: { value: name }, parameters: personParameters() },
     });
 
     beforeEach(() => {
@@ -444,14 +460,20 @@ describe("FunctionForm save after an in-place rename", () => {
         expect(flowNode.codedata.lineRange).toEqual(LOADED_RANGE);
     });
 
-    /** A parameter loaded from source as `person`, now named `name` in the form. Its name is
-     *  renamed in place unless `identifierEditable` (as for data mappers, whose names the save rewrites). */
-    const loadedParam = (name: string, identifierEditable = false) => ({
-        key: "person",
-        identifierEditable,
-        identifierRange: { fileName: "data_mappings.bal", startLine: { line: 4, offset: 30 }, endLine: { line: 4, offset: 36 } },
-        formValues: { type: "Person", variable: name },
-    });
+    /**
+     * The `person` input as the form submits it after being renamed to `name`: converted from the
+     * LS property and saved through the parameter editor's own handler, which resets its `key` to
+     * the new name. Its name is renamed in place unless `identifierEditable` (as before data mapper
+     * and automation inputs gained in-place rename, when only the save rewrote them).
+     */
+    const loadedParam = (name: string, identifierEditable = false): Parameter => {
+        const field = {} as FormField;
+        handleRepeatableProperty(personParameters(identifierEditable) as unknown as Property, field);
+        const [param] = field.paramManagerProps.paramValues;
+        return name === "person"
+            ? param
+            : field.paramManagerProps.handleParameter({ ...param, formValues: { ...param.formValues, variable: name } });
+    };
 
     // A parameter renamed in place moves the end of the signature just as a function rename does.
     it("re-reads the range when a parameter was renamed in place under an unchanged name", async () => {

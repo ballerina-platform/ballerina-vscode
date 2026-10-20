@@ -409,16 +409,43 @@ export function FunctionForm(props: FunctionFormProps) {
     // Writes the WSO2 default provider's Config.toml entry (service URL + token) after an
     // agent creation that declared the provider. Failures are non-fatal: the agent is already
     // created and the provider can be configured from the agent's model circle.
-    /** Whether a parameter whose name is renamed in place through the LS (a read-only identifier
-     *  with a source range) now carries a different name than the key it loaded under. A parameter
-     *  with an editable name is only rewritten by the save, so its edits leave the range intact. */
-    const hasRenamedParameter = (parameters: unknown) =>
-        Array.isArray(parameters) &&
-        (parameters as Parameter[]).some((param) => {
-            const name = param?.formValues?.variable;
-            return param?.identifierEditable === false && !!param.identifierRange && !!param.key &&
-                typeof name === "string" && !!name && name !== param.key;
+    /** The names the loaded parameters carried in source, keyed by the range of each name. */
+    const getLoadedParameterNames = () => {
+        const names = new Map<string, string>();
+        const params = functionNode?.properties?.parameters?.value;
+        if (params && typeof params === "object") {
+            for (const param of Object.values(params as Record<string, any>)) {
+                const variable = param?.value?.variable;
+                const range = variable?.codedata?.lineRange;
+                if (range && typeof variable.value === "string") {
+                    names.set(JSON.stringify(range), variable.value);
+                }
+            }
+        }
+        return names;
+    };
+
+    /**
+     * Whether a parameter whose name is renamed in place through the LS (a read-only identifier
+     * with a source range) now carries a different name than it loaded with. The loaded name is
+     * looked up by that range, which the parameter keeps through edits; its `key` cannot be used,
+     * as saving the parameter editor resets it to the new name. A parameter with an editable name
+     * is only rewritten by the save, so its edits leave the range intact.
+     */
+    const hasRenamedParameter = (parameters: unknown) => {
+        if (!Array.isArray(parameters)) {
+            return false;
+        }
+        const loadedNames = getLoadedParameterNames();
+        return (parameters as Parameter[]).some((param) => {
+            if (param?.identifierEditable !== false || !param.identifierRange) {
+                return false;
+            }
+            const loadedName = loadedNames.get(JSON.stringify(param.identifierRange));
+            const name = param.formValues?.variable;
+            return loadedName !== undefined && typeof name === "string" && !!name && name !== loadedName;
         });
+    };
 
     const configureWso2ModelProvider = async () => {
         try {
