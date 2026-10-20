@@ -41,7 +41,7 @@ function iconUrl(icon?: string | IconDescriptor): string | undefined {
     return typeof icon === "string" ? icon : icon?.url;
 }
 
-function toPosition(location: CDLocation): NodePosition {
+export function toPosition(location: CDLocation): NodePosition {
     return {
         startLine: location.startLine.line,
         startColumn: location.startLine.offset,
@@ -50,11 +50,11 @@ function toPosition(location: CDLocation): NodePosition {
     };
 }
 
-function samePath(a: string, b: string): boolean {
+export function samePath(a: string, b: string): boolean {
     return a === b || a.replace(/\\/g, "/") === b.replace(/\\/g, "/");
 }
 
-function findAgentUuid(model: CDModel, agent: AgentRef): string | undefined {
+export function findAgentUuid(model: CDModel, agent: AgentRef): string | undefined {
     const connections = model.connections ?? [];
     const byLocation = connections.find(
         (connection) =>
@@ -102,19 +102,19 @@ function resourcePath(path: string): string {
     return unescapePath(path === "." ? "/" : path.startsWith("/") ? path : `/${path}`);
 }
 
-function resourceLabel(accessor: string, path: string): string {
+export function resourceLabel(accessor: string, path: string): string {
     return `${accessor.toUpperCase()} ${resourcePath(path)}`;
 }
 
-function serviceName(service: CDService): string {
+export function serviceName(service: CDService): string {
     return unescapePath(service.absolutePath || service.displayName || service.type);
 }
 
-function modulePrefix(type?: string): string {
+export function modulePrefix(type?: string): string {
     return type?.includes(":") ? type.split(":")[0] : type ?? "";
 }
 
-function triggerFor(model: CDModel, service: CDService): AgentUsageTrigger {
+export function triggerFor(model: CDModel, service: CDService): AgentUsageTrigger {
     const listeners = (model.listeners ?? [])
         .filter((listener) => listener.attachedServices?.includes(service.uuid))
         .filter((listener) => (listener.attachedServices ?? []).length === 1)
@@ -151,7 +151,7 @@ function entryPointTrigger(
         ...trigger,
         entryPoint: { label, documentUri: location.filePath, position: toPosition(location) },
         orphansService: scope === "ENTRY_POINT_BODY"
-            ? wired.length === 1 && Boolean(wired[0].connections?.includes(uuid))
+            ? wired.length === 1 && Boolean(wired[0].connections?.includes(uuid) || wired[0].workflows?.includes(uuid))
             : entryPoints.length === 1 && (service.functions?.length ?? 0) === 0,
         scope,
         helpers: scope === "ENTRY_POINT_BODY" ? agentHelpers(service, uuid) : undefined,
@@ -173,12 +173,12 @@ function tryItFor(model: CDModel, service: CDService): AgentUsageTryIt | undefin
 
 type AgentCaller = { connections?: string[]; agentCalls?: CDAgentCall[] };
 
-function runsAgent(fn: AgentCaller, uuid: string, delegated: Set<string>): boolean {
+export function runsAgent(fn: AgentCaller, uuid: string, delegated: Set<string>): boolean {
     const called = (fn.agentCalls ?? []).some((call) => call.connection === uuid);
     return called || (Boolean(fn.connections?.includes(uuid)) && !delegated.has(uuid));
 }
 
-function delegatedAgentUuids(model: CDModel): Set<string> {
+export function delegatedAgentUuids(model: CDModel): Set<string> {
     return new Set((model.connections ?? []).flatMap((connection) => (connection.kind === "Agent" ? connection.delegatesTo ?? [] : [])));
 }
 
@@ -330,7 +330,7 @@ export type AgentRef = {
 
 const GENERATED_CHAT_SERVICE_FILE = "_agent_chat.bal";
 
-function isGeneratedChatService(filePath?: string): boolean {
+export function isGeneratedChatService(filePath?: string): boolean {
     return Boolean(filePath?.endsWith(GENERATED_CHAT_SERVICE_FILE));
 }
 
@@ -377,8 +377,8 @@ export function findAgentUsages(
 
 type DurableCaller = { workflows?: string[]; workflowSendData?: Record<string, string[]> };
 
-function findDurableAgentWorkflow(model: CDModel, agent: AgentRef): CDWorkflow | undefined {
-    const workflows = (model.workflows ?? []).filter((workflow) => workflow.kind === "DURABLE_AGENT");
+export function findAgentWorkflow(model: CDModel, agent: AgentRef): CDWorkflow | undefined {
+    const workflows = model.workflows ?? [];
     const byLocation = workflows.find(
         (workflow) =>
             samePath(workflow.location?.filePath ?? "", agent.filePath) && workflow.location?.startLine?.line === agent.startLine
@@ -415,7 +415,7 @@ function peerUsages(model: CDModel, uuid: string): AgentUsage[] {
 }
 
 export function findDurableAgentUsages(model: CDModel, agent: AgentRef, triggerScopes?: AgentTriggerScopes): AgentUsage[] {
-    const uuid = model && findDurableAgentWorkflow(model, agent)?.uuid;
+    const uuid = model && findAgentWorkflow(model, agent)?.uuid;
     if (!uuid) {
         return [];
     }

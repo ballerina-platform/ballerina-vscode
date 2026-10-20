@@ -53,6 +53,7 @@ export interface AgentTopologyDiagramProps {
     onAgentSelect: (agent: AgentSelection) => void;
     onTriggerSelect: (trigger: TriggerSelection) => void;
     onAddTrigger?: (agent: AgentSelection) => void;
+    onDeleteAgent?: (agent: AgentSelection) => void;
     onConfigureEntry?: (entry: EntrySelection) => void;
     onDeleteEntry?: (entry: EntrySelection) => void;
     readonly?: boolean;
@@ -156,7 +157,7 @@ const EmptyNote = styled.div`
 `;
 
 export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
-    const { input, onAgentSelect, onTriggerSelect, onAddTrigger, onConfigureEntry, onDeleteEntry, readonly } = props;
+    const { input, onAgentSelect, onTriggerSelect, onAddTrigger, onDeleteAgent, onConfigureEntry, onDeleteEntry, readonly } = props;
     const [diagramEngine] = useState(() => generateTopologyEngine());
     const [diagramModel, setDiagramModel] = useState<DiagramModel | null>(null);
     const [legendKinds, setLegendKinds] = useState<ReturnType<typeof buildTopology>["legendKinds"]>([]);
@@ -544,6 +545,7 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
             onAgentSelect,
             onTriggerSelect,
             onAddTrigger,
+            onDeleteAgent,
             onConfigureEntry,
             onDeleteEntry,
             focus: facetFocus ?? ((hoveredId ?? pinnedId) && graphRef.current ? focusAround(graphRef.current, hoveredId ?? pinnedId) : undefined),
@@ -553,7 +555,7 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
             onToggleEntry,
         }),
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [readonly, orientation, onAgentSelect, onTriggerSelect, onAddTrigger, onConfigureEntry, onDeleteEntry, hoveredId, pinnedId, facetFocus, input, setHovered, visibleRows, unfolded, onToggleEntry]
+        [readonly, orientation, onAgentSelect, onTriggerSelect, onAddTrigger, onDeleteAgent, onConfigureEntry, onDeleteEntry, hoveredId, pinnedId, facetFocus, input, setHovered, visibleRows, unfolded, onToggleEntry]
     );
 
     return (

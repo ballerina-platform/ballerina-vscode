@@ -42,6 +42,7 @@ import {
 } from "../../../resources/constants";
 import { useTopologyContext } from "../../AgentTopologyDiagram/TopologyContext";
 import { CardPopover, PopoverRow } from "../../AgentTopologyDiagram/CardPopover";
+import { CardMenuButton, CardMenuPopover, useCardMenu } from "../../AgentTopologyDiagram/CardMenu";
 import { useOpenableNode } from "../../AgentTopologyDiagram/useOpenableNode";
 import { inletCrossOffset, inletSlot } from "../../AgentTopologyDiagram/topologyLayout";
 import { inletFocusId } from "../../AgentTopologyDiagram/topologyFocus";
@@ -101,6 +102,7 @@ const HeaderRow = styled.div`
 `;
 
 const HeaderText = styled.div`
+    flex: 1;
     display: flex;
     flex-direction: column;
     min-width: 0;
@@ -626,7 +628,7 @@ function RailSlots({ node, show, hide }: { node: TopologyAgentNode; show: ShowPo
 
 export function AgentCardNodeWidget(props: AgentCardNodeWidgetProps) {
     const { model, engine } = props;
-    const { onAgentSelect, onAddTrigger, readonly, orientation, focus, setHovered } = useTopologyContext();
+    const { onAgentSelect, onAddTrigger, onDeleteAgent, readonly, orientation, focus, setHovered } = useTopologyContext();
     const vertical = orientation === "vertical";
     const InPort = vertical ? TopPortWidget : LeftPortWidget;
     const OutPort = vertical ? BottomPortWidget : RightPortWidget;
@@ -654,8 +656,12 @@ export function AgentCardNodeWidget(props: AgentCardNodeWidgetProps) {
         startLine: node.position.line,
         name: node.name,
         moduleName: node.moduleName,
+        kind: node.kind,
     });
     const handleClick = () => onAgentSelect(selection());
+    const menu = useCardMenu(
+        !readonly && onDeleteAgent ? [{ id: "delete", label: "Delete", onClick: () => onDeleteAgent(selection()) }] : []
+    );
     const handleAddTrigger = (event: React.SyntheticEvent) => {
         event.stopPropagation();
         (onAddTrigger ?? onAgentSelect)(selection());
@@ -667,53 +673,57 @@ export function AgentCardNodeWidget(props: AgentCardNodeWidgetProps) {
     });
 
     return (
-        <Card
-            hovered={hovered}
-            receded={focus !== undefined && !focus.nodes.has(model.getID())}
-            readonly={readonly}
-            railless={isWorkflow}
-            {...handlers}
-        >
-            <InPort port={model.getPort("in")!} engine={engine} at={durable ? `${DURABLE_RUN_PORT_OFFSET}px` : undefined} />
-            <OutPort port={model.getPort("out")!} engine={engine} />
-            {durable && <Inlets node={node} model={model} engine={engine} vertical={vertical} onInlet={onInlet} offInlet={offInlet} />}
-            <Body>
-                <HeaderRow>
-                    {isWorkflow ? <NodeIcon type="WORKFLOW_RUN" size={24} /> : durable ? <DurableAgentIcon size={24} /> : <NodeIcon type="AGENT" size={24} />}
-                    <HeaderText title={node.name}>
-                        <Eyebrow>{node.typeName}</Eyebrow>
-                        <Name>{node.name}</Name>
-                    </HeaderText>
-                </HeaderRow>
-                {isWorkflow && <WorkflowTasks node={node} show={show} hide={hide} />}
-                <ToolsLine>
-                    <ToolsSummary node={node} show={show} hide={hide} />
-                    <ConnectionChips chips={node.chips} onMouseEnter={show(connectionRows(node.chips))} onMouseLeave={hide} />
-                </ToolsLine>
-                {node.orphan && (
-                    <OrphanFooter>
-                        {isWorkflow ? (
-                            "No trigger yet"
-                        ) : (
-                            <>
-                                No trigger yet ·{" "}
-                                <u
-                                    role="button"
-                                    tabIndex={readonly ? -1 : 0}
-                                    onMouseDown={(event) => event.stopPropagation()}
-                                    onMouseUp={(event) => event.stopPropagation()}
-                                    onClick={readonly ? undefined : handleAddTrigger}
-                                    onKeyDown={(event) => !readonly && (event.key === "Enter" || event.key === " ") && handleAddTrigger(event)}
-                                >
-                                    Add Trigger
-                                </u>
-                            </>
-                        )}
-                    </OrphanFooter>
-                )}
-            </Body>
-            {!isWorkflow && <RailSlots node={node} show={show} hide={hide} />}
-            {popover && <CardPopover rows={popover.rows} anchor={popover.anchor} zoom={engine.getModel().getZoomLevel() / 100} />}
-        </Card>
+        <>
+            <Card
+                hovered={hovered}
+                receded={focus !== undefined && !focus.nodes.has(model.getID())}
+                readonly={readonly}
+                railless={isWorkflow}
+                {...handlers}
+            >
+                <InPort port={model.getPort("in")!} engine={engine} at={durable ? `${DURABLE_RUN_PORT_OFFSET}px` : undefined} />
+                <OutPort port={model.getPort("out")!} engine={engine} />
+                {durable && <Inlets node={node} model={model} engine={engine} vertical={vertical} onInlet={onInlet} offInlet={offInlet} />}
+                <Body>
+                    <HeaderRow>
+                        {isWorkflow ? <NodeIcon type="WORKFLOW_RUN" size={24} /> : durable ? <DurableAgentIcon size={24} /> : <NodeIcon type="AGENT" size={24} />}
+                        <HeaderText title={node.name}>
+                            <Eyebrow>{node.typeName}</Eyebrow>
+                            <Name>{node.name}</Name>
+                        </HeaderText>
+                        <CardMenuButton menu={menu} />
+                    </HeaderRow>
+                    {isWorkflow && <WorkflowTasks node={node} show={show} hide={hide} />}
+                    <ToolsLine>
+                        <ToolsSummary node={node} show={show} hide={hide} />
+                        <ConnectionChips chips={node.chips} onMouseEnter={show(connectionRows(node.chips))} onMouseLeave={hide} />
+                    </ToolsLine>
+                    {node.orphan && (
+                        <OrphanFooter>
+                            {isWorkflow ? (
+                                "No trigger yet"
+                            ) : (
+                                <>
+                                    No trigger yet ·{" "}
+                                    <u
+                                        role="button"
+                                        tabIndex={readonly ? -1 : 0}
+                                        onMouseDown={(event) => event.stopPropagation()}
+                                        onMouseUp={(event) => event.stopPropagation()}
+                                        onClick={readonly ? undefined : handleAddTrigger}
+                                        onKeyDown={(event) => !readonly && (event.key === "Enter" || event.key === " ") && handleAddTrigger(event)}
+                                    >
+                                        Add Trigger
+                                    </u>
+                                </>
+                            )}
+                        </OrphanFooter>
+                    )}
+                </Body>
+                {!isWorkflow && <RailSlots node={node} show={show} hide={hide} />}
+                {popover && <CardPopover rows={popover.rows} anchor={popover.anchor} zoom={engine.getModel().getZoomLevel() / 100} />}
+            </Card>
+            <CardMenuPopover menu={menu} />
+        </>
     );
 }

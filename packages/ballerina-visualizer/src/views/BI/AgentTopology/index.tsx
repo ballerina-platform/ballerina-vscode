@@ -37,13 +37,14 @@ export interface AgentTopologyProps {
     onOpenAgent: (agent: AgentSelection) => void;
     onOpenTrigger: (trigger: TriggerSelection) => void;
     onAddTrigger?: (agent: AgentSelection) => void;
+    onDeleteAgent?: (agent: AgentSelection) => void;
     onConfigureEntry?: (entry: EntrySelection) => void;
     onDeleteEntry?: (entry: EntrySelection) => void;
     onReady?: () => void;
 }
 
 export default function AgentTopology(props: AgentTopologyProps) {
-    const { projectPath, agents, agentDefinitions, onOpenAgent, onOpenTrigger, onAddTrigger, onConfigureEntry, onDeleteEntry, onReady } = props;
+    const { projectPath, agents, agentDefinitions, onOpenAgent, onOpenTrigger, onAddTrigger, onDeleteAgent, onConfigureEntry, onDeleteEntry, onReady } = props;
     const input = useAgentTopology(projectPath, agents, agentDefinitions);
 
     useEffect(() => {
@@ -66,6 +67,7 @@ export default function AgentTopology(props: AgentTopologyProps) {
             onAgentSelect={onOpenAgent}
             onTriggerSelect={onOpenTrigger}
             onAddTrigger={onAddTrigger}
+            onDeleteAgent={onDeleteAgent}
             onConfigureEntry={onConfigureEntry}
             onDeleteEntry={onDeleteEntry}
         />
