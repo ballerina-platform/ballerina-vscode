@@ -17,10 +17,10 @@
  */
 
 import { capabilityValueText, seedCapabilityValue, SeedableProperty, showActivityIdentityReadOnly } from "./capabilityFieldValues";
-import { useEffect, useRef, useState, useMemo, useCallback } from "react";
+import { MutableRefObject, useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import styled from "@emotion/styled";
-import { goToAgent, startAddAgentTrigger, startAddDurableEventTrigger, startAgentChat } from "../AIChatAgent/utils";
+import { goToAgent, searchAiComponents, startAddAgentTrigger, startAddDurableEventTrigger, startAgentChat } from "../AIChatAgent/utils";
 import { DIAGRAM_REFRESH_DEBOUNCE_MS } from "../diagramRefreshDebounce";
 import { MemoizedDiagram } from "@wso2/bi-diagram";
 import {
@@ -186,6 +186,10 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     const [suggestedModel, setSuggestedModel] = useState<Flow>();
     const [showSidePanel, setShowSidePanel] = useState(false);
     const [sidePanelView, setSidePanelView] = useState<SidePanelView>(SidePanelView.NODE_LIST);
+    const sidePanelViewRef = useRef(sidePanelView);
+    sidePanelViewRef.current = sidePanelView;
+    const [refreshingAiComponents, setRefreshingAiComponents] = useState(false);
+    const [formLoadingNode, setFormLoadingNode] = useState<AvailableNode>();
     const [categories, setCategories] = useState<PanelCategory[]>([]); //
     const [searchText, setSearchText] = useState<string>("");
     const {
@@ -2379,6 +2383,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                     setShowProgressSpinner(true);
                     setProgressTitle(node.metadata?.label || LOADING_MESSAGE);
                     setProgressMessage(FORM_LOADING_MESSAGE);
+                    setFormLoadingNode(node);
                 }
                 rpcClient.getBIDiagramRpcClient().getNodeTemplate({
                     position: targetRef.current.startLine,
@@ -2409,6 +2414,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                         if (showFormLoader) {
                             setShowProgressSpinner(false);
                             setProgressMessage(LOADING_MESSAGE);
+                            setFormLoadingNode(undefined);
                         }
                     });
                 break;
@@ -2422,6 +2428,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         setShowProgressSpinner(true);
         setProgressTitle("");
         setProgressMessage(FORM_LOADING_MESSAGE);
+        setFormLoadingNode((metadata as { node?: AvailableNode })?.node);
 
         try {
             const { flowNode, connectionKind } = await getNodeTemplateForConnection(
@@ -2440,6 +2447,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             setShowProgressIndicator(false);
             setShowProgressSpinner(false);
             setProgressMessage(LOADING_MESSAGE);
+            setFormLoadingNode(undefined);
         }
     };
 
@@ -3363,199 +3371,63 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             });
     };
 
-    const handleOnAddNewModelProvider = () => {
-        isCreatingNewModelProvider.current = true;
+    const openAiComponentPicker = (
+        searchKind: SearchKind,
+        title: string,
+        view: SidePanelView,
+        isCreating: MutableRefObject<boolean>,
+        toPanelCategories: (categories: Category[]) => PanelCategory[]
+    ) => {
+        isCreating.current = true;
         setShowProgressIndicator(true);
-        setShowProgressSpinner(true);
-        setProgressTitle("Model Providers");
+        setProgressTitle(title);
         const messageTimeout = setupProgressMessageTimeout();
 
         // Push current state to navigation stack
         pushToNavigationStack(sidePanelView, categories, selectedNodeRef.current, selectedClientName.current);
 
-        // Use search to get available model provider types
-        rpcClient
-            .getBIDiagramRpcClient()
-            .search({
-                position: { startLine: targetRef.current.startLine, endLine: targetRef.current.endLine },
-                filePath: model?.fileName,
-                queryMap: undefined,
-                searchKind: "MODEL_PROVIDER",
-            })
-            .then((response) => {
-                if (!isCreatingNewModelProvider.current) return;
-                setCategories(convertModelProviderCategoriesToSidePanelCategories(response.categories as Category[]));
-                setSidePanelView(SidePanelView.MODEL_PROVIDERS);
-                setShowSidePanel(true);
-            })
-            .finally(() => {
-                setShowProgressIndicator(false);
-                setShowProgressSpinner(false);
-                cleanupProgressMessage(messageTimeout);
-            });
+        let shown = false;
+        searchAiComponents(rpcClient, {
+            position: { startLine: targetRef.current.startLine, endLine: targetRef.current.endLine },
+            filePath: model?.fileName,
+            queryMap: undefined,
+            searchKind,
+        }, (response, refreshing) => {
+            // Once the list is shown, a refresh must not pull the user back from a form they opened.
+            if (!isCreating.current || (shown && sidePanelViewRef.current !== view)) return;
+            shown = true;
+            setCategories(toPanelCategories(response.categories as Category[]));
+            setSidePanelView(view);
+            setShowSidePanel(true);
+            setShowProgressSpinner(false);
+            setRefreshingAiComponents(refreshing);
+        }, () => setShowProgressSpinner(true)).finally(() => {
+            setShowProgressIndicator(false);
+            setShowProgressSpinner(false);
+            setRefreshingAiComponents(false);
+            cleanupProgressMessage(messageTimeout);
+        });
     };
 
-    const handleOnAddNewVectorStore = () => {
-        isCreatingNewVectorStore.current = true;
-        setShowProgressIndicator(true);
-        setShowProgressSpinner(true);
-        setProgressTitle("Vector Stores");
-        const messageTimeout = setupProgressMessageTimeout();
+    const handleOnAddNewModelProvider = () => openAiComponentPicker("MODEL_PROVIDER", "Model Providers",
+        SidePanelView.MODEL_PROVIDERS, isCreatingNewModelProvider, convertModelProviderCategoriesToSidePanelCategories);
 
-        // Push current state to navigation stack
-        pushToNavigationStack(sidePanelView, categories, selectedNodeRef.current, selectedClientName.current);
+    const handleOnAddNewVectorStore = () => openAiComponentPicker("VECTOR_STORE", "Vector Stores",
+        SidePanelView.VECTOR_STORES, isCreatingNewVectorStore, convertVectorStoreCategoriesToSidePanelCategories);
 
-        // Use search to get available vector store types
-        rpcClient
-            .getBIDiagramRpcClient()
-            .search({
-                position: { startLine: targetRef.current.startLine, endLine: targetRef.current.endLine },
-                filePath: model?.fileName,
-                queryMap: undefined,
-                searchKind: "VECTOR_STORE",
-            })
-            .then((response) => {
-                if (!isCreatingNewVectorStore.current) return;
-                setCategories(convertVectorStoreCategoriesToSidePanelCategories(response.categories as Category[]));
-                setSidePanelView(SidePanelView.VECTOR_STORES);
-                setShowSidePanel(true);
-            })
-            .finally(() => {
-                setShowProgressIndicator(false);
-                setShowProgressSpinner(false);
-                cleanupProgressMessage(messageTimeout);
-            });
-    };
+    const handleOnAddNewEmbeddingProvider = () => openAiComponentPicker("EMBEDDING_PROVIDER", "Embedding Providers",
+        SidePanelView.EMBEDDING_PROVIDERS, isCreatingNewEmbeddingProvider,
+        convertEmbeddingProviderCategoriesToSidePanelCategories);
 
-    const handleOnAddNewEmbeddingProvider = () => {
-        isCreatingNewEmbeddingProvider.current = true;
-        setShowProgressIndicator(true);
-        setShowProgressSpinner(true);
-        setProgressTitle("Embedding Providers");
-        const messageTimeout = setupProgressMessageTimeout();
+    const handleOnAddNewVectorKnowledgeBase = () => openAiComponentPicker("KNOWLEDGE_BASE", "Knowledge Bases",
+        SidePanelView.KNOWLEDGE_BASES, isCreatingNewVectorKnowledgeBase,
+        convertKnowledgeBaseCategoriesToSidePanelCategories);
 
-        // Push current state to navigation stack
-        pushToNavigationStack(sidePanelView, categories, selectedNodeRef.current, selectedClientName.current);
+    const handleOnAddNewDataLoader = () => openAiComponentPicker("DATA_LOADER", "Data Loaders",
+        SidePanelView.DATA_LOADERS, isCreatingNewDataLoader, convertDataLoaderCategoriesToSidePanelCategories);
 
-        // Use search to get available embedding provider types
-        rpcClient
-            .getBIDiagramRpcClient()
-            .search({
-                position: { startLine: targetRef.current.startLine, endLine: targetRef.current.endLine },
-                filePath: model?.fileName,
-                queryMap: undefined,
-                searchKind: "EMBEDDING_PROVIDER",
-            })
-            .then((response) => {
-                if (!isCreatingNewEmbeddingProvider.current) return;
-                setCategories(
-                    convertEmbeddingProviderCategoriesToSidePanelCategories(response.categories as Category[])
-                );
-                setSidePanelView(SidePanelView.EMBEDDING_PROVIDERS);
-                setShowSidePanel(true);
-            })
-            .finally(() => {
-                setShowProgressIndicator(false);
-                setShowProgressSpinner(false);
-                cleanupProgressMessage(messageTimeout);
-            });
-    };
-
-    const handleOnAddNewVectorKnowledgeBase = () => {
-        isCreatingNewVectorKnowledgeBase.current = true;
-        setShowProgressIndicator(true);
-        setShowProgressSpinner(true);
-        setProgressTitle("Knowledge Bases");
-        const messageTimeout = setupProgressMessageTimeout();
-
-        // Push current state to navigation stack
-        pushToNavigationStack(sidePanelView, categories, selectedNodeRef.current, selectedClientName.current);
-
-        // Use search to get available knowledge base types
-        rpcClient
-            .getBIDiagramRpcClient()
-            .search({
-                position: { startLine: targetRef.current.startLine, endLine: targetRef.current.endLine },
-                filePath: model?.fileName,
-                queryMap: undefined,
-                searchKind: "KNOWLEDGE_BASE",
-            })
-            .then((response) => {
-                if (!isCreatingNewVectorKnowledgeBase.current) return;
-                setCategories(convertKnowledgeBaseCategoriesToSidePanelCategories(response.categories as Category[]));
-                setSidePanelView(SidePanelView.KNOWLEDGE_BASES);
-                setShowSidePanel(true);
-            })
-            .finally(() => {
-                setShowProgressIndicator(false);
-                setShowProgressSpinner(false);
-                cleanupProgressMessage(messageTimeout);
-            });
-    };
-
-    const handleOnAddNewDataLoader = () => {
-        isCreatingNewDataLoader.current = true;
-        setShowProgressIndicator(true);
-        setShowProgressSpinner(true);
-        setProgressTitle("Data Loaders");
-        const messageTimeout = setupProgressMessageTimeout();
-
-        // Push current state to navigation stack
-        pushToNavigationStack(sidePanelView, categories, selectedNodeRef.current, selectedClientName.current);
-
-        // Use search to get available data loader types
-        rpcClient
-            .getBIDiagramRpcClient()
-            .search({
-                position: { startLine: targetRef.current.startLine, endLine: targetRef.current.endLine },
-                filePath: model?.fileName,
-                queryMap: undefined,
-                searchKind: "DATA_LOADER",
-            })
-            .then((response) => {
-                if (!isCreatingNewDataLoader.current) return;
-                setCategories(convertDataLoaderCategoriesToSidePanelCategories(response.categories as Category[]));
-                setSidePanelView(SidePanelView.DATA_LOADERS);
-                setShowSidePanel(true);
-            })
-            .finally(() => {
-                setShowProgressIndicator(false);
-                setShowProgressSpinner(false);
-                cleanupProgressMessage(messageTimeout);
-            });
-    };
-
-    const handleOnAddNewChunker = () => {
-        isCreatingNewChunker.current = true;
-        setShowProgressIndicator(true);
-        setShowProgressSpinner(true);
-        setProgressTitle("Chunkers");
-        const messageTimeout = setupProgressMessageTimeout();
-
-        // Push current state to navigation stack
-        pushToNavigationStack(sidePanelView, categories, selectedNodeRef.current, selectedClientName.current);
-
-        // Use search to get available chunker types
-        rpcClient
-            .getBIDiagramRpcClient()
-            .search({
-                position: { startLine: targetRef.current.startLine, endLine: targetRef.current.endLine },
-                filePath: model?.fileName,
-                queryMap: undefined,
-                searchKind: "CHUNKER",
-            })
-            .then((response) => {
-                if (!isCreatingNewChunker.current) return;
-                setCategories(convertChunkerCategoriesToSidePanelCategories(response.categories as Category[]));
-                setSidePanelView(SidePanelView.CHUNKERS);
-                setShowSidePanel(true);
-            })
-            .finally(() => {
-                setShowProgressIndicator(false);
-                setShowProgressSpinner(false);
-                cleanupProgressMessage(messageTimeout);
-            });
-    };
+    const handleOnAddNewChunker = () => openAiComponentPicker("CHUNKER", "Chunkers",
+        SidePanelView.CHUNKERS, isCreatingNewChunker, convertChunkerCategoriesToSidePanelCategories);
 
     const handleOnGoToSource = (node: FlowNode) => {
         const targetPosition: NodePosition = {
@@ -4346,6 +4218,8 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 onAddChunker={handleOnAddNewChunker}
                 onSubmitForm={handleOnFormSubmit}
                 showProgressIndicator={showProgressIndicator}
+                refreshingAiComponents={refreshingAiComponents}
+                formLoadingNode={formLoadingNode}
                 onDiscardSuggestions={onDiscardSuggestions}
                 onSubPanel={handleSubPanel}
                 onUpdateExpressionField={handleUpdateExpressionField}

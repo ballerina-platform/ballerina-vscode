@@ -22,6 +22,7 @@ import io.ballerina.flowmodelgenerator.core.AiUtils;
 import io.ballerina.flowmodelgenerator.core.model.AvailableNode;
 import io.ballerina.flowmodelgenerator.core.model.Category;
 import io.ballerina.flowmodelgenerator.core.model.Item;
+import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.modelgenerator.commons.SearchResult;
 import io.ballerina.projects.Project;
 import io.ballerina.tools.text.LineRange;
@@ -43,14 +44,14 @@ public class ModelProviderSearchCommand extends SearchCommand {
 
     @Override
     protected List<Item> defaultView() {
-        List<AvailableNode> modelProviders = AiUtils.getModelProviders(project);
+        List<AvailableNode> modelProviders = AiUtils.getComponents(project, NodeKind.MODEL_PROVIDER, cachedOnly);
         return List.of(AiUtils.buildAdaptiveAiComponentCategory(Category.Name.MODEL_PROVIDER.label(), modelProviders,
                 null));
     }
 
     @Override
     protected List<Item> search() {
-        List<AvailableNode> modelProviders = AiUtils.getModelProviders(project);
+        List<AvailableNode> modelProviders = AiUtils.getComponents(project, NodeKind.MODEL_PROVIDER, cachedOnly);
         return List.of(AiUtils.buildAdaptiveAiComponentCategory(Category.Name.MODEL_PROVIDER.label(), modelProviders,
                 query));
     }

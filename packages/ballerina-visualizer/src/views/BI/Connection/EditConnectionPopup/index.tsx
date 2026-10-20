@@ -17,8 +17,9 @@
  */
 
 import React, { useEffect, useState, useMemo } from "react";
+import { ComponentFormLoader } from "../../../../components/ComponentFormLoader";
 import styled from "@emotion/styled";
-import { FlowNode, LinePosition, ParentPopupData, EVENT_TYPE, MACHINE_VIEW } from "@wso2/ballerina-core";
+import { AvailableNode, FlowNode, LinePosition, ParentPopupData, EVENT_TYPE, MACHINE_VIEW } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Codicon, ThemeColors, Typography, ProgressRing } from "@wso2/ui-toolkit";
 import ConnectionConfigView from "../ConnectionConfigView";
@@ -126,6 +127,7 @@ export function EditConnectionPopup(props: EditConnectionPopupProps) {
     const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
     const [selectedConnectionKind, setSelectedConnectionKind] = useState<ConnectionKind>();
     const [nodeFormTemplate, setNodeFormTemplate] = useState<FlowNode>();
+    const [selection, setSelection] = useState<{ node?: AvailableNode }>();
 
     // Connector credentials from introspectCredentials API (for persist connections)
     const [connectorCredentials, setConnectorCredentials] = useState<IntrospectCredentialsResponse["data"] | null>(null);
@@ -270,6 +272,7 @@ export function EditConnectionPopup(props: EditConnectionPopupProps) {
     };
 
     const handleSelectNewConnection = async (nodeId: string, metadata?: any) => {
+        setSelection(metadata ?? {});
         try {
             const { flowNode, connectionKind } = await getNodeTemplateForConnection(
                 nodeId,
@@ -283,6 +286,8 @@ export function EditConnectionPopup(props: EditConnectionPopupProps) {
             setCurrentView(PopupView.CONNECTION_CREATE);
         } catch (error) {
             console.error('Error getting node template for connection:', error);
+        } finally {
+            setSelection(undefined);
         }
     };
 
@@ -364,6 +369,9 @@ export function EditConnectionPopup(props: EditConnectionPopupProps) {
     const renderCurrentView = () => {
         switch (currentView) {
             case PopupView.CONNECTION_SELECT:
+                if (selection) {
+                    return <ComponentFormLoader node={selection.node} />;
+                }
                 return (
                     <ConnectionSelectionList
                         connectionKind={selectedConnectionKind}
