@@ -50,6 +50,9 @@ public class DiagnosticsDebouncer {
     // Single-thread scheduler to debounce diagnostics tasks.
     private final ScheduledExecutorService scheduler;
 
+    // Held while a request is registered and while it removes itself, so an immediate request cannot finish first.
+    private final Object registrationLock = new Object();
+
     private DiagnosticsDebouncer() {
         scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
             Thread t = new Thread(r, "DiagnosticsDebouncer");
@@ -67,6 +70,12 @@ public class DiagnosticsDebouncer {
      * @return a CompletableFuture that will complete with the result of the diagnostics operation
      */
     public CompletableFuture<JsonElement> debounce(DiagnosticRequest request) {
+        synchronized (registrationLock) {
+            return scheduleRequest(request);
+        }
+    }
+
+    private CompletableFuture<JsonElement> scheduleRequest(DiagnosticRequest request) {
         String key = request.getKey();
         CompletableFuture<JsonElement> promise = new CompletableFuture<>();
 
@@ -80,7 +89,9 @@ public class DiagnosticsDebouncer {
             } finally {
                 request.revertDocument();
                 // A newer request for this key may already be registered; leave it cancellable.
-                delayedMap.computeIfPresent(key, (k, holder) -> holder.promise() == promise ? null : holder);
+                synchronized (registrationLock) {
+                    delayedMap.computeIfPresent(key, (k, holder) -> holder.promise() == promise ? null : holder);
+                }
             }
         }, DELAY, TIME_UNIT);
 
