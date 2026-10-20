@@ -20,18 +20,19 @@ import { AICommandExecutor, AICommandConfig, AIExecutionResult } from '../execut
 import { Command, GenerateAgentCodeRequest, ProjectSource, ExecutionContext, SemanticDiff, ReviewModeData, PROJECT_KIND, LoginMethod } from '@wso2/ballerina-core';
 import { StateMachine } from '../../../stateMachine';
 import { FinishReason, LanguageModelUsage, ModelMessage, stepCountIs, SystemModelMessage, streamText, TextStreamPart } from 'ai';
-import { getAnthropicClient, getProviderCacheControl, addCacheControlToMessages, ANTHROPIC_SONNET } from '../utils/ai-client';
+import { getAnthropicClient, getProviderCacheControl, addCacheControlToMessages, ANTHROPIC_SONNET, supportsMidConversationSystem } from '../utils/ai-client';
 import { AnthropicEffort, resolveProviderModelOptions } from '../utils/provider-model-options';
 import { populateHistoryForAgent, getErrorMessage, getErrorCode, buildChatError } from '../utils/ai-utils';
 import { seedAiBaselines } from '../utils/project/ls-schema-notifications';
 import { mapWithConcurrency } from '../utils/concurrency';
-import { getSystemPrompt, getUserPrompt } from './prompts';
+import { getNPSuffix, getSystemPrompt, getUserPrompt } from './prompts';
 import { isWebSearchEnabled } from './tools/web-search-setting';
 import { shouldFailForMissingCompaction } from './compaction-gate';
 import {
     buildCompactionContinuation,
     dropBeforeLatestCompaction,
     findCompactionSummary,
+    generationsSinceLastRestart,
     isCompactionPause,
     MAX_COMPACTION_RESTARTS,
 } from './compaction-restart';
@@ -44,10 +45,11 @@ import { resolveChatStoreKey } from './chatStoreKey';
 // TODO(auto-memory): temporarily disabled for this release.
 // import { executeAutoDream, isMemoryEnabled } from '../memory/autoDream';
 import { GenerationType } from '../utils/libs/libraries';
-import { createToolRegistry } from './tool-registry';
-import { loadSkillsContext } from './skills/context';
+import { createToolRegistryParts, describeTools, isDeferredTool } from './tool-registry';
+import { listAllSkills } from './skills/context';
+import { AgentPrefixState, dropReasoning, hashPrefixBase, historyForRequest, planTurnPrefix, previousPrefixState, TurnPrefix, turnLeadMessages } from './prefix-state';
 
-import { refreshMcpClientManager } from './mcp';
+import { liveMcpToolDefinitions, refreshMcpClientManager } from './mcp';
 import { getProjectSource } from '../utils/project/temp-project';
 import { getWorkspaceTomlValues } from '../../../utils';
 import { StreamContext } from './stream-handlers/stream-context';
@@ -69,7 +71,6 @@ import { approvalViewManager } from '../state/ApprovalViewManager';
 import {
     detectAppliedCompaction,
     estimateFloorTokens,
-    COMPACTION_BLOCK_PREFIX,
 } from '@wso2/copilot-utilities/context-management';
 import { sanitizeMessages } from './resilience';
 import { getLoginMethod } from '../../../utils/ai/auth';
@@ -115,12 +116,11 @@ export function clearCompactionDisabledWarning(projectRootPath: string, threadId
 }
 
 function supportsCompaction(loginMethod: LoginMethod): boolean {
-    // AWS Bedrock is intentionally excluded: its Converse/ConverseStream APIs do not
-    // support the `compact-2026-01-12` beta, so server-side compaction is disabled there.
     return loginMethod === LoginMethod.ANTHROPIC_KEY
         || loginMethod === LoginMethod.BI_INTEL
         || loginMethod === LoginMethod.VERTEX_AI
-        || loginMethod === LoginMethod.ANTHROPIC_AWS;
+        || loginMethod === LoginMethod.ANTHROPIC_AWS
+        || loginMethod === LoginMethod.AWS_BEDROCK;
 }
 
 /**
@@ -347,6 +347,20 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
     }
 
     /**
+     * Records what this turn's requests tell the model, for the next turn to diff against. Set in
+     * memory only: the state counts once the turn saves its messages, and every such save writes the
+     * whole generation.
+     */
+    private savePrefixState(threadId: string, turnPrefix: TurnPrefix): void {
+        const generation = this.config.chatStorage
+            ? chatStateStorage.getGeneration(this.chatStoreKey, threadId, this.config.generationId)
+            : undefined;
+        if (generation) {
+            generation.prefixState = turnPrefix.state;
+        }
+    }
+
+    /**
      * The thread's attachments and user text, for the connector generator to take a spec from.
      * This turn's spec attachments are saved so a later turn can still use them.
      */
@@ -433,8 +447,6 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
             const model = await getAnthropicClient(ANTHROPIC_SONNET);
 
             const projectRootPath = this.config.executionContext.workspacePath || this.config.executionContext.projectPath || '';
-            const { allDisabled, projectSkills, userSkills, disabledSkillMetas } =
-                loadSkillsContext(projectRootPath || null);
 
             const webSearchEnabled = isWebSearchEnabled();
             // The turn's user message, built here and again on every compaction restart.
@@ -450,18 +462,84 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
                         });
                     }
                 }
-                return getUserPrompt(params, tempProjectPath, turnProjects, projectSkills, webSearchEnabled, agentsMd.text, {
+                return getUserPrompt(params, tempProjectPath, turnProjects, webSearchEnabled, agentsMd.text, {
                     omitCodebaseDump: this.config.toolOptions?.omitCodebaseDump,
                     codebaseMapText: this.config.toolOptions?.codebaseMapText,
                 });
             };
             const userMessageContent = buildTurnPrompt(projects, await prepareAgentsMdForTurn(workspaceId || '', threadId));
 
-            // Estimate fixed overhead (system prompt + codebase) to decide if compaction is viable
-            // TODO(auto-memory): memory-augmented prompt disabled for this release — using base system prompt.
-            const systemPromptText = getSystemPrompt(projects, params.operationType, userSkills, allDisabled, disabledSkillMetas);
-            const floorTokens = estimateFloorTokens(systemPromptText, JSON.stringify(userMessageContent));
+            // Ensure the pre-edit snapshot exists before any tool can run.
+            await chatStateStorage.waitForCheckpointCapture(this.config.generationId);
 
+            // 4. Get chat history from storage (if enabled)
+            const chatHistory = this.getChatHistory();
+            console.log(`[AgentExecutor] Using ${chatHistory.length} chat history messages`);
+            const historyMessages = populateHistoryForAgent(chatHistory);
+
+            // Accumulator for token usage from tool-internal LLM calls (e.g. Haiku filtering)
+            // These are separate API calls NOT included in the main agent loop's totalUsage
+            const toolModelUsage: Record<string, { inputTokens: number; outputTokens: number }> = {};
+
+            // Refresh before building the tool registry so it picks up mid-session mcp.json edits.
+            await refreshMcpClientManager();
+
+            // Create tools: the built-ins first, since the prefix base is hashed over them.
+            const toolRegistry = createToolRegistryParts({
+                eventHandler: this.config.eventHandler,
+                toolModelUsage,
+                tempProjectPath,
+                modifiedFiles,
+                allModifiedFiles,
+                projects,
+                generationType: GenerationType.CODE_GENERATION,
+                projectRootPath,
+                generationId: this.config.generationId,
+                threadId,
+                migrationSourcePath: this.config.toolOptions?.migrationSourcePath,
+                runningServices: runningServicesManager,
+                webSearchEnabled,
+                ctx: this.config.executionContext,
+                specContext: this.buildSpecContext(threadId),
+                // TODO(auto-memory): temporarily disabled for this release.
+                // autoMemoryEnabled: isMemoryEnabled(),
+            });
+
+            // TODO(auto-memory): memory-augmented prompt disabled for this release — using base system prompt.
+            const systemPromptText = getSystemPrompt();
+            const baseHash = hashPrefixBase(systemPromptText, await describeTools(toolRegistry.builtIns));
+            const deferredBuiltIns = Object.keys(toolRegistry.builtIns).filter(name => isDeferredTool(toolRegistry.builtIns[name]));
+            // Without mid-conversation system messages (the WSO2 proxy), the turn's notice rides its
+            // user message and late MCP tools are loaded with tool_search; see prefix-state.ts.
+            const systemInMessages = supportsMidConversationSystem(loginMethod);
+            // What this turn adds to the prefix the history was sent with (prefix-state.ts). A
+            // compaction restart plans it again with no previous state, as a new history.
+            const planPrefix = (previous: AgentPrefixState | undefined, hasHistory: boolean, turnProjects: ProjectSource[]) => planTurnPrefix(previous, hasHistory, {
+                baseHash,
+                skills: listAllSkills(projectRootPath || null),
+                deferredBuiltIns,
+                mcpTools: liveMcpToolDefinitions(),
+                npNote: getNPSuffix(turnProjects, params.operationType) || undefined,
+                systemMessages: systemInMessages,
+            });
+            const historyGenerations = this.config.chatStorage
+                ? generationsSinceLastRestart(chatStateStorage.getGenerations(this.chatStoreKey, threadId))
+                : [];
+            // A run that sends no history (a migration stage replays none) starts a new prefix, whatever
+            // earlier generations stored.
+            const hasHistory = historyMessages.length > 0;
+            const turnPrefix = planPrefix(hasHistory ? previousPrefixState(historyGenerations, this.config.generationId) : undefined, hasHistory, projects);
+            if (turnPrefix.state.reasoningReset) {
+                console.warn('[AgentExecutor] The prompt base differs from the one this history was sent with; dropping its earlier reasoning');
+            }
+            this.savePrefixState(threadId, turnPrefix);
+            let tools = toolRegistry.withMcpTools(turnPrefix.mcpTools, turnPrefix.disconnected);
+            const turnLead = turnLeadMessages(userMessageContent, turnPrefix, systemInMessages);
+
+            // Estimate fixed overhead (system prompt + codebase) to decide if compaction is viable
+            const floorTokens = estimateFloorTokens(
+                systemPromptText,
+                JSON.stringify(turnLead.map(m => m.content)));
 
             const compactionOptions = buildCompactionProviderOptions(loginMethod, floorTokens);
             if (shouldFailForMissingCompaction(supportsCompaction(loginMethod), compactionOptions, this.config.toolOptions?.failWhenCompactionUnavailable)) {
@@ -476,74 +554,40 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
             }
             // `summarized` streams reasoning summaries and the progress notes written between tool
             // calls; under the default `omitted` both arrive empty and a long turn looks silent.
-            const modelOptions = resolveProviderModelOptions(loginMethod === LoginMethod.AWS_BEDROCK, AGENT_EFFORT, 'summarized');
-            const providerOptions = compactionOptions
-                ? { anthropic: { ...(modelOptions as { anthropic?: object }).anthropic, ...compactionOptions.anthropic } }
-                : modelOptions;
-
-            // Ensure the pre-edit snapshot exists before any tool can run.
-            await chatStateStorage.waitForCheckpointCapture(this.config.generationId);
-
-            // 4. Get chat history from storage (if enabled) — AFTER pre-turn compaction
-            const chatHistory = this.getChatHistory();
-            console.log(`[AgentExecutor] Using ${chatHistory.length} chat history messages`);
+            const modelOptions = resolveProviderModelOptions(AGENT_EFFORT, 'summarized');
+            const providerOptions = {
+                anthropic: {
+                    ...modelOptions.anthropic,
+                    ...compactionOptions?.anthropic,
+                    // The prefix is append-only, so a mismatch is a bug; in production the API drops the
+                    // mismatched thinking for that request instead of failing it, and logs it below.
+                    thinking: systemInMessages
+                        ? { ...modelOptions.anthropic.thinking, blockBinding: { prefixMismatchBehavior: this.config.toolOptions?.prefixMismatchBehavior ?? 'drop_block' } }
+                        : modelOptions.anthropic.thinking,
+                },
+            };
 
             // 5. Build LLM messages with history
-            const historyMessages = populateHistoryForAgent(chatHistory);
             const cacheOptions = await getProviderCacheControl();
-            
+
             const systemMessage: SystemModelMessage = {
                 role: "system",
                 content: systemPromptText,
                 providerOptions: cacheOptions,
             };
             const allMessages: ModelMessage[] = [
-                ...historyMessages,
-                {
-                    role: "user",
-                    content: userMessageContent,
-                },
+                ...historyForRequest(turnPrefix.state.reasoningReset ? dropReasoning(historyMessages) : historyMessages, systemInMessages),
+                ...turnLead,
             ];
-
-            // Accumulator for token usage from tool-internal LLM calls (e.g. Haiku filtering)
-            // These are separate API calls NOT included in the main agent loop's totalUsage
-            const toolModelUsage: Record<string, { inputTokens: number; outputTokens: number }> = {};
-
-            // Refresh before building the tool registry so it picks up mid-session mcp.json edits.
-            await refreshMcpClientManager();
-
-            // Create tools
-            const tools = createToolRegistry({
-                eventHandler: this.config.eventHandler,
-                toolModelUsage,
-                tempProjectPath,
-                modifiedFiles,
-                allModifiedFiles,
-                projects,
-                generationType: GenerationType.CODE_GENERATION,
-                projectRootPath: this.config.executionContext.workspacePath || this.config.executionContext.projectPath || '',
-                generationId: this.config.generationId,
-                threadId,
-                migrationSourcePath: this.config.toolOptions?.migrationSourcePath,
-                runningServices: runningServicesManager,
-                webSearchEnabled,
-                ctx: this.config.executionContext,
-                specContext: this.buildSpecContext(threadId),
-                // TODO(auto-memory): temporarily disabled for this release.
-                // autoMemoryEnabled: isMemoryEnabled(),
-            });
 
             // Accumulate tool call/result character counts across steps for breakdown estimation
             let accToolCallChars = 0;
             let accToolResultChars = 0;
 
             // === SERVER-SIDE COMPACTION STATE ===
-            // Detection: providerMetadata on text-start (Anthropic/BI_INTEL/Vertex).
-            // No content-based fallback is needed — AWS Bedrock does not run server-side
-            // compaction (its Converse APIs reject the compact beta).
-            const useContentBasedDetection = false;
+            // Detection: providerMetadata on text-start, on every login (Bedrock runs on InvokeModel,
+            // which returns the same Messages API stream).
             let isCompactionBlock = false;
-            let compactionContent = '';
             // Counts compactions in this turn so each renders as its own card (upsertComponent
             // keys by id), instead of a raw <compaction> text block that would show as literal text.
             let compactionCount = 0;
@@ -576,7 +620,7 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
                 allModifiedFiles,
                 projects,
                 messageId: this.config.generationId,
-                userMessageContent,
+                turnLead,
                 response: undefined as unknown as StreamContext['response'],
                 totalUsage: undefined as unknown as StreamContext['totalUsage'],
                 ctx: this.config.executionContext,
@@ -618,6 +662,8 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
                         tools,
                         abortSignal: this.config.abortController.signal,
                         providerOptions: providerOptions as any,
+                        // The turn's prompt changes ride a system message after its user message.
+                        allowSystemInMessages: true,
 
                         // Never edit the compaction block or any earlier assistant content here: Claude
                         // Sonnet 5.5 binds each thinking block to the conversation before it, from the latest
@@ -648,6 +694,12 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
                                 `finishReason: ${step.finishReason}`
                             );
 
+                            // The prefix is append-only, so the API should never have to drop thinking.
+                            const inputTransformations = step.providerMetadata?.anthropic?.inputTransformations;
+                            if (Array.isArray(inputTransformations) && inputTransformations.length > 0) {
+                                console.warn(`[AgentExecutor] Step ${step.stepNumber}: the API transformed the input (a prompt prefix mismatch):`, JSON.stringify(inputTransformations));
+                            }
+
                             // Detect tool-use clearing (no mid-stream signal for this edit type)
                             const appliedCompaction = detectAppliedCompaction(step.providerMetadata);
                             if (appliedCompaction?.clearedToolUses) {
@@ -668,7 +720,7 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
                                 console.log(`[AgentExecutor] Step ${step.stepNumber} saving ${savedCount} message(s) to chat storage${carriedNote}`);
                                 chatStateStorage.updateGeneration(this.chatStoreKey, threadId, this.config.generationId, {
                                     modelMessages: [
-                                        { role: "user", content: streamContext.userMessageContent },
+                                        ...streamContext.turnLead,
                                         ...carriedMessages, ...stepMessages,
                                     ],
                                 });
@@ -698,7 +750,7 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
                                         cacheReadInputTokens: cacheReadTokens,
                                         outputTokens,
                                     },
-                                    breakdown: computeTokenBreakdown([systemMessage, ...dropBeforeLatestCompaction(allMessages)], tools, accToolCallChars, accToolResultChars, inputTokens, (streamContext.userMessageContent[0] as any)?.text?.length ?? 0),
+                                    breakdown: computeTokenBreakdown([systemMessage, ...dropBeforeLatestCompaction(allMessages)], tools, accToolCallChars, accToolResultChars, inputTokens, ((streamContext.turnLead[0].content as any[])[0] as any)?.text?.length ?? 0),
                                 });
                             }
                         },
@@ -719,7 +771,6 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
                             const isCompaction = (part as any).providerMetadata?.anthropic?.type === 'compaction';
                             if (isCompaction) {
                                 isCompactionBlock = true;
-                                compactionContent = '';
                                 this.config.eventHandler({ type: 'compaction_start' });
                             } else {
                                 // Normal text-start: emit a paragraph break. The compaction block is
@@ -740,14 +791,8 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
                         }
 
                         if (part.type === 'text-delta') {
-                            if (isCompactionBlock) {
-                                compactionContent += part.text;
-                            } else if (useContentBasedDetection && !isCompactionBlock && compactionContent === '' && part.text.trimStart().startsWith(COMPACTION_BLOCK_PREFIX)) {
-                                // Bedrock: no providerMetadata on text-start, detect via content
-                                isCompactionBlock = true;
-                                compactionContent = part.text;
-                                this.config.eventHandler({ type: 'compaction_start' });
-                            } else {
+                            // The compaction summary stays internal; only ordinary text reaches the webview.
+                            if (!isCompactionBlock) {
                                 this.config.eventHandler({ type: 'content_block', content: part.text });
                             }
                             continue;
@@ -822,16 +867,23 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
                                 : getProjectSource(params.operationType, this.config.executionContext),
                         ]);
                         const continuation = buildCompactionContinuation(summary, buildTurnPrompt(currentProjects, restartAgentsMd));
+                        // A new history starts here, so its prefix is frozen afresh from the live state:
+                        // every skill and tool is listed again, including those announced only in
+                        // notices the summary replaced.
+                        const restartPrefix = planPrefix(undefined, false, currentProjects);
+                        tools = toolRegistry.withMcpTools(restartPrefix.mcpTools, restartPrefix.disconnected);
+                        const restartLead = turnLeadMessages(continuation.content as unknown[], restartPrefix, systemInMessages);
                         carriedMessages.length = 0;
                         allMessages.length = 0;
-                        allMessages.push(continuation);
+                        allMessages.push(...restartLead);
                         accToolCallChars = 0;
                         accToolResultChars = 0;
-                        streamContext.userMessageContent = continuation.content;
+                        streamContext.turnLead = restartLead;
                         // Saved before the next request, so an abort in between keeps the restarted shape.
                         chatStateStorage.updateGeneration(this.chatStoreKey, threadId, this.config.generationId, {
-                            modelMessages: [continuation],
+                            modelMessages: restartLead,
                             restartedFromSummary: true,
+                            prefixState: restartPrefix.state,
                         });
                         continue;
                     }
@@ -887,7 +939,7 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
                     if (partialLLMMessages.length > 0) {
                         chatStateStorage.updateGeneration(projectRootPath, threadId, this.config.generationId, {
                             modelMessages: [
-                                { role: "user", content: streamContext.userMessageContent },
+                                ...streamContext.turnLead,
                                 ...partialLLMMessages,
                                 {
                                     role: "user",
@@ -938,7 +990,7 @@ Generation stopped by user. The last in-progress task was not saved. Any complet
                     // Notify caller with partial messages (wizard migration history persistence)
                     if (this.config.onMessagesAvailable) {
                         this.config.onMessagesAvailable(
-                            [{ role: "user", content: streamContext.userMessageContent }, ...partialLLMMessages],
+                            [...streamContext.turnLead, ...partialLLMMessages],
                             'aborted'
                         );
                     }
@@ -1157,7 +1209,7 @@ Generation stopped by user. The last in-progress task was not saved. Any complet
         if (messagesToSave.length > 0) {
             chatStateStorage.updateGeneration(projectRootPath, threadId, context.messageId, {
                 modelMessages: [
-                    { role: "user", content: context.userMessageContent },
+                    ...context.turnLead,
                     ...messagesToSave,
                 ],
             });
@@ -1385,7 +1437,7 @@ Generation stopped by user. The last in-progress task was not saved. Any complet
         // Update chat state storage with user message + assistant messages
         chatStateStorage.updateGeneration(projectRootPath, threadId, context.messageId, {
             modelMessages: [
-                { role: "user", content: context.userMessageContent },
+                ...context.turnLead,
                 ...assistantMessages,
             ],
         });

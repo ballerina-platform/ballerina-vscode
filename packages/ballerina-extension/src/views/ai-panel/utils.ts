@@ -20,7 +20,7 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import { AIUserToken, LoginMethod, AuthCredentials, BIIntelSecrets } from '@wso2/ballerina-core';
 import { createAnthropic } from '@ai-sdk/anthropic';
-import { createAmazonBedrock } from '@ai-sdk/amazon-bedrock';
+import { createBedrockAnthropic } from '@ai-sdk/amazon-bedrock/anthropic';
 import { createAnthropicAws } from '@ai-sdk/anthropic-aws';
 import { createVertexAnthropic } from '@ai-sdk/google-vertex/anthropic';
 import { generateText } from 'ai';
@@ -230,7 +230,8 @@ export const validateAwsCredentials = async (credentials: {
     const modelId = `${regionalPrefix}.anthropic.claude-haiku-5-5`;
 
     try {
-        const bedrock = createAmazonBedrock({
+        // The same InvokeModel provider the agent uses; see getAnthropicClient.
+        const bedrock = createBedrockAnthropic({
             region: region,
             accessKeyId: accessKeyId,
             secretAccessKey: secretAccessKey,

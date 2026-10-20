@@ -16,7 +16,7 @@
 
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { LanguageModel, ModelMessage } from "ai";
-import { createAmazonBedrock } from "@ai-sdk/amazon-bedrock";
+import { createBedrockAnthropic } from "@ai-sdk/amazon-bedrock/anthropic";
 import { createAnthropicAws } from "@ai-sdk/anthropic-aws";
 import { createVertexAnthropic } from "@ai-sdk/google-vertex/anthropic";
 import { getAccessToken, getLoginMethod, getRefreshedAccessToken, getAwsBedrockCredentials, getVertexAiCredentials, getAnthropicAwsCredentials } from "../../../utils/ai/auth";
@@ -195,7 +195,9 @@ export const getAnthropicClient = async (model: AnthropicModel): Promise<any> =>
                 throw new Error('AWS Bedrock credentials not found');
             }
             
-            const bedrock = createAmazonBedrock({
+            // InvokeModel with the Anthropic Messages body, not the Converse API, so Bedrock takes the
+            // same `anthropic` provider options (thinking, effort, cache control) as every other login.
+            const bedrock = createBedrockAnthropic({
                 region: awsCredentials.region,
                 accessKeyId: awsCredentials.accessKeyId,
                 secretAccessKey: awsCredentials.secretAccessKey,
@@ -273,36 +275,31 @@ export const getAnthropicClient = async (model: AnthropicModel): Promise<any> =>
  */
 export type CacheTtl = '5m' | '1h';
 
-export type ProviderCacheOptions =
-    | { anthropic: { cacheControl: { type: string; ttl: CacheTtl } } }
-    | { bedrock: { cachePoint: { type: string; ttl: CacheTtl } } };
+export type ProviderCacheOptions = { anthropic: { cacheControl: { type: string; ttl: CacheTtl } } };
 
 /**
- * Returns provider-aware cache control options for prompt caching.
+ * Returns cache control options for prompt caching. Every login method, Bedrock included, takes the
+ * `anthropic.cacheControl` shape, since each one reaches Claude through an `@ai-sdk/anthropic` model.
  * Defaults to the 1-hour TTL: users often pause longer than five minutes between turns (reading,
  * reviewing a diff), and a 5-minute entry then expires and the whole history is written again.
- * @returns Cache control options based on the current login method
  */
-export const getProviderCacheControl = async (ttl: CacheTtl = '1h'): Promise<ProviderCacheOptions> => {
-    const loginMethod = await getLoginMethod();
+export const getProviderCacheControl = (ttl: CacheTtl = '1h'): ProviderCacheOptions =>
+    ({ anthropic: { cacheControl: { type: "ephemeral", ttl } } });
 
-    switch (loginMethod) {
-        case LoginMethod.AWS_BEDROCK:
-            return { bedrock: { cachePoint: { type: 'default', ttl } } };
-        case LoginMethod.ANTHROPIC_AWS:
-        case LoginMethod.VERTEX_AI:
-        case LoginMethod.ANTHROPIC_KEY:
-        case LoginMethod.BI_INTEL:
-        default:
-            return { anthropic: { cacheControl: { type: "ephemeral", ttl } } };
-    }
-};
+/**
+ * Whether this login's requests can carry mid-conversation `role: "system"` messages, tool changes
+ * and the thinking-binding control. The WSO2 LLM proxy rebuilds each request from its own records,
+ * which (2026-10-21) reject the first two, and the deployed proxy may not forward the binding beta.
+ */
+export function supportsMidConversationSystem(loginMethod: LoginMethod): boolean {
+    return loginMethod !== LoginMethod.BI_INTEL;
+}
 
 export type { AnthropicEffort } from "./provider-model-options";
 
-/** Adaptive thinking at `effort` for the current login method; see `resolveProviderModelOptions`. */
-export const getProviderModelOptions = async (effort: AnthropicEffort, display?: ThinkingDisplay) =>
-    resolveProviderModelOptions(await getLoginMethod() === LoginMethod.AWS_BEDROCK, effort, display);
+/** Adaptive thinking at `effort`, the same on every login method; see `resolveProviderModelOptions`. */
+export const getProviderModelOptions = (effort: AnthropicEffort, display?: ThinkingDisplay) =>
+    resolveProviderModelOptions(effort, display);
 
 /** Options for a Claude Haiku `generateObject` call on the current login method; see `resolveHaikuObjectModelOptions`. */
 export const getHaikuObjectModelOptions = async (effort: AnthropicEffort) => {
@@ -347,13 +344,13 @@ export function addCacheControlToMessages({
 
     return messages.map((message, index) => {
         if (index === messages.length - 1) {
-            return {
-                ...message,
-                providerOptions: {
-                    ...message.providerOptions,
-                    ...providerOptions,
-                },
-            };
+            // Merged per provider key: a message's own options (a system message's tool changes) must
+            // survive the breakpoint, or the request differs from the one replayed later.
+            const merged: Record<string, Record<string, unknown>> = { ...message.providerOptions } as any;
+            for (const [key, options] of Object.entries(providerOptions)) {
+                merged[key] = { ...merged[key], ...options };
+            }
+            return { ...message, providerOptions: merged as ModelMessage['providerOptions'] };
         }
         return message;
     });

@@ -1004,6 +1004,37 @@ export interface GenerationMetadata {
     agentsMdLastReadHash?: string;
 }
 
+/** An MCP tool definition as it was first sent in a thread's history. */
+export interface FrozenToolDefinition {
+    name: string;
+    description: string;
+    inputSchema: Record<string, unknown>;
+}
+
+/**
+ * What the agent's requests have told the model so far in the history this generation belongs to.
+ * The prompt prefix is append-only: a later turn diffs the live state against this one and appends
+ * only the difference, so the bytes every earlier signed thinking block is bound to never change.
+ */
+export interface AgentPrefixState {
+    /** Hash of the top-level system prompt and the built-in tool definitions the history was sent with. */
+    baseHash: string;
+    /**
+     * MCP tool definitions in the order sent, kept as first sent even when the server's schema
+     * changes. Stored only on a generation where the set changed; absent means the same as the
+     * latest earlier generation that has it.
+     */
+    mcpTools?: FrozenToolDefinition[];
+    /** Skill names the model has been shown, in the first listing or a later notice. */
+    skills: string[];
+    /** Deferred tools announced as removed (their MCP server disconnected) and not added back since. */
+    removedTools: string[];
+    /** Hash of the Natural Programming note in effect; absent when none is. */
+    npHash?: string;
+    /** The base changed at this generation: every reasoning part before it is dropped from later requests. */
+    reasoningReset?: boolean;
+}
+
 /**
  * Generation represents a single user prompt + complete AI response cycle
  * Contains all data needed to render UI and pass to LLM
@@ -1039,6 +1070,8 @@ export interface Generation {
     consoleSummary?: string;
     /** This turn restarted from its own summary after a server-side compaction: `modelMessages` begins with that summary, and the model's history starts here. Persisted */
     restartedFromSummary?: boolean;
+    /** What this turn's requests had told the model when it started (see `AgentPrefixState`). Persisted */
+    prefixState?: AgentPrefixState;
     /** Generation metadata */
     metadata: GenerationMetadata;
 }
