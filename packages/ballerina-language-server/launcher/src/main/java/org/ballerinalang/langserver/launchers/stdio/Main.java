@@ -25,6 +25,7 @@ import org.eclipse.lsp4j.jsonrpc.Launcher;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.time.Duration;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.logging.Level;
@@ -50,8 +51,19 @@ public final class Main {
         Logger globalLogger = Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);
         globalLogger.setLevel(Level.OFF);
         // Terminate the JVM explicitly: see {@link #serve(ServerRun)}.
-        System.exit(serve(() -> startServer(System.in, System.out)));
+        int status = serve(() -> startServer(System.in, System.out));
+        // The client is gone, but do not halt on the spot: a compilation or cache write in flight when stdin
+        // closed would be cut off, and the next server to open the project pays for it. Give in-flight work a
+        // grace period and wait for the worker threads to go idle, within a bound. See Quiescence.
+        Quiescence.awaitIdle(EXIT_GRACE, EXIT_BOUND);
+        System.exit(status);
     }
+
+    /** How long the process keeps running after its client is gone before idleness is considered. */
+    static final Duration EXIT_GRACE = Duration.ofSeconds(5);
+
+    /** The longest the process keeps running after its client is gone, idle or not. */
+    static final Duration EXIT_BOUND = Duration.ofSeconds(30);
 
     /**
      * Runs the server until it stops serving and maps the outcome to a process exit status.
