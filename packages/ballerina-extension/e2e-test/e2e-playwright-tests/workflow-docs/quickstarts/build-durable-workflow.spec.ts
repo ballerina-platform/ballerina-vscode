@@ -348,7 +348,7 @@ export default function createTests() {
                     await j.click(nameBox);
                     await j.typeFocused('orderId');
                 }
-                await expect.poll(name, { message: 'Path Parameter name' }).toBe('orderId');
+                await expect(nameBox).toHaveValue('orderId');
             });
             await j.step('9.4', 'Click **Save**. The segment lands in **Resource Path** as `[string orderId]`. Complete the path so it reads `[string orderId]/payment`.', async () => {
                 const panel = await ui.panel('New Resource Configuration');
