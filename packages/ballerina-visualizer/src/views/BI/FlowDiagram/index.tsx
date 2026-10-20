@@ -1062,19 +1062,19 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                                 setEntrypointContext({ serviceName, functionName });
                             });
                         }
-                    })
-                    .finally(() => {
-                        if (fetchId !== latestFetchRef.current) {
-                            return;
-                        }
-                        refreshingRef.current = false;
-                        setShowProgressIndicator(false);
-                        setShowProgressSpinner(false);
-                        onReady(undefined, undefined, undefined);
-                        if (hasDraft) {
-                            completeDraft();
-                        }
                     });
+            })
+            .finally(() => {
+                if (fetchId !== latestFetchRef.current) {
+                    return;
+                }
+                refreshingRef.current = false;
+                setShowProgressIndicator(false);
+                setShowProgressSpinner(false);
+                onReady(undefined, undefined, undefined);
+                if (hasDraft) {
+                    completeDraft();
+                }
             });
     };
     fetchFlowModelRef.current = fetchFlowModel;

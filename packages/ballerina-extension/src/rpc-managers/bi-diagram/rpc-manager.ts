@@ -1757,10 +1757,8 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
     async removeBreakpointFromSource(params: BreakpointRequest): Promise<void> {
         return new Promise(async (resolve) => {
             console.log(">>> removing breakpoint from source", params);
-            const breakpointsForFile: vscode.SourceBreakpoint[] = vscode.debug.breakpoints.filter((breakpoint) => {
-                const sourceBreakpoint = breakpoint as vscode.SourceBreakpoint;
-                return sourceBreakpoint.location.uri.fsPath === params.filePath;
-            }) as vscode.SourceBreakpoint[];
+            const breakpointsForFile = vscode.debug.breakpoints.filter((breakpoint): breakpoint is vscode.SourceBreakpoint =>
+                breakpoint instanceof vscode.SourceBreakpoint && breakpoint.location.uri.fsPath === params.filePath);
 
             const breakpoints = breakpointsForFile.filter((breakpoint) => {
                 return breakpoint.location.range.start.line === params.breakpoint.line &&
@@ -1783,28 +1781,24 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
     }
 
     async getBreakpointInfo(): Promise<CurrentBreakpointsResponse> {
-        return new Promise(async (resolve) => {
-            const context = StateMachine.context();
+        const context = StateMachine.context();
 
-            const breakpointsForFile: vscode.SourceBreakpoint[] = vscode.debug.breakpoints.filter((breakpoint) => {
-                const sourceBreakpoint = breakpoint as vscode.SourceBreakpoint;
-                return sourceBreakpoint.location.uri.fsPath === context?.documentUri;
-            }) as vscode.SourceBreakpoint[];
+        const breakpointsForFile = vscode.debug.breakpoints.filter((breakpoint): breakpoint is vscode.SourceBreakpoint =>
+            breakpoint instanceof vscode.SourceBreakpoint && breakpoint.location.uri.fsPath === context?.documentUri);
 
-            const breakpoints: DebugProtocol.Breakpoint[] = breakpointsForFile.map((breakpoint) => {
-                return {
-                    verified: true,
-                    line: breakpoint.location.range.start.line,
-                    column: breakpoint.location.range.start?.character
-                };
-            });
-            // TODO: Check the need of using breakpoints with verified status
-            // const breakppoints = BreakpointManager.getInstance().getBreakpoints();
-            // if there is an instance then call get ActiveBreakpoint
-
-            const activeBreakpoint = BreakpointManager.getInstance()?.getActiveBreakpoint();
-            resolve({ breakpoints: breakpoints, activeBreakpoint: activeBreakpoint });
+        const breakpoints: DebugProtocol.Breakpoint[] = breakpointsForFile.map((breakpoint) => {
+            return {
+                verified: true,
+                line: breakpoint.location.range.start.line,
+                column: breakpoint.location.range.start?.character
+            };
         });
+        // TODO: Check the need of using breakpoints with verified status
+        // const breakppoints = BreakpointManager.getInstance().getBreakpoints();
+        // if there is an instance then call get ActiveBreakpoint
+
+        const activeBreakpoint = BreakpointManager.getInstance()?.getActiveBreakpoint();
+        return { breakpoints: breakpoints, activeBreakpoint: activeBreakpoint };
     }
 
     async getEnclosedFunction(params: BIGetEnclosedFunctionRequest): Promise<BIGetEnclosedFunctionResponse> {
