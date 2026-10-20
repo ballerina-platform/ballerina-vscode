@@ -105,8 +105,20 @@ public class DeleteComponentTest extends AbstractLSTest {
         Assert.assertTrue(edits.stream().allMatch(edit -> edit.getNewText().isEmpty()));
     }
 
+    @Test
+    public void testDeleteComponentsRemovesAListenerPassedExplicitlyOnce() throws IOException {
+        String file = "delete_component_listener_project/cases.bal";
+        List<TextEdit> edits = deleteComponentsIn(file, component(file, 12, 0, 16, 1), component(file, 2, 0, 2, 52));
+        Assert.assertEquals(edits.stream().filter(edit -> edit.getRange().getStart().getLine() == 2).count(), 1);
+        Assert.assertEquals(edits.size(), 2);
+    }
+
     private List<TextEdit> deleteComponents(JsonObject... components) throws IOException {
-        String sourcePath = getSourcePath("delete_component1.bal");
+        return deleteComponentsIn("delete_component1.bal", components);
+    }
+
+    private List<TextEdit> deleteComponentsIn(String file, JsonObject... components) throws IOException {
+        String sourcePath = getSourcePath(file);
         List<JsonElement> componentList = List.of(components);
         ComponentDeleteRequest request = new ComponentDeleteRequest(sourcePath, components[0], false, componentList);
         Map<String, List<TextEdit>> textEdits =
@@ -116,8 +128,12 @@ public class DeleteComponentTest extends AbstractLSTest {
     }
 
     private static JsonObject component(int startLine, int startColumn, int endLine, int endColumn) {
+        return component("delete_component1.bal", startLine, startColumn, endLine, endColumn);
+    }
+
+    private static JsonObject component(String file, int startLine, int startColumn, int endLine, int endColumn) {
         JsonObject component = new JsonObject();
-        component.addProperty("filePath", "delete_component1.bal");
+        component.addProperty("filePath", file);
         component.addProperty("startLine", startLine);
         component.addProperty("startColumn", startColumn);
         component.addProperty("endLine", endLine);
