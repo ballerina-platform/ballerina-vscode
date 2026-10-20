@@ -22,6 +22,7 @@ import io.ballerina.flowmodelgenerator.core.AiUtils;
 import io.ballerina.flowmodelgenerator.core.model.AvailableNode;
 import io.ballerina.flowmodelgenerator.core.model.Category;
 import io.ballerina.flowmodelgenerator.core.model.Item;
+import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.modelgenerator.commons.SearchResult;
 import io.ballerina.projects.Project;
 import io.ballerina.tools.text.LineRange;
@@ -43,14 +44,14 @@ public class KnowledgeBaseSearchCommand extends SearchCommand {
 
     @Override
     protected List<Item> defaultView() {
-        List<AvailableNode> knowledgeBases = AiUtils.getKnowledgeBases(project);
+        List<AvailableNode> knowledgeBases = AiUtils.getComponents(project, NodeKind.KNOWLEDGE_BASE, cachedOnly);
         return List.of(AiUtils.buildAdaptiveAiComponentCategory(Category.Name.KNOWLEDGE_BASE.label(), knowledgeBases,
                 null));
     }
 
     @Override
     protected List<Item> search() {
-        List<AvailableNode> knowledgeBases = AiUtils.getKnowledgeBases(project);
+        List<AvailableNode> knowledgeBases = AiUtils.getComponents(project, NodeKind.KNOWLEDGE_BASE, cachedOnly);
         return List.of(AiUtils.buildAdaptiveAiComponentCategory(Category.Name.KNOWLEDGE_BASE.label(), knowledgeBases,
                 query));
     }
