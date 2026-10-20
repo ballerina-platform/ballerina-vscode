@@ -90,7 +90,11 @@ public class DesignModelGeneratorService implements ExtendedLanguageServerServic
                 WorkspaceManager workspaceManager = workspaceManagerProxy.get();
                 Project project = workspaceManager.loadProject(projectPath);
                 // Artifacts load with every project view, so agent forms and flows find ballerina/ai already compiled.
-                PackageUtil.prewarmAgentLibrary(project);
+                try {
+                    PackageUtil.prewarmAgentLibrary(project);
+                } catch (RuntimeException ignored) {
+                    // A failed warm-up must not cost the artifacts response.
+                }
                 response.setArtifacts(ArtifactsGenerator.artifacts(project));
                 response.setUri(request.projectPath());
                 String projectName = project.currentPackage().packageName().value();
