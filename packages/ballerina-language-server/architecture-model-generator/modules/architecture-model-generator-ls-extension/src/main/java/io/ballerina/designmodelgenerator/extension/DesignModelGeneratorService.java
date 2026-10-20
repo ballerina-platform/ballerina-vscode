@@ -90,7 +90,11 @@ public class DesignModelGeneratorService implements ExtendedLanguageServerServic
                 WorkspaceManager workspaceManager = workspaceManagerProxy.get();
                 Project project = workspaceManager.loadProject(projectPath);
                 // Every project view loads artifacts, so agent forms and flows find their libraries compiled.
-                PackageUtil.prewarmAgentLibraries(project);
+                try {
+                    PackageUtil.prewarmAgentLibraries(project);
+                } catch (RuntimeException ignored) {
+                    // A failed warm-up must not cost the artifacts response.
+                }
                 response.setArtifacts(ArtifactsGenerator.artifacts(project));
                 response.setUri(request.projectPath());
                 String projectName = project.currentPackage().packageName().value();
