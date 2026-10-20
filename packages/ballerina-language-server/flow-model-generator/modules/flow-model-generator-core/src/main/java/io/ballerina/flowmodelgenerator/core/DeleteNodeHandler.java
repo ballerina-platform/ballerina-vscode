@@ -271,7 +271,9 @@ public class DeleteNodeHandler {
         if (service.isEmpty()) {
             return List.of();
         }
-        SemanticModel semanticModel = document.module().getCompilation().getSemanticModel();
+        // The package compilation is resolved; a bare module compilation can miss packages a sibling edit unloaded.
+        SemanticModel semanticModel = document.module().packageInstance().getCompilation()
+                .getSemanticModel(document.module().moduleId());
         Map<LineRange, ListenerRemoval> unused = new LinkedHashMap<>();
         for (ExpressionNode expression : service.get().expressions()) {
             Optional<Symbol> symbol = semanticModel.symbol(expression);
