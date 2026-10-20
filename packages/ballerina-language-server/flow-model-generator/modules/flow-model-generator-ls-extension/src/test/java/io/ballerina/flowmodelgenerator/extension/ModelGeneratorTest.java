@@ -128,6 +128,7 @@ public class ModelGeneratorTest extends AbstractLSTest {
                 {"configurableAgent", "reviewerRole", "Review code.", "reviewerRole", "Review code."},
                 {"templateAgent", "\"Teacher\"", "Teach ${topic}.", "\"Teacher\"", "teachInstructions"},
                 {"functionAgent", null, null, "", ""},
+                {"quotedKeyAgent", "\"Analyst\"", "Summarize data.", "\"Analyst\"", "Summarize data."},
                 {"spreadAgent", null, null, "", ""}
         };
     }

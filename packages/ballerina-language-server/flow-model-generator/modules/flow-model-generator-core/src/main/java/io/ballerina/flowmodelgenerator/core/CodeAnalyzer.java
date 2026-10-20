@@ -1034,7 +1034,7 @@ public class CodeAnalyzer extends NodeVisitor {
                 continue;
             }
             SpecificFieldNode specificFieldNode = (SpecificFieldNode) field;
-            String fieldName = specificFieldNode.fieldName().toString().trim();
+            String fieldName = stripQuotes(specificFieldNode.fieldName().toString().trim());
             Optional<ExpressionNode> valueExprOpt = specificFieldNode.valueExpr();
             AiUtils.AgentPropertyValue value = valueExprOpt.map(CodeAnalyzer::toAgentPropertyValue)
                     .orElse(new AiUtils.AgentPropertyValue(fieldName, Property.ValueType.EXPRESSION));

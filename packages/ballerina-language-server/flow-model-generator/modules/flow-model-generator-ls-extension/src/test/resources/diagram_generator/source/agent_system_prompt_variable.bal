@@ -21,3 +21,5 @@ function buildPrompt() returns ai:SystemPrompt => {role: "Assistant", instructio
 final ai:Agent functionAgent = check new (systemPrompt = buildPrompt(), model = check ai:getDefaultModelProvider());
 
 final ai:Agent spreadAgent = check new (systemPrompt = {...systemPrompt}, model = check ai:getDefaultModelProvider());
+
+final ai:Agent quotedKeyAgent = check new (systemPrompt = {"role": "Analyst", "instructions": string `Summarize data.`}, model = check ai:getDefaultModelProvider());
