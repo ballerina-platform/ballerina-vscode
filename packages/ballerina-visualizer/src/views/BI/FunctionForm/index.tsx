@@ -422,31 +422,47 @@ export function FunctionForm(props: FunctionFormProps) {
      * stale once the source moves underneath the form. The name field renames in place through
      * the LS (IdentifierEditor), which shifts the end of the signature by the change in length:
      * a stale range then cuts into the return type or, for a shorter name, swallows the `=>` of
-     * a data mapper and turns it into a block-bodied function. Re-read the range by the name the
-     * source now carries; that name is the form's value only once a rename has been applied.
-     * The load-time range is a safe fallback only while the name is unchanged; after a rename it
-     * is known to be stale, so a failed re-read returns `undefined` and the save must abort.
+     * a data mapper and turns it into a block-bodied function. Only a rename moves it, so the
+     * load-time range stands while the name is unchanged. Otherwise re-read the range by the name
+     * the source now carries: usually the new one, but the form takes the new name even when the
+     * LS applied no rename, so fall back to the original. If neither is found the range cannot be
+     * trusted, and `undefined` tells the caller to abort the save.
      */
     const getCurrentCodedata = async (codedata: FunctionNode["codedata"], formName: unknown) => {
-        const currentName = typeof formName === "string" && formName ? formName : functionName;
-        const renamed = currentName !== functionName;
-        try {
-            const res = await rpcClient
-                .getBIDiagramRpcClient()
-                .getFunctionNode({ functionName: currentName, fileName, projectPath });
-            const lineRange = res?.functionDefinition?.codedata?.lineRange;
-            if (lineRange) {
-                return { ...codedata, lineRange };
-            }
-        } catch (error) {
-            console.error("Failed to refresh the function's line range:", error);
+        const newName = typeof formName === "string" && formName ? formName : functionName;
+        if (newName === functionName) {
+            return codedata;
         }
-        return renamed ? undefined : codedata;
+        for (const name of [newName, functionName]) {
+            try {
+                const res = await rpcClient
+                    .getBIDiagramRpcClient()
+                    .getFunctionNode({ functionName: name, fileName, projectPath });
+                const lineRange = res?.functionDefinition?.codedata?.lineRange;
+                if (lineRange) {
+                    return { ...codedata, lineRange };
+                }
+            } catch (error) {
+                console.error("Failed to refresh the function's line range:", error);
+            }
+        }
+        return undefined;
     };
 
     const onSubmit = async (data: FormValues, formImports?: FormImports) => {
         console.log("Function Form Data: ", data);
         const functionNodeCopy = { ...functionNode };
+
+        // Resolved before anything else: the copy is shallow, so the property writes below land
+        // on the live node, and an abort after them would leave the open form with a changed node.
+        if (functionName) {
+            const codedata = await getCurrentCodedata(functionNodeCopy.codedata, data?.functionName);
+            if (!codedata) {
+                showErrorNotification();
+                return;
+            }
+            functionNodeCopy.codedata = codedata;
+        }
 
         /**
          * TODO: Remove this once the LS is updated
@@ -546,15 +562,6 @@ export function FunctionForm(props: FunctionFormProps) {
                     }
                 }
             }
-        }
-
-        if (functionName) {
-            const codedata = await getCurrentCodedata(functionNodeCopy.codedata, data?.functionName);
-            if (!codedata) {
-                showErrorNotification();
-                return;
-            }
-            functionNodeCopy.codedata = codedata;
         }
 
         console.log("Updated function node: ", functionNodeCopy);
