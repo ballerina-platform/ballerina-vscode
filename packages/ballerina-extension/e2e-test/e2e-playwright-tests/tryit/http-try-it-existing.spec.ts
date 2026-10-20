@@ -292,7 +292,9 @@ export default function createTests() {
             await page.page.waitForTimeout(1500);
 
             const hurlPath = path.join(newProjectPath, 'target', 'TryIt.hurl');
-            const before = fs.statSync(hurlPath).mtimeMs;
+            // TryIt.hurl is briefly absent while Try It rewrites it; read that as "not written yet".
+            const hurlMtime = () => (fs.existsSync(hurlPath) ? fs.statSync(hurlPath).mtimeMs : 0);
+            const before = hurlMtime();
 
             logStep('Click the resource\'s own Try It button');
             const tryResourceBtn = webview.locator('vscode-button[title="Try Resource"]').first();
@@ -308,7 +310,7 @@ export default function createTests() {
             logStep('Discard the prior notebook\'s unsaved state and wait for the scoped notebook');
             const deadline = Date.now() + 60000;
             let lastClick = Date.now();
-            while (Date.now() < deadline && fs.statSync(hurlPath).mtimeMs <= before) {
+            while (Date.now() < deadline && hurlMtime() <= before) {
                 // A Try Resource click that landed while the diagram was still settling is dropped; click again
                 // when nothing has been written for a while.
                 if (Date.now() - lastClick > 10000 && await tryResourceBtn.isVisible().catch(() => false)) {
@@ -331,7 +333,7 @@ export default function createTests() {
                 }
                 await page.page.waitForTimeout(500);
             }
-            expect(fs.statSync(hurlPath).mtimeMs).toBeGreaterThan(before);
+            expect(hurlMtime()).toBeGreaterThan(before);
 
             logStep('Verify the notebook is scoped to just /secure');
             const hurl = fs.readFileSync(hurlPath, 'utf8');
