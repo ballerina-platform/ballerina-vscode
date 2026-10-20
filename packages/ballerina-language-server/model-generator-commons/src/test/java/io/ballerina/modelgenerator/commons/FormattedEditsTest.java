@@ -44,7 +44,9 @@ public class FormattedEditsTest {
         Optional<Map<Path, List<TextEdit>>> folded = FormattedEdits.fold(null,
                 Map.of(NEW_FILE, List.of(edit(0, 0, "function   main() {\n}\n"))));
         Assert.assertTrue(folded.isPresent());
-        Assert.assertEquals(folded.get().get(NEW_FILE).get(0).getNewText(), "function main() {\n}\n");
+        // The formatter ends lines with the platform separator.
+        Assert.assertEquals(folded.get().get(NEW_FILE).get(0).getNewText().replace("\r\n", "\n"),
+                "function main() {\n}\n");
     }
 
     @Test
