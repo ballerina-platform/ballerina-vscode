@@ -161,37 +161,56 @@ export class Diagram {
      * @param index - The branch's position left to right, -1 for Else.
      */
     public async clickAddButtonOnBranch(index: number): Promise<void> {
-        const frame = this.frame();
-        const buttons: Array<{ el: Locator; x: number; y: number }> = [];
+        // The If was just saved, and a save redraws the canvas: the row of empty nodes under it can be measured
+        // before the redraw replaces it, and a click on the replaced element reaches nothing. Click only once two
+        // readings of the row agree, and after a click that opened no panel measure again instead of clicking the
+        // element already seen.
         const deadline = Date.now() + 30000;
-        while (buttons.length === 0 && Date.now() < deadline) {
-            for (const el of await frame.locator('[data-testid^="empty-node-add-button"]').all()) {
-                const b = await el.boundingBox();
-                if (b) {
-                    buttons.push({ el, x: b.x, y: b.y });
-                }
-            }
-            if (buttons.length === 0) {
+        let previous: string | undefined;
+        let reason = 'no empty node with a + rendered';
+        while (Date.now() < deadline) {
+            const row = await this.lowestEmptyNodeRow();
+            const key = row.map((b) => `${Math.round(b.x)},${Math.round(b.y)}`).join(' ');
+            if (row.length === 0 || key !== previous) {
+                previous = key;
+                reason = row.length === 0 ? 'no empty node with a + rendered' : 'the row of empty nodes kept moving';
                 await this._page.waitForTimeout(500);
+                continue;
+            }
+            const target = row[index < 0 ? row.length + index : index];
+            if (!target) {
+                throw new Error(`no + on branch ${index} (found ${row.length})`);
+            }
+            await target.el.hover({ force: true }).catch(() => undefined);
+            await target.el.click({ force: true, timeout: 3000 }).catch(() => undefined);
+            if (await this.sidePanelOpens(1500)) {
+                return;
+            }
+            // A static circle drawn over the button can take the click; a dispatched click reaches the button.
+            await target.el.dispatchEvent('click').catch(() => undefined);
+            if (await this.sidePanelOpens(1500)) {
+                return;
+            }
+            reason = `the + on branch ${index} did not open the side panel`;
+            previous = undefined;
+        }
+        throw new Error(`${reason} within 30s`);
+    }
+
+    // The lowest row of empty nodes with a +, left to right; it belongs to the If added last.
+    private async lowestEmptyNodeRow(): Promise<Array<{ el: Locator; x: number; y: number }>> {
+        const buttons: Array<{ el: Locator; x: number; y: number }> = [];
+        for (const el of await this.frame().locator('[data-testid^="empty-node-add-button"]').all()) {
+            const b = await el.boundingBox().catch(() => null);
+            if (b) {
+                buttons.push({ el, x: b.x, y: b.y });
             }
         }
         if (buttons.length === 0) {
-            throw new Error('no empty node with a + rendered within 30s');
+            return [];
         }
-        // The lowest row of empty nodes belongs to the If just added.
         const lowest = Math.max(...buttons.map((b) => b.y));
-        const row = buttons.filter((b) => Math.abs(b.y - lowest) < 10).sort((a, b) => a.x - b.x);
-        const target = row[index < 0 ? row.length + index : index];
-        if (!target) {
-            throw new Error(`no + on branch ${index} (found ${row.length})`);
-        }
-        await target.el.hover({ force: true }).catch(() => undefined);
-        await target.el.click({ force: true });
-        // A static circle drawn over the button can take the click; a dispatched click reaches the button.
-        if (!await this.sidePanelOpens(1500)) {
-            await target.el.dispatchEvent('click');
-        }
-        await this.expectSidePanel(`the + on branch ${index}`);
+        return buttons.filter((b) => Math.abs(b.y - lowest) < 10).sort((a, b) => a.x - b.x);
     }
 
     // The + on an edge is drawn at its middle and shows only while the pointer is over the edge.
