@@ -27,6 +27,7 @@ import { BodyText, BodyTinyInfo, TopBar } from "../../../styles";
 import { ConnectorIcon } from "@wso2/bi-diagram";
 import { TitleBar } from "../../../../components/TitleBar";
 import { TopNavigationBar } from "../../../../components/TopNavigationBar";
+import { useProjectContentRefresh } from "../../PackageOverview/utils";
 
 const ViewWrapper = styled.div<{ isHalfView?: boolean }>`
     display: flex;
@@ -129,11 +130,7 @@ export function ConnectorView(props: ConnectorViewProps) {
         getConnectors();
     }, []);
 
-    useEffect(() => rpcClient?.onProjectContentUpdated((state: boolean) => {
-        if (state) {
-            getConnectors();
-        }
-    }), [rpcClient]);
+    useProjectContentRefresh(rpcClient, () => getConnectors());
 
     const getConnectors = (filter?: boolean) => {
         setFetchingInfo(true);
