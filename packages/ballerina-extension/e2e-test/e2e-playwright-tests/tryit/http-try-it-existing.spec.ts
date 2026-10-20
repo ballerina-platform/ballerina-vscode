@@ -293,7 +293,16 @@ export default function createTests() {
 
             const hurlPath = path.join(newProjectPath, 'target', 'TryIt.hurl');
             // TryIt.hurl is briefly absent while Try It rewrites it; read that as "not written yet".
-            const hurlMtime = () => (fs.existsSync(hurlPath) ? fs.statSync(hurlPath).mtimeMs : 0);
+            const hurlMtime = () => {
+                try {
+                    return fs.statSync(hurlPath).mtimeMs;
+                } catch (error) {
+                    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+                        return 0;
+                    }
+                    throw error;
+                }
+            };
             const before = hurlMtime();
 
             logStep('Click the resource\'s own Try It button');
