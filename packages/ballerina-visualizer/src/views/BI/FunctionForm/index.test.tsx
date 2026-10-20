@@ -440,4 +440,32 @@ describe("FunctionForm save after an in-place rename", () => {
 
         expect(flowNode.codedata.lineRange).toEqual(LOADED_RANGE);
     });
+
+    it("aborts the save when a renamed definition cannot be re-read", async () => {
+        const getFunctionNode = jest
+            .fn()
+            .mockResolvedValueOnce({ functionDefinition: dataMapper("transformPerson", LOADED_RANGE) })
+            .mockRejectedValueOnce(new Error("not found"));
+        const getSourceCode = jest.fn(async () => ({ artifacts: [] as unknown[] }));
+        const showErrorMessage = jest.fn();
+        const rpc = {
+            ...makeRpc({ getFunctionNode, getSourceCode }),
+            getCommonRpcClient: () => ({ showErrorMessage }),
+        };
+        await act(async () => {
+            root.render(
+                <TestRpcContext.Provider value={{ rpcClient: rpc }}>
+                    <FunctionForm filePath={FILE_PATH} projectPath={PROJECT_PATH} functionName="transformPerson" isDataMapper />
+                </TestRpcContext.Provider>
+            );
+        });
+        await flush();
+        await act(async () => {
+            await mockArtifactFormProps!.onSubmit({ functionName: "toEmp" });
+        });
+        await flush();
+
+        expect(getSourceCode).not.toHaveBeenCalled();
+        expect(showErrorMessage).toHaveBeenCalledTimes(1);
+    });
 });

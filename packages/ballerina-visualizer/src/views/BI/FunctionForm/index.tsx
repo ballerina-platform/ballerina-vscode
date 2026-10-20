@@ -424,9 +424,12 @@ export function FunctionForm(props: FunctionFormProps) {
      * a stale range then cuts into the return type or, for a shorter name, swallows the `=>` of
      * a data mapper and turns it into a block-bodied function. Re-read the range by the name the
      * source now carries; that name is the form's value only once a rename has been applied.
+     * The load-time range is a safe fallback only while the name is unchanged; after a rename it
+     * is known to be stale, so a failed re-read returns `undefined` and the save must abort.
      */
     const getCurrentCodedata = async (codedata: FunctionNode["codedata"], formName: unknown) => {
         const currentName = typeof formName === "string" && formName ? formName : functionName;
+        const renamed = currentName !== functionName;
         try {
             const res = await rpcClient
                 .getBIDiagramRpcClient()
@@ -438,7 +441,7 @@ export function FunctionForm(props: FunctionFormProps) {
         } catch (error) {
             console.error("Failed to refresh the function's line range:", error);
         }
-        return codedata;
+        return renamed ? undefined : codedata;
     };
 
     const onSubmit = async (data: FormValues, formImports?: FormImports) => {
@@ -546,7 +549,12 @@ export function FunctionForm(props: FunctionFormProps) {
         }
 
         if (functionName) {
-            functionNodeCopy.codedata = await getCurrentCodedata(functionNodeCopy.codedata, data?.functionName);
+            const codedata = await getCurrentCodedata(functionNodeCopy.codedata, data?.functionName);
+            if (!codedata) {
+                showErrorNotification();
+                return;
+            }
+            functionNodeCopy.codedata = codedata;
         }
 
         console.log("Updated function node: ", functionNodeCopy);
