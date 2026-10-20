@@ -557,16 +557,47 @@ export class Integrator {
 
     // Clicks the + below a node ("click + below the wait") and waits for the node panel.
     async plusBelow(frame: FrameLocator, nodeText: string | RegExp, nth = 0): Promise<void> {
-        await new Diagram(this.page, frame).clickAddButtonBelow(nodeText, nth);
-        await this.panel();
+        await this.openPalette(() => new Diagram(this.page, frame).clickAddButtonBelow(nodeText, nth),
+            `the + below '${nodeText}'`);
+    }
+
+    // Clicks a + and makes sure what opened is the node palette. Right after a save or a navigation the click
+    // can open nothing, or a panel left over from the previous step (an activity list, a form) can be what is
+    // showing; both read as "no 'Workflow' in the palette" later. Close whatever is there and click again.
+    private async openPalette(click: () => Promise<void>, what: string): Promise<void> {
+        let last: Error | undefined;
+        for (let attempt = 0; attempt < 3; attempt++) {
+            if (attempt > 0) {
+                await this.dismiss();
+                await this.page.waitForTimeout(1000);
+            }
+            try {
+                await click();
+            } catch (error) {
+                last = error instanceof Error ? error : new Error(String(error));
+                continue;
+            }
+            const panel = await this.panel().catch(() => undefined);
+            if (panel && await this.isPalette(panel)) {
+                return;
+            }
+            last = new Error(`${what} opened something other than the node palette`);
+        }
+        throw last ?? new Error(`${what} did not open the node palette`);
+    }
+
+    // The node palette lists its groups; a Control or Workflow group is on every diagram's palette.
+    private async isPalette(panel: Locator): Promise<boolean> {
+        const group = panel.getByText(/^(Control|Workflow)$/).first();
+        return group.waitFor({ state: 'visible', timeout: 15000 }).then(() => true, () => false);
     }
 
     // Clicks the + on an If branch the page names by label ("the + on the **Else** path"); index is the branch's
     // position left to right, -1 for Else.
     async plusOnBranch(frame: FrameLocator, branchLabel: string, index: number): Promise<void> {
         console.log(`  + on the '${branchLabel}' branch`);
-        await new Diagram(this.page, frame).clickAddButtonOnBranch(index);
-        await this.panel();
+        await this.openPalette(() => new Diagram(this.page, frame).clickAddButtonOnBranch(index),
+            `the + on the '${branchLabel}' branch`);
     }
 
     // Follows a node-palette path such as Workflow > Steps > Call Activity. A group is opened only when the next
