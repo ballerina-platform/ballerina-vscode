@@ -190,18 +190,24 @@ export class VisualizerRpcManager implements VisualizerAPI {
                 }
                 unsubscribe();
                 clearTimeout(timeoutId);
-                const currentArtifact = await this.updateCurrentArtifactLocation({ artifacts: publishedArtifacts });
-                StateMachine.setReadyMode();
-                const { documentUri, view } = StateMachine.context();
-                // Only a change to the file on screen can remove what the view shows.
-                const viewFileChanged = !!documentUri
-                    && changedPaths.some((filePath) => isSamePath(filePath, documentUri));
-                if (!currentArtifact && viewFileChanged && view !== MACHINE_VIEW.InlineDataMapper) {
-                    openView(EVENT_TYPE.OPEN_VIEW, { view: MACHINE_VIEW.PackageOverview });
+                // A run that never settles would hold every later undo and redo behind it.
+                try {
+                    const currentArtifact = await this.updateCurrentArtifactLocation({ artifacts: publishedArtifacts });
+                    StateMachine.setReadyMode();
+                    const { documentUri, view } = StateMachine.context();
+                    // Only a change to the file on screen can remove what the view shows.
+                    const viewFileChanged = !!documentUri
+                        && changedPaths.some((filePath) => isSamePath(filePath, documentUri));
+                    if (!currentArtifact && viewFileChanged && view !== MACHINE_VIEW.InlineDataMapper) {
+                        openView(EVENT_TYPE.OPEN_VIEW, { view: MACHINE_VIEW.PackageOverview });
+                    }
+                    notifyCurrentWebview();
+                    await this.refreshDataMapperView();
+                    resolve(successMessage);
+                } catch (error) {
+                    StateMachine.setReadyMode();
+                    reject(error);
                 }
-                notifyCurrentWebview();
-                await this.refreshDataMapperView();
-                resolve(successMessage);
             });
             workspace.applyEdit(workspaceEdit);
 

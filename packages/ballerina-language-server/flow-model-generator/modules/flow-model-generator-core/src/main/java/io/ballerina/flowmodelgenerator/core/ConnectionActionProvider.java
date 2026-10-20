@@ -44,7 +44,6 @@ import io.ballerina.modelgenerator.commons.FunctionData;
 import io.ballerina.modelgenerator.commons.FunctionDataBuilder;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.PackageUtil;
-import io.ballerina.projects.Module;
 import io.ballerina.projects.Package;
 import io.ballerina.projects.PackageDescriptor;
 import io.ballerina.projects.Project;
@@ -517,13 +516,9 @@ public class ConnectionActionProvider {
     }
 
     private SemanticModel findSemanticModel(Package pkg, ModuleInfo moduleInfo) {
-        for (Module module : pkg.modules()) {
-            ModuleInfo candidateInfo = ModuleInfo.from(module.descriptor());
-            if (candidateInfo.moduleName().equals(moduleInfo.moduleName())) {
-                return PackageUtil.getCompilation(pkg.project()).getSemanticModel(module.moduleId());
-            }
-        }
-        return null;
+        return PackageUtil.findModule(pkg, moduleInfo.moduleName())
+                .map(module -> PackageUtil.getCompilation(pkg.project()).getSemanticModel(module.moduleId()))
+                .orElse(null);
     }
 
     private Optional<ClassSymbol> resolveClassSymbol(SemanticModel semanticModel, String className) {

@@ -448,8 +448,10 @@ public class FlowModelGeneratorService implements ExtendedLanguageServerService 
                 WorkspaceManager workspaceManager = this.workspaceManagerProxy.get();
                 Path filePath = Path.of(request.filePath());
                 Codedata codedata = request.codedata();
-                if (request.offline() && !PackageUtil.isAvailableOffline(codedata.org(),
-                        codedata.resolvePackageName(), codedata.version())) {
+                // A generated connector is project source, so it is never in a package repository.
+                if (request.offline() && !Boolean.TRUE.equals(codedata.isGenerated())
+                        && !PackageUtil.isAvailableOffline(codedata.org(), codedata.resolvePackageName(),
+                        codedata.version())) {
                     response.setActions(new JsonArray());
                     return response;
                 }
