@@ -67,15 +67,20 @@ runs:
       # pre-release channel, so 5.14.0 is followed by 5.16.0-SNAPSHOT. Bumping to 5.15.0-SNAPSHOT
       # would sit main on the pre-release line, and its nightlies would then derive 5.14.<ts> —
       # colliding with the 5.14.x line just released.
+      #
+      # Not release-blocking: the release is already published, and the bump can be opened by hand.
       - name: Open next-snapshot PR against main
         shell: bash
         if: ${{ inputs.isPreRelease == 'false' }}
         id: snapshot_pr
+        continue-on-error: true
         run: |
           set -euo pipefail
           released="${{ steps.ver.outputs.version }}"
 
-          git fetch origin main
+          # Only package.json is needed; recursing would fetch main's submodule SHA, which the
+          # submodule remote may not advertise ('not our ref').
+          git fetch --no-recurse-submodules origin main
           mainVersion=$(git show origin/main:packages/ballerina-extension/package.json | jq -r '.version')
 
           # Only main is bumped, and only when it is sitting on the very snapshot this release
@@ -120,6 +125,13 @@ runs:
           echo "prURL=$pr" >> $GITHUB_OUTPUT
         env:
           GH_TOKEN: ${{ github.token }}
+
+      - name: Report a failed next-snapshot PR
+        if: ${{ inputs.isPreRelease == 'false' && steps.snapshot_pr.outcome == 'failure' }}
+        shell: bash
+        run: |
+          echo "::warning::Could not open the next-snapshot PR against main." \
+               "If main is at ${{ steps.ver.outputs.version }}-SNAPSHOT, bump it by hand."
 
       # The head branch normally exists: actions/release pushed it earlier in this same job,
       # together with the version commit it points at. That push is not release-blocking.

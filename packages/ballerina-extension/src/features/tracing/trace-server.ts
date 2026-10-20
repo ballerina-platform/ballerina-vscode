@@ -225,7 +225,7 @@ app.post('/v1/traces', async (req, res) => {
                                                             links: { rule: 'repeated', type: 'Link', id: 13 },
                                                             droppedLinksCount: { type: 'uint32', id: 14 },
                                                             status: { type: 'Status', id: 15 },
-                                                            flags: { type: 'uint32', id: 16 }
+                                                            flags: { type: 'fixed32', id: 16 }
                                                         }
                                                     },
                                                     Event: {
@@ -243,7 +243,7 @@ app.post('/v1/traces', async (req, res) => {
                                                             traceState: { type: 'string', id: 3 },
                                                             attributes: { rule: 'repeated', type: 'KeyValue', id: 4 },
                                                             droppedAttributesCount: { type: 'uint32', id: 5 },
-                                                            flags: { type: 'uint32', id: 6 }
+                                                            flags: { type: 'fixed32', id: 6 }
                                                         }
                                                     },
                                                     KeyValue: {

@@ -86,7 +86,7 @@ import path from 'path';
 import * as glob from 'glob';
 import { RPCLayer } from "../RPCLayer";
 import { VisualizerWebview } from "../views/visualizer/webview";
-import { REQUIRED_BALLERINA_VERSION } from "../features/project/dependency-lock";
+import { REQUIRED_BALLERINA_VERSION, findLatestRequiredLineRelease } from "../features/project/dependency-lock";
 
 const SWAN_LAKE_REGEX = /(s|S)wan( |-)(l|L)ake/g;
 
@@ -764,6 +764,28 @@ export class BallerinaExtension {
             console.error('Error getting the ballerina version:', reason.message);
             this.showMessageSetupBallerina(restartWindow);
         });
+    }
+
+    /**
+     * The newest release on the required distribution's update line, read from `bal dist list`. Falls back to
+     * {@link REQUIRED_BALLERINA_VERSION} when the list can't be fetched or doesn't name one.
+     */
+    async resolveRequiredDistributionRelease(): Promise<string> {
+        try {
+            const output = await new Promise<string>((resolve, reject) => {
+                exec('bal dist list', { timeout: 30000, maxBuffer: 1024 * 1024 }, (error, stdout) => {
+                    error ? reject(error) : resolve(stdout);
+                });
+            });
+            const latest = findLatestRequiredLineRelease(output);
+            if (!latest) {
+                console.warn(`[SETUP] No ${REQUIRED_BALLERINA_VERSION} line release in \`bal dist list\`, falling back`);
+            }
+            return latest ?? REQUIRED_BALLERINA_VERSION;
+        } catch (error) {
+            console.warn("[SETUP] Could not list Ballerina distributions", error);
+            return REQUIRED_BALLERINA_VERSION;
+        }
     }
 
     /**

@@ -39,7 +39,6 @@ import { isAiTouchedFile } from "../../rpc-managers/diagram-validity";
 import { setCompanionVisualizer } from "../ai-panel/activeFileContext";
 import { getStartupIntegrationProgress } from "../../features/bi/startup-progress";
 import { showUpdateOutput, updateDependenciesFromPanel } from "../../features/project/dependency-compatibility";
-import { REQUIRED_BALLERINA_VERSION } from "../../features/project/dependency-lock";
 
 /** Escapes text interpolated into the startup screen's HTML (integration names are user input). */
 function escapeHtml(value: string): string {
@@ -73,7 +72,7 @@ export interface JdkIncompatibilityInfo {
     requiredJdkMajorVersion: number;
     requiredBallerinaVersion: string;
     /** Shown in place of the actions once the screen's update starts: streaming, waiting on a terminal or UAC prompt, or why it failed. */
-    update?: { kind: "updating" } | { kind: "external" } | { kind: "failed"; message: string };
+    update?: { kind: "updating"; version?: string } | { kind: "external"; version?: string } | { kind: "failed"; message: string };
 }
 
 export interface DependencyUpdateRequiredInfo {
@@ -287,7 +286,7 @@ export class VisualizerWebview {
         if (!blocked) {
             return;
         }
-        // Output sent before the re-rendered page attaches its listener is dropped; "Starting the update…" covers it.
+        // Output sent before the re-rendered page attaches its listener is dropped; the status line covers it.
         VisualizerWebview.showJdkIncompatibility({ ...blocked, update: { kind: "updating" } });
         let lastError: string | undefined;
         const progress = extension.ballerinaExtInstance.onDownloadProgress(({ message, percentage, step }) => {
@@ -299,10 +298,20 @@ export class VisualizerWebview {
             VisualizerWebview.currentPanel?.getWebview()?.webview.postMessage({ command: "jdkIncompatibility.progress", message, percentage });
         });
         let outcome: BallerinaUpdateOutcome;
+        let version: string | undefined;
         try {
-            // Pinned, since `bal dist update` may stay on the current update line.
+            // Pinned to the newest 2201.14.x, since `bal dist update` may stay on the current update line.
+            version = await extension.ballerinaExtInstance.resolveRequiredDistributionRelease();
+            const updating: JdkIncompatibilityInfo = { ...blocked, update: { kind: "updating", version } };
+            // Before the download starts, so no streamed output is lost to the re-render.
+            if (VisualizerWebview.currentPanel) {
+                VisualizerWebview.showJdkIncompatibility(updating);
+            } else {
+                // Closed during the lookup; recorded so a reopened panel shows it, without reopening one.
+                VisualizerWebview.jdkIncompatibility = updating;
+            }
             outcome = await vscode.commands.executeCommand<BallerinaUpdateOutcome>('ballerina.update-ballerina-visually', {
-                version: REQUIRED_BALLERINA_VERSION,
+                version,
                 showSetup: false
             });
         } catch (error) {
@@ -312,7 +321,7 @@ export class VisualizerWebview {
             progress.dispose();
         }
         if (outcome === "external") {
-            VisualizerWebview.showJdkIncompatibility({ ...blocked, update: { kind: "external" } });
+            VisualizerWebview.showJdkIncompatibility({ ...blocked, update: { kind: "external", version } });
         } else if (outcome === "failed") {
             VisualizerWebview.showJdkIncompatibility({
                 ...blocked,
@@ -384,12 +393,14 @@ export class VisualizerWebview {
             ? `<div class="container" id="jdk-incompatibility-container">
                 <div class="loader-wrapper">
                     <div class="welcome-content no-fade">
-                        <h1 class="welcome-title">Updating Ballerina to ${escapeHtml(incompatibility.requiredBallerinaVersion)}</h1>
+                        <h1 class="welcome-title">Updating Ballerina${incompatibility.update.version ? ` to ${escapeHtml(incompatibility.update.version)}` : ""}</h1>
                         ${incompatibility.update.kind === "updating"
                             ? `<p class="welcome-subtitle">This can take a few minutes. VS Code reloads when the update finishes.</p>
                             <div class="status-progress" role="status">
                                 <span class="status-spinner" aria-hidden="true"></span>
-                                <span id="update-status">Starting the update…</span>
+                                <span id="update-status">${incompatibility.update.version
+                                    ? "Starting the update…"
+                                    : `Finding the latest ${escapeHtml(incompatibility.requiredBallerinaVersion.split(".").slice(0, 2).join("."))} release…`}</span>
                             </div>
                             <div class="update-log" id="update-log" aria-live="polite"></div>`
                             : `<p class="welcome-subtitle">
