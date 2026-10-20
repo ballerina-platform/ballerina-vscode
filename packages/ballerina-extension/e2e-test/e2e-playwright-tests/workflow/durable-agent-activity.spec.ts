@@ -67,23 +67,24 @@ async function openCapability(webview: Frame, capability: Locator, formReady: Lo
     throw new Error('clicking the registered capability did not open its edit form');
 }
 
-// Types the name of a new activity. The form fills the field from a template that can arrive after the form
-// opens, over anything typed before then: wait until the default has held, type, and retype if the template
-// still landed on top.
-async function fillActivityName(input: Locator, value: string): Promise<void> {
+// Types the name of a new activity and waits for the form to accept it. The form fills the field from a
+// template that can arrive after the form opens, over anything typed before then: wait until the field has
+// held (a default, or nothing), type, and retype if the template still landed on top once Save is enabled.
+async function fillActivityName(input: Locator, save: Locator, value: string): Promise<void> {
     const current = () => input.inputValue().catch(() => '');
     let last = await current();
     for (let stable = 0, i = 0; stable < 4 && i < 60; i++) {
         await page.page.waitForTimeout(250);
         const now = await current();
-        stable = now === last && now !== '' ? stable + 1 : 0;
+        stable = now === last ? stable + 1 : 0;
         last = now;
     }
     for (let attempt = 0; attempt < 5; attempt++) {
         await input.fill(value);
         // The identifier field validates on blur and Save stays disabled until it has.
         await input.press('Tab');
-        await page.page.waitForTimeout(1000);
+        await expect.poll(() => save.getAttribute('disabled'), { timeout: 30000 }).toBeNull();
+        await page.page.waitForTimeout(500);
         if (await current() === value) {
             return;
         }
@@ -213,14 +214,8 @@ export default function createTests() {
             logStep('Fill the Workflow Activity form and save');
             const nameInput = webview.getByRole('textbox', { name: /Activity Name/ }).first();
             await nameInput.waitFor({ timeout: 60000 });
-            await fillActivityName(nameInput, 'notifyCustomer');
             const createButton = webview.getByRole('button', { name: 'Save' }).first();
-            await expect.poll(() => createButton.getAttribute('disabled'), { timeout: 30000 }).toBeNull();
-            await page.page.waitForTimeout(500);
-            if (await nameInput.inputValue().catch(() => '') !== 'notifyCustomer') {
-                await fillActivityName(nameInput, 'notifyCustomer');
-                await expect.poll(() => createButton.getAttribute('disabled'), { timeout: 30000 }).toBeNull();
-            }
+            await fillActivityName(nameInput, createButton, 'notifyCustomer');
             // A Save that lands while the form is still settling is dropped and the function is never written.
             await saveUntilSource(createButton, () => {
                 const file = path.join(newProjectPath, 'functions.bal');
