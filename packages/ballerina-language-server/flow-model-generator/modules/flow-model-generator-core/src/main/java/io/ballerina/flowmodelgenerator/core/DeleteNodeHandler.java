@@ -158,9 +158,14 @@ public class DeleteNodeHandler {
         TextDocument textDocument = document.textDocument();
         List<TextRange> ranges = lineRanges.stream()
                 .map(range -> CommonUtils.toTextRange(textDocument, range)).toList();
-        List<ListenerRemoval> unusedListeners = ranges.stream()
+        // A listener deleted explicitly, or freed by two services at once, must be removed only once.
+        Map<String, ListenerRemoval> freedListeners = new LinkedHashMap<>();
+        ranges.stream()
                 .flatMap(range -> unusedListenersOf(document, range.startOffset(), range.endOffset()).stream())
-                .toList();
+                .filter(listener -> !overlapsDeleted(document, ranges, listener))
+                .forEach(listener -> freedListeners.putIfAbsent(
+                        listener.documentId() + ":" + listener.node().textRange().startOffset(), listener));
+        List<ListenerRemoval> unusedListeners = new ArrayList<>(freedListeners.values());
         Map<DocumentId, List<TextRange>> removals = new LinkedHashMap<>();
         removals.put(document.documentId(), new ArrayList<>(ranges));
         unusedListeners.forEach(listener -> removals.computeIfAbsent(listener.documentId(), id -> new ArrayList<>())
@@ -247,6 +252,12 @@ public class DeleteNodeHandler {
     }
 
     private record ListenerRemoval(DocumentId documentId, ListenerDeclarationNode node) {
+    }
+
+    private static boolean overlapsDeleted(Document document, List<TextRange> ranges, ListenerRemoval listener) {
+        TextRange listenerRange = listener.node().textRange();
+        return listener.documentId().equals(document.documentId()) && ranges.stream().anyMatch(range ->
+                range.startOffset() < listenerRange.endOffset() && listenerRange.startOffset() < range.endOffset());
     }
 
     // A service's named listeners go with it unless something else uses them; a public one may be used elsewhere.
