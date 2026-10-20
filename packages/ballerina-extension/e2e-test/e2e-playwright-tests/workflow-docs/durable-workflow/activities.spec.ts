@@ -75,7 +75,8 @@ export default function createTests() {
                 // a slow runner. The next step reopens the workflow; a click that lands before this navigation is
                 // undone by it, so wait for the activity's diagram first.
                 await view.getByText('chargeCard', { exact: true }).filter({ visible: true }).first()
-                    .waitFor({ state: 'visible', timeout: 30000 }).catch(() => undefined);
+                    .waitFor({ state: 'visible', timeout: 30000 })
+                    .catch(() => console.log('  ℹ️  the chargeCard diagram did not open within 30 s; carrying on'));
             });
 
             await j.step('connection.1', 'On the workflow diagram, click **+**, then click **Call Activity**. The **Activities** panel opens.', async () => {
