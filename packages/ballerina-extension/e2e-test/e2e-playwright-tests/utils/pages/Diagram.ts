@@ -92,14 +92,23 @@ export class Diagram {
         // A save redraws the canvas: the node can be replaced while it is measured, and the edge leaving it can be
         // laid out after the node shows. Measure again until the layout holds.
         const deadline = Date.now() + 30000;
+        let reason: Error = new Error(`node '${nodeText}' not found`);
         for (;;) {
             const found = await this.findAddButtonBelow(matches, nodeText, nth);
             if (typeof found !== 'string') {
-                await found();
-                return;
+                try {
+                    await found();
+                    return;
+                } catch (error) {
+                    // The redraw can replace the measured edge or button before the click lands, so the click
+                    // reaches a detached element and no panel opens. Measure again rather than fail on it.
+                    reason = error instanceof Error ? error : new Error(String(error));
+                }
+            } else {
+                reason = new Error(found);
             }
             if (Date.now() >= deadline) {
-                throw new Error(found);
+                throw reason;
             }
             await this._page.waitForTimeout(500);
         }
