@@ -78,6 +78,11 @@ public final class Main {
         } catch (ExecutionException e) {
             e.printStackTrace(System.err);
             return EXIT_FAILURE;
+        } catch (RuntimeException e) {
+            // A failure while the server is being set up must still end the process: by then non-daemon
+            // worker threads may already exist, and an escaped exception would leave them running.
+            e.printStackTrace(System.err);
+            return EXIT_FAILURE;
         }
     }
 

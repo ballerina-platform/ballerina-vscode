@@ -147,6 +147,13 @@ public class MainTest {
         }), Main.EXIT_FAILURE);
     }
 
+    @Test(description = "A run that fails while setting up the server maps to a non-zero exit status")
+    public void testServeMapsUncheckedFailureToExitFailure() {
+        Assert.assertEquals(Main.serve(() -> {
+            throw new IllegalStateException("no language server home");
+        }), Main.EXIT_FAILURE);
+    }
+
     @Test(description = "An interrupted run maps to a non-zero exit status and keeps the interrupt flag")
     public void testServeMapsInterruptionToExitFailure() {
         try {
