@@ -117,7 +117,7 @@ public final class FormattedEdits {
             LinePosition end = document.linePositionFrom(original.length());
             return Optional.of(new TextEdit(new Range(new Position(0, 0), new Position(end.line(), end.offset())),
                     formatted));
-        } catch (FormatterException | IllegalArgumentException e) {
+        } catch (FormatterException | IllegalArgumentException | IndexOutOfBoundsException e) {
             return Optional.empty();
         }
     }

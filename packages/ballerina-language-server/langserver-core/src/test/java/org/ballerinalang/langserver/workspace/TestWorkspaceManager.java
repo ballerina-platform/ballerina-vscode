@@ -1228,6 +1228,51 @@ public class TestWorkspaceManager {
                 "Project should not have any compilation errors. Found: " + diagnostics.size());
     }
 
+    @Test(description = "Test the expression clone is evicted with the project it was copied from")
+    public void testExprCloneEvictedWithItsSource() throws WorkspaceDocumentException, IOException {
+        Path file = RESOURCE_DIRECTORY.resolve("myproject").resolve("main.bal").toAbsolutePath();
+        BallerinaWorkspaceManagerProxyImpl proxy =
+                new BallerinaWorkspaceManagerProxyImpl(new LanguageServerContextImpl());
+        proxy.setEvictProjectOnLastClose(true);
+        String exprUri = openAndCloseThroughProxy(proxy, file);
+
+        Assert.assertTrue(proxy.get().project(file).isEmpty(), "The source project should be evicted");
+        Assert.assertTrue(proxy.get(exprUri).project(file).isEmpty(), "The clone should be evicted with it");
+    }
+
+    @Test(description = "Test the expression clone stays while its source project stays loaded")
+    public void testExprCloneKeptWithoutEviction() throws WorkspaceDocumentException, IOException {
+        Path file = RESOURCE_DIRECTORY.resolve("myproject").resolve("main.bal").toAbsolutePath();
+        BallerinaWorkspaceManagerProxyImpl proxy =
+                new BallerinaWorkspaceManagerProxyImpl(new LanguageServerContextImpl());
+        String exprUri = openAndCloseThroughProxy(proxy, file);
+
+        Assert.assertTrue(proxy.get().project(file).isPresent(), "The source project should stay loaded");
+        Assert.assertTrue(proxy.get(exprUri).project(file).isPresent(), "The clone should stay for the next form");
+    }
+
+    private static String openAndCloseThroughProxy(BallerinaWorkspaceManagerProxyImpl proxy, Path file)
+            throws WorkspaceDocumentException, IOException {
+        String text = Files.readString(file);
+        String fileUri = file.toUri().toString();
+        String exprUri = fileUri.replace("file:///", "expr:///");
+        for (String uri : List.of(fileUri, exprUri)) {
+            DidOpenTextDocumentParams params = new DidOpenTextDocumentParams();
+            TextDocumentItem item = new TextDocumentItem();
+            item.setUri(uri);
+            item.setText(text);
+            params.setTextDocument(item);
+            proxy.didOpen(params);
+        }
+        Assert.assertTrue(proxy.get(exprUri).project(file).isPresent(), "The clone should be open");
+        for (String uri : List.of(exprUri, fileUri)) {
+            DidCloseTextDocumentParams params = new DidCloseTextDocumentParams();
+            params.setTextDocument(new TextDocumentIdentifier(uri));
+            proxy.didClose(params);
+        }
+        return exprUri;
+    }
+
     private List<WorkspaceFolder> mockWorkspaceFolders() {
         List<WorkspaceFolder> workspaceFolders = new ArrayList<>();
         Path workspaceRoot = RESOURCE_DIRECTORY.resolve("workspace");
