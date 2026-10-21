@@ -311,10 +311,14 @@ export default function createTests() {
             await domClick(tryResourceBtn);
             await page.page.waitForTimeout(1500);
 
+            // The quick pick opens a moment after the click; isVisible does not wait, so wait for the option.
             const hurlOption = page.page.getByRole('option', { name: /Try It.*Hurl Client/ }).first();
-            if (await hurlOption.isVisible({ timeout: 5000 }).catch(() => false)) {
-                await hurlOption.click({ force: true });
-            }
+            const pickHurl = async () => {
+                if (await hurlOption.waitFor({ state: 'visible', timeout: 5000 }).then(() => true, () => false)) {
+                    await hurlOption.click({ force: true });
+                }
+            };
+            await pickHurl();
 
             logStep('Discard the prior notebook\'s unsaved state and wait for the scoped notebook');
             const deadline = Date.now() + 60000;
@@ -325,9 +329,7 @@ export default function createTests() {
                 if (Date.now() - lastClick > 10000 && await tryResourceBtn.isVisible().catch(() => false)) {
                     await domClick(tryResourceBtn);
                     lastClick = Date.now();
-                    if (await hurlOption.isVisible({ timeout: 5000 }).catch(() => false)) {
-                        await hurlOption.click({ force: true });
-                    }
+                    await pickHurl();
                 }
                 // Re-opening TryIt.hurl scoped to one resource replaces the
                 // still-open (executed) service-level notebook at the same

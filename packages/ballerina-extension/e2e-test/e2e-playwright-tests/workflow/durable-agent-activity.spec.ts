@@ -51,11 +51,11 @@ async function clickListItem(sidePanel: Locator, name: string, until?: Locator):
 
 // Opens a registered capability's edit form from its circle on the agent box. The designer ignores the click
 // while a side panel is still open, and the previous form's panel can outlive the save that wrote the entry;
-// a circle drawn before the last refresh has no source range to edit either. Wait for the panel to go, then
-// click until the form shows.
+// a circle drawn before the last refresh has no source range to edit either. Wait for the panel to go (a panel
+// that never closes after Save is a failure of its own), then click until something only the edit form shows.
 async function openCapability(webview: Frame, capability: Locator, formReady: Locator): Promise<void> {
-    await expect.poll(() => webview.getByTestId('side-panel').filter({ visible: true }).count(), { timeout: 60000 })
-        .toBe(0).catch(() => undefined);
+    await expect.poll(() => webview.getByTestId('side-panel').filter({ visible: true }).count(),
+        { message: 'the previous form\'s panel must close after Save', timeout: 60000 }).toBe(0);
     await capability.waitFor({ state: 'visible', timeout: 60000 });
     for (let attempt = 0; attempt < 8; attempt++) {
         await capability.click({ force: true, timeout: 5000 }).catch(() => capability.dispatchEvent('click'));
@@ -192,7 +192,8 @@ export default function createTests() {
             await capability.waitFor({ timeout: 60000 });
 
             logStep('Open the registered entry and check its edit form');
-            await openCapability(webview, capability, saveButton);
+            // The read-only name is on the edit form alone; a Save button would also match a stale panel.
+            await openCapability(webview, capability, webview.getByTestId('readonly-field-name'));
             // The name and description show what the runtime uses, read-only: the function's name and doc comment.
             await expect(webview.getByText('Activity Name', { exact: true })).toBeVisible();
             await expect(webview.getByText('Activity Description', { exact: true })).toBeVisible();
