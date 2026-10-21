@@ -116,6 +116,11 @@ import docsGetDataEventResult from './workflow-docs/durable-agentic-workflow/get
 
 import projectExplorer from './project-explorer/project-explorer.spec';
 
+import startAgentBuilder from './agent-builder/start-agent-builder.spec';
+import createAgent from './agent-builder/create-agent.spec';
+import durableAgent from './agent-builder/durable-agent.spec';
+import knowledgeBaseTool from './agent-builder/knowledge-base-tool.spec';
+
 test.describe.configure({ mode: 'default' });
 
 test.beforeAll(async () => {
@@ -250,6 +255,23 @@ test.describe('Ballerina E2E Group 4', { tag: '@group4' }, async () => {
     test.describe(testExplorer);
 
     test.describe(connections);
+});
+
+// Agent Builder mode is read by the extension host from its environment at launch, so
+// this group needs its own VS Code launch with WSO2_PRODUCT_MODE=agent-builder:
+// `pnpm run e2e-test:agent-builder`. Its specs skip themselves when the variable is absent.
+test.describe('Agent Builder E2E', { tag: '@agent-builder' }, async () => {
+    // <----Start Agent Builder Test---->
+    test.describe(startAgentBuilder);
+
+    // <----Create an Agent Test---->
+    test.describe(createAgent);
+
+    // <----Create a Durable Agent Test---->
+    test.describe(durableAgent);
+
+    // <----Knowledge Base Tool Test---->
+    test.describe(knowledgeBaseTool);
 });
 
 // Each workflow docs page followed as written; differences from the page are reported as doc-finding annotations.

@@ -33,7 +33,7 @@ jest.mock("../../../utils/bi", () => ({
 
 import { FormField, FormValues } from "@wso2/ballerina-side-panel";
 import { ServiceInitModel } from "@wso2/ballerina-core";
-import { applyFormValuesToModel, disambiguateFormKeys, restoreFormKeys, toFormValidationErrors } from "./serviceInitModelUtils";
+import { applyFormValuesToModel, disambiguateFormKeys, restoreFormKeys, toFormValidationErrors, updateChoiceInModel } from "./serviceInitModelUtils";
 
 describe("applyFormValuesToModel", () => {
     // GROUP_SECTION subfields previously always wrote `subProperty.value`, even for
@@ -283,5 +283,94 @@ describe("disambiguateFormKeys", () => {
             "listener.choices.0.port",
             "listener",
         ]);
+    });
+});
+
+// L2 / C06: the design-approach switch on the service creation form, which is how an MCP
+// service is told to import an OpenAPI contract rather than start from scratch. Each approach
+// owns a different set of fields, so selecting one has to enable exactly that branch — and the
+// return value tells the form whether anything actually moved, which is what stops a re-select
+// from discarding what the user has already typed.
+
+describe("updateChoiceInModel", () => {
+    /** Two approaches, the first selected: index 0 "from scratch", index 1 "import a contract". */
+    const designApproach = () => ({
+        designApproach: {
+            types: [{ fieldType: "CHOICE" }],
+            value: "0",
+            choices: [
+                { enabled: true, properties: { basePath: { value: "/orders" } } },
+                { enabled: false, properties: { contract: { value: "" } } },
+            ],
+        },
+    }) as any;
+
+    it("enables the approach that was selected and disables the other", () => {
+        const properties = designApproach();
+
+        expect(updateChoiceInModel(properties, "designApproach", "1")).toBe(true);
+        expect(properties.designApproach.choices.map((c: { enabled: boolean }) => c.enabled)).toEqual([false, true]);
+        expect(properties.designApproach.value).toBe("1");
+    });
+
+    // Re-selecting what is already selected must report that nothing moved. The form uses that
+    // to decide whether to rebuild its fields, and rebuilding would discard the user's input.
+    it("reports no movement when the selected approach is re-selected", () => {
+        const properties = designApproach();
+
+        expect(updateChoiceInModel(properties, "designApproach", "0")).toBe(false);
+        expect(properties.designApproach.choices.map((c: { enabled: boolean }) => c.enabled)).toEqual([true, false]);
+    });
+
+    // A field belonging to the approach currently on screen.
+    it("finds a field nested inside the enabled approach", () => {
+        const properties = {
+            designApproach: {
+                types: [{ fieldType: "CHOICE" }],
+                choices: [
+                    {
+                        enabled: true,
+                        properties: {
+                            auth: { types: [{ fieldType: "CHOICE" }], choices: [{ enabled: true }, { enabled: false }] },
+                        },
+                    },
+                ],
+            },
+        } as any;
+
+        expect(updateChoiceInModel(properties, "auth", "1")).toBe(true);
+    });
+
+    // The other approach's fields are not on screen, so a key that only exists there must not
+    // be reached — otherwise a name shared by both branches would edit the hidden one.
+    it("does not reach into an approach that is not selected", () => {
+        const properties = {
+            designApproach: {
+                types: [{ fieldType: "CHOICE" }],
+                choices: [
+                    { enabled: true, properties: {} },
+                    {
+                        enabled: false,
+                        properties: {
+                            auth: { types: [{ fieldType: "CHOICE" }], choices: [{ enabled: true }, { enabled: false }] },
+                        },
+                    },
+                ],
+            },
+        } as any;
+
+        expect(updateChoiceInModel(properties, "auth", "1")).toBe(false);
+    });
+
+    it.each([
+        ["a key that is not in the model", "nothingNamedThis"],
+        ["a field that is not a choice", "basePath"],
+    ])("reports no movement for %s", (_label, key) => {
+        const properties = {
+            ...(designApproach() as Record<string, unknown>),
+            basePath: { types: [{ fieldType: "EXPRESSION" }], value: "/orders" },
+        } as any;
+
+        expect(updateChoiceInModel(properties, key, "1")).toBe(false);
     });
 });

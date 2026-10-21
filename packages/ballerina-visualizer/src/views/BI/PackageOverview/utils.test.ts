@@ -50,7 +50,7 @@ jest.mock("@wso2/ballerina-core", () => {
 
 import { DIRECTORY_MAP, SCOPE } from "@wso2/ballerina-core";
 import type { ProjectStructure } from "@wso2/ballerina-core";
-import { getIntegrationTypes } from "./utils";
+import { getIntegrationTypes, hasAgentArtifacts, validateWorkspaceTitle } from "./utils";
 
 function projectWithServices(
     services: Array<{ moduleName: string; triggerKind?: string; kind?: string }>
@@ -95,5 +95,62 @@ describe("deployment scope extraction", () => {
             { id: "claimAgent", name: "claimAgent", path: "/sample/agents.bal", type: DIRECTORY_MAP.AGENT, moduleName: "workflow", kind: DIRECTORY_MAP.DURABLE_AGENT },
         ];
         expect(getIntegrationTypes(project)).toEqual([SCOPE.WORKFLOW]);
+    });
+});
+
+// L2 / C02: what the overview shows depends on whether the project has agents yet — the empty
+// state and the populated topology are two branches on this one predicate — and on the name
+// the user may give a new project from there.
+
+describe("hasAgentArtifacts", () => {
+    const withDirectoryMap = (directoryMap: Record<string, unknown[]>) =>
+        ({ projectName: "orders", projectPath: "/w/orders", isLibrary: false, directoryMap }) as never;
+
+    it("reports none for a project that has never had an agent", () => {
+        expect(hasAgentArtifacts(withDirectoryMap({ [DIRECTORY_MAP.SERVICE]: [{}] }))).toBe(false);
+    });
+
+    // A project whose only agent was deleted leaves the key behind as an empty list, and that
+    // has to read the same as never having had one or the overview shows a topology with
+    // nothing in it instead of the empty state.
+    it("reports none when the agent list is present but empty", () => {
+        expect(hasAgentArtifacts(withDirectoryMap({ [DIRECTORY_MAP.AGENT]: [] }))).toBe(false);
+    });
+
+    it("reports agents once the project has one", () => {
+        expect(hasAgentArtifacts(withDirectoryMap({ [DIRECTORY_MAP.AGENT]: [{ name: "greeter" }] }))).toBe(true);
+    });
+
+    // The overview asks before its project structure has loaded, so this is the normal first
+    // call rather than an error case.
+    it.each([
+        ["nothing loaded yet", undefined],
+        ["a project with no directory map", { projectName: "orders" }],
+    ])("reports none for %s", (_label, projectStructure) => {
+        expect(hasAgentArtifacts(projectStructure as never)).toBe(false);
+    });
+});
+
+describe("validateWorkspaceTitle", () => {
+    /** Returns "" when the name is acceptable and a message otherwise. */
+    const accepted = (value: string) => validateWorkspaceTitle(value) === "";
+
+    it.each([
+        ["a plain name", "orders"],
+        ["spaces between words", "order processing"],
+        ["hyphens and underscores", "order-processing_v2"],
+        ["surrounding whitespace, which is trimmed first", "  orders  "],
+    ])("accepts %s", (_label, value) => {
+        expect(accepted(value)).toBe(true);
+    });
+
+    it.each([
+        ["empty", ""],
+        ["only whitespace", "   "],
+        ["a leading digit", "2orders"],
+        ["fewer than three characters", "ab"],
+        ["special characters", "orders!"],
+    ])("rejects %s", (_label, value) => {
+        expect(accepted(value)).toBe(false);
     });
 });
