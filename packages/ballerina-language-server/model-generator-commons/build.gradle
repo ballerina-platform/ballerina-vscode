@@ -47,6 +47,8 @@ dependencies {
     implementation "com.google.code.gson:gson:${gsonVersion}"
     implementation "com.github.ben-manes.caffeine:caffeine:${caffeineVersion}"
     implementation "org.testng:testng:${testngVersion}"
+
+    testImplementation "org.mockito:mockito-core:${mockitoVersion}"
 }
 
 ext.moduleName = 'io.ballerina.modelgenerator.commons'
