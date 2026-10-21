@@ -101,8 +101,9 @@ public class AgentRunBuilder extends CallBuilder {
 
     private FlowNode getOrCreateCallFunctionTemplate(TemplateContext context) {
         Codedata cd = context.codedata();
-        String cacheKey = String.format("%s|%s|%s|%s|%s",
-                cd.org(), cd.packageName(), cd.version(), cd.symbol(), cd.object());
+        // The template binds the agent it calls (its connection), so each agent needs its own entry.
+        String cacheKey = String.format("%s|%s|%s|%s|%s|%s",
+                cd.org(), cd.packageName(), cd.version(), cd.symbol(), cd.object(), cd.parentSymbol());
         return agentRunFnCache.computeIfAbsent(cacheKey, k -> {
             AgentRunBuilder temp = new AgentRunBuilder();
             temp.defaultModuleName(moduleInfo);

@@ -342,7 +342,7 @@ export class AgentChatRpcManager implements AgentChatAPI {
                     case 408:
                         throw new Error("Request Timeout: The server took too long to respond.");
                     case 500:
-                        throw new Error("Internal Server Error: Something went wrong on the server.");
+                        throw new Error(errorData?.message || "Internal Server Error: Something went wrong on the server.");
                     case 502:
                         throw new Error("Bad Gateway: Received an invalid response from the upstream server.");
                     case 503:
