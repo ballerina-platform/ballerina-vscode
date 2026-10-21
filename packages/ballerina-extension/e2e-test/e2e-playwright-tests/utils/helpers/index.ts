@@ -32,7 +32,8 @@ export {
     toggleNotifications,
     zipProjectSnapshot,
     captureFailureScreenshot,
-    executeBallPullCommand
+    executeBallPullCommand,
+    terminateVSCode
 } from './setup';
 
 // Re-export from webview
