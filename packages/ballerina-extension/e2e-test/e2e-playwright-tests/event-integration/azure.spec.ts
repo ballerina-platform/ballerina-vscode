@@ -17,7 +17,7 @@
  * under the License.
  */
 import { test } from '@playwright/test';
-import { confirmSaveChangesAndGoBack, createArtifactAndGetWebview, deleteArtifactFromTree, getWebview, BI_INTEGRATOR_LABEL, initTest, page } from '../utils/helpers';
+import { confirmSaveChangesAndGoBack, createArtifactAndGetWebview, deleteArtifactFromTree, getWebview, BI_INTEGRATOR_LABEL, initTest, page, submitArtifactCreation } from '../utils/helpers';
 import { Form } from '@wso2/playwright-vscode-tester';
 import { ProjectExplorer } from '../utils/pages';
 import { DEFAULT_PROJECT_NAME } from '../utils/helpers/constants';
@@ -64,7 +64,9 @@ export default function createTests() {
                     }
                 }
             });
-            await form.submit('Create', true);
+            // The form's Create is the full-width footer button; a coordinate click can land on the Copilot orb
+            // docked over its centre (see submitArtifactCreation), which is how first attempts were lost.
+            await submitArtifactCreation(artifactWebView);
 
             const projectExplorer = new ProjectExplorer(page.page);
             await projectExplorer.findItem([DEFAULT_PROJECT_NAME, `Azure Service Bus Event Integration`]);

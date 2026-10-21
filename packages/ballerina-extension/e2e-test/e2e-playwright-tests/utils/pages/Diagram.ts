@@ -75,7 +75,9 @@ export class Diagram {
      */
     public async clickAddButtonByIndex(index: number): Promise<void> {
         const addButton = (await this.getDiagramContainer()).getByTestId(`empty-node-add-button-${index}`);
-        await addButton.click({ trial: false, force: true, timeout: 2000 });
+        // The empty node is drawn once the diagram has settled after a save; give it the time the canvas needs.
+        await addButton.waitFor({ state: 'visible', timeout: 30000 });
+        await addButton.click({ trial: false, force: true, timeout: 5000 }).catch(() => addButton.dispatchEvent('click'));
     }
 
     /**

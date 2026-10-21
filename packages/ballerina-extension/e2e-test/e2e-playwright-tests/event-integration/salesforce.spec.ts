@@ -35,8 +35,11 @@ export default function createTests() {
             const artifactWebView = await createArtifactAndGetWebview('Salesforce Integration', 'trigger-salesforce');
 
             // The trigger form defaults to OAuth2 auth; switch to Username & Password
-            // (SOAP API) to match this test's plain username/password credentials.
-            await domClick(artifactWebView.getByRole('radio', { name: 'Username & Password (SOAP API)' }));
+            // (SOAP API) to match this test's plain username/password credentials. The auth options come
+            // with the trigger's model from the language server, which on CI can take well over 15 s.
+            const soapAuth = artifactWebView.getByRole('radio', { name: 'Username & Password (SOAP API)' });
+            await soapAuth.waitFor({ state: 'visible', timeout: 60000 });
+            await domClick(soapAuth);
             await artifactWebView.locator('div[data-testid="ex-editor-username"]').waitFor();
 
             const form = new Form(page.page, BI_INTEGRATOR_LABEL, artifactWebView);

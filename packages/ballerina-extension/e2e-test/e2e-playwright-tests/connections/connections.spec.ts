@@ -278,8 +278,9 @@ export default function createTests() {
             await diagramCanvas.waitFor({ state: 'visible', timeout: 60000 });
             // The call node renders as "http : get" and links to a separate
             // "httpClient" connector node alongside it — they're not in the
-            // same text node, so match the call node's own label.
-            await diagramCanvas.getByText(/http\s*:\s*get/i).first().waitFor({ timeout: 15000 });
+            // same text node, so match the call node's own label. It shows once the language server has
+            // regenerated the flow model after the save, which on CI takes longer than 15 s.
+            await diagramCanvas.getByText(/http\s*:\s*get/i).first().waitFor({ timeout: 60000 });
             logStep('GET action added and shown in the connection');
         });
 

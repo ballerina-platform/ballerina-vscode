@@ -15,7 +15,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { expect, Locator, test } from '@playwright/test';
+import { expect, Frame, Locator, test } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
 import { switchToIFrame } from '@wso2/playwright-vscode-tester';
@@ -28,13 +28,106 @@ import { waitForBISidebarTreeView } from '../utils/helpers/sidebar';
 const DURABLE_AGENT_PROJECT_TEMPLATE = path.join(__dirname, '..', 'data', 'durable_agent_project');
 
 // A list row can still be sliding in when it first resolves, which Playwright reports as outside the
-// viewport; settle it before clicking.
-async function clickListItem(sidePanel: Locator, name: string): Promise<void> {
+// viewport; settle it before clicking. The panel keeps rendering for a moment after it opens and a click
+// that lands then is dropped, so when `until` is given the click is repeated until that shows.
+async function clickListItem(sidePanel: Locator, name: string, until?: Locator): Promise<void> {
     const item = sidePanel.getByText(name, { exact: true }).first();
     await item.waitFor({ state: 'visible', timeout: 60000 });
-    await item.scrollIntoViewIfNeeded();
-    await page.page.waitForTimeout(500);
-    await item.click({ force: true });
+    for (let attempt = 0; ; attempt++) {
+        await item.scrollIntoViewIfNeeded().catch(() => undefined);
+        await page.page.waitForTimeout(500);
+        await item.click({ force: true, timeout: 5000 }).catch(() => item.dispatchEvent('click'));
+        if (!until) {
+            return;
+        }
+        if (await until.waitFor({ state: 'visible', timeout: 10000 }).then(() => true, () => false)) {
+            return;
+        }
+        if (attempt >= 5) {
+            throw new Error(`clicking '${name}' in the panel did not open its form`);
+        }
+    }
+}
+
+// Opens a registered capability's edit form from its circle on the agent box. The designer ignores the click
+// while a side panel is still open, and the previous form's panel can outlive the save that wrote the entry;
+// a circle drawn before the last refresh has no source range to edit either. Wait for the panel to go, then
+// click until the form shows.
+async function openCapability(webview: Frame, capability: Locator, formReady: Locator): Promise<void> {
+    await expect.poll(() => webview.getByTestId('side-panel').filter({ visible: true }).count(), { timeout: 60000 })
+        .toBe(0).catch(() => undefined);
+    await capability.waitFor({ state: 'visible', timeout: 60000 });
+    for (let attempt = 0; attempt < 8; attempt++) {
+        await capability.click({ force: true, timeout: 5000 }).catch(() => capability.dispatchEvent('click'));
+        if (await formReady.waitFor({ state: 'visible', timeout: 8000 }).then(() => true, () => false)) {
+            return;
+        }
+        await page.page.waitForTimeout(2000);
+    }
+    throw new Error('clicking the registered capability did not open its edit form');
+}
+
+// Types the name of a new activity and waits for the form to accept it. The form fills the field from a
+// template that can arrive after the form opens, over anything typed before then: wait until the field has
+// held (a default, or nothing), type, and retype if the template still landed on top once Save is enabled.
+async function fillActivityName(input: Locator, save: Locator, value: string): Promise<void> {
+    const current = () => input.inputValue().catch(() => '');
+    let last = await current();
+    for (let stable = 0, i = 0; stable < 4 && i < 60; i++) {
+        await page.page.waitForTimeout(250);
+        const now = await current();
+        stable = now === last ? stable + 1 : 0;
+        last = now;
+    }
+    for (let attempt = 0; attempt < 5; attempt++) {
+        await input.fill(value);
+        // The identifier field validates on blur and Save stays disabled until it has.
+        await input.press('Tab');
+        await expect.poll(() => save.getAttribute('disabled'), { timeout: 30000 }).toBeNull();
+        await page.page.waitForTimeout(500);
+        if (await current() === value) {
+            return;
+        }
+    }
+    throw new Error(`the Activity Name field did not keep '${value}'`);
+}
+
+// Clicks a form's Save and repeats it while the form stays open: a click that lands while the form is
+// still validating is dropped, and the panel only closes once the edit is written.
+async function saveUntilClosed(saveButton: Locator, timeoutMs = 60000): Promise<void> {
+    const deadline = Date.now() + timeoutMs;
+    await saveButton.scrollIntoViewIfNeeded().catch(() => undefined);
+    await saveButton.click({ force: true, timeout: 5000 }).catch(() => saveButton.dispatchEvent('click'));
+    while (Date.now() < deadline) {
+        if (await saveButton.waitFor({ state: 'hidden', timeout: 10000 }).then(() => true, () => false)) {
+            return;
+        }
+        if (await saveButton.isVisible().catch(() => false)) {
+            await saveButton.click({ force: true, timeout: 5000 }).catch(() => saveButton.dispatchEvent('click'));
+        }
+    }
+    throw new Error('the form did not close after Save');
+}
+
+// Clicks Save and repeats it until the source shows the result, within the overall budget.
+async function saveUntilSource(saveButton: Locator, read: () => string, pattern: RegExp, timeoutMs = 90000): Promise<void> {
+    const deadline = Date.now() + timeoutMs;
+    while (true) {
+        if (await saveButton.isVisible().catch(() => false)) {
+            await saveButton.scrollIntoViewIfNeeded().catch(() => undefined);
+            await saveButton.click({ force: true, timeout: 5000 }).catch(() => saveButton.dispatchEvent('click'));
+        }
+        const until = Math.min(deadline, Date.now() + 20000);
+        while (Date.now() < until) {
+            if (pattern.test(read())) {
+                return;
+            }
+            await page.page.waitForTimeout(500);
+        }
+        if (Date.now() >= deadline) {
+            throw new Error(`the source did not match ${pattern} within ${timeoutMs} ms of Save`);
+        }
+    }
 }
 
 // The category header's icon buttons are web components; while the panel is still settling Playwright
@@ -69,9 +162,8 @@ export default function createTests() {
             await sidePanel.getByText('lookupBill', { exact: true }).first().waitFor({ timeout: 60000 });
 
             logStep('Pick lookupBill and check the registration form');
-            await clickListItem(sidePanel, 'lookupBill');
             const saveButton = webview.getByRole('button', { name: 'Save' });
-            await saveButton.waitFor({ state: 'visible', timeout: 60000 });
+            await clickListItem(sidePanel, 'lookupBill', saveButton);
             // The activity is already chosen: the form asks for the binding and the policies only.
             await expect(webview.getByText('Activity Name', { exact: true })).toHaveCount(0);
             await expect(webview.getByText('Activity Description', { exact: true })).toHaveCount(0);
@@ -87,12 +179,9 @@ export default function createTests() {
             // The registered activity hangs off the agent box as a capability circle.
             const capability = webview.getByTestId('durable-agent-capability-activity-lookupBill');
             await capability.waitFor({ timeout: 60000 });
-            // On slow runners the post-save refresh is still settling and swallows an immediate click on the circle.
-            await page.page.waitForTimeout(5000);
 
             logStep('Open the registered entry and check its edit form');
-            await capability.click({ force: true });
-            await saveButton.waitFor({ state: 'visible', timeout: 60000 });
+            await openCapability(webview, capability, saveButton);
             // The name and description show what the runtime uses, read-only: the function's name and doc comment.
             await expect(webview.getByText('Activity Name', { exact: true })).toBeVisible();
             await expect(webview.getByText('Activity Description', { exact: true })).toBeVisible();
@@ -104,11 +193,9 @@ export default function createTests() {
             await expect(description).toHaveAttribute('readonly', 'true');
 
             logStep('Saving the edit form leaves the entry without a name');
-            // The edit form is longer than the register form, so Save can sit below the fold.
-            await saveButton.scrollIntoViewIfNeeded();
-            await saveButton.click({ force: true });
-            // The panel closes once the edit is written; only then is the source final.
-            await saveButton.waitFor({ state: 'hidden', timeout: 60000 });
+            // The edit form is longer than the register form, so Save can sit below the fold. The panel closes
+            // once the edit is written; only then is the source final.
+            await saveUntilClosed(saveButton);
             await webview.getByTestId('durable-agent-capability-activity-lookupBill').waitFor({ timeout: 60000 });
             expect(fs.readFileSync(path.join(newProjectPath, 'main.bal'), 'utf-8')).not.toMatch(/activity:\s*lookupBill[^}]*name:/);
         });
@@ -127,17 +214,13 @@ export default function createTests() {
             logStep('Fill the Workflow Activity form and save');
             const nameInput = webview.getByRole('textbox', { name: /Activity Name/ }).first();
             await nameInput.waitFor({ timeout: 60000 });
-            await nameInput.fill('notifyCustomer');
-            // The identifier field validates on blur and Save stays disabled until it has.
-            await nameInput.press('Tab');
             const createButton = webview.getByRole('button', { name: 'Save' }).first();
-            await expect.poll(() => createButton.getAttribute('disabled'), { timeout: 30000 }).toBeNull();
-            await page.page.waitForTimeout(500);
-            await createButton.click({ force: true });
-            await expect.poll(() => {
+            await fillActivityName(nameInput, createButton, 'notifyCustomer');
+            // A Save that lands while the form is still settling is dropped and the function is never written.
+            await saveUntilSource(createButton, () => {
                 const file = path.join(newProjectPath, 'functions.bal');
                 return fs.existsSync(file) ? fs.readFileSync(file, 'utf-8') : '';
-            }, { timeout: 90000 }).toMatch(/@workflow:Activity\s+function notifyCustomer\(/);
+            }, /@workflow:Activity\s+function notifyCustomer\(/);
 
             logStep('The list returns with the new activity; register it');
             // The panel comes back to the agent's activity list once the project has recompiled.

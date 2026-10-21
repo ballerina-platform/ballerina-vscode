@@ -86,7 +86,7 @@ export async function fillTextField(panel: Locator, label: string, value: string
 export async function openNode(canvas: Locator, label: string, formReady: Locator): Promise<void> {
     const node = canvas.getByText(label, { exact: true }).filter({ visible: true }).first();
     await node.waitFor({ state: 'visible', timeout: 60000 });
-    for (let attempt = 0; attempt < 6; attempt++) {
+    for (let attempt = 0; attempt < 10; attempt++) {
         const box = await node.boundingBox();
         if (box) {
             await page.page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
