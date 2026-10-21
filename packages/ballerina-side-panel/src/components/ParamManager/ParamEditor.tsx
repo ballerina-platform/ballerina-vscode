@@ -17,10 +17,11 @@
  */
 // tslint:disable: jsx-no-multiline-js
 
-import React, { RefObject, useEffect, useState } from 'react';
+import React, { RefObject, useEffect, useRef, useState } from 'react';
 
 import { EditorContainer } from './styles';
 import { Parameter } from './ParamManager';
+import { getAppliedRenames } from './appliedRenames';
 import Form from '../Form';
 import { FormField, FormValues, HelperpaneOnChangeOptions } from '../Form/types';
 import { useFormContext } from '../../context';
@@ -104,6 +105,20 @@ export function ParamEditor(props: ParamProps) {
         setFields(paramFields);
     }, [paramFields]);
 
+    // The editor's current values, so a cancel can still see a rename the LS already applied.
+    const latestValues = useRef<FormValues>({});
+
+    // A rename made in place has already changed the source, so cancelling keeps it, and only it:
+    // the parameter is saved with the renamed identifier and its other values as they were.
+    const handleOnCancel = () => {
+        const renames = getAppliedRenames(fields, latestValues.current, parameter.formValues);
+        if (Object.keys(renames).length > 0) {
+            void onSave({ ...parameter, formValues: { ...parameter.formValues, ...renames } });
+            return;
+        }
+        onCancelEdit(parameter);
+    };
+
     const handleOnSave = async (data: FormValues) => {
         parameter.formValues = data;
         setIsSaving(true);
@@ -121,7 +136,8 @@ export function ParamEditor(props: ParamProps) {
                 formFields={fields}
                 openRecordEditor={openRecordEditor}
                 onSubmit={handleOnSave}
-                onCancelForm={() => onCancelEdit(parameter)}
+                onCancelForm={handleOnCancel}
+                onChange={(_key, _value, allValues) => { latestValues.current = allValues; }}
                 expressionEditor={{
                     ...expressionEditor,
                     onCompletionItemSelect: onCompletionItemSelect,

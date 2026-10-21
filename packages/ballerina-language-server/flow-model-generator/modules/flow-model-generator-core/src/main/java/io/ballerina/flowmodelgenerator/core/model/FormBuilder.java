@@ -1367,9 +1367,9 @@ public class FormBuilder<T> extends FacetedBuilder<T> {
                     .fieldType(Property.ValueType.IDENTIFIER)
                     .selected(true)
                     .stepOut()
-                .editable()
                 .value(name);
 
+        // A name read from source is renamed in place through the LS, which also updates its references
         if (token == null) {
             propertyBuilder.editable();
         } else {
