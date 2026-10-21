@@ -82,12 +82,17 @@ public final class Main {
         try {
             status = serve(run);
         } finally {
-            if (!Quiescence.awaitIdle(grace, bound)) {
-                // Work is being cut off after all; leave a trace of it for whoever looks into the next session.
-                System.err.println("Language server still busy " + bound.toSeconds()
-                        + " s after its client left; exiting");
+            // The wait and the log line both allocate; on a heap that is still full after the run ended in
+            // OutOfMemoryError either can throw again, so the exit sits in a finally of its own.
+            try {
+                if (!Quiescence.awaitIdle(grace, bound)) {
+                    // Work is being cut off after all; leave a trace of it for whoever looks into the next session.
+                    System.err.println("Language server still busy " + bound.toSeconds()
+                            + " s after its client left; exiting");
+                }
+            } finally {
+                System.exit(status);
             }
-            System.exit(status);
         }
     }
 
