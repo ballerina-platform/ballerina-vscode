@@ -221,8 +221,6 @@ describe("Workflow Nodes", () => {
         });
     });
 
-    // The palette titles these context reads by what they return, and the canvas must say the same
-    // thing for a call the language server still emits as a generic workflow module statement.
     describe("workflow start titles", () => {
         // A start under a chosen id is an action like the plain start, so it keeps its label
         // rather than the module-prefixed "workflow : Run with ID".
@@ -238,6 +236,8 @@ describe("Workflow Nodes", () => {
         });
     });
 
+    // The palette titles these context reads by what they return, and the canvas must say the same
+    // thing for a call the language server still emits as a generic workflow module statement.
     describe("context function titles", () => {
         it.each([
             ["currentTime", "Current Time"],
