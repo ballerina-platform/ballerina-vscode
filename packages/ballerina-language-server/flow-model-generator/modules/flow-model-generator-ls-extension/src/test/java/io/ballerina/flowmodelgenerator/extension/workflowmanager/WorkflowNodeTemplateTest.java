@@ -18,8 +18,11 @@
 
 package io.ballerina.flowmodelgenerator.extension.workflowmanager;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import io.ballerina.flowmodelgenerator.core.model.node.WorkflowRunWithIdBuilder;
 import io.ballerina.flowmodelgenerator.extension.request.FlowModelNodeTemplateRequest;
 import io.ballerina.modelgenerator.commons.AbstractLSTest;
 import io.ballerina.tools.text.LinePosition;
@@ -38,6 +41,16 @@ import java.nio.file.Path;
  */
 public class WorkflowNodeTemplateTest extends AbstractLSTest {
 
+    private static final String READ_BACK_GOLDEN = "diagram_generator/config/workflow_run_with_id.json";
+    private static final String RUN_WITH_ID_NODE = "WORKFLOW_RUN_WITH_ID";
+    private static final String CODEDATA = "codedata";
+    private static final String NODE = "node";
+    private static final String TYPES = "types";
+    private static final String FIELD_TYPE = "fieldType";
+    private static final String SINGLE_SELECT = "SINGLE_SELECT";
+    private static final String OPTIONS = "options";
+    private static final String PLACEHOLDER = "placeholder";
+
     @DataProvider(name = "data-provider")
     @Override
     protected Object[] getConfigsList() {
@@ -53,12 +66,14 @@ public class WorkflowNodeTemplateTest extends AbstractLSTest {
                 {Path.of("human_task_node_template.json")},
                 {Path.of("run_with_id_function_call.json")},
                 {Path.of("run_with_id_node_template.json")},
+                {Path.of("run_with_id_node_template_many_workflows.json")},
                 {Path.of("send_data_node_template.json")},
                 {Path.of("send_data_from_function_call.json")},
                 {Path.of("sleep_node_template.json")},
                 {Path.of("wait_data_node_template.json")},
                 {Path.of("workflow_node_template.json")},
                 {Path.of("workflow_run_node_template.json")},
+                {Path.of("workflow_run_node_template_many_workflows.json")},
                 {Path.of("workflow_run_from_function_call.json")}
         };
     }
@@ -83,6 +98,60 @@ public class WorkflowNodeTemplateTest extends AbstractLSTest {
             compareJsonElements(nodeTemplate, testConfig.output());
             Assert.fail(String.format("Failed test: '%s' (%s)", testConfig.description(), configJsonPath));
         }
+    }
+
+    // The create form's policy choices are written in the builder, while the read-back takes them from the
+    // runWithId signature. Both goldens are checked against the server, so a module change surfaces here.
+    @Test
+    public void testRunWithIdPolicyChoicesMatchReadBack() throws IOException {
+        JsonObject template = readJson(configDir.resolve("run_with_id_node_template.json"))
+                .getAsJsonObject("output").getAsJsonObject("properties");
+        JsonObject readBack = findNode(readJson(resDir.resolveSibling(READ_BACK_GOLDEN)), RUN_WITH_ID_NODE)
+                .getAsJsonObject("properties");
+        for (String policy : WorkflowRunWithIdBuilder.POLICY_KEYS) {
+            JsonObject created = template.getAsJsonObject(policy);
+            JsonObject read = readBack.getAsJsonObject(policy);
+            Assert.assertEquals(selectOptions(created), selectOptions(read), "Options differ for " + policy);
+            Assert.assertEquals(created.get(PLACEHOLDER), read.get(PLACEHOLDER), "Default differs for " + policy);
+        }
+    }
+
+    private static JsonObject readJson(Path path) throws IOException {
+        return JsonParser.parseString(Files.readString(path)).getAsJsonObject();
+    }
+
+    private static JsonObject findNode(JsonElement element, String kind) {
+        if (element.isJsonObject()) {
+            JsonObject object = element.getAsJsonObject();
+            JsonElement codedata = object.get(CODEDATA);
+            if (codedata != null && codedata.isJsonObject() && codedata.getAsJsonObject().has(NODE)
+                    && kind.equals(codedata.getAsJsonObject().get(NODE).getAsString())) {
+                return object;
+            }
+            for (String key : object.keySet()) {
+                JsonObject found = findNode(object.get(key), kind);
+                if (found != null) {
+                    return found;
+                }
+            }
+        } else if (element.isJsonArray()) {
+            for (JsonElement item : element.getAsJsonArray()) {
+                JsonObject found = findNode(item, kind);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static JsonArray selectOptions(JsonObject property) {
+        for (JsonElement type : property.getAsJsonArray(TYPES)) {
+            if (SINGLE_SELECT.equals(type.getAsJsonObject().get(FIELD_TYPE).getAsString())) {
+                return type.getAsJsonObject().getAsJsonArray(OPTIONS);
+            }
+        }
+        return new JsonArray();
     }
 
     @Override

@@ -51,6 +51,9 @@ import java.util.concurrent.CompletableFuture;
 public class SourceGeneratorTest extends AbstractLSTest {
 
     private static final String UNDEFINED_VARIABLE = "undefinedVariable";
+    private static final String INSTANCE_ID_KEY = "instanceId";
+    private static final String INPUT_KEY = "input";
+    private static final String BLANK_INSTANCE_ID = "it is blank";
 
     private static final Type textEditListType = new TypeToken<Map<String, List<TextEdit>>>() { }.getType();
 
@@ -126,6 +129,20 @@ public class SourceGeneratorTest extends AbstractLSTest {
                 .getAsBoolean(), "No diagnostic on '" + otherKey + "': " + other);
         Assert.assertTrue(other.getAsJsonObject("diagnostics").toString().contains(UNDEFINED_VARIABLE),
                 "The diagnostic on '" + otherKey + "' does not name the undefined variable: " + other);
+    }
+
+    @Test
+    public void testBlankInstanceIdStillGetsDiagnostics() throws IOException {
+        // Save refuses a blank id, but the diagnostics pass still writes the call so each field gets its diagnostics.
+        JsonObject response = requestWithBlankWorkflow("workflow_run_with_id_to_source.json", INSTANCE_ID_KEY,
+                INPUT_KEY, "diagnostics");
+        Assert.assertFalse(response.has("errorMsg"), "Diagnostics failed: " + response);
+        JsonObject properties = response.getAsJsonObject("flowNode").getAsJsonObject("properties");
+        Assert.assertTrue(properties.getAsJsonObject(INPUT_KEY).getAsJsonObject("diagnostics").toString()
+                .contains(UNDEFINED_VARIABLE), "No diagnostic on the input: " + response);
+        // The written call carries an empty id, which the workflow compiler plugin reports on the field.
+        Assert.assertTrue(properties.getAsJsonObject(INSTANCE_ID_KEY).getAsJsonObject("diagnostics").toString()
+                .contains(BLANK_INSTANCE_ID), "The blank id is not reported: " + response);
     }
 
     @Test
