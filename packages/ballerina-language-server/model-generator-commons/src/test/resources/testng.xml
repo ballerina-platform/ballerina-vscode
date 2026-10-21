@@ -49,4 +49,9 @@ under the License.
             <class name="io.ballerina.modelgenerator.commons.CommonUtilsTest"/>
         </classes>
     </test>
+    <test name="bala-package-cache-test" parallel="false">
+        <classes>
+            <class name="io.ballerina.modelgenerator.commons.BalaPackageCacheTest"/>
+        </classes>
+    </test>
 </suite>

@@ -936,6 +936,10 @@ public class PackageUtil {
         lock.lock();
         try {
             return balPackage.getCompilation();
+        } catch (RuntimeException | Error e) {
+            // A package keeps its failed compilation state, so the next request must load it again.
+            BALA_PACKAGES.computeIfPresent(id, (path, cached) -> cached.get() == balPackage ? null : cached);
+            throw e;
         } finally {
             lock.unlock();
         }
