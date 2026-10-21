@@ -61,6 +61,9 @@ public class WorkflowRunWithIdBuilder extends WorkflowRunBuilder {
     private static final String STRING = "string";
     private static final String RUNNING_POLICY_TYPE = "workflow:RunningInstancePolicy";
     private static final String CLOSED_POLICY_TYPE = "workflow:ClosedInstancePolicy";
+    // The module's defaults for the two policies; a policy left at its default is not written.
+    private static final String RUNNING_POLICY_DEFAULT = "\"FAIL\"";
+    private static final String CLOSED_POLICY_DEFAULT = "\"ALLOW_DUPLICATE\"";
     // The module's policies are string unions; their literals are what the call is written with.
     private static final List<Option> RUNNING_POLICIES = List.of(
             new Option("FAIL", "\"FAIL\""), new Option("USE_EXISTING", "\"USE_EXISTING\""));
@@ -68,6 +71,8 @@ public class WorkflowRunWithIdBuilder extends WorkflowRunBuilder {
             new Option("ALLOW_DUPLICATE", "\"ALLOW_DUPLICATE\""),
             new Option("ALLOW_DUPLICATE_FAILED_ONLY", "\"ALLOW_DUPLICATE_FAILED_ONLY\""),
             new Option("REJECT_DUPLICATE", "\"REJECT_DUPLICATE\""));
+    // The policies in the order the call names them; the read-back uses the same list.
+    public static final List<String> POLICY_KEYS = List.of(IF_RUNNING_KEY, IF_CLOSED_KEY);
 
     @Override
     protected NodeKind nodeKind() {
@@ -101,15 +106,18 @@ public class WorkflowRunWithIdBuilder extends WorkflowRunBuilder {
                 .editable(true)
                 .stepOut()
                 .addProperty(INSTANCE_ID_KEY);
-        addPolicyProperty(IF_RUNNING_KEY, IF_RUNNING_LABEL, IF_RUNNING_DOC, RUNNING_POLICY_TYPE, RUNNING_POLICIES);
-        addPolicyProperty(IF_CLOSED_KEY, IF_CLOSED_LABEL, IF_CLOSED_DOC, CLOSED_POLICY_TYPE, CLOSED_POLICIES);
+        addPolicyProperty(IF_RUNNING_KEY, IF_RUNNING_LABEL, IF_RUNNING_DOC, RUNNING_POLICY_TYPE, RUNNING_POLICIES,
+                RUNNING_POLICY_DEFAULT);
+        addPolicyProperty(IF_CLOSED_KEY, IF_CLOSED_LABEL, IF_CLOSED_DOC, CLOSED_POLICY_TYPE, CLOSED_POLICIES,
+                CLOSED_POLICY_DEFAULT);
 
         // The id follows the workflow it is for; the policies are advanced and come before the variable.
         WorkflowUtil.reorderProperties(properties().build(), WORKFLOW_NAME_KEY, INSTANCE_ID_KEY, INPUT_KEY,
                 IF_RUNNING_KEY, IF_CLOSED_KEY, Property.VARIABLE_KEY);
     }
 
-    private void addPolicyProperty(String key, String label, String doc, String type, List<Option> options) {
+    private void addPolicyProperty(String key, String label, String doc, String type, List<Option> options,
+                                   String defaultValue) {
         properties().custom()
                 .metadata()
                     .label(label)
@@ -121,7 +129,7 @@ public class WorkflowRunWithIdBuilder extends WorkflowRunBuilder {
                     .options(options)
                     .selected(true)
                     .stepOut()
-                .placeholder(options.getFirst().value())
+                .placeholder(defaultValue)
                 .value("")
                 .optional(true)
                 .advanced(true)
@@ -155,14 +163,13 @@ public class WorkflowRunWithIdBuilder extends WorkflowRunBuilder {
                 .name(input));
         // The policies are defaultable and the input may be left out, so they are written by name. A
         // dropdown always shows a choice, so a policy left at its default is not written.
-        for (Map.Entry<String, List<Option>> policy : List.of(Map.entry(IF_RUNNING_KEY, RUNNING_POLICIES),
-                Map.entry(IF_CLOSED_KEY, CLOSED_POLICIES))) {
-            propertyValue(sourceBuilder, policy.getKey())
-                    .filter(value -> !value.equals(policy.getValue().getFirst().value()))
+        for (String policy : POLICY_KEYS) {
+            propertyValue(sourceBuilder, policy)
+                    .filter(value -> !value.equals(policyDefault(policy)))
                     .ifPresent(value -> sourceBuilder.token()
                             .keyword(SyntaxKind.COMMA_TOKEN)
                             .whiteSpace()
-                            .name(policy.getKey())
+                            .name(policy)
                             .whiteSpace()
                             .keyword(SyntaxKind.EQUAL_TOKEN)
                             .name(value));
@@ -175,5 +182,9 @@ public class WorkflowRunWithIdBuilder extends WorkflowRunBuilder {
                 .textEdit()
                 .acceptImport(WORKFLOW_ORG, WORKFLOW_MODULE)
                 .build();
+    }
+
+    private static String policyDefault(String policy) {
+        return IF_RUNNING_KEY.equals(policy) ? RUNNING_POLICY_DEFAULT : CLOSED_POLICY_DEFAULT;
     }
 }

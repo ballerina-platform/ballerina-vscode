@@ -4919,8 +4919,7 @@ public class CodeAnalyzer extends NodeVisitor {
                     Property.VARIABLE_KEY);
             // The policies are rarely set, so the form keeps them in the advanced section as the template does.
             Map<String, Property> properties = nodeBuilder.properties().build();
-            for (String policy : List.of(WorkflowRunWithIdBuilder.IF_RUNNING_KEY,
-                    WorkflowRunWithIdBuilder.IF_CLOSED_KEY)) {
+            for (String policy : WorkflowRunWithIdBuilder.POLICY_KEYS) {
                 Property property = properties.get(policy);
                 if (property != null) {
                     properties.put(policy, Property.Builder.copyFrom(property).advanced(true).build());
