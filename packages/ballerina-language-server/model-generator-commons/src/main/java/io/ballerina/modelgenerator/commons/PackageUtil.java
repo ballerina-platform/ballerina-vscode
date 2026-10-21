@@ -33,6 +33,7 @@ import io.ballerina.projects.PackageOrg;
 import io.ballerina.projects.PackageVersion;
 import io.ballerina.projects.Project;
 import io.ballerina.projects.ProjectEnvironmentBuilder;
+import io.ballerina.projects.ProjectKind;
 import io.ballerina.projects.bala.BalaProject;
 import io.ballerina.projects.directory.BuildProject;
 import io.ballerina.projects.environment.PackageMetadataResponse;
@@ -341,12 +342,12 @@ public class PackageUtil {
     }
 
     // The compiler reuses a dependency's cached BIR even when it was built against other dependency versions.
-    private static Package compileBala(Package pkg) {
+    static Package compileBala(Package pkg) {
         try {
             getCompilation(pkg);
             return pkg;
         } catch (RuntimeException e) {
-            if (!clearFailedBirCache(e, pkg.project())) {
+            if (pkg.project().kind() != ProjectKind.BALA_PROJECT || !clearFailedBirCache(e, pkg.project())) {
                 throw e;
             }
             Package reloaded = loadBalaPackage(pkg.project().sourceRoot()).orElseThrow(() -> e);
