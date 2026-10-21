@@ -49,6 +49,16 @@ const AGENT_ROLE = 'Claims Officer';
 const AGENT_INSTRUCTIONS = 'Review the claim and decide whether it needs a human reviewer.';
 const ACTIVITY_NAME = 'validateClaim';
 
+// Registering a capability is two writes: the activity's function first, then its entry in
+// the agent's `activities`. An activity that needs no binding is registered as a bare
+// reference; one that takes a connection gets a record instead. Both the wait and the
+// assertion use this so a slow second write cannot be mistaken for a finished one.
+const REGISTERED_ON_AGENT = new RegExp(`activities\\s*:\\s*\\[[^\\]]*\\b${ACTIVITY_NAME}\\b`);
+
+// Likewise for the agent itself: the name reaches source before the declaration around it
+// is finished, so every wait uses the declaration the next test asserts.
+const DECLARED = new RegExp(`final\\s+workflow:DurableAgent\\s+${AGENT_NAME}\\s*=\\s*check\\s+new`);
+
 /** A list row can still be sliding in when it resolves; settle it before clicking. */
 async function clickListItem(sidePanel: Locator, name: string): Promise<void> {
     const item = sidePanel.getByText(name, { exact: true }).first();
@@ -124,16 +134,15 @@ export default function durableAgentTests() {
             logStep('Waiting for the durable agent to reach source');
             // The first durable agent in a project pulls the workflow package before anything
             // is written, so this is slower than an ordinary agent by minutes, not seconds.
-            await settledSource(AGENT_NAME, 420000);
+            await settledSource(DECLARED, 420000);
         });
 
         test('Writes a durable agent carrying what was typed', async () => {
-            const source = await settledSource(AGENT_NAME);
+            const source = await settledSource(DECLARED);
 
             logStep('Checking the agent is declared as a durable workflow agent');
             expect(source).toContain('import ballerina/workflow;');
-            expect(source).toMatch(
-                new RegExp(`final\\s+workflow:DurableAgent\\s+${AGENT_NAME}\\s*=\\s*check\\s+new`));
+            expect(source).toMatch(DECLARED);
 
             logStep('Checking the declaration carries what was typed');
             expect(source).toContain(AGENT_ROLE);
@@ -189,10 +198,7 @@ export default function durableAgentTests() {
             logStep('Checking the capability reached the agent declaration');
             await webview.getByTestId(`durable-agent-capability-activity-${ACTIVITY_NAME}`)
                 .waitFor({ timeout: 60000 });
-            // An activity that needs no binding is registered as a bare reference in the
-            // agent's `activities` list; one that takes a connection gets a record instead.
-            expect(await settledSource(ACTIVITY_NAME))
-                .toMatch(new RegExp(`activities\\s*:\\s*\\[[^\\]]*\\b${ACTIVITY_NAME}\\b`));
+            expect(await settledSource(REGISTERED_ON_AGENT)).toMatch(REGISTERED_ON_AGENT);
         });
 
         test('Keeps the durable agent and its capability after a reload', async () => {
@@ -210,8 +216,9 @@ export default function durableAgentTests() {
             // The source is the real record; a stale webview could show what it cached.
             // Settled rather than read once: the reload re-opens the project and the generator
             // rewrites the files behind it, so a bare read here can catch one mid-write.
-            const source = await settledSource(AGENT_NAME);
-            expect(source).toContain(ACTIVITY_NAME);
+            const source = await settledSource(REGISTERED_ON_AGENT);
+            expect(source).toMatch(DECLARED);
+            expect(source).toMatch(REGISTERED_ON_AGENT);
         });
     });
 }

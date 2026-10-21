@@ -140,13 +140,23 @@ export function projectSource(): string {
  * The marker appearing is not the end of the write: the generator comes back to add imports
  * and reformat, and a read taken in that window sees a half-written — sometimes empty — file.
  * So wait for two identical reads before trusting what is on disk.
+ *
+ * Pass the marker a caller is about to assert on, not something that merely shows up along
+ * the way. One action can produce several writes — adding a tool writes the tool's function
+ * before registering it on the agent — and waiting for the first leaves a caller asserting
+ * the second against a settled-looking file that does not have it yet. A loaded CI runner
+ * pauses between those writes for longer than the stability window, so a marker that is too
+ * early passes locally and fails there.
  */
-export async function settledSource(marker: string, timeout = 120000): Promise<string> {
-    await expect.poll(projectSource, { timeout }).toContain(marker);
+export async function settledSource(marker: string | RegExp, timeout = 120000): Promise<string> {
+    const matches = (source: string) =>
+        typeof marker === 'string' ? source.includes(marker) : marker.test(source);
+    // toMatch rather than a boolean poll so a timeout prints the source that fell short.
+    await expect.poll(projectSource, { timeout, intervals: [1000] }).toMatch(marker);
     let previous = '';
     await expect.poll(() => {
         const current = projectSource();
-        const stable = current === previous && current.includes(marker);
+        const stable = current === previous && matches(current);
         previous = current;
         return stable;
     }, { timeout: 60000, intervals: [1000] }).toBe(true);

@@ -51,6 +51,11 @@ const AGENT_NAME = 'librarianAgent';
 const KNOWLEDGE_BASE = 'handbookKnowledgeBase';
 const TOOL_NAME = 'searchHandbook';
 
+// Adding a tool is two writes: the tool's function first, then its registration on the agent.
+// Both the wait and the assertion use this so a slow second write cannot be mistaken for a
+// finished one.
+const REGISTERED_ON_AGENT = new RegExp(`tools\\s*=\\s*\\[[^\\]]*\\b${TOOL_NAME}\\b`);
+
 /** Brings the agent's own diagram up, whichever view the panel left behind. */
 async function openAgentDiagram(webview: Frame): Promise<void> {
     const agentNode = webview.getByTestId('agent-node').first();
@@ -121,15 +126,15 @@ export default function knowledgeBaseToolTests() {
             logStep('Saving the tool');
             await clickButton(webview, /^Save Tool$/i);
 
-            logStep('Waiting for the tool to reach source');
-            await settledSource(TOOL_NAME);
+            logStep('Waiting for the tool to be registered on the agent');
+            await settledSource(REGISTERED_ON_AGENT);
         });
 
         test('Writes a retrieval tool bound to the knowledge base', async () => {
-            const source = await settledSource(TOOL_NAME);
+            const source = await settledSource(REGISTERED_ON_AGENT);
 
             logStep('Checking the agent was given the tool');
-            expect(source).toMatch(new RegExp(`tools\\s*=\\s*\\[[^\\]]*\\b${TOOL_NAME}\\b`));
+            expect(source).toMatch(REGISTERED_ON_AGENT);
 
             logStep('Checking the tool retrieves from the selected knowledge base');
             const tool = source.slice(source.indexOf(`function ${TOOL_NAME}`));
@@ -153,7 +158,7 @@ export default function knowledgeBaseToolTests() {
             // The source is the real record; a stale webview could show what it cached.
             // Settled rather than read once: the reload re-opens the project and the generator
             // rewrites the files behind it, so a bare read here can catch one mid-write.
-            expect(await settledSource(TOOL_NAME)).toContain(TOOL_NAME);
+            expect(await settledSource(REGISTERED_ON_AGENT)).toMatch(REGISTERED_ON_AGENT);
         });
     });
 }

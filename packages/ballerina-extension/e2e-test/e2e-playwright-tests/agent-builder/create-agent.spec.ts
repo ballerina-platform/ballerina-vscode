@@ -43,6 +43,11 @@ const AGENT_NAME = 'greeterAgent';
 const AGENT_ROLE = 'Greeter';
 const AGENT_INSTRUCTIONS = 'Greet the user warmly and keep replies to one sentence.';
 
+// The marker every wait here uses, and what the next test asserts. The name reaches source
+// before the declaration around it is finished, so waiting on the name alone can hand the
+// next test a settled-looking file that is still a write behind.
+const DECLARED = new RegExp(`final\\s+ai:Agent\\s+${AGENT_NAME}\\s*=\\s*check\\s+new`);
+
 export default function createAgentTests() {
     test.describe.serial('Create an agent', {
     }, async () => {
@@ -70,15 +75,15 @@ export default function createAgentTests() {
             await submitForm(form, /Create Agent/i);
 
             logStep('Waiting for the agent to reach source');
-            await settledSource(AGENT_NAME);
+            await settledSource(DECLARED);
         });
 
         test('Writes the typed configuration and binds a model', async () => {
-            const source = await settledSource(AGENT_NAME);
+            const source = await settledSource(DECLARED);
 
             logStep('Checking the agent is declared against ballerina/ai');
             expect(source).toContain('import ballerina/ai;');
-            expect(source).toMatch(new RegExp(`final\\s+ai:Agent\\s+${AGENT_NAME}\\s*=\\s*check\\s+new`));
+            expect(source).toMatch(DECLARED);
 
             logStep('Checking the declaration carries what was typed');
             expect(source).toContain(AGENT_ROLE);
@@ -104,7 +109,7 @@ export default function createAgentTests() {
             // The source is the real record; a stale webview could show a name it cached.
             // Settled rather than read once: the reload re-opens the project and the generator
             // rewrites the files behind it, so a bare read here can catch one mid-write.
-            expect(await settledSource(AGENT_NAME)).toContain(AGENT_NAME);
+            expect(await settledSource(DECLARED)).toMatch(DECLARED);
         });
     });
 }
