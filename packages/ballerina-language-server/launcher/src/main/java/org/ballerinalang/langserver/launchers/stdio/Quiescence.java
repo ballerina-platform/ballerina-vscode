@@ -35,7 +35,10 @@ import java.util.Map;
  * CPU time is a heuristic for "nothing in flight". It sees a compilation or a cache write, which is what the
  * exit was cutting off; it does not see work that mostly waits on the network or the disk, such as a Central
  * pull, since the launcher has no view of the core's executors or resolution state, and the bound is there
- * because no heuristic covers everything.
+ * because no heuristic covers everything. Such work reads as idle, so it is cut off without the "still busy"
+ * line the launcher prints when the bound runs out; that line covers the bound case only. A pull cut off this
+ * way leaves at most a stray {@code _temp} directory under the home repository's {@code bala} tree (the Central
+ * client extracts there and renames last), and the next session pulls again.
  *
  * @since 1.7.3
  */
