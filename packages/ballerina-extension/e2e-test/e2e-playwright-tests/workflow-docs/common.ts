@@ -62,7 +62,9 @@ export async function openArtifact(j: DocJourney, ui: Integrator, project: strin
             return undefined;
         }
         const canvas = frame.getByTestId('bi-diagram-canvas');
-        if (!await canvas.isVisible().catch(() => false)) {
+        // The expected text can show elsewhere in the view before the canvas has mounted; give the canvas a
+        // moment before taking the page for one without.
+        if (!await canvas.first().waitFor({ state: 'visible', timeout: 5000 }).then(() => true, () => false)) {
             return frame;
         }
         const onCanvas = canvas.getByText(expect).filter({ visible: true }).first();

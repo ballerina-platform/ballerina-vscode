@@ -174,7 +174,7 @@ public class MainTest {
                     "serve() must re-assert the interrupt flag it swallowed");
         } finally {
             // Clear the flag so it cannot leak into later tests.
-            Assert.assertTrue(Thread.interrupted());
+            Thread.interrupted();
         }
     }
 

@@ -448,6 +448,19 @@ export class Integrator {
         await this.page.waitForTimeout(200);
     }
 
+    // Closes the side panel showing, if any, through its close button: the panel has no Escape handler.
+    private async closePanel(): Promise<void> {
+        const frame = webviewFrame(this.page);
+        const close = frame.getByTestId('close-panel-btn').filter({ visible: true }).last();
+        if (await close.isVisible().catch(() => false)) {
+            await close.click({ force: true, timeout: 3000 })
+                .catch(() => close.dispatchEvent('click', undefined, { timeout: 1000 }).catch(() => undefined));
+            await frame.getByTestId('side-panel').filter({ visible: true }).first()
+                .waitFor({ state: 'hidden', timeout: 5000 }).catch(() => undefined);
+        }
+        await this.dismiss();
+    }
+
     // ------------------------------------------------------------------ projects and artifacts
 
     // Opens an artifact's creation form from the Artifacts page by its card's test id, checking that the card is named
@@ -568,7 +581,7 @@ export class Integrator {
         let last: Error | undefined;
         for (let attempt = 0; attempt < 3; attempt++) {
             if (attempt > 0) {
-                await this.dismiss();
+                await this.closePanel();
                 await this.page.waitForTimeout(1000);
             }
             try {

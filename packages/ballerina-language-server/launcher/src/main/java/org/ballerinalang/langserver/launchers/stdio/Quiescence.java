@@ -133,7 +133,7 @@ final class Quiescence {
 
     /**
      * The CPU time consumed by the threads other than the caller's, accumulated across readings; zero where the
-     * JVM cannot measure it, so the wait then lasts only the grace period.
+     * JVM cannot measure it, so the wait then ends about two windows after the grace period.
      * <p>
      * The total is accumulated per thread, not summed over the live threads at each reading: a thread that ended
      * between two readings would otherwise take its whole history off the total, and a window in which a

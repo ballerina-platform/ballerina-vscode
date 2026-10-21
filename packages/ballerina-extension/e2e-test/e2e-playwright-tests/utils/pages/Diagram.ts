@@ -77,7 +77,8 @@ export class Diagram {
         const addButton = (await this.getDiagramContainer()).getByTestId(`empty-node-add-button-${index}`);
         // The empty node is drawn once the diagram has settled after a save; give it the time the canvas needs.
         await addButton.waitFor({ state: 'visible', timeout: 30000 });
-        await addButton.click({ trial: false, force: true, timeout: 5000 }).catch(() => addButton.dispatchEvent('click'));
+        await addButton.click({ trial: false, force: true, timeout: 5000 })
+            .catch(() => addButton.dispatchEvent('click', undefined, { timeout: 1000 }));
     }
 
     /**
@@ -122,24 +123,25 @@ export class Diagram {
         // An open side panel can list the same name (the Activities panel's cards); the node is on the canvas.
         let node = matches.last();
         for (const candidate of (await matches.all()).reverse()) {
-            if (await candidate.evaluate((e) => !e.closest('[data-testid="side-panel"]')).catch(() => false)) {
+            const onCanvas = candidate.evaluate((e) => !e.closest('[data-testid="side-panel"]'), undefined, { timeout: 1000 });
+            if (await onCanvas.catch(() => false)) {
                 node = candidate;
                 break;
             }
         }
-        const nodeBox = await node.boundingBox().catch(() => null);
+        const nodeBox = await node.boundingBox({ timeout: 1000 }).catch(() => null);
         if (!nodeBox) {
             return `node '${nodeText}' has no position`;
         }
         // In some diagrams (a resource, inside a do block) the + under a node belongs to an empty node drawn there.
         const centre = nodeBox.x + nodeBox.width / 2;
         for (const button of await frame.locator('[data-testid^="empty-node-add-button"]').all()) {
-            const b = await button.boundingBox().catch(() => null);
+            const b = await button.boundingBox({ timeout: 1000 }).catch(() => null);
             if (b && Math.abs(b.x + b.width / 2 - centre) < 60 && b.y > nodeBox.y && b.y < nodeBox.y + nodeBox.height + 160) {
                 return async () => {
                     await button.click({ force: true });
                     if (!await this.sidePanelOpens(1500)) {
-                        await button.dispatchEvent('click');
+                        await button.dispatchEvent('click', undefined, { timeout: 1000 }).catch(() => undefined);
                     }
                     await this.expectSidePanel(`the + under '${nodeText}'`);
                 };
@@ -149,8 +151,8 @@ export class Diagram {
         const candidates: Array<{ id: string; top: number; left: number; el: Locator }> = [];
         const textBottom = nodeBox.y + nodeBox.height;
         for (const edge of await frame.locator('[data-testid^="diagram-link-"]').all()) {
-            const box = await edge.boundingBox().catch(() => null);
-            const id = (await edge.getAttribute('data-testid').catch(() => null)) ?? '';
+            const box = await edge.boundingBox({ timeout: 1000 }).catch(() => null);
+            const id = (await edge.getAttribute('data-testid', { timeout: 1000 }).catch(() => null)) ?? '';
             seen.push(`${id}@${box ? `${Math.round(box.x)},${Math.round(box.y)} ${Math.round(box.width)}x${Math.round(box.height)}` : 'none'}`);
             // An edge leaving the node starts at or a little above the label and runs on below it; edges into the
             // node end above the label, side arrows stay level.
@@ -198,7 +200,7 @@ export class Diagram {
                 return;
             }
             // A static circle drawn over the button can take the click; a dispatched click reaches the button.
-            await target.el.dispatchEvent('click').catch(() => undefined);
+            await target.el.dispatchEvent('click', undefined, { timeout: 1000 }).catch(() => undefined);
             if (await this.sidePanelOpens(1500)) {
                 return;
             }
@@ -212,7 +214,7 @@ export class Diagram {
     private async lowestEmptyNodeRow(): Promise<Array<{ el: Locator; x: number; y: number }>> {
         const buttons: Array<{ el: Locator; x: number; y: number }> = [];
         for (const el of await this.frame().locator('[data-testid^="empty-node-add-button"]').all()) {
-            const b = await el.boundingBox().catch(() => null);
+            const b = await el.boundingBox({ timeout: 1000 }).catch(() => null);
             if (b) {
                 buttons.push({ el, x: b.x, y: b.y });
             }
@@ -230,7 +232,7 @@ export class Diagram {
         const buttonId = edgeId.replace('diagram-link-', 'link-add-button-');
         const button = edge.locator(`xpath=ancestor::*[.//*[@data-testid="${buttonId}"]][1]`)
             .locator(`[data-testid="${buttonId}"]`).first();
-        const box = await edge.boundingBox();
+        const box = await edge.boundingBox({ timeout: 1000 }).catch(() => null);
         if (box) {
             // Hovered by position: an edge path can measure fine yet count as invisible to Playwright.
             await this._page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
@@ -248,7 +250,7 @@ export class Diagram {
             await clickMiddle();
         }
         for (let attempt = 0; attempt < 3 && !await this.sidePanelOpens(800); attempt++) {
-            await button.dispatchEvent('click').catch(() => undefined);
+            await button.dispatchEvent('click', undefined, { timeout: 1000 }).catch(() => undefined);
         }
         await this.expectSidePanel(`the + on ${edgeId}`);
     }

@@ -82,7 +82,11 @@ public final class Main {
         try {
             status = serve(run);
         } finally {
-            Quiescence.awaitIdle(grace, bound);
+            if (!Quiescence.awaitIdle(grace, bound)) {
+                // Work is being cut off after all; leave a trace of it for whoever looks into the next session.
+                System.err.println("Language server still busy " + bound.toSeconds()
+                        + " s after its client left; exiting");
+            }
             System.exit(status);
         }
     }
@@ -131,8 +135,13 @@ public final class Main {
         } finally {
             // A client that sent shutdown/exit ended the process from exit() and never reaches here. One that
             // went away without them, or a failed connection, skipped the server's shutdown hooks: run them, so
-            // a lost client and a clean exit go through the same cleanup.
-            server.shutdown();
+            // a lost client and a clean exit go through the same cleanup. A hook that fails must not replace
+            // the reason the connection ended.
+            try {
+                server.shutdown();
+            } catch (RuntimeException e) {
+                e.printStackTrace(System.err);
+            }
         }
     }
 
