@@ -110,8 +110,9 @@ export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCode
             // Get the before content of the file by using the workspace api
             const document = await workspace.openTextDocument(fileUri);
             const beforeContent = document.getText();
-            // An unchanged document sends no didChange, so no artifacts notification would ever arrive for it.
-            if (updateSourceCodeRequest.preformatted && edits.length === 1 && edits[0].newText === beforeContent) {
+            // An unchanged document sends no didChange; VS Code keeps its own line endings, so they do not count as a change.
+            if (updateSourceCodeRequest.preformatted && edits.length === 1
+                && edits[0].newText.replace(/\r\n/g, "\n") === beforeContent.replace(/\r\n/g, "\n")) {
                 unchangedFiles.push(fileUri.fsPath);
                 continue;
             }
