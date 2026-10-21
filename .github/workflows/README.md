@@ -112,7 +112,8 @@ pre-release line, and the next nightly would then derive `5.14.<ts>` and collide
 `5.14.x` line just released. It fires only when `main` is sitting on the very snapshot the
 release consumed, so a patch cut from a line branch leaves `main` alone. Leaving `main` on
 a concrete version is not cosmetic: the next nightly fails, because that derivation
-requires a snapshot.
+requires a snapshot. The step is `continue-on-error`: by then the release is published, so
+a failure only leaves a warning, and the bump PR has to be opened by hand.
 
 A note on `npm version`: the version is always written through it and **read back** from
 `package.json` rather than reusing a composed string, because npm normalizes on write

@@ -70,6 +70,7 @@ under the License.
             <class name="io.ballerina.servicemodelgenerator.extension.connector.IncludedRecordBinderTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.util.FunctionBadgeTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.util.AiSourceUtilsTest"/>
+            <class name="io.ballerina.servicemodelgenerator.extension.builder.function.AiFunctionBuilderTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.connector.TriggerSourceMergerTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.connector.TriggerFunctionExpansionTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.builder.service.ListenerChoiceSelectionTest"/>
