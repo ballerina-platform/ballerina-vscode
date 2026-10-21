@@ -46,6 +46,46 @@ describe("ReadonlyField", () => {
         expect(text).toContain("mysqlClient");
     });
 
+    it("shows the diagnostics of a read-only field", () => {
+        // wso2/product-integrator#1767: the result type is read-only, so its error was never shown
+        const typeField = {
+            ...field("Unknown Type"),
+            key: "type",
+            label: "Result Type",
+            diagnostics: [
+                { message: "attempt to refer to non-accessible symbol 'HttpClient'", severity: "ERROR" },
+                { message: "unknown type 'HttpClient'", severity: "ERROR" },
+            ],
+        } as unknown as FormField;
+        const { container } = renderWithForm(<ReadonlyField field={typeField} />, {
+            defaultValues: { type: "Unknown Type" },
+        });
+        const text = container.textContent ?? "";
+        expect(text).toContain("attempt to refer to non-accessible symbol 'HttpClient'");
+        expect(text).toContain("unknown type 'HttpClient'");
+    });
+
+    it("shows no error when the field has no diagnostics", () => {
+        const { container } = renderWithForm(<ReadonlyField field={field("mysqlClient")} />, {
+            defaultValues: { connection: "mysqlClient" },
+        });
+        expect(container.textContent).not.toMatch(/error/i);
+    });
+
+    it("shows a repeated diagnostic once", () => {
+        const duplicated = {
+            ...field("x"),
+            diagnostics: [
+                { message: "unknown type 'X'", severity: "ERROR" },
+                { message: "unknown type 'X'", severity: "ERROR" },
+            ],
+        } as unknown as FormField;
+        const { container } = renderWithForm(<ReadonlyField field={duplicated} />, {
+            defaultValues: { connection: "x" },
+        });
+        expect((container.textContent ?? "").split("unknown type 'X'").length - 1).toBe(1);
+    });
+
     it("coerces a non-string value to text without crashing", () => {
         const { container } = renderWithForm(<ReadonlyField field={field(42)} />, {
             defaultValues: { connection: 42 },
