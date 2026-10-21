@@ -109,18 +109,26 @@ async function saveUntilClosed(saveButton: Locator, timeoutMs = 60000): Promise<
     throw new Error('the form did not close after Save');
 }
 
-// Clicks Save and repeats it until the source shows the result, within the overall budget.
+// Clicks Save and repeats it until the source shows the result, within the overall budget. A click that lands
+// while the form is still settling is dropped, so Save is clicked again while the form is open and the button
+// is enabled; a submit in flight disables it, which keeps a slow write from being submitted twice. The result
+// must then appear exactly once: a second copy would mean the form was submitted twice after all.
 async function saveUntilSource(saveButton: Locator, read: () => string, pattern: RegExp, timeoutMs = 90000): Promise<void> {
     const deadline = Date.now() + timeoutMs;
-    while (true) {
-        if (await saveButton.isVisible().catch(() => false)) {
+    const acceptsClick = async () => await saveButton.isVisible().catch(() => false)
+        && await saveButton.getAttribute('disabled').catch(() => 'disabled') === null;
+    const occurrences = () => (read().match(new RegExp(pattern.source, pattern.flags.replace('g', '') + 'g')) ?? []).length;
+    let clicks = 0;
+    written: while (true) {
+        if (await acceptsClick()) {
             await saveButton.scrollIntoViewIfNeeded().catch(() => undefined);
             await saveButton.click({ force: true, timeout: 5000 }).catch(() => saveButton.dispatchEvent('click'));
+            clicks++;
         }
         const until = Math.min(deadline, Date.now() + 20000);
         while (Date.now() < until) {
-            if (pattern.test(read())) {
-                return;
+            if (occurrences() > 0) {
+                break written;
             }
             await page.page.waitForTimeout(500);
         }
@@ -128,6 +136,9 @@ async function saveUntilSource(saveButton: Locator, read: () => string, pattern:
             throw new Error(`the source did not match ${pattern} within ${timeoutMs} ms of Save`);
         }
     }
+    // A second submit, had one gone through, lands after the first; let the source settle before counting.
+    await page.page.waitForTimeout(3000);
+    expect(occurrences(), `${pattern} must be written once, after ${clicks} Save click(s)`).toBe(1);
 }
 
 // The category header's icon buttons are web components; while the panel is still settling Playwright
