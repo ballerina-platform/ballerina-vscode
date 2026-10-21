@@ -43,7 +43,7 @@ import {
     bedrockModelAccessMessage,
     isAnthropicModelNotFound,
     isBedrockModelAccessError,
-    vertexModelNotFoundMessage,
+    vertexSignInFailureMessage,
 } from './modelAccess';
 import { setBackendRegion } from '../../features/ai/utils';
 import { WICommandIds } from '@wso2/wso2-platform-core';
@@ -324,17 +324,7 @@ export const validateVertexAiCredentials = async (credentials: {
 
     } catch (error) {
         console.error('Vertex AI validation failed:', error);
-        const detail = error instanceof Error ? error.message : String(error);
-        if (detail.includes('401') || detail.includes('authentication') || detail.includes('UNAUTHENTICATED')) {
-            throw new Error(`Invalid credentials. Please check your service account JSON file. (${detail})`);
-        } else if (detail.includes('403') || detail.includes('PERMISSION_DENIED')) {
-            throw new Error(`Permission denied. Please ensure your service account has access to Vertex AI. (${detail})`);
-        } else if (detail.includes('404') || detail.includes('NOT_FOUND')) {
-            throw new Error(vertexModelNotFoundMessage(location, detail));
-        } else if (detail.includes('429') || detail.includes('Too Many Requests') || detail.includes('RESOURCE_EXHAUSTED')) {
-            throw new Error(`Quota exceeded. Your GCP project may have 0 quota for this Anthropic model — request a quota increase in GCP Console → IAM & Admin → Quotas. (${detail})`);
-        }
-        throw new Error(`Validation failed: ${detail}`);
+        throw new Error(vertexSignInFailureMessage(error, location));
     }
 };
 

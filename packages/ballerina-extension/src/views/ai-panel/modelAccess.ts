@@ -20,6 +20,8 @@
 // sign-in check calls Claude Haiku 5.5, and the agent also needs Claude Sonnet 5.5, so each
 // message names both: an account with only one of them enabled must know what to enable.
 
+import { APICallError, RetryError } from 'ai';
+
 const CHECKED_MODEL = 'Claude Haiku 5.5';
 const REQUIRED_MODELS = 'Claude Sonnet 5.5 and Claude Haiku 5.5';
 
@@ -50,4 +52,52 @@ export function vertexModelNotFoundMessage(location: string, detail: string): st
 export function anthropicAwsModelNotFoundMessage(region: string, detail: string): string {
     return `${CHECKED_MODEL} is not available to this workspace in ${region}. ` +
         `Check that ${REQUIRED_MODELS} are available to the workspace in the Claude Console. (${detail})`;
+}
+
+/**
+ * Vertex AI answers in Google's error format (`{"error":{"code":404,"status":"NOT_FOUND",...}}`),
+ * which the Anthropic provider can't parse, so the error's message is only the HTTP status text.
+ * Classify the failure by its status code, and take the reason from Google's response body.
+ * The text checks remain for failures raised before any request, such as a rejected key file.
+ */
+export function vertexSignInFailureMessage(error: unknown, location: string): string {
+    // A retried failure (429, 5xx) arrives wrapped, holding the last attempt's error.
+    const lastError = RetryError.isInstance(error) ? error.lastError : error;
+    const callError = APICallError.isInstance(lastError) ? lastError : undefined;
+    const status = callError?.statusCode;
+    const detail = googleErrorDetail(callError?.responseBody)
+        ?? (lastError instanceof Error ? lastError.message : String(lastError));
+    const mentions = (...needles: string[]) => needles.some((needle) => detail.includes(needle));
+
+    if (status === 401 || mentions('401', 'authentication', 'UNAUTHENTICATED')) {
+        return `Invalid credentials. Please check your service account JSON file. (${detail})`;
+    }
+    if (status === 403 || mentions('403', 'PERMISSION_DENIED')) {
+        return `Permission denied. Please ensure your service account has access to Vertex AI. (${detail})`;
+    }
+    if (status === 404 || mentions('404', 'NOT_FOUND')) {
+        return vertexModelNotFoundMessage(location, detail);
+    }
+    if (status === 429 || mentions('429', 'Too Many Requests', 'RESOURCE_EXHAUSTED')) {
+        return `Quota exceeded. Your GCP project may have 0 quota for this Anthropic model — request a quota increase in GCP Console → IAM & Admin → Quotas. (${detail})`;
+    }
+    return `Validation failed: ${detail}`;
+}
+
+/** Google's error body, as an object or a one-element array; `STATUS: message` when it parses. */
+function googleErrorDetail(responseBody: string | undefined): string | undefined {
+    if (!responseBody) {
+        return undefined;
+    }
+    try {
+        const parsed = JSON.parse(responseBody);
+        const body = Array.isArray(parsed) ? parsed[0] : parsed;
+        const { status, message } = body?.error ?? {};
+        if (typeof message !== 'string') {
+            return undefined;
+        }
+        return typeof status === 'string' ? `${status}: ${message}` : message;
+    } catch {
+        return undefined;
+    }
 }
