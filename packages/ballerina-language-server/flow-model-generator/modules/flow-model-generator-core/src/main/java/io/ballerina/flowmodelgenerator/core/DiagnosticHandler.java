@@ -127,6 +127,14 @@ public class DiagnosticHandler {
 
             // Node is within the diagnostic range
             if (isNodeWithinDiagnostic) {
+                // A leaf covering only part of the diagnostic is not its cause, so the diagnostic belongs to the
+                // enclosing node. The cursor still moves on, so that the diagnostics within this leaf are reached.
+                if (isLeafNode && !hasNodeAnnotated && isPendingNodeCovering(diagnosticLineRange)) {
+                    pendingBuilder.diagnostics()
+                            .diagnostic(currentDiagnostic.diagnosticInfo().severity(), currentDiagnostic.message());
+                    next();
+                    continue;
+                }
                 if (handleLeafNode(builder, isLeafNode)) {
                     continue;
                 }
@@ -157,6 +165,11 @@ public class DiagnosticHandler {
             return true;
         }
         return false;
+    }
+
+    private boolean isPendingNodeCovering(LineRange diagnosticLineRange) {
+        return pendingBuilder != null && pendingNodeLineRange != null &&
+                PositionUtil.isWithinLineRange(diagnosticLineRange, pendingNodeLineRange);
     }
 
     private void next() {

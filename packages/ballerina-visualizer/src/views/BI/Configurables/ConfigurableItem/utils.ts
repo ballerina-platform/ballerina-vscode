@@ -200,3 +200,20 @@ export const shouldQuoteTomlStringValue = (value: string, type: string) => {
     return nonStringTypes.length === 0
         || nonStringTypes.every(typeName => validateTomlValue(trimmedValue, typeName) !== '');
 };
+
+type ConfigurableDiagnosticSource = {
+    diagnostics?: { diagnostics?: { message?: string; severity?: string }[] };
+    properties?: Record<string, any>;
+};
+
+// LS errors for a configurable: node-level plus those on its `variable` property (e.g. a redeclared name).
+export const getConfigurableErrorMessages = (variable?: ConfigurableDiagnosticSource): string[] => {
+    const diagnostics = [
+        ...(variable?.diagnostics?.diagnostics ?? []),
+        ...(variable?.properties?.variable?.diagnostics?.diagnostics ?? []),
+    ];
+    const messages = diagnostics
+        .filter((diagnostic) => diagnostic?.severity === "ERROR" && diagnostic?.message?.trim())
+        .map((diagnostic) => diagnostic.message.trim());
+    return Array.from(new Set(messages));
+};

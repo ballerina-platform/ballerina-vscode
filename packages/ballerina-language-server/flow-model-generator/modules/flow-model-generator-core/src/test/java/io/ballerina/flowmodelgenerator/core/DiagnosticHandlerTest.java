@@ -90,6 +90,80 @@ public class DiagnosticHandlerTest {
                 "Warnings should not be attached to flow nodes");
     }
 
+    @Test(description = "A diagnostic spanning a whole call belongs to the node, not to the first argument within it")
+    public void testCallDiagnosticNotAttachedToArgument() {
+        // string var1 = function1(2, "");
+        LineRange nodeRange = range(4, 8, 4, 40);
+        LineRange callRange = range(4, 22, 4, 39);
+        LineRange firstArgRange = range(4, 32, 4, 33);
+        LineRange secondArgRange = range(4, 35, 4, 37);
+        DiagnosticHandler handler = new DiagnosticHandler(List.of(
+                diagnostic(callRange, "incompatible types: expected string, found (string|error)")));
+
+        TestDiagnosticsBuilder node = new TestDiagnosticsBuilder();
+        TestDiagnosticsBuilder firstArg = new TestDiagnosticsBuilder();
+        TestDiagnosticsBuilder secondArg = new TestDiagnosticsBuilder();
+        handler.handle(node, nodeRange, false);
+        handler.handle(firstArg, firstArgRange, true);
+        handler.handle(secondArg, secondArgRange, true);
+        handler.resolveUnconsumed(node);
+
+        Assert.assertFalse(firstArg.diagnostics().build().hasDiagnostics(),
+                "The first argument does not cause the diagnostic of the call");
+        Assert.assertFalse(secondArg.diagnostics().build().hasDiagnostics(),
+                "The second argument does not cause the diagnostic of the call");
+        Diagnostics nodeDiagnostics = node.diagnostics().build();
+        Assert.assertEquals(nodeDiagnostics.diagnostics().size(), 1);
+        Assert.assertEquals(nodeDiagnostics.diagnostics().getFirst().message(),
+                "incompatible types: expected string, found (string|error)");
+    }
+
+    @Test(description = "A call-wide diagnostic does not hide a diagnostic of a later argument")
+    public void testCallDiagnosticDoesNotMaskArgumentDiagnostic() {
+        // boolean d = check ctx->awaitHumanTask("approve", userRoles = APPROVERS);
+        LineRange nodeRange = range(32, 4, 32, 76);
+        LineRange callRange = range(32, 22, 32, 75);
+        LineRange firstArgRange = range(32, 42, 32, 51);
+        LineRange secondArgRange = range(32, 65, 32, 74);
+        DiagnosticHandler handler = new DiagnosticHandler(List.of(
+                diagnostic(callRange, "missing required parameter taskInput"),
+                diagnostic(secondArgRange, "incompatible types")));
+
+        TestDiagnosticsBuilder node = new TestDiagnosticsBuilder();
+        TestDiagnosticsBuilder firstArg = new TestDiagnosticsBuilder();
+        TestDiagnosticsBuilder secondArg = new TestDiagnosticsBuilder();
+        handler.handle(node, nodeRange, false);
+        handler.handle(firstArg, firstArgRange, true);
+        handler.handle(secondArg, secondArgRange, true);
+        handler.resolveUnconsumed(node);
+
+        Assert.assertFalse(firstArg.diagnostics().build().hasDiagnostics());
+        Assert.assertEquals(secondArg.diagnostics().build().diagnostics().getFirst().message(),
+                "incompatible types");
+        List<Diagnostics.Info> nodeDiagnostics = node.diagnostics().build().diagnostics();
+        Assert.assertEquals(nodeDiagnostics.size(), 1);
+        Assert.assertEquals(nodeDiagnostics.getFirst().message(), "missing required parameter taskInput");
+    }
+
+    @Test(description = "A diagnostic within an argument still belongs to that argument")
+    public void testArgumentDiagnosticAttachedToArgument() {
+        LineRange nodeRange = range(4, 8, 4, 40);
+        LineRange firstArgRange = range(4, 32, 4, 33);
+        DiagnosticHandler handler = new DiagnosticHandler(List.of(diagnostic(firstArgRange, "undefined symbol x")));
+
+        TestDiagnosticsBuilder node = new TestDiagnosticsBuilder();
+        TestDiagnosticsBuilder firstArg = new TestDiagnosticsBuilder();
+        handler.handle(node, nodeRange, false);
+        handler.handle(firstArg, firstArgRange, true);
+        handler.resolveUnconsumed(node);
+
+        Assert.assertEquals(firstArg.diagnostics().build().diagnostics().getFirst().message(),
+                "undefined symbol x");
+        Assert.assertTrue(node.diagnostics().build().diagnostics() == null
+                        || node.diagnostics().build().diagnostics().isEmpty(),
+                "The node must not repeat a diagnostic its argument claimed");
+    }
+
     private static LineRange range(int startLine, int startOffset, int endLine, int endOffset) {
         return LineRange.from(FILE_NAME, LinePosition.from(startLine, startOffset),
                 LinePosition.from(endLine, endOffset));

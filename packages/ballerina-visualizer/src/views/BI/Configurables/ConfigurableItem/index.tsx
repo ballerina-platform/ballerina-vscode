@@ -26,7 +26,7 @@ import remarkBreaks from "remark-breaks";
 import { VSCodeTextArea } from "@vscode/webview-ui-toolkit/react";
 import EditForm from "../EditConfigurableVariables";
 import ConfigObjectEditor from "./ConfigObjectEditor";
-import { getTomlPlaceholder, isTomlStringType, shouldQuoteTomlStringValue, validateTomlValue } from "./utils";
+import { getConfigurableErrorMessages, getTomlPlaceholder, isTomlStringType, shouldQuoteTomlStringValue, validateTomlValue } from "./utils";
 
 const Container = styled.div`
     padding: 12px 14px 18px;
@@ -416,6 +416,32 @@ export function ConfigurableItem(props: ConfigurableItemProps) {
                     </div>
                 )}
             </ConfigNameTitle>
+            {getConfigurableErrorMessages(configVariable).map((message, errorIndex) => (
+                <ButtonWrapper key={errorIndex} data-testid="configurable-error" style={{ justifyContent: "flex-start", marginLeft: 0 }}>
+                    <Button
+                        appearance="icon"
+                        buttonSx={{
+                            background: "transparent"
+                        }}
+                    >
+                        <Codicon
+                            name="error"
+                            sx={{
+                                paddingTop: '2px',
+                                color: 'var(--vscode-errorForeground)'
+                            }}
+                            iconSx={{ font: "normal normal normal 13px/1 codicon" }}
+                        />
+                    </Button>
+                    <span style={{
+                        color: 'var(--vscode-errorForeground)',
+                        fontSize: '12px',
+                        fontWeight: 400
+                    }}>
+                        {message}
+                    </span>
+                </ButtonWrapper>
+            ))}
             {configVariable?.properties?.documentation?.value &&
                 <div
                     style={{

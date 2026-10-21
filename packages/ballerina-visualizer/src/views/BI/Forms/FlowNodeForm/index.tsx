@@ -960,7 +960,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
 
     const handleFormChange = useCallback(
         (fieldKey: string, value: any, allValues: FormValues) => {
-            setFormDiagnostics(prev => prev.length > 0 ? [] : prev);
+            // Not cleared here: editors report normalized values on mount; blur and save validation refresh the banner
             void retypeDependentFields(fieldKey, value);
             onChange?.(fieldKey, value, allValues);
         },
@@ -1368,6 +1368,11 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         });
     };
 
+    const hasNodeErrorMessages = (nodeWithDiagnostics: FlowNode | null): boolean =>
+        (nodeWithDiagnostics?.diagnostics?.diagnostics ?? []).some(
+            (diagnostic) => diagnostic?.severity === "ERROR" && Boolean(diagnostic?.message?.trim())
+        );
+
     const handleFormValidation = async (data: FormValues, dirtyFields?: any): Promise<boolean> => {
         // A task naming nobody is refused when the source is generated, which is after the save has
         // left the panel. Catching it here keeps the panel open with what was typed.
@@ -1394,6 +1399,10 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             // HACK: Ignore top-level hasDiagnostics when LS does not send property-level diagnostic messages.
             if (nodeWithDiagnostics?.diagnostics?.hasDiagnostics && hasPropertyDiagnosticMessages(nodeWithDiagnostics)) {
                 return false
+            }
+            // Node-level errors are shown in the form diagnostics banner.
+            if (hasNodeErrorMessages(nodeWithDiagnostics)) {
+                return false;
             }
         }
         return true;
