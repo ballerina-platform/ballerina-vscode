@@ -32,17 +32,27 @@ import org.testng.annotations.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.security.CodeSource;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 /**
  * Tests for the stdio launcher's {@link Main}: the JSON-RPC stream guard ({@link Main#protectJsonRpcStream()}) and
- * the process lifecycle ({@link Main#serve(Main.ServerRun)}) that
- * makes the server JVM end when its client is gone instead of lingering as an orphan.
+ * the process lifecycle ({@link Main#serve(Main.ServerRun)}, {@link Main#run}) that makes the server JVM end
+ * when its client is gone instead of lingering as an orphan; the last of these is checked on a real subprocess
+ * whose stdin is closed while a non-daemon thread is still running.
  *
  * @since 1.7.3
  */
@@ -166,6 +176,73 @@ public class MainTest {
             // Clear the flag so it cannot leak into later tests.
             Assert.assertTrue(Thread.interrupted());
         }
+    }
+
+    @Test(description = "A run that ends in an Error maps to a non-zero exit status instead of escaping")
+    public void testServeMapsErrorToExitFailure() {
+        System.setErr(new PrintStream(new ByteArrayOutputStream(), true, StandardCharsets.UTF_8));
+        Assert.assertEquals(Main.serve(() -> {
+            throw new OutOfMemoryError("simulated");
+        }), Main.EXIT_FAILURE);
+    }
+
+    @Test(description = "The process ends once its stdin closes, although a non-daemon thread is still running")
+    public void testProcessEndsAfterEndOfInput() throws Exception {
+        Process server = launchLingeringServer();
+        try {
+            Assert.assertFalse(server.waitFor(1, TimeUnit.SECONDS),
+                    "the process must keep serving while its stdin is open");
+            // The client is gone: no shutdown/exit exchange, just end-of-input.
+            server.getOutputStream().close();
+            Assert.assertTrue(server.waitFor(15, TimeUnit.SECONDS),
+                    "the process must end once its stdin closed, lingering worker or not");
+            Assert.assertEquals(server.exitValue(), Main.EXIT_OK);
+        } finally {
+            server.destroyForcibly();
+        }
+    }
+
+    @Test(description = "The process ends with a failure status when the server run throws an Error")
+    public void testProcessEndsAfterAnError() throws Exception {
+        Process server = launchLingeringServer(LingeringServerMain.FAIL_WITH_ERROR);
+        try {
+            Assert.assertTrue(server.waitFor(15, TimeUnit.SECONDS),
+                    "the process must end after the Error, lingering worker or not");
+            Assert.assertEquals(server.exitValue(), Main.EXIT_FAILURE);
+        } finally {
+            server.destroyForcibly();
+        }
+    }
+
+    /**
+     * Starts {@link LingeringServerMain} in a JVM of its own, on this test's class path, with its stdin piped
+     * from this process and its output discarded.
+     */
+    private static Process launchLingeringServer(String... args) throws IOException {
+        Path java = Path.of(System.getProperty("java.home"), "bin", "java");
+        if (!Files.exists(java)) {
+            java = Path.of(System.getProperty("java.home"), "bin", "java.exe");
+        }
+        List<String> command = new ArrayList<>(List.of(java.toString(), "-cp", testClassPath(),
+                LingeringServerMain.class.getName()));
+        command.addAll(List.of(args));
+        return new ProcessBuilder(command)
+                .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+                .redirectError(ProcessBuilder.Redirect.DISCARD)
+                .start();
+    }
+
+    /** The class path this test runs on, with the locations of the launcher's classes made explicit. */
+    private static String testClassPath() {
+        Set<String> entries = new LinkedHashSet<>();
+        for (Class<?> loaded : List.of(Main.class, LingeringServerMain.class)) {
+            CodeSource source = loaded.getProtectionDomain().getCodeSource();
+            if (source != null && source.getLocation() != null) {
+                entries.add(Path.of(URI.create(source.getLocation().toString())).toString());
+            }
+        }
+        entries.addAll(List.of(System.getProperty("java.class.path").split(File.pathSeparator)));
+        return String.join(File.pathSeparator, entries);
     }
 
     /**

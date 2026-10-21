@@ -19,8 +19,10 @@
 package org.ballerinalang.langserver.launchers.stdio;
 
 import org.testng.Assert;
+import org.testng.SkipException;
 import org.testng.annotations.Test;
 
+import java.lang.management.ManagementFactory;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -69,30 +71,73 @@ public class QuiescenceTest {
 
     @Test(description = "Work in flight when the client went away is allowed to finish before the JVM is ended")
     public void testInFlightWorkFinishesBeforeTheJvmEnds() throws InterruptedException {
+        // The worker drives the clock itself: it charges far more than the idle allowance for as long as it
+        // runs, and nothing once it is done, so the test does not depend on the host's CPU accounting.
+        AtomicLong cpu = new AtomicLong();
         AtomicBoolean done = new AtomicBoolean();
         Thread worker = new Thread(() -> {
-            // Burn CPU for a while, the way a compilation cut off by an instant exit would.
             long until = System.nanoTime() + Duration.ofMillis(1500).toNanos();
-            long sink = 0;
             while (System.nanoTime() < until) {
-                sink += System.nanoTime() % 7;
+                cpu.addAndGet(Quiescence.IDLE_CPU_PER_WINDOW.toNanos());
+                Thread.onSpinWait();
             }
-            done.set(sink != Long.MIN_VALUE);
+            done.set(true);
         }, "in-flight-work");
         worker.start();
 
-        boolean idle = Quiescence.awaitIdle(Duration.ZERO, Duration.ofSeconds(15), Quiescence.cpuClock());
+        boolean idle = Quiescence.awaitIdle(Duration.ZERO, Duration.ofSeconds(15), cpu::get);
 
         Assert.assertTrue(idle, "the JVM must be reported idle once the work has finished");
         Assert.assertTrue(done.get(), "the exit wait must not return before the in-flight work completed");
         worker.join(1000);
     }
 
-    @Test(description = "The real CPU clock measures the other threads, so a sleeping caller reads as idle")
-    public void testCpuClockReadsOtherThreads() {
+    @Test(description = "A caller whose interrupt flag is set still waits, and gets the flag back")
+    public void testInterruptedCallerStillWaits() {
+        Duration grace = Duration.ofMillis(800);
+        long start = System.nanoTime();
+        Thread.currentThread().interrupt();
+        try {
+            boolean idle = Quiescence.awaitIdle(grace, Duration.ofSeconds(10), () -> 0L);
+
+            Duration waited = Duration.ofNanos(System.nanoTime() - start);
+            Assert.assertTrue(idle, "an idle JVM must be reported idle, interrupt or not");
+            Assert.assertTrue(waited.compareTo(grace) >= 0,
+                    "the interrupt must not cut the grace period short, but the wait lasted "
+                            + waited.toMillis() + " ms");
+            Assert.assertTrue(Thread.currentThread().isInterrupted(),
+                    "the interrupt flag must be re-asserted on return");
+        } finally {
+            Thread.interrupted();
+        }
+    }
+
+    @Test(description = "The real CPU clock charges a thread's work, and keeps it once the thread has ended")
+    public void testCpuClockKeepsCountingAcrossThreadExit() throws InterruptedException {
+        if (!ManagementFactory.getThreadMXBean().isThreadCpuTimeSupported()) {
+            throw new SkipException("this JVM cannot measure thread CPU time");
+        }
         Quiescence.CpuClock clock = Quiescence.cpuClock();
-        long first = clock.read();
-        long second = clock.read();
-        Assert.assertTrue(second >= first, "CPU time must be monotonic");
+        long before = clock.read();
+        Thread worker = new Thread(() -> {
+            long until = System.nanoTime() + Duration.ofMillis(300).toNanos();
+            long sink = 0;
+            while (System.nanoTime() < until) {
+                sink += System.nanoTime() % 7;
+            }
+            if (sink == Long.MIN_VALUE) {
+                throw new IllegalStateException();
+            }
+        }, "short-lived-work");
+        worker.start();
+        Thread.sleep(150);
+        long during = clock.read();
+        worker.join();
+        long after = clock.read();
+
+        Assert.assertTrue(during > before, "a thread burning CPU must raise the reading");
+        Assert.assertTrue(after >= during,
+                "a thread's time must stay counted once it has ended, but the reading fell from " + during
+                        + " to " + after);
     }
 }

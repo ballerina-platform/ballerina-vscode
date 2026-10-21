@@ -43,6 +43,12 @@ public final class Main {
     /** Exit status when the JSON-RPC connection failed or the server was interrupted. */
     static final int EXIT_FAILURE = 1;
 
+    /** How long the process keeps running after its client is gone before idleness is considered. */
+    static final Duration EXIT_GRACE = Duration.ofSeconds(5);
+
+    /** The longest the process keeps running after its client is gone, idle or not. */
+    static final Duration EXIT_BOUND = Duration.ofSeconds(30);
+
     private Main() {
     }
 
@@ -50,30 +56,42 @@ public final class Main {
         LogManager.getLogManager().reset();
         Logger globalLogger = Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);
         globalLogger.setLevel(Level.OFF);
-        // Terminate the JVM explicitly: see {@link #serve(ServerRun)}.
-        int status = serve(() -> startServer(System.in, System.out));
-        // The client is gone, but do not halt on the spot: a compilation or cache write in flight when stdin
-        // closed would be cut off, and the next server to open the project pays for it. Give in-flight work a
-        // grace period and wait for the worker threads to go idle, within a bound. See Quiescence.
-        Quiescence.awaitIdle(EXIT_GRACE, EXIT_BOUND);
-        System.exit(status);
+        run(() -> startServer(System.in, System.out), EXIT_GRACE, EXIT_BOUND);
     }
 
-    /** How long the process keeps running after its client is gone before idleness is considered. */
-    static final Duration EXIT_GRACE = Duration.ofSeconds(5);
-
-    /** The longest the process keeps running after its client is gone, idle or not. */
-    static final Duration EXIT_BOUND = Duration.ofSeconds(30);
-
     /**
-     * Runs the server until it stops serving and maps the outcome to a process exit status.
+     * Runs the server and ends the process once it stops serving, whatever the way out.
      * <p>
      * {@link #startServer(InputStream, OutputStream)} returns once the client's end of the stream is gone (lsp4j
      * stops listening on end-of-input) or the connection failed. Returning from {@code main} is not enough to end
      * the process at that point: the language server core keeps non-daemon worker threads alive, so a JVM whose
      * client was killed without a clean {@code shutdown}/{@code exit} exchange (a VS Code window reload, a killed
-     * extension host) would otherwise linger forever, holding its heap. The caller must pass the returned status
-     * to {@link System#exit(int)}.
+     * extension host) would otherwise linger forever, holding its heap. The same holds when the run ends in an
+     * {@link Error}: by then the workers may already exist, so the process is ended from a {@code finally}.
+     * <p>
+     * The exit is not on the spot. A compilation or a cache write in flight when the client went away would be
+     * cut off, and the next server to open the project pays for it; in-flight work gets {@code grace} and the
+     * process ends once the worker threads have gone idle, within {@code bound}. See {@link Quiescence}.
+     *
+     * @param run   the server run to execute
+     * @param grace the time to keep the process alive after the run before idleness is considered
+     * @param bound the longest to keep the process alive after the run, idle or not
+     */
+    static void run(ServerRun run, Duration grace, Duration bound) {
+        int status = EXIT_FAILURE;
+        try {
+            status = serve(run);
+        } finally {
+            Quiescence.awaitIdle(grace, bound);
+            System.exit(status);
+        }
+    }
+
+    /**
+     * Runs the server until it stops serving and maps the outcome to a process exit status.
+     * <p>
+     * Every failure is reported on stderr and mapped to {@link #EXIT_FAILURE}, an {@link Error} included: the
+     * caller ends the process on the way out, before the JVM's default handler would have printed it.
      *
      * @param run the server run to execute
      * @return {@link #EXIT_OK} when the run completed, {@link #EXIT_FAILURE} when it failed or was interrupted
@@ -90,7 +108,7 @@ public final class Main {
         } catch (ExecutionException e) {
             e.printStackTrace(System.err);
             return EXIT_FAILURE;
-        } catch (RuntimeException e) {
+        } catch (Throwable e) {
             // A failure while the server is being set up must still end the process: by then non-daemon
             // worker threads may already exist, and an escaped exception would leave them running.
             e.printStackTrace(System.err);
@@ -108,7 +126,14 @@ public final class Main {
         ExtendedLanguageClient client = launcher.getRemoteProxy();
         server.connect(client);
         Future<?> startListening = launcher.startListening();
-        startListening.get();
+        try {
+            startListening.get();
+        } finally {
+            // A client that sent shutdown/exit ended the process from exit() and never reaches here. One that
+            // went away without them, or a failed connection, skipped the server's shutdown hooks: run them, so
+            // a lost client and a clean exit go through the same cleanup.
+            server.shutdown();
+        }
     }
 
     /**

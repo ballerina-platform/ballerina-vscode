@@ -21,6 +21,8 @@ package org.ballerinalang.langserver.launchers.stdio;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadMXBean;
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Waits for the JVM's worker threads to go idle before the process is ended.
@@ -29,6 +31,11 @@ import java.time.Duration;
  * cache write that was in flight when stdin closed would be cut off mid-way, and the next server to open the
  * same project pays for it. Give in-flight work a grace period, then end the process once the other threads
  * have stopped consuming CPU, or when the bound runs out.
+ * <p>
+ * CPU time is a heuristic for "nothing in flight". It sees a compilation or a cache write, which is what the
+ * exit was cutting off; it does not see work that mostly waits on the network or the disk, such as a Central
+ * pull, since the launcher has no view of the core's executors or resolution state, and the bound is there
+ * because no heuristic covers everything.
  *
  * @since 1.7.3
  */
@@ -61,6 +68,11 @@ final class Quiescence {
     /**
      * {@link #awaitIdle(Duration, Duration)} with the CPU clock supplied, so the wait can be tested without
      * burning CPU in the test.
+     * <p>
+     * An interrupt does not cut the wait short: this runs on the way out of the process, right before it ends,
+     * so there is nothing else for the interrupt to reach, and a caller that was interrupted (a server run that
+     * ended in {@link InterruptedException}) would otherwise skip the wait that protects in-flight work. The
+     * interrupt flag is re-asserted on return.
      *
      * @param minGrace the time to wait before idleness is considered at all
      * @param max      the longest this may block, counted from the start
@@ -71,36 +83,61 @@ final class Quiescence {
         long start = System.nanoTime();
         long deadline = start + max.toNanos();
         long graceEnd = start + minGrace.toNanos();
-        long previous = cpuNanos.read();
-        int idleWindows = 0;
-        while (true) {
-            long now = System.nanoTime();
-            if (now >= deadline) {
-                return false;
+        boolean interrupted = Thread.interrupted();
+        try {
+            long previous = cpuNanos.read();
+            int idleWindows = 0;
+            while (true) {
+                long windowEnd = Math.min(deadline, System.nanoTime() + WINDOW.toNanos());
+                if (!sleepUntil(windowEnd)) {
+                    interrupted = true;
+                }
+                long current = cpuNanos.read();
+                boolean idle = current - previous <= IDLE_CPU_PER_WINDOW.toNanos();
+                previous = current;
+                if (System.nanoTime() >= deadline) {
+                    return false;
+                }
+                if (System.nanoTime() < graceEnd) {
+                    continue;
+                }
+                idleWindows = idle ? idleWindows + 1 : 0;
+                if (idleWindows >= IDLE_WINDOWS) {
+                    return true;
+                }
             }
-            long sleep = Math.min(WINDOW.toNanos(), deadline - now);
-            try {
-                Thread.sleep(Duration.ofNanos(sleep));
-            } catch (InterruptedException e) {
+        } finally {
+            if (interrupted) {
                 Thread.currentThread().interrupt();
-                return false;
-            }
-            long current = cpuNanos.read();
-            boolean idle = current - previous <= IDLE_CPU_PER_WINDOW.toNanos();
-            previous = current;
-            if (System.nanoTime() < graceEnd) {
-                continue;
-            }
-            idleWindows = idle ? idleWindows + 1 : 0;
-            if (idleWindows >= IDLE_WINDOWS) {
-                return true;
             }
         }
     }
 
     /**
-     * The CPU time of every live thread except the caller's, summed; zero where the JVM cannot measure it, so
-     * the wait then lasts only the grace period.
+     * Sleeps until the given {@link System#nanoTime()}, going back to sleep after an interrupt.
+     *
+     * @param until the time to sleep until
+     * @return {@code false} if an interrupt arrived meanwhile
+     */
+    private static boolean sleepUntil(long until) {
+        boolean undisturbed = true;
+        for (long left = until - System.nanoTime(); left > 0; left = until - System.nanoTime()) {
+            try {
+                Thread.sleep(Duration.ofNanos(left));
+            } catch (InterruptedException e) {
+                undisturbed = false;
+            }
+        }
+        return undisturbed;
+    }
+
+    /**
+     * The CPU time consumed by the threads other than the caller's, accumulated across readings; zero where the
+     * JVM cannot measure it, so the wait then lasts only the grace period.
+     * <p>
+     * The total is accumulated per thread, not summed over the live threads at each reading: a thread that ended
+     * between two readings would otherwise take its whole history off the total, and a window in which a
+     * long-running thread exited while another was busy would read as idle.
      *
      * @return a clock over the other threads' CPU time
      */
@@ -113,18 +150,30 @@ final class Quiescence {
             threads.setThreadCpuTimeEnabled(true);
         }
         long self = Thread.currentThread().threadId();
-        return () -> {
-            long total = 0L;
-            for (long id : threads.getAllThreadIds()) {
-                if (id == self) {
-                    continue;
+        return new CpuClock() {
+            private final Map<Long, Long> lastSeen = new HashMap<>();
+            private long total;
+
+            @Override
+            public synchronized long read() {
+                Map<Long, Long> seen = new HashMap<>();
+                for (long id : threads.getAllThreadIds()) {
+                    if (id == self) {
+                        continue;
+                    }
+                    long cpu = threads.getThreadCpuTime(id);
+                    if (cpu < 0) {
+                        // Ended since the ids were listed; its time up to the previous reading is already counted.
+                        continue;
+                    }
+                    Long before = lastSeen.get(id);
+                    total += before == null ? cpu : Math.max(0L, cpu - before);
+                    seen.put(id, cpu);
                 }
-                long cpu = threads.getThreadCpuTime(id);
-                if (cpu > 0) {
-                    total += cpu;
-                }
+                lastSeen.clear();
+                lastSeen.putAll(seen);
+                return total;
             }
-            return total;
         };
     }
 
