@@ -18,8 +18,13 @@
 
 package io.ballerina.modelgenerator.commons;
 
+import io.ballerina.projects.Package;
+import io.ballerina.projects.PackageCompilation;
+import io.ballerina.projects.Project;
+import io.ballerina.projects.ProjectKind;
 import io.ballerina.projects.util.ProjectUtils;
 import org.ballerinalang.compiler.BLangCompilerException;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.Test;
@@ -30,7 +35,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
- * Tests that {@link PackageUtil#clearFailedBirCache} removes only the cache of the module whose BIR failed to load.
+ * Tests that {@link PackageUtil#compileBala} clears only the cache of the module whose BIR failed to load, and only
+ * for BALA projects.
  */
 public class StaleBirCacheTest {
 
@@ -62,6 +68,47 @@ public class StaleBirCacheTest {
 
         Assert.assertFalse(PackageUtil.clearFailedBirCache(new IllegalStateException("unrelated"), null));
         Assert.assertTrue(Files.exists(ai));
+    }
+
+    @Test
+    public void testCompileBalaReturnsTheSamePackageOnSuccess() {
+        Package pkg = mockPackage(ProjectKind.BALA_PROJECT, "success");
+        Mockito.when(pkg.getCompilation()).thenReturn(Mockito.mock(PackageCompilation.class));
+
+        Assert.assertSame(PackageUtil.compileBala(pkg), pkg);
+        Mockito.verify(pkg, Mockito.times(1)).getCompilation();
+    }
+
+    @Test
+    public void testCompileBalaRethrowsOtherFailures() throws IOException {
+        Path ai = createCachedBir("ai", "1.14.0");
+        IllegalStateException error = new IllegalStateException("unrelated");
+        Package pkg = mockPackage(ProjectKind.BALA_PROJECT, "other-failure");
+        Mockito.when(pkg.getCompilation()).thenThrow(error);
+
+        Assert.assertSame(Assert.expectThrows(IllegalStateException.class, () -> PackageUtil.compileBala(pkg)), error);
+        Assert.assertTrue(Files.exists(ai));
+    }
+
+    @Test
+    public void testCompileBalaLeavesTheCacheOfNonBalaProjects() throws IOException {
+        Path ai = createCachedBir("ai", "1.15.0");
+        BLangCompilerException error = new BLangCompilerException("failed to load the module '" + ORG
+                + "/ai:1.15.0' from its BIR due to: invalid magic number");
+        Package pkg = mockPackage(ProjectKind.BUILD_PROJECT, "user-project");
+        Mockito.when(pkg.getCompilation()).thenThrow(error);
+
+        Assert.assertSame(Assert.expectThrows(BLangCompilerException.class, () -> PackageUtil.compileBala(pkg)), error);
+        Assert.assertTrue(Files.exists(ai));
+    }
+
+    private static Package mockPackage(ProjectKind kind, String root) {
+        Project project = Mockito.mock(Project.class);
+        Mockito.when(project.kind()).thenReturn(kind);
+        Mockito.when(project.sourceRoot()).thenReturn(Path.of(root));
+        Package pkg = Mockito.mock(Package.class);
+        Mockito.when(pkg.project()).thenReturn(project);
+        return pkg;
     }
 
     private Path createCachedBir(String name, String version) throws IOException {
