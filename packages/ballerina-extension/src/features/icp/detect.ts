@@ -19,7 +19,7 @@
 import { existsSync, readdirSync } from 'fs';
 import { homedir } from 'os';
 import * as path from 'path';
-import { workspace, window, commands, extensions, ConfigurationTarget, env, Uri } from 'vscode';
+import { workspace, window, commands, extensions, ConfigurationTarget, env, Uri, WorkspaceConfiguration } from 'vscode';
 import { ICP_PATH } from '../../core/preferences';
 import { WI_EXTENSION_ID } from '../../utils/config';
 import { log } from '../../utils/logger';
@@ -197,7 +197,7 @@ export async function resolveICPPath(): Promise<string | undefined> {
     // 1. A path inside a WSO2 Integrator install was written by our own auto-detection, not the
     //    user. Drop it and detect afresh so the current install wins over the cached one.
     if (configuredPath && isBundledICPPath(configuredPath)) {
-        await config.update('icpPath', undefined, ConfigurationTarget.Global);
+        await clearICPPathSetting(config);
         configuredPath = undefined;
     }
 
@@ -224,7 +224,7 @@ export async function resolveICPPath(): Promise<string | undefined> {
         }
 
         // The user opted out of the stale value: drop it so future calls auto-detect without prompting.
-        await config.update('icpPath', undefined, ConfigurationTarget.Global);
+        await clearICPPathSetting(config);
     }
 
     // 4. Auto-detect silently.
@@ -245,6 +245,17 @@ export async function resolveICPPath(): Promise<string | undefined> {
         openICPSettings();
     }
     return undefined;
+}
+
+/**
+ * Clears `ballerina.icpPath` at the scope that supplies its effective value. Clearing only the
+ * global value would leave a workspace-level value in place and bring the same path back next time.
+ */
+async function clearICPPathSetting(config: WorkspaceConfiguration): Promise<void> {
+    const target = config.inspect<string>('icpPath')?.workspaceValue !== undefined
+        ? ConfigurationTarget.Workspace
+        : ConfigurationTarget.Global;
+    await config.update('icpPath', undefined, target);
 }
 
 function openICPSettings(): void {

@@ -63,6 +63,7 @@ function setPlatform(platform: string): void {
 
 let root: string;
 let settingValue: string | undefined;
+let settingScope: "global" | "workspace";
 let settingUpdates: unknown[][];
 let prompts: string[];
 let promptAnswer: string | undefined;
@@ -71,6 +72,7 @@ let executedCommands: unknown[][];
 beforeEach(() => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), "icp-detect-"));
     settingValue = undefined;
+    settingScope = "global";
     settingUpdates = [];
     prompts = [];
     promptAnswer = undefined;
@@ -86,7 +88,8 @@ beforeEach(() => {
             settingUpdates.push(args);
             return Promise.resolve();
         },
-        inspect: () => undefined,
+        inspect: () =>
+            settingScope === "workspace" ? { workspaceValue: settingValue } : { globalValue: settingValue },
     });
     win.showErrorMessage = (message: string) => {
         prompts.push(message);
@@ -219,6 +222,14 @@ describe("resolveICPPath with a setting that points inside a WSO2 Integrator ins
         expect(prompts[0]).toContain("not installed");
     });
 
+    it("clears a cached path held in workspace settings at the workspace scope", async () => {
+        settingScope = "workspace";
+        settingValue = makeIcpBin(root, "old-app", ...bundledSegments);
+
+        await resolveICPPath();
+        expect(settingUpdates).toEqual([["icpPath", undefined, vscode.ConfigurationTarget.Workspace]]);
+    });
+
     it("recognises the bundled layout regardless of letter case", async () => {
         settingValue = makeIcpBin(root, "WSO2 Integrator.app", "Contents", "Components", "ICP");
         const envScript = makeIcpBin(root, "env-home");
@@ -250,6 +261,16 @@ describe("resolveICPPath with a stale configured path", () => {
         expect(prompts).toHaveLength(1);
         expect(prompts[0]).toContain(settingValue);
         expect(settingUpdates).toEqual([["icpPath", undefined, vscode.ConfigurationTarget.Global]]);
+    });
+
+    it("Auto Detect clears a stale workspace-level setting at the workspace scope", async () => {
+        settingScope = "workspace";
+        makeIcpBin(root, "env-home");
+        setIcpHome(path.join(root, "env-home"));
+        promptAnswer = "Auto Detect";
+
+        await resolveICPPath();
+        expect(settingUpdates).toEqual([["icpPath", undefined, vscode.ConfigurationTarget.Workspace]]);
     });
 
     it("Auto Detect with nothing installed falls through to the not-installed prompt", async () => {
