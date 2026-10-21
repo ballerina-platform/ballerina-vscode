@@ -1849,6 +1849,44 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         pushToNavigationStack(sidePanelView, categories, selectedNodeRef.current, selectedClientName.current);
 
         const showFormLoader = AI_COMPONENT_PICKER_VIEWS.includes(sidePanelView);
+        // Opens the node's template form; a failed fetch shows the error instead of an empty or stuck form.
+        const openNodeTemplateForm = () => {
+            selectedClientName.current = category;
+            setShowProgressIndicator(true);
+            if (showFormLoader) {
+                setShowProgressSpinner(true);
+                setProgressTitle(node.metadata?.label || LOADING_MESSAGE);
+                setProgressMessage(FORM_LOADING_MESSAGE);
+            }
+            rpcClient.getBIDiagramRpcClient().getNodeTemplate({
+                position: targetRef.current.startLine,
+                filePath: model?.fileName || fileName,
+                id: node.codedata,
+            })
+                .then((response: any) => {
+                    if (response.errorMsg) {
+                        console.error(">>> getNodeTemplate failed", response.errorMsg, node.codedata);
+                        showConnectorError(response.errorMsg);
+                        return;
+                    }
+                    selectedNodeRef.current = response.flowNode;
+                    nodeTemplateRef.current = response.flowNode;
+                    showEditForm.current = false;
+                    setSidePanelView(SidePanelView.FORM);
+                    setShowSidePanel(true);
+                })
+                .catch((error) => {
+                    console.error(">>> getNodeTemplate failed", error, node.codedata);
+                    showConnectorError();
+                })
+                .finally(() => {
+                    setShowProgressIndicator(false);
+                    if (showFormLoader) {
+                        setShowProgressSpinner(false);
+                        setProgressMessage(LOADING_MESSAGE);
+                    }
+                });
+        };
 
         // The "WSO2 Cloud Knowledge Base" box routes to an intermediate page (list existing cloud KBs
         // + create new) instead of the generic form.
@@ -2023,32 +2061,12 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             case "WORKFLOW_RUN":
                 // From the palette the form opens at once: it carries the project's workflows in its own
                 // dropdown, so a list in front of it only asked the same question twice. The list still
-                // serves the durable agents and the child workflows, whose picks land here too.
+                // serves the durable agents, whose picks land here too.
                 if (opensListFromPalette(sidePanelView)) {
                     childWorkflowKindRef.current = null;
                     durableAgentObjectVarRef.current = null;
                 }
-
-                // The template form, for the palette's node or the list's pick alike.
-                selectedClientName.current = category;
-                setShowProgressIndicator(true);
-                rpcClient
-                    .getBIDiagramRpcClient()
-                    .getNodeTemplate({
-                        position: targetRef.current.startLine,
-                        filePath: model?.fileName || fileName,
-                        id: node.codedata,
-                    })
-                    .then((response) => {
-                        selectedNodeRef.current = response.flowNode;
-                        nodeTemplateRef.current = response.flowNode;
-                        showEditForm.current = false;
-                        setSidePanelView(SidePanelView.FORM);
-                        setShowSidePanel(true);
-                    })
-                    .finally(() => {
-                        setShowProgressIndicator(false);
-                    });
+                openNodeTemplateForm();
                 break;
 
             case "ACTIVITY_CALL":
@@ -2350,42 +2368,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 break;
 
             default:
-                // default node
-                selectedClientName.current = category;
-                setShowProgressIndicator(true);
-                if (showFormLoader) {
-                    setShowProgressSpinner(true);
-                    setProgressTitle(node.metadata?.label || LOADING_MESSAGE);
-                    setProgressMessage(FORM_LOADING_MESSAGE);
-                }
-                rpcClient.getBIDiagramRpcClient().getNodeTemplate({
-                    position: targetRef.current.startLine,
-                    filePath: model?.fileName || fileName,
-                    id: node.codedata,
-                })
-                    .then((response: any) => {
-                        if (response.errorMsg) {
-                            console.error(">>> getNodeTemplate failed", response.errorMsg, node.codedata);
-                            showConnectorError(response.errorMsg);
-                            return;
-                        }
-                        selectedNodeRef.current = response.flowNode;
-                        nodeTemplateRef.current = response.flowNode;
-                        showEditForm.current = false;
-                        setSidePanelView(SidePanelView.FORM);
-                        setShowSidePanel(true);
-                    })
-                    .catch((error) => {
-                        console.error(">>> getNodeTemplate failed", error, node.codedata);
-                        showConnectorError();
-                    })
-                    .finally(() => {
-                        setShowProgressIndicator(false);
-                        if (showFormLoader) {
-                            setShowProgressSpinner(false);
-                            setProgressMessage(LOADING_MESSAGE);
-                        }
-                    });
+                openNodeTemplateForm();
                 break;
         }
     };
