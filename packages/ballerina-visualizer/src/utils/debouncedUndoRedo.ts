@@ -86,6 +86,7 @@ class DebouncedUndoRedoManager {
      * Execute undo operation with validation and proper count
      */
     private async executeUndo(rpcClient: BallerinaRpcClient, requestedCount: number): Promise<void> {
+        let attempted = false;
         try {
             // Get current undo state to validate
             const undoRedoState = await rpcClient.getVisualizerRpcClient().undoRedoState();
@@ -107,12 +108,15 @@ class DebouncedUndoRedoManager {
             }
 
             // Execute multiple undo operations using the efficient bulk method
+            attempted = true;
             await rpcClient.getVisualizerRpcClient().undo(actualUndoCount);
-            this.appliedListeners.forEach((listener) => listener());
 
         } catch (error) {
             console.error("Error during debounced undo:", error);
             this.showNotification("Error occurred during undo operation", "error");
+        }
+        if (attempted) {
+            this.notifyApplied();
         }
     }
 
@@ -120,6 +124,7 @@ class DebouncedUndoRedoManager {
      * Execute redo operation with validation and proper count
      */
     private async executeRedo(rpcClient: BallerinaRpcClient, requestedCount: number): Promise<void> {
+        let attempted = false;
         try {
             // Get current redo state to validate
             const undoRedoState = await rpcClient.getVisualizerRpcClient().undoRedoState();
@@ -141,13 +146,27 @@ class DebouncedUndoRedoManager {
             }
 
             // Execute multiple redo operations using the efficient bulk method
+            attempted = true;
             await rpcClient.getVisualizerRpcClient().redo(actualRedoCount);
-            this.appliedListeners.forEach((listener) => listener());
 
         } catch (error) {
             console.error("Error during debounced redo:", error);
             this.showNotification("Error occurred during redo operation", "error");
         }
+        if (attempted) {
+            this.notifyApplied();
+        }
+    }
+
+    // A failed undo or redo may have applied part of its edits, whose refreshes were held back meanwhile.
+    private notifyApplied(): void {
+        this.appliedListeners.forEach((listener) => {
+            try {
+                listener();
+            } catch (error) {
+                console.error("Undo/redo listener failed:", error);
+            }
+        });
     }
 
     /**

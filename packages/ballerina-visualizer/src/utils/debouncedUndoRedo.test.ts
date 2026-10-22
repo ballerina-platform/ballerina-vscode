@@ -80,3 +80,33 @@ test("presses made during a run resolve only after their merged run", async () =
     expect(undo).toHaveBeenCalledTimes(2);
     expect(debouncedUndoRedoManager.isProcessing()).toBe(false);
 });
+
+test("refreshes after an undo that failed part way", async () => {
+    const rpcClient = {
+        getVisualizerRpcClient: () => ({
+            undoRedoState: async () => ({ canUndo: true, undoCount: 1 }),
+            undo: async () => { throw new Error("partly applied"); },
+        }),
+    } as unknown as BallerinaRpcClient;
+    const applied = jest.fn();
+    const stop = debouncedUndoRedoManager.onApplied(applied);
+    await debouncedUndoRedoManager.debouncedUndo(rpcClient);
+    stop();
+    expect(applied).toHaveBeenCalledTimes(1);
+});
+
+test("runs every listener after a redo even when one throws", async () => {
+    const rpcClient = {
+        getVisualizerRpcClient: () => ({
+            undoRedoState: async () => ({ canRedo: true, redoCount: 1 }),
+            redo: async (): Promise<void> => undefined,
+        }),
+    } as unknown as BallerinaRpcClient;
+    const later = jest.fn();
+    const stopFirst = debouncedUndoRedoManager.onApplied(() => { throw new Error("disposed"); });
+    const stopLater = debouncedUndoRedoManager.onApplied(later);
+    await debouncedUndoRedoManager.debouncedRedo(rpcClient);
+    stopFirst();
+    stopLater();
+    expect(later).toHaveBeenCalledTimes(1);
+});

@@ -115,6 +115,8 @@ import { useAssistantName } from "../../../hooks/useProductMode";
 import { CloudKnowledgeBasePage } from "../Connection/DevantConnections/CloudKnowledgeBasePage";
 import { prepareDevantKnowledgeBase } from "../Connection/DevantConnections/devant-kb-utils";
 
+const STALE_INPUT_RELEASE_MS = 10000;
+
 const Container = styled.div`
     width: 100%;
     height: calc(100vh - 50px);
@@ -204,6 +206,14 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         DIAGRAM_REFRESH_DEBOUNCE_MS
     ), []);
     const markFlowModelStale = flowModelRefresher.markStale;
+    const canvasRef = useRef<HTMLDivElement>(null);
+    // Clicks wait for the refreshed flow, so the canvas shows it is busy rather than looking broken.
+    const setRefreshing = (refreshing: boolean) => {
+        refreshingRef.current = refreshing;
+        if (canvasRef.current) {
+            canvasRef.current.style.cursor = refreshing ? "progress" : "";
+        }
+    };
     // A silent refresh leaves the old flow on screen, and its positions are stale until the new one lands.
     const blockStaleInput = (event: SyntheticEvent) => {
         // The durable agent's canvas draws pending changes itself, so its positions are not stale during a refresh.
@@ -987,7 +997,13 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
 
     const fetchFlowModel = () => {
         const fetchId = ++latestFetchRef.current;
-        refreshingRef.current = true;
+        setRefreshing(true);
+        // A refresh that never settles must not leave the canvas unclickable.
+        const releaseInput = setTimeout(() => {
+            if (fetchId === latestFetchRef.current) {
+                setRefreshing(false);
+            }
+        }, STALE_INPUT_RELEASE_MS);
         // Refreshing a flow already on screen must not blank the title bar actions or lock the canvas.
         if (!modelRef.current) {
             setShowProgressIndicator(true);
@@ -1080,10 +1096,11 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                     });
             })
             .finally(() => {
+                clearTimeout(releaseInput);
                 if (fetchId !== latestFetchRef.current) {
                     return;
                 }
-                refreshingRef.current = false;
+                setRefreshing(false);
                 setShowProgressIndicator(false);
                 setShowProgressSpinner(false);
                 onReady(undefined, undefined, undefined);
@@ -1390,7 +1407,8 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 pendingCapabilityCloseRef.current = false;
                 setShowProgressSpinner(false);
                 setProgressMessage(LOADING_MESSAGE);
-                closeSidePanelAndFetchUpdatedFlowModel();
+                // A fetch still in flight predates the write, so this one must be marked stale and retried.
+                closeSidePanelAndFetchUpdatedFlowModel(true);
             }
         }, 10000);
     };
@@ -3541,7 +3559,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     };
 
     // ai suggestions callbacks
-    const onAcceptSuggestions = () => {
+    const onAcceptSuggestions = async () => {
         if (!suggestedModel) {
             return;
         }
@@ -3552,10 +3570,10 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             endLine: targetRef.current.endLine.line,
             endColumn: targetRef.current.endLine.offset,
         });
-        applyModifications(rpcClient, modifications);
+        await applyModifications(rpcClient, modifications);
 
         // clear diagram
-        closeSidePanelAndFetchUpdatedFlowModel();
+        closeSidePanelAndFetchUpdatedFlowModel(true);
         onDiscardSuggestions();
     };
 
@@ -4487,7 +4505,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 {(showProgressIndicator || fetchingAiSuggestions) && model && (
                     <ProgressIndicator color={ThemeColors.PRIMARY} />
                 )}
-                <Container onClickCapture={blockStaleInput} onMouseDownCapture={blockStaleInput}>
+                <Container ref={canvasRef} onClickCapture={blockStaleInput} onMouseDownCapture={blockStaleInput}>
                     {(!model || !durableUsagesLoaded) && <DiagramSkeleton />}
                     {model && durableUsagesLoaded && <MemoizedDiagram {...memoizedDiagramProps} />}
                 </Container>

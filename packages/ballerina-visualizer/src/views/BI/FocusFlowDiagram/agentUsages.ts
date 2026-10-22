@@ -761,16 +761,11 @@ export async function removeAgentTrigger(
     await rpcClient.getAIAgentRpcClient().fixMissingImports();
 }
 
-// Deletes the entry point that sends to a removed data event, and its service when nothing else is left in it.
+// Deletes only the entry point that sends to a removed data event; the confirmation promises nothing more.
 export async function deleteEventSender(rpcClient: BallerinaRpcClient, sender: AgentUsage): Promise<void> {
     const model = await currentDesignModel(rpcClient);
-    const { service, entryPoint } = findEntryPoint(model, sender.serviceName, sender.documentUri, sender.label);
-    if (!entryPoint) {
-        return;
-    }
-    if (entryPointsOf(service).length === 1) {
-        await deleteServiceWithListeners(rpcClient, triggerFor(model, service), model);
-    } else {
+    const { entryPoint } = findEntryPoint(model, sender.serviceName, sender.documentUri, sender.label);
+    if (entryPoint) {
         await deleteComponentAt(rpcClient, sender.label, sender.documentUri, toPosition(entryPoint.location));
     }
 }

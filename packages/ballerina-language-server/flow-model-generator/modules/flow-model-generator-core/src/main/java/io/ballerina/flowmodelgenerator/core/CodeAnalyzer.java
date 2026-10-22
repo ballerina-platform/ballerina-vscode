@@ -1780,6 +1780,7 @@ public class CodeAnalyzer extends NodeVisitor {
         }
         for (Node item : ((ListConstructorExpressionNode) listExpr).expressions()) {
             String name = null;
+            Node refExpr = item;
             Map<String, String> values = new LinkedHashMap<>();
             if (item.kind() == SyntaxKind.SIMPLE_NAME_REFERENCE || item.kind() == SyntaxKind.QUALIFIED_NAME_REFERENCE) {
                 name = item.toSourceCode().trim();
@@ -1848,12 +1849,13 @@ public class CodeAnalyzer extends NodeVisitor {
                         declaredName = WorkflowUtil.capabilityName(rawValue);
                     } else if (refField != null && refField.equals(fieldName)) {
                         refName = rawValue;
+                        refExpr = specificField.valueExpr().get();
                     }
                 }
                 name = declaredName != null ? declaredName : refName;
             }
             if (name != null && !name.isBlank()) {
-                boolean mcpToolKit = "tool".equals(capabilityType) && item instanceof ExpressionNode expression
+                boolean mcpToolKit = "tool".equals(capabilityType) && refExpr instanceof ExpressionNode expression
                         && resolveMcpToolKitClassName(expression).isPresent();
                 out.add(new AgentCapabilityData(name, capabilityType, item.lineRange(), values,
                         mcpToolKit ? ICON_PATH : null));
