@@ -56,6 +56,7 @@ import {
     MiniChatPrompt,
 } from "./promptHandoff";
 import { useAssistantName, useProductMode } from "../../hooks/useProductMode";
+import { SEND_ICON, SendButton } from "../CopilotPromptBox";
 import { useProductTerms } from "../../views/BI/ProjectForm/useProductTerms";
 
 /**
@@ -601,7 +602,7 @@ const FooterInput = styled.input`
     }
 `;
 
-const SendButton = styled.button`
+const StopButton = styled.button`
     flex: none;
     display: flex;
     align-items: center;
@@ -1172,12 +1173,12 @@ export function MiniChat({ anchor, focusRequest, onClose, takeInitialPrompt }: M
                     readOnly={runActive}
                 />
                 {runActive ? (
-                    <SendButton title="Stop" aria-label="Stop generating" onClick={stop}>
+                    <StopButton title="Stop" aria-label="Stop generating" onClick={stop}>
                         <Codicon name="stop-circle" />
-                    </SendButton>
+                    </StopButton>
                 ) : (
-                    <SendButton title="Send" aria-label="Send message" onClick={send} disabled={!input.trim()}>
-                        <Codicon name="send" />
+                    <SendButton type="button" title="Send" aria-label="Send message" onClick={send} disabled={!input.trim()}>
+                        {SEND_ICON}
                     </SendButton>
                 )}
             </Footer>

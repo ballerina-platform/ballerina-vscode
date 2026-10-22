@@ -73,7 +73,6 @@ function graphOf(agents: TopologyAgentNode[], entries: TopologyEntryNode[], edge
         handlers: entries.flatMap((entry) => entry.handlers),
         edges,
         wiredNothing: entries.length === 0,
-        legendKinds: [],
     };
 }
 

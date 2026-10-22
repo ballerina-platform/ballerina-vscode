@@ -233,6 +233,10 @@ class AgentStatusManager {
     }
 
     private update(partial: { state: AgentRunState; label?: string; generationId?: string }): void {
+        // A run that finishes in front of the user is already acknowledged, so it needs no 'done' hold.
+        if (partial.state === 'completed' && this.aiPanelVisible) {
+            partial = { ...partial, state: 'idle', label: undefined };
+        }
         if (this.status.state === partial.state && this.status.label === partial.label) {
             return;
         }

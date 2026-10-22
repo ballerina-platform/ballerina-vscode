@@ -41,7 +41,20 @@
               "optional": false,
               "editable": true,
               "advanced": false,
-              "hidden": false
+              "hidden": false,
+              "codedata": {
+                "lineRange": {
+                  "fileName": "main.bal",
+                  "startLine": {
+                    "line": 2,
+                    "offset": 17
+                  },
+                  "endLine": {
+                    "line": 2,
+                    "offset": 23
+                  }
+                }
+              }
             },
             "type": {
               "metadata": {
@@ -165,7 +178,20 @@
               "optional": false,
               "editable": true,
               "advanced": false,
-              "hidden": false
+              "hidden": false,
+              "codedata": {
+                "lineRange": {
+                  "fileName": "main.bal",
+                  "startLine": {
+                    "line": 3,
+                    "offset": 19
+                  },
+                  "endLine": {
+                    "line": 3,
+                    "offset": 27
+                  }
+                }
+              }
             },
             "type": {
               "metadata": {
@@ -289,7 +315,20 @@
               "optional": false,
               "editable": true,
               "advanced": false,
-              "hidden": false
+              "hidden": false,
+              "codedata": {
+                "lineRange": {
+                  "fileName": "main.bal",
+                  "startLine": {
+                    "line": 4,
+                    "offset": 20
+                  },
+                  "endLine": {
+                    "line": 4,
+                    "offset": 29
+                  }
+                }
+              }
             },
             "type": {
               "metadata": {
@@ -413,7 +452,20 @@
               "optional": false,
               "editable": true,
               "advanced": false,
-              "hidden": false
+              "hidden": false,
+              "codedata": {
+                "lineRange": {
+                  "fileName": "main.bal",
+                  "startLine": {
+                    "line": 5,
+                    "offset": 21
+                  },
+                  "endLine": {
+                    "line": 5,
+                    "offset": 31
+                  }
+                }
+              }
             },
             "type": {
               "metadata": {
@@ -537,7 +589,20 @@
               "optional": false,
               "editable": true,
               "advanced": false,
-              "hidden": false
+              "hidden": false,
+              "codedata": {
+                "lineRange": {
+                  "fileName": "main.bal",
+                  "startLine": {
+                    "line": 8,
+                    "offset": 22
+                  },
+                  "endLine": {
+                    "line": 8,
+                    "offset": 36
+                  }
+                }
+              }
             },
             "type": {
               "metadata": {
@@ -653,7 +718,20 @@
               "optional": false,
               "editable": true,
               "advanced": false,
-              "hidden": false
+              "hidden": false,
+              "codedata": {
+                "lineRange": {
+                  "fileName": "main.bal",
+                  "startLine": {
+                    "line": 11,
+                    "offset": 21
+                  },
+                  "endLine": {
+                    "line": 11,
+                    "offset": 31
+                  }
+                }
+              }
             },
             "type": {
               "metadata": {
@@ -777,7 +855,20 @@
               "optional": false,
               "editable": true,
               "advanced": false,
-              "hidden": false
+              "hidden": false,
+              "codedata": {
+                "lineRange": {
+                  "fileName": "main.bal",
+                  "startLine": {
+                    "line": 16,
+                    "offset": 21
+                  },
+                  "endLine": {
+                    "line": 16,
+                    "offset": 31
+                  }
+                }
+              }
             },
             "type": {
               "metadata": {

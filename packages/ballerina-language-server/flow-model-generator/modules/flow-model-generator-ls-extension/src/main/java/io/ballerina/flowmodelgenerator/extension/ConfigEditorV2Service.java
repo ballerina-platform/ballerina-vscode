@@ -956,7 +956,12 @@ public class ConfigEditorV2Service implements ExtendedLanguageServerService {
         var propsBuilder = codedataBuilder
                 .stepOut()
                 .properties()
-                .variableName(variableName, isRootProject)
+                // The name's line range marks it as an existing declaration, so identifier validation
+                // does not report the variable's own name as redeclared while editing it. Imported
+                // configurables are read-only and must stay without one: the webview renders a read-only
+                // identifier that has a line range as the inline rename editor (IdentifierEditor).
+                .variableName(variableName, isRootProject, null,
+                        isRootProject ? typedBindingPattern.bindingPattern().lineRange() : null)
                 .custom()
                     .metadata()
                         .label(Property.TYPE_LABEL)
