@@ -150,7 +150,8 @@ function DeleteAgentDialog({ name, noun, deletion, onCancel, onConfirm }: Delete
         setDeleting(true);
         await onConfirm(deletion.cleanup.filter((group) => selected.has(group.key)), kept);
     };
-    const nothingElse = triggers.length + deletion.chatServices + deletion.cleanup.length + warnings.length === 0;
+    const unchecked = deletion.referencesUnknown;
+    const nothingElse = !unchecked && triggers.length + deletion.chatServices + deletion.cleanup.length + warnings.length === 0;
     const ownParts = deletion.cleanup.filter((group) => !REUSABLE.includes(group.key));
     const reusableParts = deletion.cleanup.filter((group) => REUSABLE.includes(group.key));
     const select = (key: CleanupGroup["key"], checked: boolean) => setSelected((current) => {
@@ -185,7 +186,7 @@ function DeleteAgentDialog({ name, noun, deletion, onCancel, onConfirm }: Delete
                         {triggers.length + ownParts.length > 0 && (
                             <Section>
                                 <Heading>Also Delete</Heading>
-                                <Muted>Only {name} uses these. Clear any you want to keep.</Muted>
+                                <Muted>Only {name} uses these. Uncheck any you want to keep.</Muted>
                                 {triggers.map((usage) => {
                                     const key = triggerKey(usage.trigger);
                                     return (
@@ -219,11 +220,17 @@ function DeleteAgentDialog({ name, noun, deletion, onCancel, onConfirm }: Delete
                                 </Section>
                             </Warning>
                         )}
+                        {unchecked && (
+                            <Warning>
+                                <Codicon name="warning" sx={{ color: "var(--vscode-editorWarning-foreground)" }} />
+                                <span>Unable to check what else uses {name}. Deleting it may leave errors elsewhere.</span>
+                            </Warning>
+                        )}
                     </PopupContent>
                     <PopupFooter>
                         <Button appearance="secondary" onClick={close} disabled={deleting}>Cancel</Button>
                         <Button appearance="primary" onClick={confirm} disabled={deleting}>
-                            {deleting ? "Deleting…" : warnings.length > 0 ? "Delete Anyway" : `Delete ${noun}`}
+                            {deleting ? "Deleting…" : warnings.length > 0 || unchecked ? "Delete Anyway" : `Delete ${noun}`}
                         </Button>
                     </PopupFooter>
                 </PopupModalStep>
@@ -254,11 +261,17 @@ export function useAgentDeletion(rpcClient: BallerinaRpcClient, projectPath: str
         const { agent, ref, kind, deletion } = pending;
         let deleted = false;
         try {
-            await withUndoGroup(rpcClient, async () => {
-                await deleteAgentWithTriggers(rpcClient, projectPath, ref, kind, deletion, cleanup, kept);
+            const missed = await withUndoGroup(rpcClient, async () => {
+                const left = await deleteAgentWithTriggers(rpcClient, projectPath, ref, kind, deletion, cleanup, kept);
                 await rpcClient.getAIAgentRpcClient().fixMissingImports();
+                return left;
             }, `${kind === "workflow" ? "Workflow" : "Agent"} Deletion - ${agent.name}`);
             deleted = true;
+            if (missed.length > 0) {
+                rpcClient.getCommonRpcClient().showErrorMessage({
+                    message: `${agent.name} was deleted, but ${missed.join(", ")} could not be found and ${missed.length === 1 ? "was" : "were"} left in the source.`,
+                });
+            }
         } catch (error) {
             console.error(">>> agent overview: failed to delete agent", error);
             rpcClient.getCommonRpcClient().showErrorMessage({
@@ -309,16 +322,22 @@ export function DeleteAgentPopup({ location, onClose }: { location: PopupVisuali
     }, [rpcClient, location, startLine, onClose]);
     const { request, dialog } = useAgentDeletion(rpcClient, projectPath, onDone);
 
+    const fail = (error: unknown) => {
+        console.error(">>> agent overview: failed to open the agent deletion", error);
+        rpcClient.getCommonRpcClient().showErrorMessage({ message: `Unable to check what uses ${location.identifier}.` });
+        void onDone(false);
+    };
+
     useEffect(() => {
-        void rpcClient.getVisualizerLocation().then((shown) => setProjectPath(shown.projectPath));
+        rpcClient.getVisualizerLocation().then((shown) => setProjectPath(shown.projectPath)).catch(fail);
     }, []);
 
     useEffect(() => {
         if (!projectPath) {
             return;
         }
-        void deletableKindOf(rpcClient, projectPath, location).then((kind) =>
-            request({ path: location.documentUri, startLine, name: location.identifier, kind }));
+        deletableKindOf(rpcClient, projectPath, location).then((kind) =>
+            request({ path: location.documentUri, startLine, name: location.identifier, kind })).catch(fail);
     }, [projectPath]);
 
     return dialog || null;

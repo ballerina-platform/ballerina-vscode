@@ -321,6 +321,8 @@ export type AgentDeletion = {
     scopes: AgentTriggerScopes;
     chatServices: number;
     dangling: AgentUsage[];
+    // The language server could not list the agent's references, so other uses may exist.
+    referencesUnknown: boolean;
     cleanup: CleanupGroup[];
 };
 
@@ -354,7 +356,8 @@ export async function loadAgentDeletion(
         plan,
         scopes,
         chatServices: chats.length,
-        dangling: danglingPlaces(model, artifacts, refs ?? [], known, agentToolNames(model, declaration.uuid)),
+        dangling: refs ? danglingPlaces(model, artifacts, refs, known, agentToolNames(model, declaration.uuid)) : [],
+        referencesUnknown: !refs,
         cleanup: await cleanupGroups(rpcClient, model, artifacts, agentConnection, alwaysDeleted),
     };
 }
@@ -376,14 +379,19 @@ async function locate(rpcClient: BallerinaRpcClient, projectPath: string, declar
     return connection ? toPosition(connection.location) : undefined;
 }
 
+// False when the declaration can no longer be found, so it was left in the source.
 async function deleteDeclaration(rpcClient: BallerinaRpcClient, projectPath: string, key: CleanupGroup["key"], declaration: Declaration) {
     if (key === "mcp") {
-        return deleteMcpToolkit(rpcClient, declaration.name);
+        await deleteMcpToolkit(rpcClient, declaration.name);
+        return true;
     }
     const position = await locate(rpcClient, projectPath, declaration);
-    if (position) {
-        await deleteComponentAt(rpcClient, declaration.name, declaration.filePath, position);
+    if (!position) {
+        console.warn(`>>> agent deletion: ${declaration.name} was not found, so it was kept`);
+        return false;
     }
+    await deleteComponentAt(rpcClient, declaration.name, declaration.filePath, position);
+    return true;
 }
 
 export async function deleteAgentWithTriggers(
@@ -394,7 +402,7 @@ export async function deleteAgentWithTriggers(
     { plan, scopes, chatServices }: AgentDeletion,
     cleanup: CleanupGroup[] = [],
     kept: Set<string> = new Set()
-): Promise<void> {
+): Promise<string[]> {
     const removed = (usage: AgentUsage) => !kept.has(triggerKey(usage.trigger));
     const steps = plan.triggers.filter(removed).length + chatServices;
     let ref = agent;
@@ -417,9 +425,13 @@ export async function deleteAgentWithTriggers(
         // Lines may have shifted, so a stale location could now point at another declaration.
         ref = { ...agent, startLine: -1 };
     }
+    const missed: string[] = [];
     for (const group of cleanup) {
         for (const declaration of group.declarations) {
-            await deleteDeclaration(rpcClient, projectPath, group.key, declaration);
+            if (!(await deleteDeclaration(rpcClient, projectPath, group.key, declaration))) {
+                missed.push(declaration.name);
+            }
         }
     }
+    return missed;
 }
