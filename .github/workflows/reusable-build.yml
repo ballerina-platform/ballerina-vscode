@@ -307,13 +307,18 @@ jobs:
           group: ${{ matrix.group }}
 
   LSTest_Ballerina:
-    name: Run Ballerina LS tests (${{ matrix.os }})
-    timeout-minutes: 60
+    name: Run Ballerina LS tests (${{ matrix.os }}, ${{ matrix.variant }})
+    # DIAGNOSTIC: raised from 60 so the baseline Windows leg finishes and reports every class.
+    timeout-minutes: 120
     if: ${{ inputs.runLSTests }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
+        variant: [baseline]
+        include:
+          - os: windows-latest
+            variant: no-jacoco
     runs-on: ${{ matrix.os }}
     steps:
       - name: Enable long paths for Git
@@ -334,3 +339,4 @@ jobs:
           package-user: ${{ github.actor }}
           package-pat: ${{ secrets.GITHUB_TOKEN }}
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          diagnostic-variant: ${{ matrix.variant }}
