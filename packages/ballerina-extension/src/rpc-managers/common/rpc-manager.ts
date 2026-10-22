@@ -82,7 +82,6 @@ import {
     askProjectPath,
     copyIntoIntegration,
     findWorkspaceTypeFromWorkspaceFolders,
-    getFirstBalaPath,
     getPublishDescriptionInfo,
     getPublishConfirmation,
     PublishPackageInfo,
@@ -96,6 +95,7 @@ import {
     selectSampleDownloadPath,
     toIntegrationRelative
 } from "./utils";
+import { getBalaDirPath, getBalaPath } from "./bala";
 import { VisualizerWebview } from "../../views/visualizer/webview";
 
 export class CommonRpcManager implements CommonRPCAPI {
@@ -815,6 +815,8 @@ export class CommonRpcManager implements CommonRPCAPI {
             async (progress) => {
                 try {
                     progress.report({ message: 'Packing...' });
+                    // Never push a bala left over from an earlier pack.
+                    fs.rmSync(getBalaDirPath(projectPath), { recursive: true, force: true });
                     const packResult = await this.runPackCommand(projectPath);
                     if (packResult.error) {
                         result.message = packResult.message ?? '';
@@ -822,7 +824,7 @@ export class CommonRpcManager implements CommonRPCAPI {
                     }
 
                     progress.report({ message: 'Publishing...' });
-                    const balaFilePath = getFirstBalaPath(projectPath);
+                    const balaFilePath = getBalaPath(projectPath);
                     if (!balaFilePath) {
                         result.message = 'No publishable artifact found at the target/bala directory';
                         return;

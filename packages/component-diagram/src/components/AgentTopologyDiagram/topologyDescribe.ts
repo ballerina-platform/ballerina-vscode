@@ -162,7 +162,7 @@ export function describeTopology(model: CDModel, graph: TopologyGraph, layout: T
     graph.agents.forEach((agent, index) => shortIds.set(agent.id, `A${index + 1}`));
     const id = (nodeId: string): string => shortIds.get(nodeId) ?? nodeId;
     return [
-        `>>> agent overview · ${vertical ? "vertical" : "horizontal"} · canvas ${options.availableWidth ?? "?"}px · drawn ${Math.round(layout.width)}×${Math.round(layout.height)} (left ${Math.round(layout.left)}) · legend ${graph.legendKinds.join(", ") || "-"}${graph.wiredNothing ? " · NOTHING WIRED" : ""}`,
+        `>>> agent overview · ${vertical ? "vertical" : "horizontal"} · canvas ${options.availableWidth ?? "?"}px · drawn ${Math.round(layout.width)}×${Math.round(layout.height)} (left ${Math.round(layout.left)})${graph.wiredNothing ? " · NOTHING WIRED" : ""}`,
         `ENTRY POINTS (${graph.entries.length} card(s), ${graph.handlers.length} handler(s))`,
         ...entryLines(graph, layout, id),
         `AGENTS (${graph.agents.length})`,
