@@ -48,7 +48,7 @@ final ai:Agent <agent>Agent = check new (
         instructions: string `<first line of instructions>
 <continuation line, starting at column 0>
 <continuation line, starting at column 0>`
-    }, model = <agent>Model, tools = [<toolName>, <toolName>]
+    }, model = check ai:getDefaultModelProvider(), tools = [<toolName>, <toolName>]
 );
 ```
 
@@ -56,18 +56,17 @@ Do not indent the continuation lines of `instructions` to match the surrounding 
 whitespace is part of the string and is shown to the user in the prompt editor. Start every
 continuation line at column 0, as above.
 
-## Model provider: declare the concrete type
+## Model provider
 
-Every `ai` component is identified in the diagram by its **declared type**, so always declare the
-concrete class. An abstract type renders as an unresolved node.
+Use the default model provider inline in the `ai:Agent` construction, as in the example above:
+`model = check ai:getDefaultModelProvider()`. Do not declare a module-level model variable for it.
 
-```ballerina
-final ai:Wso2ModelProvider <agent>Model = check ai:getDefaultModelProvider();
-```
+When the user names a provider (OpenAI, Azure, Anthropic, Ollama, …), declare it as a module-level
+`final` variable of that provider's own class and pass it by name: `model = <agent>Model`.
 
-`ai:Wso2ModelProvider` not `ai:ModelProvider`; `ai:Wso2EmbeddingProvider` not
-`ai:EmbeddingProvider`; `ai:InMemoryVectorStore` not `ai:VectorStore`. When the user names a
-provider (OpenAI, Azure, Anthropic, Ollama, …) declare that provider's own class, same rule.
+Every other `ai` component is identified in the diagram by its **declared type**, so always declare
+the concrete class. An abstract type renders as an unresolved node: `ai:Wso2EmbeddingProvider` not
+`ai:EmbeddingProvider`, `ai:InMemoryVectorStore` not `ai:VectorStore`.
 
 ## Agent tools
 
@@ -289,7 +288,7 @@ Once declared, a toolkit sits in `tools` beside plain function tools, no special
 ```ballerina
 final ai:Agent <agent>Agent = check new (
     systemPrompt = <systemPrompt>, // shown in full under "System prompt: always inline" above
-    model = <agent>Model,          // shown in full under "Model provider" above
+    model = check ai:getDefaultModelProvider(),
     tools = [sumTool, multiplyTool, <toolkitVar>]
 );
 ```

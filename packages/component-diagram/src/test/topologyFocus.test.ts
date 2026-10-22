@@ -52,7 +52,7 @@ function edge(sourceId: string, targetId: string, kind: TopologyEdge["kind"] = "
 }
 
 function graphOf(agents: TopologyAgentNode[], entries: TopologyEntryNode[], edges: TopologyEdge[]): TopologyGraph {
-    return { agents, entries, handlers: entries.flatMap((entry) => entry.handlers), edges, wiredNothing: false, legendKinds: [] };
+    return { agents, entries, handlers: entries.flatMap((entry) => entry.handlers), edges, wiredNothing: false };
 }
 
 // helper_chains: /draft runs research ① → writer ②; /intake runs intake ① → research ②; main runs intake.
@@ -120,7 +120,6 @@ describe("focusAround", () => {
                 { id: "send~>d#chat", sourceId: "card::t", targetId: "d", kind: "event", handlerId: "send", channel: "chat" },
             ],
             wiredNothing: false,
-            legendKinds: ["trigger", "event"],
         };
     }
 

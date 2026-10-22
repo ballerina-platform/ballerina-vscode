@@ -88,7 +88,7 @@ export function activateEditBiTest(ballerinaExtInstance: BallerinaExtension) {
         }
 
         const fileUri = path.resolve(projectPath, `tests`, `tests.bal`);
-        ensureFileExists(fileUri);
+        await ensureFileExists(fileUri);
         openView(EVENT_TYPE.OPEN_VIEW, {
             view: MACHINE_VIEW.BITestFunctionForm,
             documentUri: fileUri, identifier: '', serviceType: 'ADD_NEW_TEST'
@@ -396,6 +396,10 @@ async function ensureFileExists(filePath: string) {
         await fs.mkdir(path.dirname(filePath), { recursive: true });
 
         await fs.writeFile(filePath, '', 'utf8');
+        // The language server loaded the project before this file existed, and test saves look the file up there.
+        await StateMachine.langClient().didOpen({
+            textDocument: { uri: Uri.file(filePath).toString(), text: '', languageId: 'ballerina', version: 1 }
+        });
         console.log('File created:', filePath);
     }
 }

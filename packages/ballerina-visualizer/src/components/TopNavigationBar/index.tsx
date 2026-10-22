@@ -20,7 +20,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import styled from "@emotion/styled";
 import { Icon } from "@wso2/ui-toolkit";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { DIRECTORY_MAP, EVENT_TYPE, HistoryEntry, isSamePath, MACHINE_VIEW, VisualizerLocation, WorkspaceTypeResponse } from "@wso2/ballerina-core";
+import { DIRECTORY_MAP, EVENT_TYPE, HistoryEntry, isSamePath, MACHINE_VIEW, ProductMode, VisualizerLocation, WorkspaceTypeResponse } from "@wso2/ballerina-core";
+import { useProductMode } from "../../hooks/useProductMode";
 
 const NavContainer = styled.div<{ bordered?: boolean }>`
     display: flex;
@@ -116,6 +117,7 @@ export function TopNavigationBar(props: TopNavigationBarProps) {
     const [history, setHistory] = useState<HistoryEntry[]>([]);
     const [workspaceType, setWorkspaceType] = useState<WorkspaceTypeResponse>(null);
     const [currentLocation, setCurrentLocation] = useState<VisualizerLocation | null>(null);
+    const isAgentBuilder = useProductMode() === ProductMode.AGENT_BUILDER;
 
     useEffect(() => {
         Promise.all([
@@ -272,8 +274,15 @@ export function TopNavigationBar(props: TopNavigationBarProps) {
 
     // Build the dedicated breadcrumb trail from the history.
     const breadcrumbItems = useMemo(
-        () => buildBreadcrumbItems(history, skippedViews, hasMultiplePackages),
-        [history, skippedViews, hasMultiplePackages]
+        () => {
+            const activeView = history[history.length - 1]?.location.view;
+            // The overview shows the project title, and history may hold a stale trail beneath it.
+            if (isAgentBuilder && activeView === MACHINE_VIEW.PackageOverview) {
+                return [];
+            }
+            return buildBreadcrumbItems(history, skippedViews, hasMultiplePackages);
+        },
+        [history, skippedViews, hasMultiplePackages, isAgentBuilder]
     );
 
     return (

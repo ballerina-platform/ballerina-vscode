@@ -41,6 +41,31 @@ export const OrbGlow = styled.span`
     inset: 0;
     transition: filter 0.2s ease;
 `;
+
+export const OrbButton = styled.button<{ $interactive: boolean }>`
+    position: relative;
+    width: ${ORB_SIZE}px;
+    height: ${ORB_SIZE}px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    outline-offset: 4px;
+    cursor: ${(props: { $interactive: boolean }) => (props.$interactive ? "pointer" : "default")};
+    transition: transform 0.2s ease;
+    &:hover {
+        transform: ${(props: { $interactive: boolean }) => (props.$interactive ? "scale(1.06)" : "none")};
+    }
+    &:active {
+        transform: ${(props: { $interactive: boolean }) => (props.$interactive ? "scale(0.98)" : "none")};
+    }
+    // Clears the ambient pulse's own 1.13 peak so the lift reads as a response, not the idle animation.
+    // Reached by class: interpolating OrbGlow would stringify to ".undefined" without @emotion/babel-plugin.
+    &:hover .${ORB_GLOW_CLASS},
+    &:focus-visible .${ORB_GLOW_CLASS} {
+        filter: ${(props: { $interactive: boolean }) =>
+            props.$interactive ? `brightness(${ORB_HOVER_BRIGHTNESS})` : "none"};
+    }
+`;
 export const EDGE_MARGIN = 20;
 
 export type Anchor = "top-left" | "top-center" | "top-right" | "bottom-left" | "bottom-center" | "bottom-right";
