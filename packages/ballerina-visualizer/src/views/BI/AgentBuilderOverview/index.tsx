@@ -34,6 +34,7 @@ import { TopNavigationBar } from "../../../components/TopNavigationBar";
 import { DeploymentPanel, SidePanel } from "../../../components/DeploymentControl";
 import { useDeploymentControl } from "../../../hooks/useDeploymentControl";
 import { getIntegrationTypes, hasWorkflowArtifacts, validateComponentName, useProjectContentRefresh } from "../PackageOverview/utils";
+import { hasLibraryArtifacts } from "../PackageOverview/LibraryOverview";
 import { useTracingStatus } from "../../../hooks/useProductMode";
 import { EmptyState } from "./EmptyState";
 import { openAgent, openServiceConfig, openTrigger } from "../AgentTopology/topologyNavigation";
@@ -44,6 +45,9 @@ const LazyAgentTopology = React.lazy(() => import("../AgentTopology"));
 const LazyAddAgentPopup = React.lazy(() => import("../AIChatAgent/AddAgentPopup"));
 const LazyAddLibraryArtifactPopup = React.lazy(() => import("./AddLibraryArtifactPopup"));
 const LazyAddMcpServicePopup = React.lazy(() => import("./AddMcpServicePopup"));
+const LazyPackageOverview = React.lazy(() =>
+    import("../PackageOverview").then((module) => ({ default: module.PackageOverview }))
+);
 
 // A revisit renders the last structure at once; the fetch on mount replaces it.
 const contextCache = new Map<string, { project: ProjectStructure; isInProject: boolean }>();
@@ -199,7 +203,7 @@ function useCompactHeader() {
     return compact;
 }
 
-const OVERVIEW_TITLE = "Agent Overview";
+const OVERVIEW_TITLE = "Overview";
 
 export interface AgentFocusRequest {
     path: string;
@@ -497,14 +501,24 @@ export function AgentBuilderOverview({ projectPath, agentFocus, isInDevant, isIC
         </>
     );
 
+    const loadingPage = (
+        <Page>
+            {isInProject && <TopNavigationBar projectPath={projectPath} bordered />}
+            <CenteredSlot>
+                <ProgressRing color={ThemeColors.PRIMARY} />
+            </CenteredSlot>
+        </Page>
+    );
+
     if (!projectStructure) {
+        return loadingPage;
+    }
+
+    if (isLibrary && hasLibraryArtifacts(projectStructure.directoryMap)) {
         return (
-            <Page>
-                {isInProject && <TopNavigationBar projectPath={projectPath} bordered />}
-                <CenteredSlot>
-                    <ProgressRing color={ThemeColors.PRIMARY} />
-                </CenteredSlot>
-            </Page>
+            <React.Suspense fallback={loadingPage}>
+                <LazyPackageOverview projectPath={projectPath} isInDevant={isInDevant} isICPSupported={isICPSupported} />
+            </React.Suspense>
         );
     }
 
@@ -529,7 +543,7 @@ export function AgentBuilderOverview({ projectPath, agentFocus, isInDevant, isIC
                                         <BreadcrumbLabel>{OVERVIEW_TITLE}</BreadcrumbLabel>
                                         <StripActions>
                                             <AddAgentButton onClick={() => setShowAddAgent(true)} title="Add an agent to this project">
-                                                <Icon name="bi-plus" sx={{ fontSize: 16, width: 16, height: 16 }} />
+                                                <Icon name="bi-ai-agent" sx={{ fontSize: 16, width: 16, height: 16 }} />
                                                 Add Agent
                                             </AddAgentButton>
                                             {!isLibrary && (
@@ -537,7 +551,7 @@ export function AgentBuilderOverview({ projectPath, agentFocus, isInDevant, isIC
                                                     onClick={() => setShowAddMcpService(true)}
                                                     title="Add an MCP server to this project"
                                                 >
-                                                    <Icon name="bi-plus" sx={{ fontSize: 16, width: 16, height: 16 }} />
+                                                    <Icon name="bi-mcp" sx={{ fontSize: 16, width: 16, height: 16 }} />
                                                     Add MCP
                                                 </AddAgentButton>
                                             )}
