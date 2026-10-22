@@ -167,13 +167,13 @@ export class VisualizerRpcManager implements VisualizerAPI {
         return new Promise((resolve, reject) => {
             StateMachine.setEditMode();
             const workspaceEdit = new WorkspaceEdit();
-            for (const [filePath, content] of revertedFiles.entries()) {
-                workspaceEdit.replace(Uri.file(filePath), new Range(0, 0, Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER), content);
+            for (const filePath of changedPaths) {
+                workspaceEdit.replace(Uri.file(filePath), new Range(0, 0, Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER), revertedFiles.get(filePath));
             }
 
             // Artifacts are published per changed source file; the view's artifact may live in any of them.
-            let pendingPublishes = changedPaths.filter((filePath) => filePath.endsWith(".bal")).length;
-            if (pendingPublishes === 0) {
+            const pendingFiles = new Set(changedPaths.filter((filePath) => filePath.endsWith(".bal")));
+            if (pendingFiles.size === 0) {
                 workspace.applyEdit(workspaceEdit).then(() => {
                     StateMachine.setReadyMode();
                     notifyCurrentWebview();
@@ -185,7 +185,12 @@ export class VisualizerRpcManager implements VisualizerAPI {
             const notificationHandler = ArtifactNotificationHandler.getInstance();
             const unsubscribe = notificationHandler.subscribe(ArtifactsUpdated.method, undefined, async (payload) => {
                 publishedArtifacts.push(...payload.data);
-                if (--pendingPublishes > 0) {
+                // A file can publish twice, and one with no artifacts left publishes an empty list.
+                const published = payload.data.length === 0
+                    ? [...pendingFiles].slice(0, 1)
+                    : [...pendingFiles].filter((filePath) => payload.data.some((artifact) => isSamePath(artifact.path, filePath)));
+                published.forEach((filePath) => pendingFiles.delete(filePath));
+                if (pendingFiles.size > 0) {
                     return;
                 }
                 unsubscribe();
@@ -211,13 +216,13 @@ export class VisualizerRpcManager implements VisualizerAPI {
             });
             workspace.applyEdit(workspaceEdit);
 
-            // Set a timeout to reject if no notification is received within 10 seconds
+            // A publish can be skipped (e.g. during a recovery rebuild); the edit has applied, so the view only refreshes.
             const timeoutId = setTimeout(() => {
                 console.log("No artifact update notification received within 10 seconds");
                 unsubscribe();
                 StateMachine.setReadyMode();
-                openView(EVENT_TYPE.OPEN_VIEW, { view: MACHINE_VIEW.PackageOverview });
-                reject(new Error("Operation timed out. Please try again."));
+                notifyCurrentWebview();
+                resolve(successMessage);
             }, 10000);
         });
     }
