@@ -259,6 +259,23 @@ export function getJdkMajorVersion(jdkDir: string): number | null {
     }
 }
 
+/**
+ * macOS loader variables that put another JDK's libjvm into the bundled JRE's `java`: dyld
+ * looks up `libjvm.dylib` by leaf name in DYLD_LIBRARY_PATH before the path the launcher asks
+ * for, so a `<jdk-21>/lib/server` entry runs a Java 21 VM. `bal` never sees these — macOS
+ * drops DYLD_* when it starts /bin/bash — so only a direct `java` spawn needs them removed.
+ */
+export const JVM_OVERRIDING_ENV_VARS = ['DYLD_LIBRARY_PATH', 'DYLD_INSERT_LIBRARIES'];
+
+/** The extension host's environment, minus what would load a different JVM than the one chosen. */
+export function getJavaLanguageServerEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+    const serverEnv = { ...env };
+    for (const name of JVM_OVERRIDING_ENV_VARS) {
+        delete serverEnv[name];
+    }
+    return serverEnv;
+}
+
 /** Only the bundled jar imposes a JRE requirement; the distribution's own server does not. */
 export function usesBundledLanguageServer(extension: BallerinaExtension): boolean {
     const BI_SUPPORTED_MINIMUM_VERSION = createVersionNumber(2201, 12, 3); // Version 2201.12.3
@@ -325,7 +342,7 @@ function getServerOptionsUsingCLI(extension: BallerinaExtension): ServerOptions 
 function getServerOptionsUsingJava(extension: BallerinaExtension): ServerOptions {
     debug(`Using java command to start language server.`);
     let opt: ExecutableOptions = {};
-    opt.env = Object.assign({}, process.env);
+    opt.env = getJavaLanguageServerEnv(process.env);
 
     if (process.env.LS_EXTENSIONS_PATH !== "") {
         if (opt.env.BALLERINA_CLASSPATH_EXT) {
