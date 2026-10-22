@@ -99,10 +99,11 @@ describe("ReadonlyField", () => {
     });
 
     it("shows no error when the field has no diagnostics", () => {
-        const { container } = renderWithForm(<ReadonlyField field={field("mysqlClient")} />, {
+        const { container, queryByTestId } = renderWithForm(<ReadonlyField field={field("mysqlClient")} />, {
             defaultValues: { connection: "mysqlClient" },
         });
         expect(container.querySelector(".codicon-warning")).toBeNull();
+        expect(queryByTestId("warning-banner")).toBeNull();
     });
 
     it("shows a warning in the warning banner rather than as an error", () => {
