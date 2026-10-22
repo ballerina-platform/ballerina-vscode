@@ -17,7 +17,7 @@
  */
 
 import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
-import { debouncedUndo } from "./debouncedUndoRedo";
+import { debouncedRedo, debouncedUndo, debouncedUndoRedoManager } from "./debouncedUndoRedo";
 
 describe("debouncedUndo", () => {
     it("resolves presses made during a run only after their batched undo has run", async () => {
@@ -50,5 +50,35 @@ describe("debouncedUndo", () => {
         releases[2]();
         await fourth;
         expect(undo).toHaveBeenCalledTimes(3);
+    });
+
+    it("refreshes after an undo that failed part way", async () => {
+        const rpcClient = {
+            getVisualizerRpcClient: () => ({
+                undoRedoState: async () => ({ canUndo: true, undoCount: 1 }),
+                undo: async () => { throw new Error("partly applied"); },
+            }),
+        } as unknown as BallerinaRpcClient;
+        const applied = jest.fn();
+        const stop = debouncedUndoRedoManager.onApplied(applied);
+        await debouncedUndo(rpcClient);
+        stop();
+        expect(applied).toHaveBeenCalledTimes(1);
+    });
+
+    it("runs every listener after a redo even when one throws", async () => {
+        const rpcClient = {
+            getVisualizerRpcClient: () => ({
+                undoRedoState: async () => ({ canRedo: true, redoCount: 1 }),
+                redo: async (): Promise<void> => undefined,
+            }),
+        } as unknown as BallerinaRpcClient;
+        const later = jest.fn();
+        const stopFirst = debouncedUndoRedoManager.onApplied(() => { throw new Error("disposed"); });
+        const stopLater = debouncedUndoRedoManager.onApplied(later);
+        await debouncedRedo(rpcClient);
+        stopFirst();
+        stopLater();
+        expect(later).toHaveBeenCalledTimes(1);
     });
 });
