@@ -21,6 +21,7 @@ import { ExecutionContext, ProjectSource } from '@wso2/ballerina-core';
 import { CopilotEventHandler } from '../utils/events';
 import { createTaskWriteTool, TASK_WRITE_TOOL_NAME } from './tools/task-writer';
 import { createDiagnosticsTool, DIAGNOSTICS_TOOL_NAME } from './tools/diagnostics';
+import { createEditDiagnosticsReporter, withEditDiagnostics } from './tools/edit-diagnostics';
 import {
     createBatchEditTool,
     createEditExecute,
@@ -37,6 +38,7 @@ import {
 } from './tools/text-editor';
 import { GenerationType } from '../utils/libs/libraries';
 import { createConnectorGeneratorTool, CONNECTOR_GENERATOR_TOOL } from './tools/connector-generator';
+import { SpecContext } from './tools/connector-spec-source';
 import { createSubagentTool } from './tools/subagent-tool';
 import { createKillTaskTool, createTaskOutputTool } from './tools/task-tools';
 import { buildRunKey, KILL_TASK_TOOL_NAME, SUBAGENT_TOOL_NAME, SubagentRunContext, TASK_OUTPUT_TOOL_NAME } from './subagents/types';
@@ -81,14 +83,20 @@ export interface ToolRegistryOptions {
     runningServices: RunningServicesManager;
     webSearchEnabled: boolean;
     ctx: ExecutionContext;
+    /** The thread's attachments and user text; the connector generator reads a supplied spec from them. */
+    specContext?: SpecContext;
     // TODO(auto-memory): temporarily disabled for this release.
     // /** When true, registers save_memory and consolidate_memories tools in the main agent registry. */
     // autoMemoryEnabled?: boolean;
 }
 
 export function createToolRegistry(opts: ToolRegistryOptions) {
-    const { eventHandler, toolModelUsage, tempProjectPath, modifiedFiles, allModifiedFiles, projects, generationType, projectRootPath, generationId, threadId, migrationSourcePath, webSearchEnabled, ctx } = opts;
+    const { eventHandler, toolModelUsage, tempProjectPath, modifiedFiles, allModifiedFiles, projects, generationType, projectRootPath, generationId, threadId, migrationSourcePath, webSearchEnabled, ctx, specContext } = opts;
     const resolvedThreadId = threadId || 'default';
+    // Which compiler errors this run has shown the model, shared by the edit tools and the
+    // diagnostics tool. Only with an ExecutionContext do edits go through the document model, so
+    // only then does the language server see them.
+    const editDiagnostics = ctx ? createEditDiagnosticsReporter(tempProjectPath) : undefined;
     // Library lookups happen only inside subagents; their histories live next to the thread.
     const subagentCtx: SubagentRunContext = {
         eventHandler,
@@ -99,6 +107,8 @@ export function createToolRegistry(opts: ToolRegistryOptions) {
         threadDir: chatStateStorage.getThreadDir(projectRootPath, resolvedThreadId),
         runKey: buildRunKey(projectRootPath, resolvedThreadId),
     };
+    // In a workspace project, generated code goes into the package the user is working in.
+    const activeProject = projects.find(project => project.isActive) ?? projects[0];
     const tools = {
         [TASK_WRITE_TOOL_NAME]: createTaskWriteTool(
             eventHandler,
@@ -114,8 +124,10 @@ export function createToolRegistry(opts: ToolRegistryOptions) {
         [CONNECTOR_GENERATOR_TOOL]: createConnectorGeneratorTool(
             eventHandler,
             tempProjectPath,
-            projects[0]?.projectName,
-            modifiedFiles
+            activeProject?.projectName,
+            modifiedFiles,
+            specContext,
+            activeProject?.packagePath
         ),
         [CONFIG_COLLECTOR_TOOL]: createConfigCollectorTool(
             eventHandler,
@@ -126,18 +138,18 @@ export function createToolRegistry(opts: ToolRegistryOptions) {
             modifiedFiles
         ),
         [FILE_WRITE_TOOL_NAME]: createWriteTool(
-            createWriteExecute(eventHandler, tempProjectPath, modifiedFiles, allModifiedFiles, ctx)
+            withEditDiagnostics(editDiagnostics, createWriteExecute(eventHandler, tempProjectPath, modifiedFiles, allModifiedFiles, ctx))
         ),
         [FILE_SINGLE_EDIT_TOOL_NAME]: createEditTool(
-            createEditExecute(eventHandler, tempProjectPath, modifiedFiles, allModifiedFiles, ctx)
+            withEditDiagnostics(editDiagnostics, createEditExecute(eventHandler, tempProjectPath, modifiedFiles, allModifiedFiles, ctx))
         ),
         [FILE_BATCH_EDIT_TOOL_NAME]: createBatchEditTool(
-            createMultiEditExecute(eventHandler, tempProjectPath, modifiedFiles, allModifiedFiles, ctx)
+            withEditDiagnostics(editDiagnostics, createMultiEditExecute(eventHandler, tempProjectPath, modifiedFiles, allModifiedFiles, ctx))
         ),
         [FILE_READ_TOOL_NAME]: createReadTool(
             createReadExecute(eventHandler, tempProjectPath)
         ),
-        [DIAGNOSTICS_TOOL_NAME]: createDiagnosticsTool(tempProjectPath, eventHandler),
+        [DIAGNOSTICS_TOOL_NAME]: createDiagnosticsTool(tempProjectPath, eventHandler, editDiagnostics),
         [TEST_RUNNER_TOOL_NAME]: createTestRunnerTool(tempProjectPath, eventHandler),
         // Migration source tools — registered only when a source project path is available
         ...(migrationSourcePath ? {

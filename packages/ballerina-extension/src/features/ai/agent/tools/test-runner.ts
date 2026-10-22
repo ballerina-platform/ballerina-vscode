@@ -40,7 +40,7 @@ export function createTestRunnerTool(
     return tool({
         description: `Runs \`bal test\` in the current Ballerina project and returns the raw output.
 
-**Prerequisites:** The project must compile cleanly. Always run \`${DIAGNOSTICS_TOOL_NAME}\` first and resolve all compilation errors before invoking this tool — tests cannot run on code that does not compile.
+**Prerequisites:** The project must compile cleanly — tests cannot run on code that does not compile. Fix the compiler errors your edits reported first; if an edit's errors were not checked, run \`${DIAGNOSTICS_TOOL_NAME}\` first.
 
 **REQUIRED before calling this tool:** You MUST tell the user what is being tested (e.g. which functions or scenarios the test cases cover). Do NOT invoke this tool without first informing the user.
 

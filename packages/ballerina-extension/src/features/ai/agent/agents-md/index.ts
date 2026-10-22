@@ -125,7 +125,7 @@ Note: AGENTS.md was deleted since I last shared its contents. Any project instru
 export interface ThreadAgentsMdState {
     /** Hash of AGENTS.md as it was last injected into this thread, or undefined if never shown. */
     lastReadHash: string | undefined;
-    /** True if a compacted-generation marker sits between the last-injection point and the latest generation. */
+    /** True if a compacted-generation marker or a summary restart sits between the last-injection point and the latest generation. */
     compactionDetected: boolean;
 }
 
@@ -146,6 +146,11 @@ export function inspectThreadForAgentsMdState(thread: ChatThread): ThreadAgentsM
         const hash = gen.metadata?.agentsMdLastReadHash;
         if (hash) {
             return { lastReadHash: hash, compactionDetected };
+        }
+        // A summary restart re-injects AGENTS.md and records the hash on its own generation
+        // (prepareAgentsMdForRestart), so it only hides an injection made before it.
+        if (gen.restartedFromSummary) {
+            compactionDetected = true;
         }
     }
     return { lastReadHash: undefined, compactionDetected: false };
@@ -207,7 +212,20 @@ export async function prepareAgentsMdForTurn(workspacePath: string, threadId: st
     const state = thread
         ? inspectThreadForAgentsMdState(thread)
         : { lastReadHash: undefined, compactionDetected: false };
-    const decision = decide(current, state.lastReadHash, state.compactionDetected);
+    return toTurnPrep(decide(current, state.lastReadHash, state.compactionDetected), current);
+}
+
+/**
+ * AGENTS.md for a turn that restarts from its compaction summary: the summary leaves out the
+ * earlier injection, so the current file is shown again whatever the thread's state.
+ */
+export async function prepareAgentsMdForRestart(workspacePath: string): Promise<AgentsMdTurnPrep> {
+    const current = await readAgentsMd(workspacePath);
+    // With no file, the restarted history shows none, so a returning file counts as new.
+    return current ? toTurnPrep(decide(current, undefined, true), current) : { hashToPersist: AGENTS_MD_REMOVED_SENTINEL };
+}
+
+function toTurnPrep(decision: AgentsMdDecision, current: AgentsMdContent | null): AgentsMdTurnPrep {
     if (decision.kind === 'content') {
         return { text: decision.text, hashToPersist: current!.hash };
     }

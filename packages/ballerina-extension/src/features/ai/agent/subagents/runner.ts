@@ -20,7 +20,8 @@
 
 import { generateText, ModelMessage, stepCountIs } from "ai";
 import { buildSubagentMessages, collectResponseMessages } from "./messages";
-import { addCacheControlToMessages, AnthropicEffort, ANTHROPIC_HAIKU, ANTHROPIC_SONNET, getAnthropicClient, getProviderCacheControl } from "../../utils/ai-client";
+import { addCacheControlToMessages, ANTHROPIC_HAIKU, ANTHROPIC_SONNET, getAnthropicClient, getProviderCacheControl, getProviderModelOptions } from "../../utils/ai-client";
+import { AnthropicEffort, ThinkingDisplay } from "../../utils/provider-model-options";
 import { accumulateModelUsage } from "../../utils/events";
 import { getSubagentDefinition } from "./definitions";
 import { describeSubagentStep, SubagentProgress } from "./progress";
@@ -28,17 +29,22 @@ import { SubagentModel, SubagentResult, SubagentRunContext, SubagentType } from 
 
 /** Runaway guard only — the prompt is what keeps a lookup short. Same ceiling as the main agent loop. */
 export const SUBAGENT_MAX_STEPS = 50;
-/** Sonnet 5 thinks by default and thinking counts against this; the prompt caps the report far lower. */
+/** Thinking counts against this; the prompt caps the report far lower. */
 export const SUBAGENT_MAX_OUTPUT_TOKENS = 16_000;
 
 /**
- * Optional thinking configuration. Sonnet 5 runs adaptive thinking whether or not this is set; the API's
- * default `display` is "omitted" (reasoning parts arrive with empty text, measured 2026-09-11).
- * `display: "summarized"` returns a readable summary — same thinking, same billing, visible text —
- * and `effort` trades depth for speed. Anthropic/Vertex only; Bedrock ignores the `anthropic` namespace.
+ * Subagents search and extract library facts, which the Sonnet 5.5 guidance runs at `low`
+ * (owner, 2026-09-29). Haiku 5.5 takes the same options; its own default effort is `medium`.
+ */
+const SUBAGENT_EFFORT: AnthropicEffort = "low";
+
+/**
+ * Overrides for a run's thinking, for measuring other settings. `display: "summarized"` returns readable
+ * reasoning summaries (the API default is "omitted": reasoning parts arrive with empty text); thinking
+ * is billed the same either way.
  */
 export interface SubagentReasoningOptions {
-    display?: "summarized" | "omitted";
+    display?: ThinkingDisplay;
     effort?: AnthropicEffort;
 }
 
@@ -54,20 +60,15 @@ export interface RunSubagentParams {
     onProgress?: (progress: SubagentProgress) => void;
 }
 
-export function buildReasoningProviderOptions(reasoning: SubagentReasoningOptions | undefined) {
-    if (!reasoning || (!reasoning.display && !reasoning.effort)) { return undefined; }
-    return {
-        anthropic: {
-            thinking: { type: "adaptive" as const, ...(reasoning.display ? { display: reasoning.display } : {}) },
-            ...(reasoning.effort ? { effort: reasoning.effort } : {}),
-        },
-    };
-}
-
 export async function runSubagent(params: RunSubagentParams): Promise<SubagentResult> {
     const definition = getSubagentDefinition(params.type);
     const modelId = params.model === "haiku" ? ANTHROPIC_HAIKU : ANTHROPIC_SONNET;
-    const [model, cacheControl] = await Promise.all([getAnthropicClient(modelId), getProviderCacheControl()]);
+    // The system prompt is shared by every run of this subagent type, so it takes the 1h TTL. A run's own
+    // history is re-read only within the run (seconds apart) and by a rare resume, so it stays on 5m.
+    const [model, systemCacheControl, historyCacheControl] = await Promise.all([
+        getAnthropicClient(modelId), getProviderCacheControl(), getProviderCacheControl('5m'),
+    ]);
+    const reasoningOptions = await getProviderModelOptions(params.reasoning?.effort ?? SUBAGENT_EFFORT, params.reasoning?.display);
 
     const conversation = buildSubagentMessages(params.prompt, params.previousMessages, definition.followUpHint);
 
@@ -76,13 +77,13 @@ export async function runSubagent(params: RunSubagentParams): Promise<SubagentRe
     const onProgress = params.onProgress;
     const result = await generateText({
         model,
-        system: { role: "system", content: definition.system(params.ctx), providerOptions: cacheControl },
+        system: { role: "system", content: definition.system(params.ctx), providerOptions: systemCacheControl },
         messages: conversation,
         tools: definition.buildTools(params.ctx),
         stopWhen: stepCountIs(SUBAGENT_MAX_STEPS),
         maxOutputTokens: SUBAGENT_MAX_OUTPUT_TOKENS,
         abortSignal: params.abortSignal,
-        providerOptions: buildReasoningProviderOptions(params.reasoning),
+        providerOptions: reasoningOptions,
         // The final step (report text, no tool calls) is followed at once by the completion result, so
         // only steps that called tools are worth announcing.
         onStepFinish: onProgress ? (step) => {
@@ -97,7 +98,7 @@ export async function runSubagent(params: RunSubagentParams): Promise<SubagentRe
         // Same incremental caching as the main loop: mark the last message each step so the growing
         // prefix (system + earlier doc reads) is served from cache instead of re-billed every step.
         prepareStep: async ({ messages: stepMessages }) => ({
-            messages: addCacheControlToMessages({ messages: stepMessages, model, providerOptions: cacheControl as any }),
+            messages: addCacheControlToMessages({ messages: stepMessages, model, providerOptions: historyCacheControl }),
         }),
     });
 

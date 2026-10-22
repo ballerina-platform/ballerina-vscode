@@ -18,6 +18,7 @@
 
 import { generateObject } from "ai";
 import { getAnthropicClient, getProviderModelOptions, ANTHROPIC_SONNET } from "../../ai/utils/ai-client";
+import { retryOnNoObject } from "../../ai/utils/no-object-retry";
 import { getCodeAndApiDocsSyncPrompt, getCodeAndDocumentationSyncPrompt } from "./prompts";
 import {
     ApiDocsDriftResponseSchema,
@@ -46,10 +47,11 @@ export interface DocumentationDriftCheckParams {
 export async function validateDriftWithApiDocs(ballerinaSources: string): Promise<ApiDocsDriftResponse> {
     const prompt = getCodeAndApiDocsSyncPrompt(ballerinaSources);
 
-    const { object } = await generateObject({
-        model: await getAnthropicClient(ANTHROPIC_SONNET),
-        maxOutputTokens: 8192,
-        providerOptions: await getProviderModelOptions(),
+    const [model, providerOptions] = await Promise.all([getAnthropicClient(ANTHROPIC_SONNET), getProviderModelOptions('medium')]);
+    const { object } = await retryOnNoObject('drift-check-api-docs', () => generateObject({
+        model,
+        maxOutputTokens: 16_000, // Thinking shares this cap with the reply.
+        providerOptions,
         schema: ApiDocsDriftResponseSchema,
         messages: [
             {
@@ -57,7 +59,7 @@ export async function validateDriftWithApiDocs(ballerinaSources: string): Promis
                 content: prompt,
             }
         ],
-    });
+    }));
 
     return object;
 }
@@ -75,10 +77,11 @@ export async function validateDriftWithDocumentation(params: DocumentationDriftC
         params.developerDocumentation
     );
 
-    const { object } = await generateObject({
-        model: await getAnthropicClient(ANTHROPIC_SONNET),
-        maxOutputTokens: 8192,
-        providerOptions: await getProviderModelOptions(),
+    const [model, providerOptions] = await Promise.all([getAnthropicClient(ANTHROPIC_SONNET), getProviderModelOptions('medium')]);
+    const { object } = await retryOnNoObject('drift-check-documentation', () => generateObject({
+        model,
+        maxOutputTokens: 16_000, // Thinking shares this cap with the reply.
+        providerOptions,
         schema: DocumentationDriftResponseSchema,
         messages: [
             {
@@ -86,7 +89,7 @@ export async function validateDriftWithDocumentation(params: DocumentationDriftC
                 content: prompt,
             }
         ],
-    });
+    }));
 
     return object;
 }

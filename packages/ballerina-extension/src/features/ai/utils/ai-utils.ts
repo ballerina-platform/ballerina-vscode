@@ -35,7 +35,6 @@ import {
     FileAttatchment,
     OperationType,
     Protocol,
-    webToolToggle,
     onCopilotChatNotify,
     GenerationReviewState
 } from "@wso2/ballerina-core";
@@ -332,14 +331,6 @@ export function sendGenerationStatusNotification(generationId: string, status: G
         status,
     };
     sendAIPanelNotification(msg);
-}
-
-export function sendWebToolToggleNotification(active: boolean): void {
-    RPCLayer._messenger.sendNotification(
-        webToolToggle,
-        { type: "webview", webviewType: AiPanelWebview.viewType },
-        { active }
-    );
 }
 
 export interface AIPanelRunContext {

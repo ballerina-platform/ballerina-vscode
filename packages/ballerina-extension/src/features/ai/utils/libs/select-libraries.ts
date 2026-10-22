@@ -27,6 +27,7 @@ import { MANDATORY_HEALTHCARE_LIBRARIES } from "./healthcare-libraries";
 import { GenerationType, getAllLibraries } from "./libraries";
 import { ModelUsage } from "./function-registry";
 import { ANTHROPIC_SONNET, getAnthropicClient, getProviderCacheControl, getProviderModelOptions } from "../ai-client";
+import { retryOnNoObject } from "../no-object-retry";
 
 const LibraryListSchema = z.object({
     libraries: z.array(z.string()),
@@ -66,15 +67,16 @@ export async function getSelectedLibraries(prompt: string, libraryType: Generati
 
     //TODO: Add thinking and test with claude haiku
     const startTime = Date.now();
-    const { object, usage } = await generateObject({
-        model: await getAnthropicClient(ANTHROPIC_SONNET),
-        maxOutputTokens: 4096,
-        providerOptions: await getProviderModelOptions(),
+    const [model, providerOptions] = await Promise.all([getAnthropicClient(ANTHROPIC_SONNET), getProviderModelOptions('low')]);
+    const { object, usage } = await retryOnNoObject('select-libraries', () => generateObject({
+        model,
+        maxOutputTokens: 16_000, // Thinking shares this cap with the reply.
+        providerOptions,
         system: { role: "system", content: getSystemPrompt(allLibraries), providerOptions: cacheOptions },
         messages: messages,
         schema: LibraryListSchema,
         abortSignal: new AbortController().signal,
-    });
+    }));
     const endTime = Date.now();
     const callUsage: ModelUsage = { model: ANTHROPIC_SONNET, inputTokens: usage.inputTokens || 0, outputTokens: usage.outputTokens || 0 };
     console.log(`Library selection took ${endTime - startTime}ms, Usage:`, callUsage);

@@ -344,11 +344,13 @@ export async function applyTextEdits(filePath: string, textEdits: TextEdit[]): P
 
     // Convert edits to offset-based edits and sort in reverse order
     // Sorting in reverse ensures earlier edits don't affect offsets of later edits
-    const offsetEdits = textEdits.map(edit => ({
+    // Ties are applied last-first so inserts at the same position keep the order given.
+    const offsetEdits = textEdits.map((edit, index) => ({
         start: positionToOffset(content, edit.range.start.line, edit.range.start.character),
         end: positionToOffset(content, edit.range.end.line, edit.range.end.character),
-        newText: edit.newText
-    })).sort((a, b) => b.start - a.start); // Reverse order by start position
+        newText: edit.newText,
+        index
+    })).sort((a, b) => b.start - a.start || b.index - a.index); // Reverse order by start position
 
     // Apply edits from end to start (preserves offsets)
     let result = content;

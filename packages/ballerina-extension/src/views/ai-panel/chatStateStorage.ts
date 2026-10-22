@@ -28,6 +28,7 @@ import {
 import { approvalManager } from '../../features/ai/state/ApprovalManager';
 import { cleanupTempProject } from '../../features/ai/utils/project/temp-project';
 import { generateId } from './idGenerators';
+import { generationsSinceLastRestart } from '../../features/ai/agent/compaction-restart';
 import {
     CopilotPersistenceStore,
     PersistedThread,
@@ -38,10 +39,10 @@ import {
     PersistedCodeContext,
 } from '@wso2/copilot-utilities/chat-persistence';
 
-// Console-summary fields persisted alongside the shared schema. They are optional
-// additions, so no schema version bump: the store writes the object as-is, and
+// Console-summary and compaction-restart fields persisted alongside the shared schema. They
+// are optional additions, so no schema version bump: the store writes the object as-is, and
 // migrations spread every field through.
-type StoredGeneration = PersistedGeneration & { consoleSummary?: string };
+type StoredGeneration = PersistedGeneration & { consoleSummary?: string; restartedFromSummary?: boolean };
 type StoredThread = PersistedThread & { consoleOrigin?: boolean };
 
 const THREAD_NAME_MAX_LENGTH = 60;
@@ -156,6 +157,7 @@ function toPersistedGeneration(gen: Generation): StoredGeneration {
         codeContext: gen.codeContext ? toPersistedCodeContext(gen.codeContext) : undefined,
         // Kept across a reload so a later revert or restore can still take it off the console.
         consoleSummary: gen.consoleSummary,
+        restartedFromSummary: gen.restartedFromSummary || undefined,
     };
 }
 
@@ -221,6 +223,7 @@ function fromPersistedGeneration(pg: StoredGeneration): Generation {
         fileAttachments: pg.fileAttachments as Generation['fileAttachments'],
         codeContext: pg.codeContext as Generation['codeContext'],
         consoleSummary: typeof pg.consoleSummary === 'string' ? pg.consoleSummary : undefined,
+        restartedFromSummary: pg.restartedFromSummary === true ? true : undefined,
     };
 }
 
@@ -909,7 +912,9 @@ export class ChatStateStorage {
         const messages: any[] = [];
         const activeGenerationId = this.getActiveExecution(projectRootPath, threadId)?.generationId;
 
-        for (const generation of thread.generations) {
+        // A turn that restarted from its summary holds everything before it in that summary, and
+        // the thinking signed after it is bound to a conversation that starts there.
+        for (const generation of generationsSinceLastRestart(thread.generations)) {
             if (generation.modelMessages && generation.modelMessages.length > 0) {
                 messages.push(...generation.modelMessages);
                 continue;
