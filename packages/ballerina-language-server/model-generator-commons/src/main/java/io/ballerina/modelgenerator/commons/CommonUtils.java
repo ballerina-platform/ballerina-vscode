@@ -169,7 +169,6 @@ public class CommonUtils {
 
     private static final String DOUBLE_QUOTE = "\"";
     public static final Pattern STRING_TEMPLATE_PATTERN = Pattern.compile("string\\s*`.*`", Pattern.DOTALL);
-    private static final String LS = System.lineSeparator();
     private static final Pattern TYPE_MODULE_PREFIX_PATTERN =
             Pattern.compile("(?<![\\w'])([A-Za-z_]\\w*):(?=[A-Za-z_])");
     /**
@@ -1789,7 +1788,7 @@ public class CommonUtils {
             return null;
         }
 
-        if (!STRING_TEMPLATE_PATTERN.matcher(value).matches() || value.contains(LS)) {
+        if (!STRING_TEMPLATE_PATTERN.matcher(value).matches() || value.contains("\n") || value.contains("\r")) {
             return value;
         }
 

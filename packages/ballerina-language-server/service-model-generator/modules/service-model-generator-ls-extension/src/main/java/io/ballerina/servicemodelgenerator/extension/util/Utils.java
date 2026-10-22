@@ -1118,7 +1118,7 @@ public final class Utils {
         if (desc.isBlank()) {
             return "";
         }
-        String[] docs = desc.trim().split(NEW_LINE);
+        String[] docs = desc.trim().split("\\R");
         return "# + return - " + String.join(" ", docs);
     }
 
@@ -1135,7 +1135,7 @@ public final class Utils {
             return "";
         }
         StringBuilder docBuilder = new StringBuilder();
-        String[] docs = desc.trim().split(NEW_LINE);
+        String[] docs = desc.trim().split("\\R");
         String paramDoc = String.join(" ", docs);
         docBuilder.append("# + ").append(paramName).append(" - ").append(paramDoc);
         return docBuilder.toString();

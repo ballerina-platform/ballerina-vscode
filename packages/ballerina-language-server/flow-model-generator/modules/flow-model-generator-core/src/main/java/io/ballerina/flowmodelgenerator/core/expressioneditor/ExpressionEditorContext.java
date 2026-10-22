@@ -70,7 +70,7 @@ public class ExpressionEditorContext {
     public ExpressionEditorContext(WorkspaceManagerProxy workspaceManagerProxy, String fileUri, Info info,
                                    Path filePath) {
         this.info = info;
-        this.numberOfLines = info.expression().split(System.lineSeparator()).length - 1;
+        this.numberOfLines = info.expression().split("\\R").length - 1;
         this.documentContext = new DocumentContext(workspaceManagerProxy, fileUri, filePath);
         this.property = new Property(info.property(), info.codedata());
     }
