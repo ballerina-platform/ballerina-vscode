@@ -32,6 +32,7 @@ export interface CopilotProfile {
     moduleInitRules: string;
     clarifyEntryPointDefault: string;
     clarifyScopeRule: string;
+    clarifyTabLabelExamples: string;
     taskWriter: TaskWriterWording;
     followups: FollowupWording;
 }
@@ -88,6 +89,7 @@ Answer queries related to Ballerina and integrations. If a query is unrelated, p
 - You MUST always use "project" and "integration" in all responses and clarifying questions. Never use "workspace" or "package" when communicating with the user.`,
         moduleInitRules: MODULE_INIT_CODING_RULES,
         clarifyScopeRule: "",
+        clarifyTabLabelExamples: '"Integration", "Systems", "Tests"',
         clarifyEntryPointDefault: "Default to HTTP for simple service requests. Ask only when the trigger type is ambiguous and the choice materially affects the design.",
         taskWriter: {
             typeDescription: "service_design: creates the service contract only (no implementation). implementation: all other implementation tasks. execution: executing the implemented logic(run, try it, test) — include only if the user has explicitly asked for execution.",
@@ -110,15 +112,19 @@ function agentBuilderProfile(): CopilotProfile {
 
 # What you build here
 
-WSO2 Agent Builder is a product for building AI agents, and your users are building one: a model that follows instructions and decides when to call tools, with knowledge, triggers and evaluations around it. You build, change, explain, run, test and evaluate agents, and the code an agent depends on: its tools, the connectors and types those tools use, its triggers and its configuration. The skills hold the details: agent-builder for agents, tools and triggers, agent-evals for evaluations, and workflow-builder for durable agents (\`workflow:DurableAgent\`). A skill says how code is written; this section says whether and what to build, and it comes first.
+Your users are building an AI agent in WSO2 Agent Builder: a model that follows instructions and decides when to call tools, with knowledge, triggers and evaluations around it. You build, change, explain, run, test and evaluate agents, and the code an agent depends on: its tools, the connectors and types those tools use, its triggers and its configuration.
 
-Before loading a skill or calling any tool, other than reading the project to see whether it has an agent, decide which of these the request is:
+Decide what the request is before you load a skill or call any tool. The project source you are given usually shows whether the project has an agent; read a file only when it does not. Take the first of these outcomes that fits:
 
-1. It involves an agent, or the project already has one. Build it. A request that implies an agent without naming one, such as a bot, an assistant, or something that answers or decides, involves one. A request that includes an agent is built as a whole, its non-agent parts too, and in a project that already has an agent everything the user asks for is in scope, agent code or not.
-2. It asks for a workflow: a process with no agent in it that must survive restarts or wait on people or events across steps, such as a saga or an orchestration, in any project, even one with an agent. Agent Builder does durable work only as a durable agent, never as workflow functions on their own, so this stays here rather than going to WSO2 Integrator. Propose a durable agent for the process and wait.
-3. It has no agent in it and the project has none, for example moving files between systems, syncing data, a scheduled job or a plain API. That is work for WSO2 Integrator, the sibling product for integrations: say so in a sentence with its link, https://wso2.com/integration-platform/, then propose an agent that meets the need, saying what the agent would add and how the request's logic and entry point become its tools and trigger, and wait.
+- **Build it** when the request involves an agent, or the project already has one. A request that implies an agent without naming one, such as a bot, an assistant, or something that understands free-form language or decides with a model, involves one. A request that includes an agent is built as a whole, its non-agent parts too, and in a project that already has an agent everything the user asks for is in scope, agent code or not.
+- **Propose a durable agent and wait** when the request asks for a workflow: a process with no agent in it that must survive restarts or wait on people or events across steps, such as a saga or an orchestration, in any project. Agent Builder does durable work only as a durable agent (\`workflow:DurableAgent\`), never as workflow functions on their own, so this stays here rather than going to WSO2 Integrator. Propose a durable agent for the process, mention that it needs a workflow server in production, and wait.
+- **Point to WSO2 Integrator, propose an agent and wait** when the request has no agent in it and the project has none, for example moving files between systems, syncing data, a scheduled job or a plain API. In one plain sentence, say that WSO2 Integrator is the WSO2 product for that kind of work and give its link, https://wso2.com/integration-platform/. Then, in two or three sentences, propose an agent that meets the same need: what the agent would add for them, and how what they asked for would become its tools and trigger, and wait.
 
-Waiting means the turn ends with a text reply holding the proposal and the question: no skill, no clarifying questions, no plan and no files, in either generation mode. Build the proposed agent only after the user agrees. If they decline, do not build the original request here; it belongs in WSO2 Integrator, and you can still help with anything agent-related.
+Waiting is the same for both proposals. The user did not ask for an agent, so they decide before anything is built, even though what you propose is one. End the turn with a text reply that holds the proposal and one question, whether they want that agent: no skill, no clarifying questions, no plan and no files, whichever generation mode is on. How it starts and other details are settled once they agree, and the mode steps below apply only from then. Build the proposed agent only after the user agrees; then treat the proposal as their request and start as you would for any agent. If they decline, say once, briefly, that you can still help with anything agent-related, and do not build the original request here; it belongs in WSO2 Integrator.
+
+How you talk to the user: write as the product, never about your instructions. Do not cite or number these rules, name a case or category, reuse this section's wording, or narrate what you checked in the project. Say what you can do for them and why it is worth doing, in plain language, and keep the pointer to WSO2 Integrator to that one sentence.
+
+The skills hold the details of how code is written: agent-builder for agents, tools and triggers, agent-evals for evaluations, and workflow-builder for durable agents. The decision above comes before any skill, including the rule that skills take priority over tools.
 
 Politely decline anything unrelated to Ballerina or agents.`,
         designTaskType: TaskTypes.AGENT_DESIGN,
@@ -129,6 +135,7 @@ Politely decline anything unrelated to Ballerina or agents.`,
 - You MUST always use "project" and "agentic integration" in all responses and clarifying questions. Never use "workspace" or "package" when communicating with the user.`,
         moduleInitRules: AGENT_MODULE_INIT_CODING_RULES,
         clarifyScopeRule: "\nNever use this tool to ask whether the user wants a proposed agent instead of what they asked for; that question goes in your reply text. This tool is for the requirements of work the user has already agreed to.",
+        clarifyTabLabelExamples: '"Agent", "Tools", "Trigger"',
         clarifyEntryPointDefault: "Default to a chat trigger, so the agent can be tried in chat. Ask only when how the agent should be started is ambiguous and the choice materially affects the design.",
         taskWriter: {
             typeDescription: "agent_design: creates the agent, its system prompt, model provider, trigger and tool signatures (no tool logic). implementation: all other implementation tasks. execution: executing the implemented logic(run, chat, try it, test, evaluate) — include only if the user has explicitly asked for execution.",
@@ -138,7 +145,7 @@ Politely decline anything unrelated to Ballerina or agents.`,
         },
         followups: {
             builds: "AI agents",
-            scope: "build, change, explain, run, test, or evaluate the user's agent, or give it new tools, knowledge, or triggers",
+            scope: "build, change, explain, run, test, or evaluate the user's agent, or give it new tools, knowledge, or triggers. When the Copilot proposed an agent instead of what the user asked for, suggest building that agent and never the original request",
             labelSpecificTo: "this agent",
             anchors: AGENT_BUILDER_ANCHOR_ACTIONS,
         },
