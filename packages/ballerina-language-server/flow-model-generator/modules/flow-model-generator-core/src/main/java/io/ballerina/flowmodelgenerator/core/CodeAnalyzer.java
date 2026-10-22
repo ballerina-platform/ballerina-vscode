@@ -271,6 +271,7 @@ import static io.ballerina.flowmodelgenerator.core.utils.WorkflowUtil.isWorkflow
 import static io.ballerina.flowmodelgenerator.core.utils.WorkflowUtil.isWorkflowModule;
 import static io.ballerina.modelgenerator.commons.CommonUtils.BALLERINA_ORG_NAME;
 import static io.ballerina.modelgenerator.commons.CommonUtils.CONNECTOR_TYPE;
+import static io.ballerina.modelgenerator.commons.CommonUtils.DATA_LOADER;
 import static io.ballerina.modelgenerator.commons.CommonUtils.PERSIST;
 import static io.ballerina.modelgenerator.commons.CommonUtils.PERSIST_MODEL_FILE;
 import static io.ballerina.modelgenerator.commons.CommonUtils.getClientClassSymbol;
@@ -4776,6 +4777,9 @@ public class CodeAnalyzer extends NodeVisitor {
                 .codedata()
                     .symbol(functionName)
                     .object(classSymbol.getName().orElse(""));
+        if (isAiDataLoader(classSymbol)) {
+            nodeBuilder.metadata().addData(CONNECTOR_TYPE, DATA_LOADER);
+        }
         if (classSymbol.qualifiers().contains(Qualifier.CLIENT)) {
             Map<String, Object> metadataData = getConnectorMetadata(classSymbol);
             nodeBuilder.properties().callConnection(expressionNode, Property.CONNECTION_KEY, metadataData);

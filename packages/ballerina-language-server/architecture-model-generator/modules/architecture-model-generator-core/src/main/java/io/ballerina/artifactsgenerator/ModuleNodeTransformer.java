@@ -358,36 +358,31 @@ public class ModuleNodeTransformer extends NodeTransformer<Optional<Artifact>> {
                 .findFirst();
     }
 
-    private Optional<ClassSymbol> getConnection(Node node) {
-        try {
-            Symbol symbol = semanticModel.symbol(node).orElseThrow();
-            TypeReferenceTypeSymbol typeDescriptorSymbol =
-                    (TypeReferenceTypeSymbol) ((VariableSymbol) symbol).typeDescriptor();
-            ClassSymbol classSymbol = (ClassSymbol) typeDescriptorSymbol.typeDescriptor();
-            if (classSymbol.qualifiers().contains(Qualifier.CLIENT) || isAiKnowledgeBase(classSymbol)
-                    || isAiVectorStore(symbol) || isAiMemoryStore(symbol) || isAiDataLoader(symbol)
-                    || isAiChunker(symbol)) {
-                return Optional.of(classSymbol);
-            }
-        } catch (Throwable e) {
-        }
-        return Optional.empty();
+    private Optional<ClassSymbol> getConnection(ModuleVariableDeclarationNode node) {
+        return heldClass(node).filter(classSymbol -> classSymbol.qualifiers().contains(Qualifier.CLIENT)
+                || isAiKnowledgeBase(classSymbol) || isAiVectorStore(classSymbol) || isAiMemoryStore(classSymbol)
+                || isAiDataLoader(classSymbol) || isAiChunker(classSymbol));
     }
 
-    private Optional<ClassSymbol> getAgent(Node node) {
-        try {
-            Symbol symbol = semanticModel.symbol(node).orElseThrow();
-            TypeReferenceTypeSymbol typeDescriptorSymbol =
-                    (TypeReferenceTypeSymbol) ((VariableSymbol) symbol).typeDescriptor();
-            ClassSymbol classSymbol = (ClassSymbol) typeDescriptorSymbol.typeDescriptor();
-            if (isAgentClass(classSymbol)
-                    || isAiFixedTypedAgent(classSymbol)
-                    || isAiDependentlyTypedAgent(classSymbol)) {
-                return Optional.of(classSymbol);
-            }
-        } catch (Throwable e) {
+    private Optional<ClassSymbol> getAgent(ModuleVariableDeclarationNode node) {
+        return heldClass(node).filter(classSymbol -> isAgentClass(classSymbol)
+                || isAiFixedTypedAgent(classSymbol) || isAiDependentlyTypedAgent(classSymbol));
+    }
+
+    // A variable typed by an interface (`ai:ModelProvider x = check new azure:OpenAiModelProvider(...)`) holds the
+    // class its explicit `new` constructs.
+    private Optional<ClassSymbol> heldClass(ModuleVariableDeclarationNode node) {
+        Optional<ClassSymbol> declared = semanticModel.symbol(node)
+                .filter(VariableSymbol.class::isInstance)
+                .map(symbol -> ((VariableSymbol) symbol).typeDescriptor())
+                .filter(TypeReferenceTypeSymbol.class::isInstance)
+                .map(type -> ((TypeReferenceTypeSymbol) type).typeDescriptor())
+                .filter(ClassSymbol.class::isInstance)
+                .map(ClassSymbol.class::cast);
+        if (declared.isPresent()) {
+            return declared;
         }
-        return Optional.empty();
+        return node.initializer().flatMap(initializer -> CommonUtils.explicitNewClass(semanticModel, initializer));
     }
 
     private static String getPathString(NodeList<Node> nodes) {
