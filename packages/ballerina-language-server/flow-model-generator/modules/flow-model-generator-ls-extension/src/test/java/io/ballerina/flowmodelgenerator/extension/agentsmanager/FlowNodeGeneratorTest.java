@@ -55,7 +55,8 @@ public class FlowNodeGeneratorTest extends AbstractLSTest {
                 "agent_call_flow_node_4.json",
                 "agent_call_flow_node_7.json",
                 "agent_call_flow_node_8.json",
-                "agent_call_flow_node_9.json"
+                "agent_call_flow_node_9.json",
+                "agent_call_flow_node_10.json"
                 // agent_call_flow_node_5/6 intentionally excluded (pre-existing)
         ).filter(c -> !skip.contains(c)).map(c -> new Object[]{Path.of(c)}).toArray(Object[][]::new);
     }
