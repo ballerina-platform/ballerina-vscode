@@ -177,7 +177,6 @@ describe("buildTopology", () => {
         // Nothing triggers or delegates to the supervisor itself -- it only calls out.
         const supervisorNode = graph.agents.find((agent) => agent.name === "supportSupervisorAgent");
         expect(supervisorNode.orphan).toBe(true);
-        expect(graph.legendKinds).toEqual(expect.arrayContaining(["trigger", "delegation"]));
     });
 
     it("groups a service's handlers into one card, in source order, and sources their edges from their own rows", () => {
@@ -684,7 +683,6 @@ describe("buildTopology", () => {
         expect(graph.handlers.map((handler) => handler.sends)).toEqual([undefined, ["chat"], ["chat"], undefined]);
         expect(graph.handlers.map((handler) => handler.wired)).toEqual([true, true, true, false]);
         expect(graph.agents[0].channels[0].senders).toEqual(["POST /conversations/[string id]/messages", "POST /cases/[string caseId]/submit"]);
-        expect(graph.legendKinds).toEqual(["trigger", "event", "people"]);
     });
 
     it("derives the people line: a task's role decides, a gated activity's role releases, and a gate wins on a shared role", () => {
@@ -705,7 +703,6 @@ describe("buildTopology", () => {
         expect(graph.edges.map((edge) => edge.kind)).toEqual(["event", "event"]);
         expect(graph.entries).toHaveLength(1);
         expect(graph.wiredNothing).toBe(true);
-        expect(graph.legendKinds).toEqual(["event", "people"]);
     });
 
     it("draws a gated peer as a locked delegation and an agent tool as a plain one, and keeps the tool's agent off the trigger", () => {
@@ -741,7 +738,6 @@ describe("buildTopology", () => {
         });
         expect(graph.agents.find((agent) => agent.name === "paymentAgent")).toMatchObject({ people: [{ role: "FINANCE", gate: false, decides: ["release"], releases: [] }], orphan: false });
         expect(graph.agents.find((agent) => agent.name === "stockAgent").orphan).toBe(false);
-        expect(graph.legendKinds).toEqual(["trigger", "event", "delegation", "gate"]);
     });
 
     it("still draws a durable workflow the artifact list does not list, keyed by its own location", () => {

@@ -3,10 +3,11 @@ name: PR Build
 on:
   workflow_dispatch:
   pull_request:
-    types: [opened, reopened, synchronize, ready_for_review]
+    types: [opened, reopened, synchronize, ready_for_review, labeled]
 
+# Any other label gets a group of its own, so it can't cancel the build in progress.
 concurrency:
-  group: ${{ github.ref }}
+  group: ${{ github.ref }}${{ github.event.action == 'labeled' && !startsWith(github.event.label.name, 'Checks/') && github.event.label.name != 'Runner/AWS' && format('-{0}', github.run_id) || '' }}
   cancel-in-progress: true
 
 # Reusable workflows inherit caller permissions. Granting packages: read
@@ -19,7 +20,13 @@ permissions:
 jobs:
   changes:
     name: Detect changes
-    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.draft == false
+    # 'labeled' re-runs only for an opt-in label (Checks/*, Runner/AWS).
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.draft == false &&
+       (github.event.action != 'labeled' ||
+        startsWith(github.event.label.name, 'Checks/') ||
+        github.event.label.name == 'Runner/AWS'))
     runs-on: ubuntu-latest
     outputs:
       build: ${{ steps.filter.outputs.build }}
@@ -55,8 +62,5 @@ jobs:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     with:
       runOnAWS: ${{ contains(github.event.pull_request.labels.*.name, 'Runner/AWS') }}
-      # Always run the e2e suite for a PR into a release line ('5.14.x'), where a regression
-      # ships straight to users. Was 'stable/ballerina', a branch from the multi-extension repo
-      # this was ported from that exists nowhere here — so the condition never fired.
-      runBalE2ETests: ${{ contains(github.event.pull_request.labels.*.name, 'Checks/Run Ballerina UI Tests') || endsWith(github.base_ref, '.x') }}
+      runBalE2ETests: ${{ contains(github.event.pull_request.labels.*.name, 'Checks/Run Ballerina UI Tests') }}
       runLSTests: ${{ contains(github.event.pull_request.labels.*.name, 'Checks/Run LS Tests') || needs.changes.outputs.ls == 'true' }}

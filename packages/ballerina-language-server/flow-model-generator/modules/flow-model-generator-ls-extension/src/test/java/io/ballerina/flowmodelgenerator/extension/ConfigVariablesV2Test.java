@@ -22,6 +22,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import io.ballerina.flowmodelgenerator.core.model.FlowNode;
+import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.extension.request.ConfigVariableGetRequest;
 import io.ballerina.modelgenerator.commons.AbstractLSTest;
 import org.ballerinalang.langserver.util.TestUtil;
@@ -68,6 +69,28 @@ public class ConfigVariablesV2Test extends AbstractLSTest {
             compareJsonElements(actualResponseJson, expectedResponseJson);
             Assert.fail(String.format("Failed test: '%s'", configJsonPath));
         }
+        assertNameLineRangeMatchesEditability(actualResponse.configVariables(), configJsonPath);
+    }
+
+    // Identifier validation skips the "redeclared symbol" check for a name only when its property carries a
+    // codedata line range. Without it, editing a configurable reports its own name as already used. Read-only
+    // (imported) names must not carry one, or the webview renders them as the inline rename editor.
+    private static void assertNameLineRangeMatchesEditability(Map<String, Map<String, List<FlowNode>>> configVariables,
+                                                         Path configJsonPath) {
+        if (configVariables == null) {
+            return;
+        }
+        configVariables.values().stream()
+                .flatMap(modules -> modules.values().stream())
+                .flatMap(List::stream)
+                .map(node -> node.properties().get(Property.VARIABLE_KEY))
+                .filter(Objects::nonNull)
+                .forEach(name -> {
+                    boolean hasLineRange = name.codedata() != null && name.codedata().lineRange() != null;
+                    Assert.assertEquals(hasLineRange, name.editable(), String.format(
+                            "Configurable '%s' should %shave a name line range in '%s'",
+                            name.value(), name.editable() ? "" : "not ", configJsonPath));
+                });
     }
 
     @Override

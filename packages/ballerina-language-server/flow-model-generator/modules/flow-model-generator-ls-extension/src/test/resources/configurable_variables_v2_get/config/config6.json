@@ -41,7 +41,20 @@
               "optional": false,
               "editable": true,
               "advanced": false,
-              "hidden": false
+              "hidden": false,
+              "codedata": {
+                "lineRange": {
+                  "fileName": "main.bal",
+                  "startLine": {
+                    "line": 3,
+                    "offset": 20
+                  },
+                  "endLine": {
+                    "line": 3,
+                    "offset": 28
+                  }
+                }
+              }
             },
             "type": {
               "metadata": {
@@ -165,7 +178,20 @@
               "optional": false,
               "editable": true,
               "advanced": false,
-              "hidden": false
+              "hidden": false,
+              "codedata": {
+                "lineRange": {
+                  "fileName": "main.bal",
+                  "startLine": {
+                    "line": 4,
+                    "offset": 19
+                  },
+                  "endLine": {
+                    "line": 4,
+                    "offset": 27
+                  }
+                }
+              }
             },
             "type": {
               "metadata": {
@@ -289,7 +315,20 @@
               "optional": false,
               "editable": true,
               "advanced": false,
-              "hidden": false
+              "hidden": false,
+              "codedata": {
+                "lineRange": {
+                  "fileName": "main.bal",
+                  "startLine": {
+                    "line": 5,
+                    "offset": 21
+                  },
+                  "endLine": {
+                    "line": 5,
+                    "offset": 29
+                  }
+                }
+              }
             },
             "type": {
               "metadata": {
@@ -415,7 +454,20 @@
               "optional": false,
               "editable": true,
               "advanced": false,
-              "hidden": false
+              "hidden": false,
+              "codedata": {
+                "lineRange": {
+                  "fileName": "mod1.bal",
+                  "startLine": {
+                    "line": 0,
+                    "offset": 20
+                  },
+                  "endLine": {
+                    "line": 0,
+                    "offset": 27
+                  }
+                }
+              }
             },
             "type": {
               "metadata": {

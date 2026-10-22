@@ -1,7 +1,7 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`describeTopology names a durable agent's inlets, people and gates, and prints event edges with their channel 1`] = `
-">>> agent overview · horizontal · canvas 1400px · drawn 1320×128 (left 0) · legend trigger, event, delegation, people
+">>> agent overview · horizontal · canvas 1400px · drawn 1320×128 (left 0)
 ENTRY POINTS (1 card(s), 2 handler(s))
   E1   /order-desk                http:Service           2 row(s)  @0,0  services.bal:2
        H1   POST /orders               chain
@@ -19,7 +19,7 @@ HANDLERS (design model: direct agent calls in source order, {construct:label} fo
 `;
 
 exports[`describeTopology prints every node, edge and handler of the canvas as text 1`] = `
-">>> agent overview · horizontal · canvas 1400px · drawn 1320×288 (left 0) · legend trigger, delegation
+">>> agent overview · horizontal · canvas 1400px · drawn 1320×288 (left 0)
 ENTRY POINTS (1 card(s), 1 handler(s))
   E1   /content                   http:Service           1 row(s)  @0,127  services.bal:2
        H1   POST /gated                fan logic branch

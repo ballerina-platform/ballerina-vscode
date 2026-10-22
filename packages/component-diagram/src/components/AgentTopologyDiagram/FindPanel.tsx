@@ -193,6 +193,10 @@ const Chip = styled.div<{ pinned: boolean }>`
     font-family: "GilmerMedium";
     font-size: 12px;
     color: ${ThemeColors.ON_SURFACE};
+    /* The hover colour is translucent, so it is layered over the surface to keep the canvas dots hidden. */
+    &:hover {
+        background-image: ${(props) => (props.pinned ? "none" : "linear-gradient(var(--vscode-toolbar-hoverBackground), var(--vscode-toolbar-hoverBackground))")};
+    }
 `;
 
 const ChipLabel = styled.button`
