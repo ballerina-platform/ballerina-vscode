@@ -25,6 +25,7 @@ module io.ballerina.language.server.core {
     exports org.ballerinalang.langserver.util;
     exports org.ballerinalang.langserver.codeaction to io.ballerina.datamapper;
     exports org.ballerinalang.langserver.apispec;
+    exports org.ballerinalang.langserver.workspace to io.ballerina.model.generator.commons, io.ballerina.datamapper;
     requires io.ballerina.diagram.util;
     requires io.ballerina.formatter.core;
     requires org.eclipse.lsp4j;
