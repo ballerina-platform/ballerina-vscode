@@ -32,7 +32,6 @@ import {
 import {
     HandlerLogic,
     HandlerStep,
-    LegendKind,
     ToolChip,
     TopologyAgentArtifact,
     TopologyAgentNode,
@@ -664,26 +663,6 @@ function markReachability(agents: TopologyAgentNode[], entries: TopologyEntryNod
     });
 }
 
-function computeLegendKinds(agents: TopologyAgentNode[], edges: TopologyEdge[]): LegendKind[] {
-    const kinds: LegendKind[] = [];
-    if (edges.some((link) => link.kind === "trigger")) {
-        kinds.push("trigger");
-    }
-    if (edges.some((link) => link.kind === "event")) {
-        kinds.push("event");
-    }
-    if (edges.some((link) => link.kind === "delegation")) {
-        kinds.push("delegation");
-    }
-    if (edges.some((link) => link.kind === "delegation" && link.gated)) {
-        kinds.push("gate");
-    }
-    if (agents.some((agent) => agent.gatedActivities > 0)) {
-        kinds.push("people");
-    }
-    return kinds;
-}
-
 function fillChannelSenders(agents: TopologyAgentNode[], handlers: TopologyHandler[], edges: TopologyEdge[]): void {
     const labels = new Map(handlers.map((handler) => [handler.id, [handler.accessor, handler.label].filter(Boolean).join(" ")]));
     const byId = new Map(agents.map((agent) => [agent.id, agent]));
@@ -719,7 +698,6 @@ export function buildTopology(input: TopologyInput): TopologyGraph {
     return {
         ...graph,
         wiredNothing: !graph.edges.some((link) => link.kind === "trigger"),
-        legendKinds: computeLegendKinds(graph.agents, graph.edges),
     };
 }
 

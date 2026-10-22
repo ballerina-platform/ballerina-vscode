@@ -72,6 +72,7 @@ export function useAttachments({ attachmentOptions, activeCommand, activeSkillCo
 
     return {
         attachments,
+        setAttachments,
         fileInputRef,
         handleAttachClick,
         onAttachmentSelection,

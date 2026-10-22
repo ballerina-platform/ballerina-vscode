@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { Task, MACHINE_VIEW, ClarifyQuestion, ManagedConnectionGroup } from "@wso2/ballerina-core/lib/state-machine-types";
+import { Task, MACHINE_VIEW, ClarifyQuestion, ManagedConnectionGroup, ConnectorGenerationNotification } from "@wso2/ballerina-core/lib/state-machine-types";
 import { SkillEnableStage } from "@wso2/ballerina-core";
 import { CopilotEventHandler } from "../utils/events";
 import { ConfigVariable } from "../../../utils/toml-utils";
@@ -296,15 +296,20 @@ export class ApprovalManager {
      * @param eventHandler - Event handler to emit spec request
      * @returns Promise that resolves when user provides/cancels spec
      */
-    requestConnectorSpec(requestId: string, eventHandler: CopilotEventHandler): Promise<ConnectorSpecResponse> {
+    requestConnectorSpec(
+        requestId: string,
+        eventHandler: CopilotEventHandler,
+        details: Partial<Omit<ConnectorGenerationNotification, "type" | "requestId" | "stage">> = {}
+    ): Promise<ConnectorSpecResponse> {
         console.log(`[ApprovalManager] Requesting connector spec: ${requestId}`);
 
-        // Emit event to frontend
+        // Emit event to frontend, with the caller's details: the card replaces its data on every event.
         eventHandler({
+            message: "Please provide the OpenAPI specification",
+            ...details,
             type: "connector_generation_notification",
             requestId: requestId,
             stage: "requesting_input",
-            message: "Please provide the OpenAPI specification",
         });
 
         // Create promise that will be resolved by resolveConnectorSpec()

@@ -16,22 +16,17 @@
  * under the License.
  */
 
-import React, { CSSProperties, useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { CSSProperties, useEffect, useRef, useState } from "react";
 import { keyframes } from "@emotion/react";
 import styled from "@emotion/styled";
 import { VSCodeLink } from "@vscode/webview-ui-toolkit/react";
-import { AgentRunStatus, AttachmentStatus, SHARED_COMMANDS } from "@wso2/ballerina-core";
+import { AgentRunStatus, SHARED_COMMANDS } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Button, Icon, ThemeColors } from "@wso2/ui-toolkit";
-import ModeToggle, { AgentMode } from "../../AIPanel/components/AIChatInput/ModeToggle";
-import { useAttachments } from "../../AIPanel/components/AIChatInput/hooks/useAttachments";
-import { acceptResolver, handleAttachmentSelection } from "../../AIPanel/utils/attachment/attachmentManager";
-import AttachmentBox from "../../AIPanel/components/AttachmentBox";
 import {
-    AmbientFrame,
     ORB_GLOW_CLASS,
-    ORB_HOVER_BRIGHTNESS,
     ORB_SIZE,
+    OrbButton,
     OrbGlow,
     subscribeAgentRunStatus,
     syncOrbThemeFromSetting,
@@ -42,12 +37,14 @@ import {
 import { CopilotOrb } from "../../../components/AgentStatusOrb/CopilotOrb";
 import { useOrbColors } from "../../../components/AgentStatusOrb/orbTheme";
 import { openCopilotPanel, submitPromptToCopilot } from "../../../components/AgentStatusOrb/copilotPanel";
-import { CopilotMenu } from "../../../components/CopilotMenu";
+import {
+    CopilotPromptBox,
+    CopilotPromptBoxHandle,
+    PromptSubmitOptions,
+} from "../../../components/CopilotPromptBox";
 import { useAssistantName } from "../../../hooks/useProductMode";
 
 const CONTENT_WIDTH = 620;
-const INPUT_MIN_HEIGHT = 46;
-const INPUT_MAX_HEIGHT = 200;
 const RUN_START_TIMEOUT_MS = 10000;
 
 interface ExamplePrompt {
@@ -104,31 +101,6 @@ const Wrap = styled.div`
 const riseIn = keyframes`
     from { opacity: 0; transform: translateY(8px); }
     to { opacity: 1; transform: none; }
-`;
-
-const OrbButton = styled.button<{ $interactive: boolean }>`
-    position: relative;
-    width: ${ORB_SIZE}px;
-    height: ${ORB_SIZE}px;
-    padding: 0;
-    border: none;
-    background: transparent;
-    outline-offset: 4px;
-    cursor: ${(props: { $interactive: boolean }) => (props.$interactive ? "pointer" : "default")};
-    transition: transform 0.2s ease;
-    &:hover {
-        transform: ${(props: { $interactive: boolean }) => (props.$interactive ? "scale(1.06)" : "none")};
-    }
-    &:active {
-        transform: ${(props: { $interactive: boolean }) => (props.$interactive ? "scale(0.98)" : "none")};
-    }
-    // Clears the ambient pulse's own 1.13 peak so the lift reads as a response, not the idle animation.
-    // Reached by class: interpolating OrbGlow would stringify to ".undefined" without @emotion/babel-plugin.
-    &:hover .${ORB_GLOW_CLASS},
-    &:focus-visible .${ORB_GLOW_CLASS} {
-        filter: ${(props: { $interactive: boolean }) =>
-            props.$interactive ? `brightness(${ORB_HOVER_BRIGHTNESS})` : "none"};
-    }
 `;
 
 const Heading = styled.h2`
@@ -198,138 +170,6 @@ const ComposerRow = styled.div`
     max-width: ${CONTENT_WIDTH}px;
     margin-top: 24px;
 `;
-
-const Composer = styled.div`
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    min-width: 0;
-    padding: 12px 12px 8px;
-    border-radius: 12.5px;
-    background: var(--vscode-editorWidget-background);
-    cursor: text;
-`;
-
-const PromptTextArea = styled.textarea`
-    border: none;
-    outline: none;
-    resize: none;
-    background: transparent;
-    color: var(--vscode-input-foreground);
-    font-family: var(--vscode-font-family);
-    font-size: 14px;
-    line-height: 1.5;
-    min-height: ${INPUT_MIN_HEIGHT}px;
-    max-height: ${INPUT_MAX_HEIGHT}px;
-    overflow-y: auto;
-    scrollbar-width: none;
-
-    /* Outranks the webview default focus outline. */
-    &:focus,
-    &:focus-visible {
-        outline: none;
-    }
-
-    @media (forced-colors: active) {
-        &:focus-visible {
-            outline: 1px solid Highlight;
-            outline-offset: 1px;
-        }
-    }
-
-    &::-webkit-scrollbar {
-        display: none;
-    }
-
-    &::placeholder {
-        color: var(--vscode-input-placeholderForeground);
-    }
-`;
-
-const ActionRow = styled.div`
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-`;
-
-const LeftControls = styled.div`
-    display: flex;
-    align-items: center;
-    gap: 6px;
-`;
-
-// The menu is unrelated to the mode toggle beside it.
-const ControlDivider = styled.span`
-    width: 1px;
-    height: 16px;
-    background-color: var(--vscode-panel-border, var(--vscode-editorWidget-border));
-    opacity: 0.6;
-`;
-
-const RightControls = styled.div`
-    display: flex;
-    align-items: center;
-    gap: 2px;
-`;
-
-const AttachmentsWrap = styled.div`
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    margin: 8px 0;
-    min-width: 0;
-    max-width: 100%;
-`;
-
-// Caps each chip and ellipsizes its filename (the shared AttachmentBox has no width limit).
-const AttachmentChip = styled.div`
-    display: inline-flex;
-    min-width: 0;
-    max-width: 240px;
-
-    & > div {
-        max-width: 100%;
-        overflow: hidden;
-    }
-    & > div > span:first-of-type {
-        min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-`;
-
-// Matches the AI panel's ActionButton (AIChatInput/index.tsx).
-const ComposerActionButton = styled.button`
-    width: 24px;
-    height: 24px;
-    background-color: transparent;
-    color: var(--vscode-icon-foreground);
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 16px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background-color 0.2s;
-    box-sizing: border-box;
-
-    &:hover:not(:disabled) {
-        background-color: var(--vscode-toolbar-hoverBackground);
-    }
-
-    &:active:not(:disabled) {
-        background-color: var(--vscode-toolbar-activeBackground);
-    }
-
-    &:disabled {
-        color: var(--vscode-disabledForeground);
-        cursor: default;
-    }
-`;
-
 
 const ExamplesBlock = styled.div`
     width: 100%;
@@ -425,15 +265,8 @@ export function CopilotComposer({ onAddArtifactManually, hiding }: CopilotCompos
     const assistantName = useAssistantName();
     const [status, setStatus] = useState<AgentRunStatus | null>(null);
     const [text, setText] = useState("");
-    const [agentMode, setAgentMode] = useState<AgentMode>(AgentMode.Edit);
     const [submittedPrompt, setSubmittedPrompt] = useState<string>();
-    const { attachments, fileInputRef, handleAttachClick, onAttachmentSelection, removeAttachment, removeAllAttachments } =
-        useAttachments({
-            attachmentOptions: { multiple: true, acceptResolver, handleAttachmentSelection },
-            activeCommand: null,
-        });
-    const inputRef = useRef<HTMLTextAreaElement>(null);
-    const focusOnTextRef = useRef(false);
+    const promptRef = useRef<CopilotPromptBoxHandle>(null);
     const runStartedRef = useRef(false);
     const aiPanelOpen = useAiPanelOpen();
 
@@ -457,20 +290,6 @@ export function CopilotComposer({ onAddArtifactManually, hiding }: CopilotCompos
         setInline(true);
         return () => setInline(false);
     }, [rpcClient]);
-
-    useLayoutEffect(() => {
-        const input = inputRef.current;
-        if (!input) {
-            return;
-        }
-        input.style.height = "auto";
-        input.style.height = `${Math.min(input.scrollHeight, INPUT_MAX_HEIGHT)}px`;
-        if (focusOnTextRef.current) {
-            focusOnTextRef.current = false;
-            input.focus();
-            input.setSelectionRange(input.value.length, input.value.length);
-        }
-    }, [text]);
 
     const state = status?.state ?? "idle";
     const working = state !== "idle";
@@ -517,31 +336,14 @@ export function CopilotComposer({ onAddArtifactManually, hiding }: CopilotCompos
     const runDetail = state === "completed" ? undefined : status?.label;
     const showOpenCopilot = !aiPanelOpen;
 
-    // A failed chip stays visible until removed instead of being silently dropped on send.
-    const attachmentsReady = attachments.every((a) => a.status === AttachmentStatus.Success);
-    const canSend = text.trim().length > 0 && attachmentsReady;
-
-    const send = async (prompt: string) => {
-        const trimmed = prompt.trim();
-        if (!trimmed || !attachmentsReady) {
-            return;
-        }
+    const send = async (prompt: string, options: PromptSubmitOptions) => {
         // Entering from this page always starts a fresh chat, not the current thread.
-        const handedOff = await submitPromptToCopilot(rpcClient, trimmed, {
-            planMode: agentMode === AgentMode.Plan,
-            attachments,
-            newThread: true,
-        });
+        const handedOff = await submitPromptToCopilot(rpcClient, prompt, { ...options, newThread: true });
         if (handedOff) {
-            setSubmittedPrompt(trimmed);
+            setSubmittedPrompt(prompt);
             setText("");
-            removeAllAttachments();
         }
-    };
-
-    const fillExample = (prompt: string) => {
-        focusOnTextRef.current = true;
-        setText(prompt);
+        return handedOff;
     };
 
     return (
@@ -576,76 +378,22 @@ export function CopilotComposer({ onAddArtifactManually, hiding }: CopilotCompos
                     <Heading>What would you like to build?</Heading>
 
                     <ComposerRow>
-                        <AmbientFrame $variant="hero" $state={state}>
-                            <Composer>
-                                <PromptTextArea
-                                    ref={inputRef}
-                                    rows={2}
-                                    value={text}
-                                    onChange={(event) => setText(event.target.value)}
-                                    onKeyDown={(event) => {
-                                        if (event.key === "Enter" && !event.shiftKey) {
-                                            event.preventDefault();
-                                            if (canSend) {
-                                                void send(text);
-                                            }
-                                        }
-                                    }}
-                                    placeholder="Describe what you want to build…"
-                                    aria-label="Describe the integration you want to build"
-                                />
-                                {attachments.length > 0 && (
-                                    <AttachmentsWrap>
-                                        {attachments.map((file, index) => (
-                                            <AttachmentChip key={index} title={file.name}>
-                                                <AttachmentBox
-                                                    status={file.status}
-                                                    fileName={file.name}
-                                                    index={index}
-                                                    removeAttachment={removeAttachment}
-                                                />
-                                            </AttachmentChip>
-                                        ))}
-                                    </AttachmentsWrap>
-                                )}
-                                <ActionRow>
-                                    <LeftControls>
-                                        <ModeToggle mode={agentMode} onChange={setAgentMode} />
-                                        <ControlDivider aria-hidden="true" />
-                                        <CopilotMenu />
-                                    </LeftControls>
-                                    <RightControls>
-                                        <input
-                                            type="file"
-                                            multiple
-                                            accept={acceptResolver(null)}
-                                            style={{ display: "none" }}
-                                            ref={fileInputRef}
-                                            onChange={onAttachmentSelection}
-                                        />
-                                        <ComposerActionButton type="button" title="Attach context" onClick={handleAttachClick}>
-                                            <Icon name="Paperclip" sx={{ fontSize: "16px" }} />
-                                        </ComposerActionButton>
-                                        <ComposerActionButton
-                                            type="button"
-                                            title={attachmentsReady ? `Send to ${assistantName}` : "Remove failed attachments to send"}
-                                            aria-label={`Send to ${assistantName}`}
-                                            disabled={!canSend}
-                                            onClick={() => void send(text)}
-                                        >
-                                            <Icon name="Send" sx={{ fontSize: "16px" }} />
-                                        </ComposerActionButton>
-                                    </RightControls>
-                                </ActionRow>
-                            </Composer>
-                        </AmbientFrame>
+                        <CopilotPromptBox
+                            ref={promptRef}
+                            value={text}
+                            onChange={setText}
+                            onSubmit={send}
+                            placeholder="Describe what you want to build…"
+                            ariaLabel="Describe the integration you want to build"
+                            state={state}
+                        />
                     </ComposerRow>
 
                     <ExamplesBlock>
                         <ExamplesLabel>Try one of these</ExamplesLabel>
                         <Cards>
                             {EXAMPLES.map((example) => (
-                                <Card key={example.name} type="button" onClick={() => fillExample(example.prompt)}>
+                                <Card key={example.name} type="button" onClick={() => promptRef.current?.fill(example.prompt)}>
                                     <Icon
                                         name={example.icon}
                                         isCodicon={example.isCodicon ?? true}
