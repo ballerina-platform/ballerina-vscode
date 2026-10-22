@@ -21,6 +21,7 @@ import { FormField } from "../Form/types";
 import { Button, ErrorBanner, Icon, RequiredFormInput, ThemeColors, Tooltip } from "@wso2/ui-toolkit";
 import { capitalize } from "./utils";
 import { dedupeMessages } from "../Form/DiagnosticsStore";
+import { WarningBanner } from "../Form/WarningBanner";
 import styled from "@emotion/styled";
 
 interface ReadonlyFieldProps {
@@ -204,8 +205,10 @@ function renderExpressionValue(value: string): React.ReactNode {
 export function ReadonlyField(props: ReadonlyFieldProps) {
     const { field } = props;
     const { displayValue, isExpression } = getDisplayInfo(field);
-    // A read-only field can still carry an LS diagnostic (e.g. an inaccessible result type) that blocks Save
-    const diagnosticMessages = dedupeMessages((field.diagnostics ?? []).map((diagnostic) => diagnostic.message));
+    // A read-only field can still carry an LS diagnostic (e.g. an inaccessible result type); only ERRORs block Save
+    const diagnostics = field.diagnostics ?? [];
+    const errorMessages = dedupeMessages(diagnostics.filter((d) => d.severity === "ERROR").map((d) => d.message));
+    const warningMessages = dedupeMessages(diagnostics.filter((d) => d.severity !== "ERROR").map((d) => d.message));
 
     return (
         <Container data-testid={`readonly-field-${field.key}`}>
@@ -244,7 +247,8 @@ export function ReadonlyField(props: ReadonlyFieldProps) {
                     </Tooltip>
                 </LockContainer>
             </InputContainer>
-            {diagnosticMessages.length > 0 && <ErrorBanner errorMsg={diagnosticMessages.join("\n")} />}
+            {errorMessages.length > 0 && <ErrorBanner errorMsg={errorMessages.join("\n")} />}
+            {warningMessages.length > 0 && <WarningBanner warningMsg={warningMessages.join("\n")} />}
         </Container>
     );
 }
