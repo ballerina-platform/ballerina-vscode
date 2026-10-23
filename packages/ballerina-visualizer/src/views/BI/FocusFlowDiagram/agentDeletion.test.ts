@@ -67,7 +67,7 @@ describe("deleting an agent with its triggers", () => {
     const scopes: AgentTriggerScopes = new Map([["ai", "SERVICE"], ["http", "ENTRY_POINT"]]);
     const ref = { filePath: AGENTS_BAL, startLine: 4, symbol: "mathTutorAgent" };
     const deletionOf = (model: CDModel): AgentDeletion =>
-        ({ plan: planAgentDeletion(model, ref, "agent", scopes), scopes, chatServices: 0, dangling: [], cleanup: [] });
+        ({ plan: planAgentDeletion(model, ref, "agent", scopes), scopes, chatServices: 0, dangling: [], referencesUnknown: false, cleanup: [] });
     const labels = (rows: AgentUsage[]) => rows.map((row) => row.label);
 
     it("deletes a chat trigger and an endpoint, but blocks on main and on agents that use it as a tool", () => {
@@ -287,7 +287,7 @@ describe("deleting the parts the user picked", () => {
         const ref = { filePath: AGENTS_BAL, startLine: 4, symbol: "mathTutorAgent" };
         const plan: AgentDeletionPlan = { triggers: [], blockers: [], shared: [] };
 
-        await deleteAgentWithTriggers(client, "/proj", ref, "agent", { plan, scopes: new Map(), chatServices: 0, dangling: [], cleanup: [] }, [
+        await deleteAgentWithTriggers(client, "/proj", ref, "agent", { plan, scopes: new Map(), chatServices: 0, dangling: [], referencesUnknown: false, cleanup: [] }, [
             { key: "tools", declarations: [{ name: "sumTool", filePath: AGENTS_BAL, position: { startLine: 12, startColumn: 0, endLine: 14, endColumn: 1 } }] },
         ]);
 
