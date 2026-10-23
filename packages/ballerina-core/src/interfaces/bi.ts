@@ -17,7 +17,7 @@
  */
 
 import { NodePosition } from "@wso2/syntax-tree";
-import { LinePosition } from "./common";
+import { LinePosition, LineRange } from "./common";
 import { Diagnostic as VSCodeDiagnostic } from "vscode-languageserver-types";
 import { ValueTypeConstraint } from "../rpc-types/ai-agent/interfaces";
 import { Type } from "./extended-lang-client";
@@ -123,6 +123,14 @@ export type NodeMetadata = {
     agentInfo?: AgentNodeInfo;
     // The workflow context method a palette node stands for, e.g. "awaitHumanTask"; shown in its tooltip
     method?: string;
+    promptVariable?: PromptVariable;
+};
+
+export type PromptVariable = {
+    name: string;
+    value: string;
+    lineRange: LineRange; // the variable's initializer
+    references: number;
 };
 
 export type ParentMetadata = {
