@@ -1187,7 +1187,13 @@
           }
         },
         "diagnostics": {
-          "hasDiagnostics": true
+          "hasDiagnostics": true,
+          "diagnostics": [
+            {
+              "severity": "ERROR",
+              "message": "missing required parameter 'model' in call to 'new()'"
+            }
+          ]
         },
         "flags": 1
       }

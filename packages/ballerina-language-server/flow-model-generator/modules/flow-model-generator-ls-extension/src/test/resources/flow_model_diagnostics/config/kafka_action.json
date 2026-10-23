@@ -260,15 +260,6 @@
         "editable": true,
         "advanced": false,
         "hidden": false,
-        "diagnostics": {
-          "hasDiagnostics": true,
-          "diagnostics": [
-            {
-              "severity": "ERROR",
-              "message": "incompatible type for parameter 'T' with inferred typedesc value: expected 'typedesc<ballerinax/kafka:4.6.6:AnydataConsumerRecord[]>', found 'typedesc<wso2/kafka_action:0.1.0:News>'"
-            }
-          ]
-        },
         "codedata": {
           "kind": "REQUIRED",
           "originalName": "timeout"
@@ -342,7 +333,13 @@
       }
     },
     "diagnostics": {
-      "hasDiagnostics": true
+      "hasDiagnostics": true,
+      "diagnostics": [
+        {
+          "severity": "ERROR",
+          "message": "incompatible type for parameter 'T' with inferred typedesc value: expected 'typedesc<ballerinax/kafka:4.6.6:AnydataConsumerRecord[]>', found 'typedesc<wso2/kafka_action:0.1.0:News>'"
+        }
+      ]
     },
     "flags": 1
   }
