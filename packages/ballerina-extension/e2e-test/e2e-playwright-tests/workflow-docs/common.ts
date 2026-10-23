@@ -54,10 +54,50 @@ export function projectSources(): (file?: string) => string {
 export async function openArtifact(j: DocJourney, ui: Integrator, project: string, name: string,
     expect: string | RegExp = /Start/): Promise<FrameLocator> {
     await j.page.getByRole('treeitem', { name: new RegExp(`^${escapeRegExp(project)}`, 'i') }).first().waitFor({ state: 'visible', timeout: 180000 });
-    await ui.sidebar(name);
-    const opened = await ui.view(expect, 20000).catch(() => undefined);
-    // Clicking the row that is already selected does not reopen it; the breadcrumb does.
-    return opened ?? ui.crumb(name, expect);
+    // On a diagram page the expected text has to be on the canvas: the diagram that Create leaves open for a new
+    // activity can show the workflow's name elsewhere in the view and read as arrived while the canvas is still
+    // the activity's. Pages without a canvas (an overview) keep the view-wide check.
+    const arrivedOn = async (frame: FrameLocator | undefined, timeoutMs: number): Promise<FrameLocator | undefined> => {
+        if (!frame) {
+            return undefined;
+        }
+        const canvas = frame.getByTestId('bi-diagram-canvas');
+        // The expected text can show elsewhere in the view before the canvas has mounted; give the canvas a
+        // moment before taking the page for one without.
+        if (!await canvas.first().waitFor({ state: 'visible', timeout: 5000 }).then(() => true, () => false)) {
+            return frame;
+        }
+        const onCanvas = canvas.getByText(expect).filter({ visible: true }).first();
+        if (!await onCanvas.waitFor({ state: 'visible', timeout: timeoutMs }).then(() => true, () => false)) {
+            return undefined;
+        }
+        // The designer opens a just-created artifact on its own, a moment after its source lands. A sidebar click
+        // that arrives first shows the artifact asked for until that navigation replaces it; only a canvas that
+        // holds for a while is the one the step will act on.
+        await j.page.waitForTimeout(1500);
+        return await onCanvas.isVisible().catch(() => false) ? frame : undefined;
+    };
+    const open = async (): Promise<FrameLocator | undefined> => {
+        await ui.sidebar(name);
+        let opened = await arrivedOn(await ui.view(expect, 20000).catch(() => undefined), 10000);
+        if (!opened) {
+            // Clicking the row that is already selected does not reopen it; the breadcrumb does.
+            opened = await arrivedOn(await ui.crumb(name, expect).catch(() => undefined), 10000);
+        }
+        if (!opened) {
+            // A click on the row while the tree was refreshing (a new artifact had just been created) is dropped.
+            await ui.sidebar(name);
+            opened = await arrivedOn(await ui.view(expect, 30000).catch(() => undefined), 20000);
+        }
+        return opened;
+    };
+    // A navigation that replaced the canvas also moved the tree's selection, so a second round's sidebar click
+    // reopens the artifact.
+    const opened = await open() ?? await open();
+    if (!opened) {
+        throw new Error(`Step ${j.stepId}: opening '${name}' did not show '${expect}' on its diagram`);
+    }
+    return opened;
 }
 
 // Picks the agent on a form's Durable Agentic Workflow field; a form that already shows it needs no pick. A form

@@ -136,15 +136,19 @@ async function openPaletteBelow(webview: Frame, nodeText: string): Promise<SideP
     }
     const node = canvas.getByText(nodeText, { exact: true }).filter({ visible: true }).last();
     await node.waitFor({ state: 'visible', timeout: 60000 });
-    const nodeBox = await node.boundingBox();
-    if (!nodeBox) {
-        throw new Error(`node '${nodeText}' has no position`);
-    }
-    const nodeBottom = nodeBox.y + nodeBox.height;
-    for (let attempt = 0; attempt < 3; attempt++) {
+    // A save redraws the canvas: the node and the edge leaving it can be measured before they are laid out, and
+    // an element measured before the redraw is detached by the time it is clicked. Measure again until it holds.
+    const deadline = Date.now() + 60000;
+    while (Date.now() < deadline) {
+        const nodeBox = await node.boundingBox().catch(() => null);
+        if (!nodeBox) {
+            await page.page.waitForTimeout(1000);
+            continue;
+        }
+        const nodeBottom = nodeBox.y + nodeBox.height;
         // The edge leaving the node starts at or just above its label and runs on below it.
         for (const edge of await webview.locator('[data-testid^="diagram-link-"]').all()) {
-            const box = await edge.boundingBox();
+            const box = await edge.boundingBox().catch(() => null);
             if (!box || box.y < nodeBox.y - 40 || box.y > nodeBottom + 90 || box.y + box.height <= nodeBottom + 15) {
                 continue;
             }

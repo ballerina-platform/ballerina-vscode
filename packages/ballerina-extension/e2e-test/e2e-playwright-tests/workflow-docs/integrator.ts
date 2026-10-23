@@ -448,6 +448,19 @@ export class Integrator {
         await this.page.waitForTimeout(200);
     }
 
+    // Closes the side panel showing, if any, through its close button: the panel has no Escape handler.
+    private async closePanel(): Promise<void> {
+        const frame = webviewFrame(this.page);
+        const close = frame.getByTestId('close-panel-btn').filter({ visible: true }).last();
+        if (await close.isVisible().catch(() => false)) {
+            await close.click({ force: true, timeout: 3000 })
+                .catch(() => close.dispatchEvent('click', undefined, { timeout: 1000 }).catch(() => undefined));
+            await frame.getByTestId('side-panel').filter({ visible: true }).first()
+                .waitFor({ state: 'hidden', timeout: 5000 }).catch(() => undefined);
+        }
+        await this.dismiss();
+    }
+
     // ------------------------------------------------------------------ projects and artifacts
 
     // Opens an artifact's creation form from the Artifacts page by its card's test id, checking that the card is named
@@ -557,16 +570,47 @@ export class Integrator {
 
     // Clicks the + below a node ("click + below the wait") and waits for the node panel.
     async plusBelow(frame: FrameLocator, nodeText: string | RegExp, nth = 0): Promise<void> {
-        await new Diagram(this.page, frame).clickAddButtonBelow(nodeText, nth);
-        await this.panel();
+        await this.openPalette(() => new Diagram(this.page, frame).clickAddButtonBelow(nodeText, nth),
+            `the + below '${nodeText}'`);
+    }
+
+    // Clicks a + and makes sure what opened is the node palette. Right after a save or a navigation the click
+    // can open nothing, or a panel left over from the previous step (an activity list, a form) can be what is
+    // showing; both read as "no 'Workflow' in the palette" later. Close whatever is there and click again.
+    private async openPalette(click: () => Promise<void>, what: string): Promise<void> {
+        let last: Error | undefined;
+        for (let attempt = 0; attempt < 3; attempt++) {
+            if (attempt > 0) {
+                await this.closePanel();
+                await this.page.waitForTimeout(1000);
+            }
+            try {
+                await click();
+            } catch (error) {
+                last = error instanceof Error ? error : new Error(String(error));
+                continue;
+            }
+            const panel = await this.panel().catch(() => undefined);
+            if (panel && await this.isPalette(panel)) {
+                return;
+            }
+            last = new Error(`${what} opened something other than the node palette`);
+        }
+        throw last ?? new Error(`${what} did not open the node palette`);
+    }
+
+    // The node palette lists its groups; a Control or Workflow group is on every diagram's palette.
+    private async isPalette(panel: Locator): Promise<boolean> {
+        const group = panel.getByText(/^(Control|Workflow)$/).first();
+        return group.waitFor({ state: 'visible', timeout: 15000 }).then(() => true, () => false);
     }
 
     // Clicks the + on an If branch the page names by label ("the + on the **Else** path"); index is the branch's
     // position left to right, -1 for Else.
     async plusOnBranch(frame: FrameLocator, branchLabel: string, index: number): Promise<void> {
         console.log(`  + on the '${branchLabel}' branch`);
-        await new Diagram(this.page, frame).clickAddButtonOnBranch(index);
-        await this.panel();
+        await this.openPalette(() => new Diagram(this.page, frame).clickAddButtonOnBranch(index),
+            `the + on the '${branchLabel}' branch`);
     }
 
     // Follows a node-palette path such as Workflow > Steps > Call Activity. A group is opened only when the next

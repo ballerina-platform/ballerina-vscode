@@ -272,11 +272,18 @@ export default function createTests() {
         // hook, which calls Try It generically and produces the full
         // multi-resource notebook instead of a scoped one.
         test('Try It from a resource\'s own menu is scoped to just that resource', async () => {
-            const webview = await getWebView();
+            let webview = await getWebView();
 
             logStep('Navigate to the secure resource\'s flow diagram');
-            const serviceNodeLink = webview.getByText('HTTP Service - /', { exact: false }).first();
-            await serviceNodeLink.waitFor({ state: 'visible', timeout: 30000 });
+            let serviceNodeLink = webview.getByText('HTTP Service - /', { exact: false }).first();
+            if (!await serviceNodeLink.waitFor({ state: 'visible', timeout: 10000 }).then(() => true, () => false)) {
+                // The previous test leaves the executed notebook as the active editor; bring the designer back.
+                await page.page.locator('.tabs-container .tab', { hasText: BI_INTEGRATOR_LABEL }).first()
+                    .click({ timeout: 10000 }).catch(() => undefined);
+                webview = await getWebView();
+                serviceNodeLink = webview.getByText('HTTP Service - /', { exact: false }).first();
+                await serviceNodeLink.waitFor({ state: 'visible', timeout: 30000 });
+            }
             await domClick(serviceNodeLink);
             await page.page.waitForTimeout(2000);
             const secureRow = webview.getByText('secure', { exact: false }).first();
@@ -285,7 +292,18 @@ export default function createTests() {
             await page.page.waitForTimeout(1500);
 
             const hurlPath = path.join(newProjectPath, 'target', 'TryIt.hurl');
-            const before = fs.statSync(hurlPath).mtimeMs;
+            // TryIt.hurl is briefly absent while Try It rewrites it; read that as "not written yet".
+            const hurlMtime = () => {
+                try {
+                    return fs.statSync(hurlPath).mtimeMs;
+                } catch (error) {
+                    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+                        return 0;
+                    }
+                    throw error;
+                }
+            };
+            const before = hurlMtime();
 
             logStep('Click the resource\'s own Try It button');
             const tryResourceBtn = webview.locator('vscode-button[title="Try Resource"]').first();
@@ -293,14 +311,26 @@ export default function createTests() {
             await domClick(tryResourceBtn);
             await page.page.waitForTimeout(1500);
 
+            // The quick pick opens a moment after the click; isVisible does not wait, so wait for the option.
             const hurlOption = page.page.getByRole('option', { name: /Try It.*Hurl Client/ }).first();
-            if (await hurlOption.isVisible({ timeout: 5000 }).catch(() => false)) {
-                await hurlOption.click({ force: true });
-            }
+            const pickHurl = async () => {
+                if (await hurlOption.waitFor({ state: 'visible', timeout: 5000 }).then(() => true, () => false)) {
+                    await hurlOption.click({ force: true });
+                }
+            };
+            await pickHurl();
 
             logStep('Discard the prior notebook\'s unsaved state and wait for the scoped notebook');
-            const deadline = Date.now() + 30000;
-            while (Date.now() < deadline && fs.statSync(hurlPath).mtimeMs <= before) {
+            const deadline = Date.now() + 60000;
+            let lastClick = Date.now();
+            while (Date.now() < deadline && hurlMtime() <= before) {
+                // A Try Resource click that landed while the diagram was still settling is dropped; click again
+                // when nothing has been written for a while.
+                if (Date.now() - lastClick > 10000 && await tryResourceBtn.isVisible().catch(() => false)) {
+                    await domClick(tryResourceBtn);
+                    lastClick = Date.now();
+                    await pickHurl();
+                }
                 // Re-opening TryIt.hurl scoped to one resource replaces the
                 // still-open (executed) service-level notebook at the same
                 // path, which triggers a blocking "save changes?" dialog.
@@ -314,7 +344,7 @@ export default function createTests() {
                 }
                 await page.page.waitForTimeout(500);
             }
-            expect(fs.statSync(hurlPath).mtimeMs).toBeGreaterThan(before);
+            expect(hurlMtime()).toBeGreaterThan(before);
 
             logStep('Verify the notebook is scoped to just /secure');
             const hurl = fs.readFileSync(hurlPath, 'utf8');
