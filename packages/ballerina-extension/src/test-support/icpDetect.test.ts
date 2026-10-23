@@ -17,10 +17,9 @@
  */
 
 // L1 contract tests for ICP binary resolution: the precedence between the
-// `ballerina.icpPath` setting, `WSO2_INTEGRATOR_ICP_HOME`, the ICP bundled with the
-// running WSO2 Integrator app and the well-known install directories; the one-time
-// cleanup of paths cached inside the app; and the rule that auto-detected paths are
-// never written back to settings.
+// `ballerina.icpPath` setting, `WSO2_INTEGRATOR_ICP_HOME` and the well-known install
+// directories; the one-time cleanup of paths cached inside the running WSO2 Integrator
+// app; and the rule that auto-detected paths are never written back to settings.
 
 jest.mock("../utils/logger", () => ({ log: jest.fn() }));
 
@@ -171,12 +170,6 @@ describe("resolveICPPath precedence", () => {
         expect(settingUpdates).toEqual([]);
     });
 
-    it("prefers WSO2_INTEGRATOR_ICP_HOME over the ICP bundled with the running app", async () => {
-        makeIcpBin(runInsideWI("wi-install"), "components", "icp");
-        const envScript = useIcpHome("env-home");
-
-        await expect(resolveICPPath()).resolves.toBe(envScript);
-    });
 
     it("follows WSO2_INTEGRATOR_ICP_HOME to a new install while the old one is still on disk", async () => {
         const first = useIcpHome("icp-1.0");
@@ -188,28 +181,19 @@ describe("resolveICPPath precedence", () => {
         expect(settingUpdates).toEqual([]);
     });
 
-    it("falls back to the ICP bundled with the running app when the env var is unset", async () => {
-        const appScript = makeIcpBin(runInsideWI("wi-install"), "components", "icp");
+    it("does not look for ICP under the running app's install root", async () => {
+        // ICP no longer ships inside the app; the launcher points WSO2_INTEGRATOR_ICP_HOME at it.
+        makeIcpBin(runInsideWI("wi-install"), "components", "icp");
 
-        await expect(resolveICPPath()).resolves.toBe(appScript);
-        expect(settingUpdates).toEqual([]);
-    });
-
-    it("finds the bundled ICP from the app root, not from where extensions are installed", async () => {
-        // Extensions updated into the user's data folder don't move the app itself.
-        const appScript = makeIcpBin(runFromApp("wi-install"), "components", "icp");
-        fs.mkdirSync(path.join(root, "home", ".wso2-integrator", "extensions"), { recursive: true });
-
-        expect(detectICPPath()).toBe(appScript);
+        expect(detectICPPath()).toBeUndefined();
     });
 
     it("logs and skips a WSO2_INTEGRATOR_ICP_HOME that has no bin/<script>", async () => {
-        const appScript = makeIcpBin(runInsideWI("wi-install"), "components", "icp");
         const emptyHome = path.join(root, "empty-home");
         fs.mkdirSync(emptyHome);
         process.env[ICP_HOME_ENV] = emptyHome;
 
-        await expect(resolveICPPath()).resolves.toBe(appScript);
+        await expect(resolveICPPath()).resolves.toBeUndefined();
         expect(log).toHaveBeenCalledTimes(1);
         const message = (log as jest.Mock).mock.calls[0][0] as string;
         expect(message).toContain(ICP_HOME_ENV);
@@ -352,14 +336,31 @@ describe("resolveICPPath with a configured path that is missing", () => {
         expect(settingUpdates).toEqual([cleared(vscode.ConfigurationTarget.Workspace)]);
     });
 
-    it("uses a valid user-level path left behind the cleared workspace value", async () => {
+    it("Use Default ICP clears every scope and ignores a user-level path", async () => {
+        runInsideWI("wi-install");
         settingScope = "workspace";
         userLevelValue = makeIcpBin(root, "custom");
-        useIcpHome("env-home");
+        const envScript = useIcpHome("data-icp");
+        promptAnswer = "Use Default ICP";
+
+        await expect(resolveICPPath()).resolves.toBe(envScript);
+        expect(settingUpdates).toEqual([
+            cleared(vscode.ConfigurationTarget.Workspace),
+            cleared(vscode.ConfigurationTarget.Global),
+        ]);
+    });
+
+    it("Auto Detect clears every scope and returns the detected path", async () => {
+        settingScope = "workspace";
+        userLevelValue = makeIcpBin(root, "custom");
+        const envScript = useIcpHome("env-home");
         promptAnswer = "Auto Detect";
 
-        await expect(resolveICPPath()).resolves.toBe(userLevelValue);
-        expect(settingUpdates).toEqual([cleared(vscode.ConfigurationTarget.Workspace)]);
+        await expect(resolveICPPath()).resolves.toBe(envScript);
+        expect(settingUpdates).toEqual([
+            cleared(vscode.ConfigurationTarget.Workspace),
+            cleared(vscode.ConfigurationTarget.Global),
+        ]);
     });
 
     it("with nothing installed falls through to the not-installed prompt", async () => {
@@ -426,7 +427,7 @@ describe("detectICPPath scans the well-known install directories", () => {
 });
 
 describe("detectICPPath on a platform with no install directories", () => {
-    it("returns nothing when neither the env var nor the app root yields a path", () => {
+    it("returns nothing when the env var yields no path", () => {
         expect(detectICPPath()).toBeUndefined();
     });
 });

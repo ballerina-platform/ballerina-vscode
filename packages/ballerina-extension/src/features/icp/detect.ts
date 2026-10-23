@@ -40,16 +40,13 @@ function isWIRuntime(): boolean {
 
 /**
  * The install root of the running editor, derived from `env.appRoot`. It reflects where the
- * app itself is installed, independent of where extensions live, so it stays correct when the
- * WSO2 Integrator extension has been updated into the user's data folder.
- *
- * Layout:
- *   <install-root>/resources/app            ← env.appRoot
- *   <install-root>/components/icp/bin/icp.sh
+ * app itself is installed, independent of where extensions live. Earlier releases bundled ICP
+ * under it, which is where they cached the auto-detected path:
+ *   <install-root>/resources/app              ← env.appRoot
+ *   <install-root>/components/icp/bin/icp.sh  ← cached by earlier releases
  *
  * On macOS the install root is the .app bundle's Contents folder:
  *   <...>/WSO2 Integrator.app/Contents/Resources/app
- *   <...>/WSO2 Integrator.app/Contents/components/icp/bin/icp.sh
  *
  * Returns `undefined` where the editor has no application root folder (e.g. on the web).
  */
@@ -83,20 +80,6 @@ function getPathFromEnv(): string | undefined {
 }
 
 /**
- * Derives the ICP binary bundled with the running WSO2 Integrator app. In plain VS Code the
- * candidate never exists, since VS Code ships no `components/icp`.
- */
-function getPathFromAppRoot(): string | undefined {
-    const installRoot = getAppInstallRoot();
-    if (!installRoot) {
-        return undefined;
-    }
-
-    const candidatePath = path.join(installRoot, ICP_BIN_RELATIVE, getICPScriptName());
-    return existsSync(candidatePath) ? candidatePath : undefined;
-}
-
-/**
  * True when the path is inside the running WSO2 Integrator app's install root.
  * Only meaningful inside WSO2 Integrator, so it is always false in plain VS Code.
  */
@@ -112,8 +95,8 @@ function isInsideWIApp(icpPath: string): boolean {
 
 /**
  * Default base directories where WSO2 Integrator is installed per OS.
- * Used as the last fallback when neither `WSO2_INTEGRATOR_ICP_HOME` nor the running
- * WSO2 Integrator app yields the path (e.g., standalone VS Code with ICP installed separately).
+ * Used as the fallback when `WSO2_INTEGRATOR_ICP_HOME` is not set or not valid
+ * (e.g., standalone VS Code with WSO2 Integrator installed separately).
  */
 const BASE_DIRS: Record<string, string[]> = {
     linux: ['/usr/share'],
@@ -126,12 +109,12 @@ const BASE_DIRS: Record<string, string[]> = {
 };
 
 /**
- * Auto-detects the ICP binary without consulting settings, most specific source first:
- * the launcher-provided `WSO2_INTEGRATOR_ICP_HOME`, then the ICP bundled with the running
- * WSO2 Integrator app, then the well-known install directories per OS.
+ * Auto-detects the ICP binary without consulting settings: the launcher-provided
+ * `WSO2_INTEGRATOR_ICP_HOME` (the default ICP inside WSO2 Integrator), then the well-known
+ * install directories per OS.
  */
 export function detectICPPath(): string | undefined {
-    return getPathFromEnv() ?? getPathFromAppRoot() ?? scanDefaultInstallDirs();
+    return getPathFromEnv() ?? scanDefaultInstallDirs();
 }
 
 function scanDefaultInstallDirs(): string | undefined {
@@ -186,11 +169,11 @@ function scanDefaultInstallDirs(): string | undefined {
  *    see `dropICPPathsInsideWIApp`).
  * 2. Uses the remaining `ballerina.icpPath` setting if it exists on disk.
  * 3. If the setting points at a missing file, tells the user and offers to fall back to the
- *    default ICP (inside WSO2 Integrator) or to auto-detect (in plain VS Code), either of which
- *    clears the setting.
- * 4. Auto-detects via `WSO2_INTEGRATOR_ICP_HOME`, the ICP bundled with the running WSO2
- *    Integrator app, then the well-known install directories. Detected paths are not
- *    persisted, so an upgraded or relocated install is picked up on the next call.
+ *    default ICP (inside WSO2 Integrator) or to auto-detect (in plain VS Code). Either choice
+ *    clears the setting in every scope, so no other configured value takes over.
+ * 4. Auto-detects via `WSO2_INTEGRATOR_ICP_HOME`, then the well-known install directories.
+ *    Detected paths are not persisted, so an upgraded or relocated install is picked up on
+ *    the next call.
  * 5. If nothing is found, notifies the user.
  *
  * @returns The resolved ICP path, or `undefined` if not found.
@@ -225,13 +208,10 @@ export async function resolveICPPath(): Promise<string | undefined> {
             return undefined;
         }
 
-        await clearICPPathSetting(config, scopes[0].target);
-
-        // A value in the other scope (e.g. user settings under a workspace value) takes effect
-        // now that the first one is gone; use it straight away if it exists.
-        const nextPath = scopes[1]?.value;
-        if (nextPath && existsSync(nextPath)) {
-            return nextPath;
+        // The user chose the default over any configured path: clear every scope, so a value
+        // in another scope (e.g. user settings under a workspace value) doesn't take over.
+        for (const scope of scopes) {
+            await clearICPPathSetting(config, scope.target);
         }
     }
 
