@@ -401,7 +401,7 @@ public class PullModuleExecutor implements LSCommandExecutor {
      * @param project   the project whose resolution maps the failing module to its package
      * @return the corrupt-BIR parameters, or empty if this is not a BIR-load failure
      */
-    static Optional<CorruptBirCacheParams> detectCorruptBirCache(Throwable throwable, Project project) {
+    public static Optional<CorruptBirCacheParams> detectCorruptBirCache(Throwable throwable, Project project) {
         for (Throwable cause = throwable; cause != null && cause != cause.getCause(); cause = cause.getCause()) {
             String message = cause.getMessage();
             if (message == null || !message.contains(BIR_LOAD_FAILURE_MARKER)) {
