@@ -145,6 +145,44 @@ public class DiagnosticHandlerTest {
         Assert.assertEquals(nodeDiagnostics.getFirst().message(), "missing required parameter taskInput");
     }
 
+    @Test(description = "A diagnostic spanning a whole literal argument goes to the node, as the literal's elements "
+            + "are visited before the property holding it")
+    public void testLiteralDiagnosticAttachedToNode() {
+        // fn([1, 2]); with a diagnostic on the list literal
+        LineRange nodeRange = range(4, 4, 4, 15);
+        LineRange literalRange = range(4, 7, 4, 13);
+        LineRange firstElementRange = range(4, 8, 4, 9);
+        LineRange secondElementRange = range(4, 11, 4, 12);
+        DiagnosticHandler handler = new DiagnosticHandler(List.of(diagnostic(literalRange, "incompatible types")));
+
+        TestDiagnosticsBuilder node = new TestDiagnosticsBuilder();
+        TestDiagnosticsBuilder firstElement = new TestDiagnosticsBuilder();
+        TestDiagnosticsBuilder secondElement = new TestDiagnosticsBuilder();
+        TestDiagnosticsBuilder literalProperty = new TestDiagnosticsBuilder();
+        handler.handle(node, nodeRange, false);
+        handler.handle(firstElement, firstElementRange, true);
+        handler.handle(secondElement, secondElementRange, true);
+        handler.handle(literalProperty, literalRange, true);
+        handler.resolveUnconsumed(node);
+
+        Assert.assertFalse(firstElement.diagnostics().build().hasDiagnostics());
+        Assert.assertFalse(secondElement.diagnostics().build().hasDiagnostics());
+        Assert.assertFalse(literalProperty.diagnostics().build().hasDiagnostics());
+        Assert.assertEquals(node.diagnostics().build().diagnostics().getFirst().message(), "incompatible types");
+    }
+
+    @Test(description = "Without an enclosing node to take it, a leaf partly inside a diagnostic still claims it")
+    public void testLeafClaimsDiagnosticWithoutPendingNode() {
+        LineRange leafRange = range(4, 32, 4, 33);
+        LineRange diagnosticRange = range(4, 22, 4, 39);
+        DiagnosticHandler handler = new DiagnosticHandler(List.of(diagnostic(diagnosticRange, "incompatible types")));
+
+        TestDiagnosticsBuilder leaf = new TestDiagnosticsBuilder();
+        handler.handle(leaf, leafRange, true);
+
+        Assert.assertEquals(leaf.diagnostics().build().diagnostics().getFirst().message(), "incompatible types");
+    }
+
     @Test(description = "A diagnostic within an argument still belongs to that argument")
     public void testArgumentDiagnosticAttachedToArgument() {
         LineRange nodeRange = range(4, 8, 4, 40);

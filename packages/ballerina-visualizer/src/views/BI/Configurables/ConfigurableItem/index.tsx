@@ -416,23 +416,16 @@ export function ConfigurableItem(props: ConfigurableItemProps) {
                     </div>
                 )}
             </ConfigNameTitle>
-            {getConfigurableErrorMessages(configVariable).map((message, errorIndex) => (
-                <ButtonWrapper key={errorIndex} data-testid="configurable-error" style={{ justifyContent: "flex-start", marginLeft: 0 }}>
-                    <Button
-                        appearance="icon"
-                        buttonSx={{
-                            background: "transparent"
+            {getConfigurableErrorMessages(variable).map((message) => (
+                <ButtonWrapper key={message} role="alert" data-testid="configurable-error" style={{ justifyContent: "flex-start", marginLeft: 0 }}>
+                    <Codicon
+                        name="error"
+                        sx={{
+                            paddingTop: '2px',
+                            color: 'var(--vscode-errorForeground)'
                         }}
-                    >
-                        <Codicon
-                            name="error"
-                            sx={{
-                                paddingTop: '2px',
-                                color: 'var(--vscode-errorForeground)'
-                            }}
-                            iconSx={{ font: "normal normal normal 13px/1 codicon" }}
-                        />
-                    </Button>
+                        iconSx={{ font: "normal normal normal 13px/1 codicon" }}
+                    />
                     <span style={{
                         color: 'var(--vscode-errorForeground)',
                         fontSize: '12px',
