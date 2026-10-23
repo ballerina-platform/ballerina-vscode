@@ -22,6 +22,8 @@
         "metadata": {
           "name": "onRetry",
           "servicePath": "",
+          "serviceId": "ai:///main.bal#20",
+          "serviceListeners": "queueListener",
           "functionKind": "remote"
         }
       },
@@ -43,6 +45,8 @@
         "metadata": {
           "name": "onError",
           "servicePath": "",
+          "serviceId": "ai:///main.bal#20",
+          "serviceListeners": "queueListener",
           "functionKind": "remote"
         }
       },
@@ -75,6 +79,8 @@
         "metadata": {
           "name": "format",
           "servicePath": "",
+          "serviceId": "ai:///main.bal#20",
+          "serviceListeners": "queueListener",
           "functionKind": "method"
         }
       },
@@ -107,6 +113,8 @@
         "metadata": {
           "name": "onMessage",
           "servicePath": "",
+          "serviceId": "ai:///main.bal#20",
+          "serviceListeners": "queueListener",
           "functionKind": "remote"
         }
       }
