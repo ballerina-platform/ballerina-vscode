@@ -23,6 +23,8 @@
           "accessor": "get",
           "servicePath": "/health",
           "serviceType": "http",
+          "serviceId": "ai:///main.bal#10#removed",
+          "serviceListeners": "httpListener",
           "resourcePath": ".",
           "functionKind": "resource"
         }
