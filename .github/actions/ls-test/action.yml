@@ -29,6 +29,12 @@ inputs:
       and commit from the event, which is what PR builds need.
     required: false
     default: ''
+  diagnostic-variant:
+    description: >-
+      DIAGNOSTIC. 'baseline' runs the suite as-is; 'no-jacoco' disables JaCoCo first, to
+      measure how much of the Windows slowdown the coverage agent causes.
+    required: false
+    default: baseline
 
 runs:
   using: composite
@@ -71,6 +77,25 @@ runs:
         path: packages/ballerina-language-server/build/ballerina_dependencies
         key: ${{ runner.os }}-ballerina-${{ inputs.cache-branch }}-${{ steps.bal-fingerprint.outputs.value }}-${{ hashFiles('packages/ballerina-language-server/build-config/ballerina_dependencies/**', 'packages/ballerina-language-server/gradle.properties') }}
 
+    - name: Disable JaCoCo (diagnostic)
+      if: ${{ inputs.diagnostic-variant == 'no-jacoco' }}
+      shell: bash
+      run: |
+        mkdir -p "$RUNNER_TEMP/gradle-init"
+        cat > "$RUNNER_TEMP/gradle-init/no-jacoco.gradle" <<'EOF'
+        gradle.projectsEvaluated {
+            allprojects {
+                tasks.withType(Test).configureEach {
+                    def ext = it.extensions.findByName('jacoco')
+                    if (ext != null) {
+                        ext.enabled = false
+                    }
+                }
+            }
+        }
+        EOF
+        echo "GRADLE_DIAG_ARGS=--init-script $RUNNER_TEMP/gradle-init/no-jacoco.gradle" >> "$GITHUB_ENV"
+
     - name: Test with Gradle
       shell: bash
       working-directory: packages/ballerina-language-server
@@ -84,11 +109,24 @@ runs:
         else
           GRADLE=./gradlew
         fi
+        # DIAGNOSTIC: --rerun so no test task is restored FROM-CACHE (every leg measures the
+        # full suite); --profile writes per-task timings to build/reports/profile.
         if [ -n "$GRADLE_PROJECT_VERSION" ]; then
-          "$GRADLE" -Pversion="$GRADLE_PROJECT_VERSION" test
+          "$GRADLE" -Pversion="$GRADLE_PROJECT_VERSION" $GRADLE_DIAG_ARGS --profile test --rerun
         else
-          "$GRADLE" test
+          "$GRADLE" $GRADLE_DIAG_ARGS --profile test --rerun
         fi
+
+    - name: Upload test timings (diagnostic)
+      if: ${{ always() }}
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      with:
+        name: ls-test-timings-${{ runner.os }}-${{ inputs.diagnostic-variant }}
+        path: |
+          packages/ballerina-language-server/**/build/test-results/test/*.xml
+          packages/ballerina-language-server/build/reports/profile/
+        if-no-files-found: warn
+        retention-days: 5
 
     # Coverage is aggregated and published from Linux only. The Windows leg runs the
     # same suite over the same sources, so a second upload would only duplicate the
