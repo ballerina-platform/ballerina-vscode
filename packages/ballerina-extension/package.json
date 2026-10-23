@@ -363,7 +363,13 @@
                     "type": "number",
                     "default": 52428800,
                     "scope": "resource",
-                    "description": "Maximum snapshot size in bytes (default: 50MB)."
+                    "description": "Maximum new content, in bytes, one Copilot checkpoint may store (default: 50MB)."
+                },
+                "ballerina.copilot.checkpoints.maxFileSize": {
+                    "type": "number",
+                    "default": 2097152,
+                    "scope": "resource",
+                    "description": "Largest file, in bytes, stored in a Copilot checkpoint. Larger files are left out of checkpoints and are never changed by a restore."
                 },
                 "ballerina.copilot.showContextUsage": {
                     "type": "boolean",

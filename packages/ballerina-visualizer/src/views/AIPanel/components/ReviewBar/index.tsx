@@ -19,7 +19,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import styled from "@emotion/styled";
 import { SemanticDiff, ChangeTypeEnum, NodeKindEnum, MACHINE_VIEW, VisualizerLocation } from "@wso2/ballerina-core";
-import { getNodeKindLabel } from "../../../ReviewMode/nodeKindLabels";
+import { getNodeKindLabel, getObjectFunctionKind } from "../../../ReviewMode/nodeKindLabels";
 import { getColorByMethod } from "../../../BI/ServiceDesigner/components/ResourceAccordion";
 
 const Container = styled.div<{ subtle?: boolean; expanded?: boolean }>`
@@ -341,10 +341,10 @@ function getFileName(filePath: string): string {
 function getDiffLabel(diff: SemanticDiff): string {
     if (diff.metadata) {
         if (diff.nodeKind === NODE_KIND_RESOURCE) {
-            // Class methods are OBJECT_FUNCTION diffs too but carry only `name` —
-            // fall through to it when there's no resource path.
-            const m = diff.metadata as { accessor?: string; servicePath?: string; resourcePath?: string };
-            if (m.resourcePath) return m.resourcePath;
+            const m = diff.metadata as { accessor?: string; resourcePath?: string; name?: string };
+            if (getObjectFunctionKind(diff.metadata) === "resource" && m.resourcePath) return m.resourcePath;
+            // An older LS sent a remote function's name as the accessor.
+            if (!m.name && m.accessor) return m.accessor;
         }
         const m = diff.metadata as { name?: string };
         if (m.name) return m.name;
@@ -468,7 +468,7 @@ function buildGroupsWithOffset(semanticDiffs: SemanticDiff[], startIndex: number
             symbol: getSymbol(diff.changeType),
             changeType: diff.changeType,
             label: isType ? "Types" : getDiffLabel(diff),
-            accessor: servicePath !== undefined
+            accessor: servicePath !== undefined && getObjectFunctionKind(diff.metadata) === "resource"
                 ? (diff.metadata as { accessor?: string } | undefined)?.accessor?.toUpperCase()
                 : undefined,
             kindLabel: getDiffKindLabel(diff),

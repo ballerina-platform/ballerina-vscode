@@ -30,6 +30,8 @@ import {
     clearChatHistory,
     getAgentStatus,
     getSessionInfo,
+    setChatEndpoint,
+    SetChatEndpointRequest,
     getAvailableChatAgents,
     switchChatAgent,
     SwitchAgentRequest,
@@ -51,6 +53,7 @@ export function registerAgentChatRpcHandlers(messenger: Messenger) {
     messenger.onRequest(clearChatHistory, () => rpcManger.clearChatHistory());
     messenger.onRequest(getAgentStatus, () => rpcManger.getAgentStatus());
     messenger.onRequest(getSessionInfo, () => rpcManger.getSessionInfo());
+    messenger.onRequest(setChatEndpoint, (args: SetChatEndpointRequest) => rpcManger.setChatEndpoint(args));
     messenger.onRequest(getAvailableChatAgents, () => rpcManger.getAvailableChatAgents());
     messenger.onRequest(switchChatAgent, (args: SwitchAgentRequest) => rpcManger.switchChatAgent(args));
 }

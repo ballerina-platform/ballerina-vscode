@@ -165,7 +165,7 @@ import { approvalManager } from '../../features/ai/state/ApprovalManager';
 import { approvalViewManager } from '../../features/ai/state/ApprovalViewManager';
 import { chatStateStorage, isRevertible } from '../../views/ai-panel/chatStateStorage';
 import { runEventStore } from '../../features/ai/utils/run-event-store';
-import { restoreWorkspaceSnapshot } from '../../views/ai-panel/checkpoint/checkpointUtils';
+import { readDiffOriginal, restoreWorkspaceSnapshot } from '../../views/ai-panel/checkpoint/checkpointUtils';
 import {
     assertNoRestoreInProgress,
     beginRestore,
@@ -594,7 +594,7 @@ export class AiPanelRpcManager implements AIPanelAPI {
             // restoreWorkspaceSnapshot reports its own failures to the user but does not throw, so a
             // failed applyEdit must not fall through to marking the generation reverted and telling
             // the model the files were restored when they weren't — the same refusal as no checkpoint.
-            const restored = await restoreWorkspaceSnapshot(checkpoint, true);
+            const restored = await restoreWorkspaceSnapshot(projectRootPath, checkpoint, true);
             if (!restored) {
                 const reason = "Restoring the workspace to the pre-generation checkpoint failed, so the changes were not reverted. Use source control to undo them if needed.";
                 console.error(`[Review Actions] Revert refused for ${doneGeneration.id}: ${reason}`);
@@ -845,7 +845,7 @@ User reverted the last made changes. The files have been restored to the state b
             // restoreWorkspaceSnapshot reports its own failures to the user but does not throw, so a
             // failed restore must not fall through to truncating the thread history — that loss is
             // irreversible while the files would stay unchanged.
-            const workspaceRestored = await restoreWorkspaceSnapshot(checkpoint);
+            const workspaceRestored = await restoreWorkspaceSnapshot(projectRootPath, checkpoint);
             if (!workspaceRestored) {
                 throw new Error('Restoring the workspace from the checkpoint failed; the conversation was not rewound.');
             }
@@ -1198,9 +1198,19 @@ User reverted the last made changes. The files have been restored to the state b
         // Clear previous diff entries to prevent unbounded memory growth
         AiPanelRpcManager.diffContentMap.clear();
 
-        // Read original content from checkpoint snapshot — workspace already has generated code
-        const snapshotKey = params.relativePath.split(path.sep).join('/');
-        const originalContent = generation?.checkpoint?.workspaceSnapshot?.[snapshotKey] ?? '';
+        const original = await readDiffOriginal(projectRootPath, generation.checkpoint, params.relativePath);
+        if (original.kind === 'newerFormat') {
+            vscode.window.showInformationMessage('This change was saved by a newer version and cannot be compared here.');
+            return;
+        }
+        if (original.kind === 'unavailable') {
+            vscode.window.showInformationMessage(original.message);
+            if (fs.existsSync(modifiedFilePath)) {
+                await vscode.window.showTextDocument(vscode.Uri.file(modifiedFilePath));
+            }
+            return;
+        }
+        const originalContent = original.content;
 
         let modifiedContent = '';
         try {

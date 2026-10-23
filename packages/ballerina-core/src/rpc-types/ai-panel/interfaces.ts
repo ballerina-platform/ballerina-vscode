@@ -476,10 +476,21 @@ export interface IdentifierMetadata {
     newSource?: string;
 }
 
+/** Kind of a service or class member function. An older LS does not send it. */
+export type ObjectFunctionKind = "resource" | "remote" | "init" | "method";
+
 export interface ResourceMetadata {
     accessor: string;
     servicePath: string;
     resourcePath: string;
+    functionKind?: "resource";
+}
+
+/** Metadata for a non-resource service member, or for a class method (no servicePath). */
+export interface ObjectFunctionMetadata {
+    name: string;
+    servicePath?: string;
+    functionKind?: ObjectFunctionKind;
 }
 
 export interface SemanticDiff {
@@ -488,7 +499,7 @@ export interface SemanticDiff {
     uri: string;
     lineRange: LineRange;
     previousLineRange?: LineRange;
-    metadata?: ResourceMetadata | IdentifierMetadata;
+    metadata?: ResourceMetadata | ObjectFunctionMetadata | IdentifierMetadata;
 }
 
 export interface SemanticDiffResponse {

@@ -22,7 +22,8 @@
         "metadata": {
           "accessor": "get",
           "servicePath": "/health",
-          "resourcePath": "."
+          "resourcePath": ".",
+          "functionKind": "resource"
         }
       }
     ]
