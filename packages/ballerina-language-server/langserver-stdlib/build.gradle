@@ -40,12 +40,16 @@ sourceSets {
 dependencies {
     implementation "org.ballerinalang:ballerina-lang:${ballerinaLangVersion}"
     implementation "org.ballerinalang:ballerina-runtime:${ballerinaLangVersion}"
+    implementation "org.ballerinalang:ballerina-tools-api:${ballerinaLangVersion}"
 }
 
 def ballerinaSourceDir = "${projectDir}/src/main/ballerina"
 def buildBallerinaDir = "${buildDir}/ballerina-src"
 def jarName = "mock-0.0.0.jar"
 def buildLibsDir = "${buildDir}/libs"
+// Test-only package whose compiler plugin (FastRunMarkerPlugin, in the same jar) rewrites the importer's sources.
+def markerSourceDir = "${projectDir}/src/main/ballerina_fastrun_marker"
+def buildMarkerDir = "${buildDir}/ballerina-marker-src"
 
 task buildJavaProject(type: Jar) {
     description = 'Builds the Java project and creates a jar'
@@ -92,7 +96,31 @@ task balPack(type: Exec, dependsOn: [copyBallerinaSource, updateBallerinaToml]) 
     }
 }
 
-task buildAll(dependsOn: balPack) {
+task copyMarkerSource(type: Copy, dependsOn: buildJavaProject) {
+    description = 'Copies the fastrun_marker package and points its CompilerPlugin.toml at the jar'
+    group = 'build'
+
+    from markerSourceDir
+    into buildMarkerDir
+    filter { line ->
+        line.replaceAll("path = \"../libs/<jar>\"", "path = \"../libs/${jarName}\"")
+    }
+}
+
+task balPackMarker(type: Exec, dependsOn: copyMarkerSource) {
+    description = 'Executes bal pack on the fastrun_marker package'
+    group = 'build'
+
+    workingDir buildMarkerDir
+
+    if (org.gradle.internal.os.OperatingSystem.current().isWindows()) {
+        commandLine 'cmd', '/c', "bal pack"
+    } else {
+        commandLine '/bin/sh', '-c', "bal pack"
+    }
+}
+
+task buildAll(dependsOn: [balPack, balPackMarker]) {
     description = 'Builds the Java project, prepares Ballerina sources, and packs the Ballerina module'
     group = 'build'
 }

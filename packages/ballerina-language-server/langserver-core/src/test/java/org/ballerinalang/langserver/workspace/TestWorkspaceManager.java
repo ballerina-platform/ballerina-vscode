@@ -680,6 +680,68 @@ public class TestWorkspaceManager {
     }
 
     @Test
+    public void testWSRunProjectReadsConfigToml()
+            throws WorkspaceDocumentException, EventSyncException, LSCommandExecutorException {
+        Path projectPath = RESOURCE_DIRECTORY.resolve("config_toml");
+        Path filePath = projectPath.resolve("main.bal");
+        try {
+            RunResult runResult = executeRunCommand(filePath, 1, 0);
+            Assert.assertTrue(runResult.success());
+            Assert.assertEquals(runResult.programOutput()[0].trim(), "Hello from Config.toml!",
+                    "Fast-run must start the program in the project root so it picks up the project's Config.toml");
+        } finally {
+            executeStopCommand(projectPath);
+        }
+    }
+
+    @Test
+    public void testWSRunSingleFileReadsConfigTomlBesideIt()
+            throws WorkspaceDocumentException, EventSyncException, LSCommandExecutorException {
+        Path filePath = RESOURCE_DIRECTORY.resolve("config_toml_single").resolve("hello.bal").toAbsolutePath();
+        try {
+            RunResult runResult = executeRunCommand(filePath, 1, 0);
+            Assert.assertTrue(runResult.success());
+            Assert.assertEquals(runResult.programOutput()[0].trim(), "Hello from the single file's Config.toml!",
+                    "A single file runs in its folder, as `bal run hello.bal` does from there");
+        } finally {
+            executeStopCommand(filePath);
+        }
+    }
+
+    @Test
+    public void testWSRunWorkspacePackageReadsItsOwnConfigToml()
+            throws WorkspaceDocumentException, EventSyncException, LSCommandExecutorException {
+        Path packagePath = RESOURCE_DIRECTORY.resolve("config_toml_workspace").resolve("greeter").toAbsolutePath();
+        Path filePath = packagePath.resolve("main.bal");
+        try {
+            RunResult runResult = executeRunCommand(filePath, 1, 0);
+            Assert.assertTrue(runResult.success());
+            // The prefix comes from the sibling package, resolved through the workspace by the run's copy; the
+            // greeting from the package's Config.toml, not the one at the workspace root.
+            Assert.assertEquals(runResult.programOutput()[0].trim(), "[words] Hello from the package's Config.toml!",
+                    "A workspace package runs in its own root, as `bal run` does from the package folder");
+        } finally {
+            executeStopCommand(packagePath);
+        }
+    }
+
+    @Test
+    public void testWSRunEnablesNativeAccess()
+            throws WorkspaceDocumentException, EventSyncException, LSCommandExecutorException {
+        Path projectPath = RESOURCE_DIRECTORY.resolve("long_running");
+        Path filePath = projectPath.resolve("main.bal");
+        try {
+            RunResult runResult = executeRunCommand(filePath, 1, 0);
+            Assert.assertTrue(runResult.success());
+            Assert.assertTrue(projectContextOf(filePath).launchCommand().contains("--enable-native-access=ALL-UNNAMED"),
+                    "Fast-run must enable native access like `bal run`, or JDK 24+ warns when a library loads "
+                            + "native code");
+        } finally {
+            executeStopCommand(projectPath);
+        }
+    }
+
+    @Test
     public void testWSRunProjectWithCompilationErrors()
             throws WorkspaceDocumentException, EventSyncException, LSCommandExecutorException {
         Path projectPath = RESOURCE_DIRECTORY.resolve("pkg_with_compilation_errors");
@@ -768,8 +830,12 @@ public class TestWorkspaceManager {
         Mockito.doNothing().when(languageClient).logTrace(logCaptor.capture());
         Mockito.when(execContext.getLanguageClient()).thenReturn(languageClient);
         Boolean didRan = runExecutor.execute(execContext);
+        if (!didRan) {
+            // The diagnostics are logged before execute() returns; waiting for program output would only time out.
+            return new RunResult(false, logsOf(logCaptor, "out"), logsOf(logCaptor, "err"));
+        }
 
-        return new RunResult(didRan, extractLogs(logCaptor, "out", expectedOutLines),
+        return new RunResult(true, extractLogs(logCaptor, "out", expectedOutLines),
                 extractLogs(logCaptor, "err", expectedErrLines));
     }
 
