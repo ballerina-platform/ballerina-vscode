@@ -139,6 +139,12 @@ export enum ViewColumn {
     Two = 2,
 }
 
+export enum ConfigurationTarget {
+    Global = 1,
+    Workspace = 2,
+    WorkspaceFolder = 3,
+}
+
 export class EventEmitter<T = unknown> {
     event = (_listener: (e: T) => unknown) => ({ dispose() {} });
     fire(_data?: T) {}
@@ -151,7 +157,8 @@ export const extensions = {
     getExtension: (id: string) => (extensions.installed.has(id) ? { id, isActive: true } : undefined),
 };
 
-export const env = { openExternal: () => Promise.resolve(true) };
+// Tests assign `appRoot` to stand in for the running editor's install location.
+export const env = { appRoot: "", openExternal: () => Promise.resolve(true) };
 
 export default {
     window,
@@ -159,6 +166,7 @@ export default {
     commands,
     Uri,
     ViewColumn,
+    ConfigurationTarget,
     ProgressLocation,
     Position,
     Range,
