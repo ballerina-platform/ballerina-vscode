@@ -157,7 +157,8 @@ export const extensions = {
     getExtension: (id: string) => (extensions.installed.has(id) ? { id, isActive: true } : undefined),
 };
 
-export const env = { openExternal: () => Promise.resolve(true) };
+// Tests assign `appRoot` to stand in for the running editor's install location.
+export const env = { appRoot: "", openExternal: () => Promise.resolve(true) };
 
 export default {
     window,
