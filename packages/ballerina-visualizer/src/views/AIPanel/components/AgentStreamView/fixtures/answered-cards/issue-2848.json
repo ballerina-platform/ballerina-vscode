@@ -1,0 +1,45 @@
+{
+    "description": "#2848: the Questions answered card showed option values (in_memory) instead of the labels the user picked",
+    "cards": [
+        {
+            "name": "single pick",
+            "questions": [
+                {
+                    "question": "Where should the orders be stored?",
+                    "tabLabel": "Storage",
+                    "selectionType": "single",
+                    "options": [
+                        { "label": "In-memory (recommended)", "value": "in_memory" },
+                        { "label": "MySQL database", "value": "mysql" }
+                    ]
+                }
+            ],
+            "answers": [{ "question": "Where should the orders be stored?", "answers": ["in_memory"] }]
+        },
+        {
+            "name": "multi-select plus a typed Other answer",
+            "questions": [
+                {
+                    "question": "Which operations should the service support?",
+                    "tabLabel": "Operations",
+                    "selectionType": "multiple",
+                    "options": [
+                        { "label": "Create an order", "value": "create_order" },
+                        { "label": "Cancel an order", "value": "cancel_order" }
+                    ]
+                }
+            ],
+            "answers": [
+                {
+                    "question": "Which operations should the service support?",
+                    "answers": ["create_order", "cancel_order", "Track an order by its ID"]
+                }
+            ]
+        },
+        {
+            "name": "answer with no matching question",
+            "questions": [],
+            "answers": [{ "question": "Which port should the service use?", "answers": ["port_9090"] }]
+        }
+    ]
+}
