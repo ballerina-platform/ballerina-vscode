@@ -23,3 +23,6 @@ final ai:Agent functionAgent = check new (systemPrompt = buildPrompt(), model = 
 final ai:Agent spreadAgent = check new (systemPrompt = {...systemPrompt}, model = check ai:getDefaultModelProvider());
 
 final ai:Agent quotedKeyAgent = check new (systemPrompt = {"role": "Analyst", "instructions": string `Summarize data.`}, model = check ai:getDefaultModelProvider());
+
+string payNote = "Pay ${amount} now";
+final ai:Agent dollarLiteralAgent = check new (systemPrompt = {role: payNote, instructions: string `Pay.`}, model = check ai:getDefaultModelProvider());

@@ -165,6 +165,9 @@ public class ModelGeneratorTest extends AbstractLSTest {
         JsonObject configurable = getAgentNode("configurableAgent").getAsJsonObject("properties");
         Assert.assertNull(getPromptVariable(configurable, "role"));
         Assert.assertNull(getPromptVariable(configurable, "instructions"));
+
+        JsonObject dollarLiteral = getAgentNode("dollarLiteralAgent").getAsJsonObject("properties");
+        Assert.assertNull(getPromptVariable(dollarLiteral, "role"));
     }
 
     private static JsonObject getPromptVariable(JsonObject properties, String key) {

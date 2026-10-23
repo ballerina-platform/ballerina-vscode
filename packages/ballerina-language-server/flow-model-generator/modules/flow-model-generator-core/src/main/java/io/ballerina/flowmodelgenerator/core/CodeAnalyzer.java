@@ -1072,11 +1072,11 @@ public class CodeAnalyzer extends NodeVisitor {
                 "references", semanticModel.references(symbol.get(), false).size()));
     }
 
-    // Literals with escapes are skipped: written back as a template, the escapes would turn literal.
+    // Literals with escapes or "${" are skipped: written back as a template, they would no longer be literal.
     private static boolean isPromptText(ExpressionNode expr) {
         return switch (expr.kind()) {
             case STRING_TEMPLATE_EXPRESSION, RAW_TEMPLATE_EXPRESSION -> true;
-            case STRING_LITERAL -> !expr.toSourceCode().contains("\\");
+            case STRING_LITERAL -> !expr.toSourceCode().contains("\\") && !expr.toSourceCode().contains("${");
             default -> false;
         };
     }
