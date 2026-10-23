@@ -23,7 +23,7 @@
           "accessor": "put",
           "servicePath": "/api",
           "serviceType": "http",
-          "serviceId": "ai:///main.bal#4",
+          "serviceId": "ai:///main.bal#90",
           "serviceListeners": "httpListener",
           "resourcePath": "items/[string id]",
           "functionKind": "resource"
@@ -48,7 +48,7 @@
           "accessor": "get",
           "servicePath": "/api",
           "serviceType": "http",
-          "serviceId": "ai:///main.bal#4",
+          "serviceId": "ai:///main.bal#90",
           "serviceListeners": "httpListener",
           "resourcePath": "items/[string id]/reviews/[string reviewId]",
           "functionKind": "resource"
@@ -73,7 +73,7 @@
           "accessor": "head",
           "servicePath": "/api",
           "serviceType": "http",
-          "serviceId": "ai:///main.bal#4",
+          "serviceId": "ai:///main.bal#90",
           "serviceListeners": "httpListener",
           "resourcePath": "items",
           "functionKind": "resource"
@@ -98,7 +98,7 @@
           "accessor": "patch",
           "servicePath": "/api",
           "serviceType": "http",
-          "serviceId": "ai:///main.bal#4",
+          "serviceId": "ai:///main.bal#90",
           "serviceListeners": "httpListener",
           "resourcePath": "items/[string id]",
           "functionKind": "resource"
@@ -134,7 +134,7 @@
           "accessor": "get",
           "servicePath": "/api",
           "serviceType": "http",
-          "serviceId": "ai:///main.bal#4",
+          "serviceId": "ai:///main.bal#90",
           "serviceListeners": "httpListener",
           "resourcePath": "items/[string id]",
           "functionKind": "resource"
@@ -159,7 +159,7 @@
           "accessor": "get",
           "servicePath": "/api",
           "serviceType": "http",
-          "serviceId": "ai:///main.bal#4",
+          "serviceId": "ai:///main.bal#90",
           "serviceListeners": "httpListener",
           "resourcePath": "items/[string id]/reviews/[string reviewId]/comments",
           "functionKind": "resource"
@@ -195,7 +195,7 @@
           "accessor": "get",
           "servicePath": "/api",
           "serviceType": "http",
-          "serviceId": "ai:///main.bal#4",
+          "serviceId": "ai:///main.bal#90",
           "serviceListeners": "httpListener",
           "resourcePath": "items/[string id]/reviews",
           "functionKind": "resource"
@@ -231,7 +231,7 @@
           "accessor": "get",
           "servicePath": "/api",
           "serviceType": "http",
-          "serviceId": "ai:///main.bal#4",
+          "serviceId": "ai:///main.bal#90",
           "serviceListeners": "httpListener",
           "resourcePath": ".",
           "functionKind": "resource"

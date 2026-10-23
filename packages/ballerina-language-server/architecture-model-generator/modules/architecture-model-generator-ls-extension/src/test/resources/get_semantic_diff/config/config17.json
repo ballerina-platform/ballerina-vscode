@@ -33,7 +33,7 @@
         "metadata": {
           "name": "onMessage",
           "servicePath": "",
-          "serviceId": "ai:///main.bal#26",
+          "serviceId": "ai:///main.bal#545",
           "serviceListeners": "queueListener",
           "functionKind": "remote"
         }

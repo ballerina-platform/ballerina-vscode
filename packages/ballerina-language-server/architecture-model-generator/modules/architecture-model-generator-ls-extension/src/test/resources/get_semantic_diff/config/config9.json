@@ -34,7 +34,7 @@
           "accessor": "get",
           "servicePath": "/api",
           "serviceType": "http",
-          "serviceId": "ai:///main.bal#4",
+          "serviceId": "ai:///main.bal#75",
           "serviceListeners": "httpListener",
           "resourcePath": "data",
           "functionKind": "resource"

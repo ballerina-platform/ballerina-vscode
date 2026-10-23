@@ -43,7 +43,7 @@
           "accessor": "delete",
           "servicePath": "/api/v1/petsstore",
           "serviceType": "http",
-          "serviceId": "ai:///main.bal#8",
+          "serviceId": "ai:///main.bal#195",
           "serviceListeners": "httpDefaultListener",
           "resourcePath": "pets/[string petId]",
           "functionKind": "resource"
@@ -68,7 +68,7 @@
           "accessor": "put",
           "servicePath": "/api/v1/petsstore",
           "serviceType": "http",
-          "serviceId": "ai:///main.bal#8",
+          "serviceId": "ai:///main.bal#195",
           "serviceListeners": "httpDefaultListener",
           "resourcePath": "pets/[string petId]",
           "functionKind": "resource"
@@ -104,7 +104,7 @@
           "accessor": "post",
           "servicePath": "/api/v1/petsstore",
           "serviceType": "http",
-          "serviceId": "ai:///main.bal#8",
+          "serviceId": "ai:///main.bal#195",
           "serviceListeners": "httpDefaultListener",
           "resourcePath": "pets",
           "functionKind": "resource"
@@ -129,7 +129,7 @@
           "accessor": "get",
           "servicePath": "/api/v1/petsstore",
           "serviceType": "http",
-          "serviceId": "ai:///main.bal#8",
+          "serviceId": "ai:///main.bal#195",
           "serviceListeners": "httpDefaultListener",
           "resourcePath": "echo",
           "functionKind": "resource"
@@ -165,7 +165,7 @@
           "accessor": "get",
           "servicePath": "/api/v1/petsstore",
           "serviceType": "http",
-          "serviceId": "ai:///main.bal#8",
+          "serviceId": "ai:///main.bal#195",
           "serviceListeners": "httpDefaultListener",
           "resourcePath": "pets/[string petId]",
           "functionKind": "resource"

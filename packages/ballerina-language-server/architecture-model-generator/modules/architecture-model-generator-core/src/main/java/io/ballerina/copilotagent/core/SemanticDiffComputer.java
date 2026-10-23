@@ -1203,8 +1203,8 @@ public class SemanticDiffComputer {
      */
     private String getServiceId(ServiceDeclarationNode service) {
 
-        LineRange lineRange = service.lineRange();
-        return resolveUri(lineRange.fileName()) + "#" + lineRange.startLine().line();
+        // The offset, unlike the line, is unique even when two services share a line
+        return resolveUri(service.lineRange().fileName()) + "#" + service.textRange().startOffset();
     }
 
     /**
