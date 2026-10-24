@@ -147,7 +147,9 @@ import {
     ValidateProjectFormResponse,
     SuggestedProjectDefaultsResponse,
     UpdateProjectTitleRequest,
-    UpdatePackageTitleRequest
+    UpdatePackageTitleRequest,
+    DeclarationReferencesRequest,
+    DeclarationReferencesResponse
 } from "./interfaces";
 
 export interface BIDiagramAPI {
@@ -248,4 +250,5 @@ export interface BIDiagramAPI {
     OpenConfigTomlRequest: (params: OpenConfigTomlRequest) => Promise<void>;
     updateProjectTitle: (params: UpdateProjectTitleRequest) => Promise<void>;
     updatePackageTitle: (params: UpdatePackageTitleRequest) => Promise<void>;
+    getDeclarationReferences: (params: DeclarationReferencesRequest) => Promise<DeclarationReferencesResponse>;
 }

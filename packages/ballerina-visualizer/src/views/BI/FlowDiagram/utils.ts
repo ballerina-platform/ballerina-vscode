@@ -18,6 +18,7 @@
 
 import { Category, AvailableNode, BallerinaProjectComponents, FlowNode, NodeMetadata } from "@wso2/ballerina-core";
 import type { Category as PanelCategory, Item as PanelItem } from "@wso2/ballerina-side-panel";
+import type { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
 import { URI, Utils } from "vscode-uri";
 import type { SidePanelView } from "./PanelManager";
 
@@ -215,6 +216,45 @@ export const findClassByName = (components: BallerinaProjectComponents, classNam
     }
     return null;
 };
+
+export async function deleteMcpToolkit(rpcClient: BallerinaRpcClient, name: string): Promise<void> {
+    const variableNodes = await rpcClient.getBIDiagramRpcClient().getModuleNodes();
+    const mcpVariable = variableNodes.flowModel?.variables?.find(
+        (variable) => variable.codedata?.node === "MCP_TOOL_KIT" && variable.properties.variable?.value === name
+    );
+    if (!mcpVariable) {
+        return;
+    }
+
+    const className = mcpVariable.properties?.toolKitName?.value as string | undefined;
+    const mcpVariableFilePath = (await rpcClient.getVisualizerRpcClient().joinProjectPath({
+        segments: [mcpVariable.codedata.lineRange.fileName],
+    })).filePath;
+    await rpcClient.getBIDiagramRpcClient().deleteFlowNode({
+        filePath: mcpVariableFilePath,
+        flowNode: mcpVariable,
+    });
+
+    if (mcpVariable.properties?.type?.value === "ai:McpToolKit" || !className) {
+        return;
+    }
+    const project = await rpcClient.getBIDiagramRpcClient().getProjectComponents();
+    const classInfo: any = project?.components ? findClassByName(project.components, className) : null;
+    if (!classInfo) {
+        return;
+    }
+    await rpcClient.getBIDiagramRpcClient().deleteByComponentInfo({
+        filePath: classInfo.filePath,
+        component: {
+            name: "CLASS",
+            filePath: classInfo.filePath,
+            startLine: classInfo.startLine,
+            startColumn: classInfo.startColumn,
+            endLine: classInfo.endLine,
+            endColumn: classInfo.endColumn,
+        },
+    });
+}
 
 /** Work a picker did before its form opened: kept once the form saves, undone if it closes without saving. */
 export interface PendingSetup {

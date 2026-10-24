@@ -16,11 +16,10 @@
  * under the License.
  */
 
-import React, { useState } from "react";
+import React from "react";
 import styled from "@emotion/styled";
 import { DiagramEngine, PortWidget } from "@projectstorm/react-diagrams-core";
-import { Button, Item, Menu, MenuItem, Popover, ThemeColors } from "@wso2/ui-toolkit";
-import { MoreVertIcon } from "../../../resources/icons/nodes/MoreVertIcon";
+import { Item, ThemeColors } from "@wso2/ui-toolkit";
 import { ServiceNodeModel, rowPortName } from "./ServiceNodeModel";
 import {
     ENTRY_CARD_WIDTH,
@@ -37,6 +36,7 @@ import { EntrySelection, TopologyEntryNode, TopologyHandler } from "../../AgentT
 import { useOpenableNode } from "../../AgentTopologyDiagram/useOpenableNode";
 import { rowPortOffset } from "../../AgentTopologyDiagram/topologyLayout";
 import { TriggerGlyph } from "../../AgentTopologyDiagram/TriggerGlyph";
+import { CardMenuButton, CardMenuPopover, useCardMenu } from "../../AgentTopologyDiagram/CardMenu";
 import { methodColor } from "../EntryNode/components/styles";
 
 const Card = styled.div<{ receded: boolean }>`
@@ -155,10 +155,6 @@ const CardPort = styled(PortWidget)<{ vertical: boolean }>`
     transform: ${(props) => (props.vertical ? "translateX(-50%)" : "translateY(-50%)")};
 `;
 
-const MenuButton = styled(Button)`
-    flex: none;
-`;
-
 interface ServiceNodeWidgetProps {
     model: ServiceNodeModel;
     engine: DiagramEngine;
@@ -207,9 +203,8 @@ function entrySelection(entry: TopologyEntryNode): EntrySelection {
     };
 }
 
-function useCardMenu(entry: TopologyEntryNode) {
+function useEntryMenu(entry: TopologyEntryNode) {
     const { readonly, onConfigureEntry, onDeleteEntry } = useTopologyContext();
-    const [anchor, setAnchor] = useState<HTMLElement | SVGSVGElement>(null);
     const enabled = !readonly && Boolean(onConfigureEntry && onDeleteEntry);
     const items: Item[] = enabled
         ? [
@@ -217,53 +212,7 @@ function useCardMenu(entry: TopologyEntryNode) {
               { id: "delete", label: "Delete", onClick: () => onDeleteEntry!(entrySelection(entry)) },
           ]
         : [];
-    return { enabled, anchor, setAnchor, items };
-}
-
-type CardMenuState = ReturnType<typeof useCardMenu>;
-
-function CardMenuButton({ menu }: { menu: CardMenuState }) {
-    if (!menu.enabled) {
-        return null;
-    }
-    const stop = (event: React.MouseEvent) => event.stopPropagation();
-
-    return (
-        <MenuButton
-            appearance="icon"
-            tooltip="More options"
-            onMouseDown={stop}
-            onMouseUp={stop}
-            onClick={(event: React.MouseEvent<HTMLElement | SVGSVGElement>) => {
-                event.stopPropagation();
-                menu.setAnchor(event.currentTarget);
-            }}
-        >
-            <MoreVertIcon />
-        </MenuButton>
-    );
-}
-
-function CardMenuPopover({ menu }: { menu: CardMenuState }) {
-    if (!menu.enabled) {
-        return null;
-    }
-    return (
-        <Popover
-            open={Boolean(menu.anchor)}
-            anchorEl={menu.anchor}
-            handleClose={() => menu.setAnchor(null)}
-            sx={{ padding: 0, borderRadius: 4 }}
-            anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-            transformOrigin={{ vertical: "top", horizontal: "right" }}
-        >
-            <Menu>
-                {menu.items.map((item) => (
-                    <MenuItem key={item.id} item={item} onClick={() => menu.setAnchor(null)} />
-                ))}
-            </Menu>
-        </Popover>
-    );
+    return useCardMenu(items);
 }
 
 export function ServiceNodeWidget(props: ServiceNodeWidgetProps) {
@@ -289,7 +238,7 @@ export function ServiceNodeWidget(props: ServiceNodeWidgetProps) {
     const receded = focus !== undefined && !focus.nodes.has(entry.id);
     const rowDimmed = (handler: TopologyHandler): boolean =>
         focus !== undefined && focus.nodes.has(entry.id) && !focus.nodes.has(handler.id);
-    const menu = useCardMenu(entry);
+    const menu = useEntryMenu(entry);
 
     return (
         <Card receded={receded}>

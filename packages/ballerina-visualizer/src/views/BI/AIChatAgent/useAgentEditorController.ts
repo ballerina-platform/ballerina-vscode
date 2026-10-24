@@ -22,7 +22,7 @@ import { AgentNodeActions } from "@wso2/bi-diagram";
 import { AgentUsage, EVENT_TYPE, Flow, FlowNode, MACHINE_VIEW, NodeMetadata, NodePosition, ProjectStructureArtifactResponse, SearchNodesQuery, ToolData }
     from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { findClassByName, findFunctionByName } from "../FlowDiagram/utils";
+import { deleteMcpToolkit, findFunctionByName } from "../FlowDiagram/utils";
 import {
     AddingTool,
     DeletingTool,
@@ -290,44 +290,7 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
         });
     }, [resolveToolFunction, rpcClient]);
 
-    const deleteMcpVariableAndClass = useCallback(async (tool: ToolData) => {
-        const variableNodes = await rpcClient.getBIDiagramRpcClient().getModuleNodes();
-        const mcpVariable = variableNodes.flowModel?.variables?.find(
-            (variable) => variable.codedata?.node === "MCP_TOOL_KIT" && variable.properties.variable?.value === tool.name
-        );
-        if (!mcpVariable) {
-            return;
-        }
-
-        const className = mcpVariable.properties?.toolKitName?.value as string | undefined;
-        const mcpVariableFilePath = (await rpcClient.getVisualizerRpcClient().joinProjectPath({
-            segments: [mcpVariable.codedata.lineRange.fileName],
-        })).filePath;
-        await rpcClient.getBIDiagramRpcClient().deleteFlowNode({
-            filePath: mcpVariableFilePath,
-            flowNode: mcpVariable,
-        });
-
-        if (mcpVariable.properties?.type?.value === "ai:McpToolKit" || !className) {
-            return;
-        }
-        const project = await rpcClient.getBIDiagramRpcClient().getProjectComponents();
-        const classInfo: any = project?.components ? findClassByName(project.components, className) : null;
-        if (!classInfo) {
-            return;
-        }
-        await rpcClient.getBIDiagramRpcClient().deleteByComponentInfo({
-            filePath: classInfo.filePath,
-            component: {
-                name: "CLASS",
-                filePath: classInfo.filePath,
-                startLine: classInfo.startLine,
-                startColumn: classInfo.startColumn,
-                endLine: classInfo.endLine,
-                endColumn: classInfo.endColumn,
-            },
-        });
-    }, [rpcClient]);
+    const deleteMcpVariableAndClass = useCallback((tool: ToolData) => deleteMcpToolkit(rpcClient, tool.name), [rpcClient]);
 
     // The canvas already shows the edit's outcome, so nothing waits on it; one refresh follows once the queue empties.
     const runToolEdit = useCallback((edit: () => Promise<ToolEditOutcome>, settle: (ok: boolean) => void) => {

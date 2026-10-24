@@ -745,12 +745,12 @@ export const serializeAgentToolsEdit = <T>(edit: () => Promise<T>): Promise<T> =
 };
 
 // Everything `edit` writes becomes one undo step.
-export const withUndoGroup = async <T>(rpcClient: BallerinaRpcClient, edit: () => Promise<T>): Promise<T> => {
+export const withUndoGroup = async <T>(rpcClient: BallerinaRpcClient, edit: () => Promise<T>, description?: string): Promise<T> => {
     await rpcClient.getVisualizerRpcClient().beginUndoGroup();
     try {
         return await edit();
     } finally {
-        await rpcClient.getVisualizerRpcClient().endUndoGroup().catch((): undefined => undefined);
+        await rpcClient.getVisualizerRpcClient().endUndoGroup(description).catch((): undefined => undefined);
     }
 };
 
