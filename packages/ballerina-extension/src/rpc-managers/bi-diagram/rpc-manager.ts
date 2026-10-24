@@ -2694,6 +2694,7 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                         }
                     }]);
                 }
+                await StateMachine.langClient().flushArtifacts().catch(() => undefined);
                 updateView();
                 resolve(res);
             }).catch((error) => {
