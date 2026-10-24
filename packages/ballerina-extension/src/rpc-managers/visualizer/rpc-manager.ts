@@ -146,7 +146,8 @@ export class VisualizerRpcManager implements VisualizerAPI {
                     workspaceEdit.replace(Uri.file(filePath), new Range(0, 0, Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER), content);
                 }
             }
-            workspace.applyEdit(workspaceEdit);
+            workspace.applyEdit(workspaceEdit)
+                .then(() => StateMachine.langClient().flushArtifacts().catch(() => undefined));
 
             // Get the artifact notification handler instance
             const notificationHandler = ArtifactNotificationHandler.getInstance();
@@ -195,7 +196,8 @@ export class VisualizerRpcManager implements VisualizerAPI {
                     workspaceEdit.replace(Uri.file(filePath), new Range(0, 0, Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER), content);
                 }
             }
-            workspace.applyEdit(workspaceEdit);
+            workspace.applyEdit(workspaceEdit)
+                .then(() => StateMachine.langClient().flushArtifacts().catch(() => undefined));
 
             // Get the artifact notification handler instance
             const notificationHandler = ArtifactNotificationHandler.getInstance();
