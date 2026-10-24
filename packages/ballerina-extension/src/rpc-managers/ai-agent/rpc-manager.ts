@@ -198,7 +198,8 @@ export class AiAgentRpcManager implements AIAgentAPI {
             const added = await addMissingImports(projectDiags, context.langClient);
             const removed = !gaveUp() && await removeUnusedImports(projectDiags, context.langClient);
             if (added || removed) {
-                await context.langClient.flushArtifacts().catch((): undefined => undefined);
+                await context.langClient.flushArtifacts([vscode.Uri.file(context.projectPath).toString()])
+                    .catch((): undefined => undefined);
                 await artifactUpdate.notified;
             }
         } catch (e) {
