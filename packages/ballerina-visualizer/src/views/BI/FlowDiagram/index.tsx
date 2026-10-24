@@ -98,6 +98,7 @@ import { assertFunctionSearchSuccess, FUNCTIONS_PAGE_SIZE } from "../../../utils
 import { useFunctionPaginationController } from "../../../utils/useFunctionPaginationController";
 import { cloneDeep, debounce } from "lodash";
 import { createFlowModelRefresher } from "./flowModelRefresh";
+import { reanchorInsertion } from "./insertionAnchor";
 import { ConnectionKind } from "../../../components/ConnectionSelector";
 import AddAgentPopup from "../AIChatAgent/AddAgentPopup";
 import { DiagramSkeleton } from "../../../components/Skeletons";
@@ -258,6 +259,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     const [navigationStack, setNavigationStack] = useState<NavigationStackItem[]>([]);
     const {
         addDraftNode,
+        rebaseDraft,
         cancelDraft,
         savingDraft,
         completeDraft,
@@ -371,6 +373,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     // A refresh while a new node is being placed would replace the model and drop its draft.
     const pendingInsertRef = useRef(false);
     const skippedRefreshRef = useRef(false);
+    const reanchorRequestRef = useRef(0);
     // Refresh ladders and the capability failsafe armed by the operations below. Both are
     // cancelled when the next operation starts, when the panel closes and on unmount, so a
     // timer armed for one operation cannot fire against the next one (or after navigation).
@@ -977,10 +980,46 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     const getFlowModel = () => {
         if (pendingInsertRef.current && !pendingCapabilityCloseRef.current) {
             skippedRefreshRef.current = true;
+            void reanchorPendingInsert();
             return;
         }
         skippedRefreshRef.current = false;
         flowModelRefresher.fetch();
+    };
+
+    // The source changed under a node being placed: move the insertion point with the node it follows, or cancel.
+    const reanchorPendingInsert = async () => {
+        const request = ++reanchorRequestRef.current;
+        const fresh = await rpcClient.getBIDiagramRpcClient().getFlowModel({})
+            .then((response) => response?.flowModel)
+            .catch((): undefined => undefined);
+        if (request !== reanchorRequestRef.current || !pendingInsertRef.current) {
+            return;
+        }
+        const moved = fresh && topNodeRef.current && targetRef.current
+            ? reanchorInsertion(originalModel, fresh, topNodeRef.current, targetRef.current)
+            : undefined;
+        if (!moved) {
+            handleOnCloseSidePanel();
+            return;
+        }
+        // The open form validates against the expression editor's copy of the file, which missed this change.
+        await rpcClient.getBIDiagramRpcClient().formDidOpen({ filePath: fresh.fileName }).catch((): undefined => undefined);
+        if (request !== reanchorRequestRef.current || !pendingInsertRef.current) {
+            return;
+        }
+        topNodeRef.current = moved.anchor;
+        // A new node's template carries the insertion point too, and some forms save from it.
+        for (const node of [selectedNodeRef.current, nodeTemplateRef.current]) {
+            const range = node?.codedata?.isNew ? node.codedata.lineRange : undefined;
+            if (range) {
+                range.startLine = moved.target.startLine;
+                range.endLine = moved.target.endLine;
+            }
+        }
+        changeTargetRange(moved.target);
+        setModel(rebaseDraft(fresh, moved.anchor, moved.target));
+        skippedRefreshRef.current = false;
     };
     getFlowModelRef.current = getFlowModel;
 
