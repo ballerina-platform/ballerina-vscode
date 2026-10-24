@@ -227,7 +227,7 @@ export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCode
 
             // Apply all changes at once
             await workspace.applyEdit(workspaceEdit);
-            await StateMachine.langClient().flushArtifacts().catch(() => undefined);
+            await StateMachine.langClient().flushArtifacts(Object.keys(modificationRequests)).catch(() => undefined);
 
             await rawEditNotification;
 
@@ -271,7 +271,7 @@ export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCode
             if (!preformatted) {
                 armFinalWait();
                 await workspace.applyEdit(formattedWorkspaceEdit);
-                await StateMachine.langClient().flushArtifacts().catch(() => undefined);
+                await StateMachine.langClient().flushArtifacts(Object.keys(modificationRequests)).catch(() => undefined);
             }
 
             // Handle missing dependencies after all changes are applied

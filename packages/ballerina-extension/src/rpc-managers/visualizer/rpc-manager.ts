@@ -146,8 +146,9 @@ export class VisualizerRpcManager implements VisualizerAPI {
                     workspaceEdit.replace(Uri.file(filePath), new Range(0, 0, Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER), content);
                 }
             }
+            const revertedUris = [...(revertedFiles?.keys() ?? [])].map((filePath) => Uri.file(filePath).toString());
             workspace.applyEdit(workspaceEdit)
-                .then(() => StateMachine.langClient().flushArtifacts().catch(() => undefined));
+                .then(() => StateMachine.langClient().flushArtifacts(revertedUris).catch(() => undefined));
 
             // Get the artifact notification handler instance
             const notificationHandler = ArtifactNotificationHandler.getInstance();
@@ -196,8 +197,9 @@ export class VisualizerRpcManager implements VisualizerAPI {
                     workspaceEdit.replace(Uri.file(filePath), new Range(0, 0, Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER), content);
                 }
             }
+            const revertedUris = [...(revertedFiles?.keys() ?? [])].map((filePath) => Uri.file(filePath).toString());
             workspace.applyEdit(workspaceEdit)
-                .then(() => StateMachine.langClient().flushArtifacts().catch(() => undefined));
+                .then(() => StateMachine.langClient().flushArtifacts(revertedUris).catch(() => undefined));
 
             // Get the artifact notification handler instance
             const notificationHandler = ArtifactNotificationHandler.getInstance();

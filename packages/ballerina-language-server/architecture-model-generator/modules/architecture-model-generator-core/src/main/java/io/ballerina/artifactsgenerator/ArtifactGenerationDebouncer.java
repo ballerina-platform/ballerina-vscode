@@ -27,6 +27,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Predicate;
 
 /**
  * Debouncer for artifact generation to ensure artifacts are only generated after a specified delay has passed since the
@@ -120,11 +121,22 @@ public class ArtifactGenerationDebouncer {
      * as soon as it lands, so the client flushes after applying it instead of waiting out a burst.
      */
     public void flushAll() {
-        delayedMap.values().forEach(holder -> {
-            if (holder.future().cancel(false)) {
-                scheduler.execute(holder.run());
-            }
-        });
+        flush(key -> true);
+    }
+
+    /**
+     * Runs the pending tasks whose keys match now, leaving the others to their delay.
+     *
+     * @param keys Selects the keys to run
+     */
+    public void flush(Predicate<String> keys) {
+        synchronized (registrationLock) {
+            delayedMap.forEach((key, holder) -> {
+                if (keys.test(key) && holder.future().cancel(false)) {
+                    scheduler.execute(holder.run());
+                }
+            });
+        }
     }
 
     /**
