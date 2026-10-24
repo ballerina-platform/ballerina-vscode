@@ -7,11 +7,11 @@
  * You may not alter or remove any copyright or other notice from copies of this content.
  */
 
-import { AgentManagerMcpBinding, FlowNode, LineRange, NodePosition, ProductMode } from "@wso2/ballerina-core";
+import { AgentManagerMcpBinding, FlowNode, LineRange, NodePosition, ProductMode, ToolData } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { cloneDeep, debounce } from "lodash";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { RelativeLoader } from "../../../components/RelativeLoader";
+import { FormLoadingState } from "@wso2/ballerina-side-panel";
 import { AgentManagerMcpGate, applyMcpBinding } from "../../../components/AgentManagerModels/McpProxies";
 import { useProductMode } from "../../../hooks/useProductMode";
 import FlowNodeForm from "../Forms/FlowNodeForm";
@@ -20,8 +20,8 @@ import { DiscoverToolsModal } from "./Mcp/DiscoverToolsModal";
 import { RequiresAuthCheckbox } from "./Mcp/RequiresAuthCheckbox";
 import { attemptValueResolution, createMockTools, extractOriginalValues, generateToolKitName } from "./Mcp/utils";
 import { cleanServerUrl } from "./formUtils";
-import { Container, LoaderContainer } from "./styles";
-import { extractAccessToken, getEndOfFileLineRange, refreshAgentNodeLineRange, removeQuotes, resolveAgentNodePosition, resolveVariableValue, resolveAuthConfig, checkAiPackageVersionSupport } from "./utils";
+import { Container } from "./styles";
+import { extractAccessToken, getEndOfFileLineRange, refreshAgentNodeLineRange, removeQuotes, resolveAgentNodePosition, resolveVariableValue, resolveAuthConfig, checkAiPackageVersionSupport, serializeAgentToolsEdit, withCurrentAgentTools } from "./utils";
 
 interface Tool {
     name: string;
@@ -39,6 +39,8 @@ interface AddMcpServerProps {
         reservedNames?: string[];
     };
     onSave?: (agentPosition?: NodePosition) => void;
+    // Takes over adding a new server to `agentNode`: shows it on the agent at once and runs `save` in the background.
+    onAddTool?: (tool: ToolData, save: () => Promise<NodePosition | undefined>) => void;
     onBack?: () => void;
     onSetBackOverride?: (handler: (() => void) | null) => void;
 }
@@ -61,7 +63,7 @@ const uniqueName = (base: string, reserved: Set<string>): string => {
 };
 
 export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
-    const { agentNode, agentDefinition, onSave, editMode = false } = props;
+    const { agentNode, agentDefinition, onSave, onAddTool, editMode = false } = props;
     const { rpcClient } = useRpcContext();
     const agentBuilder = useProductMode() === ProductMode.AGENT_BUILDER;
 
@@ -137,18 +139,21 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
     const initPanel = useCallback(async () => {
         setIsLoading(true);
 
-        // Get project path URI
-        const visualizerLocation = await rpcClient.getVisualizerLocation();
+        const agentFileName = agentNode?.codedata?.lineRange?.fileName;
+        const [visualizerLocation, moduleNodes, agentFile, endLineRange] = await Promise.all([
+            rpcClient.getVisualizerLocation(),
+            editMode && !props.existingNode ? fetchModuleNodes() : Promise.resolve(undefined),
+            rpcClient.getVisualizerRpcClient().joinProjectPath({ segments: [agentFileName] }),
+            getEndOfFileLineRange(agentFileName, rpcClient),
+        ]);
         projectPathUriRef.current = visualizerLocation.projectPath;
-
-        const moduleNodes = editMode && !props.existingNode ? await fetchModuleNodes() : undefined;
-
-        agentFilePathRef.current = (await rpcClient.getVisualizerRpcClient().joinProjectPath({ segments: [agentNode?.codedata?.lineRange?.fileName] })).filePath;
-        const endLineRange = await getEndOfFileLineRange(agentNode?.codedata?.lineRange?.fileName, rpcClient);
+        agentFilePathRef.current = agentFile.filePath;
         agentFileEndLineRangeRef.current = endLineRange;
 
-        const template = await fetchMcpToolKitTemplate();
-        const scopesSupported = await checkAiPackageVersionSupport(rpcClient, visualizerLocation.projectPath, "1.11.0");
+        const [template, scopesSupported] = await Promise.all([
+            fetchMcpToolKitTemplate(),
+            checkAiPackageVersionSupport(rpcClient, visualizerLocation.projectPath, "1.11.0"),
+        ]);
         setShowScopes(scopesSupported);
 
         mcpToolKitNodeTemplateRef.current = template;
@@ -435,8 +440,41 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
         fetchToolsFromServer(serverUrl, auth);
     }, [serverUrl, auth, fetchToolsFromServer]);
 
+    // A new server saved in the background closes the panel at once, so the form shows no saving state.
+    const inBackground = Boolean(onAddTool) && !editMode && !agentDefinition;
+
+    const addServerInBackground = (node: FlowNode, scopesByTool: Record<string, string[]>) => {
+        const picked = pickedProxy.current;
+        pickedProxy.current = undefined;
+        const selectedTools = Array.from(selectedMcpTools);
+        const scopes = Object.keys(scopesByTool).length > 0 ? scopesByTool : undefined;
+        onAddTool({ name: String(node.properties?.variable?.value ?? ""), type: "MCP Server" }, async () => {
+            // The form read the end of the file when it opened; edits queued since may have moved it.
+            const fileName = node.codedata?.lineRange?.fileName;
+            if (fileName) {
+                node.codedata.lineRange = await getEndOfFileLineRange(fileName, rpcClient);
+            }
+            const latest = await withCurrentAgentTools(agentNode, rpcClient);
+            if (!latest.current) {
+                await refreshAgentNodeLineRange(latest.node, rpcClient);
+            }
+            await rpcClient.getAIAgentRpcClient().updateMCPToolKit({
+                agentFlowNode: latest.node,
+                selectedTools,
+                updatedNode: node,
+                toolScopes: scopes,
+            });
+            await rpcClient.getAIAgentRpcClient().fixMissingImports().catch((): undefined => undefined);
+            if (picked) {
+                const { projectPath } = await rpcClient.getVisualizerLocation();
+                await rpcClient.getAgentManagerRpcClient().commitAgentManagerMcpProxy({ projectPath, proxyId: picked.proxyId });
+            }
+            return await resolveAgentNodePosition(latest.node, rpcClient);
+        });
+    };
+
     const handleSave = async (node?: FlowNode) => {
-        setIsSaving(true);
+        setIsSaving(!inBackground);
         try {
             if (!node) {
                 return;
@@ -493,6 +531,11 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
                 delete (node.properties as any)[INCLUDE_CONTEXT_PROPERTY];
             }
 
+            if (inBackground) {
+                addServerInBackground(node, filteredScopes);
+                return;
+            }
+
             let targetAgentNode: FlowNode | undefined;
             if (agentDefinition) {
                 await rpcClient.getBIDiagramRpcClient().saveClassMember({
@@ -501,13 +544,18 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
                     classLineRange: agentDefinition.classLineRange,
                 });
             } else {
-                targetAgentNode = cloneDeep(agentNode);
-                await refreshAgentNodeLineRange(targetAgentNode, rpcClient);
-                await rpcClient.getAIAgentRpcClient().updateMCPToolKit({
-                    agentFlowNode: targetAgentNode,
-                    selectedTools: Array.from(selectedMcpTools),
-                    updatedNode: node,
-                    toolScopes: Object.keys(filteredScopes).length > 0 ? filteredScopes : undefined,
+                await serializeAgentToolsEdit(async () => {
+                    const latest = await withCurrentAgentTools(agentNode, rpcClient);
+                    targetAgentNode = latest.node;
+                    if (!latest.current) {
+                        await refreshAgentNodeLineRange(targetAgentNode, rpcClient);
+                    }
+                    await rpcClient.getAIAgentRpcClient().updateMCPToolKit({
+                        agentFlowNode: targetAgentNode,
+                        selectedTools: Array.from(selectedMcpTools),
+                        updatedNode: node,
+                        toolScopes: Object.keys(filteredScopes).length > 0 ? filteredScopes : undefined,
+                    });
                 });
             }
 
@@ -637,7 +685,7 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
             fileName={mcpToolKitNodeRef.current?.codedata?.lineRange?.fileName ? mcpToolKitNodeRef.current.codedata.lineRange?.fileName : agentFileEndLineRangeRef.current?.fileName}
             targetLineRange={mcpToolKitNodeRef.current?.codedata?.lineRange ? mcpToolKitNodeRef.current.codedata.lineRange : agentFileEndLineRangeRef.current}
             nodeFormTemplate={mcpToolKitNodeTemplateRef.current}
-            submitText={"Save"}
+            submitText={isSaving ? "Saving..." : "Save"}
             node={mcpToolKitNodeRef.current}
             onSubmit={handleSave}
             onChange={(fieldKey, value) => {
@@ -677,13 +725,9 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
 
     return (
         <Container>
-            {isLoading && (
-                <LoaderContainer>
-                    <RelativeLoader />
-                </LoaderContainer>
-            )}
+            {isLoading && <FormLoadingState />}
 
-            {editMode || !agentBuilder ? form : !isLoading && <AgentManagerMcpGate onBind={handleAgentManagerBinding} onDiscard={discardPickedProxy} onSetBackOverride={props.onSetBackOverride}>{form}</AgentManagerMcpGate>}
+            {!isLoading && (editMode || !agentBuilder ? form : <AgentManagerMcpGate onBind={handleAgentManagerBinding} onDiscard={discardPickedProxy} onSetBackOverride={props.onSetBackOverride}>{form}</AgentManagerMcpGate>)}
 
             <DiscoverToolsModal
                 isOpen={showDiscoverModal}

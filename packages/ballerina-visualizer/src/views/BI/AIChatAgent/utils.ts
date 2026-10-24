@@ -16,13 +16,14 @@
  * under the License.
  */
 
-import { AgentEventChannel, AgentKind, AgentToolData, AvailableNode, BISearchRequest, BISearchResponse, CodeData, ConfigVariable, DIRECTORY_MAP, ELineRange, EVENT_TYPE, FlowNode, GET_DEFAULT_MODEL_PROVIDER, isAgentDeclarationNode, LinePosition, LineRange, MACHINE_VIEW, NodeKind, NodePosition, ProjectStructureArtifactResponse, Property, SearchKind, SearchNodesQuery, ToolData, ToolParameters, VisualizerLocation } from "@wso2/ballerina-core";
+import { AgentEventChannel, AgentKind, AgentToolData, AvailableNode, BISearchRequest, BISearchResponse, CodeData, ConfigVariable, DIRECTORY_MAP, ELineRange, EVENT_TYPE, Flow, FlowNode, GET_DEFAULT_MODEL_PROVIDER, isAgentDeclarationNode, isSamePath, LinePosition, LineRange, MACHINE_VIEW, NodeKind, NodeMetadata, NodePosition, ProjectStructureArtifactResponse, Property, SearchKind, SearchNodesQuery, ToolData, ToolParameters, VisualizerLocation } from "@wso2/ballerina-core";
 import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
 import { FormField } from "@wso2/ballerina-side-panel";
 import { cloneDeep } from "lodash";
 import { URI, Utils } from "vscode-uri";
 import { BALLERINA } from "../../../constants";
 import { convertNodePropertyToFormField } from "../../../utils/bi";
+import { debouncedUndoRedoManager } from "../../../utils/debouncedUndoRedo";
 import { OAUTH_GROUP } from "./toolForm";
 
 const KNOWN_AGENT_NAME_SUFFIXES = ["agent", "model"];
@@ -116,6 +117,16 @@ function refreshNodeLineRangeFromArtifacts(
     node.codedata.lineRange.endLine.offset = artifact.position.endColumn;
 }
 
+// Read after our own edit: updateSourceCode waits for the republished artifacts, so these positions are current.
+const currentPackageAgents = async (rpcClient: BallerinaRpcClient): Promise<ProjectStructureArtifactResponse[]> => {
+    const [{ projectPath }, structure] = await Promise.all([
+        rpcClient.getVisualizerLocation(),
+        rpcClient.getBIDiagramRpcClient().getProjectStructure(),
+    ]);
+    const project = structure?.projects?.find((p) => isSamePath(p.projectPath, projectPath));
+    return project?.directoryMap?.[DIRECTORY_MAP.AGENT] ?? [];
+};
+
 export const refreshAgentNodeLineRange = async (
     agentNode: FlowNode,
     rpcClient: BallerinaRpcClient,
@@ -142,6 +153,10 @@ export const resolveAgentNodePosition = async (
     const agentVarName = agentNode?.properties?.variable?.value;
     if (typeof agentVarName !== "string") {
         return undefined;
+    }
+    const position = (await currentPackageAgents(rpcClient)).find((artifact) => artifact.name === agentVarName)?.position;
+    if (position) {
+        return position;
     }
     const range = (await findFlowNodeByModuleVarName(agentVarName, rpcClient))?.codedata?.lineRange;
     return range
@@ -368,12 +383,12 @@ export const getMainFilePath = async (rpcClient: BallerinaRpcClient) => {
     return mainFilePath;
 };
 
-export const findFlowNodeByModuleVarName = async (variableName: string, rpcClient: BallerinaRpcClient) => {
+export const findFlowNodeByModuleVarName = async (variableName: string, rpcClient: BallerinaRpcClient, moduleNodes?: Flow) => {
     try {
         const sanitizedVarName = variableName.trim().replace(/\n/g, "");
 
         // Get connections either from parameter or by fetching module nodes
-        const nodeList = (await rpcClient.getBIDiagramRpcClient().getModuleNodes()).flowModel;
+        const nodeList = moduleNodes ?? (await rpcClient.getBIDiagramRpcClient().getModuleNodes()).flowModel;
 
         // Find the node with matching variable name
         let flowNode = nodeList?.connections.find((node) => {
@@ -718,6 +733,216 @@ export const removeMcpServerFromAgentNode = (agentNode: FlowNode, toolkitNameToR
     return updatedAgentNode;
 };
 
+let agentToolsEdits: Promise<unknown> = Promise.resolve();
+
+// Each edit writes back the whole tool list, so two in flight would drop each other's tool.
+export const serializeAgentToolsEdit = <T>(edit: () => Promise<T>): Promise<T> => {
+    const run = agentToolsEdits.then(edit, edit);
+    agentToolsEdits = run.then((): undefined => undefined, (): undefined => undefined);
+    debouncedUndoRedoManager.waitFor(run);
+    return run;
+};
+
+// A local agent is no module variable, so it is read from the flow of the function that declares it.
+const findLocalAgent = async (agentNode: FlowNode, name: string, rpcClient: BallerinaRpcClient) => {
+    const range = agentNode.codedata?.lineRange;
+    if (!range?.fileName) {
+        return undefined;
+    }
+    const { filePath } = await rpcClient.getVisualizerRpcClient().joinProjectPath({ segments: [range.fileName] });
+    const fn = await rpcClient.getBIDiagramRpcClient().getEnclosedFunction({ filePath, position: range.startLine });
+    if (!fn?.startLine) {
+        return undefined;
+    }
+    const flow = (await rpcClient.getBIDiagramRpcClient().getFlowModel({
+        filePath, startLine: fn.startLine, endLine: fn.endLine,
+    }))?.flowModel;
+    const find = (nodes: FlowNode[] = []): FlowNode | undefined => {
+        for (const candidate of nodes) {
+            if (candidate.codedata?.node === "AGENT" && candidate.properties?.variable?.value === name) {
+                return candidate;
+            }
+            const nested = candidate.branches?.map((branch) => find(branch.children)).find(Boolean);
+            if (nested) {
+                return nested;
+            }
+        }
+        return undefined;
+    };
+    return find(flow?.nodes);
+};
+
+// A panel's agent copy dates from when it opened, so it misses tools saved since.
+export const withCurrentAgentTools = async (
+    agentNode: FlowNode,
+    rpcClient: BallerinaRpcClient,
+    moduleNodes?: Flow
+): Promise<{ node: FlowNode; current: boolean }> => {
+    const node = cloneDeep(agentNode);
+    const agentVarName = node?.properties?.variable?.value;
+    if (typeof agentVarName !== "string" || !agentVarName) {
+        return { node, current: false };
+    }
+    const latest = await findFlowNodeByModuleVarName(agentVarName, rpcClient, moduleNodes)
+        ?? await findLocalAgent(node, agentVarName, rpcClient);
+    if (latest?.codedata?.node !== "AGENT" || !latest.properties?.tools || !node.properties?.tools) {
+        return { node, current: false };
+    }
+    node.properties.tools.value = cloneDeep(latest.properties.tools.value);
+    if (latest.codedata.lineRange) {
+        node.codedata.lineRange = latest.codedata.lineRange;
+    }
+    return { node, current: true };
+};
+
+// A tool whose deletion is queued or saving; `settled` once its edits are in the source.
+export type DeletingTool = { nodeId?: string; agentName?: string; name: string; settled?: boolean };
+
+// A tool whose addition is queued or saving, drawn as `tool` (pending) until the source has it.
+export type AddingTool = DeletingTool & { tool: ToolData };
+
+const drawsAgent = (node: FlowNode, entry: DeletingTool) =>
+    (entry.nodeId !== undefined && node.id === entry.nodeId)
+    || (entry.agentName !== undefined && node.codedata?.node === "AGENT" && node.properties?.variable?.value === entry.agentName);
+
+// The flow drawn without the tools being deleted, so a deletion shows at once while its edits wait their turn.
+export const hideDeletingTools = (flow: Flow | undefined, deleting: DeletingTool[]): Flow | undefined => {
+    if (!flow || deleting.length === 0) {
+        return flow;
+    }
+    const strip = (node: FlowNode): FlowNode => {
+        const data = node.metadata?.data as NodeMetadata | undefined;
+        const tools = data?.agentInfo?.tools;
+        const hidden = deleting.filter((entry) => drawsAgent(node, entry)).map((entry) => entry.name);
+        const stripped = hidden.length > 0 && tools?.some((tool) => hidden.includes(tool.name))
+            ? {
+                ...node,
+                metadata: {
+                    ...node.metadata,
+                    data: { ...data, agentInfo: { ...data.agentInfo, tools: tools.filter((tool) => !hidden.includes(tool.name)) } },
+                },
+            } as FlowNode
+            : node;
+        return stripped.branches?.length
+            ? { ...stripped, branches: stripped.branches.map((branch) => ({ ...branch, children: branch.children?.map(strip) })) }
+            : stripped;
+    };
+    return { ...flow, nodes: flow.nodes?.map(strip), connections: flow.connections?.map(strip) };
+};
+
+// What the canvas draws; tools are drawn from metadata, so the tools property and the declaration's source are left out.
+export const drawnFlowKey = (flow: Flow | undefined): string =>
+    JSON.stringify(flow ?? null, (key, value) =>
+        key === "animateUsages" || key === "sourceCode" || (key === "tools" && value && !Array.isArray(value))
+            ? undefined : value);
+
+// The flow drawn with tools still being added: each shows on its agent, dimmed, until the source has the real one.
+export const showAddingTools = (flow: Flow | undefined, adding: AddingTool[]): Flow | undefined => {
+    if (!flow || adding.length === 0) {
+        return flow;
+    }
+    const add = (node: FlowNode): FlowNode => {
+        const data = node.metadata?.data as NodeMetadata | undefined;
+        const tools = data?.agentInfo?.tools ?? [];
+        const missing = adding
+            .filter((entry) => drawsAgent(node, entry) && !tools.some((tool) => tool.name === entry.name))
+            .map((entry) => ({ ...entry.tool, name: entry.name, pending: true }));
+        const added = missing.length > 0 && data?.agentInfo
+            ? {
+                ...node,
+                metadata: { ...node.metadata, data: { ...data, agentInfo: { ...data.agentInfo, tools: [...tools, ...missing] } } },
+            } as FlowNode
+            : node;
+        return added.branches?.length
+            ? { ...added, branches: added.branches.map((branch) => ({ ...branch, children: branch.children?.map(add) })) }
+            : added;
+    };
+    return { ...flow, nodes: flow.nodes?.map(add) };
+};
+
+// The flow with the tool edits that have not reached the source yet: deletions hidden, additions shown pending.
+export const drawToolEdits = (flow: Flow | undefined, deleting: DeletingTool[], adding: AddingTool[]): Flow | undefined =>
+    showAddingTools(hideDeletingTools(flow, deleting), adding);
+
+// Whether a fetched flow draws the tool on its agent; ends a settled deletion (false) or addition (true).
+export const drawsAgentTool = (flow: Flow | undefined, entry: DeletingTool): boolean => {
+    const visit = (nodes: FlowNode[] = []): boolean => nodes.some((node) =>
+        (drawsAgent(node, entry)
+            && ((node.metadata?.data as NodeMetadata | undefined)?.agentInfo?.tools ?? []).some((tool) => tool.name === entry.name))
+        || (node.branches ?? []).some((branch) => visit(branch.children)));
+    return visit(flow?.nodes);
+};
+
+// Keeps the agent's current tools unless this edit changed them, so a stale form never brings back a deleted tool.
+export const saveAgentDeclaration = <T>(
+    edited: FlowNode,
+    startedFrom: FlowNode | undefined,
+    rpcClient: BallerinaRpcClient,
+    write: (node: FlowNode) => Promise<T>
+): Promise<T> =>
+    serializeAgentToolsEdit(async () => {
+        const editedTools = String(edited?.properties?.tools?.value ?? "");
+        const startedTools = String(startedFrom?.properties?.tools?.value ?? "");
+        if (edited?.codedata?.node !== "AGENT" || (startedFrom && editedTools !== startedTools)) {
+            return write(edited);
+        }
+        const { node } = await withCurrentAgentTools(edited, rpcClient);
+        return write(node);
+    });
+
+export const saveToolOnAgent = (
+    agentNode: FlowNode,
+    toolName: string,
+    rpcClient: BallerinaRpcClient,
+    artifacts?: ProjectStructureArtifactResponse[]
+): Promise<FlowNode | null> =>
+    serializeAgentToolsEdit(() => addToolToCurrentAgent(agentNode, toolName, rpcClient, artifacts));
+
+// saveToolOnAgent's edit, for code that already runs in the tool-list queue.
+export const addToolToCurrentAgent = async (
+    agentNode: FlowNode,
+    toolName: string,
+    rpcClient: BallerinaRpcClient,
+    artifacts?: ProjectStructureArtifactResponse[]
+): Promise<FlowNode | null> => {
+    const { node, current } = await withCurrentAgentTools(agentNode, rpcClient);
+    const updatedAgentNode = await addToolToAgentNode(node, toolName);
+    if (!updatedAgentNode) {
+        return null;
+    }
+    if (!current) {
+        await refreshAgentNodeLineRange(updatedAgentNode, rpcClient, artifacts);
+    }
+    await writeAgentNode(updatedAgentNode, rpcClient);
+    return updatedAgentNode;
+};
+
+// For an agent read earlier in the same queued edit: only the edit whose `artifacts` are given can have moved it.
+export const addToolToReadAgent = async (
+    agentNode: FlowNode,
+    toolName: string,
+    rpcClient: BallerinaRpcClient,
+    artifacts?: ProjectStructureArtifactResponse[]
+): Promise<FlowNode | null> => {
+    const updatedAgentNode = await addToolToAgentNode(agentNode, toolName);
+    if (!updatedAgentNode) {
+        return null;
+    }
+    await refreshAgentNodeLineRange(updatedAgentNode, rpcClient, artifacts);
+    await writeAgentNode(updatedAgentNode, rpcClient);
+    return updatedAgentNode;
+};
+
+const writeAgentNode = async (agentNode: FlowNode, rpcClient: BallerinaRpcClient): Promise<void> => {
+    const { filePath } = await rpcClient.getVisualizerRpcClient().joinProjectPath({
+        segments: [agentNode.codedata.lineRange.fileName],
+    });
+    const response = await rpcClient.getBIDiagramRpcClient().getSourceCode({ filePath, flowNode: agentNode });
+    if (response?.error) {
+        throw new Error(response.error);
+    }
+};
+
 export const addToolToAgentNode = async (agentNode: FlowNode, toolName: string) => {
     if (!agentNode || agentNode.codedata?.node !== "AGENT") return null;
     // clone the node to avoid modifying the original
@@ -986,6 +1211,20 @@ export const updateFlowNodePropertyValuesWithKeys = (flowNode: FlowNode) => {
         }
     }
 };
+
+const agentToolNames = (agent: FlowNode): string[] => {
+    const tools = agent.properties?.tools?.value;
+    if (typeof tools === "string") {
+        return parseToolsString(tools.replace(/\n/g, ""));
+    }
+    return Array.isArray(tools) ? (tools as Property[]).map((tool) => tool.value as string) : [];
+};
+
+export const isToolUsedByOtherAgent = (moduleNodes: Flow | undefined, agentVarName: string, toolName: string): boolean =>
+    [...(moduleNodes?.connections ?? []), ...(moduleNodes?.variables ?? [])].some((node) =>
+        node.codedata?.node === "AGENT"
+        && node.properties?.variable?.value !== agentVarName
+        && agentToolNames(node).includes(toolName));
 
 export const parseToolsString = (toolsStr: string, removeQuotes: boolean = false): string[] => {
     // Remove brackets and split by comma
