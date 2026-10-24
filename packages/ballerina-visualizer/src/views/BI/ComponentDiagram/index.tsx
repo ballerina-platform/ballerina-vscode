@@ -39,6 +39,7 @@ import { Diagram } from "@wso2/component-diagram";
 import { ProgressRing, ThemeColors } from "@wso2/ui-toolkit";
 import styled from "@emotion/styled";
 import { RelativeLoader } from "../../../components/RelativeLoader";
+import { canonicalTopology } from "../AgentTopology/useAgentTopology";
 
 const SpinnerContainer = styled.div`
     display: flex;
@@ -55,10 +56,12 @@ interface ComponentDiagramProps {
     projectStructure: ProjectStructure;
 }
 
+const designModelCache = new Map<string, CDModel>();
+
 export function ComponentDiagram(props: ComponentDiagramProps) {
     const { projectStructure } = props;
 
-    const [project, setProject] = useState<CDModel | null>(null);
+    const [project, setProject] = useState<CDModel | null>(() => designModelCache.get(projectStructure?.projectPath) ?? null);
     const [isDeleting, setIsDeleting] = useState(false);
     const { rpcClient } = useRpcContext();
 
@@ -73,7 +76,13 @@ export function ComponentDiagram(props: ComponentDiagramProps) {
             .then((response) => {
                 console.log(">>> design model", response);
                 if (response?.designModel) {
-                    setProject(response.designModel);
+                    // A refetch that matches what is on screen must not rebuild the diagram.
+                    setProject((current) => {
+                        const next = response.designModel;
+                        const kept = current && canonicalTopology(current) === canonicalTopology(next) ? current : next;
+                        designModelCache.set(projectStructure.projectPath, kept);
+                        return kept;
+                    });
                 }
             })
             .catch((error) => {

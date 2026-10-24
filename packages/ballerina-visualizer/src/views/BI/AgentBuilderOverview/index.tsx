@@ -49,6 +49,9 @@ const LazyPackageOverview = React.lazy(() =>
     import("../PackageOverview").then((module) => ({ default: module.PackageOverview }))
 );
 
+// A revisit renders the last structure at once; the fetch on mount replaces it.
+const contextCache = new Map<string, { project: ProjectStructure; isInProject: boolean }>();
+
 const Page = styled.div`
     display: flex;
     flex-direction: column;
@@ -88,6 +91,7 @@ const Stage = styled.div`
     min-width: 0;
 `;
 
+// Fade only: the diagram measures its ports from the DOM while the canvas fades in, and a transform skews them.
 const Layer = styled.div<{ $show?: boolean }>`
     grid-area: 1 / 1;
     display: flex;
@@ -95,9 +99,8 @@ const Layer = styled.div<{ $show?: boolean }>`
     min-height: 0;
     min-width: 0;
     opacity: ${(props: { $show?: boolean }) => (props.$show ? 1 : 0)};
-    transform: ${(props: { $show?: boolean }) => (props.$show ? "none" : "scale(0.99)")};
     pointer-events: ${(props: { $show?: boolean }) => (props.$show ? "auto" : "none")};
-    transition: opacity 500ms ease, transform 500ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    transition: opacity 500ms ease;
 
     @media (prefers-reduced-motion: reduce) {
         transition: none;
@@ -245,9 +248,9 @@ function hasTriggerArtifacts(directoryMap: ProjectStructure["directoryMap"] | un
 
 export function AgentBuilderOverview({ projectPath, agentFocus, isInDevant, isICPSupported }: AgentBuilderOverviewProps) {
     const { rpcClient } = useRpcContext();
-    const [projectStructure, setProjectStructure] = useState<ProjectStructure>();
+    const [projectStructure, setProjectStructure] = useState<ProjectStructure>(() => contextCache.get(projectPath)?.project);
     const [deployCollapsed, setDeployCollapsed] = useState<boolean>(loadDeployCollapsed);
-    const [isInProject, setIsInProject] = useState(false);
+    const [isInProject, setIsInProject] = useState(() => contextCache.get(projectPath)?.isInProject ?? false);
     const [showAddAgent, setShowAddAgent] = useState(false);
     const [showAddLibraryArtifact, setShowAddLibraryArtifact] = useState(false);
     const [showAddMcpService, setShowAddMcpService] = useState(false);
@@ -266,8 +269,10 @@ export function AgentBuilderOverview({ projectPath, agentFocus, isInDevant, isIC
             .getProjectStructure()
             .then((res) => {
                 const project = res.projects.find((p) => isSamePath(p.projectPath, projectPath));
-                setIsInProject(res.workspaceName !== undefined);
+                const inProject = res.workspaceName !== undefined;
+                setIsInProject(inProject);
                 if (project) {
+                    contextCache.set(projectPath, { project, isInProject: inProject });
                     setProjectStructure(project);
                 }
             });

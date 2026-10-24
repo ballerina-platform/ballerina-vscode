@@ -20,11 +20,40 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DIRECTORY_MAP, ProjectStructureArtifactResponse } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { TopologyAgentArtifact, TopologyInput } from "@wso2/component-diagram";
-import { useProjectContentRefresh } from "../PackageOverview/utils";
-
-const DEFER_MS = 600;
 
 const inputCache = new Map<string, TopologyInput>();
+
+export function canonicalTopology(input: unknown): string {
+    const entityKeys = new Map<string, string>();
+    const collect = (value: unknown): void => {
+        if (Array.isArray(value)) {
+            value.forEach(collect);
+        } else if (value && typeof value === "object") {
+            const node = value as Record<string, unknown>;
+            if (typeof node.uuid === "string") {
+                entityKeys.set(node.uuid, `${node.sortText ?? ""}:${node.symbol ?? node.name ?? ""}`);
+            }
+            Object.values(node).forEach(collect);
+        }
+    };
+    collect(input);
+    const key = (text: string) => entityKeys.get(text) ?? text;
+    const normalize = (value: unknown): unknown => {
+        if (Array.isArray(value)) {
+            return value.every((item) => typeof item === "string")
+                ? value.map((item) => key(item as string)).sort()
+                : value.map(normalize);
+        }
+        if (value && typeof value === "object") {
+            return Object.entries(value as Record<string, unknown>)
+                .map(([name, item]): [string, unknown] => [key(name), normalize(item)])
+                .sort(([a], [b]) => a.localeCompare(b));
+        }
+        return typeof value === "string" ? key(value) : value;
+    };
+    return JSON.stringify(normalize(input));
+}
+
 const NO_AGENT_DEFINITIONS: ProjectStructureArtifactResponse[] = [];
 
 function toArtifact(agent: ProjectStructureArtifactResponse, isDefinition: boolean): TopologyAgentArtifact {
@@ -46,8 +75,6 @@ export function useAgentTopology(
     const { rpcClient } = useRpcContext();
     const [input, setInput] = useState<TopologyInput | undefined>(() => inputCache.get(projectPath));
     const requestIdRef = useRef(0);
-    const contentRef = useRef(0);
-    const fetchTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
     const artifacts = useMemo(
         () => [
@@ -57,35 +84,29 @@ export function useAgentTopology(
         [agents, agentDefinitions]
     );
 
-    const scheduleFetch = useCallback(() => {
-        clearTimeout(fetchTimerRef.current);
+    // The overview refetches the project structure on every content change, which hands in new artifacts and refetches this.
+    const fetchTopology = useCallback(async () => {
         const requestId = ++requestIdRef.current;
-        fetchTimerRef.current = setTimeout(async () => {
-            const contentAtStart = contentRef.current;
-            try {
-                const response = await rpcClient.getBIDiagramRpcClient().getDesignModel({ projectPath });
-                if (requestId !== requestIdRef.current || contentRef.current !== contentAtStart || !response?.designModel) {
-                    return;
-                }
-                const next: TopologyInput = { model: response.designModel, agents: artifacts };
-                inputCache.set(projectPath, next);
-                setInput(next);
-            } catch (error) {
-                console.error(">>> agent topology: failed to load design model", error);
+        try {
+            const response = await rpcClient.getBIDiagramRpcClient().getDesignModel({ projectPath });
+            if (requestId !== requestIdRef.current || !response?.designModel) {
+                return;
             }
-        }, DEFER_MS);
+            const next: TopologyInput = { model: response.designModel, agents: artifacts };
+            // A refetch that matches what is on screen must not rebuild the diagram.
+            setInput((current) => {
+                const kept = current && canonicalTopology(current) === canonicalTopology(next) ? current : next;
+                inputCache.set(projectPath, kept);
+                return kept;
+            });
+        } catch (error) {
+            console.error(">>> agent topology: failed to load design model", error);
+        }
     }, [rpcClient, projectPath, artifacts]);
 
     useEffect(() => {
-        scheduleFetch();
-    }, [scheduleFetch]);
-
-    useProjectContentRefresh(rpcClient, () => {
-        contentRef.current++;
-        scheduleFetch();
-    });
-
-    useEffect(() => () => clearTimeout(fetchTimerRef.current), []);
+        void fetchTopology();
+    }, [fetchTopology]);
 
     return input;
 }
