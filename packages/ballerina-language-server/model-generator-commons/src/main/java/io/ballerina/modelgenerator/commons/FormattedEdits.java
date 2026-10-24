@@ -139,7 +139,7 @@ public final class FormattedEdits {
 
     private static FormattingOptions formattingOptions(WorkspaceManager workspaceManager, Path path)
             throws FormatterException {
-        // shortcut: a file the edits create formats with default options, not its package's [format] config.
+        // Saves create their files before formatting; the check only keeps project() from throwing on a missing path.
         Optional<Project> project = Files.exists(path) ? workspaceManager.project(path) : Optional.empty();
         return project.isPresent() && project.get() instanceof BuildProject buildProject
                 ? FormatterUtils.buildFormattingOptions(buildProject)
