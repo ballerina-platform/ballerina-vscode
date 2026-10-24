@@ -56,7 +56,7 @@ public class DiagnosticsDebouncerTest {
     private static class ImmediateRequest extends DiagnosticRequest {
 
         ImmediateRequest(int id) {
-            super("immediate.bal", new JsonPrimitive(id), null);
+            super("immediate.bal", new JsonPrimitive(id), null, null);
         }
 
         @Override

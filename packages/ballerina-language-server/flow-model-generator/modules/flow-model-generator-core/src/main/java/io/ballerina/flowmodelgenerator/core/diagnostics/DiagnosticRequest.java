@@ -66,11 +66,14 @@ public class DiagnosticRequest implements Callable<JsonElement> {
     private final JsonElement flowNode;
     private final WorkspaceManager workspaceManager;
     private final Map<Path, TextDocument> prevDocs;
+    private final WorkspaceManager sourceWorkspaceManager;
 
-    public DiagnosticRequest(String filePath, JsonElement flowNode, WorkspaceManager workspaceManager) {
+    public DiagnosticRequest(String filePath, JsonElement flowNode, WorkspaceManager workspaceManager,
+                             WorkspaceManager sourceWorkspaceManager) {
         this.filePath = filePath;
         this.flowNode = flowNode;
         this.workspaceManager = workspaceManager;
+        this.sourceWorkspaceManager = sourceWorkspaceManager;
         this.prevDocs = new HashMap<>();
     }
 
@@ -85,7 +88,7 @@ public class DiagnosticRequest implements Callable<JsonElement> {
             return null;
         }
         Optional<Document> document = workspaceManager.document(path);
-        Optional<SemanticModel> semanticModelOp = workspaceManager.semanticModel(path);
+        Optional<SemanticModel> semanticModelOp = document.flatMap(doc -> unchangedSemanticModel(path, doc));
 
         if (document.isEmpty() || semanticModelOp.isEmpty()) {
             return null;
@@ -160,6 +163,19 @@ public class DiagnosticRequest implements Callable<JsonElement> {
         }
         FlowNode resultNode = flowNodes.getFirst();
         return gson.toJsonTree(resultNode);
+    }
+
+    // The open workspace has usually compiled this text already; line endings move no line or column looked up here.
+    private Optional<SemanticModel> unchangedSemanticModel(Path path, Document document) {
+        String text = withLf(document.textDocument().toString());
+        boolean sameText = sourceWorkspaceManager.document(path)
+                .map(source -> withLf(source.textDocument().toString()).equals(text))
+                .orElse(false);
+        return sameText ? sourceWorkspaceManager.semanticModel(path) : workspaceManager.semanticModel(path);
+    }
+
+    private static String withLf(String text) {
+        return text.replace("\r\n", "\n");
     }
 
     public String getKey() {
