@@ -23,6 +23,8 @@ export interface FlowModelRefresher {
     fetch(): void;
     /** Leading-edge refresh whose trailing call runs only if something changed after the last fetch began. */
     refresh(): void;
+    /** Resolves once a fetch that began after the latest change has landed. */
+    upToDate(): Promise<void>;
     dispose(): void;
 }
 
@@ -39,6 +41,7 @@ export function createFlowModelRefresher(
     let windowTimer: ReturnType<typeof setTimeout> | undefined;
     let trailingRequested = false;
     let disposed = false;
+    let waiters: { seq: number; resolve: () => void }[] = [];
 
     const fetch = () => {
         if (disposed) {
@@ -48,9 +51,12 @@ export function createFlowModelRefresher(
             fetchAgain = fetchAgain || changeSeq > inFlightSeq;
             return;
         }
-        inFlightSeq = lastStartedSeq = changeSeq;
+        const startedSeq = inFlightSeq = lastStartedSeq = changeSeq;
         const settle = () => {
             inFlightSeq = undefined;
+            const landed = waiters.filter((waiter) => waiter.seq <= startedSeq);
+            waiters = waiters.filter((waiter) => waiter.seq > startedSeq);
+            landed.forEach((waiter) => waiter.resolve());
             if (fetchAgain) {
                 fetchAgain = false;
                 request();
@@ -88,6 +94,7 @@ export function createFlowModelRefresher(
         },
         fetch,
         refresh,
+        upToDate: () => new Promise<void>((resolve) => waiters.push({ seq: changeSeq, resolve })),
         dispose: () => {
             disposed = true;
             clearTimeout(windowTimer);

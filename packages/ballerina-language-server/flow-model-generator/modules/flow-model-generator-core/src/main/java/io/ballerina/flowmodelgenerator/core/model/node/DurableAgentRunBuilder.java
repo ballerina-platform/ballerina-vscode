@@ -84,7 +84,7 @@ public class DurableAgentRunBuilder extends CallBuilder {
             "The type a run produces, e.g. a record type; empty leaves the result untyped";
     public static final String EVENT_TIMEOUT_LABEL = "Event Timeout";
     public static final String EVENT_TIMEOUT_DOC = "How long the agent waits for an event, in days, hours and "
-            + "minutes, e.g. {days: 1, hours: 2, minutes: 30}; empty waits indefinitely";
+            + "minutes, for example 1 day 2 hours 30 minutes; empty waits indefinitely";
     public static final String MAX_EVENT_WAITS_LABEL = "Maximum Event Waits";
     public static final String MAX_EVENT_WAITS_DOC = "How many events a run may wait for before it fails (default 50)";
     public static final String VERBOSE_KEY = "verbose";

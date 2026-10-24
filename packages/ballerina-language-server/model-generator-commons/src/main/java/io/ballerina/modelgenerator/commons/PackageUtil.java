@@ -70,6 +70,8 @@ import java.util.WeakHashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 import java.util.logging.Level;
@@ -142,13 +144,7 @@ public class PackageUtil {
     private static final PerThread<PackageRepository> LOCAL_REPOSITORY = new PerThread<>(() -> BallerinaUserHome.from(
             getSampleProject().projectEnvironmentContext().environment()).localPackageRepository());
 
-    /**
-     * A value per thread, keyed by the {@link Thread} itself rather than held in a {@link ThreadLocal}: the JDK's
-     * common-pool workers ({@code InnocuousForkJoinWorkerThread}) erase every ThreadLocal after each task, which
-     * rebuilt the sample project on every LS request. Weak keys let a dead thread's value be collected.
-     *
-     * @param <T> the per-thread value
-     */
+    // Not a ThreadLocal: common-pool workers erase those after each task; weak keys free a dead thread's value.
     private static final class PerThread<T> {
 
         private final Map<Thread, T> values = Collections.synchronizedMap(new WeakHashMap<>());
@@ -241,7 +237,14 @@ public class PackageUtil {
     private static final ConcurrentHashMap<Path, SoftReference<Package>> BALA_PACKAGES = new ConcurrentHashMap<>();
 
     private static final Set<String> PREWARMED = ConcurrentHashMap.newKeySet();
+    // Central lookups and library compiles can take minutes, and the common pool serves the LS requests.
+    private static final ExecutorService PREWARM_EXECUTOR = Executors.newCachedThreadPool(runnable -> {
+        Thread thread = new Thread(runnable, "library-prewarm");
+        thread.setDaemon(true);
+        return thread;
+    });
     private static final String AI_PACKAGE = "ai";
+    private static final String WORKFLOW_PACKAGE = "workflow";
 
     // One load per bala at a time, outside BALA_PACKAGES so a slow load never blocks other balas.
     private static final ConcurrentHashMap<Path, CompletableFuture<Package>> BALA_LOADS = new ConcurrentHashMap<>();
@@ -303,26 +306,44 @@ public class PackageUtil {
     public static void prewarm(String org, String packageName, String version) {
         if (PREWARMED.add(org + "/" + packageName + ":" + version)) {
             CompletableFuture.runAsync(() -> resolveModulePackage(org, packageName, version)
-                    .ifPresent(PackageUtil::getCompilation));
+                    .ifPresent(PackageUtil::getCompilation), PREWARM_EXECUTOR);
         }
     }
 
     /**
-     * Compiles the project's {@code ballerina/ai} dependency in the background, since agent nodes and the agent's
-     * forms build their templates from it.
+     * Compiles the project's {@code ballerina/ai} and {@code ballerina/workflow} dependencies in the background,
+     * since agent and durable agent nodes and their forms build their templates from them. A library the project
+     * does not depend on yet is fetched at its latest release, so the first agent added to it starts there.
      *
-     * @param project The project whose resolved {@code ballerina/ai} version to compile
+     * @param project The project whose resolved library versions to compile
      */
-    public static void prewarmAgentLibrary(Project project) {
-        // A project without the dependency yet gets the version its first agent template resolves.
-        prewarm(CommonUtils.BALLERINA_ORG_NAME, AI_PACKAGE, project.currentPackage().getResolution()
-                .dependencyGraph().getNodes().stream()
-                .map(ResolvedPackageDependency::packageInstance)
-                .filter(pkg -> pkg.packageOrg().value().equals(CommonUtils.BALLERINA_ORG_NAME)
-                        && pkg.packageName().value().equals(AI_PACKAGE))
-                .findFirst()
-                .map(pkg -> pkg.packageVersion().toString())
-                .orElse(null));
+    public static void prewarmAgentLibraries(Project project) {
+        for (String library : List.of(AI_PACKAGE, WORKFLOW_PACKAGE)) {
+            Optional<String> resolved = project.currentPackage().getResolution().dependencyGraph().getNodes().stream()
+                    .map(ResolvedPackageDependency::packageInstance)
+                    .filter(pkg -> pkg.packageOrg().value().equals(CommonUtils.BALLERINA_ORG_NAME)
+                            && pkg.packageName().value().equals(library))
+                    .findFirst()
+                    .map(pkg -> pkg.packageVersion().toString());
+            resolved.ifPresentOrElse(version -> prewarm(CommonUtils.BALLERINA_ORG_NAME, library, version),
+                    () -> prewarmLatestRelease(CommonUtils.BALLERINA_ORG_NAME, library));
+        }
+    }
+
+    private static void prewarmLatestRelease(String org, String packageName) {
+        if (PREWARMED.add(org + "/" + packageName + ":latest")) {
+            CompletableFuture.runAsync(() -> resolveModulePackage(org, packageName,
+                    latestReleaseOrNull(org, packageName)).ifPresent(PackageUtil::getCompilation), PREWARM_EXECUTOR);
+        }
+    }
+
+    // Central can be unreachable; a null version falls back to the newest release already in the local repositories.
+    private static String latestReleaseOrNull(String org, String packageName) {
+        try {
+            return fetchVersionIfNotExists(new ModuleInfo(org, packageName, packageName, null)).version();
+        } catch (RuntimeException e) {
+            return null;
+        }
     }
 
     /**

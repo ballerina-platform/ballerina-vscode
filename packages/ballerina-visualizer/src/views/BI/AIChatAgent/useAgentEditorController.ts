@@ -26,16 +26,21 @@ import { findClassByName, findFunctionByName } from "../FlowDiagram/utils";
 import {
     AddingTool,
     DeletingTool,
+    drawnFlowKey,
     drawsAgentTool,
     findAgentScopedNode as findAgentScopedNodeAt,
     findFlowNodeByModuleVarName,
     isToolUsedByOtherAgent,
+    keepIf,
     refreshAgentNodeLineRange,
     removeMcpServerFromAgentNode,
     removeToolFromAgentNode,
     resolveAgentNodePosition,
     serializeAgentToolsEdit,
+    settleEntry,
     withCurrentAgentTools,
+    withUndoGroup,
+    writeAgentNode,
 } from "./utils";
 import { getExistingToolNames } from "./toolForm";
 
@@ -92,6 +97,16 @@ const memoryKeyOf = (node?: FlowNode): string =>
 
 const memoryStoreNameOf = (node?: FlowNode): string | undefined =>
     (node?.metadata?.data as NodeMetadata)?.agentInfo?.memory?.presentation?.store?.name;
+
+// A new model object rebuilds the canvas and closes any open menu, so an unchanged picture keeps the old object.
+export function useStableFlow(flow: Flow | undefined, enabled = true): Flow | undefined {
+    const ref = useRef<{ key: string; flow?: Flow }>({ key: "" });
+    const key = useMemo(() => (enabled ? drawnFlowKey(flow) : ""), [enabled, flow]);
+    if (enabled && ref.current.key !== key) {
+        ref.current = { key, flow };
+    }
+    return enabled ? ref.current.flow : flow;
+}
 
 export function useAgentEditorController(host: AgentEditorHost): AgentEditorController {
     const { rpcClient } = useRpcContext();
@@ -214,7 +229,8 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
                 const memoryKey = memoryKeyOf(node);
                 const name = node.properties?.variable?.value as string;
                 const memory = (node.properties as any)?.[memoryKey]?.value;
-                const updated = structuredClone((await withCurrentAgentTools(node, rpcClient)).node);
+                const latest = await withCurrentAgentTools(node, rpcClient);
+                const updated = structuredClone(latest.node);
                 let deleteArtifacts: ProjectStructureArtifactResponse[] | undefined;
                 if (typeof memory === "string" && memory.trim() && memory.trim() !== "()") {
                     const memoryVar = await findAgentScopedNode(node, "MEMORY", memory.trim());
@@ -228,7 +244,9 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
                         deleteArtifacts = response?.artifacts;
                     }
                 }
-                await refreshAgentNodeLineRange(updated, rpcClient, deleteArtifacts);
+                if (deleteArtifacts || !latest.current) {
+                    await refreshAgentNodeLineRange(updated, rpcClient, deleteArtifacts);
+                }
                 (updated.properties as any)[memoryKey].value = "()";
                 const path = (await rpcClient.getVisualizerRpcClient().joinProjectPath({
                     segments: [updated.codedata.lineRange.fileName],
@@ -342,23 +360,13 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
     // Runs in the tool-list queue, so it reads the agent and the function as the previous edits left them.
     const removeToolFromSource = useCallback(async (tool: ToolData, node: FlowNode): Promise<ToolEditOutcome> => {
         let nextPosition: NodePosition | undefined;
-        const write = async (flowNode: FlowNode) => {
-            const path = (await rpcClient.getVisualizerRpcClient().joinProjectPath({
-                segments: [flowNode.codedata.lineRange.fileName],
-            })).filePath;
-            const response = await rpcClient.getBIDiagramRpcClient().getSourceCode({ filePath: path, flowNode });
-            if (response?.error) {
-                throw new Error(response.error);
-            }
-            return response;
-        };
         try {
             await rpcClient.getVisualizerRpcClient().beginUndoGroup();
             if (tool.type?.includes("MCP Server")) {
                 const latest = await withCurrentAgentTools(node, rpcClient);
                 const updated = removeMcpServerFromAgentNode(latest.node, tool.name);
                 if (updated) {
-                    await write(updated);
+                    await writeAgentNode(updated, rpcClient);
                 }
                 await deleteMcpVariableAndClass(tool);
                 // Deleting the toolkit class can drop an import above the agent and move it.
@@ -378,7 +386,7 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
                         updated.codedata.lineRange = current.codedata.lineRange;
                     }
                 }
-                nextPosition = agentPosition((await write(updated))?.artifacts);
+                nextPosition = agentPosition((await writeAgentNode(updated, rpcClient))?.artifacts);
             }
             // Another agent may still list the tool; deleting its function would break that agent.
             const resolved = isToolUsedByOtherAgent(moduleNodes, agentVarName, tool.name)
@@ -423,9 +431,7 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
             resetView();
         }
         // A failed deletion leaves the tool in the source, so it shows again at once.
-        runToolEdit(() => removeToolFromSource(tool, node), (ok) => setDeletingTools((current) => ok
-            ? current.map((item) => (item === entry ? { ...item, settled: true } : item))
-            : current.filter((item) => item !== entry)));
+        runToolEdit(() => removeToolFromSource(tool, node), (ok) => setDeletingTools(settleEntry(entry, ok)));
     }, [removeToolFromSource, resetView, runToolEdit, selectedTool, view]);
 
     const addToolInBackground = useCallback((tool: ToolData, save: () => Promise<NodePosition | undefined>) => {
@@ -439,12 +445,7 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
                 if (agentNode && getExistingToolNames((await withCurrentAgentTools(agentNode, rpcClient)).node).includes(tool.name)) {
                     throw new Error("A tool with this name is already on the agent.");
                 }
-                await rpcClient.getVisualizerRpcClient().beginUndoGroup();
-                try {
-                    return { ok: true, position: await save() };
-                } finally {
-                    await rpcClient.getVisualizerRpcClient().endUndoGroup().catch((): undefined => undefined);
-                }
+                return { ok: true, position: await withUndoGroup(rpcClient, save) };
             } catch (error) {
                 console.error("Failed to add tool", error);
                 await rpcClient.getCommonRpcClient().showErrorMessage({
@@ -454,20 +455,12 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
             }
         };
         // A failed addition is not in the source, so it disappears at once.
-        runToolEdit(saveTool, (ok) => setAddingTools((current) => ok
-            ? current.map((item) => (item === entry ? { ...item, settled: true } : item))
-            : current.filter((item) => item !== entry)));
+        runToolEdit(saveTool, (ok) => setAddingTools(settleEntry(entry, ok)));
     }, [agentNode, resetView, rpcClient, runToolEdit]);
 
     const syncToolEdits = useCallback((flow?: Flow) => {
-        setDeletingTools((current) => {
-            const kept = current.filter((item) => !item.settled || drawsAgentTool(flow, item));
-            return kept.length === current.length ? current : kept;
-        });
-        setAddingTools((current) => {
-            const kept = current.filter((item) => !item.settled || !drawsAgentTool(flow, item));
-            return kept.length === current.length ? current : kept;
-        });
+        setDeletingTools(keepIf((item: DeletingTool) => !item.settled || drawsAgentTool(flow, item)));
+        setAddingTools(keepIf((item: AddingTool) => !item.settled || !drawsAgentTool(flow, item)));
     }, []);
 
     const resolve = useCallback(

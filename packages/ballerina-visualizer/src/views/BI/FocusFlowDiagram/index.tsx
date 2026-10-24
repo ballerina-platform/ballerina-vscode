@@ -44,24 +44,20 @@ import {
     NodePosition,
     NodeMetadata,
     AgentUsage,
-    AgentUsageTrigger,
     FOCUS_FLOW_DIAGRAM_VIEW,
     FocusFlowDiagramView,
-    triggerScopeNoun
 } from "@wso2/ballerina-core";
 import { PanelContainer } from "@wso2/ballerina-side-panel";
 import { ConnectionConfig, ConnectionCreator, ConnectionSelectionList } from "../../../components/ConnectionSelector";
 import { ComponentFormLoader } from "../../../components/ComponentFormLoader";
 import { FlowNodeForm } from "../Forms/FlowNodeForm";
 import { AgentEditorPanelContent, getAgentEditorPanelTitle } from "../AIChatAgent/AgentEditorPanelContent";
-import { AgentEditorView, useAgentEditorController } from "../AIChatAgent/useAgentEditorController";
-import { drawnFlowKey, drawToolEdits, goToAgent, goToAgentDefinitionFromInstance, resolveAgentDefinitionLocation, saveAgentDeclaration, startAddAgentTrigger, startAgentChat } from "../AIChatAgent/utils";
+import { AgentEditorView, useAgentEditorController, useStableFlow } from "../AIChatAgent/useAgentEditorController";
+import { confirmTriggerDeletion, drawToolEdits, goToAgent, goToAgentDefinitionFromInstance, resolveAgentDefinitionLocation, saveAgentDeclaration, serializeAgentToolsEdit, startAddAgentTrigger, startAgentChat } from "../AIChatAgent/utils";
 import { buildAgentRenderNode, withAgentUsages } from "./agent";
 import {
     agentCallerProtocols,
-    clearAgentCallFromHandler,
-    deleteComponentAt,
-    deleteServiceWithListeners,
+    removeAgentTrigger,
     findAgentUsages,
     getAgentTriggerScopes,
     findAgentToolTargets,
@@ -384,45 +380,6 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
 
     useEffect(() => () => clearTimeout(usageFetchTimerRef.current), []);
 
-    const confirmTriggerDeletion = async (usage: AgentUsage): Promise<"endpoint" | "service" | undefined> => {
-        const trigger = usage.trigger;
-        const listeners = trigger.listeners.map((listener) => listener.symbol).join(", ");
-        const listenerNote = listeners
-            ? ` Its listener ${listeners} will also be deleted because no other service uses it.`
-            : "";
-
-        if (!trigger.entryPoint) {
-            const confirmed = await rpcClient.getCommonRpcClient().showInformationModal({
-                message: `Are you sure you want to delete the ${trigger.serviceName} trigger?`,
-                detail: `The agent will no longer run when this trigger fires.${listenerNote}`,
-                items: ["Delete Trigger"],
-            });
-            return confirmed === "Delete Trigger" ? "service" : undefined;
-        }
-
-        const isEndpoint = trigger.scope === "ENTRY_POINT";
-        const label = triggerScopeNoun(trigger.scope);
-        const only = `Delete ${label}`;
-        const withService = `Delete ${label} and Service`;
-        const consequence = isEndpoint
-            ? "The agent will no longer be reachable at this endpoint."
-            : "The agent will no longer run when this event occurs.";
-        const remainder = trigger.orphansService
-            ? `No other ${label.toLowerCase()} on ${trigger.serviceName} uses the agent, `
-            + `so the service can be deleted as well.${listenerNote}`
-            : `Other ${label.toLowerCase()}s on ${trigger.serviceName} are unaffected.`;
-
-        const choice = await rpcClient.getCommonRpcClient().showInformationModal({
-            message: `Are you sure you want to delete the ${trigger.entryPoint.label} ${label.toLowerCase()}?`,
-            detail: `${consequence} ${remainder}`,
-            items: trigger.orphansService ? [only, withService] : [only],
-        });
-        if (choice === only) {
-            return "endpoint";
-        }
-        return choice === withService ? "service" : undefined;
-    };
-
     const tryAgentTrigger = async (usage: AgentUsage) => {
         const tryIt = usage.tryIt;
         if (!tryIt) {
@@ -446,23 +403,15 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         if (!trigger) {
             return;
         }
-        const scope = await confirmTriggerDeletion(usage);
+        const scope = await confirmTriggerDeletion(rpcClient, usage);
         if (!scope) {
             return;
         }
         setShowProgressIndicator(true);
         deletingTriggerRef.current = true;
         try {
-            if (scope === "endpoint" && trigger.scope === "ENTRY_POINT_BODY") {
-                await clearAgentCallFromHandler(rpcClient, trigger);
-            } else if (scope === "endpoint") {
-                const entryPoint = trigger.entryPoint;
-                await deleteComponentAt(
-                    rpcClient, entryPoint.label, entryPoint.documentUri, entryPoint.position);
-            } else {
-                await deleteServiceWithListeners(rpcClient, trigger);
-            }
-            await rpcClient.getAIAgentRpcClient().fixMissingImports();
+            // Queued with the tool edits, so its changes never join a tool deletion's undo step.
+            await serializeAgentToolsEdit(() => removeAgentTrigger(rpcClient, trigger, scope));
             usagesDirtyRef.current = true;
             usagesContentRef.current++;
             refreshFocusModel();
@@ -593,14 +542,14 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         setAgentPanel("FORM");
     };
 
-    const handleSubmitAgentForm = async (updatedNode: FlowNode | undefined, formNode: FlowNode | undefined) => {
+    const handleSubmitAgentForm = async (updatedNode: FlowNode | undefined) => {
         if (!updatedNode) {
             return;
         }
         setSavingAgentForm(true);
         try {
             const fileName = model?.fileName;
-            await saveAgentDeclaration(updatedNode, formNode, rpcClient, (flowNode) =>
+            await saveAgentDeclaration(updatedNode, agentFormNode, rpcClient, (flowNode) =>
                 rpcClient.getBIDiagramRpcClient().getSourceCode({ filePath: fileName, flowNode }));
         } catch (error) {
             console.error(">>> agent focus: error saving agent form", error);
@@ -1104,14 +1053,9 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         syncToolEdits(model);
     }, [model, syncToolEdits]);
 
-    // A new model object rebuilds the canvas and closes any open menu, so an unchanged picture keeps the old object.
-    const drawnModelRef = useRef<{ key: string; flow?: Flow }>({ key: "" });
-    const shownModel = drawToolEdits(flowModel, agentEditor.deletingTools, agentEditor.addingTools);
-    const shownKey = drawnFlowKey(shownModel);
-    if (drawnModelRef.current.key !== shownKey) {
-        drawnModelRef.current = { key: shownKey, flow: shownModel };
-    }
-    const drawnModel = drawnModelRef.current.flow;
+    const { deletingTools, addingTools } = agentEditor;
+    const shownModel = useMemo(() => drawToolEdits(flowModel, deletingTools, addingTools), [flowModel, deletingTools, addingTools]);
+    const drawnModel = useStableFlow(shownModel);
     agentPanelRef.current = agentPanel;
     useEffect(() => {
         if (agentEditor.view === "NONE" && agentPanel === "NONE" && deferredRefreshRef.current) {
@@ -1284,7 +1228,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                     targetLineRange={node.codedata?.lineRange as any}
                     projectPath={projectPath}
                     editForm={true}
-                    onSubmit={(updatedNode) => handleSubmitAgentForm(updatedNode, node)}
+                    onSubmit={handleSubmitAgentForm}
                     submitText={savingAgentForm ? "Saving..." : "Save"}
                     showProgressIndicator={savingAgentForm}
                     disableSaveButton={savingAgentForm}

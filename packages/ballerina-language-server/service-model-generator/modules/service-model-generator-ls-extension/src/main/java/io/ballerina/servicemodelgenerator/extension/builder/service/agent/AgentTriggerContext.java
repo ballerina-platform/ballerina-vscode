@@ -21,6 +21,7 @@ package io.ballerina.servicemodelgenerator.extension.builder.service.agent;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerUISchemaModel;
 import io.ballerina.servicemodelgenerator.extension.connector.SchemaDrivenSourceGenerator;
 import io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel;
+import io.ballerina.servicemodelgenerator.extension.util.Utils;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -123,7 +124,8 @@ public record AgentTriggerContext(String emitAlias, String listenerVarName, Stri
     }
 
     private String chatChannel() {
-        String channel = formValue(CHAT_CHANNEL_PROPERTY).strip();
+        // The form quotes a text field's value; the template supplies its own quotes.
+        String channel = Utils.unquote(formValue(CHAT_CHANNEL_PROPERTY).strip());
         return channel.isEmpty() ? DEFAULT_CHAT_CHANNEL : channel;
     }
 

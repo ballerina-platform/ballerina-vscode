@@ -21,7 +21,7 @@ import { NodePosition } from "@wso2/syntax-tree";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { URI, Utils } from "vscode-uri";
 import { AIAgentSidePanel, ExtendedAgentToolRequest } from "./AIAgentSidePanel";
-import { addToolToCurrentAgent, addToolToReadAgent, buildAgentToolNode, resolveAgentNodePosition, saveToolOnAgent, withCurrentAgentTools } from "./utils";
+import { addToolToCurrentAgent, addToolToReadAgent, buildAgentToolNode, resolveAgentNodePosition, withCurrentAgentTools } from "./utils";
 import { FUNCTION_CALL } from "../../../constants";
 import { AgentToolForm } from "./AgentToolForm";
 
@@ -38,38 +38,18 @@ interface NewToolProps {
     projectPath: string;
     mode?: NewToolSelectionMode;
     onBack?: () => void;
-    onSave?: (agentPosition?: NodePosition) => void;
     // Takes over a submitted tool: shows it on the agent at once and runs `save` in the background.
     onAddTool: (tool: ToolData, save: () => Promise<NodePosition | undefined>) => void;
     onSetBackOverride?: (handler: (() => void) | null) => void;
 }
 
 export function NewTool(props: NewToolProps): JSX.Element {
-    const { agentNode: agentNodeProp, projectPath, mode = NewToolSelectionMode.ALL, onSave, onAddTool, onBack, onSetBackOverride } = props;
+    const { agentNode: agentNodeProp, projectPath, mode = NewToolSelectionMode.ALL, onAddTool, onBack, onSetBackOverride } = props;
     const { rpcClient } = useRpcContext();
 
     const agentNode = agentNodeProp ?? null;
 
     const agentFilePath = Utils.joinPath(URI.file(projectPath), "agents.bal").fsPath;
-
-    const handleAgentToolCreated = async (functionName: string, artifacts?: ProjectStructureArtifactResponse[]) => {
-        if (!agentNode) {
-            console.error("Agent node not found");
-            return;
-        }
-        try {
-            const updatedAgentNode = await saveToolOnAgent(agentNode, functionName, rpcClient, artifacts);
-            if (!updatedAgentNode) {
-                console.error("Failed to add tool to agent node");
-                return;
-            }
-            await rpcClient.getAIAgentRpcClient().fixMissingImports();
-
-            onSave?.(await resolveAgentNodePosition(updatedAgentNode, rpcClient));
-        } catch (error) {
-            console.error("Error handling custom agent tool creation", { error });
-        }
-    };
 
     // A custom tool: the form hands over writing its function, and both edits run in the background queue.
     const handleCustomToolInBackground = (toolName: string, write: () => Promise<ProjectStructureArtifactResponse[]>) => {
@@ -167,7 +147,6 @@ export function NewTool(props: NewToolProps): JSX.Element {
         <AgentToolForm
             filePath={agentFilePath}
             projectPath={projectPath}
-            onSave={handleAgentToolCreated}
             onCreateInBackground={handleCustomToolInBackground}
             onBack={onBack}
         />

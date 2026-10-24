@@ -49,6 +49,20 @@ describe("flow model refresher", () => {
         await Promise.resolve();
     };
 
+    it("is up to date only after a fetch that began after the latest change", async () => {
+        let upToDate = false;
+        refresher.markStale();
+        refresher.fetch();
+        refresher.markStale();
+        refresher.fetch();
+        void refresher.upToDate().then(() => { upToDate = true; });
+        await settle(0);
+        expect(upToDate).toBe(false);
+        expect(fetches).toHaveLength(2);
+        await settle(1);
+        expect(upToDate).toBe(true);
+    });
+
     it("joins a fetch in flight when nothing changed since it began", async () => {
         refresher.markStale();
         refresher.fetch();

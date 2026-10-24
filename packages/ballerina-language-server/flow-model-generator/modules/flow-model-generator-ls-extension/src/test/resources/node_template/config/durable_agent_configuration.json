@@ -182,7 +182,7 @@
       "eventTimeout": {
         "metadata": {
           "label": "Event Timeout",
-          "description": "How long the agent waits for an event, in days, hours and minutes, e.g. {days: 1, hours: 2, minutes: 30}; empty waits indefinitely"
+          "description": "How long the agent waits for an event, in days, hours and minutes, for example 1 day 2 hours 30 minutes; empty waits indefinitely"
         },
         "types": [
           {

@@ -37,7 +37,7 @@ import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Option;
 import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
-import io.ballerina.modelgenerator.commons.ModuleInfo;
+import io.ballerina.flowmodelgenerator.core.utils.WorkflowUtil;
 import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.modelgenerator.commons.ParameterData;
 import io.ballerina.projects.DocumentId;
@@ -49,6 +49,8 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import static io.ballerina.flowmodelgenerator.core.Constants.Ai.AI_PACKAGE;
 import static io.ballerina.flowmodelgenerator.core.Constants.Ai.BALLERINA_ORG;
@@ -67,6 +69,7 @@ public class DurableAgentBuilder extends FunctionDefinitionBuilder {
     public static final String LABEL = "Durable Agentic Workflow";
     public static final String DESCRIPTION = "Define a durable workflow driven by an agentic model";
 
+    private static final Logger LOGGER = Logger.getLogger(DurableAgentBuilder.class.getName());
     private static final String RETURN_TYPE = "error?";
 
     // Name given to the WSO2 default model provider declared alongside an agent created in a
@@ -104,8 +107,7 @@ public class DurableAgentBuilder extends FunctionDefinitionBuilder {
 
     @Override
     public void setConcreteTemplateData(TemplateContext context) {
-        ModuleInfo workflowModuleInfo = new ModuleInfo(WORKFLOW_ORG, WORKFLOW_MODULE, WORKFLOW_MODULE, null);
-        PackageUtil.pullModuleAndNotify(context.lsClientLogger(), workflowModuleInfo);
+        WorkflowUtil.pullWorkflowModuleIfMissing(context);
         properties().functionNameTemplate("durableAgenticWorkflow", context.getAllVisibleSymbolNames(),
                 FunctionDefinitionBuilder.FUNCTION_NAME_LABEL, NAME_DOC);
         WorkflowBuilder.setMandatoryProperties(this, RETURN_TYPE, "", "");
@@ -264,6 +266,7 @@ public class DurableAgentBuilder extends FunctionDefinitionBuilder {
             return options.isEmpty() ? null : options.get(0).value();
         } catch (RuntimeException e) {
             // Project resolution can fail before the module is pulled; omit the model.
+            LOGGER.log(Level.WARNING, "Could not look up the model providers of " + sourceBuilder.filePath, e);
         }
         return null;
     }
@@ -288,6 +291,7 @@ public class DurableAgentBuilder extends FunctionDefinitionBuilder {
         try {
             Module module = declaringModule(sourceBuilder);
             if (module == null) {
+                LOGGER.warning("No module owns " + sourceBuilder.filePath + "; declaring the default provider");
                 return null;
             }
             SemanticModel semanticModel = module.getCompilation().getSemanticModel();
@@ -309,6 +313,7 @@ public class DurableAgentBuilder extends FunctionDefinitionBuilder {
             }
         } catch (RuntimeException e) {
             // Project resolution can fail before the module is pulled; declare the provider instead.
+            LOGGER.log(Level.WARNING, "Could not look up the default provider of " + sourceBuilder.filePath, e);
         }
         return null;
     }

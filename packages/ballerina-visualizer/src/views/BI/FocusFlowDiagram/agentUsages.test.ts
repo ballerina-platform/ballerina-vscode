@@ -22,12 +22,14 @@ import {
     agentCallerProtocols,
     clearAgentCallFromHandler,
     deleteEachResolved,
+    deleteEventSender,
     findAgentToolTargets,
     findAgentUsages,
     findDurableAgentUsages,
     findListenerPosition,
     findServiceHelperPosition,
     namesHelper,
+    removeAgentTrigger,
     resolveTriggerScopes,
     startLineOf,
 } from "./agentUsages";
@@ -957,6 +959,45 @@ describe("deleting components whose positions have moved", () => {
         expect(deleteByComponentInfo.mock.calls.map((call) => call[0].component.startLine)).toEqual([14, 1]);
     });
 
+    const ordersService = (lines: { a: number; b: number }) => ({
+        services: [{
+            absolutePath: "/orders",
+            type: "http:Service",
+            location: { filePath: SERVICES_BAL, ...range(lines.a - 2) },
+            resourceFunctions: [
+                { accessor: "post", path: "a", location: { filePath: SERVICES_BAL, ...range(lines.a) } },
+                { accessor: "post", path: "b", location: { filePath: SERVICES_BAL, ...range(lines.b) } },
+            ],
+        }],
+        listeners: [] as unknown[],
+    });
+
+    it("deletes an event's sender where it is now, not where it was drawn", async () => {
+        const { client, deleteByComponentInfo } = clientSeeing([ordersService({ a: 4, b: 8 })]);
+        const sender = { label: "POST /b", serviceName: "/orders", documentUri: SERVICES_BAL, position: { startLine: 12 } };
+
+        await deleteEventSender(client, sender as never);
+
+        expect(deleteByComponentInfo.mock.calls.map((call) => call[0].component.startLine)).toEqual([8]);
+    });
+
+    it("deletes a queued trigger's endpoint where it is now", async () => {
+        const { client, deleteByComponentInfo } = clientSeeing([ordersService({ a: 4, b: 8 })]);
+        (client as { getAIAgentRpcClient: unknown }).getAIAgentRpcClient = () => ({ fixMissingImports: jest.fn() });
+        const trigger = {
+            serviceName: "/orders",
+            documentUri: SERVICES_BAL,
+            position: { startLine: 6 },
+            listeners: [] as unknown[],
+            scope: "ENTRY_POINT",
+            entryPoint: { label: "POST /b", documentUri: SERVICES_BAL, position: { startLine: 12 } },
+        };
+
+        await removeAgentTrigger(client, trigger as never, "endpoint");
+
+        expect(deleteByComponentInfo.mock.calls.map((call) => call[0].component.startLine)).toEqual([8]);
+    });
+
     it("skips a component that is already gone", async () => {
         const { client, deleteByComponentInfo } = clientSeeing([{ listeners: [] }, seeing("sharedListener", 1)]);
 
@@ -1198,6 +1239,12 @@ describe("findDurableAgentUsages", () => {
         ]);
         expect(usages[1]).toMatchObject({ documentUri: SERVICES_BAL, position: { startLine: 6, startColumn: 0 }, trigger: undefined, tryIt: undefined });
         expect(usages[4].parentAgent).toBe(true);
+    });
+
+    it("lets a channel sender be deleted like any other endpoint", () => {
+        const usages = findDurableAgentUsages(durableModel, { filePath: AGENTS_BAL, startLine: 3, symbol: "claimAgent" }, HTTP_CHANNELS);
+        expect(usages[1].channel).toBe("chat");
+        expect(usages[1].trigger).toMatchObject({ scope: "ENTRY_POINT", documentUri: SERVICES_BAL });
     });
 
     it("falls back to the symbol when the declaration moved, and returns nothing for an agent the model lacks", () => {
