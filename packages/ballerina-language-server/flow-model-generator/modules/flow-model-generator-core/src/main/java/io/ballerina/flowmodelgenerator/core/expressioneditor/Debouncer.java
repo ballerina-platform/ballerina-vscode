@@ -27,6 +27,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 /**
  * Debouncing ensures that a task is only executed after a specified delay has passed since its last invocation,
@@ -84,6 +85,17 @@ public class Debouncer {
             prev.promise().completeExceptionally(new CancellationException("Debounced by a new request"));
         }
         return promise;
+    }
+
+    /**
+     * Runs a task on the same thread as the debounced requests, so it never overlaps their edits to the shadow
+     * document.
+     *
+     * @param task the task to run
+     * @return a CompletableFuture that completes with the task's result
+     */
+    public <T> CompletableFuture<T> submit(Supplier<T> task) {
+        return CompletableFuture.supplyAsync(task, scheduler);
     }
 
     public static Debouncer getInstance() {
