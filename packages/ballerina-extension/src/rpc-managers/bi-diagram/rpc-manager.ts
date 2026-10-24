@@ -2686,7 +2686,9 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                         }
                     }]);
                 }
-                await StateMachine.langClient().flushArtifacts().catch(() => undefined);
+                const editedFiles = [...Object.keys(res.deleteData.textEditsMap), ...res.deleteData.filesToDelete];
+                await StateMachine.langClient().flushArtifacts(editedFiles.map((file) => Uri.file(file).toString()))
+                    .catch(() => undefined);
                 updateView();
                 resolve(res);
             }).catch((error) => {

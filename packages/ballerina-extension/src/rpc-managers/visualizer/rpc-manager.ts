@@ -214,8 +214,8 @@ export class VisualizerRpcManager implements VisualizerAPI {
                     reject(error);
                 }
             });
-            workspace.applyEdit(workspaceEdit)
-                .then(() => StateMachine.langClient().flushArtifacts().catch(() => undefined));
+            workspace.applyEdit(workspaceEdit).then(() => StateMachine.langClient()
+                .flushArtifacts(changedPaths.map((filePath) => Uri.file(filePath).toString())).catch(() => undefined));
 
             // A publish can be skipped (e.g. during a recovery rebuild); the edit has applied, so the view only refreshes.
             const timeoutId = setTimeout(() => {

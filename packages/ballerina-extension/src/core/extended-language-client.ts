@@ -730,8 +730,8 @@ export class ExtendedLangClient extends LanguageClient implements ExtendedLangCl
     }
 
     // Publishes pending artifact updates at once, for edits applied on purpose rather than typed.
-    async flushArtifacts(): Promise<boolean> {
-        return this.sendRequest<boolean>(EXTENDED_APIS.FLUSH_ARTIFACTS);
+    async flushArtifacts(uris: string[]): Promise<boolean> {
+        return this.sendRequest<boolean>(EXTENDED_APIS.FLUSH_ARTIFACTS, { uris });
     }
 
     async definition(params: DefinitionParams): Promise<Location | Location[] | LocationLink[]> {
