@@ -272,7 +272,7 @@ public class PublishArtifactsSubscriberTest extends AbstractLSTest {
         ArtifactGenerationDebouncer debouncer = ArtifactGenerationDebouncer.getInstance();
         for (int i = 0; i < 2000; i++) {
             String key = "immediate-task-" + i;
-            debouncer.debounce(key, () -> { });
+            debouncer.debounce(key, () -> { }, 0);
             waitForDebouncerCompletion(key, 1);
         }
     }
