@@ -446,8 +446,12 @@ class BallerinaTextDocumentService implements TextDocumentService {
                 }
                 String formattedSource;
                 if (FormatterUtils.isBuildProject(context.currentModule())) {
-                    Path rootPath = context.workspace().projectRoot(context.filePath());
-                    BuildProject project = BuildProject.load(rootPath, BuildOptions.builder().build());
+                    // The options only come from the manifest, which the loaded project already holds.
+                    BuildProject project = context.workspace().project(context.filePath())
+                            .filter(BuildProject.class::isInstance)
+                            .map(BuildProject.class::cast)
+                            .orElseGet(() -> BuildProject.load(context.workspace().projectRoot(context.filePath()),
+                                    BuildOptions.builder().build()));
                     FormattingOptions options = buildFormattingOptions(project);
                     formattedSource = Formatter.format(syntaxTree.get(), options).toSourceCode();
                 } else {
@@ -576,10 +580,16 @@ class BallerinaTextDocumentService implements TextDocumentService {
     public void didOpen(DidOpenTextDocumentParams params) {
         String fileUri = params.getTextDocument().getUri();
         try {
+            // A file edited on disk while closed (a git checkout) changes on open, so subscribers see a change.
+            boolean contentChanged = PathUtil.getPathFromURI(fileUri)
+                    .flatMap(path -> this.workspaceManagerProxy.get(fileUri).document(path))
+                    .map(document -> !document.textDocument().toString().equals(params.getTextDocument().getText()))
+                    .orElse(false);
             DocumentServiceContext context = ContextBuilder.buildDocumentServiceContext(
                     PathUtil.convertUriSchemeFromBala(fileUri),
                     this.workspaceManagerProxy.get(fileUri),
-                    LSContextOperation.TXT_DID_OPEN, this.serverContext);
+                    contentChanged ? LSContextOperation.TXT_DID_CHANGE : LSContextOperation.TXT_DID_OPEN,
+                    this.serverContext);
             this.workspaceManagerProxy.didOpen(params);
             this.clientLogger.logTrace("Operation '" + LSContextOperation.TXT_DID_OPEN.getName() +
                     "' {fileUri: '" + fileUri + "'} opened");

@@ -22,6 +22,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.reflect.TypeToken;
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
 import io.ballerina.flowmodelgenerator.core.AgentsGenerator;
@@ -39,7 +40,7 @@ import io.ballerina.flowmodelgenerator.core.SuggestedComponentService;
 import io.ballerina.flowmodelgenerator.core.SuggestedModelGenerator;
 import io.ballerina.flowmodelgenerator.core.analyzers.function.ModuleNodeAnalyzer;
 import io.ballerina.flowmodelgenerator.core.diagnostics.DiagnosticRequest;
-import io.ballerina.flowmodelgenerator.core.diagnostics.DiagnosticsDebouncer;
+import io.ballerina.flowmodelgenerator.core.expressioneditor.Debouncer;
 import io.ballerina.flowmodelgenerator.core.model.FlowNode;
 import io.ballerina.flowmodelgenerator.core.model.Item;
 import io.ballerina.flowmodelgenerator.core.search.SearchCommand;
@@ -75,6 +76,7 @@ import io.ballerina.flowmodelgenerator.extension.response.GetLibraryActionsRespo
 import io.ballerina.flowmodelgenerator.extension.response.SearchNodesResponse;
 import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.FileSystemUtils;
+import io.ballerina.modelgenerator.commons.FormattedEdits;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.projects.Document;
@@ -285,9 +287,21 @@ public class FlowModelGeneratorService implements ExtendedLanguageServerService 
         return CompletableFuture.supplyAsync(() -> {
             FlowModelSourceGeneratorResponse response = new FlowModelSourceGeneratorResponse();
             try {
-                SourceGenerator sourceGenerator =
-                        new SourceGenerator(this.workspaceManagerProxy.get(), Path.of(request.filePath()));
-                response.setTextEdits(sourceGenerator.toSourceCode(request.flowNode(), lsClientLogger));
+                WorkspaceManager workspaceManager = this.workspaceManagerProxy.get();
+                SourceGenerator sourceGenerator = new SourceGenerator(workspaceManager, Path.of(request.filePath()));
+                boolean multiNode = request.nodes() != null && !request.nodes().isEmpty();
+                if (request.formatted() || multiNode) {
+                    SourceGenerator.FormattedSource source = multiNode
+                            ? SourceGenerator.toFormattedSourceCode(workspaceManager, request.nodes().stream()
+                                    .map(node -> Map.entry(Path.of(node.filePath()), node.flowNode())).toList(),
+                                    lsClientLogger)
+                            : sourceGenerator.toFormattedSourceCode(request.flowNode(), lsClientLogger);
+                    response.setFormatted(source.textEdits() != null);
+                    response.setTextEdits(source.textEdits() != null ? source.textEdits() : source.sourceEdits());
+                    response.setSourceEdits(source.sourceEdits());
+                } else {
+                    response.setTextEdits(sourceGenerator.toSourceCode(request.flowNode(), lsClientLogger));
+                }
             } catch (Throwable e) {
                 response.setError(e);
             }
@@ -569,13 +583,24 @@ public class FlowModelGeneratorService implements ExtendedLanguageServerService 
                 if (semanticModel.isEmpty() || document.isEmpty()) {
                     return response;
                 }
-                response.setTextEdits(
-                        deleteNodeHandler.getTextEditsToDeletedNode(document.get(), project));
+                JsonElement textEdits = deleteNodeHandler.getTextEditsToDeletedNode(document.get(), project);
+                Optional<JsonElement> formattedEdits = request.formatted()
+                        ? formatEdits(workspaceManager, textEdits)
+                        : Optional.empty();
+                response.setFormatted(formattedEdits.isPresent());
+                response.setTextEdits(formattedEdits.orElse(textEdits));
             } catch (Throwable e) {
                 response.setError(e);
             }
             return response;
         });
+    }
+
+    private static Optional<JsonElement> formatEdits(WorkspaceManager workspaceManager, JsonElement textEdits) {
+        Gson gson = new Gson();
+        Map<String, List<org.eclipse.lsp4j.TextEdit>> editsByFile = gson.fromJson(textEdits,
+                new TypeToken<Map<String, List<org.eclipse.lsp4j.TextEdit>>>() { }.getType());
+        return FormattedEdits.foldByPathString(workspaceManager, editsByFile).map(gson::toJsonTree);
     }
 
     @JsonRequest
@@ -591,9 +616,15 @@ public class FlowModelGeneratorService implements ExtendedLanguageServerService 
                 if (semanticModel.isEmpty() || document.isEmpty()) {
                     return response;
                 }
-                response.setTextEdits(DeleteNodeHandler.getTextEditsToDeletedNode(
-                        request.component(), filePath, document.get(), project
-                ));
+                JsonElement textEdits = request.components() != null && !request.components().isEmpty()
+                        ? DeleteNodeHandler.getTextEditsToDeletedNodes(request.components(), filePath, document.get())
+                        : DeleteNodeHandler.getTextEditsToDeletedNode(request.component(), filePath, document.get(),
+                                project);
+                Optional<JsonElement> formattedEdits = request.formatted()
+                        ? formatEdits(workspaceManager, textEdits)
+                        : Optional.empty();
+                response.setFormatted(formattedEdits.isPresent());
+                response.setTextEdits(formattedEdits.orElse(textEdits));
             } catch (Throwable e) {
                 response.setError(e);
             }
@@ -678,25 +709,21 @@ public class FlowModelGeneratorService implements ExtendedLanguageServerService 
         DiagnosticRequest diagnosticsRequest = new DiagnosticRequest(
                 request.filePath(),
                 request.flowNode(),
-                workspaceManagerProxy.get(CommonUtils.getExprUri(request.filePath()))
+                workspaceManagerProxy.get(CommonUtils.getExprUri(request.filePath())),
+                workspaceManagerProxy.get()
         );
-
-        // Use debouncer to schedule the diagnostics request
-        return DiagnosticsDebouncer.getInstance().debounce(diagnosticsRequest)
-                .thenApply(flowNode -> {
-                    FlowModelNodeTemplateResponse response = new FlowModelNodeTemplateResponse();
-                    try {
-                        response.setFlowNode(flowNode);
-                    } catch (Throwable e) {
-                        response.setError(e);
-                    }
-                    return response;
-                })
-                .exceptionally(throwable -> {
-                    FlowModelNodeTemplateResponse response = new FlowModelNodeTemplateResponse();
-                    response.setError(throwable);
-                    return response;
-                });
+        // The check edits the shadow document, which the expression editor's requests also edit.
+        return Debouncer.getInstance().submit(() -> {
+            FlowModelNodeTemplateResponse response = new FlowModelNodeTemplateResponse();
+            try {
+                response.setFlowNode(diagnosticsRequest.call());
+            } catch (Throwable e) {
+                response.setError(e);
+            } finally {
+                diagnosticsRequest.revertDocument();
+            }
+            return response;
+        });
     }
 
     @JsonRequest

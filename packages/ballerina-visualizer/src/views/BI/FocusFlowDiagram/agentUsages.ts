@@ -30,6 +30,7 @@ import {
     CDResourceFunction,
     CDService,
     CDWorkflow,
+    ComponentInfo,
     FlowNode,
     IconDescriptor,
     NodePosition,
@@ -563,6 +564,14 @@ export function findServiceHelperPosition(
     return fn ? toPosition(fn.location) : undefined;
 }
 
+function componentAt(name: string, documentUri: string, position: NodePosition): ComponentInfo {
+    return {
+        name, filePath: documentUri,
+        startLine: position.startLine, startColumn: position.startColumn,
+        endLine: position.endLine, endColumn: position.endColumn,
+    };
+}
+
 export function deleteComponentAt(
     rpcClient: BallerinaRpcClient,
     name: string,
@@ -571,12 +580,32 @@ export function deleteComponentAt(
 ): Promise<unknown> {
     return rpcClient.getBIDiagramRpcClient().deleteByComponentInfo({
         filePath: documentUri,
-        component: {
-            name, filePath: documentUri,
-            startLine: position.startLine, startColumn: position.startColumn,
-            endLine: position.endLine, endColumn: position.endColumn,
-        },
+        component: componentAt(name, documentUri, position),
     });
+}
+
+// The service and the listeners in its file go in one edit; listeners elsewhere are deleted after it.
+export async function deleteServiceWithListeners(
+    rpcClient: BallerinaRpcClient,
+    trigger: AgentUsageTrigger
+): Promise<void> {
+    const model = await currentDesignModel(rpcClient);
+    const together = trigger.listeners
+        .filter((listener) => samePath(listener.documentUri, trigger.documentUri))
+        .map((listener) => ({ listener, position: findListenerPosition(model, listener.symbol, listener.documentUri) }))
+        .filter((entry) => entry.position);
+    const components = [
+        componentAt(trigger.serviceName, trigger.documentUri, trigger.position),
+        ...together.map(({ listener, position }) => componentAt(listener.symbol, listener.documentUri, position)),
+    ];
+    await rpcClient.getBIDiagramRpcClient().deleteByComponentInfo({
+        filePath: trigger.documentUri,
+        component: components[0],
+        components,
+    });
+    await deleteEachResolved(rpcClient,
+        trigger.listeners.filter((listener) => !together.some((entry) => entry.listener === listener)),
+        (latest, listener) => findListenerPosition(latest, listener.symbol, listener.documentUri));
 }
 
 export async function deleteEachResolved(
@@ -640,8 +669,7 @@ export async function clearAgentCallFromHandler(
         endLine: { line: entryPoint.position.endLine, offset: entryPoint.position.endColumn },
     });
     const calls = (response?.flowModel?.nodes ?? [])
-        .filter((node) => helpers.some((helper) => namesHelper(node, helper.symbol)))
-        .sort((a, b) => startLineOf(b) - startLineOf(a));
+        .filter((node) => helpers.some((helper) => namesHelper(node, helper.symbol)));
     if (calls.length === 0) {
         throw new Error(`no agent call found in ${entryPoint.label}`);
     }
@@ -655,12 +683,36 @@ export async function clearAgentCallFromHandler(
         }
     }
 
-    for (const node of calls) {
-        await rpcClient.getBIDiagramRpcClient().deleteFlowNode({ filePath: entryPoint.documentUri, flowNode: node });
-    }
-
+    const locate = (model: CDModel, helper: AgentUsageTriggerListener) =>
+        findServiceHelperPosition(model, trigger.serviceName, helper.symbol, helper.documentUri);
+    const model = deletableHelpers.length > 0 ? await currentDesignModel(rpcClient) : undefined;
+    const together = deletableHelpers
+        .filter((helper) => samePath(helper.documentUri, entryPoint.documentUri))
+        .map((helper) => ({ helper, position: locate(model, helper) }))
+        .filter((entry) => entry.position);
+    const components = [
+        ...calls.map((node) => componentAt(node.metadata?.label ?? "", entryPoint.documentUri, toNodePosition(node))),
+        ...together.map(({ helper, position }) => componentAt(helper.symbol, helper.documentUri, position)),
+    ];
+    await rpcClient.getBIDiagramRpcClient().deleteByComponentInfo({
+        filePath: entryPoint.documentUri,
+        component: components[0],
+        components,
+    });
     await deleteEachResolved(
-        rpcClient,
-        deletableHelpers,
-        (model, helper) => findServiceHelperPosition(model, trigger.serviceName, helper.symbol, helper.documentUri));
+        rpcClient, deletableHelpers.filter((helper) => !together.some((entry) => entry.helper === helper)), locate);
+}
+
+function toNodePosition(node: FlowNode): NodePosition {
+    const range = node.codedata.lineRange;
+    return {
+        startLine: range.startLine.line, startColumn: range.startLine.offset,
+        endLine: range.endLine.line, endColumn: range.endLine.offset,
+    };
+}
+
+async function currentDesignModel(rpcClient: BallerinaRpcClient): Promise<CDModel | undefined> {
+    const location = await rpcClient.getVisualizerLocation();
+    return (await rpcClient.getBIDiagramRpcClient().getDesignModel({ projectPath: location?.projectPath }))
+        ?.designModel;
 }

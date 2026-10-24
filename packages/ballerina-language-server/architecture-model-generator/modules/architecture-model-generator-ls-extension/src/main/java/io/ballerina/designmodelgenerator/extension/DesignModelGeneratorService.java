@@ -18,17 +18,21 @@
 
 package io.ballerina.designmodelgenerator.extension;
 
+import io.ballerina.artifactsgenerator.ArtifactGenerationDebouncer;
 import io.ballerina.artifactsgenerator.ArtifactsCache;
 import io.ballerina.artifactsgenerator.ArtifactsGenerator;
 import io.ballerina.designmodelgenerator.core.DesignModelGenerator;
 import io.ballerina.designmodelgenerator.core.model.DesignModel;
 import io.ballerina.designmodelgenerator.extension.request.ArtifactsRequest;
+import io.ballerina.designmodelgenerator.extension.request.FlushArtifactsRequest;
 import io.ballerina.designmodelgenerator.extension.request.GetDesignModelRequest;
 import io.ballerina.designmodelgenerator.extension.request.ProjectInfoRequest;
 import io.ballerina.designmodelgenerator.extension.response.ArtifactResponse;
 import io.ballerina.designmodelgenerator.extension.response.GetDesignModelResponse;
 import io.ballerina.designmodelgenerator.extension.response.ProjectInfoResponse;
+import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.projects.Project;
+import io.ballerina.projects.ProjectException;
 import org.ballerinalang.annotation.JavaSPIService;
 import org.ballerinalang.langserver.common.utils.PathUtil;
 import org.ballerinalang.langserver.commons.LanguageServerContext;
@@ -40,6 +44,8 @@ import org.eclipse.lsp4j.jsonrpc.services.JsonSegment;
 import org.eclipse.lsp4j.services.LanguageServer;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 @JavaSPIService("org.ballerinalang.langserver.commons.service.spi.ExtendedLanguageServerService")
@@ -87,6 +93,12 @@ public class DesignModelGeneratorService implements ExtendedLanguageServerServic
                 Path projectPath = Path.of(request.projectPath());
                 WorkspaceManager workspaceManager = workspaceManagerProxy.get();
                 Project project = workspaceManager.loadProject(projectPath);
+                // Artifacts load with every project view, so agent forms and flows find ballerina/ai already compiled.
+                try {
+                    PackageUtil.prewarmAgentLibrary(project);
+                } catch (RuntimeException ignored) {
+                    // A failed warm-up must not cost the artifacts response.
+                }
                 response.setArtifacts(ArtifactsGenerator.artifacts(project));
                 response.setUri(request.projectPath());
                 String projectName = project.currentPackage().packageName().value();
@@ -115,5 +127,39 @@ public class DesignModelGeneratorService implements ExtendedLanguageServerServic
             }
             return response;
         });
+    }
+
+    /**
+     * Publishes pending artifact updates at once, for an edit the client applied on purpose rather than typed.
+     *
+     * @param request The files or projects the edit touched; every pending update when there are none
+     * @return true once the pending updates are scheduled
+     */
+    @JsonRequest
+    public CompletableFuture<Boolean> flushArtifacts(FlushArtifactsRequest request) {
+        List<Path> roots = request == null || request.uris() == null ? List.of() : projectRoots(request.uris());
+        if (roots.isEmpty()) {
+            ArtifactGenerationDebouncer.getInstance().flushAll();
+        } else {
+            // Other packages keep their delay, so one package's save does not cut their typing bursts short.
+            ArtifactGenerationDebouncer.getInstance().flush(key -> PathUtil.getPathFromURI(key)
+                    .map(path -> roots.stream().anyMatch(path::startsWith)).orElse(false));
+        }
+        return CompletableFuture.completedFuture(true);
+    }
+
+    private List<Path> projectRoots(List<String> uris) {
+        WorkspaceManager workspaceManager = workspaceManagerProxy.get();
+        List<Path> roots = new ArrayList<>();
+        for (String uri : uris) {
+            PathUtil.getPathFromURI(uri).ifPresent(path -> {
+                try {
+                    roots.add(workspaceManager.projectRoot(path));
+                } catch (ProjectException e) {
+                    // Not in a project the workspace knows; nothing of it is pending.
+                }
+            });
+        }
+        return roots;
     }
 }

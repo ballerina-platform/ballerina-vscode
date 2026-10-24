@@ -1,0 +1,19 @@
+{
+  "packages": [],
+  "modules": [
+    {
+      "org": "testorg",
+      "package_name": "demo",
+      "version": "1.0.0",
+      "module_name": "demo",
+      "dependencies": []
+    },
+    {
+      "org": "testorg",
+      "package_name": "demo",
+      "version": "1.0.0",
+      "module_name": "demo.util",
+      "dependencies": []
+    }
+  ]
+}

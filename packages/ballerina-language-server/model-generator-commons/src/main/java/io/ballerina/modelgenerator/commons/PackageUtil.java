@@ -33,6 +33,7 @@ import io.ballerina.projects.PackageOrg;
 import io.ballerina.projects.PackageVersion;
 import io.ballerina.projects.Project;
 import io.ballerina.projects.ProjectEnvironmentBuilder;
+import io.ballerina.projects.ResolvedPackageDependency;
 import io.ballerina.projects.bala.BalaProject;
 import io.ballerina.projects.directory.BuildProject;
 import io.ballerina.projects.environment.PackageMetadataResponse;
@@ -53,6 +54,7 @@ import org.ballerinalang.langserver.commons.workspace.WorkspaceManager;
 import org.eclipse.lsp4j.MessageType;
 
 import java.io.IOException;
+import java.lang.ref.SoftReference;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -60,8 +62,13 @@ import java.nio.file.StandardOpenOption;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.WeakHashMap;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
@@ -117,14 +124,13 @@ public class PackageUtil {
      * <p>Cost/lifecycle: the per-thread project is a lightweight in-memory load of the single shared
      * {@link #SAMPLE_PROJECT_DIR} (no per-thread temp directory), but its resolver environment does
      * retain that thread's lang-lib packages. A thread's instance is reclaimed by GC when the thread
-     * dies — it is reachable only through the thread's own {@code ThreadLocalMap}, nothing else holds
+     * dies — it is held only under the thread's weak key in {@link PerThread}, nothing else holds
      * it — so live memory tracks the number of threads currently resolving, not the number ever
      * seen. Cache <i>hits</i> never touch the resolver at all. Do not call {@link #getSampleProject()}
      * from short-lived threads spawned per request (e.g. a per-call cached thread pool): each such
      * thread would build a full resolver environment only to discard it when it dies.
      */
-    private static final ThreadLocal<BuildProject> SAMPLE_PROJECT =
-            ThreadLocal.withInitial(PackageUtil::createSampleProject);
+    private static final PerThread<BuildProject> SAMPLE_PROJECT = new PerThread<>(PackageUtil::createSampleProject);
 
     /**
      * The Ballerina local package repository, per thread, backed by that thread's sample-project
@@ -133,9 +139,36 @@ public class PackageUtil {
      * (unsynchronized) package cache, so a single shared instance would corrupt that cache under
      * concurrent access — the exact hazard #2193 describes, reached through a different door.
      */
-    private static final ThreadLocal<PackageRepository> LOCAL_REPOSITORY =
-            ThreadLocal.withInitial(() -> BallerinaUserHome.from(
-                    getSampleProject().projectEnvironmentContext().environment()).localPackageRepository());
+    private static final PerThread<PackageRepository> LOCAL_REPOSITORY = new PerThread<>(() -> BallerinaUserHome.from(
+            getSampleProject().projectEnvironmentContext().environment()).localPackageRepository());
+
+    /**
+     * A value per thread, keyed by the {@link Thread} itself rather than held in a {@link ThreadLocal}: the JDK's
+     * common-pool workers ({@code InnocuousForkJoinWorkerThread}) erase every ThreadLocal after each task, which
+     * rebuilt the sample project on every LS request. Weak keys let a dead thread's value be collected.
+     *
+     * @param <T> the per-thread value
+     */
+    private static final class PerThread<T> {
+
+        private final Map<Thread, T> values = Collections.synchronizedMap(new WeakHashMap<>());
+        private final Supplier<T> initial;
+
+        PerThread(Supplier<T> initial) {
+            this.initial = initial;
+        }
+
+        T get() {
+            Thread thread = Thread.currentThread();
+            T value = values.get(thread);
+            if (value == null) {
+                // Only this thread writes its own key, so building outside the map's lock cannot race.
+                value = initial.get();
+                values.put(thread, value);
+            }
+            return value;
+        }
+    }
 
     private static final String PULLING_THE_MODULE_MESSAGE = "Pulling the module '%s' from the central";
     private static final String MODULE_PULLING_FAILED_MESSAGE = "Failed to pull the module: %s";
@@ -157,8 +190,8 @@ public class PackageUtil {
      * trade-off is that a "latest version" lookup or a transient network failure sticks for the
      * LS session.
      *
-     * Caches the resolved bala path rather than the loaded package, which would retain that
-     * package's syntax trees and symbols for the session.
+     * Caches the resolved bala path; the loaded package is cached separately and softly in
+     * {@link #BALA_PACKAGES}.
      */
     private static final ConcurrentHashMap<String, Optional<Path>> SAMPLE_RESOLUTION_CACHE =
             new ConcurrentHashMap<>();
@@ -204,11 +237,92 @@ public class PackageUtil {
                 + ":" + (repository == null ? "" : repository);
     }
 
+    // A bala never changes, so its compilation is reusable; soft references let the GC reclaim it under pressure.
+    private static final ConcurrentHashMap<Path, SoftReference<Package>> BALA_PACKAGES = new ConcurrentHashMap<>();
+
+    private static final Set<String> PREWARMED = ConcurrentHashMap.newKeySet();
+    private static final String AI_PACKAGE = "ai";
+
+    // One load per bala at a time, outside BALA_PACKAGES so a slow load never blocks other balas.
+    private static final ConcurrentHashMap<Path, CompletableFuture<Package>> BALA_LOADS = new ConcurrentHashMap<>();
+
     private static Optional<Package> loadBalaPackage(Path balaPath) {
-        ProjectEnvironmentBuilder defaultBuilder = ProjectEnvironmentBuilder.getDefaultBuilder();
-        defaultBuilder.addCompilationCacheFactory(TempDirCompilationCache::from);
-        BalaProject balaProject = BalaProject.loadProject(defaultBuilder, balaPath, balaBuildOptions());
-        return Optional.ofNullable(balaProject.currentPackage());
+        Package cached = cachedBalaPackage(balaPath);
+        if (cached != null) {
+            return Optional.of(cached);
+        }
+        CompletableFuture<Package> load = new CompletableFuture<>();
+        CompletableFuture<Package> inFlight = BALA_LOADS.putIfAbsent(balaPath, load);
+        if (inFlight != null) {
+            return Optional.of(joinBalaLoad(inFlight));
+        }
+        try {
+            Package loaded = cachedBalaPackage(balaPath);
+            if (loaded == null) {
+                ProjectEnvironmentBuilder defaultBuilder = ProjectEnvironmentBuilder.getDefaultBuilder();
+                defaultBuilder.addCompilationCacheFactory(TempDirCompilationCache::from);
+                loaded = BalaProject.loadProject(defaultBuilder, balaPath, balaBuildOptions()).currentPackage();
+                BALA_PACKAGES.put(balaPath, new SoftReference<>(loaded));
+            }
+            load.complete(loaded);
+            return Optional.of(loaded);
+        } catch (Throwable e) {
+            load.completeExceptionally(e);
+            throw e;
+        } finally {
+            BALA_LOADS.remove(balaPath, load);
+        }
+    }
+
+    private static Package cachedBalaPackage(Path balaPath) {
+        SoftReference<Package> cached = BALA_PACKAGES.get(balaPath);
+        return cached == null ? null : cached.get();
+    }
+
+    private static Package joinBalaLoad(CompletableFuture<Package> load) {
+        try {
+            return load.join();
+        } catch (CompletionException e) {
+            if (e.getCause() instanceof RuntimeException cause) {
+                throw cause;
+            }
+            if (e.getCause() instanceof Error cause) {
+                throw cause;
+            }
+            throw e;
+        }
+    }
+
+    /**
+     * Compiles a library package in the background so the node templates that need it later find it cached.
+     *
+     * @param org         The organization name of the package
+     * @param packageName The name of the package
+     * @param version     The version of the package
+     */
+    public static void prewarm(String org, String packageName, String version) {
+        if (PREWARMED.add(org + "/" + packageName + ":" + version)) {
+            CompletableFuture.runAsync(() -> resolveModulePackage(org, packageName, version)
+                    .ifPresent(PackageUtil::getCompilation));
+        }
+    }
+
+    /**
+     * Compiles the project's {@code ballerina/ai} dependency in the background, since agent nodes and the agent's
+     * forms build their templates from it.
+     *
+     * @param project The project whose resolved {@code ballerina/ai} version to compile
+     */
+    public static void prewarmAgentLibrary(Project project) {
+        // A project without the dependency yet gets the version its first agent template resolves.
+        prewarm(CommonUtils.BALLERINA_ORG_NAME, AI_PACKAGE, project.currentPackage().getResolution()
+                .dependencyGraph().getNodes().stream()
+                .map(ResolvedPackageDependency::packageInstance)
+                .filter(pkg -> pkg.packageOrg().value().equals(CommonUtils.BALLERINA_ORG_NAME)
+                        && pkg.packageName().value().equals(AI_PACKAGE))
+                .findFirst()
+                .map(pkg -> pkg.packageVersion().toString())
+                .orElse(null));
     }
 
     /**
@@ -259,7 +373,7 @@ public class PackageUtil {
     /**
      * Whether {@code buildProject} is the calling thread's sample project (i.e. its resolution is
      * memoizable). Every caller passes {@link #getSampleProject()} on the same thread, so an
-     * identity compare against this thread's {@code ThreadLocal} value is exact and needs no registry.
+     * identity compare against this thread's value is exact and needs no registry.
      */
     private static boolean isSampleProject(BuildProject buildProject) {
         return buildProject == SAMPLE_PROJECT.get();
@@ -508,7 +622,7 @@ public class PackageUtil {
         // Memoize the immutable offline bala path under a distinct "offline:" key — kept separate
         // from getModulePackage's latest-version cache, whose miss may pull a newer online version —
         // so repeat lookups skip the resolver entirely. Only the resolve touches the thread-local
-        // resolver; the bala load uses a fresh environment per call (see loadBalaPackage).
+        // resolver; the loaded bala package is cached and shared (see loadBalaPackage).
         return memoizedSampleBala(OFFLINE_RESOLUTION_KEY_PREFIX + sampleResolutionKey(org, name, version, null),
                 () -> resolveOfflineModuleBala(org, name, version)).flatMap(PackageUtil::loadBalaPackage);
     }
@@ -799,6 +913,10 @@ public class PackageUtil {
         lock.lock();
         try {
             return balPackage.getCompilation();
+        } catch (RuntimeException | Error e) {
+            // A package keeps its failed compilation state, so the next request must load it again.
+            BALA_PACKAGES.computeIfPresent(id, (path, cached) -> cached.get() == balPackage ? null : cached);
+            throw e;
         } finally {
             lock.unlock();
         }

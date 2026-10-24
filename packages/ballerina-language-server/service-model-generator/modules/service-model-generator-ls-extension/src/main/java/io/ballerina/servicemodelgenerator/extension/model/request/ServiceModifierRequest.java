@@ -20,5 +20,9 @@ package io.ballerina.servicemodelgenerator.extension.model.request;
 
 import io.ballerina.servicemodelgenerator.extension.model.Service;
 
-public record ServiceModifierRequest(String filePath, Service service) {
+public record ServiceModifierRequest(String filePath, Service service, boolean formatted) {
+
+    public ServiceModifierRequest(String filePath, Service service) {
+        this(filePath, service, false);
+    }
 }
