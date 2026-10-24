@@ -718,7 +718,8 @@ public class FlowModelGeneratorService implements ExtendedLanguageServerService 
         DiagnosticRequest diagnosticsRequest = new DiagnosticRequest(
                 request.filePath(),
                 request.flowNode(),
-                workspaceManagerProxy.get(CommonUtils.getExprUri(request.filePath()))
+                workspaceManagerProxy.get(CommonUtils.getExprUri(request.filePath())),
+                workspaceManagerProxy.get()
         );
 
         // Use debouncer to schedule the diagnostics request
