@@ -21,6 +21,7 @@ import styled from "@emotion/styled";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Button, Icon, ProgressRing, ThemeColors } from "@wso2/ui-toolkit";
 import { UndoRedoStateResponse } from "@wso2/ballerina-core";
+import { debouncedRedo, debouncedUndo } from "../../utils/debouncedUndoRedo";
 
 
 const ButtonGroup = styled.div`
@@ -53,13 +54,13 @@ export function UndoRedoGroup() {
 
     const handleUndo = async () => {
         setUndoing(true);
-        await rpcClient.getVisualizerRpcClient().undo(1);
+        await debouncedUndo(rpcClient);
         setUndoing(false);
     };
 
     const handleRedo = async () => {
         setRedoing(true);
-        await rpcClient.getVisualizerRpcClient().redo(1);
+        await debouncedRedo(rpcClient);
         setRedoing(false);
     };
 

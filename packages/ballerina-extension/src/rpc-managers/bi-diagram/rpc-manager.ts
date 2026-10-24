@@ -1071,26 +1071,24 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
     }
 
     async deleteFlowNode(params: BISourceCodeRequest): Promise<UpdatedArtifactsResponse> {
-        console.log(">>> requesting bi delete node from ls", params);
-
-        return new Promise((resolve) => {
-            StateMachine.langClient()
-                .deleteFlowNode({ ...params, formatted: true } as BISourceCodeRequest)
-                .then(async (model: BISourceCodeResponse & { formatted?: boolean }) => {
-                    console.log(">>> bi delete node from ls", model);
-                    const artifacts = await updateSourceCode({
-                        textEdits: model.textEdits, description: 'Flow Node Deletion - ' + params.flowNode.metadata.label,
-                        skipPayloadCheck: true, preformatted: model.formatted
-                    });
-                    resolve({ artifacts });
-                })
-                .catch((error) => {
-                    console.log(">>> error fetching delete node from ls", error);
-                    return new Promise((resolve) => {
-                        resolve(undefined);
-                    });
-                });
+        const response = await StateMachine.langClient()
+            .deleteFlowNode({ ...params, formatted: true } as BISourceCodeRequest)
+            .catch((error): BISourceCodeResponse => ({ errorMsg: error instanceof Error ? error.message : String(error) })
+            ) as BISourceCodeResponse & { formatted?: boolean };
+        // Thrown, not returned: most callers chain further deletes and would carry on as if this one succeeded.
+        if (!response?.textEdits) {
+            const errorMessage = response?.errorMsg ?? "the language server returned no edits";
+            console.error(">>> Error deleting flow node", { errorMessage, stacktrace: response?.stacktrace });
+            window.showErrorMessage(`Failed to delete the node: ${errorMessage}`);
+            throw new Error(errorMessage);
+        }
+        const artifacts = await updateSourceCode({
+            textEdits: response.textEdits,
+            description: 'Flow Node Deletion - ' + params.flowNode.metadata.label,
+            skipPayloadCheck: true,
+            preformatted: response.formatted,
         });
+        return { artifacts };
     }
 
     async handleReadmeContent(params: ReadmeContentRequest): Promise<ReadmeContentResponse> {
@@ -1760,10 +1758,8 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
     async removeBreakpointFromSource(params: BreakpointRequest): Promise<void> {
         return new Promise(async (resolve) => {
             console.log(">>> removing breakpoint from source", params);
-            const breakpointsForFile: vscode.SourceBreakpoint[] = vscode.debug.breakpoints.filter((breakpoint) => {
-                const sourceBreakpoint = breakpoint as vscode.SourceBreakpoint;
-                return sourceBreakpoint.location.uri.fsPath === params.filePath;
-            }) as vscode.SourceBreakpoint[];
+            const breakpointsForFile = vscode.debug.breakpoints.filter((breakpoint): breakpoint is vscode.SourceBreakpoint =>
+                breakpoint instanceof vscode.SourceBreakpoint && breakpoint.location.uri.fsPath === params.filePath);
 
             const breakpoints = breakpointsForFile.filter((breakpoint) => {
                 return breakpoint.location.range.start.line === params.breakpoint.line &&
@@ -1786,28 +1782,24 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
     }
 
     async getBreakpointInfo(): Promise<CurrentBreakpointsResponse> {
-        return new Promise(async (resolve) => {
-            const context = StateMachine.context();
+        const context = StateMachine.context();
 
-            const breakpointsForFile: vscode.SourceBreakpoint[] = vscode.debug.breakpoints.filter((breakpoint) => {
-                const sourceBreakpoint = breakpoint as vscode.SourceBreakpoint;
-                return sourceBreakpoint.location.uri.fsPath === context?.documentUri;
-            }) as vscode.SourceBreakpoint[];
+        const breakpointsForFile = vscode.debug.breakpoints.filter((breakpoint): breakpoint is vscode.SourceBreakpoint =>
+            breakpoint instanceof vscode.SourceBreakpoint && breakpoint.location.uri.fsPath === context?.documentUri);
 
-            const breakpoints: DebugProtocol.Breakpoint[] = breakpointsForFile.map((breakpoint) => {
-                return {
-                    verified: true,
-                    line: breakpoint.location.range.start.line,
-                    column: breakpoint.location.range.start?.character
-                };
-            });
-            // TODO: Check the need of using breakpoints with verified status
-            // const breakppoints = BreakpointManager.getInstance().getBreakpoints();
-            // if there is an instance then call get ActiveBreakpoint
-
-            const activeBreakpoint = BreakpointManager.getInstance()?.getActiveBreakpoint();
-            resolve({ breakpoints: breakpoints, activeBreakpoint: activeBreakpoint });
+        const breakpoints: DebugProtocol.Breakpoint[] = breakpointsForFile.map((breakpoint) => {
+            return {
+                verified: true,
+                line: breakpoint.location.range.start.line,
+                column: breakpoint.location.range.start?.character
+            };
         });
+        // TODO: Check the need of using breakpoints with verified status
+        // const breakppoints = BreakpointManager.getInstance().getBreakpoints();
+        // if there is an instance then call get ActiveBreakpoint
+
+        const activeBreakpoint = BreakpointManager.getInstance()?.getActiveBreakpoint();
+        return { breakpoints: breakpoints, activeBreakpoint: activeBreakpoint };
     }
 
     async getEnclosedFunction(params: BIGetEnclosedFunctionRequest): Promise<BIGetEnclosedFunctionResponse> {
