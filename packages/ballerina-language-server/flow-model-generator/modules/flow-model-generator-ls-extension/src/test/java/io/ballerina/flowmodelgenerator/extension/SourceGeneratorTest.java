@@ -146,6 +146,22 @@ public class SourceGeneratorTest extends AbstractLSTest {
                 "persist_connector/main.bal"));
     }
 
+    @Test
+    public void testNewFileUsesPackageFormatConfig() throws IOException {
+        // The package's Format.toml sets a 2-space indent and automation.bal does not exist yet.
+        FlowModelSourceGeneratorRequest automation = nodeRequest("non_existence_automation.json");
+        Path packageRoot = sourceDir.resolve("format_config").toAbsolutePath();
+        JsonObject response = getResponseAndCloseFile(
+                new FlowModelSourceGeneratorRequest(packageRoot.toString(), automation.flowNode(), true, null),
+                "format_config");
+        Assert.assertTrue(response.has("formatted") && response.get("formatted").getAsBoolean(), response.toString());
+        String text = response.getAsJsonObject("textEdits")
+                .getAsJsonArray(packageRoot.resolve("automation.bal").toString())
+                .get(0).getAsJsonObject().get("newText").getAsString().replace("\r\n", "\n");
+        Assert.assertTrue(text.contains("\n  do {\n"), text);
+        Assert.assertFalse(text.contains("\n    do {"), text);
+    }
+
     private static void assertRawFallback(JsonObject response) {
         Assert.assertFalse(response.has("formatted"), "A failed format must not report formatted edits");
         Assert.assertEquals(response.get("textEdits"), response.get("sourceEdits"));
