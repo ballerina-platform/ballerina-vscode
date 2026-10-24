@@ -178,10 +178,6 @@ public class DiagnosticRequest implements Callable<JsonElement> {
         return text.replace("\r\n", "\n");
     }
 
-    public String getKey() {
-        return filePath + ":" + flowNode.hashCode();
-    }
-
     public void revertDocument() {
         for (Map.Entry<Path, TextDocument> entry : prevDocs.entrySet()) {
             TextDocument prev = entry.getValue();
