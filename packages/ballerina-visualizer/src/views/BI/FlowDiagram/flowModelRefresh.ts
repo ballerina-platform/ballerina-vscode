@@ -21,8 +21,8 @@ export interface FlowModelRefresher {
     markStale(): void;
     /** Fetches now, or joins the fetch in flight; one more fetch follows it if something changed after it began. */
     fetch(): void;
-    /** Leading-edge refresh whose trailing call runs only if something changed after the last fetch began. */
-    refresh(): void;
+    /** Leading-edge refresh, a change unless `changed` is false; its trailing call runs only for a newer change. */
+    refresh(changed?: boolean): void;
     dispose(): void;
 }
 
@@ -64,14 +64,17 @@ export function createFlowModelRefresher(
         if (trailingRequested) {
             trailingRequested = false;
             if (changeSeq > lastStartedSeq) {
-                refresh();
+                refresh(false);
             }
         }
     };
 
-    const refresh = () => {
+    const refresh = (changed = true) => {
         if (disposed) {
             return;
+        }
+        if (changed) {
+            changeSeq++;
         }
         if (windowTimer) {
             trailingRequested = true;
