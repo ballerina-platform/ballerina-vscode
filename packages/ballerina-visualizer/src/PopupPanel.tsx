@@ -29,6 +29,8 @@ const DataMapper = lazy(() => import("./views/DataMapper").then((m) => ({ defaul
 const AddConnectionPopup = lazy(() => import("./views/BI/Connection/AddConnectionPopup"));
 const AddAgentPopup = lazy(() => import("./views/BI/AIChatAgent/AddAgentPopup"));
 const AddAgentTriggerPopup = lazy(() => import("./views/BI/AIChatAgent/AddAgentTriggerPopup"));
+const DeleteAgentPopup = lazy(() => import("./views/BI/AgentBuilderOverview/DeleteAgentDialog")
+    .then((m) => ({ default: m.DeleteAgentPopup })));
 const ConnectionConfigurationPopup = lazy(() => import("./views/BI/Connection/ConnectionConfigurationPopup")
     .then((m) => ({ default: m.ConnectionConfigurationPopup })));
 const EditConnectionPopup = lazy(() => import("./views/BI/Connection/EditConnectionPopup"));
@@ -116,6 +118,9 @@ const PopupPanel = (props: PopupPanelProps) => {
                             />
                         );
                     });
+                    break;
+                case MACHINE_VIEW.DeleteAgent:
+                    setViewComponent(<DeleteAgentPopup location={machineState} onClose={onClose} />);
                     break;
                 case MACHINE_VIEW.AddAgent:
                     rpcClient.getVisualizerLocation().then((location) => {

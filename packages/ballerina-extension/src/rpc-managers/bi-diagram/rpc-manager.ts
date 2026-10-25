@@ -171,6 +171,9 @@ import {
     EVENT_TYPE,
     UpdateProjectTitleRequest,
     UpdatePackageTitleRequest,
+    DeclarationReferencesRequest,
+    DeclarationReferencesResponse,
+    SyntaxTreeResponse,
     SuggestedProjectDefaultsResponse,
     ProjectInfo,
     PROJECT_KIND,
@@ -2787,6 +2790,42 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             StateMachine.updateProjectInfo({ ...currentProjectInfo, title: params.title }, { silent: true });
         } else {
             StateMachine.refreshProjectInfo({ silent: true });
+        }
+    }
+
+    // An empty response means the language server could not tell, so callers must treat the symbol as used.
+    async getDeclarationReferences(params: DeclarationReferencesRequest): Promise<DeclarationReferencesResponse> {
+        const uri = Uri.file(params.filePath).toString();
+        const langClient = StateMachine.langClient();
+        try {
+            const tree = await langClient.getSTByRange({
+                documentIdentifier: { uri },
+                lineRange: {
+                    start: { line: params.startLine.line, character: params.startLine.offset },
+                    end: { line: params.endLine.line, character: params.endLine.offset },
+                },
+            }) as SyntaxTreeResponse;
+            const node = tree?.syntaxTree as any;
+            const name = (node?.typedBindingPattern?.bindingPattern?.variableName ?? node?.functionName ?? node?.className)?.position;
+            if (!name) {
+                return {};
+            }
+            const references = await langClient.getReferences({
+                textDocument: { uri },
+                position: { line: name.startLine, character: name.startColumn },
+                context: { includeDeclaration: false },
+            });
+            const isDeclaration = (filePath: string, line: number, character: number) =>
+                isSamePath(filePath, params.filePath) && line === name.startLine && character === name.startColumn;
+            return {
+                references: (references ?? [])
+                    .map((ref) => ({ filePath: Uri.parse(ref.uri).fsPath, line: ref.range.start.line, character: ref.range.start.character }))
+                    .filter((ref) => !isDeclaration(ref.filePath, ref.line, ref.character))
+                    .map((ref) => ({ filePath: ref.filePath, position: { line: ref.line, offset: ref.character } })),
+            };
+        } catch (error) {
+            console.error(">>> failed to find references of a declaration", error);
+            return {};
         }
     }
 

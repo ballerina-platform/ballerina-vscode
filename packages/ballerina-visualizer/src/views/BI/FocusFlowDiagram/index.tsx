@@ -46,6 +46,7 @@ import {
     AgentUsage,
     FOCUS_FLOW_DIAGRAM_VIEW,
     FocusFlowDiagramView,
+    ProductMode,
 } from "@wso2/ballerina-core";
 import { PanelContainer } from "@wso2/ballerina-side-panel";
 import { ConnectionConfig, ConnectionCreator, ConnectionSelectionList } from "../../../components/ConnectionSelector";
@@ -93,7 +94,8 @@ import { SidePanelView } from "../FlowDiagram/PanelManager";
 import { PanelOverlayProvider } from "../FlowDiagram/context/PanelOverlayContext";
 import { PanelOverlayRenderer } from "../FlowDiagram/PanelOverlayRenderer";
 import { createPromptHelperPane } from "./utils";
-import { useAssistantName } from "../../../hooks/useProductMode";
+import { useAssistantName, useProductMode } from "../../../hooks/useProductMode";
+import { useAgentDeletion } from "../AgentBuilderOverview/DeleteAgentDialog";
 
 const USAGE_REFETCH_WINDOW_MS = 600;
 
@@ -1024,6 +1026,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         });
     }, [model, projectPath, completions, filteredCompletions, debouncedRetrieveCompletions, rpcClient, selectedNode]);
 
+    const productMode = useProductMode();
     const agentEditor = useAgentEditorController({
         projectPath,
         filePath,
@@ -1041,7 +1044,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
             backgroundSaveRef.current = saving;
         },
         resolveAgentNode: (node) => agentDeclRef.current ?? node,
-        onChat: (node) => startAgentChat(node, filePath, rpcClient),
+        onChat: productMode === ProductMode.AGENT_BUILDER ? undefined : (node) => startAgentChat(node, filePath, rpcClient),
         onAddTrigger: (node) => startAddAgentTrigger(node, rpcClient),
         onDeleteTrigger: (usage) => void deleteAgentTrigger(usage),
         onTryTrigger: (usage) => void tryAgentTrigger(usage),
@@ -1110,12 +1113,28 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
 
     const noop = () => { };
 
+    const onAgentDeleted = useCallback((deleted: boolean) => {
+        if (deleted && !embedded) {
+            rpcClient.getVisualizerRpcClient().goHome({ isPackageOverview: true });
+        }
+    }, [rpcClient, embedded]);
+    const agentDeletion = useAgentDeletion(rpcClient, projectPath, onAgentDeleted);
+    const requestAgentDeletion = (node: FlowNode) => {
+        const agent = agentDeclRef.current ?? node;
+        void agentDeletion.request({
+            path: filePath,
+            startLine: agent.codedata.lineRange.startLine.line,
+            name: String(agent.properties?.variable?.value ?? ""),
+            kind: "agent",
+        });
+    };
+
     const agentFocusDiagramProps = useMemo(
         () => ({
             model: drawnModel,
             onNodeSelect: isAgentType ? handleEditAgentTypeForm : handleEditAgentForm,
             onAddNode: noop,
-            onDeleteNode: noop,
+            onDeleteNode: requestAgentDeletion,
             goToSource: handleOnGoToSource,
             openView: handleOpenView,
             goToAgent: handleGoToAgent,
@@ -1134,7 +1153,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
             aiAssistantName: assistantName,
         }),
         [projectPath, breakpointInfo, showProgressIndicator, embedded, isAgentPanelOpen,
-            showConnectionPanel, agentPanel, agentEditor.diagramCallbacks, drawnModel, isAgentType, assistantName]
+            showConnectionPanel, agentPanel, agentEditor.diagramCallbacks, drawnModel, isAgentType, assistantName, agentDeletion.request]
     );
 
     const diagramProps = isAgentType || isAgent ? agentFocusDiagramProps : memoizedDiagramProps;
@@ -1269,6 +1288,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                 </PanelContainer>
             )}
             <PanelOverlayRenderer />
+            {agentDeletion.dialog}
         </PanelOverlayProvider>
     );
 }

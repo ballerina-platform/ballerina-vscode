@@ -25,6 +25,7 @@ export interface TopologyContextState {
     onAgentSelect: (agent: AgentSelection) => void;
     onTriggerSelect: (trigger: TriggerSelection) => void;
     onAddTrigger?: (agent: AgentSelection) => void;
+    onDeleteAgent?: (agent: AgentSelection) => void;
     onConfigureEntry?: (entry: EntrySelection) => void;
     onDeleteEntry?: (entry: EntrySelection) => void;
     focus?: TopologyFocus;

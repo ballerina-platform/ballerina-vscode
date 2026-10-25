@@ -40,6 +40,7 @@ import { EmptyState } from "./EmptyState";
 import { openAgent, openServiceConfig, openTrigger } from "../AgentTopology/topologyNavigation";
 import { entryRange } from "../AgentTopology/topologyLocation";
 import { openAddAgentTrigger } from "../AIChatAgent/utils";
+import { useAgentDeletion } from "./DeleteAgentDialog";
 
 const LazyAgentTopology = React.lazy(() => import("../AgentTopology"));
 const LazyAddAgentPopup = React.lazy(() => import("../AIChatAgent/AddAgentPopup"));
@@ -418,6 +419,8 @@ export function AgentBuilderOverview({ projectPath, agentFocus, isInDevant, isIC
         });
     }, [rpcClient]);
 
+    const agentDeletion = useAgentDeletion(rpcClient, projectPath);
+
     const handleAddTriggerFromCanvas = useCallback(async (agent: AgentSelection) => {
         if (agent.moduleName === "workflow") {
             openAddAgentTrigger(rpcClient, agent.name, "ballerina", "durable");
@@ -578,6 +581,7 @@ export function AgentBuilderOverview({ projectPath, agentFocus, isInDevant, isIC
                                                 onOpenAgent={handleOpenAgentFromCanvas}
                                                 onOpenTrigger={handleOpenTrigger}
                                                 onAddTrigger={handleAddTriggerFromCanvas}
+                                                onDeleteAgent={agentDeletion.request}
                                                 onConfigureEntry={handleConfigureEntry}
                                                 onDeleteEntry={handleDeleteEntry}
                                                 onReady={handleCanvasReady}
@@ -633,6 +637,7 @@ export function AgentBuilderOverview({ projectPath, agentFocus, isInDevant, isIC
                     <LazyAddLibraryArtifactPopup onClose={() => setShowAddLibraryArtifact(false)} />
                 </React.Suspense>
             )}
+            {agentDeletion.dialog}
             {showAddMcpService && (
                 <React.Suspense fallback={null}>
                     <LazyAddMcpServicePopup
