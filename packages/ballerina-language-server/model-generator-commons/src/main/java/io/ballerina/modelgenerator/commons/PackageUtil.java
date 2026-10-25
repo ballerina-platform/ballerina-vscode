@@ -55,6 +55,7 @@ import org.ballerinalang.langserver.commons.workspace.WorkspaceManager;
 import org.eclipse.lsp4j.MessageType;
 
 import java.io.IOException;
+import java.lang.ref.SoftReference;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -307,11 +308,13 @@ public class PackageUtil {
 
         synchronized Package get(Path balaPath) {
             CachedBala cached = entries.get(balaPath);
-            if (cached == null) {
+            Package pkg = cached == null ? null : cached.pkg.get();
+            if (pkg == null) {
+                entries.remove(balaPath);
                 return null;
             }
             cached.lastUsed = System.currentTimeMillis();
-            return cached.pkg;
+            return pkg;
         }
 
         synchronized void put(Path balaPath, Package pkg) {
@@ -326,16 +329,18 @@ public class PackageUtil {
 
         synchronized void remove(Path balaPath, Package pkg) {
             CachedBala cached = entries.get(balaPath);
-            if (cached != null && cached.pkg == pkg) {
+            if (cached != null && cached.pkg.get() == pkg) {
                 entries.remove(balaPath);
             }
         }
 
         synchronized void evictIdle(long nowMillis) {
-            entries.values().removeIf(cached -> nowMillis - cached.lastUsed >= idleTimeoutMillis);
+            entries.values().removeIf(cached -> cached.pkg.get() == null
+                    || nowMillis - cached.lastUsed >= idleTimeoutMillis);
         }
 
         private void evictLeastRecentlyUsed() {
+            entries.values().removeIf(cached -> cached.pkg.get() == null);
             long compiled = entries.values().stream().filter(cached -> cached.compiled).count();
             Iterator<CachedBala> leastRecentFirst = entries.values().iterator();
             while (entries.size() > maxEntries || compiled > maxCompiled) {
@@ -347,13 +352,14 @@ public class PackageUtil {
             }
         }
 
+        // Soft, so the GC can still reclaim a cached library rather than run out of memory on a small heap.
         private static final class CachedBala {
-            private final Package pkg;
+            private final SoftReference<Package> pkg;
             private final boolean compiled;
             private long lastUsed = System.currentTimeMillis();
 
             private CachedBala(Package pkg, boolean compiled) {
-                this.pkg = pkg;
+                this.pkg = new SoftReference<>(pkg);
                 this.compiled = compiled;
             }
         }
