@@ -1,0 +1,21 @@
+{
+    "description": "#1767: a read-only result type referring to the non-public http:HttpClient carries ERROR diagnostics that must be shown",
+    "expectedEditor": "ReadonlyField",
+    "fieldInputType": { "fieldType": "TYPE" },
+    "field": {
+        "key": "type",
+        "label": "Result Type",
+        "type": "TYPE",
+        "optional": false,
+        "editable": false,
+        "documentation": "Type of the variable",
+        "value": "Unknown Type",
+        "placeholder": "var",
+        "types": [{ "fieldType": "TYPE", "selected": true }],
+        "enabled": true,
+        "diagnostics": [
+            { "severity": "ERROR", "message": "attempt to refer to non-accessible symbol 'HttpClient'" },
+            { "severity": "ERROR", "message": "unknown type 'HttpClient'" }
+        ]
+    }
+}
