@@ -369,18 +369,21 @@ public class PackageUtil {
      * Compiles the project's {@code ballerina/ai} dependency in the background, since agent nodes and the agent's
      * forms build their templates from it.
      *
-     * @param project The project whose resolved {@code ballerina/ai} version to compile
+     * @param project      The project whose resolved {@code ballerina/ai} version to compile
+     * @param latestIfNone Whether a project that does not depend on it yet gets the version its first agent
+     *                     template resolves
      */
-    public static void prewarmAgentLibrary(Project project) {
-        // A project without the dependency yet gets the version its first agent template resolves.
-        prewarm(CommonUtils.BALLERINA_ORG_NAME, AI_PACKAGE, project.currentPackage().getResolution()
+    public static void prewarmAgentLibrary(Project project, boolean latestIfNone) {
+        Optional<String> version = project.currentPackage().getResolution()
                 .dependencyGraph().getNodes().stream()
                 .map(ResolvedPackageDependency::packageInstance)
                 .filter(pkg -> pkg.packageOrg().value().equals(CommonUtils.BALLERINA_ORG_NAME)
                         && pkg.packageName().value().equals(AI_PACKAGE))
                 .findFirst()
-                .map(pkg -> pkg.packageVersion().toString())
-                .orElse(null));
+                .map(pkg -> pkg.packageVersion().toString());
+        if (version.isPresent() || latestIfNone) {
+            prewarm(CommonUtils.BALLERINA_ORG_NAME, AI_PACKAGE, version.orElse(null));
+        }
     }
 
     /**
