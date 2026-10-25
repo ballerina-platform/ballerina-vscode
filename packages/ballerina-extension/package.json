@@ -1614,7 +1614,7 @@
         "vscode-uri": "3.0.8",
         "xml-js": "1.6.11",
         "xstate": "4.38.3",
-        "zod": "4.1.8",
+        "zod": "4.6.6",
         "yaml": "2.8.3"
     },
     "devDependencies": {
