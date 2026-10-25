@@ -137,6 +137,7 @@ public class DesignModelGeneratorService implements ExtendedLanguageServerServic
      */
     @JsonRequest
     public CompletableFuture<Boolean> flushArtifacts(FlushArtifactsRequest request) {
+        // The edits' didChange ran before this request, as notifications are handled in order on the reader thread.
         List<Path> roots = request == null || request.uris() == null ? List.of() : projectRoots(request.uris());
         if (roots.isEmpty()) {
             ArtifactGenerationDebouncer.getInstance().flushAll();
