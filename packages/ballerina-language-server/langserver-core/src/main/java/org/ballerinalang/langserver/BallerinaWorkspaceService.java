@@ -52,6 +52,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * Workspace service implementation for Ballerina.
@@ -64,6 +66,12 @@ public class BallerinaWorkspaceService implements WorkspaceService {
     private final BallerinaWorkspaceManagerProxy workspaceManagerProxy;
     private final LanguageServerContext serverContext;
     private final LSClientLogger clientLogger;
+    // Reload events compile each reloaded package, so they run here rather than on the message reader thread.
+    private final ExecutorService reloadPublisher = Executors.newSingleThreadExecutor(runnable -> {
+        Thread thread = new Thread(runnable, "project-reload-publisher");
+        thread.setDaemon(true);
+        return thread;
+    });
 
     BallerinaWorkspaceService(BallerinaLanguageServer languageServer,
                               BallerinaWorkspaceManagerProxy workspaceManagerProxy,
@@ -96,7 +104,7 @@ public class BallerinaWorkspaceService implements WorkspaceService {
     public void didChangeWatchedFiles(DidChangeWatchedFilesParams params) {
         try {
             List<Path> paths = this.workspaceManagerProxy.get().didChangeWatched(params);
-            publishProjectReloads(params, paths);
+            reloadPublisher.execute(() -> publishProjectReloads(params, paths));
             LSClientCapabilities lsClientCapabilities = this.serverContext.get(LSClientCapabilities.class);
             // Don't publish diagnostics on lightweight mode
             if (!lsClientCapabilities.getInitializationOptions().isEnableLightWeightMode()) {
