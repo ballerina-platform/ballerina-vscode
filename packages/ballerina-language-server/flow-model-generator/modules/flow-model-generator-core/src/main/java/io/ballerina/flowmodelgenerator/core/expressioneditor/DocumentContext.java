@@ -78,6 +78,10 @@ public class DocumentContext {
         this.initialized = false;
     }
 
+    public WorkspaceManagerProxy workspaceManagerProxy() {
+        return workspaceManagerProxy;
+    }
+
     public WorkspaceManager workspaceManager() {
         if (workspaceManager == null) {
             fileUri = inputFileUri == null ? CommonUtils.getExprUri(inputFilePath.toString()) : inputFileUri;
