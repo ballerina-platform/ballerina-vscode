@@ -49,7 +49,6 @@ import java.util.Optional;
  */
 public class TypesGenerator {
 
-    private final Map<String, TypeSymbol> typeSymbolMap;
     private final Map<String, CompletionItem> completionItemMap;
     private final Map<String, List<CompletionItem>> subtypeItemsMap;
     private volatile boolean initialized = false;
@@ -107,7 +106,6 @@ public class TypesGenerator {
             "Other Types", List.of(TYPE_ANY, TYPE_READONLY));
 
     private TypesGenerator() {
-        this.typeSymbolMap = new LinkedHashMap<>();
         this.completionItemMap = new LinkedHashMap<>();
         this.subtypeItemsMap = new LinkedHashMap<>();
     }
@@ -123,7 +121,8 @@ public class TypesGenerator {
         initializeBuiltinTypes(semanticModel);
         Optional<ModuleInfo> userModuleInfo =
                 documentContext.module().map(module -> ModuleInfo.from(module.descriptor()));
-        TypeSymbol typeConstraintSymbol = typeSymbolMap.get(typeConstraint);
+        TypeSymbol typeConstraintSymbol =
+                typeConstraint == null ? null : builtinTypes(semanticModel).get(typeConstraint);
 
         // Obtain the module symbols
         List<Symbol> symbols;
@@ -226,33 +225,7 @@ public class TypesGenerator {
                 return;
             }
 
-            // Obtain the type symbols for the builtin types
-            Types types = semanticModel.types();
-            typeSymbolMap.put(TYPE_STRING, types.STRING);
-            typeSymbolMap.put(TYPE_BOOLEAN, types.BOOLEAN);
-            typeSymbolMap.put(TYPE_INT, types.INT);
-            typeSymbolMap.put(TYPE_NIL, types.NIL);
-            typeSymbolMap.put(TYPE_FLOAT, types.FLOAT);
-            typeSymbolMap.put(TYPE_DECIMAL, types.DECIMAL);
-            typeSymbolMap.put(TYPE_XML, types.XML);
-            typeSymbolMap.put(TYPE_BYTE, types.BYTE);
-            typeSymbolMap.put(TYPE_ERROR, types.ERROR);
-            typeSymbolMap.put(TYPE_JSON, types.JSON);
-            typeSymbolMap.put(TYPE_ANY, types.ANY);
-            typeSymbolMap.put(TYPE_ANYDATA, types.ANYDATA);
-            typeSymbolMap.put(TYPE_FUNCTION, types.FUNCTION);
-            typeSymbolMap.put(TYPE_FUTURE, types.FUTURE);
-            typeSymbolMap.put(TYPE_TYPEDESC, types.TYPEDESC);
-            typeSymbolMap.put(TYPE_HANDLE, types.HANDLE);
-            typeSymbolMap.put(TYPE_STREAM,
-                    types.builder().STREAM_TYPE.withValueType(types.ANYDATA).withCompletionType(types.ERROR).build());
-            typeSymbolMap.put(TYPE_READONLY, types.READONLY);
-            typeSymbolMap.put(TYPE_RECORD, types.builder().RECORD_TYPE.withRestField(types.ANYDATA).build());
-            typeSymbolMap.put(TYPE_MAP_JSON, types.builder().MAP_TYPE.withTypeParam(types.JSON).build());
-            typeSymbolMap.put(TYPE_MAP_STRING, types.builder().MAP_TYPE.withTypeParam(types.STRING).build());
-            typeSymbolMap.put(TYPE_JSON_ARRAY, types.builder().ARRAY_TYPE.withType(types.JSON).build());
-            typeSymbolMap.put(TYPE_BYTE_ARRAY, types.builder().ARRAY_TYPE.withType(types.BYTE).build());
-            typeSymbolMap.put(TYPE_STRING_ARRAY, types.builder().ARRAY_TYPE.withType(types.STRING).build());
+            Map<String, TypeSymbol> typeSymbolMap = builtinTypes(semanticModel);
 
             // Build the completion items for the builtin types
             categoryMap.forEach((category, typeNames) -> {
@@ -274,6 +247,39 @@ public class TypesGenerator {
 
             initialized = true;
         }
+    }
+
+    // Built from each request's own semantic model: a symbol kept across requests would pin its whole compilation.
+    private static Map<String, TypeSymbol> builtinTypes(SemanticModel semanticModel) {
+        Map<String, TypeSymbol> typeSymbolMap = new LinkedHashMap<>();
+        Types types = semanticModel.types();
+        typeSymbolMap.put(TYPE_STRING, types.STRING);
+        typeSymbolMap.put(TYPE_BOOLEAN, types.BOOLEAN);
+        typeSymbolMap.put(TYPE_INT, types.INT);
+        typeSymbolMap.put(TYPE_NIL, types.NIL);
+        typeSymbolMap.put(TYPE_FLOAT, types.FLOAT);
+        typeSymbolMap.put(TYPE_DECIMAL, types.DECIMAL);
+        typeSymbolMap.put(TYPE_XML, types.XML);
+        typeSymbolMap.put(TYPE_BYTE, types.BYTE);
+        typeSymbolMap.put(TYPE_ERROR, types.ERROR);
+        typeSymbolMap.put(TYPE_JSON, types.JSON);
+        typeSymbolMap.put(TYPE_ANY, types.ANY);
+        typeSymbolMap.put(TYPE_ANYDATA, types.ANYDATA);
+        typeSymbolMap.put(TYPE_FUNCTION, types.FUNCTION);
+        typeSymbolMap.put(TYPE_FUTURE, types.FUTURE);
+        typeSymbolMap.put(TYPE_TYPEDESC, types.TYPEDESC);
+        typeSymbolMap.put(TYPE_HANDLE, types.HANDLE);
+        typeSymbolMap.put(TYPE_STREAM,
+                types.builder().STREAM_TYPE.withValueType(types.ANYDATA).withCompletionType(types.ERROR).build());
+        typeSymbolMap.put(TYPE_READONLY, types.READONLY);
+        typeSymbolMap.put(TYPE_RECORD, types.builder().RECORD_TYPE.withRestField(types.ANYDATA).build());
+        typeSymbolMap.put(TYPE_MAP_JSON, types.builder().MAP_TYPE.withTypeParam(types.JSON).build());
+        typeSymbolMap.put(TYPE_MAP_STRING, types.builder().MAP_TYPE.withTypeParam(types.STRING).build());
+        typeSymbolMap.put(TYPE_JSON_ARRAY, types.builder().ARRAY_TYPE.withType(types.JSON).build());
+        typeSymbolMap.put(TYPE_BYTE_ARRAY, types.builder().ARRAY_TYPE.withType(types.BYTE).build());
+        typeSymbolMap.put(TYPE_STRING_ARRAY, types.builder().ARRAY_TYPE.withType(types.STRING).build());
+
+        return typeSymbolMap;
     }
 
     public static TypesGenerator getInstance() {
