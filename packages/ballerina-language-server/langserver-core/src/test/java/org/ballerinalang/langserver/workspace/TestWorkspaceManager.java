@@ -69,6 +69,7 @@ import org.testng.annotations.Test;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.ref.WeakReference;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -1329,6 +1330,16 @@ public class TestWorkspaceManager {
 
         Assert.assertEquals(proxy.get(exprUri).loadProject(file).sourceRoot(), workspace.resolve("pkgA"),
                 "The next expression request should rebuild the copy");
+    }
+
+    @Test(description = "Test the idle sweep does not keep a discarded workspace manager alive")
+    public void testDiscardedWorkspaceManagerCollected() {
+        WeakReference<WorkspaceManager> base = new WeakReference<>(
+                new BallerinaWorkspaceManagerProxyImpl(new LanguageServerContextImpl(), Duration.ofMinutes(1)).get());
+        await().atMost(10, TimeUnit.SECONDS).until(() -> {
+            System.gc();
+            return base.get() == null;
+        });
     }
 
     @Test(description = "Test a form close does not interleave with an in-flight edit of the expression copy")
