@@ -21,85 +21,134 @@ package io.ballerina.modelgenerator.commons;
 import io.ballerina.projects.Package;
 import io.ballerina.projects.PackageCompilation;
 import io.ballerina.projects.Project;
+import io.ballerina.projects.ProjectKind;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
-import java.lang.ref.SoftReference;
-import java.lang.reflect.Field;
 import java.nio.file.Path;
-import java.util.Map;
+import java.time.Duration;
 
 /**
- * Tests that {@link PackageUtil#getCompilation(Package)} drops a cached BALA package whose compilation failed.
+ * Tests the cache of BALA packages: failed compilations are dropped, and only a few recently used packages, fewer
+ * when compiled, are kept.
  */
 public class BalaPackageCacheTest {
 
     private static final Path BALA = Path.of("bala-package-cache-test");
 
     @AfterMethod(alwaysRun = true)
-    public void tearDown() throws ReflectiveOperationException {
-        balaPackages().remove(BALA);
+    public void tearDown() {
+        PackageUtil.BALA_PACKAGES.remove(BALA, PackageUtil.BALA_PACKAGES.get(BALA));
     }
 
     @Test
-    public void testKeepsAPackageThatCompiles() throws ReflectiveOperationException {
-        Package pkg = mockPackage();
+    public void testKeepsAPackageThatCompiles() {
+        Package pkg = mockPackage(BALA);
         Mockito.when(pkg.getCompilation()).thenReturn(Mockito.mock(PackageCompilation.class));
-        balaPackages().put(BALA, new SoftReference<>(pkg));
+        PackageUtil.BALA_PACKAGES.put(BALA, pkg);
 
         PackageUtil.getCompilation(pkg);
 
-        Assert.assertSame(balaPackages().get(BALA).get(), pkg);
+        Assert.assertSame(PackageUtil.BALA_PACKAGES.get(BALA), pkg);
     }
 
     @Test
-    public void testDropsAPackageThatFailsToCompile() throws ReflectiveOperationException {
-        Package pkg = mockPackage();
+    public void testDropsAPackageThatFailsToCompile() {
+        Package pkg = mockPackage(BALA);
         Mockito.when(pkg.getCompilation()).thenThrow(new IllegalStateException("failed"));
-        balaPackages().put(BALA, new SoftReference<>(pkg));
+        PackageUtil.BALA_PACKAGES.put(BALA, pkg);
 
         Assert.expectThrows(IllegalStateException.class, () -> PackageUtil.getCompilation(pkg));
 
-        Assert.assertFalse(balaPackages().containsKey(BALA));
+        Assert.assertNull(PackageUtil.BALA_PACKAGES.get(BALA));
     }
 
     @Test
-    public void testDropsAPackageThatThrowsAnError() throws ReflectiveOperationException {
-        Package pkg = mockPackage();
+    public void testDropsAPackageThatThrowsAnError() {
+        Package pkg = mockPackage(BALA);
         Mockito.when(pkg.getCompilation()).thenThrow(new AssertionError("failed"));
-        balaPackages().put(BALA, new SoftReference<>(pkg));
+        PackageUtil.BALA_PACKAGES.put(BALA, pkg);
 
         Assert.expectThrows(AssertionError.class, () -> PackageUtil.getCompilation(pkg));
 
-        Assert.assertFalse(balaPackages().containsKey(BALA));
+        Assert.assertNull(PackageUtil.BALA_PACKAGES.get(BALA));
     }
 
     @Test
-    public void testKeepsANewerPackageLoadedForTheSamePath() throws ReflectiveOperationException {
-        Package failed = mockPackage();
+    public void testKeepsANewerPackageLoadedForTheSamePath() {
+        Package failed = mockPackage(BALA);
         Mockito.when(failed.getCompilation()).thenThrow(new IllegalStateException("failed"));
-        Package newer = mockPackage();
-        balaPackages().put(BALA, new SoftReference<>(newer));
+        Package newer = mockPackage(BALA);
+        PackageUtil.BALA_PACKAGES.put(BALA, newer);
 
         Assert.expectThrows(IllegalStateException.class, () -> PackageUtil.getCompilation(failed));
 
-        Assert.assertSame(balaPackages().get(BALA).get(), newer);
+        Assert.assertSame(PackageUtil.BALA_PACKAGES.get(BALA), newer);
     }
 
-    private static Package mockPackage() {
+    @Test
+    public void testCachesALibraryOnceCompiled() {
+        Package pkg = mockPackage(BALA);
+        Mockito.when(pkg.project().kind()).thenReturn(ProjectKind.BALA_PROJECT);
+        Mockito.when(pkg.getCompilation()).thenReturn(Mockito.mock(PackageCompilation.class));
+
+        PackageUtil.getCompilation(pkg);
+
+        Assert.assertSame(PackageUtil.BALA_PACKAGES.get(BALA), pkg);
+    }
+
+    @Test
+    public void testEvictsTheLeastRecentlyUsedPackage() {
+        PackageUtil.BalaPackageCache cache = new PackageUtil.BalaPackageCache(2, 2, Duration.ofMinutes(10));
+        Path a = Path.of("a");
+        Path b = Path.of("b");
+        Path c = Path.of("c");
+        cache.put(a, mockPackage(a));
+        cache.put(b, mockPackage(b));
+        cache.get(a);
+        cache.put(c, mockPackage(c));
+
+        Assert.assertNotNull(cache.get(a), "The recently used package should stay");
+        Assert.assertNull(cache.get(b), "The least recently used package should be evicted");
+        Assert.assertNotNull(cache.get(c));
+    }
+
+    @Test
+    public void testLimitsCompiledPackagesSeparately() {
+        PackageUtil.BalaPackageCache cache = new PackageUtil.BalaPackageCache(1, 10, Duration.ofMinutes(10));
+        Path compiled = Path.of("compiled");
+        Path loaded = Path.of("loaded");
+        Path newer = Path.of("newer");
+        cache.putCompiled(compiled, mockPackage(compiled));
+        cache.put(loaded, mockPackage(loaded));
+        cache.putCompiled(newer, mockPackage(newer));
+
+        Assert.assertNull(cache.get(compiled), "The older compiled package should be evicted");
+        Assert.assertNotNull(cache.get(loaded), "An uncompiled package should not count against the compiled limit");
+        Assert.assertNotNull(cache.get(newer));
+    }
+
+    @Test
+    public void testEvictsIdlePackages() {
+        Duration timeout = Duration.ofMinutes(10);
+        PackageUtil.BalaPackageCache cache = new PackageUtil.BalaPackageCache(3, 10, timeout);
+        Path a = Path.of("a");
+        cache.putCompiled(a, mockPackage(a));
+
+        cache.evictIdle(System.currentTimeMillis() + timeout.toMillis() / 2);
+        Assert.assertNotNull(cache.get(a), "A recently used package should stay");
+
+        cache.evictIdle(System.currentTimeMillis() + 2 * timeout.toMillis());
+        Assert.assertNull(cache.get(a), "An idle package should be dropped");
+    }
+
+    private static Package mockPackage(Path root) {
         Project project = Mockito.mock(Project.class);
-        Mockito.when(project.sourceRoot()).thenReturn(BALA);
+        Mockito.when(project.sourceRoot()).thenReturn(root);
         Package pkg = Mockito.mock(Package.class);
         Mockito.when(pkg.project()).thenReturn(project);
         return pkg;
-    }
-
-    @SuppressWarnings("unchecked")
-    private static Map<Path, SoftReference<Package>> balaPackages() throws ReflectiveOperationException {
-        Field field = PackageUtil.class.getDeclaredField("BALA_PACKAGES");
-        field.setAccessible(true);
-        return (Map<Path, SoftReference<Package>>) field.get(null);
     }
 }
