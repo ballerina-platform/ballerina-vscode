@@ -964,12 +964,15 @@ export type BIDeleteByComponentInfoRequest = {
     filePath: string;
     component: ComponentInfo;
     nodeType?: string;
+    // Components of filePath deleted together in one edit instead of component.
+    components?: ComponentInfo[];
 }
 
 export type BIDeleteByComponentInfoResponse = {
     textEdits: {
         [key: string]: TextEdit[];
     };
+    artifacts?: ProjectStructureArtifactResponse[];
 };
 
 export interface BIAvailableNodesRequest {

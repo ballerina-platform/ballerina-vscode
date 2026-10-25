@@ -101,6 +101,13 @@ function getValidationWarnings(validationErrors?: ValidationResult[]): Validatio
         .map(withNamedSeverity);
 }
 
+type Formatted = { formatted?: boolean };
+
+// The LS folds the edits into one formatted edit per document, so they are applied in a single step.
+function withFormatting<T>(params: T): T {
+    return { ...params, formatted: true };
+}
+
 export class ServiceDesignerRpcManager implements ServiceDesignerAPI {
 
     async exportOASFile(params: ExportOASRequest): Promise<ExportOASResponse> {
@@ -176,8 +183,8 @@ export class ServiceDesignerRpcManager implements ServiceDesignerAPI {
                 const targetFile = path.join(projectPath, `main.bal`);
                 await this.ensureFileExists(targetFile);
                 params.filePath = targetFile;
-                const res: ListenerSourceCodeResponse = await context.langClient.addListenerSourceCode(params);
-                const artifacts = await updateSourceCode({ textEdits: res.textEdits, resolveMissingDependencies: true, artifactData: { artifactType: DIRECTORY_MAP.LISTENER }, description: params.listener.name + ' Creation' });
+                const res: ListenerSourceCodeResponse & Formatted = await context.langClient.addListenerSourceCode(withFormatting(params));
+                const artifacts = await updateSourceCode({ textEdits: res.textEdits, preformatted: res.formatted, resolveMissingDependencies: true, artifactData: { artifactType: DIRECTORY_MAP.LISTENER }, description: params.listener.name + ' Creation' });
                 const result: UpdatedArtifactsResponse = {
                     artifacts: artifacts
                 };
@@ -214,8 +221,8 @@ export class ServiceDesignerRpcManager implements ServiceDesignerAPI {
                 const targetFile = path.join(projectPath, `main.bal`);
                 await this.ensureFileExists(targetFile);
                 params.filePath = targetFile;
-                const res: ListenerSourceCodeResponse = await context.langClient.updateListenerSourceCode(params);
-                const artifacts = await updateSourceCode({ textEdits: res.textEdits, description: params.listener.name + ' Update' });
+                const res: ListenerSourceCodeResponse & Formatted = await context.langClient.updateListenerSourceCode(withFormatting(params));
+                const artifacts = await updateSourceCode({ textEdits: res.textEdits, preformatted: res.formatted, description: params.listener.name + ' Update' });
                 const result: UpdatedArtifactsResponse = {
                     artifacts: artifacts
                 };
@@ -273,13 +280,13 @@ export class ServiceDesignerRpcManager implements ServiceDesignerAPI {
                 const targetFile = path.join(projectPath, `main.bal`);
                 await this.ensureFileExists(targetFile);
                 params.filePath = targetFile;
-                const res: ListenerSourceCodeResponse = await context.langClient.updateServiceSourceCode(params);
+                const res: ListenerSourceCodeResponse & Formatted = await context.langClient.updateServiceSourceCode(withFormatting(params));
                 const blockingErrors = getBlockingValidationErrors(res.validationErrors);
                 if (blockingErrors.length > 0) {
                     resolve({ artifacts: [], validationErrors: blockingErrors });
                     return;
                 }
-                const artifacts = await updateSourceCode({ textEdits: res.textEdits, artifactData: { artifactType: DIRECTORY_MAP.SERVICE }, description: params.service.name + ' Update' });
+                const artifacts = await updateSourceCode({ textEdits: res.textEdits, preformatted: res.formatted, artifactData: { artifactType: DIRECTORY_MAP.SERVICE }, description: params.service.name + ' Update' });
                 const result: UpdatedArtifactsResponse = {
                     artifacts: artifacts,
                     validationErrors: getValidationWarnings(res.validationErrors)
@@ -328,8 +335,8 @@ export class ServiceDesignerRpcManager implements ServiceDesignerAPI {
                     await this.ensureFileExists(targetFile);
                     params.filePath = targetFile;
                 }
-                const res: ResourceSourceCodeResponse = await context.langClient.addResourceSourceCode(params);
-                const artifacts = await updateSourceCode({ textEdits: res.textEdits, artifactData: { artifactType: DIRECTORY_MAP.SERVICE }, description: 'Resource Creation' });
+                const res: ResourceSourceCodeResponse & Formatted = await context.langClient.addResourceSourceCode(withFormatting(params));
+                const artifacts = await updateSourceCode({ textEdits: res.textEdits, preformatted: res.formatted, artifactData: { artifactType: DIRECTORY_MAP.SERVICE }, description: 'Resource Creation' });
                 const result: UpdatedArtifactsResponse = {
                     artifacts: artifacts
                 };
@@ -344,12 +351,12 @@ export class ServiceDesignerRpcManager implements ServiceDesignerAPI {
     async updateResourceSourceCode(params: FunctionSourceCodeRequest): Promise<UpdatedArtifactsResponse> {
         const context = StateMachine.context();
         try {
-            const res: ResourceSourceCodeResponse = await context.langClient.updateResourceSourceCode(params);
+            const res: ResourceSourceCodeResponse & Formatted = await context.langClient.updateResourceSourceCode(withFormatting(params));
             const blockingErrors = getBlockingValidationErrors(res.validationErrors);
             if (blockingErrors.length > 0) {
                 return { artifacts: [], validationErrors: blockingErrors };
             }
-            const artifacts = await updateSourceCode({ textEdits: res.textEdits, artifactData: params.artifactType ? { artifactType: params.artifactType } : null, description: 'Resource Update' });
+            const artifacts = await updateSourceCode({ textEdits: res.textEdits, preformatted: res.formatted, artifactData: params.artifactType ? { artifactType: params.artifactType } : null, description: 'Resource Update' });
             return {
                 artifacts: artifacts,
                 validationErrors: getValidationWarnings(res.validationErrors)
@@ -373,7 +380,7 @@ export class ServiceDesignerRpcManager implements ServiceDesignerAPI {
     async addFunctionSourceCode(params: FunctionSourceCodeRequest): Promise<UpdatedArtifactsResponse> {
         const context = StateMachine.context();
         try {
-            const res: ResourceSourceCodeResponse = await context.langClient.addFunctionSourceCode(params);
+            const res: ResourceSourceCodeResponse & Formatted = await context.langClient.addFunctionSourceCode(withFormatting(params));
             if (res.errorMsg) {
                 // A builder threw (e.g. the AI decision-resource builder failing to resolve the
                 // agent's `run` call) rather than refusing at the save-time gate: `textEdits` is
@@ -387,7 +394,7 @@ export class ServiceDesignerRpcManager implements ServiceDesignerAPI {
             if (blockingErrors.length > 0) {
                 return { artifacts: [], validationErrors: blockingErrors };
             }
-            const artifacts = await updateSourceCode({ textEdits: res.textEdits, artifactData: params.artifactType ? { artifactType: params.artifactType } : { artifactType: DIRECTORY_MAP.FUNCTION }, description: 'Function Creation' });
+            const artifacts = await updateSourceCode({ textEdits: res.textEdits, preformatted: res.formatted, artifactData: params.artifactType ? { artifactType: params.artifactType } : { artifactType: DIRECTORY_MAP.FUNCTION }, description: 'Function Creation' });
             return {
                 artifacts: artifacts,
                 validationErrors: getValidationWarnings(res.validationErrors)
@@ -529,7 +536,7 @@ export class ServiceDesignerRpcManager implements ServiceDesignerAPI {
                 const targetFile = path.join(projectDir, `main.bal`);
                 await this.ensureFileExists(targetFile);
                 params.filePath = targetFile;
-                const res: SourceEditResponse = await context.langClient.createServiceAndListener(params);
+                const res: SourceEditResponse & Formatted = await context.langClient.createServiceAndListener(withFormatting(params));
 
                 if (res.errorMsg) {
                     // A builder threw (e.g. MCP OpenAPI generation) rather than refusing at the
@@ -554,7 +561,7 @@ export class ServiceDesignerRpcManager implements ServiceDesignerAPI {
                     return;
                 }
 
-                const edits = { textEdits: res.textEdits, resolveMissingDependencies: false };
+                const edits = { textEdits: res.textEdits, preformatted: res.formatted, resolveMissingDependencies: false };
 
                 const artifacts = await updateSourceCode({ ...edits, artifactData: { artifactType: DIRECTORY_MAP.SERVICE }, description: 'Service and Listener Creation' });
                 let result: UpdatedArtifactsResponse = {
