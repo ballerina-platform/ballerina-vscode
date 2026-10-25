@@ -199,6 +199,7 @@ function footerLabel(hidden: number, unfolded: boolean | undefined): string | un
 
 function entrySelection(entry: TopologyEntryNode): EntrySelection {
     return {
+        kind: entry.kind,
         filePath: entry.filePath,
         position: entry.position,
         endPosition: entry.endPosition,
@@ -210,14 +211,15 @@ function entrySelection(entry: TopologyEntryNode): EntrySelection {
 function useCardMenu(entry: TopologyEntryNode) {
     const { readonly, onConfigureEntry, onDeleteEntry } = useTopologyContext();
     const [anchor, setAnchor] = useState<HTMLElement | SVGSVGElement>(null);
-    const enabled = !readonly && Boolean(onConfigureEntry && onDeleteEntry);
-    const items: Item[] = enabled
-        ? [
-              { id: "configure", label: "Configure", onClick: () => onConfigureEntry!(entrySelection(entry)) },
-              { id: "delete", label: "Delete", onClick: () => onDeleteEntry!(entrySelection(entry)) },
-          ]
-        : [];
-    return { enabled, anchor, setAnchor, items };
+    const items: Item[] = [];
+    // An automation is configured from its own flow view.
+    if (!readonly && onConfigureEntry && entry.kind === "service") {
+        items.push({ id: "configure", label: "Configure", onClick: () => onConfigureEntry(entrySelection(entry)) });
+    }
+    if (!readonly && onDeleteEntry) {
+        items.push({ id: "delete", label: "Delete", onClick: () => onDeleteEntry(entrySelection(entry)) });
+    }
+    return { enabled: items.length > 0, anchor, setAnchor, items };
 }
 
 type CardMenuState = ReturnType<typeof useCardMenu>;
@@ -304,9 +306,9 @@ export function ServiceNodeWidget(props: ServiceNodeWidgetProps) {
                     <Title hovered={headerHovered}>{entry.title}</Title>
                     <Subtitle>{entry.subtitle}</Subtitle>
                 </Titles>
-                {isService && <CardMenuButton menu={menu} />}
+                <CardMenuButton menu={menu} />
             </Header>
-            {isService && <CardMenuPopover menu={menu} />}
+            <CardMenuPopover menu={menu} />
             {isService &&
                 rows.map((handler) => <HandlerRow key={handler.id} handler={handler} dimmed={rowDimmed(handler)} />)}
             {footer && <Footer onClick={() => onToggleEntry?.(entry.id)}>{footer}</Footer>}

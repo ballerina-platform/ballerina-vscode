@@ -396,13 +396,19 @@ export function AgentBuilderOverview({ projectPath, agentFocus, isInDevant, isIC
     }, [rpcClient]);
 
     const handleDeleteEntry = useCallback(async (entry: EntrySelection) => {
+        const automation = entry.kind === "automation";
         const handlers = entry.handlerCount === 1 ? "its handler" : `its ${entry.handlerCount} handlers`;
+        const action = automation ? "Delete Automation" : "Delete Service";
         const confirmed = await rpcClient.getCommonRpcClient().showInformationModal({
-            message: `Are you sure you want to delete the ${entry.label} service?`,
-            detail: `The service and ${handlers} will be removed, along with its listener if nothing else uses it. The agents it runs are kept and become untriggered.`,
-            items: ["Delete Service"],
+            message: automation
+                ? "Are you sure you want to delete the automation?"
+                : `Are you sure you want to delete the ${entry.label} service?`,
+            detail: automation
+                ? undefined
+                : `The service and ${handlers} will be removed, along with its listener if nothing else uses it. The agents it runs are kept.`,
+            items: [action],
         });
-        if (confirmed !== "Delete Service") {
+        if (confirmed !== action) {
             return;
         }
         const range = entryRange(entry);
