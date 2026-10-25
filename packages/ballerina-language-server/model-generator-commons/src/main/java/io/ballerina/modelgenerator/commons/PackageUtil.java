@@ -249,7 +249,6 @@ public class PackageUtil {
         return thread;
     });
     private static final String AI_PACKAGE = "ai";
-    private static final String WORKFLOW_PACKAGE = "workflow";
 
     // One load per bala at a time, outside BALA_PACKAGES so a slow load never blocks other balas.
     private static final ConcurrentHashMap<Path, CompletableFuture<Package>> BALA_LOADS = new ConcurrentHashMap<>();
@@ -389,23 +388,21 @@ public class PackageUtil {
     }
 
     /**
-     * Compiles the project's {@code ballerina/ai} and {@code ballerina/workflow} dependencies in the background,
-     * since agent and durable agent nodes and their forms build their templates from them. A library the project
-     * does not depend on yet is fetched at its latest release, so the first agent added to it starts there.
+     * Compiles the project's {@code ballerina/ai} dependency in the background, since agent nodes and the agent's
+     * forms build their templates from it. A project that does not depend on it yet gets its latest release, so the
+     * first agent added to it starts there.
      *
-     * @param project The project whose resolved library versions to compile
+     * @param project The project whose resolved {@code ballerina/ai} version to compile
      */
-    public static void prewarmAgentLibraries(Project project) {
-        for (String library : List.of(AI_PACKAGE, WORKFLOW_PACKAGE)) {
-            Optional<String> resolved = project.currentPackage().getResolution().dependencyGraph().getNodes().stream()
-                    .map(ResolvedPackageDependency::packageInstance)
-                    .filter(pkg -> pkg.packageOrg().value().equals(CommonUtils.BALLERINA_ORG_NAME)
-                            && pkg.packageName().value().equals(library))
-                    .findFirst()
-                    .map(pkg -> pkg.packageVersion().toString());
-            resolved.ifPresentOrElse(version -> prewarm(CommonUtils.BALLERINA_ORG_NAME, library, version),
-                    () -> prewarmLatestRelease(CommonUtils.BALLERINA_ORG_NAME, library));
-        }
+    public static void prewarmAgentLibrary(Project project) {
+        project.currentPackage().getResolution().dependencyGraph().getNodes().stream()
+                .map(ResolvedPackageDependency::packageInstance)
+                .filter(pkg -> pkg.packageOrg().value().equals(CommonUtils.BALLERINA_ORG_NAME)
+                        && pkg.packageName().value().equals(AI_PACKAGE))
+                .findFirst()
+                .map(pkg -> pkg.packageVersion().toString())
+                .ifPresentOrElse(version -> prewarm(CommonUtils.BALLERINA_ORG_NAME, AI_PACKAGE, version),
+                        () -> prewarmLatestRelease(CommonUtils.BALLERINA_ORG_NAME, AI_PACKAGE));
     }
 
     private static void prewarmLatestRelease(String org, String packageName) {
