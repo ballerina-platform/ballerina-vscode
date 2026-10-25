@@ -341,6 +341,7 @@ public class CodeAnalyzer extends NodeVisitor {
 
     // Lazily gathered once per analysis; see workflowOptions().
     private List<Option> workflowOptions;
+    private boolean connectionSummaries;
 
     public CodeAnalyzer(Project project, SemanticModel semanticModel, String connectionScope,
                         Map<String, LineRange> dataMappings, Map<String, LineRange> naturalFunctions,
@@ -363,6 +364,16 @@ public class CodeAnalyzer extends NodeVisitor {
                 project.currentPackage().getCompilation().diagnosticResult().diagnostics());
         this.workspaceManager = workspaceManager;
         this.filePath = filePath;
+    }
+
+    /**
+     * Builds connections without their constructor parameters, for a caller that shows them but opens no form.
+     *
+     * @return this analyzer
+     */
+    public CodeAnalyzer summarizeConnections() {
+        this.connectionSummaries = true;
+        return this;
     }
 
     @Override
@@ -4144,24 +4155,7 @@ public class CodeAnalyzer extends NodeVisitor {
             PackageUtil.prewarmAgentLibrary(project, true);
             AiUtils.prewarmCatalog(project);
         }
-        Optional<MethodSymbol> optMethodSymbol = classSymbol.initMethod();
-        FunctionDataBuilder functionDataBuilder = new FunctionDataBuilder()
-                .parentSymbol(classSymbol)
-                .semanticModel(semanticModel)
-                .name(NewConnectionBuilder.INIT_SYMBOL)
-                .functionResultKind(getFunctionResultKind(classSymbol))
-                .userModuleInfo(moduleInfo)
-                .project(project);
-
-        FunctionData functionData;
-        if (optMethodSymbol.isPresent()) {
-            MethodSymbol methodSymbol = optMethodSymbol.get();
-            functionDataBuilder.functionSymbol(methodSymbol);
-            functionData = functionDataBuilder.build();
-            processFunctionSymbol(newExpressionNode, argumentNodes, methodSymbol, functionData);
-        } else {
-            functionData = functionDataBuilder.build();
-        }
+        FunctionData functionData = initFunctionData(classSymbol, kind, newExpressionNode, argumentNodes);
 
         String org = functionData.org();
         String packageName = functionData.packageName();
@@ -4240,6 +4234,33 @@ public class CodeAnalyzer extends NodeVisitor {
             AiUtils.applyAgentTypeMetadata(nodeBuilder, classSymbol, argumentNodes, project, this::getModelIconUrl,
                     this::getMemoryData);
         }
+    }
+
+    private FunctionData initFunctionData(ClassSymbol classSymbol, NodeKind kind,
+                                          NewExpressionNode newExpressionNode,
+                                          SeparatedNodeList<FunctionArgumentNode> argumentNodes) {
+        FunctionDataBuilder functionDataBuilder = new FunctionDataBuilder()
+                .parentSymbol(classSymbol)
+                .semanticModel(semanticModel)
+                .name(NewConnectionBuilder.INIT_SYMBOL)
+                .functionResultKind(getFunctionResultKind(classSymbol))
+                .userModuleInfo(moduleInfo)
+                .project(project);
+        // An agent's tools, model and memory are read from its arguments, which the summary still needs.
+        boolean summary = connectionSummaries && kind != NodeKind.AGENT && kind != NodeKind.TYPED_AGENT;
+        if (summary) {
+            functionDataBuilder.withoutParameters();
+        }
+        Optional<MethodSymbol> optMethodSymbol = classSymbol.initMethod();
+        if (optMethodSymbol.isEmpty()) {
+            return functionDataBuilder.build();
+        }
+        MethodSymbol methodSymbol = optMethodSymbol.get();
+        FunctionData functionData = functionDataBuilder.functionSymbol(methodSymbol).build();
+        if (!summary) {
+            processFunctionSymbol(newExpressionNode, argumentNodes, methodSymbol, functionData);
+        }
+        return functionData;
     }
 
     /**

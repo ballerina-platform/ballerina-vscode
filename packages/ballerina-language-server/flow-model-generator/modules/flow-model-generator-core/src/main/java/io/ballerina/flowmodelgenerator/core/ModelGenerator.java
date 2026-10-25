@@ -176,7 +176,7 @@ public class ModelGenerator {
         // Obtain the connections visible at the module-level
         List<FlowNode> moduleConnections =
                 semanticModel.visibleSymbols(document, canvasNode.lineRange().startLine()).stream()
-                        .flatMap(symbol -> buildConnection(symbol).stream())
+                        .flatMap(symbol -> buildConnection(symbol, true).stream())
                         .sorted(FLOW_NODE_COMPARATOR)
                         .toList();
 
@@ -270,7 +270,7 @@ public class ModelGenerator {
         List<FlowNode> variablesList = new ArrayList<>();
 
         for (Symbol symbol : semanticModel.moduleSymbols()) {
-            buildConnection(symbol).ifPresent(connectionsList::add);
+            buildConnection(symbol, false).ifPresent(connectionsList::add);
             if (symbol instanceof VariableSymbol) {
                 buildVariables(symbol).ifPresent(variablesList::add);
             }
@@ -599,7 +599,8 @@ public class ModelGenerator {
      *
      * @return the client if the type symbol is a client, otherwise empty
      */
-    private Optional<FlowNode> buildConnection(Symbol symbol) {
+    // A summary carries what the diagram shows of a connection; its form is built by the request that opens it.
+    private Optional<FlowNode> buildConnection(Symbol symbol, boolean summary) {
         Function<NonTerminalNode, NonTerminalNode> getStatementNode;
         NonTerminalNode statementNode;
         TypeSymbol typeSymbol;
@@ -645,6 +646,9 @@ public class ModelGenerator {
         CodeAnalyzer codeAnalyzer = new CodeAnalyzer(project, semanticModel, scope, Map.of(), Map.of(),
                 document.textDocument(), ModuleInfo.from(document.module().descriptor()), false,
                 workspaceManager, docFilePath);
+        if (summary) {
+            codeAnalyzer.summarizeConnections();
+        }
         statementNode.accept(codeAnalyzer);
         List<FlowNode> connections = codeAnalyzer.getFlowNodes();
         return connections.stream().findFirst();

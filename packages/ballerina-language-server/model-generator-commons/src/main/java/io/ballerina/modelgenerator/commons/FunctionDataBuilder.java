@@ -133,6 +133,7 @@ public class FunctionDataBuilder {
     private Project project;
     private boolean isCurrentModule;
     private boolean enableIndex;
+    private boolean withoutParameters;
     private WorkspaceManager workspaceManager;
     private Path filePath;
 
@@ -346,6 +347,12 @@ public class FunctionDataBuilder {
 
     public FunctionDataBuilder enableIndex() {
         this.enableIndex = true;
+        return this;
+    }
+
+    // Resolving parameter defaults can compile the declaring library, which a caller showing no form does not need.
+    public FunctionDataBuilder withoutParameters() {
+        this.withoutParameters = true;
         return this;
     }
 
@@ -652,6 +659,10 @@ public class FunctionDataBuilder {
 
         // Populate ReturnTypeData with links
         populateReturnTypeLinks(functionData, functionTypeSymbol, returnData.returnType());
+        if (withoutParameters) {
+            functionData.setParameters(parameters);
+            return functionData;
+        }
 
         Types types = semanticModel.types();
         TypeBuilder builder = semanticModel.types().builder();

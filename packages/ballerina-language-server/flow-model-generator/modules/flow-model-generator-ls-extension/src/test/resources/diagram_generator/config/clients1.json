@@ -993,70 +993,22 @@
         },
         "returning": false,
         "properties": {
-          "url": {
+          "scope": {
             "metadata": {
-              "label": "Url",
-              "description": "URL of the target service"
+              "label": "Connection Scope",
+              "description": "Scope of the connection, Global or Local"
             },
             "types": [
               {
-                "fieldType": "TEXT",
-                "ballerinaType": "string",
+                "fieldType": "ENUM",
                 "selected": true
-              },
-              {
-                "fieldType": "EXPRESSION",
-                "ballerinaType": "string",
-                "selected": false
               }
             ],
-            "value": "\"http://localhost:9090\"",
-            "placeholder": "\"\"",
+            "value": "Global",
             "optional": false,
             "editable": true,
-            "advanced": false,
-            "hidden": false,
-            "codedata": {
-              "kind": "REQUIRED",
-              "originalName": "url"
-            }
-          },
-          "config": {
-            "metadata": {
-              "label": "Config",
-              "description": "The configurations to be used when initializing the `client`"
-            },
-            "types": [
-              {
-                "fieldType": "RECORD_MAP_EXPRESSION",
-                "ballerinaType": "http:ClientConfiguration",
-                "typeMembers": [
-                  {
-                    "type": "ClientConfiguration",
-                    "packageInfo": "ballerina:http:2.18.0",
-                    "packageName": "http",
-                    "kind": "RECORD_TYPE",
-                    "selected": true
-                  }
-                ],
-                "selected": true
-              },
-              {
-                "fieldType": "EXPRESSION",
-                "ballerinaType": "http:ClientConfiguration",
-                "selected": false
-              }
-            ],
-            "value": "{}",
-            "placeholder": "{}",
-            "optional": true,
-            "editable": true,
-            "advanced": false,
-            "hidden": false,
-            "codedata": {
-              "kind": "INCLUDED_RECORD",
-              "originalName": "config"
-            }
+            "advanced": true,
+            "hidden": true
           },
           "checkError": {
             "metadata": {
@@ -1072,23 +1024,6 @@
             "value": true,
             "optional": false,
             "editable": false,
-            "advanced": true,
-            "hidden": true
-          },
-          "scope": {
-            "metadata": {
-              "label": "Connection Scope",
-              "description": "Scope of the connection, Global or Local"
-            },
-            "types": [
-              {
-                "fieldType": "ENUM",
-                "selected": true
-              }
-            ],
-            "value": "Global",
-            "optional": false,
-            "editable": true,
             "advanced": true,
             "hidden": true
           },
