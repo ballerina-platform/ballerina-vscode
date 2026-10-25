@@ -179,6 +179,9 @@ public class LSClientCapabilitiesImpl implements LSClientCapabilities {
                 Boolean.parseBoolean(String.valueOf(memoryUsageMonitor));
         initializationOptions.setEnableMemoryUsageMonitor(enableMemoryUsageMonitor);
 
+        initializationOptions.setAgentBuilderMode(
+                "agent-builder".equals(initOptions.get(InitializationOptions.KEY_PRODUCT_MODE)));
+
         return initializationOptions;
     }
 
@@ -245,6 +248,7 @@ public class LSClientCapabilitiesImpl implements LSClientCapabilities {
         private boolean enableInlayHints = false;
         private boolean enableIndexPackages = false;
         private boolean enableMemoryUsageMonitor = false;
+        private boolean agentBuilderMode = false;
 
         @Override
         public boolean isBalaSchemeSupported() {
@@ -315,6 +319,15 @@ public class LSClientCapabilitiesImpl implements LSClientCapabilities {
 
         public void setEnableMemoryUsageMonitor(boolean enableMemoryUsageMonitor) {
             this.enableMemoryUsageMonitor = enableMemoryUsageMonitor;
+        }
+
+        @Override
+        public boolean isAgentBuilderMode() {
+            return agentBuilderMode;
+        }
+
+        public void setAgentBuilderMode(boolean agentBuilderMode) {
+            this.agentBuilderMode = agentBuilderMode;
         }
     }
 }
