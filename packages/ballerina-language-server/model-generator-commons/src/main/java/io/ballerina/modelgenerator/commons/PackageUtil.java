@@ -70,7 +70,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.WeakHashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
@@ -132,13 +131,14 @@ public class PackageUtil {
      * <p>Cost/lifecycle: the per-thread project is a lightweight in-memory load of the single shared
      * {@link #SAMPLE_PROJECT_DIR} (no per-thread temp directory), but its resolver environment does
      * retain that thread's lang-lib packages. A thread's instance is reclaimed by GC when the thread
-     * dies — it is held only under the thread's weak key in {@link PerThread}, nothing else holds
+     * dies — it is reachable only through the thread's own {@code ThreadLocalMap}, nothing else holds
      * it — so live memory tracks the number of threads currently resolving, not the number ever
      * seen. Cache <i>hits</i> never touch the resolver at all. Do not call {@link #getSampleProject()}
      * from short-lived threads spawned per request (e.g. a per-call cached thread pool): each such
      * thread would build a full resolver environment only to discard it when it dies.
      */
-    private static final PerThread<BuildProject> SAMPLE_PROJECT = new PerThread<>(PackageUtil::createSampleProject);
+    private static final ThreadLocal<BuildProject> SAMPLE_PROJECT =
+            ThreadLocal.withInitial(PackageUtil::createSampleProject);
 
     /**
      * The Ballerina local package repository, per thread, backed by that thread's sample-project
@@ -147,30 +147,9 @@ public class PackageUtil {
      * (unsynchronized) package cache, so a single shared instance would corrupt that cache under
      * concurrent access — the exact hazard #2193 describes, reached through a different door.
      */
-    private static final PerThread<PackageRepository> LOCAL_REPOSITORY = new PerThread<>(() -> BallerinaUserHome.from(
-            getSampleProject().projectEnvironmentContext().environment()).localPackageRepository());
-
-    // Not a ThreadLocal: common-pool workers erase those after each task; weak keys free a dead thread's value.
-    private static final class PerThread<T> {
-
-        private final Map<Thread, T> values = Collections.synchronizedMap(new WeakHashMap<>());
-        private final Supplier<T> initial;
-
-        PerThread(Supplier<T> initial) {
-            this.initial = initial;
-        }
-
-        T get() {
-            Thread thread = Thread.currentThread();
-            T value = values.get(thread);
-            if (value == null) {
-                // Only this thread writes its own key, so building outside the map's lock cannot race.
-                value = initial.get();
-                values.put(thread, value);
-            }
-            return value;
-        }
-    }
+    private static final ThreadLocal<PackageRepository> LOCAL_REPOSITORY =
+            ThreadLocal.withInitial(() -> BallerinaUserHome.from(
+                    getSampleProject().projectEnvironmentContext().environment()).localPackageRepository());
 
     private static final String PULLING_THE_MODULE_MESSAGE = "Pulling the module '%s' from the central";
     private static final String MODULE_PULLING_FAILED_MESSAGE = "Failed to pull the module: %s";
@@ -475,7 +454,7 @@ public class PackageUtil {
     /**
      * Whether {@code buildProject} is the calling thread's sample project (i.e. its resolution is
      * memoizable). Every caller passes {@link #getSampleProject()} on the same thread, so an
-     * identity compare against this thread's value is exact and needs no registry.
+     * identity compare against this thread's {@code ThreadLocal} value is exact and needs no registry.
      */
     private static boolean isSampleProject(BuildProject buildProject) {
         return buildProject == SAMPLE_PROJECT.get();
