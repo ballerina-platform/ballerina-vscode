@@ -108,6 +108,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.locks.Lock;
 import java.util.function.Function;
 
 import static io.ballerina.modelgenerator.commons.CommonUtils.BALLERINAX_ORG_NAME;
@@ -722,14 +723,17 @@ public class FlowModelGeneratorService implements ExtendedLanguageServerService 
                 workspaceManagerProxy.get()
         );
         // The check edits the shadow document, which the expression editor's requests also edit.
+        Lock copyLock = workspaceManagerProxy.exprCopyLock();
         return Debouncer.getInstance().submit(() -> {
             FlowModelNodeTemplateResponse response = new FlowModelNodeTemplateResponse();
+            copyLock.lock();
             try {
                 response.setFlowNode(diagnosticsRequest.call());
             } catch (Throwable e) {
                 response.setError(e);
             } finally {
                 diagnosticsRequest.revertDocument();
+                copyLock.unlock();
             }
             return response;
         });
