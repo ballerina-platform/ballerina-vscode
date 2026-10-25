@@ -1518,7 +1518,8 @@ public class BallerinaWorkspaceManager implements WorkspaceManager {
             // Reloading from disk is only needed to pick up a new file; it also discards the loaded compilation.
             Optional<Document> loadedDocument = loadedDocumentAt(filePath, projectContext.project());
             if (loadedDocument.isPresent()) {
-                if (!loadedDocument.get().textDocument().toString().equals(content)) {
+                // The text of a closed document is read from disk, so compare with what was parsed and compiled.
+                if (!loadedDocument.get().syntaxTree().toSourceCode().equals(content)) {
                     projectContext.setProject(
                             loadedDocument.get().modify().withContent(content).apply().module().project());
                 }
