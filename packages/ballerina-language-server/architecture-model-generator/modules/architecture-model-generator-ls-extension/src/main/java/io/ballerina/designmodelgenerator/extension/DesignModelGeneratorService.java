@@ -36,6 +36,7 @@ import io.ballerina.projects.ProjectException;
 import org.ballerinalang.annotation.JavaSPIService;
 import org.ballerinalang.langserver.common.utils.PathUtil;
 import org.ballerinalang.langserver.commons.LanguageServerContext;
+import org.ballerinalang.langserver.commons.capability.LSClientCapabilities;
 import org.ballerinalang.langserver.commons.service.spi.ExtendedLanguageServerService;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceManager;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceManagerProxy;
@@ -53,12 +54,14 @@ import java.util.concurrent.CompletableFuture;
 public class DesignModelGeneratorService implements ExtendedLanguageServerService {
 
     private WorkspaceManagerProxy workspaceManagerProxy;
+    private LanguageServerContext serverContext;
 
     @Override
     public void init(LanguageServer langServer,
                      WorkspaceManagerProxy workspaceManagerProxy,
                      LanguageServerContext serverContext) {
         this.workspaceManagerProxy = workspaceManagerProxy;
+        this.serverContext = serverContext;
         ArtifactsCache.initialize();
     }
 
@@ -85,6 +88,11 @@ public class DesignModelGeneratorService implements ExtendedLanguageServerServic
         });
     }
 
+    private boolean isAgentBuilder() {
+        LSClientCapabilities capabilities = serverContext.get(LSClientCapabilities.class);
+        return capabilities != null && capabilities.getInitializationOptions().isAgentBuilderMode();
+    }
+
     @JsonRequest
     public CompletableFuture<ArtifactResponse> artifacts(ArtifactsRequest request) {
         return CompletableFuture.supplyAsync(() -> {
@@ -93,9 +101,9 @@ public class DesignModelGeneratorService implements ExtendedLanguageServerServic
                 Path projectPath = Path.of(request.projectPath());
                 WorkspaceManager workspaceManager = workspaceManagerProxy.get();
                 Project project = workspaceManager.loadProject(projectPath);
-                // Artifacts load with every project view, so agent forms and flows find ballerina/ai already compiled.
+                // Every project view loads this; only the Agent Builder warms ballerina/ai for a project without it.
                 try {
-                    PackageUtil.prewarmAgentLibrary(project);
+                    PackageUtil.prewarmAgentLibrary(project, isAgentBuilder());
                 } catch (RuntimeException ignored) {
                     // A failed warm-up must not cost the artifacts response.
                 }

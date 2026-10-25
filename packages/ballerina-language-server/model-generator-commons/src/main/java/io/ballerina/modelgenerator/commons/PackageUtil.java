@@ -374,20 +374,24 @@ public class PackageUtil {
 
     /**
      * Compiles the project's {@code ballerina/ai} dependency in the background, since agent nodes and the agent's
-     * forms build their templates from it. A project that does not depend on it yet gets its latest release, so the
-     * first agent added to it starts there.
+     * forms build their templates from it.
      *
-     * @param project The project whose resolved {@code ballerina/ai} version to compile
+     * @param project      The project whose resolved {@code ballerina/ai} version to compile
+     * @param latestIfNone Whether a project that does not depend on it yet gets its latest release, so the first
+     *                     agent added to it starts there
      */
-    public static void prewarmAgentLibrary(Project project) {
+    public static void prewarmAgentLibrary(Project project, boolean latestIfNone) {
         project.currentPackage().getResolution().dependencyGraph().getNodes().stream()
                 .map(ResolvedPackageDependency::packageInstance)
                 .filter(pkg -> pkg.packageOrg().value().equals(CommonUtils.BALLERINA_ORG_NAME)
                         && pkg.packageName().value().equals(AI_PACKAGE))
                 .findFirst()
                 .map(pkg -> pkg.packageVersion().toString())
-                .ifPresentOrElse(version -> prewarm(CommonUtils.BALLERINA_ORG_NAME, AI_PACKAGE, version),
-                        () -> prewarmLatestRelease(CommonUtils.BALLERINA_ORG_NAME, AI_PACKAGE));
+                .ifPresentOrElse(version -> prewarm(CommonUtils.BALLERINA_ORG_NAME, AI_PACKAGE, version), () -> {
+                    if (latestIfNone) {
+                        prewarmLatestRelease(CommonUtils.BALLERINA_ORG_NAME, AI_PACKAGE);
+                    }
+                });
     }
 
     private static void prewarmLatestRelease(String org, String packageName) {
