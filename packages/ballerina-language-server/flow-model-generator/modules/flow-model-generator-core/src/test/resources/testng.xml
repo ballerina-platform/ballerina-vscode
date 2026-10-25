@@ -12,6 +12,7 @@
             <class name="io.ballerina.flowmodelgenerator.core.ConnectionActionProviderTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.ConnectorCategoryResolverTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.DiagnosticHandlerTest"/>
+            <class name="io.ballerina.flowmodelgenerator.core.FindDocumentTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.HumanTaskFallbackArgumentsTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.PackageUtilConcurrencyTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.RetryPolicyRoundTripTest"/>

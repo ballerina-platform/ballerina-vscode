@@ -1,0 +1,12 @@
+{
+  "organization": "testorg",
+  "name": "demo",
+  "version": "1.0.0",
+  "export": [
+    "demo",
+    "demo.util"
+  ],
+  "ballerina_version": "2201.14.0",
+  "language_spec_version": "2024R1",
+  "platform": "any"
+}

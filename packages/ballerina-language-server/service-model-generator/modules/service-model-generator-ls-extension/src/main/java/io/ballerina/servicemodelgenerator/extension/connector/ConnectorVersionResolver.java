@@ -35,8 +35,12 @@ import io.ballerina.servicemodelgenerator.extension.model.ResolvedConnectorVersi
 import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
@@ -52,6 +56,22 @@ public final class ConnectorVersionResolver {
     private static final Duration CENTRAL_LOOKUP_TIMEOUT = Duration.ofSeconds(10);
     private static final Duration CENTRAL_LOOKUP_TIMEOUT_WITH_CACHED = Duration.ofSeconds(2);
     private static final Map<String, String> CENTRAL_LATEST_VERSIONS = new ConcurrentHashMap<>();
+    private static final Map<String, CompletableFuture<String>> CENTRAL_LOOKUPS_IN_FLIGHT = new ConcurrentHashMap<>();
+    // A prefetch skips a package whose lookup failed this recently, so an offline Central is not asked on every open.
+    private static final Duration FAILED_LOOKUP_RETRY_AFTER = Duration.ofMinutes(5);
+    private static final Map<String, Long> CENTRAL_LOOKUPS_FAILED_AT = new ConcurrentHashMap<>();
+    private static final Set<String> PREFETCHES_QUEUED = ConcurrentHashMap.newKeySet();
+    // A lookup someone waits on starts at once; catalog prefetches share a few threads and queue behind each other.
+    private static final ExecutorService CENTRAL_LOOKUP_EXECUTOR = Executors.newCachedThreadPool(runnable -> {
+        Thread thread = new Thread(runnable, "connector-latest-version");
+        thread.setDaemon(true);
+        return thread;
+    });
+    private static final ExecutorService PREFETCH_EXECUTOR = Executors.newFixedThreadPool(4, runnable -> {
+        Thread thread = new Thread(runnable, "connector-latest-version-prefetch");
+        thread.setDaemon(true);
+        return thread;
+    });
 
     private ConnectorVersionResolver() {
     }
@@ -84,21 +104,78 @@ public final class ConnectorVersionResolver {
                                                                    String minSupportedVersion) {
         return resolveForNewDependency(minSupportedVersion,
                 () -> PackageUtil.isOffline() ? null : memoizedCentralLatest(orgName + "/" + packageName,
-                        () -> RemoteCentral.getInstance().latestPackageVersion(orgName, packageName)),
+                        centralLatest(orgName, packageName)),
                 () -> PackageUtil.cachedVersion(orgName, packageName));
+    }
+
+    /**
+     * Starts looking up the latest Central version of {@code orgName/packageName} in the background, so a
+     * later {@link #resolveForNewDependency} finds it remembered instead of waiting on Central.
+     */
+    public static void prefetchCentralLatest(String orgName, String packageName) {
+        if (!PackageUtil.isOffline()) {
+            prefetchCentralLatest(orgName + "/" + packageName, centralLatest(orgName, packageName));
+        }
+    }
+
+    static void prefetchCentralLatest(String key, Supplier<String> lookup) {
+        if (CENTRAL_LATEST_VERSIONS.containsKey(key) || failedRecently(key) || !PREFETCHES_QUEUED.add(key)) {
+            return;
+        }
+        PREFETCH_EXECUTOR.execute(() -> {
+            try {
+                // Only a started lookup is in flight, so a request never waits on a prefetch still in the queue.
+                if (!CENTRAL_LATEST_VERSIONS.containsKey(key)) {
+                    centralLookup(key, lookup, Runnable::run).join();
+                }
+            } catch (RuntimeException ignored) {
+                // Recorded as a failure by the lookup itself.
+            } finally {
+                PREFETCHES_QUEUED.remove(key);
+            }
+        });
+    }
+
+    private static boolean failedRecently(String key) {
+        Long failedAt = CENTRAL_LOOKUPS_FAILED_AT.get(key);
+        return failedAt != null && System.currentTimeMillis() - failedAt < FAILED_LOOKUP_RETRY_AFTER.toMillis();
     }
 
     /** The remembered Central latest version for {@code key}, else the one {@code lookup} finds, remembered. */
     static String memoizedCentralLatest(String key, Supplier<String> lookup) {
         String remembered = CENTRAL_LATEST_VERSIONS.get(key);
-        if (remembered != null) {
-            return remembered;
+        return remembered != null ? remembered : centralLookup(key, lookup, CENTRAL_LOOKUP_EXECUTOR).join();
+    }
+
+    // One lookup per package at a time, shared by a prefetch and the request that needs its answer.
+    private static CompletableFuture<String> centralLookup(String key, Supplier<String> lookup, Executor executor) {
+        CompletableFuture<String> created = new CompletableFuture<>();
+        CompletableFuture<String> inFlight = CENTRAL_LOOKUPS_IN_FLIGHT.putIfAbsent(key, created);
+        if (inFlight != null) {
+            return inFlight;
         }
-        String latest = lookup.get();
-        if (latest != null && !latest.isBlank()) {
-            CENTRAL_LATEST_VERSIONS.put(key, latest);
-        }
-        return latest;
+        executor.execute(() -> {
+            try {
+                String latest = lookup.get();
+                if (latest != null && !latest.isBlank()) {
+                    CENTRAL_LATEST_VERSIONS.put(key, latest);
+                    CENTRAL_LOOKUPS_FAILED_AT.remove(key);
+                } else {
+                    CENTRAL_LOOKUPS_FAILED_AT.put(key, System.currentTimeMillis());
+                }
+                CENTRAL_LOOKUPS_IN_FLIGHT.remove(key, created);
+                created.complete(latest);
+            } catch (Throwable e) {
+                CENTRAL_LOOKUPS_FAILED_AT.put(key, System.currentTimeMillis());
+                CENTRAL_LOOKUPS_IN_FLIGHT.remove(key, created);
+                created.completeExceptionally(e);
+            }
+        });
+        return created;
+    }
+
+    private static Supplier<String> centralLatest(String orgName, String packageName) {
+        return () -> RemoteCentral.getInstance().latestPackageVersion(orgName, packageName);
     }
 
     static ResolvedConnectorVersion resolveForNewDependency(String minSupportedVersion,
