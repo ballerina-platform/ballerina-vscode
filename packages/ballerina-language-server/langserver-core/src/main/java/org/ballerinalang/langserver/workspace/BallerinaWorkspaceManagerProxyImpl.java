@@ -48,6 +48,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Ballerina workspace manager proxy implementation.
@@ -60,6 +62,7 @@ public class BallerinaWorkspaceManagerProxyImpl implements BallerinaWorkspaceMan
     private final WorkspaceManager baseWorkspaceManager;
     private final ClonedWorkspace clonedWorkspaceManager;
     private final AIWorkspace aiWorkspaceManager;
+    private final ReentrantLock exprCopyLock = new ReentrantLock(true);
 
     // An expression copy is a second compilation of its project, so one idle this long with no form open is dropped.
     private static final Duration EXPR_COPY_IDLE_TIMEOUT = Duration.ofMinutes(10);
@@ -73,6 +76,25 @@ public class BallerinaWorkspaceManagerProxyImpl implements BallerinaWorkspaceMan
         this.clonedWorkspaceManager = new ClonedWorkspace(serverContext, this.baseWorkspaceManager,
                 exprCopyIdleTimeout);
         this.aiWorkspaceManager = new AIWorkspace(serverContext);
+    }
+
+    @Override
+    public Lock exprCopyLock() {
+        return exprCopyLock;
+    }
+
+    private void editExprCopy(CopyEdit edit) throws WorkspaceDocumentException {
+        exprCopyLock.lock();
+        try {
+            edit.run();
+        } finally {
+            exprCopyLock.unlock();
+        }
+    }
+
+    @FunctionalInterface
+    private interface CopyEdit {
+        void run() throws WorkspaceDocumentException;
     }
 
     void evictIdleExprCopies(long nowMillis) {
@@ -113,7 +135,9 @@ public class BallerinaWorkspaceManagerProxyImpl implements BallerinaWorkspaceMan
                 source = this.baseWorkspaceManager.project(path.get());
             }
             if (source.isPresent()) {
-                this.clonedWorkspaceManager.openOrReuse(source.get(), path.get(), params.getTextDocument().getText());
+                Project sourceProject = source.get();
+                editExprCopy(() -> this.clonedWorkspaceManager.openOrReuse(sourceProject, path.get(),
+                        params.getTextDocument().getText()));
             }
         } else if (this.isAIScheme(uri)) {
             this.aiWorkspaceManager.didOpen(path.get(), params);
@@ -125,10 +149,13 @@ public class BallerinaWorkspaceManagerProxyImpl implements BallerinaWorkspaceMan
 
             // Send didOpen if the project is already opened in the cloned workspace
             if (project.isPresent()) {
-                this.clonedWorkspaceManager.didOpen(path.get(), params);
-                if (cloneSynced) {
-                    this.baseWorkspaceManager.project(path.get()).ifPresent(this.clonedWorkspaceManager::markSynced);
-                }
+                editExprCopy(() -> {
+                    this.clonedWorkspaceManager.didOpen(path.get(), params);
+                    if (cloneSynced) {
+                        this.baseWorkspaceManager.project(path.get())
+                                .ifPresent(this.clonedWorkspaceManager::markSynced);
+                    }
+                });
             }
         }
     }
@@ -141,7 +168,7 @@ public class BallerinaWorkspaceManagerProxyImpl implements BallerinaWorkspaceMan
             return;
         }
         if (this.isExprScheme(uri)) {
-            this.clonedWorkspaceManager.didChange(path.get(), params);
+            editExprCopy(() -> this.clonedWorkspaceManager.didChange(path.get(), params));
         } else if (this.isAIScheme(uri)) {
             this.aiWorkspaceManager.didChange(path.get(), params);
         } else {
@@ -152,10 +179,13 @@ public class BallerinaWorkspaceManagerProxyImpl implements BallerinaWorkspaceMan
 
             // Send didChange if the project is already opened in the cloned workspace
             if (project.isPresent()) {
-                this.clonedWorkspaceManager.didChange(path.get(), params);
-                if (cloneSynced) {
-                    this.baseWorkspaceManager.project(path.get()).ifPresent(this.clonedWorkspaceManager::markSynced);
-                }
+                editExprCopy(() -> {
+                    this.clonedWorkspaceManager.didChange(path.get(), params);
+                    if (cloneSynced) {
+                        this.baseWorkspaceManager.project(path.get())
+                                .ifPresent(this.clonedWorkspaceManager::markSynced);
+                    }
+                });
             }
         }
     }
@@ -168,7 +198,12 @@ public class BallerinaWorkspaceManagerProxyImpl implements BallerinaWorkspaceMan
             return;
         }
         if (this.isExprScheme(uri)) {
-            this.clonedWorkspaceManager.didClose(path.get(), params);
+            exprCopyLock.lock();
+            try {
+                this.clonedWorkspaceManager.didClose(path.get(), params);
+            } finally {
+                exprCopyLock.unlock();
+            }
         } else if (this.isAIScheme(uri)) {
             this.aiWorkspaceManager.didClose(path.get(), params);
         } else {
