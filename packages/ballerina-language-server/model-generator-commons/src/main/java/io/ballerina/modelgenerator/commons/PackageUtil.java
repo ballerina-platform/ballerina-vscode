@@ -33,6 +33,8 @@ import io.ballerina.projects.PackageOrg;
 import io.ballerina.projects.PackageVersion;
 import io.ballerina.projects.Project;
 import io.ballerina.projects.ProjectEnvironmentBuilder;
+import io.ballerina.projects.ProjectKind;
+import io.ballerina.projects.ResolvedPackageDependency;
 import io.ballerina.projects.bala.BalaProject;
 import io.ballerina.projects.directory.BuildProject;
 import io.ballerina.projects.environment.PackageMetadataResponse;
@@ -53,16 +55,27 @@ import org.ballerinalang.langserver.commons.workspace.WorkspaceManager;
 import org.eclipse.lsp4j.MessageType;
 
 import java.io.IOException;
+import java.lang.ref.SoftReference;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 import java.util.logging.Level;
@@ -157,8 +170,8 @@ public class PackageUtil {
      * trade-off is that a "latest version" lookup or a transient network failure sticks for the
      * LS session.
      *
-     * Caches the resolved bala path rather than the loaded package, which would retain that
-     * package's syntax trees and symbols for the session.
+     * Caches the resolved bala path; the loaded package is cached separately, and briefly, in
+     * {@link #BALA_PACKAGES}.
      */
     private static final ConcurrentHashMap<String, Optional<Path>> SAMPLE_RESOLUTION_CACHE =
             new ConcurrentHashMap<>();
@@ -204,11 +217,173 @@ public class PackageUtil {
                 + ":" + (repository == null ? "" : repository);
     }
 
+    // A compiled library holds 5-320 MB, so few are kept; an uncompiled one is cheap and saves a reload per render.
+    static final BalaPackageCache BALA_PACKAGES = new BalaPackageCache(3, 16, Duration.ofMinutes(10));
+
+    private static final Set<String> PREWARMED = ConcurrentHashMap.newKeySet();
+    private static final String AI_PACKAGE = "ai";
+
+    // One load per bala at a time, outside BALA_PACKAGES so a slow load never blocks other balas.
+    private static final ConcurrentHashMap<Path, CompletableFuture<Package>> BALA_LOADS = new ConcurrentHashMap<>();
+
     private static Optional<Package> loadBalaPackage(Path balaPath) {
-        ProjectEnvironmentBuilder defaultBuilder = ProjectEnvironmentBuilder.getDefaultBuilder();
-        defaultBuilder.addCompilationCacheFactory(TempDirCompilationCache::from);
-        BalaProject balaProject = BalaProject.loadProject(defaultBuilder, balaPath, balaBuildOptions());
-        return Optional.ofNullable(balaProject.currentPackage());
+        Package cached = cachedBalaPackage(balaPath);
+        if (cached != null) {
+            return Optional.of(cached);
+        }
+        CompletableFuture<Package> load = new CompletableFuture<>();
+        CompletableFuture<Package> inFlight = BALA_LOADS.putIfAbsent(balaPath, load);
+        if (inFlight != null) {
+            return Optional.of(joinBalaLoad(inFlight));
+        }
+        try {
+            Package loaded = cachedBalaPackage(balaPath);
+            if (loaded == null) {
+                ProjectEnvironmentBuilder defaultBuilder = ProjectEnvironmentBuilder.getDefaultBuilder();
+                defaultBuilder.addCompilationCacheFactory(TempDirCompilationCache::from);
+                loaded = BalaProject.loadProject(defaultBuilder, balaPath, balaBuildOptions()).currentPackage();
+                BALA_PACKAGES.put(balaPath, loaded);
+            }
+            load.complete(loaded);
+            return Optional.of(loaded);
+        } catch (Throwable e) {
+            load.completeExceptionally(e);
+            throw e;
+        } finally {
+            BALA_LOADS.remove(balaPath, load);
+        }
+    }
+
+    private static Package cachedBalaPackage(Path balaPath) {
+        return BALA_PACKAGES.get(balaPath);
+    }
+
+    static final class BalaPackageCache {
+        private final int maxCompiled;
+        private final int maxEntries;
+        private final long idleTimeoutMillis;
+        private final Map<Path, CachedBala> entries = new LinkedHashMap<>(16, 0.75f, true);
+
+        BalaPackageCache(int maxCompiled, int maxEntries, Duration idleTimeout) {
+            this.maxCompiled = maxCompiled;
+            this.maxEntries = maxEntries;
+            this.idleTimeoutMillis = idleTimeout.toMillis();
+            ScheduledExecutorService sweeper = Executors.newSingleThreadScheduledExecutor(runnable -> {
+                Thread thread = new Thread(runnable, "bala-cache-sweeper");
+                thread.setDaemon(true);
+                return thread;
+            });
+            long period = Math.min(idleTimeoutMillis, Duration.ofMinutes(1).toMillis());
+            sweeper.scheduleWithFixedDelay(() -> evictIdle(System.currentTimeMillis()), period, period,
+                    TimeUnit.MILLISECONDS);
+        }
+
+        synchronized Package get(Path balaPath) {
+            CachedBala cached = entries.get(balaPath);
+            Package pkg = cached == null ? null : cached.pkg.get();
+            if (pkg == null) {
+                entries.remove(balaPath);
+                return null;
+            }
+            cached.lastUsed = System.currentTimeMillis();
+            return pkg;
+        }
+
+        synchronized void put(Path balaPath, Package pkg) {
+            entries.put(balaPath, new CachedBala(pkg, false));
+            evictLeastRecentlyUsed();
+        }
+
+        synchronized void putCompiled(Path balaPath, Package pkg) {
+            entries.put(balaPath, new CachedBala(pkg, true));
+            evictLeastRecentlyUsed();
+        }
+
+        synchronized void remove(Path balaPath, Package pkg) {
+            CachedBala cached = entries.get(balaPath);
+            if (cached != null && cached.pkg.get() == pkg) {
+                entries.remove(balaPath);
+            }
+        }
+
+        synchronized void evictIdle(long nowMillis) {
+            entries.values().removeIf(cached -> cached.pkg.get() == null
+                    || nowMillis - cached.lastUsed >= idleTimeoutMillis);
+        }
+
+        private void evictLeastRecentlyUsed() {
+            entries.values().removeIf(cached -> cached.pkg.get() == null);
+            long compiled = entries.values().stream().filter(cached -> cached.compiled).count();
+            Iterator<CachedBala> leastRecentFirst = entries.values().iterator();
+            while (entries.size() > maxEntries || compiled > maxCompiled) {
+                CachedBala cached = leastRecentFirst.next();
+                if (cached.compiled || entries.size() > maxEntries) {
+                    compiled -= cached.compiled ? 1 : 0;
+                    leastRecentFirst.remove();
+                }
+            }
+        }
+
+        // Soft, so the GC can still reclaim a cached library rather than run out of memory on a small heap.
+        private static final class CachedBala {
+            private final SoftReference<Package> pkg;
+            private final boolean compiled;
+            private long lastUsed = System.currentTimeMillis();
+
+            private CachedBala(Package pkg, boolean compiled) {
+                this.pkg = new SoftReference<>(pkg);
+                this.compiled = compiled;
+            }
+        }
+    }
+
+    private static Package joinBalaLoad(CompletableFuture<Package> load) {
+        try {
+            return load.join();
+        } catch (CompletionException e) {
+            if (e.getCause() instanceof RuntimeException cause) {
+                throw cause;
+            }
+            if (e.getCause() instanceof Error cause) {
+                throw cause;
+            }
+            throw e;
+        }
+    }
+
+    /**
+     * Compiles a library package in the background so the node templates that need it later find it cached.
+     *
+     * @param org         The organization name of the package
+     * @param packageName The name of the package
+     * @param version     The version of the package
+     */
+    public static void prewarm(String org, String packageName, String version) {
+        if (PREWARMED.add(org + "/" + packageName + ":" + version)) {
+            CompletableFuture.runAsync(() -> resolveModulePackage(org, packageName, version)
+                    .ifPresent(PackageUtil::getCompilation));
+        }
+    }
+
+    /**
+     * Compiles the project's {@code ballerina/ai} dependency in the background, since agent nodes and the agent's
+     * forms build their templates from it.
+     *
+     * @param project      The project whose resolved {@code ballerina/ai} version to compile
+     * @param latestIfNone Whether a project that does not depend on it yet gets the version its first agent
+     *                     template resolves
+     */
+    public static void prewarmAgentLibrary(Project project, boolean latestIfNone) {
+        Optional<String> version = project.currentPackage().getResolution()
+                .dependencyGraph().getNodes().stream()
+                .map(ResolvedPackageDependency::packageInstance)
+                .filter(pkg -> pkg.packageOrg().value().equals(CommonUtils.BALLERINA_ORG_NAME)
+                        && pkg.packageName().value().equals(AI_PACKAGE))
+                .findFirst()
+                .map(pkg -> pkg.packageVersion().toString());
+        if (version.isPresent() || latestIfNone) {
+            prewarm(CommonUtils.BALLERINA_ORG_NAME, AI_PACKAGE, version.orElse(null));
+        }
     }
 
     /**
@@ -505,12 +680,23 @@ public class PackageUtil {
      * @return the resolved package, or {@code Optional.empty()} when it isn't available offline
      */
     public static Optional<Package> getModulePackageOffline(String org, String name, String version) {
+        return getModuleBalaOffline(org, name, version).flatMap(PackageUtil::loadBalaPackage);
+    }
+
+    /**
+     * The local bala directory of a library, without loading it; for callers that only read files inside it.
+     *
+     * @param org     The organization name of the package
+     * @param name    The name of the package
+     * @param version The version of the package, or null for the newest one in the local repositories
+     * @return The bala directory, if the package is in the local repositories
+     */
+    public static Optional<Path> getModuleBalaOffline(String org, String name, String version) {
         // Memoize the immutable offline bala path under a distinct "offline:" key — kept separate
         // from getModulePackage's latest-version cache, whose miss may pull a newer online version —
-        // so repeat lookups skip the resolver entirely. Only the resolve touches the thread-local
-        // resolver; the bala load uses a fresh environment per call (see loadBalaPackage).
+        // so repeat lookups skip the resolver entirely. Only the resolve touches the thread-local resolver.
         return memoizedSampleBala(OFFLINE_RESOLUTION_KEY_PREFIX + sampleResolutionKey(org, name, version, null),
-                () -> resolveOfflineModuleBala(org, name, version)).flatMap(PackageUtil::loadBalaPackage);
+                () -> resolveOfflineModuleBala(org, name, version));
     }
 
     private static Optional<Path> resolveOfflineModuleBala(String org, String name, String version) {
@@ -798,7 +984,15 @@ public class PackageUtil {
         ReentrantLock lock = PROJECT_LOCKS.computeIfAbsent(id, k -> new ReentrantLock());
         lock.lock();
         try {
-            return balPackage.getCompilation();
+            PackageCompilation compilation = balPackage.getCompilation();
+            if (balPackage.project().kind() == ProjectKind.BALA_PROJECT) {
+                BALA_PACKAGES.putCompiled(id, balPackage);
+            }
+            return compilation;
+        } catch (RuntimeException | Error e) {
+            // A package keeps its failed compilation state, so the next request must load it again.
+            BALA_PACKAGES.remove(id, balPackage);
+            throw e;
         } finally {
             lock.unlock();
         }

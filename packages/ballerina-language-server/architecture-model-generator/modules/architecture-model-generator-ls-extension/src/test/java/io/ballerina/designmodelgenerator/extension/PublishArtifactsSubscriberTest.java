@@ -22,6 +22,7 @@ import io.ballerina.artifactsgenerator.Artifact;
 import io.ballerina.artifactsgenerator.ArtifactGenerationDebouncer;
 import io.ballerina.artifactsgenerator.ArtifactsCache;
 import io.ballerina.designmodelgenerator.extension.request.ArtifactsRequest;
+import io.ballerina.designmodelgenerator.extension.request.FlushArtifactsRequest;
 import io.ballerina.designmodelgenerator.extension.response.ArtifactsParams;
 import io.ballerina.modelgenerator.commons.AbstractLSTest;
 import org.ballerinalang.langserver.LSContextOperation;
@@ -41,6 +42,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
@@ -50,6 +52,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -268,6 +271,63 @@ public class PublishArtifactsSubscriberTest extends AbstractLSTest {
     }
 
     @Test
+    public void testImmediateTaskReleasesItsKey() throws Exception {
+        ArtifactGenerationDebouncer debouncer = ArtifactGenerationDebouncer.getInstance();
+        for (int i = 0; i < 2000; i++) {
+            String key = "immediate-task-" + i;
+            debouncer.debounce(key, () -> { }, 0);
+            waitForDebouncerCompletion(key, 1);
+        }
+    }
+
+    @Test
+    public void testFlushArtifactsRunsOnlyTheEditedPackages() throws Exception {
+        String packagePath = getSourcePath("new");
+        String edited = Path.of(packagePath, "main.bal").toAbsolutePath().normalize().toUri().toString();
+        String samePackage = Path.of(packagePath, "functions.bal").toAbsolutePath().normalize().toUri().toString();
+        String otherPackage = Files.createTempFile("other_package", ".bal").toUri().toString();
+        Set<String> ran = ConcurrentHashMap.newKeySet();
+        ArtifactGenerationDebouncer debouncer = ArtifactGenerationDebouncer.getInstance();
+        for (String key : List.of(edited, samePackage, otherPackage)) {
+            debouncer.debounce(key, () -> ran.add(key), 60_000);
+        }
+
+        serviceEndpoint.request("designModelService/flushArtifacts", new FlushArtifactsRequest(List.of(edited))).get();
+        waitForDebouncerCompletion(edited, 10);
+        waitForDebouncerCompletion(samePackage, 10);
+        Assert.assertEquals(ran, Set.of(edited, samePackage));
+
+        debouncer.flushAll();
+        waitForDebouncerCompletion(otherPackage, 10);
+        Assert.assertTrue(ran.contains(otherPackage));
+    }
+
+    @Test(dataProvider = "package-files")
+    public void testFlushArtifactsResolvesAnyPackageFileToItsPackage(String relativePath) throws Exception {
+        String packagePath = getSourcePath("new");
+        String pending = Path.of(packagePath, "types.bal").toAbsolutePath().normalize().toUri().toString();
+        String touched = Path.of(packagePath, relativePath).toAbsolutePath().normalize().toUri().toString();
+        String otherPackage = Files.createTempFile("other_package", ".bal").toUri().toString();
+        Set<String> ran = ConcurrentHashMap.newKeySet();
+        ArtifactGenerationDebouncer debouncer = ArtifactGenerationDebouncer.getInstance();
+        for (String key : List.of(pending, otherPackage)) {
+            debouncer.debounce(key, () -> ran.add(key), 60_000);
+        }
+
+        serviceEndpoint.request("designModelService/flushArtifacts", new FlushArtifactsRequest(List.of(touched))).get();
+        waitForDebouncerCompletion(pending, 10);
+        Assert.assertEquals(ran, Set.of(pending), "Wrong updates flushed for " + relativePath);
+
+        debouncer.flushAll();
+        waitForDebouncerCompletion(otherPackage, 10);
+    }
+
+    @DataProvider(name = "package-files")
+    public Object[][] packageFiles() {
+        return new Object[][]{{"Ballerina.toml"}, {"modules/db/persist_types.bal"}, {"."}};
+    }
+
+    @Test
     public void testMultipleDidChangeEventsOnDifferentFiles() throws Exception {
         // Initialize project cache with artifacts
         initializeProject();
@@ -420,6 +480,10 @@ public class PublishArtifactsSubscriberTest extends AbstractLSTest {
     }
 
     private void waitForDebouncerCompletion(String key) throws Exception {
+        waitForDebouncerCompletion(key, 100);
+    }
+
+    private void waitForDebouncerCompletion(String key, long pollMillis) throws Exception {
         ArtifactGenerationDebouncer debouncer = ArtifactGenerationDebouncer.getInstance();
         long startTime = System.currentTimeMillis();
         long timeout = 5000; // 5 seconds timeout
@@ -432,7 +496,7 @@ public class PublishArtifactsSubscriberTest extends AbstractLSTest {
             if (map.get(key) == null) {
                 return;
             }
-            Thread.sleep(100);
+            Thread.sleep(pollMillis);
         }
         Assert.fail("Timed out waiting for debouncer to finish processing");
     }

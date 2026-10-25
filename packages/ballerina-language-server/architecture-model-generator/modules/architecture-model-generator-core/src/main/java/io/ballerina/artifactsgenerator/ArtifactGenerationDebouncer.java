@@ -27,6 +27,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Predicate;
 
 /**
  * Debouncer for artifact generation to ensure artifacts are only generated after a specified delay has passed since the
@@ -52,6 +53,9 @@ public class ArtifactGenerationDebouncer {
 
     // Single-thread scheduler to debounce tasks.
     private final ScheduledExecutorService scheduler;
+
+    // Held while a task is registered and while it removes itself, so an immediate task cannot finish first.
+    private final Object registrationLock = new Object();
 
     private ArtifactGenerationDebouncer() {
         scheduler = Executors.newSingleThreadScheduledExecutor();
@@ -80,26 +84,58 @@ public class ArtifactGenerationDebouncer {
      * @param delay The delay in milliseconds
      */
     public void debounce(String key, Runnable task, long delay) {
-        CompletableFuture<Void> promise = new CompletableFuture<>();
+        synchronized (registrationLock) {
+            scheduleTask(key, task, delay);
+        }
+    }
 
-        // Schedule the task to run after the specified delay.
-        Future<?> scheduledFuture = scheduler.schedule(() -> {
+    private void scheduleTask(String key, Runnable task, long delay) {
+        CompletableFuture<Void> promise = new CompletableFuture<>();
+        Runnable run = () -> {
             try {
                 task.run();
                 promise.complete(null);
             } catch (Exception ex) {
                 promise.completeExceptionally(ex);
             } finally {
-                delayedMap.remove(key);
+                // A newer task for this key may already be registered; leave it cancellable.
+                synchronized (registrationLock) {
+                    delayedMap.computeIfPresent(key, (k, holder) -> holder.promise() == promise ? null : holder);
+                }
                 executeQueuedTasks(key);
             }
-        }, delay, TIME_UNIT);
+        };
+        // Schedule the task to run after the specified delay.
+        Future<?> scheduledFuture = scheduler.schedule(run, delay, TIME_UNIT);
 
         // Replace any existing scheduled task with the new one.
-        ScheduledTaskHolder prev = delayedMap.put(key, new ScheduledTaskHolder(promise, scheduledFuture));
+        ScheduledTaskHolder prev = delayedMap.put(key, new ScheduledTaskHolder(promise, scheduledFuture, run));
         if (prev != null) {
             prev.future.cancel(true);
             prev.promise.completeExceptionally(new CancellationException("Debounced by a new request"));
+        }
+    }
+
+    /**
+     * Runs every pending task now. The delay batches keystrokes; an edit the client applies on purpose is complete
+     * as soon as it lands, so the client flushes after applying it instead of waiting out a burst.
+     */
+    public void flushAll() {
+        flush(key -> true);
+    }
+
+    /**
+     * Runs the pending tasks whose keys match now, leaving the others to their delay.
+     *
+     * @param keys Selects the keys to run
+     */
+    public void flush(Predicate<String> keys) {
+        synchronized (registrationLock) {
+            delayedMap.forEach((key, holder) -> {
+                if (keys.test(key) && holder.future().cancel(false)) {
+                    scheduler.execute(holder.run());
+                }
+            });
         }
     }
 
@@ -192,7 +228,7 @@ public class ArtifactGenerationDebouncer {
         private static final ArtifactGenerationDebouncer INSTANCE = new ArtifactGenerationDebouncer();
     }
 
-    private record ScheduledTaskHolder(CompletableFuture<Void> promise, Future<?> future) {
+    private record ScheduledTaskHolder(CompletableFuture<Void> promise, Future<?> future, Runnable run) {
     }
 
     private record QueuedTask(String fileKey, Runnable task) {

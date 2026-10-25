@@ -59,6 +59,7 @@ under the License.
             <package name="org.ballerinalang.langserver.workspace.*"/>
         </packages>
         <classes>
+            <class name="org.ballerinalang.langserver.ProductModeOptionTest"/>
             <class name="org.ballerinalang.langserver.extensions.document.SyntaxTreeByRangeTest"/>
             <class name="org.ballerinalang.langserver.extensions.document.SyntaxTreeLocateTest"/>
             <class name="org.ballerinalang.langserver.extensions.document.SyntaxApiCallsGenTest"/>
