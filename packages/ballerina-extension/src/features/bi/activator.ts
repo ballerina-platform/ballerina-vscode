@@ -297,7 +297,7 @@ export function activate(context: BallerinaExtension) {
         console.log(">>> delete component", item);
 
         if (item.contextValue === DIRECTORY_MAP.CONNECTION || item.contextValue === DIRECTORY_MAP.AGENT) {
-            await handleConnectionDeletion(item.label as string, item.info);
+            await handleConnectionDeletion(item.contextValue, item.label as string, item.info, item.position);
         } else if (item.contextValue === DIRECTORY_MAP.LOCAL_CONNECTORS) {
             await handleLocalModuleDeletion(item.label as string, item.info);
         } else {
@@ -581,34 +581,39 @@ const handleLocalModuleDeletion = async (moduleName: string, filePath: string) =
     });
 };
 
-const handleConnectionDeletion = async (itemLabel: string, filePath: string) => {
+const handleConnectionDeletion = async (componentType: string, itemLabel: string, filePath: string, position?: NodePosition) => {
     const rpcClient = new BiDiagramRpcManager();
-    rpcClient.getModuleNodes().then((response) => {
-        console.log(">>> moduleNodes", { moduleNodes: response });
-        const connector = response?.flowModel?.connections.find(
-            (node) => node.properties.variable.value === itemLabel.trim()
-        );
-        if (connector) {
-            rpcClient
-                .deleteFlowNode({
-                    filePath: filePath,
-                    flowNode: connector,
-                })
-                .then((response) => {
-                    console.log(">>> Updated source code after delete", response);
-                    if (response.artifacts) {
-                        if (hasNoComponentsOpenInDiagram() || isFlowNodeOpenInDiagram(connector)) {
-                            openView(EVENT_TYPE.OPEN_VIEW, { view: MACHINE_VIEW.PackageOverview });
-                        }
-                    } else {
-                        console.error(">>> Error updating source code", response);
-                    }
-                })
-                .catch((error) => console.error(">>> Error deleting connection", error));
-        } else {
-            console.error(">>> Error finding connector", { connectionName: itemLabel });
-        }
-    });
+    const response = await rpcClient.getModuleNodes();
+    console.log(">>> moduleNodes", { moduleNodes: response });
+    const connector = response?.flowModel?.connections.find(
+        (node) => node.properties.variable.value === itemLabel.trim()
+    );
+    // A durable agent is not a connection, so it is deleted like any other component, by position.
+    if (!connector && position) {
+        await handleComponentDeletion(componentType, itemLabel, filePath, position);
+        return;
+    }
+    if (!connector) {
+        console.error(">>> Error finding connector", { connectionName: itemLabel });
+        window.showErrorMessage(`'${itemLabel}' was not found, so it was not deleted.`);
+        return;
+    }
+    rpcClient
+        .deleteFlowNode({
+            filePath: filePath,
+            flowNode: connector,
+        })
+        .then((response) => {
+            console.log(">>> Updated source code after delete", response);
+            if (response.artifacts) {
+                if (hasNoComponentsOpenInDiagram() || isFlowNodeOpenInDiagram(connector)) {
+                    openView(EVENT_TYPE.OPEN_VIEW, { view: MACHINE_VIEW.PackageOverview });
+                }
+            } else {
+                console.error(">>> Error updating source code", response);
+            }
+        })
+        .catch((error) => console.error(">>> Error deleting connection", error));
 };
 
 async function deleteComponent(component: ComponentInfo, rpcClient: BiDiagramRpcManager, filePath: string) {

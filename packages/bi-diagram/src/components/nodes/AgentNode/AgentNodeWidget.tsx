@@ -16,7 +16,7 @@
  * under the License.
  */
 /** @jsxImportSource @emotion/react */
-import React, { ReactNode, useEffect, useMemo, useState } from "react";
+import React, { ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import styled from "@emotion/styled";
 import { DiagramEngine, PortWidget } from "@projectstorm/react-diagrams-core";
 import { AgentNodeModel } from "./AgentNodeModel";
@@ -491,9 +491,8 @@ type AgentNodePresentation = {
 };
 
 const USAGE_TEXT_RIGHT_X = 238;
-const USAGE_LABEL_CHAR_WIDTH = 7.4;
-const USAGE_SERVICE_CHAR_WIDTH = 7.2;
-const USAGE_SERVICE_LABEL_MAX = 32;
+// Keeps a truncated service line and the row menu before it inside the usage column.
+export const USAGE_SERVICE_LABEL_MAX = 25;
 const USAGE_MENU_SIZE = 24;
 const USAGE_TEXT_CENTER_Y = 21;
 const USAGE_LINE_GAP = 19;
@@ -829,10 +828,35 @@ function TraceAccentLine({ isActive, aiColor, baseStroke, baseDashArray, markerI
     );
 }
 
+const ROW_MENU_GAP = 8;
+
+type MenuBeforeLabelsProps = { y: number; size: number; children: ReactNode }
+    & Omit<React.SVGProps<SVGForeignObjectElement>, "x" | "y" | "width" | "height" | "ref">;
+
+// Sits a fixed gap before the leftmost label of its row; SVG text has no layout, so its rendered width is measured.
+export function MenuBeforeLabels({ y, size, children, ...rest }: MenuBeforeLabelsProps) {
+    const ref = useRef<SVGForeignObjectElement>(null);
+    const [x, setX] = useState(0);
+    useLayoutEffect(() => {
+        const labels = [...(ref.current?.parentElement?.children ?? [])]
+            .filter((el): el is SVGTextElement => el.tagName === "text" && typeof (el as SVGTextElement).getBBox === "function")
+            .map((el) => el.getBBox())
+            .filter((box) => box.width > 0);
+        if (labels.length > 0) {
+            setX(Math.max(0, Math.min(...labels.map((box) => box.x)) - size - ROW_MENU_GAP));
+        }
+    });
+    return (
+        <foreignObject ref={ref} x={x} y={y} width={size} height={size} {...rest}>
+            {children}
+        </foreignObject>
+    );
+}
+
 const MENU_ITEM_HEIGHT = 32;
 
 // The toolkit Popover never keeps a menu inside the window, so one that would run past the bottom opens upward.
-function menuOrigin(anchor: Element | null, itemCount: number): { vertical: "top" | "bottom"; horizontal: "left" } {
+export function menuOrigin(anchor: Element | null, itemCount: number): { vertical: "top" | "bottom"; horizontal: "left" } {
     const rect = anchor?.getBoundingClientRect();
     const height = itemCount * MENU_ITEM_HEIGHT + 16;
     const opensUp = rect !== undefined && rect.top + height > window.innerHeight && rect.bottom - height >= 0;
@@ -1157,22 +1181,6 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
     const tryTriggerLabel = (usage: AgentUsage) =>
         (usage.type?.split(":")[0] ?? usage.type) === "ai" ? "Chat" : "Try It";
 
-    const usageTextWidth = (usage: AgentUsage) => {
-        const chars = (text: string, limit: number) =>
-            Math.min(text.length, limit) + (text.length > limit ? 3 : 0);
-        const labelWidth = chars(usage.label, 20) * USAGE_LABEL_CHAR_WIDTH;
-        const serviceWidth = usage.serviceLabel
-            ? chars(usage.serviceLabel, USAGE_SERVICE_LABEL_MAX) * USAGE_SERVICE_CHAR_WIDTH
-            : 0;
-        return Math.max(labelWidth, serviceWidth);
-    };
-
-    const usageMenuX = (usage: AgentUsage) =>
-        Math.max(0, USAGE_TEXT_RIGHT_X - usageTextWidth(usage) - USAGE_MENU_SIZE - 4);
-
-    const usageRowHitX = (usage: AgentUsage) =>
-        hasUsageMenu(usage) ? usageMenuX(usage) : Math.max(0, USAGE_TEXT_RIGHT_X - usageTextWidth(usage));
-
     const agentUsageOptions = { canAddTrigger: Boolean(agentNode?.onAddTrigger) };
     const showsAddTile = showsAddTriggerTile(agentWidgetType, agentUsageOptions);
     const addTileRow = usages.length + (hiddenUsageCount > 0 ? 1 : 0);
@@ -1251,9 +1259,9 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                     >
                         <g>
                             <rect
-                                x={usageRowHitX(usage)}
+                                x="0"
                                 y="0"
-                                width={USAGE_ROW_HIT_RIGHT_X - usageRowHitX(usage)}
+                                width={USAGE_ROW_HIT_RIGHT_X}
                                 height={USAGE_ROW_HIT_HEIGHT}
                                 fill="transparent"
                                 style={{ pointerEvents: "all" }}
@@ -1364,11 +1372,9 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                             />
 
                             {hasUsageMenu(usage) && (
-                                <foreignObject
-                                    x={usageMenuX(usage)}
-                                    y="12"
-                                    width={USAGE_MENU_SIZE}
-                                    height={USAGE_MENU_SIZE}
+                                <MenuBeforeLabels
+                                    y={12}
+                                    size={USAGE_MENU_SIZE}
                                     className="usage-menu-button"
                                     data-testid="agent-usage-menu"
                                     css={css`
@@ -1391,7 +1397,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                     >
                                         <MoreVertIcon />
                                     </NodeStyles.MenuButton>
-                                </foreignObject>
+                                </MenuBeforeLabels>
                             )}
                         </g>
                     </g>

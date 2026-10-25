@@ -49,21 +49,19 @@ public class DurableAgentRegisterEventBuilder extends CallBuilder {
 
     public static final String NAME_KEY = "name";
     public static final String NAME_LABEL = "Event Name";
-    public static final String NAME_DOC =
-            "The data-event channel name (\"chat\" drives the conversation itself)";
+    public static final String NAME_DOC = "Name of the data event; an event named chat carries the conversation";
     public static final String REQUEST_TYPE_KEY = "requestType";
     public static final String REQUEST_TYPE_LABEL = "Request Type";
     public static final String REQUEST_TYPE_DOC = "Type of the payload sent to the agent on this channel";
     public static final String RESPONSE_TYPE_KEY = "responseType";
     public static final String RESPONSE_TYPE_LABEL = "Response Type";
-    public static final String RESPONSE_TYPE_DOC = "Type of the agent's reply for this channel. Declaring a "
-            + "response makes the channel request-response (read with getDataResult/waitForDataResult); "
-            + "leave empty for a one-way channel";
+    public static final String RESPONSE_TYPE_DOC = "Type of the agent's reply to this event. Declaring a "
+            + "response makes the event request-response; leave it empty for a one-way event";
     public static final String CARDINALITY_KEY = "cardinality";
     public static final String CARDINALITY_LABEL = "Cardinality";
-    public static final String CARDINALITY_DOC = "How the channel consumes its events: MULTI_EVENT (the "
-            + "default) re-arms after every turn so events can arrive repeatedly and from multiple senders; "
-            + "SINGLE_EVENT is consumed exactly once per run";
+    public static final String CARDINALITY_DOC = "How the event is consumed: Multiple Events (the default) "
+            + "re-arms after every turn so events can arrive repeatedly and from multiple senders; "
+            + "Single Event is consumed once per run";
     public static final String MULTI_EVENT = "MULTI_EVENT";
     public static final String SINGLE_EVENT = "SINGLE_EVENT";
     private static final String CARDINALITY_TYPE = "workflow:EventCardinality";
@@ -167,8 +165,8 @@ public class DurableAgentRegisterEventBuilder extends CallBuilder {
                 // that already lists its options.
                 .type()
                     .fieldType(Property.ValueType.SINGLE_SELECT)
-                    .options(List.of(new Option(MULTI_EVENT, MULTI_EVENT),
-                            new Option(SINGLE_EVENT, SINGLE_EVENT)))
+                    .options(List.of(new Option("Multiple Events", MULTI_EVENT),
+                            new Option("Single Event", SINGLE_EVENT)))
                     .selected(true)
                     .stepOut()
                 .type()

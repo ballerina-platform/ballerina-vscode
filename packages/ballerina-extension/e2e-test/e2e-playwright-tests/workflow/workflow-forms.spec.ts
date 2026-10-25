@@ -355,7 +355,8 @@ export default function createTests() {
             await domClick(webview.getByText(/payment/).filter({ visible: true }).first());
             await expect(panel.getByRole('combobox', { name: /Workflow Name/ })).toHaveText(/orderWorkflow/, { timeout: 60000 });
             await expect(panel.getByRole('combobox', { name: /Data Name/ })).toHaveText(/payment/, { timeout: 60000 });
-            await expect.poll(() => webview.locator('[data-testid="ex-editor-workflowId"] .cm-content').textContent(), { timeout: 30000 }).toBe('"wf-1"');
+            // A string literal read back from source opens in text mode, which shows it without quotes.
+            await expect.poll(() => webview.locator('[data-testid="ex-editor-workflowId"] .cm-content').textContent(), { timeout: 30000 }).toBe('wf-1');
         });
     });
 }

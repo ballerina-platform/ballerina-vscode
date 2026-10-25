@@ -34,7 +34,7 @@ class DebouncedUndoRedoManager {
 
     // An undo pressed while an edit the user already sees as done is still saving must not undo the one before it.
     public waitFor(edit: Promise<unknown>): void {
-        this.pendingEdits = Promise.allSettled([this.pendingEdits, edit]);
+        this.pendingEdits = Promise.allSettled([this.pendingEdits, edit]).then((): undefined => undefined);
     }
 
     /**

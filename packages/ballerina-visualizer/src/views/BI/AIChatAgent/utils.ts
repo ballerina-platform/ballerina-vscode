@@ -16,8 +16,9 @@
  * under the License.
  */
 
-import { AgentEventChannel, AgentKind, AgentToolData, AvailableNode, BISearchRequest, BISearchResponse, CodeData, ConfigVariable, DIRECTORY_MAP, ELineRange, EVENT_TYPE, Flow, FlowNode, GET_DEFAULT_MODEL_PROVIDER, isAgentDeclarationNode, isSamePath, LinePosition, LineRange, MACHINE_VIEW, NodeKind, NodeMetadata, NodePosition, ProjectStructureArtifactResponse, Property, SearchKind, SearchNodesQuery, ToolData, ToolParameters, VisualizerLocation } from "@wso2/ballerina-core";
+import { AgentEventChannel, AgentKind, AgentToolData, AvailableNode, BISearchRequest, BISearchResponse, CodeData, ConfigVariable, DIRECTORY_MAP, ELineRange, EVENT_TYPE, Flow, FlowNode, GET_DEFAULT_MODEL_PROVIDER, isAgentDeclarationNode, isSamePath, LinePosition, LineRange, MACHINE_VIEW, NodeKind, NodeMetadata, NodePosition, ProjectStructureArtifactResponse, Property, SearchKind, SearchNodesQuery, ToolData, ToolParameters, VisualizerLocation, AgentUsage, triggerScopeNoun } from "@wso2/ballerina-core";
 import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
+import type { TriggerDeletionChoice } from "../FocusFlowDiagram/agentUsages";
 import { FormField } from "@wso2/ballerina-side-panel";
 import { cloneDeep } from "lodash";
 import { URI, Utils } from "vscode-uri";
@@ -743,6 +744,29 @@ export const serializeAgentToolsEdit = <T>(edit: () => Promise<T>): Promise<T> =
     return run;
 };
 
+// Everything `edit` writes becomes one undo step.
+export const withUndoGroup = async <T>(rpcClient: BallerinaRpcClient, edit: () => Promise<T>): Promise<T> => {
+    await rpcClient.getVisualizerRpcClient().beginUndoGroup();
+    try {
+        return await edit();
+    } finally {
+        await rpcClient.getVisualizerRpcClient().endUndoGroup().catch((): undefined => undefined);
+    }
+};
+
+// A queued edit's entry once saved: marked settled, or dropped at once when the save failed.
+export const settleEntry = <T extends { settled?: boolean }>(entry: T, ok: boolean) => (current: T[]): T[] =>
+    ok ? current.map((item) => (item === entry ? { ...item, settled: true } : item)) : current.filter((item) => item !== entry);
+
+// The same array when nothing is dropped, so the state does not change.
+export const keepIf = <T>(keep: (item: T) => boolean) => (current: T[]): T[] => {
+    const kept = current.filter(keep);
+    return kept.length === current.length ? current : kept;
+};
+
+const allNodes = (nodes: FlowNode[] = []): FlowNode[] =>
+    nodes.flatMap((node) => [node, ...(node.branches ?? []).flatMap((branch) => allNodes(branch.children))]);
+
 // A local agent is no module variable, so it is read from the flow of the function that declares it.
 const findLocalAgent = async (agentNode: FlowNode, name: string, rpcClient: BallerinaRpcClient) => {
     const range = agentNode.codedata?.lineRange;
@@ -757,19 +781,8 @@ const findLocalAgent = async (agentNode: FlowNode, name: string, rpcClient: Ball
     const flow = (await rpcClient.getBIDiagramRpcClient().getFlowModel({
         filePath, startLine: fn.startLine, endLine: fn.endLine,
     }))?.flowModel;
-    const find = (nodes: FlowNode[] = []): FlowNode | undefined => {
-        for (const candidate of nodes) {
-            if (candidate.codedata?.node === "AGENT" && candidate.properties?.variable?.value === name) {
-                return candidate;
-            }
-            const nested = candidate.branches?.map((branch) => find(branch.children)).find(Boolean);
-            if (nested) {
-                return nested;
-            }
-        }
-        return undefined;
-    };
-    return find(flow?.nodes);
+    return allNodes(flow?.nodes)
+        .find((candidate) => candidate.codedata?.node === "AGENT" && candidate.properties?.variable?.value === name);
 };
 
 // A panel's agent copy dates from when it opened, so it misses tools saved since.
@@ -865,13 +878,9 @@ export const drawToolEdits = (flow: Flow | undefined, deleting: DeletingTool[], 
     showAddingTools(hideDeletingTools(flow, deleting), adding);
 
 // Whether a fetched flow draws the tool on its agent; ends a settled deletion (false) or addition (true).
-export const drawsAgentTool = (flow: Flow | undefined, entry: DeletingTool): boolean => {
-    const visit = (nodes: FlowNode[] = []): boolean => nodes.some((node) =>
-        (drawsAgent(node, entry)
-            && ((node.metadata?.data as NodeMetadata | undefined)?.agentInfo?.tools ?? []).some((tool) => tool.name === entry.name))
-        || (node.branches ?? []).some((branch) => visit(branch.children)));
-    return visit(flow?.nodes);
-};
+export const drawsAgentTool = (flow: Flow | undefined, entry: DeletingTool): boolean =>
+    allNodes(flow?.nodes).some((node) => drawsAgent(node, entry)
+        && ((node.metadata?.data as NodeMetadata | undefined)?.agentInfo?.tools ?? []).some((tool) => tool.name === entry.name));
 
 // Keeps the agent's current tools unless this edit changed them, so a stale form never brings back a deleted tool.
 export const saveAgentDeclaration = <T>(
@@ -906,15 +915,7 @@ export const addToolToCurrentAgent = async (
     artifacts?: ProjectStructureArtifactResponse[]
 ): Promise<FlowNode | null> => {
     const { node, current } = await withCurrentAgentTools(agentNode, rpcClient);
-    const updatedAgentNode = await addToolToAgentNode(node, toolName);
-    if (!updatedAgentNode) {
-        return null;
-    }
-    if (!current) {
-        await refreshAgentNodeLineRange(updatedAgentNode, rpcClient, artifacts);
-    }
-    await writeAgentNode(updatedAgentNode, rpcClient);
-    return updatedAgentNode;
+    return addToolToReadAgent(node, toolName, rpcClient, artifacts, !current);
 };
 
 // For an agent read earlier in the same queued edit: only the edit whose `artifacts` are given can have moved it.
@@ -922,18 +923,21 @@ export const addToolToReadAgent = async (
     agentNode: FlowNode,
     toolName: string,
     rpcClient: BallerinaRpcClient,
-    artifacts?: ProjectStructureArtifactResponse[]
+    artifacts?: ProjectStructureArtifactResponse[],
+    refresh = true
 ): Promise<FlowNode | null> => {
     const updatedAgentNode = await addToolToAgentNode(agentNode, toolName);
     if (!updatedAgentNode) {
         return null;
     }
-    await refreshAgentNodeLineRange(updatedAgentNode, rpcClient, artifacts);
+    if (refresh) {
+        await refreshAgentNodeLineRange(updatedAgentNode, rpcClient, artifacts);
+    }
     await writeAgentNode(updatedAgentNode, rpcClient);
     return updatedAgentNode;
 };
 
-const writeAgentNode = async (agentNode: FlowNode, rpcClient: BallerinaRpcClient): Promise<void> => {
+export const writeAgentNode = async (agentNode: FlowNode, rpcClient: BallerinaRpcClient) => {
     const { filePath } = await rpcClient.getVisualizerRpcClient().joinProjectPath({
         segments: [agentNode.codedata.lineRange.fileName],
     });
@@ -941,6 +945,7 @@ const writeAgentNode = async (agentNode: FlowNode, rpcClient: BallerinaRpcClient
     if (response?.error) {
         throw new Error(response.error);
     }
+    return response;
 };
 
 export const addToolToAgentNode = async (agentNode: FlowNode, toolName: string) => {
@@ -1507,3 +1512,45 @@ export const resolveAuthConfig = async (
 
     return resolvedAuth;
 };
+
+export async function confirmTriggerDeletion(
+    rpcClient: BallerinaRpcClient,
+    usage: AgentUsage
+): Promise<TriggerDeletionChoice | undefined> {
+    const trigger = usage.trigger;
+    const listeners = trigger.listeners.map((listener) => listener.symbol).join(", ");
+    const listenerNote = listeners
+        ? ` Its listener ${listeners} will also be deleted because no other service uses it.`
+        : "";
+
+    if (!trigger.entryPoint) {
+        const confirmed = await rpcClient.getCommonRpcClient().showInformationModal({
+            message: `Are you sure you want to delete the ${trigger.serviceName} trigger?`,
+            detail: `The agent will no longer run when this trigger fires.${listenerNote}`,
+            items: ["Delete Trigger"],
+        });
+        return confirmed === "Delete Trigger" ? "service" : undefined;
+    }
+
+    const isEndpoint = trigger.scope === "ENTRY_POINT";
+    const label = triggerScopeNoun(trigger.scope);
+    const only = `Delete ${label}`;
+    const withService = `Delete ${label} and Service`;
+    const consequence = isEndpoint
+        ? "The agent will no longer be reachable at this endpoint."
+        : "The agent will no longer run when this event occurs.";
+    const remainder = trigger.orphansService
+        ? `No other ${label.toLowerCase()} on ${trigger.serviceName} uses the agent, `
+        + `so the service can be deleted as well.${listenerNote}`
+        : `Other ${label.toLowerCase()}s on ${trigger.serviceName} are unaffected.`;
+
+    const choice = await rpcClient.getCommonRpcClient().showInformationModal({
+        message: `Are you sure you want to delete the ${trigger.entryPoint.label} ${label.toLowerCase()}?`,
+        detail: `${consequence} ${remainder}`,
+        items: trigger.orphansService ? [only, withService] : [only],
+    });
+    if (choice === only) {
+        return "endpoint";
+    }
+    return choice === withService ? "service" : undefined;
+}

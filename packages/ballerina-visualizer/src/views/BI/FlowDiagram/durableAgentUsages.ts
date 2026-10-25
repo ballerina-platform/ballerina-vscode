@@ -19,7 +19,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AgentUsage, Flow, FlowNode, LineRange } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { AgentRef, findDurableAgentUsages, getCachedUsages, setCachedUsages, usageCacheKey } from "../FocusFlowDiagram/agentUsages";
+import { AgentRef, findDurableAgentUsages, getAgentTriggerScopes, getCachedUsages, setCachedUsages, usageCacheKey } from "../FocusFlowDiagram/agentUsages";
 
 const DEFER_MS = 600;
 
@@ -57,6 +57,29 @@ export function withDurableUsages(flow: Flow, usages: AgentUsage[], animate = tr
                 : node
         ),
     };
+}
+
+const sameUsage = (a: AgentUsage, b: AgentUsage) => a.documentUri === b.documentUri && a.label === b.label
+    && a.channel === b.channel && a.position?.startLine === b.position?.startLine;
+
+// The agent drawn without a usage being deleted, kept out of the cache so a refresh does not bring it back.
+export function withoutDurableUsage(flow: Flow, projectPath: string, usage: AgentUsage): { flow: Flow; restore: () => void } {
+    const box = findDurableAgentBox(flow);
+    if (!box) {
+        return { flow, restore: () => undefined };
+    }
+    const key = usageKeyOf(projectPath, flow, box);
+    const previous = boxData(box).usages ?? [];
+    const kept = previous.filter((item) => !sameUsage(item, usage));
+    setCachedUsages(key, kept);
+    return { flow: withDurableUsages(flow, kept, false), restore: () => setCachedUsages(key, previous) };
+}
+
+// A refreshed model arrives without usages; drawing it with the last known ones avoids a frame without its triggers.
+export function withKnownDurableUsages(flow: Flow, projectPath: string): Flow {
+    const box = findDurableAgentBox(flow);
+    const known = box && boxData(box).usages === undefined ? getCachedUsages(usageKeyOf(projectPath, flow, box)) : undefined;
+    return known ? withDurableUsages(flow, known, false) : flow;
 }
 
 function usageKeyOf(projectPath: string, flow: Flow, box: FlowNode): string {
@@ -113,7 +136,10 @@ export function useDurableAgentUsages(enabled: boolean, flow: Flow | undefined, 
         const delay = shownRef.current?.key === key ? DEFER_MS : 0;
         timerRef.current = setTimeout(async () => {
             try {
-                const response = await rpcClient.getBIDiagramRpcClient().getDesignModel({ projectPath });
+                const [response, triggerScopes] = await Promise.all([
+                    rpcClient.getBIDiagramRpcClient().getDesignModel({ projectPath }),
+                    getAgentTriggerScopes(rpcClient).catch((): undefined => undefined),
+                ]);
                 if (requestId !== requestIdRef.current) {
                     return;
                 }
@@ -123,7 +149,7 @@ export function useDurableAgentUsages(enabled: boolean, flow: Flow | undefined, 
                     }
                     return;
                 }
-                const usages = findDurableAgentUsages(response.designModel, durableAgentRefOf(flow, box));
+                const usages = findDurableAgentUsages(response.designModel, durableAgentRefOf(flow, box), triggerScopes);
                 setCachedUsages(key, usages);
                 if (contentRef.current === contentAtStart) {
                     dirtyRef.current = false;

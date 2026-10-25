@@ -32,9 +32,6 @@ import { BodyText, LoadingContainer, TopBar } from "../../styles";
 import { LoadingRing } from "../../../components/Loader";
 import { useCreateNode } from "../../../components/ConnectionSelector/useCreateNode";
 
-// Default (auto-numbered) name offered by the Durable Agentic Workflow creation form.
-const DURABLE_AGENT_DEFAULT_NAME = "durableAgenticWorkflow";
-
 // How long the plain loader is shown before switching to the "package is being pulled" status.
 // A cached package responds well within this, so the message only appears on an actual pull.
 // Matches ServiceCreationView / useServiceInitModel.
@@ -383,21 +380,6 @@ export function FunctionForm(props: FunctionFormProps) {
                 }
             }
 
-            // Durable Agentic Workflow creation: prefill the name with a workspace-unique
-            // default (durableAgenticWorkflow, durableAgenticWorkflow2, ...).
-            if (isDurableAgent && flowNode.properties?.functionName) {
-                try {
-                    const taken = new Set((await rpcClient.getBIDiagramRpcClient().getFunctionNames()).mentions);
-                    let defaultName = DURABLE_AGENT_DEFAULT_NAME;
-                    for (let suffix = 2; taken.has(defaultName); suffix++) {
-                        defaultName = `${DURABLE_AGENT_DEFAULT_NAME}${suffix}`;
-                    }
-                    flowNode.properties.functionName.value = defaultName;
-                } catch (error) {
-                    console.error("Failed to compute a default durable agentic workflow name:", error);
-                }
-            }
-
             if (!isCurrentLoad(seq)) {
                 return;
             }
@@ -694,7 +676,7 @@ export function FunctionForm(props: FunctionFormProps) {
             showErrorNotification();
         } finally {
             // openView is not awaited, so resetting after a create remounts the form and reopens its LS documents.
-            if (!(navigated && !functionName)) {
+            if (!navigated || functionName) {
                 setSaving(false);
             }
         }

@@ -73,6 +73,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -221,6 +222,12 @@ public class PackageUtil {
     static final BalaPackageCache BALA_PACKAGES = new BalaPackageCache(3, 16, Duration.ofMinutes(10));
 
     private static final Set<String> PREWARMED = ConcurrentHashMap.newKeySet();
+    // Central lookups and library compiles can take minutes, and the common pool serves the LS requests.
+    private static final ExecutorService PREWARM_EXECUTOR = Executors.newCachedThreadPool(runnable -> {
+        Thread thread = new Thread(runnable, "library-prewarm");
+        thread.setDaemon(true);
+        return thread;
+    });
     private static final String AI_PACKAGE = "ai";
 
     // One load per bala at a time, outside BALA_PACKAGES so a slow load never blocks other balas.
@@ -361,7 +368,7 @@ public class PackageUtil {
     public static void prewarm(String org, String packageName, String version) {
         if (PREWARMED.add(org + "/" + packageName + ":" + version)) {
             CompletableFuture.runAsync(() -> resolveModulePackage(org, packageName, version)
-                    .ifPresent(PackageUtil::getCompilation));
+                    .ifPresent(PackageUtil::getCompilation), PREWARM_EXECUTOR);
         }
     }
 
@@ -370,19 +377,36 @@ public class PackageUtil {
      * forms build their templates from it.
      *
      * @param project      The project whose resolved {@code ballerina/ai} version to compile
-     * @param latestIfNone Whether a project that does not depend on it yet gets the version its first agent
-     *                     template resolves
+     * @param latestIfNone Whether a project that does not depend on it yet gets its latest release, so the first
+     *                     agent added to it starts there
      */
     public static void prewarmAgentLibrary(Project project, boolean latestIfNone) {
-        Optional<String> version = project.currentPackage().getResolution()
-                .dependencyGraph().getNodes().stream()
+        project.currentPackage().getResolution().dependencyGraph().getNodes().stream()
                 .map(ResolvedPackageDependency::packageInstance)
                 .filter(pkg -> pkg.packageOrg().value().equals(CommonUtils.BALLERINA_ORG_NAME)
                         && pkg.packageName().value().equals(AI_PACKAGE))
                 .findFirst()
-                .map(pkg -> pkg.packageVersion().toString());
-        if (version.isPresent() || latestIfNone) {
-            prewarm(CommonUtils.BALLERINA_ORG_NAME, AI_PACKAGE, version.orElse(null));
+                .map(pkg -> pkg.packageVersion().toString())
+                .ifPresentOrElse(version -> prewarm(CommonUtils.BALLERINA_ORG_NAME, AI_PACKAGE, version), () -> {
+                    if (latestIfNone) {
+                        prewarmLatestRelease(CommonUtils.BALLERINA_ORG_NAME, AI_PACKAGE);
+                    }
+                });
+    }
+
+    private static void prewarmLatestRelease(String org, String packageName) {
+        if (PREWARMED.add(org + "/" + packageName + ":latest")) {
+            CompletableFuture.runAsync(() -> resolveModulePackage(org, packageName,
+                    latestReleaseOrNull(org, packageName)).ifPresent(PackageUtil::getCompilation), PREWARM_EXECUTOR);
+        }
+    }
+
+    // Central can be unreachable; a null version falls back to the newest release already in the local repositories.
+    private static String latestReleaseOrNull(String org, String packageName) {
+        try {
+            return fetchVersionIfNotExists(new ModuleInfo(org, packageName, packageName, null)).version();
+        } catch (RuntimeException e) {
+            return null;
         }
     }
 
