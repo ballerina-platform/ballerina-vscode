@@ -3728,7 +3728,6 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 }
                 durableQueueRef.current -= 1;
                 if (durableQueueRef.current === 0) {
-                    markFlowModelStale();
                     debouncedGetFlowModel();
                     // An undo before the refresh would leave a settled edit drawn over the source for good.
                     void flowModelRefresher.upToDate().then(() => {
@@ -4249,7 +4248,6 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             setShowSidePanel(true);
         },
         onRefresh: () => {
-            markFlowModelStale();
             debouncedGetFlowModel();
             return flowModelRefresher.upToDate();
         },
