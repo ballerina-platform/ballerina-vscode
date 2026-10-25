@@ -144,14 +144,14 @@ const Footer = styled.div`
 
 const RowPort = styled(PortWidget)<{ offset: number }>`
     position: absolute;
-    right: -6px;
+    right: -${NODE_BORDER_WIDTH}px;
     top: ${(props) => props.offset}px;
     transform: translateY(-50%);
 `;
 
 const CardPort = styled(PortWidget)<{ vertical: boolean }>`
     position: absolute;
-    ${(props) => (props.vertical ? `bottom: -6px; left: ${ENTRY_CARD_WIDTH / 2}px;` : `right: -6px; top: ${ENTRY_HEADER_HEIGHT / 2}px;`)}
+    ${(props) => (props.vertical ? `bottom: -${NODE_BORDER_WIDTH}px; left: ${ENTRY_CARD_WIDTH / 2}px;` : `right: -${NODE_BORDER_WIDTH}px; top: ${ENTRY_HEADER_HEIGHT / 2}px;`)}
     transform: ${(props) => (props.vertical ? "translateX(-50%)" : "translateY(-50%)")};
 `;
 
@@ -199,6 +199,7 @@ function footerLabel(hidden: number, unfolded: boolean | undefined): string | un
 
 function entrySelection(entry: TopologyEntryNode): EntrySelection {
     return {
+        kind: entry.kind,
         filePath: entry.filePath,
         position: entry.position,
         endPosition: entry.endPosition,
@@ -210,14 +211,15 @@ function entrySelection(entry: TopologyEntryNode): EntrySelection {
 function useCardMenu(entry: TopologyEntryNode) {
     const { readonly, onConfigureEntry, onDeleteEntry } = useTopologyContext();
     const [anchor, setAnchor] = useState<HTMLElement | SVGSVGElement>(null);
-    const enabled = !readonly && Boolean(onConfigureEntry && onDeleteEntry);
-    const items: Item[] = enabled
-        ? [
-              { id: "configure", label: "Configure", onClick: () => onConfigureEntry!(entrySelection(entry)) },
-              { id: "delete", label: "Delete", onClick: () => onDeleteEntry!(entrySelection(entry)) },
-          ]
-        : [];
-    return { enabled, anchor, setAnchor, items };
+    const items: Item[] = [];
+    // An automation is configured from its own flow view.
+    if (!readonly && onConfigureEntry && entry.kind === "service") {
+        items.push({ id: "configure", label: "Configure", onClick: () => onConfigureEntry(entrySelection(entry)) });
+    }
+    if (!readonly && onDeleteEntry) {
+        items.push({ id: "delete", label: "Delete", onClick: () => onDeleteEntry(entrySelection(entry)) });
+    }
+    return { enabled: items.length > 0, anchor, setAnchor, items };
 }
 
 type CardMenuState = ReturnType<typeof useCardMenu>;
@@ -304,9 +306,9 @@ export function ServiceNodeWidget(props: ServiceNodeWidgetProps) {
                     <Title hovered={headerHovered}>{entry.title}</Title>
                     <Subtitle>{entry.subtitle}</Subtitle>
                 </Titles>
-                {isService && <CardMenuButton menu={menu} />}
+                <CardMenuButton menu={menu} />
             </Header>
-            {isService && <CardMenuPopover menu={menu} />}
+            <CardMenuPopover menu={menu} />
             {isService &&
                 rows.map((handler) => <HandlerRow key={handler.id} handler={handler} dimmed={rowDimmed(handler)} />)}
             {footer && <Footer onClick={() => onToggleEntry?.(entry.id)}>{footer}</Footer>}

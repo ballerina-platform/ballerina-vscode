@@ -18,15 +18,13 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { DiagramEngine, NodeModel } from "@projectstorm/react-diagrams";
-import { BaseAgentNodeModel } from "../BaseAgentNodeModel";
 import { animateAgentFocusFit, computeAgentFocusFit, findAgentFocusNode, positionAgentFocusNode } from "./agentFocusFit";
 
 /** Owns the agent-focus-view's center-and-fit behavior: initial placement, manual fit-to-screen, and resize. */
 export function useAgentFocusFit(diagramEngine: DiagramEngine, isAgentFocusView: boolean, embedded: boolean) {
     const [canvasVisible, setCanvasVisible] = useState(!isAgentFocusView);
-    const nodeObserverRef = useRef<ResizeObserver>();
     const cancelAnimationRef = useRef<() => void>();
-    const hasFittedRef = useRef(false);
+    const fittedAgentRef = useRef<string>();
 
     const fitToContainer = useCallback(
         (animate: boolean) => {
@@ -54,42 +52,7 @@ export function useAgentFocusFit(diagramEngine: DiagramEngine, isAgentFocusView:
         [diagramEngine, embedded]
     );
 
-    /** Re-centers when the node's own footprint changes, e.g. the usage rail arriving from a later fetch. */
-    const watchNodeSize = useCallback(
-        (agentNode: BaseAgentNodeModel | undefined) => {
-            nodeObserverRef.current?.disconnect();
-            nodeObserverRef.current = undefined;
-            if (!agentNode) {
-                return;
-            }
-            let element: Element;
-            try {
-                element = diagramEngine.getNodeElement(agentNode);
-            } catch {
-                return;
-            }
-            let lastSize: { width: number; height: number } | undefined;
-            const observer = new ResizeObserver((entries) => {
-                // contentRect is the untransformed layout size, so canvas zoom never trips this.
-                const { width, height } = entries[0].contentRect;
-                const previous = lastSize;
-                lastSize = { width, height };
-                if (!previous) {
-                    return; // the report ResizeObserver fires on observe()
-                }
-                if (Math.abs(previous.width - width) < 1 && Math.abs(previous.height - height) < 1) {
-                    return;
-                }
-                fitToContainer(document.hasFocus());
-            });
-            observer.observe(element);
-            nodeObserverRef.current = observer;
-        },
-        [diagramEngine, fitToContainer]
-    );
-
     useEffect(() => () => {
-        nodeObserverRef.current?.disconnect();
         cancelAnimationRef.current?.();
     }, []);
 
@@ -102,16 +65,19 @@ export function useAgentFocusFit(diagramEngine: DiagramEngine, isAgentFocusView:
             if (nodes.length === 1) {
                 positionAgentFocusNode(agentNode);
             }
-            const animate = hasFittedRef.current && document.hasFocus();
-            hasFittedRef.current = true;
+            // Only the first placement per agent fits; a save must not move the card.
+            const agentKey = String(agentNode.node?.properties?.variable?.value ?? agentNode.getID());
+            const firstPlacement = fittedAgentRef.current !== agentKey;
+            fittedAgentRef.current = agentKey;
             requestAnimationFrame(() => requestAnimationFrame(() => {
-                fitToContainer(animate);
+                if (firstPlacement) {
+                    fitToContainer(false);
+                }
                 diagramEngine.repaintCanvas();
                 setCanvasVisible(true);
-                watchNodeSize(agentNode);
             }));
         },
-        [isAgentFocusView, fitToContainer, diagramEngine, watchNodeSize]
+        [isAgentFocusView, fitToContainer, diagramEngine]
     );
 
     // Re-fits when its container is resized (e.g. Copilot panel opening).
