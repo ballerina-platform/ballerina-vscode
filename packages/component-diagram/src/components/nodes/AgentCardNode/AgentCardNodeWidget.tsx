@@ -698,25 +698,19 @@ export function AgentCardNodeWidget(props: AgentCardNodeWidgetProps) {
                         <ToolsSummary node={node} show={show} hide={hide} />
                         <ConnectionChips chips={node.chips} onMouseEnter={show(connectionRows(node.chips))} onMouseLeave={hide} />
                     </ToolsLine>
-                    {node.orphan && (
+                    {node.orphan && !isWorkflow && (
                         <OrphanFooter>
-                            {isWorkflow ? (
-                                "No trigger yet"
-                            ) : (
-                                <>
-                                    No trigger yet ·{" "}
-                                    <u
-                                        role="button"
-                                        tabIndex={readonly ? -1 : 0}
-                                        onMouseDown={(event) => event.stopPropagation()}
-                                        onMouseUp={(event) => event.stopPropagation()}
-                                        onClick={readonly ? undefined : handleAddTrigger}
-                                        onKeyDown={(event) => !readonly && (event.key === "Enter" || event.key === " ") && handleAddTrigger(event)}
-                                    >
-                                        Add Trigger
-                                    </u>
-                                </>
-                            )}
+                            No trigger yet ·{" "}
+                            <u
+                                role="button"
+                                tabIndex={readonly ? -1 : 0}
+                                onMouseDown={(event) => event.stopPropagation()}
+                                onMouseUp={(event) => event.stopPropagation()}
+                                onClick={readonly ? undefined : handleAddTrigger}
+                                onKeyDown={(event) => !readonly && (event.key === "Enter" || event.key === " ") && handleAddTrigger(event)}
+                            >
+                                Add Trigger
+                            </u>
                         </OrphanFooter>
                     )}
                 </Body>
