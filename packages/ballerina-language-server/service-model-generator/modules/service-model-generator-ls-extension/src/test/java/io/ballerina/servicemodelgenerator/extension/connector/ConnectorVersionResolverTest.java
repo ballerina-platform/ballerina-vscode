@@ -30,6 +30,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
@@ -184,6 +185,65 @@ public class ConnectorVersionResolverTest {
         Assert.assertNull(ConnectorVersionResolver.memoizedCentralLatest(key, lookup));
         Assert.assertNull(ConnectorVersionResolver.memoizedCentralLatest(key, lookup));
         Assert.assertEquals(lookups.get(), 2, "an unanswered Central lookup must be retried on the next open");
+    }
+
+    @Test
+    public void testFailedPrefetchIsNotRepeatedRightAway() throws InterruptedException {
+        AtomicInteger lookups = new AtomicInteger();
+        String key = "test-org/prefetch-failed-" + System.nanoTime();
+        CountDownLatch looked = new CountDownLatch(1);
+        Supplier<String> unreachable = () -> {
+            lookups.incrementAndGet();
+            looked.countDown();
+            return null;
+        };
+        ConnectorVersionResolver.prefetchCentralLatest(key, unreachable);
+        Assert.assertTrue(looked.await(5, TimeUnit.SECONDS));
+        Thread.sleep(200);
+        ConnectorVersionResolver.prefetchCentralLatest(key, unreachable);
+        Thread.sleep(200);
+        Assert.assertEquals(lookups.get(), 1, "a prefetch must not ask Central again right after it failed");
+    }
+
+    @Test
+    public void testPrefetchesRunOnAFewThreads() throws InterruptedException {
+        AtomicInteger running = new AtomicInteger();
+        AtomicInteger mostRunning = new AtomicInteger();
+        CountDownLatch release = new CountDownLatch(1);
+        CountDownLatch finished = new CountDownLatch(10);
+        String prefix = "test-org/prefetch-bounded-" + System.nanoTime() + "-";
+        for (int i = 0; i < 10; i++) {
+            ConnectorVersionResolver.prefetchCentralLatest(prefix + i, () -> {
+                mostRunning.accumulateAndGet(running.incrementAndGet(), Math::max);
+                awaitThenReturn(release, "1.0.0");
+                running.decrementAndGet();
+                finished.countDown();
+                return "1.0.0";
+            });
+        }
+        Thread.sleep(300);
+        release.countDown();
+        Assert.assertTrue(finished.await(5, TimeUnit.SECONDS));
+        Assert.assertEquals(mostRunning.get(), 4, "prefetches must share a fixed number of threads");
+    }
+
+    @Test
+    public void testRequestDoesNotWaitBehindQueuedPrefetches() {
+        CountDownLatch release = new CountDownLatch(1);
+        String prefix = "test-org/prefetch-queued-" + System.nanoTime() + "-";
+        try {
+            for (int i = 0; i < 4; i++) {
+                ConnectorVersionResolver.prefetchCentralLatest(prefix + i, () -> awaitThenReturn(release, "1.0.0"));
+            }
+            String wanted = prefix + "wanted";
+            ConnectorVersionResolver.prefetchCentralLatest(wanted, () -> awaitThenReturn(release, "1.0.0"));
+            long start = System.nanoTime();
+            Assert.assertEquals(ConnectorVersionResolver.memoizedCentralLatest(wanted, () -> "2.0.0"), "2.0.0");
+            Assert.assertTrue(System.nanoTime() - start < TimeUnit.SECONDS.toNanos(2),
+                    "a lookup someone waits on must not queue behind prefetches");
+        } finally {
+            release.countDown();
+        }
     }
 
     private static String awaitThenReturn(CountDownLatch latch, String version) {
