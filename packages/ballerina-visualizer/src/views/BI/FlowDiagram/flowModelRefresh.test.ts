@@ -88,10 +88,9 @@ describe("flow model refresher", () => {
 
     // A node save: the content notification refreshes, then the side panel closing asks again within the window.
     it("drops the trailing refresh of a burst when nothing changed after the leading fetch began", async () => {
-        refresher.markStale();
         refresher.refresh();
         expect(fetches).toHaveLength(1);
-        refresher.refresh();
+        refresher.refresh(false);
         await settle(0);
         jest.advanceTimersByTime(WINDOW);
         expect(fetches).toHaveLength(1);
@@ -99,17 +98,28 @@ describe("flow model refresher", () => {
 
     // Copilot live edits: content keeps changing, so the burst ends with one refresh of the final source.
     it("runs the trailing refresh when content changed after the leading fetch began", async () => {
-        refresher.markStale();
         refresher.refresh();
         await settle(0);
         for (let i = 0; i < 5; i++) {
             jest.advanceTimersByTime(200);
-            refresher.markStale();
             refresher.refresh();
         }
         expect(fetches).toHaveLength(1);
         jest.advanceTimersByTime(WINDOW);
         expect(fetches).toHaveLength(2);
+    });
+
+    // A caller that forgets to mark its change still gets it fetched, at the cost of a fetch.
+    it("treats a refresh as a change unless told otherwise", async () => {
+        refresher.refresh();
+        refresher.refresh();
+        await settle(0);
+        jest.advanceTimersByTime(WINDOW);
+        expect(fetches).toHaveLength(2);
+        await settle(1);
+        jest.advanceTimersByTime(WINDOW);
+        refresher.refresh(false);
+        expect(fetches).toHaveLength(3);
     });
 
     it("keeps working after a failed fetch", async () => {

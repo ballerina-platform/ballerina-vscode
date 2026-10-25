@@ -199,11 +199,11 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     const latestFetchRef = useRef(0);
     const refreshingRef = useRef(false);
     // Callbacks created once (subscriptions, the refreshers) must call the current render's functions.
-    const getFlowModelRef = useRef<() => void>(() => undefined);
+    const getFlowModelRef = useRef<(changed?: boolean) => void>(() => undefined);
     const fetchFlowModelRef = useRef<() => Promise<unknown>>(() => Promise.resolve());
     const flowModelRefresher = useMemo(() => createFlowModelRefresher(
         () => fetchFlowModelRef.current(),
-        () => getFlowModelRef.current(),
+        () => getFlowModelRef.current(false),
         DIAGRAM_REFRESH_DEBOUNCE_MS
     ), []);
     const markFlowModelStale = flowModelRefresher.markStale;
@@ -452,13 +452,11 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     }, []);
 
     useEffect(() => {
-        markFlowModelStale();
         debouncedGetFlowModelForBreakpoints();
     }, [breakpointState]);
 
     useEffect(() => {
         const unsubscribeProjectContent = rpcClient.onProjectContentUpdated(() => {
-            markFlowModelStale();
             // Mid undo/redo the view location is not yet moved to the edited source; the applied refresh covers it.
             if (debouncedUndoRedoManager.isProcessing()) {
                 return;
@@ -519,7 +517,6 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
 
         // The user's own undo/redo is not a burst to wait out.
         const unsubscribeUndoRedo = debouncedUndoRedoManager.onApplied(() => {
-            markFlowModelStale();
             getFlowModelRef.current();
         });
 
@@ -988,7 +985,11 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         }
     };
 
-    const getFlowModel = () => {
+    // A change unless the caller knows nothing changed, so a forgotten mark costs a fetch, not a stale diagram.
+    const getFlowModel = (changed = true) => {
+        if (changed) {
+            markFlowModelStale();
+        }
         if (pendingInsertRef.current && !pendingCapabilityCloseRef.current) {
             skippedRefreshRef.current = true;
             void reanchorPendingInsert();
@@ -1157,7 +1158,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         }
         pendingInsertRef.current = false;
         if (skippedRefreshRef.current) {
-            getFlowModel();
+            getFlowModel(false);
         }
     }, [showSidePanel]);
 
@@ -1399,21 +1400,15 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     // Raw text edits that raise no content notification: each retry must fetch again.
     const scheduleFlowModelRefreshes = (...delaysMs: number[]) => {
         delaysMs.forEach((delay) =>
-            refreshTimersRef.current.push(setTimeout(() => {
-                markFlowModelStale();
-                debouncedGetFlowModel();
-            }, delay))
+            refreshTimersRef.current.push(setTimeout(() => debouncedGetFlowModel(), delay))
         );
     };
 
     const closeSidePanelAndFetchUpdatedFlowModel = (afterCapabilityWrite = false) => {
         resetNodeSelectionStates();
         clearRefreshTimers();
-        if (afterCapabilityWrite) {
-            markFlowModelStale();
-        }
-        // Fetch the updated flow model
-        debouncedGetFlowModel();
+        // A plain save is announced by its content notification; a capability write raises none.
+        debouncedGetFlowModel(afterCapabilityWrite);
         // Capability writes on the agent declaration are raw text edits with no artifact
         // event: the fetch above can race the recompile (which runs to seconds on projects
         // importing ai/mcp), so refresh a few more times on a backoff ladder.
@@ -1436,7 +1431,6 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         pendingCapabilityCloseRef.current = true;
         setShowProgressSpinner(true);
         setProgressMessage("Applying changes...");
-        markFlowModelStale();
         debouncedGetFlowModel();
         scheduleFlowModelRefreshes(1500, 4000);
         // Failsafe: never leave the loader stuck if the refresh cannot land.
@@ -2629,7 +2623,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         if (!updatedNode) {
             console.log(">>> No updated node found");
             updatedNode = selectedNodeRef.current;
-            debouncedGetFlowModel();
+            debouncedGetFlowModel(false);
             return;
         }
 
@@ -2951,7 +2945,6 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         clearRefreshTimers();
         // Stay locked until the flow without the node is on screen, so a quick next delete cannot hit a stale range.
         setShowProgressIndicator(true);
-        markFlowModelStale();
         getFlowModel();
     };
 
