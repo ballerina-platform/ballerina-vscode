@@ -169,7 +169,6 @@ export const NodeLinkWidget: React.FC<NodeLinkWidgetProps> = ({ link, engine }) 
                             display: ${shouldHighlight && showAddButton ? "none" : "flex"};
                             justify-content: center;
                             align-items: center;
-                            animation: ${fadeInZoomIn} 0.5s ease-out forwards;
                         `}
                     >
                         <div

@@ -74,10 +74,11 @@ export function BISequenceDiagram(props: BISequenceDiagramProps) {
     );
 
     useEffect(() => {
-        rpcClient.onProjectContentUpdated((content) => {
+        const unsubscribeProjectContent = rpcClient.onProjectContentUpdated((content) => {
             debouncedGetSequenceModel();
         });
         return () => {
+            unsubscribeProjectContent();
             debouncedGetSequenceModel.cancel();
         };
     }, []);
