@@ -43,6 +43,7 @@ import org.ballerinalang.langserver.commons.command.CommandArgument;
 import org.ballerinalang.langserver.commons.command.LSCommandExecutorException;
 import org.ballerinalang.langserver.commons.eventsync.exceptions.EventSyncException;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceDocumentException;
+import org.ballerinalang.langserver.commons.workspace.WorkspaceManager;
 import org.ballerinalang.langserver.contexts.LanguageServerContextImpl;
 import org.ballerinalang.langserver.extensions.ballerina.document.ExecutorPositionsUtil;
 import org.eclipse.lsp4j.DidChangeTextDocumentParams;
@@ -79,6 +80,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
@@ -1327,6 +1329,87 @@ public class TestWorkspaceManager {
 
         Assert.assertEquals(proxy.get(exprUri).loadProject(file).sourceRoot(), workspace.resolve("pkgA"),
                 "The next expression request should rebuild the copy");
+    }
+
+    @Test(description = "Test a form close does not interleave with an in-flight edit of the expression copy")
+    public void testExprCopyCloseWaitsForInFlightEdit() throws Exception {
+        Path file = RESOURCE_DIRECTORY.resolve("myproject").resolve("main.bal").toAbsolutePath();
+        BallerinaWorkspaceManagerProxyImpl proxy =
+                new BallerinaWorkspaceManagerProxyImpl(new LanguageServerContextImpl());
+        String fileUri = file.toUri().toString();
+        String exprUri = fileUri.replace("file:///", "expr:///");
+        String text = Files.readString(file);
+        String formText = text + System.lineSeparator() + "// edited in the form" + System.lineSeparator();
+        proxy.didOpen(openParams(fileUri, text));
+        proxy.didOpen(openParams(exprUri, formText));
+        WorkspaceManager copy = proxy.get(exprUri);
+
+        // An expression request edits the copy, works on it, then reverts to what it saw first.
+        CountDownLatch edited = new CountDownLatch(1);
+        Thread request = new Thread(() -> {
+            proxy.exprCopyLock().lock();
+            try {
+                String before = copy.document(file).orElseThrow().textDocument().toString();
+                setText(copy, file, before + System.lineSeparator() + "int __reserved__ = 1;");
+                edited.countDown();
+                Thread.sleep(300);
+                setText(copy, file, before);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } finally {
+                proxy.exprCopyLock().unlock();
+            }
+        });
+        request.start();
+        Assert.assertTrue(edited.await(5, TimeUnit.SECONDS));
+        closeParams(proxy, exprUri);
+        request.join();
+
+        Assert.assertEquals(copy.document(file).orElseThrow().textDocument().toString(), text,
+                "After the form closes, the copy should hold the source text");
+    }
+
+    @Test(description = "Test a code edit made during an in-flight edit of the expression copy is not lost")
+    public void testExprCopyKeepsCodeEditMadeDuringInFlightEdit() throws Exception {
+        Path file = RESOURCE_DIRECTORY.resolve("myproject").resolve("main.bal").toAbsolutePath();
+        BallerinaWorkspaceManagerProxyImpl proxy =
+                new BallerinaWorkspaceManagerProxyImpl(new LanguageServerContextImpl());
+        String fileUri = file.toUri().toString();
+        String exprUri = fileUri.replace("file:///", "expr:///");
+        String text = Files.readString(file);
+        proxy.didOpen(openParams(fileUri, text));
+        proxy.didOpen(openParams(exprUri, text));
+        WorkspaceManager copy = proxy.get(exprUri);
+
+        CountDownLatch edited = new CountDownLatch(1);
+        Thread request = new Thread(() -> {
+            proxy.exprCopyLock().lock();
+            try {
+                String before = copy.document(file).orElseThrow().textDocument().toString();
+                setText(copy, file, before + System.lineSeparator() + "int __reserved__ = 1;");
+                edited.countDown();
+                Thread.sleep(300);
+                setText(copy, file, before);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } finally {
+                proxy.exprCopyLock().unlock();
+            }
+        });
+        request.start();
+        Assert.assertTrue(edited.await(5, TimeUnit.SECONDS));
+        String typed = text + System.lineSeparator() + "// typed in the code editor" + System.lineSeparator();
+        DidChangeTextDocumentParams change = new DidChangeTextDocumentParams(
+                new VersionedTextDocumentIdentifier(fileUri, 2), List.of(new TextDocumentContentChangeEvent(typed)));
+        proxy.didChange(change);
+        request.join();
+
+        Assert.assertEquals(copy.document(file).orElseThrow().textDocument().toString(), typed,
+                "The copy should keep the code edit made while the request was running");
+    }
+
+    private static void setText(WorkspaceManager workspaceManager, Path file, String text) {
+        workspaceManager.document(file).orElseThrow().modify().withContent(text).apply();
     }
 
     private static DidOpenTextDocumentParams openParams(String uri, String text) {
