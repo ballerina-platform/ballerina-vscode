@@ -27,6 +27,7 @@ import org.ballerinalang.formatter.core.FormatterUtils;
 import org.ballerinalang.formatter.core.options.FormattingOptions;
 import org.ballerinalang.langserver.codelenses.CodeLensUtil;
 import org.ballerinalang.langserver.codelenses.LSCodeLensesProviderHolder;
+import org.ballerinalang.langserver.common.utils.CommonUtil;
 import org.ballerinalang.langserver.common.utils.PathUtil;
 import org.ballerinalang.langserver.commons.BallerinaDefinitionContext;
 import org.ballerinalang.langserver.commons.CodeActionContext;
@@ -49,6 +50,7 @@ import org.ballerinalang.langserver.commons.eventsync.EventKind;
 import org.ballerinalang.langserver.contexts.ContextBuilder;
 import org.ballerinalang.langserver.definition.DefinitionUtil;
 import org.ballerinalang.langserver.documentsymbol.DocumentSymbolUtil;
+import org.ballerinalang.langserver.eventsync.EventPublisher;
 import org.ballerinalang.langserver.eventsync.EventSyncPubSubHolder;
 import org.ballerinalang.langserver.exception.UserErrorException;
 import org.ballerinalang.langserver.foldingrange.FoldingRangeProvider;
@@ -580,22 +582,28 @@ class BallerinaTextDocumentService implements TextDocumentService {
     public void didOpen(DidOpenTextDocumentParams params) {
         String fileUri = params.getTextDocument().getUri();
         try {
-            // A file edited on disk while closed (a git checkout) changes on open, so subscribers see a change.
-            boolean contentChanged = PathUtil.getPathFromURI(fileUri)
+            // A file edited on disk while closed (a git checkout) differs from what was compiled; the text of a closed
+            // document is read from disk, so compare with its syntax tree.
+            boolean contentChanged = fileUri.startsWith(CommonUtil.URI_SCHEME_FILE + ":")
+                    && PathUtil.getPathFromURI(fileUri)
                     .flatMap(path -> this.workspaceManagerProxy.get(fileUri).document(path))
-                    .map(document -> !document.textDocument().toString().equals(params.getTextDocument().getText()))
+                    .map(document -> !document.syntaxTree().toSourceCode().equals(params.getTextDocument().getText()))
                     .orElse(false);
             DocumentServiceContext context = ContextBuilder.buildDocumentServiceContext(
                     PathUtil.convertUriSchemeFromBala(fileUri),
                     this.workspaceManagerProxy.get(fileUri),
-                    contentChanged ? LSContextOperation.TXT_DID_CHANGE : LSContextOperation.TXT_DID_OPEN,
-                    this.serverContext);
+                    LSContextOperation.TXT_DID_OPEN, this.serverContext);
             this.workspaceManagerProxy.didOpen(params);
             this.clientLogger.logTrace("Operation '" + LSContextOperation.TXT_DID_OPEN.getName() +
                     "' {fileUri: '" + fileUri + "'} opened");
-            EventSyncPubSubHolder.getInstance(this.serverContext)
-                    .getPublisher(EventKind.PROJECT_UPDATE)
-                    .publish(this.languageServer.getClient(), this.serverContext, context);
+            EventPublisher publisher = EventSyncPubSubHolder.getInstance(this.serverContext)
+                    .getPublisher(EventKind.PROJECT_UPDATE);
+            publisher.publish(this.languageServer.getClient(), this.serverContext, context);
+            if (contentChanged) {
+                publisher.publish(this.languageServer.getClient(), this.serverContext,
+                        ContextBuilder.buildDocumentServiceContext(fileUri, this.workspaceManagerProxy.get(fileUri),
+                                LSContextOperation.TXT_DID_CHANGE, this.serverContext));
+            }
         } catch (Throwable e) {
             String msg = "Operation 'text/didOpen' failed!";
             TextDocumentIdentifier identifier = new TextDocumentIdentifier(params.getTextDocument().getUri());
