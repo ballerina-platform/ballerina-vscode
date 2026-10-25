@@ -18,13 +18,60 @@
 
 import { useCallback, useRef, useState } from "react";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { HelperPaneFunctionCategory, HelperPaneFunctionInfo } from "@wso2/ballerina-side-panel";
-import { Category, LineRange } from "@wso2/ballerina-core";
+import { Category as PanelCategory, HelperPaneFunctionCategory, HelperPaneFunctionInfo } from "@wso2/ballerina-side-panel";
+import { BISearchResponse, Category, FunctionPageInfo, FunctionSearchPagination, LineRange } from "@wso2/ballerina-core";
 import { convertToHelperPaneFunction } from "./bi";
-import { assertFunctionSearchSuccess, FUNCTIONS_PAGE_SIZE } from "./function-pagination";
+import { countSectionLeafNodes } from "../views/BI/FlowDiagram/utils";
+import { assertFunctionSearchSuccess, FUNCTIONS_PAGE_SIZE, getFunctionSectionPage,
+    PAGINATED_LIBRARY_SECTIONS } from "./function-pagination";
 import { useFunctionPaginationController } from "./useFunctionPaginationController";
 
 export { FUNCTIONS_PAGE_SIZE, PAGINATED_LIBRARY_SECTIONS } from "./function-pagination";
+
+// The library sections come from Ballerina Central, which rarely changes within a session.
+const LIBRARY_SECTION_TTL_MS = 30 * 60 * 1000;
+const librarySectionCache = new Map<string, { cachedAt: number; category: PanelCategory; page: FunctionPageInfo }>();
+
+// Builds a panel's first view from a page fetched with excludeLibrary: each library section comes from the cache or
+// as a loading placeholder. Seed the controller with `pagination`, then fetch each `pending` section's first page.
+export function withLibrarySections(scopePrefix: string, localCategories: PanelCategory[]) {
+    // The language server lists imported modules under Imported Functions instead, so the sections differ per imports.
+    const scope = `${scopePrefix}|${localCategories.find((category) => category.title === "Imported Functions")?.items
+        .map((item) => (item as PanelCategory).title).join()}`;
+    const pagination: FunctionSearchPagination = {};
+    const pending: string[] = [];
+    const sections = PAGINATED_LIBRARY_SECTIONS.map(({ title, org }): PanelCategory => {
+        const entry = librarySectionCache.get(`${scope}|${title}`);
+        if (entry && Date.now() - entry.cachedAt <= LIBRARY_SECTION_TTL_MS) {
+            pagination[org] = entry.page;
+            return { ...entry.category, items: [...entry.category.items] };
+        }
+        pending.push(title);
+        return { title, description: "", items: [], isLoading: true };
+    });
+    const titles = PAGINATED_LIBRARY_SECTIONS.map(({ title }) => title);
+    const categories = [...localCategories.filter((category) => !titles.includes(category.title)), ...sections];
+    // Takes a pending section's first page and returns the cursor its next page continues from.
+    const fillSection = (title: string, response: BISearchResponse, page: PanelCategory[],
+        setCategories: (update: (prev: PanelCategory[]) => PanelCategory[]) => void): FunctionPageInfo => {
+        const { org } = PAGINATED_LIBRARY_SECTIONS.find((entry) => entry.title === title);
+        const section = page.find((category) => category.title === title);
+        const cursor = getFunctionSectionPage(response.functionPagination, org, countSectionLeafNodes(page, title),
+            FUNCTIONS_PAGE_SIZE);
+        setCategories((prev) => settleLibrarySection(prev, title, section));
+        if (section?.items.length) {
+            librarySectionCache.set(`${scope}|${title}`, { cachedAt: Date.now(), category: section, page: cursor });
+        }
+        return cursor;
+    };
+    return { categories, pagination, pending, fillSection };
+}
+
+// Swaps a section's placeholder for its loaded page, or drops it when the page failed or came back empty.
+export const settleLibrarySection = (categories: PanelCategory[], title: string, section?: PanelCategory) =>
+    categories.flatMap((category) => category.title === title && category.isLoading
+        ? (section ? [section] : [])
+        : [category]);
 
 export const countFunctionItems = (categories: HelperPaneFunctionCategory[] = []): number =>
     categories.reduce((total, category) =>

@@ -20,7 +20,7 @@ import { capabilityValueText, seedCapabilityValue, SeedableProperty, showActivit
 import { MutableRefObject, SyntheticEvent, useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import styled from "@emotion/styled";
-import { goToAgent, searchAiComponents, startAddAgentTrigger, startAddDurableEventTrigger, startAgentChat } from "../AIChatAgent/utils";
+import { drawToolEdits, goToAgent, searchAiComponents, startAddAgentTrigger, startAddDurableEventTrigger, startAgentChat } from "../AIChatAgent/utils";
 import { DIAGRAM_REFRESH_DEBOUNCE_MS } from "../diagramRefreshDebounce";
 import { MemoizedDiagram } from "@wso2/bi-diagram";
 import {
@@ -42,6 +42,7 @@ import {
     ParentPopupData,
     BISearchRequest,
     FunctionSearchPagination,
+    BISearchResponse,
     DIRECTORY_MAP,
     UpdatedArtifactsResponse,
     ParentMetadata,
@@ -94,8 +95,9 @@ import {
 import { PanelOverlayProvider } from "./context/PanelOverlayContext";
 import { PanelOverlayRenderer } from "./PanelOverlayRenderer";
 import { ExpressionFormField, Category as PanelCategory, S } from "@wso2/ballerina-side-panel";
-import { assertFunctionSearchSuccess, FUNCTIONS_PAGE_SIZE } from "../../../utils/function-pagination";
+import { assertFunctionSearchSuccess, FUNCTIONS_PAGE_SIZE, PAGINATED_LIBRARY_SECTIONS } from "../../../utils/function-pagination";
 import { useFunctionPaginationController } from "../../../utils/useFunctionPaginationController";
+import { settleLibrarySection, withLibrarySections } from "../../../utils/useFunctionPagination";
 import { cloneDeep, debounce } from "lodash";
 import { createFlowModelRefresher } from "./flowModelRefresh";
 import { reanchorInsertion } from "./insertionAnchor";
@@ -231,6 +233,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         invalidate: invalidateFunctionPagination,
         reset: resetFunctionPagination,
         seed: seedFunctionSections,
+        setSectionCursor: setFunctionSectionCursor,
         loadSection: loadFunctionSection,
     } = useFunctionPaginationController();
     const functionSearchGenerationRef = useRef(0);
@@ -1601,6 +1604,44 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         [seedFunctionSections]
     );
 
+    // The library sections come from Ballerina Central, so they load after the panel opens.
+    const loadDefaultFunctionList = async (filePath: string, isStale: () => boolean) => {
+        const search = (queryMap: BISearchRequest["queryMap"]) => rpcClient.getBIDiagramRpcClient().search({
+            position: { startLine: targetRef.current.startLine, endLine: targetRef.current.endLine },
+            filePath,
+            queryMap: { q: "", limit: FUNCTIONS_PAGE_SIZE, offset: 0, includeAvailableFunctions: "true", ...queryMap },
+            searchKind: "FUNCTION",
+        });
+        const toCategories = (response: BISearchResponse) =>
+            convertFunctionCategoriesToSidePanelCategories(response.categories as Category[], FUNCTION_TYPE.REGULAR);
+        const response = await search({ excludeLibrary: "true" });
+        if (isStale()) {
+            return false;
+        }
+        assertFunctionSearchSuccess(response);
+        const { categories, pagination, pending, fillSection } =
+            withLibrarySections(`call-function|${projectPath}`, toCategories(response));
+        setCategories(categories);
+        seedFunctionPagination(categories, "", FUNCTION_TYPE.REGULAR, pagination);
+        for (const title of pending) {
+            const { org } = PAGINATED_LIBRARY_SECTIONS.find((section) => section.title === title);
+            search({ orgName: org })
+                .then((page) => {
+                    if (!isStale()) {
+                        assertFunctionSearchSuccess(page);
+                        setFunctionSectionCursor(title, fillSection(title, page, toCategories(page), setCategories));
+                    }
+                })
+                .catch((error) => {
+                    console.error(">>> Error loading a library section", error);
+                    if (!isStale()) {
+                        setCategories((prev) => settleLibrarySection(prev, title));
+                    }
+                });
+        }
+        return true;
+    };
+
     const handleSearch = useCallback(async (searchText: string, functionType: FUNCTION_TYPE, searchKind: SearchKind) => {
         const searchEpoch = panelNavEpochRef.current;
         const masterSearchSeq = searchKind === "ALL" ? ++masterSearchSeqRef.current : undefined;
@@ -1617,6 +1658,12 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 && (masterSearchSeq !== masterSearchSeqRef.current || panelNavEpochRef.current !== searchEpoch))
             || (functionGeneration !== undefined
                 && (functionGeneration !== functionSearchGenerationRef.current || panelNavEpochRef.current !== searchEpoch));
+        if (searchKind === "FUNCTION" && functionType === FUNCTION_TYPE.REGULAR && !searchText.trim()) {
+            await loadDefaultFunctionList(model.fileName, isStaleSearch).catch((error) => {
+                console.error(">>> Error loading functions", error);
+            });
+            return;
+        }
         // An unfiltered activity list is owned by the post-creation refresh while it runs.
         const yieldsToActivityRefresh = searchKind === "ACTIVITY_CALL" && !searchText.trim();
         if (yieldsToActivityRefresh && activityRefreshOwnsPanelRef.current) {
@@ -2010,28 +2057,12 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         switch (node.codedata.node) {
             case "FUNCTION":
                 setShowProgressIndicator(true);
-                rpcClient
-                    .getBIDiagramRpcClient()
-                    .search({
-                        position: { startLine: targetRef.current.startLine, endLine: targetRef.current.endLine },
-                        filePath: model?.fileName || fileName,
-                        // Explicit first page so manual pagination stays aligned with FUNCTIONS_PAGE_SIZE.
-                        queryMap: { q: "", limit: FUNCTIONS_PAGE_SIZE, offset: 0, includeAvailableFunctions: "true" },
-                        searchKind: "FUNCTION",
-                    })
-                    .then((response) => {
-                        if (isStaleSelection()) {
-                            return;
+                loadDefaultFunctionList(model?.fileName || fileName, isStaleSelection)
+                    .then((loaded) => {
+                        if (loaded) {
+                            setSidePanelView(SidePanelView.FUNCTION_LIST);
+                            setShowSidePanel(true);
                         }
-                        assertFunctionSearchSuccess(response);
-                        const currentCategories = convertFunctionCategoriesToSidePanelCategories(
-                            response.categories as Category[],
-                            FUNCTION_TYPE.REGULAR
-                        );
-                        setCategories(currentCategories);
-                        seedFunctionPagination(currentCategories, "", FUNCTION_TYPE.REGULAR, response.functionPagination);
-                        setSidePanelView(SidePanelView.FUNCTION_LIST);
-                        setShowSidePanel(true);
                     })
                     .catch((error) => {
                         console.error(">>> Error loading functions", error);
@@ -4055,8 +4086,15 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             setSelectedNodeId(node?.id);
         },
         onLoadingChange: setShowProgressIndicator,
+        // Unlike the agent view, flows keep the canvas locked while a tool deletion saves.
+        onBackgroundSaveChange: setShowProgressIndicator,
         onChat: handleOnChatWithAgent,
     });
+
+    const { syncToolEdits } = agentEditor;
+    useEffect(() => {
+        syncToolEdits(model);
+    }, [model, syncToolEdits]);
 
     const prevAgentViewRef = useRef<AgentEditorView>("NONE");
     useEffect(() => {
@@ -4195,7 +4233,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     const agentOnlyView = !!hideAgentConfiguration && !!flowModel?.nodes?.some(isDurableAgentBoxNode);
     const durableUsagesLoaded = useDurableAgentUsages(agentOnlyView, model, projectPath, setModel);
     const displayModel = useMemo(
-        () => (agentOnlyView
+        () => drawToolEdits(agentOnlyView
             ? {
                 ...flowModel,
                 nodes: [
@@ -4203,8 +4241,8 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                     ...flowModel.nodes.filter(isDurableAgentBoxNode),
                 ],
             }
-            : flowModel),
-        [flowModel, agentOnlyView]
+            : flowModel, agentEditor.deletingTools, agentEditor.addingTools),
+        [flowModel, agentOnlyView, agentEditor.deletingTools, agentEditor.addingTools]
     );
 
     // No RHS side panel in the agent-only view: node clicks (the Start pill) are inert;

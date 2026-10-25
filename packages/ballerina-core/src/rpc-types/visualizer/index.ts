@@ -34,6 +34,8 @@ export interface VisualizerAPI {
     addToUndoStack: (params: AddToUndoStackRequest) => void;
     undoRedoState: () => Promise<UndoRedoStateResponse>;
     resetUndoRedoStack: () => void;
+    beginUndoGroup: () => Promise<void>;
+    endUndoGroup: (description?: string) => Promise<void>;
     joinProjectPath: (params: JoinProjectPathRequest) => Promise<JoinProjectPathResponse>;
     getThemeKind: () => Promise<ColorThemeKind>;
     updateCurrentArtifactLocation: (params: UpdatedArtifactsResponse) => Promise<ProjectStructureArtifactResponse>;

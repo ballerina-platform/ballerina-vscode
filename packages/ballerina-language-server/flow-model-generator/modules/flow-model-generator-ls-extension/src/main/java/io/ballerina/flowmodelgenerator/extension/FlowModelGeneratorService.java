@@ -41,6 +41,7 @@ import io.ballerina.flowmodelgenerator.core.SuggestedModelGenerator;
 import io.ballerina.flowmodelgenerator.core.analyzers.function.ModuleNodeAnalyzer;
 import io.ballerina.flowmodelgenerator.core.diagnostics.DiagnosticRequest;
 import io.ballerina.flowmodelgenerator.core.expressioneditor.Debouncer;
+import io.ballerina.flowmodelgenerator.core.model.Codedata;
 import io.ballerina.flowmodelgenerator.core.model.FlowNode;
 import io.ballerina.flowmodelgenerator.core.model.Item;
 import io.ballerina.flowmodelgenerator.core.search.SearchCommand;
@@ -447,8 +448,16 @@ public class FlowModelGeneratorService implements ExtendedLanguageServerService 
             try {
                 WorkspaceManager workspaceManager = this.workspaceManagerProxy.get();
                 Path filePath = Path.of(request.filePath());
+                Codedata codedata = request.codedata();
+                // A generated connector is project source, so it is never in a package repository.
+                if (request.offline() && !Boolean.TRUE.equals(codedata.isGenerated())
+                        && !PackageUtil.isAvailableOffline(codedata.org(), codedata.resolvePackageName(),
+                        codedata.version())) {
+                    response.setActions(new JsonArray());
+                    return response;
+                }
                 List<Item> actions = ConnectionActionProvider.getInstance()
-                        .getActions(request.codedata(), workspaceManager, filePath);
+                        .getActions(codedata, workspaceManager, filePath);
                 response.setActions(new Gson().toJsonTree(actions).getAsJsonArray());
             } catch (Throwable e) {
                 response.setError(e);

@@ -16,7 +16,7 @@
  * under the License.
  */
 /** @jsxImportSource @emotion/react */
-import React, { ReactNode, useEffect, useState } from "react";
+import React, { ReactNode, useEffect, useMemo, useState } from "react";
 import styled from "@emotion/styled";
 import { DiagramEngine, PortWidget } from "@projectstorm/react-diagrams-core";
 import { AgentNodeModel } from "./AgentNodeModel";
@@ -829,6 +829,16 @@ function TraceAccentLine({ isActive, aiColor, baseStroke, baseDashArray, markerI
     );
 }
 
+const MENU_ITEM_HEIGHT = 32;
+
+// The toolkit Popover never keeps a menu inside the window, so one that would run past the bottom opens upward.
+function menuOrigin(anchor: Element | null, itemCount: number): { vertical: "top" | "bottom"; horizontal: "left" } {
+    const rect = anchor?.getBoundingClientRect();
+    const height = itemCount * MENU_ITEM_HEIGHT + 16;
+    const opensUp = rect !== undefined && rect.top + height > window.innerHeight && rect.bottom - height >= 0;
+    return { vertical: opensUp ? "bottom" : "top", horizontal: "left" };
+}
+
 export function AgentNodeWidget(props: AgentNodeWidgetProps) {
     const { model, engine, onClick, variant = model.getType() === NodeTypes.TYPED_AGENT_NODE ? "typedAgent" : "agent" } = props;
     const controller = useAgentNodeController(model);
@@ -1097,6 +1107,9 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
             onClick: () => onDeleteTool(tool),
         }] : []),
     ];
+    const toolMenuItemCount = selectedTool ? toolMenuItems(selectedTool).length : 0;
+    // Memoized: the Popover repositions whenever the origin object changes.
+    const toolMenuOrigin = useMemo(() => menuOrigin(toolAnchorEl, toolMenuItemCount), [toolAnchorEl, toolMenuItemCount]);
 
     const memoryMenuItems: Item[] = [
         {
@@ -1812,22 +1825,29 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                 </g>}
 
                 {tools.map((tool: ToolData, index: number) => {
+                    const toolLocked = toolsReadOnly || Boolean(tool.pending);
                     const isToolActive = isToolTraceActive(tool, activeToolNames, activeToolKitNames);
                     return (
                         <g
                             key={index}
                             transform={`translate(0, ${(index + 1) * (NODE_HEIGHT + AGENT_NODE_TOOL_GAP) + AGENT_NODE_TOOL_SECTION_GAP
                                 })`}
-                            opacity={toolsReadOnly ? 0.55 : undefined}
-                            onClick={toolsReadOnly ? undefined : () => tool.type == "MCP Server" ? onToolClick(tool) : onImplementTool(tool)}
+                            opacity={toolLocked ? 0.55 : undefined}
+                            onClick={toolLocked ? undefined : (event) => {
+                                // A double-click's second click belongs to whatever was here first, e.g. a deleted tool's menu.
+                                if (event.detail > 1) {
+                                    return;
+                                }
+                                tool.type == "MCP Server" ? onToolClick(tool) : onImplementTool(tool);
+                            }}
                             onContextMenu={(e) => {
-                                if (!readOnly && !toolsReadOnly) {
+                                if (!readOnly && !toolLocked) {
                                     e.preventDefault();
                                     handleToolMenuClick(e as any, tool);
                                 }
                             }}
-                            css={toolsReadOnly ? css`
-                                cursor: not-allowed;
+                            css={toolLocked ? css`
+                                cursor: ${tool.pending ? "progress" : "not-allowed"};
                             ` : css`
                             cursor: ${readOnly ? "default" : "pointer"};
                             transition: opacity 0.4s ease-out;
@@ -1854,7 +1874,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                             }
                         `}
                         >
-                            {toolsReadOnly && <title>This tool is packaged with the agent and cannot be edited</title>}
+                            {toolLocked && <title>{tool.pending ? "Saving the tool..." : "This tool is packaged with the agent and cannot be edited"}</title>}
                             <circle
                                 cx="80"
                                 cy="24"
@@ -1890,6 +1910,9 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                 <div className="connector-icon">
                                     {tool.type === "Agent" ? (
                                         <Icon name="bi-ai-agent" sx={{ fontSize: "24px" }} />
+                                    ) : tool.type === "MCP Server" && !tool.path ? (
+                                        // No icon URL until saved; ConnectorIcon draws this glyph once there is one.
+                                        <Icon name="bi-mcp" sx={{ width: 24, height: 24, fontSize: 24 }} />
                                     ) : tool.path ? (
                                         <ConnectorIcon
                                             url={tool.path}
@@ -1903,7 +1926,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                 </div>
                             </foreignObject>
 
-                            {!readOnly && !toolsReadOnly && (
+                            {!readOnly && !toolLocked && (
                                 <foreignObject
                                     x="60"
                                     y="0"
@@ -1934,7 +1957,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                     `}
                                 >
                                     <ToolLabel tool={tool} openView={openView} isToolActive={isToolActive} aiColor={aiColor} />
-                                    {!readOnly && !toolsReadOnly && (
+                                    {!readOnly && !toolLocked && (
                                         <NodeStyles.MenuButton
                                             appearance="icon"
                                             className="tool-menu-button"
@@ -1969,7 +1992,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                 markerId={`${model.node.id}-arrow-head-tool-${sanitizeId(tool.name)}`}
                             />
 
-                            {!toolsReadOnly && <foreignObject
+                            {!toolLocked && <foreignObject
                                 x="110"
                                 y="-10"
                                 width="150"
@@ -2003,6 +2026,8 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                 {!toolsReadOnly && <Popover
                     open={isToolMenuOpen}
                     anchorEl={toolAnchorEl}
+                    anchorOrigin={toolMenuOrigin}
+                    transformOrigin={toolMenuOrigin}
                     handleClose={handleToolMenuClose}
                     sx={{
                         padding: 0,

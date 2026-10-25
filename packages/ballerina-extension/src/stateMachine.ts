@@ -210,6 +210,21 @@ const stateMachine = createMachine<MachineContext>(
                         artifactType: (context, event) => event.viewLocation.artifactType ? event.viewLocation.artifactType : context.artifactType,
                         addType: (context, event) => event.viewLocation?.addType !== undefined ? event.viewLocation.addType : context?.addType,
                     }),
+                    // updateView re-reads the history entry, so a stale position there would move the view back.
+                    (context) => {
+                        const lastView = getLastHistory();
+                        if (lastView?.location?.position) {
+                            history.updateCurrentEntry({
+                                ...lastView,
+                                location: {
+                                    ...lastView.location,
+                                    documentUri: context.documentUri,
+                                    position: context.position,
+                                    identifier: context.identifier,
+                                }
+                            });
+                        }
+                    },
                     (context, event) => notifyTreeView(
                         context.projectPath,
                         event.viewLocation.documentUri || context.documentUri,
