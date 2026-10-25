@@ -70,6 +70,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -1249,6 +1250,98 @@ public class TestWorkspaceManager {
 
         Assert.assertTrue(proxy.get().project(file).isPresent(), "The source project should stay loaded");
         Assert.assertTrue(proxy.get(exprUri).project(file).isPresent(), "The clone should stay for the next form");
+    }
+
+    @Test(description = "Test the expression clone of a workspace is evicted with every package it copied")
+    public void testExprCloneOfWorkspaceEvictedWhole() throws WorkspaceDocumentException, IOException {
+        Path workspace = Path.of("src/test/resources/hover/source/workspace").toAbsolutePath();
+        Path file = workspace.resolve("pkgA").resolve("main.bal");
+        Path otherFile = workspace.resolve("pkgB").resolve("utils.bal");
+        BallerinaWorkspaceManagerProxyImpl proxy =
+                new BallerinaWorkspaceManagerProxyImpl(new LanguageServerContextImpl());
+        proxy.setEvictProjectOnLastClose(true);
+        String exprUri = openAndCloseThroughProxy(proxy, file);
+
+        Assert.assertTrue(proxy.get().project(file).isEmpty(), "The source workspace should be evicted");
+        Assert.assertTrue(proxy.get(exprUri).project(file).isEmpty(), "The clone should be evicted with it");
+        Assert.assertTrue(proxy.get(exprUri).project(otherFile).isEmpty(),
+                "The clone's other package should be evicted too");
+    }
+
+    @Test(description = "Test rebuilding the expression clone drops a package the workspace no longer has")
+    public void testExprCloneRebuildDropsRemovedPackage() throws WorkspaceDocumentException, IOException {
+        Path workspace = Files.createTempDirectory("expr-clone-workspace");
+        try {
+            FileUtils.copyDirectory(Path.of("src/test/resources/hover/source/workspace").toFile(), workspace.toFile());
+            Path file = workspace.resolve("pkgA").resolve("main.bal").toAbsolutePath();
+            Path otherFile = workspace.resolve("pkgB").resolve("utils.bal").toAbsolutePath();
+            Path toml = workspace.resolve(ProjectConstants.BALLERINA_TOML).toAbsolutePath();
+            BallerinaWorkspaceManagerProxyImpl proxy =
+                    new BallerinaWorkspaceManagerProxyImpl(new LanguageServerContextImpl());
+            String fileUri = file.toUri().toString();
+            String exprUri = fileUri.replace("file:///", "expr:///");
+            String text = Files.readString(file);
+            proxy.didOpen(openParams(fileUri, text));
+            proxy.didOpen(openParams(exprUri, text));
+            Assert.assertTrue(proxy.get(exprUri).project(otherFile).isPresent(), "The clone should copy pkgB");
+
+            String workspaceToml = "[workspace]\npackages = [\"pkgA\"]\n";
+            Files.writeString(toml, workspaceToml);
+            proxy.didOpen(openParams(toml.toUri().toString(), workspaceToml));
+            closeParams(proxy, exprUri);
+            proxy.didOpen(openParams(exprUri, text));
+
+            Assert.assertTrue(proxy.get(exprUri).project(file).isPresent(), "The rebuilt clone should have pkgA");
+            Assert.assertTrue(proxy.get(exprUri).project(otherFile).isEmpty(),
+                    "The rebuilt clone should not keep the removed pkgB");
+        } finally {
+            FileUtils.deleteDirectory(workspace.toFile());
+        }
+    }
+
+    @Test(description = "Test an idle expression copy is dropped whole, and kept while a form is open or in use")
+    public void testExprCopyDroppedWhenIdle() throws Exception {
+        Path workspace = Path.of("src/test/resources/hover/source/workspace").toAbsolutePath();
+        Path file = workspace.resolve("pkgA").resolve("main.bal");
+        Path otherFile = workspace.resolve("pkgB").resolve("utils.bal");
+        Duration timeout = Duration.ofMinutes(1);
+        BallerinaWorkspaceManagerProxyImpl proxy =
+                new BallerinaWorkspaceManagerProxyImpl(new LanguageServerContextImpl(), timeout);
+        String fileUri = file.toUri().toString();
+        String exprUri = fileUri.replace("file:///", "expr:///");
+        String text = Files.readString(file);
+        proxy.didOpen(openParams(fileUri, text));
+        proxy.didOpen(openParams(exprUri, text));
+
+        proxy.evictIdleExprCopies(System.currentTimeMillis() + 2 * timeout.toMillis());
+        Assert.assertTrue(proxy.get(exprUri).project(file).isPresent(), "A copy with an open form should stay");
+
+        closeParams(proxy, exprUri);
+        proxy.evictIdleExprCopies(System.currentTimeMillis() + timeout.toMillis() / 2);
+        Assert.assertTrue(proxy.get(exprUri).project(file).isPresent(), "A recently used copy should stay");
+
+        proxy.evictIdleExprCopies(System.currentTimeMillis() + 2 * timeout.toMillis());
+        Assert.assertTrue(proxy.get(exprUri).project(file).isEmpty(), "The idle copy should be dropped");
+        Assert.assertTrue(proxy.get(exprUri).project(otherFile).isEmpty(), "Every package of it should go");
+        Assert.assertTrue(proxy.get().project(file).isPresent(), "The source project should stay loaded");
+
+        Assert.assertEquals(proxy.get(exprUri).loadProject(file).sourceRoot(), workspace.resolve("pkgA"),
+                "The next expression request should rebuild the copy");
+    }
+
+    private static DidOpenTextDocumentParams openParams(String uri, String text) {
+        DidOpenTextDocumentParams params = new DidOpenTextDocumentParams();
+        TextDocumentItem item = new TextDocumentItem();
+        item.setUri(uri);
+        item.setText(text);
+        params.setTextDocument(item);
+        return params;
+    }
+
+    private static void closeParams(BallerinaWorkspaceManagerProxyImpl proxy, String uri) {
+        DidCloseTextDocumentParams params = new DidCloseTextDocumentParams();
+        params.setTextDocument(new TextDocumentIdentifier(uri));
+        proxy.didClose(params);
     }
 
     private static String openAndCloseThroughProxy(BallerinaWorkspaceManagerProxyImpl proxy, Path file)

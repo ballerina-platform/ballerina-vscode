@@ -36,11 +36,18 @@ import org.eclipse.lsp4j.VersionedTextDocumentIdentifier;
 
 import java.lang.ref.WeakReference;
 import java.nio.file.Path;
+import java.time.Duration;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Ballerina workspace manager proxy implementation.
@@ -54,10 +61,22 @@ public class BallerinaWorkspaceManagerProxyImpl implements BallerinaWorkspaceMan
     private final ClonedWorkspace clonedWorkspaceManager;
     private final AIWorkspace aiWorkspaceManager;
 
+    // An expression copy is a second compilation of its project, so one idle this long with no form open is dropped.
+    private static final Duration EXPR_COPY_IDLE_TIMEOUT = Duration.ofMinutes(10);
+
     public BallerinaWorkspaceManagerProxyImpl(LanguageServerContext serverContext) {
+        this(serverContext, EXPR_COPY_IDLE_TIMEOUT);
+    }
+
+    BallerinaWorkspaceManagerProxyImpl(LanguageServerContext serverContext, Duration exprCopyIdleTimeout) {
         this.baseWorkspaceManager = new BallerinaWorkspaceManager(serverContext);
-        this.clonedWorkspaceManager = new ClonedWorkspace(serverContext, this.baseWorkspaceManager);
+        this.clonedWorkspaceManager = new ClonedWorkspace(serverContext, this.baseWorkspaceManager,
+                exprCopyIdleTimeout);
         this.aiWorkspaceManager = new AIWorkspace(serverContext);
+    }
+
+    void evictIdleExprCopies(long nowMillis) {
+        this.clonedWorkspaceManager.evictIdle(nowMillis);
     }
     
     @Override
@@ -165,10 +184,31 @@ public class BallerinaWorkspaceManagerProxyImpl implements BallerinaWorkspaceMan
         private final WorkspaceManager source;
         // The source package each cloned package last matched; a different instance means the source changed unseen.
         private final Map<Path, WeakReference<Package>> syncedWith = new ConcurrentHashMap<>();
+        // Each copy under every package root it registered, so a copy is always removed whole.
+        private final Map<Path, Copy> copies = new ConcurrentHashMap<>();
+        private final Set<Path> openForms = ConcurrentHashMap.newKeySet();
+        private final long idleTimeoutMillis;
 
-        public ClonedWorkspace(LanguageServerContext serverContext, WorkspaceManager source) {
+        public ClonedWorkspace(LanguageServerContext serverContext, WorkspaceManager source, Duration idleTimeout) {
             super(serverContext);
             this.source = source;
+            this.idleTimeoutMillis = idleTimeout == null ? Long.MAX_VALUE : idleTimeout.toMillis();
+            if (idleTimeout == null) {
+                return;
+            }
+            long period = Math.min(idleTimeoutMillis, Duration.ofMinutes(1).toMillis());
+            ScheduledExecutorService sweeper = Executors.newSingleThreadScheduledExecutor(runnable -> {
+                Thread thread = new Thread(runnable, "expr-copy-sweeper");
+                thread.setDaemon(true);
+                return thread;
+            });
+            sweeper.scheduleWithFixedDelay(() -> evictIdle(System.currentTimeMillis()), period, period,
+                    TimeUnit.MILLISECONDS);
+        }
+
+        private static final class Copy {
+            private final Set<Path> roots = ConcurrentHashMap.newKeySet();
+            private final AtomicLong lastUsed = new AtomicLong(System.currentTimeMillis());
         }
 
         // A clone mirrors the source workspace's loaded state, so it is copied from there rather than read from disk.
@@ -182,11 +222,14 @@ public class BallerinaWorkspaceManagerProxyImpl implements BallerinaWorkspaceMan
                     }
                 }
             }
+            touch(filePath);
             return super.loadProject(filePath);
         }
 
         public void open(Project project) {
             BallerinaCompilerApi compilerApi = BallerinaCompilerApi.getInstance();
+            members(project).forEach(member -> removeCopy(member.sourceRoot()));
+            Copy copy = new Copy();
             Optional<Project> workspaceProject = compilerApi.getWorkspaceProject(project);
             if (workspaceProject.isPresent()) {
                 Project workspaceProjectDuplicate = workspaceProject.get().duplicate();
@@ -194,27 +237,54 @@ public class BallerinaWorkspaceManagerProxyImpl implements BallerinaWorkspaceMan
                 for (Project workspacePackage : workspacePackages) {
                     Path packageRoot = workspacePackage.sourceRoot();
                     sourceRootToProject.put(packageRoot, ProjectContext.from(workspacePackage));
+                    copy.roots.add(packageRoot);
                 }
             } else {
                 this.sourceRootToProject.put(project.sourceRoot(), ProjectContext.from(project.duplicate()));
+                copy.roots.add(project.sourceRoot());
             }
+            copy.roots.forEach(root -> copies.put(root, copy));
             markSynced(project);
         }
 
         // Reuses the clone while it still matches the source, discarding a previous form's edits to the file.
         public void openOrReuse(Project sourceProject, Path filePath, String text) throws WorkspaceDocumentException {
+            openForms.add(filePath);
             if (isSyncedWith(sourceProject)) {
                 reset(filePath, text);
-                return;
+            } else {
+                open(sourceProject);
             }
-            open(sourceProject);
+            touch(filePath);
+        }
+
+        // Drops every copy with no open form that went unused for the idle timeout.
+        void evictIdle(long nowMillis) {
+            Set<Path> busyRoots = new HashSet<>();
+            openForms.forEach(form -> project(form).ifPresent(project -> busyRoots.add(project.sourceRoot())));
+            new HashSet<>(copies.values()).stream()
+                    .filter(copy -> nowMillis - copy.lastUsed.get() >= idleTimeoutMillis)
+                    .filter(copy -> copy.roots.stream().noneMatch(busyRoots::contains))
+                    .forEach(copy -> removeCopy(copy.roots.iterator().next()));
+        }
+
+        private void touch(Path filePath) {
+            project(filePath).map(project -> copies.get(project.sourceRoot()))
+                    .ifPresent(copy -> copy.lastUsed.set(System.currentTimeMillis()));
         }
 
         public void evict(Path filePath) {
-            project(filePath).ifPresent(project -> {
-                sourceRootToProject.remove(project.sourceRoot());
-                syncedWith.remove(project.sourceRoot());
-            });
+            project(filePath).ifPresent(project -> removeCopy(project.sourceRoot()));
+        }
+
+        // A copied workspace registers every member package; removing one entry would keep the whole copy alive.
+        private void removeCopy(Path root) {
+            Copy copy = copies.get(root);
+            for (Path copied : copy == null ? Set.of(root) : copy.roots) {
+                sourceRootToProject.remove(copied);
+                syncedWith.remove(copied);
+                copies.remove(copied);
+            }
         }
 
         public void markSynced(Project sourceProject) {
@@ -247,6 +317,8 @@ public class BallerinaWorkspaceManagerProxyImpl implements BallerinaWorkspaceMan
 
         @Override
         public void didClose(Path filePath, DidCloseTextDocumentParams params) {
+            openForms.remove(filePath);
+            touch(filePath);
             if (source != null) {
                 Optional<Document> sourceDocument = source.document(filePath);
                 if (sourceDocument.isPresent()) {
@@ -263,7 +335,7 @@ public class BallerinaWorkspaceManagerProxyImpl implements BallerinaWorkspaceMan
                 return;
             }
             Path projectRoot = project.get().sourceRoot();
-            sourceRootToProject.remove(projectRoot);
+            removeCopy(projectRoot);
             this.clientLogger.logTrace("Operation '" + LSContextOperation.TXT_DID_CLOSE.getName() +
                     "' {project: '" + projectRoot.toUri().toString() +
                     "' kind: '" + project.get().kind().name().toLowerCase(Locale.getDefault()) +
@@ -279,7 +351,7 @@ public class BallerinaWorkspaceManagerProxyImpl implements BallerinaWorkspaceMan
     private static class AIWorkspace extends ClonedWorkspace {
 
         public AIWorkspace(LanguageServerContext serverContext) {
-            super(serverContext, null);
+            super(serverContext, null, null);
         }
 
         @Override
