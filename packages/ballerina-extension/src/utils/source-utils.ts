@@ -227,6 +227,7 @@ export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCode
 
             // Apply all changes at once
             await workspace.applyEdit(workspaceEdit);
+            // The edit's didChange reaches the LS first: the client sends pending full-sync changes before any request.
             await StateMachine.langClient().flushArtifacts(Object.keys(modificationRequests)).catch(() => undefined);
 
             await rawEditNotification;
