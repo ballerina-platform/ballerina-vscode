@@ -46,8 +46,10 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -216,6 +218,11 @@ public class BallerinaWorkspaceManagerProxyImpl implements BallerinaWorkspaceMan
     }
 
     private static class ClonedWorkspace extends BallerinaWorkspaceManager {
+        private static final ScheduledExecutorService SWEEPER = Executors.newSingleThreadScheduledExecutor(runnable -> {
+            Thread thread = new Thread(runnable, "expr-copy-sweeper");
+            thread.setDaemon(true);
+            return thread;
+        });
         private final WorkspaceManager source;
         // The source package each cloned package last matched; a different instance means the source changed unseen.
         private final Map<Path, WeakReference<Package>> syncedWith = new ConcurrentHashMap<>();
@@ -232,13 +239,17 @@ public class BallerinaWorkspaceManagerProxyImpl implements BallerinaWorkspaceMan
                 return;
             }
             long period = Math.min(idleTimeoutMillis, Duration.ofMinutes(1).toMillis());
-            ScheduledExecutorService sweeper = Executors.newSingleThreadScheduledExecutor(runnable -> {
-                Thread thread = new Thread(runnable, "expr-copy-sweeper");
-                thread.setDaemon(true);
-                return thread;
-            });
-            sweeper.scheduleWithFixedDelay(() -> evictIdle(System.currentTimeMillis()), period, period,
-                    TimeUnit.MILLISECONDS);
+            // A weak reference, so the sweep never keeps a discarded workspace and its compilations alive.
+            WeakReference<ClonedWorkspace> self = new WeakReference<>(this);
+            AtomicReference<ScheduledFuture<?>> sweep = new AtomicReference<>();
+            sweep.set(SWEEPER.scheduleWithFixedDelay(() -> {
+                ClonedWorkspace workspace = self.get();
+                if (workspace == null) {
+                    sweep.get().cancel(false);
+                    return;
+                }
+                workspace.evictIdle(System.currentTimeMillis());
+            }, period, period, TimeUnit.MILLISECONDS));
         }
 
         private static final class Copy {
