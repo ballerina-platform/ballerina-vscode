@@ -27,8 +27,11 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
+import java.lang.ref.SoftReference;
+import java.lang.reflect.Field;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Map;
 
 /**
  * Tests the cache of BALA packages: failed compilations are dropped, and only a few recently used packages, fewer
@@ -142,6 +145,27 @@ public class BalaPackageCacheTest {
 
         cache.evictIdle(System.currentTimeMillis() + 2 * timeout.toMillis());
         Assert.assertNull(cache.get(a), "An idle package should be dropped");
+    }
+
+    @Test
+    public void testTreatsAReclaimedPackageAsAMiss() throws ReflectiveOperationException {
+        PackageUtil.BalaPackageCache cache = new PackageUtil.BalaPackageCache(1, 10, Duration.ofMinutes(10));
+        Path reclaimed = Path.of("reclaimed");
+        Path newer = Path.of("newer");
+        cache.putCompiled(reclaimed, mockPackage(reclaimed));
+        Field entries = PackageUtil.BalaPackageCache.class.getDeclaredField("entries");
+        entries.setAccessible(true);
+        Object cached = ((Map<?, ?>) entries.get(cache)).get(reclaimed);
+        Field pkg = cached.getClass().getDeclaredField("pkg");
+        pkg.setAccessible(true);
+        ((SoftReference<?>) pkg.get(cached)).clear();
+
+        Assert.assertNull(cache.get(reclaimed), "A package the GC reclaimed should be a miss");
+        Package newerPackage = mockPackage(newer);
+        cache.putCompiled(newer, newerPackage);
+        Assert.assertSame(cache.get(newer), newerPackage);
+        Assert.assertFalse(((Map<?, ?>) entries.get(cache)).containsKey(reclaimed),
+                "The reclaimed entry should no longer take a slot");
     }
 
     private static Package mockPackage(Path root) {
