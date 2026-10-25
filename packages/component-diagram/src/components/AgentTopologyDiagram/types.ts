@@ -193,6 +193,7 @@ export interface AgentSelection {
 }
 
 export interface EntrySelection {
+    kind: TopologyEntryNode["kind"];
     filePath: string;
     position: LinePosition;
     endPosition?: LinePosition;
