@@ -1695,7 +1695,7 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                         if (componentView?.location?.artifactType && componentView?.location?.identifier) {
                             description = `${this.capitalizeFirstLetter(componentView.location.artifactType)} Deletion - ${componentView.location.identifier}`;
                         }
-                        const artifacts = await updateSourceCode({ textEdits: model.textEdits, description: description, skipPayloadCheck: true, preformatted: model.formatted }); // Skip payload check because the component is deleted
+                        const artifacts = await updateSourceCode({ textEdits: model.textEdits, description: params.description ?? description, skipPayloadCheck: true, preformatted: model.formatted }); // Skip payload check because the component is deleted
                         resolve({ ...model, artifacts });
                     })
                     .catch((error) => {

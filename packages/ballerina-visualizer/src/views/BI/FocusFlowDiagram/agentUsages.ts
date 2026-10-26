@@ -698,6 +698,7 @@ export async function clearAgentCallFromHandler(
         filePath: entryPoint.documentUri,
         component: components[0],
         components,
+        description: `Agent Call Deletion - ${entryPoint.label}`,
     });
     await deleteEachResolved(
         rpcClient, deletableHelpers.filter((helper) => !together.some((entry) => entry.helper === helper)), locate);

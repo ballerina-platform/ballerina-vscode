@@ -112,6 +112,7 @@ export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCode
             const beforeContent = document.getText();
             // An unchanged document sends no didChange; VS Code keeps its own line endings, so they do not count as a change.
             if (updateSourceCodeRequest.preformatted && edits.length === 1
+                && edits[0].range.start.line === 0 && edits[0].range.start.character === 0
                 && edits[0].newText.replace(/\r\n/g, "\n") === beforeContent.replace(/\r\n/g, "\n")) {
                 unchangedFiles.push(fileUri.fsPath);
                 continue;

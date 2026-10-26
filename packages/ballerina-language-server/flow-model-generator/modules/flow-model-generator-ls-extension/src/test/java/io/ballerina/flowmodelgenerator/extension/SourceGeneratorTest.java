@@ -28,6 +28,7 @@ import io.ballerina.flowmodelgenerator.extension.request.FlowModelSourceGenerato
 import io.ballerina.modelgenerator.commons.AbstractLSTest;
 import io.ballerina.modelgenerator.commons.FileSystemUtils;
 import io.ballerina.tools.text.LinePosition;
+import io.ballerina.tools.text.TextDocument;
 import io.ballerina.tools.text.TextDocuments;
 import org.ballerinalang.formatter.core.Formatter;
 import org.ballerinalang.formatter.core.FormatterException;
@@ -45,6 +46,8 @@ import java.lang.reflect.Type;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -199,20 +202,37 @@ public class SourceGeneratorTest extends AbstractLSTest {
             } catch (FormatterException e) {
                 Assert.fail("Edit text could not be formatted", e);
             }
-            for (TextEdit rawEdit : raw.get(entry.getKey())) {
-                Assert.assertTrue(withoutWhitespace(text).contains(withoutWhitespace(rawEdit.getNewText())),
-                        "Missing raw edit: " + rawEdit.getNewText());
+            try {
+                Assert.assertEquals(lf(text), lf(Formatter.format(applied(original, raw.get(entry.getKey())))),
+                        "Edit text is not the formatted result of the raw edits");
+            } catch (FormatterException e) {
+                Assert.fail("Raw edits could not be formatted", e);
             }
         }
+    }
+
+    private static String applied(String original, List<TextEdit> edits) {
+        TextDocument document = TextDocuments.from(original);
+        List<TextEdit> ordered = new ArrayList<>(edits);
+        ordered.sort(Comparator.<TextEdit>comparingInt(edit -> offset(document, edit.getRange().getStart()))
+                .thenComparingInt(edit -> offset(document, edit.getRange().getEnd())));
+        StringBuilder source = new StringBuilder(original);
+        for (int i = ordered.size() - 1; i >= 0; i--) {
+            TextEdit edit = ordered.get(i);
+            source.replace(offset(document, edit.getRange().getStart()), offset(document, edit.getRange().getEnd()),
+                    edit.getNewText());
+        }
+        return source.toString();
+    }
+
+    private static int offset(TextDocument document, Position position) {
+        return document.textPositionFrom(LinePosition.from(position.getLine(), position.getCharacter()));
     }
 
     private static String lf(String text) {
         return text.replace("\r\n", "\n");
     }
 
-    private static String withoutWhitespace(String text) {
-        return text.replaceAll("\\s", "");
-    }
 
     private FlowModelSourceGeneratorRequest nodeRequest(String configName) throws IOException {
         TestConfig config = gson.fromJson(Files.newBufferedReader(configDir.resolve(configName)), TestConfig.class);

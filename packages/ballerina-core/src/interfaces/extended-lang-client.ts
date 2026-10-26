@@ -966,6 +966,8 @@ export type BIDeleteByComponentInfoRequest = {
     nodeType?: string;
     // Components of filePath deleted together in one edit instead of component.
     components?: ComponentInfo[];
+    // Undo label; defaults to one naming the deleted component.
+    description?: string;
 }
 
 export type BIDeleteByComponentInfoResponse = {
