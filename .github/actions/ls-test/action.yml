@@ -79,16 +79,18 @@ runs:
         packagePAT: ${{ inputs.package-pat }}
         GRADLE_PROJECT_VERSION: ${{ inputs.gradle-version }}
       run: |
+        # Windows skips the JaCoCo agent: coverage is published from Linux only (below).
         if [ "$RUNNER_OS" = "Windows" ]; then
           GRADLE=./gradlew.bat
+          ARGS=(-PskipCoverage)
         else
           GRADLE=./gradlew
+          ARGS=()
         fi
         if [ -n "$GRADLE_PROJECT_VERSION" ]; then
-          "$GRADLE" -Pversion="$GRADLE_PROJECT_VERSION" test
-        else
-          "$GRADLE" test
+          ARGS+=(-Pversion="$GRADLE_PROJECT_VERSION")
         fi
+        "$GRADLE" "${ARGS[@]}" test
 
     # Coverage is aggregated and published from Linux only. The Windows leg runs the
     # same suite over the same sources, so a second upload would only duplicate the

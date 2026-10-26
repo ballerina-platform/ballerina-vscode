@@ -108,7 +108,6 @@ test {
         exceptionFormat "full"
     }
     jacoco {
-        enabled = true
         destinationFile = file("${layout.buildDirectory.get().asFile}/coverage-reports/jacoco.exec")
         includeNoLocationClasses = true
         excludes = ['jdk.internal.*']
