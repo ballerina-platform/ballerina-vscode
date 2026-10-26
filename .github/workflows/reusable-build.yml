@@ -178,7 +178,7 @@ jobs:
         uses: gigara/setup-rush@7ba3446572d15f5eacc85de383ad9679dfb7223c # v1.2.0
         with:
           pnpm: 10.10.0
-          node: 22.x
+          node: 22.23.4
           rush-install: true
 
       - name: Set up Ballerina
@@ -230,7 +230,7 @@ jobs:
         uses: gigara/setup-rush@7ba3446572d15f5eacc85de383ad9679dfb7223c # v1.2.0
         with:
           pnpm: 10.10.0
-          node: 22.x
+          node: 22.23.4
           rush-install: true
 
       - name: Run jest across all packages with a jest.config.js
@@ -295,7 +295,7 @@ jobs:
         uses: gigara/setup-rush@7ba3446572d15f5eacc85de383ad9679dfb7223c # v1.2.0
         with:
           pnpm: 10.10.0
-          node: 22.x
+          node: 22.23.4
           rush-install: true
 
       - name: Install Ballerina distribution
