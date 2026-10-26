@@ -1323,7 +1323,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         }
     };
 
-    // One check at a time: an unchanged form reuses the last answer, and a check overtaken while queued is skipped.
+    // One check at a time: an unchanged form shares the running check, and a check overtaken while queued is skipped.
     const getFormWithDiagnostics = (node: FlowNode): Promise<FlowNode | null> => {
         // Update node with new line range only for creation forms (not edit forms)
         const nodeToProcess = props.editForm
@@ -1342,6 +1342,12 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             result: turn.then((result) => (result === SUPERSEDED ? latestDiagnostics.current!.result : result))
         };
         latestDiagnostics.current = check;
+        // A settled answer goes stale when other code changes, so only a running check is shared.
+        check.result.finally(() => {
+            if (latestDiagnostics.current === check) {
+                latestDiagnostics.current = undefined;
+            }
+        });
         return check.result;
     };
 
