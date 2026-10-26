@@ -368,8 +368,8 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
         try {
             this.ensureTargetFileExists(params.filePath);
             const model = await StateMachine.langClient().getSourceCode(
-                { ...params, formatted: true } as BISourceCodeRequest
-            ) as BISourceCodeResponse & { formatted?: boolean; sourceEdits?: BISourceCodeResponse["textEdits"] };
+                { ...params, formatted: true }
+            );
             console.log(">>> bi source code from ls", model);
 
             if (model?.errorMsg) {
@@ -1075,8 +1075,8 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
 
         return new Promise((resolve) => {
             StateMachine.langClient()
-                .deleteFlowNode({ ...params, formatted: true } as BISourceCodeRequest)
-                .then(async (model: BISourceCodeResponse & { formatted?: boolean }) => {
+                .deleteFlowNode({ ...params, formatted: true })
+                .then(async (model: BISourceCodeResponse) => {
                     console.log(">>> bi delete node from ls", model);
                     const artifacts = await updateSourceCode({
                         textEdits: model.textEdits, description: 'Flow Node Deletion - ' + params.flowNode.metadata.label,
@@ -1688,8 +1688,8 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
         const performDelete = async (): Promise<any> => {
             return new Promise((resolve, reject) => {
                 StateMachine.langClient()
-                    .deleteByComponentInfo({ ...params, formatted: true } as BIDeleteByComponentInfoRequest)
-                    .then(async (model: BISourceCodeResponse & { formatted?: boolean }) => {
+                    .deleteByComponentInfo({ ...params, formatted: true })
+                    .then(async (model: BISourceCodeResponse) => {
                         console.log(">>> bi delete node from ls by componentInfo", model);
                         let description = 'Component Deletion';
                         if (componentView?.location?.artifactType && componentView?.location?.identifier) {

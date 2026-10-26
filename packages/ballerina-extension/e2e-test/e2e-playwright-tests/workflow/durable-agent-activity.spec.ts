@@ -67,8 +67,9 @@ async function openDurableAgent(webview: Frame): Promise<void> {
 }
 
 // Opens the agent's Add Tool/Activity list. The list is recognised by its "Create Activity" header
-// action: an activity name alone also matches the title of an activity's edit form. The agent box ignores
-// clicks while the canvas is read-only after a capability save, so the click is repeated until the list shows.
+// action: an activity name alone also matches the title of an activity's edit form. The canvas ignores clicks
+// while it reloads the model, which a capability save does a few times, so the click is repeated until the list
+// shows; once the list is open the canvas is read-only, so a late click cannot close it.
 async function openActivityList(webview: Frame): Promise<Locator> {
     await openDurableAgent(webview);
     const sidePanel = webview.getByTestId('side-panel');
