@@ -70,7 +70,7 @@ import * as os from "os";
 import * as path from "path";
 import { window } from "vscode";
 import { StateMachine } from "../stateMachine";
-import { copyIntoIntegration, resolveIntegrationRoot } from "../rpc-managers/common/utils";
+import { copyIntoIntegration, isPathInsideProject, resolveIntegrationRoot } from "../rpc-managers/common/utils";
 
 describe("copyIntoIntegration", () => {
     let root: string;
@@ -159,5 +159,50 @@ describe("resolveIntegrationRoot", () => {
     it("returns undefined when there is no project path", async () => {
         (StateMachine.context as jest.Mock).mockReturnValue({ projectPath: undefined });
         expect(await resolveIntegrationRoot()).toBeUndefined();
+    });
+});
+
+// wso2/product-integrator#1476: a schema already inside the project must not trigger the
+// "move it inside the project?" prompt just because the project path is spelled differently.
+describe("isPathInsideProject", () => {
+    let base: string;
+    let project: string;
+    let file: string;
+
+    beforeEach(() => {
+        base = fs.mkdtempSync(path.join(os.tmpdir(), "inside-project-"));
+        project = path.join(base, "graphqlintegration");
+        fs.mkdirSync(project);
+        file = path.join(project, "schema.graphql");
+        fs.writeFileSync(file, "type Query { greeting: String }");
+    });
+
+    afterEach(() => {
+        fs.rmSync(base, { recursive: true, force: true });
+    });
+
+    it("treats a file under the project path as inside", () => {
+        expect(isPathInsideProject(project, file)).toBe(true);
+    });
+
+    it("treats a file reached through a symlinked project path as inside", () => {
+        const link = path.join(base, "linked-project");
+        fs.symlinkSync(project, link, "dir");
+        expect(isPathInsideProject(link, file)).toBe(true);
+    });
+
+    it("treats a file outside the project as outside", () => {
+        const outside = path.join(base, "schema.graphql");
+        fs.writeFileSync(outside, "type Query { greeting: String }");
+        expect(isPathInsideProject(project, outside)).toBe(false);
+    });
+
+    it("treats a project path that does not exist as not containing the file", () => {
+        expect(isPathInsideProject(path.join(base, "missing"), file)).toBe(false);
+    });
+
+    const caseInsensitive = fs.existsSync(os.tmpdir().toUpperCase());
+    (caseInsensitive ? it : it.skip)("treats a project path differing only in letter case as inside", () => {
+        expect(isPathInsideProject(path.join(base, "graphQLIntegration"), file)).toBe(true);
     });
 });
