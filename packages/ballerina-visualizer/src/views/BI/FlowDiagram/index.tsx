@@ -329,13 +329,6 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     // Marks a user-driven panel action: invalidates in-flight refreshes, then reports whether
     // this action's own async continuation has since been superseded by a later action.
     const beginPanelNav = () => {
-        // A capability write still waiting on its refresh would close this new panel when it lands.
-        if (pendingCapabilityCloseRef.current) {
-            pendingCapabilityCloseRef.current = false;
-            setShowProgressSpinner(false);
-            setProgressMessage(LOADING_MESSAGE);
-        }
-        clearCapabilityFailsafe();
         const epoch = ++panelNavEpochRef.current;
         return () => panelNavEpochRef.current !== epoch;
     };
