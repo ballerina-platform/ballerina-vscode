@@ -115,7 +115,7 @@ export default function createTests() {
                 view = await ui.view();
                 // chargeCard is not on the diagram, so a visible one is the panel's card.
                 let card = view.getByText('chargeCard', { exact: true }).filter({ visible: true }).first();
-                if (!await card.isVisible().catch(() => false)) {
+                if (!await card.waitFor({ state: 'visible', timeout: 30000 }).then(() => true, () => false)) {
                     // After the connection flow the diagram's + stops opening the node panel; reloading the workflow fixes it.
                     await ui.sidebar('orderWorkflow');
                     await ui.view(/Start/, 60000);
