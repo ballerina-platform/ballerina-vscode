@@ -405,9 +405,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     }, [breakpointState]);
 
     useEffect(() => {
-        rpcClient.onProjectContentUpdated(() => {
+        const unsubscribeContentUpdated = rpcClient.onProjectContentUpdated(() => {
             debouncedGetFlowModel();
-        })
+        });
         rpcClient.onParentPopupSubmitted((parent: ParentPopupData) => {
             if (parent.dataMapperMetadata) {
                 // Skip if the parent is a data mapper popup
@@ -460,6 +460,10 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 setIsUserAuthenticated(false);
             });
 
+        return () => {
+            unsubscribeContentUpdated();
+            debouncedGetFlowModel.cancel();
+        };
     }, [rpcClient]);
 
     useEffect(() => {
