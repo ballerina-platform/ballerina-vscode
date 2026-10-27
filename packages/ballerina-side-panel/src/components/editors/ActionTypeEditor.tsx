@@ -45,53 +45,8 @@ import styled from "@emotion/styled";
 import ReactMarkdown from "react-markdown";
 import { getFieldTypeLabel, NodeProperties, PropertyModel } from "@wso2/ballerina-core";
 import { canOfferTypeCreation } from "./typeCreationGate";
+import { isGraphQLScalarType } from "./graphqlScalarType";
 
-const isGraphQLScalarType = (type: string): boolean => {
-    const scalarTypes = [
-        'string',
-        'int',
-        'float',
-        'decimal'
-    ];
-
-    const isScalarOrArrayOfScalar = (t: string): boolean => {
-        let cleanType = t.trim().replace(/\?$/, '');
-
-        if (cleanType.endsWith('[]')) {
-            const baseType = cleanType.slice(0, -2).trim();
-            return isScalarOrArrayOfScalar(baseType);
-        }
-
-        if (cleanType.startsWith('(') && cleanType.endsWith(')')) {
-            cleanType = cleanType.slice(1, -1).trim();
-            if (cleanType.includes('|')) {
-                const unionParts = cleanType.split('|').map(part => part.trim());
-                return unionParts.every(part => isScalarOrArrayOfScalar(part));
-            }
-        }
-
-        return scalarTypes.includes(cleanType.toLowerCase());
-    };
-
-    let cleanType = type.trim().replace(/\?$/, '');
-
-    if (cleanType.endsWith('[]') && cleanType.includes('(') && cleanType.includes('|')) {
-        const baseType = cleanType.slice(0, -2).trim();
-        return isScalarOrArrayOfScalar(baseType);
-    }
-
-    if (cleanType.includes('|')) {
-        const unionParts = cleanType.split('|').map(part => part.trim());
-        return unionParts.every(part => isScalarOrArrayOfScalar(part));
-    }
-
-    if (cleanType.endsWith('[]')) {
-        const baseType = cleanType.slice(0, -2).trim();
-        return isScalarOrArrayOfScalar(baseType);
-    }
-
-    return isScalarOrArrayOfScalar(cleanType);
-};
 
 interface ActionTypeEditorProps {
     field: FormField;

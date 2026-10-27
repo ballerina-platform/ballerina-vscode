@@ -35,8 +35,8 @@ describe("getGraphqlIdForField", () => {
         expect(flags).toEqual([saved, undefined, undefined]);
     });
 
-    it("leaves the type field alone when no flag was saved", () => {
-        expect(getGraphqlIdForField(argumentFields[0], { type: "string", variable: "id" })).toBeUndefined();
+    it.each([undefined, "true"])("leaves the type field alone when no boolean flag was saved (%s)", (saved) => {
+        expect(getGraphqlIdForField(argumentFields[0], { type: "string", variable: "id", isGraphqlId: saved })).toBeUndefined();
     });
 });
 
@@ -44,6 +44,16 @@ describe("withPreservedGraphqlId", () => {
     it("keeps the opened flag when the checkbox was left untouched", () => {
         const saved = withPreservedGraphqlId({ type: "string", variable: "id" }, { type: "string", variable: "id", isGraphqlId: true });
         expect(saved.isGraphqlId).toBe(true);
+    });
+
+    it.each(["int", "string?", "string[]"])("keeps the opened flag when the type changed to another scalar (%s)", (type) => {
+        const saved = withPreservedGraphqlId({ type, variable: "id" }, { type: "string", variable: "id", isGraphqlId: true });
+        expect(saved.isGraphqlId).toBe(true);
+    });
+
+    it.each(["Foo", "map<string>", ""])("drops the opened flag when the type is no longer a scalar (%s)", (type) => {
+        const saved = withPreservedGraphqlId({ type, variable: "id" }, { type: "string", variable: "id", isGraphqlId: true });
+        expect(saved).not.toHaveProperty("isGraphqlId");
     });
 
     it.each([true, false])("prefers the submitted flag (%s) over the opened one", (submitted) => {
@@ -58,7 +68,7 @@ describe("withPreservedGraphqlId", () => {
 
     it("does not mutate the submitted values", () => {
         const data: FormValues = { type: "string" };
-        withPreservedGraphqlId(data, { isGraphqlId: true });
+        withPreservedGraphqlId(data, { type: "string", isGraphqlId: true });
         expect(data).not.toHaveProperty("isGraphqlId");
     });
 });

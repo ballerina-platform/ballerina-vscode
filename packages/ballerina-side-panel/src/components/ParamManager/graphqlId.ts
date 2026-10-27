@@ -18,6 +18,7 @@
 
 import { getPrimaryInputType } from "@wso2/ballerina-core";
 import { FormField, FormValues } from "../Form/types";
+import { isGraphQLScalarType } from "../editors/graphqlScalarType";
 
 /**
  * The GraphQL "ID Type" flag a reopened parameter's field should start with: the saved flag for
@@ -27,16 +28,21 @@ export function getGraphqlIdForField(field: FormField, formValues: FormValues): 
     if (getPrimaryInputType(field.types)?.fieldType !== "ACTION_TYPE") {
         return undefined;
     }
-    return formValues["isGraphqlId"];
+    const flag = formValues["isGraphqlId"];
+    return typeof flag === "boolean" ? flag : undefined;
 }
 
 /**
  * The values to save for an edited parameter. The "ID Type" checkbox only writes `isGraphqlId`
  * into the form when toggled, so the flag the parameter was opened with is kept when the
- * submitted values carry none.
+ * submitted values carry none, as long as the submitted type can still take it: the checkbox is
+ * only reset when the type is typed into a non-scalar, not when it is set some other way.
  */
 export function withPreservedGraphqlId(data: FormValues, previous?: FormValues): FormValues {
     if (data["isGraphqlId"] !== undefined || previous?.["isGraphqlId"] === undefined) {
+        return data;
+    }
+    if (typeof data["type"] !== "string" || !isGraphQLScalarType(data["type"])) {
         return data;
     }
     return { ...data, isGraphqlId: previous["isGraphqlId"] };
