@@ -64,9 +64,11 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
@@ -327,7 +329,9 @@ public class PackageUtil {
      */
     public static Optional<SemanticModel> getSemanticModel(ModuleInfo moduleInfo) {
         Optional<Package> modulePackage = getModulePackage(getSampleProject(), moduleInfo.org(),
-                moduleInfo.packageName(), moduleInfo.version()).map(PackageUtil::compileBala);
+                moduleInfo.packageName(), moduleInfo.version())
+                .filter(pkg -> findModule(pkg, moduleInfo.moduleName()).isPresent())
+                .map(PackageUtil::compileBala);
         if (modulePackage.isEmpty()) {
             return Optional.empty();
         }
@@ -343,22 +347,27 @@ public class PackageUtil {
 
     // The compiler reuses a dependency's cached BIR even when it was built against other dependency versions.
     static Package compileBala(Package pkg) {
-        try {
-            getCompilation(pkg);
-            return pkg;
-        } catch (RuntimeException e) {
-            if (pkg.project().kind() != ProjectKind.BALA_PROJECT || !clearFailedBirCache(e, pkg.project())) {
-                throw e;
+        Set<String> clearedPackages = new HashSet<>();
+        Package current = pkg;
+        while (true) {
+            try {
+                getCompilation(current);
+                return current;
+            } catch (RuntimeException e) {
+                if (current.project().kind() != ProjectKind.BALA_PROJECT
+                        || !clearFailedBirCache(e, current.project(), clearedPackages)) {
+                    throw e;
+                }
+                current = loadBalaPackage(current.project().sourceRoot()).orElseThrow(() -> e);
             }
-            Package reloaded = loadBalaPackage(pkg.project().sourceRoot()).orElseThrow(() -> e);
-            getCompilation(reloaded);
-            return reloaded;
         }
     }
 
-    static boolean clearFailedBirCache(Throwable error, Project project) {
+    static boolean clearFailedBirCache(Throwable error, Project project, Set<String> clearedPackages) {
         Optional<CorruptBirCacheParams> failed = PullModuleExecutor.detectCorruptBirCache(error, project)
-                .filter(params -> params.getVersion() != null);
+                .filter(params -> params.getVersion() != null)
+                .filter(params -> clearedPackages.add(params.getOrg() + "/" + params.getPackageName() + ":"
+                        + params.getVersion()));
         if (failed.isEmpty()) {
             return false;
         }

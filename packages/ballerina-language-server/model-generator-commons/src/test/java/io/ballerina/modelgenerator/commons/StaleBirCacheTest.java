@@ -22,6 +22,7 @@ import io.ballerina.projects.Package;
 import io.ballerina.projects.PackageCompilation;
 import io.ballerina.projects.Project;
 import io.ballerina.projects.ProjectKind;
+import io.ballerina.projects.util.ProjectConstants;
 import io.ballerina.projects.util.ProjectUtils;
 import org.ballerinalang.compiler.BLangCompilerException;
 import org.mockito.Mockito;
@@ -33,6 +34,8 @@ import org.wso2.ballerinalang.util.RepoUtils;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Tests that {@link PackageUtil#compileBala} clears only the cache of the module whose BIR failed to load, and only
@@ -42,8 +45,9 @@ public class StaleBirCacheTest {
 
     private static final String ORG = "stalebircachetest";
 
-    private final Path orgCache = RepoUtils.createAndGetHomeReposPath().resolve("repositories")
-            .resolve("central.ballerina.io").resolve("cache-" + RepoUtils.getBallerinaShortVersion()).resolve(ORG);
+    private final Path orgCache = RepoUtils.createAndGetHomeReposPath()
+            .resolve(ProjectConstants.REPOSITORIES_DIR).resolve(ProjectConstants.CENTRAL_REPOSITORY_CACHE_NAME)
+            .resolve(ProjectConstants.CACHES_DIR_NAME + "-" + RepoUtils.getBallerinaShortVersion()).resolve(ORG);
 
     @AfterClass(alwaysRun = true)
     public void tearDown() {
@@ -57,16 +61,29 @@ public class StaleBirCacheTest {
         BLangCompilerException error = new BLangCompilerException("failed to load the module '" + ORG
                 + "/ai:1.12.0' from its BIR due to: class BSymbol cannot be cast to class BConstantSymbol");
 
-        Assert.assertTrue(PackageUtil.clearFailedBirCache(error, null));
+        Assert.assertTrue(PackageUtil.clearFailedBirCache(error, null, new HashSet<>()));
         Assert.assertFalse(Files.exists(ai));
         Assert.assertTrue(Files.exists(mcp));
+    }
+
+    @Test
+    public void testDoesNotClearTheSamePackageTwice() throws IOException {
+        BLangCompilerException error = new BLangCompilerException("failed to load the module '" + ORG
+                + "/ai:1.11.0' from its BIR due to: invalid magic number");
+        Set<String> cleared = new HashSet<>();
+        Assert.assertTrue(PackageUtil.clearFailedBirCache(error, null, cleared));
+
+        Path ai = createCachedBir("ai", "1.11.0");
+        Assert.assertFalse(PackageUtil.clearFailedBirCache(error, null, cleared));
+        Assert.assertTrue(Files.exists(ai));
     }
 
     @Test
     public void testIgnoresOtherFailures() throws IOException {
         Path ai = createCachedBir("ai", "1.13.0");
 
-        Assert.assertFalse(PackageUtil.clearFailedBirCache(new IllegalStateException("unrelated"), null));
+        Assert.assertFalse(
+                PackageUtil.clearFailedBirCache(new IllegalStateException("unrelated"), null, new HashSet<>()));
         Assert.assertTrue(Files.exists(ai));
     }
 

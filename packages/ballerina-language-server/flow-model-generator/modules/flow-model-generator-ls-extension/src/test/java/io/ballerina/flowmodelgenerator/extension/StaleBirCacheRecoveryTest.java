@@ -21,6 +21,7 @@ package io.ballerina.flowmodelgenerator.extension;
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.PackageUtil;
+import io.ballerina.projects.util.ProjectConstants;
 import io.ballerina.projects.util.ProjectUtils;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -31,6 +32,7 @@ import org.wso2.ballerinalang.util.RepoUtils;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.Optional;
 import java.util.stream.Stream;
 
@@ -42,10 +44,13 @@ import java.util.stream.Stream;
  */
 public class StaleBirCacheRecoveryTest {
 
-    private static final Path DEPENDENCY_CACHE = RepoUtils.createAndGetHomeReposPath().resolve("repositories")
-            .resolve("central.ballerina.io").resolve("cache-" + RepoUtils.getBallerinaShortVersion())
+    private static final Path DEPENDENCY_CACHE = RepoUtils.createAndGetHomeReposPath()
+            .resolve(ProjectConstants.REPOSITORIES_DIR).resolve(ProjectConstants.CENTRAL_REPOSITORY_CACHE_NAME)
+            .resolve(ProjectConstants.CACHES_DIR_NAME + "-" + RepoUtils.getBallerinaShortVersion())
             .resolve("ballerinax").resolve("azure.openai.chat").resolve("3.0.3");
     private static final Path DEPENDENCY_BIR = DEPENDENCY_CACHE.resolve("bir").resolve("azure.openai.chat.bir");
+
+    private static final byte[] UNREADABLE_BIR = {0, 1, 2, 3};
 
     private Path backup;
 
@@ -54,7 +59,7 @@ public class StaleBirCacheRecoveryTest {
         Assert.assertTrue(Files.isRegularFile(DEPENDENCY_BIR), "Missing cached BIR fixture: " + DEPENDENCY_BIR);
         backup = Files.createTempDirectory("stale-bir-backup").resolve("3.0.3");
         copyDirectory(DEPENDENCY_CACHE, backup);
-        Files.write(DEPENDENCY_BIR, new byte[]{0, 1, 2, 3});
+        Files.write(DEPENDENCY_BIR, UNREADABLE_BIR);
     }
 
     @AfterClass(alwaysRun = true)
@@ -68,13 +73,15 @@ public class StaleBirCacheRecoveryTest {
     }
 
     @Test
-    public void testRecompilesWhenADependencyBirCannotBeLoaded() {
+    public void testRecompilesWhenADependencyBirCannotBeLoaded() throws IOException {
         Optional<SemanticModel> semanticModel =
                 PackageUtil.getSemanticModel(new ModuleInfo("ballerinax", "ai.azure", "ai.azure", "1.4.4"));
 
         Assert.assertTrue(semanticModel.isPresent());
         Assert.assertFalse(semanticModel.get().moduleSymbols().isEmpty());
-        Assert.assertFalse(Files.exists(DEPENDENCY_CACHE), "The unreadable dependency cache should be cleared");
+        Assert.assertFalse(Files.exists(DEPENDENCY_BIR)
+                        && Arrays.equals(Files.readAllBytes(DEPENDENCY_BIR), UNREADABLE_BIR),
+                "The unreadable dependency BIR should be cleared");
     }
 
     private static void copyDirectory(Path source, Path target) throws IOException {
