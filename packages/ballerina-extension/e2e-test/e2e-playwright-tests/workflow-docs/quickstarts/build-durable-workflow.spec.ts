@@ -17,7 +17,7 @@
  */
 
 import { expect, test } from '@playwright/test';
-import { initTest, newProjectPath, page, stopAllRunningIntegrations } from '../../utils/helpers';
+import { initTest, newProjectPath, stopAllRunningIntegrations } from '../../utils/helpers';
 import { projectSources, QUICKSTARTS, WORKFLOW_QUICKSTART_TEMPLATE } from '../common';
 import { DocJourney } from '../doc-journey';
 import { Integrator } from '../integrator';
@@ -39,8 +39,6 @@ export default function createTests() {
             const j = new DocJourney({ title: 'Build a Durable Workflow', slug: `${QUICKSTARTS}/build-durable-workflow` });
             const ui = new Integrator(j);
             const source = projectSources();
-            // TEMP: dump the window's console (webview and extension host) to the job log to see the event order on CI.
-            page.page.on('console', (m) => console.log(`[console ${new Date().toISOString().slice(11, 23)}] ${m.type()} ${m.text().slice(0, 500)}`));
 
             // Step 1 creates the project from the home page; the harness opens an empty project of the same name.
             let view = await ui.view(/Add Artifact/i, 180000);
