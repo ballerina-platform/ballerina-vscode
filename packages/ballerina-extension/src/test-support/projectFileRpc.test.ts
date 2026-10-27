@@ -67,6 +67,7 @@ jest.mock("@wso2/ballerina-core", () => ({
     },
 }));
 
+import { loadFixtures } from "@wso2/test-config/fixtures";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
@@ -164,62 +165,68 @@ describe("resolveIntegrationRoot", () => {
     });
 });
 
-// wso2/product-integrator#1476: a schema already inside the project must not trigger the
-// "move it inside the project?" prompt just because the project path is spelled differently.
-describe("isPathInsideProject", () => {
+// Containment invariant over fixtures/path-containment/: for every layout, `isPathInsideProject`
+// gives the expected answer. Seeds `tree` (files) and `symlinks` (link -> target) under a temp
+// dir; `spellings` maps an alternate spelling to its on-disk path by stubbing
+// `fs.realpathSync.native`, so a case-insensitive filesystem (wso2/product-integrator#1476, where
+// a schema already inside the project triggered the "move it inside the project?" prompt) is
+// exercised deterministically on case-sensitive CI runners too. Paths are "/"-separated and
+// relative to the temp dir.
+interface PathContainmentFixture {
+    description?: string;
+    tree: string[];
+    symlinks?: Record<string, string>;
+    spellings?: Record<string, string>;
+    projectPath: string;
+    filePath: string;
+    expectedInside: boolean;
+}
+
+const containmentFixtures = loadFixtures<PathContainmentFixture>(__dirname, "fixtures", "path-containment");
+
+describe("isPathInsideProject — fixtures", () => {
     let base: string;
-    let project: string;
-    let file: string;
+    const at = (rel: string): string => path.join(base, ...rel.split("/"));
 
     beforeEach(() => {
         base = fs.mkdtempSync(path.join(os.tmpdir(), "inside-project-"));
-        project = path.join(base, "graphqlintegration");
-        fs.mkdirSync(project);
-        file = path.join(project, "schema.graphql");
-        fs.writeFileSync(file, "type Query { greeting: String }");
     });
 
     afterEach(() => {
+        jest.restoreAllMocks();
         fs.rmSync(base, { recursive: true, force: true });
     });
 
-    it("treats a file under the project path as inside", () => {
-        expect(isPathInsideProject(project, file)).toBe(true);
+    it("has fixtures to run", () => {
+        expect(containmentFixtures.length).toBeGreaterThan(0);
     });
 
-    it("treats a file reached through a symlinked project path as inside", () => {
-        const link = path.join(base, "linked-project");
-        fs.symlinkSync(project, link, process.platform === "win32" ? "junction" : "dir");
-        expect(isPathInsideProject(link, file)).toBe(true);
+    it.each(containmentFixtures.map((f) => [f.name, f.data] as [string, PathContainmentFixture]))("%s", (_name, fx) => {
+        for (const rel of fx.tree) {
+            fs.mkdirSync(path.dirname(at(rel)), { recursive: true });
+            fs.writeFileSync(at(rel), "x");
+        }
+        for (const [link, target] of Object.entries(fx.symlinks ?? {})) {
+            // A junction needs no privilege on Windows, where a "dir" symlink throws EPERM.
+            fs.symlinkSync(at(target), at(link), process.platform === "win32" ? "junction" : "dir");
+        }
+        const spellings = Object.entries(fx.spellings ?? {}).map(([alias, onDisk]) => [at(alias), at(onDisk)]);
+        if (spellings.length > 0) {
+            const realpath = fs.realpathSync.native;
+            jest.spyOn(fs.realpathSync, "native").mockImplementation(((p: fs.PathLike) => {
+                const match = spellings.find(([alias]) => String(p) === alias || String(p).startsWith(alias + path.sep));
+                return realpath(match ? match[1] + String(p).slice(match[0].length) : p);
+            }) as typeof fs.realpathSync.native);
+        }
+
+        expect(isPathInsideProject(at(fx.projectPath), at(fx.filePath))).toBe(fx.expectedInside);
     });
 
-    it("treats a file outside the project as outside", () => {
-        const outside = path.join(base, "schema.graphql");
-        fs.writeFileSync(outside, "type Query { greeting: String }");
-        expect(isPathInsideProject(project, outside)).toBe(false);
-    });
-
-    it("treats a project path that does not exist as not containing the file", () => {
-        expect(isPathInsideProject(path.join(base, "missing"), file)).toBe(false);
-    });
-
+    // The same #1476 layout against the real filesystem, where the platform folds case itself.
     const caseInsensitive = fs.existsSync(os.tmpdir().toUpperCase());
     (caseInsensitive ? it : it.skip)("treats a project path differing only in letter case as inside", () => {
-        expect(isPathInsideProject(path.join(base, "graphQLIntegration"), file)).toBe(true);
-    });
-
-    // Deterministic variant of the case above for case-sensitive CI runners: the project path's
-    // on-disk spelling is stubbed so the realpath fallback runs on every platform.
-    it("treats a project path that resolves to the on-disk spelling as inside", () => {
-        const spelled = path.join(base, "graphQLIntegration");
-        const realpath = fs.realpathSync.native;
-        const spy = jest.spyOn(fs.realpathSync, "native").mockImplementation(
-            ((p: fs.PathLike) => realpath(String(p) === spelled ? project : p)) as typeof fs.realpathSync.native,
-        );
-        try {
-            expect(isPathInsideProject(spelled, file)).toBe(true);
-        } finally {
-            spy.mockRestore();
-        }
+        fs.mkdirSync(at("graphqlintegration"));
+        fs.writeFileSync(at("graphqlintegration/schema.graphql"), "x");
+        expect(isPathInsideProject(at("graphQLIntegration"), at("graphqlintegration/schema.graphql"))).toBe(true);
     });
 });

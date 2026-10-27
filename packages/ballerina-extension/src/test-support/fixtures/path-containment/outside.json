@@ -1,0 +1,7 @@
+{
+    "description": "a file next to the project folder, not in it, is outside",
+    "tree": ["graphqlintegration/main.bal", "schema.graphql"],
+    "projectPath": "graphqlintegration",
+    "filePath": "schema.graphql",
+    "expectedInside": false
+}
