@@ -202,6 +202,7 @@ import io.ballerina.modelgenerator.commons.FileSystemUtils;
 import io.ballerina.modelgenerator.commons.FunctionData;
 import io.ballerina.modelgenerator.commons.FunctionDataBuilder;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
+import io.ballerina.modelgenerator.commons.PackageModuleUtils;
 import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.modelgenerator.commons.ParameterData;
 import io.ballerina.projects.Document;
@@ -301,7 +302,6 @@ public class CodeAnalyzer extends NodeVisitor {
     // Readonly fields
     private final Project project;
     private final SemanticModel semanticModel;
-    private final Map<String, LineRange> dataMappings;
     private final Map<String, LineRange> naturalFunctions;
     private final TextDocument textDocument;
     private final ModuleInfo moduleInfo;
@@ -323,7 +323,6 @@ public class CodeAnalyzer extends NodeVisitor {
     public static final String AGENT_TOOL_TYPE = "Agent";
     private static final String RUN_METHOD = "run";
     public static final String NAME = "name";
-    private static final String DATA_MAPPINGS_BAL = "data_mappings.bal";
 
     // Agent field names
     private static final String FIELD_TOOLS = "tools";
@@ -340,15 +339,16 @@ public class CodeAnalyzer extends NodeVisitor {
 
     // Lazily gathered once per analysis; see workflowOptions().
     private List<Option> workflowOptions;
+    // Data mapper checks resolved once per analysis, keyed by the function's module and name
+    private final Map<String, Boolean> dataMapperFunctions = new HashMap<>();
 
     public CodeAnalyzer(Project project, SemanticModel semanticModel, String connectionScope,
-                        Map<String, LineRange> dataMappings, Map<String, LineRange> naturalFunctions,
+                        Map<String, LineRange> naturalFunctions,
                         TextDocument textDocument, ModuleInfo moduleInfo,
                         boolean forceAssign,
                         WorkspaceManager workspaceManager, Path filePath) {
         this.project = project;
         this.semanticModel = semanticModel;
-        this.dataMappings = dataMappings;
         this.naturalFunctions = naturalFunctions;
         this.connectionScope = connectionScope;
         this.textDocument = textDocument;
@@ -1241,6 +1241,12 @@ public class CodeAnalyzer extends NodeVisitor {
         return null;
     }
 
+    // `check` and `checkpanic` both read as Check Error on: neither hands the error to the binding. The
+    // node's checkpanic flag tells the builders which keyword to write back, so a re-save keeps it.
+    private static boolean isCheckedAgentCall(Node callNode) {
+        return callNode.parent() instanceof CheckExpressionNode;
+    }
+
     // The expression a call argument carries, whichever way it was written.
     private static ExpressionNode argumentExpression(FunctionArgumentNode argument) {
         if (argument instanceof PositionalArgumentNode positional) {
@@ -1283,9 +1289,7 @@ public class CodeAnalyzer extends NodeVisitor {
         addAgentCallProperty(DurableAgentStartBuilder.INPUT_KEY, "Input",
                 "The structured input the run was given", agentArgumentSource(runArguments, 1, AGENT_RUN_INPUT_PARAM));
 
-        SyntaxKind parentKind = callNode.parent().kind();
-        boolean hasCheck = parentKind == SyntaxKind.CHECK_ACTION || parentKind == SyntaxKind.CHECK_EXPRESSION;
-        nodeBuilder.properties().checkError(hasCheck);
+        nodeBuilder.properties().checkError(isCheckedAgentCall(callNode));
     }
 
     /**
@@ -1471,9 +1475,7 @@ public class CodeAnalyzer extends NodeVisitor {
         // three, and saving would have written those blanks back.
         populateDurableAgentCallArguments(callNode, nodeKind, waits, dataEventName);
 
-        SyntaxKind parentKind = callNode.parent().kind();
-        boolean hasCheck = parentKind == SyntaxKind.CHECK_ACTION || parentKind == SyntaxKind.CHECK_EXPRESSION;
-        nodeBuilder.properties().checkError(hasCheck);
+        nodeBuilder.properties().checkError(isCheckedAgentCall(callNode));
     }
 
     /**
@@ -4850,13 +4852,7 @@ public class CodeAnalyzer extends NodeVisitor {
         NameReferenceNode nameReferenceNode = functionCallExpressionNode.functionName();
         String functionName = getIdentifierName(nameReferenceNode);
 
-        // TODO: Here we address the majority of cases by assuming that data mappings reside in `functions.bal`.
-        //  Ideally, there should be a path to determine whether a symbol is an expression-bodied function using the
-        //  semantic model.
-        if (dataMappings.containsKey(functionName) ||
-                functionSymbol.getLocation()
-                        .map(loc -> DATA_MAPPINGS_BAL.equals(loc.lineRange().fileName()))
-                        .orElse(false)) {
+        if (isDataMapperCall(functionSymbol)) {
             startNode(NodeKind.DATA_MAPPER_CALL, functionCallExpressionNode.parent());
         } else if (isAgentClass(symbol.get())) {
             startNode(NodeKind.AGENT_CALL, functionCallExpressionNode.parent());
@@ -4940,6 +4936,25 @@ public class CodeAnalyzer extends NodeVisitor {
         addModelProviderMetadata(functionCallExpressionNode.arguments(), functionData);
 
         handleWorkflowFunctionSymbol(functionCallExpressionNode, functionSymbol);
+    }
+
+    // TODO: Data mappers are identified from the syntax tree of the declaring `data_mappings.bal` file, since the
+    //  semantic model does not expose whether a function is expression-bodied.
+    //  Use the symbol API once https://github.com/ballerina-platform/ballerina-lang/issues/44329 is fixed.
+    private boolean isDataMapperCall(FunctionSymbol functionSymbol) {
+        if (!CommonUtils.isDeclaredInDataMappingsFile(functionSymbol)) {
+            return false;
+        }
+        Optional<ModuleID> moduleId = functionSymbol.getModule().map(ModuleSymbol::id);
+        if (moduleId.isEmpty() || functionSymbol.getName().isEmpty()) {
+            return false;
+        }
+        String key = moduleId.get().orgName() + "/" + moduleId.get().moduleName() + ":" + moduleId.get().version()
+                + ":" + functionSymbol.getName().get();
+        return dataMapperFunctions.computeIfAbsent(key, ignored ->
+                PackageModuleUtils.findOwnerModule(project, functionSymbol)
+                        .map(module -> CommonUtils.isDataMapperFunction(functionSymbol, module))
+                        .orElse(false));
     }
 
     private void addModelProviderMetadata(SeparatedNodeList<FunctionArgumentNode> argumentNodes,

@@ -42,6 +42,7 @@ import org.ballerinalang.langserver.commons.client.ExtendedLanguageClient;
 import org.ballerinalang.langserver.commons.command.CommandArgument;
 import org.ballerinalang.langserver.commons.command.LSCommandExecutorException;
 import org.ballerinalang.langserver.commons.eventsync.exceptions.EventSyncException;
+import org.ballerinalang.langserver.commons.workspace.ProjectLocks;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceDocumentException;
 import org.ballerinalang.langserver.contexts.LanguageServerContextImpl;
 import org.ballerinalang.langserver.extensions.ballerina.document.ExecutorPositionsUtil;
@@ -79,6 +80,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Lock;
 
 import static org.awaitility.Awaitility.await;
 
@@ -177,6 +179,61 @@ public class TestWorkspaceManager {
         Optional<Document> document = workspaceManager.document(filePath);
         Assert.assertNotNull(document.get());
         Assert.assertEquals(document.get().syntaxTree().textDocument().toString(), dummyDidChangeContent);
+    }
+
+    @Test(dataProvider = "fileOpenUpdateTestDataProvider")
+    public void testProjectLockIsShared(Path filePath) throws WorkspaceDocumentException {
+        // Code outside the workspace manager compiles its projects under this lock, so it has to be the one found
+        // for whatever project instance the context holds, before and after an edit.
+        openFile(filePath);
+        assertProjectLockShared(filePath);
+
+        DidChangeTextDocumentParams params = new DidChangeTextDocumentParams();
+        params.setTextDocument(new VersionedTextDocumentIdentifier(filePath.toUri().toString(), 1));
+        params.getContentChanges().add(new TextDocumentContentChangeEvent(dummyDidChangeContent));
+        workspaceManager.didChange(filePath, params);
+        assertProjectLockShared(filePath);
+    }
+
+    @Test(dataProvider = "workspaceReloadTomlDataProvider")
+    public void testProjectLockIsSharedAfterWorkspaceReload(Path changedToml) throws WorkspaceDocumentException {
+        // A workspace reload puts new contexts into the map for every package, while the context that handled the
+        // event keeps the same project instances; the lock has to follow the context the map holds.
+        Path packageFile = RESOURCE_DIRECTORY.resolve("workspace-projects").resolve("simple-workspace")
+                .resolve("package-a").resolve("main.bal").toAbsolutePath();
+        openFile(packageFile);
+        Path packageRoot = workspaceManager.projectRoot(packageFile);
+        BallerinaWorkspaceManager.ProjectContext beforeReload = workspaceManager.sourceRootToProject.get(packageRoot);
+
+        workspaceManager.didChangeWatched(changedToml,
+                new FileEvent(changedToml.toUri().toString(), FileChangeType.Changed));
+
+        // Without a reload every entry stays consistent and the checks below prove nothing.
+        BallerinaWorkspaceManager.ProjectContext afterReload = workspaceManager.sourceRootToProject.get(packageRoot);
+        Assert.assertNotNull(afterReload, "The package dropped out of the map on " + changedToml);
+        Assert.assertNotSame(afterReload, beforeReload, "The change to " + changedToml + " did not reload the package");
+        workspaceManager.sourceRootToProject.forEach((root, projectContext) -> {
+            Optional<Lock> lock = ProjectLocks.of(projectContext.project());
+            Assert.assertTrue(lock.isPresent(), "No lock found for the project at " + root);
+            Assert.assertSame(lock.get(), projectContext.locker(), "Lock drifted for the project at " + root);
+        });
+    }
+
+    @DataProvider
+    public Object[] workspaceReloadTomlDataProvider() {
+        Path workspace = RESOURCE_DIRECTORY.resolve("workspace-projects").resolve("simple-workspace");
+        return new Path[]{
+                workspace.resolve("package-a").resolve(ProjectConstants.BALLERINA_TOML).toAbsolutePath(),
+                workspace.resolve(ProjectConstants.BALLERINA_TOML).toAbsolutePath()
+        };
+    }
+
+    private void assertProjectLockShared(Path filePath) {
+        BallerinaWorkspaceManager.ProjectContext projectContext =
+                workspaceManager.sourceRootToProject.get(workspaceManager.projectRoot(filePath));
+        Optional<Lock> lock = ProjectLocks.of(projectContext.project());
+        Assert.assertTrue(lock.isPresent(), "No lock found for the project of " + filePath);
+        Assert.assertSame(lock.get(), projectContext.locker());
     }
 
     @Test

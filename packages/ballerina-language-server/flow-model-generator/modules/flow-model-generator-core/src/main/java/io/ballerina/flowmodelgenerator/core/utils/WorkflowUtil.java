@@ -48,11 +48,14 @@ import io.ballerina.compiler.syntax.tree.ModuleMemberDeclarationNode;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
 import io.ballerina.compiler.syntax.tree.ModuleVariableDeclarationNode;
 import io.ballerina.compiler.syntax.tree.Node;
+import io.ballerina.compiler.syntax.tree.NonTerminalNode;
 import io.ballerina.compiler.syntax.tree.PositionalArgumentNode;
 import io.ballerina.compiler.syntax.tree.SeparatedNodeList;
 import io.ballerina.compiler.syntax.tree.SpecificFieldNode;
+import io.ballerina.compiler.syntax.tree.SyntaxInfo;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.compiler.syntax.tree.SyntaxTree;
+import io.ballerina.compiler.syntax.tree.Token;
 import io.ballerina.flowmodelgenerator.core.Constants;
 import io.ballerina.flowmodelgenerator.core.UserFacingException;
 import io.ballerina.flowmodelgenerator.core.model.FormBuilder;
@@ -75,6 +78,7 @@ import io.ballerina.projects.PackageManifest;
 import io.ballerina.projects.PackageName;
 import io.ballerina.projects.PackageOrg;
 import io.ballerina.projects.Project;
+import io.ballerina.projects.SemanticVersion;
 import io.ballerina.tools.text.LinePosition;
 import io.ballerina.tools.text.LineRange;
 import io.ballerina.tools.text.TextRange;
@@ -423,50 +427,66 @@ public class WorkflowUtil {
         if (declaration == null) {
             throw new UserFacingException("Cannot locate the durable agent declaration: " + agentVarName);
         }
+        return insertAgentCapabilityEntry(sourceBuilder, declaration, fieldName, entryText, false);
+    }
+
+    // `keyed` says whether a field that is not there yet is created as a mapping or a list.
+    private static Map<Path, List<org.eclipse.lsp4j.TextEdit>> insertAgentCapabilityEntry(
+            SourceBuilder sourceBuilder, AgentDeclaration declaration, String fieldName, String entryText,
+            boolean keyedField) {
         MappingConstructorExpressionNode config = declaration.config();
 
-        LinePosition insertAt = null;
-        String newText = null;
+        org.eclipse.lsp4j.TextEdit insertion = null;
         for (MappingFieldNode field : config.fields()) {
             if (!(field instanceof SpecificFieldNode specificField)
                     || !fieldName.equals(specificField.fieldName().toSourceCode().trim())) {
                 continue;
             }
+            // The entries, their brackets, and whether the literal already has any: the same
+            // placement serves the list form and the keyed mapping form.
+            List<? extends Node> entries;
+            Token open;
+            Token close;
             if (specificField.valueExpr().isPresent()
                     && specificField.valueExpr().get() instanceof ListConstructorExpressionNode list) {
-                if (list.expressions().isEmpty()) {
-                    insertAt = list.closeBracket().lineRange().startLine();
-                    newText = entryText;
-                } else {
-                    // After the last entry: on its own line at the entries' indentation when the list
-                    // is laid out that way, inline otherwise.
-                    Node last = list.expressions().get(list.expressions().size() - 1);
-                    insertAt = last.lineRange().endLine();
-                    LinePosition start = last.lineRange().startLine();
-                    boolean multiLine = start.line() != list.openBracket().lineRange().startLine().line();
-                    newText = (multiLine ? ",\n" + indentOf(last, start) : ", ") + entryText;
-                }
-                break;
+                entries = list.expressions().stream().toList();
+                open = list.openBracket();
+                close = list.closeBracket();
+            } else if (specificField.valueExpr().isPresent()
+                    && specificField.valueExpr().get() instanceof MappingConstructorExpressionNode keyed) {
+                entries = keyed.fields().stream().toList();
+                open = keyed.openBrace();
+                close = keyed.closeBrace();
+            } else {
+                // The field is there but is not a literal (a reference, or a spread): appending a
+                // second `<fieldName>: ...` would write a duplicate key that does not compile, so
+                // say what is in the way instead.
+                throw new UserFacingException("The durable agent's '" + fieldName
+                        + "' is not written inline, so it cannot be edited from the designer: "
+                        + "inline it in the agent declaration and try again");
             }
-            // The field is there but is not a list literal (a reference, or a spread): appending a
-            // second `<fieldName>: [...]` would write a duplicate key that does not compile, so say
-            // what is in the way instead.
-            throw new UserFacingException("The durable agent's '" + fieldName
-                    + "' is not a list literal, so it cannot be edited from the designer: "
-                    + "inline it as a list in the agent declaration and try again");
+            if (entries.isEmpty()) {
+                insertion = insertBefore(close, entryText);
+            } else {
+                // After the last entry: on its own line at the entries' indentation when the literal
+                // is laid out that way, inline otherwise.
+                Node last = entries.get(entries.size() - 1);
+                LinePosition start = last.lineRange().startLine();
+                boolean multiLine = start.line() != open.lineRange().startLine().line();
+                insertion = appendAfter(last, (multiLine ? ",\n" + indentOf(last, start) : ", ") + entryText);
+            }
+            break;
         }
-        if (insertAt == null) {
-            // A new list field follows the last config field, as any other appended field does.
+        if (insertion == null) {
+            // A new field follows the last config field, as any other appended field does.
+            String literal = keyedField ? "{" + entryText + "}" : "[" + entryText + "]";
             Map<Path, List<org.eclipse.lsp4j.TextEdit>> edits = new HashMap<>();
             edits.put(declaration.filePath(),
-                    List.of(appendConfigFields(config, Map.of(fieldName, "[" + entryText + "]"))));
+                    List.of(appendConfigFields(config, Map.of(fieldName, literal))));
             return edits;
         }
-        org.eclipse.lsp4j.Position position =
-                new org.eclipse.lsp4j.Position(insertAt.line(), insertAt.offset());
         Map<Path, List<org.eclipse.lsp4j.TextEdit>> edits = new HashMap<>();
-        edits.put(declaration.filePath(), List.of(new org.eclipse.lsp4j.TextEdit(
-                new org.eclipse.lsp4j.Range(position, position), newText)));
+        edits.put(declaration.filePath(), List.of(insertion));
         return edits;
     }
 
@@ -482,7 +502,12 @@ public class WorkflowUtil {
      */
     public static Map<Path, List<org.eclipse.lsp4j.TextEdit>> replaceAgentCapabilityEntry(
             SourceBuilder sourceBuilder, String agentVarName, String entryText) {
-        AgentDeclaration declaration = findAgentDeclaration(sourceBuilder, agentVarName);
+        return replaceAgentCapabilityEntry(sourceBuilder, findAgentDeclaration(sourceBuilder, agentVarName),
+                entryText);
+    }
+
+    private static Map<Path, List<org.eclipse.lsp4j.TextEdit>> replaceAgentCapabilityEntry(
+            SourceBuilder sourceBuilder, AgentDeclaration declaration, String entryText) {
         LineRange entryRange = sourceBuilder.flowNode.codedata().lineRange();
         if (declaration == null || entryRange == null) {
             throw new UserFacingException("Cannot locate the durable agent capability entry to update");
@@ -826,16 +851,93 @@ public class WorkflowUtil {
     private static void collectDeclaredEventNames(
             MappingConstructorExpressionNode config,
             java.util.Set<String> names) {
+        for (CapabilityEntry entry : declaredEvents(config)) {
+            names.add(entry.name());
+        }
+    }
+
+    private static List<CapabilityEntry> declaredEvents(MappingConstructorExpressionNode config) {
         for (MappingFieldNode field : config.fields()) {
-            if (!(field instanceof SpecificFieldNode specificField)
-                    || specificField.valueExpr().isEmpty()
-                    || !"events".equals(specificField.fieldName().toSourceCode().trim())) {
-                continue;
-            }
-            for (CapabilityEntry entry : capabilityEntries(specificField.valueExpr().get())) {
-                names.add(entry.name());
+            if (field instanceof SpecificFieldNode specificField && specificField.valueExpr().isPresent()
+                    && "events".equals(specificField.fieldName().toSourceCode().trim())) {
+                return capabilityEntries(specificField.valueExpr().get());
             }
         }
+        return List.of();
+    }
+
+    /**
+     * Whether the named channel of the named agent declares a {@code response} type. A one-way
+     * channel's send has no readable turn result, and the compiler plugin rejects binding its
+     * correlation token (wso2/product-integrator#2811); the send statement discards it instead.
+     *
+     * @param workspaceManager the workspace manager to resolve the project from
+     * @param filePath         the file the statement is generated into
+     * @param targetAgent      the agent's module-level variable name
+     * @param eventName        the channel's name, as the declaration means it
+     * @return {@code true} when a matching declaration names the channel with a {@code response},
+     *         {@code false} when it declares it one-way, empty when no declaration of the channel
+     *         can be read
+     */
+    public static Optional<Boolean> agentEventDeclaresResponse(
+            org.ballerinalang.langserver.commons.workspace.WorkspaceManager workspaceManager, Path filePath,
+            String targetAgent, String eventName) {
+        Project project;
+        try {
+            project = workspaceManager.loadProject(filePath);
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Skipping the declared agent event lookup: failed to load the project of "
+                    + filePath, e);
+            return Optional.empty();
+        }
+        // The statement's own module first, so a same-named agent elsewhere cannot answer for it.
+        Optional<Module> own = workspaceManager.module(filePath);
+        List<Module> modules = new ArrayList<>();
+        own.ifPresent(modules::add);
+        for (Module module : project.currentPackage().modules()) {
+            if (own.isEmpty() || !module.moduleId().equals(own.get().moduleId())) {
+                modules.add(module);
+            }
+        }
+        for (Module module : modules) {
+            for (DocumentId documentId : module.documentIds()) {
+                ModulePartNode root = module.document(documentId).syntaxTree().rootNode();
+                for (ModuleMemberDeclarationNode member : root.members()) {
+                    if (!(member instanceof ModuleVariableDeclarationNode varDecl)
+                            || !(varDecl.typedBindingPattern().bindingPattern()
+                                    instanceof CaptureBindingPatternNode capture)
+                            || !capture.variableName().text().equals(targetAgent)
+                            || !isDurableAgentTyped(varDecl)) {
+                        continue;
+                    }
+                    Optional<MappingConstructorExpressionNode> config = agentConfigLiteral(varDecl);
+                    if (config.isEmpty()) {
+                        continue;
+                    }
+                    for (CapabilityEntry entry : declaredEvents(config.get())) {
+                        if (!entry.name().equals(eventName)) {
+                            continue;
+                        }
+                        // A config written as a reference or built from a spread may declare a
+                        // response this scan cannot see: no answer, rather than a wrong one.
+                        if (entry.config() == null || entry.config().fields().stream()
+                                .anyMatch(field -> field.kind() == SyntaxKind.SPREAD_FIELD)) {
+                            return Optional.empty();
+                        }
+                        return Optional.of(entry.config().fields().stream()
+                                .anyMatch(field -> field instanceof SpecificFieldNode specific
+                                        && "response".equals(specific.fieldName().toSourceCode().trim())));
+                    }
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static boolean isDurableAgentTyped(ModuleVariableDeclarationNode varDecl) {
+        String typeText = varDecl.typedBindingPattern().typeDescriptor().toSourceCode().trim();
+        return typeText.equals(Constants.Workflow.DURABLE_AGENT_OBJECT_CLASS_NAME)
+                || typeText.endsWith(":" + Constants.Workflow.DURABLE_AGENT_OBJECT_CLASS_NAME);
     }
 
     /**
@@ -912,6 +1014,240 @@ public class WorkflowUtil {
         return isNew
                 ? insertAgentCapabilityEntry(sourceBuilder, agentVarName, fieldName, entryText)
                 : replaceAgentCapabilityEntry(sourceBuilder, agentVarName, entryText);
+    }
+
+    // The config fields ballerina/workflow declares as maps keyed by the capability's name.
+    private static final Set<String> KEYED_CAPABILITY_FIELDS = Set.of("events", "humanTasks");
+
+    // The release that turned `events` and `humanTasks` from lists of named records into those maps.
+    private static final SemanticVersion KEYED_CAPABILITIES_SINCE = SemanticVersion.from("0.9.0");
+
+    /**
+     * Whether the project's ballerina/workflow declares {@code events} and {@code humanTasks} as
+     * mappings keyed by name (0.9.0 and later) rather than as the lists of named records the
+     * earlier releases took. A project that pins no version, or one that cannot be read, is taken
+     * to be on the module the designer ships with, which is keyed.
+     *
+     * @param sourceBuilder the source builder carrying the workspace and the file
+     * @return {@code true} for the keyed mapping form
+     */
+    static boolean keyedCapabilityForm(SourceBuilder sourceBuilder) {
+        String version = workflowModuleVersion(sourceBuilder.workspaceManager, sourceBuilder.filePath, null);
+        if (version == null) {
+            return true;
+        }
+        try {
+            return SemanticVersion.from(version).greaterThanOrEqualTo(KEYED_CAPABILITIES_SINCE);
+        } catch (RuntimeException e) {
+            return true;
+        }
+    }
+
+    /**
+     * Inserts or replaces a named capability entry ({@code events}, {@code humanTasks}) of a durable
+     * agent declaration in the form the project's ballerina/workflow version declares the field:
+     * {@code name: {fields}} in the keyed mapping of 0.9.0 and later, {@code {name: "...", fields}}
+     * in the list the earlier releases took (wso2/product-integrator#2809). A list left behind in a
+     * project that has moved to a keyed release no longer compiles, so the write rewrites the whole
+     * field as a mapping, carrying its entries over, instead of appending to it.
+     *
+     * @param sourceBuilder the source builder whose flow node names the agent and the entry
+     * @param fieldName     the config field
+     * @param name          the capability's name, as typed
+     * @param fields        the entry's own fields as source, without the name; may be empty
+     * @return the text edits keyed by file path
+     */
+    public static Map<Path, List<org.eclipse.lsp4j.TextEdit>> upsertNamedCapabilityEntry(
+            SourceBuilder sourceBuilder, String fieldName, String name, String fields) {
+        String agentVarName = sourceBuilder.flowNode.codedata().parentSymbol();
+        AgentDeclaration declaration = findAgentDeclaration(sourceBuilder, agentVarName);
+        if (declaration == null) {
+            throw new UserFacingException("Cannot locate the durable agent declaration: " + agentVarName);
+        }
+        Optional<ExpressionNode> current = declaration.config().fields().stream()
+                .filter(field -> field instanceof SpecificFieldNode specific
+                        && fieldName.equals(specific.fieldName().toSourceCode().trim())
+                        && specific.valueExpr().isPresent())
+                .map(field -> ((SpecificFieldNode) field).valueExpr().get())
+                .findFirst();
+        boolean keyed = keyedCapabilityForm(sourceBuilder);
+        // A pre-0.9 project follows its declaration: a list stays a list, a new field is one too.
+        boolean listForm = !keyed && (current.isEmpty() || current.get() instanceof ListConstructorExpressionNode);
+        String entry = listForm
+                ? "{name: " + constantNameLiteral(name) + (fields.isEmpty() ? "" : ", " + fields) + "}"
+                : capabilityKeyLiteral(name) + ": {" + fields + "}";
+        LineRange editing = sourceBuilder.flowNode.codedata().lineRange();
+        boolean isNew = Boolean.TRUE.equals(sourceBuilder.flowNode.codedata().isNew()) || editing == null;
+        // A second entry under the same name is a duplicate key the compiler reports far from the
+        // form: refused on insert, and on an edit that renames an entry onto another one.
+        String plain = capabilityName(constantNameLiteral(name));
+        if (current.isPresent() && capabilityEntries(current.get()).stream()
+                .anyMatch(existing -> existing.name().equals(plain)
+                        && (isNew || !existing.node().lineRange().startLine().equals(editing.startLine())))) {
+            throw new UserFacingException("The durable agent '" + agentVarName + "' already declares '" + plain
+                    + "' in '" + fieldName + "'");
+        }
+        if (keyed && current.isPresent() && current.get() instanceof ListConstructorExpressionNode list) {
+            return convertCapabilityListField(declaration, list, fieldName, entry, isNew ? null : editing);
+        }
+        return isNew
+                ? insertAgentCapabilityEntry(sourceBuilder, declaration, fieldName, entry, keyed)
+                : replaceAgentCapabilityEntry(sourceBuilder, declaration, entry);
+    }
+
+    // Rewrites a list-form field as the keyed mapping, every entry carried over with its `name`
+    // turned into the key, the edited one (the item at `editing`) replaced or the new one appended.
+    private static Map<Path, List<org.eclipse.lsp4j.TextEdit>> convertCapabilityListField(
+            AgentDeclaration declaration, ListConstructorExpressionNode list, String fieldName, String entry,
+            LineRange editing) {
+        List<String> entries = new ArrayList<>();
+        boolean placed = false;
+        for (Node item : list.expressions()) {
+            if (editing != null && item.lineRange().startLine().equals(editing.startLine())) {
+                entries.add(entry);
+                placed = true;
+                continue;
+            }
+            entries.add(keyedCapabilityEntry(item, fieldName));
+        }
+        if (!placed) {
+            // An edit whose entry is no longer where the form found it would keep the old entry and
+            // add the edited one: the same key twice, reported by the compiler far from the form.
+            if (editing != null) {
+                throw new UserFacingException("The durable agent's '" + fieldName
+                        + "' changed since the form was opened: reopen the entry and try again");
+            }
+            entries.add(entry);
+        }
+        LinePosition open = list.openBracket().lineRange().startLine();
+        LinePosition close = list.closeBracket().lineRange().endLine();
+        String literal;
+        if (list.expressions().isEmpty() || open.line() == close.line()) {
+            literal = "{" + String.join(", ", entries) + "}";
+        } else {
+            Node first = list.expressions().get(0);
+            String entryIndent = indentOf(first, first.lineRange().startLine());
+            Node field = list.parent();
+            String fieldIndent = indentOf(field, field.lineRange().startLine());
+            literal = "{\n" + entryIndent + String.join(",\n" + entryIndent, entries) + "\n" + fieldIndent + "}";
+        }
+        Map<Path, List<org.eclipse.lsp4j.TextEdit>> edits = new HashMap<>();
+        edits.put(declaration.filePath(), List.of(new org.eclipse.lsp4j.TextEdit(
+                new org.eclipse.lsp4j.Range(new org.eclipse.lsp4j.Position(open.line(), open.offset()),
+                        new org.eclipse.lsp4j.Position(close.line(), close.offset())),
+                literal)));
+        return edits;
+    }
+
+    // A list item `{name: "x", fields}` as the keyed entry `x: {fields}`. Only an inline record with a
+    // literal name and no comment converts: a comment would be dropped or swallow the closing brace,
+    // and anything else the designer cannot rewrite, so it says what to change.
+    private static String keyedCapabilityEntry(Node item, String fieldName) {
+        String refusal = "The durable agent's '" + fieldName + "' is written as a list, which ballerina/workflow "
+                + KEYED_CAPABILITIES_SINCE + " and later do not accept, and the designer cannot rewrite its entry "
+                + "'" + item.toSourceCode().replaceAll("\\s+", " ").trim()
+                + "': declare the field as a mapping keyed by name and try again";
+        if (!(item instanceof MappingConstructorExpressionNode config) || carriesComment(item)) {
+            throw new UserFacingException(refusal);
+        }
+        String key = null;
+        List<String> rest = new ArrayList<>();
+        for (MappingFieldNode field : config.fields()) {
+            if (field instanceof SpecificFieldNode specific && specific.valueExpr().isPresent()
+                    && "name".equals(specific.fieldName().toSourceCode().trim())) {
+                String literal = specific.valueExpr().get().toSourceCode().trim();
+                if (!literal.startsWith("\"") && plainTemplateBody(literal) == null) {
+                    throw new UserFacingException(refusal);
+                }
+                key = capabilityKeyLiteral(literal);
+            } else {
+                rest.add(compactSource(field));
+            }
+        }
+        if (key == null) {
+            throw new UserFacingException(refusal);
+        }
+        return key + ": {" + String.join(", ", rest) + "}";
+    }
+
+    // The node's source from its tokens alone, spaced where the source was: the minutiae between two
+    // tokens become one space, so the text can sit inside a one-line entry, while a token's own text
+    // (a string literal, a multi-line template) is kept as written. Comments are the caller's to refuse.
+    private static String compactSource(Node node) {
+        StringBuilder text = new StringBuilder();
+        appendTokens(node, text);
+        return text.toString().trim();
+    }
+
+    private static void appendTokens(Node node, StringBuilder text) {
+        if (node instanceof Token token) {
+            if (!token.leadingMinutiae().isEmpty()) {
+                appendSpace(text);
+            }
+            text.append(token.text());
+            if (!token.trailingMinutiae().isEmpty()) {
+                appendSpace(text);
+            }
+            return;
+        }
+        if (node instanceof NonTerminalNode parent) {
+            for (Node child : parent.children()) {
+                appendTokens(child, text);
+            }
+        }
+    }
+
+    // One space between two tokens, however many minutiae sat on either side of the gap.
+    private static void appendSpace(StringBuilder text) {
+        if (!text.isEmpty() && text.charAt(text.length() - 1) != ' ') {
+            text.append(' ');
+        }
+    }
+
+    private static boolean carriesComment(Node node) {
+        if (node instanceof Token token) {
+            for (Minutiae minutiae : token.leadingMinutiae()) {
+                if (minutiae.kind() == SyntaxKind.COMMENT_MINUTIAE) {
+                    return true;
+                }
+            }
+            for (Minutiae minutiae : token.trailingMinutiae()) {
+                if (minutiae.kind() == SyntaxKind.COMMENT_MINUTIAE) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        if (node instanceof NonTerminalNode parent) {
+            for (Node child : parent.children()) {
+                if (carriesComment(child)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * A capability name as a mapping key: bare when it is a plain identifier, a string literal
+     * otherwise ({@code "order-updates"}, a keyword).
+     *
+     * @param name the capability's name, as typed or as a {@code string `...`} template
+     * @return the key's source
+     */
+    public static String capabilityKeyLiteral(String name) {
+        String literal = constantNameLiteral(name);
+        // An interpolated template would become a key that spells the template's source; the
+        // list form has the plugin to refuse it, the keyed form has only this.
+        if (!literal.startsWith("\"")) {
+            throw new UserFacingException("A capability name must be a constant: '" + literal
+                    + "' interpolates a value");
+        }
+        String plain = capabilityName(literal);
+        if (plain.matches("[A-Za-z_][A-Za-z0-9_]*") && !SyntaxInfo.isKeyword(plain)) {
+            return plain;
+        }
+        return literal;
     }
 
     /**
@@ -1764,13 +2100,26 @@ public class WorkflowUtil {
             throw new UserFacingException("Cannot locate the durable agent capability entry to remove");
         }
         for (MappingFieldNode field : declaration.config().fields()) {
-            if (!(field instanceof SpecificFieldNode specificField)
-                    || specificField.valueExpr().isEmpty()
-                    || !(specificField.valueExpr().get()
-                            instanceof ListConstructorExpressionNode list)) {
+            if (!(field instanceof SpecificFieldNode specificField) || specificField.valueExpr().isEmpty()) {
                 continue;
             }
-            var expressions = list.expressions();
+            // The list form's items and the keyed form's fields delete the same way; only a
+            // capability field is a candidate, never a mapping like systemPrompt.
+            List<? extends Node> expressions;
+            Token open;
+            Token close;
+            if (specificField.valueExpr().get() instanceof ListConstructorExpressionNode list) {
+                expressions = list.expressions().stream().toList();
+                open = list.openBracket();
+                close = list.closeBracket();
+            } else if (specificField.valueExpr().get() instanceof MappingConstructorExpressionNode keyed
+                    && KEYED_CAPABILITY_FIELDS.contains(specificField.fieldName().toSourceCode().trim())) {
+                expressions = keyed.fields().stream().toList();
+                open = keyed.openBrace();
+                close = keyed.closeBrace();
+            } else {
+                continue;
+            }
             for (int i = 0; i < expressions.size(); i++) {
                 Node item = expressions.get(i);
                 if (!item.lineRange().startLine().equals(entryRange.startLine())) {
@@ -1779,9 +2128,9 @@ public class WorkflowUtil {
                 LinePosition from;
                 LinePosition to;
                 if (expressions.size() == 1) {
-                    // Only element: clear the list interior, leaving `field: []`.
-                    from = list.openBracket().lineRange().endLine();
-                    to = list.closeBracket().lineRange().startLine();
+                    // Only element: clear the literal's interior, leaving `field: []` or `field: {}`.
+                    from = open.lineRange().endLine();
+                    to = close.lineRange().startLine();
                 } else if (i > 0) {
                     // Delete from the end of the previous element (consumes the separating comma).
                     from = expressions.get(i - 1).lineRange().endLine();
@@ -1850,21 +2199,35 @@ public class WorkflowUtil {
     private static org.eclipse.lsp4j.TextEdit appendConfigFields(MappingConstructorExpressionNode config,
                                                                  Map<String, String> missing) {
         StringBuilder insertion = new StringBuilder();
-        org.eclipse.lsp4j.Position position;
         if (config.fields().isEmpty()) {
-            LinePosition closeBrace = config.closeBrace().lineRange().startLine();
-            position = new org.eclipse.lsp4j.Position(closeBrace.line(), closeBrace.offset());
             appendFields(insertion, missing, ", ", false);
-        } else {
-            MappingFieldNode last = config.fields().get(config.fields().size() - 1);
-            LinePosition end = last.lineRange().endLine();
-            position = new org.eclipse.lsp4j.Position(end.line(), end.offset());
-            LinePosition start = last.lineRange().startLine();
-            boolean multiLine = start.line() != config.openBrace().lineRange().startLine().line();
-            appendFields(insertion, missing, multiLine ? ",\n" + indentOf(last, start) : ", ", true);
+            return insertBefore(config.closeBrace(), insertion.toString());
         }
-        return new org.eclipse.lsp4j.TextEdit(new org.eclipse.lsp4j.Range(position, position),
-                insertion.toString());
+        MappingFieldNode last = config.fields().get(config.fields().size() - 1);
+        LinePosition start = last.lineRange().startLine();
+        boolean multiLine = start.line() != config.openBrace().lineRange().startLine().line();
+        appendFields(insertion, missing, multiLine ? ",\n" + indentOf(last, start) : ", ", true);
+        return appendAfter(last, insertion.toString());
+    }
+
+    // Edits that add text next to a node are written as the replacement of the node's last character, or of
+    // the closing bracket, rather than as insertions: SourceGenerator puts a line break in front of an
+    // insertion, which is right for a new statement and leaves a separating comma on a line of its own.
+    private static org.eclipse.lsp4j.TextEdit appendAfter(Node node, String text) {
+        LinePosition end = node.lineRange().endLine();
+        String line = node.syntaxTree().textDocument().line(end.line()).text();
+        char lastChar = line.charAt(end.offset() - 1);
+        return new org.eclipse.lsp4j.TextEdit(new org.eclipse.lsp4j.Range(
+                new org.eclipse.lsp4j.Position(end.line(), end.offset() - 1),
+                new org.eclipse.lsp4j.Position(end.line(), end.offset())), lastChar + text);
+    }
+
+    private static org.eclipse.lsp4j.TextEdit insertBefore(Token close, String text) {
+        LinePosition start = close.lineRange().startLine();
+        return new org.eclipse.lsp4j.TextEdit(new org.eclipse.lsp4j.Range(
+                new org.eclipse.lsp4j.Position(start.line(), start.offset()),
+                new org.eclipse.lsp4j.Position(start.line(), start.offset() + close.text().length())),
+                text + close.text());
     }
 
     // The indentation a node sits at, read from its own leading whitespace so a tab-indented

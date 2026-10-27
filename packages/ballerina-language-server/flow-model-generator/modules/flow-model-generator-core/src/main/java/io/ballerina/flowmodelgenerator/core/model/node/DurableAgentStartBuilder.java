@@ -155,7 +155,7 @@ public class DurableAgentStartBuilder extends FunctionCall {
                 .whiteSpace()
                 .keyword(SyntaxKind.EQUAL_TOKEN);
         if (checkError) {
-            sourceBuilder.token().keyword(SyntaxKind.CHECK_KEYWORD);
+            sourceBuilder.token().keyword(FlowNodeUtil.checkKeyword(sourceBuilder.flowNode));
         }
         sourceBuilder.token()
                 .name(agent + "." + AGENT_START_METHOD_NAME

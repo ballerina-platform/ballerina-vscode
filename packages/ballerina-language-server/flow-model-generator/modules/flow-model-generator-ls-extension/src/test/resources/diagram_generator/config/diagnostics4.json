@@ -182,8 +182,8 @@
                 "offset": 0
               },
               "endLine": {
-                "line": 5,
-                "offset": 1
+                "line": 3,
+                "offset": 2
               }
             },
             "optional": false,
@@ -337,8 +337,8 @@
                 "offset": 0
               },
               "endLine": {
-                "line": 5,
-                "offset": 1
+                "line": 3,
+                "offset": 2
               }
             },
             "optional": false,

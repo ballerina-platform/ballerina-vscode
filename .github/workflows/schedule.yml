@@ -343,7 +343,9 @@ jobs:
         env:
           packageUser: ${{ github.actor }}
           packagePAT: ${{ secrets.GITHUB_TOKEN }}
-        run: ./gradlew.bat -Pversion=${{ matrix.version }} build
+        # No JaCoCo agent: coverage is published from the Linux ls-test job only. Branches without
+        # -PskipCoverage ignore the unknown property.
+        run: ./gradlew.bat -PskipCoverage -Pversion=${{ matrix.version }} build
 
   # ─────────────────────────────────────────────────────────────────────────
   # Language server — Trivy vulnerability scan

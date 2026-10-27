@@ -98,7 +98,6 @@ export function FunctionForm(props: FunctionFormProps) {
     // only the newest attempt may write state — otherwise a slow failure can raise the error card
     // over an already-loaded form. Mirrors `useServiceInitModel`'s `cancelled` flag.
     const loadSeqRef = useRef(0);
-    const functionNodeRef = useRef<FunctionNode>();
 
     useEffect(() => {
         isMountedRef.current = true;
@@ -110,10 +109,6 @@ export function FunctionForm(props: FunctionFormProps) {
     /** Whether a load that started with `seq` may still write state: it must be the newest one,
      *  and the component must still be mounted (the file's existing post-await convention). */
     const isCurrentLoad = (seq: number) => isMountedRef.current && seq === loadSeqRef.current;
-
-    useEffect(() => {
-        functionNodeRef.current = functionNode;
-    }, [functionNode]);
 
     // Building the node template for a workflow artifact pulls ballerina/workflow from Central the
     // first time, and saving it pulls workflow's own dependencies on the project's first compile.
@@ -252,46 +247,6 @@ export function FunctionForm(props: FunctionFormProps) {
 
         setFunctionFields(fields);
     }, [functionNode]);
-
-    useEffect(() => {
-        const subscription = rpcClient.onIdentifierUpdated(async (response) => {
-            if (!isMountedRef.current || !response?.length) return;
-            console.log("Identifier Updated: ", response);
-
-            // Only this function's own update matters: rebuilding the fields for another artifact,
-            // such as a type just created from the input type field, would discard what was typed.
-            if (!functionName) return;
-            const artifact = response.find(res => res.name === functionName || res.context === functionName);
-            if (!artifact?.name) return;
-
-            const changedFunctionNode = await rpcClient
-                .getBIDiagramRpcClient()
-                .getFunctionNode({
-                    functionName: artifact.name,
-                    fileName,
-                    projectPath
-                });
-            if (!isMountedRef.current) return;
-
-            const flowNode = changedFunctionNode.functionDefinition;
-            const currentFunctionNode = functionNodeRef.current;
-            if (!currentFunctionNode?.codedata?.lineRange || !flowNode?.codedata?.lineRange) return;
-
-            setFunctionNode({
-                ...currentFunctionNode,
-                codedata: {
-                    ...currentFunctionNode.codedata,
-                    lineRange: {
-                        ...flowNode.codedata.lineRange
-                    }
-                }
-            });
-        });
-
-        return () => {
-            subscription?.();
-        };
-    }, [rpcClient, functionName, fileName, projectPath]);
 
     const getFunctionNode = async (kind: NodeKind) => {
         const seq = ++loadSeqRef.current;
@@ -454,6 +409,18 @@ export function FunctionForm(props: FunctionFormProps) {
     // Writes the WSO2 default provider's Config.toml entry (service URL + token) after an
     // agent creation that declared the provider. Failures are non-fatal: the agent is already
     // created and the provider can be configured from the agent's model circle.
+    /** Whether a parameter whose name is renamed in place through the LS (a read-only identifier
+     *  with a source range) now carries a different name than the key it loaded under. `key` follows
+     *  the edited name, so the comparison is against `loadedKey`. A parameter with an editable name
+     *  is only rewritten by the save, so its edits leave the range intact. */
+    const hasRenamedParameter = (parameters: unknown) =>
+        Array.isArray(parameters) &&
+        (parameters as Parameter[]).some((param) => {
+            const name = param?.formValues?.variable;
+            return param?.identifierEditable === false && !!param.identifierRange && !!param.loadedKey &&
+                typeof name === "string" && !!name && name !== param.loadedKey;
+        });
+
     const configureWso2ModelProvider = async () => {
         try {
             await rpcClient.getAIAgentRpcClient().configureDefaultModelProvider("model");
@@ -462,9 +429,53 @@ export function FunctionForm(props: FunctionFormProps) {
         }
     };
 
+    /**
+     * The source an edit rewrites is the signature the LS read at load time, so its range is
+     * stale once the source moves underneath the form. The name and loaded parameter names rename
+     * in place through the LS (IdentifierEditor), which shifts the end of the signature by the
+     * change in length: a stale range then cuts into the return type or, for a shorter name,
+     * swallows the `=>` of a data mapper and turns it into a block-bodied function. Only a rename
+     * moves it, so the load-time range stands while no identifier changed. Otherwise re-read the
+     * range by the name the source now carries: usually the new one, but the form takes the new
+     * name even when the LS applied no rename, so fall back to the original. If neither is found
+     * the range cannot be trusted, and `undefined` tells the caller to abort the save.
+     */
+    const getCurrentCodedata = async (codedata: FunctionNode["codedata"], data: FormValues) => {
+        const formName = data?.functionName;
+        const newName = typeof formName === "string" && formName ? formName : functionName;
+        if (newName === functionName && !hasRenamedParameter(data?.parameters)) {
+            return codedata;
+        }
+        for (const name of newName === functionName ? [functionName] : [newName, functionName]) {
+            try {
+                const res = await rpcClient
+                    .getBIDiagramRpcClient()
+                    .getFunctionNode({ functionName: name, fileName, projectPath });
+                const lineRange = res?.functionDefinition?.codedata?.lineRange;
+                if (lineRange) {
+                    return { ...codedata, lineRange };
+                }
+            } catch (error) {
+                console.error("Failed to refresh the function's line range:", error);
+            }
+        }
+        return undefined;
+    };
+
     const onSubmit = async (data: FormValues, formImports?: FormImports) => {
         console.log("Function Form Data: ", data);
         const functionNodeCopy = { ...functionNode };
+
+        // Resolved before anything else: the copy is shallow, so the property writes below land
+        // on the live node, and an abort after them would leave the open form with a changed node.
+        if (functionName) {
+            const codedata = await getCurrentCodedata(functionNodeCopy.codedata, data);
+            if (!codedata) {
+                showErrorNotification();
+                return;
+            }
+            functionNodeCopy.codedata = codedata;
+        }
 
         /**
          * TODO: Remove this once the LS is updated

@@ -1,0 +1,111 @@
+{
+  "description": "Service members carry their service type, including for services that share a base path",
+  "projectPath": "service_type_cases",
+  "output": {
+    "loadDesignDiagrams": true,
+    "semanticDiffs": [
+      {
+        "changeType": "ADDITION",
+        "nodeKind": "OBJECT_FUNCTION",
+        "uri": "ai:///main.bal",
+        "lineRange": {
+          "fileName": "main.bal",
+          "startLine": {
+            "line": 14,
+            "offset": 4
+          },
+          "endLine": {
+            "line": 16,
+            "offset": 5
+          }
+        },
+        "metadata": {
+          "name": "onError",
+          "servicePath": "",
+          "serviceType": "tcp",
+          "functionKind": "remote"
+        }
+      },
+      {
+        "changeType": "ADDITION",
+        "nodeKind": "OBJECT_FUNCTION",
+        "uri": "ai:///main.bal",
+        "lineRange": {
+          "fileName": "main.bal",
+          "startLine": {
+            "line": 24,
+            "offset": 4
+          },
+          "endLine": {
+            "line": 26,
+            "offset": 5
+          }
+        },
+        "metadata": {
+          "accessor": "get",
+          "servicePath": "",
+          "serviceType": "http",
+          "resourcePath": "ready",
+          "functionKind": "resource"
+        }
+      },
+      {
+        "changeType": "MODIFICATION",
+        "nodeKind": "OBJECT_FUNCTION",
+        "uri": "ai:///main.bal",
+        "lineRange": {
+          "fileName": "main.bal",
+          "startLine": {
+            "line": 5,
+            "offset": 8
+          },
+          "endLine": {
+            "line": 5,
+            "offset": 26
+          }
+        },
+        "previousLineRange": {
+          "fileName": "main.bal",
+          "startLine": {
+            "line": 5,
+            "offset": 8
+          },
+          "endLine": {
+            "line": 5,
+            "offset": 25
+          }
+        },
+        "metadata": {
+          "accessor": "post",
+          "servicePath": "/orders",
+          "serviceType": "http",
+          "resourcePath": ".",
+          "functionKind": "resource"
+        }
+      },
+      {
+        "changeType": "ADDITION",
+        "nodeKind": "OBJECT_FUNCTION",
+        "uri": "ai:///main.bal",
+        "lineRange": {
+          "fileName": "main.bal",
+          "startLine": {
+            "line": 30,
+            "offset": 4
+          },
+          "endLine": {
+            "line": 32,
+            "offset": 5
+          }
+        },
+        "metadata": {
+          "accessor": "post",
+          "servicePath": "/payments",
+          "serviceType": "http",
+          "resourcePath": "refunds",
+          "functionKind": "resource"
+        }
+      }
+    ]
+  }
+}

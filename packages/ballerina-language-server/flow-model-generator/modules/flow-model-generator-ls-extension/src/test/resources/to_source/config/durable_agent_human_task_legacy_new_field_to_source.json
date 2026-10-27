@@ -1,0 +1,107 @@
+{
+  "source": "workflow_legacy/agent.bal",
+  "description": "Register a human task on a project that pins ballerina/workflow 0.8.3: the new field is created as a list of named records",
+  "diagram": {
+    "id": "1",
+    "metadata": {
+      "label": "fetchClaim",
+      "description": "Register a workflow activity as a durable agent activity"
+    },
+    "codedata": {
+      "node": "DURABLE_AGENT_HUMAN_TASK",
+      "org": "ballerina",
+      "module": "workflow",
+      "object": "DurableAgent",
+      "symbol": "registerHumanTask",
+      "parentSymbol": "legacyAgent",
+      "lineRange": {
+        "fileName": "workflow_legacy/agent.bal",
+        "startLine": {
+          "line": 6,
+          "offset": 0
+        },
+        "endLine": {
+          "line": 6,
+          "offset": 0
+        }
+      },
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "taskName": {
+        "metadata": {
+          "label": "Task Name"
+        },
+        "valueType": "TEXT",
+        "value": "reject",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "userRoles": {
+        "metadata": {
+          "label": "User Roles"
+        },
+        "valueType": "TEXT",
+        "value": "finance",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "taskInputType": {
+        "metadata": {
+          "label": "Task Input Type"
+        },
+        "valueType": "TYPE",
+        "value": "ClaimReview",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false
+      },
+      "resultType": {
+        "metadata": {
+          "label": "Completion Type"
+        },
+        "valueType": "TYPE",
+        "value": "ApprovalResult",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "title": {
+        "metadata": {
+          "label": "Title"
+        },
+        "valueType": "TEXT",
+        "value": "Approve the claim",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      }
+    },
+    "flags": 0
+  },
+  "output": {
+    "workflow_legacy/agent.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 11,
+            "character": 4
+          },
+          "end": {
+            "line": 11,
+            "character": 5
+          }
+        },
+        "newText": "],\n    humanTasks: [{name: \"reject\", userRoles: \"finance\", taskInputType: ClaimReview, resultType: ApprovalResult, title: \"Approve the claim\"}]"
+      }
+    ]
+  }
+}

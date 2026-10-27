@@ -149,14 +149,14 @@
         "range": {
           "start": {
             "line": 19,
-            "character": 18
+            "character": 17
           },
           "end": {
             "line": 19,
             "character": 18
           }
         },
-        "newText": "\n,\n        {activity: fetchClaim, retryPolicy: {maxRetries: 3, retryDelay: 1.0, retryBackoff: 2.0}, bindings: {api: claimApi}}"
+        "newText": "y,\n        {activity: fetchClaim, retryPolicy: {maxRetries: 3, retryDelay: 1.0, retryBackoff: 2.0}, bindings: {api: claimApi}}"
       }
     ]
   }

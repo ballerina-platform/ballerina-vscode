@@ -90,6 +90,7 @@ import workflowForms from './workflow/workflow-forms.spec';
 import durableAgentRoleFields from './workflow/durable-agent-role-fields.spec';
 import workflowRoleFields from './workflow/workflow-role-fields.spec';
 import workflowRuntimeSection from './workflow/workflow-runtime-section.spec';
+import durableAgentForms from './workflow/durable-agent-forms.spec';
 import automationFlowNodes from './diagram/flow-nodes.spec';
 
 import httpTryItExisting from './tryit/http-try-it-existing.spec';
@@ -200,6 +201,8 @@ test.describe('Ballerina E2E Group 2', { tag: '@group2' }, async () => {
     // <----Workflow Test---->
     test.describe(workflowRoleFields);
     test.describe(workflowRuntimeSection);
+    // The durable agent's event, human task, send-event and Generate forms (wso2/product-integrator#2809-#2811).
+    test.describe(durableAgentForms);
 });
 
 test.describe('Ballerina E2E Group 3', { tag: '@group3' }, async () => {

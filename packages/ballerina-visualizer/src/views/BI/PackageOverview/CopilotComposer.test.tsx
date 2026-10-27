@@ -72,17 +72,14 @@ jest.mock("../../AIPanel/components/AIChatInput/ModeToggle", () => ({
 jest.mock("../../AIPanel/components/AIChatInput/hooks/useAttachments", () => ({
     useAttachments: (): any => ({
         attachments: [],
-        fileInputRef: { current: null },
         handleAttachClick: jest.fn(),
-        onAttachmentSelection: jest.fn(),
         removeAttachment: jest.fn(),
         removeAllAttachments: jest.fn(),
     }),
 }));
 
 jest.mock("../../AIPanel/utils/attachment/attachmentManager", () => ({
-    acceptResolver: jest.fn(),
-    handleAttachmentSelection: jest.fn(),
+    resolveAttachmentPolicy: jest.fn(),
 }));
 
 jest.mock("../../AIPanel/components/AttachmentBox", () => ({ __esModule: true, default: (): null => null }));

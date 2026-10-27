@@ -308,7 +308,7 @@ jobs:
 
   LSTest_Ballerina:
     name: Run Ballerina LS tests (${{ matrix.os }})
-    timeout-minutes: 60
+    timeout-minutes: ${{ matrix.os == 'windows-latest' && 75 || 60 }}
     if: ${{ inputs.runLSTests }}
     strategy:
       fail-fast: false
