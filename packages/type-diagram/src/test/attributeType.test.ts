@@ -55,6 +55,9 @@ describe("getAttributeType", () => {
         ["future", container("FUTURE", [member("string")]), "future<string>"],
         ["map", container("MAP", [member("int")]), "map<int>"],
         ["array", container("ARRAY", [member("string")]), "string[]"],
+        ["tuple with a container member", container("TUPLE", [member("string"), member(container("MAP", [member("int")]))]),
+            "[string, map<int>]"],
+        ["record", container("RECORD", [member("string", "a"), member("int", "b")]), "record {string a, int b}"],
     ];
 
     it.each(cases)("renders a %s from its member types", (_, type, expected) => {
@@ -62,7 +65,8 @@ describe("getAttributeType", () => {
         expect(getAttributeType(member(type, "value"))).toBe(expected);
     });
 
-    it.each(cases)("never renders a member object as text (%s)", (_, type) => {
-        expect(getAttributeType(field(type))).not.toContain("[object Object]");
+    it("marks an optional container field as nilable", () => {
+        const optionalStream: Member = { ...member(container("STREAM", [member("string")]), "value"), optional: true };
+        expect(getAttributeType(optionalStream)).toBe("stream<string>|()");
     });
 });

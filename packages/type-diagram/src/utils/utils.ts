@@ -284,7 +284,7 @@ export const getAttributeType = (attr: Member | TypeFunctionModel): string => {
                 baseType = `[${memberTypes.join(', ')}]`;
                 break;
             case 'RECORD':
-                const recordMembers = [...members].reverse().map(member => {
+                const recordMembers = members.map(member => {
                     const memberType = typeof member.type === 'string' ? member.type : getAttributeType(member);
                     return `${memberType} ${member.name}`;
                 });
