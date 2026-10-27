@@ -1,0 +1,37 @@
+{
+  "description": "Delete the last http statement keeps http used by an annotation",
+  "functionStart": {
+    "line": 3,
+    "offset": 0
+  },
+  "functionEnd": {
+    "line": 6,
+    "offset": 1
+  },
+  "nodeStart": {
+    "line": 4,
+    "offset": 4
+  },
+  "nodeEnd": {
+    "line": 4,
+    "offset": 56
+  },
+  "source": "delete_node_imports3.bal",
+  "output": {
+    "delete_node_imports3.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 4,
+            "character": 4
+          },
+          "end": {
+            "line": 4,
+            "character": 56
+          }
+        },
+        "newText": ""
+      }
+    ]
+  }
+}
