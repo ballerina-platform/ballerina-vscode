@@ -63,7 +63,8 @@ function createEntityLinks(entityNodes: Map<string, EntityModel>): EntityLinkMod
                     refs.forEach((ref) => {
                         const targetNode = entityNodes.get(ref);
                         if (targetNode) {
-                            let sourcePort = sourceNode.getPort(`right-${sourceNode.getID()}/${member.name}`);
+                            const portName = getAttributePortName(sourceNode.entityObject, member);
+                            let sourcePort = sourceNode.getPort(`right-${sourceNode.getID()}/${portName}`);
                             let targetPort = targetNode.getPort(`left-${ref}`);
 
                             const linkTestID = `node-link-${sourceNode.getID()}/${member.name}-${ref}`;
@@ -98,6 +99,15 @@ const getRefs = (member: Member | TypeFunctionModel): string[] => {
 
 export function isNodeClass(nodeKind: TypeNodeKind): boolean {
     return nodeKind === 'CLASS' || nodeKind === 'SERVICE_DECLARATION';
+}
+
+// Attributes sharing a name (a GraphQL query and mutation, or a redeclared operation) need their own ports,
+// or every link from them lands on a single row.
+export function getAttributePortName(entity: Type, attribute: Member | TypeFunctionModel): string {
+    const attributes: (Member | TypeFunctionModel)[] =
+        (isNodeClass(entity?.codedata?.node) ? entity.functions : entity?.members) ?? [];
+    const index = attributes.filter((other) => other.name === attribute.name).indexOf(attribute);
+    return index > 0 ? `${attribute.name}#${index}` : attribute.name;
 }
 
 export function graphqlModeller(rootService: Type, refs: Type[]): DiagramModel {

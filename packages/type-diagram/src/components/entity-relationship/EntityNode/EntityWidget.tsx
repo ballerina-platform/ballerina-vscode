@@ -27,6 +27,7 @@ import { EntityHeadWidget } from './EntityHead/EntityHead';
 import { AttributeWidget } from './Attribute/AttributeCard';
 import { EntityNode, InclusionPortsContainer, OperationSection } from './styles';
 import { DiagramContext } from '../../common';
+import { getAttributePortName } from '../../../utils/model-mapper/entityModelMapper';
 import styled from '@emotion/styled';
 import { ThemeColors } from '@wso2/ui-toolkit';
 import { isNodeClass } from '../../../utils/model-mapper/entityModelMapper';
@@ -126,11 +127,11 @@ export function EntityWidget(props: EntityWidgetProps) {
                             <div>
                                 {categorizedFunctions.query.map((query: any) => (
                                     <AttributeWidget
-                                        key={query.name}
+                                        key={getAttributePortName(node.entityObject, query)}
                                         engine={engine}
                                         node={node}
                                         attribute={query}
-                                        isSelected={node.isNodeSelected(selectedLink, `${node.getID()}/${query.name}`)}
+                                        isSelected={node.isNodeSelected(selectedLink, `${node.getID()}/${getAttributePortName(node.entityObject, query)}`)}
                                     />
                                 ))}
                             </div>
@@ -148,11 +149,11 @@ export function EntityWidget(props: EntityWidgetProps) {
                             <div>
                                 {categorizedFunctions.mutation.map((mutation: any) => (
                                     <AttributeWidget
-                                        key={mutation.name}
+                                        key={getAttributePortName(node.entityObject, mutation)}
                                         engine={engine}
                                         node={node}
                                         attribute={mutation}
-                                        isSelected={node.isNodeSelected(selectedLink, `${node.getID()}/${mutation.name}`)}
+                                        isSelected={node.isNodeSelected(selectedLink, `${node.getID()}/${getAttributePortName(node.entityObject, mutation)}`)}
                                     />
                                 ))}
                             </div>
@@ -170,11 +171,11 @@ export function EntityWidget(props: EntityWidgetProps) {
                             <div>
                                 {categorizedFunctions.subscription.map((subscription: any) => (
                                     <AttributeWidget
-                                        key={subscription.name}
+                                        key={getAttributePortName(node.entityObject, subscription)}
                                         engine={engine}
                                         node={node}
                                         attribute={subscription}
-                                        isSelected={node.isNodeSelected(selectedLink, `${node.getID()}/${subscription.name}`)}
+                                        isSelected={node.isNodeSelected(selectedLink, `${node.getID()}/${getAttributePortName(node.entityObject, subscription)}`)}
                                     />
                                 ))}
                             </div>
@@ -195,7 +196,7 @@ export function EntityWidget(props: EntityWidgetProps) {
                             engine={engine}
                             node={node}
                             attribute={member}
-                            isSelected={node.isNodeSelected(selectedLink, `${node.getID()}/${member.name}`)}
+                            isSelected={node.isNodeSelected(selectedLink, `${node.getID()}/${getAttributePortName(node.entityObject, member)}`)}
                         />
                     )
                 ));
