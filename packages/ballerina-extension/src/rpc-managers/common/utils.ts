@@ -156,6 +156,7 @@ export function isPathInsideProject(projectPath: string, filePath: string): bool
     try {
         return isPathInside(fs.realpathSync.native(projectPath), fs.realpathSync.native(filePath));
     } catch {
+        // Unresolvable path (deleted, permission denied): fall back to the old prompt rather than fail the pick.
         return false;
     }
 }

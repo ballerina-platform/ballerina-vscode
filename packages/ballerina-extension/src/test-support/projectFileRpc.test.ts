@@ -19,8 +19,10 @@
 // L1 (contract) — `selectProjectRelativeFile`'s host-side helpers: `copyIntoIntegration`
 // (the copy-into-`<root>/<targetDir>` behavior backing the RPC, including the traversal
 // guard added for a hostile `targetDir`) and `resolveIntegrationRoot` (its walk-up/walk-down
-// package-root resolution). The real `@wso2/ballerina-core`/`../../utils` barrels pull in a
-// WebSocket LS client and vscode status-bar calls that jest cannot load, so both are stubbed;
+// package-root resolution), plus `isPathInsideProject`, the case/symlink-tolerant containment
+// check `selectFileOrDirPath` uses to tell whether a picked file is already in the project.
+// The real `@wso2/ballerina-core`/`../../utils` barrels pull in a WebSocket LS client and
+// vscode status-bar calls that jest cannot load, so both are stubbed;
 // `isPathInside` is re-implemented minimally here (trailing-slash-agnostic prefix check) to
 // exercise the real traversal-guard logic under test.
 
@@ -187,7 +189,7 @@ describe("isPathInsideProject", () => {
 
     it("treats a file reached through a symlinked project path as inside", () => {
         const link = path.join(base, "linked-project");
-        fs.symlinkSync(project, link, "dir");
+        fs.symlinkSync(project, link, process.platform === "win32" ? "junction" : "dir");
         expect(isPathInsideProject(link, file)).toBe(true);
     });
 
@@ -204,5 +206,20 @@ describe("isPathInsideProject", () => {
     const caseInsensitive = fs.existsSync(os.tmpdir().toUpperCase());
     (caseInsensitive ? it : it.skip)("treats a project path differing only in letter case as inside", () => {
         expect(isPathInsideProject(path.join(base, "graphQLIntegration"), file)).toBe(true);
+    });
+
+    // Deterministic variant of the case above for case-sensitive CI runners: the project path's
+    // on-disk spelling is stubbed so the realpath fallback runs on every platform.
+    it("treats a project path that resolves to the on-disk spelling as inside", () => {
+        const spelled = path.join(base, "graphQLIntegration");
+        const realpath = fs.realpathSync.native;
+        const spy = jest.spyOn(fs.realpathSync, "native").mockImplementation(
+            ((p: fs.PathLike) => realpath(String(p) === spelled ? project : p)) as typeof fs.realpathSync.native,
+        );
+        try {
+            expect(isPathInsideProject(spelled, file)).toBe(true);
+        } finally {
+            spy.mockRestore();
+        }
     });
 });
