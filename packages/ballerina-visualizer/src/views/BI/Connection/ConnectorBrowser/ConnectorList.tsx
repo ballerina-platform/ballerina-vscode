@@ -244,7 +244,12 @@ export function ConnectorList(props: ConnectorListProps) {
     const allConnectorSections = useMemo<ListSection[]>(
         () =>
             connectorCategories
-                .map((c) => ({ key: c.title, title: c.title, category: c.title, nodes: nodesOf(c) }))
+                .map((c) => ({
+                    key: c.title,
+                    title: c.title,
+                    category: c.title,
+                    nodes: [...nodesOf(c), ...subCategoriesOf(c).flatMap(nodesOf)],
+                }))
                 .filter((s) => s.nodes.length > 0),
         [connectorCategories]
     );
