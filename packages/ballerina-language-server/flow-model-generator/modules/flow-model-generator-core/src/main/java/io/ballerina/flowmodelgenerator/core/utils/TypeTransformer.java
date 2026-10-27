@@ -75,7 +75,6 @@ import io.ballerina.projects.Document;
 import io.ballerina.projects.DocumentId;
 import io.ballerina.projects.Module;
 import io.ballerina.tools.diagnostics.Location;
-import io.ballerina.tools.text.LineRange;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -83,8 +82,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 import static io.ballerina.modelgenerator.commons.CommonUtils.getTypeSignature;
 
@@ -138,50 +135,84 @@ public class TypeTransformer {
         typeDataBuilder.members(fieldMembers);
 
         // methods
-        List<Function> methods = new ArrayList<>(transformMethodSymbols(serviceDeclarationSymbol.methods()));
-        methods.addAll(transformRedeclaredMethods(serviceDeclarationSymbol));
+        List<Function> methods = getServiceMethods(module, serviceDeclarationSymbol).stream()
+                .map(this::transformFunction)
+                .toList();
         typeDataBuilder.functions(methods);
 
         return typeDataBuilder.build();
     }
 
-    // A method redeclared with the same name is dropped from the symbol's method map, but the designer still has
-    // to show it so the user can find and fix the duplicate.
-    private List<Function> transformRedeclaredMethods(ServiceDeclarationSymbol serviceDeclarationSymbol) {
+    /**
+     * Returns the methods of a service in source order. A method redeclared with the same name is dropped from
+     * {@link ServiceDeclarationSymbol#methods()}, which keeps only the last declaration, but the designer still has
+     * to show the earlier one so the user can find and fix the duplicate.
+     *
+     * @param module                   the module that holds the service
+     * @param serviceDeclarationSymbol the service symbol
+     * @return every method declared in the service, in source order
+     */
+    public static List<MethodSymbol> getServiceMethods(Module module,
+                                                       ServiceDeclarationSymbol serviceDeclarationSymbol) {
+        List<MethodSymbol> knownMethods = new ArrayList<>(serviceDeclarationSymbol.methods().values());
+        Optional<ServiceDeclarationNode> serviceNode = findServiceNode(module, serviceDeclarationSymbol);
+        if (serviceNode.isEmpty()) {
+            return knownMethods;
+        }
+        SemanticModel semanticModel = null;
+        List<MethodSymbol> methods = new ArrayList<>();
+        for (Node member : serviceNode.get().members()) {
+            if (member.kind() != SyntaxKind.OBJECT_METHOD_DEFINITION
+                    && member.kind() != SyntaxKind.RESOURCE_ACCESSOR_DEFINITION) {
+                continue;
+            }
+            Optional<MethodSymbol> known = knownMethods.stream()
+                    .filter(method -> method.getLocation().filter(location -> contains(member, location)).isPresent())
+                    .findFirst();
+            if (known.isPresent()) {
+                methods.add(known.get());
+                knownMethods.remove(known.get());
+                continue;
+            }
+            // Only a redeclared method needs a semantic lookup; it is not in the symbol's method map.
+            if (semanticModel == null) {
+                semanticModel = module.getCompilation().getSemanticModel();
+            }
+            semanticModel.symbol(member)
+                    .filter(symbol -> symbol instanceof MethodSymbol)
+                    .ifPresent(symbol -> methods.add((MethodSymbol) symbol));
+        }
+        // Keep any method the syntax tree walk could not place, so nothing that was shown before is lost.
+        methods.addAll(knownMethods);
+        return methods;
+    }
+
+    private static Optional<ServiceDeclarationNode> findServiceNode(Module module,
+                                                                    ServiceDeclarationSymbol serviceDeclarationSymbol) {
         Optional<Location> serviceLocation = serviceDeclarationSymbol.getLocation();
         if (serviceLocation.isEmpty()) {
-            return List.of();
+            return Optional.empty();
         }
-        Set<LineRange> knownMethods = serviceDeclarationSymbol.methods().values().stream()
-                .flatMap(method -> method.getLocation().stream())
-                .map(Location::lineRange)
-                .collect(Collectors.toSet());
-        SemanticModel semanticModel = module.getCompilation().getSemanticModel();
-        List<Function> redeclared = new ArrayList<>();
+        String fileName = serviceLocation.get().lineRange().fileName();
         for (DocumentId documentId : module.documentIds()) {
             Document document = module.document(documentId);
-            if (!document.name().equals(serviceLocation.get().lineRange().fileName())) {
+            if (!document.name().equals(fileName)) {
                 continue;
             }
             ModulePartNode modulePart = document.syntaxTree().rootNode();
             for (Node member : modulePart.members()) {
-                if (member.kind() != SyntaxKind.SERVICE_DECLARATION || semanticModel.symbol(member)
-                        .flatMap(Symbol::getLocation)
-                        .filter(location -> location.lineRange().equals(serviceLocation.get().lineRange()))
-                        .isEmpty()) {
-                    continue;
-                }
-                for (Node method : ((ServiceDeclarationNode) member).members()) {
-                    semanticModel.symbol(method)
-                            .filter(symbol -> symbol instanceof MethodSymbol)
-                            .filter(symbol -> symbol.getLocation()
-                                    .map(location -> !knownMethods.contains(location.lineRange()))
-                                    .orElse(false))
-                            .ifPresent(symbol -> redeclared.add(transformFunction((MethodSymbol) symbol)));
+                if (member.kind() == SyntaxKind.SERVICE_DECLARATION && contains(member, serviceLocation.get())) {
+                    return Optional.of((ServiceDeclarationNode) member);
                 }
             }
+            break;
         }
-        return redeclared;
+        return Optional.empty();
+    }
+
+    private static boolean contains(Node node, Location location) {
+        return node.textRange().startOffset() <= location.textRange().startOffset()
+                && location.textRange().endOffset() <= node.textRange().endOffset();
     }
 
     public Object transform(ClassSymbol classSymbol) {

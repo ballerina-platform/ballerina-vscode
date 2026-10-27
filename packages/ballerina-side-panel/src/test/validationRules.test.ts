@@ -45,6 +45,10 @@ describe("vscode.validate.not.in", () => {
         expect(runNotIn(name)).toBeUndefined();
     });
 
+    it.each(["type", "'type"])("rejects %s when the taken name is quoted", (name) => {
+        expect(runNotIn(name, { values: [" 'type "] })).toBeDefined();
+    });
+
     it("accepts anything when no names are taken", () => {
         expect(runNotIn("item", {})).toBeUndefined();
     });

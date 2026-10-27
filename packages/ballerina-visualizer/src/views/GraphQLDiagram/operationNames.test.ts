@@ -67,8 +67,8 @@ describe("getTakenOperationNames", () => {
         expect(getTakenOperationNames(operation("DEFAULT", ""), methods)).toEqual(["send", "helper"]);
     });
 
-    it("takes a quoted name as its plain name", () => {
-        expect(getTakenOperationNames(operation("QUERY", ""), [operation("QUERY", "'type", 3)])).toEqual(["type"]);
+    it("passes a quoted name through for the rule to unquote", () => {
+        expect(getTakenOperationNames(operation("QUERY", ""), [operation("QUERY", "'type", 3)])).toEqual(["'type"]);
     });
 
     it("takes nothing without sibling operations", () => {

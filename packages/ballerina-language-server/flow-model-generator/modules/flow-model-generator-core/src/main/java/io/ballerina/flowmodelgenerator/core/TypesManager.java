@@ -813,8 +813,8 @@ public class TypesManager {
             });
         }
 
-        // methods
-        serviceDeclarationSymbol.methods().forEach((key, method) -> {
+        // methods, including any redeclared one the symbol's method map dropped
+        TypeTransformer.getServiceMethods(module, serviceDeclarationSymbol).forEach(method -> {
             // Skipping Parameters. e.g. GraphQL service class methods
             if (!skipParameters) {
                 method.typeDescriptor().params().ifPresent(params -> params.forEach(param -> {

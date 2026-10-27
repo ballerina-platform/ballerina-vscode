@@ -38,8 +38,6 @@ function isSameRange(a?: LineRange, b?: LineRange): boolean {
     return !!a && !!b && a.startLine.line === b.startLine.line && a.startLine.offset === b.startLine.offset;
 }
 
-const normalizeName = (name: string) => name.trim().replace(/^'/, "");
-
 /**
  * Names the operation cannot take because a sibling of the same kind already uses them
  * (wso2/product-integrator#382). The operation being edited is skipped, whether the form holds it or a copy.
@@ -49,7 +47,8 @@ export function getTakenOperationNames(operation: FunctionModel, operations: Fun
     return operations
         .filter((other) => other !== operation && !isSameRange(other.codedata?.lineRange, operation.codedata?.lineRange))
         .filter((other) => getNamespace(other) === namespace && other.name?.value)
-        .map((other) => normalizeName(other.name.value));
+        // Left as written; the rule unquotes and trims both sides.
+        .map((other) => other.name.value);
 }
 
 /** Adds the rule rejecting `takenNames` to the name field's active type member, which is where rules are read. */

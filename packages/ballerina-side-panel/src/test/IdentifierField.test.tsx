@@ -32,9 +32,15 @@ jest.mock("@wso2/ballerina-rpc-client", () => {
     return { __esModule: true, useRpcContext: h.useRpcContext, Context: h.TestRpcContext };
 });
 
+const getExpressionDiagnostics = jest.fn();
 const rpcClient = {
-    getBIDiagramRpcClient: () => ({ getExpressionDiagnostics: jest.fn().mockResolvedValue({ diagnostics: [] }) }),
+    getBIDiagramRpcClient: () => ({ getExpressionDiagnostics }),
 };
+const noDiagnostics = { diagnostics: [] as any[] };
+const lsError = (message: string) => ({ diagnostics: [{ message, severity: 1 }] });
+
+// Run the 250 ms debounced check and let its response settle.
+const settle = () => act(async () => { jest.advanceTimersByTime(250); });
 
 const nameField = (value: string): FormField => ({
     key: "name",
@@ -62,17 +68,50 @@ function renderName(value: string) {
 }
 
 describe("IdentifierField client rules", () => {
+    beforeEach(() => {
+        jest.useFakeTimers();
+        getExpressionDiagnostics.mockReset().mockResolvedValue(noDiagnostics);
+    });
+
+    afterEach(() => {
+        jest.useRealTimers();
+    });
+
     it("shows the rule's message for a name already in use", async () => {
         const { getForm } = renderName("item");
-        expect(await screen.findByText("A field named 'item' already exists")).toBeInTheDocument();
+        await settle();
+        expect(screen.getByText("A field named 'item' already exists")).toBeInTheDocument();
         expect(getForm().formState.errors.name?.message).toBe("A field named 'item' already exists");
     });
 
     it("shows no error for a free name", async () => {
         const { getForm } = renderName("author");
-        // Let the 250 ms debounced check settle.
-        await act(() => new Promise((resolve) => setTimeout(resolve, 400)));
+        await settle();
         expect(getForm().formState.errors.name).toBeUndefined();
         expect(screen.queryByText(/already exists/)).not.toBeInTheDocument();
+    });
+
+    it("lets a language-server error win over the client rule", async () => {
+        getExpressionDiagnostics.mockResolvedValue(lsError("redeclared symbol 'item'"));
+        const { getForm } = renderName("item");
+        await settle();
+        expect(getForm().formState.errors.name?.type).toBe("identifier_diagnostic");
+        expect(screen.queryByText(/already exists/)).not.toBeInTheDocument();
+    });
+
+    it("ignores a response that arrives after a newer value was checked", async () => {
+        let resolveFirst: (value: unknown) => void = () => undefined;
+        getExpressionDiagnostics
+            .mockReturnValueOnce(new Promise((resolve) => { resolveFirst = resolve; }))
+            .mockResolvedValue(noDiagnostics);
+        const { getForm } = renderName("item");
+        await settle();
+
+        act(() => { getForm().setValue("name", "author"); });
+        await settle();
+        expect(getForm().formState.errors.name).toBeUndefined();
+
+        await act(async () => { resolveFirst(lsError("redeclared symbol 'item'")); });
+        expect(getForm().formState.errors.name).toBeUndefined();
     });
 });

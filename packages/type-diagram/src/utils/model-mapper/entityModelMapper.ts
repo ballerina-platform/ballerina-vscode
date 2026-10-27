@@ -67,7 +67,7 @@ function createEntityLinks(entityNodes: Map<string, EntityModel>): EntityLinkMod
                             let sourcePort = sourceNode.getPort(`right-${sourceNode.getID()}/${portName}`);
                             let targetPort = targetNode.getPort(`left-${ref}`);
 
-                            const linkTestID = `node-link-${sourceNode.getID()}/${member.name}-${ref}`;
+                            const linkTestID = `node-link-${sourceNode.getID()}/${portName}-${ref}`;
                             let link = new EntityLinkModel(undefined, linkTestID); // REMOVE cardinalities
                             entityLinks.push(createLinks(sourcePort, targetPort, link));
                         }
@@ -102,7 +102,8 @@ export function isNodeClass(nodeKind: TypeNodeKind): boolean {
 }
 
 // Attributes sharing a name (a GraphQL query and mutation, or a redeclared operation) need their own ports,
-// or every link from them lands on a single row.
+// or every link from them lands on a single row. `attribute` must be the same object as in the entity's
+// members or functions; a copy is not found and falls back to the plain, shared name.
 export function getAttributePortName(entity: Type, attribute: Member | TypeFunctionModel): string {
     const attributes: (Member | TypeFunctionModel)[] =
         (isNodeClass(entity?.codedata?.node) ? entity.functions : entity?.members) ?? [];

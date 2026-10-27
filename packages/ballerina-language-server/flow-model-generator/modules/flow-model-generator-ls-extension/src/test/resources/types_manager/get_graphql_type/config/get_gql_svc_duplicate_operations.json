@@ -1,7 +1,7 @@
 {
   "filePath": "test_pack3/duplicate_operations.bal",
   "position": {
-    "line": 4,
+    "line": 8,
     "offset": 0
   },
   "description": "duplicate_operations",
@@ -17,11 +17,11 @@
       "lineRange": {
         "fileName": "duplicate_operations.bal",
         "startLine": {
-          "line": 4,
+          "line": 8,
           "offset": 0
         },
         "endLine": {
-          "line": 13,
+          "line": 17,
           "offset": 1
         }
       }
@@ -190,9 +190,11 @@
         "kind": "RESOURCE",
         "name": "query2",
         "description": "",
-        "returnType": "int",
+        "returnType": "Review",
         "isGraphqlId": false,
-        "refs": [],
+        "refs": [
+          "Review"
+        ],
         "properties": {
           "isPrivate": {
             "metadata": {
@@ -256,7 +258,7 @@
         "kind": "RESOURCE",
         "name": "query2",
         "description": "",
-        "returnType": "string",
+        "returnType": "int",
         "isGraphqlId": false,
         "refs": [],
         "properties": {
@@ -316,5 +318,133 @@
     ],
     "allowAdditionalFields": false
   },
-  "refs": []
+  "refs": [
+    {
+      "name": "Review",
+      "editable": true,
+      "metadata": {
+        "label": "Review",
+        "description": ""
+      },
+      "codedata": {
+        "node": "RECORD",
+        "lineRange": {
+          "fileName": "duplicate_operations.bal",
+          "startLine": {
+            "line": 4,
+            "offset": 5
+          },
+          "endLine": {
+            "line": 4,
+            "offset": 11
+          }
+        }
+      },
+      "properties": {
+        "name": {
+          "metadata": {
+            "label": "Type name",
+            "description": "Unique name to identify the type"
+          },
+          "types": [
+            {
+              "fieldType": "IDENTIFIER",
+              "selected": true
+            }
+          ],
+          "value": "Review",
+          "optional": false,
+          "editable": false,
+          "advanced": false,
+          "hidden": false
+        },
+        "isPublic": {
+          "metadata": {
+            "label": "public",
+            "description": "Make visible across the project"
+          },
+          "types": [
+            {
+              "fieldType": "FLAG",
+              "selected": true
+            }
+          ],
+          "value": "false",
+          "optional": true,
+          "editable": true,
+          "advanced": false,
+          "hidden": false
+        },
+        "description": {
+          "metadata": {
+            "label": "Type description",
+            "description": "Detailed description about the type"
+          },
+          "types": [
+            {
+              "fieldType": "TEXT",
+              "selected": true
+            }
+          ],
+          "value": "",
+          "optional": false,
+          "editable": true,
+          "advanced": false,
+          "hidden": false
+        },
+        "isArray": {
+          "metadata": {
+            "label": "Is array type",
+            "description": "Is this type an array or list value"
+          },
+          "types": [
+            {
+              "fieldType": "FLAG",
+              "selected": true
+            }
+          ],
+          "value": "false",
+          "optional": true,
+          "editable": true,
+          "advanced": true,
+          "hidden": false
+        },
+        "arraySize": {
+          "metadata": {
+            "label": "Size of the array",
+            "description": "Array dimensions"
+          },
+          "types": [
+            {
+              "fieldType": "TEXT",
+              "selected": true
+            }
+          ],
+          "value": "",
+          "optional": true,
+          "editable": true,
+          "advanced": true,
+          "hidden": false
+        }
+      },
+      "members": [
+        {
+          "kind": "FIELD",
+          "refs": [],
+          "type": "string",
+          "typeName": "string",
+          "name": "comment",
+          "optional": false,
+          "readonly": false,
+          "isGraphqlId": false,
+          "docs": "",
+          "annotationAttachments": [],
+          "selected": false
+        }
+      ],
+      "includes": [],
+      "annotationAttachments": [],
+      "allowAdditionalFields": false
+    }
+  ]
 }

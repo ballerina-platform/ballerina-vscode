@@ -82,6 +82,19 @@ export function EntityWidget(props: EntityWidgetProps) {
         }
     };
 
+    const renderOperation = (operation: any) => {
+        const portName = getAttributePortName(node.entityObject, operation);
+        return (
+            <AttributeWidget
+                key={portName}
+                engine={engine}
+                node={node}
+                attribute={operation}
+                isSelected={node.isNodeSelected(selectedLink, `${node.getID()}/${portName}`)}
+            />
+        );
+    };
+
     const renderAttributes = () => {
         if (node.isGraphqlRoot) {
             const attributes: React.ReactNode[] = [];
@@ -125,15 +138,7 @@ export function EntityWidget(props: EntityWidgetProps) {
                         <OperationSection>
                                 <AttributeHeader>Query</AttributeHeader>
                             <div>
-                                {categorizedFunctions.query.map((query: any) => (
-                                    <AttributeWidget
-                                        key={getAttributePortName(node.entityObject, query)}
-                                        engine={engine}
-                                        node={node}
-                                        attribute={query}
-                                        isSelected={node.isNodeSelected(selectedLink, `${node.getID()}/${getAttributePortName(node.entityObject, query)}`)}
-                                    />
-                                ))}
+                                {categorizedFunctions.query.map(renderOperation)}
                             </div>
                         </OperationSection>
                     </div>
@@ -147,15 +152,7 @@ export function EntityWidget(props: EntityWidgetProps) {
                         <OperationSection>
                                 <AttributeHeader>Mutation</AttributeHeader>
                             <div>
-                                {categorizedFunctions.mutation.map((mutation: any) => (
-                                    <AttributeWidget
-                                        key={getAttributePortName(node.entityObject, mutation)}
-                                        engine={engine}
-                                        node={node}
-                                        attribute={mutation}
-                                        isSelected={node.isNodeSelected(selectedLink, `${node.getID()}/${getAttributePortName(node.entityObject, mutation)}`)}
-                                    />
-                                ))}
+                                {categorizedFunctions.mutation.map(renderOperation)}
                             </div>
                         </OperationSection>
                     </div>
@@ -169,15 +166,7 @@ export function EntityWidget(props: EntityWidgetProps) {
                         <OperationSection>
                                 <AttributeHeader>Subscription</AttributeHeader>
                             <div>
-                                {categorizedFunctions.subscription.map((subscription: any) => (
-                                    <AttributeWidget
-                                        key={getAttributePortName(node.entityObject, subscription)}
-                                        engine={engine}
-                                        node={node}
-                                        attribute={subscription}
-                                        isSelected={node.isNodeSelected(selectedLink, `${node.getID()}/${getAttributePortName(node.entityObject, subscription)}`)}
-                                    />
-                                ))}
+                                {categorizedFunctions.subscription.map(renderOperation)}
                             </div>
                         </OperationSection>
                     </div>

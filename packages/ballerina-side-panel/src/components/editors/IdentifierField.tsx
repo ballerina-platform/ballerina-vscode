@@ -69,7 +69,11 @@ export function IdentifierField(props: IdentifierFieldProps) {
         }
     }, [field.key, setError, clearErrors]);
 
+    // A slower response for an older value must not overwrite the result for the latest one.
+    const latestRequestRef = useRef(0);
     const validateIdentifierName = useCallback(debounce(async (value: string) => {
+        const requestId = ++latestRequestRef.current;
+        const isStale = () => requestId !== latestRequestRef.current;
         try {
             const response = await rpcClient.getBIDiagramRpcClient().getExpressionDiagnostics({
                 filePath: fileName,
@@ -82,6 +86,9 @@ export function IdentifierField(props: IdentifierFieldProps) {
                     property: getPropertyFromFormField(field)
                 }
             });
+            if (isStale()) {
+                return;
+            }
             if (response.diagnostics.length > 0) {
                 const rawDiagnostic = response.diagnostics[0];
                 setFormDiagnostics([{ message: getFriendlyIdentifierMessage(rawDiagnostic.message, field.label), severity: mapDiagnosticsServerityToFormSeverity(rawDiagnostic.severity) }]);
@@ -96,6 +103,9 @@ export function IdentifierField(props: IdentifierFieldProps) {
                 showClientRuleError(value);
             }
         } catch (error) {
+            if (isStale()) {
+                return;
+            }
             console.error('Failed to fetch expression diagnostics:', error);
             setFormDiagnostics([]);
             showClientRuleError(value);
