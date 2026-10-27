@@ -615,6 +615,7 @@ export function ServiceClassDesigner(props: ServiceClassDesignerProps) {
                             lineRange={serviceClassModel.codedata.lineRange}
                             isSaving={isSaving}
                             isServiceClass={true}
+                            existingOperations={serviceClassModel?.functions}
                             onClose={handleCloseFunctionForm}
                             onSave={handleFunctionSave}
                         />

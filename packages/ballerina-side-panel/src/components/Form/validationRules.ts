@@ -359,6 +359,18 @@ export const CLIENT_VALIDATION_RULES: Record<string, ClientRule> = {
         const matches = siblings.filter((sibling) => asString(sibling).trim() === raw).length;
         return matches > 1 ? "{label} must be unique" : undefined;
     },
+
+    // Rejects a value the view already knows is taken (e.g. the names of sibling operations), passed in
+    // `values` — no project lookup, so it stays client-side. A quoted identifier counts as its plain name.
+    "vscode.validate.not.in": (value, args) => {
+        const unquote = (name: string) => name.trim().replace(/^'/, "");
+        const values = Array.isArray(args?.values) ? (args.values as unknown[]).map((item) => unquote(asString(item))) : [];
+        const raw = unquote(asString(value));
+        if (raw === "" || !values.length) {
+            return undefined;
+        }
+        return values.includes(raw) ? "{label} '{value}' is already in use" : undefined;
+    },
 };
 
 function rangeMessage(min: number | undefined, max: number | undefined): string {
