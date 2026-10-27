@@ -18,11 +18,9 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import styled from "@emotion/styled";
-import { useQuery } from "@tanstack/react-query";
 import {
     BrandIcon,
     BI_COMMANDS,
-    BuildMode,
     DIRECTORY_MAP,
     EVENT_TYPE,
     MACHINE_VIEW,
@@ -37,15 +35,12 @@ import {
     Codicon,
     Icon,
     ImageWithFallback,
-    Menu,
-    MenuItem,
-    Popover,
     ProgressRing,
     ThemeColors,
 } from "@wso2/ui-toolkit";
 import { PageHeader } from "../components/PageHeader";
-import { usePlatformExtContext } from "../../../providers/platform-ext-ctx-provider";
-import { getWorkspaceDeploymentState, validateWorkspaceTitle, useProjectContentRefresh } from "../PackageOverview/utils";
+import { SidePanel, WorkspaceDeploymentPanel, useDeployPanelCollapsed } from "../../../components/DeploymentControl";
+import { validateWorkspaceTitle, useProjectContentRefresh } from "../PackageOverview/utils";
 
 const Page = styled.div`
     display: flex;
@@ -54,11 +49,17 @@ const Page = styled.div`
     overflow: hidden;
 `;
 
-const MainContent = styled.div`
+const Body = styled.div`
     flex: 1;
     min-height: 0;
-    overflow-y: auto;
+    display: flex;
     padding: 24px 32px;
+`;
+
+const MainContent = styled.div`
+    flex: 1;
+    min-width: 0;
+    overflow-y: auto;
 `;
 
 const SectionHeader = styled.div`
@@ -270,22 +271,6 @@ const CenteredSlot = styled.div`
     height: 100%;
 `;
 
-const MenuItemLabel = styled.div`
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 2px 4px;
-    min-width: 180px;
-`;
-
-function menuLabel(icon: string, text: string) {
-    return (
-        <MenuItemLabel>
-            <Codicon name={icon} /> {text}
-        </MenuItemLabel>
-    );
-}
-
 const AI_MODULE = "ai";
 const MAX_AGENT_PILLS = 2;
 const MAX_TRIGGER_ICONS = 4;
@@ -379,19 +364,13 @@ function IntegrationIcons({
 
 interface AgentBuilderWorkspaceOverviewProps {
     isInDevant: boolean;
+    isICPSupported?: boolean;
 }
 
-export function AgentBuilderWorkspaceOverview({ isInDevant }: AgentBuilderWorkspaceOverviewProps) {
+export function AgentBuilderWorkspaceOverview({ isInDevant, isICPSupported }: AgentBuilderWorkspaceOverviewProps) {
     const { rpcClient } = useRpcContext();
-    const { platformExtState } = usePlatformExtContext();
     const [projectCollection, setProjectCollection] = useState<ProjectStructureResponse>();
-    const [deployAnchor, setDeployAnchor] = useState<HTMLElement | null>(null);
-
-    const { data: devantMetadata } = useQuery({
-        queryKey: ["project-devant-metadata"],
-        queryFn: () => rpcClient.getBIDiagramRpcClient().getWorkspaceDevantMetadata(),
-        refetchInterval: 5000,
-    });
+    const [deployCollapsed, toggleDeployPanel] = useDeployPanelCollapsed();
 
     const fetchContext = useCallback(() => {
         rpcClient
@@ -428,10 +407,7 @@ export function AgentBuilderWorkspaceOverview({ isInDevant }: AgentBuilderWorksp
         });
     }, [projectCollection]);
 
-    const { libraryProjectPaths, undeployedProjectScopes, hasDeployableIntegration: hasDeployable } = useMemo(
-        () => getWorkspaceDeploymentState(projectCollection, devantMetadata),
-        [projectCollection, devantMetadata]
-    );
+    const hasIntegrations = packages.some((item) => !item.isLibrary);
 
     const validateTitle = useCallback((value: string): string => validateWorkspaceTitle(value), []);
 
@@ -463,83 +439,18 @@ export function AgentBuilderWorkspaceOverview({ isInDevant }: AgentBuilderWorksp
         rpcClient.getBIDiagramRpcClient().deleteProject({ projectPath });
     };
 
-    const deployMenuItems = useMemo(() => {
-        const items = [];
-        if (platformExtState.isExtInstalled) {
-            items.push({
-                id: "cloud",
-                label: menuLabel("cloud-upload", "Deploy to WSO2 Cloud"),
-                disabled: undeployedProjectScopes.length === 0,
-                onClick: () => {
-                    rpcClient.getBIDiagramRpcClient().deployWorkspace({
-                        projectScopes: undeployedProjectScopes,
-                        rootDirectory: projectCollection?.workspacePath ?? "",
-                    });
-                },
-            });
-        }
-        if (!isInDevant) {
-            items.push(
-                {
-                    id: "docker",
-                    label: menuLabel("package", "Build Docker Image"),
-                    disabled: !hasDeployable,
-                    onClick: () => {
-                        rpcClient.getBIDiagramRpcClient().buildProject(BuildMode.DOCKER);
-                    },
-                },
-                {
-                    id: "vm",
-                    label: menuLabel("server", "Build Executable"),
-                    disabled: !hasDeployable,
-                    onClick: () => {
-                        rpcClient.getBIDiagramRpcClient().buildProject(BuildMode.JAR);
-                    },
-                }
-            );
-        }
-        return items;
-    }, [
-        platformExtState.isExtInstalled,
-        isInDevant,
-        hasDeployable,
-        undeployedProjectScopes,
-        projectCollection?.workspacePath,
-        rpcClient,
-    ]);
-
-    const headerActions = deployMenuItems.length > 0 && (
-        <>
-            <Button
-                appearance="icon"
-                onClick={(e: React.MouseEvent<HTMLElement | SVGSVGElement>) =>
-                    setDeployAnchor(e.currentTarget as HTMLElement)
-                }
-                buttonSx={{ padding: "4px 8px" }}
-            >
-                <Codicon name="cloud-upload" sx={{ marginRight: 5 }} /> Deploy
-                <Codicon name="chevron-down" sx={{ marginLeft: 4, fontSize: 12 }} />
-            </Button>
-            <Popover
-                open={Boolean(deployAnchor)}
-                anchorEl={deployAnchor}
-                handleClose={() => setDeployAnchor(null)}
-                sx={{ padding: 0, borderRadius: 4 }}
-                anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-                transformOrigin={{ vertical: "top", horizontal: "right" }}
-            >
-                <Menu>
-                    {deployMenuItems.map((item) => (
-                        <MenuItem
-                            key={item.id}
-                            item={item.disabled ? { ...item, onClick: () => undefined } : item}
-                            sx={item.disabled ? { opacity: 0.5 } : undefined}
-                            onClick={() => setDeployAnchor(null)}
-                        />
-                    ))}
-                </Menu>
-            </Popover>
-        </>
+    const headerActions = hasIntegrations && (
+        <Button
+            appearance="icon"
+            onClick={toggleDeployPanel}
+            tooltip={deployCollapsed ? "Show Deploy Panel" : "Hide Deploy Panel"}
+            aria-label={deployCollapsed ? "Show Deploy Panel" : "Hide Deploy Panel"}
+            aria-expanded={!deployCollapsed}
+            buttonSx={{ padding: "4px 8px" }}
+        >
+            <Codicon name={deployCollapsed ? "layout-sidebar-right-off" : "layout-sidebar-right"} sx={{ marginRight: 5 }} />
+            Deploy
+        </Button>
     );
 
     if (!projectCollection) {
@@ -561,85 +472,96 @@ export function AgentBuilderWorkspaceOverview({ isInDevant }: AgentBuilderWorksp
                 onTitleEdit={handleTitleUpdate}
                 validateTitle={validateTitle}
             />
-            <MainContent>
-                <SectionHeader>
-                    <SectionTitle>Agentic Integrations & Libraries</SectionTitle>
-                    {packages.length > 0 && (
-                        <Button appearance="primary" onClick={handleAdd}>
-                            <Codicon name="add" sx={{ marginRight: 8 }} /> Add
-                        </Button>
-                    )}
-                </SectionHeader>
-                {packages.length === 0 ? (
-                    <EmptyState>
-                        <EmptyHeading>Your project is empty</EmptyHeading>
-                        <MutedNote>Start by adding agentic integrations and libraries to your project</MutedNote>
-                        <Button appearance="primary" onClick={handleAdd} sx={{ marginTop: 8 }}>
-                            <Codicon name="add" sx={{ marginRight: 8 }} /> Add Agentic Integration or Library
-                        </Button>
-                    </EmptyState>
-                ) : (
-                    <CardGrid>
-                        {packages.map((item) => (
-                            <Card key={item.id} onClick={() => handleOpenPackage(item.id, item.projectPath)}>
-                                <CardHeader>
-                                    <IconTile>
-                                        <Codicon
-                                            name={item.isLibrary ? "library" : "project"}
-                                            sx={{ width: 24, height: 24 }}
-                                            iconSx={{ fontSize: 24, color: "inherit" }}
-                                        />
-                                        {!item.isLibrary && (
-                                            <IconBadge className="icon-badge">
+            <Body>
+                <MainContent>
+                    <SectionHeader>
+                        <SectionTitle>Agentic Integrations & Libraries</SectionTitle>
+                        {packages.length > 0 && (
+                            <Button appearance="primary" onClick={handleAdd}>
+                                <Codicon name="add" sx={{ marginRight: 8 }} /> Add
+                            </Button>
+                        )}
+                    </SectionHeader>
+                    {packages.length === 0 ? (
+                        <EmptyState>
+                            <EmptyHeading>Your project is empty</EmptyHeading>
+                            <MutedNote>Start by adding agentic integrations and libraries to your project</MutedNote>
+                            <Button appearance="primary" onClick={handleAdd} sx={{ marginTop: 8 }}>
+                                <Codicon name="add" sx={{ marginRight: 8 }} /> Add Agentic Integration or Library
+                            </Button>
+                        </EmptyState>
+                    ) : (
+                        <CardGrid>
+                            {packages.map((item) => (
+                                <Card key={item.id} onClick={() => handleOpenPackage(item.id, item.projectPath)}>
+                                    <CardHeader>
+                                        <IconTile>
+                                            <Codicon
+                                                name={item.isLibrary ? "library" : "project"}
+                                                sx={{ width: 24, height: 24 }}
+                                                iconSx={{ fontSize: 24, color: "inherit" }}
+                                            />
+                                            {!item.isLibrary && (
+                                                <IconBadge className="icon-badge">
+                                                    <Icon
+                                                        name="bi-ai-agent"
+                                                        sx={{ width: 13, height: 13 }}
+                                                        iconSx={{ fontSize: 13, color: "inherit" }}
+                                                    />
+                                                </IconBadge>
+                                            )}
+                                        </IconTile>
+                                        <CardName title={item.name}>{item.name}</CardName>
+                                        <DeleteButton
+                                            className="card-delete"
+                                            title={item.isLibrary ? "Delete library" : "Delete integration"}
+                                            onClick={(e) => handleDelete(item.projectPath, e)}
+                                        >
+                                            <Codicon name="trash" iconSx={{ fontSize: 16 }} />
+                                        </DeleteButton>
+                                        <Codicon name="chevron-right" iconSx={{ fontSize: 16, opacity: 0.5 }} />
+                                    </CardHeader>
+                                    <PillRow>
+                                        {item.isLibrary && (
+                                            <Pill>
+                                                <PillLabel>Library</PillLabel>
+                                            </Pill>
+                                        )}
+                                        {item.shownAgents.map((name) => (
+                                            <Pill key={name}>
                                                 <Icon
                                                     name="bi-ai-agent"
                                                     sx={{ width: 13, height: 13 }}
-                                                    iconSx={{ fontSize: 13, color: "inherit" }}
+                                                    iconSx={{ fontSize: 13, color: "var(--vscode-terminal-ansiBrightCyan)" }}
                                                 />
-                                            </IconBadge>
+                                                <PillLabel>{name}</PillLabel>
+                                            </Pill>
+                                        ))}
+                                        {item.hiddenAgentCount > 0 && (
+                                            <MoreCount title={item.allAgents.join(", ")}>
+                                                +{item.hiddenAgentCount} more
+                                            </MoreCount>
                                         )}
-                                    </IconTile>
-                                    <CardName title={item.name}>{item.name}</CardName>
-                                    <DeleteButton
-                                        className="card-delete"
-                                        title={item.isLibrary ? "Delete library" : "Delete integration"}
-                                        onClick={(e) => handleDelete(item.projectPath, e)}
-                                    >
-                                        <Codicon name="trash" iconSx={{ fontSize: 16 }} />
-                                    </DeleteButton>
-                                    <Codicon name="chevron-right" iconSx={{ fontSize: 16, opacity: 0.5 }} />
-                                </CardHeader>
-                                <PillRow>
-                                    {item.isLibrary && (
-                                        <Pill>
-                                            <PillLabel>Library</PillLabel>
-                                        </Pill>
-                                    )}
-                                    {item.shownAgents.map((name) => (
-                                        <Pill key={name}>
-                                            <Icon
-                                                name="bi-ai-agent"
-                                                sx={{ width: 13, height: 13 }}
-                                                iconSx={{ fontSize: 13, color: "var(--vscode-terminal-ansiBrightCyan)" }}
-                                            />
-                                            <PillLabel>{name}</PillLabel>
-                                        </Pill>
-                                    ))}
-                                    {item.hiddenAgentCount > 0 && (
-                                        <MoreCount title={item.allAgents.join(", ")}>
-                                            +{item.hiddenAgentCount} more
-                                        </MoreCount>
-                                    )}
-                                    {!item.isLibrary && item.allAgents.length === 0 && (
-                                        <MutedNote>No agents yet</MutedNote>
-                                    )}
-                                    <IntegrationIcons triggers={item.triggers} connections={item.connections} />
-                                </PillRow>
-                            </Card>
-                        ))}
-                    </CardGrid>
+                                        {!item.isLibrary && item.allAgents.length === 0 && (
+                                            <MutedNote>No agents yet</MutedNote>
+                                        )}
+                                        <IntegrationIcons triggers={item.triggers} connections={item.connections} />
+                                    </PillRow>
+                                </Card>
+                            ))}
+                        </CardGrid>
+                    )}
+                </MainContent>
+                {hasIntegrations && (
+                    <SidePanel collapsed={deployCollapsed} aria-hidden={deployCollapsed}>
+                        <WorkspaceDeploymentPanel
+                            projectCollection={projectCollection}
+                            isInDevant={isInDevant}
+                            isICPSupported={isICPSupported}
+                        />
+                    </SidePanel>
                 )}
-            </MainContent>
+            </Body>
         </Page>
     );
 }

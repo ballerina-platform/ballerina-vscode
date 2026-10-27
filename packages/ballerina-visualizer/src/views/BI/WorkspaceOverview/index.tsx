@@ -38,6 +38,7 @@ import { PackageListView } from "./PackageListView";
 import { getWorkspaceDeploymentState, validateWorkspaceTitle, useProjectContentRefresh } from "../PackageOverview/utils";
 import { usePlatformExtContext } from "../../../providers/platform-ext-ctx-provider";
 import { DeploymentOptionContainer, DeploymentHeader, DeploymentBody, DeploymentOption } from "../../../components/DeploymentControl";
+import { IcpAction, useWorkspaceIcp } from "../../../hooks/useDeploymentControl";
 
 const SpinnerContainer = styled.div`
     display: flex;
@@ -488,8 +489,6 @@ const ICPButtonContent = styled.div`
     gap: 6px;
 `;
 
-type IcpAction = "enableAll" | "disableAll" | "enableRemaining";
-
 function ICPActionButton({ action, label, loadingLabel, onClick, icpActionLoading, isLoading }: {
     action: IcpAction;
     label: string;
@@ -589,12 +588,10 @@ export function WorkspaceOverview({ isInDevant, isICPSupported }: WorkspaceOverv
     const { rpcClient } = useRpcContext();
     const [readmeContent, setReadmeContent] = React.useState<string>("");
     const [projectCollection, setProjectCollection] = React.useState<ProjectStructureResponse>();
-    const [icpStatusByProjectPath, setIcpStatusByProjectPath] = React.useState<Record<string, boolean>>({});
     const [displayedTitle, setDisplayedTitle] = useState("");
     const [titleVisible, setTitleVisible] = useState(true);
 
     const [showAlert, setShowAlert] = React.useState(false);
-    const [icpActionLoading, setIcpActionLoading] = React.useState<IcpAction | null>(null);
 
     const { data: devantMetadata, refetch: refetchDevantMetadata } = useQuery({
         queryKey: ["project-devant-metadata"],
@@ -602,33 +599,7 @@ export function WorkspaceOverview({ isInDevant, isICPSupported }: WorkspaceOverv
         refetchInterval: 5000
     });
 
-    const getICPProjectPaths = (projects: ProjectStructureResponse["projects"]) => {
-        return projects
-            .filter((project) => !(project?.isLibrary ?? false))
-            .map((project) => project.projectPath);
-    };
-
-    const syncProjectICPStatus = async (projectPaths: string[]) => {
-        if (!isICPSupported || projectPaths.length === 0) {
-            setIcpStatusByProjectPath({});
-            return;
-        }
-
-        try {
-            const icpStatus = await Promise.all(
-                projectPaths.map((projectPath) =>
-                    rpcClient.getICPRpcClient().isIcpEnabled({ projectPath })
-                )
-            );
-            const nextStatusMap = projectPaths.reduce<Record<string, boolean>>((acc, projectPath, index) => {
-                acc[projectPath] = Boolean(icpStatus[index]?.enabled);
-                return acc;
-            }, {});
-            setIcpStatusByProjectPath(nextStatusMap);
-        } catch (error) {
-            console.error("Failed to sync ICP status:", error);
-        }
-    };
+    const icp = useWorkspaceIcp(rpcClient, projectCollection?.projects, isICPSupported);
 
     const fetchContext = () => {
         rpcClient
@@ -643,8 +614,6 @@ export function WorkspaceOverview({ isInDevant, isICPSupported }: WorkspaceOverv
                     .then((res) => {
                         setReadmeContent(res.content);
                     });
-
-                syncProjectICPStatus(getICPProjectPaths(res.projects));
             });
     };
 
@@ -683,24 +652,6 @@ export function WorkspaceOverview({ isInDevant, isICPSupported }: WorkspaceOverv
     const hasStandardIntegrations = useMemo(() => {
         return (projectCollection?.projects ?? []).some((project) => !(project?.isLibrary ?? false));
     }, [projectCollection?.projects]);
-
-    const icpProjectPaths = useMemo(() => {
-        return projectCollection ? getICPProjectPaths(projectCollection.projects) : [];
-    }, [projectCollection]);
-
-    const icpEnabledCount = useMemo(() => {
-        return icpProjectPaths.filter((projectPath) => Boolean(icpStatusByProjectPath[projectPath])).length;
-    }, [icpProjectPaths, icpStatusByProjectPath]);
-
-    const icpState = useMemo<"all" | "partial" | "none">(() => {
-        if (icpProjectPaths.length === 0 || icpEnabledCount === 0) {
-            return "none";
-        }
-        if (icpEnabledCount === icpProjectPaths.length) {
-            return "all";
-        }
-        return "partial";
-    }, [icpProjectPaths, icpEnabledCount]);
 
     const { libraryProjectPaths, deployableProjectPaths, undeployedProjectScopes, hasDeployableIntegration } =
         useMemo(() => getWorkspaceDeploymentState(projectCollection, devantMetadata), [projectCollection, devantMetadata]);
@@ -770,37 +721,6 @@ export function WorkspaceOverview({ isInDevant, isICPSupported }: WorkspaceOverv
 
     const handleJarBuild = () => {
         rpcClient.getBIDiagramRpcClient().buildProject(BuildMode.JAR);
-    };
-
-    const updateICPForProjectPaths = async (projectPaths: string[], enableICP: boolean) => {
-        for (const projectPath of projectPaths) {
-            try {
-                if (enableICP) {
-                    await rpcClient.getICPRpcClient().addICP({ projectPath });
-                } else {
-                    await rpcClient.getICPRpcClient().disableICP({ projectPath });
-                }
-            } catch (error) {
-                console.error("Failed to update ICP for project:", projectPath, error);
-            }
-        }
-    };
-
-    const runIcpAction = async (action: IcpAction, paths: string[], enable: boolean) => {
-        setIcpActionLoading(action);
-        try {
-            await updateICPForProjectPaths(paths, enable);
-        } finally {
-            await syncProjectICPStatus(icpProjectPaths);
-            setIcpActionLoading(null);
-        }
-    };
-
-    const handleEnableAllICP = () => runIcpAction("enableAll", icpProjectPaths, true);
-    const handleDisableAllICP = () => runIcpAction("disableAll", icpProjectPaths, false);
-    const handleEnableRemainingICP = () => {
-        const remainingProjectPaths = icpProjectPaths.filter((projectPath) => !icpStatusByProjectPath[projectPath]);
-        return runIcpAction("enableRemaining", remainingProjectPaths, true);
     };
 
     const goToDevant = () => {
@@ -897,8 +817,8 @@ export function WorkspaceOverview({ isInDevant, isICPSupported }: WorkspaceOverv
                             ) : (
                                 <PackageListView
                                     projectCollection={projectCollection}
-                                    icpStatusByProjectPath={icpStatusByProjectPath}
-                                    showICPBadge={isICPSupported && icpState !== "none"}
+                                    icpStatusByProjectPath={icp.statusByProjectPath}
+                                    showICPBadge={isICPSupported && icp.state !== "none"}
                                 />
                             )}
                         </ContentPanel>
@@ -955,13 +875,13 @@ export function WorkspaceOverview({ isInDevant, isICPSupported }: WorkspaceOverv
                                     <>
                                         <Divider sx={{ margin: "16px 0" }} />
                                         <IntegrationControlPlane
-                                            icpState={icpState}
-                                            enabledCount={icpEnabledCount}
-                                            totalCount={icpProjectPaths.length}
-                                            onEnableAll={handleEnableAllICP}
-                                            onDisableAll={handleDisableAllICP}
-                                            onEnableRemaining={handleEnableRemainingICP}
-                                            icpActionLoading={icpActionLoading}
+                                            icpState={icp.state}
+                                            enabledCount={icp.enabledCount}
+                                            totalCount={icp.totalCount}
+                                            onEnableAll={icp.enableAll}
+                                            onDisableAll={icp.disableAll}
+                                            onEnableRemaining={icp.enableRemaining}
+                                            icpActionLoading={icp.actionLoading}
                                         />
                                     </>
                                 )}
