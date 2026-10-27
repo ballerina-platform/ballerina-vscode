@@ -187,6 +187,11 @@ export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCode
             // so the final subscriber only sees the notification from the formatted edit.
             // Capture IDs of newly added artifacts so we can re-apply isNew on the formatted edit notification.
             const handler = ArtifactNotificationHandler.getInstance();
+            const editedFiles = Object.values(modificationRequests).map((request) => request.filePath);
+            // Another file's publish can land first; an empty payload is accepted only for a delete.
+            const isEditPayload = (artifacts?: ProjectStructureArtifactResponse[]) => artifacts?.length
+                ? artifacts.some((artifact) => editedFiles.some((file) => isSamePath(artifact.path, file)))
+                : !!updateSourceCodeRequest.skipPayloadCheck;
             let newArtifactIds: Set<string> | undefined;
             // Pre-formatted edits are final, so their single notification goes to the final subscriber below.
             const preformatted = updateSourceCodeRequest.preformatted;
@@ -197,7 +202,7 @@ export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCode
                 const unsub = handler.subscribe(
                     ArtifactsUpdated.method, updateSourceCodeRequest.artifactData,
                     (payload) => {
-                        if ((payload.data && payload.data.length > 0) || updateSourceCodeRequest.skipPayloadCheck) {
+                        if (isEditPayload(payload.data)) {
                             const artifactData = payload.data ?? [];
                             newArtifactIds = new Set(
                                 artifactData.filter(a => a.isNew).map(a => a.id)
@@ -214,7 +219,7 @@ export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCode
             const armFinalWait = () => {
                 let stopped = false;
                 const unsub = handler.subscribe(ArtifactsUpdated.method, updateSourceCodeRequest.artifactData, (payload) => {
-                    if ((payload.data && payload.data.length > 0) || updateSourceCodeRequest.skipPayloadCheck) {
+                    if (isEditPayload(payload.data)) {
                         stopFinalWait();
                         const artifacts = payload.data ?? [];
                         onFinalArtifacts ? onFinalArtifacts(artifacts) : (earlyArtifacts = artifacts);
