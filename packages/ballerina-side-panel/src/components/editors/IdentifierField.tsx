@@ -58,7 +58,14 @@ export function IdentifierField(props: IdentifierFieldProps) {
     // Read through a ref so a new field object doesn't recreate the debounced check below.
     const fieldRef = useRef(field);
     fieldRef.current = field;
+    // The required rule is registered separately, so it is checked here too; clearing the error below
+    // would otherwise drop its message from a field the user has just emptied.
     const showClientRuleError = useCallback((value: string) => {
+        const required = buildRequiredRule({ isRequired: !fieldRef.current.optional, label: fieldRef.current.label });
+        if (required && value === "") {
+            setError(field.key, { type: "required", message: required.message });
+            return;
+        }
         const failure = Object.values(buildValidate(fieldRef.current))
             .map((validate) => validate(value))
             .find((result): result is string => typeof result === "string");

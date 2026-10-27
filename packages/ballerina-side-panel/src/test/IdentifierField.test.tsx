@@ -99,6 +99,15 @@ describe("IdentifierField client rules", () => {
         expect(screen.queryByText(/already exists/)).not.toBeInTheDocument();
     });
 
+    it("keeps the required error once a required name is emptied", async () => {
+        const { getForm } = renderName("author");
+        await settle();
+        act(() => { getForm().setValue("name", "", { shouldValidate: true }); });
+        await settle();
+        expect(getForm().formState.errors.name?.type).toBe("required");
+        expect(getForm().formState.errors.name?.message).toBe("Field Name is required");
+    });
+
     it("ignores a response that arrives after a newer value was checked", async () => {
         let resolveFirst: (value: unknown) => void = () => undefined;
         getExpressionDiagnostics
