@@ -30,6 +30,7 @@ import { activate as activateEditorSupport } from './features/editor-support';
 import { activate as activateTesting } from './features/testing/activator';
 import { activate as activateBITesting } from './features/test-explorer/activator';
 import { StaticFeature, DocumentSelector, ServerCapabilities, InitializeParams, FeatureState } from 'vscode-languageclient';
+import { runDeactivation } from './core/deactivation';
 import { ExtendedLangClient } from './core/extended-language-client';
 import { activate as activateNotebook } from './views/notebook';
 import { activate as activateLibraryBrowser } from './features/library-browser';
@@ -366,13 +367,13 @@ async function updateCodeServerConfig() {
 }
 
 export async function deactivate(): Promise<void> {
-    debug('Deactive the Ballerina VS Code extension.');
+    debug('Deactivating the Ballerina VS Code extension.');
 
-    await runningServicesManager.dispose();
-
-    if (!langClient) {
-        return;
-    }
-    extension.ballerinaExtInstance.telemetryReporter.dispose();
-    await langClient.stop();
+    // The language client goes first and is bounded: on a window reload VS Code barely waits for deactivate,
+    // and a server that never receives `exit` is left as an orphaned JVM. See core/deactivation.ts.
+    await runDeactivation({
+        stopLanguageClient: langClient ? (timeoutMs) => langClient.stop(timeoutMs) : undefined,
+        disposeTelemetry: langClient ? () => extension.ballerinaExtInstance.telemetryReporter.dispose() : undefined,
+        disposeRunningServices: () => runningServicesManager.dispose(),
+    }, debug);
 }
