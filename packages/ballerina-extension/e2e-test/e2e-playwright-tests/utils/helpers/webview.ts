@@ -33,7 +33,7 @@ export function webviewFrame(page: Page, viewName: string = BI_INTEGRATOR_LABEL)
 export async function getWebview(viewName: string, page: ExtendedPage) {
     let webview;
     let retryCount = 0;
-    const maxRetries = 3;
+    const maxRetries = 6;
 
     while (retryCount < maxRetries) {
         try {
@@ -50,6 +50,8 @@ export async function getWebview(viewName: string, page: ExtendedPage) {
             const message = error instanceof Error ? error.message : String(error);
             if (message.includes('Frame was detached')) {
                 console.log(`Frame was detached, retrying (${retryCount + 1}/${maxRetries})`);
+            } else if (message.includes('API request failed: 503') || message.includes('Service Unavailable')) {
+                console.log(`Webview bridge is temporarily unavailable (503), retrying (${retryCount + 1}/${maxRetries})`);
             } else {
                 console.log(`Attempt ${retryCount + 1} failed to access iframe:`, message);
             }
@@ -60,7 +62,7 @@ export async function getWebview(viewName: string, page: ExtendedPage) {
 
         // Only retry if we haven't reached max retries
         if (retryCount < maxRetries) {
-            await page.page.waitForTimeout(2000);
+            await page.page.waitForTimeout(3000);
             try {
                 await waitForBISidebarTreeView(page);
             } catch (sidebarError) {
