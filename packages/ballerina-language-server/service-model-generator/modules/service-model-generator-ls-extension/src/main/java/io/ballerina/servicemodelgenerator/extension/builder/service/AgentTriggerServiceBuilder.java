@@ -18,13 +18,28 @@
 
 package io.ballerina.servicemodelgenerator.extension.builder.service;
 
+import io.ballerina.compiler.syntax.tree.CaptureBindingPatternNode;
+import io.ballerina.compiler.syntax.tree.CheckExpressionNode;
+import io.ballerina.compiler.syntax.tree.ExplicitNewExpressionNode;
+import io.ballerina.compiler.syntax.tree.ExpressionNode;
 import io.ballerina.compiler.syntax.tree.FunctionBodyBlockNode;
 import io.ballerina.compiler.syntax.tree.FunctionDefinitionNode;
+import io.ballerina.compiler.syntax.tree.ImplicitNewExpressionNode;
+import io.ballerina.compiler.syntax.tree.MappingConstructorExpressionNode;
+import io.ballerina.compiler.syntax.tree.MappingFieldNode;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
+import io.ballerina.compiler.syntax.tree.ModuleVariableDeclarationNode;
 import io.ballerina.compiler.syntax.tree.Node;
 import io.ballerina.compiler.syntax.tree.NodeList;
+import io.ballerina.compiler.syntax.tree.ParenthesizedArgList;
+import io.ballerina.compiler.syntax.tree.PositionalArgumentNode;
+import io.ballerina.compiler.syntax.tree.SeparatedNodeList;
 import io.ballerina.compiler.syntax.tree.ServiceDeclarationNode;
+import io.ballerina.compiler.syntax.tree.SpecificFieldNode;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerUISchemaModel;
+import io.ballerina.projects.DocumentId;
+import io.ballerina.projects.Module;
+import io.ballerina.projects.Project;
 import io.ballerina.servicemodelgenerator.extension.builder.service.agent.AgentTriggerChannel;
 import io.ballerina.servicemodelgenerator.extension.builder.service.agent.AgentTriggerChannels;
 import io.ballerina.servicemodelgenerator.extension.builder.service.agent.AgentTriggerContext;
@@ -32,9 +47,7 @@ import io.ballerina.servicemodelgenerator.extension.builder.service.agent.AgentT
 import io.ballerina.servicemodelgenerator.extension.connector.LocalDependencyEditUtil;
 import io.ballerina.servicemodelgenerator.extension.connector.SchemaDrivenSourceGenerator;
 import io.ballerina.servicemodelgenerator.extension.connector.TriggerModelReader;
-import io.ballerina.servicemodelgenerator.extension.model.PropertyType;
 import io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel;
-import io.ballerina.servicemodelgenerator.extension.model.ValidationRule;
 import io.ballerina.servicemodelgenerator.extension.model.Value;
 import io.ballerina.servicemodelgenerator.extension.model.context.AddServiceInitModelContext;
 import io.ballerina.servicemodelgenerator.extension.model.context.GetServiceInitModelContext;
@@ -71,6 +84,7 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
     private static final String AGENT_KIND_PROPERTY = "agentKind";
     private static final String BALLERINA_ORG = "ballerina";
     private static final String INDENT = "    ";
+    private static final String EVENTS_FIELD = "events";
 
     public static boolean handles(ServiceModelRequest request) {
         return request != null && handles(request.orgName(), request.moduleName(), request.version(),
@@ -116,9 +130,6 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
         }
         channel.ifPresent(c -> {
             c.additionalProperties(context).forEach(initModel::addProperty);
-            if (durable && c.kind() == AgentTriggerKind.CHAT) {
-                initModel.addProperty(AgentTriggerContext.CHAT_CHANNEL_PROPERTY, chatChannelField());
-            }
             c.customizeInitModel(initModel, triggerModelFor(initModel).orElse(null));
         });
         return initModel;
@@ -129,18 +140,6 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
         if (context.eventResponse() != null && !context.eventResponse().isBlank()) {
             initModel.addProperty(AgentTriggerContext.EVENT_RESPONSE_PROPERTY, hiddenValue(context.eventResponse()));
         }
-    }
-
-    private static Value chatChannelField() {
-        return new Value.ValueBuilder()
-                .metadata("Chat Channel", "The durable agent's event channel each chat message is sent on.")
-                .types(List.of(PropertyType.types(Value.FieldType.TEXT, "string")))
-                .enabled(true)
-                .editable(true)
-                .optional(false)
-                .value(AgentTriggerContext.DEFAULT_CHAT_CHANNEL)
-                .setValidations(List.of(new ValidationRule("common.validate.required")))
-                .build();
     }
 
     @Override
@@ -155,11 +154,96 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
         ModulePartNode rootNode = context.document().syntaxTree().rootNode();
         Map<String, List<TextEdit>> edits = new LinkedHashMap<>(buildEdits(filledModel, triggerModel.orElse(null),
                 channel.get(), rootNode, context.filePath()));
+        Map<String, String> formValues = flattenFormValues(filledModel.getProperties());
+        if (channel.get().kind() == AgentTriggerKind.CHAT
+                && AgentTriggerContext.DURABLE_KIND.equals(formValues.get(AGENT_KIND_PROPERTY))) {
+            addChatEventDeclaration(edits, context, formValues.get(AGENT_NAME_PROPERTY));
+        }
         if (filledModel.isLocalRepository()) {
             LocalDependencyEditUtil.addIfMissing(edits, context.project(), filledModel.getOrgName(),
                     filledModel.getPackageName(), filledModel.getVersion());
         }
         return edits;
+    }
+
+    private static void addChatEventDeclaration(Map<String, List<TextEdit>> edits,
+                                                AddServiceInitModelContext context, String agentVarName) {
+        Project project = context.project();
+        Module module = project.currentPackage().getDefaultModule();
+        for (DocumentId id : module.documentIds()) {
+            Optional<TextEdit> edit = chatEventEdit(module.document(id).syntaxTree().rootNode(), agentVarName);
+            if (edit.isPresent()) {
+                Path path = project.documentPath(id).orElseThrow();
+                String file = path.equals(Path.of(context.filePath())) ? context.filePath() : path.toString();
+                edits.computeIfAbsent(file, key -> new ArrayList<>()).add(edit.get());
+                return;
+            }
+        }
+    }
+
+    public static Optional<TextEdit> chatEventEdit(ModulePartNode root, String agentVarName) {
+        return root.members().stream()
+                .filter(ModuleVariableDeclarationNode.class::isInstance)
+                .map(ModuleVariableDeclarationNode.class::cast)
+                .filter(decl -> declares(decl, agentVarName))
+                .findFirst()
+                .flatMap(ModuleVariableDeclarationNode::initializer)
+                .flatMap(AgentTriggerServiceBuilder::agentConfig)
+                .flatMap(AgentTriggerServiceBuilder::declareChatEvent);
+    }
+
+    private static boolean declares(ModuleVariableDeclarationNode decl, String varName) {
+        return decl.typedBindingPattern().bindingPattern() instanceof CaptureBindingPatternNode capture
+                && capture.variableName().text().equals(varName);
+    }
+
+    private static Optional<MappingConstructorExpressionNode> agentConfig(ExpressionNode initializer) {
+        ExpressionNode expr = initializer instanceof CheckExpressionNode check ? check.expression() : initializer;
+        Optional<ParenthesizedArgList> args = Optional.empty();
+        if (expr instanceof ImplicitNewExpressionNode implicit) {
+            args = implicit.parenthesizedArgList();
+        } else if (expr instanceof ExplicitNewExpressionNode explicit) {
+            args = Optional.of(explicit.parenthesizedArgList());
+        }
+        return args.flatMap(list -> list.arguments().stream().findFirst())
+                .filter(PositionalArgumentNode.class::isInstance)
+                .map(arg -> ((PositionalArgumentNode) arg).expression())
+                .filter(MappingConstructorExpressionNode.class::isInstance)
+                .map(MappingConstructorExpressionNode.class::cast);
+    }
+
+    private static Optional<TextEdit> declareChatEvent(MappingConstructorExpressionNode config) {
+        String chatEvent = AgentTriggerContext.CHAT_CHANNEL + ": {request: string, response: string}";
+        Optional<SpecificFieldNode> events = field(config, EVENTS_FIELD);
+        if (events.isEmpty()) {
+            return Optional.of(appendField(config, EVENTS_FIELD + ": {" + chatEvent + "}"));
+        }
+        // shortcut: a list-form `events` (workflow before 0.9) is left alone; the 0.9+ library rejects it anyway.
+        return events.get().valueExpr()
+                .filter(MappingConstructorExpressionNode.class::isInstance)
+                .map(MappingConstructorExpressionNode.class::cast)
+                .filter(map -> field(map, AgentTriggerContext.CHAT_CHANNEL).isEmpty())
+                .map(map -> appendField(map, chatEvent));
+    }
+
+    private static Optional<SpecificFieldNode> field(MappingConstructorExpressionNode mapping, String name) {
+        return mapping.fields().stream()
+                .filter(SpecificFieldNode.class::isInstance)
+                .map(SpecificFieldNode.class::cast)
+                .filter(f -> name.equals(f.fieldName().toSourceCode().strip().replace("\"", "")))
+                .findFirst();
+    }
+
+    private static TextEdit appendField(MappingConstructorExpressionNode mapping, String field) {
+        SeparatedNodeList<MappingFieldNode> fields = mapping.fields();
+        if (fields.isEmpty()) {
+            return new TextEdit(Utils.toRange(mapping.closeBrace().lineRange().startLine()), field);
+        }
+        MappingFieldNode last = fields.get(fields.size() - 1);
+        LinePosition start = last.lineRange().startLine();
+        boolean multiLine = start.line() != mapping.openBrace().lineRange().startLine().line();
+        String separator = multiLine ? "," + NEW_LINE + " ".repeat(start.offset()) : ", ";
+        return new TextEdit(Utils.toRange(last.lineRange().endLine()), separator + field);
     }
 
     private static Optional<TriggerUISchemaModel> triggerModelFor(ServiceInitModel model) {
@@ -309,7 +393,6 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
         owned.add(AGENT_NAME_PROPERTY);
         owned.add(AGENT_ORG_PROPERTY);
         owned.add(AGENT_KIND_PROPERTY);
-        owned.add(AgentTriggerContext.CHAT_CHANNEL_PROPERTY);
         owned.add(AgentTriggerContext.EVENT_CHANNEL_PROPERTY);
         owned.add(AgentTriggerContext.EVENT_RESPONSE_PROPERTY);
         for (String key : owned) {

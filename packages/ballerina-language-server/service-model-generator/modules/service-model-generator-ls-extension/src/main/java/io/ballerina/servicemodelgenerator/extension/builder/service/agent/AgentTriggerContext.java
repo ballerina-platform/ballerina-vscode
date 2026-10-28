@@ -48,8 +48,7 @@ public record AgentTriggerContext(String emitAlias, String listenerVarName, Stri
                                   List<String> auxiliaryTypes, Map<String, String> auxiliaryImports) {
 
     public static final String DURABLE_KIND = "durable";
-    public static final String CHAT_CHANNEL_PROPERTY = "chatChannel";
-    public static final String DEFAULT_CHAT_CHANNEL = "chat";
+    public static final String CHAT_CHANNEL = "chat";
     public static final String EVENT_CHANNEL_PROPERTY = "eventChannel";
     public static final String EVENT_RESPONSE_PROPERTY = "eventResponse";
     private static final String BALLERINA_ORG = "ballerina";
@@ -122,16 +121,11 @@ public record AgentTriggerContext(String emitAlias, String listenerVarName, Stri
         return agentVarName + (BALLERINA_ORG.equals(agentOrgName) ? "." : "->") + "run";
     }
 
-    private String chatChannel() {
-        String channel = formValue(CHAT_CHANNEL_PROPERTY).strip();
-        return channel.isEmpty() ? DEFAULT_CHAT_CHANNEL : channel;
-    }
-
     public String durableHelpers() {
         if (!isDurable()) {
             return "";
         }
-        return DURABLE_HELPERS.replace("{{agent}}", agentVarName).replace("{{channel}}", chatChannel());
+        return DURABLE_HELPERS.replace("{{agent}}", agentVarName).replace("{{channel}}", CHAT_CHANNEL);
     }
 
     /** Fills the placeholders every channel template shares. */
