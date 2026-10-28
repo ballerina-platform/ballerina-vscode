@@ -135,6 +135,20 @@ public class RetryPolicyRoundTripTest {
         Assert.assertEquals(reopened.expression(), "");
     }
 
+    @Test(description = "Auto Retry without Max Retries still writes maxRetries, which keeps it from reading "
+            + "as a review with no reviewer, and reopens as Auto Retry")
+    public void testAutoRetryWithoutMaxRetriesStaysAutoRetry() {
+        Map<String, Property> properties = new LinkedHashMap<>();
+        properties.put(ActivityCallBuilder.RETRY_POLICY_PARAM, property(ActivityCallBuilder.AUTO_RETRY_VALUE));
+        Assert.assertEquals(ActivityCallBuilder.retryPolicyEntryValue(properties), "{maxRetries: 3}");
+
+        properties.put(ActivityCallBuilder.RETRY_DELAY_KEY, property("2.0"));
+        String written = ActivityCallBuilder.retryPolicyEntryValue(properties);
+        Assert.assertEquals(written, "{maxRetries: 3, retryDelay: 2.0}");
+        Assert.assertEquals(CodeAnalyzer.normalizeRetryPolicy(written).dropdownValue(),
+                ActivityCallBuilder.AUTO_RETRY_VALUE);
+    }
+
     @Test(description = "The expression option with nothing typed refuses to save instead of writing nothing",
             expectedExceptions = UserFacingException.class)
     public void testEmptyExpressionRefused() {

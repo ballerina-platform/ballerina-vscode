@@ -143,6 +143,7 @@ public class ActivityCallBuilder extends CallBuilder {
     public static final String RETRY_DELAY_KEY = "retryDelay";
     public static final String RETRY_BACKOFF_KEY = "retryBackoff";
     public static final String MAX_RETRY_DELAY_KEY = "maxRetryDelay";
+    private static final String DEFAULT_MAX_RETRIES = "3";
     // The dropdown's escape hatch: a RetryPolicy typed as source (a constant, a variable, a call or a
     // literal), stored under this key and written back verbatim.
     public static final String RETRY_POLICY_EXPRESSION_KEY = "retryPolicyExpression";
@@ -1644,10 +1645,14 @@ public class ActivityCallBuilder extends CallBuilder {
     private static String autoRetryRecordLiteral(Map<String, Property> autoRetryFields) {
         List<String> fields = new ArrayList<>();
         addRecordField(fields, autoRetryFields, MAX_RETRIES_KEY);
+        // The workflow module reads a policy record without maxRetries as a review, so write its default.
+        if (fields.isEmpty()) {
+            fields.add(MAX_RETRIES_KEY + ": " + DEFAULT_MAX_RETRIES);
+        }
         addRecordField(fields, autoRetryFields, RETRY_DELAY_KEY);
         addRecordField(fields, autoRetryFields, RETRY_BACKOFF_KEY);
         addRecordField(fields, autoRetryFields, MAX_RETRY_DELAY_KEY);
-        return fields.isEmpty() ? "{}" : "{" + String.join(", ", fields) + "}";
+        return "{" + String.join(", ", fields) + "}";
     }
 
     private static void addRecordField(List<String> fields, Map<String, Property> properties, String key) {
