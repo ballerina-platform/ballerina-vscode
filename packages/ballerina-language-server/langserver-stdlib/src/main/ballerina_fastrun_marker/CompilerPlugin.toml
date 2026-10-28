@@ -1,0 +1,5 @@
+[plugin]
+class = "org.ballerinalang.langserver.stdlib.plugin.FastRunMarkerPlugin"
+
+[[dependency]]
+path = "../libs/<jar>"

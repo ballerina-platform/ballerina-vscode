@@ -16,7 +16,7 @@ workflow because the extension manifest owns the shared extension/LS version.
 | `devBuild.yml` | manual + `workflow_call` | Builds a custom branch as a timestamped pre-release VSIX. It creates workflow artifacts only: no GitHub release and no marketplace publication. `schedule.yml` reuses this workflow after stamping the nightly branch. |
 | `schedule.yml` | nightly cron + manual | Syncs the `builds/nightly` branch, runs the LS multi-branch pack/test/Windows-build matrix, calls `devBuild.yml`, and moves the `nightly` tag after every job passes. Manual runs can select a source branch and set `skipLSTests` to drop the LS Ubuntu test and Windows build jobs (e.g. to unblock a release; pack, Trivy and the extension build still gate the tag), and otherwise behave exactly like scheduled nightlies, including notifications. The VSIX remains a workflow artifact; no GitHub Release is created. See [Versioning](#versioning) and [The nightly branch](#the-nightly-branch). |
 | `e2e-scheduled.yml` | every 6h cron + manual | Runs the Playwright E2E suite on Linux and Windows against the nightly VSIX without rebuilding, and tracks flakiness over time. See [Scheduled E2E testing](#scheduled-e2e-testing). |
-| `pull-request.yml` | PRs + manual | Detects changes with `dorny/paths-filter`; if anything build-relevant changed, runs `reusable-build.yml` which builds the entire chain (LS via Gradle, then all TS packages and the extension VSIX via rush) in a single job. Windows LS coverage runs in `schedule.yml` only. |
+| `pull-request.yml` | PRs + manual | Detects changes with `dorny/paths-filter`; if anything build-relevant changed, runs `reusable-build.yml` which builds the entire chain (LS via Gradle, then all TS packages and the extension VSIX via rush) in a single job. Windows LS tests run without coverage (`-PskipCoverage`). |
 | `release-pre-release.yml` | manual dispatch | Builds either a timestamped pre-release or the release version authored in the extension manifest. Its `githubRelease` input creates a GitHub Release with the VSIX and LS jar and publishes the matching `io.ballerina:ballerina-language-server` package. Real releases also perform the release branch/PR handling. |
 | `publish-vsix.yml` | manual dispatch | Publishes a built VSIX (passed by `workflowRunId`) to VSCode Marketplace + OpenVSX |
 | `cache-cleanup.yml` | PR closed + manual | Generic — usable as-is |
@@ -398,6 +398,8 @@ Three details worth knowing:
 
 - **Linux only.** The Windows matrix leg runs the same suite over the same sources, so a
   second upload would only duplicate the report and its paths do not map onto the repo layout.
+  Windows runs (the `ls-test` leg and the nightly `ls-windows-build`) pass `-PskipCoverage`,
+  which turns the JaCoCo agent off, so they collect no coverage either.
 - **Runs even when tests fail** (`if: !cancelled()`), because a partial number beats none. A
   cancelled run is excluded — a superseded run should not publish a half-finished report.
   Report generation is `continue-on-error`, so it cannot turn a passing suite red.

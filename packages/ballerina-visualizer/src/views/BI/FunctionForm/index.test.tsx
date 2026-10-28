@@ -25,6 +25,7 @@
 import React from "react";
 import { createRoot, Root } from "react-dom/client";
 import { act } from "react-dom/test-utils";
+import type { BISourceCodeRequest } from "@wso2/ballerina-core";
 
 // The core barrel pulls in ESM-only LS transport modules that jest cannot load. Only the
 // values this view reads are needed.
@@ -103,6 +104,14 @@ const functionDefinition = (name: string) => ({
     properties: { functionName: { value: name } },
 });
 
+// The mount does several awaits in sequence (end-of-file, then the load), so one act pass
+// is not enough to settle them.
+const flush = async () => {
+    for (let i = 0; i < 10; i++) {
+        await act(async () => undefined);
+    }
+};
+
 /** A promise the test settles, so a load can be left in flight while a newer one starts. */
 function deferred<T>() {
     let resolve!: (value: T) => void;
@@ -157,14 +166,6 @@ describe("FunctionForm load failures", () => {
             );
         });
         await flush();
-    };
-
-    // The mount does several awaits in sequence (end-of-file, then the load), so one act pass
-    // is not enough to settle them.
-    const flush = async () => {
-        for (let i = 0; i < 10; i++) {
-            await act(async () => undefined);
-        }
     };
 
     const errorCard = () => container.textContent?.includes(ERROR_TEXT) ?? false;
@@ -305,12 +306,6 @@ describe("FunctionForm pulling status while saving", () => {
         jest.useRealTimers();
     });
 
-    const flush = async () => {
-        for (let i = 0; i < 10; i++) {
-            await act(async () => undefined);
-        }
-    };
-
     /** Renders a create form and submits it; the save stays in flight on `getSourceCode`. */
     const submitCreate = async (kind: { isWorkflow?: boolean; isDurableAgent?: boolean; isActivity?: boolean }) => {
         const pendingSave = deferred<unknown>();
@@ -353,5 +348,187 @@ describe("FunctionForm pulling status while saving", () => {
         await act(async () => { jest.advanceTimersByTime(3000); });
         expect(pullCard()).toBe(false);
         expect(loadingRing()).not.toBeNull();
+    });
+});
+
+// L2: an edit after the name was renamed in place (wso2/product-integrator#2799). The name field
+// renames through the LS before Save, which moves the end of the signature; rewriting the range
+// read at load time then cut into the data mapper's `=>` and left it a block-bodied function.
+describe("FunctionForm save after an in-place rename", () => {
+    let container: HTMLDivElement;
+    let root: Root;
+
+    const LOADED_RANGE = { fileName: "data_mappings.bal", startLine: { line: 4, offset: 0 }, endLine: { line: 4, offset: 52 } };
+    const RENAMED_RANGE = { fileName: "data_mappings.bal", startLine: { line: 4, offset: 0 }, endLine: { line: 4, offset: 47 } };
+
+    const dataMapper = (name: string, lineRange: typeof LOADED_RANGE) => ({
+        codedata: { node: "DATA_MAPPER_DEFINITION", lineRange },
+        properties: { functionName: { value: name } },
+    });
+
+    beforeEach(() => {
+        container = document.createElement("div");
+        document.body.appendChild(container);
+        root = createRoot(container);
+        mockArtifactFormProps = undefined;
+        jest.spyOn(console, "log").mockImplementation(() => undefined);
+        jest.spyOn(console, "error").mockImplementation(() => undefined);
+    });
+
+    afterEach(() => {
+        act(() => root.unmount());
+        container.remove();
+        jest.restoreAllMocks();
+    });
+
+    /** Loads `transformPerson`, submits the form with `formName`, and returns the save's mocks. */
+    const submitAs = async (formName: string, getFunctionNode: jest.Mock, extra: Record<string, unknown> = {}) => {
+        const getSourceCode = jest.fn(async (_request: BISourceCodeRequest) => ({ artifacts: [] as unknown[] }));
+        const showErrorMessage = jest.fn();
+        const rpc = {
+            ...makeRpc({ getFunctionNode, getSourceCode }),
+            getCommonRpcClient: () => ({ showErrorMessage }),
+        };
+        await act(async () => {
+            root.render(
+                <TestRpcContext.Provider value={{ rpcClient: rpc }}>
+                    <FunctionForm filePath={FILE_PATH} projectPath={PROJECT_PATH} functionName="transformPerson" isDataMapper />
+                </TestRpcContext.Provider>
+            );
+        });
+        await flush();
+        expect(mockArtifactFormProps).toBeDefined();
+        await act(async () => {
+            await mockArtifactFormProps!.onSubmit({ functionName: formName, ...extra });
+        });
+        await flush();
+        return { getSourceCode, showErrorMessage };
+    };
+
+    /** Submits as `formName` and returns the node the save sent to the LS. */
+    const saveAs = async (formName: string, getFunctionNode: jest.Mock, extra: Record<string, unknown> = {}) => {
+        const { getSourceCode } = await submitAs(formName, getFunctionNode, extra);
+        expect(getSourceCode).toHaveBeenCalledTimes(1);
+        return getSourceCode.mock.calls[0][0].flowNode;
+    };
+
+    /** The load answers with `transformPerson`; each later re-read answers from `byName`. */
+    const lookups = (byName: Record<string, unknown>) => {
+        let loaded = false;
+        return jest.fn(async ({ functionName }: { functionName: string }): Promise<unknown> => {
+            if (!loaded) {
+                loaded = true;
+                return { functionDefinition: dataMapper("transformPerson", LOADED_RANGE) };
+            }
+            return byName[functionName];
+        });
+    };
+    let getFunctionNode: ReturnType<typeof lookups>;
+
+    it("rewrites the signature at its range under the new name", async () => {
+        getFunctionNode = lookups({ toEmp: { functionDefinition: dataMapper("toEmp", RENAMED_RANGE) } });
+
+        const flowNode = await saveAs("toEmp", getFunctionNode);
+
+        expect(getFunctionNode).toHaveBeenLastCalledWith(expect.objectContaining({ functionName: "toEmp" }));
+        expect(flowNode.codedata.lineRange).toEqual(RENAMED_RANGE);
+        expect(flowNode.codedata.node).toBe("DATA_MAPPER_DEFINITION");
+    });
+
+    it("keeps the loaded range without re-reading when the name is unchanged", async () => {
+        getFunctionNode = lookups({});
+
+        const flowNode = await saveAs("transformPerson", getFunctionNode);
+
+        expect(getFunctionNode).toHaveBeenCalledTimes(1);
+        expect(flowNode.codedata.lineRange).toEqual(LOADED_RANGE);
+    });
+
+    /** A parameter loaded from source as `person`, now named `name` in the form. Its name is
+     *  renamed in place unless `identifierEditable` (as for data mappers, whose names the save rewrites).
+     *  As after an edit, `key` already follows the new name and only `loadedKey` keeps the old one. */
+    const loadedParam = (name: string, identifierEditable = false) => ({
+        key: name,
+        loadedKey: "person",
+        identifierEditable,
+        identifierRange: { fileName: "data_mappings.bal", startLine: { line: 4, offset: 30 }, endLine: { line: 4, offset: 36 } },
+        formValues: { type: "Person", variable: name },
+    });
+
+    // A parameter renamed in place moves the end of the signature just as a function rename does.
+    it("re-reads the range when a parameter was renamed in place under an unchanged name", async () => {
+        getFunctionNode = lookups({ transformPerson: { functionDefinition: dataMapper("transformPerson", RENAMED_RANGE) } });
+
+        const flowNode = await saveAs("transformPerson", getFunctionNode, { parameters: [loadedParam("p")] });
+
+        expect(getFunctionNode).toHaveBeenCalledTimes(2);
+        expect(getFunctionNode).toHaveBeenLastCalledWith(expect.objectContaining({ functionName: "transformPerson" }));
+        expect(flowNode.codedata.lineRange).toEqual(RENAMED_RANGE);
+    });
+
+    it("keeps the loaded range when parameters are untouched or newly added", async () => {
+        getFunctionNode = lookups({});
+        const added = { key: "", identifierEditable: true, identifierRange: undefined as unknown, formValues: { type: "int", variable: "age" } };
+
+        const flowNode = await saveAs("transformPerson", getFunctionNode, { parameters: [loadedParam("person"), added] });
+
+        expect(getFunctionNode).toHaveBeenCalledTimes(1);
+        expect(flowNode.codedata.lineRange).toEqual(LOADED_RANGE);
+    });
+
+    it("keeps the loaded range when an editable parameter name changes", async () => {
+        getFunctionNode = lookups({});
+
+        const flowNode = await saveAs("transformPerson", getFunctionNode, { parameters: [loadedParam("p", true)] });
+
+        expect(getFunctionNode).toHaveBeenCalledTimes(1);
+        expect(flowNode.codedata.lineRange).toEqual(LOADED_RANGE);
+    });
+
+    it("aborts the save when re-reading after a parameter rename fails", async () => {
+        getFunctionNode = lookups({ transformPerson: undefined });
+
+        const { getSourceCode, showErrorMessage } = await submitAs("transformPerson", getFunctionNode, { parameters: [loadedParam("p")] });
+
+        expect(getSourceCode).not.toHaveBeenCalled();
+        expect(showErrorMessage).toHaveBeenCalledTimes(1);
+    });
+
+    // The form takes the new name whenever renameIdentifier resolves, including when the LS
+    // applied no edit, so the source can still carry the original name.
+    it("falls back to the original name when the rename was not applied", async () => {
+        getFunctionNode = lookups({ transformPerson: { functionDefinition: dataMapper("transformPerson", LOADED_RANGE) } });
+
+        const flowNode = await saveAs("toEmp", getFunctionNode);
+
+        expect(getFunctionNode).toHaveBeenNthCalledWith(2, expect.objectContaining({ functionName: "toEmp" }));
+        expect(getFunctionNode).toHaveBeenNthCalledWith(3, expect.objectContaining({ functionName: "transformPerson" }));
+        expect(flowNode.codedata.lineRange).toEqual(LOADED_RANGE);
+    });
+
+    // The rpc-manager resolves `undefined` on an LS error and the LS answers a miss with an empty
+    // definition, so those are the shapes a failed re-read takes in production.
+    it.each([
+        ["nothing", undefined],
+        ["an empty definition", { functionDefinition: {} }],
+    ])("aborts the save when a renamed definition re-reads as %s", async (_, miss) => {
+        getFunctionNode = lookups({ toEmp: miss, transformPerson: miss });
+
+        const { getSourceCode, showErrorMessage } = await submitAs("toEmp", getFunctionNode);
+
+        expect(getSourceCode).not.toHaveBeenCalled();
+        expect(showErrorMessage).toHaveBeenCalledTimes(1);
+    });
+
+    it("aborts the save when re-reading a renamed definition rejects", async () => {
+        const rejecting = jest
+            .fn()
+            .mockResolvedValueOnce({ functionDefinition: dataMapper("transformPerson", LOADED_RANGE) })
+            .mockRejectedValue(new Error("LS not ready"));
+
+        const { getSourceCode, showErrorMessage } = await submitAs("toEmp", rejecting);
+
+        expect(getSourceCode).not.toHaveBeenCalled();
+        expect(showErrorMessage).toHaveBeenCalledTimes(1);
     });
 });

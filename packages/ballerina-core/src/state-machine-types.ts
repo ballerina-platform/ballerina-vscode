@@ -872,11 +872,21 @@ export interface ChatMessage {
     checkpointId?: string;
 }
 
+export type CheckpointFileEntry =
+    | { hash: string; size: number; mtimeMs: number }
+    | { skipped: 'tooLarge' | 'unreadable'; size?: number; mtimeMs?: number };
+
+export type CheckpointStorage =
+    | { kind: 'inline' }
+    | { kind: 'content-store'; files: Record<string, CheckpointFileEntry> };
+
 export interface Checkpoint {
     id: string;
     messageId: string;
     timestamp: number;
-    workspaceSnapshot: { [filePath: string]: string };
+    workspaceSnapshot?: { [filePath: string]: string };
+    storage?: CheckpointStorage;
+    schemaVersion?: number;
     fileList: string[];
     snapshotSize: number;
     /** Absolute root the paths above are relative to. Absent on checkpoints captured before it was recorded. */
