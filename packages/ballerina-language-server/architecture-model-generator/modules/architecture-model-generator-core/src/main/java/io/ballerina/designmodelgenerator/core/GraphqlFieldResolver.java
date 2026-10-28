@@ -45,7 +45,6 @@ import java.util.Optional;
 final class GraphqlFieldResolver {
 
     private static final String GET_ACCESSOR = "get";
-    private static final String SUBSCRIBE_ACCESSOR = "subscribe";
 
     private GraphqlFieldResolver() {
     }
@@ -57,13 +56,14 @@ final class GraphqlFieldResolver {
      */
     static GraphqlField resolve(FunctionDefinitionNode functionNode, MethodSymbol methodSymbol) {
         boolean isResource = functionNode.kind() == SyntaxKind.RESOURCE_ACCESSOR_DEFINITION;
-        boolean isSubscription = isResource && SUBSCRIBE_ACCESSOR.equals(functionNode.functionName().text().trim());
+        boolean isSubscription = isResource
+                && GraphqlTypeMapper.isSubscriptionAccessor(functionNode.functionName().text().trim());
         String fieldName;
         if (isResource) {
             NodeList<Node> path = functionNode.relativeResourcePath();
             String accessor = functionNode.functionName().text().trim();
             if (path.size() != 1 || path.get(0).kind() != SyntaxKind.IDENTIFIER_TOKEN
-                    || !(GET_ACCESSOR.equals(accessor) || SUBSCRIBE_ACCESSOR.equals(accessor))) {
+                    || !(GET_ACCESSOR.equals(accessor) || isSubscription)) {
                 return null;
             }
             fieldName = GraphqlTypeMapper.unescape(path.get(0).toSourceCode().trim());

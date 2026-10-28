@@ -63,7 +63,7 @@ public class DesignModelGeneratorTest extends AbstractLSTest {
         boolean asserted = assertDesignModel(actualResponse.getDesignModel(), expectedResponse.getDesignModel());
         if (!asserted) {
             TestConfig updatedConfig = new TestConfig(testConfig.description(), testConfig.projectPath(), jsonObject);
-//            updateConfig(configJsonPath, updatedConfig);
+            updateConfig(configJsonPath, updatedConfig);
             Assert.fail(String.format("Failed test: '%s' (%s)", testConfig.description(), configJsonPath));
         }
     }

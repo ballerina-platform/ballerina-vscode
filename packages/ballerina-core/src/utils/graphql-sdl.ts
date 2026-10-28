@@ -40,10 +40,13 @@ export interface GraphqlSdlField {
 // list and its detail view.
 export const MAX_INLINE_GRAPHQL_ARGS = 2;
 
+// Ballerina's nil default. It only makes the argument optional, which its nullable type already says.
+const NIL_DEFAULT = "()";
+
 // A default makes the argument optional to pass even when its type is non-null (`name: String! = ""`),
 // so it is part of the argument wherever the argument is shown.
 const formatArgument = (arg: GraphqlSdlArgument): string =>
-    arg.defaultValue !== undefined && arg.defaultValue !== null
+    arg.defaultValue !== undefined && arg.defaultValue !== null && arg.defaultValue !== NIL_DEFAULT
         ? `${arg.name}: ${arg.type} = ${arg.defaultValue}`
         : `${arg.name}: ${arg.type}`;
 
@@ -70,6 +73,7 @@ export function formatInlineGraphqlArgs(args: GraphqlSdlArgument[]): string {
 
 /**
  * The full field definition in SDL, e.g. `profile(id: ID!): Profile`, followed by its description.
+ * A deprecated field carries the `@deprecated` directive, as in the schema.
  * Fields with more arguments than fit inline put one argument per line, as SDL formatters do.
  */
 export function formatGraphqlFieldDefinition(name: string, field: GraphqlSdlField): string {
@@ -80,10 +84,7 @@ export function formatGraphqlFieldDefinition(name: string, field: GraphqlSdlFiel
     } else if (args.length) {
         argList = `(${args.join(", ")})`;
     }
-    const lines = [`${name}${argList}: ${field.type}`];
-    if (field.deprecated) {
-        lines.push("Deprecated");
-    }
+    const lines = [`${name}${argList}: ${field.type}${field.deprecated ? " @deprecated" : ""}`];
     if (field.description) {
         lines.push("", field.description);
     }

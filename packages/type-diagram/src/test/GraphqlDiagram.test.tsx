@@ -18,7 +18,7 @@
 
 import React from "react";
 import { waitFor } from "@testing-library/dom";
-import { fireEvent, render } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { Member, Type, TypeFunctionModel, formatInlineGraphqlArgs, toGraphqlName } from "@wso2/ballerina-core";
 import { TypeDiagram } from "../Diagram";
@@ -30,11 +30,11 @@ import graphqlTypeModel from "./fixtures/graphql-type-model.json";
 const rootService = graphqlTypeModel.type as unknown as Type;
 const refs = graphqlTypeModel.refs as unknown as Type[];
 
-async function renderGraphqlDiagram() {
+async function renderGraphqlDiagram(service: Type = rootService, types: Type[] = refs) {
     const dom = render(
         <TypeDiagram
-            typeModel={refs}
-            rootService={rootService}
+            typeModel={types}
+            rootService={service}
             isGraphql={true}
             goToSource={jest.fn()}
             onTypeEdit={jest.fn()}
@@ -42,7 +42,7 @@ async function renderGraphqlDiagram() {
             verifyTypeDelete={jest.fn().mockResolvedValue(true)}
         />
     );
-    await waitFor(() => expect(dom.container.textContent).toContain(rootService.functions[0].graphqlType), {
+    await waitFor(() => expect(dom.container.textContent).toContain(rootService.functions[0].name), {
         timeout: 10000,
     });
     return dom;
@@ -59,16 +59,11 @@ function findFieldRow(container: HTMLElement, text: string): Element | undefined
     return Array.from(container.querySelectorAll("*")).filter((element) => element.textContent === text).pop();
 }
 
-// The field's tooltip: rendered (hidden) into the document body, holding its SDL definition.
-function findDefinitionTooltip(name: string): HTMLElement | undefined {
-    const definition = Array.from(document.body.querySelectorAll("div")).find(
-        (element) => element.childElementCount === 0
-            && (element.textContent.startsWith(`${name}:`) || element.textContent.startsWith(`${name}(`))
+function findDefinition(name: string): HTMLElement | undefined {
+    return screen.queryAllByTestId("graphql-definition").find(
+        (element) => element.textContent.startsWith(`${name}:`) || element.textContent.startsWith(`${name}(`)
     );
-    return definition?.parentElement ?? undefined;
 }
-
-const isShown = (tooltip: HTMLElement) => tooltip.style.visibility === "visible";
 
 const operations = rootService.functions as TypeFunctionModel[];
 const objectFields = refs.flatMap((ref) => (ref.members ?? []) as Member[]).filter((member) => member.graphqlType);
@@ -85,7 +80,7 @@ describe("GraphQL diagram", () => {
         for (const operation of operations) {
             const rowText = operation.name + formatInlineGraphqlArgs(argsOf(operation)) + operation.graphqlType;
             expect(findFieldRow(dom.container, rowText)).toBeDefined();
-            expect(findDefinitionTooltip(operation.name)).toHaveTextContent(`: ${operation.graphqlType}`);
+            expect(findDefinition(operation.name)).toHaveTextContent(`: ${operation.graphqlType}`);
         }
     }, 15000);
 
@@ -105,12 +100,22 @@ describe("GraphQL diagram", () => {
         // Real timers: the tooltip shows after the pointer rests 500 ms. Fake timers would also stall the
         // diagram's own layout timers.
         fireEvent.mouseMove(firstRow);
-        await waitFor(() => expect(isShown(findDefinitionTooltip(first.name))).toBe(true));
+        await waitFor(() => expect(findDefinition(first.name)).toBeVisible());
 
         fireEvent.mouseLeave(firstRow.parentElement);
         fireEvent.mouseMove(secondRow);
-        await waitFor(() => expect(isShown(findDefinitionTooltip(second.name))).toBe(true));
-        expect(isShown(findDefinitionTooltip(first.name))).toBe(false);
+        await waitFor(() => expect(findDefinition(second.name)).toBeVisible());
+        expect(findDefinition(first.name)).not.toBeVisible();
+    }, 15000);
+
+    test("an older language server without GraphQL types still renders every field with its Ballerina type", async () => {
+        const strip = (value: unknown) => JSON.parse(JSON.stringify(value), (key, v) => key === "graphqlType" ? undefined : v);
+        const dom = await renderGraphqlDiagram(strip(rootService), strip(refs));
+        for (const operation of operations) {
+            expect(dom.container.textContent).toContain(operation.name);
+        }
+        expect(screen.queryAllByTestId("graphql-definition")).toHaveLength(0);
+        expect(dom.container.textContent).not.toContain("!");
     }, 15000);
 
     test("never falls back to an unformatted type", async () => {

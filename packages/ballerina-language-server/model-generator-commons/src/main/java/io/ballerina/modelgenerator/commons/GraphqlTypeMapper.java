@@ -25,6 +25,7 @@ import io.ballerina.compiler.api.symbols.ModuleSymbol;
 import io.ballerina.compiler.api.symbols.ServiceDeclarationSymbol;
 import io.ballerina.compiler.api.symbols.StreamTypeSymbol;
 import io.ballerina.compiler.api.symbols.Symbol;
+import io.ballerina.compiler.api.symbols.SymbolKind;
 import io.ballerina.compiler.api.symbols.TableTypeSymbol;
 import io.ballerina.compiler.api.symbols.TypeDescKind;
 import io.ballerina.compiler.api.symbols.TypeReferenceTypeSymbol;
@@ -39,10 +40,11 @@ import java.util.List;
  * Maps Ballerina types of a GraphQL service to the GraphQL types its schema exposes, in SDL notation.
  *
  * <p>This mirrors the type mapping of the GraphQL compiler plugin's schema generator ({@code @graphql:ID}, nullability
- * from {@code T?}, error members dropped, lists, subscription streams) instead of calling it: the plugin is not on the
- * language server's classpath, and bundling it would shadow the plugin version each project resolves, because
- * compiler plugin class loaders delegate to the server's class loader first. It is shared by every view that shows a
- * GraphQL service, so they agree on the notation.
+ * from {@code T?}, error members dropped, lists, subscription streams, aliases) instead of calling it, because the
+ * plugin is not available to the language server at runtime: it ships only inside the {@code ballerina/graphql}
+ * package's bala, and neither the packed server jar nor the distribution's runtime libraries contain it. Calling
+ * {@code io.ballerina.stdlib.graphql.compiler.Utils} from the server fails with {@code NoClassDefFoundError}. It is
+ * shared by every view that shows a GraphQL service, so they agree on the notation.
  *
  * @since 1.7.0
  */
@@ -54,6 +56,7 @@ public final class GraphqlTypeMapper {
     private static final List<String> INJECTED_PARAM_TYPES = List.of("Context", "Field");
     private static final String NON_NULL = "!";
     private static final String NIL_DEFAULT = "()";
+    private static final String SUBSCRIBE_ACCESSOR = "subscribe";
 
     private GraphqlTypeMapper() {
     }
@@ -74,29 +77,31 @@ public final class GraphqlTypeMapper {
      * @return the GraphQL type, e.g. {@code [Book!]!}
      */
     public static String toSdl(TypeSymbol typeSymbol, boolean isId) {
-        TypeSymbol type = typeSymbol;
-        boolean nullable = false;
-        if (type.typeKind() == TypeDescKind.UNION) {
-            List<TypeSymbol> members = new ArrayList<>();
-            // The members as written: memberTypeDescriptors() would flatten a referenced union into its members.
-            for (TypeSymbol member : ((UnionTypeSymbol) type).userSpecifiedMemberTypes()) {
-                TypeDescKind kind = CommonUtils.getRawType(member).typeKind();
-                if (kind == TypeDescKind.NIL) {
-                    nullable = true;
-                } else if (kind != TypeDescKind.ERROR) {
-                    members.add(member);
-                }
-            }
-            if (members.size() != 1) {
-                // An anonymous union has no SDL name of its own (and the schema generator rejects one that mixes
-                // scalars and objects), so show its members, each in GraphQL terms.
-                String union = String.join("|", members.stream().map(member -> toNamedType(member, isId)).toList());
-                return nullable ? union : union + NON_NULL;
-            }
-            type = members.get(0);
+        // An alias that is not a schema type of its own (e.g. `type Books Book[]`, `type MaybeBook Book?`) shows its
+        // list shape and nullability, as if written inline.
+        if (typeSymbol instanceof TypeReferenceTypeSymbol reference && !isSchemaType(reference)) {
+            return toSdl(reference.typeDescriptor(), isId);
         }
-        String namedType = toNamedType(type, isId);
-        return nullable ? namedType : namedType + NON_NULL;
+        if (typeSymbol instanceof IntersectionTypeSymbol intersection) {
+            TypeSymbol shape = withoutReadonly(intersection);
+            if (shape != intersection) {
+                return toSdl(shape, isId);
+            }
+        }
+        if (typeSymbol instanceof UnionTypeSymbol union) {
+            List<TypeSymbol> members = valueMembers(union);
+            boolean nullable = admitsNil(union);
+            if (members.size() == 1) {
+                String member = toSdl(members.get(0), isId);
+                return nullable ? withoutNonNull(member) : member;
+            }
+            // An anonymous union has no SDL name of its own (and the schema generator rejects one that mixes scalars
+            // and objects), so show its members, each in GraphQL terms, grouped so the `!` reads as applying to all.
+            String memberList = String.join("|", members.stream()
+                    .map(member -> withoutNonNull(toSdl(member, isId))).toList());
+            return nullable ? "(" + memberList + ")" : "(" + memberList + ")" + NON_NULL;
+        }
+        return toNamedType(typeSymbol, isId) + NON_NULL;
     }
 
     /**
@@ -105,14 +110,29 @@ public final class GraphqlTypeMapper {
      */
     public static String toFieldSdl(TypeSymbol typeSymbol, boolean isId, boolean isOptional) {
         String type = toSdl(typeSymbol, isId);
-        return isOptional && type.endsWith(NON_NULL) ? type.substring(0, type.length() - 1) : type;
+        return isOptional ? withoutNonNull(type) : type;
     }
 
     /**
      * Returns the element type of a subscription's {@code stream<T>} return type, which is the field's type.
      */
     public static TypeSymbol unwrapStream(TypeSymbol type) {
-        return CommonUtils.getRawType(type) instanceof StreamTypeSymbol streamType ? streamType.typeParameter() : type;
+        TypeSymbol rawType = CommonUtils.getRawType(type);
+        // `stream<T, error?>|error`: the stream is the only member that is neither nil nor an error.
+        if (rawType instanceof UnionTypeSymbol union) {
+            List<TypeSymbol> members = valueMembers(union);
+            if (members.size() == 1) {
+                rawType = CommonUtils.getRawType(members.get(0));
+            }
+        }
+        return rawType instanceof StreamTypeSymbol streamType ? streamType.typeParameter() : type;
+    }
+
+    /**
+     * Returns whether a resource accessor defines a subscription field.
+     */
+    public static boolean isSubscriptionAccessor(String accessor) {
+        return SUBSCRIBE_ACCESSOR.equals(accessor);
     }
 
     /**
@@ -150,13 +170,65 @@ public final class GraphqlTypeMapper {
         return name.replaceAll("\\\\(.)", "$1");
     }
 
+    /**
+     * Whether a referenced type is named in the schema: an object (record, class, object type), an enum, or a union
+     * of several object types. Any other alias (a scalar, a list, {@code T?}, {@code T|error}) is only a Ballerina
+     * name for a shape the schema spells out.
+     */
+    private static boolean isSchemaType(TypeReferenceTypeSymbol reference) {
+        SymbolKind definitionKind = reference.definition().kind();
+        if (definitionKind == SymbolKind.ENUM || definitionKind == SymbolKind.CLASS) {
+            return true;
+        }
+        TypeSymbol referred = reference.typeDescriptor();
+        if (referred instanceof IntersectionTypeSymbol intersection) {
+            referred = withoutReadonly(intersection);
+        }
+        return switch (referred.typeKind()) {
+            case RECORD, OBJECT -> true;
+            case UNION -> valueMembers((UnionTypeSymbol) referred).size() > 1;
+            default -> false;
+        };
+    }
+
+    /**
+     * {@code readonly & T} has the shape of {@code T}; the effective type would be an anonymous immutable copy.
+     */
+    private static TypeSymbol withoutReadonly(IntersectionTypeSymbol intersection) {
+        List<TypeSymbol> shapes = intersection.memberTypeDescriptors().stream()
+                .filter(member -> member.typeKind() != TypeDescKind.READONLY)
+                .toList();
+        return shapes.size() == 1 ? shapes.get(0) : intersection;
+    }
+
+    /**
+     * The union members a value can be: nil makes the type nullable and an error goes to the response's
+     * {@code errors}, so neither is a schema type. The members are taken as written, since memberTypeDescriptors()
+     * would flatten a referenced union into its members.
+     */
+    private static List<TypeSymbol> valueMembers(UnionTypeSymbol union) {
+        List<TypeSymbol> members = new ArrayList<>();
+        for (TypeSymbol member : union.userSpecifiedMemberTypes()) {
+            TypeDescKind kind = CommonUtils.getRawType(member).typeKind();
+            if (kind != TypeDescKind.NIL && kind != TypeDescKind.ERROR) {
+                members.add(member);
+            }
+        }
+        return members;
+    }
+
+    private static boolean admitsNil(UnionTypeSymbol union) {
+        return union.userSpecifiedMemberTypes().stream()
+                .anyMatch(member -> CommonUtils.getRawType(member).typeKind() == TypeDescKind.NIL);
+    }
+
+    private static String withoutNonNull(String type) {
+        return type.endsWith(NON_NULL) ? type.substring(0, type.length() - 1) : type;
+    }
+
     private static String toNamedType(TypeSymbol type, boolean isId) {
         return switch (type.typeKind()) {
-            case TYPE_REFERENCE -> {
-                // An alias of a scalar (e.g. `type Email string`) is still that scalar in the schema.
-                String scalar = toScalar(((TypeReferenceTypeSymbol) type).typeDescriptor(), isId);
-                yield scalar != null ? scalar : type.getName().orElse(type.signature());
-            }
+            case TYPE_REFERENCE -> type.getName().orElse(type.signature());
             case ARRAY -> "[" + toSdl(((ArrayTypeSymbol) type).memberTypeDescriptor(), isId) + "]";
             case TABLE -> "[" + toSdl(((TableTypeSymbol) type).rowTypeParameter(), isId) + "]";
             case INTERSECTION -> toNamedType(((IntersectionTypeSymbol) type).effectiveTypeDescriptor(), isId);

@@ -146,7 +146,7 @@ export function AttributeWidget(props: AttributeProps) {
                 re-renders on hover, so they only appeared intermittently. */}
             {graphqlDefinition ? (
                 <Tooltip
-                    content={<GraphqlDefinition>{graphqlDefinition}</GraphqlDefinition>}
+                    content={<GraphqlDefinition data-testid="graphql-definition">{graphqlDefinition}</GraphqlDefinition>}
                     containerSx={GRAPHQL_ROW_TOOLTIP_CONTAINER_SX}
                 >
                     {row}

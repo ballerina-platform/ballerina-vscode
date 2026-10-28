@@ -49,12 +49,12 @@ const getNodeDescription = (model: EntryNodeModel) => {
     return (model.node as any)?.description || "";
 };
 
-function FunctionBox(props: { func: any; model: EntryNodeModel; engine: any; }) {
+function FunctionBox(props: { func: CDFunction | CDResourceFunction; model: EntryNodeModel; engine: DiagramEngine; }) {
     const { func, model, engine } = props;
     const [isHovered, setIsHovered] = useState(false);
     const { onFunctionSelect, readonly } = useDiagramContext();
     const field: CDGraphqlField | undefined = func.graphqlField;
-    const fieldName: string = field?.name || func.path || func.name;
+    const fieldName: string = field?.name || ("path" in func ? func.path : func.name);
 
     const handleOnClick = () => {
         onFunctionSelect(func);
@@ -65,7 +65,11 @@ function FunctionBox(props: { func: any; model: EntryNodeModel; engine: any; }) 
             {/* A hover-driven tooltip rather than `title`: native tooltips are dropped when the row
                 re-renders on hover, so they only appeared intermittently. */}
             <Tooltip
-                content={field && <GraphqlDefinition>{formatGraphqlFieldDefinition(fieldName, field)}</GraphqlDefinition>}
+                content={field && (
+                    <GraphqlDefinition data-testid="graphql-definition">
+                        {formatGraphqlFieldDefinition(fieldName, field)}
+                    </GraphqlDefinition>
+                )}
                 containerSx={GRAPHQL_ROW_TOOLTIP_CONTAINER_SX}
             >
                 <GraphqlFieldRow

@@ -220,6 +220,7 @@
             },
             "typeName": "string?",
             "name": "suffix",
+            "defaultValue": "()",
             "optional": false,
             "readonly": false,
             "isGraphqlId": false,

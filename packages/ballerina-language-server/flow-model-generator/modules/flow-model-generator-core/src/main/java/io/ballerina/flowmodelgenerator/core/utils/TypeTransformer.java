@@ -84,6 +84,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.StreamSupport;
 
 import static io.ballerina.modelgenerator.commons.CommonUtils.getTypeSignature;
 
@@ -99,7 +100,6 @@ public class TypeTransformer {
 
     public static final String BUILT_IN_ERROR = "error";
     public static final String BUILT_IN_ANYDATA = "anydata";
-    private static final String SUBSCRIBE_ACCESSOR = "subscribe";
 
     public TypeTransformer(Module module) {
         this(module, false);
@@ -564,16 +564,27 @@ public class TypeTransformer {
 
     // Utils
     /**
-     * Returns the default value of a parameter as written in its signature. The semantic model does not carry
-     * default expressions, so the parameter is located in the module's syntax tree.
+     * Returns the default value of a parameter as written in its signature, including a nil default: the class
+     * editor saves the function back from this model, so it must not lose any part of the signature. The semantic
+     * model does not carry default expressions, so the parameter is located in its module's syntax tree.
      */
     private String getParameterDefaultValue(ParameterSymbol param) {
-        if (param.getLocation().isEmpty()) {
+        if (param.getLocation().isEmpty() || param.getModule().isEmpty()) {
+            return null;
+        }
+        // Resolve the document through the parameter's own module: a type from another module of the package can
+        // share a file name with one in this module.
+        String moduleName = param.getModule().get().id().moduleName();
+        Iterable<Module> packageModules = this.module.packageInstance().modules();
+        Optional<Module> paramModule = StreamSupport.stream(packageModules.spliterator(), false)
+                .filter(candidate -> candidate.descriptor().name().toString().equals(moduleName))
+                .findFirst();
+        if (paramModule.isEmpty()) {
             return null;
         }
         LineRange lineRange = param.getLocation().get().lineRange();
-        for (DocumentId documentId : this.module.documentIds()) {
-            Document document = this.module.document(documentId);
+        for (DocumentId documentId : paramModule.get().documentIds()) {
+            Document document = paramModule.get().document(documentId);
             if (!document.name().equals(lineRange.fileName())) {
                 continue;
             }
@@ -583,7 +594,7 @@ public class TypeTransformer {
                 node = node.parent();
             }
             return node instanceof DefaultableParameterNode defaultable
-                    ? GraphqlTypeMapper.getDefaultValue(defaultable) : null;
+                    ? defaultable.expression().toSourceCode().trim() : null;
         }
         return null;
     }
@@ -691,27 +702,24 @@ public class TypeTransformer {
         FunctionTypeSymbol functionTypeSymbol = functionSymbol.typeDescriptor();
 
         // return type annotation
-        functionTypeSymbol.returnTypeAnnotations().ifPresent(returnTypeAnnots -> {
-            for (AnnotationAttachmentSymbol annotAttachment : returnTypeAnnots.annotAttachments()) {
-                if (TypeUtils.isGraphqlIdAnnotation(annotAttachment)) {
-                    // TODO: Annotations from other imported modules are not supported yet
-                    functionBuilder.imports(
-                            Map.of(
-                                    TypeUtils.GRAPHQL_DEFAULT_MODULE_PREFIX,
-                                    TypeUtils.BALLERINA_ORG + "/" + TypeUtils.GRAPHQL_DEFAULT_MODULE_PREFIX
-                            )
-                    );
-                    functionBuilder.isGraphqlId(true);
-                    break;
-                }
-            }
-        });
+        boolean isGraphqlIdReturn = functionTypeSymbol.returnTypeAnnotations()
+                .map(returnTypeAnnots -> returnTypeAnnots.annotAttachments().stream()
+                        .anyMatch(TypeUtils::isGraphqlIdAnnotation))
+                .orElse(false);
+        if (isGraphqlIdReturn) {
+            // TODO: Annotations from other imported modules are not supported yet
+            functionBuilder.imports(
+                    Map.of(
+                            TypeUtils.GRAPHQL_DEFAULT_MODULE_PREFIX,
+                            TypeUtils.BALLERINA_ORG + "/" + TypeUtils.GRAPHQL_DEFAULT_MODULE_PREFIX
+                    )
+            );
+            functionBuilder.isGraphqlId(true);
+        }
 
         // return type
         boolean isSubscription = functionSymbol.kind() == SymbolKind.RESOURCE_METHOD
-                && SUBSCRIBE_ACCESSOR.equals(functionSymbol.getName().orElse(""));
-        boolean isGraphqlIdReturn = functionTypeSymbol.returnTypeAnnotations()
-                .map(GraphqlTypeMapper::hasIdAnnotation).orElse(false);
+                && GraphqlTypeMapper.isSubscriptionAccessor(functionSymbol.getName().orElse(""));
         functionTypeSymbol.returnTypeDescriptor().ifPresent(returnType -> {
             Object transformed = transform(returnType, new TypeData.TypeDataBuilder());
             functionBuilder

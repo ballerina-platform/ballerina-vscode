@@ -59,6 +59,10 @@ describe("formatInlineGraphqlArgs", () => {
     test("shows a default inline, since it makes a non-null argument optional", () => {
         expect(formatInlineGraphqlArgs([arg("name", "String!", '""')])).toBe('(name: String! = "")');
     });
+
+    test("omits a nil default, which the nullable type already conveys", () => {
+        expect(formatInlineGraphqlArgs([arg("suffix", "String", "()")])).toBe("(suffix: String)");
+    });
 });
 
 describe("formatGraphqlFieldDefinition", () => {
@@ -88,7 +92,7 @@ describe("formatGraphqlFieldDefinition", () => {
         const field: GraphqlSdlField = {
             args: [], type: "String!", deprecated: true, description: "Say hello.",
         };
-        expect(formatGraphqlFieldDefinition("hello", field)).toBe("hello: String!\nDeprecated\n\nSay hello.");
+        expect(formatGraphqlFieldDefinition("hello", field)).toBe("hello: String! @deprecated\n\nSay hello.");
     });
 });
 

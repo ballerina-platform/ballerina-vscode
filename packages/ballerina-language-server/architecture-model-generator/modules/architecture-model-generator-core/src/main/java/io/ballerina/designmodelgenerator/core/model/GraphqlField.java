@@ -22,8 +22,9 @@ import java.util.List;
 
 /**
  * The GraphQL schema view of a service function: the field it exposes on the Query, Mutation or Subscription type.
- * Types are rendered in GraphQL SDL notation (e.g. {@code ID!}, {@code [Book!]}), as derived by the GraphQL compiler
- * plugin, so they reflect what clients see rather than the Ballerina signature.
+ * Types are rendered in GraphQL SDL notation (e.g. {@code ID!}, {@code [Book!]}) by
+ * {@link io.ballerina.modelgenerator.commons.GraphqlTypeMapper}, which follows the GraphQL compiler plugin's schema
+ * generation, so they reflect what clients see rather than the Ballerina signature.
  *
  * @param name        the field name as clients see it (Ballerina identifier escapes removed)
  * @param args        the field arguments, in declaration order

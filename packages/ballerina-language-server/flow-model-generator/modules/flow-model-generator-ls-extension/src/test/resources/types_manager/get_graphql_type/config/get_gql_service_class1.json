@@ -268,7 +268,7 @@
             "hidden": false
           }
         },
-        "graphqlType": "ProfileType|String!"
+        "graphqlType": "(ProfileType|String)!"
       }
     ],
     "allowAdditionalFields": false
