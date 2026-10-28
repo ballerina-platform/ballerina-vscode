@@ -559,7 +559,7 @@ export interface CardListProps {
 // Joins nested group ids; a control character is not expected in a title or description.
 const GROUP_ID_SEPARATOR = "\u001f";
 
-const isCategory = (item: Item): item is Category => "items" in item && "title" in item;
+export const isCategory = (item: Item): item is Category => "items" in item && "title" in item;
 
 export const GROUP_PATH_SEPARATOR = " › ";
 
@@ -637,6 +637,11 @@ export function flattenLeaves(items: Item[], path: string[] = []): { node: Node;
 
 export const countLeaves = (category: Category): number =>
     category.items.reduce((count, item) => !item ? count : count + (isCategory(item) ? countLeaves(item) : 1), 0);
+
+export const getCountLabel = (category: Category) => {
+    const itemCount = countLeaves(category);
+    return `${itemCount} ${itemCount === 1 ? "option" : "options"}`;
+};
 
 function CardList(props: CardListProps) {
     const { categories, title, searchPlaceholder, onSelect, onSearch, onBack, onClose,
@@ -720,11 +725,6 @@ function CardList(props: CardListProps) {
                 .find((element) => element.dataset.groupId === target.groupId);
         row?.focus();
     }, [expandedGroupId]);
-
-    const getCountLabel = (category: Category) => {
-        const itemCount = countLeaves(category);
-        return `${itemCount} ${itemCount === 1 ? "option" : "options"}`;
-    };
 
     // Filter items based on search text (only if no onSearch prop - local filtering)
     const filterItems = (items: Item[]): Item[] => {

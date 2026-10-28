@@ -20,11 +20,12 @@ import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import styled from "@emotion/styled";
 import {
     Category as PanelCategory,
-    countLeaves,
     DrillPath,
     flattenLeaves,
+    getCountLabel,
     getGroupId,
     GROUP_PATH_SEPARATOR,
+    isCategory,
     Item as PanelItem,
     Node as PanelNode,
     pathSegments,
@@ -270,6 +271,9 @@ interface ConnectorListProps {
     onSelectConnection?: (connectionName: string, actions: PanelNode[]) => void;
     description?: string;
     searchPlaceholder?: string;
+    // Supply both to keep the open group across remounts (e.g. returning from the action list).
+    expandedGroupId?: string | null;
+    onExpandedGroupChange?: (groupId: string | null) => void;
 }
 
 const nodesOf = (category: PanelCategory): PanelNode[] =>
@@ -278,12 +282,10 @@ const nodesOf = (category: PanelCategory): PanelNode[] =>
 const subCategoriesOf = (category: PanelCategory): PanelCategory[] =>
     (category.items ?? []).filter((item): item is PanelCategory => "items" in item);
 
-const isGroup = (item: PanelItem): item is PanelCategory => "items" in item;
-
 const nodeRow = (node: PanelNode): NodeRow => ({ kind: "node", node });
 
 const leafRowsOf = (category: PanelCategory): NodeRow[] =>
-    (category.items ?? []).flatMap((item) => isGroup(item)
+    (category.items ?? []).flatMap((item) => isCategory(item)
         ? flattenLeaves(item.items, [item.title]).map(({ node, path }): NodeRow =>
             ({ kind: "node", node, groupIcon: item.icon, caption: path.join(GROUP_PATH_SEPARATOR) }))
         : [nodeRow(item)]);
@@ -300,14 +302,14 @@ const subgroupRow = (subgroup: PanelCategory, parentId: string, nested: boolean)
 };
 
 const childRowsOf = (items: PanelItem[], parentId: string, groupIcon: ReactNode, nested: boolean): ListRow[] =>
-    items.map((item) => isGroup(item)
+    items.map((item) => isCategory(item)
         ? subgroupRow(item, parentId, nested)
         : { kind: "node", node: item, groupIcon, nested });
 
 // Package groups expand in place, one at a time; their subgroups open as a level of their own.
 const browseRowsOf = (items: PanelItem[], expandedGroupId: string | null): ListRow[] =>
     items.flatMap((item): ListRow[] => {
-        if (!isGroup(item)) {
+        if (!isCategory(item)) {
             return [nodeRow(item)];
         }
         const id = getGroupId(item);
@@ -328,11 +330,6 @@ const levelSectionOf = (drill: DrillPath): ListSection => {
         category: drill.section.title,
         level: { group, parent: segments[segments.length - 2] },
     };
-};
-
-const optionsLabel = (group: PanelCategory): string => {
-    const count = countLeaves(group);
-    return `${count} ${count === 1 ? "option" : "options"}`;
 };
 
 const CONNECTION_ROW_ID = "__connection__";
@@ -361,7 +358,9 @@ const connectorKey = (node: PanelNode): string => {
     return c ? `${c.org}/${c.module}:${c.object}` : node.label;
 };
 
-const scoreNode = (node: PanelNode, category: string, query: string): number => {
+const rowKey = (row: ListRow): string => (row.kind === "node" ? `${connectorKey(row.node)}:${row.node.label}` : row.id);
+
+const scoreNode = (node: PanelNode, category: string, query: string, caption = ""): number => {
     const label = (node.label ?? "").toLowerCase();
     if (label === query) return 0;
     if (label.startsWith(query)) return 1;
@@ -369,7 +368,7 @@ const scoreNode = (node: PanelNode, category: string, query: string): number => 
     if (label.includes(query)) return 3;
     const module = (node.metadata?.codedata?.module ?? "").toLowerCase();
     if (module.includes(query)) return 4;
-    if (category.toLowerCase().includes(query)) return 5;
+    if (category.toLowerCase().includes(query) || caption.toLowerCase().includes(query)) return 5;
     if ((node.description ?? "").toLowerCase().includes(query)) return 6;
     return -1;
 };
@@ -388,7 +387,7 @@ function LevelHeader({ title, level, onBack }: LevelHeaderProps) {
             </BackButton>
             {level.group.icon && <RowIcon box={20} icon={18}>{level.group.icon}</RowIcon>}
             <SectionTitle title={title}>{title}</SectionTitle>
-            <SectionCount>{optionsLabel(level.group)}</SectionCount>
+            <SectionCount>{getCountLabel(level.group)}</SectionCount>
         </SectionHeader>
     );
 }
@@ -416,7 +415,7 @@ function GroupRowView({ row, index, active, onActivate }: RowViewProps<GroupRowD
                 <RowLabel>{row.title}</RowLabel>
                 {row.group.description && <RowDescription>{row.group.description}</RowDescription>}
             </RowText>
-            <CountPill>{optionsLabel(row.group)}</CountPill>
+            <CountPill>{getCountLabel(row.group)}</CountPill>
             <RowChevron>
                 <Codicon name={chevron} sx={{ fontSize: 12 }} />
             </RowChevron>
@@ -467,16 +466,21 @@ export function ConnectorList(props: ConnectorListProps) {
         onSelectConnection,
         description,
         searchPlaceholder = "Search connectors",
+        expandedGroupId: controlledExpandedGroupId,
+        onExpandedGroupChange,
     } = props;
 
     const [category, setCategory] = useState<string>("");
-    const [activeIndex, setActiveIndex] = useState<number>(-1);
-    const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
+    const [activeKey, setActiveKey] = useState<string | null>(null);
+    const [localExpandedGroupId, setLocalExpandedGroupId] = useState<string | null>(null);
+    const isControlled = onExpandedGroupChange !== undefined;
+    const expandedGroupId = isControlled ? controlledExpandedGroupId ?? null : localExpandedGroupId;
+    const setExpandedGroupId = isControlled ? onExpandedGroupChange : setLocalExpandedGroupId;
     const scrollRef = useRef<HTMLDivElement>(null);
 
     const query = searchText.trim().toLowerCase();
 
-    const allConnectorSections = useMemo<ListSection[]>(
+    const catalogSections = useMemo(
         () =>
             connectorCategories
                 .map((c) => ({
@@ -484,10 +488,15 @@ export function ConnectorList(props: ConnectorListProps) {
                     title: c.title,
                     category: c.title,
                     leaves: leafRowsOf(c),
-                    rows: browseRowsOf(c.items ?? [], expandedGroupId),
+                    items: c.items ?? [],
                 }))
                 .filter((s) => s.leaves.length > 0),
-        [connectorCategories, expandedGroupId]
+        [connectorCategories]
+    );
+
+    const allConnectorSections = useMemo<ListSection[]>(
+        () => catalogSections.map(({ items, ...s }) => ({ ...s, rows: browseRowsOf(items, expandedGroupId) })),
+        [catalogSections, expandedGroupId]
     );
 
     const popularSection = useMemo(() => {
@@ -524,7 +533,10 @@ export function ConnectorList(props: ConnectorListProps) {
                 ? connectorSections.filter((s) => s.category === category)
                 : connectorSections;
             const ranked = [...connectionSections, ...pool]
-                .flatMap((s) => s.leaves.map((row) => ({ row, score: scoreNode(row.node, s.category, query) })))
+                .flatMap((s) => s.leaves.map((row) => ({
+                    row,
+                    score: scoreNode(row.node, s.category, query, row.caption),
+                })))
                 .filter((x) => x.score >= 0)
                 .sort((a, b) => a.score - b.score);
 
@@ -568,12 +580,15 @@ export function ConnectorList(props: ConnectorListProps) {
     ]);
 
     const flatRows = useMemo(
-        () => sections.flatMap((s) => s.rows.map((row) => ({ row, category: s.category }))),
+        () => sections.flatMap((s) =>
+            s.rows.map((row) => ({ row, category: s.category, key: `${s.key}|${rowKey(row)}` }))),
         [sections]
     );
+    const activeIndex = flatRows.findIndex((entry) => entry.key === activeKey);
+    const level = sections[0]?.level;
 
     useEffect(() => {
-        setActiveIndex(-1);
+        setActiveKey(null);
     }, [query, category]);
 
 
@@ -587,7 +602,7 @@ export function ConnectorList(props: ConnectorListProps) {
 
     const openLevel = (groupId: string) => {
         setExpandedGroupId(groupId);
-        setActiveIndex(-1);
+        setActiveKey(null);
     };
 
     const activate = (row: ListRow, cat: string) => {
@@ -607,7 +622,7 @@ export function ConnectorList(props: ConnectorListProps) {
                 event.key === "ArrowDown"
                     ? Math.min(activeIndex + 1, flatRows.length - 1)
                     : Math.max(activeIndex - 1, 0);
-            setActiveIndex(next);
+            setActiveKey(flatRows[next]?.key ?? null);
             scrollRef.current
                 ?.querySelector(`[data-index="${next}"]`)
                 ?.scrollIntoView({ block: "nearest" });
@@ -620,10 +635,17 @@ export function ConnectorList(props: ConnectorListProps) {
         }
     };
 
+    const handleKeyDown = (event: React.KeyboardEvent) => {
+        if (level && event.altKey && event.key === "ArrowLeft") {
+            event.preventDefault();
+            openLevel(level.parent.id);
+        }
+    };
+
     let renderIndex = -1;
 
     return (
-        <Container>
+        <Container onKeyDown={handleKeyDown}>
             <HeaderArea>
                 {description && <Description>{description}</Description>}
                 <SearchWrap onKeyDown={handleSearchKeyDown}>
@@ -635,7 +657,7 @@ export function ConnectorList(props: ConnectorListProps) {
                         sx={{ height: 30, width: "100%" }}
                     />
                 </SearchWrap>
-                {connectorSections.length > 1 && (
+                {connectorSections.length > 1 && !level && (
                     <FilterRow>
                         <CategorySelect
                             value={category}

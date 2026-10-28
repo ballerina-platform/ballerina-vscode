@@ -55,6 +55,7 @@ export function KnowledgeBaseBrowser(props: KnowledgeBaseBrowserProps) {
     const [loading, setLoading] = useState<boolean>(true);
     const [progressMessage, setProgressMessage] = useState<string>(LOADING_MESSAGE);
     const [searchText, setSearchText] = useState<string>("");
+    const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
 
     const [selectedKnowledgeBase, setSelectedKnowledgeBase] = useState<AvailableNode>();
     const [selectedInstanceName, setSelectedInstanceName] = useState<string>();
@@ -207,6 +208,8 @@ export function KnowledgeBaseBrowser(props: KnowledgeBaseBrowserProps) {
             onSelectConnection={handleSelectInstance}
             description="Pick an existing knowledge base or a knowledge base type to browse its actions."
             searchPlaceholder="Search knowledge bases"
+            expandedGroupId={expandedGroupId}
+            onExpandedGroupChange={setExpandedGroupId}
         />
     );
 }
