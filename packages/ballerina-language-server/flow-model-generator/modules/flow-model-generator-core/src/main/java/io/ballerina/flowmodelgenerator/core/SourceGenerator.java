@@ -24,6 +24,7 @@ import com.google.gson.JsonElement;
 import io.ballerina.flowmodelgenerator.core.model.FlowNode;
 import io.ballerina.flowmodelgenerator.core.model.NodeBuilder;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
+import io.ballerina.flowmodelgenerator.core.utils.WorkflowUtil;
 import org.ballerinalang.langserver.LSClientLogger;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceManager;
 import org.eclipse.lsp4j.Position;
@@ -69,7 +70,10 @@ public class SourceGenerator {
             throw new IllegalStateException("The operation produced no source edits; "
                     + "the diagram may be out of date — refresh and try again");
         }
-        addNewLine(textEdits);
+        // A declaration edit continues a list or record, where a leading line break strands its comma.
+        if (!WorkflowUtil.editsAgentDeclaration(flowNode.codedata().node())) {
+            addNewLine(textEdits);
+        }
         return gson.toJsonTree(textEdits);
     }
 
