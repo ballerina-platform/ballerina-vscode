@@ -18,11 +18,25 @@
 
 import React, { useContext, useEffect, useRef, useState } from 'react';
 import { DiagramEngine, PortModel } from '@projectstorm/react-diagrams';
-import { Member, TypeFunctionModel } from '@wso2/ballerina-core';
+import {
+    Member,
+    TypeFunctionModel,
+    formatGraphqlFieldDefinition,
+    formatInlineGraphqlArgs,
+    toGraphqlName,
+} from '@wso2/ballerina-core';
 import { EntityModel } from '../EntityModel';
 import { EntityPortWidget } from '../../EntityPort/EntityPortWidget';
 
-import { AttributeContainer, AttributeName, AttributeType } from '../styles';
+import { Tooltip } from '@wso2/ui-toolkit';
+import {
+    AttributeContainer,
+    AttributeName,
+    AttributeType,
+    GraphqlArgs,
+    GraphqlDefinition,
+    GRAPHQL_ROW_TOOLTIP_CONTAINER_SX,
+} from '../styles';
 import { CtrlClickGo2Source, DiagramContext } from '../../../common';
 import { getAttributeType } from '../../../../utils/utils';
 
@@ -40,7 +54,26 @@ export function AttributeWidget(props: AttributeProps) {
     const [isHovered, setIsHovered] = useState<boolean>(false);
     const attributePorts = useRef<PortModel[]>([]);
 
-    let attributeType: string = getAttributeType(attribute);// TODO: FIX for anynnymous records
+    // The GraphQL type model carries each field's GraphQL type; show the schema the client sees.
+    const graphqlType = attribute.graphqlType;
+    const attributeType: string = graphqlType ?? getAttributeType(attribute);// TODO: FIX for anynnymous records
+    const graphqlName = graphqlType ? toGraphqlName(attribute.name) : undefined;
+    const graphqlArgs = graphqlType && 'parameters' in attribute
+        ? (attribute.parameters ?? [])
+            .filter((param) => param.graphqlType)
+            .map((param) => ({
+                name: toGraphqlName(param.name),
+                type: param.graphqlType,
+                defaultValue: param.defaultValue,
+            }))
+        : [];
+    const graphqlDefinition = graphqlType
+        ? formatGraphqlFieldDefinition(graphqlName, {
+            args: graphqlArgs,
+            type: graphqlType,
+            description: 'parameters' in attribute ? attribute.description : attribute.docs,
+        })
+        : undefined;
 
     useEffect(() => {
         attributePorts.current.push(node.getPortFromID(`left-${node.getID()}/${attribute.name}`));
@@ -60,49 +93,65 @@ export function AttributeWidget(props: AttributeProps) {
 
     const hasLinkedNode = !!attribute?.refs?.[0];
 
+    const row = (
+        <AttributeContainer
+            isSelected={isSelected || isHovered}
+            onMouseOver={() => handleOnHover('SELECT')}
+            onMouseLeave={() => handleOnHover('UNSELECT')}
+        >
+            <EntityPortWidget
+                port={node.getPort(`left-${node.getID()}/${attribute.name}`)}
+                engine={engine}
+            />
+            <AttributeName>
+                {graphqlName ?? attribute.name}
+                {graphqlArgs.length > 0 && <GraphqlArgs>{formatInlineGraphqlArgs(graphqlArgs)}</GraphqlArgs>}
+            </AttributeName>
+            {node.entityObject?.codedata?.node !== 'UNION' &&
+                node.entityObject?.codedata?.node !== 'ENUM' &&
+                node.entityObject?.codedata?.node !== 'ARRAY' &&
+                <AttributeType
+                    isAnonymous={false}
+                    isSelected={isSelected || isHovered}
+                    isClickable={hasLinkedNode}
+                    onClick={hasLinkedNode ? onClickOnType : undefined}
+                >
+                    {attributeType}
+                </AttributeType>
+            }
+            {node.entityObject?.codedata?.node === 'ENUM' && ('defaultValue' in attribute && attribute.defaultValue) &&
+                <AttributeType
+                    isAnonymous={false}
+                    isSelected={isSelected || isHovered}
+                >
+                    {attribute.defaultValue}
+                </AttributeType>
+            }
+            {/* {isHovered && attribute.sourceLocation && editingEnabled &&
+                    <NodeMenuWidget
+                        background={ThemeColors.SECONDARY}
+                        location={attribute.sourceLocation}
+                    />
+                } */}
+            <EntityPortWidget
+                port={node.getPort(`right-${node.getID()}/${attribute.name}`)}
+                engine={engine}
+            />
+        </AttributeContainer>
+    );
+
     return (
         <CtrlClickGo2Source node={node.entityObject}>
-            <AttributeContainer
-                isSelected={isSelected || isHovered}
-                onMouseOver={() => handleOnHover('SELECT')}
-                onMouseLeave={() => handleOnHover('UNSELECT')}
-            >
-                <EntityPortWidget
-                    port={node.getPort(`left-${node.getID()}/${attribute.name}`)}
-                    engine={engine}
-                />
-                <AttributeName>{attribute.name}</AttributeName>
-                {node.entityObject?.codedata?.node !== 'UNION' &&
-                    node.entityObject?.codedata?.node !== 'ENUM' &&
-                    node.entityObject?.codedata?.node !== 'ARRAY' &&
-                    <AttributeType
-                        isAnonymous={false}
-                        isSelected={isSelected || isHovered}
-                        isClickable={hasLinkedNode}
-                        onClick={hasLinkedNode ? onClickOnType : undefined}
-                    >
-                        {attributeType}
-                    </AttributeType>
-                }
-                {node.entityObject?.codedata?.node === 'ENUM' && ('defaultValue' in attribute && attribute.defaultValue) &&
-                    <AttributeType
-                        isAnonymous={false}
-                        isSelected={isSelected || isHovered}
-                    >
-                        {attribute.defaultValue}
-                    </AttributeType>
-                }
-                {/* {isHovered && attribute.sourceLocation && editingEnabled &&
-                        <NodeMenuWidget
-                            background={ThemeColors.SECONDARY}
-                            location={attribute.sourceLocation}
-                        />
-                    } */}
-                <EntityPortWidget
-                    port={node.getPort(`right-${node.getID()}/${attribute.name}`)}
-                    engine={engine}
-                />
-            </AttributeContainer>
+            {/* A hover-driven tooltip rather than `title`: native tooltips are dropped when the row
+                re-renders on hover, so they only appeared intermittently. */}
+            {graphqlDefinition ? (
+                <Tooltip
+                    content={<GraphqlDefinition>{graphqlDefinition}</GraphqlDefinition>}
+                    containerSx={GRAPHQL_ROW_TOOLTIP_CONTAINER_SX}
+                >
+                    {row}
+                </Tooltip>
+            ) : row}
         </CtrlClickGo2Source>
     );
 }

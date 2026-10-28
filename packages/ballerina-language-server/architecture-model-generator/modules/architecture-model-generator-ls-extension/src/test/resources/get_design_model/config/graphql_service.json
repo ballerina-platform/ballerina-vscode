@@ -1,0 +1,288 @@
+{
+  "description": "GraphQL service functions carry their schema field signature in SDL notation",
+  "projectPath": "project_19",
+  "output": {
+    "designModel": {
+      "connections": [],
+      "listeners": [
+        {
+          "symbol": "graphqlListener",
+          "location": {
+            "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
+            "startLine": {
+              "line": 12,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 12,
+              "offset": 55
+            }
+          },
+          "attachedServices": [
+            "dd2d464a-8960-68dc-bca9-397d14764020"
+          ],
+          "kind": "NAMED",
+          "type": "graphql:Listener",
+          "args": [
+            {
+              "key": "listenTo",
+              "value": "9090"
+            }
+          ],
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_graphql_1.18.1.png",
+          "uuid": "9f630097-1aee-e7a1-58db-2e668eeca0d0",
+          "enableFlowModel": true,
+          "sortText": "service.bal12"
+        }
+      ],
+      "services": [
+        {
+          "location": {
+            "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
+            "startLine": {
+              "line": 14,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 50,
+              "offset": 1
+            }
+          },
+          "attachedListeners": [
+            "9f630097-1aee-e7a1-58db-2e668eeca0d0"
+          ],
+          "connections": [],
+          "workflows": [],
+          "functions": [],
+          "remoteFunctions": [
+            {
+              "name": "addProfile",
+              "location": {
+                "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
+                "startLine": {
+                  "line": 43,
+                  "offset": 4
+                },
+                "endLine": {
+                  "line": 45,
+                  "offset": 5
+                }
+              },
+              "connections": [],
+              "workflows": [],
+              "workflowSendData": {},
+              "invalidWorkflowSendData": [],
+              "graphqlField": {
+                "name": "addProfile",
+                "args": [
+                  {
+                    "name": "input",
+                    "type": "ProfileInput!"
+                  }
+                ],
+                "type": "Profile!",
+                "deprecated": false
+              }
+            }
+          ],
+          "resourceFunctions": [
+            {
+              "accessor": "get",
+              "path": "greeting",
+              "location": {
+                "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
+                "startLine": {
+                  "line": 16,
+                  "offset": 4
+                },
+                "endLine": {
+                  "line": 18,
+                  "offset": 5
+                }
+              },
+              "connections": [],
+              "workflows": [],
+              "workflowSendData": {},
+              "invalidWorkflowSendData": [],
+              "graphqlField": {
+                "name": "greeting",
+                "args": [],
+                "type": "String!",
+                "deprecated": false
+              }
+            },
+            {
+              "accessor": "get",
+              "path": "profile",
+              "location": {
+                "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
+                "startLine": {
+                  "line": 20,
+                  "offset": 4
+                },
+                "endLine": {
+                  "line": 24,
+                  "offset": 5
+                }
+              },
+              "connections": [],
+              "workflows": [],
+              "workflowSendData": {},
+              "invalidWorkflowSendData": [],
+              "graphqlField": {
+                "name": "profile",
+                "args": [
+                  {
+                    "name": "id",
+                    "type": "ID!",
+                    "description": "The profile id"
+                  }
+                ],
+                "type": "Profile",
+                "description": "Fetch a profile by its id.",
+                "deprecated": false
+              }
+            },
+            {
+              "accessor": "get",
+              "path": "profiles",
+              "location": {
+                "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
+                "startLine": {
+                  "line": 26,
+                  "offset": 4
+                },
+                "endLine": {
+                  "line": 28,
+                  "offset": 5
+                }
+              },
+              "connections": [],
+              "workflows": [],
+              "workflowSendData": {},
+              "invalidWorkflowSendData": [],
+              "graphqlField": {
+                "name": "profiles",
+                "args": [
+                  {
+                    "name": "limit",
+                    "type": "Int!",
+                    "defaultValue": "10"
+                  },
+                  {
+                    "name": "filter",
+                    "type": "String"
+                  }
+                ],
+                "type": "[Profile!]!",
+                "deprecated": false
+              }
+            },
+            {
+              "accessor": "get",
+              "path": "'type",
+              "location": {
+                "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
+                "startLine": {
+                  "line": 30,
+                  "offset": 4
+                },
+                "endLine": {
+                  "line": 32,
+                  "offset": 5
+                }
+              },
+              "connections": [],
+              "workflows": [],
+              "workflowSendData": {},
+              "invalidWorkflowSendData": [],
+              "graphqlField": {
+                "name": "type",
+                "args": [],
+                "type": "String!",
+                "deprecated": false
+              }
+            },
+            {
+              "accessor": "get",
+              "path": "account/name",
+              "location": {
+                "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
+                "startLine": {
+                  "line": 34,
+                  "offset": 4
+                },
+                "endLine": {
+                  "line": 36,
+                  "offset": 5
+                }
+              },
+              "connections": [],
+              "workflows": [],
+              "workflowSendData": {},
+              "invalidWorkflowSendData": []
+            },
+            {
+              "accessor": "get",
+              "path": "legacyGreeting",
+              "location": {
+                "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
+                "startLine": {
+                  "line": 38,
+                  "offset": 4
+                },
+                "endLine": {
+                  "line": 41,
+                  "offset": 5
+                }
+              },
+              "connections": [],
+              "workflows": [],
+              "workflowSendData": {},
+              "invalidWorkflowSendData": [],
+              "graphqlField": {
+                "name": "legacyGreeting",
+                "args": [],
+                "type": "String!",
+                "deprecated": true
+              }
+            },
+            {
+              "accessor": "subscribe",
+              "path": "ticks",
+              "location": {
+                "filePath": "/Users/madusha/repositories/wso2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
+                "startLine": {
+                  "line": 47,
+                  "offset": 4
+                },
+                "endLine": {
+                  "line": 49,
+                  "offset": 5
+                }
+              },
+              "connections": [],
+              "workflows": [],
+              "workflowSendData": {},
+              "invalidWorkflowSendData": [],
+              "graphqlField": {
+                "name": "ticks",
+                "args": [],
+                "type": "Int!",
+                "deprecated": false
+              }
+            }
+          ],
+          "absolutePath": "/graphql ",
+          "type": "graphql:Service",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_graphql_1.18.1.png",
+          "uuid": "dd2d464a-8960-68dc-bca9-397d14764020",
+          "enableFlowModel": true,
+          "sortText": "service.bal14"
+        }
+      ],
+      "workflows": [],
+      "activities": []
+    }
+  }
+}

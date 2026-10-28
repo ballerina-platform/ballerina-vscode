@@ -17,13 +17,20 @@
  */
 
 import React, { useMemo, useState } from "react";
-import { CDFunction, CDResourceFunction, CDService } from "@wso2/ballerina-core";
-import { Item, Menu, MenuItem, Popover, Icon } from "@wso2/ui-toolkit";
+import {
+    CDFunction,
+    CDGraphqlField,
+    CDResourceFunction,
+    CDService,
+    formatGraphqlFieldDefinition,
+    formatInlineGraphqlArgs,
+} from "@wso2/ballerina-core";
+import { Item, Menu, MenuItem, Popover, Icon, Tooltip } from "@wso2/ui-toolkit";
 import { EntryNodeModel } from "../EntryNodeModel";
 import { DiagramEngine, PortWidget } from "@projectstorm/react-diagrams-core";
 import { useDiagramContext } from "../../../DiagramContext";
 import { GQLFuncListType, PREVIEW_COUNT, SHOW_ALL_THRESHOLD } from "../../../Diagram";
-import { CollapseButton, FunctionBoxWrapper, GroupContainer, GroupHeader, ViewAllButton, ViewAllButtonWrapper, Node, Box, ServiceBox, Header, Title, Description, IconWrapper, MenuButton, StyledServiceBox, colors } from "./styles";
+import { CollapseButton, FunctionBoxWrapper, GroupContainer, GroupHeader, ViewAllButton, ViewAllButtonWrapper, Node, Box, ServiceBox, Header, Title, Description, IconWrapper, MenuButton, colors, GraphqlFieldRow, GraphqlFieldSignature, GraphqlFieldName, GraphqlFieldArgs, GraphqlFieldType, GraphqlDefinition, GRAPHQL_ROW_TOOLTIP_CONTAINER_SX } from "./styles";
 import { Codicon } from "@wso2/ui-toolkit/lib/components/Codicon/Codicon";
 import { getEntryNodeFunctionPortName } from "../../../../utils/diagram";
 import { BaseNodeWidgetProps } from "../EntryNodeModel";
@@ -46,6 +53,8 @@ function FunctionBox(props: { func: any; model: EntryNodeModel; engine: any; }) 
     const { func, model, engine } = props;
     const [isHovered, setIsHovered] = useState(false);
     const { onFunctionSelect, readonly } = useDiagramContext();
+    const field: CDGraphqlField | undefined = func.graphqlField;
+    const fieldName: string = field?.name || func.path || func.name;
 
     const handleOnClick = () => {
         onFunctionSelect(func);
@@ -53,20 +62,30 @@ function FunctionBox(props: { func: any; model: EntryNodeModel; engine: any; }) 
 
     return (
         <FunctionBoxWrapper>
-            <StyledServiceBox
-                hovered={isHovered}
-                onClick={() => !readonly ? handleOnClick() : undefined}
-                onMouseEnter={() => !readonly && setIsHovered(true)}
-                onMouseLeave={() => !readonly && setIsHovered(false)}
-                readonly={readonly}
+            {/* A hover-driven tooltip rather than `title`: native tooltips are dropped when the row
+                re-renders on hover, so they only appeared intermittently. */}
+            <Tooltip
+                content={field && <GraphqlDefinition>{formatGraphqlFieldDefinition(fieldName, field)}</GraphqlDefinition>}
+                containerSx={GRAPHQL_ROW_TOOLTIP_CONTAINER_SX}
             >
-                {func.path && (
-                    <Title hovered={isHovered}>
-                        {func.path}
-                    </Title>
-                )}
-                {func.name && <Title hovered={isHovered}>{func.name}</Title>}
-            </StyledServiceBox>
+                <GraphqlFieldRow
+                    hovered={isHovered}
+                    onClick={() => !readonly ? handleOnClick() : undefined}
+                    onMouseEnter={() => !readonly && setIsHovered(true)}
+                    onMouseLeave={() => !readonly && setIsHovered(false)}
+                    readonly={readonly}
+                >
+                    <GraphqlFieldSignature>
+                        <GraphqlFieldName hovered={isHovered} deprecated={field?.deprecated}>
+                            {fieldName}
+                        </GraphqlFieldName>
+                        {field?.args?.length > 0 && (
+                            <GraphqlFieldArgs>{formatInlineGraphqlArgs(field.args)}</GraphqlFieldArgs>
+                        )}
+                    </GraphqlFieldSignature>
+                    {field?.type && <GraphqlFieldType>{field.type}</GraphqlFieldType>}
+                </GraphqlFieldRow>
+            </Tooltip>
             <PortWidget port={model.getPort(getEntryNodeFunctionPortName(func))!} engine={engine} />
         </FunctionBoxWrapper>
     );

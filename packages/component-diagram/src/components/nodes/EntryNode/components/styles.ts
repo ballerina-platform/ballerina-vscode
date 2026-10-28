@@ -80,6 +80,59 @@ export const Title = styled(StyledText) <NodeStyleProp>`
     opacity: ${(props: NodeStyleProp) => (props.inactive && !props.hovered ? 0.7 : 1)};
 `;
 
+// GraphQL field rows read like an SDL field list: `name(args)` on the left, the output type
+// right-aligned so types line up down a group, as in GraphQL Voyager and schema explorers.
+// Arguments yield space first and the type is capped, so the field name is the last to truncate.
+// The tooltip wraps the row in an inline-block; make it a flex item that fills the row's slot.
+export const GRAPHQL_ROW_TOOLTIP_CONTAINER_SX = {
+    display: "flex",
+    flex: "1 1 auto",
+    minWidth: 0,
+    cursor: "inherit",
+};
+
+export const GraphqlDefinition = styled.div`
+    font-family: var(--vscode-editor-font-family, monospace);
+    font-size: 12px;
+    white-space: pre;
+`;
+
+export const GraphqlFieldSignature = styled.div`
+    display: flex;
+    align-items: baseline;
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+`;
+
+export const GraphqlFieldName = styled(Title) <NodeStyleProp & { deprecated?: boolean }>`
+    flex: 0 0 auto;
+    max-width: 100%;
+    text-decoration: ${(props) => (props.deprecated ? "line-through" : "none")};
+    opacity: ${(props) => (props.deprecated && !props.hovered ? 0.6 : 1)};
+`;
+
+const GraphqlTypeText = styled(StyledText)`
+    font-size: 12px;
+    font-family: monospace;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: ${ThemeColors.ON_SURFACE};
+    opacity: 0.7;
+`;
+
+export const GraphqlFieldArgs = styled(GraphqlTypeText)`
+    flex: 0 1 auto;
+    min-width: 0;
+`;
+
+export const GraphqlFieldType = styled(GraphqlTypeText)`
+    flex: 0 0 auto;
+    max-width: 40%;
+    margin-left: auto;
+`;
+
 export const ResourceAccessor = styled(StyledText) <{ color?: string }>`
     text-transform: uppercase;
     font-family: "GilmerBold";
@@ -153,6 +206,14 @@ export const StyledServiceBox = styled(ServiceBox) <NodeStyleProp>`
         ${(props: NodeStyleProp) => (props.hovered ? ThemeColors.HIGHLIGHT : NODE_BORDER_COLOR)};
     border-radius: 8px;
     background-color: ${ThemeColors.SURFACE_DIM};
+`;
+
+// Rows fill the group whatever their content. A fixed-width flex item cannot shrink below its
+// unwrappable text, so without `min-width: 0` long signatures overflowed the group while short
+// ones shrank to fit, leaving rows of uneven width.
+export const GraphqlFieldRow = styled(StyledServiceBox) <NodeStyleProp>`
+    width: 100%;
+    min-width: 0;
 `;
 
 export const EventTypeText = styled(StyledText)`

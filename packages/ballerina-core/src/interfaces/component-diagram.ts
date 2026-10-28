@@ -128,6 +128,25 @@ export type CDService = {
     displayName?: string;
 };
 
+export type CDGraphqlArgument = {
+    name: string;
+    type: string;
+    defaultValue?: string;
+    description?: string;
+};
+
+/**
+ * The GraphQL field a service function exposes on Query, Mutation or Subscription.
+ * Types are in GraphQL SDL notation (e.g. `ID!`, `[Book!]`), as derived from the service schema.
+ */
+export type CDGraphqlField = {
+    name: string;
+    args: CDGraphqlArgument[];
+    type: string;
+    description?: string;
+    deprecated?: boolean;
+};
+
 export type CDFunction = {
     name: string;
     location: CDLocation;
@@ -135,6 +154,7 @@ export type CDFunction = {
     workflows?: string[];
     workflowSendData?: Record<string, string[]>;
     invalidWorkflowSendData?: string[];
+    graphqlField?: CDGraphqlField;
 };
 
 export type CDResourceFunction = {
@@ -145,4 +165,5 @@ export type CDResourceFunction = {
     workflows?: string[];
     workflowSendData?: Record<string, string[]>;
     invalidWorkflowSendData?: string[];
+    graphqlField?: CDGraphqlField;
 };

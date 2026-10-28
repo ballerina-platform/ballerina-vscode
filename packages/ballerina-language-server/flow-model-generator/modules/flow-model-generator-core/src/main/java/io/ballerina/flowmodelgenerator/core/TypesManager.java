@@ -160,7 +160,7 @@ public class TypesManager {
             return null;
         }
 
-        Object type = getTypeData(optSymbol.get());
+        Object type = getTypeData(optSymbol.get(), true);
 
         Map<String, Object> refs = new HashMap<>();
         if (optSymbol.get().kind() == SymbolKind.SERVICE_DECLARATION) {
@@ -761,13 +761,20 @@ public class TypesManager {
     }
 
     private Object getTypeData(Symbol symbol) {
-        TypeTransformer typeTransformer = new TypeTransformer(this.module);
+        return getTypeData(symbol, false);
+    }
+
+    /**
+     * Transforms a type symbol to type data, optionally with GraphQL types attached for the GraphQL diagram.
+     */
+    private Object getTypeData(Symbol symbol, boolean graphqlTypes) {
+        TypeTransformer typeTransformer = new TypeTransformer(this.module, graphqlTypes);
         return switch (symbol.kind()) {
             case TYPE_DEFINITION -> typeTransformer.transform((TypeDefinitionSymbol) symbol);
             case CLASS -> typeTransformer.transform((ClassSymbol) symbol);
             case ENUM -> typeTransformer.transform((EnumSymbol) symbol);
             case SERVICE_DECLARATION -> typeTransformer.transform((ServiceDeclarationSymbol) symbol);
-            case TYPE -> getTypeData(((TypeReferenceTypeSymbol) symbol).definition());
+            case TYPE -> getTypeData(((TypeReferenceTypeSymbol) symbol).definition(), graphqlTypes);
             default -> null;
         };
     }
@@ -805,93 +812,93 @@ public class TypesManager {
 
     private void addDependencyTypes(ServiceDeclarationSymbol serviceDeclarationSymbol,
                                     Map<String, Object> references,
-                                    boolean skipParameters) {
+                                    boolean isGraphqlView) {
         // attributes
-        if (!skipParameters) {
+        if (!isGraphqlView) {
             serviceDeclarationSymbol.fieldDescriptors().forEach((key, field) -> {
-                addDependencyTypes(field.typeDescriptor(), references, skipParameters);
+                addDependencyTypes(field.typeDescriptor(), references, isGraphqlView);
             });
         }
 
         // methods
         serviceDeclarationSymbol.methods().forEach((key, method) -> {
-            // Skipping Parameters. e.g. GraphQL service class methods
-            if (!skipParameters) {
+            // The GraphQL view skips parameter types: input objects are not part of the output type graph.
+            if (!isGraphqlView) {
                 method.typeDescriptor().params().ifPresent(params -> params.forEach(param -> {
-                    addDependencyTypes(param.typeDescriptor(), references, skipParameters);
+                    addDependencyTypes(param.typeDescriptor(), references, isGraphqlView);
                 }));
             }
 
             // return type
             method.typeDescriptor().returnTypeDescriptor().ifPresent(returnType -> {
-                addDependencyTypes(returnType, references, skipParameters);
+                addDependencyTypes(returnType, references, isGraphqlView);
             });
 
             // rest param
             method.typeDescriptor().restParam().ifPresent(restParam -> {
-                addDependencyTypes(restParam.typeDescriptor(), references, skipParameters);
+                addDependencyTypes(restParam.typeDescriptor(), references, isGraphqlView);
             });
         });
     }
 
-    private void addDependencyTypes(TypeSymbol typeSymbol, Map<String, Object> references, boolean skipParameters) {
+    private void addDependencyTypes(TypeSymbol typeSymbol, Map<String, Object> references, boolean isGraphqlView) {
         switch (typeSymbol.typeKind()) {
             case RECORD -> {
                 RecordTypeSymbol recordTypeSymbol = (RecordTypeSymbol) typeSymbol;
 
                 // type inclusions
                 recordTypeSymbol.typeInclusions().forEach(includedType -> {
-                    addDependencyTypes(includedType, references, skipParameters);
+                    addDependencyTypes(includedType, references, isGraphqlView);
                 });
 
                 // members
                 recordTypeSymbol.fieldDescriptors().forEach((key, field) -> {
-                    addDependencyTypes(field.typeDescriptor(), references, skipParameters);
+                    addDependencyTypes(field.typeDescriptor(), references, isGraphqlView);
                 });
 
                 // rest member
                 if (recordTypeSymbol.restTypeDescriptor().isPresent()) {
-                    addDependencyTypes(recordTypeSymbol.restTypeDescriptor().get(), references, skipParameters);
+                    addDependencyTypes(recordTypeSymbol.restTypeDescriptor().get(), references, isGraphqlView);
                 }
             }
             case ARRAY -> addDependencyTypes(
                     ((ArrayTypeSymbol) typeSymbol).memberTypeDescriptor(),
                     references,
-                    skipParameters
+                    isGraphqlView
             );
             case UNION -> ((UnionTypeSymbol) typeSymbol).userSpecifiedMemberTypes().forEach(memberType -> {
-                addDependencyTypes(memberType, references, skipParameters);
+                addDependencyTypes(memberType, references, isGraphqlView);
             });
             case ERROR -> {
                 ErrorTypeSymbol errorTypeSymbol = (ErrorTypeSymbol) typeSymbol;
                 if (errorTypeSymbol.signature().equals(BUILT_IN_ERROR)) {
                     return;
                 }
-                addDependencyTypes((errorTypeSymbol).detailTypeDescriptor(), references, skipParameters);
+                addDependencyTypes((errorTypeSymbol).detailTypeDescriptor(), references, isGraphqlView);
             }
             case FUTURE -> {
                 Optional<TypeSymbol> typeParam = ((FutureTypeSymbol) typeSymbol).typeParameter();
                 if (typeParam.isEmpty()) {
                     return;
                 }
-                addDependencyTypes(typeParam.get(), references, skipParameters);
+                addDependencyTypes(typeParam.get(), references, isGraphqlView);
             }
             case MAP -> {
                 TypeSymbol typeParam = ((MapTypeSymbol) typeSymbol).typeParam();
-                addDependencyTypes(typeParam, references, skipParameters);
+                addDependencyTypes(typeParam, references, isGraphqlView);
             }
             case STREAM -> {
                 TypeSymbol typeParam = ((StreamTypeSymbol) typeSymbol).typeParameter();
-                addDependencyTypes(typeParam, references, skipParameters);
+                addDependencyTypes(typeParam, references, isGraphqlView);
             }
             case INTERSECTION -> ((IntersectionTypeSymbol) typeSymbol).memberTypeDescriptors().forEach(memberTypes -> {
-                addDependencyTypes(memberTypes, references, skipParameters);
+                addDependencyTypes(memberTypes, references, isGraphqlView);
             });
             case TABLE -> {
                 TableTypeSymbol tableTypeSymbol = (TableTypeSymbol) typeSymbol;
-                addDependencyTypes(tableTypeSymbol.rowTypeParameter(), references, skipParameters);
+                addDependencyTypes(tableTypeSymbol.rowTypeParameter(), references, isGraphqlView);
                 if (tableTypeSymbol.keyConstraintTypeParameter().isPresent()) {
-                    addDependencyTypes(tableTypeSymbol.keyConstraintTypeParameter().get(), references, skipParameters);
+                    addDependencyTypes(tableTypeSymbol.keyConstraintTypeParameter().get(), references, isGraphqlView);
                 }
             }
             case OBJECT -> {
@@ -899,31 +906,31 @@ public class TypesManager {
 
                 // inclusions
                 objectTypeSymbol.typeInclusions().forEach(includedType -> {
-                    addDependencyTypes(includedType, references, skipParameters);
+                    addDependencyTypes(includedType, references, isGraphqlView);
                 });
 
                 // attributes
                 objectTypeSymbol.fieldDescriptors().forEach((key, field) -> {
-                    addDependencyTypes(field.typeDescriptor(), references, skipParameters);
+                    addDependencyTypes(field.typeDescriptor(), references, isGraphqlView);
                 });
 
                 // methods
                 objectTypeSymbol.methods().forEach((key, method) -> {
                     // params - skip for GraphQL
-                    if (!skipParameters) {
+                    if (!isGraphqlView) {
                         method.typeDescriptor().params().ifPresent(params -> params.forEach(param -> {
-                            addDependencyTypes(param.typeDescriptor(), references, skipParameters);
+                            addDependencyTypes(param.typeDescriptor(), references, isGraphqlView);
                         }));
                     }
 
                     // return type
                     method.typeDescriptor().returnTypeDescriptor().ifPresent(returnType -> {
-                        addDependencyTypes(returnType, references, skipParameters);
+                        addDependencyTypes(returnType, references, isGraphqlView);
                     });
 
                     // rest param
                     method.typeDescriptor().restParam().ifPresent(restParam -> {
-                        addDependencyTypes(restParam.typeDescriptor(), references, skipParameters);
+                        addDependencyTypes(restParam.typeDescriptor(), references, isGraphqlView);
                     });
                 });
             }
@@ -937,12 +944,12 @@ public class TypesManager {
                 if (references.containsKey(typeName)) {
                     return;
                 }
-                references.putIfAbsent(typeName, getTypeData(definition));
+                references.putIfAbsent(typeName, getTypeData(definition, isGraphqlView));
                 if (CommonUtils.isWithinPackage(definition, moduleInfo)) {
                     addDependencyTypes(
                             ((TypeReferenceTypeSymbol) typeSymbol).typeDescriptor(),
                             references,
-                            skipParameters
+                            isGraphqlView
                     );
                 }
             }
