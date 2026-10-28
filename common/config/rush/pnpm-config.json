@@ -192,7 +192,7 @@
       "proxy-addr": "2.0.8",
       // Security fix: bump past the previous override version, which is now
       // itself flagged.
-      "qs@6": "6.16.0",
+      "qs@6": "6.16.1",
       "serialize-javascript": "7.1.3",
       "shell-quote": "1.11.0",
       "source-map-js": "1.2.2",
