@@ -1,0 +1,31 @@
+{
+  "filePath": "proj",
+  "description": "Record with reserved keyword field names",
+  "type": {
+    "fields": [
+      {
+        "name": "type",
+        "typeName": "string",
+        "optional": false,
+        "defaultable": false,
+        "isRestType": false,
+        "selected": true
+      },
+      {
+        "name": "'error",
+        "typeName": "string",
+        "optional": false,
+        "defaultable": false,
+        "isRestType": false,
+        "selected": true
+      }
+    ],
+    "hasRestType": false,
+    "typeName": "record",
+    "optional": false,
+    "defaultable": false,
+    "isRestType": false,
+    "selected": true
+  },
+  "output": "{\n    'type: \"\",\n    'error: \"\"\n}"
+}
