@@ -2240,6 +2240,7 @@ exports[`Component Diagram - Snapshot Tests renders graphql complex correctly: g
                     >
                       <div
                         class="css-32"
+                        data-testid="graphql-field-row"
                       >
                         <div
                           class="css-33"
@@ -2270,6 +2271,7 @@ exports[`Component Diagram - Snapshot Tests renders graphql complex correctly: g
                     >
                       <div
                         class="css-32"
+                        data-testid="graphql-field-row"
                       >
                         <div
                           class="css-33"

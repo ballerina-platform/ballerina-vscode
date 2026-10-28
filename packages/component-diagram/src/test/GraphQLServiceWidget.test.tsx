@@ -33,9 +33,9 @@ const plainFunctions = functions.filter((fn) => !fn.graphqlField);
 
 const rowText = (field: CDGraphqlField) => field.name + formatInlineGraphqlArgs(field.args) + field.type;
 
-// The innermost element showing exactly `name(args)` then the type, i.e. the field's row.
-function findRow(container: HTMLElement, text: string): Element | undefined {
-    return Array.from(container.querySelectorAll("*")).filter((element) => element.textContent === text).pop();
+// The field row showing exactly `name(args)` then the type.
+function findRow(text: string): Element | undefined {
+    return screen.queryAllByTestId("graphql-field-row").find((row) => row.textContent === text);
 }
 
 function findDefinition(field: CDGraphqlField): HTMLElement | undefined {
@@ -77,25 +77,25 @@ describe("GraphQL service rows", () => {
     });
 
     test("every field shows its name, arguments and GraphQL type, with its SDL definition", async () => {
-        const dom = await renderDiagram(project);
+        await renderDiagram(project);
         await expandAllGroups();
         for (const field of fields) {
-            expect(findRow(dom.container, rowText(field))).toBeDefined();
+            expect(findRow(rowText(field))).toBeDefined();
             const definition = findDefinition(field);
             expect(definition).toHaveTextContent(`: ${field.type}`);
             expect(definition.textContent.includes("@deprecated")).toBe(Boolean(field.deprecated));
         }
         // A field without a GraphQL signature (e.g. a hierarchical path) still shows its name.
         for (const fn of plainFunctions) {
-            expect(findRow(dom.container, "path" in fn ? fn.path : fn.name)).toBeDefined();
+            expect(findRow("path" in fn ? fn.path : fn.name)).toBeDefined();
         }
     }, 15000);
 
     test("each row's tooltip shows on hover, also when moving straight from another row", async () => {
-        const dom = await renderDiagram(project);
+        await renderDiagram(project);
         const [first, second] = fields;
-        const firstRow = findRow(dom.container, rowText(first));
-        const secondRow = findRow(dom.container, rowText(second));
+        const firstRow = findRow(rowText(first));
+        const secondRow = findRow(rowText(second));
 
         // Real timers: the tooltip shows after the pointer rests 500 ms. Fake timers would also stall the
         // diagram's own layout timers.
@@ -112,10 +112,10 @@ describe("GraphQL service rows", () => {
         const withoutSignatures = JSON.parse(JSON.stringify(project), (key, value) =>
             key === "graphqlField" ? undefined : value
         ) as CDModel;
-        const dom = await renderDiagram(withoutSignatures);
+        await renderDiagram(withoutSignatures);
         await expandAllGroups();
         for (const fn of functions) {
-            expect(findRow(dom.container, "path" in fn ? fn.path : fn.name)).toBeDefined();
+            expect(findRow("path" in fn ? fn.path : fn.name)).toBeDefined();
         }
         expect(screen.queryAllByTestId("graphql-definition")).toHaveLength(0);
     }, 15000);

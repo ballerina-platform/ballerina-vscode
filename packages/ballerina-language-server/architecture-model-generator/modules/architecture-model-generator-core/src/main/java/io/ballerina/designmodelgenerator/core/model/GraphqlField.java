@@ -41,8 +41,7 @@ public record GraphqlField(String name, List<Argument> args, String type, String
      * @param name         the argument name
      * @param type         the argument input type
      * @param defaultValue the default value literal, if any
-     * @param description  the argument description, if documented
      */
-    public record Argument(String name, String type, String defaultValue, String description) {
+    public record Argument(String name, String type, String defaultValue) {
     }
 }

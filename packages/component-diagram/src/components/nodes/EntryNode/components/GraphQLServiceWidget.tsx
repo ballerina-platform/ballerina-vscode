@@ -73,6 +73,7 @@ function FunctionBox(props: { func: CDFunction | CDResourceFunction; model: Entr
                 containerSx={GRAPHQL_ROW_TOOLTIP_CONTAINER_SX}
             >
                 <GraphqlFieldRow
+                    data-testid="graphql-field-row"
                     hovered={isHovered}
                     onClick={() => !readonly ? handleOnClick() : undefined}
                     onMouseEnter={() => !readonly && setIsHovered(true)}

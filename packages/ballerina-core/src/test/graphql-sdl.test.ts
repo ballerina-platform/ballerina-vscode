@@ -59,10 +59,6 @@ describe("formatInlineGraphqlArgs", () => {
     test("shows a default inline, since it makes a non-null argument optional", () => {
         expect(formatInlineGraphqlArgs([arg("name", "String!", '""')])).toBe('(name: String! = "")');
     });
-
-    test("omits a nil default, which the nullable type already conveys", () => {
-        expect(formatInlineGraphqlArgs([arg("suffix", "String", "()")])).toBe("(suffix: String)");
-    });
 });
 
 describe("formatGraphqlFieldDefinition", () => {

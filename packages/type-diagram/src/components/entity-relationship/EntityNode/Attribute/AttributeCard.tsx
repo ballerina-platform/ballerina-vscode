@@ -23,6 +23,7 @@ import {
     TypeFunctionModel,
     formatGraphqlFieldDefinition,
     formatInlineGraphqlArgs,
+    toGraphqlArgs,
     toGraphqlName,
 } from '@wso2/ballerina-core';
 import { EntityModel } from '../EntityModel';
@@ -58,15 +59,7 @@ export function AttributeWidget(props: AttributeProps) {
     const graphqlType = attribute.graphqlType;
     const attributeType: string = graphqlType ?? getAttributeType(attribute);// TODO: FIX for anynnymous records
     const graphqlName = graphqlType ? toGraphqlName(attribute.name) : undefined;
-    const graphqlArgs = graphqlType && 'parameters' in attribute
-        ? (attribute.parameters ?? [])
-            .filter((param) => param.graphqlType)
-            .map((param) => ({
-                name: toGraphqlName(param.name),
-                type: param.graphqlType,
-                defaultValue: param.defaultValue,
-            }))
-        : [];
+    const graphqlArgs = graphqlType && 'parameters' in attribute ? toGraphqlArgs(attribute.parameters) : [];
     const graphqlDefinition = graphqlType
         ? formatGraphqlFieldDefinition(graphqlName, {
             args: graphqlArgs,
@@ -95,6 +88,7 @@ export function AttributeWidget(props: AttributeProps) {
 
     const row = (
         <AttributeContainer
+            data-testid={graphqlType ? "graphql-field-row" : undefined}
             isSelected={isSelected || isHovered}
             onMouseOver={() => handleOnHover('SELECT')}
             onMouseLeave={() => handleOnHover('UNSELECT')}

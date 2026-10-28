@@ -18,7 +18,6 @@
 
 package io.ballerina.modelgenerator.commons;
 
-import io.ballerina.compiler.api.symbols.Annotatable;
 import io.ballerina.compiler.api.symbols.ArrayTypeSymbol;
 import io.ballerina.compiler.api.symbols.IntersectionTypeSymbol;
 import io.ballerina.compiler.api.symbols.ModuleSymbol;
@@ -32,9 +31,13 @@ import io.ballerina.compiler.api.symbols.TypeReferenceTypeSymbol;
 import io.ballerina.compiler.api.symbols.TypeSymbol;
 import io.ballerina.compiler.api.symbols.UnionTypeSymbol;
 import io.ballerina.compiler.syntax.tree.DefaultableParameterNode;
+import io.ballerina.compiler.syntax.tree.FunctionSignatureNode;
+import io.ballerina.compiler.syntax.tree.ParameterNode;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Maps Ballerina types of a GraphQL service to the GraphQL types its schema exposes, in SDL notation.
@@ -136,13 +139,21 @@ public final class GraphqlTypeMapper {
     }
 
     /**
-     * Returns the default value of an argument as written, or {@code null} if it has none. A default makes the
-     * argument optional to pass even when its type is non-null (e.g. {@code name: String! = ""}). A nil default is
-     * dropped: it only makes the argument optional, which its nullable type already says.
+     * Returns the default value of each argument in a signature as written, keyed by GraphQL argument name. A default
+     * makes the argument optional to pass even when its type is non-null (e.g. {@code name: String! = ""}). A nil
+     * default is left out: it only makes the argument optional, which its nullable type already says.
      */
-    public static String getDefaultValue(DefaultableParameterNode parameterNode) {
-        String value = parameterNode.expression().toSourceCode().trim();
-        return NIL_DEFAULT.equals(value) ? null : value;
+    public static Map<String, String> getDefaultValues(FunctionSignatureNode signature) {
+        Map<String, String> defaults = new HashMap<>();
+        for (ParameterNode param : signature.parameters()) {
+            if (param instanceof DefaultableParameterNode defaultable && defaultable.paramName().isPresent()) {
+                String value = defaultable.expression().toSourceCode().trim();
+                if (!NIL_DEFAULT.equals(value)) {
+                    defaults.put(unescape(defaultable.paramName().get().text().trim()), value);
+                }
+            }
+        }
+        return defaults;
     }
 
     /**
@@ -151,15 +162,6 @@ public final class GraphqlTypeMapper {
     public static boolean isInjectedParam(TypeSymbol type) {
         return type.typeKind() == TypeDescKind.TYPE_REFERENCE && isFromGraphqlModule(type)
                 && type.getName().map(INJECTED_PARAM_TYPES::contains).orElse(false);
-    }
-
-    /**
-     * Returns whether the construct is annotated with {@code @graphql:ID}.
-     */
-    public static boolean hasIdAnnotation(Annotatable annotatable) {
-        return annotatable.annotations().stream()
-                .anyMatch(annotation -> isFromGraphqlModule(annotation)
-                        && annotation.getName().map(ID_TYPE::equals).orElse(false));
     }
 
     /**

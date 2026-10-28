@@ -37,7 +37,6 @@ import io.ballerina.compiler.api.symbols.MethodSymbol;
 import io.ballerina.compiler.api.symbols.ModuleSymbol;
 import io.ballerina.compiler.api.symbols.ObjectFieldSymbol;
 import io.ballerina.compiler.api.symbols.ObjectTypeSymbol;
-import io.ballerina.compiler.api.symbols.ParameterSymbol;
 import io.ballerina.compiler.api.symbols.Qualifier;
 import io.ballerina.compiler.api.symbols.RecordTypeSymbol;
 import io.ballerina.compiler.api.symbols.ResourceMethodSymbol;
@@ -54,7 +53,7 @@ import io.ballerina.compiler.api.symbols.TypeDescTypeSymbol;
 import io.ballerina.compiler.api.symbols.TypeSymbol;
 import io.ballerina.compiler.api.symbols.UnionTypeSymbol;
 import io.ballerina.compiler.api.values.ConstantValue;
-import io.ballerina.compiler.syntax.tree.DefaultableParameterNode;
+import io.ballerina.compiler.syntax.tree.FunctionDefinitionNode;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
 import io.ballerina.compiler.syntax.tree.NonTerminalNode;
 import io.ballerina.compiler.syntax.tree.RecordFieldWithDefaultValueNode;
@@ -73,9 +72,7 @@ import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.GraphqlTypeMapper;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.projects.Document;
-import io.ballerina.projects.DocumentId;
 import io.ballerina.projects.Module;
-import io.ballerina.tools.text.LineRange;
 import org.ballerinalang.langserver.common.utils.CommonUtil;
 
 import java.util.ArrayList;
@@ -84,7 +81,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.StreamSupport;
 
 import static io.ballerina.modelgenerator.commons.CommonUtils.getTypeSignature;
 
@@ -564,39 +560,25 @@ public class TypeTransformer {
 
     // Utils
     /**
-     * Returns the default value of a parameter as written in its signature, including a nil default: the class
-     * editor saves the function back from this model, so it must not lose any part of the signature. The semantic
-     * model does not carry default expressions, so the parameter is located in its module's syntax tree.
+     * Returns the default value of each argument of a function, as {@link GraphqlTypeMapper#getDefaultValues}. The
+     * semantic model does not carry default expressions, so the function is located once in its module's syntax tree.
      */
-    private String getParameterDefaultValue(ParameterSymbol param) {
-        if (param.getLocation().isEmpty() || param.getModule().isEmpty()) {
-            return null;
+    private Map<String, String> getGraphqlDefaultValues(FunctionSymbol functionSymbol) {
+        if (functionSymbol.getLocation().isEmpty() || functionSymbol.getModule().isEmpty()) {
+            return Map.of();
         }
-        // Resolve the document through the parameter's own module: a type from another module of the package can
-        // share a file name with one in this module.
-        String moduleName = param.getModule().get().id().moduleName();
-        Iterable<Module> packageModules = this.module.packageInstance().modules();
-        Optional<Module> paramModule = StreamSupport.stream(packageModules.spliterator(), false)
-                .filter(candidate -> candidate.descriptor().name().toString().equals(moduleName))
-                .findFirst();
-        if (paramModule.isEmpty()) {
-            return null;
-        }
-        LineRange lineRange = param.getLocation().get().lineRange();
-        for (DocumentId documentId : paramModule.get().documentIds()) {
-            Document document = paramModule.get().document(documentId);
-            if (!document.name().equals(lineRange.fileName())) {
-                continue;
-            }
-            NonTerminalNode node = CommonUtil.findNode(CommonUtils.toRange(lineRange), document.syntaxTree());
-            while (node != null && node.kind() != SyntaxKind.DEFAULTABLE_PARAM
-                    && node.kind() != SyntaxKind.FUNCTION_SIGNATURE) {
-                node = node.parent();
-            }
-            return node instanceof DefaultableParameterNode defaultable
-                    ? defaultable.expression().toSourceCode().trim() : null;
-        }
-        return null;
+        return CommonUtils.findDocument(this.module.project(), functionSymbol.getLocation().get(),
+                        functionSymbol.getModule().get().id().moduleName())
+                .flatMap(document -> CommonUtil.findNode(functionSymbol, document.syntaxTree()))
+                .map(node -> {
+                    NonTerminalNode current = node;
+                    while (current != null && !(current instanceof FunctionDefinitionNode)) {
+                        current = current.parent();
+                    }
+                    return current;
+                })
+                .map(node -> GraphqlTypeMapper.getDefaultValues(((FunctionDefinitionNode) node).functionSignature()))
+                .orElse(Map.of());
     }
 
     private Map<String, RecordTypeDescriptorNode> getRecordTypeDescNodes() {
@@ -732,6 +714,7 @@ public class TypeTransformer {
         });
 
         // params
+        Map<String, String> graphqlDefaults = graphqlTypes ? getGraphqlDefaultValues(functionSymbol) : Map.of();
         functionTypeSymbol.params().ifPresent(params -> {
             List<Member> parameters = params.stream().map(param -> {
                 Object transformedParamType = transform(param.typeDescriptor(), new TypeData.TypeDataBuilder());
@@ -757,7 +740,7 @@ public class TypeTransformer {
                         // Runtime-injected parameters (graphql:Context, graphql:Field) are not schema arguments.
                         .graphqlType(graphqlTypes && !GraphqlTypeMapper.isInjectedParam(param.typeDescriptor())
                                 ? GraphqlTypeMapper.toSdl(param.typeDescriptor(), isGraphqlId) : null)
-                        .defaultValue(graphqlTypes ? getParameterDefaultValue(param) : null)
+                        .defaultValue(graphqlDefaults.get(param.getName().map(GraphqlTypeMapper::unescape).orElse("")))
                         .refs(getTypeRefs(transformedParamType, param.typeDescriptor()))
                         .build();
             }).toList();

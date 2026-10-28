@@ -16,6 +16,8 @@
  * under the License.
  */
 
+import type { Member } from "../interfaces/extended-lang-client";
+
 /**
  * A GraphQL field argument, with its type in SDL notation.
  */
@@ -40,13 +42,10 @@ export interface GraphqlSdlField {
 // list and its detail view.
 export const MAX_INLINE_GRAPHQL_ARGS = 2;
 
-// Ballerina's nil default. It only makes the argument optional, which its nullable type already says.
-const NIL_DEFAULT = "()";
-
 // A default makes the argument optional to pass even when its type is non-null (`name: String! = ""`),
 // so it is part of the argument wherever the argument is shown.
 const formatArgument = (arg: GraphqlSdlArgument): string =>
-    arg.defaultValue !== undefined && arg.defaultValue !== null && arg.defaultValue !== NIL_DEFAULT
+    arg.defaultValue !== undefined && arg.defaultValue !== null
         ? `${arg.name}: ${arg.type} = ${arg.defaultValue}`
         : `${arg.name}: ${arg.type}`;
 
@@ -55,6 +54,16 @@ const formatArgument = (arg: GraphqlSdlArgument): string =>
  */
 export function toGraphqlName(identifier: string): string {
     return (identifier ?? "").replace(/^'/, "").replace(/\\(.)/g, "$1");
+}
+
+/**
+ * The arguments of a field in the GraphQL type model: the parameters carrying a GraphQL type. Runtime-injected
+ * parameters (`graphql:Context`, `graphql:Field`) carry none, as they are not schema arguments.
+ */
+export function toGraphqlArgs(parameters: Member[]): GraphqlSdlArgument[] {
+    return (parameters ?? [])
+        .filter((param) => param.graphqlType)
+        .map((param) => ({ name: toGraphqlName(param.name), type: param.graphqlType, defaultValue: param.defaultValue }));
 }
 
 /**

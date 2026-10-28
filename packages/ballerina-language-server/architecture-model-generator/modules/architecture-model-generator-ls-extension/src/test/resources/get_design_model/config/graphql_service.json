@@ -210,8 +210,7 @@
                 "args": [
                   {
                     "name": "id",
-                    "type": "ID!",
-                    "description": "The profile id"
+                    "type": "ID!"
                   }
                 ],
                 "type": "Profile",

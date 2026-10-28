@@ -20,7 +20,7 @@ import React from "react";
 import { waitFor } from "@testing-library/dom";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import { Member, Type, TypeFunctionModel, formatInlineGraphqlArgs, toGraphqlName } from "@wso2/ballerina-core";
+import { Member, Type, TypeFunctionModel, formatInlineGraphqlArgs, toGraphqlArgs } from "@wso2/ballerina-core";
 import { TypeDiagram } from "../Diagram";
 
 // Captured `typesManager/getGraphqlType` output, copied verbatim from the language server test
@@ -48,15 +48,12 @@ async function renderGraphqlDiagram(service: Type = rootService, types: Type[] =
     return dom;
 }
 
-function argsOf(operation: TypeFunctionModel) {
-    return (operation.parameters ?? [])
-        .filter((param) => param.graphqlType)
-        .map((param) => ({ name: toGraphqlName(param.name), type: param.graphqlType, defaultValue: param.defaultValue }));
-}
+const rowText = (operation: TypeFunctionModel) =>
+    operation.name + formatInlineGraphqlArgs(toGraphqlArgs(operation.parameters)) + operation.graphqlType;
 
-// The innermost element showing exactly `name(args)` then the type, i.e. the field's row.
-function findFieldRow(container: HTMLElement, text: string): Element | undefined {
-    return Array.from(container.querySelectorAll("*")).filter((element) => element.textContent === text).pop();
+// The field row showing exactly `name(args)` then the type.
+function findFieldRow(text: string): Element | undefined {
+    return screen.queryAllByTestId("graphql-field-row").find((row) => row.textContent === text);
 }
 
 function findDefinition(name: string): HTMLElement | undefined {
@@ -76,26 +73,26 @@ describe("GraphQL diagram", () => {
     });
 
     test("every operation shows its GraphQL type and arguments, with the SDL definition on hover", async () => {
-        const dom = await renderGraphqlDiagram();
+        await renderGraphqlDiagram();
         for (const operation of operations) {
-            const rowText = operation.name + formatInlineGraphqlArgs(argsOf(operation)) + operation.graphqlType;
-            expect(findFieldRow(dom.container, rowText)).toBeDefined();
+            expect(findFieldRow(rowText(operation))).toBeDefined();
             expect(findDefinition(operation.name)).toHaveTextContent(`: ${operation.graphqlType}`);
         }
     }, 15000);
 
-    test("every object field shows its GraphQL type", async () => {
+    test("every object field shows its GraphQL type, never an unformatted one", async () => {
         const dom = await renderGraphqlDiagram();
         for (const field of objectFields) {
-            expect(findFieldRow(dom.container, field.name + field.graphqlType)).toBeDefined();
+            expect(findFieldRow(field.name + field.graphqlType)).toBeDefined();
         }
+        expect(dom.container.textContent).not.toContain("[object Object]");
     }, 15000);
 
     test("each row's tooltip shows on hover, also when moving straight from another row", async () => {
-        const dom = await renderGraphqlDiagram();
+        await renderGraphqlDiagram();
         const [first, second] = operations;
-        const firstRow = findFieldRow(dom.container, first.name + formatInlineGraphqlArgs(argsOf(first)) + first.graphqlType);
-        const secondRow = findFieldRow(dom.container, second.name + formatInlineGraphqlArgs(argsOf(second)) + second.graphqlType);
+        const firstRow = findFieldRow(rowText(first));
+        const secondRow = findFieldRow(rowText(second));
 
         // Real timers: the tooltip shows after the pointer rests 500 ms. Fake timers would also stall the
         // diagram's own layout timers.
@@ -116,10 +113,5 @@ describe("GraphQL diagram", () => {
         }
         expect(screen.queryAllByTestId("graphql-definition")).toHaveLength(0);
         expect(dom.container.textContent).not.toContain("!");
-    }, 15000);
-
-    test("never falls back to an unformatted type", async () => {
-        const dom = await renderGraphqlDiagram();
-        expect(dom.container.textContent).not.toContain("[object Object]");
     }, 15000);
 });
