@@ -16,10 +16,10 @@
     "displayName": "GraphQL Service",
     "moduleName": "graphql",
     "orgName": "ballerina",
-    "version": "1.19.1",
+    "version": "1.19.0",
     "packageName": "graphql",
     "listenerProtocol": "graphql",
-    "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_graphql_1.19.1.png",
+    "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_graphql_1.19.0.png",
     "documentation": {
       "metadata": {
         "label": "Description",
@@ -183,7 +183,7 @@
             "typeMembers": [
               {
                 "type": "GraphqlServiceConfig",
-                "packageInfo": "ballerina:graphql:1.19.1",
+                "packageInfo": "ballerina:graphql:1.19.0",
                 "packageName": "graphql",
                 "kind": "RECORD_TYPE",
                 "selected": true
@@ -388,7 +388,7 @@
                 "typeMembers": [
                   {
                     "type": "GraphqlResourceConfig",
-                    "packageInfo": "ballerina:graphql:1.19.1",
+                    "packageInfo": "ballerina:graphql:1.19.0",
                     "packageName": "graphql",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -811,7 +811,7 @@
                 "typeMembers": [
                   {
                     "type": "GraphqlResourceConfig",
-                    "packageInfo": "ballerina:graphql:1.19.1",
+                    "packageInfo": "ballerina:graphql:1.19.0",
                     "packageName": "graphql",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -1363,7 +1363,7 @@
                 "typeMembers": [
                   {
                     "type": "GraphqlResourceConfig",
-                    "packageInfo": "ballerina:graphql:1.19.1",
+                    "packageInfo": "ballerina:graphql:1.19.0",
                     "packageName": "graphql",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -1757,7 +1757,7 @@
                 "typeMembers": [
                   {
                     "type": "GraphqlResourceConfig",
-                    "packageInfo": "ballerina:graphql:1.19.1",
+                    "packageInfo": "ballerina:graphql:1.19.0",
                     "packageName": "graphql",
                     "kind": "RECORD_TYPE",
                     "selected": false
