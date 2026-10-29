@@ -110,8 +110,10 @@ export function AgentManagerMcpSuggestions({ servers }: { servers: McpServerStat
         .catch(() => setOffer(undefined));
 
     useEffect(() => {
-        load();
-    }, [servers]);
+        if (agentBuilder) {
+            load();
+        }
+    }, [servers, agentBuilder]);
 
     const available = offer?.servers.filter((server) => !server.added) ?? [];
     if (!agentBuilder || available.length === 0) {

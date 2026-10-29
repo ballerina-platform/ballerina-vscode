@@ -42,7 +42,9 @@
         "metadata": {
           "accessor": "delete",
           "servicePath": "/api/v1/petsstore",
-          "resourcePath": "pets/[string petId]"
+          "serviceType": "http",
+          "resourcePath": "pets/[string petId]",
+          "functionKind": "resource"
         }
       },
       {
@@ -63,7 +65,9 @@
         "metadata": {
           "accessor": "put",
           "servicePath": "/api/v1/petsstore",
-          "resourcePath": "pets/[string petId]"
+          "serviceType": "http",
+          "resourcePath": "pets/[string petId]",
+          "functionKind": "resource"
         }
       },
       {
@@ -95,7 +99,9 @@
         "metadata": {
           "accessor": "post",
           "servicePath": "/api/v1/petsstore",
-          "resourcePath": "pets"
+          "serviceType": "http",
+          "resourcePath": "pets",
+          "functionKind": "resource"
         }
       },
       {
@@ -116,7 +122,9 @@
         "metadata": {
           "accessor": "get",
           "servicePath": "/api/v1/petsstore",
-          "resourcePath": "echo"
+          "serviceType": "http",
+          "resourcePath": "echo",
+          "functionKind": "resource"
         }
       },
       {
@@ -148,7 +156,9 @@
         "metadata": {
           "accessor": "get",
           "servicePath": "/api/v1/petsstore",
-          "resourcePath": "pets/[string petId]"
+          "serviceType": "http",
+          "resourcePath": "pets/[string petId]",
+          "functionKind": "resource"
         }
       },
       {

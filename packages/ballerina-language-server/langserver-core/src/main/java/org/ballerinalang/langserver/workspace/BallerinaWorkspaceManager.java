@@ -42,6 +42,8 @@ import io.ballerina.projects.Project;
 import io.ballerina.projects.ProjectException;
 import io.ballerina.projects.ProjectKind;
 import io.ballerina.projects.TomlDocument;
+import io.ballerina.projects.directory.BuildProject;
+import io.ballerina.projects.directory.WorkspaceProject;
 import io.ballerina.projects.util.ProjectConstants;
 import io.ballerina.projects.util.ProjectPaths;
 import io.ballerina.tools.diagnostics.Diagnostic;
@@ -56,6 +58,7 @@ import org.ballerinalang.langserver.commons.LanguageServerContext;
 import org.ballerinalang.langserver.commons.client.ExtendedLanguageClient;
 import org.ballerinalang.langserver.commons.eventsync.EventKind;
 import org.ballerinalang.langserver.commons.eventsync.exceptions.EventSyncException;
+import org.ballerinalang.langserver.commons.workspace.ProjectLocks;
 import org.ballerinalang.langserver.commons.workspace.RunContext;
 import org.ballerinalang.langserver.commons.workspace.RunResult;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceDocumentException;
@@ -123,6 +126,13 @@ public class BallerinaWorkspaceManager implements WorkspaceManager {
     // its output with the platform's native encoding, which is not UTF-8 on Windows.
     private static final String STDOUT_ENCODING_FLAG = "-Dstdout.encoding=UTF-8";
     private static final String STDERR_ENCODING_FLAG = "-Dstderr.encoding=UTF-8";
+    // Same flag `bal run` passes: without it JDK 24+ warns when a library loads native code (e.g. gRPC's Netty).
+    private static final String NATIVE_ACCESS_FLAG = "--enable-native-access=ALL-UNNAMED";
+    // Same flag `bal run` passes: without it JDK 24+ warns when a library uses sun.misc.Unsafe (e.g. Netty).
+    private static final String UNSAFE_MEMORY_ACCESS_FLAG = "--sun-misc-unsafe-memory-access=allow";
+    private static final String PROJECT_COPY_FAILED = "Could not copy the project for the fast run";
+    private static final String COMPILER_PLUGIN_FAILED = "A compiler plugin failed while preparing the fast run";
+    private static final String CODE_GENERATION_FAILED = "Code generation failed while preparing the fast run";
 
     /**
      * Cache mapping of document path to source root.
@@ -148,6 +158,11 @@ public class BallerinaWorkspaceManager implements WorkspaceManager {
     protected final LSClientLogger clientLogger;
     private final LanguageServerContext serverContext;
     private final Set<Path> openedDocuments = ConcurrentHashMap.newKeySet();
+    /**
+     * Answers {@link ProjectLocks} from the project map. {@link ProjectLocks} holds it weakly, so this field keeps it
+     * alive exactly as long as this workspace manager.
+     */
+    private final ProjectLocks.Owner projectLockOwner = this::projectLock;
 
     public BallerinaWorkspaceManager(LanguageServerContext serverContext) {
         this.serverContext = serverContext;
@@ -159,6 +174,7 @@ public class BallerinaWorkspaceManager implements WorkspaceManager {
         this.pathToSourceRootCache = cache.asMap();
         this.sourceRootToProject = new SourceRootToProjectMap<>(pathToSourceRootCache);
         this.projectLockMap = new ConcurrentHashMap<>();
+        ProjectLocks.addOwner(projectLockOwner);
 
         // We are only doing a best effort cleanup here. If we held a strong reference to the map
         // GC will not be able to clean the projects. It impacts tests since all run in the same JVM.
@@ -648,24 +664,50 @@ public class BallerinaWorkspaceManager implements WorkspaceManager {
         }
 
         Project project = projectContext.get().project();
+        // Only a gate: the backend must come from the copy below, since codegen desugars the editor's tree.
         Optional<PackageCompilation> packageCompilation = waitAndGetPackageCompilation(project.sourceRoot(), true);
         if (packageCompilation.isEmpty()) {
             logError("Run command execution aborted because package compilation failed");
             return new RunResult(null, Collections.emptyList());
         }
 
-        JBallerinaBackend jBallerinaBackend = execBackend(projectContext.get(), packageCompilation.get());
+        // Run on a copy: code modifiers rewrite the sources and codegen desugars the tree the editor still uses.
+        Project runProject;
+        try {
+            runProject = duplicateForRun(projectContext.get());
+        } catch (ProjectException e) {
+            throw runFailure(PROJECT_COPY_FAILED, e);
+        }
         Collection<Diagnostic> diagnostics = new LinkedList<>();
+        // No local for the package: it would keep the pre-modifier compilation reachable during codegen below.
+        PackageCompilation runCompilation;
+        try {
+            // Compile once first so runCodeGenAndModifyPlugins() can skip packages without generators or modifiers.
+            // Code analyzers run here too, so a plugin that throws on the copy is reported like any other.
+            runProject.currentPackage().getCompilation();
+            diagnostics.addAll(runProject.currentPackage().runCodeGenAndModifyPlugins().diagnostics());
+            // A modified package compiles afresh here and its code analyzers run again, so this is still plugin code.
+            runCompilation = runProject.currentPackage().getCompilation();
+        } catch (ProjectException e) {
+            throw runFailure(COMPILER_PLUGIN_FAILED, e);
+        }
+        JBallerinaBackend jBallerinaBackend;
+        try {
+            jBallerinaBackend = JBallerinaBackend.from(runCompilation, JvmTarget.JAVA_25, false);
+        } catch (ProjectException e) {
+            throw runFailure(CODE_GENERATION_FAILED, e);
+        }
         // check for compilation errors
         diagnostics.addAll(jBallerinaBackend.diagnosticResult().diagnostics(false));
         // Add tool resolution diagnostics to diagnostics
-        diagnostics.addAll(project.currentPackage().getBuildToolResolution().getDiagnosticList());
+        diagnostics.addAll(runProject.currentPackage().getBuildToolResolution().getDiagnosticList());
 
         if (diagnostics.stream().anyMatch(d -> d.diagnosticInfo().severity() == DiagnosticSeverity.ERROR)) {
             return new RunResult(null, diagnostics);
         }
 
-        Optional<Process> process = executeProject(projectContext.get(), executionContext);
+        Optional<Process> process = executeProject(projectContext.get(), executionContext, runProject,
+                jBallerinaBackend);
         return process.map(value -> new RunResult(value, diagnostics))
                 .orElseGet(() -> new RunResult(null, diagnostics));
     }
@@ -680,15 +722,17 @@ public class BallerinaWorkspaceManager implements WorkspaceManager {
         return projectContextOpt;
     }
 
-    private Optional<Process> executeProject(ProjectContext projectContext, RunContext context) throws IOException {
-        Project project = projectContext.project();
-        Package pkg = project.currentPackage();
-        Module executableModule = pkg.getDefaultModule();
-        JBallerinaBackend jBallerinaBackend = execBackend(projectContext, pkg.getCompilation());
+    private Optional<Process> executeProject(ProjectContext projectContext, RunContext context, Project runProject,
+                                             JBallerinaBackend jBallerinaBackend) throws IOException {
+        Module executableModule = runProject.currentPackage().getDefaultModule();
         JarResolver jarResolver = jBallerinaBackend.jarResolver();
 
-        List<String> commands = prepareExecutionCommands(context, project.sourceRoot(), executableModule, jarResolver);
+        Path projectRoot = projectContext.project().sourceRoot();
+        Path workingDir = (Files.isRegularFile(projectRoot) ? projectRoot.getParent() : projectRoot).toRealPath();
+        List<String> commands = prepareExecutionCommands(context, workingDir, executableModule, jarResolver);
         ProcessBuilder pb = new ProcessBuilder(commands);
+        // The runtime reads Config.toml from the working directory, as `bal run` does.
+        pb.directory(workingDir.toFile());
         pb.environment().putAll(context.env());
 
         Lock lock = projectContext.lockAndGet();
@@ -707,14 +751,16 @@ public class BallerinaWorkspaceManager implements WorkspaceManager {
         }
     }
 
-    private List<String> prepareExecutionCommands(RunContext context, Path projectRoot, Module module,
-                                                  JarResolver jarResolver) throws IOException {
+    private List<String> prepareExecutionCommands(RunContext context, Path workingDir, Module module,
+                                                  JarResolver jarResolver) {
         List<String> commands = new ArrayList<>();
         commands.add(context.javaCmd());
         commands.add(HEAP_DUMP_FLAG);
-        commands.add(getHeapDumpPathArgument(projectRoot));
+        commands.add(HEAP_DUMP_PATH_FLAG + workingDir);
         commands.add(STDOUT_ENCODING_FLAG);
         commands.add(STDERR_ENCODING_FLAG);
+        commands.add(NATIVE_ACCESS_FLAG);
+        commands.add(UNSAFE_MEMORY_ACCESS_FLAG);
         if (context.debugPort() > 0) {
             commands.add(DEBUG_ARGS + context.debugPort());
         }
@@ -733,26 +779,58 @@ public class BallerinaWorkspaceManager implements WorkspaceManager {
         return commands;
     }
 
-    private static String getHeapDumpPathArgument(Path projectRoot) throws IOException {
-        Path workingDirectory = Files.isRegularFile(projectRoot) ? projectRoot.getParent() : projectRoot;
-        return HEAP_DUMP_PATH_FLAG + workingDirectory.toRealPath();
-    }
 
-    private static JBallerinaBackend execBackend(ProjectContext projectContext,
-                                                 PackageCompilation packageCompilation) {
+    private static Project duplicateForRun(ProjectContext projectContext) {
         Lock lock = projectContext.lockAndGet();
         try {
-            JBallerinaBackend jBallerinaBackend = JBallerinaBackend.from(packageCompilation, JvmTarget.JAVA_25, false);
-            Package pkg = projectContext.project.currentPackage();
-            for (Module module : pkg.modules()) {
-                for (DocumentId id : module.documentIds()) {
-                    module.document(id).modify().apply();
+            Project project = projectContext.project();
+            Optional<WorkspaceProject> workspace = project.workspaceProject();
+            if (workspace.isEmpty()) {
+                return project.duplicate();
+            }
+            // A member's own copy still resolves its siblings from the editor's workspace, whose packages belong to
+            // another compiler context, and codegen fails desugaring them. Copy the workspace and take the member.
+            Path memberRoot = comparableRoot(project.sourceRoot());
+            // This member's lock is enough: each sibling is copied from its current Package, an immutable snapshot
+            // that a concurrent edit replaces rather than changes, so the copy sees it before or after that edit.
+            WorkspaceProject workspaceCopy = (WorkspaceProject) workspace.get().duplicate();
+            for (BuildProject member : workspaceCopy.projects()) {
+                if (comparableRoot(member.sourceRoot()).equals(memberRoot)) {
+                    return member;
                 }
             }
-            return jBallerinaBackend;
+            throw new ProjectException("Fast run could not find the package at " + project.sourceRoot()
+                    + " in its copy of the workspace at " + workspace.get().sourceRoot());
         } finally {
             lock.unlock();
         }
+    }
+
+    // The real path when it resolves, so a symlinked or differently cased root still matches its copy.
+    private static Path comparableRoot(Path root) {
+        try {
+            return root.toRealPath();
+        } catch (IOException e) {
+            return root.toAbsolutePath().normalize();
+        }
+    }
+
+    // Logs the failure with its stack trace and returns one whose message tells the user which step failed.
+    private ProjectException runFailure(String step, ProjectException e) {
+        clientLogger.logError(LSContextOperation.WS_EXEC_CMD, step, e, null, (Position) null);
+        Throwable root = e;
+        while (root.getCause() != null && root.getCause() != root) {
+            root = root.getCause();
+        }
+        String detail = String.valueOf(e.getMessage());
+        // The plugin managers append the direct cause's message verbatim, so one without a message leaves "null".
+        if (e.getCause() != null && e.getCause().getMessage() == null && detail.endsWith("null")) {
+            detail = detail.substring(0, detail.length() - "null".length()).trim();
+        }
+        if (root != e) {
+            detail += " (caused by " + root.getClass().getName() + ")";
+        }
+        return new ProjectException(step + ": " + detail, e);
     }
 
     private void logError(String message) {
@@ -1549,6 +1627,22 @@ public class BallerinaWorkspaceManager implements WorkspaceManager {
         return Optional.ofNullable(sourceRootToProject.get(projectRoot));
     }
 
+    /**
+     * Returns the lock of the context the project map holds for this project instance. A context that has dropped
+     * out of the map (replaced on a reload, or created only for its project) does not count, even when it still
+     * holds the same instance.
+     *
+     * @param project the project instance
+     * @return the lock, or empty when the map does not hold this instance
+     */
+    private Optional<Lock> projectLock(Project project) {
+        ProjectContext projectContext = sourceRootToProject.get(project.sourceRoot());
+        if (projectContext == null || projectContext.project() != project) {
+            return Optional.empty();
+        }
+        return Optional.of(projectContext.locker());
+    }
+
     private Optional<ProjectContext> createProjectContext(Path filePath, String operationName) {
         Project project = createProject(filePath, operationName);
         if (project == null) {
@@ -1837,13 +1931,14 @@ public class BallerinaWorkspaceManager implements WorkspaceManager {
     }
 
     /**
-     * Represents a map of Path to ProjectContext.
+     * Represents a map of Path to ProjectContext. It is written under different per-project locks and read without
+     * one (including by {@link ProjectLocks} from other threads), so it has to be a concurrent map.
      *
      * @param <K> cache key
      * @param <V> cache value Clear out front-faced cache implementation whenever a modification operation triggered for
      *            this map.
      */
-    private static class SourceRootToProjectMap<K, V> extends HashMap<K, V> {
+    private static class SourceRootToProjectMap<K, V> extends ConcurrentHashMap<K, V> {
 
         private static final long serialVersionUID = 19900410L;
         private final transient Map<Path, Path> cache;

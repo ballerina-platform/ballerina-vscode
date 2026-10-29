@@ -48,7 +48,7 @@ public class GetAvailableChunkersTest extends AbstractLSTest {
     }
 
     @Override
-    // Disabled until ballerinax/ai.devant is rebuilt for ballerina/ai 1.13.0; its 1.0.4 BIR cannot be loaded.
+    // Disabled: the test distribution cannot load the BIR of ballerinax/ai.devant 1.0.4 or 1.0.5.
     @Test(dataProvider = "data-provider", enabled = false)
     public void test(Path config) throws IOException {
         Path configJsonPath = configDir.resolve(config);

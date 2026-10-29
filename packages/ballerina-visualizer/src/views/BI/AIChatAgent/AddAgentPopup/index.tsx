@@ -43,6 +43,7 @@ export interface AddAgentPopupProps {
     dependencyMode?: boolean;
     onAgentSelectedForDependency?: (agent: AvailableNode) => void;
     onGenericAgentSelected?: () => void;
+    isAgentHidden?: (agent: AvailableNode) => boolean;
     dependencyToolForm?: ReactNode;
     onDependencyToolFormBack?: () => void;
 }
@@ -129,6 +130,7 @@ export function AddAgentPopup(props: AddAgentPopupProps): null {
                 dependencyMode={dependencyMode}
                 onAgentSelectedForDependency={latest.current.onAgentSelectedForDependency}
                 onGenericAgentSelected={latest.current.onGenericAgentSelected}
+                isAgentHidden={latest.current.isAgentHidden}
             />,
             GALLERY_ID,
             dependencyMode ? "Use Agent" : "Add Agent",

@@ -127,16 +127,22 @@ public record AgentTriggerContext(String emitAlias, String listenerVarName, Stri
         return channel.isEmpty() ? DEFAULT_CHAT_CHANNEL : channel;
     }
 
-    public String durableHelpers() {
+    private String durableHelpers(boolean isolatedService) {
         if (!isDurable()) {
             return "";
         }
-        return DURABLE_HELPERS.replace("{{agent}}", agentVarName).replace("{{channel}}", chatChannel());
+        String helpers = DURABLE_HELPERS.replace("{{agent}}", agentVarName).replace("{{channel}}", chatChannel());
+        return isolatedService ? helpers.replace("    function ", "    isolated function ") : helpers;
     }
 
     /** Fills the placeholders every channel template shares. */
     public String fill(String template) {
-        String helpers = durableHelpers();
+        return fill(template, false);
+    }
+
+    /** As {@link #fill(String)}, for an {@code isolated} service, whose methods must be isolated too. */
+    public String fill(String template, boolean isolatedService) {
+        String helpers = durableHelpers(isolatedService);
         return template.replace("{{alias}}", emitAlias)
                 .replace("{{listener}}", listenerVarName)
                 .replace(DURABLE_HELPERS_SLOT, helpers.isEmpty() ? "\n" : "\n" + helpers);

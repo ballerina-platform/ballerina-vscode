@@ -1,0 +1,8 @@
+[package]
+org = "wso2"
+name = "class_method_kinds"
+version = "0.1.0"
+title = "class method kinds"
+
+[build-options]
+sticky = true

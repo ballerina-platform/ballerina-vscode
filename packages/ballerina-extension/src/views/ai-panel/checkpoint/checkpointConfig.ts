@@ -23,9 +23,11 @@ export interface CheckpointConfig {
     maxCount: number;
     ignorePatterns: string[];
     maxSnapshotSize: number;
+    maxFileSize: number;
 }
 
 export const MAX_SNAPSHOT_SIZE_MB = 50;
+export const MAX_FILE_SIZE_BYTES = 2097152;
 
 export const DEFAULT_CHECKPOINT_CONFIG: CheckpointConfig = {
     enabled: true,
@@ -48,7 +50,8 @@ export const DEFAULT_CHECKPOINT_CONFIG: CheckpointConfig = {
         '**/*.tar',
         '**/*.gz'
     ],
-    maxSnapshotSize: MAX_SNAPSHOT_SIZE_MB * 1024 * 1024
+    maxSnapshotSize: MAX_SNAPSHOT_SIZE_MB * 1024 * 1024,
+    maxFileSize: MAX_FILE_SIZE_BYTES
 };
 
 export function getCheckpointConfig(): CheckpointConfig {
@@ -58,6 +61,7 @@ export function getCheckpointConfig(): CheckpointConfig {
         enabled: config.get('enabled', DEFAULT_CHECKPOINT_CONFIG.enabled),
         maxCount: config.get('maxCount', DEFAULT_CHECKPOINT_CONFIG.maxCount),
         ignorePatterns: config.get('ignorePatterns', DEFAULT_CHECKPOINT_CONFIG.ignorePatterns),
-        maxSnapshotSize: config.get('maxSnapshotSize', DEFAULT_CHECKPOINT_CONFIG.maxSnapshotSize)
+        maxSnapshotSize: config.get('maxSnapshotSize', DEFAULT_CHECKPOINT_CONFIG.maxSnapshotSize),
+        maxFileSize: config.get('maxFileSize', DEFAULT_CHECKPOINT_CONFIG.maxFileSize)
     };
 }

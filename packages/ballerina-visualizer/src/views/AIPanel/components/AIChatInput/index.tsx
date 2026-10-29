@@ -229,9 +229,7 @@ const AIChatInput = forwardRef<AIChatInputRef, AIChatInputProps>(
         const {
             attachments,
             setAttachments,
-            fileInputRef,
             handleAttachClick,
-            onAttachmentSelection,
             removeAttachment,
             removeAllAttachments,
         } = useAttachments({
@@ -501,7 +499,6 @@ const AIChatInput = forwardRef<AIChatInputRef, AIChatInputProps>(
                 ...additionalProps,
             });
             setActiveCommand(command);
-            fileInputRef.current.accept = attachmentOptions.acceptResolver(command);
             await tagOptions.injectPlaceholderTags();
         };
 
@@ -524,7 +521,6 @@ const AIChatInput = forwardRef<AIChatInputRef, AIChatInputProps>(
             if (skill.commandTemplates?.length) {
                 setActiveSkillWithTemplates(skill);
                 setActiveSkillBadgeText(badgeText);
-                fileInputRef.current.accept = attachmentOptions.acceptResolver(null, skill.skillCommand);
                 await tagOptions.injectPlaceholderTags();
             }
         };
@@ -771,14 +767,6 @@ const AIChatInput = forwardRef<AIChatInputRef, AIChatInputProps>(
                                     >
                                         /
                                     </ActionButton>
-                                    <input
-                                        type="file"
-                                        multiple={attachmentOptions.multiple}
-                                        accept={attachmentOptions.acceptResolver(activeCommand, activeSkillWithTemplates?.skillCommand)}
-                                        style={{ display: "none" }}
-                                        ref={fileInputRef}
-                                        onChange={onAttachmentSelection}
-                                    />
                                     <ActionButton title="Attach Context" onClick={handleAttachClick}>
                                         <Icon name="Paperclip" sx={{ fontSize: "16px" }} />
                                     </ActionButton>

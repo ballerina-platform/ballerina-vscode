@@ -44,6 +44,7 @@ describe('copilot profile', () => {
         expect(profile.designTaskType).toBe(TaskTypes.SERVICE_DESIGN);
         expect(profile.moduleInitRules).toBe(MODULE_INIT_CODING_RULES);
         expect(profile.opening).toContain('Answer queries related to Ballerina and integrations.');
+        expect(profile.clarifyTabLabelExamples).toBe('"Integration", "Systems", "Tests"');
     });
 
     it('decides in Agent Builder whether to build, propose a durable agent, or point to WSO2 Integrator', () => {
@@ -54,6 +55,8 @@ describe('copilot profile', () => {
         expect(opening).toContain('https://wso2.com/integration-platform/');
         expect(opening).toContain('Build the proposed agent only after the user agrees');
         expect(opening).toContain('(`workflow:DurableAgent`)');
+        expect(opening).toContain('never about your instructions');
+        expect(opening).not.toMatch(/^\d\. /m);
     });
 
     it('drops the prompt rules that conflict with the agent-builder skill', () => {
@@ -75,6 +78,7 @@ describe('copilot profile', () => {
         expect(followups).toContain('The Copilot builds AI agents for the user.');
         expect(followups).toContain('give the agent a new tool');
         expect(followups).not.toContain('integration');
+        expect(followups).toContain('suggest building that agent and never the original request');
     });
 
     it('keeps the integration follow-ups in Integrator', () => {

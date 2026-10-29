@@ -51,6 +51,7 @@ export interface AddAgentPopupContentProps {
     dependencyMode?: boolean;
     onAgentSelectedForDependency?: (agent: AvailableNode) => void;
     onGenericAgentSelected?: () => void;
+    isAgentHidden?: (agent: AvailableNode) => boolean;
 }
 
 const toAgents = (model: BISearchResponse): AvailableNode[] =>
@@ -76,6 +77,7 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
         dependencyMode,
         onAgentSelectedForDependency,
         onGenericAgentSelected,
+        isAgentHidden,
     } = props;
     const { rpcClient } = useRpcContext();
     const [searchText, setSearchText] = useState("");
@@ -183,6 +185,9 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
         return () => debouncedSearch.cancel();
     }, [searchText, filterType, rpcClient, projectPath]);
 
+    const isVisible = (agent: AvailableNode) => !isAgentHidden?.(agent);
+    const visibleAgents = agents.filter(isVisible);
+
     const handleCustomAgent = () => onOpenAgentForm();
 
     // A resolved agent (codedata.object set) routes to the dependency callback or the configure view.
@@ -205,7 +210,7 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
                 queryMap: { package: `${org}/${module}:${version}` },
                 searchKind: "AGENT",
             });
-            const found = toAgents(model);
+            const found = toAgents(model).filter(isVisible);
             if (found.length === 1) {
                 selectResolvedAgent(found[0]);
                 return;
@@ -277,11 +282,11 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
                     onChange={setSearchText}
                     size={60}
                 />
-                {isExpanding || ((isSearching || isLoadingOrgAgents) && agents.length === 0) ? (
+                {isExpanding || ((isSearching || isLoadingOrgAgents) && visibleAgents.length === 0) ? (
                     <LoaderWrapper>
                         <RelativeLoader />
                     </LoaderWrapper>
-                ) : agents.length === 0 ? (
+                ) : visibleAgents.length === 0 ? (
                     <EmptyState>
                         {filterType === "Project"
                             ? "No agents found in this project."
@@ -293,7 +298,7 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
                     </EmptyState>
                 ) : (
                     <AgentsGrid>
-                        {agents.map((agent) => {
+                        {visibleAgents.map((agent) => {
                             const key = `${agent.codedata.org}/${agent.codedata.module}/${agent.metadata.label}`;
                             return (
                                 <ButtonCard

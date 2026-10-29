@@ -111,6 +111,8 @@ export {
     resolveBrandIcon,
     resolveBrandIconFromUrl,
     resolveModuleFromIconUrl,
+    VOICE_AGENT_MODULE,
+    isVoiceAgentService,
     ENTRY_TYPE_GLYPH,
     resolveEntryTypeGlyph,
     KIND_DEFAULT_ICON,

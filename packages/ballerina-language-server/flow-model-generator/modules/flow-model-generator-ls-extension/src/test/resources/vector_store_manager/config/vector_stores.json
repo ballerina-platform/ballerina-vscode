@@ -25,6 +25,25 @@
           },
           {
             "metadata": {
+              "label": "Amazon S3 Vectors Vector Store",
+              "description": "A vector store backed by an Amazon S3 Vectors index.",
+              "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.aws.s3_1.0.1.png",
+              "data": {
+                "pullRequired": true
+              }
+            },
+            "codedata": {
+              "node": "VECTOR_STORE",
+              "org": "ballerinax",
+              "module": "ai.aws.s3",
+              "packageName": "ai.aws.s3",
+              "object": "VectorStore",
+              "symbol": "init"
+            },
+            "enabled": true
+          },
+          {
+            "metadata": {
               "label": "Milvus Vector Store",
               "description": "Milvus Vector Store implementation with support for Dense, Sparse, and Hybrid vector search modes.\n\nThis class implements the ai:VectorStore interface and integrates with the Milvus vector database\nto provide functionality for vector upsert, query, and deletion.\n",
               "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.milvus_1.0.5.png",

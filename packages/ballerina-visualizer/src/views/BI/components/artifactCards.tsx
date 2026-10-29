@@ -155,7 +155,7 @@ export const AI_CHAT_AGENT_CARD: ArtifactCard = {
 export const VOICE_AGENT_CARD: ArtifactCard = {
     id: "voice-agent-card",
     kind: "voice-agent",
-    displayName: "Voice Agent Service",
+    displayName: "Voice Chat Service",
     icon: <Icon name="mic" isCodicon={true} />,
     tooltip: "A real-time voice service that exposes an AI agent for verbal conversations."
 };

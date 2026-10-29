@@ -499,6 +499,9 @@ function AgentDefinitionAgentToolForm(props: AgentDefinitionAgentToolFormProps):
         onClose={onCancel}
         onNavigateToOverview={onCancel}
         onGenericAgentSelected={() => setDependencyDraft(genericAgentDependencyDraft(reservedNames))}
+        // A definition that takes itself as a dependency can never be instantiated.
+        isAgentHidden={(agent) => agent.codedata?.object === hostClass.className
+            && agent.codedata?.module === defaultModuleName(projectPath)}
         onAgentSelectedForDependency={(agent) => {
             setDependencyDraft(agentDependencyDraftFromNode(agent, reservedNames, projectPath));
         }}

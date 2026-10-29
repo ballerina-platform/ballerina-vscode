@@ -1,0 +1,2 @@
+[workspace]
+packages = ["app", "mappers_v2", "mappers_v1"]
