@@ -1,0 +1,215 @@
+{
+  "description": "Service starts a workflow and a durable agent with runWithId and run",
+  "projectPath": "project_19",
+  "output": {
+    "designModel": {
+      "connections": [
+        {
+          "symbol": "supportModel",
+          "location": {
+            "filePath": "/Users/hasitha/Source/workflow/vscode-wf-runwithid/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/workflows.bal",
+            "startLine": {
+              "line": 3,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 3,
+              "offset": 92
+            }
+          },
+          "scope": "GLOBAL",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png?wso2_icon",
+          "dependentFunctions": [],
+          "dependentConnection": [],
+          "kind": "Model Provider",
+          "uuid": "fcb65371-278f-4a60-577a-7c374bf6f2c1",
+          "enableFlowModel": true,
+          "sortText": "workflows.bal3"
+        }
+      ],
+      "listeners": [
+        {
+          "symbol": "httpDefaultListener",
+          "location": {
+            "filePath": "/Users/hasitha/Source/workflow/vscode-wf-runwithid/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
+            "startLine": {
+              "line": 3,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 3,
+              "offset": 71
+            }
+          },
+          "attachedServices": [
+            "971efb09-29a6-27e8-38c0-c055987f67d0"
+          ],
+          "kind": "NAMED",
+          "type": "http:Listener",
+          "args": [],
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.18.0.png",
+          "uuid": "91b17b3f-2a25-4af4-2f6a-76651ccd265b",
+          "enableFlowModel": true,
+          "sortText": "service.bal3"
+        }
+      ],
+      "services": [
+        {
+          "location": {
+            "filePath": "/Users/hasitha/Source/workflow/vscode-wf-runwithid/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
+            "startLine": {
+              "line": 5,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 18,
+              "offset": 1
+            }
+          },
+          "attachedListeners": [
+            "91b17b3f-2a25-4af4-2f6a-76651ccd265b"
+          ],
+          "connections": [],
+          "workflows": [
+            "76725fd5-a954-593b-aff7-dccffe410a95",
+            "a7c1ede5-0274-0f1f-197c-ab4df80ea89e"
+          ],
+          "functions": [],
+          "remoteFunctions": [],
+          "resourceFunctions": [
+            {
+              "accessor": "post",
+              "path": "orders",
+              "location": {
+                "filePath": "/Users/hasitha/Source/workflow/vscode-wf-runwithid/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
+                "startLine": {
+                  "line": 7,
+                  "offset": 4
+                },
+                "endLine": {
+                  "line": 9,
+                  "offset": 5
+                }
+              },
+              "connections": [],
+              "workflows": [
+                "a7c1ede5-0274-0f1f-197c-ab4df80ea89e"
+              ],
+              "workflowSendData": {},
+              "invalidWorkflowSendData": []
+            },
+            {
+              "accessor": "post",
+              "path": "support",
+              "location": {
+                "filePath": "/Users/hasitha/Source/workflow/vscode-wf-runwithid/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
+                "startLine": {
+                  "line": 11,
+                  "offset": 4
+                },
+                "endLine": {
+                  "line": 13,
+                  "offset": 5
+                }
+              },
+              "connections": [],
+              "workflows": [
+                "76725fd5-a954-593b-aff7-dccffe410a95"
+              ],
+              "workflowSendData": {},
+              "invalidWorkflowSendData": []
+            },
+            {
+              "accessor": "post",
+              "path": "chat",
+              "location": {
+                "filePath": "/Users/hasitha/Source/workflow/vscode-wf-runwithid/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/service.bal",
+                "startLine": {
+                  "line": 15,
+                  "offset": 4
+                },
+                "endLine": {
+                  "line": 17,
+                  "offset": 5
+                }
+              },
+              "connections": [],
+              "workflows": [
+                "76725fd5-a954-593b-aff7-dccffe410a95"
+              ],
+              "workflowSendData": {},
+              "invalidWorkflowSendData": []
+            }
+          ],
+          "absolutePath": "/api ",
+          "type": "http:Service",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.18.0.png",
+          "uuid": "971efb09-29a6-27e8-38c0-c055987f67d0",
+          "enableFlowModel": true,
+          "sortText": "service.bal5"
+        }
+      ],
+      "workflows": [
+        {
+          "symbol": "supportAgent",
+          "location": {
+            "filePath": "/Users/hasitha/Source/workflow/vscode-wf-runwithid/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/workflows.bal",
+            "startLine": {
+              "line": 5,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 8,
+              "offset": 3
+            }
+          },
+          "kind": "DURABLE_AGENT",
+          "attachedServices": [
+            "971efb09-29a6-27e8-38c0-c055987f67d0"
+          ],
+          "attachedFunctions": [],
+          "events": [],
+          "humanTasks": [],
+          "activities": [],
+          "connections": [
+            "fcb65371-278f-4a60-577a-7c374bf6f2c1"
+          ],
+          "invalidSendDataServices": [],
+          "invalidSendDataFunctions": [],
+          "uuid": "76725fd5-a954-593b-aff7-dccffe410a95",
+          "enableFlowModel": true,
+          "sortText": "workflows.bal5"
+        },
+        {
+          "symbol": "orderWorkflow",
+          "location": {
+            "filePath": "/Users/hasitha/Source/workflow/vscode-wf-runwithid/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/workflows.bal",
+            "startLine": {
+              "line": 10,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 13,
+              "offset": 1
+            }
+          },
+          "kind": "WORKFLOW",
+          "attachedServices": [
+            "971efb09-29a6-27e8-38c0-c055987f67d0"
+          ],
+          "attachedFunctions": [],
+          "events": [],
+          "humanTasks": [],
+          "activities": [],
+          "connections": [],
+          "invalidSendDataServices": [],
+          "invalidSendDataFunctions": [],
+          "uuid": "a7c1ede5-0274-0f1f-197c-ab4df80ea89e",
+          "enableFlowModel": true,
+          "sortText": "workflows.bal10"
+        }
+      ],
+      "activities": []
+    }
+  }
+}

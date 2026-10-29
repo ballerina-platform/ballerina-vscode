@@ -28,7 +28,7 @@ import {
 import { DEFAULT_PROJECT_NAME } from '../utils/helpers/constants';
 import { logStep } from '../utils/helpers/progress';
 import { ProjectExplorer } from '../utils/pages';
-import { fillUnderLabel, openPaletteBelow } from './palette';
+import { fillUnderLabel, openPaletteBelow, workflowPaletteItem } from './palette';
 
 // Workflow forms built from an empty project, then reopened: what the designer wrote must come back
 // from source (wso2/product-integrator#2624, #2493, #2422).
@@ -41,6 +41,22 @@ function projectSource(): string {
         .map((name) => fs.readFileSync(path.join(newProjectPath, name), 'utf-8'))
         .join('\n');
 }
+
+// Opens the automation and waits until its diagram shows the node the previous test added. Right after a save the
+// canvas can still draw the model from before it, and a + taken from that model inserts at stale positions.
+async function openAutomationShowing(nodeText: string | RegExp): Promise<Frame> {
+    const projectExplorer = new ProjectExplorer(page.page);
+    await projectExplorer.init().catch(() => undefined);
+    const automation = await projectExplorer.findItem([DEFAULT_PROJECT_NAME, 'Entry Points', 'main'], 30000);
+    await automation?.click();
+    const webview = await getWebview();
+    const canvas = webview.getByTestId('bi-diagram-canvas');
+    const exact = typeof nodeText === 'string';
+    await canvas.getByText(nodeText, { exact }).filter({ visible: true }).first().waitFor({ timeout: 60000 });
+    return webview;
+}
+
+const AUTOMATION_HEADER = /public function main\(\) returns error\? \{/;
 
 async function getWebview(): Promise<Frame> {
     const webview = await switchToIFrame(BI_INTEGRATOR_LABEL, page.page, 60000);
@@ -228,18 +244,7 @@ export default function createTests() {
             await webview.getByTestId('start-node').waitFor({ timeout: 60000 });
             const sidePanel = await openPaletteBelow(webview, 'Start');
             const panel = sidePanel.getLocator();
-            // The Workflow category is expanded by default and its state is remembered, so a click on its header
-            // while the items are still rendering collapses it: give the item time first, then toggle if needed.
-            const sendData = panel.getByText('Send Data Event', { exact: true }).last();
-            const shows = (ms: number) => sendData.waitFor({ state: 'visible', timeout: ms }).then(() => true, () => false);
-            for (let attempt = 0; attempt < 2 && !await shows(10000); attempt++) {
-                await sidePanel.expandSection('Workflow');
-            }
-            if (!await shows(30000)) {
-                const shown = (await panel.innerText().catch(() => '')).replace(/\s+/g, ' ').slice(0, 400);
-                throw new Error(`the automation's palette does not offer Send Data Event; the panel shows: ${shown}`);
-            }
-            await domClick(sendData);
+            await domClick(await workflowPaletteItem(sidePanel, 'Send Data Event'));
 
             logStep('The only workflow is selected and its data event offered');
             const workflowName = panel.getByRole('combobox', { name: /Workflow Name/ });
@@ -261,6 +266,71 @@ export default function createTests() {
             await expect(panel.getByRole('combobox', { name: /Workflow Name/ })).toHaveText(/orderWorkflow/, { timeout: 60000 });
             await expect(panel.getByRole('combobox', { name: /Data Name/ })).toHaveText(/payment/, { timeout: 60000 });
             await expect.poll(() => webview.locator('[data-testid="ex-editor-workflowId"] .cm-content').textContent(), { timeout: 30000 }).toBe('"wf-1"');
+            await domClick(webview.getByTestId('close-panel-btn').first());
+        });
+
+        test('Run the workflow from the automation: the form opens at once with the only workflow selected', async () => {
+            logStep('Pick Run Workflow from the palette');
+            const webview = await openAutomationShowing(/payment/);
+            const sidePanel = await openPaletteBelow(webview, 'Start');
+            const panel = sidePanel.getLocator();
+            await domClick(await workflowPaletteItem(sidePanel, 'Run Workflow'));
+
+            logStep('No workflow list in between: the form holds the project\'s only workflow');
+            const workflow = panel.getByRole('combobox', { name: /^Workflow/ });
+            await workflow.waitFor({ timeout: 60000 });
+            await expect(workflow).toHaveText(/orderWorkflow/, { timeout: 60000 });
+            await expect(panel.getByText('Current Integration', { exact: true })).toBeHidden();
+            // The workflow takes no input, so the form offers none; the id variable keeps its default.
+            await expect(panel.getByRole('textbox', { name: /Workflow ID Variable Name/ })).toHaveValue('workflowId');
+            await expect(panel.getByText(/^Input\*?$/)).toBeHidden();
+            const saveButton = panel.getByRole('button', { name: 'Save' }).first();
+            await waitForEnabled(saveButton);
+            await saveButton.click({ force: true });
+            await expect.poll(projectSource, { timeout: 90000 }).toMatch(/string workflowId = check workflow:run\(orderWorkflow\);/);
+            expect(projectSource()).toMatch(AUTOMATION_HEADER);
+            await saveButton.waitFor({ state: 'hidden', timeout: 60000 });
+        });
+
+        test('Run the workflow under a chosen id and reopen the node', async () => {
+            logStep('Pick Run with ID from the palette');
+            const webview = await openAutomationShowing('Run Workflow');
+            const sidePanel = await openPaletteBelow(webview, 'Start');
+            const panel = sidePanel.getLocator();
+            await domClick(await workflowPaletteItem(sidePanel, 'Run with ID'));
+
+            logStep('The form holds the only workflow and asks for the instance id');
+            const workflow = panel.getByRole('combobox', { name: /^Workflow/ });
+            await workflow.waitFor({ timeout: 60000 });
+            await expect(workflow).toHaveText(/orderWorkflow/, { timeout: 60000 });
+            await fillExEditor(webview, 'instanceId', '"order-1"');
+            const variable = panel.getByRole('textbox', { name: /Workflow ID Variable Name/ }).first();
+            await variable.fill('orderRunId');
+            await variable.press('Tab');
+            const saveButton = panel.getByRole('button', { name: 'Save' }).first();
+            await waitForEnabled(saveButton);
+            await saveButton.click({ force: true });
+            // The id field opens in text mode, which writes a string template; expression mode writes the literal.
+            await expect.poll(projectSource, { timeout: 90000 })
+                .toMatch(/string orderRunId = check workflow:runWithId\(orderWorkflow, (?:"order-1"|string `order-1`)\);/);
+            expect(projectSource()).toMatch(AUTOMATION_HEADER);
+            await saveButton.waitFor({ state: 'hidden', timeout: 60000 });
+
+            logStep('Reopen the node: the form reads the workflow and the id from source');
+            // By its own label: the Run Workflow node above it shows the same workflow name.
+            const canvas = webview.getByTestId('bi-diagram-canvas');
+            const node = canvas.getByText('Run with ID', { exact: true }).filter({ visible: true }).last();
+            await node.waitFor({ timeout: 60000 });
+            await node.click({ force: true, timeout: 10000 }).catch(() => node.dispatchEvent('click'));
+            const reopened = panel.getByRole('combobox', { name: /^Workflow/ });
+            if (!await reopened.waitFor({ timeout: 15000 }).then(() => true, () => false)) {
+                await node.dispatchEvent('click');
+                await reopened.waitFor({ timeout: 60000 });
+            }
+            await expect(reopened).toHaveText(/orderWorkflow/, { timeout: 60000 });
+            await expect.poll(() => webview.locator('[data-testid="ex-editor-instanceId"] .cm-content').textContent(), { timeout: 30000 }).toMatch(/order-1/);
+            await expect(panel.getByRole('textbox', { name: /Workflow ID Variable Name/ })).toHaveValue('orderRunId');
+            await domClick(webview.getByTestId('close-panel-btn').first());
         });
     });
 }
