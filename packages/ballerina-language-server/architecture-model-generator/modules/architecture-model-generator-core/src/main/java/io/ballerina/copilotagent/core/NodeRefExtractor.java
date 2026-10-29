@@ -63,9 +63,22 @@ public class NodeRefExtractor extends NodeVisitor {
 
     @Override
     public void visit(ServiceDeclarationNode serviceDeclarationNode) {
-        String key = getPath(serviceDeclarationNode.absoluteResourcePath()) + "#" +
-                     serviceDeclarationNode.expressions();
-        this.nodeRefMap.putServiceNode(key, serviceDeclarationNode);
+        // Message consumers often share a listener and differ only by annotation (e.g. the queue name)
+        String listeners = serviceDeclarationNode.expressions().stream()
+                .map(expression -> expression.toSourceCode().trim())
+                .collect(Collectors.joining(","));
+        String annotations = serviceDeclarationNode.metadata()
+                .map(metadata -> metadata.annotations().stream()
+                        .map(annotation -> annotation.toSourceCode().trim())
+                        .collect(Collectors.joining(",")))
+                .orElse("");
+        String key = getPath(serviceDeclarationNode.absoluteResourcePath()) + "#" + listeners + "#" + annotations;
+        // Fully identical declarations are still legal; number them so none is dropped
+        String uniqueKey = key;
+        for (int i = 1; this.nodeRefMap.getServiceNodeMap().containsKey(uniqueKey); i++) {
+            uniqueKey = key + "#" + i;
+        }
+        this.nodeRefMap.putServiceNode(uniqueKey, serviceDeclarationNode);
     }
 
     @Override

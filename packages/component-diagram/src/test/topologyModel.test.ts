@@ -179,6 +179,23 @@ describe("buildTopology", () => {
         expect(supervisorNode.orphan).toBe(true);
     });
 
+    it("names a voice chat entry like a chat one and gives it the voice glyph", () => {
+        const agent = agentConnection("v", "voiceAgent", AGENTS_BAL, 1);
+        const svc: CDService = {
+            ...service(SERVICES_BAL, 1, "integration:VoiceService", "", ["v"], []),
+            icon: "https://icons/ballerinax_ai.wso2.integration_1.1.0.png",
+            remoteFunctions: [{ name: "onChatMessage", location: { filePath: SERVICES_BAL, ...range(2) }, connections: ["v"],
+                agentCalls: [{ connection: "v", line: 3 }] }],
+        };
+        const graph = buildTopology({ model: modelOf([agent], [svc]), agents: [artifact("voiceAgent", AGENTS_BAL, 1)] });
+
+        expect(graph.entries[0]).toMatchObject({
+            title: "Voice Chat Service",
+            subtitle: "Voice Chat",
+            glyphType: "ai.wso2.integration",
+        });
+    });
+
     it("groups a service's handlers into one card, in source order, and sources their edges from their own rows", () => {
         const first = agentConnection("f", "firstAgent", AGENTS_BAL, 1);
         const second = agentConnection("s", "secondAgent", AGENTS_BAL, 5);

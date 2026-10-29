@@ -28,7 +28,7 @@ import { sendVisualizerMigrationNotification, sendAIPanelNotification, getErrorM
 import { getEnhancementStages, getPerProjectEnhancementStages, getWorkspaceValidationStage, getResumePreamble, EnhancementStage } from "./prompts";
 import { MigrationDebugLogger } from "./debug-logger";
 import { TranscriptWriter } from "./transcript-writer";
-import { copilotName, copilotShortName, getWorkspaceTomlValues } from "../../../utils";
+import { copilotName, getWorkspaceTomlValues } from "../../../utils";
 import { setMigrationEnhancementActive } from "../../../utils/source-utils";
 import { buildMigrationCodebaseMap, extractPreviousStageWorkPlan } from "./project-map";
 
@@ -381,7 +381,7 @@ export async function checkAndRunPendingEnhancement(): Promise<void> {
         // Set session state so other parts of the extension know about the migration
         _activeSession = { isActive: false, aiFeatureUsed: true, fullyEnhanced: false };
 
-        const openCopilot = `Open ${copilotShortName()}`;
+        const openCopilot = `Open ${copilotName()}`;
         const action = await window.showInformationMessage(
             `Migration AI enhancement was paused. You can resume it from '${copilotName()}'.`,
             openCopilot
@@ -395,7 +395,7 @@ export async function checkAndRunPendingEnhancement(): Promise<void> {
         // a "Start AI Enhancement" button, and notify the user.
         _activeSession = { isActive: false, aiFeatureUsed: false, fullyEnhanced: false };
         console.log("[MigrationEnhancement] AI not enabled at wizard – notification shown.");
-        const openCopilot = `Open ${copilotShortName()}`;
+        const openCopilot = `Open ${copilotName()}`;
         const action = await window.showInformationMessage(
             `Your migrated project is ready. Open '${copilotName()}' to run AI enhancement — it can resolve TODOs, fix build errors, and refine tests.`,
             openCopilot

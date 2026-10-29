@@ -1,0 +1,94 @@
+{
+  "description": "Services on one listener that differ only by annotation, or not at all, are diffed separately",
+  "projectPath": "annotated_service_cases",
+  "output": {
+    "loadDesignDiagrams": true,
+    "semanticDiffs": [
+      {
+        "changeType": "MODIFICATION",
+        "nodeKind": "OBJECT_FUNCTION",
+        "uri": "ai:///main.bal",
+        "lineRange": {
+          "fileName": "main.bal",
+          "startLine": {
+            "line": 29,
+            "offset": 8
+          },
+          "endLine": {
+            "line": 29,
+            "offset": 41
+          }
+        },
+        "previousLineRange": {
+          "fileName": "main.bal",
+          "startLine": {
+            "line": 29,
+            "offset": 8
+          },
+          "endLine": {
+            "line": 29,
+            "offset": 34
+          }
+        },
+        "metadata": {
+          "name": "onMessage",
+          "servicePath": "",
+          "functionKind": "remote"
+        }
+      },
+      {
+        "changeType": "MODIFICATION",
+        "nodeKind": "OBJECT_FUNCTION",
+        "uri": "ai:///main.bal",
+        "lineRange": {
+          "fileName": "main.bal",
+          "startLine": {
+            "line": 55,
+            "offset": 8
+          },
+          "endLine": {
+            "line": 55,
+            "offset": 39
+          }
+        },
+        "previousLineRange": {
+          "fileName": "main.bal",
+          "startLine": {
+            "line": 48,
+            "offset": 8
+          },
+          "endLine": {
+            "line": 48,
+            "offset": 32
+          }
+        },
+        "metadata": {
+          "name": "onMessage",
+          "servicePath": "",
+          "functionKind": "remote"
+        }
+      },
+      {
+        "changeType": "ADDITION",
+        "nodeKind": "OBJECT_FUNCTION",
+        "uri": "ai:///main.bal",
+        "lineRange": {
+          "fileName": "main.bal",
+          "startLine": {
+            "line": 42,
+            "offset": 4
+          },
+          "endLine": {
+            "line": 44,
+            "offset": 5
+          }
+        },
+        "metadata": {
+          "name": "onMessage",
+          "servicePath": "",
+          "functionKind": "remote"
+        }
+      }
+    ]
+  }
+}

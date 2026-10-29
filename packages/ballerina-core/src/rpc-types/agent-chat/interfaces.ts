@@ -131,6 +131,10 @@ export interface SessionInfoResponse {
     chatEndpoint: string;
 }
 
+export interface SetChatEndpointRequest {
+    chatEndpoint: string;
+}
+
 export interface AgentInfo {
     name: string;
     basePath: string;

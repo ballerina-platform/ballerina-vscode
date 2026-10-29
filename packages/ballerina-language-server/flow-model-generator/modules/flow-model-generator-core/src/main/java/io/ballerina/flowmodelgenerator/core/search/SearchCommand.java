@@ -56,7 +56,6 @@ public abstract class SearchCommand {
     protected final boolean cachedOnly;
     final SearchDatabaseManager dbManager;
 
-    protected static final String DATA_MAPPER_FILE_NAME = "data_mappings.bal";
     protected static final String CURRENT_INTEGRATION_INDICATOR = " (Current Integration)";
 
     private static final Gson GSON = new Gson();

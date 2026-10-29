@@ -10,6 +10,34 @@
         "items": [
           {
             "metadata": {
+              "label": "Bedrock Model Providers",
+              "description": "Model Providers available in ballerinax/ai.aws.bedrock",
+              "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.aws.bedrock_1.0.1.png"
+            },
+            "items": [
+              {
+                "metadata": {
+                  "label": "Bedrock Runtime DeepSeek Model Provider",
+                  "description": "DeepSeek models on the Bedrock Runtime endpoint.\nNeeds the `bedrock:InvokeModel` IAM permission.",
+                  "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.aws.bedrock_1.0.1.png",
+                  "data": {
+                    "pullRequired": true
+                  }
+                },
+                "codedata": {
+                  "node": "MODEL_PROVIDER",
+                  "org": "ballerinax",
+                  "module": "ai.aws.bedrock",
+                  "packageName": "ai.aws.bedrock",
+                  "object": "RuntimeDeepSeekModelProvider",
+                  "symbol": "init"
+                },
+                "enabled": true
+              }
+            ]
+          },
+          {
+            "metadata": {
               "label": "Deepseek Model Provider",
               "description": "Deepseek is a client class that provides an interface for interacting with Deepseek Large Language Models.",
               "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.deepseek_1.1.5.png",

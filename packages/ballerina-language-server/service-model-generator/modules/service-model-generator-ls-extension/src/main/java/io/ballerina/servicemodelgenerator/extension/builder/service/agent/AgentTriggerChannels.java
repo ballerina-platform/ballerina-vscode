@@ -42,7 +42,8 @@ public final class AgentTriggerChannels {
             key(TelegramChannel.ORG_NAME, TelegramChannel.MODULE_NAME), new TelegramChannel(),
             key(GoogleChatChannel.ORG_NAME, GoogleChatChannel.MODULE_NAME), new GoogleChatChannel(),
             key(HttpAgentTriggerChannel.ORG_NAME, HttpAgentTriggerChannel.MODULE_NAME),
-            new HttpAgentTriggerChannel());
+            new HttpAgentTriggerChannel(),
+            key(VoiceAgentChannel.ORG_NAME, VoiceAgentChannel.MODULE_NAME), new VoiceAgentChannel());
 
     private AgentTriggerChannels() {
     }

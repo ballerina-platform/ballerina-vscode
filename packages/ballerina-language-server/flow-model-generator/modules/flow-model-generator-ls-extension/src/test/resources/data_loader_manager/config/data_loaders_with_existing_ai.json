@@ -25,9 +25,9 @@
           },
           {
             "metadata": {
-              "label": "Devant Binary Data Loader",
-              "description": "Loads documents as `ai:BinaryDocument` instances from a specified file or directory path.\nThis loader can handle either a single file or a directory containing multiple files.\nTypically used in conjunction with `devant:Chunker` to split documents into chunks for processing.",
-              "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.devant_1.0.5.png",
+              "label": "AWS S3 Text Data Loader",
+              "description": "Loads text documents from AWS S3 buckets.",
+              "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.aws.s3_1.0.1.png",
               "data": {
                 "pullRequired": true
               }
@@ -35,9 +35,9 @@
             "codedata": {
               "node": "DATA_LOADER",
               "org": "ballerinax",
-              "module": "ai.devant",
-              "packageName": "ai.devant",
-              "object": "BinaryDataLoader",
+              "module": "ai.aws.s3",
+              "packageName": "ai.aws.s3",
+              "object": "TextDataLoader",
               "symbol": "init"
             },
             "enabled": true
