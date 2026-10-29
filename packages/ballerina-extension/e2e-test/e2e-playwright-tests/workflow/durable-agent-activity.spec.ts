@@ -84,9 +84,15 @@ async function openDurableAgent(webview: Frame): Promise<void> {
 // action: an activity name alone also matches the title of an activity's edit form.
 async function openActivityList(webview: Frame): Promise<Locator> {
     await openDurableAgent(webview);
-    await webview.getByTestId('durable-agent-add-activity').first().click({ force: true });
     const sidePanel = webview.getByTestId('side-panel');
-    await sidePanel.getByTestId('node-list-action-onAddFunction').first().waitFor({ state: 'visible', timeout: 60000 });
+    const listAction = sidePanel.getByTestId('node-list-action-onAddFunction').first();
+    // The canvas ignores clicks while it refreshes after a save, so click again until the list opens.
+    await expect(async () => {
+        if (!await listAction.isVisible()) {
+            await webview.getByTestId('durable-agent-add-activity').first().click({ force: true });
+        }
+        await listAction.waitFor({ state: 'visible', timeout: 5000 });
+    }).toPass({ timeout: 60000 });
     await sidePanel.getByText('lookupBill', { exact: true }).first().waitFor({ timeout: 60000 });
     return sidePanel;
 }

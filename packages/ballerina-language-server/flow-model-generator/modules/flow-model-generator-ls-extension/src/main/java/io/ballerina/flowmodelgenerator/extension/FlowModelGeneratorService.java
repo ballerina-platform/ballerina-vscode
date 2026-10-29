@@ -39,7 +39,7 @@ import io.ballerina.flowmodelgenerator.core.SuggestedComponentService;
 import io.ballerina.flowmodelgenerator.core.SuggestedModelGenerator;
 import io.ballerina.flowmodelgenerator.core.analyzers.function.ModuleNodeAnalyzer;
 import io.ballerina.flowmodelgenerator.core.diagnostics.DiagnosticRequest;
-import io.ballerina.flowmodelgenerator.core.diagnostics.DiagnosticsDebouncer;
+import io.ballerina.flowmodelgenerator.core.expressioneditor.Debouncer;
 import io.ballerina.flowmodelgenerator.core.model.FlowNode;
 import io.ballerina.flowmodelgenerator.core.model.Item;
 import io.ballerina.flowmodelgenerator.core.search.SearchCommand;
@@ -105,6 +105,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.locks.Lock;
 import java.util.function.Function;
 
 import static io.ballerina.modelgenerator.commons.CommonUtils.BALLERINAX_ORG_NAME;
@@ -668,25 +669,24 @@ public class FlowModelGeneratorService implements ExtendedLanguageServerService 
         DiagnosticRequest diagnosticsRequest = new DiagnosticRequest(
                 request.filePath(),
                 request.flowNode(),
-                workspaceManagerProxy.get(CommonUtils.getExprUri(request.filePath()))
+                workspaceManagerProxy.get(CommonUtils.getExprUri(request.filePath())),
+                workspaceManagerProxy.get()
         );
-
-        // Use debouncer to schedule the diagnostics request
-        return DiagnosticsDebouncer.getInstance().debounce(diagnosticsRequest)
-                .thenApply(flowNode -> {
-                    FlowModelNodeTemplateResponse response = new FlowModelNodeTemplateResponse();
-                    try {
-                        response.setFlowNode(flowNode);
-                    } catch (Throwable e) {
-                        response.setError(e);
-                    }
-                    return response;
-                })
-                .exceptionally(throwable -> {
-                    FlowModelNodeTemplateResponse response = new FlowModelNodeTemplateResponse();
-                    response.setError(throwable);
-                    return response;
-                });
+        // The check edits the shadow document, which the expression editor's requests also edit.
+        Lock copyLock = workspaceManagerProxy.exprCopyLock();
+        return Debouncer.getInstance().submit(() -> {
+            FlowModelNodeTemplateResponse response = new FlowModelNodeTemplateResponse();
+            copyLock.lock();
+            try {
+                response.setFlowNode(diagnosticsRequest.call());
+            } catch (Throwable e) {
+                response.setError(e);
+            } finally {
+                diagnosticsRequest.revertDocument();
+                copyLock.unlock();
+            }
+            return response;
+        });
     }
 
     @JsonRequest
