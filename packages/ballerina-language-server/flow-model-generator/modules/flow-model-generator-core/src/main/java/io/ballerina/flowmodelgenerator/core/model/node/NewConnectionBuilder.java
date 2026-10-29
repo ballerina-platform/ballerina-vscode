@@ -173,16 +173,15 @@ public class NewConnectionBuilder extends CallBuilder {
                 continue;
             }
             String argument = configurables.rewrite(property.toSourceCode(), parameter.name(),
-                    parameter.typeSymbol(), parameter.kind() == ParameterData.Kind.INCLUDED_FIELD,
-                    !parameter.optional());
+                    parameter.typeSymbol(), parameter.kind() == ParameterData.Kind.INCLUDED_FIELD);
             properties.put(key, AiUtils.createUpdatedProperty(property, argument));
         }
         return configurables.configurables();
     }
 
     /**
-     * Declares the new configurables in config.bal, and writes the values the declarations don't hold to Config.toml,
-     * which the project keeps out of version control.
+     * Declares the new configurables in config.bal, and writes their values to Config.toml, which the project keeps out
+     * of version control.
      */
     private static void declareConfigurables(SourceBuilder sourceBuilder, List<Configurable> configurables) {
         Path projectRoot = sourceBuilder.workspaceManager.projectRoot(sourceBuilder.filePath);
@@ -198,8 +197,7 @@ public class NewConnectionBuilder extends CallBuilder {
                     .map(Configurable::declaration)
                     .collect(Collectors.joining(System.lineSeparator()))));
         }
-        writeConfigToml(sourceBuilder, projectRoot,
-                configurables.stream().filter(Configurable::inConfigToml).toList());
+        writeConfigToml(sourceBuilder, projectRoot, configurables);
     }
 
     /**
