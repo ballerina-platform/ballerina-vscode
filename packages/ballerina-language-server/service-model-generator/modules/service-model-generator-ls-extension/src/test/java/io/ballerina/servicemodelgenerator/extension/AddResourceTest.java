@@ -60,6 +60,10 @@ public class AddResourceTest extends AbstractLSTest {
                 sourceDir.resolve(testConfig.filePath()).toAbsolutePath().toString(),
                 testConfig.function(), testConfig.codedata());
         JsonObject jsonMap = getResponse(request).getAsJsonObject("textEdits");
+        JsonObject formattedEdits = getResponse(new FunctionSourceRequest(request.filePath(), request.function(),
+                request.codedata(), true)).getAsJsonObject("textEdits");
+        Assert.assertEquals(formattedEdits == null ? null : formattedEdits.keySet(), jsonMap.keySet(),
+                "The formatted request must edit the same files");
 
         Map<String, List<TextEdit>> actualTextEdits = gson.fromJson(jsonMap, TEXT_EDIT_LIST_TYPE);
 
