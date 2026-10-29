@@ -372,6 +372,21 @@
     "flags": 0
   },
   "output": {
+    "new_connection7/config.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "configurable string rabbitmqClientHost = ?;\nconfigurable int rabbitmqClientPort = ?;"
+      }
+    ],
     "new_connection7/connections.bal": [
       {
         "range": {
@@ -397,7 +412,22 @@
             "character": 0
           }
         },
-        "newText": "final rabbitmq:Client rabbitmqClient = check new (\"localhost\", 8080);"
+        "newText": "final rabbitmq:Client rabbitmqClient = check new (rabbitmqClientHost, rabbitmqClientPort);"
+      }
+    ],
+    "new_connection7/Config.toml": [
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "rabbitmqClientHost = \"localhost\"\nrabbitmqClientPort = 8080\n"
       }
     ]
   }

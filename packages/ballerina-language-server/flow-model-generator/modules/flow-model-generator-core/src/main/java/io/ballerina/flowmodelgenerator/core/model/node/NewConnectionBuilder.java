@@ -20,6 +20,7 @@ package io.ballerina.flowmodelgenerator.core.model.node;
 
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
+import io.ballerina.flowmodelgenerator.core.AiUtils;
 import io.ballerina.flowmodelgenerator.core.ConnectionActionProvider;
 import io.ballerina.flowmodelgenerator.core.model.Codedata;
 import io.ballerina.flowmodelgenerator.core.model.FormBuilder;
@@ -27,6 +28,8 @@ import io.ballerina.flowmodelgenerator.core.model.NodeBuilder;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
+import io.ballerina.flowmodelgenerator.core.utils.ConnectionConfigurables;
+import io.ballerina.flowmodelgenerator.core.utils.ConnectionConfigurables.Configurable;
 import io.ballerina.flowmodelgenerator.core.utils.ConnectorUtil;
 import io.ballerina.flowmodelgenerator.core.utils.FlowNodeUtil;
 import io.ballerina.flowmodelgenerator.core.utils.ParamUtils;
@@ -38,9 +41,12 @@ import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.modelgenerator.commons.ParameterData;
 import io.ballerina.projects.Module;
 import io.ballerina.projects.Project;
+import io.ballerina.tools.text.LinePosition;
+import org.ballerinalang.langserver.LSClientLogger;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceManager;
 import org.eclipse.lsp4j.TextEdit;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.List;
@@ -48,6 +54,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 /**
  * Represents a new connection node in the flow model.
@@ -64,6 +71,10 @@ public class NewConnectionBuilder extends CallBuilder {
     public static final String CONNECTION_TYPE_LABEL = "Connection Type";
     public static final String CONNECTION_NAME_DOC = "Name of the connection";
     private static final String CONNECTIONS_BAL = "connections.bal";
+    private static final String CONFIG_BAL = "config.bal";
+    private static final String CONFIG_TOML = "Config.toml";
+    private static final Set<ParameterData.Kind> ARGUMENT_KINDS = Set.of(ParameterData.Kind.REQUIRED,
+            ParameterData.Kind.DEFAULTABLE, ParameterData.Kind.INCLUDED_FIELD);
     private static final String DRIVER_SUB_PACKAGE = ".driver";
 
     @Override
@@ -73,6 +84,10 @@ public class NewConnectionBuilder extends CallBuilder {
 
     @Override
     public Map<Path, List<TextEdit>> toSource(SourceBuilder sourceBuilder) {
+        Codedata codedata = sourceBuilder.flowNode.codedata();
+        List<Configurable> configurables = Boolean.TRUE.equals(codedata.isNew())
+                && !sourceBuilder.isForDiagnostics() ? useConfigurables(sourceBuilder) : List.of();
+
         sourceBuilder
                 .token().keyword(SyntaxKind.FINAL_KEYWORD).stepOut()
                 .newVariable();
@@ -89,7 +104,6 @@ public class NewConnectionBuilder extends CallBuilder {
         if (scope.isEmpty()) {
             throw new IllegalStateException("Scope is not defined for the new connection node");
         }
-        Codedata codedata = sourceBuilder.flowNode.codedata();
         Path filePath = sourceBuilder.filePath;
         switch (scope.get().value().toString()) {
             case Property.LOCAL_SCOPE -> {
@@ -108,8 +122,73 @@ public class NewConnectionBuilder extends CallBuilder {
             sourceBuilder.acceptImport();
         }
 
+        declareConfigurables(sourceBuilder, configurables);
         preloadConnectorActions(sourceBuilder);
         return sourceBuilder.build();
+    }
+
+    /**
+     * Replaces the literals among the connection's arguments with configurables, and returns those to declare.
+     */
+    private List<Configurable> useConfigurables(SourceBuilder sourceBuilder) {
+        Map<String, Property> properties = sourceBuilder.flowNode.properties();
+        String connection = properties.get(Property.VARIABLE_KEY).value().toString();
+        Set<String> moduleSymbolNames = sourceBuilder.workspaceManager.semanticModel(sourceBuilder.filePath)
+                .map(model -> model.moduleSymbols().stream()
+                        .flatMap(symbol -> symbol.getName().stream())
+                        .collect(Collectors.toSet()))
+                .orElse(Set.of());
+        ConnectionConfigurables configurables = new ConnectionConfigurables(connection, moduleSymbolNames);
+        FunctionData init;
+        try {
+            init = connectorInit(sourceBuilder.flowNode.codedata(), sourceBuilder.workspaceManager,
+                    sourceBuilder.filePath, null);
+        } catch (RuntimeException e) {
+            // Without the connector's types the connection keeps its values as given.
+            return List.of();
+        }
+        for (ParameterData parameter : init.parameters().values()) {
+            String key = FlowNodeUtil.getPropertyKey(ParamUtils.removeLeadingSingleQuote(parameter.name()));
+            Property property = properties.get(key);
+            if (!ARGUMENT_KINDS.contains(parameter.kind()) || parameter.typeSymbol() == null || property == null
+                    || property.value() == null || property.value().toString().isEmpty()) {
+                continue;
+            }
+            String argument = configurables.rewrite(property.toSourceCode(), parameter.name(),
+                    parameter.typeSymbol(), parameter.kind() == ParameterData.Kind.INCLUDED_FIELD,
+                    !parameter.optional());
+            properties.put(key, AiUtils.createUpdatedProperty(property, argument));
+        }
+        return configurables.configurables();
+    }
+
+    /**
+     * Declares the configurables in config.bal, and writes the values of the required ones to Config.toml, which
+     * the project keeps out of version control.
+     */
+    private static void declareConfigurables(SourceBuilder sourceBuilder, List<Configurable> configurables) {
+        if (configurables.isEmpty()) {
+            return;
+        }
+        Path projectRoot = sourceBuilder.workspaceManager.projectRoot(sourceBuilder.filePath);
+        Path configBal = projectRoot.resolve(CONFIG_BAL);
+        LinePosition end = Files.exists(configBal)
+                ? sourceBuilder.workspaceManager.document(configBal)
+                        .map(document -> document.syntaxTree().rootNode().lineRange().endLine())
+                        .orElse(LinePosition.from(0, 0))
+                : LinePosition.from(0, 0);
+        sourceBuilder.addTextEdit(configBal, new TextEdit(CommonUtils.toRange(end), configurables.stream()
+                .map(Configurable::declaration)
+                .collect(Collectors.joining(System.lineSeparator()))));
+
+        String configToml = configurables.stream()
+                .filter(Configurable::required)
+                .map(configurable -> configurable.configTomlEntry() + System.lineSeparator())
+                .collect(Collectors.joining());
+        if (!configToml.isEmpty()) {
+            sourceBuilder.addTextEdit(projectRoot.resolve(CONFIG_TOML),
+                    new TextEdit(CommonUtils.toRange(LinePosition.from(0, 0)), configToml));
+        }
     }
 
     private static void checkDriverImport(SourceBuilder sourceBuilder, Codedata codedata, Path filePath) {
@@ -123,42 +202,8 @@ public class NewConnectionBuilder extends CallBuilder {
     @Override
     public void setConcreteTemplateData(TemplateContext context) {
         Codedata codedata = context.codedata();
-        FunctionData functionData;
-
-        FunctionDataBuilder functionDataBuilder = new FunctionDataBuilder()
-                .parentSymbolType(codedata.object())
-                .name(codedata.symbol())
-                .moduleInfo(new ModuleInfo(codedata.org(), codedata.resolvePackageName(), codedata.module(),
-                        codedata.version()))
-                .lsClientLogger(context.lsClientLogger())
-                .functionResultKind(FunctionData.Kind.CONNECTOR)
-                .userModuleInfo(moduleInfo)
-                .workspaceManager(context.workspaceManager())
-                .filePath(context.filePath());
-
-        // TODO: If we set the module info properly this logic can be removed.
-        if (Boolean.TRUE.equals(codedata.isGenerated())) {
-            Path projectPath = context.filePath().getParent();
-            if (projectPath == null) {
-                throw new IllegalStateException("Project path not found");
-            }
-            WorkspaceManager workspaceManager = context.workspaceManager();
-            Project project = PackageUtil.loadProject(workspaceManager, context.filePath());
-            SemanticModel semanticModel = null;
-            for (Module module : project.currentPackage().modules()) {
-                String moduleNamePath = module.moduleName().moduleNamePart();
-                if (moduleNamePath != null && moduleNamePath.equals(codedata.module())) {
-                    semanticModel = PackageUtil.getCompilation(project).getSemanticModel(module.moduleId());
-                    break;
-                }
-            }
-            if (semanticModel == null) {
-                throw new IllegalStateException("Semantic model not found");
-            }
-            functionDataBuilder.semanticModel(semanticModel);
-        }
-
-        functionData = functionDataBuilder.build();
+        FunctionData functionData = connectorInit(codedata, context.workspaceManager(), context.filePath(),
+                context.lsClientLogger());
         metadata()
                 .label(ConnectorUtil.getConnectorName(functionData.name(), functionData.moduleName()))
                 .description(functionData.description())
@@ -184,6 +229,42 @@ public class NewConnectionBuilder extends CallBuilder {
         properties()
                 .scope(Property.GLOBAL_SCOPE)
                 .checkError(true, CHECK_ERROR_DOC, false);
+    }
+
+    private FunctionData connectorInit(Codedata codedata, WorkspaceManager workspaceManager, Path filePath,
+                                       LSClientLogger lsClientLogger) {
+        FunctionDataBuilder functionDataBuilder = new FunctionDataBuilder()
+                .parentSymbolType(codedata.object())
+                .name(codedata.symbol())
+                .moduleInfo(new ModuleInfo(codedata.org(), codedata.resolvePackageName(), codedata.module(),
+                        codedata.version()))
+                .lsClientLogger(lsClientLogger)
+                .functionResultKind(FunctionData.Kind.CONNECTOR)
+                .userModuleInfo(moduleInfo)
+                .workspaceManager(workspaceManager)
+                .filePath(filePath);
+
+        // TODO: If we set the module info properly this logic can be removed.
+        if (Boolean.TRUE.equals(codedata.isGenerated())) {
+            Path projectPath = filePath.getParent();
+            if (projectPath == null) {
+                throw new IllegalStateException("Project path not found");
+            }
+            Project project = PackageUtil.loadProject(workspaceManager, filePath);
+            SemanticModel semanticModel = null;
+            for (Module module : project.currentPackage().modules()) {
+                String moduleNamePath = module.moduleName().moduleNamePart();
+                if (moduleNamePath != null && moduleNamePath.equals(codedata.module())) {
+                    semanticModel = PackageUtil.getCompilation(project).getSemanticModel(module.moduleId());
+                    break;
+                }
+            }
+            if (semanticModel == null) {
+                throw new IllegalStateException("Semantic model not found");
+            }
+            functionDataBuilder.semanticModel(semanticModel);
+        }
+        return functionDataBuilder.build();
     }
 
     private void preloadConnectorActions(SourceBuilder sourceBuilder) {

@@ -1,0 +1,191 @@
+{
+  "source": "new_connection-docusign/main.bal",
+  "description": "A connector whose init includes its config record: the included fields are named after themselves, the plain parameter after itself, and a union of records after the member the value fits",
+  "diagram": {
+    "id": "31",
+    "metadata": {
+      "label": "DS Admin"
+    },
+    "codedata": {
+      "node": "NEW_CONNECTION",
+      "org": "ballerinax",
+      "module": "docusign.dsadmin",
+      "packageName": "docusign.dsadmin",
+      "object": "Client",
+      "symbol": "init",
+      "version": "2.0.0",
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "serviceUrl": {
+        "metadata": {
+          "label": "serviceUrl"
+        },
+        "valueType": "EXPRESSION",
+        "value": "\"https://demo.docusign.net/management\"",
+        "optional": false,
+        "editable": true,
+        "codedata": {
+          "kind": "REQUIRED",
+          "originalName": "serviceUrl"
+        }
+      },
+      "auth": {
+        "metadata": {
+          "label": "auth"
+        },
+        "valueType": "EXPRESSION",
+        "value": "{token: \"dsToken\"}",
+        "optional": false,
+        "editable": true,
+        "codedata": {
+          "kind": "INCLUDED_FIELD",
+          "originalName": "auth"
+        }
+      },
+      "httpVersion": {
+        "metadata": {
+          "label": "httpVersion"
+        },
+        "valueType": "EXPRESSION",
+        "value": "http:HTTP_1_1",
+        "optional": true,
+        "editable": true,
+        "codedata": {
+          "kind": "INCLUDED_FIELD",
+          "originalName": "httpVersion"
+        },
+        "imports": {
+          "http": "ballerina/http"
+        }
+      },
+      "timeout": {
+        "metadata": {
+          "label": "timeout"
+        },
+        "valueType": "EXPRESSION",
+        "value": "60",
+        "optional": true,
+        "editable": true,
+        "codedata": {
+          "kind": "INCLUDED_FIELD",
+          "originalName": "timeout"
+        }
+      },
+      "type": {
+        "metadata": {
+          "label": "Variable Type"
+        },
+        "valueType": "TYPE",
+        "value": "dsadmin:Client",
+        "optional": false,
+        "editable": false,
+        "imports": {
+          "dsadmin": "ballerinax/docusign.dsadmin"
+        }
+      },
+      "variable": {
+        "metadata": {
+          "label": "Connection Name"
+        },
+        "valueType": "IDENTIFIER",
+        "value": "dsAdmin",
+        "optional": false,
+        "editable": true
+      },
+      "scope": {
+        "metadata": {
+          "label": "Connection Scope"
+        },
+        "valueType": "ENUM",
+        "value": "Global",
+        "optional": false,
+        "editable": true
+      },
+      "checkError": {
+        "metadata": {
+          "label": "Check Error"
+        },
+        "valueType": "FLAG",
+        "value": true,
+        "optional": false,
+        "editable": false
+      }
+    },
+    "flags": 0
+  },
+  "output": {
+    "new_connection-docusign/config.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "configurable string dsAdminServiceUrl = ?;\nconfigurable string dsAdminAuthToken = ?;\nconfigurable decimal dsAdminTimeout = 60;"
+      }
+    ],
+    "new_connection-docusign/connections.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "import ballerina/http;"
+      },
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "import ballerinax/docusign.dsadmin;"
+      },
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "final dsadmin:Client dsAdmin = check new (dsAdminServiceUrl, auth = {token: dsAdminAuthToken}, httpVersion = http:HTTP_1_1, timeout = dsAdminTimeout);"
+      }
+    ],
+    "new_connection-docusign/Config.toml": [
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "dsAdminServiceUrl = \"https://demo.docusign.net/management\"\ndsAdminAuthToken = \"dsToken\"\n"
+      }
+    ]
+  }
+}
