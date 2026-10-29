@@ -128,7 +128,7 @@
             "character": 0
           }
         },
-        "newText": "configurable string dsAdminServiceUrl = ?;\nconfigurable string dsAdminAuthToken = ?;\nconfigurable decimal dsAdminTimeout = 60;"
+        "newText": "configurable string dsAdminServiceUrl = ?;\nconfigurable string dsAdminAuthToken = ?;\nconfigurable decimal dsAdminTimeout = ?;"
       }
     ],
     "new_connection-docusign/connections.bal": [
@@ -184,7 +184,7 @@
             "character": 0
           }
         },
-        "newText": "dsAdminServiceUrl = \"https://demo.docusign.net/management\"\ndsAdminAuthToken = \"dsToken\"\n"
+        "newText": "dsAdminServiceUrl = \"https://demo.docusign.net/management\"\ndsAdminAuthToken = \"dsToken\"\ndsAdminTimeout = 60\n"
       }
     ]
   }

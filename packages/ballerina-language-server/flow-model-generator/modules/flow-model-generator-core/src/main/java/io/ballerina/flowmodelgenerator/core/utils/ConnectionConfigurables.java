@@ -46,8 +46,8 @@ import java.util.stream.Collectors;
 /**
  * Turns the literal values of a new connection's arguments into configurables named after the connection and the
  * connector's init fields, joined in camel case: {@code auth.clientId} of the connection {@code sfSales} becomes
- * {@code sfSalesAuthClientId}. A field the connector requires gets a required configurable; any other gets one that
- * defaults to the literal.
+ * {@code sfSalesAuthClientId}. Each configurable is required, so no literal stays in source; its value goes to
+ * Config.toml.
  *
  * @since 1.9.0
  */
@@ -80,20 +80,12 @@ public class ConnectionConfigurables {
      * @param name     the configurable's name
      * @param type     the configurable's type
      * @param literal  the literal the connection was given
-     * @param required whether the connector requires the field
      * @param exists   whether the module already declares it
      */
-    public record Configurable(String name, String type, String literal, boolean required, boolean exists) {
+    public record Configurable(String name, String type, String literal, boolean exists) {
 
         public String declaration() {
-            return "configurable %s %s = %s;".formatted(type, name, required ? "?" : literal);
-        }
-
-        /**
-         * Whether the literal goes to Config.toml: the declaration doesn't hold it.
-         */
-        public boolean inConfigToml() {
-            return required || exists;
+            return "configurable %s %s = ?;".formatted(type, name);
         }
 
         public String configTomlValue() {
@@ -118,15 +110,14 @@ public class ConnectionConfigurables {
      * @param parameter the parameter's name
      * @param type      the parameter's type
      * @param included  whether the parameter is a field of an included record
-     * @param required  whether the connector requires the argument
      * @return the rewritten argument
      */
-    public String rewrite(String argument, String parameter, TypeSymbol type, boolean included, boolean required) {
+    public String rewrite(String argument, String parameter, TypeSymbol type, boolean included) {
         ExpressionNode value = NodeParser.parseExpression(argument);
         String name = value instanceof MappingConstructorExpressionNode && !included
                 ? connection : fieldName(connection, parameter);
         List<Replacement> replacements = new ArrayList<>();
-        collect(value, type, name, required, replacements);
+        collect(value, type, name, replacements);
         StringBuilder source = new StringBuilder(argument);
         replacements.stream()
                 .sorted(Comparator.comparingInt((Replacement r) -> r.range().startOffset()).reversed())
@@ -143,8 +134,7 @@ public class ConnectionConfigurables {
                 .collect(Collectors.joining());
     }
 
-    private void collect(ExpressionNode value, TypeSymbol type, String name, boolean required,
-                         List<Replacement> replacements) {
+    private void collect(ExpressionNode value, TypeSymbol type, String name, List<Replacement> replacements) {
         TypeSymbol rawType = CommonUtils.getRawType(type);
         if (value instanceof BasicLiteralNode literal) {
             String configurableType = CONFIGURABLE_TYPES.get(rawType.typeKind());
@@ -152,7 +142,7 @@ public class ConnectionConfigurables {
                 return;
             }
             replacements.add(new Replacement(literal.literalToken().textRange(), name));
-            configurables.add(new Configurable(name, configurableType, literal.toSourceCode().strip(), required,
+            configurables.add(new Configurable(name, configurableType, literal.toSourceCode().strip(),
                     existingNames.contains(name)));
         } else if (value instanceof MappingConstructorExpressionNode mapping) {
             recordOf(rawType, mapping).ifPresent(record -> mapping.fields().forEach(field -> {
@@ -163,7 +153,7 @@ public class ConnectionConfigurables {
                 RecordFieldSymbol fieldSymbol = record.fieldDescriptors().get(fieldName);
                 if (fieldSymbol != null) {
                     collect(specificField.valueExpr().get(), fieldSymbol.typeDescriptor(), fieldName(name, fieldName),
-                            required && isRequired(fieldSymbol), replacements);
+                            replacements);
                 }
             }));
         }
