@@ -48,34 +48,16 @@ public record AgentTriggerContext(String emitAlias, String listenerVarName, Stri
                                   List<String> auxiliaryTypes, Map<String, String> auxiliaryImports) {
 
     public static final String DURABLE_KIND = "durable";
-    public static final String CHAT_CHANNEL_PROPERTY = "chatChannel";
-    public static final String DEFAULT_CHAT_CHANNEL = "chat";
     public static final String EVENT_CHANNEL_PROPERTY = "eventChannel";
     public static final String EVENT_RESPONSE_PROPERTY = "eventResponse";
     private static final String BALLERINA_ORG = "ballerina";
     private static final String DURABLE_HELPERS_SLOT = "\n{{durableHelpers}}\n";
 
     private static final String DURABLE_HELPERS = """
-                private map<string> durableSessions = {};
-
-                function durableTurn(string sessionKey, string text) returns string|error {
-                    string instanceId = check self.instanceFor(sessionKey);
-                    string token = check {{agent}}.sendData(instanceId, "{{channel}}", text);
-                    return {{agent}}.waitForDataResult(instanceId, token);
+                function runAgent(string query) returns string|error {
+                    return {{answer}};
                 }
 
-                function instanceFor(string sessionKey) returns string|error {
-                    // Serializes every session's first turn; a slow `run` here delays other sessions too.
-                    lock {
-                        string? existing = self.durableSessions[sessionKey];
-                        if existing is string {
-                            return existing;
-                        }
-                        string id = check {{agent}}.run(string `session=${sessionKey}`);
-                        self.durableSessions[sessionKey] = id;
-                        return id;
-                    }
-                }
             """;
 
     public AgentTriggerContext(String emitAlias, String listenerVarName, String agentVarName, String agentOrgName,
@@ -107,11 +89,22 @@ public record AgentTriggerContext(String emitAlias, String listenerVarName, Stri
         return formValue(EVENT_RESPONSE_PROPERTY).strip();
     }
 
+    /** The agent's answer to a chat message, for a reply function that cannot {@code check}. */
     public String agentRun(String queryExpr, String sessionExpr) {
         if (isDurable()) {
-            return "self.durableTurn(%s, %s)".formatted(sessionExpr, queryExpr);
+            return "self.runAgent(%s)".formatted(queryExpr);
         }
         return "%s(%s, sessionId = %s)".formatted(runTarget(), queryExpr, sessionExpr);
+    }
+
+    /** The agent's answer to a chat message, for a caller that can {@code check} it. */
+    public String agentAnswer(String queryExpr, String sessionExpr) {
+        return isDurable() ? durableAnswer(queryExpr) : agentRun(queryExpr, sessionExpr);
+    }
+
+    // A durable run returns the instance id, so the answer is the instance's result.
+    private String durableAnswer(String queryExpr) {
+        return "%s.waitForResult(check %s.run(%s))".formatted(agentVarName, agentVarName, queryExpr);
     }
 
     public String agentRun(String queryExpr) {
@@ -122,16 +115,11 @@ public record AgentTriggerContext(String emitAlias, String listenerVarName, Stri
         return agentVarName + (BALLERINA_ORG.equals(agentOrgName) ? "." : "->") + "run";
     }
 
-    private String chatChannel() {
-        String channel = formValue(CHAT_CHANNEL_PROPERTY).strip();
-        return channel.isEmpty() ? DEFAULT_CHAT_CHANNEL : channel;
-    }
-
     private String durableHelpers(boolean isolatedService) {
         if (!isDurable()) {
             return "";
         }
-        String helpers = DURABLE_HELPERS.replace("{{agent}}", agentVarName).replace("{{channel}}", chatChannel());
+        String helpers = DURABLE_HELPERS.replace("{{answer}}", durableAnswer("query"));
         return isolatedService ? helpers.replace("    function ", "    isolated function ") : helpers;
     }
 

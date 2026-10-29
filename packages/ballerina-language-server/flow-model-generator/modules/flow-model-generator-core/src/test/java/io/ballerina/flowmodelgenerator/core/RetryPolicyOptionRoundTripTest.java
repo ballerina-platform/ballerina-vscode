@@ -46,7 +46,7 @@ public class RetryPolicyOptionRoundTripTest {
                 {"a call producing a policy", "retryPolicyFor(order)"},
                 {"a reference whose name contains a sentinel word", "defaultNoRetryPolicy"},
                 {"an automatic retry", "{maxRetries: 3, retryDelay: 1.0}"},
-                {"an automatic retry tuned on one field", "{retryDelay: 5.0}"},
+                {"an automatic retry tuned on its delay", "{maxRetries: 3, retryDelay: 5.0}"},
                 {"a human review scoped to roles", "{userRoles: \"ops\"}"},
                 {"a human review scoped to several roles", "{userRoles: [\"finance\", \"manager\"]}"},
                 {"retries followed by a review", "{maxRetries: 2, userRoles: \"ops\"}"},

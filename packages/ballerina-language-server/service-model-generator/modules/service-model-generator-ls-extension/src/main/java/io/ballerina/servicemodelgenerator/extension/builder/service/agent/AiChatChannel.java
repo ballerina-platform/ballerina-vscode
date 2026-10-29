@@ -50,7 +50,6 @@ public class AiChatChannel implements AgentTriggerChannel {
 
     private static final String SERVICE_BLOCK = """
             service {{basePath}} on {{listener}} {
-            {{durableHelpers}}
                 resource function post chat(@http:Payload {{alias}}:ChatReqMessage request)
                         returns {{alias}}:ChatRespMessage|error {
                     string stringResult = check {{agentRun}};
@@ -126,6 +125,6 @@ public class AiChatChannel implements AgentTriggerChannel {
     public String serviceBlock(AgentTriggerContext context) {
         return context.fill(SERVICE_BLOCK)
                 .replace("{{basePath}}", context.servicePath(BASE_PATH, DEFAULT_BASE_PATH))
-                .replace("{{agentRun}}", context.agentRun("request.message", "request.sessionId"));
+                .replace("{{agentRun}}", context.agentAnswer("request.message", "request.sessionId"));
     }
 }

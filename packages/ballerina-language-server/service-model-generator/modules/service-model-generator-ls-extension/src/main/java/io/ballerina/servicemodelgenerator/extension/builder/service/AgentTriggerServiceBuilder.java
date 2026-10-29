@@ -28,13 +28,10 @@ import io.ballerina.modelgenerator.commons.trigger.models.TriggerUISchemaModel;
 import io.ballerina.servicemodelgenerator.extension.builder.service.agent.AgentTriggerChannel;
 import io.ballerina.servicemodelgenerator.extension.builder.service.agent.AgentTriggerChannels;
 import io.ballerina.servicemodelgenerator.extension.builder.service.agent.AgentTriggerContext;
-import io.ballerina.servicemodelgenerator.extension.builder.service.agent.AgentTriggerKind;
 import io.ballerina.servicemodelgenerator.extension.connector.LocalDependencyEditUtil;
 import io.ballerina.servicemodelgenerator.extension.connector.SchemaDrivenSourceGenerator;
 import io.ballerina.servicemodelgenerator.extension.connector.TriggerModelReader;
-import io.ballerina.servicemodelgenerator.extension.model.PropertyType;
 import io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel;
-import io.ballerina.servicemodelgenerator.extension.model.ValidationRule;
 import io.ballerina.servicemodelgenerator.extension.model.Value;
 import io.ballerina.servicemodelgenerator.extension.model.context.AddServiceInitModelContext;
 import io.ballerina.servicemodelgenerator.extension.model.context.GetServiceInitModelContext;
@@ -116,9 +113,6 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
         }
         channel.ifPresent(c -> {
             c.additionalProperties(context).forEach(initModel::addProperty);
-            if (durable && c.kind() == AgentTriggerKind.CHAT) {
-                initModel.addProperty(AgentTriggerContext.CHAT_CHANNEL_PROPERTY, chatChannelField());
-            }
             c.customizeInitModel(initModel, triggerModelFor(initModel).orElse(null));
         });
         return initModel;
@@ -129,18 +123,6 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
         if (context.eventResponse() != null && !context.eventResponse().isBlank()) {
             initModel.addProperty(AgentTriggerContext.EVENT_RESPONSE_PROPERTY, hiddenValue(context.eventResponse()));
         }
-    }
-
-    private static Value chatChannelField() {
-        return new Value.ValueBuilder()
-                .metadata("Chat Channel", "The durable agent's event channel each chat message is sent on.")
-                .types(List.of(PropertyType.types(Value.FieldType.TEXT, "string")))
-                .enabled(true)
-                .editable(true)
-                .optional(false)
-                .value(AgentTriggerContext.DEFAULT_CHAT_CHANNEL)
-                .setValidations(List.of(new ValidationRule("common.validate.required")))
-                .build();
     }
 
     @Override
@@ -309,7 +291,6 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
         owned.add(AGENT_NAME_PROPERTY);
         owned.add(AGENT_ORG_PROPERTY);
         owned.add(AGENT_KIND_PROPERTY);
-        owned.add(AgentTriggerContext.CHAT_CHANNEL_PROPERTY);
         owned.add(AgentTriggerContext.EVENT_CHANNEL_PROPERTY);
         owned.add(AgentTriggerContext.EVENT_RESPONSE_PROPERTY);
         for (String key : owned) {

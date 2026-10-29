@@ -202,11 +202,10 @@ public class AgentTriggerGenerationTest {
     public void testVoiceAgentKeepsADurableAgentsHelpersIsolated() {
         String src = generateForVoiceAgent(AgentTriggerContext.DURABLE_KIND);
 
-        Assert.assertTrue(src.contains("isolated function durableTurn(")
-                        && src.contains("isolated function instanceFor("),
+        Assert.assertTrue(src.contains("isolated function runAgent(string query) returns string|error {"),
                 "an isolated service can only call isolated methods: " + src);
-        Assert.assertTrue(src.contains("string response = check self.durableTurn(message.sessionId, message.message);"),
-                "a durable agent should answer through its session's instance: " + src);
+        Assert.assertTrue(src.contains("string response = check self.runAgent(message.message);"),
+                "a durable agent should answer with its run's result: " + src);
     }
 
     @Test
@@ -1372,41 +1371,34 @@ public class AgentTriggerGenerationTest {
         return form;
     }
 
-    private static void assertDurableChat(String src, String turn) {
-        Assert.assertTrue(src.contains(turn), "the chat turn should go through the session's instance: " + src);
-        Assert.assertTrue(src.contains("private map<string> durableSessions = {};"),
-                "the service should keep one instance per session: " + src);
-        Assert.assertTrue(src.contains("string token = check claimAgent.sendData(instanceId, \"chat\", text);")
-                        && src.contains("return claimAgent.waitForDataResult(instanceId, token);"),
-                "a turn is a sendData on the chat channel awaited through its token: " + src);
-        Assert.assertEquals(src.split("\\.run\\(", -1).length - 1, 1, "run() starts the instance, once: " + src);
-        Assert.assertTrue(src.indexOf(".run(") > src.indexOf("function instanceFor(string sessionKey)"),
-                "the one run() belongs to instanceFor: " + src);
+    private static void assertDurableChat(String src) {
+        Assert.assertEquals(src.split("claimAgent\\.waitForResult\\(check claimAgent\\.run\\(", -1).length - 1, 1,
+                "a chat message runs the agent once and answers with the instance's result: " + src);
+        Assert.assertFalse(src.contains("sendData") || src.contains("durableSessions"),
+                "a chat trigger only runs the agent; data events are added from the diagram: " + src);
         Assert.assertFalse(src.contains("sessionId ="), "DurableAgent.run takes no sessionId: " + src);
     }
 
     @Test
-    public void testDurableAgentChatTurnsThroughAnInstance() {
+    public void testDurableAgentChatAnswersWithTheRunResult() {
         String src = render(AgentTriggerServiceBuilder.buildEdits(durableForm("ballerina", "ai", "/claims"), null,
                 channel("ballerina", "ai"), rootOf("\n"), "main.bal"));
 
-        assertDurableChat(src, "check self.durableTurn(request.sessionId, request.message)");
+        assertDurableChat(src);
+        Assert.assertTrue(src.contains(
+                        "string stringResult = check claimAgent.waitForResult(check claimAgent.run(request.message));"),
+                "the resource can check, so it needs no helper: " + src);
+        Assert.assertFalse(src.contains("runAgent"), "the resource can check, so it needs no helper: " + src);
     }
 
     @Test
-    public void testDurableGoogleChatTurnsThroughAnInstance() {
+    public void testDurableGoogleChatAnswersThroughAHelper() {
         String src = generateForAgent("googleapis.chat", "claimAgent", null, DURABLE);
 
-        assertDurableChat(src, "self.durableTurn(\"googlechat:\" + (event.space?.name ?: \"unknown\"), text)");
-    }
-
-    @Test
-    public void testDurableChatSendsOnTheChosenChannel() {
-        String src = generateForAgent("googleapis.chat", "claimAgent", null,
-                Map.of(AGENT_KIND_PROPERTY, "durable", "chatChannel", "support"));
-
-        Assert.assertTrue(src.contains("claimAgent.sendData(instanceId, \"support\", text)"),
-                "the form's channel name is the one each turn is sent on: " + src);
+        assertDurableChat(src);
+        Assert.assertTrue(src.contains("function runAgent(string query) returns string|error {")
+                        && src.contains("string|error result = self.runAgent(text);"),
+                "the reply function cannot check, so the run goes through a helper that can: " + src);
     }
 
     @Test
@@ -1435,17 +1427,23 @@ public class AgentTriggerGenerationTest {
     }
 
     @Test
-    public void testDurableChatFormAsksForTheChannel() {
+    public void testDurableChatFormAsksWhatThePlainFormAsks() {
         AgentTriggerServiceBuilder builder = new AgentTriggerServiceBuilder();
         ServiceInitModel durable = builder.getServiceInitModel(new GetServiceInitModelContext("ballerina", "ai",
                 "ai", "1.0.0", null, null, null, false, "claimAgent", null, "durable"));
         ServiceInitModel plain = builder.getServiceInitModel(new GetServiceInitModelContext("ballerina", "ai",
                 "ai", "1.0.0", null, null, null, false, "mathTutorAgent", null));
 
-        Assert.assertEquals(durable.getProperties().get("chatChannel").getValue(), "chat",
-                "the durable form should offer the conventional channel by default");
+        Assert.assertEquals(visibleFields(durable), visibleFields(plain),
+                "a durable agent's chat form should ask for nothing more than an AI agent's");
         Assert.assertEquals(durable.getProperties().get(AGENT_KIND_PROPERTY).getValue(), "durable");
-        Assert.assertNull(plain.getProperties().get("chatChannel"), "an AI agent's form has no channel to ask for");
+    }
+
+    private static List<String> visibleFields(ServiceInitModel form) {
+        return form.getProperties().entrySet().stream()
+                .filter(entry -> !entry.getValue().isHidden())
+                .map(Map.Entry::getKey)
+                .toList();
     }
 
 
