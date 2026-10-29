@@ -20,6 +20,7 @@ package io.ballerina.flowmodelgenerator.core.type;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import org.ballerinalang.langserver.common.utils.CommonUtil;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -255,7 +256,7 @@ public class RecordValueGenerator {
                 for (JsonElement field : fields.getAsJsonArray()) {
                     JsonObject fieldObj = field.getAsJsonObject();
                     if (fieldObj.has("selected") && fieldObj.get("selected").getAsBoolean()) {
-                        String fieldName = fieldObj.get("name").getAsString();
+                        String fieldName = CommonUtil.escapeReservedKeyword(fieldObj.get("name").getAsString());
                         StringBuilder fieldValueBuilder = new StringBuilder();
                         generateValue(fieldObj, fieldValueBuilder, indentLevel + 1);
                         String fieldValue = nextIndent + fieldName + ": " + fieldValueBuilder.toString().trim();

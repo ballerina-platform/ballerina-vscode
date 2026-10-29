@@ -90,5 +90,5 @@
     "isRestType": false,
     "selected": true
   },
-  "output": "{\n    entries: [\n        {\n            key: \"first\"\n        },\n        {\n            key: \"third\"\n        }\n    ]\n}"
+  "output": "{\n    entries: [\n        {\n            'key: \"first\"\n        },\n        {\n            'key: \"third\"\n        }\n    ]\n}"
 }
