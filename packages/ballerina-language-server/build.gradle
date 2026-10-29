@@ -501,6 +501,10 @@ task buildTestService {
     dependsOn(":test-manager-service:test-manager-service-ls-extension:build")
 }
 
+task buildScannerService {
+    dependsOn(":scanner-service:scanner-service-ls-extension:build")
+}
+
 task buildCommons {
     dependsOn(":model-generator-commons:build")
 }

@@ -376,6 +376,11 @@
                     "default": true,
                     "scope": "resource",
                     "description": "Suggest follow-up actions after Copilot responds in the AI chat."
+                },
+                "ballerina.scan.enabled": {
+                    "type": "boolean",
+                    "default": false,
+                    "markdownDescription": "Scan Ballerina packages with `bal scan` and show the findings as diagnostics. Packages are scanned when scanning is enabled and again each time a file is saved."
                 }
             }
         },
@@ -947,6 +952,52 @@
                 "title": "Evaluation History",
                 "category": "Ballerina",
                 "icon": "$(history)"
+            },
+            {
+                "command": "ballerina.scan.enable",
+                "title": "Enable Scanning",
+                "category": "Ballerina"
+            },
+            {
+                "command": "ballerina.scan.disable",
+                "title": "Disable Scanning",
+                "category": "Ballerina"
+            },
+            {
+                "command": "ballerina.scan.run",
+                "title": "Scan Now",
+                "category": "Ballerina"
+            },
+            {
+                "command": "ballerina.scan.includeRule",
+                "title": "Re-enable Excluded Scan Rule",
+                "category": "Ballerina"
+            },
+            {
+                "command": "ballerina.scan.fixWithCopilot",
+                "title": "Fix Scan Issue with Copilot",
+                "category": "Ballerina"
+            },
+            {
+                "command": "ballerina.scan.excludeRule",
+                "title": "Exclude Scan Rule",
+                "category": "Ballerina"
+            },
+            {
+                "command": "ballerina.scan.suppress",
+                "title": "Suppress Scan Issue with @scan:Suppress",
+                "category": "Ballerina"
+            },
+            {
+                "command": "ballerina.scan.enableSuppressions",
+                "title": "Enable Scan Suppressions",
+                "category": "Ballerina"
+            },
+            {
+                "command": "ballerina.scan.report",
+                "title": "Scan",
+                "category": "Ballerina",
+                "icon": "$(shield)"
             }
         ],
         "views": {
@@ -1150,6 +1201,11 @@
                     "group": "navigation@3"
                 },
                 {
+                    "command": "ballerina.scan.report",
+                    "group": "navigation@3",
+                    "when": "resourceLangId == ballerina"
+                },
+                {
                     "when": "isBallerinaDiagram",
                     "command": "ballerina.show.source",
                     "group": "navigation@4"
@@ -1267,6 +1323,30 @@
                 {
                     "command": "ballerina.view.entityDiagram",
                     "when": "isPersistModelActive"
+                },
+                {
+                    "command": "ballerina.scan.enable",
+                    "when": "!config.ballerina.scan.enabled"
+                },
+                {
+                    "command": "ballerina.scan.disable",
+                    "when": "config.ballerina.scan.enabled"
+                },
+                {
+                    "command": "ballerina.scan.fixWithCopilot",
+                    "when": "false"
+                },
+                {
+                    "command": "ballerina.scan.excludeRule",
+                    "when": "false"
+                },
+                {
+                    "command": "ballerina.scan.suppress",
+                    "when": "false"
+                },
+                {
+                    "command": "ballerina.scan.enableSuppressions",
+                    "when": "false"
                 }
             ]
         },

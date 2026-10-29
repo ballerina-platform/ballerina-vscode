@@ -51,6 +51,7 @@ import { activateAIFeatures } from './features/ai/activator';
 import { runningServicesManager } from './features/ai/agent/tools/running-service-manager';
 import { activateTryItCommand } from './features/tryit/activator';
 import { activate as activateNPFeatures } from './features/natural-programming/activator';
+import { activate as activateScan } from './features/scan/activator';
 import { activateAgentChatPanel } from './views/agent-chat/activate';
 import { activateTracing } from './features/tracing';
 import { activateICP } from './features/icp';
@@ -282,6 +283,9 @@ async function activateBallerinaInternal(ballerinaExtInstance: BallerinaExtensio
 
         // Activate natural programming features
         activateNPFeatures(ballerinaExtInstance);
+
+        // Activate bal scan diagnostics and quick fixes
+        activateScan(ballerinaExtInstance);
 
         // Activate Agent Chat Panel
         activateAgentChatPanel(ballerinaExtInstance);
