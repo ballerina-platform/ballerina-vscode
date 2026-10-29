@@ -30,6 +30,8 @@ const ROOT_ID = "add-agent";
 const GALLERY_ID = `${ROOT_ID}-gallery`;
 const TOOL_ID = `${ROOT_ID}-tool`;
 const GALLERY_WIDTH = 800;
+// Fits two rows of pre-built agents with the third peeking, so the list reads as scrollable.
+const GALLERY_HEIGHT = 520;
 const FORM_WIDTH = 680;
 const MODAL_HEIGHT = 780;
 
@@ -134,7 +136,7 @@ export function AddAgentPopup(props: AddAgentPopupProps): null {
             />,
             GALLERY_ID,
             dependencyMode ? "Use Agent" : "Add Agent",
-            MODAL_HEIGHT,
+            GALLERY_HEIGHT,
             GALLERY_WIDTH,
             dismiss,
             true

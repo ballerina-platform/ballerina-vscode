@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { ReactNode } from "react";
+import { KeyboardEvent, ReactNode } from "react";
 import { Codicon, Icon } from "@wso2/ui-toolkit";
 import { getNodeChartColor } from "@wso2/bi-diagram";
 import {
@@ -25,6 +25,9 @@ import {
     AgentOptionDescription,
     AgentOptionIcon,
     AgentOptionIconBadge,
+    AgentOptionRow,
+    AgentOptionRowDescription,
+    AgentOptionRowTitle,
     AgentOptionTitle,
     ArrowIcon,
     CreateOptionsGrid,
@@ -39,29 +42,29 @@ interface OptionCardProps {
     onClick?: () => void;
 }
 
+const activateOnKey = (onClick?: () => void) => (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        onClick?.();
+    }
+};
+
 function OptionCard({ icon, title, description, onClick }: OptionCardProps) {
     return (
-        <AgentOptionCard onClick={onClick}>
-            <AgentOptionIcon>{icon}</AgentOptionIcon>
+        <AgentOptionCard role="button" tabIndex={0} title={description} onClick={onClick} onKeyDown={activateOnKey(onClick)}>
+            <AgentOptionIcon aria-hidden>{icon}</AgentOptionIcon>
             <AgentOptionContent>
                 <AgentOptionTitle>{title}</AgentOptionTitle>
                 <AgentOptionDescription>{description}</AgentOptionDescription>
             </AgentOptionContent>
-            <ArrowIcon>
+            <ArrowIcon aria-hidden>
                 <Codicon name="chevron-right" />
             </ArrowIcon>
         </AgentOptionCard>
     );
 }
 
-const definitionIcon = (
-    <Icon
-        isCodicon={true}
-        name="symbol-class"
-        sx={{ width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center" }}
-        iconSx={{ fontSize: "24px" }}
-    />
-);
+const DEFINITION_DESCRIPTION = "Share one setup and reuse it to create agents with the same configuration.";
 
 export interface CreateNewSectionProps {
     dependencyMode?: boolean;
@@ -109,25 +112,35 @@ export function CreateNewSection(props: CreateNewSectionProps) {
                 <CreateOptionsGrid>
                     <OptionCard
                         icon={agentIcon}
-                        title="Create Agent"
-                        description="Create an agent instance for this integration only."
+                        title="Agent"
+                        description="Responds right away, for chat and quick tasks."
                         onClick={onCreateAgent}
                     />
                     {onCreateDurableAgent && (
                         <OptionCard
                             icon={durableAgentIcon}
-                            title="Create Durable Agent"
-                            description="Runs as a workflow. Can wait days for a person or an event and resume after a restart."
+                            title="Durable Agent"
+                            description="Pauses for people or events, and survives restarts."
                             onClick={onCreateDurableAgent}
                         />
                     )}
                 </CreateOptionsGrid>
-                <OptionCard
-                    icon={definitionIcon}
-                    title="Create Agent Definition"
-                    description="Create an agent definition that can be shared and used to create agent instances with the same configuration."
+                <AgentOptionRow
+                    role="button"
+                    tabIndex={0}
+                    title={DEFINITION_DESCRIPTION}
                     onClick={onCreateDefinition}
-                />
+                    onKeyDown={activateOnKey(onCreateDefinition)}
+                >
+                    <span aria-hidden>
+                        <Codicon name="symbol-class" />
+                    </span>
+                    <AgentOptionRowTitle>Agent Definition</AgentOptionRowTitle>
+                    <AgentOptionRowDescription>{DEFINITION_DESCRIPTION}</AgentOptionRowDescription>
+                    <ArrowIcon aria-hidden>
+                        <Codicon name="chevron-right" />
+                    </ArrowIcon>
+                </AgentOptionRow>
             </Section>
         </Section>
     );

@@ -236,11 +236,11 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
 
     return (
         <PopupContent>
-            <IntroText>
-                {dependencyMode
-                    ? "Choose the agent this definition should delegate to. The selected agent will be passed into this definition when it is created."
-                    : "To add an agent, create a one-off agent for this project, create a reusable agent definition that can be shared across projects, or select one of the pre-built agents below. You will then be guided to provide the required details to complete the agent setup."}
-            </IntroText>
+            {dependencyMode && (
+                <IntroText>
+                    Choose the agent this definition should delegate to. The selected agent will be passed into this definition when it is created.
+                </IntroText>
+            )}
 
             <CreateNewSection
                 dependencyMode={dependencyMode}
@@ -256,6 +256,7 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
                     <FilterButtons>
                         <FilterButton
                             active={filterType === "All"}
+                            aria-pressed={filterType === "All"}
                             onClick={() => setFilterType("All")}
                         >
                             All
@@ -263,6 +264,7 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
                         {isWorkspace && (
                             <FilterButton
                                 active={filterType === "Project"}
+                                aria-pressed={filterType === "Project"}
                                 onClick={() => setFilterType("Project")}
                             >
                                 Project
@@ -270,6 +272,7 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
                         )}
                         <FilterButton
                             active={filterType === "Organization"}
+                            aria-pressed={filterType === "Organization"}
                             onClick={() => setFilterType("Organization")}
                         >
                             Organization
@@ -293,7 +296,7 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
                             : filterType === "Organization"
                                 ? "No agents found in your organization."
                                 : !searchText
-                                    ? "No agents found. Type to search for agents from other organizations."
+                                    ? "No agents in this project or its organization yet. Type to search public agents."
                                     : "No agents found."}
                     </EmptyState>
                 ) : (

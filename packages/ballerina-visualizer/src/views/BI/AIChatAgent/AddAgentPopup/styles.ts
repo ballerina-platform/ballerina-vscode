@@ -79,7 +79,6 @@ export const Section = styled.div`
 
 export const ResultsSection = styled(Section)`
     flex: 1;
-    gap: 16px;
     margin-top: 8px;
 `;
 
@@ -115,11 +114,16 @@ export const AgentOptionCard = styled.div`
     border-radius: 8px;
     background-color: var(--option-card-bg);
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: background-color 150ms ease, border-color 150ms ease;
 
     &:hover {
         --option-card-bg: ${ThemeColors.PRIMARY_CONTAINER};
         border-color: ${ThemeColors.PRIMARY};
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--vscode-focusBorder);
+        outline-offset: 1px;
     }
 `;
 
@@ -183,6 +187,21 @@ export const AgentOptionDescription = styled(Typography)`
     overflow: hidden;
 `;
 
+export const AgentOptionRow = styled(AgentOptionCard)`
+    padding: 8px 12px;
+    gap: 10px;
+    color: ${ThemeColors.ON_SURFACE_VARIANT};
+`;
+
+export const AgentOptionRowTitle = styled(AgentOptionTitle)`
+    font-size: 13px;
+    white-space: nowrap;
+`;
+
+export const AgentOptionRowDescription = styled(AgentOptionDescription)`
+    flex: 1;
+`;
+
 export const ArrowIcon = styled.div`
     display: flex;
     align-items: center;
@@ -207,7 +226,7 @@ export const FilterButton = styled.button<{ active?: boolean }>`
         props.active ? ThemeColors.PRIMARY : "transparent"};
     color: ${(props: { active?: boolean }) =>
         props.active ? ThemeColors.ON_PRIMARY : ThemeColors.ON_SURFACE_VARIANT};
-    transition: all 0.2s ease;
+    transition: background-color 150ms ease, color 150ms ease;
 
     &:hover {
         background-color: ${(props: { active?: boolean }) =>
