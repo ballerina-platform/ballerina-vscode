@@ -84,7 +84,8 @@ public class NewConnectionBuilder extends CallBuilder {
 
     /**
      * The init of the connector the form was last built for. Saving the connection reads its types from here
-     * rather than loading and compiling the connector a second time.
+     * rather than loading and compiling the connector a second time. A client generated into the project is not kept:
+     * its types change with the project.
      */
     private static final AtomicReference<ConnectorInit> LAST_CONNECTOR_INIT = new AtomicReference<>();
 
@@ -156,13 +157,17 @@ public class NewConnectionBuilder extends CallBuilder {
         Codedata codedata = sourceBuilder.flowNode.codedata();
         String connector = connectorId(codedata.org(), codedata.resolvePackageName(), codedata.module(),
                 codedata.object(), codedata.version());
-        ConnectorInit lastInit = LAST_CONNECTOR_INIT.get();
+        ConnectorInit lastInit = Boolean.TRUE.equals(codedata.isGenerated()) ? null : LAST_CONNECTOR_INIT.get();
         FunctionData init;
         try {
             init = lastInit != null && lastInit.connector().equals(connector) ? lastInit.init()
-                    : connectorInit(codedata, sourceBuilder.workspaceManager, sourceBuilder.filePath, null);
+                    : connectorInit(codedata, sourceBuilder.workspaceManager, sourceBuilder.filePath,
+                            sourceBuilder.lsClientLogger);
         } catch (RuntimeException e) {
-            // Without the connector's types the connection keeps its values as given.
+            if (sourceBuilder.lsClientLogger != null) {
+                sourceBuilder.lsClientLogger.logWarning("Connection '%s' keeps its literals; loading %s failed: %s"
+                        .formatted(connection, connector, e));
+            }
             return List.of();
         }
         for (ParameterData parameter : init.parameters().values()) {
@@ -256,8 +261,10 @@ public class NewConnectionBuilder extends CallBuilder {
         Codedata codedata = context.codedata();
         FunctionData functionData = connectorInit(codedata, context.workspaceManager(), context.filePath(),
                 context.lsClientLogger());
-        LAST_CONNECTOR_INIT.set(new ConnectorInit(connectorId(functionData.org(), functionData.packageName(),
-                functionData.moduleName(), functionData.name(), functionData.version()), functionData));
+        if (!Boolean.TRUE.equals(codedata.isGenerated())) {
+            LAST_CONNECTOR_INIT.set(new ConnectorInit(connectorId(functionData.org(), functionData.packageName(),
+                    functionData.moduleName(), functionData.name(), functionData.version()), functionData));
+        }
         metadata()
                 .label(ConnectorUtil.getConnectorName(functionData.name(), functionData.moduleName()))
                 .description(functionData.description())

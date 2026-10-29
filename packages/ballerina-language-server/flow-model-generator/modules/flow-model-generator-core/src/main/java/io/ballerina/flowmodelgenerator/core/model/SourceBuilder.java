@@ -91,7 +91,7 @@ public class SourceBuilder {
     private final List<TypeData> typesToGenerate;
     /** Decides one prefix per module, per target file; built on first use, see {@link #prefixes(Path)}. */
     private final Map<Path, ModulePrefixContext> prefixContexts;
-    private final LSClientLogger lsClientLogger;
+    public final LSClientLogger lsClientLogger;
     private Range defaultRange;
     /** True when the edits are only applied to compute the form's diagnostics and are reverted afterwards. */
     private boolean forDiagnostics;
