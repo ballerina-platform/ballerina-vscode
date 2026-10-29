@@ -29,8 +29,8 @@ import {
 // Lays out an installation the way the installers do: <root>/bin/bal(.bat) and <root>/distributions/<dist>.
 function install(root: string, dists: Record<string, Record<string, string>>, defaultDist: string): string {
     fs.mkdirSync(path.join(root, 'bin'), { recursive: true });
-    fs.writeFileSync(path.join(root, 'bin', 'bal.bat'), '@echo off');
-    fs.writeFileSync(path.join(root, 'bin', 'bal'), '#!/bin/sh');
+    fs.writeFileSync(path.join(root, 'bin', 'bal.bat'), '@echo off', { mode: 0o755 });
+    fs.writeFileSync(path.join(root, 'bin', 'bal'), '#!/bin/sh', { mode: 0o755 });
     const distributions = path.join(root, 'distributions');
     fs.mkdirSync(distributions, { recursive: true });
     fs.writeFileSync(path.join(distributions, 'ballerina-version'), `${defaultDist}\r\n`);
@@ -136,6 +136,11 @@ describe('ballerina distribution from files', () => {
             fs.mkdirSync(links);
             fs.symlinkSync(path.join(bin, 'bal'), path.join(links, 'bal'));
             expect(findLauncherDirOnPath('bal', links)).toBe(fs.realpathSync(bin));
+
+            const notExecutable = path.join(tmp, 'not-executable');
+            fs.mkdirSync(notExecutable);
+            fs.writeFileSync(path.join(notExecutable, 'bal'), '#!/bin/sh', { mode: 0o644 });
+            expect(findLauncherDirOnPath('bal', [notExecutable, links].join(path.delimiter))).toBe(fs.realpathSync(bin));
         }
     });
 });

@@ -96,11 +96,14 @@ export function findLauncherDirOnPath(launcher: string, searchPath: string = pro
         }
         const candidate = path.join(dir.replace(/^"|"$/g, ''), launcher);
         try {
+            if (process.platform !== 'win32') {
+                fs.accessSync(candidate, fs.constants.X_OK);
+            }
             if (fs.statSync(candidate).isFile()) {
                 return path.dirname(fs.realpathSync(candidate));
             }
         } catch {
-            // Not on this PATH entry.
+            // Not on this PATH entry, or not executable.
         }
     }
     return undefined;
