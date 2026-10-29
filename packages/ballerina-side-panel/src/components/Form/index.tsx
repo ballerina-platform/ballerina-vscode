@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import React, { forwardRef, useCallback, useMemo, useEffect, useState, useRef } from "react";
+import React, { forwardRef, useCallback, useContext, useMemo, useEffect, useState, useRef } from "react";
 import isEqual from "lodash/isEqual";
 import { useForm } from "react-hook-form";
 import {
@@ -76,6 +76,7 @@ import {
     resolveValidationFieldKey,
 } from "./utils";
 import { DiagnosticsStoreContext, useDiagnosticsStoreState } from "./DiagnosticsStore";
+import { IdentifierRenameContext, IdentifierRenameLog } from "../editors/identifierRenames";
 import FormDescription from "./FormDescription";
 import MarkdownDescription from "./MarkdownDescription";
 import TypeHelperText from "./TypeHelperText";
@@ -544,6 +545,17 @@ export const Form = forwardRef((props: FormProps, _ref) => {
     // hasBlockingErrors()/isAnyValidating() directly: Form renders the provider as its own
     // descendant, so Form itself is never inside it and could not otherwise reach the context value.
     const diagnosticsStore = useDiagnosticsStoreState();
+
+    // The in-place renames applied while this form is open, so a rename lands where its identifier
+    // is now rather than where it was read. A nested form (a parameter's editor) shares its
+    // parent's log: renaming the function moves the parameters, and renaming one moves the next.
+    const parentRenameLog = useContext(IdentifierRenameContext);
+    const ownRenameLog = useRef<IdentifierRenameLog>();
+    if (!parentRenameLog && !ownRenameLog.current) {
+        ownRenameLog.current = new IdentifierRenameLog();
+    }
+    const renameLog = parentRenameLog ?? ownRenameLog.current;
+    renameLog.trackFields(formFields);
 
     useEffect(() => {
         if (!fileName || !rpcClient) {
@@ -1672,112 +1684,114 @@ export const Form = forwardRef((props: FormProps, _ref) => {
     );
 
     return (
-        <DiagnosticsStoreContext.Provider value={diagnosticsStore}>
-            <FormFieldLoadingProvider
-                loadingFields={loadingFields}
-                registerLoading={registerLoading}
-                unregisterLoading={unregisterLoading}
-            >
-                <Provider {...contextValue}>
-                    <S.Container nestedForm={nestedForm} compact={compact} footerActionButton={footerActionButton} className="side-panel-body">
-                        {isFormLoading && (
-                            <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: "12px", flex: 1, minHeight: "300px" }}>
-                                <ProgressRing color={ThemeColors.PRIMARY} />
-                                <span style={{ fontSize: "12px", color: ThemeColors.ON_SURFACE_VARIANT }}>Loading form data...</span>
-                            </div>
-                        )}
-                        {/* NOTE: isFormLoading is only expected to be true during initial field value
-    resolution on form open. If this ever becomes true during user interaction,
-    it will drop focus — treat that as a bug in the loading registration logic. */}
-                        <div style={{ display: isFormLoading ? "none" : "contents" }}>
-                            {footerActionButton ? (
-                                <S.ScrollableContent>
-                                    {formContent}
-                                </S.ScrollableContent>
-                            ) : (
-                                formContent
+        <IdentifierRenameContext.Provider value={renameLog}>
+            <DiagnosticsStoreContext.Provider value={diagnosticsStore}>
+                <FormFieldLoadingProvider
+                    loadingFields={loadingFields}
+                    registerLoading={registerLoading}
+                    unregisterLoading={unregisterLoading}
+                >
+                    <Provider {...contextValue}>
+                        <S.Container nestedForm={nestedForm} compact={compact} footerActionButton={footerActionButton} className="side-panel-body">
+                            {isFormLoading && (
+                                <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: "12px", flex: 1, minHeight: "300px" }}>
+                                    <ProgressRing color={ThemeColors.PRIMARY} />
+                                    <span style={{ fontSize: "12px", color: ThemeColors.ON_SURFACE_VARIANT }}>Loading form data...</span>
+                                </div>
                             )}
-                            {onSubmit && !hideSaveButton && !footerActionButton && (
-                                <S.Footer>
-                                    {onCancelForm && (
-                                        <Button appearance="secondary" onClick={onCancelForm}>
-                                            {" "}
-                                            {cancelText || "Cancel"}{" "}
-                                        </Button>
-                                    )}
-                                    {canOpenInDataMapper &&
+                            {/* NOTE: isFormLoading is only expected to be true during initial field value
+        resolution on form open. If this ever becomes true during user interaction,
+        it will drop focus — treat that as a bug in the loading registration logic. */}
+                            <div style={{ display: isFormLoading ? "none" : "contents" }}>
+                                {footerActionButton ? (
+                                    <S.ScrollableContent>
+                                        {formContent}
+                                    </S.ScrollableContent>
+                                ) : (
+                                    formContent
+                                )}
+                                {onSubmit && !hideSaveButton && !footerActionButton && (
+                                    <S.Footer>
+                                        {onCancelForm && (
+                                            <Button appearance="secondary" onClick={onCancelForm}>
+                                                {" "}
+                                                {cancelText || "Cancel"}{" "}
+                                            </Button>
+                                        )}
+                                        {canOpenInDataMapper &&
+                                            <Button
+                                                appearance="secondary"
+                                                onClick={handleOnOpenInDataMapper}
+                                                disabled={isSaving}
+                                            >
+                                                {isSaving && savingButton === 'dataMapper' ? (
+                                                    <Typography variant="progress">{submitText || "Opening in Data Mapper..."}</Typography>
+                                                ) : submitText || "Open in Data Mapper"}
+                                            </Button>
+                                        }
+                                        {canOpenInFunctionEditor && (
+                                            <Button
+                                                appearance="secondary"
+                                                onClick={handleOnOpenInFunctionEditor}
+                                                disabled={isSaving}
+                                            >
+                                                {isSaving && savingButton === 'functionEditor' ? (
+                                                    <Typography variant="progress">{submitText || "Opening in Function Editor..."}</Typography>
+                                                ) : submitText || "Open in Function Editor"}
+                                            </Button>
+                                        )}
+                                        {secondarySubmitButton && (
+                                            <Button
+                                                appearance="secondary"
+                                                onClick={handleOnSecondaryClick}
+                                                disabled={disableSaveButton || isSaving}
+                                            >
+                                                {isSaving && savingButton === 'secondary' ? (
+                                                    <Typography variant="progress">{secondarySubmitButton.text}</Typography>
+                                                ) : (
+                                                    secondarySubmitButton.text
+                                                )}
+                                            </Button>
+                                        )}
                                         <Button
-                                            appearance="secondary"
-                                            onClick={handleOnOpenInDataMapper}
-                                            disabled={isSaving}
-                                        >
-                                            {isSaving && savingButton === 'dataMapper' ? (
-                                                <Typography variant="progress">{submitText || "Opening in Data Mapper..."}</Typography>
-                                            ) : submitText || "Open in Data Mapper"}
-                                        </Button>
-                                    }
-                                    {canOpenInFunctionEditor && (
-                                        <Button
-                                            appearance="secondary"
-                                            onClick={handleOnOpenInFunctionEditor}
-                                            disabled={isSaving}
-                                        >
-                                            {isSaving && savingButton === 'functionEditor' ? (
-                                                <Typography variant="progress">{submitText || "Opening in Function Editor..."}</Typography>
-                                            ) : submitText || "Open in Function Editor"}
-                                        </Button>
-                                    )}
-                                    {secondarySubmitButton && (
-                                        <Button
-                                            appearance="secondary"
-                                            onClick={handleOnSecondaryClick}
+                                            appearance="primary"
+                                            onClick={handleOnSaveClick}
                                             disabled={disableSaveButton || isSaving}
                                         >
-                                            {isSaving && savingButton === 'secondary' ? (
-                                                <Typography variant="progress">{secondarySubmitButton.text}</Typography>
+                                            {isValidatingForm ? (
+                                                <Typography variant="progress">Validating...</Typography>
+                                            ) : isSaving && savingButton === 'save' ? (
+                                                <Typography variant="progress">{submitText || "Saving..."}</Typography>
                                             ) : (
-                                                secondarySubmitButton.text
+                                                submitText || "Save"
                                             )}
                                         </Button>
-                                    )}
-                                    <Button
-                                        appearance="primary"
-                                        onClick={handleOnSaveClick}
-                                        disabled={disableSaveButton || isSaving}
-                                    >
-                                        {isValidatingForm ? (
-                                            <Typography variant="progress">Validating...</Typography>
-                                        ) : isSaving && savingButton === 'save' ? (
-                                            <Typography variant="progress">{submitText || "Saving..."}</Typography>
-                                        ) : (
-                                            submitText || "Save"
-                                        )}
-                                    </Button>
-                                </S.Footer>
-                            )}
-                            {onSubmit && !hideSaveButton && footerActionButton && (
-                                <S.FooterActionButtonContainer>
-                                    <S.FooterActionButton
-                                        appearance="primary"
-                                        onClick={handleOnSaveClick}
-                                        disabled={disableSaveButton || isSaving}
-                                        buttonSx={{ width: "100%", height: "35px" }}
-                                    >
-                                        {isValidatingForm ? (
-                                            <Typography variant="progress">Validating...</Typography>
-                                        ) : isSaving && savingButton === 'save' ? (
-                                            <Typography variant="progress">{submitText || "Saving..."}</Typography>
-                                        ) : (
-                                            submitText || "Save"
-                                        )}
-                                    </S.FooterActionButton>
-                                </S.FooterActionButtonContainer>
-                            )}
-                        </div>
-                    </S.Container>
-                </Provider>
-            </FormFieldLoadingProvider>
-        </DiagnosticsStoreContext.Provider>
+                                    </S.Footer>
+                                )}
+                                {onSubmit && !hideSaveButton && footerActionButton && (
+                                    <S.FooterActionButtonContainer>
+                                        <S.FooterActionButton
+                                            appearance="primary"
+                                            onClick={handleOnSaveClick}
+                                            disabled={disableSaveButton || isSaving}
+                                            buttonSx={{ width: "100%", height: "35px" }}
+                                        >
+                                            {isValidatingForm ? (
+                                                <Typography variant="progress">Validating...</Typography>
+                                            ) : isSaving && savingButton === 'save' ? (
+                                                <Typography variant="progress">{submitText || "Saving..."}</Typography>
+                                            ) : (
+                                                submitText || "Save"
+                                            )}
+                                        </S.FooterActionButton>
+                                    </S.FooterActionButtonContainer>
+                                )}
+                            </div>
+                        </S.Container>
+                    </Provider>
+                </FormFieldLoadingProvider>
+            </DiagnosticsStoreContext.Provider>
+        </IdentifierRenameContext.Provider>
     );
 });
 
