@@ -42,6 +42,22 @@ function projectSource(): string {
         .join('\n');
 }
 
+// Opens the automation and waits until its diagram shows the node the previous test added. Right after a save the
+// canvas can still draw the model from before it, and a + taken from that model inserts at stale positions.
+async function openAutomationShowing(nodeText: string | RegExp): Promise<Frame> {
+    const projectExplorer = new ProjectExplorer(page.page);
+    await projectExplorer.init().catch(() => undefined);
+    const automation = await projectExplorer.findItem([DEFAULT_PROJECT_NAME, 'Entry Points', 'main'], 30000);
+    await automation?.click();
+    const webview = await getWebview();
+    const canvas = webview.getByTestId('bi-diagram-canvas');
+    const exact = typeof nodeText === 'string';
+    await canvas.getByText(nodeText, { exact }).filter({ visible: true }).first().waitFor({ timeout: 60000 });
+    return webview;
+}
+
+const AUTOMATION_HEADER = /public function main\(\) returns error\? \{/;
+
 async function getWebview(): Promise<Frame> {
     const webview = await switchToIFrame(BI_INTEGRATOR_LABEL, page.page, 60000);
     if (!webview) {
@@ -255,7 +271,7 @@ export default function createTests() {
 
         test('Run the workflow from the automation: the form opens at once with the only workflow selected', async () => {
             logStep('Pick Run Workflow from the palette');
-            const webview = await getWebview();
+            const webview = await openAutomationShowing(/payment/);
             const sidePanel = await openPaletteBelow(webview, 'Start');
             const panel = sidePanel.getLocator();
             await domClick(await workflowPaletteItem(sidePanel, 'Run Workflow'));
@@ -272,12 +288,13 @@ export default function createTests() {
             await waitForEnabled(saveButton);
             await saveButton.click({ force: true });
             await expect.poll(projectSource, { timeout: 90000 }).toMatch(/string workflowId = check workflow:run\(orderWorkflow\);/);
+            expect(projectSource()).toMatch(AUTOMATION_HEADER);
             await saveButton.waitFor({ state: 'hidden', timeout: 60000 });
         });
 
         test('Run the workflow under a chosen id and reopen the node', async () => {
             logStep('Pick Run with ID from the palette');
-            const webview = await getWebview();
+            const webview = await openAutomationShowing('Run Workflow');
             const sidePanel = await openPaletteBelow(webview, 'Start');
             const panel = sidePanel.getLocator();
             await domClick(await workflowPaletteItem(sidePanel, 'Run with ID'));
@@ -296,6 +313,7 @@ export default function createTests() {
             // The id field opens in text mode, which writes a string template; expression mode writes the literal.
             await expect.poll(projectSource, { timeout: 90000 })
                 .toMatch(/string orderRunId = check workflow:runWithId\(orderWorkflow, (?:"order-1"|string `order-1`)\);/);
+            expect(projectSource()).toMatch(AUTOMATION_HEADER);
             await saveButton.waitFor({ state: 'hidden', timeout: 60000 });
 
             logStep('Reopen the node: the form reads the workflow and the id from source');
