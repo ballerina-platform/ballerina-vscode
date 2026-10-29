@@ -507,6 +507,10 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                     .flatMap(Optional::stream)
                     .map(AgentTriggerChannels::withAgentKind)
                     .toList();
+            triggerBasicInfoList.stream()
+                    .filter(trigger -> !Utils.isDistributionModule(trigger.orgName(), trigger.packageName()))
+                    .forEach(trigger -> ConnectorVersionResolver.prefetchCentralLatest(trigger.orgName(),
+                            trigger.packageName()));
             return new TriggerListResponse(triggerBasicInfoList);
         });
     }
