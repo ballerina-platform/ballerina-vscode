@@ -75,21 +75,33 @@ public class ConnectionConfigurables {
     }
 
     /**
-     * A configurable to declare, with the literal it replaces.
+     * A configurable the connection refers to, with the literal it replaces.
      *
      * @param name     the configurable's name
      * @param type     the configurable's type
      * @param literal  the literal the connection was given
      * @param required whether the connector requires the field
+     * @param exists   whether the module already declares it
      */
-    public record Configurable(String name, String type, String literal, boolean required) {
+    public record Configurable(String name, String type, String literal, boolean required, boolean exists) {
 
         public String declaration() {
             return "configurable %s %s = %s;".formatted(type, name, required ? "?" : literal);
         }
 
+        /**
+         * Whether the literal goes to Config.toml: the declaration doesn't hold it.
+         */
+        public boolean inConfigToml() {
+            return required || exists;
+        }
+
+        public String configTomlValue() {
+            return tomlValue(literal);
+        }
+
         public String configTomlEntry() {
-            return "%s = %s".formatted(name, tomlValue(literal));
+            return "%s = %s".formatted(name, configTomlValue());
         }
     }
 
@@ -140,10 +152,8 @@ public class ConnectionConfigurables {
                 return;
             }
             replacements.add(new Replacement(literal.literalToken().textRange(), name));
-            if (!existingNames.contains(name)) {
-                configurables.add(new Configurable(name, configurableType, literal.toSourceCode().strip(),
-                        required));
-            }
+            configurables.add(new Configurable(name, configurableType, literal.toSourceCode().strip(), required,
+                    existingNames.contains(name)));
         } else if (value instanceof MappingConstructorExpressionNode mapping) {
             recordOf(rawType, mapping).ifPresent(record -> mapping.fields().forEach(field -> {
                 if (!(field instanceof SpecificFieldNode specificField) || specificField.valueExpr().isEmpty()) {

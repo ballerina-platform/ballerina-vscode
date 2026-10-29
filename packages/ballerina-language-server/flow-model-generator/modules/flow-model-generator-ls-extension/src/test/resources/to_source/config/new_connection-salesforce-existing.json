@@ -1,6 +1,6 @@
 {
   "source": "new_connection-salesforce-existing/main.bal",
-  "description": "A configurable left by an earlier connection of the same name is referred to, not declared again; a value that is not a literal is kept",
+  "description": "Configurables left by an earlier connection of the same name are referred to, not declared again, and take the new values in Config.toml where they have one (top level or the package's table); a value that is not a literal is kept",
   "diagram": {
     "id": "31",
     "metadata": {
@@ -23,7 +23,7 @@
           "label": "Config"
         },
         "valueType": "EXPRESSION",
-        "value": "{baseUrl: \"https://acme.my.salesforce.com\", auth: {tokenUrl: \"https://acme.my.salesforce.com/services/oauth2/token\", clientId: clientId, clientSecret: string `${clientId}-secret`}}",
+        "value": "{baseUrl: \"https://acme.my.salesforce.com\", auth: {tokenUrl: \"https://acme.my.salesforce.com/services/oauth2/token\", clientId: clientId, clientSecret: \"s3cret\"}}",
         "optional": false,
         "editable": true,
         "codedata": {
@@ -78,6 +78,32 @@
       {
         "range": {
           "start": {
+            "line": 4,
+            "character": 17
+          },
+          "end": {
+            "line": 4,
+            "character": 48
+          }
+        },
+        "newText": "\"https://acme.my.salesforce.com\""
+      },
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 22
+          },
+          "end": {
+            "line": 0,
+            "character": 75
+          }
+        },
+        "newText": "\"https://acme.my.salesforce.com/services/oauth2/token\""
+      },
+      {
+        "range": {
+          "start": {
             "line": 0,
             "character": 0
           },
@@ -86,7 +112,7 @@
             "character": 0
           }
         },
-        "newText": "sfSalesAuthTokenUrl = \"https://acme.my.salesforce.com/services/oauth2/token\"\n"
+        "newText": "sfSalesAuthClientSecret = \"s3cret\"\n"
       }
     ],
     "new_connection-salesforce-existing/connections.bal": [
@@ -114,22 +140,22 @@
             "character": 0
           }
         },
-        "newText": "final salesforce:Client sfSales = check new ({baseUrl: sfSalesBaseUrl, auth: {tokenUrl: sfSalesAuthTokenUrl, clientId: clientId, clientSecret: string `${clientId}-secret`}});"
+        "newText": "final salesforce:Client sfSales = check new ({baseUrl: sfSalesBaseUrl, auth: {tokenUrl: sfSalesAuthTokenUrl, clientId: clientId, clientSecret: sfSalesAuthClientSecret}});"
       }
     ],
     "new_connection-salesforce-existing/config.bal": [
       {
         "range": {
           "start": {
-            "line": 1,
+            "line": 2,
             "character": 33
           },
           "end": {
-            "line": 1,
+            "line": 2,
             "character": 33
           }
         },
-        "newText": "\nconfigurable string sfSalesAuthTokenUrl = ?;"
+        "newText": "\nconfigurable string sfSalesAuthClientSecret = ?;"
       }
     ]
   }
