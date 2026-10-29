@@ -41,11 +41,15 @@ import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.modelgenerator.commons.ParameterData;
 import io.ballerina.projects.Module;
 import io.ballerina.projects.Project;
+import io.ballerina.toml.api.Toml;
+import io.ballerina.toml.semantic.ast.TomlValueNode;
 import io.ballerina.tools.text.LinePosition;
 import org.ballerinalang.langserver.LSClientLogger;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceManager;
 import org.eclipse.lsp4j.TextEdit;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashSet;
@@ -163,31 +167,67 @@ public class NewConnectionBuilder extends CallBuilder {
     }
 
     /**
-     * Declares the configurables in config.bal, and writes the values of the required ones to Config.toml, which
-     * the project keeps out of version control.
+     * Declares the new configurables in config.bal, and writes the values the declarations don't hold to Config.toml,
+     * which the project keeps out of version control.
      */
     private static void declareConfigurables(SourceBuilder sourceBuilder, List<Configurable> configurables) {
+        Path projectRoot = sourceBuilder.workspaceManager.projectRoot(sourceBuilder.filePath);
+        List<Configurable> declared = configurables.stream().filter(configurable -> !configurable.exists()).toList();
+        if (!declared.isEmpty()) {
+            Path configBal = projectRoot.resolve(CONFIG_BAL);
+            LinePosition end = Files.exists(configBal)
+                    ? sourceBuilder.workspaceManager.document(configBal)
+                            .map(document -> document.syntaxTree().rootNode().lineRange().endLine())
+                            .orElse(LinePosition.from(0, 0))
+                    : LinePosition.from(0, 0);
+            sourceBuilder.addTextEdit(configBal, new TextEdit(CommonUtils.toRange(end), declared.stream()
+                    .map(Configurable::declaration)
+                    .collect(Collectors.joining(System.lineSeparator()))));
+        }
+        writeConfigToml(sourceBuilder, projectRoot,
+                configurables.stream().filter(Configurable::inConfigToml).toList());
+    }
+
+    /**
+     * Sets each value in Config.toml: in place where the key has one, at the root module's top-level keys otherwise.
+     * The value replacements come first, as the inserted lines would move them.
+     */
+    private static void writeConfigToml(SourceBuilder sourceBuilder, Path projectRoot,
+                                        List<Configurable> configurables) {
         if (configurables.isEmpty()) {
             return;
         }
-        Path projectRoot = sourceBuilder.workspaceManager.projectRoot(sourceBuilder.filePath);
-        Path configBal = projectRoot.resolve(CONFIG_BAL);
-        LinePosition end = Files.exists(configBal)
-                ? sourceBuilder.workspaceManager.document(configBal)
-                        .map(document -> document.syntaxTree().rootNode().lineRange().endLine())
-                        .orElse(LinePosition.from(0, 0))
-                : LinePosition.from(0, 0);
-        sourceBuilder.addTextEdit(configBal, new TextEdit(CommonUtils.toRange(end), configurables.stream()
-                .map(Configurable::declaration)
-                .collect(Collectors.joining(System.lineSeparator()))));
+        Path configToml = projectRoot.resolve(CONFIG_TOML);
+        Optional<Toml> toml = readToml(configToml);
+        String moduleKey = sourceBuilder.workspaceManager.project(sourceBuilder.filePath)
+                .map(project -> project.currentPackage().packageOrg().value() + "."
+                        + project.currentPackage().packageName().value())
+                .orElse("");
+        StringBuilder inserted = new StringBuilder();
+        for (Configurable configurable : configurables) {
+            Optional<TomlValueNode> value = toml.flatMap(t -> t.<TomlValueNode>get(configurable.name())
+                    .or(() -> t.getTable(moduleKey).flatMap(table -> table.get(configurable.name()))));
+            if (value.isPresent()) {
+                sourceBuilder.addTextEdit(configToml, new TextEdit(
+                        CommonUtils.toRange(value.get().location().lineRange()), configurable.configTomlValue()));
+            } else {
+                inserted.append(configurable.configTomlEntry()).append(System.lineSeparator());
+            }
+        }
+        if (!inserted.isEmpty()) {
+            sourceBuilder.addTextEdit(configToml,
+                    new TextEdit(CommonUtils.toRange(LinePosition.from(0, 0)), inserted.toString()));
+        }
+    }
 
-        String configToml = configurables.stream()
-                .filter(Configurable::required)
-                .map(configurable -> configurable.configTomlEntry() + System.lineSeparator())
-                .collect(Collectors.joining());
-        if (!configToml.isEmpty()) {
-            sourceBuilder.addTextEdit(projectRoot.resolve(CONFIG_TOML),
-                    new TextEdit(CommonUtils.toRange(LinePosition.from(0, 0)), configToml));
+    private static Optional<Toml> readToml(Path path) {
+        if (!Files.exists(path)) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(Toml.read(path));
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
         }
     }
 
