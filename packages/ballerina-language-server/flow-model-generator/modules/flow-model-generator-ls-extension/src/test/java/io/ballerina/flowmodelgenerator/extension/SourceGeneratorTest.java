@@ -23,9 +23,11 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
+import io.ballerina.flowmodelgenerator.extension.request.FlowModelNodeTemplateRequest;
 import io.ballerina.flowmodelgenerator.extension.request.FlowModelSourceGeneratorRequest;
 import io.ballerina.modelgenerator.commons.AbstractLSTest;
 import io.ballerina.modelgenerator.commons.FileSystemUtils;
+import io.ballerina.tools.text.LinePosition;
 import org.ballerinalang.langserver.util.TestUtil;
 import org.eclipse.lsp4j.TextEdit;
 import org.testng.Assert;
@@ -175,6 +177,24 @@ public class SourceGeneratorTest extends AbstractLSTest {
         Assert.assertFalse(response.has("errorMsg"), "Diagnostics failed: " + response);
         Assert.assertTrue(response.has("flowNode") && response.get("flowNode").isJsonObject(),
                 "Diagnostics returned no flow node: " + response);
+    }
+
+    @Test
+    public void testNewConnectionSavedAfterItsFormGetsTheSameSource() throws IOException {
+        // The save reads the connector's types from the init the form's template request loaded.
+        TestConfig testConfig = gson.fromJson(
+                Files.newBufferedReader(configDir.resolve("new_connection-salesforce.json")), TestConfig.class);
+        String filePath = sourceDir.resolve(testConfig.source()).toAbsolutePath().toString();
+        JsonObject diagram = testConfig.diagram().getAsJsonObject();
+        getResponse(new FlowModelNodeTemplateRequest(filePath, LinePosition.from(0, 0),
+                diagram.getAsJsonObject("codedata")), getServiceName() + "/getNodeTemplate");
+        JsonObject textEdits = getResponseAndCloseFile(new FlowModelSourceGeneratorRequest(filePath,
+                diagram.deepCopy()), testConfig.source()).getAsJsonObject("textEdits");
+
+        Map<String, List<TextEdit>> actualTextEdits = gson.fromJson(textEdits, textEditListType);
+        Assert.assertEquals(actualTextEdits.keySet().size(), testConfig.output().size());
+        actualTextEdits.forEach((path, edits) -> Assert.assertTrue(assertArray("text edits", edits,
+                testConfig.output().get(sourceDir.relativize(Paths.get(path)).toString().replace("\\", "/")))));
     }
 
     private JsonObject requestWithBlankWorkflow(String config, String workflowKey, String api) throws IOException {
