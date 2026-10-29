@@ -42,6 +42,8 @@ import ReactMarkdown from "react-markdown";
 import { getFieldTypeLabel, NodeProperties } from "@wso2/ballerina-core";
 import TypeModeSwitcher, { TypeInputMode } from "../TypeModeSwitcher";
 import { canOfferTypeCreation } from "./typeCreationGate";
+import { TypeModifierBar } from "./TypeModifierBar";
+import { getTypeModifiers } from "./typeModifiers";
 
 interface TypeEditorProps {
     field: FormField;
@@ -368,6 +370,20 @@ export function TypeEditor(props: TypeEditorProps) {
                             autoFocus={autoFocus}
                             sx={{ paddingInline: '0' }}
                             helperPaneZIndex={40001}
+                        />
+                        <TypeModifierBar
+                            value={value ?? ''}
+                            modifiers={getTypeModifiers(field)}
+                            onChange={(updatedValue) => {
+                                setFormDiagnostics([]);
+                                onChange(updatedValue);
+                                if (error) {
+                                    void form.trigger?.(field.key);
+                                }
+                                handleTypeEdit(updatedValue);
+                                field.onValueChange?.(updatedValue);
+                                handleNewTypeSelected?.(referenceTypes.find((type) => type.label === updatedValue) ?? updatedValue);
+                            }}
                         />
                         {error?.message && <ErrorBanner errorMsg={error.message.toString()} />}
                         {(!error?.message) && formDiagnostics && formDiagnostics.length > 0 && (

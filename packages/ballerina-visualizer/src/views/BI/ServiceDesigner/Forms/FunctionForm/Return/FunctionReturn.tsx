@@ -20,6 +20,7 @@ import React, { useState } from 'react';
 import { TextField } from '@wso2/ui-toolkit';
 import styled from '@emotion/styled';
 import { getPrimaryInputType, PropertyModel } from '@wso2/ballerina-core';
+import { TypeModifierBar } from '@wso2/ballerina-side-panel';
 import { ReadonlyField } from '../../../components/ReadonlyField';
 
 const NameContainer = styled.div`
@@ -60,6 +61,13 @@ export function FunctionReturn(props: FunctionReturnProps) {
                     />
                 }
             </NameContainer>
+            {!readonly &&
+                <TypeModifierBar
+                    value={returnType.value ?? ""}
+                    modifiers={["list", "nullable", "error"]}
+                    onChange={handleNameChange}
+                />
+            }
         </>
     );
 }

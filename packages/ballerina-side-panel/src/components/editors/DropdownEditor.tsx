@@ -25,10 +25,76 @@ import { buildRequiredRule, capitalize, getValueForDropdown } from "./utils";
 import { buildValidate } from "../Form/validationRules";
 import { useFormContext } from "../../context";
 import { SubPanel, SubPanelView } from "@wso2/ballerina-core";
+import { Controller } from "react-hook-form";
+import { TypeModifierBar } from "./TypeModifierBar";
+import { parseTypeShape, printTypeShape } from "./typeModifiers";
 
 interface DropdownEditorProps {
     field: FormField;
     openSubPanel?: (subPanel: SubPanel) => void;
+}
+
+type DropdownItem = { id: string; content: string; value: string };
+
+// Handle items: string[] or { label, value }[]
+function getDropdownItems(field: FormField): DropdownItem[] {
+    if (field.itemOptions) {
+        return field.itemOptions as DropdownItem[];
+    } else if (Array.isArray(field.items) && field.items.length > 0) {
+        if (typeof field.items[0] === "string") {
+            return field.items.map((item) => ({ id: item, content: item, value: item }));
+        } else if (typeof field.items[0] === "object" && field.items[0] !== null && "label" in field.items[0] && "value" in field.items[0]) {
+            return field.items.map((item: any) => ({ id: item.value, content: item.label, value: item.value }));
+        }
+    }
+    return [];
+}
+
+/**
+ * A dropdown of the types a field may hold, with the modifier toggles under it. The dropdown picks the type the
+ * toggles decorate, so its options stay a short list of base types instead of every combination of them.
+ */
+function TypeDropdownEditor(props: { field: FormField; items: DropdownItem[] }) {
+    const { field, items } = props;
+    const { form } = useFormContext();
+
+    return (
+        <Controller
+            control={form.control}
+            name={field.key}
+            defaultValue={getValueForDropdown(field)}
+            rules={{
+                required: buildRequiredRule({ isRequired: !field.optional, label: field.label }),
+                validate: buildValidate(field)
+            }}
+            render={({ field: { value, onChange } }) => {
+                const shape = parseTypeShape(value ?? "");
+                const handleChange = (updatedValue: string) => {
+                    onChange(updatedValue);
+                    field.onValueChange?.(updatedValue);
+                };
+                return (
+                    <div style={{ width: "100%" }}>
+                        <Dropdown
+                            id={field.key}
+                            description={field.documentation}
+                            label={capitalize(field.label)}
+                            items={items}
+                            value={shape.base}
+                            required={!field.optional}
+                            disabled={!field.editable}
+                            onChange={(e) => handleChange(printTypeShape({ ...shape, base: e.target.value }))}
+                            sx={{ width: "100%" }}
+                            containerSx={{ width: "100%" }}
+                        />
+                        {field.editable && (
+                            <TypeModifierBar value={value ?? ""} modifiers={field.typeModifiers} onChange={handleChange} />
+                        )}
+                    </div>
+                );
+            }}
+        />
+    );
 }
 
 export function DropdownEditor(props: DropdownEditorProps) {
@@ -43,26 +109,16 @@ export function DropdownEditor(props: DropdownEditorProps) {
         }
     }, [field.defaultValue, field.placeholder]);
 
+    if (field.typeModifiers?.length) {
+        return <TypeDropdownEditor field={field} items={getDropdownItems(field)} />;
+    }
+
     // HACK: create values for Scope field
     if (field.key === "scope") {
         field.items = ["Global", "Local"];
     }
 
-    // Handle items: string[] or { label, value }[]
-    let dropdownItems;
-    if (field.itemOptions) {
-        dropdownItems = field.itemOptions;
-    } else if (Array.isArray(field.items) && field.items.length > 0) {
-        if (typeof field.items[0] === "string") {
-            dropdownItems = field.items.map((item) => ({ id: item, content: item, value: item }));
-        } else if (typeof field.items[0] === "object" && field.items[0] !== null && "label" in field.items[0] && "value" in field.items[0]) {
-            dropdownItems = field.items.map((item: any) => ({ id: item.value, content: item.label, value: item.value }));
-        } else {
-            dropdownItems = [];
-        }
-    } else {
-        dropdownItems = [];
-    }
+    const dropdownItems = getDropdownItems(field);
 
     return (
         <Dropdown

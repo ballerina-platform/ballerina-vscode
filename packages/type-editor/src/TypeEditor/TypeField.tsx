@@ -25,6 +25,23 @@ import { useRpcContext } from '@wso2/ballerina-rpc-client';
 import { URI, Utils } from 'vscode-uri';
 import { debounce } from 'lodash';
 import { useTypeHelperContext } from '../Context';
+import { Codicon } from '@wso2/ui-toolkit';
+import {
+    parseTypeShape,
+    printTypeShape,
+    splitTypedSuffixes,
+    toggleTypeModifier,
+    TYPE_MODIFIER_INFO,
+    TypeModifier
+} from '@wso2/ballerina-side-panel';
+import { SyntaxToggleItem, SyntaxToggles } from './SyntaxToggles';
+
+// Each modifier is shown as the syntax it writes after the type.
+const MODIFIER_GLYPHS: Record<TypeModifier, React.ReactNode> = {
+    list: '[]',
+    nullable: '?',
+    error: <Codicon name="error" />,
+};
 
 interface TypeFieldProps {
     type: string | Type;
@@ -40,6 +57,13 @@ interface TypeFieldProps {
     required?: boolean;
     autoFocus?: boolean;
     fieldIndex?: number;
+    /**
+     * The modifiers to offer as toggles at the end of the field. The field then shows the type without them, and the
+     * toggles stand in for its suffix, taking over a `[]` or `?` as the user types it.
+     */
+    modifiers?: TypeModifier[];
+    /** Further toggles to show at the end of the field, before the modifiers. */
+    extraToggles?: SyntaxToggleItem[];
 }
 
 export const TypeField = forwardRef<HTMLInputElement, TypeFieldProps>((props, ref) => {
@@ -56,7 +80,9 @@ export const TypeField = forwardRef<HTMLInputElement, TypeFieldProps>((props, re
         isAnonymousRecord,
         label,
         required,
-        autoFocus
+        autoFocus,
+        modifiers,
+        extraToggles = []
     } = props;
     const { onTypeItemClick, onTypeCreate, ...rest } = useTypeHelperContext();
 
@@ -68,14 +94,39 @@ export const TypeField = forwardRef<HTMLInputElement, TypeFieldProps>((props, re
     const [helperPaneOpened, setHelperPaneOpened] = useState<boolean>(false);
     const [typeError, setTypeError] = useState<string>("");
     const { rpcClient } = useRpcContext();
+    // What the user is typing while the modifiers stand apart from the type; dropped once the field is left, when the
+    // field goes back to showing the type it holds.
+    const [draft, setDraft] = useState<string | undefined>(undefined);
 
+    const shape = parseTypeShape(memberName ?? '');
+    // A stream's modifiers belong to its value type, inside its brackets, so a stream is shown as it is written. A type
+    // the LS sent as a structure is shown the same way as one typed in, from its source.
+    const showsModifiersApart = !!modifiers?.length && !isAnonymousRecord && !shape.stream;
+    const shownValue = showsModifiersApart ? (draft ?? shape.base) : memberName;
+
+    const applyType = (newType: string) => {
+        onChange(newType);
+        validateType(newType);
+    };
 
     const handleTypeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        onChange(e.target.value);
-        validateType(e.target.value);
+        if (!showsModifiersApart) {
+            applyType(e.target.value);
+            return;
+        }
+        const typed = splitTypedSuffixes(e.target.value);
+        setDraft(typed.base);
+        // Modifiers have nothing to decorate on an empty type, so clearing the type clears them too.
+        applyType(typed.base.trim() ? printTypeShape({
+            base: typed.base.trim(),
+            list: shape.list || typed.list,
+            nullable: shape.nullable || typed.nullable,
+            error: shape.error
+        }) : '');
     };
 
     const handleTypeHelperChange = (newType: string, newCursorPosition: number) => {
+        setDraft(undefined);
         onChange(newType);
         validateType(newType);
 
@@ -95,7 +146,7 @@ export const TypeField = forwardRef<HTMLInputElement, TypeFieldProps>((props, re
         const helperPaneLeftOffset = sidePanelLeft - rect.left;
         setHelperPaneOffset({ top: 0, left: helperPaneLeftOffset });
         setHelperPaneOpened(true);
-        validateType(e.target.value);
+        validateType(memberName);
     };
 
     const handleTypeFieldBlur = async (e: React.FocusEvent<HTMLInputElement>) => {
@@ -109,9 +160,11 @@ export const TypeField = forwardRef<HTMLInputElement, TypeFieldProps>((props, re
             e.preventDefault();
             e.stopPropagation();
             typeFieldRef.current?.shadowRoot?.querySelector('input')?.focus();
+        } else {
+            setDraft(undefined);
         }
 
-        validateType(e.target.value);
+        validateType(memberName);
     };
 
     const validateType = useCallback(debounce(async (value: string) => {
@@ -232,6 +285,18 @@ export const TypeField = forwardRef<HTMLInputElement, TypeFieldProps>((props, re
         validateType(memberName);
     }, []);
 
+    const toggles: SyntaxToggleItem[] = [
+        ...extraToggles,
+        ...(showsModifiersApart ? modifiers : []).map((modifier) => ({
+            id: modifier,
+            glyph: MODIFIER_GLYPHS[modifier],
+            ...TYPE_MODIFIER_INFO[modifier],
+            pressed: shape[modifier],
+            disabled: !shape.base,
+            onToggle: () => applyType(toggleTypeModifier(memberName ?? '', modifier, !shape[modifier]))
+        }))
+    ];
+
     return (
         <>
             <TextField
@@ -239,7 +304,7 @@ export const TypeField = forwardRef<HTMLInputElement, TypeFieldProps>((props, re
                 data-testid="type-field"
                 placeholder={placeholder}
                 sx={sx}
-                value={memberName}
+                value={shownValue}
                 errorMsg={typeError}
                 onChange={handleTypeChange}
                 onFocus={handleTypeFieldFocus}
@@ -247,6 +312,7 @@ export const TypeField = forwardRef<HTMLInputElement, TypeFieldProps>((props, re
                 label={label}
                 required={required}
                 autoFocus={autoFocus}
+                inputProps={toggles.length ? { endAdornment: <SyntaxToggles items={toggles} /> } : undefined}
             />
             <TypeHelper
                 ref={typeHelperRef}

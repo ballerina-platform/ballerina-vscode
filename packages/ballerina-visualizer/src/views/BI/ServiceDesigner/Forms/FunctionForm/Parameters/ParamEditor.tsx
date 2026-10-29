@@ -25,6 +25,7 @@ import { EditorContainer, EditorContent } from '../../../styles';
 import { TypeBrowser } from '../../../components/TypeBrowser/TypeBrowser';
 import { PARAM_TYPES } from '../../../definitions';
 import { ParameterModel, PropertyModel } from '@wso2/ballerina-core';
+import { TypeModifierBar } from '@wso2/ballerina-side-panel';
 
 const options = [{ id: "0", value: "QUERY" }, { id: "1", value: "HEADER" }];
 
@@ -86,13 +87,20 @@ export function ParamEditor(props: ParamProps) {
             )}
             <EditorContent>
                 {!hideType && (
-                    <TypeBrowser
-                        sx={{ zIndex: 1, position: "relative", width: "100%" }}
-                        borderBox={true}
-                        label="Type"
-                        selectedItem={param.type.value}
-                        onChange={handleTypeChange}
-                    />
+                    <div style={{ width: "100%" }}>
+                        <TypeBrowser
+                            sx={{ zIndex: 1, position: "relative", width: "100%" }}
+                            borderBox={true}
+                            label="Type"
+                            selectedItem={param.type.value}
+                            onChange={handleTypeChange}
+                        />
+                        <TypeModifierBar
+                            value={param.type.value ?? ""}
+                            modifiers={["list", "nullable"]}
+                            onChange={handleTypeChange}
+                        />
+                    </div>
                 )}
                 <TextField
                     label='Name'

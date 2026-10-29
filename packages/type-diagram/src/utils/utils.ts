@@ -230,20 +230,28 @@ export function focusToNode(node: NodeModel, currentZoomLevel: number, diagramEn
 
 export const getAttributeType = (attr: Member | TypeFunctionModel): string => {
 
+    // An optional field (`T name?`) can be left out of its record, which says nothing of its type: the field's name
+    // shows that, not its type.
     const type = 'returnType' in attr ? attr.returnType : (attr as Member).type;
-    const isOptional = 'optional' in attr && attr.optional;
 
     if (typeof type === 'string') {
-        return isOptional ? `${type}|()` : type;
+        return type;
     }
 
-    const formatUnionType = (types: string[]): string => types.join('|');
+    // A union with nil is shown as written, `T?`, rather than as `T|()`.
+    const formatUnionType = (types: string[]): string => {
+        const values = types.filter((t) => t !== '()');
+        if (values.length === 1 && values.length < types.length) {
+            return values[0].includes('|') ? `(${values[0]})?` : `${values[0]}?`;
+        }
+        return types.join('|');
+    };
 
     // Get base type representation based on node kind
     const getTypeString = (members: Member[]): string => {
         const memberTypes = members.map(member => {
             if (typeof member.type === 'string') {
-                return member.optional ? `${member.type}|()` : member.type;
+                return member.type;
             }
             return getAttributeType(member);
         });
@@ -272,7 +280,7 @@ export const getAttributeType = (attr: Member | TypeFunctionModel): string => {
                     : `table<${tableType}>`;
                 break;
             case 'STREAM':
-                baseType = `stream<${[...members].reverse().join(',')}>`;
+                baseType = `stream<${[...memberTypes].reverse().join(', ')}>`;
                 break;
             case 'FUTURE':
                 baseType = `future<${memberTypes[0] || ''}>`;
@@ -281,7 +289,7 @@ export const getAttributeType = (attr: Member | TypeFunctionModel): string => {
                 baseType = `typedesc<${memberTypes[0] || ''}>`;
                 break;
             case 'TUPLE':
-                baseType = `[${[...members].reverse().join(',')}]`;
+                baseType = `[${[...memberTypes].reverse().join(', ')}]`;
                 break;
             case 'RECORD':
                 const recordMembers = [...members].reverse().map(member => {
@@ -297,7 +305,7 @@ export const getAttributeType = (attr: Member | TypeFunctionModel): string => {
                 baseType = type.name || 'unknown';
         }
 
-        return isOptional ? `${baseType}|()` : baseType;
+        return baseType;
     };
 
     return getTypeString(type.members);
