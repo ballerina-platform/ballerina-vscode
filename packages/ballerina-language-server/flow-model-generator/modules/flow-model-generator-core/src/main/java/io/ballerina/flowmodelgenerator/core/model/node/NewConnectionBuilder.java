@@ -58,6 +58,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 /**
@@ -80,6 +81,15 @@ public class NewConnectionBuilder extends CallBuilder {
     private static final Set<ParameterData.Kind> ARGUMENT_KINDS = Set.of(ParameterData.Kind.REQUIRED,
             ParameterData.Kind.DEFAULTABLE, ParameterData.Kind.INCLUDED_FIELD);
     private static final String DRIVER_SUB_PACKAGE = ".driver";
+
+    /**
+     * The init of the connector the form was last built for. Saving the connection reads its types from here
+     * rather than loading and compiling the connector a second time.
+     */
+    private static final AtomicReference<ConnectorInit> LAST_CONNECTOR_INIT = new AtomicReference<>();
+
+    private record ConnectorInit(String connector, FunctionData init) {
+    }
 
     @Override
     public void setConcreteConstData() {
@@ -143,10 +153,14 @@ public class NewConnectionBuilder extends CallBuilder {
                         .collect(Collectors.toSet()))
                 .orElse(Set.of());
         ConnectionConfigurables configurables = new ConnectionConfigurables(connection, moduleSymbolNames);
+        Codedata codedata = sourceBuilder.flowNode.codedata();
+        String connector = connectorId(codedata.org(), codedata.resolvePackageName(), codedata.module(),
+                codedata.object(), codedata.version());
+        ConnectorInit lastInit = LAST_CONNECTOR_INIT.get();
         FunctionData init;
         try {
-            init = connectorInit(sourceBuilder.flowNode.codedata(), sourceBuilder.workspaceManager,
-                    sourceBuilder.filePath, null);
+            init = lastInit != null && lastInit.connector().equals(connector) ? lastInit.init()
+                    : connectorInit(codedata, sourceBuilder.workspaceManager, sourceBuilder.filePath, null);
         } catch (RuntimeException e) {
             // Without the connector's types the connection keeps its values as given.
             return List.of();
@@ -244,6 +258,8 @@ public class NewConnectionBuilder extends CallBuilder {
         Codedata codedata = context.codedata();
         FunctionData functionData = connectorInit(codedata, context.workspaceManager(), context.filePath(),
                 context.lsClientLogger());
+        LAST_CONNECTOR_INIT.set(new ConnectorInit(connectorId(functionData.org(), functionData.packageName(),
+                functionData.moduleName(), functionData.name(), functionData.version()), functionData));
         metadata()
                 .label(ConnectorUtil.getConnectorName(functionData.name(), functionData.moduleName()))
                 .description(functionData.description())
@@ -305,6 +321,11 @@ public class NewConnectionBuilder extends CallBuilder {
             functionDataBuilder.semanticModel(semanticModel);
         }
         return functionDataBuilder.build();
+    }
+
+    private static String connectorId(String org, String packageName, String module, String object,
+                                      String version) {
+        return String.join(":", org, packageName, module, object, version);
     }
 
     private void preloadConnectorActions(SourceBuilder sourceBuilder) {
