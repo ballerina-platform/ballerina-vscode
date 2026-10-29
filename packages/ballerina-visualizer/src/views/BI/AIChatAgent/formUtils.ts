@@ -327,7 +327,7 @@ export const stripCodeFences = (text: string): string => text.replace(CODE_FENCE
 
 // Same, for fields that must stay on a single line (tool descriptions are written into source).
 export const stripCodeFencesInline = (text: string): string =>
-    text.replace(CODE_FENCE_REGEX, "").replace(/\n/g, " ").trim();
+    text.replace(CODE_FENCE_REGEX, "").replace(/\r?\n/g, " ").trim();
 
 // Categories in the FUNCTION search response that are NOT the project's own functions: standard
 // library and imported/third-party modules (plus agent tools). Approval-predicate pickers offer

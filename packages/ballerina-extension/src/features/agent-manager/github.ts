@@ -21,6 +21,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { AgentManagerLinkCandidate, AgentManagerRemote, AgentManagerRepoDetails, AgentManagerSourceCheck, AgentManagerSourceStep, AgentManagerSource } from "@wso2/ballerina-core";
 import { api } from "./client";
+import { detectEol } from "../ai/utils/eol-utils";
 
 const GITHUB_REPO_URL = /^(?:https?:\/\/(?:[^@/\s]+@)?github\.com\/|git@github\.com:|ssh:\/\/git@github\.com\/)([A-Za-z0-9._-]+)\/([A-Za-z0-9._-]+?)(?:\.git)?\/?$/;
 const REPO_INFO_TTL_MS = 10 * 60 * 1000;
@@ -225,7 +226,9 @@ export async function ensureGitIgnored(projectPath: string, file: string): Promi
     if ((await git(projectPath, ["check-ignore", "-q", "--no-index", file])).status !== 1) {
         return false;
     }
-    fs.appendFileSync(path.join(projectPath, ".gitignore"), `\n${file}\n`);
+    const gitignorePath = path.join(projectPath, ".gitignore");
+    const eol = fs.existsSync(gitignorePath) ? detectEol(fs.readFileSync(gitignorePath, "utf-8")) : "\n";
+    fs.appendFileSync(gitignorePath, `${eol}${file}${eol}`);
     return true;
 }
 
