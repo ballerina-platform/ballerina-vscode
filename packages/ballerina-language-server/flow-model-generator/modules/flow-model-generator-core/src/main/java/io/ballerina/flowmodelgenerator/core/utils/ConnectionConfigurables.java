@@ -41,6 +41,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -59,6 +61,7 @@ public class ConnectionConfigurables {
             TypeDescKind.FLOAT, "float",
             TypeDescKind.DECIMAL, "decimal",
             TypeDescKind.BOOLEAN, "boolean");
+    private static final Pattern STRING_ESCAPE = Pattern.compile("\\\\(?:u\\{(\\p{XDigit}{1,6})}|.)");
 
     private final String connection;
     private final Set<String> existingNames;
@@ -203,10 +206,34 @@ public class ConnectionConfigurables {
     }
 
     private static String tomlValue(String literal) {
-        if (literal.startsWith("\"") || StringUtils.startsWithIgnoreCase(literal, "0x")) {
+        if (literal.startsWith("\"")) {
+            return tomlString(literal);
+        }
+        if (StringUtils.startsWithIgnoreCase(literal, "0x")) {
             return literal;
         }
         return StringUtils.removeEndIgnoreCase(StringUtils.removeEndIgnoreCase(literal, "d"), "f");
+    }
+
+    /**
+     * A Ballerina string literal as a TOML string: the escapes are the same, except a code point,
+     * <code>&#92;u{1F600}</code>, which becomes the character itself. Ballerina reads no TOML code point escape.
+     */
+    private static String tomlString(String literal) {
+        return STRING_ESCAPE.matcher(literal).replaceAll(escape -> Matcher.quoteReplacement(escape.group(1) == null
+                ? escape.group() : tomlChar(Integer.parseInt(escape.group(1), 16))));
+    }
+
+    private static String tomlChar(int codePoint) {
+        return switch (codePoint) {
+            case '"' -> "\\\"";
+            case '\\' -> "\\\\";
+            case '\t' -> "\\t";
+            case '\n' -> "\\n";
+            case '\r' -> "\\r";
+            default -> Character.isValidCodePoint(codePoint) && !Character.isISOControl(codePoint)
+                    ? Character.toString(codePoint) : "\\U%08X".formatted(codePoint);
+        };
     }
 
     private record Replacement(TextRange range, String name) {

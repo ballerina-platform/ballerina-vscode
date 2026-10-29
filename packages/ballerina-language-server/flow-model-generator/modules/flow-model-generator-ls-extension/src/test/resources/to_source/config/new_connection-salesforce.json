@@ -1,6 +1,6 @@
 {
   "source": "new_connection-salesforce/main.bal",
-  "description": "A new Salesforce connection with OAuth2 client credentials: each literal becomes a required configurable named after the connection and the init field, with its value in Config.toml, including an optional credential (proxy password) and a required one under an optional record (key store password)",
+  "description": "A new Salesforce connection with OAuth2 client credentials: each literal becomes a required configurable named after the connection and the init field, with its value in Config.toml, including an optional credential (proxy password) and a required one under an optional record (key store password); a code point escape becomes the character itself in Config.toml, escaped as TOML needs",
   "diagram": {
     "id": "31",
     "metadata": {
@@ -23,7 +23,7 @@
           "label": "Config"
         },
         "valueType": "EXPRESSION",
-        "value": "{baseUrl: \"https://acme.my.salesforce.com\", auth: {tokenUrl: \"https://acme.my.salesforce.com/services/oauth2/token\", clientId: \"sales-client\", clientSecret: \"s3cr\\\"et\"}, apiVersion: \"60.0\", timeout: 30, proxy: {host: \"proxy.acme.com\", password: \"pr0xy\"}, secureSocket: {key: {path: \"/certs/sales.p12\", password: \"ks-pass\"}}}",
+        "value": "{baseUrl: \"https://acme.my.salesforce.com\", auth: {tokenUrl: \"https://acme.my.salesforce.com/services/oauth2/token\", clientId: \"sales-client\", clientSecret: \"s3cr\\\"et\"}, apiVersion: \"60.0\", timeout: 30, proxy: {host: \"proxy.acme.com\", password: \"pr0xy\\u{1F600}\\u{22}\\\\u{41}\"}, secureSocket: {key: {path: \"/certs/sales.p12\", password: \"ks-pass\"}}}",
         "optional": false,
         "editable": true,
         "codedata": {
@@ -129,7 +129,7 @@
             "character": 0
           }
         },
-        "newText": "sfSalesBaseUrl = \"https://acme.my.salesforce.com\"\nsfSalesAuthTokenUrl = \"https://acme.my.salesforce.com/services/oauth2/token\"\nsfSalesAuthClientId = \"sales-client\"\nsfSalesAuthClientSecret = \"s3cr\\\"et\"\nsfSalesApiVersion = \"60.0\"\nsfSalesTimeout = 30\nsfSalesProxyHost = \"proxy.acme.com\"\nsfSalesProxyPassword = \"pr0xy\"\nsfSalesSecureSocketKeyPath = \"/certs/sales.p12\"\nsfSalesSecureSocketKeyPassword = \"ks-pass\"\n"
+        "newText": "sfSalesBaseUrl = \"https://acme.my.salesforce.com\"\nsfSalesAuthTokenUrl = \"https://acme.my.salesforce.com/services/oauth2/token\"\nsfSalesAuthClientId = \"sales-client\"\nsfSalesAuthClientSecret = \"s3cr\\\"et\"\nsfSalesApiVersion = \"60.0\"\nsfSalesTimeout = 30\nsfSalesProxyHost = \"proxy.acme.com\"\nsfSalesProxyPassword = \"pr0xy😀\\\"\\\\u{41}\"\nsfSalesSecureSocketKeyPath = \"/certs/sales.p12\"\nsfSalesSecureSocketKeyPassword = \"ks-pass\"\n"
       }
     ]
   }
