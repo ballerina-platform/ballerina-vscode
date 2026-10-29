@@ -703,21 +703,26 @@ interface WorkflowSectionProps {
     onRecheckRuntime: () => void;
 }
 
+// No wrap: when narrow, the button labels break instead of the buttons stacking.
 const RuntimeActions = styled.div`
     display: flex;
-    flex-wrap: wrap;
     align-items: center;
     gap: 8px;
     margin: 8px 0;
 `;
 
 // A div: the tooltip and the checkbox render block elements, which a <p> may not hold.
+// No wrap: when narrow, only the text breaks, so the icons stay beside it.
 const RuntimeStatusLine = styled.div`
     display: flex;
-    flex-wrap: wrap;
     align-items: center;
     gap: 6px;
     margin: 8px 0;
+`;
+
+// "anywhere" lets an unbroken URL wrap too, instead of pushing the icons out.
+const RuntimeStatusText = styled.span`
+    overflow-wrap: anywhere;
 `;
 
 // Short lines on the panel; the explanations live in the tooltips.
@@ -756,7 +761,7 @@ function RuntimeStatus({ icon, color, text, tooltip, children }: {
     return (
         <RuntimeStatusLine>
             <Codicon name={icon} sx={color ? { color } : undefined} />
-            <span>{text}</span>
+            <RuntimeStatusText>{text}</RuntimeStatusText>
             <InfoTip content={tooltip} />
             {children}
         </RuntimeStatusLine>
@@ -785,7 +790,7 @@ function WorkflowSection({
         status = (
             <RuntimeStatusLine>
                 <Codicon name="warning" sx={{ color: "var(--vscode-editorWarning-foreground)" }} />
-                <span>{RUNTIME_CHECK_FAILED}.</span>
+                <RuntimeStatusText>{RUNTIME_CHECK_FAILED}.</RuntimeStatusText>
                 {recheck}
             </RuntimeStatusLine>
         );
@@ -809,7 +814,7 @@ function WorkflowSection({
                 {switchError && (
                     <RuntimeStatusLine>
                         <Codicon name="error" sx={{ color: "var(--vscode-errorForeground)" }} />
-                        <span>{switchError}</span>
+                        <RuntimeStatusText>{switchError}</RuntimeStatusText>
                     </RuntimeStatusLine>
                 )}
             </>
@@ -846,7 +851,7 @@ function WorkflowSection({
                 {switchError && (
                     <RuntimeStatusLine>
                         <Codicon name="error" sx={{ color: "var(--vscode-errorForeground)" }} />
-                        <span>{switchError}</span>
+                        <RuntimeStatusText>{switchError}</RuntimeStatusText>
                     </RuntimeStatusLine>
                 )}
             </>
