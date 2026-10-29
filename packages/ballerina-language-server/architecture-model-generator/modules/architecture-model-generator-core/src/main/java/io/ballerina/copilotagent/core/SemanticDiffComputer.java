@@ -39,6 +39,7 @@ import io.ballerina.compiler.syntax.tree.NonTerminalNode;
 import io.ballerina.compiler.syntax.tree.OnFailClauseNode;
 import io.ballerina.compiler.syntax.tree.ServiceDeclarationNode;
 import io.ballerina.compiler.syntax.tree.StatementNode;
+import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.compiler.syntax.tree.Token;
 import io.ballerina.compiler.syntax.tree.TransactionStatementNode;
 import io.ballerina.compiler.syntax.tree.TypeDefinitionNode;
@@ -60,6 +61,7 @@ import io.ballerina.tools.text.LineRange;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -79,6 +81,9 @@ import java.util.stream.Collectors;
  */
 public class SemanticDiffComputer {
 
+    private static final String FUNCTION_KIND_KEY = "functionKind";
+    private static final String FUNCTION_KIND_RESOURCE = "resource";
+
     private final Project originalProject;
     private final Project modifiedProject;
     private final List<SemanticDiff> semanticDiffs = new ArrayList<>();
@@ -88,6 +93,9 @@ public class SemanticDiffComputer {
     // the project root; this map recovers the real on-disk path. Rebuilt per module.
     private final Map<String, Path> currentModuleFilePaths = new HashMap<>();
     private boolean loadDesignDiagrams = false;
+    // Rebuilt per module, like currentModuleFilePaths.
+    private ServiceTypeResolver originalServiceTypes;
+    private ServiceTypeResolver modifiedServiceTypes;
 
     public SemanticDiffComputer(Project originalProject,
                                 Project modifiedProject) {
@@ -192,6 +200,8 @@ public class SemanticDiffComputer {
         // Listeners and module variables (connections) shape the design diagram; the rest don't.
         computeSourceDiffs(originalNodeRefMap.getListenerNodeMap(), modifiedNodeRefMap.getListenerNodeMap(),
                 NodeKind.LISTENER, true);
+        this.originalServiceTypes = new ServiceTypeResolver(originalModule);
+        this.modifiedServiceTypes = new ServiceTypeResolver(modifiedModule);
         computeServiceDiffs(originalNodeRefMap.getServiceNodeMap(), modifiedNodeRefMap.getServiceNodeMap());
         computeFunctionDiffs(originalNodeRefMap.getFunctionNodeMap(), modifiedNodeRefMap.getFunctionNodeMap());
         computeTypeDefDiffs(originalNodeRefMap.getTypeDefNodeMap(), modifiedNodeRefMap.getTypeDefNodeMap());
@@ -303,19 +313,20 @@ public class SemanticDiffComputer {
             Map<String, FunctionDefinitionNode> originalMethods = extractClassMethods(originalClass);
             Map<String, FunctionDefinitionNode> modifiedMethods = extractClassMethods(modifiedClass);
             for (Map.Entry<String, FunctionDefinitionNode> methodEntry : originalMethods.entrySet()) {
-                String methodKey = methodEntry.getKey();
+                String methodName = className + "." + methodEntry.getKey();
                 FunctionDefinitionNode originalMethod = methodEntry.getValue();
-                Map<String, String> metadata = buildFunctionMetadata(className + "." + methodKey);
-                if (!modifiedMethods.containsKey(methodKey)) {
-                    addDeletionDiff(NodeKind.OBJECT_FUNCTION, originalMethod.lineRange(), metadata);
+                FunctionDefinitionNode modifiedMethod = modifiedMethods.remove(methodEntry.getKey());
+                if (modifiedMethod == null) {
+                    addDeletionDiff(NodeKind.OBJECT_FUNCTION, originalMethod.lineRange(),
+                            buildClassMethodMetadata(methodName, originalMethod));
                     continue;
                 }
-                compareFunctionBodies(originalMethod, modifiedMethods.remove(methodKey),
-                        NodeKind.OBJECT_FUNCTION, metadata);
+                compareFunctionBodies(originalMethod, modifiedMethod, NodeKind.OBJECT_FUNCTION,
+                        buildClassMethodMetadata(methodName, modifiedMethod));
             }
             for (Map.Entry<String, FunctionDefinitionNode> methodEntry : modifiedMethods.entrySet()) {
                 addAdditionDiff(NodeKind.OBJECT_FUNCTION, methodEntry.getValue().lineRange(),
-                        buildFunctionMetadata(className + "." + methodEntry.getKey()));
+                        buildClassMethodMetadata(className + "." + methodEntry.getKey(), methodEntry.getValue()));
             }
 
             if (!classHeaderAndMembersSource(originalClass).equals(classHeaderAndMembersSource(modifiedClass))) {
@@ -775,17 +786,18 @@ public class SemanticDiffComputer {
         foundServices.forEach(originalServiceMap::remove);
 
         // Split keys by # and check if there is a match between first parts
-        Map<String, String> originalServiceBasePaths = extractServiceBasePaths(originalServiceMap);
-        Map<String, String> modifiedServiceBasePaths = extractServiceBasePaths(modifiedServiceMap);
+        Map<String, List<String>> originalServicesByBasePath = groupServicesByBasePath(originalServiceMap);
+        Map<String, List<String>> modifiedServicesByBasePath = groupServicesByBasePath(modifiedServiceMap);
 
         // Check for matches and handle differences
         // Services matching by base path but not by full key means the listener
-        // expression changed (e.g., inline listener port change), which is a design diagram concern
-        for (Map.Entry<String, String> entry : originalServiceBasePaths.entrySet()) {
-            String basePath = entry.getKey();
-            if (modifiedServiceBasePaths.containsKey(basePath)) {
-                String originalServiceName = entry.getValue();
-                String modifiedServiceName = modifiedServiceBasePaths.get(basePath);
+        // expression or the annotations changed (e.g., inline listener port change)
+        for (Map.Entry<String, List<String>> entry : originalServicesByBasePath.entrySet()) {
+            List<String> originalServiceNames = entry.getValue();
+            List<String> modifiedServiceNames = modifiedServicesByBasePath.getOrDefault(entry.getKey(), List.of());
+            for (int i = 0; i < Math.min(originalServiceNames.size(), modifiedServiceNames.size()); i++) {
+                String originalServiceName = originalServiceNames.get(i);
+                String modifiedServiceName = modifiedServiceNames.get(i);
                 foundServices.add(originalServiceName);
                 foundServices.add(modifiedServiceName);
                 ServiceDeclarationNode originalService = originalServiceMap.get(originalServiceName);
@@ -809,10 +821,12 @@ public class SemanticDiffComputer {
             originalServiceMap.forEach((serviceName, originalService) -> {
                 ServiceMemberMap originalServiceMemberMap = extractServiceMembers(originalService);
                 String servicePath = getServicePath(originalService);
+                String serviceType = originalServiceTypes.resolve(originalService).orElse(null);
 
                 originalServiceMemberMap.getObjectMethods().forEach((key, originalMethod) -> {
                     LineRange lineRange = originalMethod.lineRange();
-                    Map<String, String> metadata = buildResourceFunctionMetadata(originalMethod, servicePath);
+                    Map<String, String> metadata =
+                            buildServiceMemberMetadata(originalMethod, servicePath, serviceType);
                     SemanticDiff diff = new SemanticDiff(ChangeType.DELETION, NodeKind.OBJECT_FUNCTION,
                             resolveUri(lineRange.fileName()), lineRange, metadata);
                     this.semanticDiffs.add(diff);
@@ -831,10 +845,12 @@ public class SemanticDiffComputer {
                     new ServiceMethodExtractor(modifiedServiceMemberMap);
             modifiedService.accept(modifiedServiceMethodExtractor);
             String servicePath = getServicePath(modifiedService);
+            String serviceType = modifiedServiceTypes.resolve(modifiedService).orElse(null);
 
             modifiedServiceMemberMap.getObjectMethods().forEach((key, modifiedMethod) -> {
                 LineRange lineRange = modifiedMethod.lineRange();
-                Map<String, String> metadata = buildResourceFunctionMetadata(modifiedMethod, servicePath);
+                Map<String, String> metadata =
+                        buildServiceMemberMetadata(modifiedMethod, servicePath, serviceType);
                 SemanticDiff diff = new SemanticDiff(ChangeType.ADDITION, NodeKind.OBJECT_FUNCTION,
                         resolveUri(lineRange.fileName()), lineRange, metadata);
                 this.semanticDiffs.add(diff);
@@ -872,7 +888,10 @@ public class SemanticDiffComputer {
         ServiceMemberMap original = extractServiceMembers(originalService);
         ServiceMemberMap modified = extractServiceMembers(modifiedService);
         String servicePath = getServicePath(modifiedService);
-        analyzeMethodChanges(original.getObjectMethods(), modified.getObjectMethods(), servicePath);
+        String originalServiceType = originalServiceTypes.resolve(originalService).orElse(null);
+        String modifiedServiceType = modifiedServiceTypes.resolve(modifiedService).orElse(null);
+        analyzeMethodChanges(original.getObjectMethods(), modified.getObjectMethods(), servicePath,
+                originalServiceType, modifiedServiceType);
     }
 
     /**
@@ -881,15 +900,20 @@ public class SemanticDiffComputer {
      * @param originalMethods Map of original method names to their definition nodes
      * @param modifiedMethods Map of modified method names to their definition nodes
      * @param servicePath     the base path of the service containing these methods
+     * @param originalServiceType the original service's type, or null when unknown; used for deletions
+     * @param modifiedServiceType the modified service's type, or null when unknown
      */
     private void analyzeMethodChanges(Map<String, FunctionDefinitionNode> originalMethods,
                                       Map<String, FunctionDefinitionNode> modifiedMethods,
-                                      String servicePath) {
+                                      String servicePath,
+                                      String originalServiceType,
+                                      String modifiedServiceType) {
 
         originalMethods.forEach((key, originalMethod) -> {
             if (!modifiedMethods.containsKey(key)) {
                 LineRange lineRange = originalMethod.lineRange();
-                Map<String, String> metadata = buildResourceFunctionMetadata(originalMethod, servicePath);
+                Map<String, String> metadata =
+                        buildServiceMemberMetadata(originalMethod, servicePath, originalServiceType);
                 SemanticDiff diff = new SemanticDiff(ChangeType.DELETION, NodeKind.OBJECT_FUNCTION,
                         resolveUri(lineRange.fileName()), lineRange, metadata);
                 this.semanticDiffs.add(diff);
@@ -897,7 +921,8 @@ public class SemanticDiffComputer {
             }
         });
         modifiedMethods.forEach((key, modifiedMethod) -> {
-            Map<String, String> metadata = buildResourceFunctionMetadata(modifiedMethod, servicePath);
+            Map<String, String> metadata =
+                    buildServiceMemberMetadata(modifiedMethod, servicePath, modifiedServiceType);
             if (originalMethods.containsKey(key)) {
                 FunctionDefinitionNode originalMethod = originalMethods.get(key);
                 compareFunctionBodies(originalMethod, modifiedMethod, NodeKind.OBJECT_FUNCTION, metadata);
@@ -970,23 +995,23 @@ public class SemanticDiffComputer {
     }
 
     /**
-     * Extracts base paths from service names in the given service map.
+     * Groups service names by their base path, each group in source order so that services sharing a
+     * base path (e.g. message consumers on one listener) pair up one-to-one in declaration order.
      *
      * @param serviceMap map of service names to their declaration nodes
      * @return a map of service base paths to full service names
      */
-    private Map<String, String> extractServiceBasePaths(Map<String, ServiceDeclarationNode> serviceMap) {
+    private static Map<String, List<String>> groupServicesByBasePath(Map<String, ServiceDeclarationNode> serviceMap) {
 
-        Map<String, String> serviceBasePaths = new HashMap<>();
-        for (Map.Entry<String, ServiceDeclarationNode> entry : serviceMap.entrySet()) {
-            String serviceName = entry.getKey();
-            String basePath = serviceName.split("#")[0];
-            // Two services may legally share a base path (different listeners). Keep the
-            // first instead of silently overwriting — the unmatched one then surfaces via
-            // the removed/added handling rather than being paired with the wrong service.
-            serviceBasePaths.putIfAbsent(basePath, serviceName);
-        }
-        return serviceBasePaths;
+        Map<String, List<String>> servicesByBasePath = new HashMap<>();
+        serviceMap.entrySet().stream()
+                .sorted(Comparator.comparing((Map.Entry<String, ServiceDeclarationNode> entry) ->
+                                entry.getValue().lineRange().fileName())
+                        .thenComparingInt(entry -> entry.getValue().lineRange().startLine().line()))
+                .forEach(entry -> servicesByBasePath
+                        .computeIfAbsent(entry.getKey().split("#")[0], basePath -> new ArrayList<>())
+                        .add(entry.getKey()));
+        return servicesByBasePath;
     }
 
     /**
@@ -1129,18 +1154,59 @@ public class SemanticDiffComputer {
         return Map.of("name", functionName);
     }
 
-    private static Map<String, String> buildResourceFunctionMetadata(FunctionDefinitionNode functionNode,
-                                                                     String servicePath) {
+    private static Map<String, String> buildClassMethodMetadata(String methodName, FunctionDefinitionNode method) {
 
-        String accessor = functionNode.functionName().text();
-        String resourcePath = functionNode.relativeResourcePath().stream()
-                .map(node -> node.toSourceCode().trim())
-                .collect(Collectors.joining(""));
         Map<String, String> metadata = new LinkedHashMap<>();
-        metadata.put("accessor", accessor);
-        metadata.put("servicePath", servicePath);
-        metadata.put("resourcePath", resourcePath);
+        metadata.put("name", methodName);
+        metadata.put(FUNCTION_KIND_KEY, getFunctionKind(method));
         return metadata;
+    }
+
+    private static Map<String, String> buildServiceMemberMetadata(FunctionDefinitionNode functionNode,
+                                                                  String servicePath,
+                                                                  String serviceType) {
+
+        String functionKind = getFunctionKind(functionNode);
+        Map<String, String> metadata = new LinkedHashMap<>();
+        // Only resource functions have an accessor and a resource path; other members are identified by name.
+        if (FUNCTION_KIND_RESOURCE.equals(functionKind)) {
+            metadata.put("accessor", functionNode.functionName().text());
+            putServiceInfo(metadata, servicePath, serviceType);
+            metadata.put("resourcePath", functionNode.relativeResourcePath().stream()
+                    .map(node -> node.toSourceCode().trim())
+                    .collect(Collectors.joining("")));
+        } else {
+            metadata.put("name", functionNode.functionName().text());
+            putServiceInfo(metadata, servicePath, serviceType);
+        }
+        metadata.put(FUNCTION_KIND_KEY, functionKind);
+        return metadata;
+    }
+
+    private static void putServiceInfo(Map<String, String> metadata, String servicePath, String serviceType) {
+
+        metadata.put("servicePath", servicePath);
+        if (serviceType != null) {
+            metadata.put("serviceType", serviceType);
+        }
+    }
+
+    /**
+     * Returns the kind of a service or class member function: {@code resource}, {@code remote}, {@code init} or
+     * {@code method}.
+     */
+    private static String getFunctionKind(FunctionDefinitionNode functionNode) {
+
+        if (functionNode.kind() == SyntaxKind.RESOURCE_ACCESSOR_DEFINITION) {
+            return FUNCTION_KIND_RESOURCE;
+        }
+        if (functionNode.qualifierList().stream().anyMatch(token -> token.kind() == SyntaxKind.REMOTE_KEYWORD)) {
+            return "remote";
+        }
+        if ("init".equals(functionNode.functionName().text())) {
+            return "init";
+        }
+        return "method";
     }
 
     private static String getServicePath(ServiceDeclarationNode service) {

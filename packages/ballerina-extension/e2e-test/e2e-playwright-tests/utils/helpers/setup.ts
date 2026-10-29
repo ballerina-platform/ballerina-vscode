@@ -21,6 +21,7 @@ import { test } from '@playwright/test';
 import fs, { existsSync } from 'fs';
 import path from 'path';
 import { execFileSync, execSync } from 'child_process';
+import { descendants, killPids, ProcessEntry } from './processTree';
 import { getWebview } from './webview';
 import { BI_INTEGRATOR_LABEL, BI_WEBVIEW_NOT_FOUND_ERROR, DEFAULT_PROJECT_FOLDER_NAME, DEFAULT_PROJECT_NAME } from './constants';
 import { waitForBISidebarTreeView } from './sidebar';
@@ -255,23 +256,71 @@ function ensureMacElectronSymlink(): void {
     }
 }
 
+// A Reload Window restarts the extension host without waiting for the language server it spawned
+// to exit, so each reload leaves a JVM behind until the job ends (19 of them after a group 5 job).
+// Every process seen under Electron is remembered, and after a reload those no longer under it are
+// killed.
+const processesSeenUnderVSCode = new Map<number, ProcessEntry>();
+
+function processesUnderVSCode(): ProcessEntry[] {
+    // process() throws once the app is gone (Playwright reads a field of a closed connection).
+    let pid: number | undefined;
+    try {
+        pid = vscode?.process?.()?.pid;
+    } catch {
+        pid = undefined;
+    }
+    return pid ? descendants(pid) : [];
+}
+
+function rememberProcessesUnderVSCode(): void {
+    processesUnderVSCode().forEach((entry) => processesSeenUnderVSCode.set(entry.pid, entry));
+}
+
+function reapProcessesLeftBehind(): void {
+    const stillUnder = new Set(processesUnderVSCode().map((entry) => entry.pid));
+    const stale = [...processesSeenUnderVSCode.values()].filter((entry) => !stillUnder.has(entry.pid));
+    stale.forEach((entry) => processesSeenUnderVSCode.delete(entry.pid));
+    const killed = killPids(stale);
+    if (killed > 0) {
+        console.log(`  🧹 Killed ${killed} processes the previous extension host left behind: `
+            + stale.map((entry) => `${entry.pid} ${entry.command}`).join('; '));
+    }
+}
+
+// At suite teardown nothing seen under Electron should outlive it, reparented or not.
+export function reapAllProcessesSeenUnderVSCode(): number {
+    rememberProcessesUnderVSCode();
+    const killed = killPids([...processesSeenUnderVSCode.values()]);
+    processesSeenUnderVSCode.clear();
+    return killed;
+}
+
+async function reloadWindow(): Promise<void> {
+    rememberProcessesUnderVSCode();
+    await page.executePaletteCommand('Reload Window');
+    await page.page.waitForTimeout(3000).catch(() => undefined);
+    page = new ExtendedPage(await vscode!.firstWindow({ timeout: 60000 }));
+    reapProcessesLeftBehind();
+}
+
 async function initVSCode(workspacePath: string = newProjectPath) {
     if (vscode && page) {
-        await page.executePaletteCommand('Reload Window');
-    } else {
-        ensureMacElectronSymlink();
-        const profileName = getVsCodeProfileName();
-        const launchExtensionsFolder = await prepareExtensionsForLaunch(profileName);
-        vscode = await startVSCode(
-            resourcesFolder,
-            vscodeVersion,
-            undefined,
-            false,
-            launchExtensionsFolder,
-            workspacePath,
-            profileName
-        );
+        await reloadWindow();
+        return;
     }
+    ensureMacElectronSymlink();
+    const profileName = getVsCodeProfileName();
+    const launchExtensionsFolder = await prepareExtensionsForLaunch(profileName);
+    vscode = await startVSCode(
+        resourcesFolder,
+        vscodeVersion,
+        undefined,
+        false,
+        launchExtensionsFolder,
+        workspacePath,
+        profileName
+    );
     page = new ExtendedPage(await vscode!.firstWindow({ timeout: 60000 }));
 }
 
@@ -297,23 +346,23 @@ export async function reacquireWindow(timeout: number = 60000): Promise<boolean>
 
 async function resumeVSCode() {
     if (vscode && page) {
-        await page.executePaletteCommand('Reload Window');
-    } else {
-        console.log('Starting VSCode');
-        ensureMacElectronSymlink();
-        const profileName = getVsCodeProfileName();
-        const launchExtensionsFolder = await prepareExtensionsForLaunch(profileName);
-        vscode = await startVSCode(
-            resourcesFolder,
-            vscodeVersion,
-            undefined,
-            false,
-            launchExtensionsFolder,
-            newProjectPath,
-            profileName
-        );
-        await new Promise(resolve => setTimeout(resolve, 5000));
+        await reloadWindow();
+        return;
     }
+    console.log('Starting VSCode');
+    ensureMacElectronSymlink();
+    const profileName = getVsCodeProfileName();
+    const launchExtensionsFolder = await prepareExtensionsForLaunch(profileName);
+    vscode = await startVSCode(
+        resourcesFolder,
+        vscodeVersion,
+        undefined,
+        false,
+        launchExtensionsFolder,
+        newProjectPath,
+        profileName
+    );
+    await new Promise(resolve => setTimeout(resolve, 5000));
     page = new ExtendedPage(await vscode!.firstWindow({ timeout: 60000 }));
 }
 
@@ -561,9 +610,7 @@ export function initTest(newProject: boolean = true, skipProjectCreation: boolea
             // branch above. The global afterAll in test.list.ts will close
             // Electron during worker teardown so the worker can exit.
             await withTimeout((async () => {
-                await page.executePaletteCommand('Reload Window');
-                await page.page.waitForTimeout(3000);
-                page = new ExtendedPage(await vscode!.firstWindow({ timeout: 60000 }));
+                await reloadWindow();
                 await page.page.waitForLoadState();
                 await page.page.waitForTimeout(5000);
                 console.log('  ⏳ Waiting for BI extension to initialize after reload...');
@@ -590,6 +637,9 @@ export function initTest(newProject: boolean = true, skipProjectCreation: boolea
     });
 
     test.afterEach(async ({ }, testInfo) => {
+        // Remembered now, while Electron is still there to be asked: when the app is gone by the
+        // teardown, the language server it had spawned is still running and would be missed.
+        rememberProcessesUnderVSCode();
         const status = testInfo.status ?? 'skipped';
         lastTestFailed = status === 'failed' || status === 'timedOut' || status === 'interrupted';
         const statusEmoji = status === 'passed' ? '✅' : status === 'failed' ? '❌' : '⏭️';
@@ -632,7 +682,7 @@ export function initMigrationTest() {
         await toggleNotifications(true);
 
         // Reload VS Code to apply the language server setting
-        await page.executePaletteCommand('Reload Window');
+        await reloadWindow();
         await page.page.waitForLoadState();
         await page.page.waitForTimeout(5000); // Give VS Code time to fully reload
 
@@ -646,6 +696,9 @@ export function initMigrationTest() {
     });
 
     test.afterEach(async ({ }, testInfo) => {
+        // Remembered now, while Electron is still there to be asked: when the app is gone by the
+        // teardown, the language server it had spawned is still running and would be missed.
+        rememberProcessesUnderVSCode();
         const status = testInfo.status ?? 'skipped';
         lastTestFailed = status === 'failed' || status === 'timedOut' || status === 'interrupted';
         const statusEmoji = status === 'passed' ? '✅' : status === 'failed' ? '❌' : '⏭️';

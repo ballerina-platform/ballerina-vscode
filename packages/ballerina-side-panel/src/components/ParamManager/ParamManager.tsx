@@ -34,6 +34,9 @@ export interface Parameter {
     id: number;
     formValues: FormValues;
     key: string;
+    /** The key the parameter was loaded from source under. Unlike `key`, which follows the
+     *  edited name, it is kept as loaded, so an in-place rename can still be detected. */
+    loadedKey?: string;
     value: string;
     icon: string;
     identifierEditable: boolean;

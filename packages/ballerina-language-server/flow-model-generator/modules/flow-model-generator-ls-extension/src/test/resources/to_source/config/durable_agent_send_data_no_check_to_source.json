@@ -1,6 +1,6 @@
 {
   "source": "durable_agent_module.bal",
-  "description": "Send Agent Data Event without check binds the token as string|error",
+  "description": "Send Agent Data Event without check on a channel that declares a response binds the token as string|error",
   "diagram": {
     "id": "1",
     "metadata": {
@@ -52,7 +52,7 @@
           "label": ""
         },
         "valueType": "SINGLE_SELECT",
-        "value": "billSubmitted",
+        "value": "customerMessage",
         "optional": false,
         "editable": true,
         "advanced": false,
@@ -63,7 +63,7 @@
           "label": ""
         },
         "valueType": "EXPRESSION",
-        "value": "{amount: 10}",
+        "value": "\"hello\"",
         "optional": false,
         "editable": true,
         "advanced": false,
@@ -108,7 +108,7 @@
             "character": 0
           }
         },
-        "newText": "\nstring|error eventToken = supportAgent.sendData(instanceId, \"billSubmitted\", {amount: 10});"
+        "newText": "\nstring|error eventToken = supportAgent.sendData(instanceId, \"customerMessage\", \"hello\");"
       }
     ]
   }

@@ -65,7 +65,7 @@ export default function createTests() {
             await waitForEnabled(saveButton);
             await saveButton.click({ force: true });
             await expect.poll(mainSource, { timeout: 90000 })
-                .toMatch(/humanTasks: \[\{name: "agentTask", userRoles: \(\), users: "alice"/);
+                .toMatch(/humanTasks: \{agentTask: \{userRoles: \(\), users: "alice"/);
             await saveButton.waitFor({ state: 'hidden', timeout: 60000 });
 
             logStep('Register lookupBill with a Human Approval whose reviewer roles are ()');

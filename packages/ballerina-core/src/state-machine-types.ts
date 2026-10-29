@@ -629,8 +629,12 @@ export interface ConnectorGenerationNotification {
     type: "connector_generation_notification";
     requestId: string;
     stage: "requesting_input" | "input_received" | "generating" | "generated" | "skipped" | "error";
+    /** What is generated from the spec: a client connector (default) or a service implementing it. */
+    mode?: "client" | "service";
     serviceName?: string;
     serviceDescription?: string;
+    /** Why a spec the user already supplied could not be used, shown on the upload card. */
+    reason?: string;
     spec?: {
         version: string;
         title: string;
@@ -868,11 +872,21 @@ export interface ChatMessage {
     checkpointId?: string;
 }
 
+export type CheckpointFileEntry =
+    | { hash: string; size: number; mtimeMs: number }
+    | { skipped: 'tooLarge' | 'unreadable'; size?: number; mtimeMs?: number };
+
+export type CheckpointStorage =
+    | { kind: 'inline' }
+    | { kind: 'content-store'; files: Record<string, CheckpointFileEntry> };
+
 export interface Checkpoint {
     id: string;
     messageId: string;
     timestamp: number;
-    workspaceSnapshot: { [filePath: string]: string };
+    workspaceSnapshot?: { [filePath: string]: string };
+    storage?: CheckpointStorage;
+    schemaVersion?: number;
     fileList: string[];
     snapshotSize: number;
     /** Absolute root the paths above are relative to. Absent on checkpoints captured before it was recorded. */

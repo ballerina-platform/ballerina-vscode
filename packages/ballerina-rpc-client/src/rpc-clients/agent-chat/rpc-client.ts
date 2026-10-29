@@ -38,6 +38,8 @@ import {
     getAgentStatus,
     getSessionInfo,
     SessionInfoResponse,
+    setChatEndpoint,
+    SetChatEndpointRequest,
     AvailableAgentsResponse,
     SwitchAgentRequest,
     SwitchAgentResponse,
@@ -96,6 +98,10 @@ export class AgentChatRpcClient implements AgentChatAPI {
 
     getSessionInfo(): Promise<SessionInfoResponse> {
         return this._messenger.sendRequest(getSessionInfo, HOST_EXTENSION);
+    }
+
+    setChatEndpoint(params: SetChatEndpointRequest): Promise<SessionInfoResponse> {
+        return this._messenger.sendRequest(setChatEndpoint, HOST_EXTENSION, params);
     }
 
     getAvailableChatAgents(): Promise<AvailableAgentsResponse> {

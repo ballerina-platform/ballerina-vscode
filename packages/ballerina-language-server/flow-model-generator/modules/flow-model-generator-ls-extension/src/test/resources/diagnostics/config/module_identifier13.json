@@ -1,0 +1,60 @@
+{
+  "description": "Renaming an existing configurable to another configurable's name reports it as redeclared",
+  "filePath": "configurables.bal",
+  "context": {
+    "expression": "timeout",
+    "startLine": {
+      "line": 1,
+      "offset": 20
+    },
+    "offset": 7,
+    "property": {
+      "metadata": {
+        "label": "Name",
+        "description": "Name of the variable"
+      },
+      "types": [
+        {
+          "fieldType": "IDENTIFIER",
+          "scope": "Global"
+        }
+      ],
+      "value": "host",
+      "optional": false,
+      "editable": true,
+      "advanced": false,
+      "codedata": {
+        "lineRange": {
+          "fileName": "configurables.bal",
+          "startLine": {
+            "line": 1,
+            "offset": 20
+          },
+          "endLine": {
+            "line": 1,
+            "offset": 24
+          }
+        }
+      }
+    }
+  },
+  "diagnostics": [
+    {
+      "range": {
+        "start": {
+          "line": 1,
+          "character": 20
+        },
+        "end": {
+          "line": 1,
+          "character": 27
+        }
+      },
+      "severity": "Error",
+      "code": {
+        "left": "BCE2008"
+      },
+      "message": "redeclared symbol 'timeout'"
+    }
+  ]
+}

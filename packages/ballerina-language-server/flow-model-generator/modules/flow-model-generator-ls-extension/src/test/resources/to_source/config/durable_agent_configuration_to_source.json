@@ -201,14 +201,14 @@
         "range": {
           "start": {
             "line": 20,
-            "character": 5
+            "character": 4
           },
           "end": {
             "line": 20,
             "character": 5
           }
         },
-        "newText": "\n,\n    maxIter: 8,\n    inputType: json,\n    resultType: ClaimDecision,\n    eventTimeout: {days: 1, hours: 2, minutes: 30},\n    maxEventWaits: 20"
+        "newText": "],\n    maxIter: 8,\n    inputType: json,\n    resultType: ClaimDecision,\n    eventTimeout: {days: 1, hours: 2, minutes: 30},\n    maxEventWaits: 20"
       }
     ]
   }

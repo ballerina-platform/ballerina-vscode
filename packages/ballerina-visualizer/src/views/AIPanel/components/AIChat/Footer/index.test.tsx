@@ -84,8 +84,7 @@ const baseProps: React.ComponentProps<typeof Footer> = {
     },
     attachmentOptions: {
         multiple: true,
-        acceptResolver: () => "",
-        handleAttachmentSelection: async () => [],
+        resolveAttachmentPolicy: () => ({ fileTypes: {}, acceptOtherText: false, encoding: "native" }),
     },
     inputPlaceholder: "What would you like to change?",
     onSend: async (): Promise<void> => undefined,

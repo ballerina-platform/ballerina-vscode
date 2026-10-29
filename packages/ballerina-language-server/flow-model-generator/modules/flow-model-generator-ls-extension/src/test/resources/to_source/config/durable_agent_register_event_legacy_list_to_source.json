@@ -1,0 +1,105 @@
+{
+  "source": "workflow_legacy/agent.bal",
+  "description": "Register a data event on a project that pins ballerina/workflow 0.8.3: the list form stays, the entry is appended as a named record",
+  "diagram": {
+    "id": "1",
+    "metadata": {
+      "label": "Register Event",
+      "description": "Register Event"
+    },
+    "codedata": {
+      "node": "DURABLE_AGENT_REGISTER_EVENT",
+      "org": "ballerina",
+      "module": "workflow",
+      "object": "DurableAgent",
+      "symbol": "registerUpdateEvents",
+      "parentSymbol": "legacyAgent",
+      "lineRange": {
+        "fileName": "workflow_legacy/agent.bal",
+        "startLine": {
+          "line": 6,
+          "offset": 0
+        },
+        "endLine": {
+          "line": 6,
+          "offset": 0
+        }
+      },
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "name": {
+        "metadata": {
+          "label": "Name",
+          "description": "Name"
+        },
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "selected": true,
+            "ballerinaType": "string"
+          }
+        ],
+        "value": "payment",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "requestType": {
+        "metadata": {
+          "label": "Request Type",
+          "description": "Request Type"
+        },
+        "types": [
+          {
+            "fieldType": "TYPE",
+            "selected": true,
+            "ballerinaType": "json"
+          }
+        ],
+        "value": "Payment",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "cardinality": {
+        "metadata": {
+          "label": "Cardinality",
+          "description": "Cardinality"
+        },
+        "types": [
+          {
+            "fieldType": "SINGLE_SELECT",
+            "selected": true
+          }
+        ],
+        "value": "SINGLE_EVENT",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      }
+    },
+    "flags": 0
+  },
+  "output": {
+    "workflow_legacy/agent.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 10,
+            "character": 56
+          },
+          "end": {
+            "line": 10,
+            "character": 57
+          }
+        },
+        "newText": "},\n        {name: \"payment\", request: Payment, cardinality: workflow:SINGLE_EVENT}"
+      }
+    ]
+  }
+}

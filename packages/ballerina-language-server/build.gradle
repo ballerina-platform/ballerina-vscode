@@ -43,6 +43,14 @@ allprojects {
     apply plugin: 'jacoco'
     apply plugin: 'maven-publish'
 
+    // -PskipCoverage runs the tests without the JaCoCo agent (-PskipCoverage=false keeps it). CI's
+    // Windows legs use it: coverage is only published from Linux, and the agent costs Windows ~45%
+    // of its test time.
+    def skipCoverage = providers.gradleProperty('skipCoverage').map { it != 'false' }.getOrElse(false)
+    tasks.withType(Test).configureEach {
+        jacoco.enabled = !skipCoverage
+    }
+
     repositories {
         mavenLocal()
         maven {

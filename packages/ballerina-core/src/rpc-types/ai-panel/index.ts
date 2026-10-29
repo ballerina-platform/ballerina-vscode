@@ -82,6 +82,8 @@ import {
     SetCopilotToggleSettingRequest,
     McpLoadErrorsDTO,
     AgentsMdFileInfoDTO,
+    Attachment,
+    SelectAttachmentFilesRequest,
     ThreadSummary,
     SwitchThreadRequest,
     DeleteThreadRequest,
@@ -216,4 +218,5 @@ export interface AIPanelAPI {
     getMcpLoadErrors: () => Promise<McpLoadErrorsDTO>;
     getAgentsMdFileInfo: () => Promise<AgentsMdFileInfoDTO>;
     openOrCreateAgentsMd: () => Promise<void>;
+    selectAttachmentFiles: (params: SelectAttachmentFilesRequest) => Promise<Attachment[]>;
 }
