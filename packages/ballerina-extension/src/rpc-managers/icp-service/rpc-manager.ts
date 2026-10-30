@@ -27,11 +27,11 @@ import * as os from 'os';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { StateMachine } from "../../stateMachine";
-import { updateSourceCode } from "../../utils/source-utils";
 import { parse, stringify } from "@iarna/toml";
 import { getProjectHandle, getStoredICPSecret } from "../../features/icp/setup";
 import { ensureICPServerRunning, isICPServerRunning, getICPUrl } from "../../features/icp";
 import { isICPSupported } from "../../utils/config";
+import { addICPBuildOptions, removeICPBuildOptions } from "./build-options";
 
 const ICP_IMPORTS = [
     'import wso2/icp.runtime.bridge as _;',
@@ -118,95 +118,39 @@ function buildRemoveImportsTextEdits(projectPath: string): { [key: string]: Text
     return { [mainBalPath]: edits };
 }
 
-function addICPBuildOptions(projectPath: string): void {
-    const tomlPath = path.join(projectPath, 'Ballerina.toml');
-    if (!fs.existsSync(tomlPath)) {
-        return;
-    }
-
-    let content = fs.readFileSync(tomlPath, 'utf-8');
-    const sectionHeader = '[build-options]';
-    const lines = content.split('\n');
-    const sectionIndex = lines.findIndex(line => line.trim() === sectionHeader);
-
-    if (sectionIndex !== -1) {
-        // Section exists — update/add keys within it
-        let insertIndex = sectionIndex + 1;
-        // Find the end of this section
-        let sectionEnd = lines.length;
-        for (let i = sectionIndex + 1; i < lines.length; i++) {
-            const trimmed = lines[i].trim();
-            if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
-                sectionEnd = i;
-                break;
-            }
-            insertIndex = i + 1;
+// Not updateSourceCode: it waits for an artifact change, and an import-only edit makes none, so it
+// timed out and aborted the toggle before the Ballerina.toml and Config.toml writes.
+async function applyImportEdits(textEdits: { [key: string]: TextEdit[] }): Promise<void> {
+    const workspaceEdit = new vscode.WorkspaceEdit();
+    for (const [filePath, edits] of Object.entries(textEdits)) {
+        for (const edit of edits) {
+            const { start, end } = edit.range;
+            workspaceEdit.replace(
+                vscode.Uri.file(filePath),
+                new vscode.Range(start.line, start.character, end.line, end.character),
+                edit.newText
+            );
         }
-
-        // Check if keys already exist, if not add them
-        const sectionLines = lines.slice(sectionIndex + 1, sectionEnd);
-        const hasObservability = sectionLines.some(l => l.trim().startsWith('observabilityIncluded'));
-        const hasRemoteMgmt = sectionLines.some(l => l.trim().startsWith('remoteManagement'));
-
-        const newLines: string[] = [];
-        if (!hasObservability) { newLines.push('observabilityIncluded = true'); }
-        if (!hasRemoteMgmt) { newLines.push('remoteManagement = true'); }
-
-        if (newLines.length > 0) {
-            lines.splice(sectionIndex + 1, 0, ...newLines);
-        }
-    } else {
-        // Section doesn't exist — append it
-        lines.push('', sectionHeader, 'observabilityIncluded = true', 'remoteManagement = true');
     }
-
-    content = lines.join('\n');
-    if (!content.endsWith('\n')) { content += '\n'; }
-    fs.writeFileSync(tomlPath, content, 'utf-8');
+    if (!await vscode.workspace.applyEdit(workspaceEdit)) {
+        throw new Error('Failed to update the ICP imports');
+    }
+    for (const filePath of Object.keys(textEdits)) {
+        const document = await vscode.workspace.openTextDocument(vscode.Uri.file(filePath));
+        await document.save();
+    }
 }
 
-function removeICPBuildOptions(projectPath: string): void {
+function updateBallerinaToml(projectPath: string, edit: (content: string) => string): void {
     const tomlPath = path.join(projectPath, 'Ballerina.toml');
     if (!fs.existsSync(tomlPath)) {
-        return;
+        throw new Error(`Ballerina.toml not found in ${projectPath}`);
     }
-
-    let content = fs.readFileSync(tomlPath, 'utf-8');
-    const lines = content.split('\n');
-    const sectionHeader = '[build-options]';
-    const sectionIndex = lines.findIndex(line => line.trim() === sectionHeader);
-
-    if (sectionIndex === -1) {
-        return;
+    const content = fs.readFileSync(tomlPath, 'utf-8');
+    const updated = edit(content);
+    if (updated !== content) {
+        fs.writeFileSync(tomlPath, updated, 'utf-8');
     }
-
-    // Find section boundaries
-    let sectionEnd = lines.length;
-    for (let i = sectionIndex + 1; i < lines.length; i++) {
-        const trimmed = lines[i].trim();
-        if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
-            sectionEnd = i;
-            break;
-        }
-    }
-
-    // Remove only the ICP-added keys
-    const keysToRemove = ['observabilityIncluded', 'remoteManagement'];
-    const filteredSection = lines.slice(sectionIndex + 1, sectionEnd).filter(line => {
-        const trimmed = line.trim();
-        return !keysToRemove.some(key => trimmed.startsWith(key));
-    });
-
-    // If no keys remain, remove the entire section
-    if (filteredSection.every(l => l.trim() === '')) {
-        lines.splice(sectionIndex, sectionEnd - sectionIndex);
-    } else {
-        lines.splice(sectionIndex + 1, sectionEnd - sectionIndex - 1, ...filteredSection);
-    }
-
-    content = lines.join('\n');
-    if (content.length > 0 && !content.endsWith('\n')) { content += '\n'; }
-    fs.writeFileSync(tomlPath, content, 'utf-8');
 }
 
 async function addICPConfigToml(projectPath: string): Promise<void> {
@@ -276,46 +220,34 @@ export class ICPServiceRpcManager implements ICPServiceAPI {
         if (!isICPSupported()) {
             return { enabled: false };
         }
-        return new Promise(async (resolve) => {
-            const context = StateMachine.context();
-            try {
-                const projectPath: string = params.projectPath || context.projectPath;
-                const param = { projectPath };
-                const importEdits = buildAddImportsTextEdits(projectPath);
-                if (Object.keys(importEdits).length > 0) {
-                    await updateSourceCode({ textEdits: importEdits, description: 'ICP Creation' });
-                }
-                addICPBuildOptions(projectPath);
-                await addICPConfigToml(projectPath);
-                const result: ICPEnabledResponse = await context.langClient.isIcpEnabled(param);
-                resolve(result);
-            } catch (error) {
-                console.log(error);
-            }
-        });
+        const context = StateMachine.context();
+        const projectPath: string = params.projectPath || context.projectPath;
+        try {
+            await applyImportEdits(buildAddImportsTextEdits(projectPath));
+            updateBallerinaToml(projectPath, addICPBuildOptions);
+            await addICPConfigToml(projectPath);
+            return await context.langClient.isIcpEnabled({ projectPath });
+        } catch (error) {
+            console.error('[ICP] Failed to enable ICP for', projectPath, error);
+            return { enabled: false, errorMsg: `Failed to enable ICP: ${error}` };
+        }
     }
 
     async disableICP(params: ICPEnabledRequest): Promise<ICPEnabledResponse> {
         if (!isICPSupported()) {
             return { enabled: false };
         }
-        return new Promise(async (resolve) => {
-            const context = StateMachine.context();
-            try {
-                const projectPath: string = params.projectPath || context.projectPath;
-                const param = { projectPath };
-                const importEdits = buildRemoveImportsTextEdits(projectPath);
-                if (Object.keys(importEdits).length > 0) {
-                    await updateSourceCode({ textEdits: importEdits, description: 'ICP Disable' });
-                }
-                removeICPBuildOptions(projectPath);
-                removeICPConfigToml(projectPath);
-                const result: ICPEnabledResponse = await context.langClient.isIcpEnabled(param);
-                resolve(result);
-            } catch (error) {
-                console.log(error);
-            }
-        });
+        const context = StateMachine.context();
+        const projectPath: string = params.projectPath || context.projectPath;
+        try {
+            await applyImportEdits(buildRemoveImportsTextEdits(projectPath));
+            updateBallerinaToml(projectPath, removeICPBuildOptions);
+            removeICPConfigToml(projectPath);
+            return await context.langClient.isIcpEnabled({ projectPath });
+        } catch (error) {
+            console.error('[ICP] Failed to disable ICP for', projectPath, error);
+            return { enabled: true, errorMsg: `Failed to disable ICP: ${error}` };
+        }
     }
 
 
