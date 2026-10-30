@@ -22,6 +22,7 @@ under the License.
     <test name="search-pagination-test" parallel="false">
         <classes>
             <class name="io.ballerina.modelgenerator.commons.FairShareWindowTest"/>
+            <class name="io.ballerina.modelgenerator.commons.ApprovalFunctionSyncTest"/>
         </classes>
     </test>
     <test name="trigger-model-test" parallel="false">

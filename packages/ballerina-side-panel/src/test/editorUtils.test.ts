@@ -32,6 +32,7 @@ import {
     isRecord,
     getValueForTextModeEditor,
     getFriendlyIdentifierMessage,
+    fetchIdentifierDiagnostics,
     getFieldKeyForAdvanceProp,
     stringToRawArrayElements,
     stringToRawObjectEntries,
@@ -205,5 +206,44 @@ describe("withHeldValue on a list-or-expression field", () => {
         const definition = roleField();
         withHeldValue(definition, { retryUsers: "input.id" });
         expect(selected(definition)).toBe("TEXT_SET");
+    });
+});
+
+// The language-server identifier check shared by IdentifierField, IdentifierEditor and the approval
+// function's add form: it sends the name as the property's expression and rewords the diagnostics.
+describe("fetchIdentifierDiagnostics", () => {
+    const property = { metadata: { label: "Name", description: "" }, value: "", optional: false, editable: true };
+    const check = (diagnostics: { message: string; severity: number }[]) => {
+        const getExpressionDiagnostics = jest.fn().mockResolvedValue({ diagnostics });
+        const rpcClient: any = { getBIDiagramRpcClient: () => ({ getExpressionDiagnostics }) };
+        return { getExpressionDiagnostics, result: fetchIdentifierDiagnostics(rpcClient, {
+            filePath: "main.bal", startLine: { line: 2, offset: 0 }, value: "check", property, label: "Variable Name",
+        }) };
+    };
+
+    it("sends the name as the expression of the property at the given position", async () => {
+        const { getExpressionDiagnostics, result } = check([]);
+        expect(await result).toEqual({ first: undefined, firstError: undefined });
+        expect(getExpressionDiagnostics).toHaveBeenCalledWith({
+            filePath: "main.bal",
+            context: {
+                expression: "check", startLine: { line: 2, offset: 0 }, offset: 0, lineOffset: 0,
+                codedata: undefined, property,
+            },
+        });
+    });
+
+    it("returns the first diagnostic and the first error, reworded", async () => {
+        const { result } = check([
+            { message: "unused variable", severity: 2 },
+            { message: "`check` is a reserved keyword", severity: 1 },
+        ]);
+        expect(await result).toEqual({
+            first: { message: "unused variable", severity: "WARNING" },
+            firstError: {
+                message: "'variable name' cannot be a reserved keyword. Please choose a different name.",
+                severity: "ERROR",
+            },
+        });
     });
 });

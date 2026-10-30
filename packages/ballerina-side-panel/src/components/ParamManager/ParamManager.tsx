@@ -168,6 +168,7 @@ export function ParamManagerEditor(props: ParamManagerEditorProps) {
                             selectedNode={selectedNode}
                             setSubComponentEnabled={setSubComponentEnabled}
                             addButtonLabel={field.addNewButtonLabel}
+                            readonly={field.readonlyParameters === true}
                         />
                         {error && <ErrorBanner errorMsg={error.message.toString()} />}
                     </>

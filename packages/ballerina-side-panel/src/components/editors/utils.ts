@@ -19,7 +19,8 @@
 import { useRef } from "react";
 import { startCase } from "lodash";
 import { FormField } from "../Form/types";
-import { ExpressionProperty, getPrimaryInputType, InputType, RecordTypeField } from "@wso2/ballerina-core";
+import { CodeData, ExpressionProperty, getPrimaryInputType, InputType, LinePosition, RecordTypeField } from "@wso2/ballerina-core";
+import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
 import { InputMode } from "../..";
 import { EditorMode } from "./ExpandedEditor";
 import { EXPANDABLE_MODES } from "./ExpandedEditor/modes/types";
@@ -468,5 +469,46 @@ export const mapDiagnosticsServerityToFormSeverity = (severity: 1 | 2 | 3 | 4) =
             return "WARNING";
         default:
             return "INFO";
-    }       
-}    
+    }
+}
+
+export type IdentifierDiagnostic = { message: string; severity: ReturnType<typeof mapDiagnosticsServerityToFormSeverity> };
+
+/**
+ * Asks the language server whether a name is valid for an identifier property: a Ballerina identifier, not a
+ * reserved keyword, and, for the property's scope, not already declared. Returns the first diagnostic and the
+ * first error, both reworded by {@link getFriendlyIdentifierMessage}; empty when the name is valid.
+ */
+export async function fetchIdentifierDiagnostics(
+    rpcClient: BallerinaRpcClient,
+    request: {
+        filePath: string;
+        startLine: LinePosition;
+        value: string;
+        property: ExpressionProperty;
+        codedata?: CodeData;
+        label?: string;
+    }
+): Promise<{ first?: IdentifierDiagnostic; firstError?: IdentifierDiagnostic }> {
+    const response = await rpcClient.getBIDiagramRpcClient().getExpressionDiagnostics({
+        filePath: request.filePath,
+        context: {
+            expression: request.value,
+            startLine: request.startLine,
+            offset: 0,
+            lineOffset: 0,
+            codedata: request.codedata,
+            property: request.property,
+        },
+    });
+    const diagnostics = response?.diagnostics ?? [];
+    const toDiagnostic = (diagnostic?: (typeof diagnostics)[number]): IdentifierDiagnostic | undefined =>
+        diagnostic && {
+            message: getFriendlyIdentifierMessage(diagnostic.message, request.label),
+            severity: mapDiagnosticsServerityToFormSeverity(diagnostic.severity),
+        };
+    return {
+        first: toDiagnostic(diagnostics[0]),
+        firstError: toDiagnostic(diagnostics.find((diagnostic) => diagnostic.severity === 1)),
+    };
+}
