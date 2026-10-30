@@ -17,6 +17,7 @@
         "react": "18.2.0",
         "react-dom": "18.2.0",
         "@wso2/ballerina-core": "workspace:*",
+        "@wso2/ballerina-side-panel": "workspace:*",
         "@wso2/syntax-tree": "workspace:*",
         "@wso2/ballerina-rpc-client": "workspace:*",
         "@wso2/ballerina-statement-editor": "workspace:*",

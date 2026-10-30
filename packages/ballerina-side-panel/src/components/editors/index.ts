@@ -39,3 +39,17 @@ export { getEditorConfiguration } from "./ExpressionField";
 export { ExpandedEditor } from "./ExpandedEditor";
 export { getInputModeFromTypes } from "./MultiModeExpressionEditor/ChipExpressionEditor/utils";
 export { NodeReferenceSelectEditor } from "./MultiModeExpressionEditor/NodeReferenceSelectEditor/NodeReferenceSelectEditor";
+export {
+    applyTypedText,
+    canToggleModifier,
+    parseTypeShape,
+    printTypeShape,
+    splitTypedSuffixes,
+    toggleTypeModifier,
+    TYPE_MODIFIERS,
+    VALUE_TYPE_MODIFIERS
+} from "./typeModifiers";
+export { TYPE_MODIFIER_INFO } from "./TypeModifierTooltip";
+export { revealSyntaxTogglesOnHover, SyntaxToggles } from "./SyntaxToggles";
+export type { SyntaxToggleItem } from "./SyntaxToggles";
+export type { TypeModifier } from "./typeModifiers";
