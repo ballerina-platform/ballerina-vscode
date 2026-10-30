@@ -68,7 +68,10 @@ jest.mock("@wso2/ui-toolkit", () => ({
     Codicon: (): null => null,
     Icon: (): null => null,
     Divider: (): null => null,
-    CheckBox: (): null => null,
+    CheckBox: ({ checked, onChange, label }: any) => (
+        <input type="checkbox" aria-label={label} checked={checked}
+            onChange={(e) => onChange(e.target.checked)} />
+    ),
     Tooltip: ({ children }: any) => <>{children}</>,
     ProgressIndicator: (): null => null,
     ProgressRing: () => <div data-testid="progress-ring" />,
@@ -161,6 +164,10 @@ function emptyDirectoryMap(): Record<string, unknown[]> {
     };
 }
 
+interface ICPRpc {
+    addICPResponse?: { enabled?: boolean; errorMsg?: string };
+}
+
 interface WorkflowRpc {
     workflowImported?: boolean;
     runtime?: { mode: string; url: string; reachable?: boolean };
@@ -169,7 +176,7 @@ interface WorkflowRpc {
     switchRejects?: boolean;
 }
 
-function makeRpc(directoryMap: Record<string, unknown[]>, workflow: WorkflowRpc = {}) {
+function makeRpc(directoryMap: Record<string, unknown[]>, workflow: WorkflowRpc = {}, icp: ICPRpc = {}) {
     // Typed argument so `mock.calls[0][0]` is a real element rather than an empty tuple.
     const openView = jest.fn(async (_request: { type: string; location: { view: string } }): Promise<void> => undefined);
     const runtime = workflow.runtime ?? { mode: "LOCAL", url: "localhost:7233", reachable: true };
@@ -190,6 +197,12 @@ function makeRpc(directoryMap: Record<string, unknown[]>, workflow: WorkflowRpc 
         }
         return runtime;
     });
+    const icpRpc = {
+        isIcpEnabled: jest.fn(async (_request: { projectPath: string }) => ({ enabled: false })),
+        addICP: jest.fn(async (_request: { projectPath: string }) => icp.addICPResponse ?? { enabled: true }),
+        disableICP: jest.fn(async (_request: { projectPath: string }) => ({ enabled: false })),
+        isICPServerRunning: jest.fn(async () => ({ enabled: false })),
+    };
     const rpcClient = {
         getVisualizerRpcClient: () => ({ openView, goBack: jest.fn() }),
         getBIDiagramRpcClient: () => ({
@@ -200,7 +213,7 @@ function makeRpc(directoryMap: Record<string, unknown[]>, workflow: WorkflowRpc 
             handleReadmeContent: async () => ({ content: "" }),
         }),
         getCommonRpcClient: () => ({ isNPSupported: async () => false }),
-        getICPRpcClient: () => ({ isIcpEnabled: async () => ({ enabled: false }) }),
+        getICPRpcClient: () => icpRpc,
         getWorkflowManagementRpcClient: () => ({
             isWorkflowManagementEnabled: async () => ({ enabled: false, workflowImported: workflow.workflowImported }),
             getWorkflowRuntimeStatus,
@@ -210,7 +223,7 @@ function makeRpc(directoryMap: Record<string, unknown[]>, workflow: WorkflowRpc 
         getAiPanelRpcClient: () => ({ showSignInAlert: async () => false }),
         onProjectContentUpdated: jest.fn(() => (): void => undefined),
     };
-    return { rpcClient, openView, useInMemoryWorkflowRuntime, useLocalWorkflowRuntime, getWorkflowRuntimeStatus };
+    return { rpcClient, openView, useInMemoryWorkflowRuntime, useLocalWorkflowRuntime, getWorkflowRuntimeStatus, icpRpc };
 }
 
 describe("PackageOverview add-artifact entry point", () => {
@@ -468,5 +481,78 @@ describe("PackageOverview workflow section", () => {
         }
         expect(text()).toContain(SWITCH_FAILED);
         expect(text()).toContain(NO_RUNTIME_TITLE);
+    });
+});
+
+// ICP is toggled per integration. The overview must name the integration it shows rather than
+// leave the extension to fall back to its last-known project, which in a multi-integration
+// project can be another integration, so the build options landed in the wrong Ballerina.toml.
+describe("PackageOverview ICP toggle", () => {
+    let container: HTMLDivElement;
+    let root: Root;
+
+    beforeEach(() => {
+        container = document.createElement("div");
+        document.body.appendChild(container);
+        root = createRoot(container);
+    });
+
+    afterEach(() => {
+        act(() => root.unmount());
+        container.remove();
+    });
+
+    const renderOverview = async (rpcClient: any) => {
+        await act(async () => {
+            root.render(
+                <TestRpcContext.Provider value={{ rpcClient }}>
+                    <PackageOverview projectPath={PROJECT_PATH} isInDevant={false} isICPSupported />
+                </TestRpcContext.Provider>
+            );
+        });
+        for (let i = 0; i < 10; i++) {
+            await act(async () => undefined);
+        }
+    };
+
+    const icpCheckbox = () =>
+        container.querySelector<HTMLInputElement>('input[aria-label="Enable ICP monitoring"]')!;
+
+    const toggle = async () => {
+        await act(async () => {
+            icpCheckbox().click();
+        });
+        for (let i = 0; i < 5; i++) {
+            await act(async () => undefined);
+        }
+    };
+
+    it("reads the ICP state of the integration on screen", async () => {
+        const { rpcClient, icpRpc } = makeRpc(emptyDirectoryMap());
+        await renderOverview(rpcClient);
+
+        expect(icpRpc.isIcpEnabled).toHaveBeenCalledWith({ projectPath: PROJECT_PATH });
+    });
+
+    it("enables and disables ICP for the integration on screen", async () => {
+        const { rpcClient, icpRpc } = makeRpc(emptyDirectoryMap());
+        await renderOverview(rpcClient);
+
+        await toggle();
+        expect(icpRpc.addICP).toHaveBeenCalledWith({ projectPath: PROJECT_PATH });
+        expect(icpCheckbox().checked).toBe(true);
+
+        await toggle();
+        expect(icpRpc.disableICP).toHaveBeenCalledWith({ projectPath: PROJECT_PATH });
+        expect(icpCheckbox().checked).toBe(false);
+    });
+
+    it("unticks the box when the extension could not enable ICP", async () => {
+        const { rpcClient } = makeRpc(emptyDirectoryMap(), {},
+            { addICPResponse: { enabled: false, errorMsg: "Ballerina.toml not found" } });
+        await renderOverview(rpcClient);
+
+        await toggle();
+        expect(icpCheckbox().checked).toBe(false);
     });
 });
