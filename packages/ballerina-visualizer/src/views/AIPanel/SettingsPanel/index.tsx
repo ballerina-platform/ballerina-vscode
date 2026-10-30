@@ -252,6 +252,7 @@ export const SettingsPanel = (props: SettingsPanelProps) => {
     const [toggles, setToggles] = useState(GENERAL_TOGGLE_DEFAULTS);
     /** Switches with a write in flight; a second click waits for the host to answer. */
     const pendingToggles = useRef(new Set<GeneralToggleKey>());
+    const openingAgentsMd = useRef(false);
     // TODO(auto-memory): memory UI state temporarily disabled for this release — restore once the memory feature is refined.
     // const [clearing, setClearing] = React.useState<'workspace' | 'all' | null>(null);
     // const [clearError, setClearError] = React.useState<string | null>(null);
@@ -344,8 +345,18 @@ export const SettingsPanel = (props: SettingsPanelProps) => {
         return `${n} line${n === 1 ? "" : "s"}`;
     })();
 
+    const agentsMdTooltip = (() => {
+        if (!agentsMdInfo) return undefined;
+        if (!agentsMdInfo.hasWorkspace) return "Open a workspace folder to create AGENTS.md";
+        return agentsMdInfo.fileExists ? "Edit AGENTS.md" : "Create AGENTS.md";
+    })();
+
     const handleOpenAgentsMd = () => {
-        rpcClient.getAiPanelRpcClient().openOrCreateAgentsMd().catch(() => { /* noop */ });
+        if (openingAgentsMd.current) return;
+        openingAgentsMd.current = true;
+        rpcClient.getAiPanelRpcClient().openOrCreateAgentsMd()
+            .catch(() => { /* noop */ })
+            .finally(() => { openingAgentsMd.current = false; });
     };
 
 
@@ -369,8 +380,8 @@ export const SettingsPanel = (props: SettingsPanelProps) => {
             icon: <span className="codicon codicon-file" style={{ fontSize: 16 }} />,
             label: "Agent instructions",
             subtitle: agentsMdSubtitle,
-            onEditFile: handleOpenAgentsMd,
-            editFileTitle: agentsMdInfo?.fileExists ? "Edit AGENTS.md" : "Create AGENTS.md",
+            tooltip: agentsMdTooltip,
+            onOpenPanel: handleOpenAgentsMd,
         },
     ];
 
