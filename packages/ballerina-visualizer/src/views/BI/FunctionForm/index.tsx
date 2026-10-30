@@ -17,7 +17,7 @@
  */
 
 import React, { useEffect, useRef, useState } from "react";
-import { FunctionNode, LineRange, NodeKind, NodeProperties, NodePropertyKey, DIRECTORY_MAP, EVENT_TYPE, getPrimaryInputType, isTemplateType, RecordTypeField } from "@wso2/ballerina-core";
+import { FunctionNode, LineRange, NodeKind, NodeMetadata, NodeProperties, NodePropertyKey, DIRECTORY_MAP, EVENT_TYPE, getPrimaryInputType, isTemplateType, RecordTypeField } from "@wso2/ballerina-core";
 import { Button, Codicon, Icon, ThemeColors, Typography, View, ViewContent } from "@wso2/ui-toolkit";
 import styled from "@emotion/styled";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
@@ -243,6 +243,25 @@ export function FunctionForm(props: FunctionFormProps) {
                 // Instructions, Model, Role. Restore the order the fields are filled in.
                 fields = orderFormFields(fields, DURABLE_AGENT_FORM_ORDER);
             }
+        }
+
+        // An agent tool's approval function must take exactly the tool's parameters and return boolean,
+        // and the language server keeps it in step when the tool is saved. Lock both so they can't drift.
+        const approvalFor = (functionNode?.metadata?.data as NodeMetadata)?.approvalFunctionFor;
+        if (Array.isArray(approvalFor) && approvalFor.length > 0) {
+            const tools = approvalFor.join(", ");
+            fields.forEach((field) => {
+                if (field.key === "parameters") {
+                    field.readonlyParameters = true;
+                    field.addNewButton = false;
+                    field.documentation = `Approval function for ${tools}. Its parameters follow the tool; `
+                        + "change them on the tool instead.";
+                }
+                if (field.key === "type") {
+                    field.editable = false;
+                    field.documentation = "Approval functions always return boolean.";
+                }
+            });
         }
 
         setFunctionFields(fields);

@@ -260,6 +260,10 @@ interface AnnotationCodeDataHints {
     field?: string;
     optional?: boolean;
     value?: string;
+    // On an @ai:AgentTool annotation: whether it gates the tool for approval
+    requiresApproval?: boolean;
+    // On an @ai:AgentTool annotation: the local function its requiresApproval field names
+    approvalFunction?: string;
 }
 
 /**

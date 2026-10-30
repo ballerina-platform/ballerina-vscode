@@ -45,7 +45,6 @@ import io.ballerina.compiler.api.symbols.TypeSymbol;
 import io.ballerina.compiler.api.symbols.UnionTypeSymbol;
 import io.ballerina.compiler.api.symbols.VariableSymbol;
 import io.ballerina.compiler.api.values.ConstantValue;
-import io.ballerina.compiler.syntax.tree.AnnotationNode;
 import io.ballerina.compiler.syntax.tree.AssignmentStatementNode;
 import io.ballerina.compiler.syntax.tree.CheckExpressionNode;
 import io.ballerina.compiler.syntax.tree.ExpressionNode;
@@ -58,7 +57,6 @@ import io.ballerina.compiler.syntax.tree.MappingConstructorExpressionNode;
 import io.ballerina.compiler.syntax.tree.MappingFieldNode;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
 import io.ballerina.compiler.syntax.tree.NamedArgumentNode;
-import io.ballerina.compiler.syntax.tree.Node;
 import io.ballerina.compiler.syntax.tree.NonTerminalNode;
 import io.ballerina.compiler.syntax.tree.PositionalArgumentNode;
 import io.ballerina.compiler.syntax.tree.QualifiedNameReferenceNode;
@@ -80,6 +78,7 @@ import io.ballerina.flowmodelgenerator.core.model.PropertyCodedata;
 import io.ballerina.flowmodelgenerator.core.model.PropertyType;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
 import io.ballerina.flowmodelgenerator.core.utils.ParamUtils;
+import io.ballerina.modelgenerator.commons.ApprovalFunctionSync;
 import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.PackageUtil;
@@ -1976,31 +1975,14 @@ public class AiUtils {
                     continue;
                 }
                 FunctionDefinitionNode functionDefinition = (FunctionDefinitionNode) node;
-                if (functionDefinition.metadata().isEmpty()) {
-                    continue;
-                }
-                for (AnnotationNode annotation : functionDefinition.metadata().get().annotations()) {
-                    Node annotRef = annotation.annotReference();
-                    if (annotRef.kind() != SyntaxKind.QUALIFIED_NAME_REFERENCE) {
-                        continue;
-                    }
-
-                    QualifiedNameReferenceNode qualifiedNameRef = (QualifiedNameReferenceNode) annotRef;
-                    if (!AGENT_TOOL_ANNOT.equals(qualifiedNameRef.identifier().text())) {
-                        continue;
-                    }
-
-                    return annotation.annotValue()
-                            .flatMap(mapping -> mapping.fields().stream()
-                                    .filter(field -> field instanceof SpecificFieldNode specificField
-                                            && REQUIRES_APPROVAL.equals(
-                                                    specificField.fieldName().toSourceCode().trim()))
-                                    .map(field -> (SpecificFieldNode) field)
-                                    .findFirst())
-                            // Gated unless the value is the literal `false`; absent field -> not gated.
-                            .map(specificField -> !"false".equals(
-                                    specificField.valueExpr().map(expr -> expr.toSourceCode().trim()).orElse("")))
-                            .orElse(false);
+                boolean annotated = functionDefinition.metadata()
+                        .map(metadata -> metadata.annotations().stream().anyMatch(annotation ->
+                                annotation.annotReference() instanceof QualifiedNameReferenceNode reference
+                                        && AGENT_TOOL_ANNOT.equals(reference.identifier().text())))
+                        .orElse(false);
+                if (annotated) {
+                    // Gated unless the value is the literal `false`; absent field -> not gated.
+                    return ApprovalFunctionSync.requiresApproval(functionDefinition.metadata());
                 }
             }
             return false;

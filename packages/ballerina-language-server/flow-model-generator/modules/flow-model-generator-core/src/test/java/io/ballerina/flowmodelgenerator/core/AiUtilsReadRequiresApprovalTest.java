@@ -75,6 +75,11 @@ public class AiUtilsReadRequiresApprovalTest {
         Assert.assertTrue(AiUtils.readRequiresApproval(findFunction("predicateGatedTool"), project));
     }
 
+    @Test(description = "A commented-out field above the real one is ignored")
+    public void testCommentedOutFieldIgnored() {
+        Assert.assertFalse(AiUtils.readRequiresApproval(findFunction("commentedOutGateTool"), project));
+    }
+
     private FunctionSymbol findFunction(String name) {
         return semanticModel.moduleSymbols().stream()
                 .filter(symbol -> symbol instanceof FunctionSymbol)

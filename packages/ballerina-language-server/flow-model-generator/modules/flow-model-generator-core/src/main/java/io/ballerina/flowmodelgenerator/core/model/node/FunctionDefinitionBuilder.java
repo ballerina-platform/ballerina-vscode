@@ -27,6 +27,8 @@ import io.ballerina.flowmodelgenerator.core.model.NodeBuilder;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
+import io.ballerina.modelgenerator.commons.AgentToolAnnotation;
+import io.ballerina.modelgenerator.commons.ApprovalFunctionSync;
 import org.eclipse.lsp4j.TextEdit;
 
 import java.nio.file.Path;
@@ -109,6 +111,7 @@ public class FunctionDefinitionBuilder extends NodeBuilder {
 
         Optional<Property> parameters = sourceBuilder.getProperty(Property.PARAMETERS_KEY);
         String params = "";
+        List<ApprovalFunctionSync.Param> toolParams = new ArrayList<>();
         Map<String, String> paramsDesc = new HashMap<>();
         if (parameters.isPresent() && parameters.get().value() instanceof Map<?, ?> paramMap) {
             List<String> paramList = new ArrayList<>();
@@ -123,6 +126,7 @@ public class FunctionDefinitionBuilder extends NodeBuilder {
                 String paramType = paramProperties.get(Property.TYPE_KEY).value().toString();
                 String paramName = paramProperties.get(Property.VARIABLE_KEY).value().toString();
                 paramList.add(paramType + " " + paramName);
+                toolParams.add(new ApprovalFunctionSync.Param(paramType, paramName));
                 if (optDescription.isPresent()) {
                     Property property = paramProperties.get(Property.PARAMETER_DESCRIPTION_KEY);
                     if (property != null) {
@@ -163,10 +167,9 @@ public class FunctionDefinitionBuilder extends NodeBuilder {
             }
         }
 
-        Optional<Property> annotationsProperty = sourceBuilder.getProperty(Property.ANNOTATIONS_KEY);
-        if (annotationsProperty.isPresent()) {
-            sourceBuilder.token().name(annotationsProperty.get().toSourceCode()).newLine();
-        }
+        Optional<String> annotations = sourceBuilder.getProperty(Property.ANNOTATIONS_KEY)
+                .map(property -> withToolFormFields(property.toSourceCode(), sourceBuilder.flowNode.codedata().data()));
+        annotations.ifPresent(source -> sourceBuilder.token().name(source).newLine());
 
         Optional<Property> visibilityProperty = sourceBuilder.getProperty(Property.IS_PUBLIC_KEY);
         if (visibilityProperty.isPresent() && Boolean.parseBoolean(visibilityProperty.get().value().toString())) {
@@ -221,7 +224,36 @@ public class FunctionDefinitionBuilder extends NodeBuilder {
                     .token().skipFormatting().stepOut()
                     .textEdit();
         }
-        return sourceBuilder.build();
+        Map<Path, List<TextEdit>> textEdits = sourceBuilder.build();
+        if (annotations.isPresent()) {
+            syncApprovalFunction(sourceBuilder, annotations.get(), toolParams, codedata, isNewDefinition)
+                    .forEach((path, edits) -> textEdits.computeIfAbsent(path, ignored -> new ArrayList<>())
+                            .addAll(edits));
+        }
+        return textEdits;
+    }
+
+    // The agent tool form sends a tool's auth and approval gate as data; other function forms send neither.
+    private static String withToolFormFields(String annotations, Map<String, Object> data) {
+        if (data == null || !(data.containsKey(AgentToolAnnotation.AUTH)
+                || data.containsKey(AgentToolAnnotation.REQUIRES_APPROVAL))) {
+            return annotations;
+        }
+        return AgentToolAnnotation.update(annotations, data.get(AgentToolAnnotation.AUTH),
+                data.get(AgentToolAnnotation.REQUIRES_APPROVAL));
+    }
+
+    // An agent tool gated by `requiresApproval: <fn>` keeps <fn>'s parameters in step with its own, and gets <fn>
+    // generated when it doesn't exist yet (e.g. added from the tool form). See ApprovalFunctionSync.
+    private static Map<Path, List<TextEdit>> syncApprovalFunction(SourceBuilder sourceBuilder, String annotations,
+                                                                  List<ApprovalFunctionSync.Param> toolParams,
+                                                                  Codedata codedata, boolean isNewDefinition) {
+        Optional<String> functionName = ApprovalFunctionSync.approvalFunctionName(annotations);
+        if (functionName.isEmpty() || sourceBuilder.workspaceManager == null || sourceBuilder.filePath == null) {
+            return Map.of();
+        }
+        return ApprovalFunctionSync.sync(sourceBuilder.workspaceManager, sourceBuilder.filePath, functionName.get(),
+                toolParams, isNewDefinition ? null : codedata.lineRange(), true);
     }
 
     private static class ParameterSchemaHolder {

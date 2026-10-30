@@ -29,3 +29,11 @@ isolated function alwaysApprove(json toolInput) returns boolean {
 isolated function predicateGatedTool(string input) returns string {
     return input;
 }
+
+@ai:AgentTool {
+    // requiresApproval: true,
+    requiresApproval: false
+}
+isolated function commentedOutGateTool(string input) returns string {
+    return input;
+}
