@@ -75,7 +75,7 @@ export interface FormFieldEditorProps {
     isContextTypeEditorSupported?: boolean;
     openFormTypeEditor?: (open: boolean, newType?: string) => void;
     updateImports?: (key: string, imports: Imports) => void;
-    handleFormValidation?: (formData?: FormValues, forceValidation?: boolean) => Promise<boolean>;
+    handleFormValidation?: (formData?: FormValues, forceValidation?: boolean, inBackground?: boolean) => Promise<boolean>;
 }
 
 export const EditorFactory = (props: FormFieldEditorProps) => {

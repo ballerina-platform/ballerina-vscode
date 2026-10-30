@@ -178,16 +178,9 @@ export namespace S {
         overflow: 'hidden',
         textOverflow: 'ellipsis',
         whiteSpace: 'nowrap',
-        opacity: 0,
-        animation: `${isVisible ? 'fadeIn' : 'fadeOut'} 0.2s ease-${isVisible ? 'in' : 'out'} forwards`,
-        '@keyframes fadeIn': {
-            '0%': { opacity: 0 },
-            '100%': { opacity: 1 }
-        },
-        '@keyframes fadeOut': {
-            '0%': { opacity: 1 },
-            '100%': { opacity: 0 }
-        }
+        opacity: isVisible ? 1 : 0,
+        // A transition, unlike a fade-out animation, does not play when the editor remounts on a mode switch.
+        transition: 'opacity 0.2s ease'
     }));
 
     export const Label = styled.label({
@@ -388,6 +381,29 @@ export const DataMapperJoinClauseRhsEditor = (props: ContextAwareExpressionEdito
 };
 
 
+// Prompt fields get a visible way into the expanded editor; a field's own action takes precedence.
+export const FieldActionLink = ({ field, onOpenPromptEditor }: { field: FormField; onOpenPromptEditor?: () => void }) => {
+    const onClick = field.actionCallback ?? onOpenPromptEditor;
+    if (!onClick) {
+        return null;
+    }
+    return (
+        <LinkButton onClick={onClick} sx={{ padding: "4px 6px", margin: 0, marginTop: "6px", fontSize: "13px" }}>
+            {field.actionCallback ? field.actionLabel : <><Codicon name="edit" />Open in Prompt Editor</>}
+        </LinkButton>
+    );
+};
+
+// The expected type matters while writing an expression; the other modes already show the kind of value.
+export const FieldTypePill = ({ types, inputMode, focused }: { types: FormField["types"]; inputMode: InputMode; focused: boolean }) => {
+    const typeLabel = inputMode === InputMode.EXP ? getFieldTypeLabel(types) : undefined;
+    return typeLabel ? (
+        <S.Type style={{ marginLeft: '5px' }} isVisible={focused} title={typeLabel}>
+            {sanitizeType(typeLabel)}
+        </S.Type>
+    ) : null;
+};
+
 export const ExpressionEditor = (props: ExpressionEditorProps) => {
     const {
         autoFocus,
@@ -487,6 +503,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
     };
 
     const { inputMode } = modeSwitcherContext;
+    const showHeaderSkeleton = isLoading && !modeSwitcherContext.hasSwitchedMode;
 
     // The type member the user is currently editing. Validation rules live on a `types[]` member
     // and run only while that member is active, so a NUMBER member's `port` rule is skipped the
@@ -676,7 +693,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
                     <S.Header>
                         {field.label && (
                             <S.HeaderContainer reserveSwitcherRow={!field.hideModeSwitcher}>
-                                {isLoading ? (
+                                {showHeaderSkeleton ? (
                                     <SkeletonBase height="14px" width="40%" />
                                 ) : (
                                     <S.LabelContainer>
@@ -690,11 +707,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
                                         </span>
                                         {defaultHint && <S.DefaultValue style={{ marginLeft: '8px' }}>{`(Default: ${defaultHint}) `}</S.DefaultValue>}
                                         {(required ?? !field.optional) && <RequiredFormInput />}
-                                        {getFieldTypeLabel(field.types) && (
-                                            <S.Type style={{ marginLeft: '5px' }} isVisible={focused} title={getFieldTypeLabel(field.types)}>
-                                                {sanitizeType(getFieldTypeLabel(field.types))}
-                                            </S.Type>
-                                        )}
+                                        <FieldTypePill types={field.types} inputMode={inputMode} focused={focused} />
                                     </S.LabelContainer>
                                 )}
                                 {!documentation && modeSwitcherNode}
@@ -703,7 +716,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
                         {(documentation || !field.label) && (
                             <S.HeaderRow>
                                 <S.HeaderMain>
-                                    {isLoading ? (
+                                    {showHeaderSkeleton ? (
                                         documentation ? <SkeletonBase height="13px" width="80%" /> : null
                                     ) : (
                                         <S.EditorMdContainer>
@@ -923,14 +936,10 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
                                         </>
                                     );
                                 })()}
-                                {field.actionCallback && (
-                                    <LinkButton
-                                        onClick={field.actionCallback}
-                                        sx={{ padding: "4px 6px", margin: 0, marginTop: "6px", fontSize: "13px" }}
-                                    >
-                                        {field.actionLabel}
-                                    </LinkButton>
-                                )}
+                                <FieldActionLink
+                                    field={field}
+                                    onOpenPromptEditor={inputMode === InputMode.PROMPT ? onOpenExpandedMode : undefined}
+                                />
                                 {onOpenExpandedMode && toEditorMode(inputMode) && (
                                     <ExpandedEditor
                                         isOpen={isExpandedModalOpen}
