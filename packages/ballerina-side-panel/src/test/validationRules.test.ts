@@ -17,7 +17,7 @@
  */
 
 import { FormField } from "../components/Form/types";
-import { CLIENT_VALIDATION_RULES } from "../components/Form/validationRules";
+import { buildValidate, CLIENT_VALIDATION_RULES } from "../components/Form/validationRules";
 
 const field = {} as FormField;
 const run = (rule: string, value: string) => CLIENT_VALIDATION_RULES[rule](value, {}, field, {});
@@ -29,5 +29,48 @@ describe.each(["common.validate.service.path", "vscode.validate.resource.path"])
 
     it.each(["function", "chat/service", "/listener", "class", "a/foreach"])("rejects the bare reserved word in %s", (path) => {
         expect(run(rule, path)).toBeDefined();
+    });
+});
+
+describe("vscode.validate.not.in", () => {
+    const taken = { values: ["item", "books"] };
+    const runNotIn = (value: string, args: Record<string, unknown> = taken) =>
+        CLIENT_VALIDATION_RULES["vscode.validate.not.in"](value, args, field, {});
+
+    it.each(["item", " item ", "'item", "books"])("rejects the taken name %s", (name) => {
+        expect(runNotIn(name)).toBeDefined();
+    });
+
+    it.each(["items", "Item", "author", ""])("accepts %s", (name) => {
+        expect(runNotIn(name)).toBeUndefined();
+    });
+
+    it.each(["type", "'type"])("rejects %s when the taken name is quoted", (name) => {
+        expect(runNotIn(name, { values: [" 'type "] })).toBeDefined();
+    });
+
+    it("accepts anything when no names are taken", () => {
+        expect(runNotIn("item", {})).toBeUndefined();
+    });
+
+    it("reports the field's own message with the name filled in", () => {
+        const nameField: FormField = {
+            key: "name",
+            label: "Field Name",
+            type: "IDENTIFIER",
+            optional: false,
+            editable: true,
+            enabled: true,
+            documentation: "",
+            value: "",
+            types: [{
+                fieldType: "IDENTIFIER",
+                selected: true,
+                validations: [{ rule: "vscode.validate.not.in", args: taken, message: "A field named '{value}' already exists" }],
+            }],
+        };
+        const [validate] = Object.values(buildValidate(nameField));
+        expect(validate("item")).toBe("A field named 'item' already exists");
+        expect(validate("author")).toBe(true);
     });
 });

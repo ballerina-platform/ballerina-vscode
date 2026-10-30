@@ -17,7 +17,7 @@
  */
 
 import { ErrorBanner, TextField } from "@wso2/ui-toolkit";
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import { debounce } from "lodash";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { useFormContext } from "../../context";
@@ -53,7 +53,34 @@ export function IdentifierField(props: IdentifierFieldProps) {
         setValue(field.key, field.value ?? '');
     }, [field.key, field.value, setValue]);
 
+    // The field's client rules (e.g. a name already in use) would otherwise only show their message on
+    // Save, while the form's background validity check already keeps Save disabled without saying why.
+    // Read through a ref so a new field object doesn't recreate the debounced check below.
+    const fieldRef = useRef(field);
+    fieldRef.current = field;
+    // The required rule is registered separately, so it is checked here too; clearing the error below
+    // would otherwise drop its message from a field the user has just emptied.
+    const showClientRuleError = useCallback((value: string) => {
+        const required = buildRequiredRule({ isRequired: !fieldRef.current.optional, label: fieldRef.current.label });
+        if (required && value === "") {
+            setError(field.key, { type: "required", message: required.message });
+            return;
+        }
+        const failure = Object.values(buildValidate(fieldRef.current))
+            .map((validate) => validate(value))
+            .find((result): result is string => typeof result === "string");
+        if (failure) {
+            setError(field.key, { type: "validate", message: failure });
+        } else {
+            clearErrors(field.key);
+        }
+    }, [field.key, setError, clearErrors]);
+
+    // A slower response for an older value must not overwrite the result for the latest one.
+    const latestRequestRef = useRef(0);
     const validateIdentifierName = useCallback(debounce(async (value: string) => {
+        const requestId = ++latestRequestRef.current;
+        const isStale = () => requestId !== latestRequestRef.current;
         try {
             const response = await rpcClient.getBIDiagramRpcClient().getExpressionDiagnostics({
                 filePath: fileName,
@@ -66,6 +93,9 @@ export function IdentifierField(props: IdentifierFieldProps) {
                     property: getPropertyFromFormField(field)
                 }
             });
+            if (isStale()) {
+                return;
+            }
             if (response.diagnostics.length > 0) {
                 const rawDiagnostic = response.diagnostics[0];
                 setFormDiagnostics([{ message: getFriendlyIdentifierMessage(rawDiagnostic.message, field.label), severity: mapDiagnosticsServerityToFormSeverity(rawDiagnostic.severity) }]);
@@ -73,18 +103,21 @@ export function IdentifierField(props: IdentifierFieldProps) {
                 if (errorDiagnostic) {
                     setError(field.key, { type: "identifier_diagnostic", message: getFriendlyIdentifierMessage(errorDiagnostic.message, field.label) });
                 } else {
-                    clearErrors(field.key);
+                    showClientRuleError(value);
                 }
             } else {
                 setFormDiagnostics([]);
-                clearErrors(field.key);
+                showClientRuleError(value);
             }
         } catch (error) {
+            if (isStale()) {
+                return;
+            }
             console.error('Failed to fetch expression diagnostics:', error);
             setFormDiagnostics([]);
-            clearErrors(field.key);
+            showClientRuleError(value);
         }
-    }, 250), [rpcClient, field.key, field.codedata, targetLineRange, fileName, setError, clearErrors]);
+    }, 250), [rpcClient, field.key, field.codedata, targetLineRange, fileName, setError, showClientRuleError]);
 
     // Validate on value change, but skip a pristine empty value so a freshly opened field
     // doesn't show an error upfront (Save still triggers the required rule).

@@ -21,6 +21,7 @@ import { FunctionModel, LineRange, ParameterModel, ConfigProperties, PropertyMod
 import { ArtifactForm } from '../BI/Forms/ArtifactForm';
 import { FormField, FormImports, FormValues, Parameter } from '@wso2/ballerina-side-panel';
 import { getImportsForProperty } from '../../utils/bi';
+import { getTakenOperationNames, withTakenNamesRule } from './operationNames';
 
 interface OperationFormProps {
     model: FunctionModel;
@@ -31,11 +32,13 @@ interface OperationFormProps {
     onSave: (model: FunctionModel) => void;
     onClose: () => void;
     isSaving: boolean;
+    // Sibling operations, so the name field can reject one that is already taken
+    existingOperations?: FunctionModel[];
 }
 
 export function OperationForm(props: OperationFormProps) {
     console.log("OperationForm props: ", props);
-    const { model, onSave, onClose, filePath, lineRange, isGraphqlView, isServiceClass, isSaving } = props;
+    const { model, onSave, onClose, filePath, lineRange, isGraphqlView, isServiceClass, isSaving, existingOperations } = props;
     const [fields, setFields] = useState<FormField[]>([]);
     const [recordTypeFields, setRecordTypeFields] = useState<RecordTypeField[]>([]);
 
@@ -147,7 +150,11 @@ export function OperationForm(props: OperationFormProps) {
             enabled: model.name.enabled,
             documentation: model.name.metadata?.description || '',
             value: model.name.value,
-            types: model.name?.types,
+            types: withTakenNamesRule(
+                model.name?.types,
+                getTakenOperationNames(model, existingOperations),
+                `A ${isGraphqlView ? 'field' : 'function'} named '{value}' already exists`
+            ),
             lineRange: model?.name?.codedata?.lineRange
         });
 
