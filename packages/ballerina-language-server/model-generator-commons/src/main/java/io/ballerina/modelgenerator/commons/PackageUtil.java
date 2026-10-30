@@ -33,6 +33,7 @@ import io.ballerina.projects.PackageOrg;
 import io.ballerina.projects.PackageVersion;
 import io.ballerina.projects.Project;
 import io.ballerina.projects.ProjectEnvironmentBuilder;
+import io.ballerina.projects.ProjectKind;
 import io.ballerina.projects.bala.BalaProject;
 import io.ballerina.projects.directory.BuildProject;
 import io.ballerina.projects.environment.PackageMetadataResponse;
@@ -44,7 +45,10 @@ import io.ballerina.projects.environment.ResolutionResponse;
 import io.ballerina.projects.internal.environment.BallerinaUserHome;
 import io.ballerina.projects.repos.TempDirCompilationCache;
 import io.ballerina.projects.util.ProjectConstants;
+import io.ballerina.projects.util.ProjectUtils;
 import org.ballerinalang.langserver.LSClientLogger;
+import org.ballerinalang.langserver.command.executors.CorruptBirCacheParams;
+import org.ballerinalang.langserver.command.executors.PullModuleExecutor;
 import org.ballerinalang.langserver.common.utils.CommonUtil;
 import org.ballerinalang.langserver.commons.BallerinaCompilerApi;
 import org.ballerinalang.langserver.commons.eventsync.exceptions.EventSyncException;
@@ -52,6 +56,7 @@ import org.ballerinalang.langserver.commons.workspace.ProjectLocks;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceDocumentException;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceManager;
 import org.eclipse.lsp4j.MessageType;
+import org.wso2.ballerinalang.util.RepoUtils;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -60,15 +65,18 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Stream;
 
 /**
  * Utility class that contains methods to perform package-related operations.
@@ -323,7 +331,9 @@ public class PackageUtil {
      */
     public static Optional<SemanticModel> getSemanticModel(ModuleInfo moduleInfo) {
         Optional<Package> modulePackage = getModulePackage(getSampleProject(), moduleInfo.org(),
-                moduleInfo.packageName(), moduleInfo.version());
+                moduleInfo.packageName(), moduleInfo.version())
+                .filter(pkg -> findModule(pkg, moduleInfo.moduleName()).isPresent())
+                .map(PackageUtil::compileBala);
         if (modulePackage.isEmpty()) {
             return Optional.empty();
         }
@@ -333,8 +343,49 @@ public class PackageUtil {
     }
 
     public static Optional<SemanticModel> getSemanticModel(String org, String name) {
-        return getModulePackage(getSampleProject(), org, name).map(
+        return getModulePackage(getSampleProject(), org, name).map(PackageUtil::compileBala).map(
                 pkg -> getCompilation(pkg).getSemanticModel(pkg.getDefaultModule().moduleId()));
+    }
+
+    // The compiler reuses a dependency's cached BIR even when it was built against other dependency versions.
+    static Package compileBala(Package pkg) {
+        Set<String> clearedPackages = new HashSet<>();
+        Package current = pkg;
+        while (true) {
+            try {
+                getCompilation(current);
+                return current;
+            } catch (RuntimeException e) {
+                if (current.project().kind() != ProjectKind.BALA_PROJECT
+                        || !clearFailedBirCache(e, current.project(), clearedPackages)) {
+                    throw e;
+                }
+                current = loadBalaPackage(current.project().sourceRoot()).orElseThrow(() -> e);
+            }
+        }
+    }
+
+    static boolean clearFailedBirCache(Throwable error, Project project, Set<String> clearedPackages) {
+        Optional<CorruptBirCacheParams> failed = PullModuleExecutor.detectCorruptBirCache(error, project)
+                .filter(params -> params.getVersion() != null)
+                .filter(params -> clearedPackages.add(params.getOrg() + "/" + params.getPackageName() + ":"
+                        + params.getVersion()));
+        if (failed.isEmpty()) {
+            return false;
+        }
+        CorruptBirCacheParams params = failed.get();
+        Path repositories = RepoUtils.createAndGetHomeReposPath().resolve(ProjectConstants.REPOSITORIES_DIR);
+        String cacheDirName = ProjectConstants.CACHES_DIR_NAME + "-" + RepoUtils.getBallerinaShortVersion();
+        List<Path> cacheDirs = Stream.of(ProjectConstants.CENTRAL_REPOSITORY_CACHE_NAME,
+                        ProjectConstants.LOCAL_REPOSITORY_NAME)
+                .map(repository -> repositories.resolve(repository).resolve(cacheDirName).resolve(params.getOrg())
+                        .resolve(params.getPackageName()).resolve(params.getVersion()))
+                .filter(Files::isDirectory)
+                .toList();
+        LOGGER.log(Level.WARNING, String.format("Cannot load %s/%s:%s from its cached BIR; clearing %s and "
+                + "recompiling", params.getOrg(), params.getPackageName(), params.getVersion(), cacheDirs), error);
+        cacheDirs.forEach(ProjectUtils::deleteDirectory);
+        return true;
     }
 
     /**

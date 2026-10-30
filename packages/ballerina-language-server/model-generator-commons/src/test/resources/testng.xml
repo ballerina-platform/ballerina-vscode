@@ -44,4 +44,9 @@ under the License.
             <class name="io.ballerina.modelgenerator.commons.CommonUtilsTest"/>
         </classes>
     </test>
+    <test name="stale-bir-cache-test" parallel="false">
+        <classes>
+            <class name="io.ballerina.modelgenerator.commons.StaleBirCacheTest"/>
+        </classes>
+    </test>
 </suite>
