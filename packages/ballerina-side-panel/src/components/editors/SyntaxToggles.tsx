@@ -127,6 +127,8 @@ export function SyntaxToggles(props: {
                     key={item.id}
                     position={tooltipPosition}
                     containerSx={{ display: 'inline-flex' }}
+                    // The toolkit keeps a tooltip on one line; these explain themselves in a sentence, so they wrap.
+                    sx={{ whiteSpace: 'normal' }}
                     className={item.pressed ? undefined : SYNTAX_TOGGLE_OFF_CLASS}
                     content={<TypeModifierTooltip title={item.title} description={item.description} example={item.example} />}
                 >

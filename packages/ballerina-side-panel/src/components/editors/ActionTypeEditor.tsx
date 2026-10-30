@@ -156,15 +156,6 @@ const EditorRibbon = ({ onClick }: { onClick: () => void }) => {
     );
 };
 
-/**
- * The type the GraphQL ID checkbox is judged on: the value a field returns, as an error alongside it does not make
- * the value any less of a scalar.
- */
-const getGraphQLValueType = (type: string): string => {
-    const shape = parseTypeShape(type);
-    return shape.stream ? type : printTypeShape({ ...shape, error: false });
-};
-
 // Only nil is offered here: a GraphQL type is a list by what the user types, and an error is set apart from the type.
 const NULLABLE_ONLY: readonly TypeModifier[] = ["nullable"];
 
@@ -357,7 +348,7 @@ export function ActionTypeEditor(props: ActionTypeEditorProps) {
 
         if (typeValue) {
             // Check if the type is a GraphQL scalar type to show/hide checkbox
-            const isScalar = isGraphQLScalarType(getGraphQLValueType(typeValue));
+            const isScalar = isGraphQLScalarType(typeValue);
             setShowGraphqlCheckbox(isScalar);
         } else {
             // If no value, hide the checkbox
@@ -381,7 +372,7 @@ export function ActionTypeEditor(props: ActionTypeEditorProps) {
 
     // Show the GraphQL ID checkbox for scalar types only, and clear it when the type stops being one
     const updateGraphqlIdState = (updatedValue: string) => {
-        const isScalar = isGraphQLScalarType(getGraphQLValueType(updatedValue));
+        const isScalar = isGraphQLScalarType(updatedValue);
         setShowGraphqlCheckbox(isScalar);
         if (!isScalar) {
             setIsGraphqlId(false);

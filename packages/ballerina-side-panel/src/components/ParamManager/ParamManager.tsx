@@ -309,6 +309,9 @@ export function ParamManager(props: ParamManagerProps) {
                 setIsGraphql(true);
             }
         });
+    }, []);
+
+    useEffect(() => {
         renderParams();
     }, [parameters, editingSegmentId, paramConfigs, isGraphql]);
 

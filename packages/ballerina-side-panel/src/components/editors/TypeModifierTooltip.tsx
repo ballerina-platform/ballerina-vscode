@@ -45,9 +45,6 @@ const TooltipBody = styled.div`
     gap: 2px;
     max-width: 240px;
     font-size: 12px;
-    /* The toolkit's tooltip keeps its text on one line; the body wraps within its width instead, or a long message
-       runs past the box the tooltip is placed by. */
-    white-space: normal;
 `;
 
 const TooltipTitle = styled.span`

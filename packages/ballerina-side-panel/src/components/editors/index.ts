@@ -49,7 +49,7 @@ export {
     TYPE_MODIFIERS,
     VALUE_TYPE_MODIFIERS
 } from "./typeModifiers";
-export { TYPE_MODIFIER_INFO, TypeModifierTooltip } from "./TypeModifierTooltip";
+export { TYPE_MODIFIER_INFO } from "./TypeModifierTooltip";
 export { revealSyntaxTogglesOnHover, SyntaxToggles } from "./SyntaxToggles";
 export type { SyntaxToggleItem } from "./SyntaxToggles";
-export type { TypeModifier, TypeShape } from "./typeModifiers";
+export type { TypeModifier } from "./typeModifiers";

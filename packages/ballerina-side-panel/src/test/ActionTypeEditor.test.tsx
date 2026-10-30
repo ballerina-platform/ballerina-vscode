@@ -26,7 +26,7 @@ import { renderWithForm } from "./formHarness";
 import { ActionTypeEditor } from "../components/editors/ActionTypeEditor";
 
 // The toolkit's expression editor does not instantiate under jsdom: a plain input stands in for it, passing the text
-// and the end adornment through as the real one does.
+// through as the real one does.
 jest.mock("@wso2/ui-toolkit", () => {
     const actual = jest.requireActual("@wso2/ui-toolkit");
     const React = jest.requireActual("react");
@@ -40,7 +40,6 @@ jest.mock("@wso2/ui-toolkit", () => {
                     onChange={(e: any) => props.onChange(e.target.value, e.target.value.length)}
                     onBlur={props.onBlur}
                 />
-                {props.endAdornment}
             </div>
         )),
     };
