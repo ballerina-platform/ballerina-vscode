@@ -498,6 +498,10 @@ export interface ResourceMetadata {
     servicePath: string;
     /** The listener's module, e.g. "http"; absent when the LS can't tell. */
     serviceType?: string;
+    /** Unique per service in a diff; absent from an older LS. */
+    serviceId?: string;
+    /** e.g. "orderListener"; absent for an inline listener or an older LS. */
+    serviceListeners?: string;
     resourcePath: string;
     functionKind?: "resource";
 }
@@ -508,6 +512,10 @@ export interface ObjectFunctionMetadata {
     servicePath?: string;
     /** The listener's module, e.g. "http"; absent when the LS can't tell. */
     serviceType?: string;
+    /** Unique per service in a diff; absent from an older LS. */
+    serviceId?: string;
+    /** e.g. "orderListener"; absent for an inline listener or an older LS. */
+    serviceListeners?: string;
     functionKind?: ObjectFunctionKind;
 }
 

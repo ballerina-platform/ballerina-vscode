@@ -23,6 +23,8 @@
           "name": "onError",
           "servicePath": "",
           "serviceType": "tcp",
+          "serviceId": "ai:///main.bal#9",
+          "serviceListeners": "tcpListener",
           "functionKind": "remote"
         }
       },
@@ -45,6 +47,7 @@
           "accessor": "get",
           "servicePath": "",
           "serviceType": "http",
+          "serviceId": "ai:///main.bal#19",
           "resourcePath": "ready",
           "functionKind": "resource"
         }
@@ -79,6 +82,8 @@
           "accessor": "post",
           "servicePath": "/orders",
           "serviceType": "http",
+          "serviceId": "ai:///main.bal#3",
+          "serviceListeners": "httpListener",
           "resourcePath": ".",
           "functionKind": "resource"
         }
@@ -102,6 +107,7 @@
           "accessor": "post",
           "servicePath": "/payments",
           "serviceType": "http",
+          "serviceId": "ai:///main.bal#29",
           "resourcePath": "refunds",
           "functionKind": "resource"
         }

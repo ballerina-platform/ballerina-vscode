@@ -27,7 +27,7 @@ jest.mock("@wso2/ballerina-core", () => ({
     },
 }));
 
-import { getServiceGroupInfo } from "./serviceGroups";
+import { getServiceGroupInfo, getServiceGroupTitle, qualifyServiceGroups } from "./serviceGroups";
 
 const OBJECT_FUNCTION = 1;
 const LINE_RANGE = { fileName: "main.bal", startLine: { line: 0, offset: 0 }, endLine: { line: 0, offset: 0 } };
@@ -113,5 +113,81 @@ describe("getServiceGroupInfo", () => {
         { shape: "OBJECT_FUNCTION without metadata", member: diff(undefined) },
     ])("leaves a $shape out of every service group", ({ member }) => {
         expect(getServiceGroupInfo(member)).toBeUndefined();
+    });
+});
+
+// issue-2816: services that share a type and path, told apart by serviceId.
+function pathless(serviceId: string, serviceType?: string, serviceListeners?: string, name = "onMessage"): SemanticDiff {
+    return diff({ name, servicePath: "", serviceType, serviceId, serviceListeners, functionKind: "remote" });
+}
+
+const IDENTIFIED = {
+    orderSolace: pathless("ai:///main.bal#3", "solace", "orderListener"),
+    paymentSolace: pathless("ai:///main.bal#12", "solace", "paymentListener"),
+    ordersConsumer: pathless("ai:///consumers.bal#4", "rabbitmq", "channelListener"),
+    paymentsConsumer: pathless("ai:///consumers.bal#9", "rabbitmq", "channelListener"),
+    inlineSolace: pathless("ai:///main.bal#20", "solace"),
+    // Removed, and declared where orderSolace now is
+    removedSolace: pathless("ai:///main.bal#3#removed", "solace", "orderListener"),
+    untypedNamed: pathless("ai:///main.bal#30", undefined, "customListener"),
+    untypedInline: pathless("ai:///main.bal#40"),
+    http: diff({ accessor: "get", servicePath: "/orders", serviceType: "http", serviceId: "ai:///main.bal#50",
+        serviceListeners: "httpListener", resourcePath: "items" }),
+};
+
+function qualifiedTitles(members: SemanticDiff[]): string[] {
+    const services = members.map(getServiceGroupInfo);
+    qualifyServiceGroups(services);
+    return services.map(getServiceGroupTitle);
+}
+
+describe("services the LS identifies", () => {
+    const members = Object.values(IDENTIFIED);
+
+    it("never puts two different services in the same group", () => {
+        const keys = members.map((member) => getServiceGroupInfo(member).key);
+        expect(new Set(keys).size).toBe(members.length);
+    });
+
+    it("groups every member of a service together", () => {
+        const onError = pathless("ai:///main.bal#3", "solace", "orderListener", "onError");
+        expect(getServiceGroupInfo(onError).key).toBe(getServiceGroupInfo(IDENTIFIED.orderSolace).key);
+    });
+
+    it("gives every service group a header of its own", () => {
+        const titles = qualifiedTitles(members);
+        expect(new Set(titles).size).toBe(titles.length);
+    });
+
+    it("never shows a bare 'service'", () => {
+        expect(qualifiedTitles(members)).not.toContain("service");
+    });
+
+    // With neither a type nor a listener name, "/" keeps the header from being a bare "service".
+    it("never shows a path that isn't in the code when the LS sends a type or a listener name", () => {
+        const titles = qualifiedTitles(members);
+        members.forEach((member, i) => {
+            const { serviceType, listeners } = getServiceGroupInfo(member);
+            if (serviceType || listeners) {
+                expect(titles[i]).not.toMatch(/ \/(?: |$)/);
+            }
+        });
+    });
+
+    it("names the listener only when the header would otherwise be shared", () => {
+        expect(qualifiedTitles([IDENTIFIED.orderSolace, IDENTIFIED.http]))
+            .toEqual(["solace service", "http service /orders"]);
+        expect(qualifiedTitles([IDENTIFIED.orderSolace, IDENTIFIED.paymentSolace]))
+            .toEqual(["solace service on orderListener", "solace service on paymentListener"]);
+    });
+
+    it("numbers services the listener can't tell apart, in order", () => {
+        expect(qualifiedTitles([IDENTIFIED.ordersConsumer, IDENTIFIED.paymentsConsumer]))
+            .toEqual(["rabbitmq service on channelListener (1)", "rabbitmq service on channelListener (2)"]);
+    });
+
+    it("names the listener of an untyped service without a base path instead of showing '/'", () => {
+        expect(qualifiedTitles([IDENTIFIED.untypedNamed])).toEqual(["service on customListener"]);
+        expect(qualifiedTitles([IDENTIFIED.untypedInline])).toEqual(["service /"]);
     });
 });

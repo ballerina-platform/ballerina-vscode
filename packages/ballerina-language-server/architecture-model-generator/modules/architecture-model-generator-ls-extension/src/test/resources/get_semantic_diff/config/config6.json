@@ -23,6 +23,8 @@
           "accessor": "post",
           "servicePath": "/api/v1",
           "serviceType": "http",
+          "serviceId": "ai:///main.bal#4#removed",
+          "serviceListeners": "httpListener",
           "resourcePath": "items",
           "functionKind": "resource"
         }
@@ -46,6 +48,8 @@
           "accessor": "get",
           "servicePath": "/api/v1",
           "serviceType": "http",
+          "serviceId": "ai:///main.bal#4#removed",
+          "serviceListeners": "httpListener",
           "resourcePath": "items",
           "functionKind": "resource"
         }
@@ -69,6 +73,8 @@
           "accessor": "post",
           "servicePath": "/api/v2",
           "serviceType": "http",
+          "serviceId": "ai:///main.bal#4",
+          "serviceListeners": "httpListener",
           "resourcePath": "items",
           "functionKind": "resource"
         }
@@ -92,6 +98,8 @@
           "accessor": "get",
           "servicePath": "/api/v2",
           "serviceType": "http",
+          "serviceId": "ai:///main.bal#4",
+          "serviceListeners": "httpListener",
           "resourcePath": "items",
           "functionKind": "resource"
         }
