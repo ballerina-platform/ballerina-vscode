@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import React, { useCallback, useState, useRef } from "react";
+import React, { useCallback, useContext, useState, useRef } from "react";
 import { FormField } from "../Form/types";
 import { Button, TextField, Typography, Icon, ProgressRing, ThemeColors } from "@wso2/ui-toolkit";
 import { useFormContext } from "../../context";
@@ -24,6 +24,7 @@ import styled from "@emotion/styled";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { debounce } from "lodash";
 import { buildRequiredRule, getFriendlyIdentifierMessage, getPropertyFromFormField } from "./utils";
+import { IdentifierRenameContext } from "./identifierRenames";
 
 const EditRow = styled.div`
     display: flex;
@@ -133,6 +134,7 @@ export function IdentifierEditor(props: IdentifierEditorProps) {
     const { field, handleOnFieldFocus, autoFocus, showWarning, onEditingStateChange } = props;
     const { form } = useFormContext();
     const { rpcClient } = useRpcContext();
+    const renameLog = useContext(IdentifierRenameContext);
     const { register, setValue, getValues } = form;
     const [isEditing, setIsEditing] = useState(false);
     const [tempValue, setTempValue] = useState(field.value || "");
@@ -169,15 +171,26 @@ export function IdentifierEditor(props: IdentifierEditorProps) {
         }
 
         setIsSaving(true);
+        // The range was read when the form loaded; an earlier rename on the same line (the
+        // function's name, or a parameter before this one) has since moved the identifier.
+        const lineRange = renameLog?.current(field.lineRange) ?? field.lineRange;
         try {
             await rpcClient.getBIDiagramRpcClient().renameIdentifier({
-                fileName: field.lineRange?.fileName,
+                fileName: lineRange?.fileName,
                 position: {
-                    line: field.lineRange?.startLine?.line,
-                    character: field.lineRange?.startLine?.offset
+                    line: lineRange?.startLine?.line,
+                    character: lineRange?.startLine?.offset
                 },
                 newName: String(tempValue)
             });
+            if (lineRange?.startLine && typeof field.value === "string") {
+                renameLog?.record({
+                    fileName: lineRange.fileName,
+                    line: lineRange.startLine.line,
+                    offset: lineRange.startLine.offset,
+                    delta: String(tempValue).length - field.value.length
+                });
+            }
 
             setValue(field.key, tempValue);
             field.value = tempValue;
@@ -195,13 +208,14 @@ export function IdentifierEditor(props: IdentifierEditorProps) {
             return;
         }
 
+        const lineRange = renameLog?.current(field.lineRange) ?? field.lineRange;
         const response = await rpcClient.getBIDiagramRpcClient().getExpressionDiagnostics({
-            filePath: field.lineRange?.fileName,
+            filePath: lineRange?.fileName,
             context: {
                 expression: value,
                 startLine: {
-                    line: field.lineRange?.startLine?.line,
-                    offset: field.lineRange?.startLine?.offset
+                    line: lineRange?.startLine?.line,
+                    offset: lineRange?.startLine?.offset
                 },
                 offset: 0,
                 lineOffset: 0,
@@ -217,7 +231,7 @@ export function IdentifierEditor(props: IdentifierEditorProps) {
             setIdentifierErrorMsg("");
             setIsIdentifierValid(true);
         }
-    }, 250), [rpcClient, field, isEditing]);
+    }, 250), [rpcClient, field, isEditing, renameLog]);
 
     const handleOnBlur = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!saveButtonClicked.current) {
