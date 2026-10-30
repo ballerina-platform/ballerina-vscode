@@ -88,6 +88,7 @@ import {
     getUpdatedSource,
     handleDownloadFile,
     handlePublishDescriptionSetup,
+    isPathInsideProject,
     nextAvailablePath,
     openPublishDescriptionInEditor,
     resolveIntegrationRoot,
@@ -228,7 +229,7 @@ export class CommonRpcManager implements CommonRPCAPI {
                 } else {
                     const filePath = selectedFile[0].fsPath;
                     const projectPath = StateMachine.context().projectPath;
-                    if (!params.allowOutsideProject && projectPath && !isPathInside(projectPath, filePath)) {
+                    if (!params.allowOutsideProject && projectPath && !isPathInsideProject(projectPath, filePath)) {
                         const resp = await window.showErrorMessage('The selected file is not within your project. Do you want to move it inside the project?', { modal: true }, 'Yes');
                         if (resp === 'Yes') {
                             // Move the file inside the project

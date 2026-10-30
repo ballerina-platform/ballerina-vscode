@@ -1,0 +1,8 @@
+{
+    "description": "a file reached through a symlinked project path is inside",
+    "tree": ["graphqlintegration/schema.graphql"],
+    "symlinks": { "linked-project": "graphqlintegration" },
+    "projectPath": "linked-project",
+    "filePath": "graphqlintegration/schema.graphql",
+    "expectedInside": true
+}
