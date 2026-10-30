@@ -117,10 +117,11 @@
       // for ^6, and the only fix is 7.1.0.
       "@azure/msal-node@>=5 <7.1.0": "7.1.0",
       // Security fix: no 1.x fix; force the 2.x line, at the version fixing
-      // a follow-up advisory on the earlier 2.x releases. Transitive-only
+      // follow-up advisories on the earlier 2.x releases (2.1.3 for the
+      // serveStatic double-decode). Transitive-only
       // (used by the wso2-vscode-extensions submodule's tooling), not
       // shipped in the built extension.
-      "@hono/node-server": "2.0.10",
+      "@hono/node-server": "2.1.3",
       "@tootallnate/once": "3.0.1",
       "axios@<1.20.0": "1.20.0",
       "body-parser@>=1 <2": "1.20.9",
@@ -192,7 +193,7 @@
       "proxy-addr": "2.0.8",
       // Security fix: bump past the previous override version, which is now
       // itself flagged.
-      "qs@6": "6.16.0",
+      "qs@6": "6.16.1",
       "serialize-javascript": "7.1.3",
       "shell-quote": "1.11.0",
       "source-map-js": "1.2.2",

@@ -1547,6 +1547,7 @@
         "test:unit": "jest --config jest.config.js",
         "test:ls-integration": "jest --config jest.ls-integration.config.js",
         "test:perf": "jest --config jest.perf.config.js",
+        "test:reliability": "jest --config jest.reliability.config.js",
         "capture-fixtures": "node scripts/capture-fixtures.js",
         "test:checkpoint": "pnpm run test-compile && node ./out/test/runCheckpointTest.js",
         "e2e-test-setup": "npx extest get-vscode -c 1.100.0 && npx extest get-chromedriver -c 1.100.0 && npx extest install-vsix -f $(ls vsix/*.vsix)",

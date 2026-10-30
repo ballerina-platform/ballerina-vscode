@@ -30,10 +30,19 @@
 //   2. $BALLERINA_HOME/bin/bal
 //   3. ~/.ballerina/ballerina-home/bin/bal
 // resolveBalCommand() returns null when none exist, so suites can skip cleanly.
+//
+// resolveLocalLsCommand() instead runs a locally built LS jar with `java` directly, on the
+// same classpath the extension uses (getServerOptionsUsingJava in
+// ballerina-extension/src/utils/server/server.ts). Jar resolution order:
+//   1. $BAL_LS_JAR
+//   2. packages/ballerina-language-server/build/ballerina-language-server-<version>.jar, with
+//      <version> from ballerina-extension/package.json (the jar copyLS ships)
+// The distribution comes from `bal home` and the JDK from its dependencies/ directory, as in
+// the extension. Returns null when any of these is missing or the JDK is older than Java 25.
 
 "use strict";
 
-const { spawn } = require("child_process");
+const { execFileSync, spawn } = require("child_process");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
@@ -53,22 +62,135 @@ function resolveBalCommand() {
     return candidates.find((c) => c && fs.existsSync(c)) ?? null;
 }
 
+// LS modules that the LS jar already bundles. Keep in sync with excludeJarPatterns in
+// ballerina-extension/src/utils/server/server.ts. The globs are turned into regexes the same way
+// as findJarsExcludingPatterns does there: unanchored, so a pattern matches anywhere in the name.
+const DISTRIBUTION_JAR_EXCLUDES = [
+    "architecture-model*", "flow-model*", "graphql-model*", "model-generator*", "sequence-model*",
+    "service-model*", "test-manager-service*", "language-server*", "bal-shell-service*",
+    "org.eclipse.lsp4j*", "diagram-util*", "openapi-ls-extension*", "sqlite-jdbc*",
+].map((pattern) => new RegExp(pattern.replace(/\*/g, ".*")));
+
+// $BAL_LS_JAR, else the jar that the extension's copyLS script puts in the vsix:
+// ballerina-language-server-<version>.jar, with the version from ballerina-extension/package.json.
+// Throws when $BAL_LS_JAR is set but missing, so a wrong path fails the run instead of skipping it.
+function resolveLocalLsJar() {
+    const explicitJar = process.env.BAL_LS_JAR;
+    if (explicitJar) {
+        if (!fs.existsSync(explicitJar)) {
+            throw new Error(`BAL_LS_JAR=${explicitJar} does not exist`);
+        }
+        return explicitJar;
+    }
+    const { version } = require("../ballerina-extension/package.json");
+    const jar = path.join(__dirname, "..", "ballerina-language-server", "build",
+        `ballerina-language-server-${version}.jar`);
+    return fs.existsSync(jar) ? jar : null;
+}
+
+// The LS jar is compiled for this Java release. Keep in sync with REQUIRED_JDK_MAJOR_VERSION in
+// ballerina-extension/src/utils/server/server.ts.
+const REQUIRED_JDK_MAJOR_VERSION = 25;
+
+function highestJdkDir(depsDir) {
+    if (!fs.existsSync(depsDir)) {
+        return null;
+    }
+    const jdks = fs.readdirSync(depsDir).filter((d) => /^jdk-.+-jre$/.test(d))
+        .sort((a, b) => b.localeCompare(a, undefined, { numeric: true }));
+    return jdks.length ? path.join(depsDir, jdks[0]) : null;
+}
+
+// Same as getJdkMajorVersion in server.ts: JAVA_VERSION from the JDK's release file, else the
+// directory name, e.g. 'jdk-25.0.4+1-jre'.
+function jdkMajorVersion(jdkDir) {
+    const releaseFile = path.join(jdkDir, "release");
+    const fromRelease = fs.existsSync(releaseFile)
+        && fs.readFileSync(releaseFile, "utf8").match(/^JAVA_VERSION="?([0-9]+)/m);
+    const match = fromRelease || path.basename(jdkDir).match(/^jdk-([0-9]+)/);
+    return match ? parseInt(match[1], 10) : 0;
+}
+
+// Same lookup as resolveLanguageServerJdkDir in server.ts: the highest jdk-*-jre in the
+// dependencies/ directory beside distributions/, else in its parent. Returns null when that JDK is
+// older than the LS needs, so the suite skips instead of failing with UnsupportedClassVersionError.
+function resolveJava(ballerinaHome) {
+    const baseHome = ballerinaHome.includes("distributions")
+        ? ballerinaHome.substring(0, ballerinaHome.indexOf("distributions"))
+        : ballerinaHome;
+    const jdkDir = highestJdkDir(path.join(baseHome, "dependencies"))
+        ?? highestJdkDir(path.join(path.dirname(baseHome), "dependencies"));
+    if (!jdkDir) {
+        return null;
+    }
+    const major = jdkMajorVersion(jdkDir);
+    const java = path.join(jdkDir, "bin", isWindows ? "java.exe" : "java");
+    return major >= REQUIRED_JDK_MAJOR_VERSION && fs.existsSync(java) ? java : null;
+}
+
+function resolveLocalLsCommand() {
+    const jar = resolveLocalLsJar();
+    const bal = resolveBalCommand();
+    if (!jar || !bal) {
+        return null;
+    }
+    let ballerinaHome;
+    try {
+        // bal.bat needs a shell on Windows, and cmd splits an unquoted path at spaces.
+        const out = execFileSync(isWindows ? `"${bal}"` : bal, ["home"],
+            { encoding: "utf8", shell: isWindows, timeout: 30_000 });
+        ballerinaHome = out.trim().split(/\r?\n/).pop().trim();
+        // server.ts resolves junctions and 8.3 names on Windows before building the classpath.
+        if (isWindows) {
+            ballerinaHome = fs.realpathSync.native(ballerinaHome);
+        }
+    } catch {
+        return null;
+    }
+    const java = resolveJava(ballerinaHome);
+    if (!java) {
+        return null;
+    }
+    const libDirs = [
+        path.join(ballerinaHome, "bre", "lib"),
+        path.join(ballerinaHome, "lib", "tools", "lang-server", "lib"),
+        path.join(ballerinaHome, "lib", "tools", "debug-adapter", "lib"),
+    ];
+    const distributionJars = libDirs.filter((dir) => fs.existsSync(dir)).flatMap((dir) =>
+        fs.readdirSync(dir)
+            .filter((f) => f.endsWith(".jar") && !DISTRIBUTION_JAR_EXCLUDES.some((re) => re.test(f)))
+            .map((f) => path.join(dir, f)));
+    return {
+        command: java,
+        args: [
+            "-cp", [...distributionJars, jar].join(path.delimiter),
+            `-Dballerina.home=${ballerinaHome}`,
+            "org.ballerinalang.langserver.launchers.stdio.Main",
+        ],
+    };
+}
+
 function pathToFileUri(p) {
     const resolved = path.resolve(p).replace(/\\/g, "/");
     return "file://" + (resolved.startsWith("/") ? "" : "/") + resolved;
 }
 
 class LsHarness {
-    constructor(balCommand, opts = {}) {
-        this.balCommand = balCommand;
+    // `launch` is a bal launcher path (runs `bal start-language-server`) or a
+    // { command, args } spec such as resolveLocalLsCommand() returns.
+    constructor(launch, opts = {}) {
+        this.launch = typeof launch === "string"
+            ? { command: launch, args: ["start-language-server"] }
+            : launch;
         this.buf = Buffer.alloc(0);
         this.nextId = 1;
         this.pending = new Map();
+        this.notificationWaiters = [];
         this.defaultTimeoutMs = opts.timeoutMs ?? 60_000;
     }
 
     start() {
-        this.proc = spawn(this.balCommand, ["start-language-server"], {
+        this.proc = spawn(this.launch.command, this.launch.args, {
             stdio: ["pipe", "pipe", "pipe"],
             env: process.env,
         });
@@ -79,18 +201,28 @@ class LsHarness {
         this.proc.stderr.on("data", () => {});
         // Surface a failed spawn (bad path, perms) as a normal rejection instead of an
         // unhandled 'error' event that would crash the Jest worker.
-        this.proc.on("error", (err) => {
-            for (const [, p] of this.pending) {
-                p.reject(err);
+        this.proc.on("error", (err) => this.rejectPending(err));
+        // A write after the LS has died emits EPIPE here. Reject the pending requests instead of
+        // leaving an unhandled 'error' event that would crash the Jest worker.
+        this.proc.stdin.on("error", (err) => this.rejectPending(err));
+        this.proc.on("exit", (code) => this.rejectPending(new Error(`LS exited (code ${code}) before responding`)));
+        // Reject notification waiters on 'close' rather than 'exit': 'close' fires after stdout
+        // has ended, so a notification the LS wrote just before exiting is still dispatched.
+        this.proc.on("close", (code) => {
+            this.closeCode = code;
+            const waiters = this.notificationWaiters;
+            this.notificationWaiters = [];
+            for (const w of waiters) {
+                w.reject(new Error(`LS exited (code ${code}) before sending '${w.method}'`));
             }
-            this.pending.clear();
         });
-        this.proc.on("exit", (code) => {
-            for (const [, p] of this.pending) {
-                p.reject(new Error(`LS exited (code ${code}) before responding`));
-            }
-            this.pending.clear();
-        });
+    }
+
+    rejectPending(err) {
+        for (const [, p] of this.pending) {
+            p.reject(err);
+        }
+        this.pending.clear();
     }
 
     onData(chunk) {
@@ -140,7 +272,15 @@ class LsHarness {
                 p.resolve(msg.result);
             }
         }
-        // Notifications are ignored by this harness.
+        if (msg.method !== undefined) {
+            this.notificationWaiters = this.notificationWaiters.filter((w) => {
+                if (w.method !== msg.method) {
+                    return true;
+                }
+                w.resolve(msg.params);
+                return false;
+            });
+        }
     }
 
     write(msg) {
@@ -163,6 +303,28 @@ class LsHarness {
                 reject: (e) => { clearTimeout(timer); reject(e); },
             });
             this.write({ jsonrpc: "2.0", id, method, params });
+        });
+    }
+
+    // Resolves with the params of the next server notification named `method`. Rejects on
+    // timeout or when the LS process exits first.
+    waitForNotification(method, timeoutMs = this.defaultTimeoutMs) {
+        return new Promise((resolve, reject) => {
+            // 'close' has already fired, so no waiter registered now would ever be rejected by it.
+            if (this.closeCode !== undefined) {
+                reject(new Error(`LS exited (code ${this.closeCode}) before sending '${method}'`));
+                return;
+            }
+            const waiter = {
+                method,
+                resolve: (params) => { clearTimeout(timer); resolve(params); },
+                reject: (err) => { clearTimeout(timer); reject(err); },
+            };
+            const timer = setTimeout(() => {
+                this.notificationWaiters = this.notificationWaiters.filter((w) => w !== waiter);
+                reject(new Error(`Timeout (${timeoutMs}ms) waiting for notification '${method}'`));
+            }, timeoutMs);
+            this.notificationWaiters.push(waiter);
         });
     }
 
@@ -198,4 +360,4 @@ class LsHarness {
     }
 }
 
-module.exports = { resolveBalCommand, pathToFileUri, LsHarness };
+module.exports = { resolveBalCommand, resolveLocalLsCommand, pathToFileUri, LsHarness };

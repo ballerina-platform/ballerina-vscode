@@ -54,7 +54,11 @@ public class ArtifactGenerationDebouncer {
     private final ScheduledExecutorService scheduler;
 
     private ArtifactGenerationDebouncer() {
-        scheduler = Executors.newSingleThreadScheduledExecutor();
+        scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "ArtifactGenerationDebouncer");
+            t.setDaemon(true);
+            return t;
+        });
         delayedMap = new ConcurrentHashMap<>();
         projectFileMap = new ConcurrentHashMap<>();
         queuedFileTasks = new ConcurrentHashMap<>();

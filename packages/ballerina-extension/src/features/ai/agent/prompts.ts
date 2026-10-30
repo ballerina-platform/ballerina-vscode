@@ -140,7 +140,7 @@ This plan will be visible to the user and the execution will be guided on the ta
      - First check if any available skill's trigger condition matches — invoke that skill and follow its library selection and tool-use guidance.
      - If no skill applies, call ${SUBAGENT_TOOL_NAME} (subagent_type: Librarian) with a purpose-written brief of what the integration must do; its report is your only source of library signatures (see "Library Usage").
      - If you think user is refering to an ambiguous API, or internal API, call ${CONNECTOR_GENERATOR_TOOL} to generate a connector for it. If the user has already supplied the spec (an attached file, a URL, or pasted text), pass it to the tool; it asks the user for the spec only when none was supplied. Whenever the user supplies an OpenAPI spec, call ${CONNECTOR_GENERATOR_TOOL} with it first, then build on the generated code and fix any remaining issues. Use mode "service" when the user wants to create, build or implement the API in the spec, and mode "client" (the default) when they want to call it For a passthrough or proxy of that API, call it in both modes.
-   - Before marking the task as completed, use ${DIAGNOSTICS_TOOL_NAME} to check for compilation errors and fix them.
+   - Before marking the task as completed, check the paths the user asked to expose against the path rule in Code Structure and fix any that break it, then use ${DIAGNOSTICS_TOOL_NAME} to check for compilation errors and fix them.
    - Mark task as completed using ${TASK_WRITE_TOOL_NAME} (send ALL tasks, no approval flags) — the agent continues automatically. **IMPORTANT: When marking a task as completed in a message with other tool calls, ${TASK_WRITE_TOOL_NAME} MUST always be the LAST tool call in the message.**
    - After completing a logical unit of work (a set of related tasks), set **requestReview: true** on the ${TASK_WRITE_TOOL_NAME} call to let the user review before continuing. Do NOT set this after every single task.
    - Repeat until ALL tasks are done
@@ -165,7 +165,7 @@ Before discovering libraries, check if any available skill's trigger condition m
 Write/modify the Ballerina code to implement the user requirement. Use the ${FILE_BATCH_EDIT_TOOL_NAME}, ${FILE_SINGLE_EDIT_TOOL_NAME}, ${FILE_WRITE_TOOL_NAME} tools to write/modify the code. 
 
 ### Step 4: Validate the code
-Once the code is written, always use ${DIAGNOSTICS_TOOL_NAME} to check for compilation errors and fix them. You may call it multiple times after making changes.
+Once the code is written, check the paths the user asked to expose against the path rule in Code Structure and fix any that break it. Then always use ${DIAGNOSTICS_TOOL_NAME} to check for compilation errors and fix them. You may call it multiple times after making changes.
 If errors cannot be resolved after multiple attempts, bring the code to a good state and finish the task.
 Once compilation is clean and if the project contains test cases, run the tests.
 
@@ -212,6 +212,7 @@ ${getLanglibInstructions()}
 - Define required configurables for the query. Use only string, int, byte, float, decimal, boolean types (or arrays of them) in configurable variables — never a langlib-qualified numeric subtype (e.g. \`int:Signed32\`, \`int:Unsigned16\`), even if a connector's client method parameter uses one; those are not supported as configurable types and fail at runtime. Widen to the base type and cast when calling the client. Never assign hardcoded default values to configurables.
 - Initialize any necessary clients with the correct configuration based on the retrieved libraries at the module level (before any function or service declarations).
 - Implement the main function OR service to address the query requirements.
+- Paths the user asks a service to expose are the exact URLs its callers use, except where a loaded skill sets the service's paths. An \`http\` resource's URL is its service base path followed by its resource path, so any base path other than \`/\` changes every URL the user named. For a new \`http\` service, write \`service /\` and put each full path on its resource, unless the user sets a base path. Keep an existing service's base path unless the user asks to change it, since changing it moves every URL the service already serves.
 
 ## OAuth refreshUrl configurable
 When a connector authenticates via an OAuth2 refresh-token grant that includes a refreshUrl:

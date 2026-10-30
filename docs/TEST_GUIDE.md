@@ -19,7 +19,7 @@ node common/scripts/install-run-rush.js update    # install/refresh all deps
 - **L3 (LS-integration)** and the **perf suite** additionally need **Java 21** + a **Ballerina distribution** (`~/.ballerina/ballerina-home/bin/bal`). These tests **auto-skip** when no distribution is found, so they never block the fast suite.
 - **L4 (E2E)** needs the built `.vsix` + a downloaded VSCode (via `extest`).
 
-**The rule that keeps the PR suite fast:** the fast CI job auto-discovers a package's tests **only if its config file is named exactly `jest.config.js`**. LS/perf/E2E use other config names (`jest.ls-integration.config.js`, `jest.perf.config.js`, `jest.realdata.config.js`, `jest.headless-view.config.js`) so they never run on every PR.
+**The rule that keeps the PR suite fast:** the fast CI job auto-discovers a package's tests **only if its config file is named exactly `jest.config.js`**. LS/perf/E2E use other config names (`jest.ls-integration.config.js`, `jest.perf.config.js`, `jest.reliability.config.js`, `jest.realdata.config.js`, `jest.headless-view.config.js`) so they never run on every PR.
 
 ---
 
@@ -145,7 +145,7 @@ cd packages/record-creator  && npx jest --config jest.headless-view.config.js
 BAL_UPDATE_FIXTURES=1 npx jest --config jest.realdata.config.js
 ```
 
-**How to add.** Use the harness: `resolveBalCommand()` (skip if null) → `new LsHarness(bal)` → `start()` → `initialize(projectRoot)` → `didOpen(file)` → `request(method, params)`. Prefer **invariants over a corpus** (e.g. "array-typed param ⇒ REPEATABLE_LIST" across sampled connector actions) over one-off assertions. A **headless-host** variant runs a real *thin* rpc-manager by mocking `StateMachine.langClient()` to route to the harness (god-managers can't be imported — cover them via capture instead).
+**How to add.** Use the harness: `resolveBalCommand()` (skip if null) → `new LsHarness(bal)` → `start()` → `initialize(projectRoot)` → `didOpen(file)` → `request(method, params)`. `resolveBalCommand()` runs the distribution's bundled LS; to run the LS jar built from this repo instead, pass `resolveLocalLsCommand()` (uses `$BAL_LS_JAR`, else `packages/ballerina-language-server/build/ballerina-language-server-<version>.jar` with the version from `packages/ballerina-extension/package.json`; skip if null, and it throws if `$BAL_LS_JAR` is set but missing). Prefer **invariants over a corpus** (e.g. "array-typed param ⇒ REPEATABLE_LIST" across sampled connector actions) over one-off assertions. A **headless-host** variant runs a real *thin* rpc-manager by mocking `StateMachine.langClient()` to route to the harness (god-managers can't be imported — cover them via capture instead).
 
 **Example files.**
 - [`ls-harness.js`](../packages/test-config/ls-harness.js) — the shared spawn/initialize/request harness, published from `@wso2/test-config` and imported as `@wso2/test-config/ls-harness`.
@@ -186,6 +186,23 @@ cd packages/ballerina-extension && pnpm run test:perf
 
 **Example files.**
 - [`lsLatency.perf.ts`](../packages/ballerina-extension/src/test-support/perf/lsLatency.perf.ts) — LS request-latency baseline.
+
+---
+
+## Reliability (orthogonal — not a scope level)
+
+**What.** Checks that processes and resources stay bounded, such as no language server JVM remaining after its client goes away. Runs the LS jar built from this repo against a Ballerina distribution. Not a PR gate: the nightly build (`schedule.yml`, job `ls-ubuntu-reliability`) runs it against the jar it built for each branch, and a failure stops the `nightly` tag from moving. That job sets `BAL_RELIABILITY_REQUIRED=true`, which makes a missing jar, distribution or JDK fail the suite instead of skipping it.
+
+**How to run.**
+```bash
+rush build --to ballerina-language-server     # the suite runs the jar this builds
+cd packages/ballerina-extension && pnpm run test:reliability
+```
+
+**How to add.** Name the file `*.reliability.ts` under `src/test-support/reliability`, start the LS with `new LsHarness(resolveLocalLsCommand())`, and skip when that returns null. Kill any process the test started in `afterEach`, so a failing test does not leave one behind.
+
+**Example files.**
+- [`lsProcessExit.reliability.ts`](../packages/ballerina-extension/src/test-support/reliability/lsProcessExit.reliability.ts) — the LS JVM exits after `shutdown`/`exit` and after the client closes stdin without `exit` (wso2/product-integrator#2854).
 
 ---
 
