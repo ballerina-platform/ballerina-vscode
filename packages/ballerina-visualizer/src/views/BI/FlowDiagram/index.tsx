@@ -74,7 +74,7 @@ import { findCurrentIntegrationCategory } from "../../../utils/function-category
 import { pollActivityList } from "./activityRefresh";
 import { useDraftNodeManager } from "./hooks/useDraftNodeManager";
 import { useDurableAgentUsages } from "./durableAgentUsages";
-import { NodePosition, STNode } from "@wso2/syntax-tree";
+import { NodePosition } from "@wso2/syntax-tree";
 import { View, ProgressIndicator, ThemeColors } from "@wso2/ui-toolkit";
 import { applyModifications, textToModifications } from "../../../utils/utils";
 import { PanelManager, SidePanelView } from "./PanelManager";
@@ -121,7 +121,6 @@ const AddAgentPopupLayer = styled.div`
 export interface BIFlowDiagramProps {
     projectPath: string;
     breakpointState?: number;
-    syntaxTree?: STNode;
     onUpdate: () => void;
     onReady: (fileName: string, parentMetadata?: ParentMetadata, position?: NodePosition, parentCodedata?: CodeData) => void;
     onSave?: () => void;
@@ -179,7 +178,7 @@ const isDurableAgentBoxNode = (node: FlowNode) =>
     ((node.metadata?.data as { agentBox?: boolean })?.agentBox === true || node.metadata?.draft === true);
 
 export function BIFlowDiagram(props: BIFlowDiagramProps) {
-    const { projectPath, breakpointState, syntaxTree, onUpdate, onReady, onSave, hideAgentConfiguration } = props;
+    const { projectPath, breakpointState, onUpdate, onReady, onSave, hideAgentConfiguration } = props;
     const { rpcClient } = useRpcContext();
 
 
@@ -406,9 +405,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     }, [breakpointState]);
 
     useEffect(() => {
-        rpcClient.onProjectContentUpdated(() => {
+        const unsubscribeContentUpdated = rpcClient.onProjectContentUpdated(() => {
             debouncedGetFlowModel();
-        })
+        });
         rpcClient.onParentPopupSubmitted((parent: ParentPopupData) => {
             if (parent.dataMapperMetadata) {
                 // Skip if the parent is a data mapper popup
@@ -461,6 +460,10 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 setIsUserAuthenticated(false);
             });
 
+        return () => {
+            unsubscribeContentUpdated();
+            debouncedGetFlowModel.cancel();
+        };
     }, [rpcClient]);
 
     useEffect(() => {
@@ -510,11 +513,11 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         [hasDraft]
     );
 
-    // Shorter debounce specifically for breakpoint changes (faster feedback)
+    // Shorter debounce specifically for breakpoint changes (faster feedback); its mount call is the first load.
     const debouncedGetFlowModelForBreakpoints = useCallback(
         debounce(() => {
             getFlowModel();
-        }, 200),
+        }, 200, { leading: true, trailing: true }),
         []
     );
 
