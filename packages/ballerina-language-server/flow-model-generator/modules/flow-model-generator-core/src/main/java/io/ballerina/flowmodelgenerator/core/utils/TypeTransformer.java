@@ -53,7 +53,9 @@ import io.ballerina.compiler.api.symbols.TypeDescTypeSymbol;
 import io.ballerina.compiler.api.symbols.TypeSymbol;
 import io.ballerina.compiler.api.symbols.UnionTypeSymbol;
 import io.ballerina.compiler.api.values.ConstantValue;
+import io.ballerina.compiler.syntax.tree.FunctionDefinitionNode;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
+import io.ballerina.compiler.syntax.tree.NonTerminalNode;
 import io.ballerina.compiler.syntax.tree.RecordFieldWithDefaultValueNode;
 import io.ballerina.compiler.syntax.tree.RecordTypeDescriptorNode;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
@@ -67,9 +69,11 @@ import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.TypeData;
 import io.ballerina.modelgenerator.commons.CommonUtils;
+import io.ballerina.modelgenerator.commons.GraphqlTypeMapper;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.Module;
+import org.ballerinalang.langserver.common.utils.CommonUtil;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -87,14 +91,26 @@ import static io.ballerina.modelgenerator.commons.CommonUtils.getTypeSignature;
 public class TypeTransformer {
     private final Module module;
     private final ModuleInfo moduleInfo;
+    private final boolean graphqlTypes;
     private Map<String, RecordTypeDescriptorNode> recordTypeDescNodes;
 
     public static final String BUILT_IN_ERROR = "error";
     public static final String BUILT_IN_ANYDATA = "anydata";
 
     public TypeTransformer(Module module) {
+        this(module, false);
+    }
+
+    /**
+     * Creates a transformer that can also attach GraphQL types.
+     *
+     * @param module       the module the types belong to
+     * @param graphqlTypes whether to also attach each field's GraphQL type, for the GraphQL diagram
+     */
+    public TypeTransformer(Module module, boolean graphqlTypes) {
         this.module = module;
         this.moduleInfo = ModuleInfo.from(module.descriptor());
+        this.graphqlTypes = graphqlTypes;
     }
 
     public Object transform(ServiceDeclarationSymbol serviceDeclarationSymbol) {
@@ -365,6 +381,8 @@ public class TypeTransformer {
                     .optional(fieldSymbol.isOptional())
                     .readonly(fieldSymbol.qualifiers().contains(Qualifier.READONLY))
                     .isGraphqlId(isGraphqlId)
+                    .graphqlType(graphqlTypes ? GraphqlTypeMapper.toFieldSdl(fieldSymbol.typeDescriptor(),
+                            isGraphqlId, fieldSymbol.isOptional()) : null)
                     .refs(getTypeRefs(transformedFieldType, fieldSymbol.typeDescriptor()))
                     .docs(getDocumentString(fieldSymbol))
                     .defaultValue(getDefaultValueOfField(typeDataBuilder.name(), fieldName).orElse(null))
@@ -541,6 +559,28 @@ public class TypeTransformer {
     }
 
     // Utils
+    /**
+     * Returns the default value of each argument of a function, as {@link GraphqlTypeMapper#getDefaultValues}. The
+     * semantic model does not carry default expressions, so the function is located once in its module's syntax tree.
+     */
+    private Map<String, String> getGraphqlDefaultValues(FunctionSymbol functionSymbol) {
+        if (functionSymbol.getLocation().isEmpty() || functionSymbol.getModule().isEmpty()) {
+            return Map.of();
+        }
+        return CommonUtils.findDocument(this.module.project(), functionSymbol.getLocation().get(),
+                        functionSymbol.getModule().get().id().moduleName())
+                .flatMap(document -> CommonUtil.findNode(functionSymbol, document.syntaxTree()))
+                .map(node -> {
+                    NonTerminalNode current = node;
+                    while (current != null && !(current instanceof FunctionDefinitionNode)) {
+                        current = current.parent();
+                    }
+                    return current;
+                })
+                .map(node -> GraphqlTypeMapper.getDefaultValues(((FunctionDefinitionNode) node).functionSignature()))
+                .orElse(Map.of());
+    }
+
     private Map<String, RecordTypeDescriptorNode> getRecordTypeDescNodes() {
         if (this.recordTypeDescNodes != null) {
             return this.recordTypeDescNodes;
@@ -644,31 +684,37 @@ public class TypeTransformer {
         FunctionTypeSymbol functionTypeSymbol = functionSymbol.typeDescriptor();
 
         // return type annotation
-        functionTypeSymbol.returnTypeAnnotations().ifPresent(returnTypeAnnots -> {
-            for (AnnotationAttachmentSymbol annotAttachment : returnTypeAnnots.annotAttachments()) {
-                if (TypeUtils.isGraphqlIdAnnotation(annotAttachment)) {
-                    // TODO: Annotations from other imported modules are not supported yet
-                    functionBuilder.imports(
-                            Map.of(
-                                    TypeUtils.GRAPHQL_DEFAULT_MODULE_PREFIX,
-                                    TypeUtils.BALLERINA_ORG + "/" + TypeUtils.GRAPHQL_DEFAULT_MODULE_PREFIX
-                            )
-                    );
-                    functionBuilder.isGraphqlId(true);
-                    break;
-                }
-            }
-        });
+        boolean isGraphqlIdReturn = functionTypeSymbol.returnTypeAnnotations()
+                .map(returnTypeAnnots -> returnTypeAnnots.annotAttachments().stream()
+                        .anyMatch(TypeUtils::isGraphqlIdAnnotation))
+                .orElse(false);
+        if (isGraphqlIdReturn) {
+            // TODO: Annotations from other imported modules are not supported yet
+            functionBuilder.imports(
+                    Map.of(
+                            TypeUtils.GRAPHQL_DEFAULT_MODULE_PREFIX,
+                            TypeUtils.BALLERINA_ORG + "/" + TypeUtils.GRAPHQL_DEFAULT_MODULE_PREFIX
+                    )
+            );
+            functionBuilder.isGraphqlId(true);
+        }
 
         // return type
+        boolean isSubscription = functionSymbol.kind() == SymbolKind.RESOURCE_METHOD
+                && GraphqlTypeMapper.isSubscriptionAccessor(functionSymbol.getName().orElse(""));
         functionTypeSymbol.returnTypeDescriptor().ifPresent(returnType -> {
             Object transformed = transform(returnType, new TypeData.TypeDataBuilder());
             functionBuilder
                     .returnType(transformed)
                     .refs(getTypeRefs(transformed, returnType));
+            if (graphqlTypes) {
+                functionBuilder.graphqlType(GraphqlTypeMapper.toSdl(
+                        isSubscription ? GraphqlTypeMapper.unwrapStream(returnType) : returnType, isGraphqlIdReturn));
+            }
         });
 
         // params
+        Map<String, String> graphqlDefaults = graphqlTypes ? getGraphqlDefaultValues(functionSymbol) : Map.of();
         functionTypeSymbol.params().ifPresent(params -> {
             List<Member> parameters = params.stream().map(param -> {
                 Object transformedParamType = transform(param.typeDescriptor(), new TypeData.TypeDataBuilder());
@@ -691,6 +737,10 @@ public class TypeTransformer {
                         .type(transformedParamType)
                         .typeName(getTypeSignature(param.typeDescriptor(), this.moduleInfo))
                         .isGraphqlId(isGraphqlId)
+                        // Runtime-injected parameters (graphql:Context, graphql:Field) are not schema arguments.
+                        .graphqlType(graphqlTypes && !GraphqlTypeMapper.isInjectedParam(param.typeDescriptor())
+                                ? GraphqlTypeMapper.toSdl(param.typeDescriptor(), isGraphqlId) : null)
+                        .defaultValue(graphqlDefaults.get(param.getName().map(GraphqlTypeMapper::unescape).orElse("")))
                         .refs(getTypeRefs(transformedParamType, param.typeDescriptor()))
                         .build();
             }).toList();

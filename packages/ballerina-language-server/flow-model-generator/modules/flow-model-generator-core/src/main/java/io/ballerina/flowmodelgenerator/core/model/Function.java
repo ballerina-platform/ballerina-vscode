@@ -40,6 +40,8 @@ import java.util.Map;
  * @param refs          Type references associated with the return type of the function.
  * @param properties    Properties of the function.
  * @param imports       Imports of the member.
+ * @param graphqlType   GraphQL type of the field the function exposes in SDL notation, set only for the GraphQL
+ *                      type model.
  * @since 1.0.0
  */
 public record Function(
@@ -54,7 +56,8 @@ public record Function(
         boolean isGraphqlId,
         List<String> refs,
         Map<String, Property> properties,
-        Map<String, String> imports
+        Map<String, String> imports,
+        String graphqlType
 ) {
     public enum FunctionKind {
         FUNCTION,
@@ -72,6 +75,7 @@ public record Function(
         private String docs;
         private Object returnType;
         private boolean isGraphqlId;
+        private String graphqlType;
         private List<String> refs;
         private FormBuilder<FunctionBuilder> formBuilder;
         private ModuleInfo moduleInfo;
@@ -142,6 +146,11 @@ public record Function(
             return this;
         }
 
+        public FunctionBuilder graphqlType(String graphqlType) {
+            this.graphqlType = graphqlType;
+            return this;
+        }
+
         public FunctionBuilder refs(List<String> refs) {
             this.refs = refs;
             return this;
@@ -163,7 +172,8 @@ public record Function(
             return new Function(
                     accessor, qualifiers, parameters, restParameter, kind, name, docs, returnType, isGraphqlId, refs,
                     formBuilder == null ? null : formBuilder.build(),
-                    imports != null ? Map.copyOf(imports) : null
+                    imports != null ? Map.copyOf(imports) : null,
+                    graphqlType
             );
         }
     }

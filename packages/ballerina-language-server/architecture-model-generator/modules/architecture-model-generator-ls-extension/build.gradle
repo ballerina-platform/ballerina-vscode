@@ -47,6 +47,10 @@ dependencies {
     testImplementation "org.eclipse.lsp4j:org.eclipse.lsp4j:${eclipseLsp4jVersion}"
     testImplementation "org.testng:testng:${testngVersion}"
     testImplementation "org.mockito:mockito-core:${mockitoVersion}"
+    // Only to check GraphqlTypeMapper against the GraphQL compiler plugin it mirrors (GraphqlTypeMapperConformanceTest).
+    // The plugin is deliberately not a runtime dependency of the language server.
+    testImplementation "io.ballerina.stdlib:graphql-commons:${stdlibGraphqlVersion}"
+    testImplementation "io.ballerina.stdlib:graphql-compiler-plugin:${stdlibGraphqlVersion}"
 
     balTools ("org.ballerinalang:jballerina-tools:${ballerinaLangVersion}") {
         transitive = false

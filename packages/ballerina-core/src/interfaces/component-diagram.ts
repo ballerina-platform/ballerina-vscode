@@ -18,6 +18,7 @@
 
 import { LineRange } from "./common";
 import type { IconDescriptor } from "./extended-lang-client";
+import type { GraphqlSdlArgument, GraphqlSdlField } from "../utils/graphql-sdl";
 
 // Component Diagram Model
 export type CDModel = {
@@ -128,6 +129,17 @@ export type CDService = {
     displayName?: string;
 };
 
+export type CDGraphqlArgument = GraphqlSdlArgument;
+
+/**
+ * The GraphQL field a service function exposes on Query, Mutation or Subscription.
+ * Types are in GraphQL SDL notation (e.g. `ID!`, `[Book!]`), as derived from the service schema.
+ */
+export type CDGraphqlField = GraphqlSdlField & {
+    name: string;
+    args: CDGraphqlArgument[];
+};
+
 export type CDFunction = {
     name: string;
     location: CDLocation;
@@ -135,6 +147,7 @@ export type CDFunction = {
     workflows?: string[];
     workflowSendData?: Record<string, string[]>;
     invalidWorkflowSendData?: string[];
+    graphqlField?: CDGraphqlField;
 };
 
 export type CDResourceFunction = {
@@ -145,4 +158,5 @@ export type CDResourceFunction = {
     workflows?: string[];
     workflowSendData?: Record<string, string[]>;
     invalidWorkflowSendData?: string[];
+    graphqlField?: CDGraphqlField;
 };
