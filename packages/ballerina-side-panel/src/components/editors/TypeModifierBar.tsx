@@ -154,7 +154,7 @@ interface TypeModifierBarProps {
     value: string;
     /** The toggles to offer, in the order to show them. */
     modifiers: TypeModifier[];
-    /** Labels in the words of the context, e.g. "Nullable" for GraphQL; any left out take the defaults. */
+    /** Labels in the words of the context; any left out take the defaults. */
     labels?: TypeModifierLabels;
     onChange: (value: string) => void;
     className?: string;
@@ -169,7 +169,7 @@ export function TypeModifierBar(props: TypeModifierBarProps) {
     if (modifiers.length === 0) {
         return null;
     }
-    const shape = parseTypeShape(value);
+    const shape = parseTypeShape(value, modifiers);
 
     return (
         <Bar role="group" aria-label="Type modifiers" className={className}>
@@ -198,7 +198,7 @@ export function TypeModifierBar(props: TypeModifierBarProps) {
                             aria-label={`${label}: ${info.description}`}
                             disabled={!enabled}
                             data-testid={`type-modifier-${modifier}`}
-                            onClick={() => onChange(toggleTypeModifier(value, modifier, !pressed))}
+                            onClick={() => onChange(toggleTypeModifier(value, modifier, !pressed, modifiers))}
                         >
                             <Codicon name={ICONS[modifier]} sx={{ width: "14px", height: "14px" }} iconSx={{ fontSize: "14px" }} />
                             {label}

@@ -25,7 +25,9 @@ import { EditorContainer, EditorContent } from '../../../styles';
 import { TypeBrowser } from '../../../components/TypeBrowser/TypeBrowser';
 import { PARAM_TYPES } from '../../../definitions';
 import { ParameterModel, PropertyModel } from '@wso2/ballerina-core';
-import { TypeModifierBar } from '@wso2/ballerina-side-panel';
+import { applyTypedText, parseTypeShape, TypeModifier, TypeModifierBar } from '@wso2/ballerina-side-panel';
+
+const PARAM_TYPE_MODIFIERS: TypeModifier[] = ["list", "nullable"];
 
 const options = [{ id: "0", value: "QUERY" }, { id: "1", value: "HEADER" }];
 
@@ -46,6 +48,11 @@ export function ParamEditor(props: ParamProps) {
 
     const handleTypeChange = (value: string) => {
         onChange({ ...param, type: { ...param.type, value } });
+    };
+
+    // The browser offers base types only, so a picked type keeps the modifiers the toggles put on the one it replaces.
+    const handleTypePick = (value: string) => {
+        handleTypeChange(applyTypedText(parseTypeShape(param.type.value ?? "", PARAM_TYPE_MODIFIERS), value));
     };
 
     const handleChange = (value: string) => {
@@ -93,11 +100,11 @@ export function ParamEditor(props: ParamProps) {
                             borderBox={true}
                             label="Type"
                             selectedItem={param.type.value}
-                            onChange={handleTypeChange}
+                            onChange={handleTypePick}
                         />
                         <TypeModifierBar
                             value={param.type.value ?? ""}
-                            modifiers={["list", "nullable"]}
+                            modifiers={PARAM_TYPE_MODIFIERS}
                             onChange={handleTypeChange}
                         />
                     </div>

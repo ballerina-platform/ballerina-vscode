@@ -242,7 +242,7 @@ export const getAttributeType = (attr: Member | TypeFunctionModel): string => {
     const formatUnionType = (types: string[]): string => {
         const values = types.filter((t) => t !== '()');
         if (values.length === 1 && values.length < types.length) {
-            return values[0].includes('|') ? `(${values[0]})?` : `${values[0]}?`;
+            return /[|&]/.test(values[0]) ? `(${values[0]})?` : `${values[0]}?`;
         }
         return types.join('|');
     };
@@ -294,7 +294,7 @@ export const getAttributeType = (attr: Member | TypeFunctionModel): string => {
             case 'RECORD':
                 const recordMembers = [...members].reverse().map(member => {
                     const memberType = typeof member.type === 'string' ? member.type : getAttributeType(member);
-                    return `${memberType} ${member.name}`;
+                    return `${memberType} ${member.name}${member.optional ? '?' : ''}`;
                 });
                 baseType = `record {${recordMembers.join(', ')}}`;// TODO: Verify anonymous records representation
                 break;

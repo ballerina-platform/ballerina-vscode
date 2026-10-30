@@ -108,6 +108,11 @@ function unwrap(text: string, open: string, close: string): string | undefined {
     return text.slice(open.length, -close.length).trim();
 }
 
+/** Whether the type is a function type, whose return type takes everything written after it, `|error` included. */
+function isFunctionType(type: string): boolean {
+    return /^((isolated|transactional)\s+)*function\b/.test(type);
+}
+
 /**
  * Whether a suffix written after the type would bind to only a part of it: the members of a union or an
  * intersection, or the return type of a function.
@@ -115,7 +120,7 @@ function unwrap(text: string, open: string, close: string): string | undefined {
 function isCompound(type: string): boolean {
     return splitTopLevel(type, "|").length > 1
         || splitTopLevel(type, "&").length > 1
-        || /^(isolated\s+)?function\b/.test(type);
+        || isFunctionType(type);
 }
 
 function hasErrorMember(type: string): boolean {
@@ -123,6 +128,10 @@ function hasErrorMember(type: string): boolean {
 }
 
 function parseValue(text: string, extractError: boolean): TypeShape {
+    // An unparenthesized function type has no outer modifiers: `function () returns int|error` returns the union.
+    if (isFunctionType(text)) {
+        return { base: text, list: false, nullable: false, error: false };
+    }
     let error = false;
     let nullable = false;
     const rest: string[] = [];
@@ -173,8 +182,11 @@ function parseValue(text: string, extractError: boolean): TypeShape {
     return { base, list, nullable, error };
 }
 
-/** Reads the modifiers of a type, as a user typed it. */
-export function parseTypeShape(type: string): TypeShape {
+/**
+ * Reads the modifiers of a type, as a user typed it. An error is read as a modifier only where the field offers the
+ * Error toggle; elsewhere it stays part of the type, so that `int|error` turned into a list is `(int|error)[]`.
+ */
+export function parseTypeShape(type: string, modifiers: readonly TypeModifier[] = TYPE_MODIFIERS): TypeShape {
     const text = (type ?? "").trim();
     const streamParams = text.startsWith("stream") ? unwrap(text.slice("stream".length).trimStart(), "<", ">") : undefined;
     if (streamParams !== undefined) {
@@ -182,7 +194,7 @@ export function parseTypeShape(type: string): TypeShape {
         const shape = parseValue(value, false);
         return { ...shape, error: !!completion && hasErrorMember(completion), stream: { completion } };
     }
-    return parseValue(text, true);
+    return parseValue(text, modifiers.includes("error"));
 }
 
 function printValue(shape: TypeShape, withError: boolean): string {
@@ -193,7 +205,7 @@ function printValue(shape: TypeShape, withError: boolean): string {
         }
         return shape.nullable ? "()" : "";
     }
-    if ((shape.list || shape.nullable) && isCompound(base)) {
+    if (((shape.list || shape.nullable) && isCompound(base)) || (withError && shape.error && isFunctionType(base))) {
         base = `(${base})`;
     }
     return `${base}${shape.list ? "[]" : ""}${shape.nullable ? "?" : ""}${withError && shape.error ? "|error" : ""}`;
@@ -236,6 +248,22 @@ export function splitTypedSuffixes(text: string): { base: string; list: boolean;
     return { base, list, nullable };
 }
 
+/**
+ * The type a field holds once the user has typed the text into it, while its modifiers are shown apart as toggles:
+ * a `[]` or `?` typed at the end is taken over by the toggles, and the modifiers already on stay on. Modifiers have
+ * nothing to decorate on an empty type, so clearing the type clears them too.
+ */
+export function applyTypedText(shape: TypeShape, text: string): string {
+    const typed = splitTypedSuffixes(text);
+    const base = typed.base.trim();
+    return base ? printTypeShape({
+        base,
+        list: shape.list || typed.list,
+        nullable: shape.nullable || typed.nullable,
+        error: shape.error
+    }) : "";
+}
+
 /** Whether a modifier can be toggled on the type: a list needs a type to hold, and so does anything on an empty type. */
 export function canToggleModifier(shape: TypeShape, modifier: TypeModifier): boolean {
     if (shape.base) {
@@ -244,9 +272,14 @@ export function canToggleModifier(shape: TypeShape, modifier: TypeModifier): boo
     return modifier !== "list" && !shape.stream && (shape.error || shape.nullable);
 }
 
-/** The type with the modifier turned on or off. */
-export function toggleTypeModifier(type: string, modifier: TypeModifier, on: boolean): string {
-    const shape = parseTypeShape(type);
+/** The type with the modifier turned on or off, on a field offering the given modifiers. */
+export function toggleTypeModifier(
+    type: string,
+    modifier: TypeModifier,
+    on: boolean,
+    modifiers: readonly TypeModifier[] = TYPE_MODIFIERS
+): string {
+    const shape = parseTypeShape(type, modifiers);
     if (shape[modifier] === on || !canToggleModifier(shape, modifier)) {
         return type;
     }

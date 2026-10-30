@@ -99,4 +99,15 @@ describe("DropdownEditor with type modifiers", () => {
         fireEvent.click(getByTestId("type-modifier-nullable"));
         expect(getForm().getValues("type")).toBe("int?");
     });
+
+    it("keeps the modifiers when another base type is picked", () => {
+        const { container, getForm } = renderWithForm(<DropdownEditor field={typeField("string[]?")} />, {
+            defaultValues: { type: "string[]?" },
+        });
+        // The toolkit's dropdown is a `vscode-dropdown` element, which jsdom does not upgrade: its value is set by hand.
+        const dropdown = container.querySelector("vscode-dropdown") as HTMLElement & { value: string };
+        dropdown.value = "int";
+        fireEvent.change(dropdown);
+        expect(getForm().getValues("type")).toBe("int[]?");
+    });
 });

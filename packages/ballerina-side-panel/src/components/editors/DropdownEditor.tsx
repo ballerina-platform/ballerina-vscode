@@ -68,7 +68,7 @@ function TypeDropdownEditor(props: { field: FormField; items: DropdownItem[] }) 
                 validate: buildValidate(field)
             }}
             render={({ field: { value, onChange } }) => {
-                const shape = parseTypeShape(value ?? "");
+                const shape = parseTypeShape(value ?? "", field.typeModifiers);
                 const handleChange = (updatedValue: string) => {
                     onChange(updatedValue);
                     field.onValueChange?.(updatedValue);

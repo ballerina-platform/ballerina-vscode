@@ -21,6 +21,7 @@
 
 import type { FormField } from "../components/Form/types";
 import {
+    applyTypedText,
     getTypeModifiers,
     parseTypeShape,
     splitTypedSuffixes,
@@ -50,6 +51,8 @@ const CORPUS = [
     "readonly & Profile",
     "record {| string name; |}",
     "function (int a) returns int",
+    "function () returns int|error",
+    "isolated transactional function () returns int|error",
     "http:Response|http:ClientError",
     "error?",
     "error",
@@ -78,7 +81,13 @@ describe("parseTypeShape", () => {
         expect(parseTypeShape("Profile?[]")).toEqual({ base: "Profile?", list: true, nullable: false, error: false });
     });
 
-    it.each(["readonly & Profile[]", "function () returns int[]", "function () returns int?"])(
+    it.each([
+        "readonly & Profile[]",
+        "function () returns int[]",
+        "function () returns int?",
+        "function () returns int|error",
+        "transactional function () returns int|()",
+    ])(
         "does not read a suffix that belongs to a part of %s",
         (type) => {
             expect(parseTypeShape(type)).toMatchObject({ base: type, list: false, nullable: false });
@@ -115,6 +124,9 @@ describe("toggleTypeModifier", () => {
         ["stream<Profile, error>", "list", true, "stream<Profile[], error>"],
         ["stream<Profile, error?>", "error", false, "stream<Profile>"],
         ["error?", "error", false, "()"],
+        ["function () returns int|error", "list", true, "(function () returns int|error)[]"],
+        ["function () returns int", "error", true, "(function () returns int)|error"],
+        ["(function () returns int)|error", "error", false, "function () returns int"],
     ] as [string, TypeModifier, boolean, string][])("%s: %s → %s gives %s", (type, modifier, on, expected) => {
         expect(toggleTypeModifier(type, modifier, on)).toBe(expected);
     });
@@ -140,6 +152,34 @@ describe("toggleTypeModifier", () => {
             }
             expect(modifiersOf(toggled)).toEqual({ ...before, [modifier]: true });
             expect(modifiersOf(toggleTypeModifier(toggled, modifier, false))).toEqual(before);
+        }
+    );
+
+    // INVARIANT: where a field offers no Error toggle, an error is part of the type the toggles decorate, so they
+    // never move it out of the list or the nil.
+    it.each(CORPUS.flatMap((type) => (["list", "nullable"] as TypeModifier[]).map((modifier) => [type, modifier] as const)))(
+        "INVARIANT: %s keeps its error inside the type when the %s toggle is turned on without an Error toggle",
+        (type, modifier) => {
+            const offered: TypeModifier[] = ["list", "nullable"];
+            const before = parseTypeShape(type, offered);
+            expect(before.error).toBe(!!before.stream && /error/.test(before.stream.completion ?? ""));
+            const toggled = toggleTypeModifier(type, modifier, true, offered);
+            if (before[modifier] || toggled === type) {
+                return;
+            }
+            const { base, error } = parseTypeShape(toggled, offered);
+            expect({ base, error }).toEqual({ base: before.base, error: before.error });
+        }
+    );
+
+    it.each([
+        ["int|error", "list", true, "(int|error)[]"],
+        ["error", "list", true, "error[]"],
+        ["error?", "nullable", false, "error"],
+    ] as [string, TypeModifier, boolean, string][])(
+        "without an Error toggle, %s: %s → %s gives %s",
+        (type, modifier, on, expected) => {
+            expect(toggleTypeModifier(type, modifier, on, ["list", "nullable"])).toBe(expected);
         }
     );
 
@@ -192,5 +232,17 @@ describe("splitTypedSuffixes", () => {
 
     it.each(["int|string[]", "int|", "readonly & int[]"])("leaves %s alone, as its suffix binds to a part", (text) => {
         expect(splitTypedSuffixes(text)).toEqual({ base: text, list: false, nullable: false });
+    });
+});
+
+describe("applyTypedText", () => {
+    it.each([
+        ["", "Profile", "Profile"],
+        ["Profile[]", "Order", "Order[]"],
+        ["Profile?|error", "Order[]", "Order[]?|error"],
+        ["(A|B)?", "A|C|B", "(A|C|B)?"],
+        ["Profile[]?", "  ", ""],
+    ])("on %s, typing %s gives %s", (type, text, expected) => {
+        expect(applyTypedText(parseTypeShape(type), text)).toBe(expected);
     });
 });

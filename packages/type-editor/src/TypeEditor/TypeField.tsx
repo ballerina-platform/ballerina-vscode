@@ -27,11 +27,13 @@ import { debounce } from 'lodash';
 import { useTypeHelperContext } from '../Context';
 import { Codicon } from '@wso2/ui-toolkit';
 import {
+    applyTypedText,
+    canToggleModifier,
     parseTypeShape,
-    printTypeShape,
     splitTypedSuffixes,
     toggleTypeModifier,
     TYPE_MODIFIER_INFO,
+    TYPE_MODIFIERS,
     TypeModifier
 } from '@wso2/ballerina-side-panel';
 import { SyntaxToggleItem, SyntaxToggles } from './SyntaxToggles';
@@ -95,16 +97,22 @@ export const TypeField = forwardRef<HTMLInputElement, TypeFieldProps>((props, re
     const [typeError, setTypeError] = useState<string>("");
     const { rpcClient } = useRpcContext();
     // What the user is typing while the modifiers stand apart from the type; dropped once the field is left, when the
-    // field goes back to showing the type it holds.
+    // field goes back to showing the type it holds. It only stands for the type this field last wrote: a type changed
+    // from elsewhere, e.g. by another toggle, is shown as it is.
     const [draft, setDraft] = useState<string | undefined>(undefined);
+    const lastWritten = useRef<string | undefined>(undefined);
 
-    const shape = parseTypeShape(memberName ?? '');
+    const shape = parseTypeShape(memberName ?? '', modifiers);
     // A stream's modifiers belong to its value type, inside its brackets, so a stream is shown as it is written. A type
-    // the LS sent as a structure is shown the same way as one typed in, from its source.
-    const showsModifiersApart = !!modifiers?.length && !isAnonymousRecord && !shape.stream;
-    const shownValue = showsModifiersApart ? (draft ?? shape.base) : memberName;
+    // the LS sent as a structure is shown the same way as one typed in, from its source. A type holding a modifier the
+    // field does not offer is shown whole too, or that modifier would be hidden with no toggle to show it.
+    const showsModifiersApart = !!modifiers?.length && !isAnonymousRecord && !shape.stream
+        && TYPE_MODIFIERS.every((modifier) => !shape[modifier] || modifiers.includes(modifier));
+    const isDraftCurrent = draft !== undefined && lastWritten.current === memberName;
+    const shownValue = showsModifiersApart ? (isDraftCurrent ? draft : shape.base) : memberName;
 
     const applyType = (newType: string) => {
+        lastWritten.current = newType;
         onChange(newType);
         validateType(newType);
     };
@@ -114,21 +122,14 @@ export const TypeField = forwardRef<HTMLInputElement, TypeFieldProps>((props, re
             applyType(e.target.value);
             return;
         }
-        const typed = splitTypedSuffixes(e.target.value);
-        setDraft(typed.base);
-        // Modifiers have nothing to decorate on an empty type, so clearing the type clears them too.
-        applyType(typed.base.trim() ? printTypeShape({
-            base: typed.base.trim(),
-            list: shape.list || typed.list,
-            nullable: shape.nullable || typed.nullable,
-            error: shape.error
-        }) : '');
+        setDraft(splitTypedSuffixes(e.target.value).base);
+        applyType(applyTypedText(shape, e.target.value));
     };
 
     const handleTypeHelperChange = (newType: string, newCursorPosition: number) => {
         setDraft(undefined);
-        onChange(newType);
-        validateType(newType);
+        // The helper edits the text the field shows, which is the type without its modifiers when they stand apart.
+        applyType(showsModifiersApart ? applyTypedText(shape, newType) : newType);
 
         setTypeFieldCursorPosition(newCursorPosition);
 
@@ -292,8 +293,8 @@ export const TypeField = forwardRef<HTMLInputElement, TypeFieldProps>((props, re
             glyph: MODIFIER_GLYPHS[modifier],
             ...TYPE_MODIFIER_INFO[modifier],
             pressed: shape[modifier],
-            disabled: !shape.base,
-            onToggle: () => applyType(toggleTypeModifier(memberName ?? '', modifier, !shape[modifier]))
+            disabled: !canToggleModifier(shape, modifier),
+            onToggle: () => applyType(toggleTypeModifier(memberName ?? '', modifier, !shape[modifier], modifiers))
         }))
     ];
 
@@ -318,7 +319,7 @@ export const TypeField = forwardRef<HTMLInputElement, TypeFieldProps>((props, re
                 ref={typeHelperRef}
                 typeFieldRef={typeFieldRef}
                 typeBrowserRef={typeBrowserRef}
-                currentType={typeToSource(type)}
+                currentType={showsModifiersApart ? shownValue : typeToSource(type)}
                 currentCursorPosition={typeFieldCursorPosition}
                 onChange={handleTypeHelperChange}
                 positionOffset={helperPaneOffset}
