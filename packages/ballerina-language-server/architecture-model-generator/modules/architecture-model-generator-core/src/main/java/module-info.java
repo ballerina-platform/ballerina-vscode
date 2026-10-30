@@ -27,6 +27,7 @@ module io.ballerina.architecturemodelgenerator {
     requires io.ballerina.runtime;
     requires io.ballerina.toml;
     requires io.ballerina.flow.model.generator;
+    requires org.eclipse.lsp4j;
 
     exports io.ballerina.architecturemodelgenerator.core;
     exports io.ballerina.architecturemodelgenerator.core.diagnostics;
@@ -39,6 +40,7 @@ module io.ballerina.architecturemodelgenerator {
     exports io.ballerina.designmodelgenerator.core;
     exports io.ballerina.designmodelgenerator.core.model;
     exports io.ballerina.artifactsgenerator;
+    exports io.ballerina.artifactsgenerator.codemap;
     exports io.ballerina.projectservice.core;
     exports io.ballerina.projectservice.core.baltool;
     exports io.ballerina.copilotagent.core;
