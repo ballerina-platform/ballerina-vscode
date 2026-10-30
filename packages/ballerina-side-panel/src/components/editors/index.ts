@@ -40,16 +40,14 @@ export { ExpandedEditor } from "./ExpandedEditor";
 export { getInputModeFromTypes } from "./MultiModeExpressionEditor/ChipExpressionEditor/utils";
 export { NodeReferenceSelectEditor } from "./MultiModeExpressionEditor/NodeReferenceSelectEditor/NodeReferenceSelectEditor";
 export { TypeModifierBar } from "./TypeModifierBar";
-export type { TypeModifierLabels } from "./TypeModifierBar";
 export {
     applyTypedText,
     canToggleModifier,
-    getTypeModifiers,
     parseTypeShape,
-    printTypeShape,
     splitTypedSuffixes,
     toggleTypeModifier,
-    TYPE_MODIFIERS
+    TYPE_MODIFIERS,
+    VALUE_TYPE_MODIFIERS
 } from "./typeModifiers";
 export { TYPE_MODIFIER_INFO, TypeModifierTooltip } from "./TypeModifierBar";
 export type { TypeModifier, TypeShape } from "./typeModifiers";

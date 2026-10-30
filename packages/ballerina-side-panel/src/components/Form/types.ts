@@ -82,7 +82,7 @@ export type FormField = {
     onValueChange?: (value: string | boolean) => void;
     isGraphqlId?: boolean;
     /** The type modifier toggles a type field offers, when its form knows better than the default. */
-    typeModifiers?: TypeModifier[];
+    typeModifiers?: readonly TypeModifier[];
     sliderProps?: {
         min?: number;
         max?: number;

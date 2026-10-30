@@ -25,9 +25,7 @@ import { EditorContainer, EditorContent } from '../../../styles';
 import { TypeBrowser } from '../../../components/TypeBrowser/TypeBrowser';
 import { PARAM_TYPES } from '../../../definitions';
 import { ParameterModel, PropertyModel } from '@wso2/ballerina-core';
-import { applyTypedText, parseTypeShape, TypeModifier, TypeModifierBar } from '@wso2/ballerina-side-panel';
-
-const PARAM_TYPE_MODIFIERS: TypeModifier[] = ["list", "nullable"];
+import { applyTypedText, parseTypeShape, TypeModifierBar, VALUE_TYPE_MODIFIERS } from '@wso2/ballerina-side-panel';
 
 const options = [{ id: "0", value: "QUERY" }, { id: "1", value: "HEADER" }];
 
@@ -50,9 +48,11 @@ export function ParamEditor(props: ParamProps) {
         onChange({ ...param, type: { ...param.type, value } });
     };
 
-    // The browser offers base types only, so a picked type keeps the modifiers the toggles put on the one it replaces.
+    // The browser shows and offers base types only, as the toggles stand for the modifiers: a picked type keeps the
+    // modifiers of the one it replaces.
+    const typeShape = parseTypeShape(param.type.value ?? "", VALUE_TYPE_MODIFIERS);
     const handleTypePick = (value: string) => {
-        handleTypeChange(applyTypedText(parseTypeShape(param.type.value ?? "", PARAM_TYPE_MODIFIERS), value));
+        handleTypeChange(applyTypedText(typeShape, value));
     };
 
     const handleChange = (value: string) => {
@@ -99,12 +99,12 @@ export function ParamEditor(props: ParamProps) {
                             sx={{ zIndex: 1, position: "relative", width: "100%" }}
                             borderBox={true}
                             label="Type"
-                            selectedItem={param.type.value}
+                            selectedItem={typeShape.base}
                             onChange={handleTypePick}
                         />
                         <TypeModifierBar
                             value={param.type.value ?? ""}
-                            modifiers={PARAM_TYPE_MODIFIERS}
+                            modifiers={VALUE_TYPE_MODIFIERS}
                             onChange={handleTypeChange}
                         />
                     </div>

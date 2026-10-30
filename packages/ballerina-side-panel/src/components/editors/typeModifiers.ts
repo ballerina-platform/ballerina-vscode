@@ -27,11 +27,14 @@ export type TypeModifier = "list" | "nullable" | "error";
 
 export const TYPE_MODIFIERS: readonly TypeModifier[] = ["list", "nullable", "error"];
 
+/** The modifiers of a type that holds a value rather than producing one, which therefore cannot be an error. */
+export const VALUE_TYPE_MODIFIERS: readonly TypeModifier[] = ["list", "nullable"];
+
 /**
  * The modifiers a type field offers. A field states them itself where its form knows better; otherwise a return type
  * offers all of them, and any other type, which holds a value rather than producing one, offers all but the error.
  */
-export function getTypeModifiers(field: FormField): TypeModifier[] {
+export function getTypeModifiers(field: FormField): readonly TypeModifier[] {
     if (field.typeModifiers) {
         return field.typeModifiers;
     }
@@ -40,7 +43,7 @@ export function getTypeModifiers(field: FormField): TypeModifier[] {
     const isReturnType = field.key === "returnType"
         || /^(return(s| type)?|output)$/i.test(field.label?.trim() ?? "")
         || !!field.properties?.["nullableAction"];
-    return isReturnType ? [...TYPE_MODIFIERS] : ["list", "nullable"];
+    return isReturnType ? TYPE_MODIFIERS : VALUE_TYPE_MODIFIERS;
 }
 
 /** A type split into the type it decorates and the modifiers decorating it. */
@@ -163,18 +166,10 @@ function parseValue(text: string, extractError: boolean): TypeShape {
         return { base: members.join("|"), list: false, nullable, error };
     }
 
-    let base = rest[0];
-    let list = false;
-    if (!isCompound(base)) {
-        if (base.endsWith("?")) {
-            nullable = true;
-            base = base.slice(0, -1).trimEnd();
-        }
-        if (base.endsWith("[]")) {
-            list = true;
-            base = base.slice(0, -2).trimEnd();
-        }
-    }
+    const suffixes = splitTypedSuffixes(rest[0]);
+    let base = suffixes.base;
+    const list = suffixes.list;
+    nullable = nullable || suffixes.nullable;
     const inner = unwrap(base, "(", ")");
     if (inner) {
         base = inner;

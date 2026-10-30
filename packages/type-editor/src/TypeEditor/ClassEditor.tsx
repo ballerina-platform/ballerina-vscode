@@ -20,16 +20,11 @@ import React, { useRef, useState } from 'react';
 import { Imports, Type, TypeFunctionModel } from '@wso2/ballerina-core';
 import { Codicon, Button, TextField, LinkButton, CheckBox } from '@wso2/ui-toolkit';
 import styled from '@emotion/styled';
-import { TypeModifier } from '@wso2/ballerina-side-panel';
+import { TYPE_MODIFIERS, VALUE_TYPE_MODIFIERS } from '@wso2/ballerina-side-panel';
 import { TypeField } from './TypeField';
 import { revealSyntaxTogglesOnHover } from './SyntaxToggles';
 import { IdentifierField } from './IdentifierField';
 import { isGraphQLScalarType } from './TypeUtil';
-
-// A field of a GraphQL object, or a resource method, produces its type and so may produce an error in its place;
-// an argument only holds a value.
-const RETURN_TYPE_MODIFIERS: TypeModifier[] = ['list', 'nullable', 'error'];
-const PARAMETER_TYPE_MODIFIERS: TypeModifier[] = ['list', 'nullable'];
 
 namespace S {
     export const Container = styled.div`
@@ -396,7 +391,7 @@ export function ClassEditor({ type, onChange, isGraphql, onValidationError }: Cl
                             placeholder="Type"
                             rootType={type}
                             onValidationError={(hasError) => handleValidationError(index, false, hasError)}
-                            modifiers={RETURN_TYPE_MODIFIERS}
+                            modifiers={TYPE_MODIFIERS}
                         />
                         <Button appearance="icon" onClick={() => deleteFunction(index)} tooltip='Delete'>
                             <Codicon name="trash" />
@@ -468,7 +463,7 @@ export function ClassEditor({ type, onChange, isGraphql, onValidationError }: Cl
                                         placeholder={isGraphql ? "Argument Type" : "Parameter Type"}
                                         rootType={type}
                                         onValidationError={onValidationError}
-                                        modifiers={PARAMETER_TYPE_MODIFIERS}
+                                        modifiers={VALUE_TYPE_MODIFIERS}
                                     />
                                     <TextField
                                         placeholder="Default Value"

@@ -24,7 +24,7 @@ import { typeToSource, defaultAnonymousRecordType, isGraphQLScalarType } from '.
 import { RecordEditor } from './RecordEditor';
 import { AdvancedOptions } from './AdvancedOptions';
 import { IdentifierField } from './IdentifierField';
-import { TypeModifier } from '@wso2/ballerina-side-panel';
+import { VALUE_TYPE_MODIFIERS } from '@wso2/ballerina-side-panel';
 import { TypeField } from './TypeField';
 import { revealSyntaxTogglesOnHover, SyntaxToggleItem, SyntaxToggles } from './SyntaxToggles';
 
@@ -48,9 +48,6 @@ const ButtonActive = styled.div<{}>`
     opacity: 1;
     color: 'var(--vscode-editorWarning-foreground)';
 `;
-
-// A record field holds a value, so it can be a list or nil but not an error.
-const FIELD_TYPE_MODIFIERS: TypeModifier[] = ['list', 'nullable'];
 
 const FieldRow = styled.div`
     display: flex;
@@ -210,7 +207,7 @@ export const FieldEditor: React.FC<FieldEditorProps> = (props) => {
                         onValidationError={(hasError) => onFieldValidation(false, hasError)}
                         rootType={type}
                         isAnonymousRecord={isRecord(member.type)}
-                        modifiers={FIELD_TYPE_MODIFIERS}
+                        modifiers={VALUE_TYPE_MODIFIERS}
                         extraToggles={[inlineRecordToggle]}
                     />
                 </div>

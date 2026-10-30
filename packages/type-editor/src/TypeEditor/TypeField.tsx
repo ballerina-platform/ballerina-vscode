@@ -17,7 +17,7 @@
  */
 
 import React, { forwardRef, useRef, useState, useEffect, useCallback } from 'react';
-import { TextField, Position } from '@wso2/ui-toolkit';
+import { Codicon, TextField, Position } from '@wso2/ui-toolkit';
 import { AddImportItemResponse, Imports, Type } from '@wso2/ballerina-core';
 import { typeToSource } from './TypeUtil';
 import { TypeHelper, TypeHelperItem } from '../TypeHelper';
@@ -25,7 +25,6 @@ import { useRpcContext } from '@wso2/ballerina-rpc-client';
 import { URI, Utils } from 'vscode-uri';
 import { debounce } from 'lodash';
 import { useTypeHelperContext } from '../Context';
-import { Codicon } from '@wso2/ui-toolkit';
 import {
     applyTypedText,
     canToggleModifier,
@@ -33,7 +32,6 @@ import {
     splitTypedSuffixes,
     toggleTypeModifier,
     TYPE_MODIFIER_INFO,
-    TYPE_MODIFIERS,
     TypeModifier
 } from '@wso2/ballerina-side-panel';
 import { SyntaxToggleItem, SyntaxToggles } from './SyntaxToggles';
@@ -63,7 +61,7 @@ interface TypeFieldProps {
      * The modifiers to offer as toggles at the end of the field. The field then shows the type without them, and the
      * toggles stand in for its suffix, taking over a `[]` or `?` as the user types it.
      */
-    modifiers?: TypeModifier[];
+    modifiers?: readonly TypeModifier[];
     /** Further toggles to show at the end of the field, before the modifiers. */
     extraToggles?: SyntaxToggleItem[];
 }
@@ -104,10 +102,8 @@ export const TypeField = forwardRef<HTMLInputElement, TypeFieldProps>((props, re
 
     const shape = parseTypeShape(memberName ?? '', modifiers);
     // A stream's modifiers belong to its value type, inside its brackets, so a stream is shown as it is written. A type
-    // the LS sent as a structure is shown the same way as one typed in, from its source. A type holding a modifier the
-    // field does not offer is shown whole too, or that modifier would be hidden with no toggle to show it.
-    const showsModifiersApart = !!modifiers?.length && !isAnonymousRecord && !shape.stream
-        && TYPE_MODIFIERS.every((modifier) => !shape[modifier] || modifiers.includes(modifier));
+    // the LS sent as a structure is shown the same way as one typed in, from its source.
+    const showsModifiersApart = !!modifiers?.length && !isAnonymousRecord && !shape.stream;
     const isDraftCurrent = draft !== undefined && lastWritten.current === memberName;
     const shownValue = showsModifiersApart ? (isDraftCurrent ? draft : shape.base) : memberName;
 

@@ -21,14 +21,6 @@ import styled from "@emotion/styled";
 import { Codicon, ThemeColors, Tooltip } from "@wso2/ui-toolkit";
 import { canToggleModifier, parseTypeShape, toggleTypeModifier, TypeModifier } from "./typeModifiers";
 
-export type TypeModifierLabels = Partial<Record<TypeModifier, string>>;
-
-const DEFAULT_LABELS: Record<TypeModifier, string> = {
-    list: "List",
-    nullable: "Nullable",
-    error: "Returns error",
-};
-
 /** What a modifier means and the syntax it writes, for the tooltip of any control that toggles it. */
 export const TYPE_MODIFIER_INFO: Record<TypeModifier, { title: string; description: string; example: string }> = {
     list: {
@@ -153,9 +145,7 @@ interface TypeModifierBarProps {
     /** The type as it stands in the field. */
     value: string;
     /** The toggles to offer, in the order to show them. */
-    modifiers: TypeModifier[];
-    /** Labels in the words of the context; any left out take the defaults. */
-    labels?: TypeModifierLabels;
+    modifiers: readonly TypeModifier[];
     onChange: (value: string) => void;
     className?: string;
 }
@@ -165,7 +155,7 @@ interface TypeModifierBarProps {
  * the field stays the source of truth: each toggle shows what the text holds, and turning one rewrites the text.
  */
 export function TypeModifierBar(props: TypeModifierBarProps) {
-    const { value, modifiers, labels, onChange, className } = props;
+    const { value, modifiers, onChange, className } = props;
     if (modifiers.length === 0) {
         return null;
     }
@@ -176,8 +166,8 @@ export function TypeModifierBar(props: TypeModifierBarProps) {
             {modifiers.map((modifier) => {
                 const pressed = shape[modifier];
                 const enabled = canToggleModifier(shape, modifier);
-                const label = labels?.[modifier] ?? DEFAULT_LABELS[modifier];
                 const info = shape.stream ? { ...TYPE_MODIFIER_INFO[modifier], ...STREAM_DESCRIPTIONS[modifier] } : TYPE_MODIFIER_INFO[modifier];
+                const label = info.title;
                 return (
                     <Tooltip
                         key={modifier}

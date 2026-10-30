@@ -57,13 +57,6 @@ describe("TypeModifierBar", () => {
         ALL.forEach((modifier) => expect(getByTestId(`type-modifier-${modifier}`)).toBeDisabled());
     });
 
-    it("uses the labels of the context", () => {
-        const { getByTestId } = render(
-            <TypeModifierBar value="Profile" modifiers={["nullable"]} labels={{ nullable: "Can be nil" }} onChange={jest.fn()} />
-        );
-        expect(getByTestId("type-modifier-nullable")).toHaveTextContent("Can be nil");
-    });
-
     it("explains each toggle and the syntax it writes", () => {
         const { getByTestId } = render(<TypeModifierBar value="Profile" modifiers={ALL} onChange={jest.fn()} />);
         expect(getByTestId("type-modifier-list")).toHaveAccessibleName(/List: Holds a list of values/);
