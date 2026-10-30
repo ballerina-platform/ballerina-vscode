@@ -29,9 +29,10 @@ import { Provider as FormProvider } from "../context/form";
 
 const Harness: FC<{
     defaultValues?: Record<string, any>;
+    context?: Record<string, any>;
     children: ReactNode;
     expose?: (form: UseFormReturn<any>) => void;
-}> = ({ defaultValues, children, expose }) => {
+}> = ({ defaultValues, context, children, expose }) => {
     const rhf = useForm<any>({ defaultValues, mode: "onChange" });
     expose?.(rhf);
     const form = {
@@ -51,6 +52,7 @@ const Harness: FC<{
         fileName: "test.bal",
         popupManager: { addPopup: jest.fn(), removeLastPopup: jest.fn(), closePopup: jest.fn() },
         nodeInfo: { kind: "" as any },
+        ...context,
     };
     return <FormProvider {...ctx}>{children}</FormProvider>;
 };
@@ -58,11 +60,15 @@ const Harness: FC<{
 /**
  * Render `ui` inside a real react-hook-form + FormContext. Returns the usual RTL
  * utils plus getForm() to inspect form state (values/errors) after interaction.
+ * `context` adds to or overrides the FormContext, e.g. the `expressionEditor` an editor reads.
  */
-export function renderWithForm(ui: ReactNode, opts: { defaultValues?: Record<string, any> } = {}) {
+export function renderWithForm(
+    ui: ReactNode,
+    opts: { defaultValues?: Record<string, any>; context?: Record<string, any> } = {}
+) {
     let formApi: UseFormReturn<any> | undefined;
     const utils = render(
-        <Harness defaultValues={opts.defaultValues} expose={(f) => { formApi = f; }}>
+        <Harness defaultValues={opts.defaultValues} context={opts.context} expose={(f) => { formApi = f; }}>
             {ui}
         </Harness>
     );

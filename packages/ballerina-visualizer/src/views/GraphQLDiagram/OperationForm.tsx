@@ -19,8 +19,12 @@
 import React, { useState, useEffect } from 'react';
 import { FunctionModel, LineRange, ParameterModel, ConfigProperties, PropertyModel, RecordTypeField, Property, PropertyTypeMemberInfo, getPrimaryInputType } from '@wso2/ballerina-core';
 import { ArtifactForm } from '../BI/Forms/ArtifactForm';
-import { FormField, FormImports, FormValues, Parameter } from '@wso2/ballerina-side-panel';
+import { FormField, FormImports, FormValues, Parameter, parseTypeShape, printTypeShape } from '@wso2/ballerina-side-panel';
 import { getImportsForProperty } from '../../utils/bi';
+
+// A GraphQL field's error is set apart from its type, as an advanced option: a resolver can fail, so a field returns
+// an error unless the user says otherwise.
+const RETURNS_ERROR_KEY = 'returnsError';
 
 interface OperationFormProps {
     model: FunctionModel;
@@ -167,6 +171,9 @@ export function OperationForm(props: OperationFormProps) {
             });
         }
 
+        const returnTypeValue = model.returnType?.value || '';
+        const returnShape = parseTypeShape(returnTypeValue);
+
         // Add parameters and other fields
         initialFields.push(
             {
@@ -194,12 +201,29 @@ export function OperationForm(props: OperationFormProps) {
                 editable: model.returnType.editable,
                 advanced: model.returnType.advanced,
                 documentation: model.returnType.metadata?.description || '',
-                value: model.returnType?.value || '',
+                value: isGraphqlView ? printTypeShape({ ...returnShape, error: false }) : returnTypeValue,
                 properties: model.returnType.properties,
                 types: model.returnType?.types,
                 isGraphqlId: isGraphqlView ? (model.returnType as any).isGraphqlId : undefined
             }
         );
+
+        if (isGraphqlView) {
+            initialFields.push({
+                key: RETURNS_ERROR_KEY,
+                label: 'Returns Error',
+                type: 'FLAG',
+                optional: true,
+                enabled: true,
+                editable: true,
+                advanced: true,
+                documentation: returnShape.stream
+                    ? 'The stream can end with an error'
+                    : 'The field can return an error in place of its value',
+                value: returnTypeValue ? returnShape.error : true,
+                types: [{ fieldType: 'FLAG', selected: true }]
+            });
+        }
 
         const properties = convertConfigToFormFields(model);
         initialFields.push(...properties);
@@ -240,7 +264,12 @@ export function OperationForm(props: OperationFormProps) {
         const paramList = params ? getFunctionParametersList(params) : [];
         const newFunctionModel = { ...model };
         newFunctionModel.name.value = name;
-        newFunctionModel.returnType.value = returnType;
+        newFunctionModel.returnType.value = isGraphqlView && returnType
+            ? printTypeShape({
+                ...parseTypeShape(returnType),
+                error: data[RETURNS_ERROR_KEY] === true || data[RETURNS_ERROR_KEY] === 'true'
+            })
+            : returnType;
         newFunctionModel.parameters = paramList;
         if (documentation !== undefined && newFunctionModel.documentation !== undefined) {
             newFunctionModel.documentation.value = documentation;

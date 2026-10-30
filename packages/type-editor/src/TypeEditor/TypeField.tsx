@@ -30,11 +30,12 @@ import {
     canToggleModifier,
     parseTypeShape,
     splitTypedSuffixes,
+    SyntaxToggleItem,
+    SyntaxToggles,
     toggleTypeModifier,
     TYPE_MODIFIER_INFO,
     TypeModifier
 } from '@wso2/ballerina-side-panel';
-import { SyntaxToggleItem, SyntaxToggles } from './SyntaxToggles';
 
 // Each modifier is shown as the syntax it writes after the type.
 const MODIFIER_GLYPHS: Record<TypeModifier, React.ReactNode> = {

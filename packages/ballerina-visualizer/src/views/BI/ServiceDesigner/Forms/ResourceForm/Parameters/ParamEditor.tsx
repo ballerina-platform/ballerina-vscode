@@ -23,15 +23,12 @@ import { Divider, Dropdown, Typography } from '@wso2/ui-toolkit';
 import { VSCodeCheckbox } from "@vscode/webview-ui-toolkit/react";
 import { EditorContainer, EditorContent } from '../../../styles';
 import { getPrimaryInputType, LineRange, ParameterModel, PayloadContext, PropertyModel } from '@wso2/ballerina-core';
-import { FormField, FormImports, VALUE_TYPE_MODIFIERS } from '@wso2/ballerina-side-panel';
+import { FormField, FormImports } from '@wso2/ballerina-side-panel';
 import ArtifactForm from '../../../../Forms/ArtifactForm';
 import { useRpcContext } from '@wso2/ballerina-rpc-client';
 import { URI, Utils } from 'vscode-uri';
 import { getImportsForProperty } from '../../../../../../utils/bi';
 import { HTTP_ENUM_TYPES } from '../../../utils';
-
-// A query or header parameter picks its type from the base types and is made a list or nil by the toggles under it.
-const HTTP_PARAM_BASE_TYPES = HTTP_ENUM_TYPES.filter((type) => !type.endsWith("[]"));
 
 const options = [{ id: "0", value: "QUERY" }, { id: "1", value: "Header" }];
 
@@ -206,8 +203,7 @@ export function ParamEditor(props: ParamProps) {
                     enabled: true,
                     defaultValue: "string",
                     value: param.type.value,
-                    items: HTTP_PARAM_BASE_TYPES,
-                    typeModifiers: VALUE_TYPE_MODIFIERS,
+                    items: HTTP_ENUM_TYPES,
                     types: [{ fieldType: "ENUM", selected: false }]
                 });
                 break;
@@ -262,8 +258,7 @@ export function ParamEditor(props: ParamProps) {
                     enabled: true,
                     defaultValue: "string",
                     value: param.type.value,
-                    items: HTTP_PARAM_BASE_TYPES,
-                    typeModifiers: VALUE_TYPE_MODIFIERS,
+                    items: HTTP_ENUM_TYPES,
                     types: [{ fieldType: "ENUM", selected: false }]
                 });
                 // Some connectors (e.g. MCP tools) require a description per header; HTTP resources

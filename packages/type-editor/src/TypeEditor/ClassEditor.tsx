@@ -20,9 +20,8 @@ import React, { useRef, useState } from 'react';
 import { Imports, Type, TypeFunctionModel } from '@wso2/ballerina-core';
 import { Codicon, Button, TextField, LinkButton, CheckBox } from '@wso2/ui-toolkit';
 import styled from '@emotion/styled';
-import { TYPE_MODIFIERS, VALUE_TYPE_MODIFIERS } from '@wso2/ballerina-side-panel';
+import { revealSyntaxTogglesOnHover, TYPE_MODIFIERS, VALUE_TYPE_MODIFIERS } from '@wso2/ballerina-side-panel';
 import { TypeField } from './TypeField';
-import { revealSyntaxTogglesOnHover } from './SyntaxToggles';
 import { IdentifierField } from './IdentifierField';
 import { isGraphQLScalarType } from './TypeUtil';
 

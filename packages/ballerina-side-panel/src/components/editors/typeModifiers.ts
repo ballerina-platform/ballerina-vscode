@@ -16,8 +16,6 @@
  * under the License.
  */
 
-import type { FormField } from "../Form/types";
-
 /**
  * The modifiers a type field can offer as toggles, so that a user picks a list, nil or error by intent instead of
  * typing `[]`, `?` or `|error`. They apply to the outermost type only: `T?[]` reads as a list of `T?` that is itself
@@ -29,22 +27,6 @@ export const TYPE_MODIFIERS: readonly TypeModifier[] = ["list", "nullable", "err
 
 /** The modifiers of a type that holds a value rather than producing one, which therefore cannot be an error. */
 export const VALUE_TYPE_MODIFIERS: readonly TypeModifier[] = ["list", "nullable"];
-
-/**
- * The modifiers a type field offers. A field states them itself where its form knows better; otherwise a return type
- * offers all of them, and any other type, which holds a value rather than producing one, offers all but the error.
- */
-export function getTypeModifiers(field: FormField): readonly TypeModifier[] {
-    if (field.typeModifiers) {
-        return field.typeModifiers;
-    }
-    // A data mapper's "Output" is its return type, and a GraphQL field's return type is the one that carries the
-    // LS's `nullableAction`.
-    const isReturnType = field.key === "returnType"
-        || /^(return(s| type)?|output)$/i.test(field.label?.trim() ?? "")
-        || !!field.properties?.["nullableAction"];
-    return isReturnType ? TYPE_MODIFIERS : VALUE_TYPE_MODIFIERS;
-}
 
 /** A type split into the type it decorates and the modifiers decorating it. */
 export interface TypeShape {
@@ -257,6 +239,26 @@ export function applyTypedText(shape: TypeShape, text: string): string {
         nullable: shape.nullable || typed.nullable,
         error: shape.error
     }) : "";
+}
+
+/**
+ * A type written in GraphQL's notation for nil. GraphQL reads nullability the other way round from Ballerina: its
+ * types are nullable unless marked `!`, so `T` is `T!` and `T?` is `T`, and a list marks its members the same way,
+ * `T[]` being `[T!]!`. The type names themselves are kept as written.
+ */
+export function toGraphQLNullability(type: string): string {
+    const shape = parseTypeShape(type, ["nullable"]);
+    if (!shape.base || shape.stream) {
+        return type;
+    }
+    if (shape.list) {
+        const list = `[${toGraphQLNullability(shape.base)}]`;
+        return shape.nullable ? list : `${list}!`;
+    }
+    if (shape.nullable) {
+        return shape.base;
+    }
+    return isCompound(shape.base) ? `(${shape.base})!` : `${shape.base}!`;
 }
 
 /** Whether a modifier can be toggled on the type: a list needs a type to hold, and so does anything on an empty type. */

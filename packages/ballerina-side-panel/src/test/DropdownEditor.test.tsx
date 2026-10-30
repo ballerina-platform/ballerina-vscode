@@ -22,7 +22,6 @@
 // or a {label,value}[] `items` list (#1516/#1609 class: options come from the model).
 
 import React from "react";
-import { fireEvent } from "@testing-library/react";
 import type { FormField } from "../components/Form/types";
 import { renderWithForm } from "./formHarness";
 import { DropdownEditor } from "../components/editors/DropdownEditor";
@@ -70,44 +69,5 @@ describe("DropdownEditor", () => {
             defaultValues: { logLevel: "INFO" },
         });
         expect(getForm().getValues("logLevel")).toBe("INFO");
-    });
-});
-
-describe("DropdownEditor with type modifiers", () => {
-    const typeField = (value: string): FormField =>
-        ({
-            ...dropdownField(["string", "int"], value),
-            key: "type",
-            label: "Type",
-            typeModifiers: ["list", "nullable"],
-        } as FormField);
-
-    it("offers the base types and shows the type's modifiers as toggles", () => {
-        const { container, getByTestId } = renderWithForm(<DropdownEditor field={typeField("string[]?")} />, {
-            defaultValues: { type: "string[]?" },
-        });
-        expect(container.textContent).toContain("string");
-        expect(container.textContent).not.toContain("string[]");
-        expect(getByTestId("type-modifier-list")).toHaveAttribute("aria-pressed", "true");
-        expect(getByTestId("type-modifier-nullable")).toHaveAttribute("aria-pressed", "true");
-    });
-
-    it("writes a toggled modifier onto the type in the form", () => {
-        const { getByTestId, getForm } = renderWithForm(<DropdownEditor field={typeField("int")} />, {
-            defaultValues: { type: "int" },
-        });
-        fireEvent.click(getByTestId("type-modifier-nullable"));
-        expect(getForm().getValues("type")).toBe("int?");
-    });
-
-    it("keeps the modifiers when another base type is picked", () => {
-        const { container, getForm } = renderWithForm(<DropdownEditor field={typeField("string[]?")} />, {
-            defaultValues: { type: "string[]?" },
-        });
-        // The toolkit's dropdown is a `vscode-dropdown` element, which jsdom does not upgrade: its value is set by hand.
-        const dropdown = container.querySelector("vscode-dropdown") as HTMLElement & { value: string };
-        dropdown.value = "int";
-        fireEvent.change(dropdown);
-        expect(getForm().getValues("type")).toBe("int[]?");
     });
 });

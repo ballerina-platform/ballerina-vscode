@@ -22,7 +22,6 @@ import { ParamConfig } from "../ParamManager/ParamManager";
 import { CompletionItem, FormExpressionEditorRef, HelperPaneHeight, HelperPaneOrigin, OptionProps } from "@wso2/ui-toolkit";
 import { InputMode } from "../editors/MultiModeExpressionEditor/ChipExpressionEditor/types";
 import { InputType } from "@wso2/ballerina-core/lib/interfaces/bi";
-import type { TypeModifier } from "../editors/typeModifiers";
 
 
 export type FormValues = {
@@ -81,8 +80,6 @@ export type FormField = {
     editCallback?: (value: string) => void;
     onValueChange?: (value: string | boolean) => void;
     isGraphqlId?: boolean;
-    /** The type modifier toggles a type field offers, when its form knows better than the default. */
-    typeModifiers?: readonly TypeModifier[];
     sliderProps?: {
         min?: number;
         max?: number;

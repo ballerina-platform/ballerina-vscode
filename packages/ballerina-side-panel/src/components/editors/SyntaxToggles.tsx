@@ -18,8 +18,8 @@
 
 import React, { ReactNode } from 'react';
 import styled from '@emotion/styled';
-import { Tooltip } from '@wso2/ui-toolkit';
-import { TypeModifierTooltip } from '@wso2/ballerina-side-panel';
+import { PositionType, Tooltip } from '@wso2/ui-toolkit';
+import { TypeModifierTooltip } from './TypeModifierTooltip';
 
 export interface SyntaxToggleItem {
     id: string;
@@ -111,8 +111,12 @@ const Glyph = styled.button`
  * Toggles placed inside a field at the point where the syntax they write goes, e.g. after a type for `[]` and `?`,
  * so the field reads as the code it produces.
  */
-export function SyntaxToggles(props: { items: SyntaxToggleItem[] }) {
-    const { items } = props;
+export function SyntaxToggles(props: {
+    items: SyntaxToggleItem[];
+    /** Where the tooltips open; one that opens to the left keeps clear of the right edge of a panel. */
+    tooltipPosition?: PositionType;
+}) {
+    const { items, tooltipPosition = 'bottom-end' } = props;
     if (items.length === 0) {
         return null;
     }
@@ -121,7 +125,7 @@ export function SyntaxToggles(props: { items: SyntaxToggleItem[] }) {
             {items.map((item) => (
                 <Tooltip
                     key={item.id}
-                    position="bottom-end"
+                    position={tooltipPosition}
                     containerSx={{ display: 'inline-flex' }}
                     className={item.pressed ? undefined : SYNTAX_TOGGLE_OFF_CLASS}
                     content={<TypeModifierTooltip title={item.title} description={item.description} example={item.example} />}

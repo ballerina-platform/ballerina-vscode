@@ -39,10 +39,10 @@ import { buildRequiredRule, getPropertyFromFormField, sanitizeType } from "./uti
 import { debounce } from "lodash";
 import styled from "@emotion/styled";
 import ReactMarkdown from "react-markdown";
-import { getFieldTypeLabel, NodeProperties } from "@wso2/ballerina-core";
+import { getFieldTypeLabel, NodeProperties, PropertyModel } from "@wso2/ballerina-core";
 import { canOfferTypeCreation } from "./typeCreationGate";
-import { TypeModifierBar } from "./TypeModifierBar";
-import { getTypeModifiers, parseTypeShape, printTypeShape } from "./typeModifiers";
+import { SyntaxToggles } from "./SyntaxToggles";
+import { parseTypeShape, printTypeShape, toggleTypeModifier, TypeModifier } from "./typeModifiers";
 
 const isGraphQLScalarType = (type: string): boolean => {
     const scalarTypes = [
@@ -165,6 +165,47 @@ const getGraphQLValueType = (type: string): string => {
     return shape.stream ? type : printTypeShape({ ...shape, error: false });
 };
 
+// Only nil is offered here: a GraphQL type is a list by what the user types, and an error is set apart from the type.
+const NULLABLE_ONLY: readonly TypeModifier[] = ["nullable"];
+
+/** The text the user typed without the trailing `?` the non-null toggle stands for. */
+const withoutTypedNil = (text: string): string => {
+    const trimmed = text.trimEnd();
+    return trimmed.endsWith("?") ? trimmed.slice(0, -1) : text;
+};
+
+/**
+ * What the non-null toggle tells the user, in GraphQL's words: GraphQL reads a type the other way round from
+ * Ballerina, so a Ballerina `T` is the non-null `T!` and a `T?` is the nullable `T`.
+ */
+const getNonNullInfo = (field: FormField, nonNull: boolean): { title: string; description: string } => {
+    const messages: PropertyModel | undefined = field.properties?.["nullableAction"]?.properties;
+    const stated = messages?.[nonNull ? "false" : "true"]?.metadata?.description;
+    return nonNull
+        ? { title: "Non-null (!)", description: `${stated ?? "The value is never null"}. Turn off to allow null.` }
+        : { title: "Nullable", description: `${stated ?? "The value can be null"}. Turn on to make it non-null (!).` };
+};
+
+// The expression editor places an end adornment beside its box, not inside it, so the non-null toggle is laid over
+// the end of the box's first line instead, with room kept for it in the text.
+const TypeInputContainer = styled.div`
+    position: relative;
+
+    vscode-text-area::part(control) {
+        padding-right: 28px;
+    }
+`;
+
+const InlineToggles = styled.div`
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: 6px;
+    display: flex;
+    align-items: center;
+    z-index: 1;
+`;
+
 const getDefaultCompletion = (newType: string) => {
     return (
         <S.TitleContainer data-testid="add-type-completion">
@@ -207,6 +248,18 @@ export function ActionTypeEditor(props: ActionTypeEditorProps) {
 
     const [isTypeHelperOpen, setIsTypeHelperOpen] = useState<boolean>(false);
 
+    // The field shows its type without the `?` and offers a non-null toggle in its place. GraphQL types are nullable
+    // unless marked non-null, so a new type starts nullable; the choice is kept while the field is empty, as there is
+    // no type to hold it.
+    const [nullableWhileEmpty, setNullableWhileEmpty] = useState<boolean>(() => {
+        const initial = typeof field.value === "string" ? field.value : "";
+        return initial.trim() ? parseTypeShape(initial, NULLABLE_ONLY).nullable : true;
+    });
+    // What the user is typing, shown as typed until the field is left; it only stands for the type this field last
+    // wrote, so a type changed from elsewhere is shown as it is.
+    const [draft, setDraft] = useState<string | undefined>(undefined);
+    const lastWritten = useRef<string | undefined>(undefined);
+
     const handleFocus = async (value: string) => {
         setFocused(true);
         // Trigger actions on focus
@@ -217,6 +270,7 @@ export function ActionTypeEditor(props: ActionTypeEditorProps) {
 
     const handleBlur = async () => {
         setFocused(false);
+        setDraft(undefined);
         // Trigger actions on blur
         await onBlur?.();
         setShowDefaultCompletion(undefined);
@@ -335,12 +389,6 @@ export function ActionTypeEditor(props: ActionTypeEditorProps) {
         }
     };
 
-    const handleModifierChange = (updatedValue: string, onChange: (value: string) => void) => {
-        onChange(updatedValue);
-        handleTypeEdit(updatedValue);
-        updateGraphqlIdState(updatedValue);
-        handleNewTypeSelected?.(referenceTypes.find((type) => type.label === updatedValue) ?? updatedValue);
-    };
 
     useEffect(() => {
         const typeField = exprRef.current;
@@ -386,87 +434,125 @@ export function ActionTypeEditor(props: ActionTypeEditorProps) {
                 render={({ field: { name, value, onChange }, fieldState: { error } }) => {
                     onChangeRef.current = onChange;
 
+                    const shape = parseTypeShape(value ?? "", NULLABLE_ONLY);
+                    const nullable = shape.base ? shape.nullable : nullableWhileEmpty;
+                    const shownValue = draft !== undefined && lastWritten.current === value
+                        ? draft
+                        : printTypeShape({ ...shape, nullable: false });
+
+                    const writeType = (fieldType: string) => {
+                        lastWritten.current = fieldType;
+                        onChange(fieldType);
+                        updateGraphqlIdState(fieldType);
+                    };
+
+                    const handleNonNullToggle = () => {
+                        setNullableWhileEmpty(!nullable);
+                        if (shape.base) {
+                            const fieldType = toggleTypeModifier(value, "nullable", !nullable, NULLABLE_ONLY);
+                            writeType(fieldType);
+                            handleTypeEdit(fieldType);
+                        }
+                    };
+
                     return (
                         <div>
-                            <FormExpressionEditor
-                                key={field.key}
-                                ref={exprRef}
-                                anchorRef={typeBrowserRef}
-                                name={name}
-                                startAdornment={<EditorRibbon onClick={toggleTypeHelperPaneState} />}
-                                completions={types}
-                                showDefaultCompletion={canOfferTypeCreation(showDefaultCompletion, openRecordEditor)}
-                                getDefaultCompletion={() => getDefaultCompletion(value)}
-                                value={value}
-                                ariaLabel={field.label}
-                                onChange={async (updatedValue: string, updatedCursorPosition: number) => {
-                                    if (updatedValue === value) {
-                                        return;
-                                    }
+                            <TypeInputContainer>
+                                <FormExpressionEditor
+                                    key={field.key}
+                                    ref={exprRef}
+                                    anchorRef={typeBrowserRef}
+                                    name={name}
+                                    startAdornment={<EditorRibbon onClick={toggleTypeHelperPaneState} />}
+                                    completions={types}
+                                    showDefaultCompletion={canOfferTypeCreation(showDefaultCompletion, openRecordEditor)}
+                                    getDefaultCompletion={() => getDefaultCompletion(shownValue)}
+                                    value={shownValue}
+                                    ariaLabel={field.label}
+                                    onChange={async (updatedValue: string, updatedCursorPosition: number) => {
+                                        if (updatedValue === shownValue) {
+                                            return;
+                                        }
 
-                                    onChange(updatedValue);
-                                    debouncedTypeEdit(updatedValue);
-                                    cursorPositionRef.current = updatedCursorPosition;
+                                        // A `?` typed at the end is taken over by the toggle, and the toggle's choice
+                                        // decorates whatever is typed.
+                                        const typed = parseTypeShape(updatedValue, NULLABLE_ONLY);
+                                        if (typed.nullable) {
+                                            setNullableWhileEmpty(true);
+                                        }
+                                        const fieldType = typed.base
+                                            ? printTypeShape({ ...typed, nullable: nullable || typed.nullable })
+                                            : "";
+                                        setDraft(withoutTypedNil(updatedValue));
+                                        writeType(fieldType);
+                                        debouncedTypeEdit(fieldType);
+                                        cursorPositionRef.current = updatedCursorPosition;
 
-                                    updateGraphqlIdState(updatedValue);
+                                        // Set show default completion
+                                        const typeExists = referenceTypes.find((type) => type.label === updatedValue);
 
-                                    // Set show default completion
-                                    const typeExists = referenceTypes.find((type) => type.label === updatedValue);
+                                        // disabling expression editor diagnostics for type field 
+                                        // as the expressionEditor/diagnstics API is currently
+                                        // having a limitation on validating the type fields
+                                        
+                                        // if (getExpressionEditorDiagnostics) {
+                                        //     const required = !field.optional;
 
-                                    // disabling expression editor diagnostics for type field 
-                                    // as the expressionEditor/diagnstics API is currently
-                                    // having a limitation on validating the type fields
-                                    
-                                    // if (getExpressionEditorDiagnostics) {
-                                    //     const required = !field.optional;
+                                        //     getExpressionEditorDiagnostics(
+                                        //         (required ?? !field.optional) || updatedValue !== '',
+                                        //         updatedValue,
+                                        //         field.key,
+                                        //         getPropertyFromFormField(field)
+                                        //     );
+                                        // }
 
-                                    //     getExpressionEditorDiagnostics(
-                                    //         (required ?? !field.optional) || updatedValue !== '',
-                                    //         updatedValue,
-                                    //         field.key,
-                                    //         getPropertyFromFormField(field)
-                                    //     );
-                                    // }
+                                        handleNewTypeSelected && handleNewTypeSelected(typeExists ? typeExists : updatedValue)
+                                        const validTypeForCreation = updatedValue.match(/^[a-zA-Z_'][a-zA-Z0-9_]*$/);
+                                        if (updatedValue && !typeExists && validTypeForCreation) {
+                                            setShowDefaultCompletion(true);
+                                        } else {
+                                            setShowDefaultCompletion(false);
+                                        }
 
-                                    handleNewTypeSelected && handleNewTypeSelected(typeExists ? typeExists : updatedValue)
-                                    const validTypeForCreation = updatedValue.match(/^[a-zA-Z_'][a-zA-Z0-9_]*$/);
-                                    if (updatedValue && !typeExists && validTypeForCreation) {
-                                        setShowDefaultCompletion(true);
-                                    } else {
-                                        setShowDefaultCompletion(false);
-                                    }
-
-                                    // Retrieve types
-                                    await retrieveVisibleTypes(
-                                        updatedValue,
-                                        updatedCursorPosition,
-                                        false,
-                                        field.types,
-                                        field.key
-                                    );
-                                }}
-                                onCompletionSelect={handleCompletionSelect}
-                                onDefaultCompletionSelect={() => handleDefaultCompletionSelect(value)}
-                                onFocus={() => handleFocus(value)}
-                                enableExIcon={false}
-                                isHelperPaneOpen={isTypeHelperOpen}
-                                changeHelperPaneState={handleChangeTypeHelperState}
-                                getHelperPane={handleGetTypeHelper}
-                                helperPaneOrigin={typeHelperOrigin}
-                                helperPaneHeight={typeHelperHeight}
-                                onBlur={handleBlur}
-                                onSave={onSave}
-                                onCancel={handleCancel}
-                                placeholder={field.placeholder}
-                                autoFocus={autoFocus}
-                                sx={{ paddingInline: '0' }}
-                                helperPaneZIndex={40001}
-                            />
-                            <TypeModifierBar
-                                value={value ?? ''}
-                                modifiers={getTypeModifiers(field)}
-                                onChange={(updatedValue) => handleModifierChange(updatedValue, onChange)}
-                            />
+                                        // Retrieve types
+                                        await retrieveVisibleTypes(
+                                            updatedValue,
+                                            updatedCursorPosition,
+                                            false,
+                                            field.types,
+                                            field.key
+                                        );
+                                    }}
+                                    onCompletionSelect={handleCompletionSelect}
+                                    onDefaultCompletionSelect={() => handleDefaultCompletionSelect(shownValue)}
+                                    onFocus={() => handleFocus(shownValue)}
+                                    enableExIcon={false}
+                                    isHelperPaneOpen={isTypeHelperOpen}
+                                    changeHelperPaneState={handleChangeTypeHelperState}
+                                    getHelperPane={handleGetTypeHelper}
+                                    helperPaneOrigin={typeHelperOrigin}
+                                    helperPaneHeight={typeHelperHeight}
+                                    onBlur={handleBlur}
+                                    onSave={onSave}
+                                    onCancel={handleCancel}
+                                    placeholder={field.placeholder}
+                                    autoFocus={autoFocus}
+                                    sx={{ paddingInline: '0' }}
+                                    helperPaneZIndex={40001}
+                                />
+                                <InlineToggles>
+                                    <SyntaxToggles
+                                        tooltipPosition="bottom-start"
+                                        items={[{
+                                            id: "non-null",
+                                            glyph: "!",
+                                            ...getNonNullInfo(field, !nullable),
+                                            pressed: !nullable,
+                                            onToggle: handleNonNullToggle
+                                        }]}
+                                    />
+                                </InlineToggles>
+                            </TypeInputContainer>
                             {error?.message && <ErrorBanner errorMsg={error.message.toString()} />}
 
                             {/* GraphQL ID Checkbox - only shown for scalar types */}

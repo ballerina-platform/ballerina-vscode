@@ -19,12 +19,11 @@
 // L1: the type modifier toggles (product-integrator#1820). Each toggle must read the modifier the user typed and
 // write it back without disturbing the rest of the type.
 
-import type { FormField } from "../components/Form/types";
 import {
     applyTypedText,
-    getTypeModifiers,
     parseTypeShape,
     splitTypedSuffixes,
+    toGraphQLNullability,
     toggleTypeModifier,
     TYPE_MODIFIERS,
     TypeModifier,
@@ -192,33 +191,6 @@ describe("toggleTypeModifier", () => {
     });
 });
 
-describe("getTypeModifiers", () => {
-    const typeField = (overrides: Partial<FormField>): FormField =>
-        ({ key: "type", label: "Type", type: "TYPE", optional: false, editable: true, enabled: true,
-            documentation: "", value: "", types: [{ fieldType: "TYPE", selected: true }], ...overrides } as FormField);
-
-    it.each([
-        ["a function's return type", { label: "Return Type" }],
-        ["a service function's return type", { key: "returnType", label: "Returns" }],
-        ["a data mapper's output type", { label: "Output" }],
-        ["a GraphQL field type", { label: "Field Type", properties: { nullableAction: {} } as FormField["properties"] }],
-    ])("offers the error toggle on %s", (_desc, overrides) => {
-        expect(getTypeModifiers(typeField(overrides))).toEqual(["list", "nullable", "error"]);
-    });
-
-    it.each([
-        ["a variable type", { label: "Type" }],
-        ["a parameter type", { key: "type", label: "Parameter Type" }],
-        ["a configurable type", { key: "type", label: "Variable Type" }],
-    ])("withholds the error toggle from %s", (_desc, overrides) => {
-        expect(getTypeModifiers(typeField(overrides))).toEqual(["list", "nullable"]);
-    });
-
-    it("lets a form state the toggles itself", () => {
-        expect(getTypeModifiers(typeField({ label: "Return Type", typeModifiers: [] }))).toEqual([]);
-    });
-});
-
 describe("splitTypedSuffixes", () => {
     it.each([
         ["string[]", { base: "string", list: true, nullable: false }],
@@ -244,5 +216,23 @@ describe("applyTypedText", () => {
         ["Profile[]?", "  ", ""],
     ])("on %s, typing %s gives %s", (type, text, expected) => {
         expect(applyTypedText(parseTypeShape(type), text)).toBe(expected);
+    });
+});
+
+describe("toGraphQLNullability", () => {
+    it.each([
+        ["Profile", "Profile!"],
+        ["Profile?", "Profile"],
+        ["untitled:CreateUserInput?", "untitled:CreateUserInput"],
+        ["string[]", "[string!]!"],
+        ["string?[]", "[string]!"],
+        ["string[]?", "[string!]"],
+        ["int[][]", "[[int!]!]!"],
+        ["A|B", "(A|B)!"],
+        ["(A|B)?", "A|B"],
+        ["stream<Profile>", "stream<Profile>"],
+        ["", ""],
+    ])("writes %s as %s", (type, expected) => {
+        expect(toGraphQLNullability(type)).toBe(expected);
     });
 });

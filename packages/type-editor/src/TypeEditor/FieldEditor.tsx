@@ -24,9 +24,13 @@ import { typeToSource, defaultAnonymousRecordType, isGraphQLScalarType } from '.
 import { RecordEditor } from './RecordEditor';
 import { AdvancedOptions } from './AdvancedOptions';
 import { IdentifierField } from './IdentifierField';
-import { VALUE_TYPE_MODIFIERS } from '@wso2/ballerina-side-panel';
+import {
+    revealSyntaxTogglesOnHover,
+    SyntaxToggleItem,
+    SyntaxToggles,
+    VALUE_TYPE_MODIFIERS
+} from '@wso2/ballerina-side-panel';
 import { TypeField } from './TypeField';
-import { revealSyntaxTogglesOnHover, SyntaxToggleItem, SyntaxToggles } from './SyntaxToggles';
 
 interface FieldEditorProps {
     member: Member;
