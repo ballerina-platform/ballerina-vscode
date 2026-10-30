@@ -22,7 +22,19 @@ import { css, keyframes } from "@emotion/react";
 import { AgentRunState } from "@wso2/ballerina-core";
 import { Icon } from "@wso2/ui-toolkit";
 import { ShaderOrb } from "./ShaderOrb";
-import { FALLBACK_ORB_THEME, Gloss, IconOverlay, ORB_ENERGY, OrbTheme, Sphere, useOrbTheme } from "./shared";
+import {
+    ACCENT_CORE,
+    ACCENT_FRAME,
+    AGENT_BUILDER_ORB_COLORS,
+    FALLBACK_ORB_THEME,
+    Gloss,
+    IconOverlay,
+    ORB_ENERGY,
+    OrbTheme,
+    SpinArc as SolidSpinArc,
+    Sphere,
+    useOrbTheme,
+} from "./shared";
 
 const rotate = keyframes`
     from { transform: rotate(0deg); }
@@ -90,11 +102,11 @@ const Aura = styled.div<AuraProps>`
     }
 `;
 
-const BrandRing = styled.div`
+const BrandRing = styled.div<{ ringColor?: string }>`
     position: absolute;
     inset: 0;
     border-radius: 50%;
-    border: 1.5px solid color-mix(in srgb, var(--vscode-button-foreground) 35%, transparent);
+    border: 1.5px solid ${(props: { ringColor?: string }) => props.ringColor ?? "color-mix(in srgb, var(--vscode-button-foreground) 35%, transparent)"};
     pointer-events: none;
 `;
 
@@ -113,11 +125,37 @@ const SpinArc = styled.div`
 
 export interface CopilotOrbProps {
     state: AgentRunState;
+    /** Ignored by the solid style, which always uses Agent Builder's palette. */
     colors: [string, string, string];
     size: number;
     iconSize?: number;
     /** Pins a theme instead of following the shared preference. */
     theme?: OrbTheme;
+}
+
+/** Agent Builder's own look: a solid sphere in its palette, a tinted ring and a white icon. */
+function SolidOrb({ state, size, iconSize }: { state: AgentRunState; size: number; iconSize: number }) {
+    const colors = AGENT_BUILDER_ORB_COLORS[state];
+    return (
+        <Holder $size={size}>
+            {(state === "running" || state === "awaiting-input") && <Halo colors={colors} />}
+            <Aura colors={colors} state={state} />
+            <Sphere
+                colors={colors}
+                energy={ORB_ENERGY[state]}
+                highlightColor={state === "idle" ? ACCENT_CORE : `color-mix(in srgb, ${colors[0]} 70%, transparent)`}
+            />
+            <BrandRing ringColor={`color-mix(in srgb, ${colors[0]} 55%, transparent)`} />
+            {state === "running" && <SolidSpinArc color={ACCENT_FRAME[1]} />}
+            <IconOverlay>
+                <Icon
+                    name="bi-ai-chat"
+                    sx={{ width: iconSize, height: iconSize }}
+                    iconSx={{ fontSize: `${iconSize}px`, color: "#ffffff", cursor: "inherit" }}
+                />
+            </IconOverlay>
+        </Holder>
+    );
 }
 
 export function CopilotOrb({ state, colors, size, iconSize = 26, theme }: CopilotOrbProps) {
@@ -130,6 +168,10 @@ export function CopilotOrb({ state, colors, size, iconSize = 26, theme }: Copilo
     // The animated orb needs WebGL; fall back to the simple one when it can't render.
     const resolved: OrbTheme = requested === "animated" && webglFailed ? FALLBACK_ORB_THEME : requested;
     const energy = ORB_ENERGY[state];
+
+    if (resolved === "solid") {
+        return <SolidOrb state={state} size={size} iconSize={iconSize} />;
+    }
 
     return (
         <Holder $size={size}>

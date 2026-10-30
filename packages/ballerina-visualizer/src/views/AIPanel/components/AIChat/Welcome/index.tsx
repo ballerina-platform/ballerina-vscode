@@ -19,14 +19,13 @@
 import styled from "@emotion/styled";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Icon, Typography } from "@wso2/ui-toolkit";
-import React, { useCallback, useState } from "react";
-import { ShaderOrb } from "../../../../../components/AgentStatusOrb/ShaderOrb";
+import React from "react";
+import { CopilotOrb } from "../../../../../components/AgentStatusOrb/CopilotOrb";
 import { useOrbColors } from "../../../../../components/AgentStatusOrb/orbTheme";
 import {
     ACCENT_CORE,
     ACCENT_FRAME,
     AGENT_BUILDER_ORB_COLORS,
-    Gloss,
     IconOverlay,
     ORB_ENERGY,
     Sphere,
@@ -98,10 +97,6 @@ const WelcomeOrb = styled.div`
     flex: none;
 `;
 
-const SerifI = styled.span`
-    font-family: Georgia, "Times New Roman", serif;
-`;
-
 const GuideChip = styled.div`
     margin: 42px auto 0;
     padding: 8px 16px;
@@ -137,8 +132,6 @@ interface WelcomeMessageProps {
 
 const WelcomeMessage: React.FC<WelcomeMessageProps> = ({ isOnboarding = false }) => {
     const { rpcClient } = useRpcContext();
-    const [webglFailed, setWebglFailed] = useState(false);
-    const handleWebglFailed = useCallback(() => setWebglFailed(true), []);
     const productMode = useProductMode();
     const agentBuilder = productMode === ProductMode.AGENT_BUILDER;
     const assistantName = useAssistantName();
@@ -150,28 +143,20 @@ const WelcomeMessage: React.FC<WelcomeMessageProps> = ({ isOnboarding = false })
             <Content>
                 <WelcomeOrbHalo accent={agentBuilder}>
                     <WelcomeOrb role="img" aria-label={assistantName}>
-                        {webglFailed || agentBuilder ? (
-                            <Sphere
-                                colors={agentBuilder ? AGENT_BUILDER_ORB_COLORS.idle : idleColors}
-                                energy={ORB_ENERGY.idle}
-                                highlightColor={agentBuilder ? ACCENT_CORE : undefined}
-                            />
+                        {agentBuilder ? (
+                            <>
+                                <Sphere colors={AGENT_BUILDER_ORB_COLORS.idle} energy={ORB_ENERGY.idle} highlightColor={ACCENT_CORE} />
+                                <IconOverlay>
+                                    <Icon
+                                        name="bi-ai-chat"
+                                        sx={{ width: 24, height: 24 }}
+                                        iconSx={{ fontSize: "24px", color: "var(--vscode-button-foreground)", cursor: "default" }}
+                                    />
+                                </IconOverlay>
+                            </>
                         ) : (
-                            <ShaderOrb
-                                colors={idleColors}
-                                energy={ORB_ENERGY.idle}
-                                size={WELCOME_ORB_SIZE}
-                                onContextFailed={handleWebglFailed}
-                            />
+                            <CopilotOrb state="idle" colors={idleColors} size={WELCOME_ORB_SIZE} iconSize={24} />
                         )}
-                        {!agentBuilder && <Gloss />}
-                        <IconOverlay>
-                            <Icon
-                                name="bi-ai-chat"
-                                sx={{ width: 24, height: 24 }}
-                                iconSx={{ fontSize: "24px", color: "var(--vscode-button-foreground)", cursor: "default" }}
-                            />
-                        </IconOverlay>
                     </WelcomeOrb>
                 </WelcomeOrbHalo>
                 <Typography
@@ -196,7 +181,7 @@ const WelcomeMessage: React.FC<WelcomeMessageProps> = ({ isOnboarding = false })
                     {agentBuilder ? (
                         <>I can help you build, update, and understand your agent. Tell me what you’d like to do.</>
                     ) : (
-                        <>Hi, this is {assistantName} (<SerifI>WII</SerifI>). You can call me Wii. I’m built to be an expert in integration. Let’s do integration together.</>
+                        <>Build integrations faster with AI. Describe what you need and get working integrations instantly.</>
                     )}
                 </Typography>
                 <Typography

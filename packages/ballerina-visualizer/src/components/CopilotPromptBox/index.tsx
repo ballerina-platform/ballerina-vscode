@@ -222,6 +222,7 @@ export const CopilotPromptBox = forwardRef<CopilotPromptBoxHandle, CopilotPrompt
 ) {
     const assistantName = useAssistantName();
     const agentBuilder = useProductMode() === ProductMode.AGENT_BUILDER;
+    const SendControl = agentBuilder ? SendButton : ComposerActionButton;
     const [agentMode, setAgentMode] = useState<AgentMode>(AgentMode.Edit);
     const { attachments, handleAttachClick, removeAttachment, removeAllAttachments } =
         useAttachments({
@@ -330,15 +331,15 @@ export const CopilotPromptBox = forwardRef<CopilotPromptBoxHandle, CopilotPrompt
                         <ComposerActionButton type="button" title="Attach context" onClick={handleAttachClick}>
                             <Icon name="Paperclip" sx={{ fontSize: "16px" }} />
                         </ComposerActionButton>
-                        <SendButton
+                        <SendControl
                             type="button"
                             title={attachmentsReady ? `Send to ${assistantName}` : "Remove failed attachments to send"}
                             aria-label={`Send to ${assistantName}`}
                             disabled={!canSend}
                             onClick={() => void submit()}
                         >
-                            {SEND_ICON}
-                        </SendButton>
+                            {agentBuilder ? SEND_ICON : <Icon name="Send" sx={{ fontSize: "16px" }} />}
+                        </SendControl>
                     </RightControls>
                 </ActionRow>
             </Composer>

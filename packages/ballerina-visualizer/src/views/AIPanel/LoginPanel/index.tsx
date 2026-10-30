@@ -18,11 +18,13 @@
 
 import styled from "@emotion/styled";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { AIMachineEventType } from "@wso2/ballerina-core";
+import { AIMachineEventType, ProductMode } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Icon, ThemeColors, Typography } from "@wso2/ui-toolkit";
 import React from "react";
 import { Banner } from "../../../components/Banner";
+import { CopilotOrb } from "../../../components/AgentStatusOrb/CopilotOrb";
+import { useOrbColors } from "../../../components/AgentStatusOrb/orbTheme";
 import {
     ACCENT_CORE,
     ACCENT_SPHERE,
@@ -32,7 +34,9 @@ import {
     ORB_ENERGY,
     Sphere,
 } from "../../../components/AgentStatusOrb/shared";
-import { useAssistantName, useAssistantTagline } from "../../../hooks/useProductMode";
+import { useAssistantName, useAssistantTagline, useProductMode } from "../../../hooks/useProductMode";
+
+const LOGIN_ORB_SIZE = 58;
 
 const WIDE = "@media (min-width: 940px)";
 
@@ -66,6 +70,58 @@ const Title = styled.h2`
     font-size: 24px;
     font-weight: 400;
     color: var(--vscode-foreground);
+`;
+
+const WelcomeHeaderContent = styled.div`
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    margin-bottom: 32px;
+`;
+
+const WelcomeOrbHalo = styled.div`
+    position: relative;
+    width: 86px;
+    height: 86px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &::before {
+        content: "";
+        position: absolute;
+        inset: -14px;
+        border-radius: 50%;
+        background: radial-gradient(
+            circle,
+            color-mix(in srgb, var(--vscode-button-background) 28%, transparent),
+            transparent 70%
+        );
+        filter: blur(8px);
+        pointer-events: none;
+    }
+
+    @media (forced-colors: active) {
+        &::before {
+            display: none;
+        }
+    }
+`;
+
+const WelcomeOrb = styled.div`
+    position: relative;
+    width: ${LOGIN_ORB_SIZE}px;
+    height: ${LOGIN_ORB_SIZE}px;
+    flex: none;
+`;
+
+const WelcomeTitle = styled.h2`
+    display: inline-flex;
+    margin-top: 24px;
+    margin-bottom: 8px;
+    font-size: 18px;
+    font-weight: 700;
 `;
 
 const Subtitle = styled.p`
@@ -304,6 +360,8 @@ const LoginPanel: React.FC<{ embedded?: boolean; subtitle?: React.ReactNode }> =
     const { rpcClient } = useRpcContext();
     const assistantName = useAssistantName();
     const tagline = useAssistantTagline();
+    const agentBuilder = useProductMode() === ProductMode.AGENT_BUILDER;
+    const idleColors = useOrbColors("idle");
 
     const { data: isPlatformAvailable, refetch: refetchPlatformAvailability } = useQuery({
         queryKey: ["platform-availability"],
@@ -342,20 +400,42 @@ const LoginPanel: React.FC<{ embedded?: boolean; subtitle?: React.ReactNode }> =
     return (
         <PanelWrapper $embedded={embedded}>
             {!embedded && <TopSpacer />}
-            <HeaderContent>
-                <OrbAura $colors={frameTriple(ACCENT_SPHERE[0])}>
-                    <Sphere colors={ACCENT_SPHERE} energy={ORB_ENERGY.idle} highlightColor={ACCENT_CORE} />
-                    <IconOverlay>
-                        <Icon
-                            name="bi-ai-chat"
-                            sx={{ width: 26, height: 26 }}
-                            iconSx={{ fontSize: "26px", color: "#ffffff", cursor: "default" }}
-                        />
-                    </IconOverlay>
-                </OrbAura>
-                <Title>{assistantName}</Title>
-                <Subtitle>{subtitle ?? tagline}</Subtitle>
-            </HeaderContent>
+            {agentBuilder ? (
+                <HeaderContent>
+                    <OrbAura $colors={frameTriple(ACCENT_SPHERE[0])}>
+                        <Sphere colors={ACCENT_SPHERE} energy={ORB_ENERGY.idle} highlightColor={ACCENT_CORE} />
+                        <IconOverlay>
+                            <Icon
+                                name="bi-ai-chat"
+                                sx={{ width: 26, height: 26 }}
+                                iconSx={{ fontSize: "26px", color: "#ffffff", cursor: "default" }}
+                            />
+                        </IconOverlay>
+                    </OrbAura>
+                    <Title>{assistantName}</Title>
+                    <Subtitle>{subtitle ?? tagline}</Subtitle>
+                </HeaderContent>
+            ) : (
+                <WelcomeHeaderContent>
+                    <WelcomeOrbHalo>
+                        <WelcomeOrb role="img" aria-label={assistantName}>
+                            <CopilotOrb state="idle" colors={idleColors} size={LOGIN_ORB_SIZE} iconSize={24} />
+                        </WelcomeOrb>
+                    </WelcomeOrbHalo>
+                    <WelcomeTitle>Welcome to {assistantName}</WelcomeTitle>
+                    <Typography
+                        variant="body1"
+                        sx={{
+                            color: "var(--vscode-descriptionForeground)",
+                            textAlign: "center",
+                            maxWidth: 350,
+                            fontSize: 14,
+                        }}
+                    >
+                        {subtitle ?? tagline}
+                    </Typography>
+                </WelcomeHeaderContent>
+            )}
 
             <BodyContent>
                 {isPlatformAvailable ? (

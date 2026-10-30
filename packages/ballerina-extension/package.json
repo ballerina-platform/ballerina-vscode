@@ -212,15 +212,18 @@
                     "type": "string",
                     "enum": [
                         "animated",
-                        "simple"
+                        "simple",
+                        "solid"
                     ],
                     "enumItemLabels": [
                         "Animated",
-                        "Simple"
+                        "Simple",
+                        "Solid"
                     ],
                     "enumDescriptions": [
                         "Animated orb with a glowing ring. Uses the simple orb when it cannot render.",
-                        "Simple gradient orb without a ring."
+                        "Simple gradient orb without a ring.",
+                        "Solid orb with a tinted ring and a white icon. The default in WSO2 Agent Builder."
                     ],
                     "default": "animated",
                     "description": "Copilot orb style."
