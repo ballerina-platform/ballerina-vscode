@@ -27,7 +27,6 @@ import * as os from 'os';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { StateMachine } from "../../stateMachine";
-import { updateSourceCode } from "../../utils/source-utils";
 import { parse, stringify } from "@iarna/toml";
 import { getProjectHandle, getStoredICPSecret } from "../../features/icp/setup";
 import { ensureICPServerRunning, isICPServerRunning, getICPUrl } from "../../features/icp";
@@ -119,6 +118,29 @@ function buildRemoveImportsTextEdits(projectPath: string): { [key: string]: Text
     return { [mainBalPath]: edits };
 }
 
+// Not updateSourceCode: it waits for an artifact change, and an import-only edit makes none, so it
+// timed out and aborted the toggle before the Ballerina.toml and Config.toml writes.
+async function applyImportEdits(textEdits: { [key: string]: TextEdit[] }): Promise<void> {
+    const workspaceEdit = new vscode.WorkspaceEdit();
+    for (const [filePath, edits] of Object.entries(textEdits)) {
+        for (const edit of edits) {
+            const { start, end } = edit.range;
+            workspaceEdit.replace(
+                vscode.Uri.file(filePath),
+                new vscode.Range(start.line, start.character, end.line, end.character),
+                edit.newText
+            );
+        }
+    }
+    if (!await vscode.workspace.applyEdit(workspaceEdit)) {
+        throw new Error('Failed to update the ICP imports');
+    }
+    for (const filePath of Object.keys(textEdits)) {
+        const document = await vscode.workspace.openTextDocument(vscode.Uri.file(filePath));
+        await document.save();
+    }
+}
+
 function updateBallerinaToml(projectPath: string, edit: (content: string) => string): void {
     const tomlPath = path.join(projectPath, 'Ballerina.toml');
     if (!fs.existsSync(tomlPath)) {
@@ -201,10 +223,7 @@ export class ICPServiceRpcManager implements ICPServiceAPI {
         const context = StateMachine.context();
         const projectPath: string = params.projectPath || context.projectPath;
         try {
-            const importEdits = buildAddImportsTextEdits(projectPath);
-            if (Object.keys(importEdits).length > 0) {
-                await updateSourceCode({ textEdits: importEdits, description: 'ICP Creation' });
-            }
+            await applyImportEdits(buildAddImportsTextEdits(projectPath));
             updateBallerinaToml(projectPath, addICPBuildOptions);
             await addICPConfigToml(projectPath);
             return await context.langClient.isIcpEnabled({ projectPath });
@@ -221,10 +240,7 @@ export class ICPServiceRpcManager implements ICPServiceAPI {
         const context = StateMachine.context();
         const projectPath: string = params.projectPath || context.projectPath;
         try {
-            const importEdits = buildRemoveImportsTextEdits(projectPath);
-            if (Object.keys(importEdits).length > 0) {
-                await updateSourceCode({ textEdits: importEdits, description: 'ICP Disable' });
-            }
+            await applyImportEdits(buildRemoveImportsTextEdits(projectPath));
             updateBallerinaToml(projectPath, removeICPBuildOptions);
             removeICPConfigToml(projectPath);
             return await context.langClient.isIcpEnabled({ projectPath });
