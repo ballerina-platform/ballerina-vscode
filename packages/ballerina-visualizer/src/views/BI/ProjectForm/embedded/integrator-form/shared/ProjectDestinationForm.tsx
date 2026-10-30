@@ -272,6 +272,7 @@ export function ProjectDestinationForm({
     const firstFieldRef = useRef<HTMLInputElement>(null);
     const defaultPathInitialized = useRef(false);
     const orgNameInitialized = useRef(false);
+    const fetchedOrgName = useRef<string>();
     const projectNameTouchedRef = useRef(false);
     // Set the moment the user edits the integration name, so the async default-name
     // indexing below never clobbers what they typed.
@@ -364,10 +365,22 @@ export function ProjectDestinationForm({
             setOrgName(organizations[0].handle);
         } else {
             wsClient.getDefaultOrgName()
-                .then(({ orgName: defaultOrgName }) => setOrgName(defaultOrgName))
+                .then(({ orgName: defaultOrgName }) => {
+                    fetchedOrgName.current = defaultOrgName;
+                    setOrgName(defaultOrgName);
+                })
                 .catch((error) => console.error("Failed to fetch default org name:", error));
         }
     }, [organizations, wsClient]);
+
+    // Sign-in usually completes after mount: swap the fetched default for the user's org
+    // once, unless the field was edited in the meantime.
+    useEffect(() => {
+        if (organizations?.length && fetchedOrgName.current !== undefined && orgName === fetchedOrgName.current) {
+            fetchedOrgName.current = undefined;
+            setOrgName(organizations[0].handle);
+        }
+    }, [organizations, orgName]);
 
     // Seed the Default project location once (`<defaultLocation>/default`). The
     // realtime validation then reports whether it already exists (add into it) or
