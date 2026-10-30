@@ -117,6 +117,21 @@ describe("saveEditedDocuments", () => {
         expect(untouched.save).not.toHaveBeenCalled();
     });
 
+    it("does not report a document that was already saved as a failed save", async () => {
+        const edited = documentFor("/ws/main.bal", true);
+        edited.save.mockImplementation(async () => {
+            edited.isDirty = false;
+            return false;
+        });
+        workspace.textDocuments = [edited];
+        const warn = jest.spyOn(console, "warn").mockImplementation(() => undefined);
+
+        await saveEditedDocuments([uri("/ws/main.bal")]);
+
+        expect(warn).not.toHaveBeenCalled();
+        warn.mockRestore();
+    });
+
     it("saves the file itself, not a git: view that shares its path", async () => {
         const edited = documentFor("/ws/main.bal", true);
         workspace.textDocuments = [documentFor("/ws/main.bal", false, "git"), edited];

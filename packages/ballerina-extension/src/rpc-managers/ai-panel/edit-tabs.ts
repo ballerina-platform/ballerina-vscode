@@ -51,7 +51,8 @@ export function openTabUris(): Set<string> {
 export async function saveEditedDocuments(uris: Uri[]): Promise<void> {
     for (const uri of uris) {
         const document = documentFor(uri);
-        if (document?.isDirty && !(await document.save())) {
+        // save() is also false when the document was already saved, which is not a failure.
+        if (document?.isDirty && !(await document.save()) && document.isDirty) {
             console.warn(`[EditTabs] Failed to save ${uri.fsPath}; VS Code will surface it as a dirty tab.`);
         }
     }

@@ -38,6 +38,7 @@ import { approvalManager } from '../../state/ApprovalManager';
 import { SUBAGENT_TOOL_NAME } from "../subagents/types";
 import { recordAiTouchedFile } from "../../../../rpc-managers/diagram-validity";
 import { addToIntegration } from "../../../../rpc-managers/ai-panel/utils";
+import { hasUnsavedChanges, saveUnsavedDocuments, unsavedChangesError } from "../../utils/project/unsaved-documents";
 import { writeBallerinaFileDidOpen } from "../../../../utils/modification";
 import { isSupportedSpecVersion, resolveProvidedSpec, SpecContext, specVersion, withRelativeSpecPath } from "./connector-spec-source";
 import { blockingValidationMessages, implementsServiceContract, selectOpenApiDesign, toServiceTypeName } from "./openapi-service-model";
@@ -166,6 +167,9 @@ export async function ConnectorGeneratorTool(
         const packageRoot = path.join(tempProjectPath, packagePath ?? "");
         const isService = input.mode === "service";
 
+        // The language server computes its edits against the editor text, but they are applied to the file on disk.
+        await saveUnsavedDocuments(packageRoot);
+
         const { specFilePath, sanitizedServiceName } = await saveSpecToWorkspace(
             originalContent,
             format,
@@ -271,6 +275,9 @@ async function saveSpecToWorkspace(
     if (!fs.existsSync(specsDir)) {
         fs.mkdirSync(specsDir, { recursive: true });
     }
+    if (hasUnsavedChanges(specFilePath)) {
+        throw new Error(unsavedChangesError(path.relative(tempProjectPath, specFilePath)));
+    }
 
     const contentToSave = format === "yaml" ? originalContent : JSON.stringify(rawSpec, null, 2);
     fs.writeFileSync(specFilePath, contentToSave, "utf-8");
@@ -366,6 +373,13 @@ async function writeGeneratedEdits(
     modifiedFiles?: string[]
 ): Promise<Array<{ path: string; content: string }>> {
     const generatedFiles: Array<{ path: string; content: string }> = [];
+
+    // Checked for every file up front so a refusal doesn't leave the edits half applied.
+    for (const filePath of Object.keys(textEditsMap)) {
+        if (hasUnsavedChanges(filePath)) {
+            throw new Error(unsavedChangesError(path.relative(tempProjectPath, filePath)));
+        }
+    }
 
     for (const [filePath, edits] of Object.entries(textEditsMap)) {
         const content = await applyTextEdits(filePath, edits);
