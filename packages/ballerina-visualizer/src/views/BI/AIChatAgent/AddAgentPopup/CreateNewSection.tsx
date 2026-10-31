@@ -46,7 +46,7 @@ const activateOnKey = (onClick?: () => void) => (event: KeyboardEvent<HTMLDivEle
     }
 };
 
-function OptionCard({ icon, title, description, onClick }: OptionCardProps) {
+export function OptionCard({ icon, title, description, onClick }: OptionCardProps) {
     return (
         <AgentOptionCard role="button" tabIndex={0} title={description} onClick={onClick} onKeyDown={activateOnKey(onClick)}>
             <AgentOptionIcon aria-hidden>{icon}</AgentOptionIcon>
@@ -106,14 +106,14 @@ export function CreateNewSection(props: CreateNewSectionProps) {
                 <OptionCard
                     icon={agentIcon}
                     title="Agent"
-                    description="Handles each request from start to finish, using tools and memory."
+                    description="Uses an LLM to understand a request, reason about it, and call tools."
                     onClick={onCreateAgent}
                 />
                 {onCreateDurableAgent && (
                     <OptionCard
                         icon={durableAgentIcon}
                         title="Durable Agent"
-                        description="Pauses for people or events, and survives restarts."
+                        description="Runs as a workflow. Waits for a person or an event, and resumes after a restart."
                         onClick={onCreateDurableAgent}
                     />
                 )}

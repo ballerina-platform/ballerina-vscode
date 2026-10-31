@@ -87,7 +87,7 @@ export const ResultsSection = styled(Section)`
 
 export const CreateOptionsGrid = styled.div`
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    grid-template-columns: 1fr;
     gap: 12px;
 `;
 
@@ -163,6 +163,8 @@ export const AgentOptionIconBadge = styled.div`
     & svg {
         display: block;
         line-height: 1;
+        position: relative;
+        top: 1px;
     }
 `;
 
@@ -181,7 +183,7 @@ export const AgentOptionTitle = styled(Typography)`
 `;
 
 export const AgentOptionDescription = styled(Typography)`
-    font-size: 12px;
+    font-size: 12.5px;
     color: ${ThemeColors.ON_SURFACE_VARIANT};
     margin: 0;
     display: -webkit-box;

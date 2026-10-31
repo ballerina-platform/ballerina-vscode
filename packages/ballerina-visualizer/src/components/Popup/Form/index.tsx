@@ -41,6 +41,8 @@ const PopupFormBox = styled.div<{ width?: number; height?: number }>`
   max-width: 90vw;
   max-height: 90vh;
   transition: width 180ms ease, height 180ms ease;
+  // Lets a level sized to its content animate to and from a fixed height.
+  interpolate-size: allow-keywords;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -65,6 +67,13 @@ const PopupFormHeading = styled.div`
     display: flex;
     flex-direction: column;
     gap: 4px;
+`;
+
+// Matches the subtitle of the PopupModal dialogs, such as Add MCP Service.
+const PopupFormSubtitle = styled(Typography)`
+    font-size: 12px;
+    color: ${ThemeColors.ON_SURFACE_VARIANT};
+    margin: 0;
 `;
 
 const Trail = styled.nav`
@@ -103,6 +112,7 @@ export type PopupFormProps = {
     width?: number;
     height?: number;
     title: string;
+    subtitle?: string;
     children: React.ReactNode;
     onClose?: () => void;
     onBack?: () => void;
@@ -124,7 +134,7 @@ const PopupFormContent = styled.div`
     min-height: 0; /* Critical for nested flex scroll areas */
     display: flex;
     flex-direction: column;
-    padding: 16px;
+    padding: 20px 16px;
 
     &.enter-forward {
         animation: ${enterForward} 200ms cubic-bezier(0.2, 0, 0, 1);
@@ -144,7 +154,7 @@ const PopupFormContent = styled.div`
 
 
 export const PopupForm = (props: PopupFormProps) => {
-    const { width, height, title, children, onClose, onBack, breadcrumbs, transitionKey, transitionDirection } = props;
+    const { width, height, title, subtitle, children, onClose, onBack, breadcrumbs, transitionKey, transitionDirection } = props;
     // The last crumb is the current level, which the title already names.
     const trail = breadcrumbs?.slice(0, -1) ?? [];
     const contentRef = useRef<HTMLDivElement>(null);
@@ -195,6 +205,7 @@ export const PopupForm = (props: PopupFormProps) => {
                         >
                             {title}
                         </Typography>
+                        {subtitle && <PopupFormSubtitle variant="body2">{subtitle}</PopupFormSubtitle>}
                     </PopupFormHeading>
                     <Codicon name="close" onClick={onClose} />
                 </PopupFormHeader>

@@ -18,15 +18,16 @@
 
 import React from "react";
 import { AvailableNode } from "@wso2/ballerina-core";
-import { CreateNewSection } from "./CreateNewSection";
+import { Codicon } from "@wso2/ui-toolkit";
+import { CreateNewSection, OptionCard } from "./CreateNewSection";
 import { PrebuiltAgentsView } from "./PrebuiltAgentsView";
-import { IntroText, PopupContent } from "./styles";
+import { PopupContent, Section, SectionTitle } from "./styles";
 
 export interface AddAgentPopupContentProps {
     projectPath: string;
     onOpenAgentForm: (agent?: AvailableNode) => void;
     onOpenPackage: (agent: AvailableNode) => void;
-    onOpenDefinition: () => void;
+    onBrowseDefinitions: () => void;
     onOpenDurable: () => void;
     inFlow?: boolean;
     dependencyMode?: boolean;
@@ -40,7 +41,7 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
         projectPath,
         onOpenAgentForm,
         onOpenPackage,
-        onOpenDefinition,
+        onBrowseDefinitions,
         onOpenDurable,
         inFlow,
         dependencyMode,
@@ -51,12 +52,6 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
 
     return (
         <PopupContent>
-            <IntroText>
-                {dependencyMode
-                    ? "Choose the agent this definition should delegate to. The selected agent will be passed into this definition when it is created."
-                    : "Create an agent for this integration, or start from a reusable agent definition."}
-            </IntroText>
-
             <CreateNewSection
                 dependencyMode={dependencyMode}
                 onCreateAgent={() => onOpenAgentForm()}
@@ -64,16 +59,27 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
                 onGenericAgent={onGenericAgentSelected}
             />
 
-            <PrebuiltAgentsView
-                projectPath={projectPath}
-                title={dependencyMode ? "Agent Types" : "Agent Definitions"}
-                dependencyMode={dependencyMode}
-                onCreateDefinition={dependencyMode ? undefined : onOpenDefinition}
-                onOpenAgentForm={onOpenAgentForm}
-                onOpenPackage={onOpenPackage}
-                onAgentSelectedForDependency={onAgentSelectedForDependency}
-                isAgentHidden={isAgentHidden}
-            />
+            {dependencyMode ? (
+                <PrebuiltAgentsView
+                    projectPath={projectPath}
+                    heading={<SectionTitle variant="h4">Agent Types</SectionTitle>}
+                    dependencyMode={dependencyMode}
+                    onOpenAgentForm={onOpenAgentForm}
+                    onOpenPackage={onOpenPackage}
+                    onAgentSelectedForDependency={onAgentSelectedForDependency}
+                    isAgentHidden={isAgentHidden}
+                />
+            ) : (
+                <Section>
+                    <SectionTitle variant="h4">Start from a Definition</SectionTitle>
+                    <OptionCard
+                        icon={<Codicon name="library" sx={{ width: 20, height: 20, display: "flex" }} iconSx={{ fontSize: 20 }} />}
+                        title="Browse Agent Definitions"
+                        description="Reuse an agent published in this project or your organization."
+                        onClick={onBrowseDefinitions}
+                    />
+                </Section>
+            )}
         </PopupContent>
     );
 }

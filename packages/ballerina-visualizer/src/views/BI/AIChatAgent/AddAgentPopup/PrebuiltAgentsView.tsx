@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { ReactNode, useEffect, useRef, useState } from "react";
 import { Codicon, Icon, ProgressRing, ThemeColors } from "@wso2/ui-toolkit";
 import { ConnectorIcon } from "@wso2/bi-diagram";
 import { AvailableNode, BISearchResponse } from "@wso2/ballerina-core";
@@ -33,7 +33,6 @@ import {
     IntroText,
     ResultsSection,
     SectionHeader,
-    SectionTitle,
     StyledSearchBox,
 } from "./styles";
 
@@ -73,6 +72,8 @@ const newDefinitionIcon = (
 );
 
 const TOKEN_DOCS_URL = "https://ballerina.io/learn/publish-packages-to-ballerina-central/#obtain-an-access-token";
+const DEFINITIONS_DOCS_URL =
+    "https://wso2.com/integration-platform/docs/saas/develop-and-test/integration-artifacts/ai-integrations/agents/definitions";
 
 export function useAgentSearch(projectPath: string, searchText: string, filterType: AgentFilter) {
     const { rpcClient } = useRpcContext();
@@ -162,28 +163,42 @@ export function useAgentSearch(projectPath: string, searchText: string, filterTy
     return { agents, isSearching, isLoadingOrgAgents };
 }
 
-function TokenHint() {
+function DocsLink({ url, children }: { url: string; children: ReactNode }) {
     const { rpcClient } = useRpcContext();
 
     const openDocs = (event: React.MouseEvent) => {
         event.preventDefault();
-        rpcClient.getCommonRpcClient().openExternalUrl({ url: TOKEN_DOCS_URL });
+        rpcClient.getCommonRpcClient().openExternalUrl({ url });
     };
 
     return (
+        <VSCodeLink href="#" onClick={openDocs}>
+            {children}
+        </VSCodeLink>
+    );
+}
+
+function TokenHint() {
+    return (
         <IntroText>
             To see your organization's private definitions, add a Ballerina Central access token and reload the
-            window.{" "}
-            <VSCodeLink href="#" onClick={openDocs}>
-                How to Add a Token
-            </VSCodeLink>
+            window. <DocsLink url={TOKEN_DOCS_URL}>How to Add a Token</DocsLink>
+        </IntroText>
+    );
+}
+
+export function DefinitionsIntro() {
+    return (
+        <IntroText sx={{ fontSize: 13 }}>
+            Reuse an agent published in this project or your organization.{" "}
+            <DocsLink url={DEFINITIONS_DOCS_URL}>Learn More</DocsLink>
         </IntroText>
     );
 }
 
 export interface PrebuiltAgentsViewProps {
     projectPath: string;
-    title: string;
+    heading: ReactNode;
     dependencyMode?: boolean;
     onCreateDefinition?: () => void;
     onOpenAgentForm: (agent?: AvailableNode) => void;
@@ -195,7 +210,7 @@ export interface PrebuiltAgentsViewProps {
 export function PrebuiltAgentsView(props: PrebuiltAgentsViewProps) {
     const {
         projectPath,
-        title,
+        heading,
         dependencyMode,
         onCreateDefinition,
         onOpenAgentForm,
@@ -260,7 +275,7 @@ export function PrebuiltAgentsView(props: PrebuiltAgentsViewProps) {
     return (
         <ResultsSection>
             <SectionHeader>
-                <SectionTitle variant="h4">{title}</SectionTitle>
+                {heading}
                 <FilterButtons role="group" aria-label="Source">
                     {filters.map((filter) => (
                         <FilterButton
