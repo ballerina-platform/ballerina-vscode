@@ -31,7 +31,7 @@ const GALLERY_ID = `${ROOT_ID}-gallery`;
 const TOOL_ID = `${ROOT_ID}-tool`;
 const GALLERY_WIDTH = 800;
 // Fits two rows of pre-built agents with the third peeking, so the list reads as scrollable.
-const GALLERY_HEIGHT = 520;
+const GALLERY_HEIGHT = 540;
 const FORM_WIDTH = 680;
 const MODAL_HEIGHT = 780;
 
@@ -72,20 +72,23 @@ export function AddAgentPopup(props: AddAgentPopupProps): null {
         asPopup ? onClose?.() : onNavigateToOverview();
     }, []);
 
+    const renderAgentForm = useCallback(
+        (agent?: AvailableNode) => (
+            <AgentFormView
+                projectPath={latest.current.projectPath}
+                pendingAgent={agent}
+                inFlow={latest.current.inFlow}
+                onAgentCreated={latest.current.onAgentCreated}
+                onClose={clearModals}
+            />
+        ),
+        [clearModals]
+    );
+
     const openAgentForm = useCallback(
         (agent?: AvailableNode) =>
-            push(
-                agent ? "configure" : "create",
-                agent ? "Configure Agent" : "Create Agent",
-                <AgentFormView
-                    projectPath={latest.current.projectPath}
-                    pendingAgent={agent}
-                    inFlow={latest.current.inFlow}
-                    onAgentCreated={latest.current.onAgentCreated}
-                    onClose={clearModals}
-                />
-            ),
-        [push, clearModals]
+            push(agent ? "configure" : "create", agent ? "Configure Agent" : "Create Agent", renderAgentForm(agent)),
+        [push, renderAgentForm]
     );
 
     const selectAgent = useCallback(
@@ -96,11 +99,17 @@ export function AddAgentPopup(props: AddAgentPopupProps): null {
         [openAgentForm]
     );
 
-    const openPackage = (agent: AvailableNode, agents: AvailableNode[]) =>
+    const openPackage = (agent: AvailableNode) =>
         push(
             "package",
             agent.metadata.label ?? "Select Agent",
-            <PackageAgentsView packageNode={agent} agents={agents} isLoading={false} onSelect={selectAgent} />
+            <PackageAgentsView
+                projectPath={projectPath}
+                packageNode={agent}
+                isAgentHidden={latest.current.isAgentHidden}
+                onSelect={selectAgent}
+                renderForm={latest.current.dependencyMode ? undefined : renderAgentForm}
+            />
         );
 
     const openDefinition = () =>

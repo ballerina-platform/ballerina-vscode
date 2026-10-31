@@ -21,8 +21,11 @@ import { Typography, ThemeColors, SearchBox } from "@wso2/ui-toolkit";
 
 export const PopupContent = styled.div`
     flex: 1;
+    box-sizing: border-box;
+    min-height: 100%;
     overflow-y: auto;
-    padding: 0 16px 16px;
+    // On top of the modal body's 16px, this lines content up with the 20px header and leaves room for focus rings.
+    padding: 0 4px 4px;
     display: flex;
     flex-direction: column;
     gap: 24px;
@@ -187,21 +190,6 @@ export const AgentOptionDescription = styled(Typography)`
     overflow: hidden;
 `;
 
-export const AgentOptionRow = styled(AgentOptionCard)`
-    padding: 8px 12px;
-    gap: 10px;
-    color: ${ThemeColors.ON_SURFACE_VARIANT};
-`;
-
-export const AgentOptionRowTitle = styled(AgentOptionTitle)`
-    font-size: 13px;
-    white-space: nowrap;
-`;
-
-export const AgentOptionRowDescription = styled(AgentOptionDescription)`
-    flex: 1;
-`;
-
 export const ArrowIcon = styled.div`
     display: flex;
     align-items: center;
@@ -212,6 +200,8 @@ export const FilterButtons = styled.div`
     display: flex;
     gap: 4px;
     align-items: center;
+    // Keeps the heading row at text height, so both section headings sit the same distance above their content.
+    margin: -6px 0;
 `;
 
 export const FilterButton = styled.button<{ active?: boolean }>`

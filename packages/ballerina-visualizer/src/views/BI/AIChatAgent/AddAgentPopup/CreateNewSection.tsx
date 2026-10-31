@@ -25,9 +25,6 @@ import {
     AgentOptionDescription,
     AgentOptionIcon,
     AgentOptionIconBadge,
-    AgentOptionRow,
-    AgentOptionRowDescription,
-    AgentOptionRowTitle,
     AgentOptionTitle,
     ArrowIcon,
     CreateOptionsGrid,
@@ -64,18 +61,15 @@ function OptionCard({ icon, title, description, onClick }: OptionCardProps) {
     );
 }
 
-const DEFINITION_DESCRIPTION = "Share one setup and reuse it to create agents with the same configuration.";
-
 export interface CreateNewSectionProps {
     dependencyMode?: boolean;
     onCreateAgent: () => void;
     onCreateDurableAgent?: () => void;
-    onCreateDefinition: () => void;
     onGenericAgent?: () => void;
 }
 
 export function CreateNewSection(props: CreateNewSectionProps) {
-    const { dependencyMode, onCreateAgent, onCreateDurableAgent, onCreateDefinition, onGenericAgent } = props;
+    const { dependencyMode, onCreateAgent, onCreateDurableAgent, onGenericAgent } = props;
 
     const agentIcon = <Icon name="bi-ai-agent" sx={{ fontSize: 24, width: 24, height: 24, color: getNodeChartColor("AGENT") }} />;
 
@@ -83,7 +77,7 @@ export function CreateNewSection(props: CreateNewSectionProps) {
         <>
             <Icon
                 name="bi-ai-agent"
-                sx={{ fontSize: 24, width: 24, height: 24, color: getNodeChartColor("DURABLE_AGENT_RUN"), display: "flex", alignItems: "center", justifyContent: "center" }}
+                sx={{ fontSize: 24, width: 24, height: 24, color: getNodeChartColor("DURABLE_AGENT_RUN") }}
             />
             <AgentOptionIconBadge>
                 <Icon name="bi-flowchart" sx={{ width: 11, height: 11, fontSize: 11, display: "flex", alignItems: "center", justifyContent: "center" }} />
@@ -107,41 +101,23 @@ export function CreateNewSection(props: CreateNewSectionProps) {
 
     return (
         <Section>
-            <SectionTitle variant="h4">Create New</SectionTitle>
-            <Section>
-                <CreateOptionsGrid>
+            <SectionTitle variant="h4">Create New Agent</SectionTitle>
+            <CreateOptionsGrid>
+                <OptionCard
+                    icon={agentIcon}
+                    title="Agent"
+                    description="Handles each request from start to finish, using tools and memory."
+                    onClick={onCreateAgent}
+                />
+                {onCreateDurableAgent && (
                     <OptionCard
-                        icon={agentIcon}
-                        title="Agent"
-                        description="Responds right away, for chat and quick tasks."
-                        onClick={onCreateAgent}
+                        icon={durableAgentIcon}
+                        title="Durable Agent"
+                        description="Pauses for people or events, and survives restarts."
+                        onClick={onCreateDurableAgent}
                     />
-                    {onCreateDurableAgent && (
-                        <OptionCard
-                            icon={durableAgentIcon}
-                            title="Durable Agent"
-                            description="Pauses for people or events, and survives restarts."
-                            onClick={onCreateDurableAgent}
-                        />
-                    )}
-                </CreateOptionsGrid>
-                <AgentOptionRow
-                    role="button"
-                    tabIndex={0}
-                    title={DEFINITION_DESCRIPTION}
-                    onClick={onCreateDefinition}
-                    onKeyDown={activateOnKey(onCreateDefinition)}
-                >
-                    <span aria-hidden>
-                        <Codicon name="symbol-class" />
-                    </span>
-                    <AgentOptionRowTitle>Agent Definition</AgentOptionRowTitle>
-                    <AgentOptionRowDescription>{DEFINITION_DESCRIPTION}</AgentOptionRowDescription>
-                    <ArrowIcon aria-hidden>
-                        <Codicon name="chevron-right" />
-                    </ArrowIcon>
-                </AgentOptionRow>
-            </Section>
+                )}
+            </CreateOptionsGrid>
         </Section>
     );
 }
