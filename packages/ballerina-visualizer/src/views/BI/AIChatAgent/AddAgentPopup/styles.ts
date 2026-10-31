@@ -77,11 +77,12 @@ export const StyledSearchBox = styled(SearchBox)`
 export const Section = styled.div`
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 8px;
 `;
 
 export const ResultsSection = styled(Section)`
     flex: 1;
+    gap: 12px;
     margin-top: 8px;
 `;
 
@@ -112,7 +113,7 @@ export const AgentOptionCard = styled.div`
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 12px;
+    padding: 12px 16px;
     border: 1px solid ${ThemeColors.OUTLINE_VARIANT};
     border-radius: 8px;
     background-color: var(--option-card-bg);
@@ -144,8 +145,8 @@ export const AgentOptionIcon = styled.div`
 
 export const AgentOptionIconBadge = styled.div`
     position: absolute;
-    right: -7px;
-    bottom: -7px;
+    right: -4px;
+    bottom: -4px;
     display: flex;
     align-items: center;
     justify-content: center;
