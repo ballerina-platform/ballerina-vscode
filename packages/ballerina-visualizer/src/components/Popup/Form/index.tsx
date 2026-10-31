@@ -22,6 +22,17 @@ import styled from "@emotion/styled";
 import { Button, Codicon, ScrollableContainer, Typography } from "@wso2/ui-toolkit";
 import { ThemeColors } from "@wso2/ui-toolkit/lib/styles/Theme";
 
+const fadeIn = keyframes`
+    from { opacity: 0; }
+    to { opacity: 1; }
+`;
+
+// Same entrance as PopupModal, without its centering translate.
+const popIn = keyframes`
+    from { opacity: 0; transform: translateY(2%) scale(0.97); }
+    to { opacity: 1; transform: none; }
+`;
+
 const PopupFormContainer = styled.div`
     position: fixed;
     top: 0;
@@ -33,6 +44,11 @@ const PopupFormContainer = styled.div`
     display: flex;
     justify-content: center;
     align-items: center;
+    animation: ${fadeIn} 180ms ease-out both;
+
+    @media (prefers-reduced-motion: reduce) {
+        animation: none;
+    }
 `;
 
 const PopupFormBox = styled.div<{ width?: number; height?: number }>`
@@ -49,8 +65,13 @@ const PopupFormBox = styled.div<{ width?: number; height?: number }>`
   overflow: hidden;
   border-radius: 10px;
   background-color: ${ThemeColors.SURFACE_DIM};
-  box-shadow: 0 3px 8px rgb(0 0 0 / 0.2);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
   z-index: 2100;
+  animation: ${popIn} 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
 `;
 
 const PopupFormHeader = styled.header`

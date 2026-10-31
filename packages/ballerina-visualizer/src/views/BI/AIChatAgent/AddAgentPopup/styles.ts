@@ -83,7 +83,6 @@ export const Section = styled.div`
 export const ResultsSection = styled(Section)`
     flex: 1;
     gap: 12px;
-    margin-top: 8px;
 `;
 
 export const CreateOptionsGrid = styled.div`
