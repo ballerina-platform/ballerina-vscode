@@ -138,7 +138,8 @@ export const AgentOptionIcon = styled.div`
     width: 40px;
     height: 40px;
     border-radius: 8px;
-    background-color: ${ThemeColors.SURFACE_CONTAINER};
+    // inactiveSelectionBackground (SURFACE_CONTAINER) is blue in some themes, such as Dark 2026.
+    background-color: var(--vscode-toolbar-hoverBackground);
     flex-shrink: 0;
 `;
 
@@ -153,7 +154,8 @@ export const AgentOptionIconBadge = styled.div`
     height: 18px;
     border-radius: 50%;
     border: 1px solid ${ThemeColors.OUTLINE_VARIANT};
-    background-color: ${ThemeColors.SURFACE_CONTAINER};
+    // Same tint as the icon tile, made opaque over the card.
+    background: linear-gradient(var(--vscode-toolbar-hoverBackground), var(--vscode-toolbar-hoverBackground)) var(--option-card-bg);
     color: ${ThemeColors.ON_SURFACE_VARIANT};
     box-shadow: 0 0 0 2px var(--option-card-bg);
     transition: box-shadow 0.2s ease;
@@ -202,8 +204,6 @@ export const FilterButtons = styled.div`
     display: flex;
     gap: 4px;
     align-items: center;
-    // Keeps the heading row at text height, so both section headings sit the same distance above their content.
-    margin: -6px 0;
 `;
 
 export const FilterButton = styled.button<{ active?: boolean }>`
