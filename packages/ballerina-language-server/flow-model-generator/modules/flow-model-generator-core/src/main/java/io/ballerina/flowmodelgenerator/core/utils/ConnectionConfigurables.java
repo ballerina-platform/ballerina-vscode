@@ -18,17 +18,21 @@
 
 package io.ballerina.flowmodelgenerator.core.utils;
 
+import io.ballerina.compiler.api.symbols.Qualifier;
 import io.ballerina.compiler.api.symbols.RecordFieldSymbol;
 import io.ballerina.compiler.api.symbols.RecordTypeSymbol;
+import io.ballerina.compiler.api.symbols.Symbol;
 import io.ballerina.compiler.api.symbols.TypeDescKind;
 import io.ballerina.compiler.api.symbols.TypeSymbol;
 import io.ballerina.compiler.api.symbols.UnionTypeSymbol;
+import io.ballerina.compiler.api.symbols.VariableSymbol;
 import io.ballerina.compiler.syntax.tree.BasicLiteralNode;
 import io.ballerina.compiler.syntax.tree.ExpressionNode;
 import io.ballerina.compiler.syntax.tree.MappingConstructorExpressionNode;
 import io.ballerina.compiler.syntax.tree.NodeParser;
 import io.ballerina.compiler.syntax.tree.SpecificFieldNode;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
+import io.ballerina.flowmodelgenerator.core.UserFacingException;
 import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.tools.text.TextRange;
 import org.apache.commons.lang3.StringUtils;
@@ -38,6 +42,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -49,7 +54,8 @@ import java.util.stream.Collectors;
  * Turns the literal values of a new connection's arguments into configurables named after the connection and the
  * connector's init fields, joined in camel case: {@code auth.clientId} of the connection {@code sfSales} becomes
  * {@code sfSalesAuthClientId}. Each configurable is required, so no literal stays in source; its value goes to
- * Config.toml.
+ * Config.toml. A configurable the module already declares with the same type is referred to; any other symbol of the
+ * name refuses the connection.
  *
  * @since 1.9.0
  */
@@ -64,17 +70,17 @@ public class ConnectionConfigurables {
     private static final Pattern STRING_ESCAPE = Pattern.compile("\\\\(?:u\\{(\\p{XDigit}{1,6})}|.)");
 
     private final String connection;
-    private final Set<String> existingNames;
+    private final Map<String, Symbol> moduleSymbols;
     private final Set<String> usedNames = new HashSet<>();
     private final List<Configurable> configurables = new ArrayList<>();
 
     /**
      * @param connection    the connection's name
-     * @param existingNames the module's symbol names; a configurable of such a name is referred to, not declared
+     * @param moduleSymbols the module's symbols by name
      */
-    public ConnectionConfigurables(String connection, Set<String> existingNames) {
+    public ConnectionConfigurables(String connection, Map<String, Symbol> moduleSymbols) {
         this.connection = connection;
-        this.existingNames = existingNames;
+        this.moduleSymbols = moduleSymbols;
     }
 
     /**
@@ -114,6 +120,7 @@ public class ConnectionConfigurables {
      * @param type      the parameter's type
      * @param included  whether the parameter is a field of an included record
      * @return the rewritten argument
+     * @throws UserFacingException if a configurable's name belongs to another symbol of the module
      */
     public String rewrite(String argument, String parameter, TypeSymbol type, boolean included) {
         ExpressionNode value = NodeParser.parseExpression(argument);
@@ -144,9 +151,15 @@ public class ConnectionConfigurables {
             if (configurableType == null || !usedNames.add(name)) {
                 return;
             }
+            Symbol existing = moduleSymbols.get(name);
+            if (existing != null && !isConfigurableOf(existing, rawType.typeKind())) {
+                throw new UserFacingException(("The connection '%s' needs the configurable %s '%s', but the module "
+                        + "already has the %s '%s': choose another connection name")
+                        .formatted(connection, configurableType, name, describe(existing), name));
+            }
             replacements.add(new Replacement(literal.literalToken().textRange(), name));
             configurables.add(new Configurable(name, configurableType, literal.toSourceCode().strip(),
-                    existingNames.contains(name)));
+                    existing != null));
         } else if (value instanceof MappingConstructorExpressionNode mapping) {
             recordOf(rawType, mapping).ifPresent(record -> mapping.fields().forEach(field -> {
                 if (!(field instanceof SpecificFieldNode specificField) || specificField.valueExpr().isEmpty()) {
@@ -160,6 +173,20 @@ public class ConnectionConfigurables {
                 }
             }));
         }
+    }
+
+    private static boolean isConfigurableOf(Symbol symbol, TypeDescKind kind) {
+        return isConfigurable(symbol)
+                && CommonUtils.getRawType(((VariableSymbol) symbol).typeDescriptor()).typeKind() == kind;
+    }
+
+    private static boolean isConfigurable(Symbol symbol) {
+        return symbol instanceof VariableSymbol variable && variable.qualifiers().contains(Qualifier.CONFIGURABLE);
+    }
+
+    private static String describe(Symbol symbol) {
+        return isConfigurable(symbol) ? "configurable " + ((VariableSymbol) symbol).typeDescriptor().signature()
+                : symbol.kind().name().toLowerCase(Locale.ROOT).replace('_', ' ');
     }
 
     /**

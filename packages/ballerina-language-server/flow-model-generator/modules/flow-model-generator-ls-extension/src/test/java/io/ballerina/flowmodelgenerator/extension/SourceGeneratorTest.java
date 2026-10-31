@@ -289,6 +289,35 @@ public class SourceGeneratorTest extends AbstractLSTest {
         };
     }
 
+    @Test(dataProvider = "refused-connection")
+    public void testConfigurableNameClashIsRefused(String connection, String expectedMessage) throws IOException {
+        // A configurable's name held by any symbol but a configurable of the field's type refuses the connection.
+        TestConfig testConfig = gson.fromJson(
+                Files.newBufferedReader(configDir.resolve("new_connection-salesforce.json")), TestConfig.class);
+        JsonObject diagram = testConfig.diagram().getAsJsonObject().deepCopy();
+        diagram.getAsJsonObject("properties").getAsJsonObject("variable").addProperty("value", connection);
+        FlowModelSourceGeneratorRequest request = new FlowModelSourceGeneratorRequest(
+                sourceDir.resolve("new_connection-salesforce-clash/connections.bal").toAbsolutePath().toString(),
+                diagram);
+        CompletableFuture<?> result = serviceEndpoint.request(getServiceName() + "/" + getApiName(), request);
+        JsonObject response = JsonParser.parseString(TestUtil.getResponseString(result)).getAsJsonObject()
+                .getAsJsonObject("result");
+        Assert.assertEquals(response.get("errorMsg").getAsString(), expectedMessage);
+        Assert.assertFalse(response.has("textEdits"), "A refused connection still has edits: " + response);
+    }
+
+    @DataProvider(name = "refused-connection")
+    private Object[][] refusedConnections() {
+        String message = "The connection '%1$s' needs the configurable string '%1$sBaseUrl', but the module already "
+                + "has the %2$s '%1$sBaseUrl': choose another connection name";
+        return new Object[][]{
+                {"sfVar", message.formatted("sfVar", "variable")},
+                {"sfConst", message.formatted("sfConst", "constant")},
+                {"sfFn", message.formatted("sfFn", "function")},
+                {"sfInt", message.formatted("sfInt", "configurable int")}
+        };
+    }
+
     @AfterClass
     void cleanFiles() {
         FileSystemUtils.deleteCreatedFiles();

@@ -19,6 +19,7 @@
 package io.ballerina.flowmodelgenerator.core.model.node;
 
 import io.ballerina.compiler.api.SemanticModel;
+import io.ballerina.compiler.api.symbols.Symbol;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.flowmodelgenerator.core.AiUtils;
 import io.ballerina.flowmodelgenerator.core.ConnectionActionProvider;
@@ -148,12 +149,13 @@ public class NewConnectionBuilder extends CallBuilder {
     private List<Configurable> useConfigurables(SourceBuilder sourceBuilder) {
         Map<String, Property> properties = sourceBuilder.flowNode.properties();
         String connection = properties.get(Property.VARIABLE_KEY).value().toString();
-        Set<String> moduleSymbolNames = sourceBuilder.workspaceManager.semanticModel(sourceBuilder.filePath)
+        Map<String, Symbol> moduleSymbols = sourceBuilder.workspaceManager.semanticModel(sourceBuilder.filePath)
                 .map(model -> model.moduleSymbols().stream()
-                        .flatMap(symbol -> symbol.getName().stream())
-                        .collect(Collectors.toSet()))
-                .orElse(Set.of());
-        ConnectionConfigurables configurables = new ConnectionConfigurables(connection, moduleSymbolNames);
+                        .filter(symbol -> symbol.getName().isPresent())
+                        .collect(Collectors.toMap(symbol -> symbol.getName().get(), symbol -> symbol,
+                                (first, second) -> first)))
+                .orElse(Map.of());
+        ConnectionConfigurables configurables = new ConnectionConfigurables(connection, moduleSymbols);
         Codedata codedata = sourceBuilder.flowNode.codedata();
         String connector = connectorId(codedata.org(), codedata.resolvePackageName(), codedata.module(),
                 codedata.object(), codedata.version());
