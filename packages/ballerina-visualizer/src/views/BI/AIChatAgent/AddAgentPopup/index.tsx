@@ -24,12 +24,16 @@ import { AddAgentPopupContent } from "./AddAgentPopupContent";
 import { AgentFormView } from "./AgentFormView";
 import { CreateDurableAgentView } from "./CreateDurableAgentView";
 import { PackageAgentsView } from "./PackageAgentsView";
-import { AgentDefinitionFormContainer } from "./styles";
+import { DefinitionsIntro, PrebuiltAgentsView } from "./PrebuiltAgentsView";
+import { AgentDefinitionFormContainer, PopupContent } from "./styles";
 
 const ROOT_ID = "add-agent";
 const GALLERY_ID = `${ROOT_ID}-gallery`;
+const DEFINITIONS_ID = `${ROOT_ID}-definitions`;
 const TOOL_ID = `${ROOT_ID}-tool`;
 const GALLERY_WIDTH = 800;
+// Fits two rows of agent definitions with the third peeking, so the list reads as scrollable.
+const GALLERY_HEIGHT = 540;
 const FORM_WIDTH = 680;
 const MODAL_HEIGHT = 780;
 
@@ -70,20 +74,23 @@ export function AddAgentPopup(props: AddAgentPopupProps): null {
         asPopup ? onClose?.() : onNavigateToOverview();
     }, []);
 
+    const renderAgentForm = useCallback(
+        (agent?: AvailableNode) => (
+            <AgentFormView
+                projectPath={latest.current.projectPath}
+                pendingAgent={agent}
+                inFlow={latest.current.inFlow}
+                onAgentCreated={latest.current.onAgentCreated}
+                onClose={clearModals}
+            />
+        ),
+        [clearModals]
+    );
+
     const openAgentForm = useCallback(
         (agent?: AvailableNode) =>
-            push(
-                agent ? "configure" : "create",
-                agent ? "Configure Agent" : "Create Agent",
-                <AgentFormView
-                    projectPath={latest.current.projectPath}
-                    pendingAgent={agent}
-                    inFlow={latest.current.inFlow}
-                    onAgentCreated={latest.current.onAgentCreated}
-                    onClose={clearModals}
-                />
-            ),
-        [push, clearModals]
+            push(agent ? "configure" : "create", agent ? "Configure Agent" : "Create Agent", renderAgentForm(agent)),
+        [push, renderAgentForm]
     );
 
     const selectAgent = useCallback(
@@ -94,11 +101,17 @@ export function AddAgentPopup(props: AddAgentPopupProps): null {
         [openAgentForm]
     );
 
-    const openPackage = (agent: AvailableNode, agents: AvailableNode[]) =>
+    const openPackage = (agent: AvailableNode) =>
         push(
             "package",
             agent.metadata.label ?? "Select Agent",
-            <PackageAgentsView packageNode={agent} agents={agents} isLoading={false} onSelect={selectAgent} />
+            <PackageAgentsView
+                projectPath={projectPath}
+                packageNode={agent}
+                isAgentHidden={latest.current.isAgentHidden}
+                onSelect={selectAgent}
+                renderForm={latest.current.dependencyMode ? undefined : renderAgentForm}
+            />
         );
 
     const openDefinition = () =>
@@ -113,6 +126,26 @@ export function AddAgentPopup(props: AddAgentPopupProps): null {
             </AgentDefinitionFormContainer>
         );
 
+    const openDefinitions = () =>
+        addModal(
+            <PopupContent>
+                <PrebuiltAgentsView
+                    projectPath={projectPath}
+                    heading={<DefinitionsIntro />}
+                    onCreateDefinition={openDefinition}
+                    onOpenAgentForm={openAgentForm}
+                    onOpenPackage={openPackage}
+                    isAgentHidden={latest.current.isAgentHidden}
+                />
+            </PopupContent>,
+            DEFINITIONS_ID,
+            "Agent Definitions",
+            GALLERY_HEIGHT,
+            GALLERY_WIDTH,
+            undefined,
+            true
+        );
+
     const openDurable = () =>
         push("durable", "Create Durable Agent", <CreateDurableAgentView projectPath={projectPath} />);
 
@@ -124,7 +157,7 @@ export function AddAgentPopup(props: AddAgentPopupProps): null {
                 projectPath={projectPath}
                 onOpenAgentForm={openAgentForm}
                 onOpenPackage={openPackage}
-                onOpenDefinition={openDefinition}
+                onBrowseDefinitions={openDefinitions}
                 onOpenDurable={openDurable}
                 inFlow={inFlow}
                 dependencyMode={dependencyMode}
@@ -134,10 +167,13 @@ export function AddAgentPopup(props: AddAgentPopupProps): null {
             />,
             GALLERY_ID,
             dependencyMode ? "Use Agent" : "Add Agent",
-            MODAL_HEIGHT,
-            GALLERY_WIDTH,
+            dependencyMode ? GALLERY_HEIGHT : undefined,
+            dependencyMode ? GALLERY_WIDTH : FORM_WIDTH,
             dismiss,
-            true
+            true,
+            dependencyMode
+                ? "Choose the agent this definition should delegate to. The selected agent will be passed into this definition when it is created."
+                : "Create an agent for this integration, or start from a reusable agent definition."
         );
         return () => {
             tearingDown.current = true;

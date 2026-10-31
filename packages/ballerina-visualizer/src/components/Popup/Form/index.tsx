@@ -22,6 +22,17 @@ import styled from "@emotion/styled";
 import { Button, Codicon, ScrollableContainer, Typography } from "@wso2/ui-toolkit";
 import { ThemeColors } from "@wso2/ui-toolkit/lib/styles/Theme";
 
+const fadeIn = keyframes`
+    from { opacity: 0; }
+    to { opacity: 1; }
+`;
+
+// Same entrance as PopupModal, without its centering translate.
+const popIn = keyframes`
+    from { opacity: 0; transform: translateY(2%) scale(0.97); }
+    to { opacity: 1; transform: none; }
+`;
+
 const PopupFormContainer = styled.div`
     position: fixed;
     top: 0;
@@ -33,6 +44,11 @@ const PopupFormContainer = styled.div`
     display: flex;
     justify-content: center;
     align-items: center;
+    animation: ${fadeIn} 180ms ease-out both;
+
+    @media (prefers-reduced-motion: reduce) {
+        animation: none;
+    }
 `;
 
 const PopupFormBox = styled.div<{ width?: number; height?: number }>`
@@ -41,14 +57,21 @@ const PopupFormBox = styled.div<{ width?: number; height?: number }>`
   max-width: 90vw;
   max-height: 90vh;
   transition: width 180ms ease, height 180ms ease;
+  // Lets a level sized to its content animate to and from a fixed height.
+  interpolate-size: allow-keywords;
   position: relative;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   border-radius: 10px;
   background-color: ${ThemeColors.SURFACE_DIM};
-  box-shadow: 0 3px 8px rgb(0 0 0 / 0.2);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
   z-index: 2100;
+  animation: ${popIn} 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
 `;
 
 const PopupFormHeader = styled.header`
@@ -65,6 +88,13 @@ const PopupFormHeading = styled.div`
     display: flex;
     flex-direction: column;
     gap: 4px;
+`;
+
+// Matches the subtitle of the PopupModal dialogs, such as Add MCP Service.
+const PopupFormSubtitle = styled(Typography)`
+    font-size: 12px;
+    color: ${ThemeColors.ON_SURFACE_VARIANT};
+    margin: 0;
 `;
 
 const Trail = styled.nav`
@@ -103,6 +133,7 @@ export type PopupFormProps = {
     width?: number;
     height?: number;
     title: string;
+    subtitle?: string;
     children: React.ReactNode;
     onClose?: () => void;
     onBack?: () => void;
@@ -124,7 +155,7 @@ const PopupFormContent = styled.div`
     min-height: 0; /* Critical for nested flex scroll areas */
     display: flex;
     flex-direction: column;
-    padding: 16px;
+    padding: 20px 16px;
 
     &.enter-forward {
         animation: ${enterForward} 200ms cubic-bezier(0.2, 0, 0, 1);
@@ -144,16 +175,27 @@ const PopupFormContent = styled.div`
 
 
 export const PopupForm = (props: PopupFormProps) => {
-    const { width, height, title, children, onClose, onBack, breadcrumbs, transitionKey, transitionDirection } = props;
+    const { width, height, title, subtitle, children, onClose, onBack, breadcrumbs, transitionKey, transitionDirection } = props;
     // The last crumb is the current level, which the title already names.
     const trail = breadcrumbs?.slice(0, -1) ?? [];
     const contentRef = useRef<HTMLDivElement>(null);
+    const boxRef = useRef<HTMLDivElement>(null);
+    const lastSize = useRef({ width: 0, height: 0 });
     const isFirstLevel = useRef(true);
 
     useLayoutEffect(() => {
         if (isFirstLevel.current) {
             isFirstLevel.current = false;
             return;
+        }
+        const box = boxRef.current;
+        if (box) {
+            // An auto height resolves against the new level's content, so the transition starts from the old size.
+            box.style.transition = "none";
+            box.style.width = `${lastSize.current.width}px`;
+            box.style.height = `${lastSize.current.height}px`;
+            void box.offsetHeight;
+            box.style.transition = box.style.width = box.style.height = "";
         }
         const content = contentRef.current;
         if (!content) {
@@ -165,9 +207,21 @@ export const PopupForm = (props: PopupFormProps) => {
         // Direction is read from the render that changed the level, so it is not a dependency.
     }, [transitionKey]);
 
+    useLayoutEffect(() => {
+        const box = boxRef.current;
+        if (!box) {
+            return;
+        }
+        const observer = new ResizeObserver(() => {
+            lastSize.current = { width: box.offsetWidth, height: box.offsetHeight };
+        });
+        observer.observe(box);
+        return () => observer.disconnect();
+    }, []);
+
     return (
         <PopupFormContainer>
-            <PopupFormBox role="dialog" aria-modal="true" aria-label={title} width={width} height={height}>
+            <PopupFormBox ref={boxRef} role="dialog" aria-modal="true" aria-label={title} width={width} height={height}>
                 <PopupFormHeader>
                     {onBack && (
                         <Button appearance="icon" onClick={onBack} tooltip="Back" data-testid="popup-back-btn">
@@ -195,6 +249,7 @@ export const PopupForm = (props: PopupFormProps) => {
                         >
                             {title}
                         </Typography>
+                        {subtitle && <PopupFormSubtitle variant="body2">{subtitle}</PopupFormSubtitle>}
                     </PopupFormHeading>
                     <Codicon name="close" onClick={onClose} />
                 </PopupFormHeader>

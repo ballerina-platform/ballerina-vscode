@@ -21,8 +21,11 @@ import { Typography, ThemeColors, SearchBox } from "@wso2/ui-toolkit";
 
 export const PopupContent = styled.div`
     flex: 1;
+    box-sizing: border-box;
+    min-height: 100%;
     overflow-y: auto;
-    padding: 0 16px 16px;
+    // On top of the modal body's 16px, this lines content up with the 20px header and leaves room for focus rings.
+    padding: 0 4px 4px;
     display: flex;
     flex-direction: column;
     gap: 24px;
@@ -74,18 +77,17 @@ export const StyledSearchBox = styled(SearchBox)`
 export const Section = styled.div`
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 8px;
 `;
 
 export const ResultsSection = styled(Section)`
     flex: 1;
-    gap: 16px;
-    margin-top: 8px;
+    gap: 12px;
 `;
 
 export const CreateOptionsGrid = styled.div`
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    grid-template-columns: 1fr;
     gap: 12px;
 `;
 
@@ -110,16 +112,21 @@ export const AgentOptionCard = styled.div`
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 12px;
+    padding: 12px 16px;
     border: 1px solid ${ThemeColors.OUTLINE_VARIANT};
     border-radius: 8px;
     background-color: var(--option-card-bg);
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: background-color 150ms ease, border-color 150ms ease;
 
     &:hover {
         --option-card-bg: ${ThemeColors.PRIMARY_CONTAINER};
         border-color: ${ThemeColors.PRIMARY};
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--vscode-focusBorder);
+        outline-offset: 1px;
     }
 `;
 
@@ -131,14 +138,15 @@ export const AgentOptionIcon = styled.div`
     width: 40px;
     height: 40px;
     border-radius: 8px;
-    background-color: ${ThemeColors.SURFACE_CONTAINER};
+    // inactiveSelectionBackground (SURFACE_CONTAINER) is blue in some themes, such as Dark 2026.
+    background-color: var(--vscode-toolbar-hoverBackground);
     flex-shrink: 0;
 `;
 
 export const AgentOptionIconBadge = styled.div`
     position: absolute;
-    right: -7px;
-    bottom: -7px;
+    right: -4px;
+    bottom: -4px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -146,7 +154,8 @@ export const AgentOptionIconBadge = styled.div`
     height: 18px;
     border-radius: 50%;
     border: 1px solid ${ThemeColors.OUTLINE_VARIANT};
-    background-color: ${ThemeColors.SURFACE_CONTAINER};
+    // Same tint as the icon tile, made opaque over the card.
+    background: linear-gradient(var(--vscode-toolbar-hoverBackground), var(--vscode-toolbar-hoverBackground)) var(--option-card-bg);
     color: ${ThemeColors.ON_SURFACE_VARIANT};
     box-shadow: 0 0 0 2px var(--option-card-bg);
     transition: box-shadow 0.2s ease;
@@ -156,6 +165,8 @@ export const AgentOptionIconBadge = styled.div`
     & svg {
         display: block;
         line-height: 1;
+        position: relative;
+        top: 1px;
     }
 `;
 
@@ -174,7 +185,7 @@ export const AgentOptionTitle = styled(Typography)`
 `;
 
 export const AgentOptionDescription = styled(Typography)`
-    font-size: 12px;
+    font-size: 12.5px;
     color: ${ThemeColors.ON_SURFACE_VARIANT};
     margin: 0;
     display: -webkit-box;
@@ -207,7 +218,7 @@ export const FilterButton = styled.button<{ active?: boolean }>`
         props.active ? ThemeColors.PRIMARY : "transparent"};
     color: ${(props: { active?: boolean }) =>
         props.active ? ThemeColors.ON_PRIMARY : ThemeColors.ON_SURFACE_VARIANT};
-    transition: all 0.2s ease;
+    transition: background-color 150ms ease, color 150ms ease;
 
     &:hover {
         background-color: ${(props: { active?: boolean }) =>

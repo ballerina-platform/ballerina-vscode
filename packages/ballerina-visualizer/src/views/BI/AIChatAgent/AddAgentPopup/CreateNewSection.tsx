@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { ReactNode } from "react";
+import { KeyboardEvent, ReactNode } from "react";
 import { Codicon, Icon } from "@wso2/ui-toolkit";
 import { getNodeChartColor } from "@wso2/bi-diagram";
 import {
@@ -39,40 +39,37 @@ interface OptionCardProps {
     onClick?: () => void;
 }
 
-function OptionCard({ icon, title, description, onClick }: OptionCardProps) {
+const activateOnKey = (onClick?: () => void) => (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        onClick?.();
+    }
+};
+
+export function OptionCard({ icon, title, description, onClick }: OptionCardProps) {
     return (
-        <AgentOptionCard onClick={onClick}>
-            <AgentOptionIcon>{icon}</AgentOptionIcon>
+        <AgentOptionCard role="button" tabIndex={0} title={description} onClick={onClick} onKeyDown={activateOnKey(onClick)}>
+            <AgentOptionIcon aria-hidden>{icon}</AgentOptionIcon>
             <AgentOptionContent>
                 <AgentOptionTitle>{title}</AgentOptionTitle>
                 <AgentOptionDescription>{description}</AgentOptionDescription>
             </AgentOptionContent>
-            <ArrowIcon>
+            <ArrowIcon aria-hidden>
                 <Codicon name="chevron-right" />
             </ArrowIcon>
         </AgentOptionCard>
     );
 }
 
-const definitionIcon = (
-    <Icon
-        isCodicon={true}
-        name="symbol-class"
-        sx={{ width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center" }}
-        iconSx={{ fontSize: "24px" }}
-    />
-);
-
 export interface CreateNewSectionProps {
     dependencyMode?: boolean;
     onCreateAgent: () => void;
     onCreateDurableAgent?: () => void;
-    onCreateDefinition: () => void;
     onGenericAgent?: () => void;
 }
 
 export function CreateNewSection(props: CreateNewSectionProps) {
-    const { dependencyMode, onCreateAgent, onCreateDurableAgent, onCreateDefinition, onGenericAgent } = props;
+    const { dependencyMode, onCreateAgent, onCreateDurableAgent, onGenericAgent } = props;
 
     const agentIcon = <Icon name="bi-ai-agent" sx={{ fontSize: 24, width: 24, height: 24, color: getNodeChartColor("AGENT") }} />;
 
@@ -80,7 +77,7 @@ export function CreateNewSection(props: CreateNewSectionProps) {
         <>
             <Icon
                 name="bi-ai-agent"
-                sx={{ fontSize: 24, width: 24, height: 24, color: getNodeChartColor("DURABLE_AGENT_RUN"), display: "flex", alignItems: "center", justifyContent: "center" }}
+                sx={{ fontSize: 24, width: 24, height: 24, color: getNodeChartColor("DURABLE_AGENT_RUN") }}
             />
             <AgentOptionIconBadge>
                 <Icon name="bi-flowchart" sx={{ width: 11, height: 11, fontSize: 11, display: "flex", alignItems: "center", justifyContent: "center" }} />
@@ -104,31 +101,23 @@ export function CreateNewSection(props: CreateNewSectionProps) {
 
     return (
         <Section>
-            <SectionTitle variant="h4">Create New</SectionTitle>
-            <Section>
-                <CreateOptionsGrid>
-                    <OptionCard
-                        icon={agentIcon}
-                        title="Create Agent"
-                        description="Create an agent instance for this integration only."
-                        onClick={onCreateAgent}
-                    />
-                    {onCreateDurableAgent && (
-                        <OptionCard
-                            icon={durableAgentIcon}
-                            title="Create Durable Agent"
-                            description="Runs as a workflow. Can wait days for a person or an event and resume after a restart."
-                            onClick={onCreateDurableAgent}
-                        />
-                    )}
-                </CreateOptionsGrid>
+            <SectionTitle variant="h4">Create New Agent</SectionTitle>
+            <CreateOptionsGrid>
                 <OptionCard
-                    icon={definitionIcon}
-                    title="Create Agent Definition"
-                    description="Create an agent definition that can be shared and used to create agent instances with the same configuration."
-                    onClick={onCreateDefinition}
+                    icon={agentIcon}
+                    title="Agent"
+                    description="Uses an LLM to understand a request, reason about it, and call tools."
+                    onClick={onCreateAgent}
                 />
-            </Section>
+                {onCreateDurableAgent && (
+                    <OptionCard
+                        icon={durableAgentIcon}
+                        title="Durable Agent"
+                        description="Runs as a workflow. Waits for a person or an event, and resumes after a restart."
+                        onClick={onCreateDurableAgent}
+                    />
+                )}
+            </CreateOptionsGrid>
         </Section>
     );
 }
