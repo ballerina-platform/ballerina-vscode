@@ -158,12 +158,23 @@ export const PopupForm = (props: PopupFormProps) => {
     // The last crumb is the current level, which the title already names.
     const trail = breadcrumbs?.slice(0, -1) ?? [];
     const contentRef = useRef<HTMLDivElement>(null);
+    const boxRef = useRef<HTMLDivElement>(null);
+    const lastSize = useRef({ width: 0, height: 0 });
     const isFirstLevel = useRef(true);
 
     useLayoutEffect(() => {
         if (isFirstLevel.current) {
             isFirstLevel.current = false;
             return;
+        }
+        const box = boxRef.current;
+        if (box) {
+            // An auto height resolves against the new level's content, so the transition starts from the old size.
+            box.style.transition = "none";
+            box.style.width = `${lastSize.current.width}px`;
+            box.style.height = `${lastSize.current.height}px`;
+            void box.offsetHeight;
+            box.style.transition = box.style.width = box.style.height = "";
         }
         const content = contentRef.current;
         if (!content) {
@@ -175,9 +186,21 @@ export const PopupForm = (props: PopupFormProps) => {
         // Direction is read from the render that changed the level, so it is not a dependency.
     }, [transitionKey]);
 
+    useLayoutEffect(() => {
+        const box = boxRef.current;
+        if (!box) {
+            return;
+        }
+        const observer = new ResizeObserver(() => {
+            lastSize.current = { width: box.offsetWidth, height: box.offsetHeight };
+        });
+        observer.observe(box);
+        return () => observer.disconnect();
+    }, []);
+
     return (
         <PopupFormContainer>
-            <PopupFormBox role="dialog" aria-modal="true" aria-label={title} width={width} height={height}>
+            <PopupFormBox ref={boxRef} role="dialog" aria-modal="true" aria-label={title} width={width} height={height}>
                 <PopupFormHeader>
                     {onBack && (
                         <Button appearance="icon" onClick={onBack} tooltip="Back" data-testid="popup-back-btn">
