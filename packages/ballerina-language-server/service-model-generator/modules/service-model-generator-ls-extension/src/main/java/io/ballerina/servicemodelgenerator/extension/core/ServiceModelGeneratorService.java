@@ -32,6 +32,7 @@ import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.compiler.syntax.tree.SyntaxTree;
 import io.ballerina.mcp.core.generator.OpenApiSpecParser;
 import io.ballerina.mcp.core.model.SpecInfo;
+import io.ballerina.modelgenerator.commons.ApprovalFunctionSync;
 import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.ModulePrefixContext;
@@ -59,6 +60,7 @@ import io.ballerina.servicemodelgenerator.extension.model.Function;
 import io.ballerina.servicemodelgenerator.extension.model.Listener;
 import io.ballerina.servicemodelgenerator.extension.model.McpToolEndpoint;
 import io.ballerina.servicemodelgenerator.extension.model.Option;
+import io.ballerina.servicemodelgenerator.extension.model.Parameter;
 import io.ballerina.servicemodelgenerator.extension.model.Service;
 import io.ballerina.servicemodelgenerator.extension.model.ServiceClass;
 import io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel;
@@ -137,6 +139,7 @@ import org.eclipse.lsp4j.services.LanguageServer;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -860,11 +863,61 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                 Map<String, List<TextEdit>> textEdits = FunctionBuilderRouter.updateFunction(moduleName, function,
                         request.filePath(), document.get(), functionDefinitionNode, semanticModelOp.get(), project,
                         this.workspaceManager);
-                return new CommonSourceResponse(textEdits, validations);
+                return new CommonSourceResponse(
+                        withApprovalFunctionEdits(textEdits, function, filePath, functionDefinitionNode), validations);
             } catch (Throwable e) {
                 return new CommonSourceResponse(e);
             }
         });
+    }
+
+    // An agent tool method gated by `@ai:AgentTool {requiresApproval: <fn>}` keeps <fn>'s parameters in step with
+    // its own, and gets <fn> generated when it doesn't exist yet. See ApprovalFunctionSync.
+    private Map<String, List<TextEdit>> withApprovalFunctionEdits(Map<String, List<TextEdit>> textEdits,
+                                                                  Function function, Path filePath,
+                                                                  FunctionDefinitionNode functionNode) {
+        for (Value property : function.getProperties().values()) {
+            Codedata codedata = property.getCodedata();
+            if (codedata == null || !"AgentTool".equals(codedata.getOriginalName()) || property.getValue() == null) {
+                continue;
+            }
+            Optional<String> approvalFunction =
+                    ApprovalFunctionSync.approvalFunctionName("@ai:AgentTool " + property.getValue());
+            if (approvalFunction.isEmpty()) {
+                return textEdits;
+            }
+            List<ApprovalFunctionSync.Param> params = new ArrayList<>();
+            for (Parameter parameter : function.getParameters()) {
+                if (parameter.isEnabled() && parameter.getType() != null && parameter.getName() != null
+                        && parameter.getType().getValue() != null && parameter.getName().getValue() != null) {
+                    params.add(new ApprovalFunctionSync.Param(parameter.getType().getValue().trim(),
+                            parameter.getName().getValue().trim()));
+                }
+            }
+            Map<Path, List<TextEdit>> approvalEdits = ApprovalFunctionSync.sync(this.workspaceManager, filePath,
+                    approvalFunction.get(), params, functionNode.lineRange(), true);
+            if (approvalEdits.isEmpty()) {
+                return textEdits;
+            }
+            // The function builders return immutable maps keyed by the request's file path.
+            Map<String, List<TextEdit>> merged = new HashMap<>();
+            textEdits.forEach((path, edits) -> merged.put(path, new ArrayList<>(edits)));
+            approvalEdits.forEach((path, edits) -> merged.computeIfAbsent(keyFor(merged, path),
+                    ignored -> new ArrayList<>()).addAll(edits));
+            return merged;
+        }
+        return textEdits;
+    }
+
+    // The key an existing entry uses for the same file, so one file's edits stay in one list.
+    private static String keyFor(Map<String, List<TextEdit>> edits, Path path) {
+        Path normalized = path.toAbsolutePath().normalize();
+        for (String key : edits.keySet()) {
+            if (Path.of(key).toAbsolutePath().normalize().equals(normalized)) {
+                return key;
+            }
+        }
+        return path.toString();
     }
 
     /**
