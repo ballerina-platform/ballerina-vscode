@@ -24,13 +24,32 @@ jest.mock("@wso2/ballerina-core", () => ({}));
 jest.mock("../stateMachine", () => ({ StateMachine: {} }));
 jest.mock("../BalExtensionContext", () => ({ extension: {} }));
 const openApiGenerateClient = jest.fn();
-jest.mock("../features/ai/activator", () => ({ langClient: { openApiGenerateClient } }));
+const createServiceAndListener = jest.fn();
+const didClose = jest.fn();
+jest.mock("../features/ai/activator", () => ({
+    langClient: {
+        openApiGenerateClient,
+        createServiceAndListener,
+        didClose,
+        getServiceInitModel: async () => ({ serviceInitModel: {} }),
+    },
+}));
+jest.mock("../features/ai/agent/tools/openapi-service-model", () => ({
+    ...jest.requireActual("../features/ai/agent/tools/openapi-service-model"),
+    selectOpenApiDesign: (model: unknown) => model,
+}));
 jest.mock("../features/ai/state/ApprovalManager", () => ({ approvalManager: {} }));
 jest.mock("../rpc-managers/diagram-validity", () => ({ recordAiTouchedFile: jest.fn() }));
-jest.mock("../utils/modification", () => ({ writeBallerinaFileDidOpen: jest.fn() }));
-const addToIntegration = jest.fn(async (root: string, changes: { filePath: string; content: string }[]) => {
+jest.mock("../utils/modification", () => ({
+    writeBallerinaFileDidOpen: async (filePath: string, content: string) => fs.writeFileSync(filePath, content),
+}));
+const addToIntegration = jest.fn(async (root: string, changes: { filePath: string; content: string; deleted?: boolean }[]) => {
     for (const change of changes) {
-        fs.writeFileSync(path.join(root, change.filePath), change.content);
+        if (change.deleted) {
+            fs.rmSync(path.join(root, change.filePath), { force: true });
+        } else {
+            fs.writeFileSync(path.join(root, change.filePath), change.content);
+        }
     }
 });
 jest.mock("../rpc-managers/ai-panel/utils", () => ({ addToIntegration }));
@@ -45,6 +64,8 @@ const IMPORT = "import orders;\n";
 
 let root: string;
 let mainPath: string;
+let specPath: string;
+let modifiedFiles: string[];
 
 function unsavedEditor(filePath = mainPath, typed = TYPED, saves = true) {
     const document = {
@@ -63,11 +84,12 @@ function unsavedEditor(filePath = mainPath, typed = TYPED, saves = true) {
     return document;
 }
 
-const generate = () => ConnectorGeneratorTool(
-    { serviceName: "Orders", specContent: SPEC } as never,
+const generate = (mode: "client" | "service" = "client") => ConnectorGeneratorTool(
+    { serviceName: "Orders", specContent: SPEC, mode } as never,
     jest.fn(),
     root,
-    "project"
+    "project",
+    modifiedFiles
 );
 
 const editsFor = (filePath: string) => ({
@@ -83,8 +105,12 @@ beforeEach(() => {
     fs.writeFileSync(path.join(root, "Ballerina.toml"), '[package]\norg = "myorg"\nname = "project"\nversion = "0.1.0"\n');
     mainPath = path.join(root, "main.bal");
     fs.writeFileSync(mainPath, SAVED);
+    specPath = path.join(root, "resources", "specs", "orders.yaml");
+    modifiedFiles = [];
     workspace.textDocuments = [];
     openApiGenerateClient.mockReset();
+    createServiceAndListener.mockReset();
+    didClose.mockClear();
     addToIntegration.mockClear();
 });
 
@@ -138,7 +164,30 @@ describe("connector generator with unsaved editor changes", () => {
         expect(fs.readFileSync(specPath, "utf8")).toBe("openapi: 3.0.3\n");
     });
 
-    it("refuses when a file it edits gets unsaved changes while the edits are computed", async () => {
+    it("refuses before writing anything when a file it will edit can't be saved", async () => {
+        unsavedEditor(path.join(root, "Ballerina.toml"), "", false);
+
+        const result = await generate();
+
+        expect(result.success).toBe(false);
+        expect(JSON.stringify(result)).toContain("Ballerina.toml");
+        expect(openApiGenerateClient).not.toHaveBeenCalled();
+        expect(fs.existsSync(specPath)).toBe(false);
+        expect(modifiedFiles).toEqual([]);
+    });
+
+    it("goes ahead when only an unrelated file can't be saved", async () => {
+        const typesPath = path.join(root, "types.bal");
+        fs.writeFileSync(typesPath, "");
+        unsavedEditor(typesPath, "", false);
+        openApiGenerateClient.mockResolvedValue(editsFor(mainPath));
+
+        const result = await generate();
+
+        expect(result.success).toBe(true);
+    });
+
+    it("removes the spec it wrote when a file it edits gets unsaved changes while the edits are computed", async () => {
         openApiGenerateClient.mockImplementation(async () => {
             unsavedEditor();
             return editsFor(mainPath);
@@ -149,5 +198,55 @@ describe("connector generator with unsaved editor changes", () => {
         expect(result.success).toBe(false);
         expect(addToIntegration).not.toHaveBeenCalled();
         expect(fs.readFileSync(mainPath, "utf8")).toBe(SAVED);
+        expect(fs.existsSync(specPath)).toBe(false);
+        expect(modifiedFiles).toEqual([]);
+    });
+
+    it("puts back the spec it replaced when it is refused after the edits are computed", async () => {
+        fs.mkdirSync(path.dirname(specPath), { recursive: true });
+        fs.writeFileSync(specPath, "openapi: 3.0.3\n");
+        const earlier = path.relative(root, specPath);
+        modifiedFiles.push(earlier);
+        openApiGenerateClient.mockImplementation(async () => {
+            unsavedEditor();
+            return editsFor(mainPath);
+        });
+
+        const result = await generate();
+
+        expect(result.success).toBe(false);
+        expect(fs.readFileSync(specPath, "utf8")).toBe("openapi: 3.0.3\n");
+        expect(modifiedFiles).toEqual([earlier]);
+    });
+
+    it("removes the main.bal it created when the service is refused after the edits are computed", async () => {
+        fs.rmSync(mainPath);
+        const typesPath = path.join(root, "types.bal");
+        fs.writeFileSync(typesPath, "");
+        createServiceAndListener.mockImplementation(async () => {
+            unsavedEditor(typesPath, "type T record {};\n");
+            return { textEdits: { ...editsFor(mainPath).source.textEditsMap, ...editsFor(typesPath).source.textEditsMap } };
+        });
+
+        const result = await generate("service");
+
+        expect(result.success).toBe(false);
+        expect(fs.existsSync(mainPath)).toBe(false);
+        expect(didClose).toHaveBeenCalledWith({ textDocument: { uri: mainPath } });
+        expect(fs.existsSync(specPath)).toBe(false);
+    });
+
+    it("keeps the main.bal it created once the user has typed in it", async () => {
+        fs.rmSync(mainPath);
+        createServiceAndListener.mockImplementation(async () => {
+            unsavedEditor(mainPath, "\n");
+            return { textEdits: editsFor(mainPath).source.textEditsMap };
+        });
+
+        const result = await generate("service");
+
+        expect(result.success).toBe(false);
+        expect(fs.existsSync(mainPath)).toBe(true);
+        expect(didClose).not.toHaveBeenCalled();
     });
 });

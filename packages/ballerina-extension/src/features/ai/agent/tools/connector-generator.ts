@@ -40,6 +40,10 @@ import { recordAiTouchedFile } from "../../../../rpc-managers/diagram-validity";
 import { addToIntegration } from "../../../../rpc-managers/ai-panel/utils";
 import { hasUnsavedChanges, saveUnsavedDocuments, unsavedChangesError } from "../../utils/project/unsaved-documents";
 import { writeBallerinaFileDidOpen } from "../../../../utils/modification";
+import { RecoverableAgentError } from "./path-utils";
+import { Uri } from "vscode";
+// The core barrel can't be loaded under jest; unsaved-documents imports the same way.
+import { isPathInside, isSamePath } from "@wso2/ballerina-core/lib/utils/path-utils";
 import { isSupportedSpecVersion, resolveProvidedSpec, SpecContext, specVersion, withRelativeSpecPath } from "./connector-spec-source";
 import { blockingValidationMessages, implementsServiceContract, selectOpenApiDesign, toServiceTypeName } from "./openapi-service-model";
 
@@ -141,6 +145,7 @@ export async function ConnectorGeneratorTool(
 
     // A failure after the spec parses is in generation, not in the spec.
     let specAccepted = false;
+    let undoWrites: (() => Promise<void>) | undefined;
 
     try {
         // Ask only when the user has not already supplied the spec through the chat.
@@ -167,15 +172,28 @@ export async function ConnectorGeneratorTool(
         const packageRoot = path.join(tempProjectPath, packagePath ?? "");
         const isService = input.mode === "service";
 
-        // The language server computes its edits against the editor text, but they are applied to the file on disk.
-        await saveUnsavedDocuments(packageRoot);
+        const sanitizedServiceName = input.serviceName.toLowerCase().replace(/[^a-z0-9]+/g, "_");
+        const specFilePath = path.join(packageRoot, "resources", "specs", `${sanitizedServiceName}.${format === "yaml" ? "yaml" : "json"}`);
+        const mainFile = path.join(packageRoot, "main.bal");
 
-        const { specFilePath, sanitizedServiceName } = await saveSpecToWorkspace(
-            originalContent,
-            format,
-            rawSpec,
-            input.serviceName,
-            packageRoot,
+        // The language server computes its edits against the editor text, but they are applied to the file on disk.
+        const stillUnsaved = await saveUnsavedDocuments(packageRoot);
+        const blocked = stillUnsaved.find(file => isService
+            ? isSamePath(file, specFilePath) || isSamePath(file, mainFile)
+            : isSamePath(file, specFilePath)
+                || isSamePath(file, path.join(packageRoot, "Ballerina.toml"))
+                || isPathInside(path.join(packageRoot, "generated", sanitizedServiceName), file));
+        if (blocked) {
+            throw unsavedChangesRefusal(blocked, tempProjectPath);
+        }
+
+        const previousSpec = fs.existsSync(specFilePath) ? fs.readFileSync(specFilePath, "utf-8") : undefined;
+        const mainExisted = fs.existsSync(mainFile);
+        saveSpecToWorkspace(originalContent, format, rawSpec, specFilePath, tempProjectPath, modifiedFiles);
+        undoWrites = () => undoRefusedWrites(
+            specFilePath,
+            previousSpec,
+            isService && !mainExisted && fs.existsSync(mainFile) ? mainFile : undefined,
             tempProjectPath,
             modifiedFiles
         );
@@ -199,7 +217,42 @@ export async function ConnectorGeneratorTool(
 
         return handleSuccess(requestId, input.serviceName, parsedSpec, connector, eventHandler);
     } catch (error: any) {
+        if (undoWrites && error instanceof RecoverableAgentError && error.code === "UNSAVED_CHANGES") {
+            await undoWrites();
+        }
         return handleError(error, input.serviceName, requestId, eventHandler, input.mode, specAccepted);
+    }
+}
+
+function unsavedChangesRefusal(filePath: string, tempProjectPath: string): RecoverableAgentError {
+    return new RecoverableAgentError(unsavedChangesError(path.relative(tempProjectPath, filePath)), "UNSAVED_CHANGES");
+}
+
+/** Puts back what this request wrote before it was refused, so a retry starts from the same files. */
+async function undoRefusedWrites(
+    specFilePath: string,
+    previousSpec: string | undefined,
+    createdMainFile: string | undefined,
+    tempProjectPath: string,
+    modifiedFiles?: string[]
+): Promise<void> {
+    if (previousSpec === undefined) {
+        fs.rmSync(specFilePath, { force: true });
+    } else {
+        fs.writeFileSync(specFilePath, previousSpec, "utf-8");
+    }
+    // Only this request's entry: the same spec can already be listed by an earlier request this turn.
+    const specIndex = modifiedFiles?.lastIndexOf(path.relative(tempProjectPath, specFilePath)) ?? -1;
+    if (modifiedFiles && specIndex >= 0) {
+        modifiedFiles.splice(specIndex, 1);
+    }
+    // Kept if the user has started typing in it, so their text isn't dropped with it.
+    if (createdMainFile && !hasUnsavedChanges(createdMainFile)) {
+        // Opened in the language server directly, so closing it is ours to do.
+        langClient.didClose({ textDocument: { uri: Uri.file(createdMainFile).toString() } });
+        await addToIntegration(tempProjectPath, [
+            { filePath: path.relative(tempProjectPath, createdMainFile), content: "", deleted: true },
+        ]);
     }
 }
 
@@ -258,25 +311,17 @@ function parseAndValidateSpec(
     return { rawSpec, parsedSpec, originalContent: specContent, format };
 }
 
-async function saveSpecToWorkspace(
+function saveSpecToWorkspace(
     originalContent: string,
     format: "json" | "yaml",
     rawSpec: any,
-    serviceName: string,
-    saveRoot: string,
+    specFilePath: string,
     tempProjectPath: string,
     modifiedFiles?: string[]
-): Promise<{ specFilePath: string; sanitizedServiceName: string }> {
-    const sanitizedServiceName = serviceName.toLowerCase().replace(/[^a-z0-9]+/g, "_");
-    const specsDir = path.join(saveRoot, "resources", "specs");
-    const fileExtension = format === "yaml" ? "yaml" : "json";
-    const specFilePath = path.join(specsDir, `${sanitizedServiceName}.${fileExtension}`);
-
+): void {
+    const specsDir = path.dirname(specFilePath);
     if (!fs.existsSync(specsDir)) {
         fs.mkdirSync(specsDir, { recursive: true });
-    }
-    if (hasUnsavedChanges(specFilePath)) {
-        throw new Error(unsavedChangesError(path.relative(tempProjectPath, specFilePath)));
     }
 
     const contentToSave = format === "yaml" ? originalContent : JSON.stringify(rawSpec, null, 2);
@@ -286,8 +331,6 @@ async function saveSpecToWorkspace(
         const relativeSpecPath = path.relative(tempProjectPath, specFilePath);
         modifiedFiles.push(relativeSpecPath);
     }
-
-    return { specFilePath, sanitizedServiceName };
 }
 
 function sendGeneratingNotification(
@@ -377,7 +420,7 @@ async function writeGeneratedEdits(
     // Checked for every file up front so a refusal doesn't leave the edits half applied.
     for (const filePath of Object.keys(textEditsMap)) {
         if (hasUnsavedChanges(filePath)) {
-            throw new Error(unsavedChangesError(path.relative(tempProjectPath, filePath)));
+            throw unsavedChangesRefusal(filePath, tempProjectPath);
         }
     }
 
