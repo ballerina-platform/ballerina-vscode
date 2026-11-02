@@ -1844,7 +1844,7 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
         try {
             const caseInsensitiveFs = process.platform === "win32" || process.platform === "darwin";
             const targetPath = caseInsensitiveFs ? fileUri.fsPath.toLowerCase() : fileUri.fsPath;
-            const openDocument = workspace.textDocuments.find((document) =>
+            const openDocument = workspace.textDocuments.find((document) => document.uri.scheme === "file" &&
                 (caseInsensitiveFs ? document.uri.fsPath.toLowerCase() : document.uri.fsPath) === targetPath
             );
             if (openDocument) {
