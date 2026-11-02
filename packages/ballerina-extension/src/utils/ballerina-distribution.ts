@@ -91,10 +91,12 @@ export function formatVersion(properties: Record<string, string>): string | unde
 // Follows symlinks, e.g. /usr/local/bin/bal → /Library/Ballerina/bin.
 export function findLauncherDirOnPath(launcher: string, searchPath: string = process.env.PATH ?? ''): string | undefined {
     for (const dir of searchPath.split(path.delimiter)) {
-        if (!dir) {
+        const entry = dir.replace(/^"|"$/g, '');
+        // The shell resolves relative entries against its own cwd, which the extension host does not share.
+        if (!path.isAbsolute(entry)) {
             continue;
         }
-        const candidate = path.join(dir.replace(/^"|"$/g, ''), launcher);
+        const candidate = path.join(entry, launcher);
         try {
             if (process.platform !== 'win32') {
                 fs.accessSync(candidate, fs.constants.X_OK);
