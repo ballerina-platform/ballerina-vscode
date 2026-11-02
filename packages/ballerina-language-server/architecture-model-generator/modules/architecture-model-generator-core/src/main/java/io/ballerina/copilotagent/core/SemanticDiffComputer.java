@@ -63,8 +63,10 @@ import io.ballerina.projects.Project;
 import io.ballerina.tools.text.LineRange;
 
 import java.nio.file.Path;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -773,6 +775,15 @@ public class SemanticDiffComputer {
     private void computeServiceDiffs(Map<String, ServiceDeclarationNode> originalServiceMap,
                                      Map<String, ServiceDeclarationNode> modifiedServiceMap) {
 
+        // Identical declarations are numbered in order, so inserting one shifts the numbers; pair unchanged ones first
+        Map<String, Deque<String>> modifiedServicesBySource = new HashMap<>();
+        modifiedServiceMap.forEach((serviceName, service) -> modifiedServicesBySource
+                .computeIfAbsent(service.toSourceCode(), source -> new ArrayDeque<>()).add(serviceName));
+        originalServiceMap.values().removeIf(originalService -> {
+            Deque<String> unchanged = modifiedServicesBySource.get(originalService.toSourceCode());
+            return unchanged != null && !unchanged.isEmpty() && modifiedServiceMap.remove(unchanged.poll()) != null;
+        });
+
         List<String> foundServices = new ArrayList<>();
         for (Map.Entry<String, ServiceDeclarationNode> entry : originalServiceMap.entrySet()) {
             String serviceName = entry.getKey();
@@ -891,14 +902,15 @@ public class SemanticDiffComputer {
 
         ServiceMemberMap original = extractServiceMembers(originalService);
         ServiceMemberMap modified = extractServiceMembers(modifiedService);
-        String servicePath = getServicePath(modifiedService);
-        String serviceId = getServiceId(modifiedService);
-        String listeners = getServiceListeners(modifiedService);
-        // Deleted members keep the original type but share the group
-        ServiceInfo originalInfo = new ServiceInfo(servicePath,
-                originalServiceTypes.resolve(originalService).orElse(null), serviceId, listeners);
-        ServiceInfo modifiedInfo = new ServiceInfo(servicePath,
-                modifiedServiceTypes.resolve(modifiedService).orElse(null), serviceId, listeners);
+        String originalType = originalServiceTypes.resolve(originalService).orElse(null);
+        String modifiedType = modifiedServiceTypes.resolve(modifiedService).orElse(null);
+        ServiceInfo modifiedInfo = new ServiceInfo(getServicePath(modifiedService), modifiedType,
+                getServiceId(modifiedService), getServiceListeners(modifiedService));
+        // Path-less services of different types pair up too; keep the replaced one's members apart
+        ServiceInfo originalInfo = Objects.equals(originalType, modifiedType)
+                ? modifiedInfo
+                : new ServiceInfo(getServicePath(originalService), originalType,
+                        getServiceId(originalService) + "#removed", getServiceListeners(originalService));
         analyzeMethodChanges(original.getObjectMethods(), modified.getObjectMethods(), originalInfo, modifiedInfo);
     }
 
