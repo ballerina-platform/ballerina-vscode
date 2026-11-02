@@ -37,7 +37,6 @@ import io.ballerina.compiler.syntax.tree.ExpressionNode;
 import io.ballerina.compiler.syntax.tree.FunctionDefinitionNode;
 import io.ballerina.compiler.syntax.tree.IfElseStatementNode;
 import io.ballerina.compiler.syntax.tree.ImportDeclarationNode;
-import io.ballerina.compiler.syntax.tree.ImportOrgNameNode;
 import io.ballerina.compiler.syntax.tree.ImportPrefixNode;
 import io.ballerina.compiler.syntax.tree.ListenerDeclarationNode;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
@@ -211,10 +210,9 @@ public class DeleteNodeHandler {
                 continue;
             }
             textEdits.add(new TextEdit(CommonUtils.toRange(importNode.lineRange()), ""));
-            if (DB_DRIVERS.contains(prefix)) {
-                driverImport(imports, prefix + DRIVER_SUFFIX).ifPresent(driverImport ->
-                        textEdits.add(new TextEdit(CommonUtils.toRange(driverImport.lineRange()), "")));
-            }
+            ballerinaxModule(importNode).filter(DB_DRIVERS::contains).flatMap(module ->
+                    driverImport(imports, module + DRIVER_SUFFIX)).ifPresent(driverImport ->
+                    textEdits.add(new TextEdit(CommonUtils.toRange(driverImport.lineRange()), "")));
         }
         return textEdits;
     }
@@ -239,16 +237,18 @@ public class DeleteNodeHandler {
     private static Optional<ImportDeclarationNode> driverImport(NodeList<ImportDeclarationNode> imports,
                                                                 String driverModuleName) {
         for (ImportDeclarationNode importNode : imports) {
-            Optional<ImportOrgNameNode> orgName = importNode.orgName();
             Optional<ImportPrefixNode> prefix = importNode.prefix();
             if (prefix.isPresent() && prefix.get().prefix().text().equals(EXPECTED_PREFIX)
-                    && orgName.isPresent() && orgName.get().toString().equals("ballerinax/")
-                    && importNode.moduleName().stream().map(Token::text).collect(Collectors.joining("."))
-                    .equals(driverModuleName)) {
+                    && ballerinaxModule(importNode).filter(driverModuleName::equals).isPresent()) {
                 return Optional.of(importNode);
             }
         }
         return Optional.empty();
+    }
+
+    private static Optional<String> ballerinaxModule(ImportDeclarationNode importNode) {
+        return importNode.orgName().filter(orgName -> orgName.toString().equals("ballerinax/"))
+                .map(orgName -> importNode.moduleName().stream().map(Token::text).collect(Collectors.joining(".")));
     }
 
     private record ListenerRemoval(DocumentId documentId, ListenerDeclarationNode node) {

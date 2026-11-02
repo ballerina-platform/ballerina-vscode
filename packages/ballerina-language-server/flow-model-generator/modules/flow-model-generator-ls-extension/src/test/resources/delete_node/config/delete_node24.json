@@ -1,0 +1,63 @@
+{
+  "description": "Delete the last use of an aliased database client prunes its driver import",
+  "functionStart": {
+    "line": 3,
+    "offset": 0
+  },
+  "functionEnd": {
+    "line": 5,
+    "offset": 1
+  },
+  "nodeStart": {
+    "line": 4,
+    "offset": 4
+  },
+  "nodeEnd": {
+    "line": 4,
+    "offset": 31
+  },
+  "source": "delete_node_imports4.bal",
+  "output": {
+    "delete_node_imports4.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 30
+          }
+        },
+        "newText": ""
+      },
+      {
+        "range": {
+          "start": {
+            "line": 1,
+            "character": 0
+          },
+          "end": {
+            "line": 1,
+            "character": 36
+          }
+        },
+        "newText": ""
+      },
+      {
+        "range": {
+          "start": {
+            "line": 4,
+            "character": 4
+          },
+          "end": {
+            "line": 4,
+            "character": 31
+          }
+        },
+        "newText": ""
+      }
+    ]
+  }
+}
