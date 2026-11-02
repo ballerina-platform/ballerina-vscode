@@ -19,8 +19,6 @@
 package io.ballerina.flowmodelgenerator.core.model.node;
 
 import com.google.gson.Gson;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
 import io.ballerina.compiler.api.ModuleID;
 import io.ballerina.compiler.api.SemanticModel;
@@ -56,6 +54,7 @@ import io.ballerina.flowmodelgenerator.core.model.PropertyCodedata;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
 import io.ballerina.flowmodelgenerator.core.utils.FlowNodeUtil;
 import io.ballerina.flowmodelgenerator.core.utils.ParamUtils;
+import io.ballerina.modelgenerator.commons.AgentToolAnnotation;
 import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.FileSystemUtils;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
@@ -341,75 +340,9 @@ public class AgentToolBuilder extends NodeBuilder {
     }
 
     private static void emitAnnotation(ToolGenContext ctx) {
-        // Each entry is a fully-rendered mapping field (already indented) to place inside the
-        // `@ai:AgentTool { ... }` record. When empty, a bare `@ai:AgentTool` is emitted instead.
-        List<String> annotationFields = new ArrayList<>();
-
-        // auth: { ... } — OAuth client configuration block.
-        Object authValue = resolveToolData(ctx, "auth");
-        if (authValue != null) {
-            String authStr = authValue.toString();
-            JsonObject authConfig = gson.fromJson(authStr, JsonObject.class);
-
-            List<String> fields = new ArrayList<>();
-            for (Map.Entry<String, JsonElement> entry : authConfig.entrySet()) {
-                String key = entry.getKey();
-                JsonElement valueElement = entry.getValue();
-                String value = valueElement.isJsonArray() ? valueElement.toString() : valueElement.getAsString();
-
-                if (value == null || value.isEmpty() || value.equals("()") || value.trim().matches("\\{\\s*}")) {
-                    continue;
-                }
-
-                if (key.equals("scopes")) {
-                    if (value.startsWith("[") && value.endsWith("]")) {
-                        fields.add("        " + key + ": " + value);
-                        continue;
-                    }
-                    String[] scopeParts = value.split(",");
-                    List<String> scopeItems = new ArrayList<>();
-                    for (String part : scopeParts) {
-                        String trimmed = part.trim();
-                        if (!trimmed.isEmpty()) {
-                            scopeItems.add(trimmed);
-                        }
-                    }
-                    if (scopeItems.isEmpty()) {
-                        continue;
-                    }
-                    fields.add("        " + key + ": [" + String.join(", ", scopeItems) + "]");
-                } else {
-                    fields.add("        " + key + ": " + value);
-                }
-            }
-
-            if (!fields.isEmpty()) {
-                annotationFields.add("    auth: {" + System.lineSeparator()
-                        + String.join("," + System.lineSeparator(), fields) + System.lineSeparator()
-                        + "    }");
-            }
-        }
-
-        // requiresApproval: <boolean|isolated function> — human-in-the-loop gate. The value is
-        // emitted verbatim: "true" for the toggle, or an identifier for a predicate function pointer.
-        Object approvalValue = resolveToolData(ctx, "requiresApproval");
-        if (approvalValue != null) {
-            String approval = approvalValue.toString().trim();
-            if (!approval.isEmpty()) {
-                annotationFields.add("    requiresApproval: " + approval);
-            }
-        }
-
-        if (annotationFields.isEmpty()) {
-            ctx.sb.token().name("@ai:AgentTool").name(System.lineSeparator());
-            return;
-        }
-
-        String sb = "@ai:AgentTool {" + System.lineSeparator()
-                + String.join("," + System.lineSeparator(), annotationFields) + System.lineSeparator()
-                + "}";
-
-        ctx.sb.token().name(sb).name(System.lineSeparator());
+        String annotation = AgentToolAnnotation.create(resolveToolData(ctx, AgentToolAnnotation.AUTH),
+                resolveToolData(ctx, AgentToolAnnotation.REQUIRES_APPROVAL));
+        ctx.sb.token().name(annotation).name(System.lineSeparator());
     }
 
     private enum ToolKind {

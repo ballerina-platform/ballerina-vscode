@@ -51,6 +51,11 @@ public class Codedata {
     private Boolean preserveValue;
     private String castType;
     private DriverDependency driverDependency;
+    // On an @ai:AgentTool annotation: whether it gates the tool, and the local approval function it names
+    private Boolean requiresApproval;
+    private String approvalFunction;
+    // On an @ai:AgentTool annotation saved from the tool form: the auth config as a JSON object of field sources
+    private String auth;
 
     public Codedata() {
     }
@@ -220,6 +225,30 @@ public class Codedata {
 
     public void setField(String field) {
         this.field = field;
+    }
+
+    public Boolean getRequiresApproval() {
+        return requiresApproval;
+    }
+
+    public void setRequiresApproval(Boolean requiresApproval) {
+        this.requiresApproval = requiresApproval;
+    }
+
+    public String getApprovalFunction() {
+        return approvalFunction;
+    }
+
+    public void setApprovalFunction(String approvalFunction) {
+        this.approvalFunction = approvalFunction;
+    }
+
+    public String getAuth() {
+        return auth;
+    }
+
+    public void setAuth(String auth) {
+        this.auth = auth;
     }
 
     public String getTypeIdentifier() {

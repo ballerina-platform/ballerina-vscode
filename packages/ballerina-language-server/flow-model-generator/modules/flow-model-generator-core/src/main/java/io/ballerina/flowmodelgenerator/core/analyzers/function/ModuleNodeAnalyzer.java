@@ -59,13 +59,18 @@ import io.ballerina.flowmodelgenerator.core.model.node.NPFunctionDefinitionBuild
 import io.ballerina.flowmodelgenerator.core.model.node.WorkflowBuilder;
 import io.ballerina.flowmodelgenerator.core.utils.TypeUtils;
 import io.ballerina.flowmodelgenerator.core.utils.WorkflowUtil;
+import io.ballerina.modelgenerator.commons.ApprovalFunctionSync;
 import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.ParameterData;
+import io.ballerina.projects.DocumentId;
+import io.ballerina.projects.Module;
 import io.ballerina.tools.text.LineRange;
 import org.ballerinalang.langserver.commons.BallerinaCompilerApi;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.StringJoiner;
@@ -81,15 +86,57 @@ import static io.ballerina.modelgenerator.commons.ParameterData.Kind.REQUIRED;
  */
 public class ModuleNodeAnalyzer extends NodeVisitor {
 
+    /**
+     * Metadata key listing the agent tools that use a function as their {@code requiresApproval} function.
+     */
+    public static final String APPROVAL_FUNCTION_FOR_KEY = "approvalFunctionFor";
+
+    /**
+     * Metadata key telling whether anything besides agent tool annotations refers to a function (a call, an
+     * {@code ai:ToolConfig}), so a client can tell whether removing the last tool leaves it unused.
+     */
+    public static final String REFERENCED_OUTSIDE_APPROVALS_KEY = "referencedOutsideApprovals";
+
+    /**
+     * Metadata key telling whether an agent tool's {@code @ai:AgentTool} annotation gates it for approval. Present
+     * only on tools whose annotation has a {@code requiresApproval} field.
+     */
+    public static final String REQUIRES_APPROVAL_KEY = "requiresApproval";
+
+    /**
+     * Metadata key naming the local function an agent tool's {@code requiresApproval} field refers to. Absent for
+     * {@code true}/{@code false}, a qualified reference and an inline function.
+     */
+    public static final String APPROVAL_FUNCTION_KEY = "approvalFunction";
+
     private final ModuleInfo moduleInfo;
     private final SemanticModel semanticModel;
     private final Gson gson;
+    private final List<ModulePartNode> moduleRoots;
     private JsonElement node;
 
     public ModuleNodeAnalyzer(ModuleInfo moduleInfo, SemanticModel semanticModel) {
+        this(moduleInfo, semanticModel, null);
+    }
+
+    /**
+     * Creates an analyzer that can also tell which agent tools use a function as their approval function, by
+     * reading the annotations across the module's documents.
+     *
+     * @param moduleInfo    module info
+     * @param semanticModel semantic model
+     * @param module        the function's module; {@code null} skips the approval-function lookup
+     */
+    public ModuleNodeAnalyzer(ModuleInfo moduleInfo, SemanticModel semanticModel, Module module) {
         this.moduleInfo = moduleInfo;
         this.semanticModel = semanticModel;
         this.gson = new Gson();
+        this.moduleRoots = new ArrayList<>();
+        if (module != null) {
+            for (DocumentId documentId : module.documentIds()) {
+                this.moduleRoots.add(module.document(documentId).syntaxTree().rootNode());
+            }
+        }
     }
 
     public Optional<JsonElement> findFunction(ModulePartNode rootNode, String functionName) {
@@ -148,6 +195,28 @@ public class ModuleNodeAnalyzer extends NodeVisitor {
                     functionLineRange.fileName(),
                     functionLineRange.startLine(),
                     functionDefinitionNode.functionBody().lineRange().startLine()));
+        }
+
+        // Tell the tool forms whether this agent tool requires approval and which local function decides it, read
+        // from the annotation's syntax tree. Needs no module roots, so the tool lookup paths get it too.
+        if (ApprovalFunctionSync.requiresApprovalField(functionDefinitionNode.metadata()).isPresent()) {
+            nodeBuilder.metadata().data(REQUIRES_APPROVAL_KEY,
+                    ApprovalFunctionSync.requiresApproval(functionDefinitionNode.metadata()));
+            ApprovalFunctionSync.approvalFunctionName(functionDefinitionNode.metadata())
+                    .ifPresent(name -> nodeBuilder.metadata().data(APPROVAL_FUNCTION_KEY, name));
+        }
+
+        // Tell the function form when this function is an agent tool's approval function, so it can keep its
+        // signature in step with the tool.
+        if (nodeKind == NodeKind.FUNCTION_DEFINITION && !moduleRoots.isEmpty()) {
+            List<String> tools = ApprovalFunctionSync.toolsUsing(moduleRoots,
+                    functionDefinitionNode.functionName().text().trim());
+            if (!tools.isEmpty()) {
+                nodeBuilder.metadata().data(APPROVAL_FUNCTION_FOR_KEY, tools);
+            }
+            nodeBuilder.metadata().data(REFERENCED_OUTSIDE_APPROVALS_KEY,
+                    ApprovalFunctionSync.referencedOutsideApprovals(semanticModel, functionDefinitionNode,
+                            tools.size()));
         }
 
         // Set the function name, return type and nested properties

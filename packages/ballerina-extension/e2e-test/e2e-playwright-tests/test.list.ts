@@ -53,6 +53,7 @@ import optionalFieldAccess from './expression-editor/optional-field-access.spec'
 import httpService from './api-integration/http-service.spec';
 import httpUpload from './api-integration/http-upload.spec';
 import aiChatService from './api-integration/ai-chat-service.spec';
+import agentToolApproval from './api-integration/agent-tool-approval.spec';
 import graphqlService from './api-integration/graphql-service.spec';
 import tcpService from './api-integration/tcp-service.spec';
 
@@ -177,6 +178,9 @@ test.describe('Ballerina E2E Group 2', { tag: '@group2' }, async () => {
     // <----AI Chat Service Test---->
     // TODO: flaky - wso2/product-integrator#2389 (#bi-diagram-canvas never becomes visible after create)
     test.describe.skip(aiChatService);
+
+    // <----Agent Tool Approval Function Test---->
+    test.describe(agentToolApproval);
 
     // <----Integration as API Test---->
     // TODO: flaky - wso2/product-integrator#2389 ('graphql-add-mutation-btn' not visible

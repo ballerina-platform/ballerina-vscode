@@ -16,9 +16,9 @@
  * under the License.
  */
 
-import { AvailableNode, Category, NodeMetadata, NodeProperties, Property, RecordTypeField, ToolParameters,
+import { ELineRange, NodeProperties, Property, RecordTypeField, ToolParameters,
     ValueTypeConstraint, getPrimaryInputType } from "@wso2/ballerina-core";
-import { FormField, FormValues, Parameter } from "@wso2/ballerina-side-panel";
+import { ApprovalFunctionParam, FormField, FormValues, Parameter } from "@wso2/ballerina-side-panel";
 
 const SQL_PARAMETERIZED_TYPES = ["sql:ParameterizedQuery", "sql:ParameterizedCallQuery"];
 const isSqlParameterizedField = (field: FormField): boolean =>
@@ -295,167 +295,127 @@ export const stripCodeFences = (text: string): string => text.replace(CODE_FENCE
 export const stripCodeFencesInline = (text: string): string =>
     text.replace(CODE_FENCE_REGEX, "").replace(/\n/g, " ").trim();
 
-// Categories in the FUNCTION search response that are NOT the project's own functions: standard
-// library and imported/third-party modules (plus agent tools). Approval-predicate pickers offer
-// only the user's own module-level functions as candidates, so these are skipped.
-// Matched by label rather than a structural field because the category itself carries no org/module
-// info (only the leaf AvailableNode.codedata does, one level down) — this is a wording-fragile check,
-// not a considered choice. If the LS ever renames these labels, this filter silently stops working.
-const NON_LOCAL_FUNCTION_CATEGORIES = ["Standard Library", "Extended Library", "Agent Tools"];
-function isLocalFunctionCategory(label: string | undefined): boolean {
-    if (!label) return true;
-    return !NON_LOCAL_FUNCTION_CATEGORIES.includes(label) && !label.includes("Imported");
-}
+// Form keys of the "Requires Approval" control. The checkbox is the field itself; these two are
+// registered by the side-panel ApprovalEditor.
+export const APPROVAL_FUNCTION_KEY = "approvalFunction";
+export const GENERATE_APPROVAL_FUNCTION_KEY = "generateApprovalFunction";
 
-// Recursively collect the names of the project's own functions from raw search-result categories,
-// to offer as approval-predicate candidates. The list-level search response has no reliable return
-// type to filter on (codedata.inferredReturnType is only populated in niche type-inference cases,
-// not for ordinary `boolean` returns), so all local functions are offered and the compiler/LS flags
-// an incompatible pick after generation — the RequiresApproval contract (params mirror the tool,
-// returns boolean) is verified there, not here. Agent-tool functions are excluded.
-export function collectLocalFunctionNames(items: (Category | AvailableNode)[], acc: Set<string>): void {
-    for (const item of items) {
-        if (item && "items" in item && Array.isArray((item as Category).items)) {
-            if (isLocalFunctionCategory((item as Category).metadata?.label)) {
-                collectLocalFunctionNames((item as Category).items as (Category | AvailableNode)[], acc);
-            }
-            continue;
-        }
-        const node = item as AvailableNode;
-        const name = node?.codedata?.symbol;
-        if (name && !(node.metadata?.data as NodeMetadata)?.isAgentTool) {
-            acc.add(name);
-        }
-    }
-}
-
-// Prefill state for the "Requires Approval" control, parsed from an existing @ai:AgentTool
-// annotation when editing a tool that already has the gate set.
+// Prefill state for the "Requires Approval" control when editing a tool that already has the gate set.
 export interface ExistingApprovalConfig {
     functionName?: string;
 }
 
-// The static "Requires Approval" CONDITIONAL_FIELDS field, shared by every tool-creation path
-// (function, connection, custom). The annotation value is `boolean | isolated function`: checking
-// the box alone emits `requiresApproval: true`; picking a function in the revealed sub-field emits
-// that function reference instead, so approval becomes conditional at runtime. Modeled as
-// CONDITIONAL_FIELDS (CheckBoxConditionalEditor) so the function picker is part of this field
-// rather than a separate, disconnected form entry.
-// `allowCreate` controls whether the picker accepts a free-typed (new) function name. Create flows
-// pass true (a new name drives predicate scaffolding via AgentToolBuilder); edit flows pass false —
-// those paths rewrite source directly and never reach the generator, so a new name would produce a
-// dangling reference. Restricting edits to existing functions keeps the annotation always resolvable.
+// The prefill from what the language server reports about a tool's @ai:AgentTool annotation: no gate when it
+// doesn't require approval; otherwise the gate, with the local function it names, if any. A qualified or inline
+// function isn't reported, so it reads as a gate without an attached function.
+export function existingApprovalConfig(
+    requiresApproval?: boolean, approvalFunction?: string
+): ExistingApprovalConfig | undefined {
+    if (!requiresApproval) {
+        return undefined;
+    }
+    return approvalFunction ? { functionName: approvalFunction } : {};
+}
+
+export interface RequiresApprovalOptions {
+    // "view" for the add-tool side panel (the add form opens over it); "inline" for full-page forms.
+    presentation?: "view" | "inline";
+    // Name the default approval-function name is derived from (the wrapped function or the tool);
+    // a function reads it from the current form values, e.g. a tool name the user is still typing.
+    baseName?: string | ((values: FormValues) => string);
+    toolName?: string | ((values: FormValues) => string);
+    getToolParameters?: (values: FormValues) => ApprovalFunctionParam[];
+    onOpenFunction?: (name: string) => void;
+    getFunctionInfo?: (name: string) => Promise<{
+        params: ApprovalFunctionParam[];
+        usedBy: string[];
+        referencedElsewhere?: boolean;
+        nameLineRange?: ELineRange;
+    } | null>;
+}
+
+const isAiContextType = (type: string): boolean => type.replace(/\s/g, "") === "ai:Context";
+
+// The tool's parameters as the approval function must mirror them: every tool form keeps its
+// parameters as items carrying `formValues.type` / `formValues.variable` (REPEATABLE_PROPERTY,
+// PARAM_MANAGER and the side panel's Tool Inputs alike). A leading `ai:Context` is dropped, since
+// the ai module binds only the tool's own parameters to an approval function.
+export function readToolParameters(values: FormValues, key: string = "parameters"): ApprovalFunctionParam[] {
+    const raw = values?.[key];
+    const items: any[] = Array.isArray(raw) ? raw : raw && typeof raw === "object" ? Object.values(raw) : [];
+    const params = items
+        .map((item) => ({
+            type: String(item?.formValues?.type ?? "").trim(),
+            name: String(item?.formValues?.variable ?? "").trim(),
+        }))
+        .filter((param) => param.type && param.name);
+    return params.length > 0 && isAiContextType(params[0].type) ? params.slice(1) : params;
+}
+
+// `sendEmail` -> `sendEmailApproval`; a trailing `Tool` is dropped so `sendEmailTool` reads the same.
+export function defaultApprovalFunctionName(baseName?: string): string {
+    let base = (baseName ?? "").replace(/^'/, "").replace(/[^A-Za-z0-9_]/g, "");
+    if (base.length > 4 && base.endsWith("Tool")) {
+        base = base.slice(0, -4);
+    }
+    if (!base || !/^[A-Za-z_]/.test(base)) {
+        return "toolApproval";
+    }
+    return `${base.charAt(0).toLowerCase()}${base.slice(1)}Approval`;
+}
+
+// The "Requires Approval" field shared by every tool form. Rendered by the side-panel
+// ApprovalEditor: a checkbox, then either "+ Add Approval Function" or the attached function with
+// Open / Remove. A new function is generated by the language server when the tool is saved.
 export function createRequiresApprovalField(
-    existing?: ExistingApprovalConfig, allowCreate: boolean = true
+    existing?: ExistingApprovalConfig, options: RequiresApprovalOptions = {}
 ): FormField {
     return {
         key: "requiresApproval",
         label: "Requires Approval",
-        type: "CONDITIONAL_FIELDS",
+        type: "AGENT_TOOL_APPROVAL",
         optional: true,
         editable: true,
         documentation: "Pause this tool before it runs and wait for human approval.",
         value: Boolean(existing),
-        types: [{ fieldType: "CONDITIONAL_FIELDS", selected: false }],
+        types: [{ fieldType: "AGENT_TOOL_APPROVAL", selected: false }],
         enabled: true,
-        choices: [
-            {
-                metadata: { label: "On" },
-                properties: {
-                    approvalFunction: {
-                        metadata: {
-                            label: "Approval Function",
-                            description: allowCreate
-                                ? "Optional. Decides per call whether approval is needed. Pick a compatible approval function, or type a name to create one."
-                                : "Optional. Decides per call whether approval is needed. Pick an existing compatible approval function.",
-                        },
-                        // AUTOCOMPLETE (not EXPRESSION): the annotation slot takes a function *reference*
-                        // (a bare name), never a call expression. `items` are injected at runtime once the
-                        // candidate list is fetched. When allowCreate is true, free-typed names are accepted
-                        // (drive the "create a new predicate" path); when false, the picker is a strict
-                        // pick-list of existing functions.
-                        // The identifier rule guards the free-typed path: without it, a value like
-                        // "my predicate" goes straight into both `requiresApproval: <name>` and the
-                        // generated `isolated function <name>(...)`, producing invalid Ballerina source.
-                        types: [{
-                            fieldType: "AUTOCOMPLETE", selected: true,
-                            validations: [{ rule: "common.validate.identifier", message: "Invalid identifier" }],
-                        }],
-                        allowItemCreate: allowCreate,
-                        value: existing?.functionName || "",
-                        optional: true,
-                        editable: true,
-                    },
-                },
+        approvalConfig: {
+            functionKey: APPROVAL_FUNCTION_KEY,
+            generateKey: GENERATE_APPROVAL_FUNCTION_KEY,
+            initialFunction: existing?.functionName ?? "",
+            presentation: options.presentation ?? "view",
+            defaultFunctionName: (values: FormValues) => {
+                const base = options.baseName ?? options.toolName;
+                return defaultApprovalFunctionName(typeof base === "function" ? base(values) : base);
             },
-            { metadata: { label: "Off" }, properties: {} },
-        ],
-    } as unknown as FormField;
+            toolName: options.toolName,
+            getToolParameters: options.getToolParameters ?? ((values) => readToolParameters(values)),
+            onOpenFunction: options.onOpenFunction,
+            getFunctionInfo: options.getFunctionInfo,
+        },
+    } as FormField;
 }
 
-// Rebuild the static "Requires Approval" field with the runtime-fetched picker candidates injected
-// into its "On" branch. `items` populate the AUTOCOMPLETE dropdown; the label, description and
-// placeholder are preserved from the static definition.
-// `candidates` is `null` when the fetch itself failed (as opposed to a project with no eligible
-// functions, which is `[]`) — an empty list can't be told apart from a failure by buildApprovalToolData,
-// which treats any name absent from the list as new. Surfacing a picker over an empty-by-failure list
-// would let a user re-pick their existing `isHighValue`, have it read as new, and silently regenerate
-// a duplicate/broken predicate. So on failure the "On" branch drops the picker entirely and falls back
-// to the plain unconditional-approval checkbox until the candidate list is actually known.
-export function buildRequiresApprovalField(baseField: FormField, candidates: string[] | null): FormField {
-    const onChoice = baseField.choices?.[0];
-    const approvalProp = onChoice?.properties?.approvalFunction;
-    if (!approvalProp) {
-        return baseField;
-    }
-    if (candidates === null) {
-        return {
-            ...baseField,
-            choices: [
-                { ...onChoice, properties: {} },
-                ...baseField.choices.slice(1),
-            ],
-        };
-    }
-    return {
-        ...baseField,
-        choices: [
-            {
-                ...onChoice,
-                properties: {
-                    ...onChoice.properties,
-                    approvalFunction: {
-                        ...approvalProp,
-                        items: candidates,
-                    },
-                },
-            },
-            ...baseField.choices.slice(1),
-        ],
-    };
-}
-
-// The `codedata.data` fields that carry the human-in-the-loop gate into AgentToolBuilder's code
-// generator, derived from the "Requires Approval" control's submitted state. Shared by every
-// tool-creation path (function, connection, custom, agent-call) so they emit identical data.
-//   - box unchecked        -> {} (no gate).
+// The `codedata.data` fields that carry the human-in-the-loop gate to the language server,
+// derived from the "Requires Approval" control's submitted state. Shared by every tool form.
+//   - box unchecked         -> {} (no gate).
 //   - checked, no function  -> { requiresApproval: "true" } (unconditional).
-//   - checked, existing fn  -> { requiresApproval: <name> } (reference an already-defined predicate).
-//   - checked, new fn       -> { requiresApproval: <name>, generateApprovalFunction: "true" } (the LS
-//                              also scaffolds a correctly-signed predicate stub).
-// `compatibleFunctions` is the picker's candidate list; a typed name absent from it is treated as new.
+//   - checked, existing fn  -> { requiresApproval: <name> }.
+//   - checked, added fn     -> { requiresApproval: <name>, generateApprovalFunction: "true" } (the LS
+//                              generates the function with the tool's parameters on save).
 export function buildApprovalToolData(
-    data: FormValues, compatibleFunctions: string[]
+    data: FormValues
 ): { requiresApproval?: string; generateApprovalFunction?: string } {
-    const checked = data["requiresApproval"] === true || data["requiresApproval"] === "true";
-    if (!checked) {
+    const isOn = (value: unknown) => value === true || value === "true";
+    if (!isOn(data["requiresApproval"])) {
         return {};
     }
-    const approvalFn = typeof data["approvalFunction"] === "string" ? data["approvalFunction"].trim() : "";
+    const approvalFn = typeof data[APPROVAL_FUNCTION_KEY] === "string" ? data[APPROVAL_FUNCTION_KEY].trim() : "";
     const result: { requiresApproval?: string; generateApprovalFunction?: string } = {
         requiresApproval: approvalFn || "true",
     };
-    if (approvalFn && !compatibleFunctions.includes(approvalFn)) {
+    if (approvalFn && isOn(data[GENERATE_APPROVAL_FUNCTION_KEY])) {
         result.generateApprovalFunction = "true";
     }
     return result;

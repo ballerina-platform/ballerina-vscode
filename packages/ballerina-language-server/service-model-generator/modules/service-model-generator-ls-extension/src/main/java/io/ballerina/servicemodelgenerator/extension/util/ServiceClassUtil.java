@@ -45,6 +45,7 @@ import io.ballerina.compiler.syntax.tree.SeparatedNodeList;
 import io.ballerina.compiler.syntax.tree.StatementNode;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.compiler.syntax.tree.Token;
+import io.ballerina.modelgenerator.commons.ApprovalFunctionSync;
 import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.servicemodelgenerator.extension.builder.function.GraphqlFunctionBuilder;
 import io.ballerina.servicemodelgenerator.extension.model.Codedata;
@@ -638,6 +639,13 @@ public class ServiceClassUtil {
                 }
                 property.setValue(annotationNode.annotValue().get().toSourceCode().trim());
                 property.setEnabled(true);
+                // An agent tool's approval gate, read from the annotation's syntax tree for the tool form
+                if (property.getCodedata() != null
+                        && ApprovalFunctionSync.requiresApprovalField(annotationNode).isPresent()) {
+                    property.getCodedata().setRequiresApproval(ApprovalFunctionSync.requiresApproval(metadata));
+                    ApprovalFunctionSync.approvalFunctionName(metadata)
+                            .ifPresent(property.getCodedata()::setApprovalFunction);
+                }
             }
         });
     }

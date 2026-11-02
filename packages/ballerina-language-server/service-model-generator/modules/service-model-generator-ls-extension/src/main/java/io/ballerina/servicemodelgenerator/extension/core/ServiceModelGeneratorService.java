@@ -20,6 +20,7 @@ package io.ballerina.servicemodelgenerator.extension.core;
 
 import io.ballerina.centralconnector.RemoteCentral;
 import io.ballerina.compiler.api.SemanticModel;
+import io.ballerina.compiler.syntax.tree.AnnotationNode;
 import io.ballerina.compiler.syntax.tree.ClassDefinitionNode;
 import io.ballerina.compiler.syntax.tree.ExplicitNewExpressionNode;
 import io.ballerina.compiler.syntax.tree.FunctionDefinitionNode;
@@ -32,6 +33,8 @@ import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.compiler.syntax.tree.SyntaxTree;
 import io.ballerina.mcp.core.generator.OpenApiSpecParser;
 import io.ballerina.mcp.core.model.SpecInfo;
+import io.ballerina.modelgenerator.commons.AgentToolAnnotation;
+import io.ballerina.modelgenerator.commons.ApprovalFunctionSync;
 import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.ModulePrefixContext;
@@ -59,6 +62,7 @@ import io.ballerina.servicemodelgenerator.extension.model.Function;
 import io.ballerina.servicemodelgenerator.extension.model.Listener;
 import io.ballerina.servicemodelgenerator.extension.model.McpToolEndpoint;
 import io.ballerina.servicemodelgenerator.extension.model.Option;
+import io.ballerina.servicemodelgenerator.extension.model.Parameter;
 import io.ballerina.servicemodelgenerator.extension.model.Service;
 import io.ballerina.servicemodelgenerator.extension.model.ServiceClass;
 import io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel;
@@ -137,6 +141,7 @@ import org.eclipse.lsp4j.services.LanguageServer;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -857,14 +862,87 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                 if (SaveTimeValidator.blocksGeneration(validations)) {
                     return CommonSourceResponse.validationFailure(validations);
                 }
+                setToolFormFields(function, functionDefinitionNode);
                 Map<String, List<TextEdit>> textEdits = FunctionBuilderRouter.updateFunction(moduleName, function,
                         request.filePath(), document.get(), functionDefinitionNode, semanticModelOp.get(), project,
                         this.workspaceManager);
-                return new CommonSourceResponse(textEdits, validations);
+                return new CommonSourceResponse(
+                        withApprovalFunctionEdits(textEdits, function, filePath, functionDefinitionNode), validations);
             } catch (Throwable e) {
                 return new CommonSourceResponse(e);
             }
         });
+    }
+
+    // An agent tool method gated by `@ai:AgentTool {requiresApproval: <fn>}` keeps <fn>'s parameters in step with
+    // its own, and gets <fn> generated when it doesn't exist yet. See ApprovalFunctionSync.
+    // The agent tool form sends a tool's auth and approval gate on its @ai:AgentTool annotation's codedata.
+    private static void setToolFormFields(Function function, FunctionDefinitionNode functionNode) {
+        Optional<AnnotationNode> annotation = functionNode.metadata().stream()
+                .flatMap(metadata -> metadata.annotations().stream())
+                .filter(AgentToolAnnotation::isAgentTool)
+                .findFirst();
+        for (Value property : function.getProperties().values()) {
+            Codedata codedata = property.getCodedata();
+            if (annotation.isEmpty() || codedata == null || codedata.getAuth() == null
+                    || !"AgentTool".equals(codedata.getOriginalName())) {
+                continue;
+            }
+            String approval = Boolean.TRUE.equals(codedata.getRequiresApproval())
+                    ? Objects.requireNonNullElse(codedata.getApprovalFunction(), "true") : null;
+            String value = AgentToolAnnotation.value(annotation.get(), codedata.getAuth(), approval);
+            property.setValue(value);
+            // A disabled, read-only annotation property is written without a value: a bare @ai:AgentTool.
+            property.setEnabled(!value.isEmpty());
+            property.setEditable(!value.isEmpty());
+        }
+    }
+
+    private Map<String, List<TextEdit>> withApprovalFunctionEdits(Map<String, List<TextEdit>> textEdits,
+                                                                  Function function, Path filePath,
+                                                                  FunctionDefinitionNode functionNode) {
+        for (Value property : function.getProperties().values()) {
+            Codedata codedata = property.getCodedata();
+            if (codedata == null || !"AgentTool".equals(codedata.getOriginalName()) || property.getValue() == null) {
+                continue;
+            }
+            Optional<String> approvalFunction =
+                    ApprovalFunctionSync.approvalFunctionName("@ai:AgentTool " + property.getValue());
+            if (approvalFunction.isEmpty()) {
+                return textEdits;
+            }
+            List<ApprovalFunctionSync.Param> params = new ArrayList<>();
+            for (Parameter parameter : function.getParameters()) {
+                if (parameter.isEnabled() && parameter.getType() != null && parameter.getName() != null
+                        && parameter.getType().getValue() != null && parameter.getName().getValue() != null) {
+                    params.add(new ApprovalFunctionSync.Param(parameter.getType().getValue().trim(),
+                            parameter.getName().getValue().trim()));
+                }
+            }
+            Map<Path, List<TextEdit>> approvalEdits = ApprovalFunctionSync.sync(this.workspaceManager, filePath,
+                    approvalFunction.get(), params, functionNode.lineRange(), true);
+            if (approvalEdits.isEmpty()) {
+                return textEdits;
+            }
+            // The function builders return immutable maps keyed by the request's file path.
+            Map<String, List<TextEdit>> merged = new HashMap<>();
+            textEdits.forEach((path, edits) -> merged.put(path, new ArrayList<>(edits)));
+            approvalEdits.forEach((path, edits) -> merged.computeIfAbsent(keyFor(merged, path),
+                    ignored -> new ArrayList<>()).addAll(edits));
+            return merged;
+        }
+        return textEdits;
+    }
+
+    // The key an existing entry uses for the same file, so one file's edits stay in one list.
+    private static String keyFor(Map<String, List<TextEdit>> edits, Path path) {
+        Path normalized = path.toAbsolutePath().normalize();
+        for (String key : edits.keySet()) {
+            if (Path.of(key).toAbsolutePath().normalize().equals(normalized)) {
+                return key;
+            }
+        }
+        return path.toString();
     }
 
     /**
