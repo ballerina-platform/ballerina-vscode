@@ -168,6 +168,9 @@ public class AiUtils {
     // Whether dynamic resolution from Ballerina Central has been attempted
     private static volatile boolean dependentModulesResolved = false;
 
+    // Still resolvable for existing projects, but hidden from the AI component pickers.
+    private static final Set<String> DEPRECATED_AI_PACKAGES = Set.of("ai.devant");
+
     // Keyword cache: "org:name:version" -> list of keywords from Central
     private static final Map<String, List<String>> moduleKeywordsCache = new HashMap<>();
 
@@ -176,8 +179,8 @@ public class AiUtils {
             MODEL_PROVIDER, List.of("Model Provider", "model", "llm"),
             EMBEDDING_PROVIDER, List.of("Embedding Provider", "embedding", "openai", "openrouter", "azure"),
             VECTOR_STORE, List.of("Vector Store", "vector"),
-            CHUNKER, List.of("Chunker", "devant"),
-            DATA_LOADER, List.of("Data Loader", "loader", "devant"),
+            CHUNKER, List.of("Chunker"),
+            DATA_LOADER, List.of("Data Loader", "loader"),
             SHORT_TERM_MEMORY_STORE, List.of("Short Term Memory Store", "memory"),
             KNOWLEDGE_BASE, List.of("Knowledge Base", "knowledge", "azure")
     );
@@ -741,6 +744,7 @@ public class AiUtils {
 
         Map<String, Module> latestModules = candidateModules.stream()
                 .flatMap(Collection::stream)
+                .filter(module -> !DEPRECATED_AI_PACKAGES.contains(module.name))
                 .collect(Collectors.toMap(
                         module -> module.org + ":" + module.name,
                         module -> module,

@@ -35,6 +35,10 @@ function isOrbVisibleInSettings(): boolean {
     return vscode.workspace.getConfiguration(COPILOT_CONFIG_SECTION).get<boolean>(SHOW_ORB_SETTING, true);
 }
 
+function statusBarCopilotName(): string {
+    return getProductMode() === ProductMode.AGENT_BUILDER ? copilotShortName() : copilotName();
+}
+
 /**
  * Derives a compact, ambient-UI-friendly status for the Copilot agent's
  * background run and fans it out to:
@@ -233,8 +237,8 @@ class AgentStatusManager {
     }
 
     private update(partial: { state: AgentRunState; label?: string; generationId?: string }): void {
-        // A run that finishes in front of the user is already acknowledged, so it needs no 'done' hold.
-        if (partial.state === 'completed' && this.aiPanelVisible) {
+        // In Agent Builder, a run that finishes in front of the user is already acknowledged, so it needs no 'done' hold.
+        if (partial.state === 'completed' && this.aiPanelVisible && getProductMode() === ProductMode.AGENT_BUILDER) {
             partial = { ...partial, state: 'idle', label: undefined };
         }
         if (this.status.state === partial.state && this.status.label === partial.label) {
@@ -274,21 +278,21 @@ class AgentStatusManager {
                 this.statusBarItem.backgroundColor = undefined;
                 break;
             case 'awaiting-input':
-                this.statusBarItem.text = `$(bi-ai-chat) ${copilotShortName()} needs your input`;
+                this.statusBarItem.text = `$(bi-ai-chat) ${statusBarCopilotName()} needs your input`;
                 this.statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
                 break;
             case 'completed':
-                this.statusBarItem.text = `$(check) ${copilotShortName()} finished`;
+                this.statusBarItem.text = `$(check) ${statusBarCopilotName()} finished`;
                 this.statusBarItem.backgroundColor = undefined;
                 break;
             case 'error':
-                this.statusBarItem.text = `$(error) ${copilotShortName()} error`;
+                this.statusBarItem.text = `$(error) ${statusBarCopilotName()} error`;
                 this.statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.errorBackground');
                 break;
         }
         const tooltip = new vscode.MarkdownString();
         tooltip.appendMarkdown(`**${copilotName()}**${this.status.label ? ` — ${this.status.label}` : ''}\n\n`);
-        tooltip.appendMarkdown(`Click to open the ${copilotShortName()} chat.`);
+        tooltip.appendMarkdown(`Click to open the ${statusBarCopilotName()} chat.`);
         this.statusBarItem.tooltip = tooltip;
         this.statusBarItem.show();
     }

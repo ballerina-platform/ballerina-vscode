@@ -315,7 +315,14 @@ export class CommonRpcManager implements CommonRPCAPI {
     }
 
     async getCopilotOrbTheme(): Promise<string> {
-        return workspace.getConfiguration("ballerina.copilot").get<string>("orbTheme", "animated");
+        const config = workspace.getConfiguration("ballerina.copilot");
+        const setting = config.inspect<string>("orbTheme");
+        const chosen = setting?.globalValue ?? setting?.workspaceValue ?? setting?.workspaceFolderValue;
+        // Agent Builder's own orb is its default there; a style the user picked still wins.
+        if (chosen === undefined && StateMachine.productMode() === ProductMode.AGENT_BUILDER) {
+            return "solid";
+        }
+        return config.get<string>("orbTheme", "animated");
     }
 
     async additionalTriggerSearchEnabled(): Promise<boolean> {

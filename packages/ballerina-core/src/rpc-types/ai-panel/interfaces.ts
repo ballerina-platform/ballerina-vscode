@@ -257,6 +257,20 @@ export interface Attachment {
     mimeType?: string;
 }
 
+/** `native`: text as text, images as data URLs, PDFs as raw base64. `base64`: everything as raw base64. */
+export type AttachmentEncoding = 'native' | 'base64';
+
+export interface SelectAttachmentFilesRequest {
+    canSelectMany: boolean;
+    maxFileSize: number;
+    maxTotalSize: number;
+    /** Extension (lower-case, no dot) → MIME type. */
+    fileTypes: Record<string, string>;
+    /** Also accept any other UTF-8 text file, as text/plain. */
+    acceptOtherText: boolean;
+    encoding: AttachmentEncoding;
+}
+
 export enum AttachmentStatus {
     Success = "Success",
     FileSizeExceeded = "FileSizeExceeded",
@@ -476,10 +490,25 @@ export interface IdentifierMetadata {
     newSource?: string;
 }
 
+/** Kind of a service or class member function. An older LS does not send it. */
+export type ObjectFunctionKind = "resource" | "remote" | "init" | "method";
+
 export interface ResourceMetadata {
     accessor: string;
     servicePath: string;
+    /** The listener's module, e.g. "http"; absent when the LS can't tell. */
+    serviceType?: string;
     resourcePath: string;
+    functionKind?: "resource";
+}
+
+/** Metadata for a non-resource service member, or for a class method (no servicePath). */
+export interface ObjectFunctionMetadata {
+    name: string;
+    servicePath?: string;
+    /** The listener's module, e.g. "http"; absent when the LS can't tell. */
+    serviceType?: string;
+    functionKind?: ObjectFunctionKind;
 }
 
 export interface SemanticDiff {
@@ -488,7 +517,7 @@ export interface SemanticDiff {
     uri: string;
     lineRange: LineRange;
     previousLineRange?: LineRange;
-    metadata?: ResourceMetadata | IdentifierMetadata;
+    metadata?: ResourceMetadata | ObjectFunctionMetadata | IdentifierMetadata;
 }
 
 export interface SemanticDiffResponse {
