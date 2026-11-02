@@ -463,6 +463,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         return () => {
             unsubscribeContentUpdated();
             debouncedGetFlowModel.cancel();
+            debouncedGetFlowModelForBreakpoints.cancel();
         };
     }, [rpcClient]);
 
