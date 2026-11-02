@@ -26,7 +26,7 @@ import { applyEdit, contentsEquivalent } from "../../utils/edit-replacement";
 import { addToIntegration } from "../../../../rpc-managers/ai-panel/utils";
 import { recordAiTouchedFile } from "../../../../rpc-managers/diagram-validity";
 import { seedNewPackageBaseline } from "../../utils/project/ls-schema-notifications";
-import { saveIfUnsaved, unsavedChangesError } from "../../utils/project/unsaved-documents";
+import { hasUnsavedChanges, saveIfUnsaved, unsavedChangesError } from "../../utils/project/unsaved-documents";
 
 /**
  * Serializes the read-modify-write cycle per file. Each tool reads from disk and writes back
@@ -884,9 +884,10 @@ export function createReadExecute(
     }
 
     const fullPath = path.join(tempProjectPath, file_path);
-    const unsavedNote = (await saveIfUnsaved(fullPath))
-      ? ''
-      : '\nNote: the editor has unsaved changes to this file that could not be saved and are not shown here.';
+    // Saving here would run format-on-save on whatever the user is in the middle of typing.
+    const unsavedNote = hasUnsavedChanges(fullPath)
+      ? '\nNote: the editor has unsaved changes to this file that are not shown here.'
+      : '';
 
     // Check if file exists
     if (!fs.existsSync(fullPath)) {

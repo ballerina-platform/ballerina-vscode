@@ -126,19 +126,12 @@ describe("file tools with unsaved editor changes", () => {
         }
     });
 
-    it("reads the user's text once it is saved", async () => {
-        unsavedEditor(true);
+    it("reads without saving and says the editor holds unsaved text", async () => {
+        const document = unsavedEditor(true);
 
         const result = await tools().read({ file_path: "main.bal" });
 
-        expect(result.message).toContain("function validate()");
-    });
-
-    it("tells the agent when the editor holds text it cannot see", async () => {
-        unsavedEditor(false);
-
-        const result = await tools().read({ file_path: "main.bal" });
-
+        expect(document.save).not.toHaveBeenCalled();
         expect(result.success).toBe(true);
         expect(result.message).toContain("unsaved changes");
         expect(result.message).not.toContain("function validate()");
