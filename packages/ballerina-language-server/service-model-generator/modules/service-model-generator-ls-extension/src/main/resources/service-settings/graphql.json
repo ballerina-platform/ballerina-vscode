@@ -4,29 +4,160 @@
     {
       "field": "contextInit",
       "label": "Request Context",
-      "description": "Builds the graphql:Context passed to resolvers, from values in each incoming request.",
-      "editorKind": "contextInit"
+      "editorKind": "contextInit",
+      "description": "Builds the graphql:Context passed to resolvers, from values in each incoming request."
     },
     {
-      "field": "maxQueryDepth",
-      "label": "Max Query Depth",
-      "description": "Rejects queries nested deeper than this.",
-      "editorKind": "number",
-      "placeholder": "10"
+      "field": "graphiql",
+      "label": "GraphiQL",
+      "editorKind": "record",
+      "description": "Serves the GraphiQL playground, for exploring and trying out the API in a browser.",
+      "fields": [
+        {
+          "name": "enabled",
+          "label": "Enable GraphiQL",
+          "kind": "toggle",
+          "defaultValue": false
+        },
+        {
+          "name": "path",
+          "label": "Path",
+          "description": "Where the playground is served, relative to the listener.",
+          "kind": "text",
+          "defaultValue": "graphiql"
+        },
+        {
+          "name": "printUrl",
+          "label": "Print the URL on start",
+          "kind": "toggle",
+          "defaultValue": true
+        }
+      ]
     },
     {
       "field": "introspection",
       "label": "Introspection",
-      "description": "Allows clients to query the schema. Turn off in production to hide it.",
       "editorKind": "toggle",
-      "defaultValue": "true"
+      "defaultValue": "true",
+      "description": "Allows clients to query the schema. Turn off in production to hide it."
+    },
+    {
+      "field": "maxQueryDepth",
+      "label": "Max Query Depth",
+      "editorKind": "number",
+      "placeholder": "10",
+      "description": "Rejects queries nested deeper than this."
+    },
+    {
+      "field": "queryComplexityConfig",
+      "label": "Query Complexity",
+      "editorKind": "record",
+      "description": "Rejects queries whose total field cost is above a limit, to protect the service from expensive queries.",
+      "fields": [
+        {
+          "name": "maxComplexity",
+          "label": "Max complexity",
+          "kind": "integer",
+          "defaultValue": 100
+        },
+        {
+          "name": "defaultFieldComplexity",
+          "label": "Default field cost",
+          "description": "The cost of a field that sets none of its own.",
+          "kind": "integer",
+          "defaultValue": 1
+        },
+        {
+          "name": "warnOnly",
+          "label": "Warn only",
+          "description": "Logs a warning instead of rejecting the query.",
+          "kind": "toggle",
+          "defaultValue": false
+        }
+      ]
     },
     {
       "field": "validation",
       "label": "Query Validation",
-      "description": "Validates each query against the schema before running it.",
       "editorKind": "toggle",
-      "defaultValue": "true"
+      "defaultValue": "true",
+      "description": "Validates each query against the schema before running it."
+    },
+    {
+      "field": "cors",
+      "label": "CORS",
+      "editorKind": "record",
+      "description": "Lets browser apps on other origins call this service.",
+      "fields": [
+        {
+          "name": "allowOrigins",
+          "label": "Allowed origins",
+          "kind": "textList",
+          "defaultValue": [],
+          "placeholder": "https://example.com"
+        },
+        {
+          "name": "allowMethods",
+          "label": "Allowed methods",
+          "kind": "textList",
+          "defaultValue": [],
+          "placeholder": "GET"
+        },
+        {
+          "name": "allowHeaders",
+          "label": "Allowed headers",
+          "kind": "textList",
+          "defaultValue": [],
+          "placeholder": "Authorization"
+        },
+        {
+          "name": "exposeHeaders",
+          "label": "Exposed headers",
+          "kind": "textList",
+          "defaultValue": [],
+          "placeholder": "X-Request-Id"
+        },
+        {
+          "name": "allowCredentials",
+          "label": "Allow credentials",
+          "description": "Allows cookies and authorization headers on cross-origin requests.",
+          "kind": "toggle",
+          "defaultValue": false
+        },
+        {
+          "name": "maxAge",
+          "label": "Preflight cache (seconds)",
+          "description": "How long browsers may cache a preflight response. -1 leaves it to the browser.",
+          "kind": "decimal",
+          "defaultValue": -1
+        }
+      ]
+    },
+    {
+      "field": "cacheConfig",
+      "label": "Response Caching",
+      "editorKind": "record",
+      "description": "Caches resolver results, so repeated queries are answered without running them again.",
+      "fields": [
+        {
+          "name": "enabled",
+          "label": "Enable caching",
+          "kind": "toggle",
+          "defaultValue": true
+        },
+        {
+          "name": "maxAge",
+          "label": "Max age (seconds)",
+          "kind": "decimal",
+          "defaultValue": 60
+        },
+        {
+          "name": "maxSize",
+          "label": "Max entries",
+          "kind": "integer",
+          "defaultValue": 120
+        }
+      ]
     }
   ]
 }

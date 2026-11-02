@@ -67,6 +67,14 @@ import {
 } from "./Forms/TriggerHandlerForm/payloadComposer";
 import { getTryItAIDefaultPromptService, getTryItDropdownOptions, TryItOptionValue, TryItQuickPickItem } from "../shared/tryIt";
 import { ServiceModelError } from "./ServiceModelError";
+import { useQueryClient } from "@tanstack/react-query";
+import { ServiceSettingsPanel } from "../ServiceSettings/ServiceSettingsPanel";
+import { setSettings } from "../ServiceSettings/summary";
+import {
+    GRAPHQL_CONTEXT_QUERY_KEY,
+    SERVICE_SETTINGS_QUERY_KEY,
+    useServiceSettings,
+} from "../ServiceSettings/useServiceSettings";
 
 const LoadingContainer = styled.div`
     display: flex;
@@ -139,6 +147,31 @@ const PropertyInline = styled.div`
     pointer-events: none;
 `;
 
+// Looks like its neighbours in the metadata row, but it is a button: it opens the Service Settings panel.
+const SettingsInline = styled.button`
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 8px;
+    background: var(--vscode-input-background);
+    border: 1px solid var(--vscode-editorWidget-border);
+    border-radius: 4px;
+    color: inherit;
+    font: inherit;
+    font-size: 11px;
+    height: 24px;
+    cursor: pointer;
+
+    &:hover {
+        background: var(--vscode-list-hoverBackground);
+    }
+
+    &:focus-visible {
+        outline: 1px solid var(--vscode-focusBorder);
+        outline-offset: 1px;
+    }
+`;
+
 const PropertyKey = styled.span`
     color: var(--vscode-descriptionForeground);
     font-weight: 500;
@@ -185,6 +218,11 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
 
     // ----- service/function model + save state -----
     const [serviceModel, setServiceModel] = useState<ServiceModel>(undefined);
+    const queryClient = useQueryClient();
+    const [isServiceSettingsOpen, setIsServiceSettingsOpen] = useState<boolean>(false);
+    const { data: serviceSettings, isLoading: isServiceSettingsLoading } = useServiceSettings(filePath, position);
+    const settingsSupported = !!serviceSettings?.supported;
+    const configuredSettingsCount = settingsSupported ? setSettings(serviceSettings.settings).length : 0;
     const [serviceResolutionError, setServiceResolutionError] = useState<ModelResolutionError>(undefined);
     const [isServiceLoading, setIsServiceLoading] = useState(true);
     const [functionModel, setFunctionModel] = useState<FunctionModel>(undefined);
@@ -296,6 +334,9 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
         rpcClient.onProjectContentUpdated(() => {
             if (!isMountedRef.current) return;
             fetchService(positionRef.current);
+            // An edit made anywhere, including in source, can change the service's settings.
+            queryClient.invalidateQueries({ queryKey: [SERVICE_SETTINGS_QUERY_KEY] });
+            queryClient.invalidateQueries({ queryKey: [GRAPHQL_CONTEXT_QUERY_KEY] });
         });
 
         return () => {
@@ -1056,7 +1097,7 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
                         <ServiceContainer>
                             <ConnectorUpgradeBanner orgName={serviceModel.orgName} packageName={serviceModel.packageName} />
                             {/* Service Metadata - Compact View */}
-                            {(listeners.length > 0 || readonlyProperties.size > 0) && (
+                            {(listeners.length > 0 || readonlyProperties.size > 0 || settingsSupported) && (
                                 <ServiceMetadataContainer>
                                     <MetadataRow>
                                         {listeners.length > 0 && (
@@ -1085,6 +1126,23 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
                                                     ))
                                                 }
                                             </>
+                                        )}
+                                        {settingsSupported && (
+                                            <SettingsInline
+                                                type="button"
+                                                onClick={() => setIsServiceSettingsOpen(true)}
+                                                aria-label={configuredSettingsCount > 0
+                                                    ? `${configuredSettingsCount} service settings set. Open Service Settings`
+                                                    : "Open Service Settings"}
+                                                data-testid="service-settings-chip"
+                                            >
+                                                <Icon name="bi-settings" sx={{ fontSize: 12, width: 12, height: 12 }}
+                                                    iconSx={{ fontSize: 12 }} />
+                                                <PropertyKey>Settings{configuredSettingsCount > 0 ? ":" : ""}</PropertyKey>
+                                                {configuredSettingsCount > 0 && (
+                                                    <PropertyValue>{configuredSettingsCount} set</PropertyValue>
+                                                )}
+                                            </SettingsInline>
                                         )}
                                     </MetadataRow>
                                 </ServiceMetadataContainer>
@@ -1453,6 +1511,19 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
                                         />
                                     )}
                                 </PanelContainer>
+                            )}
+                            {isServiceSettingsOpen && settingsSupported && (
+                                <ServiceSettingsPanel
+                                    filePath={filePath}
+                                    position={position}
+                                    settings={serviceSettings}
+                                    loading={isServiceSettingsLoading}
+                                    onClose={() => setIsServiceSettingsOpen(false)}
+                                    onOpenAdvanced={() => {
+                                        setIsServiceSettingsOpen(false);
+                                        handleServiceEdit();
+                                    }}
+                                />
                             )}
                             {/* This is for adding a init function to the service */}
                             <PanelContainer

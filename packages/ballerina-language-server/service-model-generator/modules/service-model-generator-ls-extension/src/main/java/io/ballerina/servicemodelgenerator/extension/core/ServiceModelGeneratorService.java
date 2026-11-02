@@ -948,7 +948,7 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                     return new CommonSourceResponse();
                 }
                 List<TextEdit> edits = ServiceSettingsManager.update(resolved.get().serviceNode(),
-                        resolved.get().semanticModel(), request.field(), request.value());
+                        resolved.get().semanticModel(), request.field(), request.value(), request.recordValue());
                 return new CommonSourceResponse(Map.of(request.filePath(), edits));
             } catch (Throwable e) {
                 return new CommonSourceResponse(e);

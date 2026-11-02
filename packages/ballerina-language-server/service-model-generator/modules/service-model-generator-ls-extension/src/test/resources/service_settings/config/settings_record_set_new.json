@@ -1,0 +1,15 @@
+{
+  "description": "A record setting is written without the sub-fields at their default",
+  "project": "graphql_no_config",
+  "api": "updateServiceSetting",
+  "request": {
+    "field": "graphiql",
+    "recordValue": {
+      "enabled": true,
+      "path": "graphiql",
+      "printUrl": true
+    }
+  },
+  "expected": "settings_record_set_new",
+  "file": "main.bal"
+}

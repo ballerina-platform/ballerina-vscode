@@ -70,7 +70,24 @@ export interface OpenApiEndpointsResponse {
  * The editor a setting uses. A field with no descriptor of its own is `advanced` and is edited in the full
  * service config form.
  */
-export type ServiceSettingEditorKind = "toggle" | "number" | "text" | "contextInit" | "advanced";
+export type ServiceSettingEditorKind = "toggle" | "number" | "text" | "record" | "contextInit" | "advanced";
+
+/** The editor of a record setting's sub-field. */
+export type ServiceSettingFieldKind = "toggle" | "integer" | "decimal" | "text" | "textList";
+
+/** A sub-field value of a record setting. */
+export type ServiceSettingFieldValue = boolean | number | string | string[];
+
+/** A sub-field of a record setting, such as `allowOrigins` of `cors`. */
+export interface ServiceSettingField {
+    name: string;
+    label: string;
+    description?: string;
+    kind: ServiceSettingFieldKind;
+    /** The record type's default; absent when it has none. */
+    defaultValue?: ServiceSettingFieldValue;
+    placeholder?: string;
+}
 
 export interface ServiceSetting {
     field: string;
@@ -82,6 +99,15 @@ export interface ServiceSetting {
     placeholder?: string;
     /** The value set in source, as written. Absent when the field is not set. */
     value?: string;
+    /** For a record setting: the sub-fields its editor shows. */
+    fields?: ServiceSettingField[];
+    /**
+     * For a record setting that is set: its sub-field values as written. Absent when unset, or when the value is not
+     * a mapping of plain literals the editor knows.
+     */
+    recordValue?: Record<string, ServiceSettingFieldValue>;
+    /** False when a record setting is set to a value its editor cannot show; it is then edited in the full form. */
+    structured: boolean;
 }
 
 /** Locates a service: its file and its line range. */
@@ -107,6 +133,8 @@ export interface UpdateServiceSettingRequest extends ServiceSettingsTarget {
     field: string;
     /** A Ballerina expression; empty or absent removes the field. */
     value?: string;
+    /** For a record setting: its sub-field values, used instead of `value`. Values at their default are left out. */
+    recordValue?: Record<string, ServiceSettingFieldValue>;
 }
 
 /** Where a context value comes from. */

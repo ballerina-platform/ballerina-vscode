@@ -78,6 +78,8 @@ public class ServiceSettingsTest extends AbstractLSTest {
 
     private static final Type ENTRIES_TYPE = new TypeToken<List<ContextFunctionBody.ContextEntry>>() {
     }.getType();
+    private static final Type RECORD_VALUE_TYPE = new TypeToken<Map<String, Object>>() {
+    }.getType();
     private static final Gson GSON = new Gson();
 
     private final Map<String, Path> projectCopies = new HashMap<>();
@@ -193,7 +195,8 @@ public class ServiceSettingsTest extends AbstractLSTest {
         return switch (testConfig.api()) {
             case "getServiceSettings", "getGraphqlContext" -> new CommonModelFromSourceRequest(filePath, codedata);
             case "updateServiceSetting" -> new ServiceSettingsRequests.UpdateSetting(filePath, codedata,
-                    string(fields, "field"), string(fields, "value"));
+                    string(fields, "field"), string(fields, "value"),
+                    fields.has("recordValue") ? GSON.fromJson(fields.get("recordValue"), RECORD_VALUE_TYPE) : null);
             case "applyGraphqlContext" -> new ServiceSettingsRequests.ApplyGraphqlContext(filePath, codedata,
                     string(fields, "action"), string(fields, "functionName"),
                     fields.has("deleteFunction") && fields.get("deleteFunction").getAsBoolean(),
@@ -228,6 +231,12 @@ public class ServiceSettingsTest extends AbstractLSTest {
                 item.add("field", setting.get("field"));
                 item.add("editorKind", setting.get("editorKind"));
                 item.add("value", setting.has("value") ? setting.get("value") : JsonNull.INSTANCE);
+                if (setting.has("recordValue")) {
+                    item.add("recordValue", setting.get("recordValue"));
+                }
+                if (setting.has("structured") && !setting.get("structured").getAsBoolean()) {
+                    item.add("structured", setting.get("structured"));
+                }
                 settings.add(item);
             }
             compact.add("settings", settings);

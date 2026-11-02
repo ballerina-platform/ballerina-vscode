@@ -27,9 +27,10 @@ import {
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { PanelContainer } from "@wso2/ballerina-side-panel";
 import { Button, Codicon, ProgressRing } from "@wso2/ui-toolkit";
-import { availableSettings, setSettings, summarize } from "./summary";
+import { availableSettings, isEditableInPanel, setSettings, summarize } from "./summary";
 import { serviceTarget, useGraphqlContext, useInvalidateServiceSettings } from "./useServiceSettings";
 import { ValueSettingEditor } from "./ValueSettingEditor";
+import { RecordSettingEditor } from "./RecordSettingEditor";
 import { RequestContextEditor } from "./RequestContextEditor";
 import {
     Description,
@@ -116,7 +117,7 @@ export function ServiceSettingsPanel(props: ServiceSettingsPanelProps) {
     };
 
     const openSetting = (setting: ServiceSetting) => {
-        if (setting.editorKind === "advanced") {
+        if (!isEditableInPanel(setting)) {
             onOpenAdvanced();
             return;
         }
@@ -160,6 +161,19 @@ export function ServiceSettingsPanel(props: ServiceSettingsPanelProps) {
                     onSaveEntries={(entries) =>
                         runEdit(() => designer.applyGraphqlContext({ ...target, action: "setEntries", entries }), true)}
                     onOpenFunction={openContextFunction}
+                    onCancel={closeEditor}
+                />
+            );
+        }
+        if (setting.editorKind === "record") {
+            return (
+                <RecordSettingEditor
+                    key={setting.field}
+                    setting={setting}
+                    saving={busy}
+                    error={error}
+                    onSave={(recordValue) =>
+                        runEdit(() => designer.updateServiceSetting({ ...target, field: setting.field, recordValue }))}
                     onCancel={closeEditor}
                 />
             );
@@ -209,6 +223,9 @@ export function ServiceSettingsPanel(props: ServiceSettingsPanelProps) {
                                             >
                                                 <RowLabel>{setting.label}</RowLabel>
                                                 <RowDetail title={setting.value}>{summarize(setting)}</RowDetail>
+                                                {!isEditableInPanel(setting) && (
+                                                    <RowDescription>Edited in all fields</RowDescription>
+                                                )}
                                             </RowButton>
                                             <Button
                                                 appearance="icon"

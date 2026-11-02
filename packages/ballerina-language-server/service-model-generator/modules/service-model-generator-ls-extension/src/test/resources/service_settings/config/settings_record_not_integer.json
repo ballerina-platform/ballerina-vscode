@@ -1,0 +1,13 @@
+{
+  "description": "A fraction for a whole-number field is refused",
+  "project": "graphql_no_config",
+  "api": "updateServiceSetting",
+  "request": {
+    "field": "queryComplexityConfig",
+    "recordValue": {
+      "maxComplexity": 1.5
+    }
+  },
+  "expectError": true,
+  "file": "main.bal"
+}

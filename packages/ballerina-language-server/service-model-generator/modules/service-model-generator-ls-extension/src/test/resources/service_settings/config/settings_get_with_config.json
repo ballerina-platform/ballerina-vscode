@@ -1,5 +1,5 @@
 {
-  "description": "Reads curated values as written, and lists other set fields as advanced",
+  "description": "Reads curated values as written, a record setting into its sub-field values",
   "project": "graphql_with_config",
   "api": "getServiceSettings",
   "expectedResponse": {
@@ -11,14 +11,24 @@
         "value": null
       },
       {
-        "field": "maxQueryDepth",
-        "editorKind": "number",
-        "value": "5"
+        "field": "graphiql",
+        "editorKind": "record",
+        "value": null
       },
       {
         "field": "introspection",
         "editorKind": "toggle",
         "value": "false"
+      },
+      {
+        "field": "maxQueryDepth",
+        "editorKind": "number",
+        "value": "5"
+      },
+      {
+        "field": "queryComplexityConfig",
+        "editorKind": "record",
+        "value": null
       },
       {
         "field": "validation",
@@ -27,8 +37,18 @@
       },
       {
         "field": "cors",
-        "editorKind": "advanced",
-        "value": "{\n        allowOrigins: [\"*\"]\n    }"
+        "editorKind": "record",
+        "value": "{\n        allowOrigins: [\"*\"]\n    }",
+        "recordValue": {
+          "allowOrigins": [
+            "*"
+          ]
+        }
+      },
+      {
+        "field": "cacheConfig",
+        "editorKind": "record",
+        "value": null
       }
     ]
   },

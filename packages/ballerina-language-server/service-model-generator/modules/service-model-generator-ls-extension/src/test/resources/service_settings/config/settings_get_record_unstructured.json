@@ -1,0 +1,54 @@
+{
+  "description": "A record set to a variable, a constant or a hex literal is read-only",
+  "project": "graphql_record_custom",
+  "api": "getServiceSettings",
+  "expectedResponse": {
+    "supported": true,
+    "settings": [
+      {
+        "field": "contextInit",
+        "editorKind": "contextInit",
+        "value": null
+      },
+      {
+        "field": "graphiql",
+        "editorKind": "record",
+        "value": "{enabled: true, path: GRAPHIQL_PATH}",
+        "structured": false
+      },
+      {
+        "field": "introspection",
+        "editorKind": "toggle",
+        "value": null
+      },
+      {
+        "field": "maxQueryDepth",
+        "editorKind": "number",
+        "value": null
+      },
+      {
+        "field": "queryComplexityConfig",
+        "editorKind": "record",
+        "value": null
+      },
+      {
+        "field": "validation",
+        "editorKind": "toggle",
+        "value": null
+      },
+      {
+        "field": "cors",
+        "editorKind": "record",
+        "value": "corsConfig",
+        "structured": false
+      },
+      {
+        "field": "cacheConfig",
+        "editorKind": "record",
+        "value": "{maxAge: 30.5, maxSize: 0x10}",
+        "structured": false
+      }
+    ]
+  },
+  "file": "main.bal"
+}

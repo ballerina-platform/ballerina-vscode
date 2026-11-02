@@ -1,10 +1,36 @@
 {
-  "description": "A service type with no settings definition is unsupported",
+  "description": "An HTTP service lists its own curated settings",
   "project": "http_service",
   "api": "getServiceSettings",
   "expectedResponse": {
-    "supported": false,
-    "settings": []
+    "supported": true,
+    "settings": [
+      {
+        "field": "cors",
+        "editorKind": "record",
+        "value": null
+      },
+      {
+        "field": "validation",
+        "editorKind": "toggle",
+        "value": null
+      },
+      {
+        "field": "treatNilableAsOptional",
+        "editorKind": "toggle",
+        "value": null
+      },
+      {
+        "field": "laxDataBinding",
+        "editorKind": "toggle",
+        "value": null
+      },
+      {
+        "field": "mediaTypeSubtypePrefix",
+        "editorKind": "text",
+        "value": null
+      }
+    ]
   },
   "file": "main.bal"
 }

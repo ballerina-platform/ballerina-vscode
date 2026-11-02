@@ -1,0 +1,19 @@
+{
+  "description": "CORS on an HTTP service creates its http:ServiceConfig",
+  "project": "http_service",
+  "api": "updateServiceSetting",
+  "request": {
+    "field": "cors",
+    "recordValue": {
+      "allowOrigins": [
+        "*"
+      ],
+      "allowMethods": [
+        "GET",
+        "POST"
+      ]
+    }
+  },
+  "expected": "settings_http_set_cors",
+  "file": "main.bal"
+}

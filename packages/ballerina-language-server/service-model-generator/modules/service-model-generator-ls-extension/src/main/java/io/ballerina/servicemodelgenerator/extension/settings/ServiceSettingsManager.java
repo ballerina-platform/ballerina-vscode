@@ -101,11 +101,37 @@ public final class ServiceSettingsManager {
      */
     public static List<TextEdit> update(ServiceDeclarationNode serviceNode, SemanticModel semanticModel, String field,
                                         String value) {
+        return update(serviceNode, semanticModel, field, value, null);
+    }
+
+    /**
+     * As {@link #update(ServiceDeclarationNode, SemanticModel, String, String)}, but for a record setting the value
+     * can instead be given as sub-field values, which are written as a mapping without the ones at their default.
+     *
+     * @param recordValue the sub-field values of a record setting; null to use {@code value}
+     * @throws IllegalArgumentException when the service has no settings, or the field or value is not valid
+     */
+    public static List<TextEdit> update(ServiceDeclarationNode serviceNode, SemanticModel semanticModel, String field,
+                                        String value, Map<String, Object> recordValue) {
         if (field == null || !FIELD_NAME.matcher(field).matches()) {
             throw new IllegalArgumentException("Not a valid field name: " + field);
         }
         Target target = target(serviceNode, semanticModel)
                 .orElseThrow(() -> new IllegalArgumentException("This service has no editable settings"));
+        // A field is set only when it is a curated setting of this service type, or already in source: the panel
+        // offers nothing else, and a field the annotation's record type lacks would not compile.
+        boolean curated = target.definition().settings().stream().anyMatch(setting -> setting.field().equals(field));
+        if (!curated && !target.annotation().fieldValues().containsKey(field)) {
+            throw new IllegalArgumentException(field + " is not a setting of this service");
+        }
+        if (recordValue != null) {
+            ServiceSettingDescriptors.Descriptor descriptor = target.definition().settings().stream()
+                    .filter(candidate -> candidate.field().equals(field)
+                            && ServiceSetting.RECORD.equals(candidate.editorKind()))
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException(field + " is not a record setting"));
+            return target.annotation().setField(field, RecordSettingCodec.write(descriptor, recordValue));
+        }
         if (value == null || value.isBlank()) {
             return target.annotation().removeField(field);
         }

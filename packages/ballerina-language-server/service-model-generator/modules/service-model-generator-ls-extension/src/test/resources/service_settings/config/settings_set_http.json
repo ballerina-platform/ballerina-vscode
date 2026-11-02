@@ -1,5 +1,5 @@
 {
-  "description": "An HTTP service has no settings to edit",
+  "description": "A field that is neither curated for HTTP nor in source is refused",
   "project": "http_service",
   "api": "updateServiceSetting",
   "request": {

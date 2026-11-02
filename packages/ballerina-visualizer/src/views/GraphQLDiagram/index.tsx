@@ -52,13 +52,13 @@ import DynamicModal from "../../components/Modal";
 import { BreadcrumbContainer, BreadcrumbItem, BreadcrumbSeparator } from "../BI/Forms/FlowNodeForm";
 import React from "react";
 import { removeForwardSlashes } from "../BI/ServiceDesigner/utils";
-import { ServiceSettingsPanel } from "./ServiceSettings/ServiceSettingsPanel";
-import { toBadgeSummary } from "./ServiceSettings/summary";
+import { ServiceSettingsPanel } from "../BI/ServiceSettings/ServiceSettingsPanel";
+import { toBadgeSummary } from "../BI/ServiceSettings/summary";
 import {
     GRAPHQL_CONTEXT_QUERY_KEY,
     SERVICE_SETTINGS_QUERY_KEY,
     useServiceSettings,
-} from "./ServiceSettings/useServiceSettings";
+} from "../BI/ServiceSettings/useServiceSettings";
 
 const SpinnerContainer = styled.div`
     display: flex;

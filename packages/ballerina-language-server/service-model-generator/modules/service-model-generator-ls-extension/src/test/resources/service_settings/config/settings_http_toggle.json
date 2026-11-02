@@ -1,0 +1,11 @@
+{
+  "description": "A toggle on an HTTP service is written as a boolean",
+  "project": "http_service",
+  "api": "updateServiceSetting",
+  "request": {
+    "field": "laxDataBinding",
+    "value": "true"
+  },
+  "expected": "settings_http_toggle",
+  "file": "main.bal"
+}

@@ -1,0 +1,13 @@
+{
+  "description": "Sub-field values for a setting that is not a record are refused",
+  "project": "graphql_no_config",
+  "api": "updateServiceSetting",
+  "request": {
+    "field": "maxQueryDepth",
+    "recordValue": {
+      "enabled": true
+    }
+  },
+  "expectError": true,
+  "file": "main.bal"
+}

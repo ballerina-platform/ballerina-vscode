@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import type { ServiceSetting } from "@wso2/ballerina-core";
+import type { ServiceSetting, ServiceSettingField, ServiceSettingFieldValue } from "@wso2/ballerina-core";
 
 /** The longest summary a row or the badge tooltip shows before it is cut. */
 export const MAX_SUMMARY_LENGTH = 48;
@@ -44,6 +44,9 @@ export function summarize(setting: ServiceSetting): string {
     if (!isSet(setting)) {
         return "";
     }
+    if (setting.editorKind === "record" && setting.recordValue) {
+        return cut(summarizeRecord(setting.fields ?? [], setting.recordValue));
+    }
     const value = setting.value.trim();
     if (setting.editorKind === "toggle") {
         if (value === "true") {
@@ -53,8 +56,44 @@ export function summarize(setting: ServiceSetting): string {
             return "Off";
         }
     }
-    const oneLine = value.replace(/\s+/g, " ");
+    return cut(value);
+}
+
+/** Whitespace collapsed to one line, and cut to the summary length. */
+function cut(text: string): string {
+    const oneLine = text.replace(/\s+/g, " ").trim();
     return oneLine.length > MAX_SUMMARY_LENGTH ? `${oneLine.slice(0, MAX_SUMMARY_LENGTH - 1)}…` : oneLine;
+}
+
+/**
+ * A record's summary: each sub-field set to something other than its default, in the order the editor lists them.
+ * A record at its defaults reads as "Defaults".
+ */
+export function summarizeRecord(fields: ServiceSettingField[],
+                                values: Record<string, ServiceSettingFieldValue>): string {
+    const parts = fields
+        .filter((field) => values[field.name] !== undefined && !isDefault(field, values[field.name]))
+        .map((field) => {
+            const value = values[field.name];
+            if (field.kind === "toggle") {
+                return `${field.label}: ${value ? "On" : "Off"}`;
+            }
+            return `${field.label}: ${Array.isArray(value) ? value.join(", ") : String(value)}`;
+        });
+    return parts.length > 0 ? parts.join(" · ") : "Defaults";
+}
+
+/** Whether the value equals the sub-field's default. */
+export function isDefault(field: ServiceSettingField, value: ServiceSettingFieldValue): boolean {
+    return field.defaultValue !== undefined && JSON.stringify(field.defaultValue) === JSON.stringify(value);
+}
+
+/**
+ * Whether the panel can edit the setting. A field with no editor of its own, and a record set to something other
+ * than plain literals, are edited in the full service config form instead.
+ */
+export function isEditableInPanel(setting: ServiceSetting): boolean {
+    return setting.editorKind !== "advanced" && setting.structured !== false;
 }
 
 /** The badge summary of the settings set on a service: one entry per set setting. */

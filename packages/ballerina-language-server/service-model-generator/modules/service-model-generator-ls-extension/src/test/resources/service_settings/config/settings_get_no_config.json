@@ -11,8 +11,8 @@
         "value": null
       },
       {
-        "field": "maxQueryDepth",
-        "editorKind": "number",
+        "field": "graphiql",
+        "editorKind": "record",
         "value": null
       },
       {
@@ -21,8 +21,28 @@
         "value": null
       },
       {
+        "field": "maxQueryDepth",
+        "editorKind": "number",
+        "value": null
+      },
+      {
+        "field": "queryComplexityConfig",
+        "editorKind": "record",
+        "value": null
+      },
+      {
         "field": "validation",
         "editorKind": "toggle",
+        "value": null
+      },
+      {
+        "field": "cors",
+        "editorKind": "record",
+        "value": null
+      },
+      {
+        "field": "cacheConfig",
+        "editorKind": "record",
         "value": null
       }
     ]

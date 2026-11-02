@@ -21,6 +21,7 @@ package io.ballerina.servicemodelgenerator.extension.settings;
 import io.ballerina.servicemodelgenerator.extension.model.Codedata;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Requests of the Service Settings endpoints.
@@ -36,9 +37,12 @@ public final class ServiceSettingsRequests {
      * @param filePath the file of the service
      * @param codedata the service's codedata, whose line range locates it
      * @param field    the field to set
-     * @param value    the value as a Ballerina expression; null or blank removes the field
+     * @param value       the value as a Ballerina expression; null or blank removes the field
+     * @param recordValue for a record setting, its sub-field values, used instead of {@code value}; sub-fields at
+     *                    their default are left out
      */
-    public record UpdateSetting(String filePath, Codedata codedata, String field, String value) {
+    public record UpdateSetting(String filePath, Codedata codedata, String field, String value,
+                                Map<String, Object> recordValue) {
     }
 
     /**

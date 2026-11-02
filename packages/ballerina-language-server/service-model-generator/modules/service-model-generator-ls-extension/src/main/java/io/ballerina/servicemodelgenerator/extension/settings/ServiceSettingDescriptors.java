@@ -62,13 +62,29 @@ public final class ServiceSettingDescriptors {
      * @param field        the field name in the annotation's record type
      * @param label        the name the designer shows
      * @param description  one line on what the field does
-     * @param editorKind   the editor the designer uses: {@code toggle}, {@code number}, {@code text} or a dedicated
-     *                     kind such as {@code contextInit}
+     * @param editorKind   the editor the designer uses: {@code toggle}, {@code number}, {@code text}, {@code record}
+     *                     or a dedicated kind such as {@code contextInit}
      * @param defaultValue the value the module uses when the field is absent, as a Ballerina expression; may be null
      * @param placeholder  an example value for an empty editor; may be null
+     * @param fields       for a {@code record} setting, the sub-fields its editor shows; null otherwise
      */
     public record Descriptor(String field, String label, String description, String editorKind, String defaultValue,
-                             String placeholder) {
+                             String placeholder, List<SubField> fields) {
+    }
+
+    /**
+     * A sub-field of a record setting.
+     *
+     * @param name         the field name in the record type
+     * @param label        the name the designer shows
+     * @param description  one line on what it does; may be null
+     * @param kind         its editor: {@code toggle}, {@code integer}, {@code decimal}, {@code text} or
+     *                     {@code textList}
+     * @param defaultValue the record type's default, as a JSON value of the kind; null when it has none
+     * @param placeholder  an example value for an empty editor; may be null
+     */
+    public record SubField(String name, String label, String description, String kind, Object defaultValue,
+                           String placeholder) {
     }
 
     /**

@@ -18,6 +18,10 @@
 
 package io.ballerina.servicemodelgenerator.extension.settings;
 
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
 /**
  * A field of a service's config annotation, as the designer's Service Settings panel shows it.
  *
@@ -29,18 +33,33 @@ package io.ballerina.servicemodelgenerator.extension.settings;
  * @param defaultValue the module's value when the field is absent; may be null
  * @param placeholder  an example value for an empty editor; may be null
  * @param value        the value set in source, as written; null when the field is absent
+ * @param fields       for a record setting, the sub-fields its editor shows; null otherwise
+ * @param recordValue  for a record setting that is set, its sub-field values as written; null when unset, or when
+ *                     the value is not a mapping of plain literals the editor knows
+ * @param structured   false when a record setting is set to a value its editor cannot show, which is then edited in
+ *                     the full service config form; true otherwise
  */
 public record ServiceSetting(String field, String label, String description, String editorKind, String defaultValue,
-                             String placeholder, String value) {
+                             String placeholder, String value, List<ServiceSettingDescriptors.SubField> fields,
+                             Map<String, Object> recordValue, boolean structured) {
 
     public static final String ADVANCED = "advanced";
+    public static final String RECORD = "record";
 
     static ServiceSetting of(ServiceSettingDescriptors.Descriptor descriptor, String value) {
+        Map<String, Object> recordValue = null;
+        boolean structured = true;
+        if (RECORD.equals(descriptor.editorKind()) && value != null) {
+            Optional<Map<String, Object>> read = RecordSettingCodec.read(descriptor, value);
+            recordValue = read.orElse(null);
+            structured = read.isPresent();
+        }
         return new ServiceSetting(descriptor.field(), descriptor.label(), descriptor.description(),
-                descriptor.editorKind(), descriptor.defaultValue(), descriptor.placeholder(), value);
+                descriptor.editorKind(), descriptor.defaultValue(), descriptor.placeholder(), value,
+                descriptor.fields(), recordValue, structured);
     }
 
     static ServiceSetting advanced(String field, String value) {
-        return new ServiceSetting(field, field, null, ADVANCED, null, null, value);
+        return new ServiceSetting(field, field, null, ADVANCED, null, null, value, null, null, true);
     }
 }

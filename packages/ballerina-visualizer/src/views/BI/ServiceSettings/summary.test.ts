@@ -34,6 +34,7 @@ const setting = (field: string, editorKind: ServiceSettingEditorKind, value?: st
     editorKind,
     value,
     defaultValue,
+    structured: true,
 });
 
 // A corpus shaped like the language server's response for a GraphQL service: curated settings first,
