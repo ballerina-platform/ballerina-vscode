@@ -1232,6 +1232,19 @@ public class TestWorkspaceManager {
                 "Project should not have any compilation errors. Found: " + diagnostics.size());
     }
 
+    @Test(description = "Test a new expression clone takes the form's text over the source project's")
+    public void testNewExprCloneUsesFormText() throws WorkspaceDocumentException, IOException, EventSyncException {
+        Path file = RESOURCE_DIRECTORY.resolve("myproject").resolve("main.bal").toAbsolutePath();
+        BallerinaWorkspaceManagerProxyImpl proxy =
+                new BallerinaWorkspaceManagerProxyImpl(new LanguageServerContextImpl());
+        proxy.get().loadProject(file);
+        String exprUri = file.toUri().toString().replace("file:///", "expr:///");
+        String formText = Files.readString(file) + "\nint formOnly = 1;\n";
+        proxy.didOpen(openParams(exprUri, formText));
+
+        Assert.assertEquals(proxy.get(exprUri).document(file).orElseThrow().textDocument().toString(), formText);
+    }
+
     @Test(description = "Test the expression clone is evicted with the project it was copied from")
     public void testExprCloneEvictedWithItsSource() throws WorkspaceDocumentException, IOException {
         Path file = RESOURCE_DIRECTORY.resolve("myproject").resolve("main.bal").toAbsolutePath();

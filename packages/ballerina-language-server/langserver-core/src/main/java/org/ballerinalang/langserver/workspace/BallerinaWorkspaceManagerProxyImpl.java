@@ -296,11 +296,10 @@ public class BallerinaWorkspaceManagerProxyImpl implements BallerinaWorkspaceMan
         // Reuses the clone while it still matches the source, discarding a previous form's edits to the file.
         public void openOrReuse(Project sourceProject, Path filePath, String text) throws WorkspaceDocumentException {
             openForms.add(filePath);
-            if (isSyncedWith(sourceProject)) {
-                reset(filePath, text);
-            } else {
+            if (!isSyncedWith(sourceProject)) {
                 open(sourceProject);
             }
+            reset(filePath, text);
             touch(filePath);
         }
 
