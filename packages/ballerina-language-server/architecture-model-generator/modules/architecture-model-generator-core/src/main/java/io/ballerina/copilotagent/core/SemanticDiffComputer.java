@@ -60,6 +60,7 @@ import io.ballerina.designmodelgenerator.core.model.Listener;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.Module;
 import io.ballerina.projects.Project;
+import io.ballerina.tools.text.LinePosition;
 import io.ballerina.tools.text.LineRange;
 
 import java.nio.file.Path;
@@ -1215,8 +1216,9 @@ public class SemanticDiffComputer {
      */
     private String getServiceId(ServiceDeclarationNode service) {
 
-        // The offset, unlike the line, is unique even when two services share a line
-        return resolveUri(service.lineRange().fileName()) + "#" + service.textRange().startOffset();
+        // The column keeps services on one line apart; a file offset would shift with CRLF line endings
+        LinePosition start = service.lineRange().startLine();
+        return resolveUri(service.lineRange().fileName()) + "#" + start.line() + ":" + start.offset();
     }
 
     /**

@@ -33,7 +33,7 @@
         "metadata": {
           "name": "onMessage",
           "servicePath": "",
-          "serviceId": "ai:///main.bal#545",
+          "serviceId": "ai:///main.bal#26:0",
           "serviceListeners": "queueListener",
           "functionKind": "remote"
         }
@@ -67,7 +67,7 @@
         "metadata": {
           "name": "onMessage",
           "servicePath": "",
-          "serviceId": "ai:///main.bal#1133",
+          "serviceId": "ai:///main.bal#53:0",
           "serviceListeners": "queueListener",
           "functionKind": "remote"
         }
@@ -90,7 +90,7 @@
         "metadata": {
           "name": "onMessage",
           "servicePath": "",
-          "serviceId": "ai:///main.bal#862",
+          "serviceId": "ai:///main.bal#40:0",
           "serviceListeners": "queueListener",
           "functionKind": "remote"
         }

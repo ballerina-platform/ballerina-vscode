@@ -34,7 +34,7 @@
           "accessor": "post",
           "servicePath": "/api",
           "serviceType": "http",
-          "serviceId": "ai:///main.bal#97",
+          "serviceId": "ai:///main.bal#4:0",
           "serviceListeners": "httpDefaultListener",
           "resourcePath": "patients",
           "functionKind": "resource"

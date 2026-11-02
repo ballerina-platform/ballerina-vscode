@@ -23,7 +23,7 @@
           "name": "onConnect",
           "servicePath": "",
           "serviceType": "tcp",
-          "serviceId": "ai:///main.bal#146#removed",
+          "serviceId": "ai:///main.bal#7:0#removed",
           "serviceListeners": "tcpListener",
           "functionKind": "remote"
         }
@@ -47,7 +47,7 @@
           "accessor": "get",
           "servicePath": "",
           "serviceType": "http",
-          "serviceId": "ai:///main.bal#146",
+          "serviceId": "ai:///main.bal#7:0",
           "serviceListeners": "httpListener",
           "resourcePath": "health",
           "functionKind": "resource"
