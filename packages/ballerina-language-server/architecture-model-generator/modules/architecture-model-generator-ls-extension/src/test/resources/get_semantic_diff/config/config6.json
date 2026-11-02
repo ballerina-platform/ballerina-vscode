@@ -22,7 +22,9 @@
         "metadata": {
           "accessor": "post",
           "servicePath": "/api/v1",
-          "resourcePath": "items"
+          "serviceType": "http",
+          "resourcePath": "items",
+          "functionKind": "resource"
         }
       },
       {
@@ -43,7 +45,9 @@
         "metadata": {
           "accessor": "get",
           "servicePath": "/api/v1",
-          "resourcePath": "items"
+          "serviceType": "http",
+          "resourcePath": "items",
+          "functionKind": "resource"
         }
       },
       {
@@ -64,7 +68,9 @@
         "metadata": {
           "accessor": "post",
           "servicePath": "/api/v2",
-          "resourcePath": "items"
+          "serviceType": "http",
+          "resourcePath": "items",
+          "functionKind": "resource"
         }
       },
       {
@@ -85,7 +91,9 @@
         "metadata": {
           "accessor": "get",
           "servicePath": "/api/v2",
-          "resourcePath": "items"
+          "serviceType": "http",
+          "resourcePath": "items",
+          "functionKind": "resource"
         }
       }
     ]

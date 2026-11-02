@@ -15,7 +15,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { copilotName } from "../../utils/config";
 
 export const API_DOCS_DRIFT_CHECK_TYPE = "CODE_AND_APIDOCS";
 export const PROJECT_DOCUMENTATION_DRIFT_CHECK_TYPE = "CODE_AND_DOCUMENTATION";
@@ -28,6 +27,7 @@ export const REQUIREMENT_DOC_PREFIX = "requirements.";
 export const REQUIREMENT_TEXT_DOCUMENT = `${REQUIREMENT_DOC_PREFIX}txt`;
 export const REQUIREMENT_MD_DOCUMENT = `${REQUIREMENT_DOC_PREFIX}md`;
 export const README_FILE_NAME_LOWERCASE = "readme.md";
+import { copilotName } from '../../utils/config';
 
 export const COMMAND_SHOW_TEXT = "extension.showTextOptions";
 export const DRIFT_DIAGNOSTIC_ID = "NLE001";

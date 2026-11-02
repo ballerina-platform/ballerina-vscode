@@ -82,6 +82,8 @@ import {
     SetCopilotToggleSettingRequest,
     McpLoadErrorsDTO,
     AgentsMdFileInfoDTO,
+    Attachment,
+    SelectAttachmentFilesRequest,
     ParseSkillFileRequest,
     ParseSkillFileResponse,
     ThreadSummary,
@@ -186,6 +188,7 @@ export const getMcpLoadErrors: RequestType<void, McpLoadErrorsDTO> = { method: `
 export const mcpServersChanged: NotificationType<McpServerStatusDTO[]> = { method: `${_preFix}/mcpServersChanged` };
 export const mcpLoadErrorsChanged: NotificationType<McpLoadErrorsDTO> = { method: `${_preFix}/mcpLoadErrorsChanged` };
 export const getAgentsMdFileInfo: RequestType<void, AgentsMdFileInfoDTO> = { method: `${_preFix}/getAgentsMdFileInfo` };
+export const selectAttachmentFiles: RequestType<SelectAttachmentFilesRequest, Attachment[]> = { method: `${_preFix}/selectAttachmentFiles` };
 export const openOrCreateAgentsMd: RequestType<void, void> = { method: `${_preFix}/openOrCreateAgentsMd` };
 export const agentsMdFileInfoChanged: NotificationType<AgentsMdFileInfoDTO> = { method: `${_preFix}/agentsMdFileInfoChanged` };
 export const listThreads: RequestType<void, ThreadSummary[]> = { method: `${_preFix}/listThreads` };

@@ -84,8 +84,12 @@ suite("Checkpoint capture/restore Tests Suite", function () {
     test("captureWorkspaceSnapshot captures all workspace files with their content", async () => {
         const checkpoint: any = await vscode.commands.executeCommand("ballerina.test.ai.captureCheckpoint", "test-msg-1");
         assert.ok(checkpoint, "Expected a checkpoint to be captured");
-        assert.strictEqual(checkpoint.workspaceSnapshot["a.txt"], ORIGINAL["a.txt"]);
-        assert.strictEqual(checkpoint.workspaceSnapshot["sub/b.txt"], ORIGINAL["sub/b.txt"]);
+        assert.strictEqual(checkpoint.storage?.kind, "content-store");
+        const originals: Record<string, string | null> = await vscode.commands.executeCommand(
+            "ballerina.test.ai.readCheckpointOriginals", checkpoint, ["a.txt", "sub/b.txt"]
+        );
+        assert.strictEqual(originals["a.txt"], ORIGINAL["a.txt"]);
+        assert.strictEqual(originals["sub/b.txt"], ORIGINAL["sub/b.txt"]);
         assert.ok(checkpoint.fileList.includes("a.txt"));
         assert.ok(checkpoint.fileList.includes("sub/b.txt"));
     });

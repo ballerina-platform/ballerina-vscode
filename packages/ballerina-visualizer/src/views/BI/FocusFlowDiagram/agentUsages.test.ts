@@ -667,6 +667,33 @@ describe("try it on a rail row", () => {
         expect(rows[0].tryIt).toEqual({ basePath: "/agent\\-chat", listener: "agentChatListener" });
     });
 
+    it.each([
+        ["its Central icon", "integration:VoiceService", "https://icons/ballerinax_ai.wso2.integration_1.1.0.png"],
+        ["its service type", "voice:VoiceService", ""],
+    ])("names a voice chat entry point like a chat one, recognised by %s", (_by, type, icon) => {
+        const voiceService = {
+            ...supportApi,
+            absolutePath: "",
+            type,
+            icon,
+            uuid: "voice-service",
+            resourceFunctions: [] as CDResourceFunction[],
+            remoteFunctions: [{ name: "onChatMessage", location: { filePath: HTTP_BAL, ...range(9) },
+                connections: [AGENT_UUID] }],
+        };
+        const rows = findAgentUsages(
+            { ...model, listeners: [], services: [voiceService] } as unknown as CDModel,
+            { filePath: AGENTS_BAL, startLine: 4 }
+        );
+
+        expect(rows[0]).toMatchObject({
+            label: "Voice Chat",
+            serviceLabel: "Voice Chat Service",
+            typeLabel: "Voice Chat Service",
+            functionName: "onChatMessage",
+        });
+    });
+
     it("offers nothing to try on a protocol the tryIt command does not handle", () => {
         const rows = findAgentUsages(triggerModel, { filePath: AGENTS_BAL, startLine: 4 }, CHANNELS);
 

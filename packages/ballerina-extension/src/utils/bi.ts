@@ -126,10 +126,6 @@ generated/
 # Contains configuration values used during development time.
 # See https://ballerina.io/learn/provide-values-to-configurable-variables/ for more details.
 Config.toml
-
-# File used to enable development-time tracing.
-# This should not be committed to version control.
-trace_enabled.bal
 `;
 
 export function getUsername(): string {
@@ -1023,12 +1019,23 @@ export async function refreshProjectInfoAndWait(): Promise<boolean> {
 }
 
 export function deleteProjectFromWorkspace(workspacePath: string, packagePath: string) {
+    if (!removeProjectFromWorkspaceToml(workspacePath, packagePath)) {
+        return;
+    }
+    try {
+        fs.rmdirSync(packagePath, { recursive: true });
+    } catch (error) {
+        console.error(">>> error deleting integration from project", error);
+    }
+}
+
+export function removeProjectFromWorkspaceToml(workspacePath: string, packagePath: string): boolean {
     const relativeProjectPath = path.relative(workspacePath, packagePath);
     console.log(">>> relative project path", relativeProjectPath);
 
     const ballerinaTomlPath = path.join(workspacePath, 'Ballerina.toml');
     if (!fs.existsSync(ballerinaTomlPath)) {
-        return;
+        return false;
     }
 
     try {
@@ -1038,7 +1045,7 @@ export function deleteProjectFromWorkspace(workspacePath: string, packagePath: s
 
         const matchedEntry = existingPackages.find(p => path.normalize(p) === relativeProjectPath);
         if (!matchedEntry) {
-            return; // Package not found
+            return false; // Package not found
         }
 
         const updatedContent = removePackageFromToml(ballerinaTomlContent, matchedEntry);
@@ -1056,11 +1063,10 @@ export function deleteProjectFromWorkspace(workspacePath: string, packagePath: s
                 version: 1
             }
         });
-
-        // delete the project directory
-        fs.rmdirSync(packagePath, { recursive: true });
+        return true;
     } catch (error) {
-        console.error(">>> error deleting integration from project", error);
+        console.error(">>> error removing integration from workspace", error);
+        return false;
     }
 }
 
