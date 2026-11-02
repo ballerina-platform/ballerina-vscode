@@ -125,10 +125,6 @@ generated/
 # Contains configuration values used during development time.
 # See https://ballerina.io/learn/provide-values-to-configurable-variables/ for more details.
 Config.toml
-
-# File used to enable development-time tracing.
-# This should not be committed to version control.
-trace_enabled.bal
 `;
 
 export function getUsername(): string {
