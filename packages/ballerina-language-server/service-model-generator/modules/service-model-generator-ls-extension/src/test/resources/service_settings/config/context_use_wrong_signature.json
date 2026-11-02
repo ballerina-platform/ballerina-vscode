@@ -1,0 +1,11 @@
+{
+  "description": "A function without the contextInit signature is refused",
+  "project": "graphql_with_config",
+  "api": "applyGraphqlContext",
+  "request": {
+    "action": "use",
+    "functionName": "notAContextInit"
+  },
+  "expectError": true,
+  "file": "main.bal"
+}

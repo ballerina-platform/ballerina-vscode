@@ -1,0 +1,36 @@
+{
+  "description": "Reads curated values as written, and lists other set fields as advanced",
+  "project": "graphql_with_config",
+  "api": "getServiceSettings",
+  "expectedResponse": {
+    "supported": true,
+    "settings": [
+      {
+        "field": "contextInit",
+        "editorKind": "contextInit",
+        "value": null
+      },
+      {
+        "field": "maxQueryDepth",
+        "editorKind": "number",
+        "value": "5"
+      },
+      {
+        "field": "introspection",
+        "editorKind": "toggle",
+        "value": "false"
+      },
+      {
+        "field": "validation",
+        "editorKind": "toggle",
+        "value": null
+      },
+      {
+        "field": "cors",
+        "editorKind": "advanced",
+        "value": "{\n        allowOrigins: [\"*\"]\n    }"
+      }
+    ]
+  },
+  "file": "main.bal"
+}

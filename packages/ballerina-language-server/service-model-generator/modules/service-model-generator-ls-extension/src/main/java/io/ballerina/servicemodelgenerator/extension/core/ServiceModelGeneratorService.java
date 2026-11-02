@@ -107,6 +107,11 @@ import io.ballerina.servicemodelgenerator.extension.model.response.ServiceModelR
 import io.ballerina.servicemodelgenerator.extension.model.response.TriggerListResponse;
 import io.ballerina.servicemodelgenerator.extension.model.response.TriggerResponse;
 import io.ballerina.servicemodelgenerator.extension.model.response.ValidatePropertyResponse;
+import io.ballerina.servicemodelgenerator.extension.settings.GraphqlContextManager;
+import io.ballerina.servicemodelgenerator.extension.settings.GraphqlContextResponse;
+import io.ballerina.servicemodelgenerator.extension.settings.ServiceSettingsManager;
+import io.ballerina.servicemodelgenerator.extension.settings.ServiceSettingsRequests;
+import io.ballerina.servicemodelgenerator.extension.settings.ServiceSettingsResponse;
 import io.ballerina.servicemodelgenerator.extension.util.FTPListenerUtil;
 import io.ballerina.servicemodelgenerator.extension.util.FunctionBadge;
 import io.ballerina.servicemodelgenerator.extension.util.ListenerUtil;
@@ -905,6 +910,138 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                 return new CommonSourceResponse(e);
             }
         });
+    }
+
+    /**
+     * Get the Service Settings of a service: the curated fields of its config annotation and any other field set.
+     *
+     * @param request the service's file and codedata
+     * @return {@link ServiceSettingsResponse} with {@code supported} false for a service type with no settings
+     */
+    @JsonRequest
+    public CompletableFuture<ServiceSettingsResponse> getServiceSettings(CommonModelFromSourceRequest request) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                Optional<ResolvedService> resolved = resolveService(request.filePath(), request.codedata());
+                if (resolved.isEmpty()) {
+                    return ServiceSettingsResponse.unsupported();
+                }
+                return ServiceSettingsManager.read(resolved.get().serviceNode(), resolved.get().semanticModel());
+            } catch (Throwable e) {
+                return ServiceSettingsResponse.error(e);
+            }
+        });
+    }
+
+    /**
+     * Get the edits that set, or remove, one field of a service's config annotation.
+     *
+     * @param request the service, the field and its value; a null or blank value removes the field
+     * @return {@link CommonSourceResponse} with the edits
+     */
+    @JsonRequest
+    public CompletableFuture<CommonSourceResponse> updateServiceSetting(ServiceSettingsRequests.UpdateSetting request) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                Optional<ResolvedService> resolved = resolveService(request.filePath(), request.codedata());
+                if (resolved.isEmpty()) {
+                    return new CommonSourceResponse();
+                }
+                List<TextEdit> edits = ServiceSettingsManager.update(resolved.get().serviceNode(),
+                        resolved.get().semanticModel(), request.field(), request.value());
+                return new CommonSourceResponse(Map.of(request.filePath(), edits));
+            } catch (Throwable e) {
+                return new CommonSourceResponse(e);
+            }
+        });
+    }
+
+    /**
+     * Get the request context of a GraphQL service: the function its {@code contextInit} names, and the module
+     * functions that could be picked instead.
+     *
+     * @param request the service's file and codedata
+     * @return {@link GraphqlContextResponse} with {@code supported} false for a service that is not a GraphQL service
+     */
+    @JsonRequest
+    public CompletableFuture<GraphqlContextResponse> getGraphqlContext(CommonModelFromSourceRequest request) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                Optional<ResolvedService> resolved = resolveService(request.filePath(), request.codedata());
+                if (resolved.isEmpty()) {
+                    return GraphqlContextResponse.unsupported();
+                }
+                return GraphqlContextManager.read(resolved.get().serviceNode(), resolved.get().semanticModel(),
+                        resolved.get().document());
+            } catch (Throwable e) {
+                return GraphqlContextResponse.error(e);
+            }
+        });
+    }
+
+    /**
+     * Get the edits that create, pick or remove a GraphQL service's request context function.
+     *
+     * @param request the service and the action
+     * @return {@link CommonSourceResponse} with the edits, which may span the service's file and functions.bal
+     */
+    @JsonRequest
+    public CompletableFuture<CommonSourceResponse> applyGraphqlContext(
+            ServiceSettingsRequests.ApplyGraphqlContext request) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                Optional<ResolvedService> resolved = resolveService(request.filePath(), request.codedata());
+                if (resolved.isEmpty()) {
+                    return new CommonSourceResponse();
+                }
+                Map<String, List<TextEdit>> edits = GraphqlContextManager.apply(request.action(),
+                        request.functionName(), Boolean.TRUE.equals(request.deleteFunction()),
+                        Path.of(request.filePath()), resolved.get().serviceNode(), resolved.get().semanticModel(),
+                        resolved.get().document(), this.workspaceManager);
+                return new CommonSourceResponse(edits);
+            } catch (Throwable e) {
+                return new CommonSourceResponse(e);
+            }
+        });
+    }
+
+    /**
+     * A service declaration with the document and semantic model it was resolved from.
+     *
+     * @param serviceNode   the service declaration
+     * @param document      the document declaring it
+     * @param semanticModel the semantic model of that document's module
+     */
+    private record ResolvedService(ServiceDeclarationNode serviceNode, Document document,
+                                   SemanticModel semanticModel) {
+    }
+
+    /**
+     * Resolves the service the codedata points at, or the service containing it when the range has gone stale.
+     */
+    private Optional<ResolvedService> resolveService(String filePath, Codedata codedata) throws Exception {
+        if (filePath == null || codedata == null || codedata.getLineRange() == null) {
+            return Optional.empty();
+        }
+        Path path = Path.of(filePath);
+        this.workspaceManager.loadProject(path);
+        Optional<Document> document = this.workspaceManager.document(path);
+        Optional<SemanticModel> semanticModel = this.workspaceManager.semanticModel(path);
+        if (document.isEmpty() || semanticModel.isEmpty()) {
+            return Optional.empty();
+        }
+        NonTerminalNode node = findNonTerminalNode(codedata, document.get());
+        ServiceDeclarationNode serviceNode;
+        if (node instanceof ServiceDeclarationNode serviceDeclarationNode) {
+            serviceNode = serviceDeclarationNode;
+        } else {
+            Optional<ServiceDeclarationNode> enclosing = findServiceContaining(codedata, document.get());
+            if (enclosing.isEmpty() || !isRequestedService(codedata, enclosing.get())) {
+                return Optional.empty();
+            }
+            serviceNode = enclosing.get();
+        }
+        return Optional.of(new ResolvedService(serviceNode, document.get(), semanticModel.get()));
     }
 
     /**

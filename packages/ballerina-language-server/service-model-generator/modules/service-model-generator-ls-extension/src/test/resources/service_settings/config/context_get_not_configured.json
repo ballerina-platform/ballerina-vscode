@@ -1,0 +1,17 @@
+{
+  "description": "Offers only functions with the contextInit signature as candidates",
+  "project": "graphql_with_config",
+  "api": "getGraphqlContext",
+  "expectedResponse": {
+    "supported": true,
+    "configured": false,
+    "functionName": null,
+    "expression": null,
+    "signatureValid": false,
+    "candidates": [
+      "existingContextInit"
+    ],
+    "functionFile": null
+  },
+  "file": "main.bal"
+}

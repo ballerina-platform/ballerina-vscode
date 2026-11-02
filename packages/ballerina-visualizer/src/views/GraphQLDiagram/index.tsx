@@ -52,6 +52,13 @@ import DynamicModal from "../../components/Modal";
 import { BreadcrumbContainer, BreadcrumbItem, BreadcrumbSeparator } from "../BI/Forms/FlowNodeForm";
 import React from "react";
 import { removeForwardSlashes } from "../BI/ServiceDesigner/utils";
+import { ServiceSettingsPanel } from "./ServiceSettings/ServiceSettingsPanel";
+import { toBadgeSummary } from "./ServiceSettings/summary";
+import {
+    GRAPHQL_CONTEXT_QUERY_KEY,
+    SERVICE_SETTINGS_QUERY_KEY,
+    useServiceSettings,
+} from "./ServiceSettings/useServiceSettings";
 
 const SpinnerContainer = styled.div`
     display: flex;
@@ -94,6 +101,7 @@ export function GraphQLDiagram(props: GraphQLDiagramProps) {
     const [isTypeEditorOpen, setIsTypeEditorOpen] = useState(false);
     const [editingType, setEditingType] = useState<Type>();
     const [focusedNodeId, setFocusedNodeId] = useState<string | undefined>(undefined);
+    const [isServiceSettingsOpen, setIsServiceSettingsOpen] = useState<boolean>(false);
 
     const [stack, setStack] = useState<StackItem[]>([{
         isDirty: false,
@@ -202,12 +210,23 @@ export function GraphQLDiagram(props: GraphQLDiagramProps) {
         enabled: !!filePath && !!rpcClient,
     });
 
+    const { data: serviceSettings, isLoading: isServiceSettingsLoading } = useServiceSettings(filePath, position);
+    const settingsSupported = !!serviceSettings?.supported;
+
     rpcClient?.onProjectContentUpdated((state: boolean) => {
         if (state) {
             // Instead of calling getGraphqlDesignModel directly, invalidate the query
             queryClient.invalidateQueries({ queryKey: ["graphqlTypeModel"] });
+            // An edit made anywhere, including in source, can change the service's settings.
+            queryClient.invalidateQueries({ queryKey: [SERVICE_SETTINGS_QUERY_KEY] });
+            queryClient.invalidateQueries({ queryKey: [GRAPHQL_CONTEXT_QUERY_KEY] });
         }
     });
+
+    const openServiceSettings = () => {
+        setIsServiceEditorOpen(false);
+        setIsServiceSettingsOpen(true);
+    };
 
     const handleOnGoToSource = (node: Type) => {
         if (!rpcClient || !node.codedata.lineRange) {
@@ -225,6 +244,7 @@ export function GraphQLDiagram(props: GraphQLDiagramProps) {
 
     const onTypeEdit = async (typeId: string, isGraphqlRoot?: boolean) => {
         if (isGraphqlRoot) {
+            setIsServiceSettingsOpen(false);
             setIsServiceEditorOpen(true);
             return;
         }
@@ -459,6 +479,8 @@ export function GraphQLDiagram(props: GraphQLDiagramProps) {
                             updateFocusedNodeId={handleFocusedNodeIdChange}
                             onTypeDelete={onTypeDelete}
                             verifyTypeDelete={verifyTypeDelete}
+                            serviceSettings={settingsSupported ? toBadgeSummary(serviceSettings.settings) : undefined}
+                            onOpenServiceSettings={settingsSupported ? openServiceSettings : undefined}
                         />
                     ) : null}
                 </ViewContent>
@@ -479,6 +501,19 @@ export function GraphQLDiagram(props: GraphQLDiagramProps) {
                         },
                     }}
                     onClose={() => setIsServiceEditorOpen(false)}
+                />
+            )}
+            {isServiceSettingsOpen && settingsSupported && (
+                <ServiceSettingsPanel
+                    filePath={filePath}
+                    position={position}
+                    settings={serviceSettings}
+                    loading={isServiceSettingsLoading}
+                    onClose={() => setIsServiceSettingsOpen(false)}
+                    onOpenAdvanced={() => {
+                        setIsServiceSettingsOpen(false);
+                        handleServiceEdit();
+                    }}
                 />
             )}
             {isTypeEditorOpen && editingType && editingType.codedata.node !== "CLASS" && (

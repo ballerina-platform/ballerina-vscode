@@ -1,0 +1,11 @@
+{
+  "description": "An HTTP service has no settings to edit",
+  "project": "http_service",
+  "api": "updateServiceSetting",
+  "request": {
+    "field": "maxQueryDepth",
+    "value": "10"
+  },
+  "expectError": true,
+  "file": "main.bal"
+}

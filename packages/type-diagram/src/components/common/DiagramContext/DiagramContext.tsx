@@ -19,6 +19,14 @@
 import React, { createContext, ReactNode } from 'react';
 import { Type } from '@wso2/ballerina-core';
 
+/**
+ * The settings set on a service, as the root node's settings badge summarises them.
+ */
+export interface ServiceSettingsSummary {
+    /** One entry per setting that is set, in display order. */
+    items: { label: string; summary: string }[];
+}
+
 interface DiagramContextProps {
     children?: ReactNode;
     hasDiagnostics: boolean;
@@ -31,6 +39,8 @@ interface DiagramContextProps {
     goToSource?: (node: Type) => void,
     onNodeDelete?: (typeId: string) => void;
     verifyTypeDelete?: (typeId: string) => Promise<boolean>;
+    serviceSettings?: ServiceSettingsSummary;
+    onOpenServiceSettings?: () => void;
 }
 
 interface IDiagramContext {
@@ -44,6 +54,8 @@ interface IDiagramContext {
     goToSource?: (node: Type) => void
     onNodeDelete?: (typeId: string) => void;
     verifyTypeDelete?: (typeId: string) => Promise<boolean>;
+    serviceSettings?: ServiceSettingsSummary;
+    onOpenServiceSettings?: () => void;
 }
 
 const defaultState: any = {};
@@ -61,7 +73,9 @@ export function DesignDiagramContext(props: DiagramContextProps) {
         onEditNode,
         goToSource,
         onNodeDelete,
-        verifyTypeDelete
+        verifyTypeDelete,
+        serviceSettings,
+        onOpenServiceSettings
     } = props;
 
     let context: IDiagramContext = {
@@ -74,7 +88,9 @@ export function DesignDiagramContext(props: DiagramContextProps) {
         onEditNode,
         goToSource,
         onNodeDelete,
-        verifyTypeDelete
+        verifyTypeDelete,
+        serviceSettings,
+        onOpenServiceSettings
     }
 
     return (

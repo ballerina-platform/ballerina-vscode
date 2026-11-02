@@ -1,0 +1,10 @@
+{
+  "description": "Appends to functions.bal, adding only the missing import",
+  "project": "graphql_with_config",
+  "api": "applyGraphqlContext",
+  "request": {
+    "action": "create"
+  },
+  "expected": "context_create_existing_file",
+  "file": "main.bal"
+}

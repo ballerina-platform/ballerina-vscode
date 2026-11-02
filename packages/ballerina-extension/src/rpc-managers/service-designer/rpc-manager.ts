@@ -18,6 +18,7 @@
  * THIS FILE INCLUDES AUTO GENERATED CODE
  */
 import {
+    ApplyGraphqlContextRequest,
     ConnectorUpgradeAdvice,
     ConnectorUpgradeAdviceRequest,
     ConnectorUpgradeAdviceResponse,
@@ -28,6 +29,7 @@ import {
     ExportOASResponse,
     GetOASSpecRequest,
     GetOASSpecResponse,
+    GraphqlContextResponse,
     FunctionFromSourceRequest,
     FunctionFromSourceResponse,
     FunctionModelRequest,
@@ -56,10 +58,14 @@ import {
     ServiceModelInitResponse,
     ServiceModelRequest,
     ServiceModelResponse,
+    ServiceSettingsEditResponse,
+    ServiceSettingsRequest,
+    ServiceSettingsResponse,
     ServiceSourceCodeRequest,
     SourceEditResponse,
     TriggerModelsRequest,
     TriggerModelsResponse,
+    UpdateServiceSettingRequest,
     UpdatedArtifactsResponse,
     ValidatePropertyRequest,
     ValidatePropertyResponse,
@@ -620,6 +626,67 @@ export class ServiceDesignerRpcManager implements ServiceDesignerAPI {
             return { spec: match?.spec ?? null };
         } catch {
             return { spec: null };
+        }
+    }
+
+    async getServiceSettings(params: ServiceSettingsRequest): Promise<ServiceSettingsResponse> {
+        try {
+            return await StateMachine.langClient().getServiceSettings(params);
+        } catch (error) {
+            return { supported: false, settings: [], errorMsg: error instanceof Error ? error.message : String(error) };
+        }
+    }
+
+    async updateServiceSetting(params: UpdateServiceSettingRequest): Promise<ServiceSettingsEditResponse> {
+        const description = params.value ? `Set ${params.field}` : `Remove ${params.field}`;
+        return this.applySettingsEdits(() => StateMachine.langClient().updateServiceSetting(params), description);
+    }
+
+    async getGraphqlContext(params: ServiceSettingsRequest): Promise<GraphqlContextResponse> {
+        try {
+            return await StateMachine.langClient().getGraphqlContext(params);
+        } catch (error) {
+            return {
+                supported: false,
+                configured: false,
+                signatureValid: false,
+                candidates: [],
+                errorMsg: error instanceof Error ? error.message : String(error)
+            };
+        }
+    }
+
+    async applyGraphqlContext(params: ApplyGraphqlContextRequest): Promise<ServiceSettingsEditResponse> {
+        const descriptions: Record<ApplyGraphqlContextRequest["action"], string> = {
+            create: "Create request context",
+            use: "Set request context",
+            remove: "Remove request context",
+        };
+        return this.applySettingsEdits(() => StateMachine.langClient().applyGraphqlContext(params),
+            descriptions[params.action]);
+    }
+
+    /**
+     * Applies the edits a settings request returns. A refused request (an error message, or no edits) changes
+     * nothing and reports why, so the panel can show it instead of failing silently.
+     */
+    private async applySettingsEdits(
+        request: () => Promise<ListenerSourceCodeResponse & { errorMsg?: string }>,
+        description: string
+    ): Promise<ServiceSettingsEditResponse> {
+        try {
+            const res = await request();
+            if (res?.errorMsg) {
+                return { errorMsg: res.errorMsg };
+            }
+            const hasEdits = Object.values(res?.textEdits ?? {}).some((edits) => edits.length > 0);
+            if (!hasEdits) {
+                return {};
+            }
+            await updateSourceCode({ textEdits: res.textEdits, description });
+            return {};
+        } catch (error) {
+            return { errorMsg: error instanceof Error ? error.message : String(error) };
         }
     }
 }

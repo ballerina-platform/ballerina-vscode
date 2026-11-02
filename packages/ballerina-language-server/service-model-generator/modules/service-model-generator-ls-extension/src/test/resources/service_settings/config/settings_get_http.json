@@ -1,0 +1,10 @@
+{
+  "description": "A service type with no settings definition is unsupported",
+  "project": "http_service",
+  "api": "getServiceSettings",
+  "expectedResponse": {
+    "supported": false,
+    "settings": []
+  },
+  "file": "main.bal"
+}

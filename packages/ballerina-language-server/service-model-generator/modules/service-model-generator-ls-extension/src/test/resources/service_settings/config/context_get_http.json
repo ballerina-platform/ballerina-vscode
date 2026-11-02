@@ -1,0 +1,15 @@
+{
+  "description": "An HTTP service has no request context",
+  "project": "http_service",
+  "api": "getGraphqlContext",
+  "expectedResponse": {
+    "supported": false,
+    "configured": false,
+    "functionName": null,
+    "expression": null,
+    "signatureValid": false,
+    "candidates": [],
+    "functionFile": null
+  },
+  "file": "main.bal"
+}

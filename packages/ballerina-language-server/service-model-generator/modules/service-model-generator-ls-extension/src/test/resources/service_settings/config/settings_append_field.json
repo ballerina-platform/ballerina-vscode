@@ -1,0 +1,11 @@
+{
+  "description": "A new field is appended after the last one, keeping the others as written",
+  "project": "graphql_with_config",
+  "api": "updateServiceSetting",
+  "request": {
+    "field": "validation",
+    "value": "false"
+  },
+  "expected": "settings_append_field",
+  "file": "main.bal"
+}

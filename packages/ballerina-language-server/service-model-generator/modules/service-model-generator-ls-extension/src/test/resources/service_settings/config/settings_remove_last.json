@@ -1,0 +1,10 @@
+{
+  "description": "Removing the last field takes the separator before it",
+  "project": "graphql_with_config",
+  "api": "updateServiceSetting",
+  "request": {
+    "field": "introspection"
+  },
+  "expected": "settings_remove_last",
+  "file": "main.bal"
+}

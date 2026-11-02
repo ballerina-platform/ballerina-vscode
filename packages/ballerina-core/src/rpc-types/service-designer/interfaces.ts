@@ -17,6 +17,7 @@
  */
 
 import { ProjectStructureArtifactResponse } from "../..";
+import { LineRange } from "../../interfaces/common";
 
 export interface ExportOASRequest {
     documentFilePath?: string;
@@ -59,4 +60,84 @@ export interface OpenApiEndpointsResponse {
     defaults?: McpServiceDefaults;
     errorMsg?: string;
     stacktrace?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Service Settings: the fields of a service's config annotation (e.g. @graphql:ServiceConfig)
+// ---------------------------------------------------------------------------
+
+/**
+ * The editor a setting uses. A field with no descriptor of its own is `advanced` and is edited in the full
+ * service config form.
+ */
+export type ServiceSettingEditorKind = "toggle" | "number" | "text" | "contextInit" | "advanced";
+
+export interface ServiceSetting {
+    field: string;
+    label: string;
+    description?: string;
+    editorKind: ServiceSettingEditorKind;
+    /** The module's value when the field is absent, as a Ballerina expression. */
+    defaultValue?: string;
+    placeholder?: string;
+    /** The value set in source, as written. Absent when the field is not set. */
+    value?: string;
+}
+
+/** Locates a service: its file and its line range. */
+export interface ServiceSettingsTarget {
+    filePath: string;
+    codedata: {
+        lineRange: LineRange;
+    };
+}
+
+export type ServiceSettingsRequest = ServiceSettingsTarget;
+
+export interface ServiceSettingsResponse {
+    /** False for a service type with no settings; the designer then shows none. */
+    supported: boolean;
+    moduleName?: string;
+    /** The curated settings in display order, then any other field set in source. */
+    settings: ServiceSetting[];
+    errorMsg?: string;
+}
+
+export interface UpdateServiceSettingRequest extends ServiceSettingsTarget {
+    field: string;
+    /** A Ballerina expression; empty or absent removes the field. */
+    value?: string;
+}
+
+export interface GraphqlContextResponse {
+    /** False for a service that is not a GraphQL service. */
+    supported: boolean;
+    /** Whether the service config sets `contextInit`. */
+    configured: boolean;
+    /** The function `contextInit` names; absent when unset or set to an expression. */
+    functionName?: string;
+    /** The `contextInit` value as written. */
+    expression?: string;
+    functionFilePath?: string;
+    functionRange?: LineRange;
+    /** Whether the function has the signature `contextInit` needs. */
+    signatureValid: boolean;
+    /** Module functions with that signature, which can be picked instead. */
+    candidates: string[];
+    errorMsg?: string;
+}
+
+export type GraphqlContextAction = "create" | "use" | "remove";
+
+export interface ApplyGraphqlContextRequest extends ServiceSettingsTarget {
+    action: GraphqlContextAction;
+    /** For `use`: the function to point `contextInit` at. */
+    functionName?: string;
+    /** For `remove`: also delete the function when nothing else references it. */
+    deleteFunction?: boolean;
+}
+
+/** The outcome of a settings edit. */
+export interface ServiceSettingsEditResponse {
+    errorMsg?: string;
 }

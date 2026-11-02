@@ -1,0 +1,32 @@
+{
+  "annotation": "ServiceConfig",
+  "settings": [
+    {
+      "field": "contextInit",
+      "label": "Request Context",
+      "description": "Builds the graphql:Context passed to resolvers, from values in each incoming request.",
+      "editorKind": "contextInit"
+    },
+    {
+      "field": "maxQueryDepth",
+      "label": "Max Query Depth",
+      "description": "Rejects queries nested deeper than this.",
+      "editorKind": "number",
+      "placeholder": "10"
+    },
+    {
+      "field": "introspection",
+      "label": "Introspection",
+      "description": "Allows clients to query the schema. Turn off in production to hide it.",
+      "editorKind": "toggle",
+      "defaultValue": "true"
+    },
+    {
+      "field": "validation",
+      "label": "Query Validation",
+      "description": "Validates each query against the schema before running it.",
+      "editorKind": "toggle",
+      "defaultValue": "true"
+    }
+  ]
+}

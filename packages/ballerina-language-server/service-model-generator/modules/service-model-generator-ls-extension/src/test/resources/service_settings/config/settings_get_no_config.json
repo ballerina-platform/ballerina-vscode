@@ -1,0 +1,31 @@
+{
+  "description": "Lists every curated setting as unset when the service has no ServiceConfig",
+  "project": "graphql_no_config",
+  "api": "getServiceSettings",
+  "expectedResponse": {
+    "supported": true,
+    "settings": [
+      {
+        "field": "contextInit",
+        "editorKind": "contextInit",
+        "value": null
+      },
+      {
+        "field": "maxQueryDepth",
+        "editorKind": "number",
+        "value": null
+      },
+      {
+        "field": "introspection",
+        "editorKind": "toggle",
+        "value": null
+      },
+      {
+        "field": "validation",
+        "editorKind": "toggle",
+        "value": null
+      }
+    ]
+  },
+  "file": "main.bal"
+}
