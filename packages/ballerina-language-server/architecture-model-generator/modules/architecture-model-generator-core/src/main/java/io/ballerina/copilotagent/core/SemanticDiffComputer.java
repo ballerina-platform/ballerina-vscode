@@ -64,11 +64,11 @@ import io.ballerina.tools.text.LinePosition;
 import io.ballerina.tools.text.LineRange;
 
 import java.nio.file.Path;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
-import java.util.Deque;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -776,14 +776,27 @@ public class SemanticDiffComputer {
     private void computeServiceDiffs(Map<String, ServiceDeclarationNode> originalServiceMap,
                                      Map<String, ServiceDeclarationNode> modifiedServiceMap) {
 
-        // Identical declarations are numbered in order, so inserting one shifts the numbers; pair unchanged ones first
-        Map<String, Deque<String>> modifiedServicesBySource = new HashMap<>();
-        modifiedServiceMap.forEach((serviceName, service) -> modifiedServicesBySource
-                .computeIfAbsent(service.toSourceCode(), source -> new ArrayDeque<>()).add(serviceName));
-        originalServiceMap.values().removeIf(originalService -> {
-            Deque<String> unchanged = modifiedServicesBySource.get(originalService.toSourceCode());
-            return unchanged != null && !unchanged.isEmpty() && modifiedServiceMap.remove(unchanged.poll()) != null;
+        // Identical declarations are numbered in order, so inserting one shifts the numbers; pair unchanged ones
+        // first, each with the nearest identical original, so a change to one copy isn't put on another
+        Map<String, List<ServiceDeclarationNode>> originalServicesBySource = new HashMap<>();
+        originalServiceMap.values().forEach(service -> originalServicesBySource
+                .computeIfAbsent(service.toSourceCode(), source -> new ArrayList<>()).add(service));
+        Set<ServiceDeclarationNode> unchangedOriginals = Collections.newSetFromMap(new IdentityHashMap<>());
+        modifiedServiceMap.values().removeIf(modifiedService -> {
+            List<ServiceDeclarationNode> candidates = originalServicesBySource.get(modifiedService.toSourceCode());
+            if (candidates == null || candidates.isEmpty()) {
+                return false;
+            }
+            int nearest = 0;
+            for (int i = 1; i < candidates.size(); i++) {
+                if (distance(candidates.get(i), modifiedService) < distance(candidates.get(nearest), modifiedService)) {
+                    nearest = i;
+                }
+            }
+            unchangedOriginals.add(candidates.remove(nearest));
+            return true;
         });
+        originalServiceMap.values().removeIf(unchangedOriginals::contains);
 
         List<String> foundServices = new ArrayList<>();
         for (Map.Entry<String, ServiceDeclarationNode> entry : originalServiceMap.entrySet()) {
@@ -1209,6 +1222,19 @@ public class SemanticDiffComputer {
         if (service.listeners() != null) {
             metadata.put("serviceListeners", service.listeners());
         }
+    }
+
+    /**
+     * How many lines apart two declarations are, or {@link Integer#MAX_VALUE} when they are in different files.
+     */
+    private static int distance(ServiceDeclarationNode original, ServiceDeclarationNode modified) {
+
+        LineRange originalRange = original.lineRange();
+        LineRange modifiedRange = modified.lineRange();
+        if (!originalRange.fileName().equals(modifiedRange.fileName())) {
+            return Integer.MAX_VALUE;
+        }
+        return Math.abs(originalRange.startLine().line() - modifiedRange.startLine().line());
     }
 
     /**
