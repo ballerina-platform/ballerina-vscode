@@ -33,7 +33,9 @@
         "metadata": {
           "accessor": "post",
           "servicePath": "/api",
-          "resourcePath": "patients"
+          "serviceType": "http",
+          "resourcePath": "patients",
+          "functionKind": "resource"
         }
       },
       {

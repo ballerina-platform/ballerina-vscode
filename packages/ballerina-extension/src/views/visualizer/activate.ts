@@ -22,8 +22,9 @@ import { StateMachine, openView } from '../../stateMachine';
 import { openPopupView, StateMachinePopup } from '../../stateMachinePopup';
 import { hasOpenForm, hasDirtyOpenForm, clearFormState } from '../../rpc-managers/bi-diagram/form-state';
 import { extension } from '../../BalExtensionContext';
-import { BI_COMMANDS, EVENT_TYPE, isSamePath, MACHINE_VIEW, NodePosition, normalizeProjectPath, ProjectInfo, SHARED_COMMANDS } from '@wso2/ballerina-core';
+import { BI_COMMANDS, EVENT_TYPE, isPathInside, isSamePath, MACHINE_VIEW, NodePosition, normalizeProjectPath, ProjectInfo, SHARED_COMMANDS } from '@wso2/ballerina-core';
 import { buildProjectsStructure } from '../../utils/project-artifacts';
+import { removeProjectFromWorkspaceToml } from '../../utils/bi';
 import { createVersionNumber, findBallerinaPackageRoot, isSupportedSLVersion } from '../../utils';
 import { VisualizerWebview } from './webview';
 import { findWorkspaceTypeFromWorkspaceFolders } from '../../rpc-managers/common/utils';
@@ -209,6 +210,23 @@ export function activateSubscriptions() {
 
     context.subscriptions.push(
         vscode.commands.registerCommand(BI_COMMANDS.OPEN_TYPE_DIAGRAM, handleOpenTypeDiagram)
+    );
+
+    context.subscriptions.push(
+        vscode.workspace.onDidDeleteFiles(({ files }) => {
+            const { workspacePath, projectInfo, projectPath } = StateMachine.context();
+            const deletedPackages = (projectInfo?.children ?? [])
+                .map((child) => child.projectPath)
+                .filter((packagePath) => files.some((file) => isPathInside(file.fsPath, packagePath)))
+                .filter((packagePath) => removeProjectFromWorkspaceToml(workspacePath, packagePath));
+            if (deletedPackages.length === 0) {
+                return;
+            }
+            // Only leave the open view when it belongs to a deleted package; a non-silent refresh creates a closed panel.
+            const silent = !VisualizerWebview.currentPanel
+                || !deletedPackages.some((packagePath) => isPathInside(packagePath, projectPath));
+            StateMachine.refreshProjectInfo({ silent });
+        })
     );
 
     StateMachine.service().onTransition((state) => {

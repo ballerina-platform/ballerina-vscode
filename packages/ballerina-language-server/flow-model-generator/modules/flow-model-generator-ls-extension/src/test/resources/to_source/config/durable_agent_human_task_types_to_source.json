@@ -93,14 +93,14 @@
         "range": {
           "start": {
             "line": 20,
-            "character": 5
+            "character": 4
           },
           "end": {
             "line": 20,
             "character": 5
           }
         },
-        "newText": "\n,\n    humanTasks: [{name: \"approveClaim\", userRoles: \"finance\", taskInputType: ClaimReview, resultType: ApprovalResult, title: \"Approve the claim\"}]"
+        "newText": "],\n    humanTasks: {approveClaim: {userRoles: \"finance\", taskInputType: ClaimReview, resultType: ApprovalResult, title: \"Approve the claim\"}}"
       }
     ]
   }
