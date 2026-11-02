@@ -26,3 +26,13 @@ CVE-2020-36851
 # (create-ecdh / browserify-sign). No fix released by the author; 6.6.1 is
 # the latest published version.
 CVE-2025-14505
+
+# minimatch < 11.0.1 DoS (GHSA-g3hv-75wg-m249). The only fix is minimatch 11,
+# which removes Minimatch#regexp (used by vsce) and changes Minimatch#set (used
+# by glob 11). Remove once the consumers move to 11 or a backport ships.
+CVE-2026-118764
+
+# glob 9 to 14.0.1 AbortSignal bypass (GHSA-3g3m-2fjr-6pw4). The only fix is
+# glob 14, which changes APIs rimraf 6 and vsce use through glob 11; nothing
+# here passes `signal` to glob. Remove once those consumers move to 14.
+CVE-2026-118773
