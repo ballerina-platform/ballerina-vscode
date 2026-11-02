@@ -154,8 +154,8 @@ export const typeToSource = (type: string | Type): string => {
             ? toParenthesizedSource(m.type)
             : typeToSource(m.type)).join(' | ');
         // Convert union with () to optional type notation, handling different orderings
-        const optionalTypeRegex = /^\(\)\|(.+)$|^(.+)\|\(\)$/;
-        const match = typeString.replace(/\s+/g, '').match(optionalTypeRegex);
+        const optionalTypeRegex = /^\(\)\s*\|\s*(.+)$|^(.+?)\s*\|\s*\(\)$/;
+        const match = typeString.match(optionalTypeRegex);
         if (match) {
             // match[1] or match[2] will contain the type (whichever group matched)
             return (match[1] || match[2]) + '?';

@@ -221,6 +221,688 @@
       "allowAdditionalFields": true
     },
     {
+      "name": "ballerina/time:Civil",
+      "editable": false,
+      "metadata": {
+        "label": "ballerina/time:Civil",
+        "description": "Time within a region relative to a time scale stipulated by civilian authorities.\n"
+      },
+      "codedata": {
+        "node": "RECORD",
+        "lineRange": {
+          "fileName": "time_types.bal",
+          "startLine": {
+            "line": 167,
+            "offset": 12
+          },
+          "endLine": {
+            "line": 167,
+            "offset": 17
+          }
+        }
+      },
+      "properties": {
+        "name": {
+          "metadata": {
+            "label": "Type name",
+            "description": "Unique name to identify the type"
+          },
+          "types": [
+            {
+              "fieldType": "IDENTIFIER",
+              "selected": true
+            }
+          ],
+          "value": "ballerina/time:Civil",
+          "optional": false,
+          "editable": false,
+          "advanced": false,
+          "hidden": false
+        },
+        "isPublic": {
+          "metadata": {
+            "label": "public",
+            "description": "Make visible across the project"
+          },
+          "types": [
+            {
+              "fieldType": "FLAG",
+              "selected": true
+            }
+          ],
+          "value": "true",
+          "optional": true,
+          "editable": true,
+          "advanced": false,
+          "hidden": false
+        },
+        "description": {
+          "metadata": {
+            "label": "Type description",
+            "description": "Detailed description about the type"
+          },
+          "types": [
+            {
+              "fieldType": "TEXT",
+              "selected": true
+            }
+          ],
+          "value": "Time within a region relative to a time scale stipulated by civilian authorities.\n",
+          "optional": false,
+          "editable": true,
+          "advanced": false,
+          "hidden": false
+        },
+        "isArray": {
+          "metadata": {
+            "label": "Is array type",
+            "description": "Is this type an array or list value"
+          },
+          "types": [
+            {
+              "fieldType": "FLAG",
+              "selected": true
+            }
+          ],
+          "value": "false",
+          "optional": true,
+          "editable": true,
+          "advanced": true,
+          "hidden": false
+        },
+        "arraySize": {
+          "metadata": {
+            "label": "Size of the array",
+            "description": "Array dimensions"
+          },
+          "types": [
+            {
+              "fieldType": "TEXT",
+              "selected": true
+            }
+          ],
+          "value": "",
+          "optional": true,
+          "editable": true,
+          "advanced": true,
+          "hidden": false
+        }
+      },
+      "members": [
+        {
+          "kind": "FIELD",
+          "refs": [
+            "ballerina/time:ZoneOffset"
+          ],
+          "type": "time:ZoneOffset",
+          "typeName": "time:ZoneOffset",
+          "name": "utcOffset",
+          "optional": true,
+          "readonly": false,
+          "isGraphqlId": false,
+          "docs": "",
+          "annotationAttachments": [],
+          "imports": {
+            "time": "ballerina/time:2.8.3"
+          },
+          "selected": false
+        },
+        {
+          "kind": "FIELD",
+          "refs": [],
+          "type": "string",
+          "typeName": "string",
+          "name": "timeAbbrev",
+          "optional": true,
+          "readonly": false,
+          "isGraphqlId": false,
+          "docs": "",
+          "annotationAttachments": [],
+          "selected": false
+        },
+        {
+          "kind": "FIELD",
+          "refs": [
+            "ballerina/time:ZERO_OR_ONE"
+          ],
+          "type": "time:ZERO_OR_ONE",
+          "typeName": "time:ZERO_OR_ONE",
+          "name": "which",
+          "optional": true,
+          "readonly": false,
+          "isGraphqlId": false,
+          "docs": "",
+          "annotationAttachments": [],
+          "imports": {
+            "time": "ballerina/time:2.8.3"
+          },
+          "selected": false
+        },
+        {
+          "kind": "FIELD",
+          "refs": [
+            "ballerina/time:DayOfWeek"
+          ],
+          "type": "time:DayOfWeek",
+          "typeName": "time:DayOfWeek",
+          "name": "dayOfWeek",
+          "optional": true,
+          "readonly": false,
+          "isGraphqlId": false,
+          "docs": "",
+          "annotationAttachments": [],
+          "imports": {
+            "time": "ballerina/time:2.8.3"
+          },
+          "selected": false
+        },
+        {
+          "kind": "FIELD",
+          "refs": [],
+          "type": "int",
+          "typeName": "int",
+          "name": "year",
+          "optional": false,
+          "readonly": false,
+          "isGraphqlId": false,
+          "docs": "",
+          "annotationAttachments": [],
+          "selected": false
+        },
+        {
+          "kind": "FIELD",
+          "refs": [],
+          "type": "int",
+          "typeName": "int",
+          "name": "month",
+          "optional": false,
+          "readonly": false,
+          "isGraphqlId": false,
+          "docs": "",
+          "annotationAttachments": [],
+          "selected": false
+        },
+        {
+          "kind": "FIELD",
+          "refs": [],
+          "type": "int",
+          "typeName": "int",
+          "name": "day",
+          "optional": false,
+          "readonly": false,
+          "isGraphqlId": false,
+          "docs": "",
+          "annotationAttachments": [],
+          "selected": false
+        },
+        {
+          "kind": "FIELD",
+          "refs": [],
+          "type": "int",
+          "typeName": "int",
+          "name": "hour",
+          "optional": false,
+          "readonly": false,
+          "isGraphqlId": false,
+          "docs": "",
+          "annotationAttachments": [],
+          "selected": false
+        },
+        {
+          "kind": "FIELD",
+          "refs": [],
+          "type": "int",
+          "typeName": "int",
+          "name": "minute",
+          "optional": false,
+          "readonly": false,
+          "isGraphqlId": false,
+          "docs": "",
+          "annotationAttachments": [],
+          "selected": false
+        },
+        {
+          "kind": "FIELD",
+          "refs": [
+            "ballerina/time:Seconds"
+          ],
+          "type": "time:Seconds",
+          "typeName": "time:Seconds",
+          "name": "second",
+          "optional": true,
+          "readonly": false,
+          "isGraphqlId": false,
+          "docs": "",
+          "annotationAttachments": [],
+          "imports": {
+            "time": "ballerina/time:2.8.3"
+          },
+          "selected": false
+        }
+      ],
+      "includes": [
+        "time:DateFields",
+        "time:TimeOfDayFields"
+      ],
+      "annotationAttachments": [],
+      "allowAdditionalFields": true
+    },
+    {
+      "name": "Schedule",
+      "editable": true,
+      "metadata": {
+        "label": "Schedule",
+        "description": "Record with readonly intersections inside an array and an optional field"
+      },
+      "codedata": {
+        "node": "RECORD",
+        "lineRange": {
+          "fileName": "types.bal",
+          "startLine": {
+            "line": 9,
+            "offset": 5
+          },
+          "endLine": {
+            "line": 9,
+            "offset": 13
+          }
+        }
+      },
+      "properties": {
+        "name": {
+          "metadata": {
+            "label": "Type name",
+            "description": "Unique name to identify the type"
+          },
+          "types": [
+            {
+              "fieldType": "IDENTIFIER",
+              "selected": true
+            }
+          ],
+          "value": "Schedule",
+          "optional": false,
+          "editable": false,
+          "advanced": false,
+          "hidden": false
+        },
+        "isPublic": {
+          "metadata": {
+            "label": "public",
+            "description": "Make visible across the project"
+          },
+          "types": [
+            {
+              "fieldType": "FLAG",
+              "selected": true
+            }
+          ],
+          "value": "false",
+          "optional": true,
+          "editable": true,
+          "advanced": false,
+          "hidden": false
+        },
+        "description": {
+          "metadata": {
+            "label": "Type description",
+            "description": "Detailed description about the type"
+          },
+          "types": [
+            {
+              "fieldType": "TEXT",
+              "selected": true
+            }
+          ],
+          "value": "Record with readonly intersections inside an array and an optional field",
+          "optional": false,
+          "editable": true,
+          "advanced": false,
+          "hidden": false
+        },
+        "isArray": {
+          "metadata": {
+            "label": "Is array type",
+            "description": "Is this type an array or list value"
+          },
+          "types": [
+            {
+              "fieldType": "FLAG",
+              "selected": true
+            }
+          ],
+          "value": "false",
+          "optional": true,
+          "editable": true,
+          "advanced": true,
+          "hidden": false
+        },
+        "arraySize": {
+          "metadata": {
+            "label": "Size of the array",
+            "description": "Array dimensions"
+          },
+          "types": [
+            {
+              "fieldType": "TEXT",
+              "selected": true
+            }
+          ],
+          "value": "",
+          "optional": true,
+          "editable": true,
+          "advanced": true,
+          "hidden": false
+        }
+      },
+      "members": [
+        {
+          "kind": "FIELD",
+          "refs": [],
+          "type": {
+            "editable": false,
+            "codedata": {
+              "node": "ARRAY"
+            },
+            "properties": {
+              "isArray": {
+                "metadata": {
+                  "label": "Is array type",
+                  "description": "Is this type an array or list value"
+                },
+                "types": [
+                  {
+                    "fieldType": "FLAG",
+                    "selected": true
+                  }
+                ],
+                "value": "true",
+                "optional": true,
+                "editable": true,
+                "advanced": true,
+                "hidden": false
+              },
+              "arraySize": {
+                "metadata": {
+                  "label": "Size of the array",
+                  "description": "Array dimensions"
+                },
+                "types": [
+                  {
+                    "fieldType": "TEXT",
+                    "selected": true
+                  }
+                ],
+                "value": "",
+                "optional": true,
+                "editable": true,
+                "advanced": true,
+                "hidden": false
+              }
+            },
+            "members": [
+              {
+                "kind": "TYPE",
+                "refs": [],
+                "type": {
+                  "editable": false,
+                  "codedata": {
+                    "node": "INTERSECTION"
+                  },
+                  "properties": {
+                    "isArray": {
+                      "metadata": {
+                        "label": "Is array type",
+                        "description": "Is this type an array or list value"
+                      },
+                      "types": [
+                        {
+                          "fieldType": "FLAG",
+                          "selected": true
+                        }
+                      ],
+                      "value": "false",
+                      "optional": true,
+                      "editable": true,
+                      "advanced": true,
+                      "hidden": false
+                    },
+                    "arraySize": {
+                      "metadata": {
+                        "label": "Size of the array",
+                        "description": "Array dimensions"
+                      },
+                      "types": [
+                        {
+                          "fieldType": "TEXT",
+                          "selected": true
+                        }
+                      ],
+                      "value": "",
+                      "optional": false,
+                      "editable": false,
+                      "advanced": false,
+                      "hidden": false
+                    }
+                  },
+                  "members": [
+                    {
+                      "kind": "TYPE",
+                      "refs": [
+                        "ballerina/time:Civil"
+                      ],
+                      "type": "time:Civil",
+                      "typeName": "time:Civil",
+                      "name": "time:Civil",
+                      "optional": false,
+                      "readonly": false,
+                      "isGraphqlId": false,
+                      "imports": {
+                        "time": "ballerina/time:2.8.3"
+                      },
+                      "selected": false
+                    },
+                    {
+                      "kind": "TYPE",
+                      "refs": [],
+                      "type": "readonly",
+                      "typeName": "readonly",
+                      "name": "readonly",
+                      "optional": false,
+                      "readonly": false,
+                      "isGraphqlId": false,
+                      "selected": false
+                    }
+                  ],
+                  "allowAdditionalFields": false
+                },
+                "typeName": "time:Civil & readonly",
+                "name": "time:Civil & readonly",
+                "optional": false,
+                "readonly": false,
+                "isGraphqlId": false,
+                "imports": {
+                  "time": "ballerina/time:2.8.3"
+                },
+                "selected": false
+              }
+            ],
+            "allowAdditionalFields": false
+          },
+          "typeName": "(time:Civil & readonly)[]",
+          "name": "history",
+          "optional": false,
+          "readonly": false,
+          "isGraphqlId": false,
+          "docs": "",
+          "annotationAttachments": [],
+          "imports": {
+            "time": "ballerina/time:2.8.3"
+          },
+          "selected": false
+        },
+        {
+          "kind": "FIELD",
+          "refs": [],
+          "type": {
+            "editable": false,
+            "codedata": {
+              "node": "UNION"
+            },
+            "properties": {
+              "isArray": {
+                "metadata": {
+                  "label": "Is array type",
+                  "description": "Is this type an array or list value"
+                },
+                "types": [
+                  {
+                    "fieldType": "FLAG",
+                    "selected": true
+                  }
+                ],
+                "value": "false",
+                "optional": true,
+                "editable": true,
+                "advanced": true,
+                "hidden": false
+              },
+              "arraySize": {
+                "metadata": {
+                  "label": "Size of the array",
+                  "description": "Array dimensions"
+                },
+                "types": [
+                  {
+                    "fieldType": "TEXT",
+                    "selected": true
+                  }
+                ],
+                "value": "",
+                "optional": false,
+                "editable": false,
+                "advanced": false,
+                "hidden": false
+              }
+            },
+            "members": [
+              {
+                "kind": "TYPE",
+                "refs": [],
+                "type": {
+                  "editable": false,
+                  "codedata": {
+                    "node": "INTERSECTION"
+                  },
+                  "properties": {
+                    "isArray": {
+                      "metadata": {
+                        "label": "Is array type",
+                        "description": "Is this type an array or list value"
+                      },
+                      "types": [
+                        {
+                          "fieldType": "FLAG",
+                          "selected": true
+                        }
+                      ],
+                      "value": "false",
+                      "optional": true,
+                      "editable": true,
+                      "advanced": true,
+                      "hidden": false
+                    },
+                    "arraySize": {
+                      "metadata": {
+                        "label": "Size of the array",
+                        "description": "Array dimensions"
+                      },
+                      "types": [
+                        {
+                          "fieldType": "TEXT",
+                          "selected": true
+                        }
+                      ],
+                      "value": "",
+                      "optional": false,
+                      "editable": false,
+                      "advanced": false,
+                      "hidden": false
+                    }
+                  },
+                  "members": [
+                    {
+                      "kind": "TYPE",
+                      "refs": [
+                        "ballerina/time:TimeOfDay"
+                      ],
+                      "type": "time:TimeOfDay",
+                      "typeName": "time:TimeOfDay",
+                      "name": "time:TimeOfDay",
+                      "optional": false,
+                      "readonly": false,
+                      "isGraphqlId": false,
+                      "imports": {
+                        "time": "ballerina/time:2.8.3"
+                      },
+                      "selected": false
+                    },
+                    {
+                      "kind": "TYPE",
+                      "refs": [],
+                      "type": "readonly",
+                      "typeName": "readonly",
+                      "name": "readonly",
+                      "optional": false,
+                      "readonly": false,
+                      "isGraphqlId": false,
+                      "selected": false
+                    }
+                  ],
+                  "allowAdditionalFields": false
+                },
+                "typeName": "time:TimeOfDay & readonly",
+                "name": "time:TimeOfDay & readonly",
+                "optional": false,
+                "readonly": false,
+                "isGraphqlId": false,
+                "imports": {
+                  "time": "ballerina/time:2.8.3"
+                },
+                "selected": false
+              },
+              {
+                "kind": "TYPE",
+                "refs": [],
+                "type": "()",
+                "typeName": "()",
+                "name": "()",
+                "optional": false,
+                "readonly": false,
+                "isGraphqlId": false,
+                "selected": false
+              }
+            ],
+            "allowAdditionalFields": false
+          },
+          "typeName": "(time:TimeOfDay & readonly)?",
+          "name": "alarm",
+          "optional": false,
+          "readonly": false,
+          "isGraphqlId": false,
+          "docs": "",
+          "annotationAttachments": [],
+          "imports": {
+            "time": "ballerina/time:2.8.3"
+          },
+          "selected": false
+        }
+      ],
+      "includes": [],
+      "annotationAttachments": [],
+      "allowAdditionalFields": false
+    },
+    {
       "name": "Event",
       "editable": true,
       "metadata": {
@@ -364,6 +1046,224 @@
       "includes": [],
       "annotationAttachments": [],
       "allowAdditionalFields": false
+    },
+    {
+      "name": "ballerina/time:TimeOfDay",
+      "editable": false,
+      "metadata": {
+        "label": "ballerina/time:TimeOfDay",
+        "description": "Time within a day.\nNot always as a duration from midnight.\n"
+      },
+      "codedata": {
+        "node": "RECORD",
+        "lineRange": {
+          "fileName": "time_types.bal",
+          "startLine": {
+            "line": 118,
+            "offset": 12
+          },
+          "endLine": {
+            "line": 118,
+            "offset": 21
+          }
+        }
+      },
+      "properties": {
+        "name": {
+          "metadata": {
+            "label": "Type name",
+            "description": "Unique name to identify the type"
+          },
+          "types": [
+            {
+              "fieldType": "IDENTIFIER",
+              "selected": true
+            }
+          ],
+          "value": "ballerina/time:TimeOfDay",
+          "optional": false,
+          "editable": false,
+          "advanced": false,
+          "hidden": false
+        },
+        "isPublic": {
+          "metadata": {
+            "label": "public",
+            "description": "Make visible across the project"
+          },
+          "types": [
+            {
+              "fieldType": "FLAG",
+              "selected": true
+            }
+          ],
+          "value": "true",
+          "optional": true,
+          "editable": true,
+          "advanced": false,
+          "hidden": false
+        },
+        "description": {
+          "metadata": {
+            "label": "Type description",
+            "description": "Detailed description about the type"
+          },
+          "types": [
+            {
+              "fieldType": "TEXT",
+              "selected": true
+            }
+          ],
+          "value": "Time within a day.\nNot always as a duration from midnight.\n",
+          "optional": false,
+          "editable": true,
+          "advanced": false,
+          "hidden": false
+        },
+        "isArray": {
+          "metadata": {
+            "label": "Is array type",
+            "description": "Is this type an array or list value"
+          },
+          "types": [
+            {
+              "fieldType": "FLAG",
+              "selected": true
+            }
+          ],
+          "value": "false",
+          "optional": true,
+          "editable": true,
+          "advanced": true,
+          "hidden": false
+        },
+        "arraySize": {
+          "metadata": {
+            "label": "Size of the array",
+            "description": "Array dimensions"
+          },
+          "types": [
+            {
+              "fieldType": "TEXT",
+              "selected": true
+            }
+          ],
+          "value": "",
+          "optional": true,
+          "editable": true,
+          "advanced": true,
+          "hidden": false
+        }
+      },
+      "members": [
+        {
+          "kind": "FIELD",
+          "refs": [
+            "ballerina/time:ZoneOffset"
+          ],
+          "type": "time:ZoneOffset",
+          "typeName": "time:ZoneOffset",
+          "name": "utcOffset",
+          "optional": true,
+          "readonly": false,
+          "isGraphqlId": false,
+          "docs": "",
+          "annotationAttachments": [],
+          "imports": {
+            "time": "ballerina/time:2.8.3"
+          },
+          "selected": false
+        },
+        {
+          "kind": "FIELD",
+          "refs": [],
+          "type": "int",
+          "typeName": "int",
+          "name": "year",
+          "optional": true,
+          "readonly": false,
+          "isGraphqlId": false,
+          "docs": "",
+          "annotationAttachments": [],
+          "selected": false
+        },
+        {
+          "kind": "FIELD",
+          "refs": [],
+          "type": "int",
+          "typeName": "int",
+          "name": "month",
+          "optional": true,
+          "readonly": false,
+          "isGraphqlId": false,
+          "docs": "",
+          "annotationAttachments": [],
+          "selected": false
+        },
+        {
+          "kind": "FIELD",
+          "refs": [],
+          "type": "int",
+          "typeName": "int",
+          "name": "day",
+          "optional": true,
+          "readonly": false,
+          "isGraphqlId": false,
+          "docs": "",
+          "annotationAttachments": [],
+          "selected": false
+        },
+        {
+          "kind": "FIELD",
+          "refs": [],
+          "type": "int",
+          "typeName": "int",
+          "name": "hour",
+          "optional": false,
+          "readonly": false,
+          "isGraphqlId": false,
+          "docs": "",
+          "annotationAttachments": [],
+          "selected": false
+        },
+        {
+          "kind": "FIELD",
+          "refs": [],
+          "type": "int",
+          "typeName": "int",
+          "name": "minute",
+          "optional": false,
+          "readonly": false,
+          "isGraphqlId": false,
+          "docs": "",
+          "annotationAttachments": [],
+          "selected": false
+        },
+        {
+          "kind": "FIELD",
+          "refs": [
+            "ballerina/time:Seconds"
+          ],
+          "type": "time:Seconds",
+          "typeName": "time:Seconds",
+          "name": "second",
+          "optional": true,
+          "readonly": false,
+          "isGraphqlId": false,
+          "docs": "",
+          "annotationAttachments": [],
+          "imports": {
+            "time": "ballerina/time:2.8.3"
+          },
+          "selected": false
+        }
+      ],
+      "includes": [
+        "time:OptionalDateFields",
+        "time:TimeOfDayFields"
+      ],
+      "annotationAttachments": [],
+      "allowAdditionalFields": true
     }
   ]
 }
