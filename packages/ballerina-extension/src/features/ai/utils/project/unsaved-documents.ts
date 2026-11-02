@@ -16,6 +16,7 @@
  * under the License.
  */
 
+import * as fs from 'fs';
 import { TextDocument, workspace } from 'vscode';
 // The core barrel can't be loaded under jest; checkpointUtils imports the same way.
 import { isPathInside, isSamePath } from '@wso2/ballerina-core/lib/utils/path-utils';
@@ -23,8 +24,9 @@ import { isPathInside, isSamePath } from '@wso2/ballerina-core/lib/utils/path-ut
 export const unsavedChangesError = (filePath: string) =>
     `'${filePath}' has unsaved changes in the editor that could not be saved. Ask the user to save or discard them, then retry.`;
 
+/** A tab left open on a deleted file (e.g. by Revert) is not a project file: saving would bring it back. */
 function isUnsavedFile(document: TextDocument): boolean {
-    return document.uri.scheme === 'file' && document.isDirty;
+    return document.uri.scheme === 'file' && document.isDirty && fs.existsSync(document.uri.fsPath);
 }
 
 /** `save()` also returns false when the document was saved in the meantime, which is not a failure. */

@@ -16,12 +16,22 @@
  * under the License.
  */
 
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
 import { workspace } from "./__mocks__/vscode";
-import { saveIfUnsaved, saveUnsavedDocuments } from "../features/ai/utils/project/unsaved-documents";
+import { hasUnsavedChanges, saveIfUnsaved, saveUnsavedDocuments } from "../features/ai/utils/project/unsaved-documents";
 
 type MockDocument = (typeof workspace.textDocuments)[number] & { save: jest.Mock };
 
-function documentFor(fsPath: string, { isDirty = true, scheme = "file", saves = true } = {}): MockDocument {
+let ws: string;
+const at = (relative: string) => path.join(ws, relative);
+
+function documentFor(fsPath: string, { isDirty = true, scheme = "file", saves = true, onDisk = true } = {}): MockDocument {
+    if (onDisk) {
+        fs.mkdirSync(path.dirname(fsPath), { recursive: true });
+        fs.writeFileSync(fsPath, "");
+    }
     const document = {
         uri: { fsPath, scheme, toString: () => `${scheme}://${fsPath}` },
         isDirty,
@@ -38,19 +48,25 @@ function documentFor(fsPath: string, { isDirty = true, scheme = "file", saves = 
 
 describe("saveUnsavedDocuments", () => {
     beforeEach(() => {
+        ws = fs.mkdtempSync(path.join(os.tmpdir(), "unsaved-docs-"));
         workspace.textDocuments = [];
     });
 
+    afterEach(() => {
+        fs.rmSync(ws, { recursive: true, force: true });
+        fs.rmSync(`${ws}-other`, { recursive: true, force: true });
+    });
+
     it("saves only unsaved files inside the project", async () => {
-        const inside = documentFor("/ws/main.bal");
-        const nested = documentFor("/ws/modules/db/db.bal");
-        const clean = documentFor("/ws/types.bal", { isDirty: false });
-        const sibling = documentFor("/ws-other/main.bal");
-        const untitled = documentFor("/ws/Untitled-1", { scheme: "untitled" });
-        const gitView = documentFor("/ws/main.bal", { scheme: "git" });
+        const inside = documentFor(at("main.bal"));
+        const nested = documentFor(at("modules/db/db.bal"));
+        const clean = documentFor(at("types.bal"), { isDirty: false });
+        const sibling = documentFor(path.join(path.dirname(ws), `${path.basename(ws)}-other`, "main.bal"));
+        const untitled = documentFor(at("Untitled-1"), { scheme: "untitled" });
+        const gitView = documentFor(at("main.bal"), { scheme: "git" });
         workspace.textDocuments = [inside, nested, clean, sibling, untitled, gitView];
 
-        expect(await saveUnsavedDocuments("/ws")).toEqual([]);
+        expect(await saveUnsavedDocuments(ws)).toEqual([]);
 
         expect(inside.save).toHaveBeenCalled();
         expect(nested.save).toHaveBeenCalled();
@@ -60,61 +76,85 @@ describe("saveUnsavedDocuments", () => {
     });
 
     it("returns the files that could not be saved", async () => {
-        workspace.textDocuments = [documentFor("/ws/main.bal", { saves: false }), documentFor("/ws/types.bal")];
+        workspace.textDocuments = [documentFor(at("main.bal"), { saves: false }), documentFor(at("types.bal"))];
 
-        expect(await saveUnsavedDocuments("/ws")).toEqual(["/ws/main.bal"]);
+        expect(await saveUnsavedDocuments(ws)).toEqual([at("main.bal")]);
     });
 
     it("treats a document saved in the meantime as saved", async () => {
-        const document = documentFor("/ws/main.bal");
+        const document = documentFor(at("main.bal"));
         document.save.mockImplementation(async () => {
             document.isDirty = false;
             return false;
         });
         workspace.textDocuments = [document];
 
-        expect(await saveUnsavedDocuments("/ws")).toEqual([]);
+        expect(await saveUnsavedDocuments(ws)).toEqual([]);
+    });
+
+    it("leaves a tab whose file was deleted, so saving doesn't bring the file back", async () => {
+        const deleted = documentFor(at("foo.bal"), { onDisk: false });
+        workspace.textDocuments = [deleted];
+
+        expect(await saveUnsavedDocuments(ws)).toEqual([]);
+        expect(deleted.save).not.toHaveBeenCalled();
+        expect(fs.existsSync(at("foo.bal"))).toBe(false);
     });
 
     it("treats a save that throws as not saved", async () => {
-        const document = documentFor("/ws/main.bal");
+        const document = documentFor(at("main.bal"));
         document.save.mockRejectedValue(new Error("disk full"));
-        workspace.textDocuments = [document, documentFor("/ws/types.bal")];
+        workspace.textDocuments = [document, documentFor(at("types.bal"))];
 
-        expect(await saveUnsavedDocuments("/ws")).toEqual(["/ws/main.bal"]);
+        expect(await saveUnsavedDocuments(ws)).toEqual([at("main.bal")]);
     });
 });
 
 describe("saveIfUnsaved", () => {
     beforeEach(() => {
+        ws = fs.mkdtempSync(path.join(os.tmpdir(), "unsaved-docs-"));
         workspace.textDocuments = [];
     });
 
+    afterEach(() => {
+        fs.rmSync(ws, { recursive: true, force: true });
+        fs.rmSync(`${ws}-other`, { recursive: true, force: true });
+    });
+
     it("is true for a file that is not open", async () => {
-        expect(await saveIfUnsaved("/ws/main.bal")).toBe(true);
+        expect(await saveIfUnsaved(at("main.bal"))).toBe(true);
     });
 
     it("is true for an open file without unsaved changes", async () => {
-        const document = documentFor("/ws/main.bal", { isDirty: false });
+        const document = documentFor(at("main.bal"), { isDirty: false });
         workspace.textDocuments = [document];
 
-        expect(await saveIfUnsaved("/ws/main.bal")).toBe(true);
+        expect(await saveIfUnsaved(at("main.bal"))).toBe(true);
         expect(document.save).not.toHaveBeenCalled();
     });
 
     it("saves the matching file only", async () => {
-        const target = documentFor("/ws/main.bal");
-        const other = documentFor("/ws/types.bal");
-        workspace.textDocuments = [documentFor("/ws/main.bal", { scheme: "git" }), other, target];
+        const target = documentFor(at("main.bal"));
+        const other = documentFor(at("types.bal"));
+        workspace.textDocuments = [documentFor(at("main.bal"), { scheme: "git" }), other, target];
 
-        expect(await saveIfUnsaved("/ws/main.bal")).toBe(true);
+        expect(await saveIfUnsaved(at("main.bal"))).toBe(true);
         expect(target.save).toHaveBeenCalled();
         expect(other.save).not.toHaveBeenCalled();
     });
 
-    it("is false when the file stays unsaved", async () => {
-        workspace.textDocuments = [documentFor("/ws/main.bal", { saves: false })];
+    it("ignores a tab whose file was deleted", async () => {
+        const deleted = documentFor(at("foo.bal"), { onDisk: false });
+        workspace.textDocuments = [deleted];
 
-        expect(await saveIfUnsaved("/ws/main.bal")).toBe(false);
+        expect(hasUnsavedChanges(at("foo.bal"))).toBe(false);
+        expect(await saveIfUnsaved(at("foo.bal"))).toBe(true);
+        expect(deleted.save).not.toHaveBeenCalled();
+    });
+
+    it("is false when the file stays unsaved", async () => {
+        workspace.textDocuments = [documentFor(at("main.bal"), { saves: false })];
+
+        expect(await saveIfUnsaved(at("main.bal"))).toBe(false);
     });
 });
