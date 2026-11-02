@@ -11,7 +11,7 @@ type Item record {|
 # Record with a readonly field of an imported type
 type Event record {|
     string id;
-    readonly time:Utc createdAt;
+    readonly time:Date createdAt;
 |};
 
 # Record with a readonly intersection field without the readonly qualifier

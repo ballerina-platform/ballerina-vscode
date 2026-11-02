@@ -130,10 +130,10 @@
       {
         "kind": "FIELD",
         "refs": [
-          "ballerina/time:Utc"
+          "ballerina/time:Date"
         ],
-        "type": "time:Utc",
-        "typeName": "time:Utc",
+        "type": "time:Date",
+        "typeName": "time:Date",
         "name": "createdAt",
         "optional": false,
         "readonly": true,
@@ -152,23 +152,23 @@
   },
   "refs": [
     {
-      "name": "ballerina/time:Utc",
+      "name": "ballerina/time:Date",
       "editable": false,
       "metadata": {
-        "label": "ballerina/time:Utc",
-        "description": "Point on UTC time-scale.\nThis is represented by a tuple of length 2.\nThe tuple is an ordered type and so the values can be\ncompared using the Ballerina <, <=, >, >= operators.\nThe first member of the tuple is int representing an integral number of\nseconds from the epoch.\nEpoch is the traditional UNIX epoch of `1970-01-01T00:00:00Z`.\nThe second member of the tuple is a decimal giving the fraction of\na second.\nFor times before the epoch, n is negative and f is\nnon-negative. In other words, the UTC time represented\nis on or after the second specified by n.\nLeap seconds are handled as follows. The first member\nof the tuple ignores leap seconds: it assumes that every day\nhas 86400 seconds. The second member of the tuple is >= 0.\nand is < 1 except during positive leaps seconds in which it\nis >= 1 and < 2. So given a tuple [n,f] after the epoch,\nn / 86400 gives the day number, and (n % 86400) + f gives the\ntime in seconds since midnight UTC (for which the limit is\n86401 on day with a positive leap second)."
+        "label": "ballerina/time:Date",
+        "description": "A date in the proleptic Gregorian calendar.\n"
       },
       "codedata": {
-        "node": "TUPLE",
+        "node": "RECORD",
         "lineRange": {
           "fileName": "time_types.bal",
           "startLine": {
-            "line": 41,
+            "line": 108,
             "offset": 12
           },
           "endLine": {
-            "line": 41,
-            "offset": 15
+            "line": 108,
+            "offset": 16
           }
         }
       },
@@ -184,7 +184,7 @@
               "selected": true
             }
           ],
-          "value": "ballerina/time:Utc",
+          "value": "ballerina/time:Date",
           "optional": false,
           "editable": false,
           "advanced": false,
@@ -218,25 +218,8 @@
               "selected": true
             }
           ],
-          "value": "Point on UTC time-scale.\nThis is represented by a tuple of length 2.\nThe tuple is an ordered type and so the values can be\ncompared using the Ballerina <, <=, >, >= operators.\nThe first member of the tuple is int representing an integral number of\nseconds from the epoch.\nEpoch is the traditional UNIX epoch of `1970-01-01T00:00:00Z`.\nThe second member of the tuple is a decimal giving the fraction of\na second.\nFor times before the epoch, n is negative and f is\nnon-negative. In other words, the UTC time represented\nis on or after the second specified by n.\nLeap seconds are handled as follows. The first member\nof the tuple ignores leap seconds: it assumes that every day\nhas 86400 seconds. The second member of the tuple is >= 0.\nand is < 1 except during positive leaps seconds in which it\nis >= 1 and < 2. So given a tuple [n,f] after the epoch,\nn / 86400 gives the day number, and (n % 86400) + f gives the\ntime in seconds since midnight UTC (for which the limit is\n86401 on day with a positive leap second).",
+          "value": "A date in the proleptic Gregorian calendar.\n",
           "optional": false,
-          "editable": true,
-          "advanced": false,
-          "hidden": false
-        },
-        "isReadOnly": {
-          "metadata": {
-            "label": "readonly",
-            "description": "Is this readonly"
-          },
-          "types": [
-            {
-              "fieldType": "FLAG",
-              "selected": true
-            }
-          ],
-          "value": "true",
-          "optional": true,
           "editable": true,
           "advanced": false,
           "hidden": false
@@ -270,38 +253,121 @@
             }
           ],
           "value": "",
-          "optional": false,
-          "editable": false,
-          "advanced": false,
+          "optional": true,
+          "editable": true,
+          "advanced": true,
           "hidden": false
         }
       },
       "members": [
         {
-          "kind": "TYPE",
-          "refs": [],
-          "type": "int",
-          "typeName": "int",
-          "name": "int",
-          "optional": false,
+          "kind": "FIELD",
+          "refs": [
+            "ballerina/time:ZoneOffset"
+          ],
+          "type": "time:ZoneOffset",
+          "typeName": "time:ZoneOffset",
+          "name": "utcOffset",
+          "optional": true,
           "readonly": false,
           "isGraphqlId": false,
+          "docs": "",
+          "annotationAttachments": [],
+          "imports": {
+            "time": "ballerina/time:2.8.3"
+          },
           "selected": false
         },
         {
-          "kind": "TYPE",
+          "kind": "FIELD",
           "refs": [],
-          "type": "decimal",
-          "typeName": "decimal",
-          "name": "decimal",
+          "type": "int",
+          "typeName": "int",
+          "name": "year",
           "optional": false,
           "readonly": false,
           "isGraphqlId": false,
+          "docs": "",
+          "annotationAttachments": [],
+          "selected": false
+        },
+        {
+          "kind": "FIELD",
+          "refs": [],
+          "type": "int",
+          "typeName": "int",
+          "name": "month",
+          "optional": false,
+          "readonly": false,
+          "isGraphqlId": false,
+          "docs": "",
+          "annotationAttachments": [],
+          "selected": false
+        },
+        {
+          "kind": "FIELD",
+          "refs": [],
+          "type": "int",
+          "typeName": "int",
+          "name": "day",
+          "optional": false,
+          "readonly": false,
+          "isGraphqlId": false,
+          "docs": "",
+          "annotationAttachments": [],
+          "selected": false
+        },
+        {
+          "kind": "FIELD",
+          "refs": [],
+          "type": "int",
+          "typeName": "int",
+          "name": "hour",
+          "optional": true,
+          "readonly": false,
+          "isGraphqlId": false,
+          "docs": "",
+          "annotationAttachments": [],
+          "selected": false
+        },
+        {
+          "kind": "FIELD",
+          "refs": [],
+          "type": "int",
+          "typeName": "int",
+          "name": "minute",
+          "optional": true,
+          "readonly": false,
+          "isGraphqlId": false,
+          "docs": "",
+          "annotationAttachments": [],
+          "selected": false
+        },
+        {
+          "kind": "FIELD",
+          "refs": [
+            "ballerina/time:Seconds"
+          ],
+          "type": "time:Seconds",
+          "typeName": "time:Seconds",
+          "name": "second",
+          "optional": true,
+          "readonly": false,
+          "isGraphqlId": false,
+          "docs": "",
+          "annotationAttachments": [],
+          "imports": {
+            "time": "ballerina/time:2.8.3"
+          },
           "selected": false
         }
       ],
+      "includes": [
+        "time:DateFields",
+        "time:OptionalTimeOfDayFields"
+      ],
       "annotationAttachments": [],
-      "allowAdditionalFields": false
+      "allowAdditionalFields": true
     }
   ]
 }
