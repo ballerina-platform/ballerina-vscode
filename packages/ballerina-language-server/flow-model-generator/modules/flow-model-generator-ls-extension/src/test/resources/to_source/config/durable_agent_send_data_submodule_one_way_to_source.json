@@ -1,6 +1,6 @@
 {
   "source": "workflow_submodule/modules/ops/flows.bal",
-  "description": "Send Agent Data Event in a non-default module binds the correlation token on a channel that declares no response",
+  "description": "Send Agent Data Event in a non-default module discards the correlation token on a channel that declares no response",
   "diagram": {
     "id": "1",
     "metadata": {
@@ -121,7 +121,7 @@
             "character": 0
           }
         },
-        "newText": "string eventToken = check opsAgent.sendData(instanceId, \"opsNotice\", \"hello\");"
+        "newText": "_ = check opsAgent.sendData(instanceId, \"opsNotice\", \"hello\");"
       }
     ]
   }

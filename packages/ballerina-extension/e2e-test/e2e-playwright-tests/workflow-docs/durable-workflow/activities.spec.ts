@@ -34,6 +34,35 @@ export default function createTests() {
             const source = projectSources();
             let view = await openArtifact(j, ui, 'OrderProcessor', 'shipmentWorkflow', 'reserveInventory');
 
+            // The source is written before the form settles; leaving while it still shows "Creating the workflow
+            // activity..." lets its late navigation replace the workflow the next step opens.
+            const waitForCreateToSettle = async (): Promise<void> => {
+                await (await ui.view()).getByText(/Creating the workflow activity/i).first()
+                    .waitFor({ state: 'hidden', timeout: 90000 }).catch(() => undefined);
+            };
+
+            // A + clicked while the diagram redraws opens nothing or leaves the previous panel on top, which reads as
+            // "no Workflow group"; close what is open and click again until the node palette shows.
+            const openCallActivityPalette = async (): Promise<void> => {
+                for (let attempt = 1; attempt <= 3; attempt++) {
+                    const close = (await ui.view()).getByTestId('close-panel-btn').filter({ visible: true }).first();
+                    for (let i = 0; i < 3 && await close.isVisible().catch(() => false); i++) {
+                        await close.click({ force: true, timeout: 3000 }).catch(() => undefined);
+                        await j.page.waitForTimeout(500);
+                    }
+                    view = await openArtifact(j, ui, 'OrderProcessor', 'shipmentWorkflow', 'reserveInventory');
+                    await ui.plusBelow(view, 'reserveInventory').catch(() => undefined);
+                    const group = view.getByTestId('side-panel').filter({ visible: true }).last()
+                        .getByText('Workflow', { exact: true }).first();
+                    const opened = await group.waitFor({ state: 'visible', timeout: 15000 }).then(() => true, () => false);
+                    if (opened || attempt === 3) {
+                        break;
+                    }
+                    console.log(`  ℹ️  the + below reserveInventory did not open the node palette (attempt ${attempt}); retrying`);
+                }
+                await ui.palette(['Workflow', 'Steps', 'Call Activity']);
+            };
+
             await j.step('scratch', 'To create an activity, click **+** on **Workflow Activities** in the left sidebar. The **Create Activity** form: **Activity Name**, **Description**, **Parameters**, **Return Type**. Click **Create**.', async () => {
                 const row = await ui.treeRow('Workflow Activities');
                 if (row) {
@@ -71,6 +100,7 @@ export default function createTests() {
                 await ui.fillAccepted(view, 'Activity Name', 'chargeCard', create);
                 await j.click(create);
                 await expect.poll(source, { timeout: 60000 }).toMatch(/function chargeCard\(/);
+                await waitForCreateToSettle();
             });
 
             await j.step('connection.1', 'On the workflow diagram, click **+**, then click **Call Activity**. The **Activities** panel opens.', async () => {
@@ -108,6 +138,7 @@ export default function createTests() {
             await j.step('connection.6', 'Click **Create Activity**.', async () => {
                 await ui.clickButton(view, 'Create Activity');
                 await expect.poll(source, { timeout: 90000 }).toMatch(/function billingGet\(/);
+                await waitForCreateToSettle();
             });
 
             await j.step('call', 'The **Call Activity** form: **Activity Arguments**, **Retry Policy**, **Result**, **Result Type**, and **Check Error** under **Advanced Configurations**.', async () => {
@@ -119,9 +150,7 @@ export default function createTests() {
                     // After the connection flow the diagram's + stops opening the node panel; reloading the workflow fixes it.
                     await ui.sidebar('orderWorkflow');
                     await ui.view(/Start/, 60000);
-                    view = await openArtifact(j, ui, 'OrderProcessor', 'shipmentWorkflow', 'reserveInventory');
-                    await ui.plusBelow(view, 'reserveInventory');
-                    await ui.palette(['Workflow', 'Steps', 'Call Activity']);
+                    await openCallActivityPalette();
                     card = (await ui.panel('chargeCard')).getByText('chargeCard', { exact: true }).first();
                 }
                 await j.click(card);

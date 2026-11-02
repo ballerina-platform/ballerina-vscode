@@ -144,11 +144,6 @@
     "1.3.0": [
       {
         "org": "ballerinax",
-        "name": "ai.devant",
-        "version": "1.0.0"
-      },
-      {
-        "org": "ballerinax",
         "name": "ai.openai",
         "version": "1.2.2"
       }
@@ -207,11 +202,6 @@
         "org": "ballerinax",
         "name": "ai.pinecone",
         "version": "1.1.1"
-      },
-      {
-        "org": "ballerinax",
-        "name": "ai.devant",
-        "version": "1.0.1"
       }
     ],
     "1.5.4": [
@@ -247,11 +237,6 @@
       },
       {
         "org": "ballerinax",
-        "name": "ai.devant",
-        "version": "1.0.2"
-      },
-      {
-        "org": "ballerinax",
         "name": "ai.pinecone",
         "version": "1.1.2"
       },
@@ -283,11 +268,6 @@
       {
         "org": "ballerinax",
         "name": "ai.weaviate",
-        "version": "1.0.3"
-      },
-      {
-        "org": "ballerinax",
-        "name": "ai.devant",
         "version": "1.0.3"
       },
       {
@@ -544,11 +524,6 @@
       },
       {
         "org": "ballerinax",
-        "name": "ai.devant",
-        "version": "1.0.4"
-      },
-      {
-        "org": "ballerinax",
         "name": "ai.memory.redis",
         "version": "1.0.1"
       },
@@ -665,11 +640,6 @@
       },
       {
         "org": "ballerinax",
-        "name": "ai.devant",
-        "version": "1.0.5"
-      },
-      {
-        "org": "ballerinax",
         "name": "ai.anthropic",
         "version": "1.3.5"
       },
@@ -767,9 +737,36 @@
         "org": "ballerinax",
         "name": "ai.wso2.integration",
         "version": "1.1.0"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.wso2.integration",
+        "version": "1.1.1"
       }
     ],
-    "1.16.0": []
+    "1.16.0": [
+      {
+        "org": "ballerinax",
+        "name": "ai.aws.s3",
+        "version": "1.0.0"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.aws.bedrock",
+        "version": "1.0.0"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.aws.bedrock",
+        "version": "1.0.1"
+      },
+      {
+        "org": "ballerinax",
+        "name": "ai.aws.s3",
+        "version": "1.0.1"
+      }
+    ],
+    "1.16.1": []
   },
   "components": {
     "ballerina:ai:1.0.0": [
@@ -1714,6 +1711,89 @@
         "category": "VECTOR_STORE",
         "symbol": "init",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png"
+      }
+    ],
+    "ballerina:ai:1.16.1": [
+      {
+        "className": "GenericRecursiveChunker",
+        "label": "Generic Recursive Chunker",
+        "description": "Represents a Genereric document chunker.\nProvides functionality to recursively chunk a text document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.1.png",
+        "groupPath": []
+      },
+      {
+        "className": "MarkdownChunker",
+        "label": "Markdown Chunker",
+        "description": "Represents a Markdown document chunker.\nProvides functionality to recursively chunk a markdown document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.1.png",
+        "groupPath": []
+      },
+      {
+        "className": "HtmlChunker",
+        "label": "Html Chunker",
+        "description": "Represents an HTML document chunker.\nProvides functionality to recursively chunk a HTML document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+        "category": "CHUNKER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.1.png",
+        "groupPath": []
+      },
+      {
+        "className": "TextDataLoader",
+        "label": "Text Data Loader",
+        "description": "Dataloader that can be used to load supported file types as `TextDocument`s.\nCurrently only supports `pdf`, `docx`, `markdown`, `html`, and `pptx` file types.",
+        "category": "DATA_LOADER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.1.png",
+        "groupPath": []
+      },
+      {
+        "className": "Wso2EmbeddingProvider",
+        "label": "Default Embedding Provider (WSO2)",
+        "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
+        "category": "EMBEDDING_PROVIDER",
+        "symbol": "getDefaultEmbeddingProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.1.png",
+        "groupPath": []
+      },
+      {
+        "className": "Wso2ModelProvider",
+        "label": "Default Model Provider (WSO2)",
+        "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "getDefaultModelProvider",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.1.png",
+        "groupPath": []
+      },
+      {
+        "className": "VectorKnowledgeBase",
+        "label": "Vector Knowledge Base",
+        "description": "Represents a vector knowledge base for managing chunk indexing and retrieval operations.\nThe `VectorKnowledgeBase` handles converting chunks to embeddings,\nstoring them in a vector store, and enabling retrieval through a `Retriever`.",
+        "category": "KNOWLEDGE_BASE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.1.png",
+        "groupPath": []
+      },
+      {
+        "className": "InMemoryShortTermMemoryStore",
+        "label": "In Memory Short Term Memory Store",
+        "description": "Provides an in-memory chat message store.",
+        "category": "SHORT_TERM_MEMORY_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.1.png",
+        "groupPath": []
+      },
+      {
+        "className": "InMemoryVectorStore",
+        "label": "In Memory Vector Store",
+        "description": "An in-memory vector store implementation that provides simple storage for vector entries.",
+        "category": "VECTOR_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.1.png",
+        "groupPath": []
       }
     ],
     "ballerina:ai:1.2.0": [
@@ -2746,6 +2826,116 @@
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.anthropic_1.3.5.png"
       }
     ],
+    "ballerinax:ai.aws.bedrock:1.0.1": [
+      {
+        "className": "CohereEmbeddingProvider",
+        "label": "Bedrock Cohere Embedding Provider",
+        "description": "Cohere Embed text embeddings on AWS Bedrock.",
+        "category": "EMBEDDING_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.aws.bedrock_1.0.1.png",
+        "groupPath": []
+      },
+      {
+        "className": "TitanEmbeddingProvider",
+        "label": "Bedrock Titan Embedding Provider",
+        "description": "Amazon Titan text embeddings on AWS Bedrock.",
+        "category": "EMBEDDING_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.aws.bedrock_1.0.1.png",
+        "groupPath": []
+      },
+      {
+        "className": "ManagedKnowledgeBase",
+        "label": "Bedrock Managed Knowledge Base",
+        "description": "A Bedrock knowledge base whose vector store is managed by Bedrock.",
+        "category": "KNOWLEDGE_BASE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.aws.bedrock_1.0.1.png",
+        "groupPath": []
+      },
+      {
+        "className": "SelfManagedKnowledgeBase",
+        "label": "Bedrock Self-Managed Knowledge Base",
+        "description": "A Bedrock knowledge base backed by your own vector store.",
+        "category": "KNOWLEDGE_BASE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.aws.bedrock_1.0.1.png",
+        "groupPath": []
+      },
+      {
+        "className": "ConverseModelProvider",
+        "label": "Bedrock Converse Model Provider",
+        "description": "Any Bedrock model, through the Converse API on the Bedrock Runtime endpoint.\nNeeds the `bedrock:InvokeModel` IAM permission.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.aws.bedrock_1.0.1.png",
+        "groupPath": []
+      },
+      {
+        "className": "RuntimeAmazonModelProvider",
+        "label": "Bedrock Runtime Amazon Model Provider",
+        "description": "Amazon models on the Bedrock Runtime endpoint.\nNeeds the `bedrock:InvokeModel` IAM permission.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.aws.bedrock_1.0.1.png",
+        "groupPath": []
+      },
+      {
+        "className": "RuntimeAnthropicModelProvider",
+        "label": "Bedrock Runtime Anthropic Model Provider",
+        "description": "Anthropic models on the Bedrock Runtime endpoint.\nNeeds the `bedrock:InvokeModel` IAM permission.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.aws.bedrock_1.0.1.png",
+        "groupPath": []
+      },
+      {
+        "className": "RuntimeDeepSeekModelProvider",
+        "label": "Bedrock Runtime DeepSeek Model Provider",
+        "description": "DeepSeek models on the Bedrock Runtime endpoint.\nNeeds the `bedrock:InvokeModel` IAM permission.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.aws.bedrock_1.0.1.png",
+        "groupPath": []
+      },
+      {
+        "className": "RuntimeGoogleModelProvider",
+        "label": "Bedrock Runtime Google Model Provider",
+        "description": "Google models on the Bedrock Runtime endpoint.\nNeeds the `bedrock:InvokeModel` IAM permission.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.aws.bedrock_1.0.1.png",
+        "groupPath": []
+      },
+      {
+        "className": "RuntimeMistralModelProvider",
+        "label": "Bedrock Runtime Mistral Model Provider",
+        "description": "Mistral models on the Bedrock Runtime endpoint.\nNeeds the `bedrock:InvokeModel` IAM permission.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.aws.bedrock_1.0.1.png",
+        "groupPath": []
+      },
+      {
+        "className": "RuntimeOpenAIModelProvider",
+        "label": "Bedrock Runtime OpenAI Model Provider",
+        "description": "OpenAI models on the Bedrock Runtime endpoint.\nNeeds the `bedrock:InvokeModel` IAM permission.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.aws.bedrock_1.0.1.png",
+        "groupPath": []
+      },
+      {
+        "className": "RuntimeQwenModelProvider",
+        "label": "Bedrock Runtime Qwen Model Provider",
+        "description": "Qwen models on the Bedrock Runtime endpoint.\nNeeds the `bedrock:InvokeModel` IAM permission.",
+        "category": "MODEL_PROVIDER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.aws.bedrock_1.0.1.png",
+        "groupPath": []
+      }
+    ],
     "ballerinax:ai.aws.dynamodb:1.0.0": [
       {
         "className": "ShortTermMemoryStore",
@@ -2764,6 +2954,26 @@
         "category": "SHORT_TERM_MEMORY_STORE",
         "symbol": "init",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.aws.dynamodb_1.1.0.png"
+      }
+    ],
+    "ballerinax:ai.aws.s3:1.0.1": [
+      {
+        "className": "TextDataLoader",
+        "label": "AWS S3 Text Data Loader",
+        "description": "Loads text documents from AWS S3 buckets.",
+        "category": "DATA_LOADER",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.aws.s3_1.0.1.png",
+        "groupPath": []
+      },
+      {
+        "className": "VectorStore",
+        "label": "Amazon S3 Vectors Vector Store",
+        "description": "A vector store backed by an Amazon S3 Vectors index.",
+        "category": "VECTOR_STORE",
+        "symbol": "init",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.aws.s3_1.0.1.png",
+        "groupPath": []
       }
     ],
     "ballerinax:ai.azure:1.0.0": [
@@ -2974,78 +3184,6 @@
         "category": "MODEL_PROVIDER",
         "symbol": "init",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.deepseek_1.1.5.png"
-      }
-    ],
-    "ballerinax:ai.devant:1.0.0": [
-      {
-        "className": "Chunker",
-        "label": "Devant Chunker",
-        "description": "Splits documents loaded by the `devant:BinaryDataLoader` into smaller chunks \nusing the Devant AI service.",
-        "category": "CHUNKER",
-        "symbol": "init",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.devant_1.0.0.png"
-      },
-      {
-        "className": "BinaryDataLoader",
-        "label": "Devant Binary Data Loader",
-        "description": "Loads documents as `ai:BinaryDocument` instances from a specified file or directory path.\nThis loader can handle either a single file or a directory containing multiple files.\nTypically used in conjunction with `devant:Chunker` to split documents into chunks for processing.",
-        "category": "DATA_LOADER",
-        "symbol": "init",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.devant_1.0.0.png"
-      }
-    ],
-    "ballerinax:ai.devant:1.0.3": [
-      {
-        "className": "Chunker",
-        "label": "Devant Chunker",
-        "description": "Splits documents loaded by the `devant:BinaryDataLoader` into smaller chunks \nusing the Devant AI service.",
-        "category": "CHUNKER",
-        "symbol": "init",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.devant_1.0.3.png"
-      },
-      {
-        "className": "BinaryDataLoader",
-        "label": "Devant Binary Data Loader",
-        "description": "Loads documents as `ai:BinaryDocument` instances from a specified file or directory path.\nThis loader can handle either a single file or a directory containing multiple files.\nTypically used in conjunction with `devant:Chunker` to split documents into chunks for processing.",
-        "category": "DATA_LOADER",
-        "symbol": "init",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.devant_1.0.3.png"
-      }
-    ],
-    "ballerinax:ai.devant:1.0.4": [
-      {
-        "className": "Chunker",
-        "label": "Devant Chunker",
-        "description": "Splits documents loaded by the `devant:BinaryDataLoader` into smaller chunks \nusing the Devant AI service.",
-        "category": "CHUNKER",
-        "symbol": "init",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.devant_1.0.4.png"
-      },
-      {
-        "className": "BinaryDataLoader",
-        "label": "Devant Binary Data Loader",
-        "description": "Loads documents as `ai:BinaryDocument` instances from a specified file or directory path.\nThis loader can handle either a single file or a directory containing multiple files.\nTypically used in conjunction with `devant:Chunker` to split documents into chunks for processing.",
-        "category": "DATA_LOADER",
-        "symbol": "init",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.devant_1.0.4.png"
-      }
-    ],
-    "ballerinax:ai.devant:1.0.5": [
-      {
-        "className": "Chunker",
-        "label": "Devant Chunker",
-        "description": "Splits documents loaded by the `devant:BinaryDataLoader` into smaller chunks \nusing the Devant AI service.",
-        "category": "CHUNKER",
-        "symbol": "init",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.devant_1.0.5.png"
-      },
-      {
-        "className": "BinaryDataLoader",
-        "label": "Devant Binary Data Loader",
-        "description": "Loads documents as `ai:BinaryDocument` instances from a specified file or directory path.\nThis loader can handle either a single file or a directory containing multiple files.\nTypically used in conjunction with `devant:Chunker` to split documents into chunks for processing.",
-        "category": "DATA_LOADER",
-        "symbol": "init",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.devant_1.0.5.png"
       }
     ],
     "ballerinax:ai.googleapis.vertex:1.0.1": [
@@ -3788,14 +3926,15 @@
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.wso2.integration_1.0.0.png"
       }
     ],
-    "ballerinax:ai.wso2.integration:1.1.0": [
+    "ballerinax:ai.wso2.integration:1.1.1": [
       {
         "className": "CloudKnowledgeBase",
         "label": "WSO2 Cloud Knowledge Base",
         "description": "Represents a WSO2 Cloud knowledge base for retrieval.",
         "category": "KNOWLEDGE_BASE",
         "symbol": "init",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.wso2.integration_1.1.0.png"
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.wso2.integration_1.1.1.png",
+        "groupPath": []
       }
     ]
   }
