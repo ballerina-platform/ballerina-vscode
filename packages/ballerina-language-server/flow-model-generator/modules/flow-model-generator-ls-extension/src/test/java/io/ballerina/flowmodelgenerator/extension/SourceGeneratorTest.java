@@ -211,6 +211,7 @@ public class SourceGeneratorTest extends AbstractLSTest {
         }
     }
 
+    // Mirrors FormattedEdits' ordering; FormattedEditsTest pins that ordering with literal outputs.
     private static String applied(String original, List<TextEdit> edits) {
         TextDocument document = TextDocuments.from(original);
         List<TextEdit> ordered = new ArrayList<>(edits);
