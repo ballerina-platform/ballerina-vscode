@@ -94,7 +94,8 @@ public class BallerinaLanguageServer extends AbstractExtendedLanguageServer
     private final TextDocumentService textService;
     private final WorkspaceService workspaceService;
     private final NotebookDocumentService notebookService;
-    private int shutdown = 1;
+    // Read by the stdio launcher after the listener thread ends.
+    private volatile int shutdown = 1;
 
     private static final String LS_ENABLE_SEMANTIC_HIGHLIGHTING = "enableSemanticHighlighting";
 
@@ -111,6 +112,14 @@ public class BallerinaLanguageServer extends AbstractExtendedLanguageServer
 
     public ExtendedLanguageClient getClient() {
         return this.client;
+    }
+
+    /**
+     * Returns the status the process should exit with: 0 if the client sent {@code shutdown}, else 1, as the LSP
+     * specification requires for {@code exit}.
+     */
+    public int getExitStatus() {
+        return shutdown;
     }
 
     public void setEvictProjectOnLastClose(boolean enabled) {
