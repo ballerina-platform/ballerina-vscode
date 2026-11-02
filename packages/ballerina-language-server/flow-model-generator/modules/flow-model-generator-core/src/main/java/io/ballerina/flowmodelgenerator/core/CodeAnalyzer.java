@@ -3279,6 +3279,7 @@ public class CodeAnalyzer extends NodeVisitor {
                 .functionSymbol(functionSymbol)
                 .semanticModel(semanticModel)
                 .userModuleInfo(moduleInfo)
+                .workspaceManager(workspaceManager)
                 .resolvedPackage(calleePackage(functionSymbol).orElse(null));
         FunctionData functionData = functionDataBuilder.build();
 
