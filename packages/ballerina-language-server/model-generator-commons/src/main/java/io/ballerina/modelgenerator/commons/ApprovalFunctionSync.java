@@ -165,6 +165,25 @@ public final class ApprovalFunctionSync {
     }
 
     /**
+     * Returns the source text of a function's {@code requiresApproval} value as written, without the comments and
+     * whitespace around it: {@code true}, {@code fn}, {@code mod:fn} or an inline function. Lets a form that only
+     * understands some of these forms keep the others as they are.
+     *
+     * @param metadata the function's metadata
+     * @return the value's source text, or empty when the function has no {@code requiresApproval} field
+     */
+    public static Optional<String> requiresApprovalSource(Optional<MetadataNode> metadata) {
+        return requiresApprovalField(metadata)
+                .flatMap(SpecificFieldNode::valueExpr)
+                .map(ApprovalFunctionSync::sourceWithoutMinutiae);
+    }
+
+    private static String sourceWithoutMinutiae(Node node) {
+        int start = node.textRange().startOffset() - node.textRangeWithMinutiae().startOffset();
+        return node.toSourceCode().substring(start, start + node.textRange().length());
+    }
+
+    /**
      * Returns the approval function named by annotation source text, such as the annotations property of a
      * function form. The text is parsed, then read as {@link #approvalFunctionName(Optional)} does.
      *

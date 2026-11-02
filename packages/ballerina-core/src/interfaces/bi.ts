@@ -131,6 +131,8 @@ export type NodeMetadata = {
     requiresApproval?: boolean;
     // On an agent tool: the local function its requiresApproval field names
     approvalFunction?: string;
+    // On an agent tool: its requiresApproval value as written (`true`, `fn`, `mod:fn` or an inline function)
+    requiresApprovalSource?: string;
 };
 
 export type ParentMetadata = {

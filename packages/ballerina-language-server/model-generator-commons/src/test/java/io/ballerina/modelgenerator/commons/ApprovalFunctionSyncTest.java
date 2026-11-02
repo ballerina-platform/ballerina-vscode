@@ -97,6 +97,29 @@ public class ApprovalFunctionSyncTest {
         Assert.assertEquals(ApprovalFunctionSync.requiresApproval(tool.metadata()), expected);
     }
 
+    @DataProvider(name = "sources")
+    public Object[][] sources() {
+        return new Object[][]{
+                {"@ai:AgentTool {requiresApproval: true}", "true"},
+                {"@ai:AgentTool {requiresApproval: sendEmailApproval}", "sendEmailApproval"},
+                {"@ai:AgentTool {requiresApproval: rules:isHigh}", "rules:isHigh"},
+                {"@ai:AgentTool {requiresApproval: isolated function (string a, string b) returns boolean => a == b}",
+                        "isolated function (string a, string b) returns boolean => a == b"},
+                // The comments and whitespace around the value aren't part of it
+                {"@ai:AgentTool {\n    requiresApproval:  rules:isHigh // gate\n}", "rules:isHigh"},
+                {"@ai:AgentTool {\n    // requiresApproval: oldFn,\n    requiresApproval:   newFn  ,\n    auth: {}\n}",
+                        "newFn"},
+                {"@ai:AgentTool {\n    // requiresApproval: oldFn\n}", null},
+                {"@ai:AgentTool", null},
+        };
+    }
+
+    @Test(dataProvider = "sources")
+    public void testRequiresApprovalSource(String annotations, String expected) {
+        FunctionDefinitionNode tool = function(annotations + "\nisolated function tool() returns string => \"\";");
+        Assert.assertEquals(ApprovalFunctionSync.requiresApprovalSource(tool.metadata()).orElse(null), expected);
+    }
+
     private static ModulePartNode root(String source) {
         return (ModulePartNode) SyntaxTree.from(TextDocuments.from(source)).rootNode();
     }

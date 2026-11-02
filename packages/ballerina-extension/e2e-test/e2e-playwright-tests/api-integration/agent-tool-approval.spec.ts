@@ -19,7 +19,7 @@ import { test } from '@playwright/test';
 import { createArtifactAndGetWebview, domClick, initTest, logStep, page } from '../utils/helpers';
 import {
     addApprovalFunction, addToolParameter, backToAgentView, clickText, collapseWhitespace, openAddToolPanel,
-    openToolEditForm, waitForSources, webview,
+    openToolEditForm, replaceInSources, waitForSources, webview,
 } from './AgentToolApprovalUtils';
 
 // The approval function (`@ai:AgentTool { requiresApproval: <fn> }`) of a custom agent tool, managed entirely
@@ -181,6 +181,23 @@ export default function createTests() {
             }, 'tool renamed to sendMail with its approval function kept');
         });
 
+        test('Saving a tool keeps a hand-written approval predicate', async () => {
+            // The approval control shows only `true` or a local function. A value it can't show is kept as
+            // written by a save that leaves the control alone.
+            // Written as the formatter writes it, so the saved source can be matched as is.
+            const inline = 'isolated function(string to, string subject, string cc) returns boolean => cc != ""';
+            replaceInSources('requiresApproval: sendEmailApproval', `requiresApproval: ${inline}`);
+            await openToolEditForm('sendMail');
+            const frame = await webview();
+            await frame.locator('[data-testid="approval-function-attached"]').waitFor({ state: 'hidden', timeout: 15000 });
+            await frame.locator('#functionNameDescription textarea').fill('Sends an email to a recipient.');
+            await frame.getByRole('button', { name: 'Save', exact: true }).last().click();
+            await waitForSources((src) => src.includes('Sends an email to a recipient.')
+                && collapseWhitespace(src).includes(`@ai:AgentTool { requiresApproval: ${inline} }`),
+            'the inline predicate kept after a description-only save');
+            replaceInSources(`requiresApproval: ${inline}`, 'requiresApproval: sendEmailApproval');
+        });
+
         test('Turning approval off deletes the approval function', async () => {
             await openToolEditForm('sendMail');
             const frame = await webview();
@@ -221,6 +238,48 @@ export default function createTests() {
             await tool.waitFor({ state: 'detached', timeout: 120000 });
             await waitForSources((src) => !src.includes('function sendMail(') && !src.includes('sendMailApproval'),
                 'tool and its approval function deleted');
+        });
+
+        test('Adding an approval function from the Use Agent popup', async () => {
+            // The Agent Definition designer hosts the Use Agent tool form in a popup. The approval function's add
+            // form has to open inside that popup, not in a side panel underneath it.
+            logStep('Creating an agent definition');
+            let frame = await webview();
+            // From an artifact, the Artifacts crumb opens the page of artifacts to add; from the overview,
+            // Add Artifact does.
+            const crumb = frame.getByText('Artifacts', { exact: true });
+            if (await crumb.count() > 0) {
+                await crumb.last().click({ force: true });
+            } else {
+                await frame.getByRole('button', { name: /Add Artifact/i }).first().click({ force: true });
+            }
+            const agentCard = frame.locator('[data-testid="function-card-Agent"]');
+            await agentCard.waitFor({ timeout: 30000 });
+            await domClick(agentCard);
+            frame = await webview();
+            await clickText(frame, 'Create Agent Definition');
+            await frame.getByRole('textbox', { name: /^Name/ }).first().fill('Assistant');
+            await domClick(frame.getByRole('button', { name: /^Create( Agent Definition)?$/ }).last());
+            await frame.locator('vscode-button[title="Add Tool"]').first().waitFor({ timeout: 120000 });
+
+            logStep('Opening Use Agent from the agent definition');
+            await frame.locator('vscode-button[title="Add Tool"]').first().click();
+            await clickText(frame, 'Use Agent');
+            await clickText(frame, 'Generic ai:Agent');
+
+            logStep('Adding the approval function inside the popup');
+            // addApprovalFunction clicks Add for real, which fails while the popup's overlay covers the form.
+            await addApprovalFunction();
+            const attached = await frame.locator('[data-testid="approval-function-attached"]').innerText();
+            if (!attached.includes('agent1Approval')) {
+                throw new Error(`Unexpected default approval function name: ${attached}`);
+            }
+            await frame.getByRole('button', { name: 'Add Tool', exact: true }).last().click();
+            await waitForSources((src) => {
+                const flat = collapseWhitespace(src);
+                return flat.includes('@ai:AgentTool { requiresApproval: agent1Approval } isolated function agent1Tool(')
+                    && flat.includes('isolated function agent1Approval(string query) returns boolean');
+            }, 'agent1Tool gated by a generated agent1Approval');
         });
     });
 }

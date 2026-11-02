@@ -42,6 +42,10 @@ import {
     createRequiresApprovalField,
     ExistingApprovalConfig,
     existingApprovalConfig,
+    InitialApproval,
+    initialApproval,
+    approvalSourceForSave,
+    upsertApprovalField,
 } from "./formUtils";
 import { createApprovalFunctionActions } from "./approvalFunctionActions";
 import {
@@ -181,51 +185,12 @@ function toAuthSource(key: string, value: unknown, isExpression: boolean): strin
     return JSON.stringify(text);
 }
 
-// Insert, replace, or remove a scalar `key: value` field (no nested braces, unlike auth's record
-// value) inside an @ai:AgentTool annotation string. Mirrors the auth block's matchBraced-based
-// upsert in spirit, but auth's value is itself a `{ ... }` record while requiresApproval's value is
-// a bare boolean or identifier, so a brace-unaware match up to the next comma/close-brace suffices.
-// The match also stops at the end of the line, so the line break before a closing brace is kept.
-function upsertScalarAnnotationField(annotationStr: string, key: string, source: string | undefined): string {
-    const match = new RegExp(`\\b${key}\\b\\s*:\\s*[^,}\\n]+`).exec(annotationStr);
-    if (match) {
-        let s = match.index;
-        let e = match.index + match[0].length;
-        if (source) {
-            return annotationStr.slice(0, s) + `${key}: ${source}` + annotationStr.slice(e);
-        }
-        const lead = annotationStr.slice(0, s).match(/,\s*$/);
-        // `\s*` after the comma also swallows the removed field's now-blank line (its trailing
-        // newline + the next field's leading indentation), so removal doesn't leave an empty line.
-        const trail = annotationStr.slice(e).match(/^\s*,\s*/);
-        if (lead) s -= lead[0].length;
-        else if (trail) e += trail[0].length;
-        return (annotationStr.slice(0, s) + annotationStr.slice(e))
-            .replace(/@ai:AgentTool\s*\{\s*\}/, "@ai:AgentTool");
-    }
-    if (!source) {
-        return annotationStr;
-    }
-    if (annotationStr.match(/@ai:AgentTool\s*\{/)) {
-        return annotationStr.replace(/@ai:AgentTool\s*\{/, `@ai:AgentTool {\n    ${key}: ${source},`);
-    }
-    return annotationStr.replace(/@ai:AgentTool/, `@ai:AgentTool {\n    ${key}: ${source}\n}`);
-}
-
-// Compute the `requiresApproval` annotation-value source from the form's checkbox + picker state,
-// or undefined when the gate is off (signalling removal to upsertScalarAnnotationField / callers
-// that build the annotation from scratch).
-function resolveApprovalSource(data: FormValues): string | undefined {
-    const checked = data["requiresApproval"] === true || data["requiresApproval"] === "true";
-    if (!checked) return undefined;
-    const approvalFn = typeof data["approvalFunction"] === "string" ? data["approvalFunction"].trim() : "";
-    return approvalFn || "true";
-}
-
 // The @ai:AgentTool annotation of a class-method tool. Its codedata carries the approval gate as the language
-// server read it from the annotation: `requiresApproval`, and the local `approvalFunction` it names.
+// server read it from the annotation: `requiresApproval`, the local `approvalFunction` it names, and the value as
+// written (`requiresApprovalSource`).
 function findAgentToolAnnotation(model: FunctionModel): {
-    key: string; value: string; requiresApproval?: boolean; approvalFunction?: string;
+    key: string; value: string;
+    requiresApproval?: boolean; approvalFunction?: string; requiresApprovalSource?: string;
 } | undefined {
     const props = (model?.properties ?? {}) as Record<string, any>;
     for (const [key, prop] of Object.entries(props)) {
@@ -235,6 +200,7 @@ function findAgentToolAnnotation(model: FunctionModel): {
                 value: typeof prop.value === "string" ? prop.value : "",
                 requiresApproval: prop.codedata.requiresApproval,
                 approvalFunction: prop.codedata.approvalFunction,
+                requiresApprovalSource: prop.codedata.requiresApprovalSource,
             };
         }
     }
@@ -255,6 +221,9 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
     // The approval function the tool referenced when the form opened. If the save drops it (Remove, or
     // Requires Approval turned off), it is deleted once no tool uses it.
     const previousApprovalFunctionRef = useRef<string | undefined>(undefined);
+    // The approval control's state and the `requiresApproval` value as written when the form opened. A save that
+    // leaves the control as it was keeps that value, including forms the control can't show (`mod:fn`, inline).
+    const initialApprovalRef = useRef<InitialApproval | undefined>(undefined);
     const deleteDetachedApprovalFunction = async (data: FormValues) => {
         const previous = previousApprovalFunctionRef.current;
         if (previous && buildApprovalToolData(data).requiresApproval !== previous) {
@@ -434,6 +403,8 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
                         toolMetadata?.requiresApproval, toolMetadata?.approvalFunction
                     );
                     previousApprovalFunctionRef.current = existingApproval?.functionName;
+                    initialApprovalRef.current =
+                        initialApproval(existingApproval, toolMetadata?.requiresApprovalSource);
                     const existingConfig = parseAuth(annotationValue, oauthProperties.map(({ key }) => key));
                     const { oauthFields, oauthRecordFields } = buildOAuthFields(oauthProperties, existingConfig);
                     const requiresApprovalField = buildApprovalField(existingApproval, editContext.functionName);
@@ -463,6 +434,8 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
                         agentTool?.requiresApproval, agentTool?.approvalFunction
                     );
                     previousApprovalFunctionRef.current = existingApproval?.functionName;
+                    initialApprovalRef.current =
+                        initialApproval(existingApproval, agentTool?.requiresApprovalSource);
                     const existingConfig = parseAuth(annotationValue, oauthProperties.map(({ key }) => key));
                     const { oauthFields, oauthRecordFields } = buildOAuthFields(oauthProperties, existingConfig);
                     const requiresApprovalField = buildApprovalField(existingApproval, String(model.name.value));
@@ -573,7 +546,7 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
                 const fragments: string[] = [];
                 const authFragment = buildAuthAnnotation(rawAuth, expressionKeys);
                 if (authFragment) fragments.push(authFragment);
-                const approvalSource = resolveApprovalSource(data);
+                const approvalSource = approvalSourceForSave(data, initialApprovalRef.current);
                 if (approvalSource) fragments.push(`requiresApproval: ${approvalSource}`);
                 (updatedModel.properties as any)[annotation.key].value = fragments.length > 0
                     ? `{\n    ${fragments.join(",\n    ")}\n}` : "";
@@ -688,9 +661,7 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
                                     `@ai:AgentTool {\n    ${configBlock}\n}`);
                             }
                         }
-                        annotationStr = upsertScalarAnnotationField(
-                            annotationStr, "requiresApproval", resolveApprovalSource(data)
-                        );
+                        annotationStr = upsertApprovalField(annotationStr, data, initialApprovalRef.current);
                         properties.annotations.value = annotationStr.replace(/\s+$/, "\n");
                     }
                 }

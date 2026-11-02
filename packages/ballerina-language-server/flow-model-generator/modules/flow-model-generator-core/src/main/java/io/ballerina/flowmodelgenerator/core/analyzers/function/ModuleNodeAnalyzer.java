@@ -109,6 +109,12 @@ public class ModuleNodeAnalyzer extends NodeVisitor {
      */
     public static final String APPROVAL_FUNCTION_KEY = "approvalFunction";
 
+    /**
+     * Metadata key carrying an agent tool's {@code requiresApproval} value as written, so a tool form can keep a
+     * value it can't show (a qualified reference or an inline function) when its approval control is left as is.
+     */
+    public static final String REQUIRES_APPROVAL_SOURCE_KEY = "requiresApprovalSource";
+
     private final ModuleInfo moduleInfo;
     private final SemanticModel semanticModel;
     private final Gson gson;
@@ -204,6 +210,8 @@ public class ModuleNodeAnalyzer extends NodeVisitor {
                     ApprovalFunctionSync.requiresApproval(functionDefinitionNode.metadata()));
             ApprovalFunctionSync.approvalFunctionName(functionDefinitionNode.metadata())
                     .ifPresent(name -> nodeBuilder.metadata().data(APPROVAL_FUNCTION_KEY, name));
+            ApprovalFunctionSync.requiresApprovalSource(functionDefinitionNode.metadata())
+                    .ifPresent(source -> nodeBuilder.metadata().data(REQUIRES_APPROVAL_SOURCE_KEY, source));
         }
 
         // Tell the function form when this function is an agent tool's approval function, so it can keep its

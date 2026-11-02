@@ -25,11 +25,14 @@ jest.mock("@wso2/ballerina-core", () => ({
 
 import { FormValues } from "@wso2/ballerina-side-panel";
 import {
+    approvalSourceForSave,
     buildApprovalToolData,
     createRequiresApprovalField,
     defaultApprovalFunctionName,
     existingApprovalConfig,
+    initialApproval,
     readToolParameters,
+    upsertApprovalField,
 } from "./formUtils";
 
 describe("buildApprovalToolData", () => {
@@ -141,5 +144,61 @@ describe("existingApprovalConfig", () => {
         expect(existingApprovalConfig(true, undefined)).toEqual({});
         expect(existingApprovalConfig(false, undefined)).toBeUndefined();
         expect(existingApprovalConfig(undefined, undefined)).toBeUndefined();
+    });
+});
+
+describe("edit save of requiresApproval", () => {
+    const INLINE = "isolated function (string a, string b) returns boolean => a == b";
+    const annotation = (value: string) => `@ai:AgentTool {\n    requiresApproval: ${value},\n    auth: {}\n}`;
+    // What the form opens with, from what the language server reports for each value as written.
+    const opened = (value: string) => {
+        const local = /^[A-Za-z_']\w*$/.test(value) && value !== "true" && value !== "false";
+        return initialApproval(existingApprovalConfig(value !== "false", local ? value : undefined), value);
+    };
+    const asOpened = (value: string): FormValues => {
+        const initial = opened(value);
+        return { requiresApproval: initial.checked, approvalFunction: initial.functionName };
+    };
+
+    // Whatever the value, a save that leaves the control as it opened writes the value back as it was.
+    it.each(["true", "false", "sendEmailApproval", "utils:check", INLINE])("keeps %s when the control is unchanged",
+        (value) => {
+            expect(upsertApprovalField(annotation(value), asOpened(value), opened(value))).toBe(annotation(value));
+            expect(approvalSourceForSave(asOpened(value), opened(value))).toBe(value);
+        });
+
+    it("keeps a value the control can't show when the checkbox comes back as the string \"true\"", () => {
+        const data: FormValues = { requiresApproval: "true", approvalFunction: "" };
+        expect(upsertApprovalField(annotation("utils:check"), data, opened("utils:check")))
+            .toBe(annotation("utils:check"));
+    });
+
+    it.each(["utils:check", INLINE])("replaces %s whole when a function is attached", (value) => {
+        const data: FormValues = { requiresApproval: true, approvalFunction: "sendEmailApproval" };
+        expect(upsertApprovalField(annotation(value), data, opened(value)))
+            .toBe(annotation("sendEmailApproval"));
+        expect(approvalSourceForSave(data, opened(value))).toBe("sendEmailApproval");
+    });
+
+    it.each(["sendEmailApproval", "utils:check", INLINE])("removes %s whole when approval is turned off",
+        (value) => {
+            const data: FormValues = { requiresApproval: false, approvalFunction: "" };
+            expect(upsertApprovalField(annotation(value), data, opened(value)))
+                .toBe("@ai:AgentTool {\n    auth: {}\n}");
+            expect(approvalSourceForSave(data, opened(value))).toBeUndefined();
+        });
+
+    it("switches a local function", () => {
+        const data: FormValues = { requiresApproval: true, approvalFunction: "otherApproval" };
+        expect(upsertApprovalField(annotation("sendEmailApproval"), data, opened("sendEmailApproval")))
+            .toBe(annotation("otherApproval"));
+    });
+
+    it("writes the control's state when the form opened without a requiresApproval field", () => {
+        const initial = initialApproval(undefined, undefined);
+        const data: FormValues = { requiresApproval: true, approvalFunction: "" };
+        expect(upsertApprovalField("@ai:AgentTool", data, initial))
+            .toBe("@ai:AgentTool {\n    requiresApproval: true\n}");
+        expect(approvalSourceForSave({ requiresApproval: false }, initial)).toBeUndefined();
     });
 });

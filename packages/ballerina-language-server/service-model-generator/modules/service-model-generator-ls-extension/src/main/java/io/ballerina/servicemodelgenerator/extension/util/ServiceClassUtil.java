@@ -645,6 +645,8 @@ public class ServiceClassUtil {
                     property.getCodedata().setRequiresApproval(ApprovalFunctionSync.requiresApproval(metadata));
                     ApprovalFunctionSync.approvalFunctionName(metadata)
                             .ifPresent(property.getCodedata()::setApprovalFunction);
+                    ApprovalFunctionSync.requiresApprovalSource(metadata)
+                            .ifPresent(property.getCodedata()::setRequiresApprovalSource);
                 }
             }
         });

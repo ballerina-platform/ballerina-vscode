@@ -153,6 +153,15 @@ export function collapseWhitespace(text: string): string {
     return text.replace(/\s+/g, ' ');
 }
 
+// Edits the project's sources on disk, as a hand edit outside the UI would.
+export function replaceInSources(from: string, to: string): void {
+    const file = balFiles(newProjectPath).find((candidate) => fs.readFileSync(candidate, 'utf8').includes(from));
+    if (!file) {
+        throw new Error(`No source contains: ${from}`);
+    }
+    fs.writeFileSync(file, fs.readFileSync(file, 'utf8').replace(from, to));
+}
+
 // Waits until the project's sources satisfy a predicate, so a check runs after the save is written.
 export async function waitForSources(predicate: (source: string) => boolean, description: string,
     timeoutMs = 60000): Promise<void> {
