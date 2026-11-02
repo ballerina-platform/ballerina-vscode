@@ -75,6 +75,7 @@ public final class GraphqlContextManager {
     public static final String ACTION_CREATE = "create";
     public static final String ACTION_USE = "use";
     public static final String ACTION_REMOVE = "remove";
+    public static final String ACTION_SET_ENTRIES = "setEntries";
 
     static final String FIELD = "contextInit";
 
@@ -118,13 +119,30 @@ public final class GraphqlContextManager {
         Optional<String> functionName = functionName(target.get());
         if (functionName.isEmpty()) {
             // A lambda or a qualified reference: shown as written, and edited only in source.
-            return new GraphqlContextResponse(true, true, null, expression, null, null, false, candidates, null);
+            return new GraphqlContextResponse(true, true, null, expression, null, null, false, candidates,
+                    List.of(), false, "The context is set to an expression. Edit it in the source code.", null);
         }
         Optional<FunctionLocation> location = findFunction(document.module(), functionName.get());
+        boolean signatureValid = candidates.contains(functionName.get());
+        List<ContextFunctionBody.ContextEntry> entries = List.of();
+        boolean editable = false;
+        String notEditableReason = null;
+        if (location.isEmpty()) {
+            notEditableReason = "The function " + functionName.get() + " is not in this integration.";
+        } else if (!signatureValid) {
+            notEditableReason = "The function does not have the signature a context function needs.";
+        } else {
+            try {
+                entries = ContextFunctionBody.parse(location.get().node()).entries();
+                editable = true;
+            } catch (ContextFunctionBody.NotEditableException e) {
+                notEditableReason = e.getMessage() + " Edit it in the flow diagram.";
+            }
+        }
         return new GraphqlContextResponse(true, true, functionName.get(), expression,
                 location.map(FunctionLocation::filePath).orElse(null),
                 location.map(found -> found.node().lineRange()).orElse(null),
-                candidates.contains(functionName.get()), candidates, null);
+                signatureValid, candidates, entries, editable, notEditableReason, null);
     }
 
     /**
@@ -134,10 +152,13 @@ public final class GraphqlContextManager {
      *                       {@link #ACTION_USE} points the field at the existing function named by
      *                       {@code functionName}, and {@link #ACTION_REMOVE} removes the field
      * @param deleteFunction for {@link #ACTION_REMOVE}, also delete the function when nothing else references it
+     * @param entries        for {@link #ACTION_SET_ENTRIES}, the values the context should carry, replacing the
+     *                       ones the function sets now
      * @throws IllegalArgumentException when the service is not a GraphQL service, or the action or function is not
      *                                  valid
      */
     public static Map<String, List<TextEdit>> apply(String action, String functionName, boolean deleteFunction,
+                                                    List<ContextFunctionBody.ContextEntry> entries,
                                                     Path serviceFile, ServiceDeclarationNode serviceNode,
                                                     SemanticModel semanticModel, Document document,
                                                     WorkspaceManager workspaceManager) {
@@ -150,6 +171,7 @@ public final class GraphqlContextManager {
             case ACTION_CREATE -> create(target, serviceFile, serviceNode, semanticModel, workspaceManager);
             case ACTION_USE -> use(target, serviceFile, functionName, semanticModel);
             case ACTION_REMOVE -> remove(target, serviceFile, semanticModel, document, deleteFunction);
+            case ACTION_SET_ENTRIES -> setEntries(target, semanticModel, document, entries);
             default -> throw new IllegalArgumentException("Unknown action: " + action);
         };
     }
@@ -188,6 +210,35 @@ public final class GraphqlContextManager {
         Map<String, List<TextEdit>> edits = new LinkedHashMap<>();
         addEdits(edits, functionsFile.toString(), functionEdits);
         addEdits(edits, serviceFile.toString(), target.annotation().setField(FIELD, name));
+        return edits;
+    }
+
+    private static Map<String, List<TextEdit>> setEntries(ServiceSettingsManager.Target target,
+                                                          SemanticModel semanticModel, Document document,
+                                                          List<ContextFunctionBody.ContextEntry> entries) {
+        if (entries == null) {
+            throw new IllegalArgumentException("No context values given");
+        }
+        String functionName = functionName(target)
+                .orElseThrow(() -> new IllegalArgumentException("This service has no context function to edit"));
+        if (!candidates(semanticModel).contains(functionName)) {
+            throw new IllegalArgumentException(functionName + " does not have the signature a contextInit "
+                    + "function needs");
+        }
+        FunctionLocation location = findFunction(document.module(), functionName)
+                .filter(found -> found.filePath() != null)
+                .orElseThrow(() -> new IllegalArgumentException(functionName + " is not in this integration"));
+        ContextFunctionBody body;
+        try {
+            body = ContextFunctionBody.parse(location.node());
+        } catch (ContextFunctionBody.NotEditableException e) {
+            // Never rewrite a body the designer does not fully understand.
+            throw new IllegalArgumentException(e.getMessage() + " Edit it in the flow diagram.", e);
+        }
+        ContextFunctionBody.Replacement replacement = body.replaceEntries(entries);
+        Map<String, List<TextEdit>> edits = new LinkedHashMap<>();
+        addEdits(edits, location.filePath(), List.of(new TextEdit(
+                new Range(position(replacement.start()), position(replacement.end())), replacement.text())));
         return edits;
     }
 

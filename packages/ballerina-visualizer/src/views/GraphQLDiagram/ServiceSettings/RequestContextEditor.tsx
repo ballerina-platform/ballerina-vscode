@@ -17,7 +17,7 @@
  */
 
 import React, { useState } from "react";
-import type { GraphqlContextResponse } from "@wso2/ballerina-core";
+import type { ContextEntry, GraphqlContextResponse } from "@wso2/ballerina-core";
 import { Button, CheckBox, Codicon, Dropdown, ProgressRing } from "@wso2/ui-toolkit";
 import {
     Actions,
@@ -31,6 +31,7 @@ import {
     SectionTitle,
     WarningBox,
 } from "./styles";
+import { ContextEntriesEditor } from "./ContextEntriesEditor";
 
 export const CONTEXT_INIT_SIGNATURE =
     "isolated function (http:RequestContext, http:Request) returns graphql:Context|error";
@@ -43,6 +44,7 @@ interface RequestContextEditorProps {
     onCreate: () => void;
     onUse: (functionName: string) => void;
     onRemove: (deleteFunction: boolean) => void;
+    onSaveEntries: (entries: ContextEntry[]) => void;
     onOpenFunction: () => void;
     onCancel: () => void;
 }
@@ -52,7 +54,7 @@ interface RequestContextEditorProps {
  * existing one, opens it in the flow diagram, or removes it.
  */
 export function RequestContextEditor(props: RequestContextEditorProps) {
-    const { context, loading, busy, error, onCreate, onUse, onRemove, onOpenFunction, onCancel } = props;
+    const { context, loading, busy, error, onCreate, onUse, onRemove, onSaveEntries, onOpenFunction, onCancel } = props;
     const [picked, setPicked] = useState<string>("");
     const [confirmingRemove, setConfirmingRemove] = useState(false);
     const [deleteFunction, setDeleteFunction] = useState(true);
@@ -129,15 +131,22 @@ export function RequestContextEditor(props: RequestContextEditorProps) {
                     <Code>{CONTEXT_INIT_SIGNATURE}</Code>
                 </WarningBox>
             )}
+            {context.editable ? (
+                <ContextEntriesEditor
+                    entries={context.entries}
+                    saving={busy}
+                    error={error}
+                    onSave={onSaveEntries}
+                />
+            ) : context.signatureValid && context.notEditableReason && (
+                <WarningBox role="status" data-testid="context-not-editable">
+                    {context.notEditableReason}
+                </WarningBox>
+            )}
             {!context.functionName && (
                 <WarningBox role="status">
                     The context is set to an expression. Edit it in the source code.
                 </WarningBox>
-            )}
-            {canOpen && (
-                <Description>
-                    To set values on the context, open the function and add them before it returns the context.
-                </Description>
             )}
             {picker && (
                 <>
@@ -145,7 +154,7 @@ export function RequestContextEditor(props: RequestContextEditorProps) {
                     {picker}
                 </>
             )}
-            {error && <ErrorText role="alert">{error}</ErrorText>}
+            {error && !context.editable && <ErrorText role="alert">{error}</ErrorText>}
             {confirmingRemove ? (
                 <WarningBox>
                     <Description>Resolvers will no longer receive these context values.</Description>

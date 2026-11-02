@@ -33,22 +33,29 @@ import java.util.List;
  * @param functionRange    the function's range in that file; null when it is not found in the module
  * @param signatureValid   whether the function has the signature {@code contextInit} needs
  * @param candidates       the module functions with that signature, which can be picked instead
+ * @param entries          the values the function sets on the context; empty when it is not editable
+ * @param editable         whether the designer can edit the function's values; false when its body is not of the
+ *                         shape the designer writes, which is then edited in the flow diagram
+ * @param notEditableReason why the values cannot be edited; null when they can
  * @param errorMsg         an unexpected failure; null on success
  */
 public record GraphqlContextResponse(boolean supported, boolean configured, String functionName, String expression,
                                      String functionFilePath, LineRange functionRange, boolean signatureValid,
-                                     List<String> candidates, String errorMsg) {
+                                     List<String> candidates, List<ContextFunctionBody.ContextEntry> entries,
+                                     boolean editable, String notEditableReason, String errorMsg) {
 
     public static GraphqlContextResponse unsupported() {
-        return new GraphqlContextResponse(false, false, null, null, null, null, false, List.of(), null);
+        return new GraphqlContextResponse(false, false, null, null, null, null, false, List.of(), List.of(), false,
+                null, null);
     }
 
     public static GraphqlContextResponse notConfigured(List<String> candidates) {
-        return new GraphqlContextResponse(true, false, null, null, null, null, false, candidates, null);
+        return new GraphqlContextResponse(true, false, null, null, null, null, false, candidates, List.of(), false,
+                null, null);
     }
 
     public static GraphqlContextResponse error(Throwable e) {
-        return new GraphqlContextResponse(false, false, null, null, null, null, false, List.of(),
-                e.getMessage() != null ? e.getMessage() : e.toString());
+        return new GraphqlContextResponse(false, false, null, null, null, null, false, List.of(), List.of(), false,
+                null, e.getMessage() != null ? e.getMessage() : e.toString());
     }
 }

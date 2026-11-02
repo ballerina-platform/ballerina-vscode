@@ -157,6 +157,8 @@ export function ServiceSettingsPanel(props: ServiceSettingsPanelProps) {
                         runEdit(() => designer.applyGraphqlContext({ ...target, action: "use", functionName }), true)}
                     onRemove={(deleteFunction) =>
                         runEdit(() => designer.applyGraphqlContext({ ...target, action: "remove", deleteFunction }))}
+                    onSaveEntries={(entries) =>
+                        runEdit(() => designer.applyGraphqlContext({ ...target, action: "setEntries", entries }), true)}
                     onOpenFunction={openContextFunction}
                     onCancel={closeEditor}
                 />

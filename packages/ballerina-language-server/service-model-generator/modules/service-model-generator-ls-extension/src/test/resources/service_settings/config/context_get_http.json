@@ -9,7 +9,10 @@
     "expression": null,
     "signatureValid": false,
     "candidates": [],
-    "functionFile": null
+    "functionFile": null,
+    "entries": [],
+    "editable": false,
+    "notEditableReason": null
   },
   "file": "main.bal"
 }

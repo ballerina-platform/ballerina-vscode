@@ -11,7 +11,17 @@
     "candidates": [
       "graphqlContextInit"
     ],
-    "functionFile": "functions.bal"
+    "functionFile": "functions.bal",
+    "entries": [
+      {
+        "key": "scope",
+        "source": "header",
+        "value": "scope",
+        "required": true
+      }
+    ],
+    "editable": true,
+    "notEditableReason": null
   },
   "file": "main.bal"
 }

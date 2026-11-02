@@ -21,28 +21,34 @@ import styled from '@emotion/styled';
 import { Icon, ThemeColors, Tooltip } from '@wso2/ui-toolkit';
 import { ServiceSettingsSummary } from '../../../common/DiagramContext/DiagramContext';
 
+// Deliberately quiet: it reads like the node's other header controls, not like a call to action. The schema is
+// what the diagram is about; the settings indicator only says that some are set.
 const BadgeButton = styled.button`
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    height: 22px;
-    padding: 0 8px;
-    border-radius: 11px;
-    border: 1px solid ${ThemeColors.PRIMARY};
-    background-color: ${ThemeColors.PRIMARY_CONTAINER};
-    color: ${ThemeColors.ON_SURFACE};
-    font-family: GilmerMedium;
-    font-size: 12px;
+    gap: 3px;
+    height: 20px;
+    padding: 0 5px;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: ${ThemeColors.ON_SURFACE_VARIANT};
+    font-family: GilmerRegular;
+    font-size: 11px;
     line-height: 1;
+    opacity: 0.85;
     cursor: pointer;
 
     &:hover {
+        opacity: 1;
+        color: ${ThemeColors.ON_SURFACE};
         background-color: ${ThemeColors.SURFACE_CONTAINER};
     }
 
     &:focus-visible {
+        opacity: 1;
         outline: 1px solid ${ThemeColors.PRIMARY};
-        outline-offset: 2px;
+        outline-offset: 1px;
     }
 `;
 
@@ -102,7 +108,7 @@ export function ServiceSettingsBadge({ summary, onOpen }: ServiceSettingsBadgePr
                     onOpen();
                 }}
             >
-                <Icon name="bi-settings" sx={{ width: 14, height: 14, fontSize: 14 }} iconSx={{ fontSize: 14 }} />
+                <Icon name="bi-settings" sx={{ width: 12, height: 12, fontSize: 12 }} iconSx={{ fontSize: 12, color: "inherit" }} />
                 {count}
             </BadgeButton>
         </Tooltip>

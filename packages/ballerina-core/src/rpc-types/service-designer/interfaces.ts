@@ -109,6 +109,22 @@ export interface UpdateServiceSettingRequest extends ServiceSettingsTarget {
     value?: string;
 }
 
+/** Where a context value comes from. */
+export type ContextEntrySource = "header" | "query" | "value" | "expression";
+
+/** One value the request context carries. */
+export interface ContextEntry {
+    key: string;
+    source: ContextEntrySource;
+    /** The header or query parameter name, the fixed text, or the expression's source. */
+    value: string;
+    /**
+     * For a header or query parameter: whether a request without it is rejected. When not, the key holds `()` for
+     * such a request.
+     */
+    required: boolean;
+}
+
 export interface GraphqlContextResponse {
     /** False for a service that is not a GraphQL service. */
     supported: boolean;
@@ -124,10 +140,15 @@ export interface GraphqlContextResponse {
     signatureValid: boolean;
     /** Module functions with that signature, which can be picked instead. */
     candidates: string[];
+    /** The values the function sets on the context; empty when not editable. */
+    entries: ContextEntry[];
+    /** False when the function body is not of the shape the designer writes; it is then edited in the flow diagram. */
+    editable: boolean;
+    notEditableReason?: string;
     errorMsg?: string;
 }
 
-export type GraphqlContextAction = "create" | "use" | "remove";
+export type GraphqlContextAction = "create" | "use" | "remove" | "setEntries";
 
 export interface ApplyGraphqlContextRequest extends ServiceSettingsTarget {
     action: GraphqlContextAction;
@@ -135,6 +156,8 @@ export interface ApplyGraphqlContextRequest extends ServiceSettingsTarget {
     functionName?: string;
     /** For `remove`: also delete the function when nothing else references it. */
     deleteFunction?: boolean;
+    /** For `setEntries`: the values the context should carry, replacing the current ones. */
+    entries?: ContextEntry[];
 }
 
 /** The outcome of a settings edit. */

@@ -995,7 +995,7 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                     return new CommonSourceResponse();
                 }
                 Map<String, List<TextEdit>> edits = GraphqlContextManager.apply(request.action(),
-                        request.functionName(), Boolean.TRUE.equals(request.deleteFunction()),
+                        request.functionName(), Boolean.TRUE.equals(request.deleteFunction()), request.entries(),
                         Path.of(request.filePath()), resolved.get().serviceNode(), resolved.get().semanticModel(),
                         resolved.get().document(), this.workspaceManager);
                 return new CommonSourceResponse(edits);

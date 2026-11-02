@@ -651,6 +651,8 @@ export class ServiceDesignerRpcManager implements ServiceDesignerAPI {
                 configured: false,
                 signatureValid: false,
                 candidates: [],
+                entries: [],
+                editable: false,
                 errorMsg: error instanceof Error ? error.message : String(error)
             };
         }
@@ -661,6 +663,7 @@ export class ServiceDesignerRpcManager implements ServiceDesignerAPI {
             create: "Create request context",
             use: "Set request context",
             remove: "Remove request context",
+            setEntries: "Update request context values",
         };
         return this.applySettingsEdits(() => StateMachine.langClient().applyGraphqlContext(params),
             descriptions[params.action]);

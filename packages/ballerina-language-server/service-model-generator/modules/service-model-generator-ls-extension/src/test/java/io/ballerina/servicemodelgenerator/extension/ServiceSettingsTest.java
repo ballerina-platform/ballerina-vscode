@@ -18,6 +18,7 @@
 
 package io.ballerina.servicemodelgenerator.extension;
 
+import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonNull;
@@ -31,20 +32,27 @@ import io.ballerina.compiler.syntax.tree.SyntaxTree;
 import io.ballerina.modelgenerator.commons.AbstractLSTest;
 import io.ballerina.servicemodelgenerator.extension.model.Codedata;
 import io.ballerina.servicemodelgenerator.extension.model.request.CommonModelFromSourceRequest;
+import io.ballerina.servicemodelgenerator.extension.settings.ContextFunctionBody;
 import io.ballerina.servicemodelgenerator.extension.settings.ServiceSettingsRequests;
 import io.ballerina.tools.text.LineRange;
 import io.ballerina.tools.text.TextDocuments;
 import org.ballerinalang.langserver.util.TestUtil;
+import org.eclipse.lsp4j.DidCloseTextDocumentParams;
+import org.eclipse.lsp4j.DidOpenTextDocumentParams;
+import org.eclipse.lsp4j.TextDocumentIdentifier;
 import org.eclipse.lsp4j.TextEdit;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.lang.reflect.Type;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -68,12 +76,61 @@ public class ServiceSettingsTest extends AbstractLSTest {
     private static final Type TEXT_EDITS_TYPE = new TypeToken<Map<String, List<TextEdit>>>() {
     }.getType();
 
+    private static final Type ENTRIES_TYPE = new TypeToken<List<ContextFunctionBody.ContextEntry>>() {
+    }.getType();
+    private static final Gson GSON = new Gson();
+
     private final Map<String, Path> projectCopies = new HashMap<>();
+    private String lastProject;
+
+    /**
+     * The cases grouped by fixture, so each fixture's project is loaded once and evicted once its cases are done.
+     */
+    @Override
+    @DataProvider(name = "data-provider")
+    protected Object[] getConfigsList() {
+        Object[] configs = super.getConfigsList();
+        Arrays.sort(configs, Comparator.comparing((Object config) -> projectOf((Path) config))
+                .thenComparing(config -> ((Path) config).getFileName().toString()));
+        return configs;
+    }
+
+    private String projectOf(Path config) {
+        try {
+            return gson.fromJson(Files.readString(config), TestConfig.class).project();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    /**
+     * Drops the fixture's project from the language server. Closing the last open document of a project evicts it,
+     * so the service file is opened and closed: the heap then holds one fixture's dependencies at a time.
+     */
+    private void evict(String fixture) throws IOException {
+        Path copy = projectCopies.get(fixture);
+        if (copy == null) {
+            return;
+        }
+        try (Stream<Path> files = Files.list(copy)) {
+            for (Path file : files.filter(path -> path.toString().endsWith(".bal")).toList()) {
+                String uri = file.toUri().toString();
+                sendNotification("textDocument/didOpen",
+                        new DidOpenTextDocumentParams(getDocumentIdentifier(file.toString(), uri)));
+                sendNotification("textDocument/didClose",
+                        new DidCloseTextDocumentParams(new TextDocumentIdentifier(uri)));
+            }
+        }
+    }
 
     @Override
     @Test(dataProvider = "data-provider")
     public void test(Path config) throws IOException {
         TestConfig testConfig = gson.fromJson(Files.readString(configDir.resolve(config)), TestConfig.class);
+        if (lastProject != null && !lastProject.equals(testConfig.project())) {
+            evict(lastProject);
+        }
+        lastProject = testConfig.project();
         Path project = projectCopy(testConfig.project());
         Path file = project.resolve(testConfig.file());
         Codedata codedata = new Codedata.Builder().setLineRange(serviceRange(file)).build();
@@ -119,6 +176,9 @@ public class ServiceSettingsTest extends AbstractLSTest {
 
     @AfterClass(alwaysRun = true)
     public void deleteProjectCopies() throws IOException {
+        if (lastProject != null) {
+            evict(lastProject);
+        }
         for (Path copy : projectCopies.values()) {
             deleteRecursively(copy);
         }
@@ -136,7 +196,8 @@ public class ServiceSettingsTest extends AbstractLSTest {
                     string(fields, "field"), string(fields, "value"));
             case "applyGraphqlContext" -> new ServiceSettingsRequests.ApplyGraphqlContext(filePath, codedata,
                     string(fields, "action"), string(fields, "functionName"),
-                    fields.has("deleteFunction") && fields.get("deleteFunction").getAsBoolean());
+                    fields.has("deleteFunction") && fields.get("deleteFunction").getAsBoolean(),
+                    fields.has("entries") ? GSON.fromJson(fields.get("entries"), ENTRIES_TYPE) : null);
             default -> throw new AssertionError("Unknown api: " + testConfig.api());
         };
     }
@@ -172,7 +233,8 @@ public class ServiceSettingsTest extends AbstractLSTest {
             compact.add("settings", settings);
             return compact;
         }
-        for (String key : List.of("configured", "functionName", "expression", "signatureValid", "candidates")) {
+        for (String key : List.of("configured", "functionName", "expression", "signatureValid", "candidates",
+                "entries", "editable", "notEditableReason")) {
             compact.add(key, response.has(key) ? response.get(key) : JsonNull.INSTANCE);
         }
         JsonElement functionFile = response.get("functionFilePath");

@@ -20,6 +20,8 @@ package io.ballerina.servicemodelgenerator.extension.settings;
 
 import io.ballerina.servicemodelgenerator.extension.model.Codedata;
 
+import java.util.List;
+
 /**
  * Requests of the Service Settings endpoints.
  */
@@ -44,11 +46,12 @@ public final class ServiceSettingsRequests {
      *
      * @param filePath       the file of the service
      * @param codedata       the service's codedata, whose line range locates it
-     * @param action         {@code create}, {@code use} or {@code remove}
+     * @param action         {@code create}, {@code use}, {@code remove} or {@code setEntries}
      * @param functionName   for {@code use}, the function to point {@code contextInit} at
      * @param deleteFunction for {@code remove}, also delete the function when nothing else references it
+     * @param entries        for {@code setEntries}, the values the context should carry
      */
     public record ApplyGraphqlContext(String filePath, Codedata codedata, String action, String functionName,
-                                      Boolean deleteFunction) {
+                                      Boolean deleteFunction, List<ContextFunctionBody.ContextEntry> entries) {
     }
 }
