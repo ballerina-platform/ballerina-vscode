@@ -18,3 +18,14 @@ type Event record {|
 type Tagged record {|
     readonly & time:Utc stamp;
 |};
+
+# Record with readonly fields before other fields
+type Order record {|
+    readonly record {|
+        string name;
+    |} labels;
+    string name;
+    readonly time:Date createdAt;
+    readonly int[] codes;
+    decimal price;
+|};

@@ -1,0 +1,307 @@
+{
+  "filePath": "test_pack1/types.bal",
+  "description": "Create a record type with readonly fields before other fields",
+  "type": {
+    "name": "Order",
+    "editable": true,
+    "metadata": {
+      "label": "Order",
+      "description": "Record with readonly fields before other fields"
+    },
+    "codedata": {
+      "node": "RECORD"
+    },
+    "properties": {
+      "name": {
+        "metadata": {
+          "label": "Type name",
+          "description": "Unique name to identify the type"
+        },
+        "types": [
+          {
+            "fieldType": "IDENTIFIER",
+            "selected": true
+          }
+        ],
+        "value": "Order",
+        "optional": false,
+        "editable": false,
+        "advanced": false,
+        "hidden": false
+      },
+      "isPublic": {
+        "metadata": {
+          "label": "public",
+          "description": "Make visible across the project"
+        },
+        "types": [
+          {
+            "fieldType": "FLAG",
+            "selected": true
+          }
+        ],
+        "value": "false",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "description": {
+        "metadata": {
+          "label": "Type description",
+          "description": "Detailed description about the type"
+        },
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "selected": true
+          }
+        ],
+        "value": "Record with readonly fields before other fields",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "isArray": {
+        "metadata": {
+          "label": "Is array type",
+          "description": "Is this type an array or list value"
+        },
+        "types": [
+          {
+            "fieldType": "FLAG",
+            "selected": true
+          }
+        ],
+        "value": "false",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false
+      },
+      "arraySize": {
+        "metadata": {
+          "label": "Size of the array",
+          "description": "Array dimensions"
+        },
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "selected": true
+          }
+        ],
+        "value": "",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false
+      }
+    },
+    "members": [
+      {
+        "kind": "FIELD",
+        "refs": [],
+        "type": {
+          "editable": false,
+          "codedata": {
+            "node": "RECORD"
+          },
+          "properties": {
+            "isArray": {
+              "metadata": {
+                "label": "Is array type",
+                "description": "Is this type an array or list value"
+              },
+              "types": [
+                {
+                  "fieldType": "FLAG",
+                  "selected": true
+                }
+              ],
+              "value": "false",
+              "optional": true,
+              "editable": true,
+              "advanced": true,
+              "hidden": false
+            },
+            "arraySize": {
+              "metadata": {
+                "label": "Size of the array",
+                "description": "Array dimensions"
+              },
+              "types": [
+                {
+                  "fieldType": "TEXT",
+                  "selected": true
+                }
+              ],
+              "value": "",
+              "optional": true,
+              "editable": true,
+              "advanced": true,
+              "hidden": false
+            }
+          },
+          "members": [
+            {
+              "kind": "FIELD",
+              "refs": [],
+              "type": "string",
+              "typeName": "string",
+              "name": "name",
+              "optional": false,
+              "readonly": false,
+              "isGraphqlId": false,
+              "docs": "",
+              "annotationAttachments": [],
+              "selected": false
+            }
+          ],
+          "includes": [],
+          "allowAdditionalFields": false
+        },
+        "typeName": "record {|string name;|}",
+        "name": "labels",
+        "optional": false,
+        "readonly": true,
+        "isGraphqlId": false,
+        "docs": "",
+        "annotationAttachments": [],
+        "selected": false
+      },
+      {
+        "kind": "FIELD",
+        "refs": [],
+        "type": "string",
+        "typeName": "string",
+        "name": "name",
+        "optional": false,
+        "readonly": false,
+        "isGraphqlId": false,
+        "docs": "",
+        "annotationAttachments": [],
+        "selected": false
+      },
+      {
+        "kind": "FIELD",
+        "refs": [
+          "ballerina/time:Date"
+        ],
+        "type": "time:Date",
+        "typeName": "time:Date",
+        "name": "createdAt",
+        "optional": false,
+        "readonly": true,
+        "isGraphqlId": false,
+        "docs": "",
+        "annotationAttachments": [],
+        "imports": {
+          "time": "ballerina/time:2.8.3"
+        },
+        "selected": false
+      },
+      {
+        "kind": "FIELD",
+        "refs": [],
+        "type": {
+          "editable": false,
+          "codedata": {
+            "node": "ARRAY"
+          },
+          "properties": {
+            "isArray": {
+              "metadata": {
+                "label": "Is array type",
+                "description": "Is this type an array or list value"
+              },
+              "types": [
+                {
+                  "fieldType": "FLAG",
+                  "selected": true
+                }
+              ],
+              "value": "true",
+              "optional": true,
+              "editable": true,
+              "advanced": true,
+              "hidden": false
+            },
+            "arraySize": {
+              "metadata": {
+                "label": "Size of the array",
+                "description": "Array dimensions"
+              },
+              "types": [
+                {
+                  "fieldType": "TEXT",
+                  "selected": true
+                }
+              ],
+              "value": "",
+              "optional": true,
+              "editable": true,
+              "advanced": true,
+              "hidden": false
+            }
+          },
+          "members": [
+            {
+              "kind": "TYPE",
+              "refs": [],
+              "type": "int",
+              "typeName": "int",
+              "name": "int",
+              "optional": false,
+              "readonly": false,
+              "isGraphqlId": false,
+              "selected": false
+            }
+          ],
+          "allowAdditionalFields": false
+        },
+        "typeName": "int[]",
+        "name": "codes",
+        "optional": false,
+        "readonly": true,
+        "isGraphqlId": false,
+        "docs": "",
+        "annotationAttachments": [],
+        "selected": false
+      },
+      {
+        "kind": "FIELD",
+        "refs": [],
+        "type": "decimal",
+        "typeName": "decimal",
+        "name": "price",
+        "optional": false,
+        "readonly": false,
+        "isGraphqlId": false,
+        "docs": "",
+        "annotationAttachments": [],
+        "selected": false
+      }
+    ],
+    "includes": [],
+    "annotationAttachments": [],
+    "allowAdditionalFields": false
+  },
+  "output": {
+    "test_pack1/types.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 37,
+            "character": 0
+          },
+          "end": {
+            "line": 37,
+            "character": 0
+          }
+        },
+        "newText": "\n# Record with readonly fields before other fields\ntype Order record {|\n\treadonly record {|\n\tstring name;\n|} labels;\n\tstring name;\n\treadonly time:Date createdAt;\n\treadonly int[] codes;\n\tdecimal price;\n|};"
+      }
+    ]
+  }
+}
