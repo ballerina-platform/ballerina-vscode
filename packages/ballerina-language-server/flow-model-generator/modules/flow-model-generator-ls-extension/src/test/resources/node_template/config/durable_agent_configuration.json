@@ -115,7 +115,7 @@
       },
       "inputType": {
         "metadata": {
-          "label": "Input Type",
+          "label": "Input Data Type",
           "description": "The structured input a run is given, e.g. json or a record type"
         },
         "types": [
