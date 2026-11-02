@@ -17,7 +17,7 @@
 import { Command, ExecutionContext, GenerateAgentCodeRequest } from "@wso2/ballerina-core";
 import { StateMachine } from "../../../stateMachine";
 import { chatStateStorage } from '../../../views/ai-panel/chatStateStorage';
-import { assertNoRestoreInProgress } from '../../../views/ai-panel/checkpoint/restore-state';
+import { assertNoRestoreInProgress, isResponseRunning } from '../../../views/ai-panel/checkpoint/restore-state';
 import { AICommandConfig } from "../executors/base/AICommandExecutor";
 import { createWebviewEventHandler } from "../utils/events";
 import { AgentExecutor } from './AgentExecutor';
@@ -107,6 +107,58 @@ export function finalizeLastGeneration(projectRootPath: string, threadId: string
     return finalizeRevertibleGeneration(projectRootPath, threadId);
 }
 
+function recordUserTurn(
+    params: GenerateAgentCodeRequest,
+    config: AICommandConfig<GenerateAgentCodeRequest>,
+    projectRootPath: string,
+    threadId: string
+): void {
+    chatStateStorage.addGeneration(
+        projectRootPath,
+        threadId,
+        params.usecase,
+        {
+            isPlanMode: params.isPlanMode,
+            operationType: params.operationType,
+            generationType: "agent",
+        },
+        config.generationId
+    );
+    // The console plan's scaffold turn marks its thread as the one that publishes
+    // console summaries. Before the run, so the flag is in place when it finishes.
+    markConsoleOriginThread(projectRootPath, threadId, params.consoleScaffold);
+}
+
+/** Records a turn stopped during the start-of-turn save; true when the panel was told. */
+function recordStoppedBeforeStart(
+    params: GenerateAgentCodeRequest,
+    config: AICommandConfig<GenerateAgentCodeRequest>,
+    projectRootPath: string,
+    threadId: string
+): boolean {
+    // A prompt sent after Stop owns the thread now; recording this one would land after it.
+    if (
+        chatStateStorage.getActiveExecution(projectRootPath, threadId)
+        || runEventStore.getRunStatus(projectRootPath, threadId).isRunning
+    ) {
+        return false;
+    }
+    finalizeRevertibleGenerationsAllThreads(projectRootPath);
+    recordUserTurn(params, config, projectRootPath, threadId);
+    chatStateStorage.updateReviewState(projectRootPath, threadId, config.generationId, {
+        status: 'error',
+        errorMessage: 'Stopped by user before any changes were made',
+    });
+
+    // Without a tracked run these events aren't scoped to it, so another running executor would take them as its own.
+    if (isResponseRunning(projectRootPath)) {
+        return false;
+    }
+    config.eventHandler({ type: "abort", command: Command.Agent, generationId: config.generationId });
+    config.eventHandler({ type: "save_chat", command: Command.Agent, messageId: config.generationId, generationId: config.generationId });
+    return true;
+}
+
 /**
  * Generates agent code based on user request
  * Handles plan mode configuration and review state management
@@ -159,7 +211,15 @@ export async function generateAgent(params: GenerateAgentCodeRequest): Promise<b
 
         // Before addGeneration, which captures the checkpoint from disk.
         const unsavedPaths = await saveUnsavedDocuments(projectRootPath);
+        // A restore can only have begun after Stop released the thread during the save.
+        assertNoRestoreInProgress(projectRootPath, 'generateAgent');
         if (config.abortController.signal.aborted) {
+            if (recordStoppedBeforeStart(params, config, projectRootPath, threadId)) {
+                // Rejected like an aborted run, which is what resets the panel's abort handling.
+                const abortError = new Error('Aborted by user');
+                abortError.name = 'AbortError';
+                throw abortError;
+            }
             return false;
         }
         if (unsavedPaths.length > 0) {
@@ -188,20 +248,7 @@ export async function generateAgent(params: GenerateAgentCodeRequest): Promise<b
         // Persist the user turn and expose its run identity before any awaited
         // telemetry/preflight work. A panel reopened during startup therefore
         // loads the correct user message and cannot attach output to the prior turn.
-        chatStateStorage.addGeneration(
-            projectRootPath,
-            threadId,
-            params.usecase,
-            {
-                isPlanMode: params.isPlanMode,
-                operationType: params.operationType,
-                generationType: "agent",
-            },
-            config.generationId
-        );
-        // The console plan's scaffold turn marks its thread as the one that publishes
-        // console summaries. Before the run, so the flag is in place when it finishes.
-        markConsoleOriginThread(projectRootPath, threadId, params.consoleScaffold);
+        recordUserTurn(params, config, projectRootPath, threadId);
         runEventStore.beginRun(projectRootPath, threadId, config.generationId);
         preparedRun = {
             projectRootPath,
