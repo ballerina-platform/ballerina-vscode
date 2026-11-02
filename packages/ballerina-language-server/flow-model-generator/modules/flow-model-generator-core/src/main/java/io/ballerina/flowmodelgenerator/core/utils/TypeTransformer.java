@@ -342,7 +342,12 @@ public class TypeTransformer {
         List<Member> fieldMembers = new ArrayList<>();
         recordTypeSymbol.fieldDescriptors().forEach((fieldName, fieldSymbol) -> {
             TypeData.TypeDataBuilder memberTypeDataBuilder = new TypeData.TypeDataBuilder();
-            Object transformedFieldType = transform(fieldSymbol.typeDescriptor(), memberTypeDataBuilder);
+            boolean isReadonlyField = fieldSymbol.qualifiers().contains(Qualifier.READONLY);
+            // The readonly qualifier is carried by the member's readonly flag, so drop it from the field type
+            TypeSymbol fieldType = isReadonlyField
+                    ? withoutReadonlyMember(fieldSymbol.typeDescriptor())
+                    : fieldSymbol.typeDescriptor();
+            Object transformedFieldType = transform(fieldType, memberTypeDataBuilder);
 
             boolean isGraphqlId = false;
             List<AnnotationAttachmentSymbol> annotAttachments = fieldSymbol.annotAttachments();
@@ -355,17 +360,17 @@ public class TypeTransformer {
             }
 
             analyzeAnnotAttachments(fieldSymbol.annotAttachments(), memberBuilder);
-            addRequiredImports(fieldSymbol.typeDescriptor(), memberBuilder);
+            addRequiredImports(fieldType, memberBuilder);
 
             Member member = memberBuilder
                     .name(fieldSymbol.getName().orElse(fieldName))
                     .kind(Member.MemberKind.FIELD)
                     .type(transformedFieldType)
-                    .typeName(getTypeSignature(fieldSymbol.typeDescriptor(), this.moduleInfo))
+                    .typeName(getTypeSignature(fieldType, this.moduleInfo))
                     .optional(fieldSymbol.isOptional())
-                    .readonly(fieldSymbol.qualifiers().contains(Qualifier.READONLY))
+                    .readonly(isReadonlyField)
                     .isGraphqlId(isGraphqlId)
-                    .refs(getTypeRefs(transformedFieldType, fieldSymbol.typeDescriptor()))
+                    .refs(getTypeRefs(transformedFieldType, fieldType))
                     .docs(getDocumentString(fieldSymbol))
                     .defaultValue(getDefaultValueOfField(typeDataBuilder.name(), fieldName).orElse(null))
                     .build();
@@ -938,6 +943,35 @@ public class TypeTransformer {
                     .ifPresent(t -> addRequiredImports(t, builder));
             default -> { }
         }
+    }
+
+    /**
+     * Returns the type of a {@code readonly} record field without its {@code readonly} intersection member.
+     *
+     * <p>The compiler types a field such as {@code readonly T f;} as {@code T & readonly}. The qualifier is already
+     * modelled by the member's readonly flag, so keeping the {@code readonly} member would emit it twice on save.
+     * The type is returned unchanged when it is not an intersection or has more than one non-readonly member.
+     *
+     * @param typeSymbol the field's type descriptor
+     * @return the only non-readonly member type, or the given type
+     */
+    private static TypeSymbol withoutReadonlyMember(TypeSymbol typeSymbol) {
+        if (typeSymbol.typeKind() != TypeDescKind.INTERSECTION) {
+            return typeSymbol;
+        }
+
+        TypeSymbol nonReadonlyTypeSymbol = null;
+        for (TypeSymbol memberTypeSymbol : ((IntersectionTypeSymbol) typeSymbol).memberTypeDescriptors()) {
+            if (memberTypeSymbol.typeKind() == TypeDescKind.READONLY) {
+                continue;
+            }
+            if (nonReadonlyTypeSymbol != null) {
+                // Multiple non-readonly types cannot be represented by the readonly flag alone
+                return typeSymbol;
+            }
+            nonReadonlyTypeSymbol = memberTypeSymbol;
+        }
+        return nonReadonlyTypeSymbol == null ? typeSymbol : nonReadonlyTypeSymbol;
     }
 
     private Object handleAsFirstClassNonIntersectionType(IntersectionTypeSymbol intersectionTypeSymbol,

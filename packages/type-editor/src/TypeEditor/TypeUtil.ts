@@ -13,7 +13,7 @@
  * 
  */
 
-import { Type } from '@wso2/ballerina-core';
+import { Member, Type } from '@wso2/ballerina-core';
 
 //@ts-ignore
 export const parseType = (type: string): string | Type => {
@@ -123,6 +123,26 @@ export const parseType = (type: string): string | Type => {
 };
 
 
+const isNodeOf = (type: string | Type, ...nodes: string[]): boolean =>
+    typeof type !== 'string' && nodes.includes(type.codedata.node);
+
+// Wrap union and intersection types in parentheses where they are an operand of another type descriptor
+const toParenthesizedSource = (type: string | Type): string => {
+    const source = typeToSource(type);
+    return isNodeOf(type, 'UNION', 'INTERSECTION') ? `(${source})` : source;
+};
+
+const intersectionMemberToSource = (member: Member): string => {
+    if (isNodeOf(member.type, 'UNION')) {
+        return toParenthesizedSource(member.type);
+    }
+    if (typeof member.type === 'string' || isNodeOf(member.type, 'ARRAY', 'MAP', 'INTERSECTION')) {
+        return typeToSource(member.type);
+    }
+    // Inline types such as anonymous records are not rebuilt here; use the signature sent by the LS
+    return member.typeName || typeToSource(member.type);
+};
+
 export const typeToSource = (type: string | Type): string => {
 
     if (typeof type === 'string') {
@@ -130,7 +150,9 @@ export const typeToSource = (type: string | Type): string => {
     }
 
     if (type.codedata.node === 'UNION') {
-        const typeString = type.members.reverse().map(m => typeToSource(m.type)).join(' | ');
+        const typeString = type.members.reverse().map(m => isNodeOf(m.type, 'INTERSECTION')
+            ? toParenthesizedSource(m.type)
+            : typeToSource(m.type)).join(' | ');
         // Convert union with () to optional type notation, handling different orderings
         const optionalTypeRegex = /^\(\)\|(.+)$|^(.+)\|\(\)$/;
         const match = typeString.replace(/\s+/g, '').match(optionalTypeRegex);
@@ -142,7 +164,11 @@ export const typeToSource = (type: string | Type): string => {
     }
 
     if (type.codedata.node === 'ARRAY') {
-        return typeToSource(type.members[0].type) + '[]';
+        return toParenthesizedSource(type.members[0].type) + '[]';
+    }
+
+    if (type.codedata.node === 'INTERSECTION') {
+        return type.members.map(intersectionMemberToSource).join(' & ');
     }
 
     if (type.codedata.node === 'MAP') {
