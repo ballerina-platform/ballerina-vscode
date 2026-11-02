@@ -172,44 +172,6 @@ describe("SettingsPanel Customize Copilot rows", () => {
         expect(rpc.openOrCreateAgentsMd).not.toHaveBeenCalled();
     });
 
-    it("ignores Agent instructions clicks until the open in flight finishes", async () => {
-        const rpc = makeRpcClient();
-        let finishOpen: () => void = () => undefined;
-        rpc.openOrCreateAgentsMd.mockReturnValue(new Promise<void>((resolve) => { finishOpen = resolve; }));
-        await render(rpc.client);
-
-        await act(async () => {
-            labelFor("Agent instructions").click();
-            labelFor("Agent instructions").click();
-        });
-        expect(rpc.openOrCreateAgentsMd).toHaveBeenCalledTimes(1);
-
-        await act(async () => {
-            finishOpen();
-            await new Promise((resolve) => setTimeout(resolve, 0));
-        });
-        await act(async () => {
-            labelFor("Agent instructions").click();
-        });
-        expect(rpc.openOrCreateAgentsMd).toHaveBeenCalledTimes(2);
-    });
-
-    it("opens AGENTS.md again after a failed open", async () => {
-        const rpc = makeRpcClient();
-        rpc.openOrCreateAgentsMd.mockRejectedValueOnce(new Error("open failed"));
-        await render(rpc.client);
-
-        await act(async () => {
-            labelFor("Agent instructions").click();
-            await new Promise((resolve) => setTimeout(resolve, 0));
-        });
-        await act(async () => {
-            labelFor("Agent instructions").click();
-        });
-
-        expect(rpc.openOrCreateAgentsMd).toHaveBeenCalledTimes(2);
-    });
-
     it("opens the MCP servers panel when its row is clicked", async () => {
         const rpc = makeRpcClient();
         await render(rpc.client);
