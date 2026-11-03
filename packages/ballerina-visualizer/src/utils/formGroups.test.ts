@@ -27,10 +27,10 @@ import type { FormGroupData, NodeProperties, Property } from '@wso2/ballerina-co
 import { convertNodePropertiesToFormFields, getFormGroups } from './node-property-utils';
 
 const AUDIENCE: FormGroupData = {
-    id: 'audience', label: 'Assignment', description: 'Name who may decide this', collapsed: false,
+    id: 'audience', label: 'Who decides', description: 'Fill in the roles, the users, or both', collapsed: false,
     requireAnyOf: ['userRoles', 'users'],
 };
-const DETAILS: FormGroupData = { id: 'details', label: 'Details' };
+const DETAILS: FormGroupData = { id: 'details', label: 'Details', parent: 'audience' };
 
 function property(group?: FormGroupData, hidden = false): Property {
     return {
@@ -75,12 +75,13 @@ describe('form groups declared by the language server', () => {
         }
     });
 
-    it('orders groups by their first member and carries the declared label, description, default and ask', () => {
+    it('orders groups by their first member and carries the declared label, description, default, ask and parent', () => {
         const groups = getFormGroups(fieldsOf(corpus['two groups, interleaved']));
-        expect(groups.map((group) => [group.id, group.label, group.description, group.defaultCollapsed, group.requireAnyOf]))
+        expect(groups.map((group) =>
+            [group.id, group.label, group.description, group.defaultCollapsed, group.requireAnyOf, group.parent]))
             .toEqual([
-                ['audience', 'Assignment', 'Name who may decide this', false, ['userRoles', 'users']],
-                ['details', 'Details', undefined, true, []],
+                ['audience', 'Who decides', 'Fill in the roles, the users, or both', false, ['userRoles', 'users'], undefined],
+                ['details', 'Details', undefined, true, [], 'audience'],
             ]);
     });
 });

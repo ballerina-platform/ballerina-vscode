@@ -352,6 +352,8 @@ export type FormGroupData = {
     collapsed?: boolean;
     /** Member keys of which at least one must be filled before the form saves, though each is optional. */
     requireAnyOf?: string[];
+    /** Id of the section this one renders inside; absent for a top-level section. */
+    parent?: string;
 };
 
 export type CodeData = {

@@ -170,6 +170,7 @@ export function getFormGroups(fields: FormField[]): FieldGroup[] {
             description: group.description,
             defaultCollapsed: group.collapsed ?? true,
             requireAnyOf: group.requireAnyOf ?? [],
+            parent: group.parent,
         });
     }
     return Array.from(groups.values());

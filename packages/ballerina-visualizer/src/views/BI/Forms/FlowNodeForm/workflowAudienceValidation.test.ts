@@ -28,7 +28,7 @@ describe("validateWorkflowAudience", () => {
         expect(validateWorkflowAudience({ approvalPolicy: "HumanApproval", approvalUsers: "bob" })).toBeUndefined();
     });
 
-    // A form declaring a task gets the rule from the language server (HumanTaskBuilder.formRules), not here.
+    // A form declaring a task gets the rule from the language server ("Who decides" section, WorkflowUtil.groupAudience), not here.
     it("leaves a task's own audience to the language server", () => {
         expect(validateWorkflowAudience({ userRoles: [], users: [] })).toBeUndefined();
     });

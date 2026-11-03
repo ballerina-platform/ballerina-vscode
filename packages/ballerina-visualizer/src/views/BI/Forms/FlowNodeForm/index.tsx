@@ -1375,7 +1375,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     const handleFormValidation = async (data: FormValues, dirtyFields?: any): Promise<boolean> => {
         // A review naming nobody is refused when the source is generated, which is after the save has
         // left the panel. Catching it here keeps the panel open with what was typed. A form declaring a
-        // task holds the save itself: its audience section asks for the roles or the users.
+        // task holds the save itself: its "Who decides" section asks for the roles or the users.
         //
         // Reported as a notification rather than a field diagnostic: a diagnostic seeds the form's
         // own error state, which disables Save and is cleared only when the fields are rebuilt —

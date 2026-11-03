@@ -70,6 +70,7 @@ import {
     hasIncompleteRequiredFormFields,
     groupHasBlockingIssue,
     isSectionAskUnmet,
+    isFilledValue,
     shouldRunExternalFormValidation,
     isPrioritizedField,
     hasRequiredParameters,
@@ -594,7 +595,12 @@ export const Form = forwardRef((props: FormProps, _ref) => {
 
     const [showAdvancedOptions, setShowAdvancedOptions] = useState(props.defaultExpandAdvanced ?? false);
     const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
-    const opensExpanded = (group?: FieldGroup) => !(group?.defaultCollapsed ?? true);
+    // A section opens unless it is declared collapsed, and a collapsed one still opens when it, or a section
+    // nested in it, already holds a value: a form read back from source never hides what it says.
+    const holdsValue = (group: FieldGroup): boolean =>
+        formFields.some((field) => field.group === group.id && !field.hidden && isFilledValue(field.value))
+        || (props.groups ?? []).some((child) => child.parent === group.id && holdsValue(child));
+    const opensExpanded = (group?: FieldGroup) => !(group?.defaultCollapsed ?? true) || (!!group && holdsValue(group));
     // Set by the first save held for a section's ask; from then on an unmet ask shows as an error.
     const [sectionAsksShown, setSectionAsksShown] = useState(false);
     const toggleGroup = (groupId: string) =>
@@ -1027,50 +1033,47 @@ export const Form = forwardRef((props: FormProps, _ref) => {
         : [];
     const hasParameters = hasRequiredParameters(formFields, selectedNode) || hasOptionalParameters(formFields);
 
-    const renderGroupSections = (include: (group: FieldGroup) => boolean) => {
-        const sections = (groups ?? [])
-            .filter(include)
-            .map((group) => ({
-                group,
-                groupFields: formFields.filter(
-                    (field) => field.group === group.id && !field.hidden && field.enabled !== false
-                ),
-            }))
-            .filter((section) => section.groupFields.length > 0);
-        if (sections.length === 0) {
-            return null;
-        }
+    const shownGroupFields = (groupId: string) => formFields.filter(
+        (field) => field.group === groupId && !field.hidden && field.enabled !== false
+    );
+    const isTopLevelGroup = (group: FieldGroup) => !group.parent || !groupIds.has(group.parent);
+    const childGroups = (groupId: string) => (groups ?? []).filter((group) => group.parent === groupId);
+    // A section with nothing to show, itself or in the sections nested in it, is not rendered.
+    const hasShownFields = (group: FieldGroup): boolean =>
+        shownGroupFields(group.id).length > 0 || childGroups(group.id).some(hasShownFields);
+
+    const renderGroupField = (field: FormField) => {
+        const updatedField = updateFormFieldWithImports(field, formImports);
         return (
-            <S.GroupSection>
-            <S.GroupDivider />
-            {sections.map(({ group, groupFields }) => {
-        const renderGroupField = (field: FormField) => {
-            const updatedField = updateFormFieldWithImports(field, formImports);
-            return (
-                <S.Row key={updatedField.key}>
-                    <FieldFactory
-                        field={updatedField}
-                        selectedNode={selectedNode}
-                        openRecordEditor={
-                            openRecordEditor &&
-                            ((open: boolean, newType?: string | NodeProperties) =>
-                                handleOpenRecordEditor(open, updatedField, newType))
-                        }
-                        openSubPanel={handleOpenSubPanel}
-                        subPanelView={subPanelView}
-                        handleOnFieldFocus={handleOnFieldFocus}
-                        recordTypeFields={recordTypeFields}
-                        onIdentifierEditingStateChange={handleIdentifierEditingStateChange}
-                        onBlur={handleOnBlur}
-                        handleFormValidation={handleFormValidation}
-                    />
-                </S.Row>
-            );
-        };
+            <S.Row key={updatedField.key}>
+                <FieldFactory
+                    field={updatedField}
+                    selectedNode={selectedNode}
+                    openRecordEditor={
+                        openRecordEditor &&
+                        ((open: boolean, newType?: string | NodeProperties) =>
+                            handleOpenRecordEditor(open, updatedField, newType))
+                    }
+                    openSubPanel={handleOpenSubPanel}
+                    subPanelView={subPanelView}
+                    handleOnFieldFocus={handleOnFieldFocus}
+                    recordTypeFields={recordTypeFields}
+                    onIdentifierEditingStateChange={handleIdentifierEditingStateChange}
+                    onBlur={handleOnBlur}
+                    handleFormValidation={handleFormValidation}
+                />
+            </S.Row>
+        );
+    };
+
+    /** A section's card: its description, its fields, then the sections nested in it. */
+    const renderGroupCard = (group: FieldGroup): React.ReactNode => {
+        const groupFields = shownGroupFields(group.id);
+        const nested = childGroups(group.id).filter(hasShownFields);
         const expanded = expandedGroups[group.id] ?? opensExpanded(group);
         const askUnmet = sectionAsksShown && isSectionAskUnmet(group, watchedValues);
         const showIssueIcon = !expanded && (askUnmet || groupHasBlockingIssue({
-            groupFields,
+            groupFields: [group, ...nested].flatMap((member) => shownGroupFields(member.id)),
             errors,
             values: watchedValues,
             hasFieldError: hasFieldLiveError,
@@ -1103,10 +1106,21 @@ export const Form = forwardRef((props: FormProps, _ref) => {
                         <S.GroupDescription unmet={askUnmet}>{group.description}</S.GroupDescription>
                     )}
                     {groupFields.map(renderGroupField)}
+                    {nested.map(renderGroupCard)}
                 </S.GroupBody>
             </S.GroupCard>
-                );
-            })}
+        );
+    };
+
+    const renderGroupSections = (include: (group: FieldGroup) => boolean) => {
+        const sections = (groups ?? []).filter((group) => isTopLevelGroup(group) && include(group) && hasShownFields(group));
+        if (sections.length === 0) {
+            return null;
+        }
+        return (
+            <S.GroupSection>
+                <S.GroupDivider />
+                {sections.map(renderGroupCard)}
             </S.GroupSection>
         );
     };

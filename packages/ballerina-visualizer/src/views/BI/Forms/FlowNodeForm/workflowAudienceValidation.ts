@@ -23,8 +23,8 @@
  * so the panel stays open with what the person typed.
  *
  * Only the reviews a policy raises are checked here. A form that declares a task itself (Human
- * Task, a durable agent's human task) gets the same rule from the language server, as a finding in
- * its audience section: see `HumanTaskBuilder.formRules`.
+ * Task, a durable agent's human task) gets the same rule from the language server, as the ask of
+ * its "Who decides" section: see `WorkflowUtil.groupAudience` and `FormGroup.requireAnyOf`.
  */
 
 /** The audience a review or task names, by the keys the form holds them under. */

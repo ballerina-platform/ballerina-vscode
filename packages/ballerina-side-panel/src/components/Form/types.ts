@@ -144,6 +144,8 @@ export type FieldGroup = {
      * header, and a save without one opens it with its description shown as the error.
      */
     requireAnyOf?: string[];
+    /** Id of the section this one renders inside, after that section's own fields; absent for a top-level one. */
+    parent?: string;
 };
 
 export type ParameterValue = {

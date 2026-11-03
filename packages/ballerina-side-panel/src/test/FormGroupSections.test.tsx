@@ -47,16 +47,28 @@ const common = {
     fileName: "x.bal",
 };
 
-const DESCRIPTION = "Name who may decide this: fill in the roles, the users, or both";
+const DESCRIPTION = "Fill in the roles, the users, or both";
 const ASSIGNMENT: FieldGroup = {
-    id: "audience", label: "Assignment", description: DESCRIPTION, defaultCollapsed: false,
+    id: "audience", label: "Who decides", description: DESCRIPTION, defaultCollapsed: false,
     requireAnyOf: ["userRoles", "users"],
+};
+const EXCLUDED: FieldGroup = { id: "audience-excluded", label: "Excluded", defaultCollapsed: true, parent: "audience" };
+const ADMINISTRATORS: FieldGroup = {
+    id: "audience-administrators", label: "Administrators", defaultCollapsed: true, parent: "audience",
 };
 const audience = (roles: unknown = "", users: unknown = "") => [
     field("taskName", "Task Name", undefined, "approve"),
     field("userRoles", "User Roles", "audience", roles),
     field("users", "Users", "audience", users),
     field("excludedUsers", "Excluded Users", "audience"),
+];
+// The audience as the language server groups it: who decides, and inside it who may not and who administers.
+const nestedAudience = (adminRoles: unknown = "") => [
+    field("taskName", "Task Name", undefined, "approve"),
+    field("userRoles", "User Roles", "audience"),
+    field("users", "Users", "audience", ["alice"]),
+    field("excludedUsers", "Excluded Users", "audience-excluded"),
+    field("administratorRoles", "Administrator Roles", "audience-administrators", adminRoles),
 ];
 
 const sectionHeader = (container: HTMLElement, label: string): HTMLElement => {
@@ -108,7 +120,7 @@ describe("Form — sections", () => {
     it("renders a section's members and its description in it, and nothing else", async () => {
         const { container } = render(<Form formFields={audience()} groups={[ASSIGNMENT]} onSubmit={() => {}} {...common} />);
         await settle();
-        const body = sectionBody(container, "Assignment");
+        const body = sectionBody(container, "Who decides");
         expect(body.textContent).toContain(DESCRIPTION);
         expect(body.textContent).toContain("User Roles");
         expect(body.textContent).toContain("Excluded Users");
@@ -121,7 +133,7 @@ describe("Form — sections", () => {
         const group = asks ? ASSIGNMENT : { ...ASSIGNMENT, requireAnyOf: [] };
         const { container } = render(<Form formFields={audience()} groups={[group]} onSubmit={() => {}} {...common} />);
         await settle();
-        expect(sectionHeader(container, "Assignment").textContent?.includes("*")).toBe(asks);
+        expect(sectionHeader(container, "Who decides").textContent?.includes("*")).toBe(asks);
     });
 
     it("puts a section that asks above the advanced configurations and one that does not below", async () => {
@@ -135,7 +147,7 @@ describe("Form — sections", () => {
         const text = container.textContent ?? "";
         const advancedAt = text.indexOf("Advanced Configurations");
         expect(advancedAt).toBeGreaterThan(-1);
-        expect(text.indexOf("Assignment")).toBeLessThan(advancedAt);
+        expect(text.indexOf("Who decides")).toBeLessThan(advancedAt);
         expect(text.indexOf("Extras")).toBeGreaterThan(advancedAt);
     });
 
@@ -169,5 +181,46 @@ describe("Form — sections", () => {
     it("does not hold Save for a section whose fields are all hidden", async () => {
         const hidden = audience().map((member) => (member.group ? { ...member, hidden: true } : member));
         expect(await validityOf(hidden)).toBe(true);
+    });
+
+    it("renders a nested section inside its parent, after the parent's own fields", async () => {
+        const { container } = render(
+            <Form formFields={nestedAudience()} groups={[ASSIGNMENT, EXCLUDED, ADMINISTRATORS]}
+                onSubmit={() => {}} {...common} />
+        );
+        await settle();
+        const parent = sectionBody(container, "Who decides");
+        for (const label of ["Excluded", "Administrators"]) {
+            const header = sectionHeader(container, label);
+            expect(parent.contains(header)).toBe(true);
+            expect(parent.textContent!.indexOf("Users")).toBeLessThan(parent.textContent!.indexOf(label));
+        }
+        // Only the parent asks; the nested sections are not marked required.
+        expect(sectionHeader(container, "Excluded").textContent).not.toContain("*");
+        // Each section is rendered once, not again at the top level.
+        expect(container.textContent!.split("Administrators").length - 1).toBe(1);
+    });
+
+    it.each([
+        ["stays collapsed while it holds nothing", "", false],
+        ["opens when it already holds a value", ["ops-admin"], true],
+    ] as const)("a collapsed nested section %s", async (_, adminRoles, open) => {
+        const { container } = render(
+            <Form formFields={nestedAudience(adminRoles)} groups={[ASSIGNMENT, EXCLUDED, ADMINISTRATORS]}
+                onSubmit={() => {}} {...common} />
+        );
+        await settle();
+        expect(sectionHeader(container, "Administrators").getAttribute("aria-expanded")).toBe(String(open));
+        expect(sectionHeader(container, "Excluded").getAttribute("aria-expanded")).toBe("false");
+    });
+
+    it("renders a section whose parent is not on the form at the top level", async () => {
+        const { container } = render(
+            <Form formFields={nestedAudience().filter((member) => member.group !== "audience")}
+                groups={[EXCLUDED, ADMINISTRATORS]} onSubmit={() => {}} {...common} />
+        );
+        await settle();
+        expect(sectionHeader(container, "Excluded")).toBeTruthy();
+        expect(sectionHeader(container, "Administrators")).toBeTruthy();
     });
 });
