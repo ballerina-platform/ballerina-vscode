@@ -20,17 +20,103 @@ import * as path from 'path';
 import { parse, stringify } from '@iarna/toml';
 import { OTLP_PORT } from './constants';
 
+// Tracing provider bundled with the Ballerina runtime from 2201.14.0 onwards; no import is needed.
+const TRACING_PROVIDER = 'otel';
+
+// Keys the extension writes to [ballerina.otel] so traces reach the local trace server.
+const OTEL_TRACE_CONFIG = {
+    tracesProtocol: 'http/protobuf',
+    tracesEndpoint: `http://localhost:${OTLP_PORT}/v1/traces`
+};
+
+// Previous setup: trace_enabled.bal imports ballerinax/idetraceprovider. Projects that already
+// use it keep it until tracing is disabled.
+const LEGACY_TRACE_FILE = 'trace_enabled.bal';
+const LEGACY_TRACING_PROVIDER = 'idetraceprovider';
+const LEGACY_PROVIDER_SECTION = 'ballerinax.idetraceprovider';
+
+// Marks a user's own line that enabling tracing replaced, so disabling can put it back.
+const SAVED_LINE_PREFIX = '# saved by IDE tracing: ';
+
+/**
+ * Checks whether tracing is enabled for the given project.
+ * Tracing is enabled when Config.toml has [ballerina.observe] tracingEnabled = true with the otel provider
+ * exporting to the IDE's trace server (not a collector of the project's own), or when the project uses the legacy trace_enabled.bal setup.
+ *
+ * @param projectPath The project directory containing Config.toml
+ * @returns true if tracing is enabled for the project
+ */
+export function isTracingEnabled(projectPath: string): boolean {
+    if (fs.existsSync(path.join(projectPath, LEGACY_TRACE_FILE))) {
+        return true;
+    }
+    const configFilePath = path.join(projectPath, 'Config.toml');
+    if (!fs.existsSync(configFilePath)) {
+        return false;
+    }
+    let parsedConfig: any;
+    try {
+        parsedConfig = parseConfig(fs.readFileSync(configFilePath, 'utf-8'));
+    } catch (error) {
+        console.error('Failed to read Config.toml:', error);
+        return false;
+    }
+    const observe = parsedConfig?.ballerina?.observe;
+    return observe?.tracingEnabled === true && observe?.tracingProvider === TRACING_PROVIDER
+        && exportsToTraceServer(parsedConfig);
+}
+
+/**
+ * Parses Config.toml content, returning undefined if it is not valid TOML
+ *
+ * @param content Config.toml content
+ * @returns The parsed config, or undefined
+ */
+function parseConfig(content: string): any {
+    try {
+        return parse(content);
+    } catch (error) {
+        console.error('Failed to parse Config.toml:', error);
+        return undefined;
+    }
+}
+
+/**
+ * Checks whether the config sends traces to the IDE's trace server rather than to a collector of the user's own
+ *
+ * @param parsedConfig The parsed Config.toml
+ * @returns true if [ballerina.otel] tracesEndpoint is the IDE's endpoint
+ */
+function exportsToTraceServer(parsedConfig: any): boolean {
+    return parsedConfig?.ballerina?.otel?.tracesEndpoint === OTEL_TRACE_CONFIG.tracesEndpoint;
+}
+
+/**
+ * Checks whether the config was set up by the IDE, through either the otel or the legacy provider
+ *
+ * @param parsedConfig The parsed Config.toml
+ * @returns true if the tracing settings in the config are the IDE's
+ */
+function usesIdeTracing(parsedConfig: any): boolean {
+    return exportsToTraceServer(parsedConfig)
+        || parsedConfig?.ballerina?.observe?.tracingProvider === LEGACY_TRACING_PROVIDER;
+}
+
 /**
  * Sets tracing configuration in Config.toml and Ballerina.toml files
- * 
+ *
  * This function will:
  * - Read existing Config.toml if it exists
- * - Update or add [ballerina.observe] section with tracingEnabled = true and tracingProvider = "idetraceprovider"
- * - Update or add [ballerinax.idetraceprovider] section with endpoint = "http://localhost:<port>/v1/traces"
+ * - Update or add [ballerina.observe] section with tracingEnabled = true and tracingProvider = "otel"
+ * - Update or add [ballerina.otel] section to export traces to "http://localhost:<port>/v1/traces"
+ * - Remove a stale legacy [ballerinax.idetraceprovider] section
+ * - For a project that already uses the legacy trace_enabled.bal setup, keep tracingProvider = "idetraceprovider"
+ *   and leave [ballerina.otel] untouched instead
  * - Read existing Ballerina.toml if it exists
  * - Update or add [build-options] section with observabilityIncluded = true
+ * - Keep each replaced line as a comment, so removeTracingConfig can restore it
  * - Preserve all other existing configuration
- * 
+ *
  * @param workspaceDir The workspace directory where Config.toml and Ballerina.toml should be created/updated
  * @returns Promise<void> Resolves when configuration is successfully written
  * @throws Error if file operations fail
@@ -38,38 +124,45 @@ import { OTLP_PORT } from './constants';
 export async function setTracingConfig(workspaceDir: string): Promise<void> {
     // Update Config.toml
     const configFilePath = path.join(workspaceDir, 'Config.toml');
-    
+
     // Read existing Config.toml content if it exists
-    let existingContent = '';
-    let parsedConfig: any = {};
-    
+    let updatedContent = '';
     if (fs.existsSync(configFilePath)) {
         try {
-            existingContent = fs.readFileSync(configFilePath, 'utf-8');
-            parsedConfig = parse(existingContent);
+            updatedContent = fs.readFileSync(configFilePath, 'utf-8');
         } catch (error) {
-            console.error('Failed to parse existing Config.toml:', error);
-            // Continue with empty config if parsing fails
+            console.error('Failed to read existing Config.toml:', error);
+            // Continue with empty content if reading fails
         }
     }
-    
-    // Update the parsed config object
-    if (!parsedConfig['ballerina']) {
-        parsedConfig['ballerina'] = {};
+
+    const usesLegacySetup = fs.existsSync(path.join(workspaceDir, LEGACY_TRACE_FILE));
+    // Lines are only the user's own the first time; on a re-enable they are ours.
+    const saveReplaced = !usesIdeTracing(parseConfig(updatedContent));
+    if (!usesLegacySetup) {
+        updatedContent = removeSection(updatedContent, LEGACY_PROVIDER_SECTION);
     }
-    if (!parsedConfig['ballerina']['observe']) {
-        parsedConfig['ballerina']['observe'] = {};
+    updatedContent = updateOrAddSection(
+        updatedContent,
+        'ballerina.observe',
+        {
+            tracingEnabled: true,
+            tracingProvider: usesLegacySetup ? LEGACY_TRACING_PROVIDER : TRACING_PROVIDER
+        },
+        saveReplaced
+    );
+    if (!usesLegacySetup) {
+        updatedContent = updateOrAddSection(updatedContent, 'ballerina.otel', OTEL_TRACE_CONFIG, saveReplaced);
     }
-    
-    parsedConfig['ballerina']['observe']['tracingEnabled'] = true;
-    parsedConfig['ballerina']['observe']['tracingProvider'] = 'idetraceprovider';
-    
-    // Convert the updated config object back to TOML string
-    const updatedContent = convertObjectToToml(parsedConfig, existingContent);
-    
+
+    // Ensure file ends with newline
+    if (!updatedContent.endsWith('\n')) {
+        updatedContent += '\n';
+    }
+
     // Write the updated content to Config.toml
     fs.writeFileSync(configFilePath, updatedContent, 'utf-8');
-    
+
     // Update Ballerina.toml
     const ballerinaTomlPath = path.join(workspaceDir, 'Ballerina.toml');
     
@@ -90,7 +183,8 @@ export async function setTracingConfig(workspaceDir: string): Promise<void> {
         'build-options',
         {
             observabilityIncluded: true
-        }
+        },
+        saveReplaced
     );
     
     // Ensure file ends with newline
@@ -103,32 +197,15 @@ export async function setTracingConfig(workspaceDir: string): Promise<void> {
 }
 
 /**
- * Converts a JavaScript object to TOML format string
- * Uses a simpler approach: updates existing sections or appends new ones
- * 
- * @param config The parsed config object
- * @param originalContent Original TOML content for reference
- * @returns TOML formatted string
+ * Deletes the trace_enabled.bal file used by the legacy idetraceprovider setup, if present
+ *
+ * @param projectPath The project directory
  */
-function convertObjectToToml(config: any, originalContent: string): string {
-    let updatedContent = originalContent || '';
-    
-    // Update or add [ballerina.observe] section
-    updatedContent = updateOrAddSection(
-        updatedContent,
-        'ballerina.observe',
-        {
-            tracingEnabled: config.ballerina?.observe?.tracingEnabled ?? true,
-            tracingProvider: config.ballerina?.observe?.tracingProvider ?? 'idetraceprovider'
-        }
-    );
-    
-    // Ensure file ends with newline
-    if (!updatedContent.endsWith('\n')) {
-        updatedContent += '\n';
+function removeLegacyTraceFile(projectPath: string): void {
+    const legacyFilePath = path.join(projectPath, LEGACY_TRACE_FILE);
+    if (fs.existsSync(legacyFilePath)) {
+        fs.unlinkSync(legacyFilePath);
     }
-    
-    return updatedContent;
 }
 
 /**
@@ -137,9 +214,12 @@ function convertObjectToToml(config: any, originalContent: string): string {
  * @param content Original TOML content
  * @param sectionName Section name (e.g., 'ballerina.observe')
  * @param values Object with key-value pairs to set in the section
+ * @param saveReplaced Keep each replaced line as a comment, unless one is already saved for that key
  * @returns Updated TOML content
  */
-function updateOrAddSection(content: string, sectionName: string, values: Record<string, any>): string {
+function updateOrAddSection(
+    content: string, sectionName: string, values: Record<string, any>, saveReplaced = false
+): string {
     const sectionHeader = `[${sectionName}]`;
     const lines = content.split('\n');
     const sectionStartIndex = lines.findIndex(line => line.trim() === sectionHeader);
@@ -168,18 +248,26 @@ function updateOrAddSection(content: string, sectionName: string, values: Record
         const mergedKeys = new Set<string>();
         const existingLines = lines.slice(sectionStartIndex + 1, sectionEndIndex);
 
-        const updatedLines = existingLines.map(line => {
+        const savedKeys = new Set(
+            Object.keys(values).filter(key => existingLines.some(line => isSavedLineFor(line, keyPatterns.get(key)!)))
+        );
+
+        const updatedLines = existingLines.flatMap(line => {
             const trimmed = line.trim();
             if (trimmed === '' || trimmed.startsWith('#')) {
-                return line;
+                return [line];
             }
             for (const [key, pattern] of keyPatterns) {
                 if (pattern.test(trimmed)) {
                     mergedKeys.add(key);
-                    return formatEntry(key, values[key]);
+                    const entry = formatEntry(key, values[key]);
+                    if (saveReplaced && !savedKeys.has(key)) {
+                        return [`${SAVED_LINE_PREFIX}${trimmed}`, entry];
+                    }
+                    return [entry];
                 }
             }
-            return line;
+            return [line];
         });
 
         // Strip trailing blank lines so new keys sit directly after existing ones
@@ -192,6 +280,11 @@ function updateOrAddSection(content: string, sectionName: string, values: Record
             if (!mergedKeys.has(key)) {
                 updatedLines.push(formatEntry(key, value));
             }
+        }
+
+        // Keep a blank line between this section and the next one
+        if (sectionEndIndex < lines.length) {
+            updatedLines.push('');
         }
 
         return [
@@ -218,16 +311,33 @@ function updateOrAddSection(content: string, sectionName: string, values: Record
 }
 
 /**
+ * Checks whether a line is a saved copy of a key's original line
+ *
+ * @param line The TOML line
+ * @param keyPattern Pattern matching the key's assignment
+ * @returns true if the line was saved by updateOrAddSection for that key
+ */
+function isSavedLineFor(line: string, keyPattern: RegExp): boolean {
+    const trimmed = line.trim();
+    return trimmed.startsWith(SAVED_LINE_PREFIX) && keyPattern.test(trimmed.slice(SAVED_LINE_PREFIX.length));
+}
+
+/**
  * Removes tracing configuration from Config.toml and Ballerina.toml files
  * 
  * This function will:
  * - Read existing Config.toml if it exists
  * - Remove tracingEnabled and tracingProvider from [ballerina.observe] section
  *   (removes the entire section if it becomes empty)
- * - Remove the entire [ballerinax.idetraceprovider] section
+ * - Remove the trace export keys from [ballerina.otel] section
+ *   (removes the entire section if it becomes empty)
+ * - Remove the legacy [ballerinax.idetraceprovider] section and trace_enabled.bal file
  * - Read existing Ballerina.toml if it exists
  * - Remove observabilityIncluded from [build-options] section
  *   (removes the entire section if it becomes empty)
+ * - Restore the lines setTracingConfig replaced
+ * - Leave [ballerina.observe], [ballerina.otel] and Ballerina.toml untouched when the project exports
+ *   traces to a collector of its own rather than to the IDE
  * - Preserve all other existing configuration
  * 
  * @param workspaceDir The workspace directory where Config.toml and Ballerina.toml should be updated
@@ -235,9 +345,11 @@ function updateOrAddSection(content: string, sectionName: string, values: Record
  * @throws Error if file operations fail
  */
 export async function removeTracingConfig(workspaceDir: string): Promise<void> {
+    removeLegacyTraceFile(workspaceDir);
+
     // Remove from Config.toml
     const configFilePath = path.join(workspaceDir, 'Config.toml');
-    
+
     // If file doesn't exist, nothing to do
     if (!fs.existsSync(configFilePath)) {
         return;
@@ -253,8 +365,23 @@ export async function removeTracingConfig(workspaceDir: string): Promise<void> {
     }
     
     // Remove the tracing configuration sections
-    let updatedContent = removeSection(existingContent, 'ballerinax.idetraceprovider');
-    
+    let updatedContent = removeSection(existingContent, LEGACY_PROVIDER_SECTION);
+
+    if (!usesIdeTracing(parseConfig(existingContent))) {
+        // The project's own exporter setup, not ours to remove.
+        if (updatedContent !== existingContent) {
+            fs.writeFileSync(configFilePath, updatedContent, 'utf-8');
+        }
+        return;
+    }
+
+    // Remove trace export keys from [ballerina.otel] section
+    updatedContent = removeKeysFromSection(
+        updatedContent,
+        'ballerina.otel',
+        Object.keys(OTEL_TRACE_CONFIG)
+    );
+
     // Remove tracing keys from [ballerina.observe] section
     updatedContent = removeKeysFromSection(
         updatedContent,
@@ -361,7 +488,7 @@ function removeSection(content: string, sectionName: string): string {
 }
 
 /**
- * Removes specific keys from a TOML section
+ * Removes specific keys from a TOML section, restoring any line updateOrAddSection saved for them
  * If the section becomes empty after removing keys, removes the entire section
  * 
  * @param content Original TOML content
@@ -393,24 +520,25 @@ function removeKeysFromSection(content: string, sectionName: string, keysToRemov
     // Extract section lines
     const sectionLines = lines.slice(sectionStartIndex, sectionEndIndex);
     
-    // Remove keys from section
-    const remainingLines = sectionLines.filter(line => {
-        const trimmedLine = line.trim();
-        // Keep the section header
-        if (trimmedLine === sectionHeader) {
-            return true;
-        }
-        // Check if this line contains a key we want to remove
-        for (const key of keysToRemove) {
-            // Match key = value (with or without quotes, with or without spaces)
-            const keyPattern = new RegExp(`^\\s*${key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*=`);
-            if (keyPattern.test(trimmedLine)) {
-                return false; // Remove this line
+    // Match key = value (with or without quotes, with or without spaces)
+    const keyPatterns = keysToRemove.map(
+        key => new RegExp(`^\\s*${key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*=`)
+    );
+
+    // Remove keys from section, then restore the lines they replaced
+    const remainingLines = sectionLines
+        .filter(line => {
+            const trimmedLine = line.trim();
+            // Keep the section header
+            if (trimmedLine === sectionHeader) {
+                return true;
             }
-        }
-        // Keep all other lines
-        return true;
-    });
+            // Remove lines that set a key we want to remove, keep all others
+            return !keyPatterns.some(pattern => pattern.test(trimmedLine));
+        })
+        .map(line => keyPatterns.some(pattern => isSavedLineFor(line, pattern))
+            ? line.trim().slice(SAVED_LINE_PREFIX.length)
+            : line);
     
     // Check if section is empty (only header remains)
     const hasContent = remainingLines.some((line, index) => {

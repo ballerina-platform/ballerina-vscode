@@ -1,0 +1,8 @@
+[package]
+org = "wso2"
+name = "annotated_service_cases"
+version = "0.1.0"
+title = "annotated service cases"
+
+[build-options]
+sticky = true

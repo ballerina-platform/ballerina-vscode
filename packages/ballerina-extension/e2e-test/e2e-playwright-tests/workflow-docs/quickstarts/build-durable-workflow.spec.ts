@@ -43,6 +43,22 @@ export default function createTests() {
             // Step 1 creates the project from the home page; the harness opens an empty project of the same name.
             let view = await ui.view(/Add Artifact/i, 180000);
 
+            // After an If is saved the diagram redraws a few times, and a branch + clicked mid-redraw opens nothing.
+            const plusOnBranch = async (label: string, index: number): Promise<void> => {
+                for (let attempt = 1; ; attempt++) {
+                    try {
+                        await ui.plusOnBranch(view, label, index);
+                        return;
+                    } catch (error) {
+                        if (attempt === 3) {
+                            throw error;
+                        }
+                        console.log(`  ℹ️  the + on the '${label}' branch opened nothing (attempt ${attempt}); retrying`);
+                        await j.page.waitForTimeout(2000);
+                    }
+                }
+            };
+
             // ---------------------------------------------------------------- Step 2
             await j.step('2.1', 'In the design view, click **Add Artifact Manually**.', async () => {
                 await ui.clickButton(view, 'Add Artifact Manually');
@@ -167,7 +183,8 @@ export default function createTests() {
                 const panel = await ui.panel();
                 await ui.clickButton(panel, 'Add');
                 await ui.saveForm();
-                await expect(view.getByText(/Wait for payment/i).first()).toBeVisible();
+                // The node shows once the language server has regenerated the flow model, often past the 5 s default.
+                await expect(view.getByText(/Wait for payment/i).first()).toBeVisible({ timeout: 60000 });
             });
 
             // ---------------------------------------------------------------- Step 5
@@ -194,7 +211,7 @@ export default function createTests() {
 
             // ---------------------------------------------------------------- Step 6
             await j.step('6.1', 'Click **+** on the `payment` path, then under **Workflow** > **Steps**, click **Call Activity**.', async () => {
-                await ui.plusOnBranch(view, 'payment', 0);
+                await plusOnBranch('payment', 0);
                 await ui.palette(['Workflow', 'Steps', 'Call Activity']);
             });
             await j.step('6.2', 'The **Activities** panel already lists `reserveInventory`, so click the **+** on the **Current Integration** header to add another activity.', async () => {
@@ -242,7 +259,7 @@ export default function createTests() {
                     await ui.sidebar('orderWorkflow');
                     view = await ui.view('Wait for payment');
                 }
-                await ui.plusOnBranch(view, 'Else', -1);
+                await plusOnBranch('Else', -1);
                 await ui.palette(['Workflow', 'Steps', 'Call Activity']);
             });
             await j.step('7.2', 'Click the **+** on the **Current Integration** header.', async () => {

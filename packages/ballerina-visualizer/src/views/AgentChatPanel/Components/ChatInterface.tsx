@@ -25,7 +25,7 @@ import LoadingIndicator from "./LoadingIndicator";
 import { ExecutionTimeline } from "./ExecutionTimeline";
 import { ApprovalCard } from "./ApprovalCard";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { Icon, Button, ThemeColors } from "@wso2/ui-toolkit";
+import { Icon, Button, ThemeColors, TextField } from "@wso2/ui-toolkit";
 import { SessionInfoResponse, AgentInfo, PendingApprovalInfo, HumanDecision, ChatHistoryMessage } from "@wso2/ballerina-core";
 import ReactMarkdown from "react-markdown";
 import remarkMath from 'remark-math';
@@ -542,6 +542,15 @@ export function preprocessLatex(text: string): string {
     return processed;
 }
 
+function isValidChatEndpoint(value: string): boolean {
+    try {
+        const url = new URL(value.trim());
+        return (url.protocol === "http:" || url.protocol === "https:") && url.pathname.endsWith("/chat") && !/[?#]/.test(value);
+    } catch {
+        return false;
+    }
+}
+
 const ChatInterface: React.FC = () => {
     const { rpcClient } = useRpcContext();
     const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -551,6 +560,7 @@ const ChatInterface: React.FC = () => {
     const [showInfoPopover, setShowInfoPopover] = useState(false);
     const [sessionInfo, setSessionInfo] = useState<SessionInfoResponse | null>(null);
     const [copiedField, setCopiedField] = useState<string | null>(null);
+    const [endpointDraft, setEndpointDraft] = useState<string | null>(null);
     const [availableAgents, setAvailableAgents] = useState<AgentInfo[]>([]);
     const [activeAgentName, setActiveAgentName] = useState<string>('');
     const [showAgentDropdown, setShowAgentDropdown] = useState(false);
@@ -681,6 +691,7 @@ const ChatInterface: React.FC = () => {
         try {
             const info = await rpcClient.getAgentChatRpcClient().getSessionInfo();
             setSessionInfo(info);
+            setEndpointDraft(null);
             setShowInfoPopover(true);
         } catch (error) {
             console.error('Failed to get session info:', error);
@@ -696,6 +707,29 @@ const ChatInterface: React.FC = () => {
             setTimeout(() => setCopiedField(null), 1500);
         } catch (error) {
             console.error('Failed to copy to clipboard:', error);
+        }
+    };
+
+    const endpointError = endpointDraft !== null && !isValidChatEndpoint(endpointDraft)
+        ? "Enter an http(s) URL that ends with /chat, without a query or fragment."
+        : undefined;
+
+    const handleSaveEndpoint = async () => {
+        if (endpointDraft === null || endpointError) return;
+        try {
+            const info = await rpcClient.getAgentChatRpcClient().setChatEndpoint({ chatEndpoint: endpointDraft.trim() });
+            setSessionInfo(info);
+            setEndpointDraft(null);
+        } catch (error) {
+            console.error('Failed to update chat endpoint:', error);
+        }
+    };
+
+    const handleEndpointKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === "Enter") {
+            handleSaveEndpoint();
+        } else if (e.key === "Escape") {
+            setEndpointDraft(null);
         }
     };
 
@@ -973,12 +1007,38 @@ const ChatInterface: React.FC = () => {
                             </InfoRow>
                             <InfoRow>
                                 <InfoLabel>Chat Endpoint</InfoLabel>
-                                <InfoValueRow>
-                                    <InfoValue title={sessionInfo.chatEndpoint}>{sessionInfo.chatEndpoint}</InfoValue>
-                                    <CopyButton onClick={() => handleCopy('chatEndpoint', sessionInfo.chatEndpoint)} title="Copy chat endpoint">
-                                        <span className={`codicon codicon-${copiedField === 'chatEndpoint' ? 'check' : 'copy'}`} style={{ fontSize: 14 }} />
-                                    </CopyButton>
-                                </InfoValueRow>
+                                {endpointDraft === null ? (
+                                    <InfoValueRow>
+                                        <InfoValue title={sessionInfo.chatEndpoint}>{sessionInfo.chatEndpoint}</InfoValue>
+                                        <CopyButton onClick={() => setEndpointDraft(sessionInfo.chatEndpoint)} title="Edit chat endpoint">
+                                            <span className="codicon codicon-edit" style={{ fontSize: 14 }} />
+                                        </CopyButton>
+                                        <CopyButton onClick={() => handleCopy('chatEndpoint', sessionInfo.chatEndpoint)} title="Copy chat endpoint">
+                                            <span className={`codicon codicon-${copiedField === 'chatEndpoint' ? 'check' : 'copy'}`} style={{ fontSize: 14 }} />
+                                        </CopyButton>
+                                    </InfoValueRow>
+                                ) : (
+                                    <TextField
+                                        forceAutoFocus
+                                        aria-label="Chat endpoint"
+                                        value={endpointDraft}
+                                        onTextChange={setEndpointDraft}
+                                        onKeyDown={handleEndpointKeyDown}
+                                        errorMsg={endpointError}
+                                        inputProps={{
+                                            endAdornment: (
+                                                <InfoValueRow>
+                                                    <CopyButton onClick={handleSaveEndpoint} disabled={!!endpointError} title="Save chat endpoint">
+                                                        <span className="codicon codicon-check" style={{ fontSize: 14 }} />
+                                                    </CopyButton>
+                                                    <CopyButton onClick={() => setEndpointDraft(null)} title="Cancel">
+                                                        <span className="codicon codicon-close" style={{ fontSize: 14 }} />
+                                                    </CopyButton>
+                                                </InfoValueRow>
+                                            )
+                                        }}
+                                    />
+                                )}
                             </InfoRow>
                             <InfoRow>
                                 <InfoLabel>Tracing</InfoLabel>

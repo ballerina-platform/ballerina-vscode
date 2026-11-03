@@ -24,9 +24,14 @@ globalThis.createProjectAndIntegration = async (baseName = 'Authoring') => {
   }
 
   let frame = await waitForGuest('Welcome', 60000).catch(() => waitForGuest(BI_INTEGRATOR_LABEL, 60000));
-  const createHeading = frame.getByRole('heading', { name: 'Create New Integration' });
-  if (await createHeading.isVisible({ timeout: 10000 }).catch(() => false)) {
-    await frame.getByRole('button', { name: 'Create' }).first().click();
+  // Older welcome pages show a "Create New Integration" card; WSO2 Integrator 1.2 shows "Create a
+  // Project". Either way, click its Create button unless the creation form is already open.
+  const formOpen = frame.getByRole('textbox', { name: /Integration Name/i });
+  if (!await formOpen.isVisible({ timeout: 5000 }).catch(() => false)) {
+    const createHeading = frame.getByRole('heading', { name: /Create New Integration|Create a Project/ });
+    if (await createHeading.first().isVisible({ timeout: 10000 }).catch(() => false)) {
+      await frame.getByRole('button', { name: 'Create', exact: true }).first().click();
+    }
   }
 
   frame = await waitForGuest('Welcome', 30000).catch(() => waitForGuest(BI_INTEGRATOR_LABEL, 30000));
@@ -34,6 +39,7 @@ globalThis.createProjectAndIntegration = async (baseName = 'Authoring') => {
   await frame.getByRole('textbox', { name: /Project Name/i }).fill(projectName);
 
   const projectPathInput = frame.getByRole('textbox', { name: /Select Path/i })
+    .or(frame.getByRole('textbox', { name: /^Location/ }))
     .or(frame.locator('input#project-folder-selector-input'));
   if (await projectPathInput.first().isVisible({ timeout: 2000 }).catch(() => false)) {
     await projectPathInput.first().fill(dataFolder);
@@ -41,7 +47,8 @@ globalThis.createProjectAndIntegration = async (baseName = 'Authoring') => {
 
   // A plain (even force:true) Playwright click silently no-ops on this button in the
   // current UI — confirmed via manual daemon poking. A real DOM click is required.
-  await domClick(frame.getByRole('button', { name: 'Create Integration' }));
+  // "Create Integration" on older builds, a plain "Create" on WSO2 Integrator 1.2.
+  await domClick(frame.getByRole('button', { name: /^Create( Integration)?$/ }).last());
   frame = await waitForGuest(BI_INTEGRATOR_LABEL, 120000);
   // Two landing flows exist: older builds land on the project overview (click
   // the integration name to open it), newer builds land directly on the

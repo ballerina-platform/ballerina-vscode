@@ -73,7 +73,7 @@ import {
     removeTemplate,
     upsertTemplate,
 } from "../../commandTemplates/utils/utils";
-import { acceptResolver, handleAttachmentSelection } from "../../utils/attachment/attachmentManager";
+import { resolveAttachmentPolicy } from "../../utils/attachment/attachmentManager";
 import { SYSTEM_ERROR_SECRET } from "../AIChatInput/constants";
 import { CodeSegment } from "../CodeSegment";
 import AttachmentBox, { AttachmentsContainer } from "../AttachmentBox";
@@ -3192,8 +3192,7 @@ const AIChat: React.FC = () => {
                             }}
                             attachmentOptions={{
                                 multiple: true,
-                                acceptResolver: acceptResolver,
-                                handleAttachmentSelection: handleAttachmentSelection,
+                                resolveAttachmentPolicy,
                             }}
                             suggestedCommandTemplates={footerSuggestedCommandTemplates}
                             inputPlaceholder={

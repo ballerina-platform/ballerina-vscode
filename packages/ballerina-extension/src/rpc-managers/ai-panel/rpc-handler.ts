@@ -147,6 +147,8 @@ import {
     OpenMcpConfigRequest,
     getAgentsMdFileInfo,
     openOrCreateAgentsMd,
+    selectAttachmentFiles,
+    SelectAttachmentFilesRequest,
     listThreads,
     switchThread,
     SwitchThreadRequest,
@@ -261,6 +263,7 @@ export function registerAiPanelRpcHandlers(messenger: Messenger) {
     messenger.onRequest(getMcpLoadErrors, () => rpcManger.getMcpLoadErrors());
     messenger.onRequest(getAgentsMdFileInfo, () => rpcManger.getAgentsMdFileInfo());
     messenger.onRequest(openOrCreateAgentsMd, () => rpcManger.openOrCreateAgentsMd());
+    messenger.onRequest(selectAttachmentFiles, (args: SelectAttachmentFilesRequest) => rpcManger.selectAttachmentFiles(args));
     messenger.onRequest(listThreads, () => rpcManger.listThreads());
     messenger.onRequest(switchThread, (args: SwitchThreadRequest) => rpcManger.switchThread(args));
     messenger.onRequest(deleteThread, (args: DeleteThreadRequest) => rpcManger.deleteThread(args));

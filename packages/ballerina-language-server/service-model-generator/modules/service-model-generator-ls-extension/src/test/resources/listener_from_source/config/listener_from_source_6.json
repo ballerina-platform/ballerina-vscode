@@ -1,0 +1,107 @@
+{
+  "filePath": "sample2/main.bal",
+  "description": "A plain http:Listener bound to the default listener still gets the locked, HTTP-specific model",
+  "start": {
+    "line": 3,
+    "offset": 0
+  },
+  "end": {
+    "line": 3,
+    "offset": 67
+  },
+  "response": {
+    "listener": {
+      "id": "1",
+      "name": "Http Listener",
+      "type": "http",
+      "displayName": "Http",
+      "description": "This is used for creating HTTP server endpoints. An HTTP server endpoint is capable of responding to\nremote callers. The `Listener` is responsible for initializing the endpoint using the provided configurations.",
+      "moduleName": "http",
+      "orgName": "ballerina",
+      "version": "2.14.0",
+      "packageName": "http",
+      "listenerProtocol": "http",
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.14.0.png",
+      "properties": {
+        "variableNameKey": {
+          "metadata": {
+            "label": "Name",
+            "description": "The name of the listener"
+          },
+          "codedata": {
+            "lineRange": {
+              "fileName": "main.bal",
+              "startLine": {
+                "line": 3,
+                "offset": 23
+              },
+              "endLine": {
+                "line": 3,
+                "offset": 38
+              }
+            }
+          },
+          "value": "defaultListener",
+          "types": [
+            {
+              "fieldType": "IDENTIFIER",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "advanced": false
+        },
+        "listenerType": {
+          "metadata": {
+            "label": "Listener Type",
+            "description": "The type of the listener"
+          },
+          "value": "Listener",
+          "types": [
+            {
+              "fieldType": "TYPE",
+              "selected": true
+            }
+          ],
+          "enabled": false,
+          "editable": false,
+          "optional": false,
+          "advanced": false
+        },
+        "defaultListener": {
+          "imports": {},
+          "metadata": {
+            "label": "HTTP Default Listener",
+            "description": "The default HTTP listener"
+          },
+          "value": "http:getDefaultListener()",
+          "types": [
+            {
+              "fieldType": "EXPRESSION",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "advanced": false
+        }
+      },
+      "codedata": {
+        "lineRange": {
+          "fileName": "main.bal",
+          "startLine": {
+            "line": 3,
+            "offset": 0
+          },
+          "endLine": {
+            "line": 3,
+            "offset": 67
+          }
+        }
+      }
+    }
+  }
+}

@@ -25,7 +25,7 @@ import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Button, Icon, ThemeColors } from "@wso2/ui-toolkit";
 import ModeToggle, { AgentMode } from "../../AIPanel/components/AIChatInput/ModeToggle";
 import { useAttachments } from "../../AIPanel/components/AIChatInput/hooks/useAttachments";
-import { acceptResolver, handleAttachmentSelection } from "../../AIPanel/utils/attachment/attachmentManager";
+import { resolveAttachmentPolicy } from "../../AIPanel/utils/attachment/attachmentManager";
 import AttachmentBox from "../../AIPanel/components/AttachmentBox";
 import {
     AmbientFrame,
@@ -427,9 +427,9 @@ export function CopilotComposer({ onAddArtifactManually, hiding }: CopilotCompos
     const [text, setText] = useState("");
     const [agentMode, setAgentMode] = useState<AgentMode>(AgentMode.Edit);
     const [submittedPrompt, setSubmittedPrompt] = useState<string>();
-    const { attachments, fileInputRef, handleAttachClick, onAttachmentSelection, removeAttachment, removeAllAttachments } =
+    const { attachments, handleAttachClick, removeAttachment, removeAllAttachments } =
         useAttachments({
-            attachmentOptions: { multiple: true, acceptResolver, handleAttachmentSelection },
+            attachmentOptions: { multiple: true, resolveAttachmentPolicy },
             activeCommand: null,
         });
     const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -615,14 +615,6 @@ export function CopilotComposer({ onAddArtifactManually, hiding }: CopilotCompos
                                         <CopilotMenu />
                                     </LeftControls>
                                     <RightControls>
-                                        <input
-                                            type="file"
-                                            multiple
-                                            accept={acceptResolver(null)}
-                                            style={{ display: "none" }}
-                                            ref={fileInputRef}
-                                            onChange={onAttachmentSelection}
-                                        />
                                         <ComposerActionButton type="button" title="Attach context" onClick={handleAttachClick}>
                                             <Icon name="Paperclip" sx={{ fontSize: "16px" }} />
                                         </ComposerActionButton>
