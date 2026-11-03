@@ -34,6 +34,8 @@ import type {
     InputType,
     CodeData,
     SearchNodesTypeConstraint,
+    FormGroupData,
+    NodeMetadata,
 } from "@wso2/ballerina-core";
 import {
     DEFAULT_MODEL_PROVIDER_EXPR,
@@ -44,6 +46,7 @@ import {
 } from "@wso2/ballerina-core";
 
 import type {
+    FieldGroup,
     FormField,
     FormValues,
     FormImports,
@@ -134,13 +137,42 @@ export function convertNodePropertyToFormField(
                 ])
             )
             : undefined,
-        imports: property.imports
+        imports: property.imports,
+        group: propertyGroup(property)?.id,
     };
     enrichModelProviderField(formField, property);
     enrichClientConnectionField(formField, property);
     enrichMemoryField(formField, property);
     enrichAgentField(formField, property);
     return formField;
+}
+
+function propertyGroup(property: Property): FormGroupData | undefined {
+    const group = (property.metadata?.data as NodeMetadata | undefined)?.group;
+    return group?.id ? group : undefined;
+}
+
+/**
+ * The form sections the language server declares on the fields (`metadata.data.group`), in the order their
+ * first visible member appears.
+ */
+export function getFormGroups(fields: FormField[]): FieldGroup[] {
+    const groups = new Map<string, FieldGroup>();
+    for (const field of fields) {
+        const group = (field.metadata?.data as NodeMetadata | undefined)?.group;
+        // A section with nothing to show is not rendered, and asks for nothing.
+        if (!group?.id || groups.has(group.id) || field.hidden) {
+            continue;
+        }
+        groups.set(group.id, {
+            id: group.id,
+            label: group.label,
+            description: group.description,
+            defaultCollapsed: group.collapsed ?? true,
+            requireAnyOf: group.requireAnyOf ?? [],
+        });
+    }
+    return Array.from(groups.values());
 }
 
 const AI_MODEL_PROVIDER_TYPE = "ai:ModelProvider";

@@ -29,7 +29,8 @@ import {
     CheckBox,
     Typography,
     CompletionItem,
-    ProgressRing
+    ProgressRing,
+    RequiredFormInput
 } from "@wso2/ui-toolkit";
 import styled from "@emotion/styled";
 import { indentedFieldStyles } from "./styles";
@@ -68,6 +69,7 @@ import {
     updateFormFieldWithImports,
     hasIncompleteRequiredFormFields,
     groupHasBlockingIssue,
+    isSectionAskUnmet,
     shouldRunExternalFormValidation,
     isPrioritizedField,
     hasRequiredParameters,
@@ -209,6 +211,13 @@ namespace S {
         margin: 0 0 8px;
         border: 0;
         border-top: 1px solid ${ThemeColors.OUTLINE_VARIANT};
+    `;
+
+    export const GroupDescription = styled.div<{ unmet?: boolean }>`
+        color: ${({ unmet }) => (unmet ? ThemeColors.ERROR : "var(--vscode-descriptionForeground)")};
+        font-size: 12px;
+        line-height: 1.4;
+        white-space: pre-wrap;
     `;
 
     export const GroupBody = styled.div`
@@ -585,10 +594,13 @@ export const Form = forwardRef((props: FormProps, _ref) => {
 
     const [showAdvancedOptions, setShowAdvancedOptions] = useState(props.defaultExpandAdvanced ?? false);
     const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+    const opensExpanded = (group?: FieldGroup) => !(group?.defaultCollapsed ?? true);
+    // Set by the first save held for a section's ask; from then on an unmet ask shows as an error.
+    const [sectionAsksShown, setSectionAsksShown] = useState(false);
     const toggleGroup = (groupId: string) =>
         setExpandedGroups((prev) => {
             const group = (props.groups ?? []).find((candidate) => candidate.id === groupId);
-            const current = prev[groupId] ?? !(group?.defaultCollapsed ?? true);
+            const current = prev[groupId] ?? opensExpanded(group);
             return { ...prev, [groupId]: !current };
         });
     const [activeFormField, setActiveFormField] = useState<string | undefined>(undefined);
@@ -772,7 +784,26 @@ export const Form = forwardRef((props: FormProps, _ref) => {
         }
     }, [formFields, reset]);
 
+    /**
+     * Holds a save while a shown section's ask is unmet: none of the fields it requires one of is filled.
+     * Opens those sections and turns their descriptions into the error, which says what filling them takes.
+     */
+    const holdForSectionAsks = (data: FormValues): boolean => {
+        const unmet = (groups ?? []).filter((group) => isSectionAskUnmet(group, data)
+            && formFields.some((field) => field.group === group.id && !field.hidden && field.enabled !== false));
+        if (unmet.length === 0) {
+            return false;
+        }
+        setSectionAsksShown(true);
+        setExpandedGroups((prev) => ({ ...prev, ...Object.fromEntries(unmet.map((group) => [group.id, true])) }));
+        return true;
+    };
+
     const handleOnSave = (data: FormValues) => {
+        if (holdForSectionAsks(data)) {
+            setSavingButton(null);
+            return;
+        }
         console.log(">>> saved form fields", { data });
         onSubmit && onSubmit(data, dirtyFields);
     };
@@ -990,6 +1021,90 @@ export const Form = forwardRef((props: FormProps, _ref) => {
         ? formFields.filter((field) => bottomFields.includes(field.key) && !field.hidden && !isGroupedField(field))
         : [];
     const hasParameters = hasRequiredParameters(formFields, selectedNode) || hasOptionalParameters(formFields);
+
+    const renderGroupSections = (include: (group: FieldGroup) => boolean) => {
+        const sections = (groups ?? [])
+            .filter(include)
+            .map((group) => ({
+                group,
+                groupFields: formFields.filter(
+                    (field) => field.group === group.id && !field.hidden && field.enabled !== false
+                ),
+            }))
+            .filter((section) => section.groupFields.length > 0);
+        if (sections.length === 0) {
+            return null;
+        }
+        return (
+            <S.GroupSection>
+            <S.GroupDivider />
+            {sections.map(({ group, groupFields }) => {
+        const renderGroupField = (field: FormField) => {
+            const updatedField = updateFormFieldWithImports(field, formImports);
+            return (
+                <S.Row key={updatedField.key}>
+                    <FieldFactory
+                        field={updatedField}
+                        selectedNode={selectedNode}
+                        openRecordEditor={
+                            openRecordEditor &&
+                            ((open: boolean, newType?: string | NodeProperties) =>
+                                handleOpenRecordEditor(open, updatedField, newType))
+                        }
+                        openSubPanel={handleOpenSubPanel}
+                        subPanelView={subPanelView}
+                        handleOnFieldFocus={handleOnFieldFocus}
+                        recordTypeFields={recordTypeFields}
+                        onIdentifierEditingStateChange={handleIdentifierEditingStateChange}
+                        onBlur={handleOnBlur}
+                        handleFormValidation={handleFormValidation}
+                    />
+                </S.Row>
+            );
+        };
+        const expanded = expandedGroups[group.id] ?? opensExpanded(group);
+        const askUnmet = sectionAsksShown && isSectionAskUnmet(group, watchedValues);
+        const showIssueIcon = !expanded && (askUnmet || groupHasBlockingIssue({
+            groupFields,
+            errors,
+            values: watchedValues,
+            hasFieldError: hasFieldLiveError,
+        }));
+        return (
+            <S.GroupCard key={group.id}>
+                <S.GroupHeader
+                    type="button"
+                    aria-expanded={expanded}
+                    onClick={() => toggleGroup(group.id)}
+                >
+                    <S.GroupTitle>
+                        {group.label}
+                        {(group.requireAnyOf?.length ?? 0) > 0 && <RequiredFormInput />}
+                    </S.GroupTitle>
+                    {showIssueIcon && (
+                        <S.GroupIssueIcon
+                            title="This section has a required or invalid field"
+                            aria-label="This section has a required or invalid field"
+                        >
+                            <Codicon name="warning" iconSx={{ fontSize: 14 }} sx={{ height: 14 }} />
+                        </S.GroupIssueIcon>
+                    )}
+                    <S.GroupChevron expanded={expanded}>
+                        <Codicon name="chevron-down" iconSx={{ fontSize: 14 }} sx={{ height: 14 }} />
+                    </S.GroupChevron>
+                </S.GroupHeader>
+                <S.GroupBody style={{ display: expanded ? "flex" : "none" }}>
+                    {group.description && (
+                        <S.GroupDescription unmet={askUnmet}>{group.description}</S.GroupDescription>
+                    )}
+                    {groupFields.map(renderGroupField)}
+                </S.GroupBody>
+            </S.GroupCard>
+                );
+            })}
+            </S.GroupSection>
+        );
+    };
 
     const canOpenInDataMapper = (selectedNode === "VARIABLE" &&
         expressionField &&
@@ -1221,6 +1336,10 @@ export const Form = forwardRef((props: FormProps, _ref) => {
         handleSubmit(
             async (data) => {
                 try {
+                    if (holdForSectionAsks(data)) {
+                        setSavingButton(null);
+                        return;
+                    }
                     const isValidForm = await runExternalFormValidation(data);
                     if (!isValidForm) {
                         console.error(">>> Form validation failed, not saving", { data: props, formData: data });
@@ -1408,6 +1527,8 @@ export const Form = forwardRef((props: FormProps, _ref) => {
 
                     return renderedComponents;
                 })()}
+                {/* A section that must be filled in stays with the main fields, never below the optional ones. */}
+                {renderGroupSections((group) => (group.requireAnyOf?.length ?? 0) > 0)}
                 {hasAdvanceFields && <S.GroupDivider />}
                 {hasAdvanceFields && (
                     <S.Row>
@@ -1501,81 +1622,8 @@ export const Form = forwardRef((props: FormProps, _ref) => {
 
                         return advancedComponents;
                     })()}
-                {(() => {
-                    const sections = (groups ?? [])
-                        .map((group) => ({
-                            group,
-                            groupFields: formFields.filter(
-                                (field) => field.group === group.id && !field.hidden && field.enabled !== false
-                            ),
-                        }))
-                        .filter((section) => section.groupFields.length > 0);
-                    if (sections.length === 0) {
-                        return null;
-                    }
-                    return (
-                        <S.GroupSection>
-                        <S.GroupDivider />
-                        {sections.map(({ group, groupFields }) => {
-                    const renderGroupField = (field: FormField) => {
-                        const updatedField = updateFormFieldWithImports(field, formImports);
-                        return (
-                            <S.Row key={updatedField.key}>
-                                <FieldFactory
-                                    field={updatedField}
-                                    selectedNode={selectedNode}
-                                    openRecordEditor={
-                                        openRecordEditor &&
-                                        ((open: boolean, newType?: string | NodeProperties) =>
-                                            handleOpenRecordEditor(open, updatedField, newType))
-                                    }
-                                    openSubPanel={handleOpenSubPanel}
-                                    subPanelView={subPanelView}
-                                    handleOnFieldFocus={handleOnFieldFocus}
-                                    recordTypeFields={recordTypeFields}
-                                    onIdentifierEditingStateChange={handleIdentifierEditingStateChange}
-                                    onBlur={handleOnBlur}
-                                    handleFormValidation={handleFormValidation}
-                                />
-                            </S.Row>
-                        );
-                    };
-                    const expanded = expandedGroups[group.id] ?? !(group.defaultCollapsed ?? true);
-                    const showIssueIcon = !expanded && groupHasBlockingIssue({
-                        groupFields,
-                        errors,
-                        values: watchedValues,
-                        hasFieldError: hasFieldLiveError,
-                    });
-                    return (
-                        <S.GroupCard key={group.id}>
-                            <S.GroupHeader
-                                type="button"
-                                aria-expanded={expanded}
-                                onClick={() => toggleGroup(group.id)}
-                            >
-                                <S.GroupTitle>{group.label}</S.GroupTitle>
-                                {showIssueIcon && (
-                                    <S.GroupIssueIcon
-                                        title="This section has a required or invalid field"
-                                        aria-label="This section has a required or invalid field"
-                                    >
-                                        <Codicon name="warning" iconSx={{ fontSize: 14 }} sx={{ height: 14 }} />
-                                    </S.GroupIssueIcon>
-                                )}
-                                <S.GroupChevron expanded={expanded}>
-                                    <Codicon name="chevron-down" iconSx={{ fontSize: 14 }} sx={{ height: 14 }} />
-                                </S.GroupChevron>
-                            </S.GroupHeader>
-                            <S.GroupBody style={{ display: expanded ? "flex" : "none" }}>
-                                {groupFields.map(renderGroupField)}
-                            </S.GroupBody>
-                        </S.GroupCard>
-                            );
-                        })}
-                        </S.GroupSection>
-                    );
-                })()}
+                {/* Optional sections follow the advanced configurations, as the rest of the optional form does. */}
+                {renderGroupSections((group) => (group.requireAnyOf?.length ?? 0) === 0)}
                 {hasAdvanceFields &&
                     showAdvancedOptions &&
                     advancedChoiceFields.map((field) => {

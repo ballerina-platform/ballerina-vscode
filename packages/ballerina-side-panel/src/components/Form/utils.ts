@@ -18,6 +18,7 @@
 
 import { NodeKind, PropertyModel, getPrimaryInputType } from "@wso2/ballerina-core";
 import { FormField, FormImports } from "../..";
+import type { FieldGroup } from "./types";
 
 // This function allows us to format strings by adding indentation as tabs to the lines
 export function formatJSONLikeString(input: string): string {
@@ -119,6 +120,30 @@ export function groupHasBlockingIssue({
     return groupFields.some((field) => !!errors?.[field.key])
         || hasIncompleteRequiredFormFields(groupFields, values)
         || groupFields.some((field) => hasFieldError?.(field.key) === true);
+}
+
+/**
+ * Whether a value fills its field: anything but blank text, nil written as `()`, or a list holding nothing
+ * that fills it.
+ */
+export function isFilledValue(value: unknown): boolean {
+    if (value === undefined || value === null) {
+        return false;
+    }
+    if (Array.isArray(value)) {
+        return value.some(isFilledValue);
+    }
+    if (typeof value === "boolean" || typeof value === "number") {
+        return true;
+    }
+    const text = String(value).replace(/\s/g, "");
+    return text !== "" && text !== "()";
+}
+
+/** Whether a section asks for one of its fields to be filled and none is. */
+export function isSectionAskUnmet(group: FieldGroup, values: Record<string, unknown> | undefined): boolean {
+    const keys = group.requireAnyOf ?? [];
+    return keys.length > 0 && !keys.some((key) => isFilledValue(values?.[key]));
 }
 
 export function isPrioritizedField(field: FormField): boolean {

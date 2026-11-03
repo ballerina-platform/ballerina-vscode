@@ -133,6 +133,8 @@ export type NodeMetadata = {
     approvalFunction?: string;
     // On an agent tool: its requiresApproval value as written (`true`, `fn`, `mod:fn` or an inline function)
     requiresApprovalSource?: string;
+    // On a form property: the section it renders in
+    group?: FormGroupData;
 };
 
 export type ParentMetadata = {
@@ -339,6 +341,17 @@ export type Diagnostic = {
 export type DiagnosticMessage = {
     message: string;
     severity: "ERROR" | "WARNING" | "INFO";
+};
+
+/** A titled form section a property renders in, as the language server declares it on `metadata.data.group`. */
+export type FormGroupData = {
+    id: string;
+    label: string;
+    /** What the section is for, or what filling it in takes; shown under its title. */
+    description?: string;
+    collapsed?: boolean;
+    /** Member keys of which at least one must be filled before the form saves, though each is optional. */
+    requireAnyOf?: string[];
 };
 
 export type CodeData = {
