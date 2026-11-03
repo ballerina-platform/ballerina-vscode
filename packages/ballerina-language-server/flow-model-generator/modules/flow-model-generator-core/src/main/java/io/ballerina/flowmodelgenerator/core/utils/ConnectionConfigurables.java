@@ -42,7 +42,6 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -153,9 +152,8 @@ public class ConnectionConfigurables {
             }
             Symbol existing = moduleSymbols.get(name);
             if (existing != null && !isConfigurableOf(existing, rawType.typeKind())) {
-                throw new UserFacingException(("The connection '%s' needs the configurable %s '%s', but the module "
-                        + "already has the %s '%s': choose another connection name")
-                        .formatted(connection, configurableType, name, describe(existing), name));
+                throw new UserFacingException(
+                        "'%s' is already used in this module. Choose another connection name.".formatted(name));
             }
             replacements.add(new Replacement(literal.literalToken().textRange(), name));
             configurables.add(new Configurable(name, configurableType, literal.toSourceCode().strip(),
@@ -182,11 +180,6 @@ public class ConnectionConfigurables {
 
     private static boolean isConfigurable(Symbol symbol) {
         return symbol instanceof VariableSymbol variable && variable.qualifiers().contains(Qualifier.CONFIGURABLE);
-    }
-
-    private static String describe(Symbol symbol) {
-        return isConfigurable(symbol) ? "configurable " + ((VariableSymbol) symbol).typeDescriptor().signature()
-                : symbol.kind().name().toLowerCase(Locale.ROOT).replace('_', ' ');
     }
 
     /**

@@ -257,13 +257,12 @@ public class SourceGeneratorTest extends AbstractLSTest {
 
     @DataProvider(name = "refused-connection")
     private Object[][] refusedConnections() {
-        String message = "The connection '%1$s' needs the configurable string '%1$sBaseUrl', but the module already "
-                + "has the %2$s '%1$sBaseUrl': choose another connection name";
+        String message = "'%sBaseUrl' is already used in this module. Choose another connection name.";
         return new Object[][]{
-                {"sfVar", message.formatted("sfVar", "variable")},
-                {"sfConst", message.formatted("sfConst", "constant")},
-                {"sfFn", message.formatted("sfFn", "function")},
-                {"sfInt", message.formatted("sfInt", "configurable int")}
+                {"sfVar", message.formatted("sfVar")},
+                {"sfConst", message.formatted("sfConst")},
+                {"sfFn", message.formatted("sfFn")},
+                {"sfInt", message.formatted("sfInt")}
         };
     }
 
