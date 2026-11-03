@@ -137,7 +137,20 @@ async function applyImportEdits(textEdits: { [key: string]: TextEdit[] }): Promi
     }
     for (const filePath of Object.keys(textEdits)) {
         const document = await vscode.workspace.openTextDocument(vscode.Uri.file(filePath));
-        await document.save();
+        if (document.isDirty && !await document.save()) {
+            throw new Error(`Failed to save the ICP imports in ${filePath}`);
+        }
+    }
+}
+
+// After a failed toggle the files may be partly written, so report what they now say rather than
+// assuming the toggle left them as they were; fall back to that assumption only if the check fails.
+async function reconcileICPState(projectPath: string, assumed: boolean, errorMsg: string): Promise<ICPEnabledResponse> {
+    try {
+        const { enabled } = await StateMachine.context().langClient.isIcpEnabled({ projectPath }) as ICPEnabledResponse;
+        return { enabled, errorMsg };
+    } catch {
+        return { enabled: assumed, errorMsg };
     }
 }
 
@@ -229,7 +242,7 @@ export class ICPServiceRpcManager implements ICPServiceAPI {
             return await context.langClient.isIcpEnabled({ projectPath });
         } catch (error) {
             console.error('[ICP] Failed to enable ICP for', projectPath, error);
-            return { enabled: false, errorMsg: `Failed to enable ICP: ${error}` };
+            return reconcileICPState(projectPath, false, `Failed to enable ICP: ${error}`);
         }
     }
 
@@ -246,7 +259,7 @@ export class ICPServiceRpcManager implements ICPServiceAPI {
             return await context.langClient.isIcpEnabled({ projectPath });
         } catch (error) {
             console.error('[ICP] Failed to disable ICP for', projectPath, error);
-            return { enabled: true, errorMsg: `Failed to disable ICP: ${error}` };
+            return reconcileICPState(projectPath, true, `Failed to disable ICP: ${error}`);
         }
     }
 
