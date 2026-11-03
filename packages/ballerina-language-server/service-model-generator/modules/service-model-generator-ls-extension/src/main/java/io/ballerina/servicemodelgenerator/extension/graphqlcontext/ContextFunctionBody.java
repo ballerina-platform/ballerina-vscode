@@ -125,6 +125,15 @@ public final class ContextFunctionBody {
     }
 
     /**
+     * Where a context value's expression is in scope: the start of the statement that returns the context. The
+     * function's parameters, such as the request, and the context itself are all visible there, so an expression
+     * editor asked for completions or diagnostics at this position sees what the generated statement will see.
+     */
+    public LinePosition valuePosition() {
+        return entriesEnd;
+    }
+
+    /**
      * Reads the body as entries.
      *
      * @throws NotEditableException when the body is not of the recognised shape, with the reason to show the user

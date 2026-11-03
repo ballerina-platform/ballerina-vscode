@@ -21,7 +21,18 @@
       }
     ],
     "editable": true,
-    "notEditableReason": null
+    "notEditableReason": null,
+    "valueScope": {
+      "fileName": "functions.bal",
+      "startLine": {
+        "line": 6,
+        "offset": 4
+      },
+      "endLine": {
+        "line": 6,
+        "offset": 4
+      }
+    }
   },
   "file": "main.bal"
 }

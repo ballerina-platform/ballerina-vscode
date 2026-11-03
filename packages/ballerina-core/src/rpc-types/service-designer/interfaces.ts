@@ -110,6 +110,11 @@ export interface GraphqlContextResponse {
     /** False when the function body is not of the shape the designer writes; it is then edited in the flow diagram. */
     editable: boolean;
     notEditableReason?: string;
+    /**
+     * Where in the function's file a value expression is in scope, for an expression editor's completions and
+     * diagnostics. Absent when the values cannot be edited.
+     */
+    valueScope?: LineRange;
     errorMsg?: string;
 }
 

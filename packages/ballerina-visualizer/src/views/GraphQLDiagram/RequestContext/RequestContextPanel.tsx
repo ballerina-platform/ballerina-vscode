@@ -263,6 +263,9 @@ export function RequestContextPanel(props: RequestContextPanelProps) {
 
     const renderConfigured = () => {
         const canOpen = !!context.functionFilePath && !!context.functionRange;
+        const expressionScope = context.functionFilePath && context.valueScope
+            ? { filePath: context.functionFilePath, lineRange: context.valueScope }
+            : undefined;
         const dirty = isDirty(context.entries, draft);
         return (
             <>
@@ -364,6 +367,7 @@ export function RequestContextPanel(props: RequestContextPanelProps) {
                                         entry={entry}
                                         others={draft.filter((_, i) => i !== index)}
                                         isNew={false}
+                                        expressionScope={expressionScope}
                                         onSave={(updated) => saveValue(index, updated)}
                                         onCancel={() => setEditing(undefined)}
                                     />
@@ -382,6 +386,7 @@ export function RequestContextPanel(props: RequestContextPanelProps) {
                                     entry={newEntry()}
                                     others={draft}
                                     isNew={true}
+                                    expressionScope={expressionScope}
                                     onSave={(entry) => saveValue(draft.length, entry)}
                                     onCancel={() => setEditing(undefined)}
                                 />

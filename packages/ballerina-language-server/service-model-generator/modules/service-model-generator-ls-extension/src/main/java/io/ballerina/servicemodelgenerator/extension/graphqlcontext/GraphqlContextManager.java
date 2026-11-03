@@ -124,21 +124,25 @@ public final class GraphqlContextManager {
         if (functionName.isEmpty()) {
             // A lambda or a qualified reference: shown as written, and edited only in source.
             return new GraphqlContextResponse(true, true, null, expression, null, null, false, candidates,
-                    List.of(), false, "The context is set to an expression. Edit it in the source code.", null);
+                    List.of(), false, "The context is set to an expression. Edit it in the source code.", null, null);
         }
         Optional<FunctionLocation> location = findFunction(document.module(), functionName.get());
         boolean signatureValid = candidates.contains(functionName.get());
         List<ContextFunctionBody.ContextEntry> entries = List.of();
         boolean editable = false;
         String notEditableReason = null;
+        LineRange valueScope = null;
         if (location.isEmpty()) {
             notEditableReason = "The function " + functionName.get() + " is not in this integration.";
         } else if (!signatureValid) {
             notEditableReason = "The function does not have the signature a context function needs.";
         } else {
             try {
-                entries = ContextFunctionBody.parse(location.get().node()).entries();
+                ContextFunctionBody body = ContextFunctionBody.parse(location.get().node());
+                entries = body.entries();
                 editable = true;
+                LinePosition position = body.valuePosition();
+                valueScope = LineRange.from(location.get().node().lineRange().fileName(), position, position);
             } catch (ContextFunctionBody.NotEditableException e) {
                 notEditableReason = e.getMessage() + " Edit it in the flow diagram.";
             }
@@ -146,7 +150,7 @@ public final class GraphqlContextManager {
         return new GraphqlContextResponse(true, true, functionName.get(), expression,
                 location.map(FunctionLocation::filePath).orElse(null),
                 location.map(found -> found.node().lineRange()).orElse(null),
-                signatureValid, candidates, entries, editable, notEditableReason, null);
+                signatureValid, candidates, entries, editable, notEditableReason, valueScope, null);
     }
 
     /**

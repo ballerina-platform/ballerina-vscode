@@ -37,25 +37,28 @@ import java.util.List;
  * @param editable         whether the designer can edit the function's values; false when its body is not of the
  *                         shape the designer writes, which is then edited in the flow diagram
  * @param notEditableReason why the values cannot be edited; null when they can
+ * @param valueScope       where in the function's file a value expression is in scope, for an expression editor's
+ *                         completions and diagnostics; null when the values cannot be edited
  * @param errorMsg         an unexpected failure; null on success
  */
 public record GraphqlContextResponse(boolean supported, boolean configured, String functionName, String expression,
                                      String functionFilePath, LineRange functionRange, boolean signatureValid,
                                      List<String> candidates, List<ContextFunctionBody.ContextEntry> entries,
-                                     boolean editable, String notEditableReason, String errorMsg) {
+                                     boolean editable, String notEditableReason, LineRange valueScope,
+                                     String errorMsg) {
 
     public static GraphqlContextResponse unsupported() {
         return new GraphqlContextResponse(false, false, null, null, null, null, false, List.of(), List.of(), false,
-                null, null);
+                null, null, null);
     }
 
     public static GraphqlContextResponse notConfigured(List<String> candidates) {
         return new GraphqlContextResponse(true, false, null, null, null, null, false, candidates, List.of(), false,
-                null, null);
+                null, null, null);
     }
 
     public static GraphqlContextResponse error(Throwable e) {
         return new GraphqlContextResponse(false, false, null, null, null, null, false, List.of(), List.of(), false,
-                null, e.getMessage() != null ? e.getMessage() : e.toString());
+                null, null, e.getMessage() != null ? e.getMessage() : e.toString());
     }
 }

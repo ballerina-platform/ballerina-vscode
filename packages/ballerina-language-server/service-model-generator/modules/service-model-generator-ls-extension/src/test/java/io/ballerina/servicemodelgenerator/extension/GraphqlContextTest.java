@@ -217,7 +217,7 @@ public class GraphqlContextTest extends AbstractLSTest {
         JsonObject compact = new JsonObject();
         compact.add("supported", response.get("supported"));
         for (String key : List.of("configured", "functionName", "expression", "signatureValid", "candidates",
-                "entries", "editable", "notEditableReason")) {
+                "entries", "editable", "notEditableReason", "valueScope")) {
             compact.add(key, response.has(key) ? response.get(key) : JsonNull.INSTANCE);
         }
         JsonElement functionFile = response.get("functionFilePath");

@@ -16,12 +16,32 @@
  * under the License.
  */
 
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import styled from "@emotion/styled";
-import type { ContextEntry, ContextEntrySource } from "@wso2/ballerina-core";
+import type { ContextEntry, ContextEntrySource, LineRange, PropertyModel } from "@wso2/ballerina-core";
 import { ActionButtons, CheckBox, Divider, Dropdown, TextField, Typography } from "@wso2/ui-toolkit";
 import { EditorContainer, EditorContent } from "../../BI/ServiceDesigner/styles";
+import {
+    AnnotationExpressionField,
+    AnnotationExpressionFieldHandle,
+} from "../../BI/ServiceDesigner/Forms/TriggerHandlerForm/AnnotationExpressionField";
 import { SOURCE_OPTIONS, canBeRequired, validateEntries, withSource } from "./contextEntries";
+
+/** The expression field's label, description and type, in the shape the shared expression editor reads. */
+const EXPRESSION_PROPERTY: PropertyModel = {
+    metadata: {
+        label: "Expression",
+        description: "A Ballerina expression. The request is available as request.",
+    },
+    types: [{ fieldType: "EXPRESSION", selected: true }],
+    optional: false,
+    editable: true,
+};
+
+const ErrorText = styled.span`
+    color: var(--vscode-errorForeground);
+    font-size: 12px;
+`;
 
 const Fields = styled.div`
     display: flex;
@@ -36,6 +56,11 @@ interface ContextValueEditorProps {
     /** The other values the context carries, so a key cannot be used twice. */
     others: ContextEntry[];
     isNew: boolean;
+    /**
+     * Where an expression value is in scope: the context function's file and a position inside it. With it, an
+     * expression gets the shared expression editor, with completions and live diagnostics for that scope.
+     */
+    expressionScope?: { filePath: string; lineRange: LineRange };
     onSave: (entry: ContextEntry) => void;
     onCancel: () => void;
 }
@@ -45,16 +70,34 @@ interface ContextValueEditorProps {
  * value comes from, the header or parameter name (or the value itself), and whether a request without it is
  * rejected.
  */
-export function ContextValueEditor({ entry, others, isNew, onSave, onCancel }: ContextValueEditorProps) {
+export function ContextValueEditor({ entry, others, isNew, expressionScope, onSave, onCancel }: ContextValueEditorProps) {
     const [draft, setDraft] = useState<ContextEntry>(entry);
     const [showErrors, setShowErrors] = useState(false);
     const option = SOURCE_OPTIONS[draft.source];
     const errors = validateEntries([...others, draft])[others.length];
 
-    const save = () => {
+    const expressionField = useRef<AnnotationExpressionFieldHandle>(null);
+    const [checking, setChecking] = useState(false);
+    const usesExpressionEditor = draft.source === "expression" && !!expressionScope;
+
+    const save = async () => {
         if (errors.key || errors.value) {
             setShowErrors(true);
             return;
+        }
+        if (usesExpressionEditor && expressionField.current) {
+            // The same gate the trigger form uses: re-check the expression now rather than trust the typing-time
+            // debounce, so an expression that does not compile in the context function is never written into it.
+            // The field shows its own errors.
+            setChecking(true);
+            try {
+                const diagnostics = await expressionField.current.revalidate();
+                if (diagnostics.length > 0) {
+                    return;
+                }
+            } finally {
+                setChecking(false);
+            }
         }
         onSave(draft);
     };
@@ -88,18 +131,35 @@ export function ContextValueEditor({ entry, others, isNew, onSave, onCancel }: C
                     }))}
                     onValueChange={(source: string) => setDraft(withSource(draft, source as ContextEntrySource))}
                 />
-                <TextField
-                    id="context-value-value"
-                    label={option.valueLabel}
-                    required={draft.source !== "value"}
-                    value={draft.value}
-                    placeholder={option.placeholder}
-                    description={draft.source === "expression"
-                        ? "A Ballerina expression. The request is available as request." : undefined}
-                    onTextChange={(value: string) => setDraft({ ...draft, value })}
-                    errorMsg={showErrors ? errors.value : undefined}
-                    sx={draft.source === "expression" ? { fontFamily: "var(--vscode-editor-font-family)" } : undefined}
-                />
+                {usesExpressionEditor ? (
+                    <AnnotationExpressionField
+                        ref={expressionField}
+                        id="context-value-expression"
+                        value={draft.value}
+                        property={EXPRESSION_PROPERTY}
+                        filePath={expressionScope.filePath}
+                        targetLineRange={expressionScope.lineRange}
+                        required
+                        onChange={(value: string) => setDraft((current) => ({ ...current, value }))}
+                    />
+                ) : (
+                    <TextField
+                        id="context-value-value"
+                        label={option.valueLabel}
+                        required={draft.source !== "value"}
+                        value={draft.value}
+                        placeholder={option.placeholder}
+                        description={draft.source === "expression"
+                            ? "A Ballerina expression. The request is available as request." : undefined}
+                        onTextChange={(value: string) => setDraft({ ...draft, value })}
+                        errorMsg={showErrors ? errors.value : undefined}
+                        sx={draft.source === "expression"
+                            ? { fontFamily: "var(--vscode-editor-font-family)" } : undefined}
+                    />
+                )}
+                {showErrors && errors.value && usesExpressionEditor && (
+                    <ErrorText role="alert">{errors.value}</ErrorText>
+                )}
                 {canBeRequired(draft.source) && (
                     <CheckBox
                         label="Required: reject requests without it"
@@ -109,8 +169,13 @@ export function ContextValueEditor({ entry, others, isNew, onSave, onCancel }: C
                 )}
             </Fields>
             <ActionButtons
-                primaryButton={{ text: isNew ? "Add" : "Save", onClick: save, tooltip: isNew ? "Add" : "Save" }}
-                secondaryButton={{ text: "Cancel", onClick: onCancel, tooltip: "Cancel" }}
+                primaryButton={{
+                    text: checking ? "Checking..." : isNew ? "Add" : "Save",
+                    onClick: save,
+                    tooltip: isNew ? "Add" : "Save",
+                    disabled: checking,
+                }}
+                secondaryButton={{ text: "Cancel", onClick: onCancel, tooltip: "Cancel", disabled: checking }}
                 sx={{ justifyContent: "flex-end" }}
             />
         </EditorContainer>

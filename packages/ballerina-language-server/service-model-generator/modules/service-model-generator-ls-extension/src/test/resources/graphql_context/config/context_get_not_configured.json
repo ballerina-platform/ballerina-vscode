@@ -14,7 +14,8 @@
     "functionFile": null,
     "entries": [],
     "editable": false,
-    "notEditableReason": null
+    "notEditableReason": null,
+    "valueScope": null
   },
   "file": "main.bal"
 }

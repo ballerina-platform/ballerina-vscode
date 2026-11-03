@@ -51,7 +51,18 @@
     ],
     "editable": true,
     "notEditableReason": null,
-    "functionFile": "functions.bal"
+    "functionFile": "functions.bal",
+    "valueScope": {
+      "fileName": "functions.bal",
+      "startLine": {
+        "line": 11,
+        "offset": 4
+      },
+      "endLine": {
+        "line": 11,
+        "offset": 4
+      }
+    }
   },
   "file": "main.bal"
 }

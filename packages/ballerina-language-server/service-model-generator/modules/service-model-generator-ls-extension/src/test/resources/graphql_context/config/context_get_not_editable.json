@@ -14,7 +14,8 @@
     "entries": [],
     "editable": false,
     "notEditableReason": "The function does more than set context values. Edit it in the flow diagram.",
-    "functionFile": "functions.bal"
+    "functionFile": "functions.bal",
+    "valueScope": null
   },
   "file": "main.bal"
 }
