@@ -83,7 +83,6 @@ import {
     askProjectPath,
     copyIntoIntegration,
     findWorkspaceTypeFromWorkspaceFolders,
-    getFirstBalaPath,
     getPublishDescriptionInfo,
     getPublishConfirmation,
     PublishPackageInfo,
@@ -97,6 +96,7 @@ import {
     selectSampleDownloadPath,
     toIntegrationRelative
 } from "./utils";
+import { getBalaDirPath, getBalaPath } from "./bala";
 import { VisualizerWebview } from "../../views/visualizer/webview";
 
 export class CommonRpcManager implements CommonRPCAPI {
@@ -316,7 +316,14 @@ export class CommonRpcManager implements CommonRPCAPI {
     }
 
     async getCopilotOrbTheme(): Promise<string> {
-        return workspace.getConfiguration("ballerina.copilot").get<string>("orbTheme", "animated");
+        const config = workspace.getConfiguration("ballerina.copilot");
+        const setting = config.inspect<string>("orbTheme");
+        const chosen = setting?.globalValue ?? setting?.workspaceValue ?? setting?.workspaceFolderValue;
+        // Agent Builder's own orb is its default there; a style the user picked still wins.
+        if (chosen === undefined && StateMachine.productMode() === ProductMode.AGENT_BUILDER) {
+            return "solid";
+        }
+        return config.get<string>("orbTheme", "animated");
     }
 
     async additionalTriggerSearchEnabled(): Promise<boolean> {
@@ -817,6 +824,8 @@ export class CommonRpcManager implements CommonRPCAPI {
             async (progress) => {
                 try {
                     progress.report({ message: 'Packing...' });
+                    // Never push a bala left over from an earlier pack.
+                    fs.rmSync(getBalaDirPath(projectPath), { recursive: true, force: true });
                     const packResult = await this.runPackCommand(projectPath);
                     if (packResult.error) {
                         result.message = packResult.message ?? '';
@@ -824,7 +833,7 @@ export class CommonRpcManager implements CommonRPCAPI {
                     }
 
                     progress.report({ message: 'Publishing...' });
-                    const balaFilePath = getFirstBalaPath(projectPath);
+                    const balaFilePath = getBalaPath(projectPath);
                     if (!balaFilePath) {
                         result.message = 'No publishable artifact found at the target/bala directory';
                         return;

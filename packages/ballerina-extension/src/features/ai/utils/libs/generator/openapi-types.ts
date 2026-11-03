@@ -17,6 +17,14 @@
 export interface SpecFetcherInput {
     serviceName: string;
     serviceDescription?: string;
+    /** Name of a file the user attached to the current message that holds the spec. */
+    attachmentFileName?: string;
+    /** URL of the spec, when the user gave one. */
+    specUrl?: string;
+    /** The spec text, when the user pasted it into the chat rather than attaching it. */
+    specContent?: string;
+    /** client (default): a connector for calling the API. service: a service implementing it. */
+    mode?: "client" | "service";
 }
 
 export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS";
@@ -68,13 +76,29 @@ export interface SpecFetcherSuccess {
             content: string;
         }>;
     };
+    service?: {
+        serviceTypeName: string;
+        generatedFiles: Array<{
+            path: string;
+            content: string;
+        }>;
+    };
 }
+
+export type SpecFetcherErrorCode =
+    | "USER_SKIPPED"
+    | "INVALID_SPEC"
+    | "PARSE_ERROR"
+    | "UNSUPPORTED_VERSION"
+    | "INVALID_INPUT"
+    /** The spec was accepted; generating code from it failed. */
+    | "GENERATION_FAILED";
 
 export interface SpecFetcherError {
     success: false;
     message?: string;
     error: string;
-    errorCode: "USER_SKIPPED" | "INVALID_SPEC" | "PARSE_ERROR" | "UNSUPPORTED_VERSION" | "INVALID_INPUT";
+    errorCode: SpecFetcherErrorCode;
     details?: string;
 }
 

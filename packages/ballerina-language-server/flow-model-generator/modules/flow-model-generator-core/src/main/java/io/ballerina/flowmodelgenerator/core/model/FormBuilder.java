@@ -372,6 +372,14 @@ public class FormBuilder<T> extends FacetedBuilder<T> {
     }
 
     public FormBuilder<T> variableName(String name, boolean editable, Boolean modified) {
+        return variableName(name, editable, modified, null);
+    }
+
+    public FormBuilder<T> variableName(String name, boolean editable, Boolean modified, LineRange lineRange) {
+        if (lineRange != null) {
+            propertyBuilder.codedata()
+                    .lineRange(lineRange);
+        }
         propertyBuilder
                 .metadata()
                 .label(Property.VARIABLE_NAME)

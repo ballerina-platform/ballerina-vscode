@@ -51,6 +51,7 @@ import {
 } from "@wso2/ballerina-core";
 import { PanelContainer } from "@wso2/ballerina-side-panel";
 import { ConnectionConfig, ConnectionCreator, ConnectionSelectionList } from "../../../components/ConnectionSelector";
+import { ComponentFormLoader } from "../../../components/ComponentFormLoader";
 import { FlowNodeForm } from "../Forms/FlowNodeForm";
 import { AgentEditorPanelContent, getAgentEditorPanelTitle } from "../AIChatAgent/AgentEditorPanelContent";
 import { AgentEditorView, useAgentEditorController } from "../AIChatAgent/useAgentEditorController";
@@ -141,6 +142,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
     const usagesContentRef = useRef(0);
     const deletingTriggerRef = useRef(false);
     const [agentFormKey, setAgentFormKey] = useState(0);
+    const [connectionLoading, setConnectionLoading] = useState<{ node?: AvailableNode }>();
 
     const [model, setModel] = useState<Flow>();
     const [suggestedModel, setSuggestedModel] = useState<Flow>();
@@ -991,6 +993,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
 
     const handleSelectConnection = async (nodeId: string, metadata?: any) => {
         setShowProgressIndicator(true);
+        setConnectionLoading({ node: (metadata as { node?: AvailableNode })?.node });
 
         try {
             const { flowNode, connectionKind } = await getNodeTemplateForConnection(
@@ -1006,6 +1009,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
             setConnectionView(SidePanelView.CONNECTION_CREATE);
         } finally {
             setShowProgressIndicator(false);
+            setConnectionLoading(undefined);
         }
     };
 
@@ -1207,7 +1211,10 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                             onNavigateToSelectionList={handleNavigateToSelectionList}
                         />
                     )}
-                    {connectionView === SidePanelView.CONNECTION_SELECT && (
+                    {connectionView === SidePanelView.CONNECTION_SELECT && connectionLoading && (
+                        <ComponentFormLoader node={connectionLoading.node} />
+                    )}
+                    {connectionView === SidePanelView.CONNECTION_SELECT && !connectionLoading && (
                         <ConnectionSelectionList
                             connectionKind={selectedConnectionKind}
                             selectedNode={selectedNodeRef.current}

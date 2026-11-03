@@ -20,7 +20,7 @@ import React, { useEffect, useRef, useState } from "react";
 import styled from "@emotion/styled";
 import { keyframes } from "@emotion/react";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { AgentRunStatus, ChatNotify, GetRunStatusResponse, ThreadSummary, UIChatMessage, shortAssistantName } from "@wso2/ballerina-core";
+import { AgentRunStatus, ChatNotify, GetRunStatusResponse, ProductMode, ThreadSummary, UIChatMessage, shortAssistantName } from "@wso2/ballerina-core";
 import { Codicon, Icon } from "@wso2/ui-toolkit";
 import MarkdownRenderer from "../../views/AIPanel/components/MarkdownRenderer";
 import CodeContextCard from "../../views/AIPanel/components/CodeContextCard";
@@ -56,6 +56,7 @@ import {
     MiniChatPrompt,
 } from "./promptHandoff";
 import { useAssistantName, useProductMode } from "../../hooks/useProductMode";
+import { SEND_ICON, SendButton } from "../CopilotPromptBox";
 import { useProductTerms } from "../../views/BI/ProjectForm/useProductTerms";
 
 /**
@@ -601,7 +602,7 @@ const FooterInput = styled.input`
     }
 `;
 
-const SendButton = styled.button`
+const FooterIconButton = styled.button`
     flex: none;
     display: flex;
     align-items: center;
@@ -1098,7 +1099,7 @@ export function MiniChat({ anchor, focusRequest, onClose, takeInitialPrompt }: M
                 <Icon name="bi-ai-chat" sx={{ width: 16, height: 16, flex: "none" }} iconSx={{ fontSize: "16px" }} />
                 <HeaderTitle>{assistantName}</HeaderTitle>
                 <ChatSessionsButton readOnly={runActive} onThreadChange={() => setThreadVersion((version) => version + 1)} />
-                <HeaderButton title="Open full chat" aria-label={`Open the full ${shortName} chat`} onClick={openFullChat}>
+                <HeaderButton title="Open full chat" aria-label={productMode === ProductMode.AGENT_BUILDER ? `Open the full ${shortName} chat` : "Open the full Copilot chat"} onClick={openFullChat}>
                     <Codicon name="screen-full" />
                 </HeaderButton>
                 <HeaderButton title="Close" aria-label="Close the mini chat" onClick={onClose}>
@@ -1172,13 +1173,17 @@ export function MiniChat({ anchor, focusRequest, onClose, takeInitialPrompt }: M
                     readOnly={runActive}
                 />
                 {runActive ? (
-                    <SendButton title="Stop" aria-label="Stop generating" onClick={stop}>
+                    <FooterIconButton title="Stop" aria-label="Stop generating" onClick={stop}>
                         <Codicon name="stop-circle" />
+                    </FooterIconButton>
+                ) : productMode === ProductMode.AGENT_BUILDER ? (
+                    <SendButton type="button" title="Send" aria-label="Send message" onClick={send} disabled={!input.trim()}>
+                        {SEND_ICON}
                     </SendButton>
                 ) : (
-                    <SendButton title="Send" aria-label="Send message" onClick={send} disabled={!input.trim()}>
+                    <FooterIconButton type="button" title="Send" aria-label="Send message" onClick={send} disabled={!input.trim()}>
                         <Codicon name="send" />
-                    </SendButton>
+                    </FooterIconButton>
                 )}
             </Footer>
         </Panel>

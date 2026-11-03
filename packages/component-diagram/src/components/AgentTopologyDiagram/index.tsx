@@ -33,7 +33,6 @@ import { defaultVisibleRows, layoutTopology } from "./topologyLayout";
 import { describeTopology } from "./topologyDescribe";
 import { focusAround, isolateGraph } from "./topologyFocus";
 import { TopologyContextProvider } from "./TopologyContext";
-import { Legend } from "./Legend";
 import { FindPanel } from "./FindPanel";
 import { PinBanner } from "./PinBanner";
 import { buildFindRows, FindFacet, FindRow, findableCount, focusKind } from "./findRows";
@@ -160,7 +159,6 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
     const { input, onAgentSelect, onTriggerSelect, onAddTrigger, onConfigureEntry, onDeleteEntry, readonly } = props;
     const [diagramEngine] = useState(() => generateTopologyEngine());
     const [diagramModel, setDiagramModel] = useState<DiagramModel | null>(null);
-    const [legendKinds, setLegendKinds] = useState<ReturnType<typeof buildTopology>["legendKinds"]>([]);
     const [hoveredId, setHoveredId] = useState<string>();
     const [graph, setGraph] = useState<TopologyGraph>();
     const [unfolded, setUnfolded] = useState<Set<string>>(new Set());
@@ -352,7 +350,6 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
         graphSignatureRef.current = signature;
         graphRef.current = graph;
         setGraph(graph);
-        setLegendKinds(graph.legendKinds);
         setUnfolded(new Set());
         const stillThere = (id: string) => graph.handlers.some((handler) => handler.id === id) || graph.agents.some((agent) => agent.id === id);
         if (pinnedRef.current && !stillThere(pinnedRef.current)) {
@@ -557,7 +554,6 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
         <Root style={{ [EVENT_COLOR_VAR]: getNodeChartColor("WAIT_DATA") } as React.CSSProperties}>
             <Controls engine={diagramEngine} orientation={orientation} onToggleOrientation={toggleOrientation} />
             <TopLeft>
-                <Legend kinds={legendKinds} />
                 {wiredNothing && hasAgentCards && (
                     <EmptyNote>No triggers yet. Agents only run when a trigger calls them. Select Add Trigger on an agent card.</EmptyNote>
                 )}

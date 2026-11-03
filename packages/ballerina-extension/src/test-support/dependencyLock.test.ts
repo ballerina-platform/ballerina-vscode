@@ -26,6 +26,7 @@ import {
     assessDependencyLock,
     assessDependencyLockText,
     compareDistributionVersions,
+    findLatestRequiredLineRelease,
     findManifestDistribution,
     findOutdatedPackages,
     findPackageRoot,
@@ -70,6 +71,42 @@ beforeEach(() => {
 
 afterEach(() => {
     fs.rmSync(root, { recursive: true, force: true });
+});
+
+/** `bal dist list` output; the local section deliberately holds a newer 2201.14 than the remote one. */
+function distList(remote: string[]): string {
+    return 'Distributions available locally: \n\n* 2201.13.7\n  2201.14.9\n\nDistributions available remotely:\n\n'
+        + `Swan Lake channel\n\n${remote.join('\n')}\n\n1.* channel\n\n  1.2.70 - latest\n  1.2.69\n\n`
+        + "Use 'bal dist list -a' to list all the distributions under each channel. \n";
+}
+
+describe('latest release on the required update line', () => {
+    it('picks the newest remote 2201.14.x, whatever its position or marker', () => {
+        expect(findLatestRequiredLineRelease(distList(['  2201.15.0 - latest', '  2201.14.1', '* 2201.14.0', '  2201.13.7'])))
+            .toBe('2201.14.1');
+        expect(findLatestRequiredLineRelease(distList(['* 2201.14.0', '  2201.14.2 - latest', '  2201.14.1'])))
+            .toBe('2201.14.2');
+    });
+
+    it('compares patches numerically and skips pre-releases', () => {
+        expect(findLatestRequiredLineRelease(distList(['  2201.14.10', '  2201.14.9', '  2201.14.11-rc1'])))
+            .toBe('2201.14.10');
+    });
+
+    it('is undefined when nothing remote is on the line, or the list is unreadable', () => {
+        expect(findLatestRequiredLineRelease(distList(['  2201.13.7 - latest']))).toBeUndefined();
+        expect(findLatestRequiredLineRelease('error: unable to connect to the update server')).toBeUndefined();
+    });
+
+    it('is undefined once ten newer releases push the line out of the truncated list', () => {
+        const newer = ['  2201.16.1 - latest', '  2201.16.0', ...Array.from({ length: 8 }, (_, i) => `  2201.15.${7 - i}`)];
+        expect(findLatestRequiredLineRelease(distList(newer))).toBeUndefined();
+    });
+
+    it('reads CRLF output, as on Windows', () => {
+        expect(findLatestRequiredLineRelease(distList(['  2201.14.1 - latest', '  2201.14.0']).replace(/\n/g, '\r\n')))
+            .toBe('2201.14.1');
+    });
 });
 
 describe('distribution versions', () => {

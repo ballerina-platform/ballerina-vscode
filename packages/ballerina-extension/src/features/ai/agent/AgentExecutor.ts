@@ -43,6 +43,7 @@ import { StreamContext } from './stream-handlers/stream-context';
 import { checkCompilationErrors } from './tools/diagnostics-utils';
 import { TASK_WRITE_TOOL_NAME } from './tools/task-writer';
 import { FILE_BATCH_EDIT_TOOL_NAME, FILE_SINGLE_EDIT_TOOL_NAME } from './tools/text-editor';
+import { collectThreadAttachments, SpecContext, specAttachments, textAttachments } from './tools/connector-spec-source';
 import {
     MAX_TRUNCATION_RETRIES,
     addUsage,
@@ -328,6 +329,28 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
     }
 
     /**
+     * The thread's attachments and user text, for the connector generator to take a spec from.
+     * This turn's spec attachments are saved so a later turn can still use them.
+     */
+    private buildSpecContext(threadId: string): SpecContext {
+        const params = this.config.params;
+        const current = textAttachments(params.fileAttachmentContents);
+        if (!this.config.chatStorage) {
+            return { attachments: current, userText: params.usecase };
+        }
+        const generationId = this.config.generationId;
+        const specs = specAttachments(current);
+        if (specs.length > 0 && chatStateStorage.getGeneration(this.chatStoreKey, threadId, generationId)) {
+            chatStateStorage.updateGeneration(this.chatStoreKey, threadId, generationId, { fileAttachments: specs });
+        }
+        const earlier = chatStateStorage.getGenerations(this.chatStoreKey, threadId).filter(g => g.id !== generationId);
+        return {
+            attachments: collectThreadAttachments(current, earlier),
+            userText: [...earlier.map(g => g.userPrompt), params.usecase].join('\n'),
+        };
+    }
+
+    /**
      * Execute agent code generation
      *
      * Flow:
@@ -482,6 +505,7 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
                 runningServices: runningServicesManager,
                 webSearchEnabled: params.webSearchEnabled ?? false,
                 ctx: this.config.executionContext,
+                specContext: this.buildSpecContext(threadId),
                 // TODO(auto-memory): temporarily disabled for this release.
                 // autoMemoryEnabled: isMemoryEnabled(),
             });

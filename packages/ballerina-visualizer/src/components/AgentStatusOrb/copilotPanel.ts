@@ -44,6 +44,8 @@ export interface CopilotPromptOptions {
     /** Continues the thread last used for this key while it is recent, instead of starting a new one. */
     threadKey?: string;
     hiddenContext?: string;
+    /** False fills the chat input instead of sending. */
+    autoSubmit?: boolean;
 }
 
 /** Shared by every inline "ask Copilot" surface so they open the panel identically. */
@@ -55,7 +57,7 @@ export async function submitPromptToCopilot(
     options?: CopilotPromptOptions
 ): Promise<boolean> {
     const trimmed = prompt.trim();
-    if (!trimmed) {
+    if (!trimmed && !options?.attachments?.length) {
         openCopilotPanel(rpcClient);
         return false;
     }

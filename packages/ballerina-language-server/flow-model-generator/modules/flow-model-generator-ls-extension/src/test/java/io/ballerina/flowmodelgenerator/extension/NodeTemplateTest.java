@@ -11,6 +11,7 @@ import org.testng.annotations.Test;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 /**
  * Test cases for the flow model getNodeTemplate API.
@@ -37,6 +38,21 @@ public class NodeTemplateTest extends AbstractLSTest {
 //            updateConfig(configJsonPath, updateConfig);
             compareJsonElements(nodeTemplate, testConfig.output());
             Assert.fail(String.format("Failed test: '%s' (%s)", testConfig.description(), configJsonPath));
+        }
+    }
+
+    @Test
+    public void testAgentRunTemplateCallsTheRequestedAgent() throws IOException {
+        String filePath = sourceDir.resolve("empty.bal").toAbsolutePath().toString();
+        for (String agent : List.of("firstAgent", "secondAgent")) {
+            JsonObject codedata = gson.fromJson("""
+                    {"node": "AGENT_RUN", "org": "ballerina", "module": "ai", "packageName": "ai",
+                     "object": "Agent", "symbol": "run", "version": "1.16.0", "parentSymbol": "%s"}"""
+                    .formatted(agent), JsonObject.class);
+            JsonObject flowNode = getResponseAndCloseFile(new FlowModelNodeTemplateRequest(filePath,
+                    LinePosition.from(0, 0), codedata), "empty.bal").getAsJsonObject("flowNode");
+            Assert.assertEquals(flowNode.getAsJsonObject("properties").getAsJsonObject("connection")
+                    .get("value").getAsString(), agent);
         }
     }
 

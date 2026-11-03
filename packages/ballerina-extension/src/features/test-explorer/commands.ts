@@ -21,6 +21,7 @@ import { commands, TestItem, window, workspace, WorkspaceEdit, Uri, Range } from
 import { openView, StateMachine, history } from "../../stateMachine";
 import { BI_COMMANDS, EVENT_TYPE, MACHINE_VIEW, Annotation, ValueProperty, GetTestFunctionResponse, TestFunction, TestsDiscoveryResponse, ComponentInfo, isSamePath, TextEdit } from "@wso2/ballerina-core";
 import { isTestFunctionItem } from "./discover";
+import { parseTestFunctionId } from "./test-id";
 import path from "path";
 import { promises as fs } from 'fs';
 import { needsProjectDiscovery, requiresPackageSelection, selectPackageOrPrompt } from "../../utils/command-utils";
@@ -60,8 +61,11 @@ export function activateEditBiTest(ballerinaExtInstance: BallerinaExtension) {
             return;
         }
 
-        const [fileName] = entry.id.split(":").slice(-2);
-        const fileUri = path.resolve(projectPath, `tests`, fileName);
+        const testId = parseTestFunctionId(entry.id);
+        if (!testId) {
+            return;
+        }
+        const fileUri = path.resolve(projectPath, `tests`, testId.fileName);
         if (fileUri) {
             const range = entry.range;
             openView(EVENT_TYPE.OPEN_VIEW, {
@@ -88,7 +92,7 @@ export function activateEditBiTest(ballerinaExtInstance: BallerinaExtension) {
         }
 
         const fileUri = path.resolve(projectPath, `tests`, `tests.bal`);
-        ensureFileExists(fileUri);
+        await ensureFileExists(fileUri);
         openView(EVENT_TYPE.OPEN_VIEW, {
             view: MACHINE_VIEW.BITestFunctionForm,
             documentUri: fileUri, identifier: '', serviceType: 'ADD_NEW_TEST'
@@ -184,15 +188,13 @@ export function activateEditBiTest(ballerinaExtInstance: BallerinaExtension) {
             return;
         }
 
-        // Parse test ID: test:${projectPath}:${fileName}:${functionName}
-        const idParts = entry.id.split(":");
-        if (idParts.length < 4) {
+        const testId = parseTestFunctionId(entry.id);
+        if (!testId) {
             window.showErrorMessage('Unable to parse test item ID.');
             return;
         }
 
-        // projectPath may contain ':' on Windows, so read from the end.
-        const [fileName, functionName] = idParts.slice(-2);
+        const { fileName, functionName } = testId;
         const fileUri = path.resolve(projectPath, `tests`, fileName);
 
         // Determine test type for confirmation message
@@ -396,6 +398,10 @@ async function ensureFileExists(filePath: string) {
         await fs.mkdir(path.dirname(filePath), { recursive: true });
 
         await fs.writeFile(filePath, '', 'utf8');
+        // The language server loaded the project before this file existed, and test saves look the file up there.
+        await StateMachine.langClient().didOpen({
+            textDocument: { uri: Uri.file(filePath).toString(), text: '', languageId: 'ballerina', version: 1 }
+        });
         console.log('File created:', filePath);
     }
 }

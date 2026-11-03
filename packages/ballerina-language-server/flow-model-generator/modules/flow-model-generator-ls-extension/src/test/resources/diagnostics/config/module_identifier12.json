@@ -1,0 +1,42 @@
+{
+  "description": "Editing a configurable keeps its own name without a redeclared error",
+  "filePath": "configurables.bal",
+  "context": {
+    "expression": "host",
+    "startLine": {
+      "line": 1,
+      "offset": 20
+    },
+    "offset": 4,
+    "property": {
+      "metadata": {
+        "label": "Name",
+        "description": "Name of the variable"
+      },
+      "types": [
+        {
+          "fieldType": "IDENTIFIER",
+          "scope": "Global"
+        }
+      ],
+      "value": "host",
+      "optional": false,
+      "editable": true,
+      "advanced": false,
+      "codedata": {
+        "lineRange": {
+          "fileName": "configurables.bal",
+          "startLine": {
+            "line": 1,
+            "offset": 20
+          },
+          "endLine": {
+            "line": 1,
+            "offset": 24
+          }
+        }
+      }
+    }
+  },
+  "diagnostics": []
+}

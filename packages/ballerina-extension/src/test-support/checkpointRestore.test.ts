@@ -56,7 +56,11 @@ jest.mock("../RPCLayer", () => ({
     suppressWebviewNotifications: () => () => {},
 }));
 
-import { captureWorkspaceSnapshot, restoreWorkspaceSnapshot } from "../views/ai-panel/checkpoint/checkpointUtils";
+import { getCheckpointConfig } from "../views/ai-panel/checkpoint/checkpointConfig";
+import { CheckpointService } from "../views/ai-panel/checkpoint/checkpointService";
+import { FsBlobStore } from "../views/ai-panel/checkpoint/blobStore";
+import { InlineSnapshotBackend } from "../views/ai-panel/checkpoint/backends/inlineSnapshotBackend";
+import { ContentStoreBackend } from "../views/ai-panel/checkpoint/backends/contentStoreBackend";
 
 const ORIGINAL_CONFIG = 'greeting = "before the generation"\n';
 /** PNG magic bytes plus sequences no UTF-8 decoder can round-trip. */
@@ -71,12 +75,28 @@ function answerDeletionPrompt(choice = 0): void {
     }) as never;
 }
 
-/** Lets the restore's promise chain run to its next timer-bound step under fake timers. */
-async function settle(): Promise<void> {
-    for (let i = 0; i < 50; i++) {
-        await Promise.resolve();
+const realSetImmediate = setImmediate;
+
+/** Yields to real I/O (blob reads, hashing) until the condition holds; fake timers never advance here. */
+async function waitUntil(condition: () => boolean, what: string): Promise<void> {
+    for (let i = 0; i < 20_000; i++) {
+        if (condition()) {
+            return;
+        }
+        await new Promise(resolve => realSetImmediate(resolve));
     }
+    throw new Error(`Timed out waiting for ${what}`);
 }
+
+function track<T>(promise: Promise<T>): { promise: Promise<T>; settled: () => boolean } {
+    let done = false;
+    const tracked = promise.finally(() => { done = true; });
+    return { promise: tracked, settled: () => done };
+}
+
+const hasArtifactSubscriber = () =>
+    (ArtifactNotificationHandler.getInstance() as unknown as { subscribers: Map<string, unknown> })
+        .subscribers.has(ArtifactsUpdated.method);
 
 /** The handler is a process-wide singleton; drop any subscription an earlier test abandoned. */
 function resetArtifactSubscribers(): void {
@@ -91,11 +111,75 @@ function publishArtifactsUpdated(): void {
     });
 }
 
-describe("checkpoint restore outcome vs. the artifact-update notification", () => {
+type Kind = "inline" | "content-store";
+
+/** One storage backend's view of a checkpoint fixture: how a test builds, reads and tampers with it. */
+function harness(kind: Kind) {
+    let storeDir = "";
+    let store: FsBlobStore;
+    let service: CheckpointService;
+
+    const setup = () => {
+        storeDir = fs.mkdtempSync(path.join(os.tmpdir(), "checkpoint-objects-"));
+        store = new FsBlobStore(storeDir);
+        service = new CheckpointService({
+            backends: [new InlineSnapshotBackend(), new ContentStoreBackend(store)],
+            defaultKind: kind,
+            config: getCheckpointConfig,
+            notify: { tooLarge() {}, largeFilesSkipped() {}, unknownFormat() {}, contentUnavailable() {} },
+        });
+    };
+    const teardown = () => fs.rmSync(storeDir, { recursive: true, force: true });
+
+    const storedPaths = (cp: Checkpoint): string[] =>
+        kind === "inline" || cp.storage?.kind !== "content-store"
+            ? Object.keys(cp.workspaceSnapshot ?? {})
+            : Object.entries(cp.storage.files).filter(([, entry]) => "hash" in entry).map(([p]) => p);
+
+    const setStored = async (cp: Checkpoint, filePath: string, content: string): Promise<void> => {
+        if (kind === "inline") {
+            cp.workspaceSnapshot = { ...cp.workspaceSnapshot, [filePath]: content };
+            return;
+        }
+        if (cp.storage?.kind !== "content-store") {
+            throw new Error("not a content-store checkpoint");
+        }
+        const bytes = Buffer.from(content, "utf8");
+        const { id } = await store.put(bytes);
+        cp.storage.files[filePath] = { hash: id, size: bytes.length, mtimeMs: 0 };
+    };
+
+    const makeCheckpoint = async (base: Omit<Checkpoint, "workspaceSnapshot">, snapshot: Record<string, string>) => {
+        const cp: Checkpoint = kind === "inline"
+            ? { ...base, workspaceSnapshot: {} }
+            : { ...base, schemaVersion: 2, storage: { kind: "content-store", files: {} } };
+        for (const [filePath, content] of Object.entries(snapshot)) {
+            await setStored(cp, filePath, content);
+        }
+        return cp;
+    };
+
+    return {
+        setup,
+        teardown,
+        storedPaths,
+        setStored,
+        makeCheckpoint,
+        captureWorkspaceSnapshot: (messageId: string) => service.capture(messageId),
+        restoreWorkspaceSnapshot: (cp: Checkpoint, skipArtifactWait = false) => service.restore(cp, { skipArtifactWait }),
+    };
+}
+
+const KINDS: Kind[] = ["inline", "content-store"];
+
+describe.each(KINDS)("checkpoint restore outcome vs. the artifact-update notification (%s)", (kind) => {
+    const h = harness(kind);
+    const { restoreWorkspaceSnapshot } = h;
     let root: string;
     let checkpoint: Checkpoint;
 
-    beforeEach(() => {
+    beforeEach(async () => {
+        h.setup();
         artifactLocationUpdates.length = 0;
         resetArtifactSubscribers();
         dataMapper.context = {};
@@ -107,14 +191,13 @@ describe("checkpoint restore outcome vs. the artifact-update notification", () =
         fs.writeFileSync(path.join(root, "Config.toml"), 'greeting = "the generation\'s edit"\n');
         fs.writeFileSync(path.join(root, "extra.txt"), "added by the generation\n");
 
-        checkpoint = {
+        checkpoint = await h.makeCheckpoint({
             id: "cp-1",
             messageId: "msg-1",
             timestamp: 0,
             fileList: ["main.bal", "Config.toml"],
-            workspaceSnapshot: { "main.bal": ORIGINAL_BAL, "Config.toml": ORIGINAL_CONFIG },
             snapshotSize: ORIGINAL_BAL.length + ORIGINAL_CONFIG.length,
-        };
+        }, { "main.bal": ORIGINAL_BAL, "Config.toml": ORIGINAL_CONFIG });
 
         workspace.workspaceFolders = [{ uri: Uri.file(root) }];
         workspace.findFiles = () =>
@@ -129,14 +212,15 @@ describe("checkpoint restore outcome vs. the artifact-update notification", () =
     afterEach(() => {
         jest.useRealTimers();
         fs.rmSync(root, { recursive: true, force: true });
+        h.teardown();
     });
 
     it("reports the restore as successful when no artifact update ever arrives", async () => {
-        const restore = restoreWorkspaceSnapshot(checkpoint);
-        await settle();
+        const restore = track(restoreWorkspaceSnapshot(checkpoint));
+        await waitUntil(() => hasArtifactSubscriber() || restore.settled(), "the restore to wait for artifacts");
         await jest.advanceTimersByTimeAsync(10_000);
 
-        await expect(restore).resolves.toBe(true);
+        await expect(restore.promise).resolves.toBe(true);
         expect(fs.readFileSync(path.join(root, "Config.toml"), "utf8")).toBe(ORIGINAL_CONFIG);
         expect(fs.existsSync(path.join(root, "extra.txt"))).toBe(false);
     });
@@ -148,35 +232,31 @@ describe("checkpoint restore outcome vs. the artifact-update notification", () =
             return Promise.resolve(true);
         };
 
-        let settledWithoutTimeout = false;
-        const restore = restoreWorkspaceSnapshot(checkpoint).then(result => {
-            settledWithoutTimeout = true;
-            return result;
-        });
-        await settle();
+        // No fake timer is advanced, so a missed update would leave the restore waiting until this times out.
+        const restore = track(restoreWorkspaceSnapshot(checkpoint));
+        await waitUntil(restore.settled, "the restore to settle without its artifact timeout");
 
-        expect(settledWithoutTimeout).toBe(true);
-        await expect(restore).resolves.toBe(true);
+        await expect(restore.promise).resolves.toBe(true);
         expect(artifactLocationUpdates).toEqual([{ artifacts: [{ id: "svc" }] }]);
     });
 
     it("forwards the artifacts to the visualizer when the update arrives after the edits", async () => {
-        const restore = restoreWorkspaceSnapshot(checkpoint);
-        await settle();
+        const restore = track(restoreWorkspaceSnapshot(checkpoint));
+        await waitUntil(hasArtifactSubscriber, "the restore to wait for artifacts");
         publishArtifactsUpdated();
-        await settle();
+        await waitUntil(restore.settled, "the restore to settle after the update");
 
-        await expect(restore).resolves.toBe(true);
+        await expect(restore.promise).resolves.toBe(true);
         expect(artifactLocationUpdates).toEqual([{ artifacts: [{ id: "svc" }] }]);
     });
 
     it("reports failure when the workspace edit itself does not apply, and stops listening", async () => {
         workspace.applyEdit = () => Promise.resolve(false);
 
-        const restore = restoreWorkspaceSnapshot(checkpoint);
-        await settle();
+        const restore = track(restoreWorkspaceSnapshot(checkpoint));
+        await waitUntil(restore.settled, "the failed restore to settle");
 
-        await expect(restore).resolves.toBe(false);
+        await expect(restore.promise).resolves.toBe(false);
 
         publishArtifactsUpdated();
         await jest.advanceTimersByTimeAsync(10_000);
@@ -186,7 +266,11 @@ describe("checkpoint restore outcome vs. the artifact-update notification", () =
 
 const realDelete = workspace.fs.delete;
 
-describe("what a checkpoint restore is allowed to touch", () => {
+describe.each(KINDS)("what a checkpoint restore is allowed to touch (%s)", (kind) => {
+    const h = harness(kind);
+    const { captureWorkspaceSnapshot, restoreWorkspaceSnapshot, storedPaths, setStored } = h;
+    const inlineOnly = kind === "inline" ? it : it.skip;
+    const contentStoreOnly = kind === "content-store" ? it : it.skip;
     let root: string;
     let checkpoint: Checkpoint;
     let applied: { op: string; uri: { fsPath: string }; content?: string }[];
@@ -194,7 +278,8 @@ describe("what a checkpoint restore is allowed to touch", () => {
 
     const at = (name: string) => path.join(root, name);
 
-    beforeEach(() => {
+    beforeEach(async () => {
+        h.setup();
         artifactLocationUpdates.length = 0;
         resetArtifactSubscribers();
         dataMapper.context = {};
@@ -208,14 +293,13 @@ describe("what a checkpoint restore is allowed to touch", () => {
         fs.writeFileSync(at("main.bal"), "// the generation's edit\n");
         fs.writeFileSync(at("Config.toml"), 'greeting = "the generation\'s edit"\n');
 
-        checkpoint = {
+        checkpoint = await h.makeCheckpoint({
             id: "cp-1",
             messageId: "msg-1",
             timestamp: 0,
             fileList: ["main.bal", "Config.toml"],
-            workspaceSnapshot: { "main.bal": ORIGINAL_BAL, "Config.toml": ORIGINAL_CONFIG },
             snapshotSize: 0,
-        };
+        }, { "main.bal": ORIGINAL_BAL, "Config.toml": ORIGINAL_CONFIG });
 
         workspace.workspaceFolders = [{ uri: Uri.file(root) }];
         workspace.findFiles = () =>
@@ -234,9 +318,10 @@ describe("what a checkpoint restore is allowed to touch", () => {
 
     afterEach(() => {
         fs.rmSync(root, { recursive: true, force: true });
+        h.teardown();
     });
 
-    it("captures a non-text file into the file list but not into the snapshot", async () => {
+    inlineOnly("captures a non-text file into the file list but not into the snapshot", async () => {
         fs.writeFileSync(at("logo.png"), RAW_BYTES);
 
         const captured: any = await captureWorkspaceSnapshot("msg-1");
@@ -244,8 +329,18 @@ describe("what a checkpoint restore is allowed to touch", () => {
         // In the file list so a restore never deletes it; out of the snapshot so a restore never
         // writes a lossy decode over it.
         expect(captured.fileList).toContain("logo.png");
-        expect(Object.keys(captured.workspaceSnapshot)).not.toContain("logo.png");
-        expect(captured.workspaceSnapshot["Config.toml"]).toBeDefined();
+        expect(storedPaths(captured)).not.toContain("logo.png");
+        expect(storedPaths(captured)).toContain("Config.toml");
+    });
+
+    contentStoreOnly("captures a non-text file byte for byte", async () => {
+        fs.writeFileSync(at("logo.png"), RAW_BYTES);
+
+        const captured: any = await captureWorkspaceSnapshot("msg-1");
+
+        expect(captured.fileList).toContain("logo.png");
+        expect(storedPaths(captured)).toContain("logo.png");
+        expect(storedPaths(captured)).toContain("Config.toml");
     });
 
     it("leaves a non-text file alone without reporting it, when the snapshot never held it", async () => {
@@ -258,11 +353,11 @@ describe("what a checkpoint restore is allowed to touch", () => {
         expect(warnings).toEqual([]);
     });
 
-    it("never recreates a file from a lossy snapshot entry left by an older checkpoint", async () => {
+    inlineOnly("never recreates a file from a lossy snapshot entry left by an older checkpoint", async () => {
         // The generation deleted the image, so a restore would have to write it back — and the only
         // content an older checkpoint has for it is the mangled decode.
         checkpoint.fileList.push("logo.png");
-        checkpoint.workspaceSnapshot["logo.png"] = RAW_BYTES.toString("utf8");
+        await setStored(checkpoint, "logo.png", RAW_BYTES.toString("utf8"));
 
         await expect(restoreWorkspaceSnapshot(checkpoint, true)).resolves.toBe(true);
 
@@ -345,7 +440,7 @@ describe("what a checkpoint restore is allowed to touch", () => {
         expect(fs.statSync(at("Config.toml")).mtimeMs).toBe(before);
     });
 
-    it("still rewrites a file whose unsaved editor differs from what is on disk", async () => {
+    it("rewrites an unsaved editor over an unchanged file only for inline checkpoints", async () => {
         fs.writeFileSync(at("main.bal"), ORIGINAL_BAL);
         workspace.textDocuments = [{
             uri: Uri.file(at("main.bal")),
@@ -356,7 +451,12 @@ describe("what a checkpoint restore is allowed to touch", () => {
 
         await expect(restoreWorkspaceSnapshot(checkpoint, true)).resolves.toBe(true);
 
-        expect(applied.filter(e => e.op === "replace").map(e => e.content)).toContain(ORIGINAL_BAL);
+        const replaced = applied.filter(e => e.op === "replace").map(e => e.content);
+        if (kind === "inline") {
+            expect(replaced).toContain(ORIGINAL_BAL);
+        } else {
+            expect(replaced).not.toContain(ORIGINAL_BAL);
+        }
     });
 
     it("sends a file the snapshot never captured to the trash rather than unlinking it", async () => {
@@ -476,7 +576,7 @@ describe("what a checkpoint restore is allowed to touch", () => {
 
             // Listed so a restore leaves it alone; unsnapshotted because there is no content for it.
             expect(captured.fileList).toContain("locked.txt");
-            expect(Object.keys(captured.workspaceSnapshot)).not.toContain("locked.txt");
+            expect(storedPaths(captured)).not.toContain("locked.txt");
         } finally {
             workspace.fs.readFile = realReadFile;
         }
@@ -545,7 +645,7 @@ describe("what a checkpoint restore is allowed to touch", () => {
         fs.chmodSync(dir, 0o000);
         // Listed, so the deletion pass leaves it alone and the write is what gets tested.
         checkpoint.fileList.push("unreadable-dir", "unreadable-dir/secret.txt");
-        checkpoint.workspaceSnapshot["unreadable-dir/secret.txt"] = "should not be written\n";
+        await setStored(checkpoint, "unreadable-dir/secret.txt", "should not be written\n");
 
         try {
             await expect(restoreWorkspaceSnapshot(checkpoint, true)).resolves.toBe(true);
@@ -570,7 +670,7 @@ describe("what a checkpoint restore is allowed to touch", () => {
         fs.symlinkSync(outsideDir, at("linked"), "dir");
         // Listed, so the deletion pass leaves the link itself alone and the write is what gets tested.
         checkpoint.fileList.push("linked", "linked/secret.txt");
-        checkpoint.workspaceSnapshot["linked/secret.txt"] = "written through a symlink\n";
+        await setStored(checkpoint, "linked/secret.txt", "written through a symlink\n");
 
         try {
             await expect(restoreWorkspaceSnapshot(checkpoint, true)).resolves.toBe(true);
@@ -585,7 +685,7 @@ describe("what a checkpoint restore is allowed to touch", () => {
         const outside = path.join(path.dirname(root), "outside-the-workspace.txt");
         fs.writeFileSync(outside, "not the checkpoint's business\n");
         checkpoint.fileList.push("../outside-the-workspace.txt");
-        checkpoint.workspaceSnapshot["../outside-the-workspace.txt"] = "written by a tampered checkpoint\n";
+        await setStored(checkpoint, "../outside-the-workspace.txt", "written by a tampered checkpoint\n");
 
         try {
             await expect(restoreWorkspaceSnapshot(checkpoint, true)).resolves.toBe(true);

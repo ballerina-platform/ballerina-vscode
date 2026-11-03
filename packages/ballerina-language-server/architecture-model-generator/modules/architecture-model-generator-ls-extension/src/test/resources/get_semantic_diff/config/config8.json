@@ -33,7 +33,9 @@
         "metadata": {
           "accessor": "get",
           "servicePath": "/api",
-          "resourcePath": "data"
+          "serviceType": "http",
+          "resourcePath": "data",
+          "functionKind": "resource"
         }
       },
       {

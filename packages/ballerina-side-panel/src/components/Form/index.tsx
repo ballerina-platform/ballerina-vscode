@@ -539,6 +539,7 @@ export const Form = forwardRef((props: FormProps, _ref) => {
         setError,
         clearErrors,
         trigger,
+        getFieldState,
         formState: { isValidating, isValid: formStateIsValid, errors, dirtyFields, isDirty },
     } = useForm<FormValues>();
 
@@ -951,16 +952,24 @@ export const Form = forwardRef((props: FormProps, _ref) => {
     // re-checked); react-hook-form otherwise keeps that field's last value and any validation error,
     // which leaves the form invalid (Save/Next disabled) even though the field is gone. Unregister the
     // removed keys and revalidate so validity reflects only the fields currently on screen.
+    // Only fields that already show an error are re-checked: validating the whole form here marks every
+    // field not yet filled in as required, and before the first submit typing does not clear that error
+    // (the Generate form's Expected Type stayed "required" with a type in it, wso2/product-integrator#2810).
     const prevFieldKeysRef = useRef<string[]>([]);
     useEffect(() => {
         const currentKeys = new Set(formFields.map((field) => field.key));
         const removedKeys = prevFieldKeysRef.current.filter((key) => !currentKeys.has(key));
         if (removedKeys.length > 0) {
             unregister(removedKeys);
-            trigger();
+            // By field state, not the top-level error keys: a dotted key such as `config.type` keeps
+            // its error nested under `config`.
+            const erroredKeys = Array.from(currentKeys).filter((key) => getFieldState(key as keyof FormValues & string).error);
+            if (erroredKeys.length > 0) {
+                trigger(erroredKeys);
+            }
         }
         prevFieldKeysRef.current = Array.from(currentKeys);
-    }, [formFields, unregister, trigger]);
+    }, [formFields, unregister, trigger, getFieldState]);
 
     // has advance fields
     const groupIds = useMemo(() => new Set((groups ?? []).map((group) => group.id)), [groups]);
@@ -1669,12 +1678,7 @@ export const Form = forwardRef((props: FormProps, _ref) => {
             >
                 <Provider {...contextValue}>
                     <S.Container nestedForm={nestedForm} compact={compact} footerActionButton={footerActionButton} className="side-panel-body">
-                        {isFormLoading && (
-                            <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: "12px", flex: 1, minHeight: "300px" }}>
-                                <ProgressRing color={ThemeColors.PRIMARY} />
-                                <span style={{ fontSize: "12px", color: ThemeColors.ON_SURFACE_VARIANT }}>Loading form data...</span>
-                            </div>
-                        )}
+                        {isFormLoading && <FormLoadingIndicator />}
                         {/* NOTE: isFormLoading is only expected to be true during initial field value
     resolution on form open. If this ever becomes true during user interaction,
     it will drop focus — treat that as a bug in the loading registration logic. */}
@@ -1781,6 +1785,20 @@ export const Form = forwardRef((props: FormProps, _ref) => {
 });
 
 export default Form;
+
+const FormLoadingIndicator = () => (
+    <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: "12px", flex: 1, minHeight: "300px" }}>
+        <ProgressRing color={ThemeColors.PRIMARY} />
+        <span style={{ fontSize: "12px", color: ThemeColors.ON_SURFACE_VARIANT }}>Loading form data...</span>
+    </div>
+);
+
+// The form's own loading view, for callers that are still fetching what the form needs.
+export const FormLoadingState = () => (
+    <S.Container className="side-panel-body">
+        <FormLoadingIndicator />
+    </S.Container>
+);
 
 export const FormRow = S.Row;
 export const FormButtonContainer = S.ButtonContainer;

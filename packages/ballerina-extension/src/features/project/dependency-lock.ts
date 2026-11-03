@@ -83,6 +83,29 @@ export function isRuntimeOnRequiredDistribution(runtimeVersion: string | undefin
     return !!parseDistributionVersion(runtimeVersion) && !isBeforeRequiredDistribution(runtimeVersion);
 }
 
+/**
+ * The newest release on the required distribution's update line (`2201.14.x`) among the remote distributions
+ * `bal dist list` prints, or `undefined` if it lists none. Pre-releases are skipped.
+ */
+export function findLatestRequiredLineRelease(distListOutput: string): string | undefined {
+    const remoteStart = distListOutput.search(/available remotely/i);
+    if (remoteStart === -1) {
+        return undefined;
+    }
+    const required = parseDistributionVersion(REQUIRED_BALLERINA_VERSION);
+    let latest: string | undefined;
+    for (const match of distListOutput.slice(remoteStart).matchAll(/^[\s*]*(\d+\.\d+\.\d+)(?![\w.-])/gm)) {
+        const version = parseDistributionVersion(match[1]);
+        if (version.major !== required.major || version.minor !== required.minor) {
+            continue;
+        }
+        if (!latest || compareDistributionVersions(match[1], latest) > 0) {
+            latest = match[1];
+        }
+    }
+    return latest;
+}
+
 export function assessDependencyLockText(text: string): LockAssessment {
     let lockedVersion: unknown;
     try {

@@ -23,10 +23,11 @@ import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { RelativeLoader } from "../RelativeLoader";
 import { ConnectionSearchConfig, ConnectionSelectionListProps } from "./types";
 import { convertConnectionCategories, getSearchConfig } from "./utils";
-import { getAiModuleOrg } from "../../views/BI/AIChatAgent/utils";
+import { getAiModuleOrg, searchAiComponents } from "../../views/BI/AIChatAgent/utils";
 import { AI_COMPONENT_PROGRESS_MESSAGE, AI_COMPONENT_PROGRESS_MESSAGE_TIMEOUT, LOADING_MESSAGE } from "../../constants";
 import { LoaderContainer } from "../RelativeLoader/styles";
 import { useAgentManagerModelProviders } from "../AgentManagerModels";
+import { AiCatalogRefreshIndicator } from "../AiCatalogRefreshIndicator";
 
 // Every field that opens this list already offers the default WSO2 provider in its dropdown.
 function withoutDefaultProvider(items: Item[]): Item[] {
@@ -41,6 +42,7 @@ export function ConnectionSelectionList(props: ConnectionSelectionListProps): JS
     const { rpcClient } = useRpcContext();
     const [connectionCategories, setConnectionCategories] = useState<Category[]>([]);
     const [loading, setLoading] = useState<boolean>(false);
+    const [refreshing, setRefreshing] = useState<boolean>(false);
     const [progressMessage, setProgressMessage] = useState<string>(LOADING_MESSAGE);
 
     const projectPath = useRef<string>("");
@@ -60,7 +62,6 @@ export function ConnectionSelectionList(props: ConnectionSelectionListProps): JS
     }, []);
 
     const initPanel = async () => {
-        setLoading(true);
         projectPath.current = await rpcClient.getVisualizerLocation().then((location) => location.projectPath);
         aiModuleOrg.current = await getAiModuleOrg(rpcClient, selectedNode?.codedata?.node);
         searchConfig.current = getSearchConfig(connectionKind, aiModuleOrg.current);
@@ -69,21 +70,20 @@ export function ConnectionSelectionList(props: ConnectionSelectionListProps): JS
             progressTimeoutRef.current = null;
         }, AI_COMPONENT_PROGRESS_MESSAGE_TIMEOUT);
         await fetchConnections();
-        setLoading(false);
     };
 
-    const fetchConnections = async () => {
-        const connectionSearchResponse = await rpcClient.getBIDiagramRpcClient().search({
-            filePath: projectPath.current,
-            queryMap: {
-                q: searchConfig.current.query
-            },
-            searchKind: searchConfig.current.searchKind
-        });
-
+    const fetchConnections = () => searchAiComponents(rpcClient, {
+        filePath: projectPath.current,
+        queryMap: {
+            q: searchConfig.current.query
+        },
+        searchKind: searchConfig.current.searchKind
+    }, (connectionSearchResponse, isRefreshing) => {
         const categories = convertConnectionCategories(connectionKind, connectionSearchResponse.categories);
         setConnectionCategories(connectionKind === "MODEL_PROVIDER" ? withoutDefaultProvider(categories) as Category[] : categories);
-    };
+        setLoading(false);
+        setRefreshing(isRefreshing);
+    }, () => setLoading(true));
 
     return (
         <>
@@ -97,6 +97,7 @@ export function ConnectionSelectionList(props: ConnectionSelectionListProps): JS
                     categories={connectionCategories}
                     onSelect={onSelect}
                     leadingSection={agentManagerSection}
+                    extraSection={refreshing ? <AiCatalogRefreshIndicator /> : undefined}
                     expandedGroupId={expandedGroupId}
                     onExpandedGroupChange={onExpandedGroupChange}
                     fillContainerHeight={fillContainerHeight}

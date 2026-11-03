@@ -58,6 +58,6 @@ export const WSO2_CLOUD_KNOWLEDGE_BASE_PACKAGE = "ai.wso2.integration";
 export const LOADING_MESSAGE = "Loading...";
 export const FORM_LOADING_MESSAGE = "Loading form...";
 export const AI_COMPONENT_PROGRESS_MESSAGE_TIMEOUT = 3000; // Timeout (ms) before showing the 'fetching from Central' progress message
-export const AI_COMPONENT_PROGRESS_MESSAGE = "Fetching resources from Ballerina Central. This may take a few moments...";
+export const AI_COMPONENT_PROGRESS_MESSAGE = "Loading available options. This may take a few moments...";
 
 export const CONNECTIONS_FILE = "connections.bal";

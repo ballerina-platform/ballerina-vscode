@@ -143,15 +143,12 @@ export interface TopologyEntryNode {
     handlers: TopologyHandler[];
 }
 
-export type LegendKind = "trigger" | "event" | "delegation" | "gate" | "people";
-
 export interface TopologyGraph {
     agents: TopologyAgentNode[];
     entries: TopologyEntryNode[];
     handlers: TopologyHandler[];
     edges: TopologyEdge[];
     wiredNothing: boolean;
-    legendKinds: LegendKind[];
 }
 
 export interface NodePosition {

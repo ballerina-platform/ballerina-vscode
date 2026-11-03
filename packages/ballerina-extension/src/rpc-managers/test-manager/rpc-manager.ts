@@ -124,6 +124,10 @@ async function moveToTrash(filePath: string): Promise<void> {
     await vscode.workspace.fs.delete(vscode.Uri.file(filePath), { useTrash: true });
 }
 
+// Saving a test always edits the file, so no edits means the language server could not do it.
+const getSaveError = (res: TestSourceEditResponse): string | undefined =>
+    res?.errorMsg || (Object.keys(res?.textEdits ?? {}).length === 0 ? 'The language server returned no changes.' : undefined);
+
 export class TestServiceManagerRpcManager implements TestManagerServiceAPI {
 
     async updateTestFunction(params: AddOrUpdateTestFunctionRequest): Promise<SourceUpdateResponse> {
@@ -137,6 +141,11 @@ export class TestServiceManagerRpcManager implements TestManagerServiceAPI {
                     startColumn: params.function.codedata.lineRange.startLine.offset
                 };
                 const res: TestSourceEditResponse = await context.langClient.updateTestFunction(params);
+                const errorMsg = getSaveError(res);
+                if (errorMsg) {
+                    resolve({ artifacts: [], errorMsg });
+                    return;
+                }
                 const artifacts = await updateSourceCode({ textEdits: res.textEdits, description: 'Test Function Update' });
                 const result: SourceUpdateResponse = {
                     artifacts: artifacts
@@ -149,6 +158,7 @@ export class TestServiceManagerRpcManager implements TestManagerServiceAPI {
                 resolve(result);
             } catch (error) {
                 console.log(error);
+                resolve({ artifacts: [], errorMsg: error instanceof Error ? error.message : String(error) });
             }
         });
 
@@ -161,6 +171,11 @@ export class TestServiceManagerRpcManager implements TestManagerServiceAPI {
                 const targetFile = params.filePath;
                 params.filePath = targetFile;
                 const res: TestSourceEditResponse = await context.langClient.addTestFunction(params);
+                const errorMsg = getSaveError(res);
+                if (errorMsg) {
+                    resolve({ artifacts: [], errorMsg });
+                    return;
+                }
                 const artifacts = await updateSourceCode({ textEdits: res.textEdits, description: 'Test Function Creation' });
                 const result: SourceUpdateResponse = {
                     artifacts: artifacts
@@ -173,6 +188,7 @@ export class TestServiceManagerRpcManager implements TestManagerServiceAPI {
                 resolve(result);
             } catch (error) {
                 console.log(error);
+                resolve({ artifacts: [], errorMsg: error instanceof Error ? error.message : String(error) });
             }
         });
     }
@@ -185,6 +201,7 @@ export class TestServiceManagerRpcManager implements TestManagerServiceAPI {
                 resolve(res);
             } catch (error) {
                 console.log(error);
+                resolve({ errorMsg: error instanceof Error ? error.message : String(error) });
             }
         });
     }

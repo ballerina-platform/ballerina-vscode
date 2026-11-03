@@ -390,11 +390,15 @@ way you would for `sendData` or `awaitHumanTask` above.
 ```ballerina
 final workflow:DurableAgent <agentName> = check new ({
     systemPrompt: {role: "<role>", instructions: "<instructions>"},
-    model: <modelProvider>,
+    model: check ai:getDefaultModelProvider(),
     activities: [{activity: <activityName>, description: "<what it does, for the model>"}],
     events: {<channelName>: {request: <RequestType>, response: <ResponseType>}}
 });
 ```
+
+Use the default model provider inline, as above. Do not declare a module-level model variable for
+it. When the user names a provider (OpenAI, Azure, Anthropic, Ollama, …), declare it as a
+module-level `final` variable of that provider's own class and pass it by name.
 
 Declaration rules, all compiler-enforced:
 

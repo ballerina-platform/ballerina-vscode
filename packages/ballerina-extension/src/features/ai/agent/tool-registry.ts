@@ -37,6 +37,7 @@ import {
 } from './tools/text-editor';
 import { GenerationType } from '../utils/libs/libraries';
 import { createConnectorGeneratorTool, CONNECTOR_GENERATOR_TOOL } from './tools/connector-generator';
+import { SpecContext } from './tools/connector-spec-source';
 import { createSubagentTool } from './tools/subagent-tool';
 import { createKillTaskTool, createTaskOutputTool } from './tools/task-tools';
 import { buildRunKey, KILL_TASK_TOOL_NAME, SUBAGENT_TOOL_NAME, SubagentRunContext, TASK_OUTPUT_TOOL_NAME } from './subagents/types';
@@ -81,13 +82,15 @@ export interface ToolRegistryOptions {
     runningServices: RunningServicesManager;
     webSearchEnabled: boolean;
     ctx: ExecutionContext;
+    /** The thread's attachments and user text; the connector generator reads a supplied spec from them. */
+    specContext?: SpecContext;
     // TODO(auto-memory): temporarily disabled for this release.
     // /** When true, registers save_memory and consolidate_memories tools in the main agent registry. */
     // autoMemoryEnabled?: boolean;
 }
 
 export function createToolRegistry(opts: ToolRegistryOptions) {
-    const { eventHandler, toolModelUsage, tempProjectPath, modifiedFiles, allModifiedFiles, projects, generationType, projectRootPath, generationId, threadId, migrationSourcePath, webSearchEnabled, ctx } = opts;
+    const { eventHandler, toolModelUsage, tempProjectPath, modifiedFiles, allModifiedFiles, projects, generationType, projectRootPath, generationId, threadId, migrationSourcePath, webSearchEnabled, ctx, specContext } = opts;
     const resolvedThreadId = threadId || 'default';
     // Library lookups happen only inside subagents; their histories live next to the thread.
     const subagentCtx: SubagentRunContext = {
@@ -99,6 +102,8 @@ export function createToolRegistry(opts: ToolRegistryOptions) {
         threadDir: chatStateStorage.getThreadDir(projectRootPath, resolvedThreadId),
         runKey: buildRunKey(projectRootPath, resolvedThreadId),
     };
+    // In a workspace project, generated code goes into the package the user is working in.
+    const activeProject = projects.find(project => project.isActive) ?? projects[0];
     const tools = {
         [TASK_WRITE_TOOL_NAME]: createTaskWriteTool(
             eventHandler,
@@ -114,8 +119,10 @@ export function createToolRegistry(opts: ToolRegistryOptions) {
         [CONNECTOR_GENERATOR_TOOL]: createConnectorGeneratorTool(
             eventHandler,
             tempProjectPath,
-            projects[0]?.projectName,
-            modifiedFiles
+            activeProject?.projectName,
+            modifiedFiles,
+            specContext,
+            activeProject?.packagePath
         ),
         [CONFIG_COLLECTOR_TOOL]: createConfigCollectorTool(
             eventHandler,

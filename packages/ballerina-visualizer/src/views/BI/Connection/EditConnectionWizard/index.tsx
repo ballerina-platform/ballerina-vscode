@@ -17,8 +17,9 @@
  */
 
 import { useEffect, useState } from "react";
+import { ComponentFormLoader } from "../../../../components/ComponentFormLoader";
 import styled from "@emotion/styled";
-import { EVENT_TYPE, FlowNode, MACHINE_VIEW, SubPanel, SubPanelView } from "@wso2/ballerina-core";
+import { AvailableNode, EVENT_TYPE, FlowNode, MACHINE_VIEW, SubPanel, SubPanelView } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import ConnectionConfigView from "../ConnectionConfigView";
 import { getFormProperties } from "../../../../utils/bi";
@@ -68,6 +69,7 @@ export function EditConnectionWizard(props: EditConnectionWizardProps) {
     const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
     const [selectedConnectionKind, setSelectedConnectionKind] = useState<ConnectionKind>();
     const [nodeFormTemplate, setNodeFormTemplate] = useState<FlowNode>();
+    const [selection, setSelection] = useState<{ node?: AvailableNode }>();
 
     useEffect(() => {
         rpcClient
@@ -193,6 +195,7 @@ export function EditConnectionWizard(props: EditConnectionWizardProps) {
     };
 
     const handleSelectNewConnection = async (nodeId: string, metadata?: any) => {
+        setSelection(metadata ?? {});
         try {
             const { flowNode, connectionKind } = await getNodeTemplateForConnection(
                 nodeId,
@@ -207,6 +210,8 @@ export function EditConnectionWizard(props: EditConnectionWizardProps) {
             setCurrentView(WizardView.CONNECTION_CREATE);
         } catch (error) {
             console.error('Error getting node template for connection:', error);
+        } finally {
+            setSelection(undefined);
         }
     };
 
@@ -242,6 +247,9 @@ export function EditConnectionWizard(props: EditConnectionWizardProps) {
     const renderCurrentView = () => {
         switch (currentView) {
             case WizardView.CONNECTION_SELECT:
+                if (selection) {
+                    return <ComponentFormLoader node={selection.node} />;
+                }
                 return (
                     <ConnectionSelectionList
                         connectionKind={selectedConnectionKind}

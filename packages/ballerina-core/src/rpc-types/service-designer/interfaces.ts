@@ -26,6 +26,7 @@ export interface ExportOASResponse {
 }
 export interface SourceUpdateResponse {
     artifacts: ProjectStructureArtifactResponse[]
+    errorMsg?: string;
 }
 export interface GetOASSpecRequest {
     documentFilePath?: string;

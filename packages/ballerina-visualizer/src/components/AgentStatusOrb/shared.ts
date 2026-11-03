@@ -19,7 +19,7 @@
 import { useEffect, useLayoutEffect, useState } from "react";
 import styled from "@emotion/styled";
 import { keyframes } from "@emotion/react";
-import { AgentRunState, AgentRunStatus, ChatNotify, MACHINE_VIEW } from "@wso2/ballerina-core";
+import { AgentRunState, AgentRunStatus, ChatNotify, MACHINE_VIEW, ProductMode, seededProductMode } from "@wso2/ballerina-core";
 import { BallerinaRpcClient, useRpcContext } from "@wso2/ballerina-rpc-client";
 import type { MiniChatPrompt } from "./promptHandoff";
 import { ambientBorderColor } from "./orbTheme";
@@ -40,6 +40,31 @@ export const OrbGlow = styled.span`
     position: absolute;
     inset: 0;
     transition: filter 0.2s ease;
+`;
+
+export const OrbButton = styled.button<{ $interactive: boolean }>`
+    position: relative;
+    width: ${ORB_SIZE}px;
+    height: ${ORB_SIZE}px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    outline-offset: 4px;
+    cursor: ${(props: { $interactive: boolean }) => (props.$interactive ? "pointer" : "default")};
+    transition: transform 0.2s ease;
+    &:hover {
+        transform: ${(props: { $interactive: boolean }) => (props.$interactive ? "scale(1.06)" : "none")};
+    }
+    &:active {
+        transform: ${(props: { $interactive: boolean }) => (props.$interactive ? "scale(0.98)" : "none")};
+    }
+    // Clears the ambient pulse's own 1.13 peak so the lift reads as a response, not the idle animation.
+    // Reached by class: interpolating OrbGlow would stringify to ".undefined" without @emotion/babel-plugin.
+    &:hover .${ORB_GLOW_CLASS},
+    &:focus-visible .${ORB_GLOW_CLASS} {
+        filter: ${(props: { $interactive: boolean }) =>
+            props.$interactive ? `brightness(${ORB_HOVER_BRIGHTNESS})` : "none"};
+    }
 `;
 export const EDGE_MARGIN = 20;
 
@@ -755,9 +780,9 @@ export function subscribeAmbientCopilotPresence(listener: (present: boolean) => 
 }
 
 // animated: WebGL core + brand ring (default). simple: CSS sphere, no ring — also
-// the fallback when animated can't render. Add a theme by appending it here and to
-// the `ballerina.copilot.orbTheme` enum.
-export const ORB_THEMES = ["animated", "simple"] as const;
+// the fallback when animated can't render. solid: Agent Builder's own orb, its default.
+// Add a theme by appending it here and to the `ballerina.copilot.orbTheme` enum.
+export const ORB_THEMES = ["animated", "simple", "solid"] as const;
 export type OrbTheme = typeof ORB_THEMES[number];
 
 export const DEFAULT_ORB_THEME: OrbTheme = "animated";
@@ -767,15 +792,18 @@ export function orbThemeFromSetting(value: string): OrbTheme {
     return (ORB_THEMES as readonly string[]).includes(value) ? (value as OrbTheme) : FALLBACK_ORB_THEME;
 }
 
-let currentOrbTheme: OrbTheme = DEFAULT_ORB_THEME;
+// Read on first use, not at import: the host seeds the product mode into the page, so the orb
+// starts in the product's style instead of flashing the default until the setting arrives.
+let currentOrbTheme: OrbTheme | undefined;
 const orbThemeListeners = new Set<(theme: OrbTheme) => void>();
 
 export function getOrbTheme(): OrbTheme {
+    currentOrbTheme ??= seededProductMode() === ProductMode.AGENT_BUILDER ? "solid" : DEFAULT_ORB_THEME;
     return currentOrbTheme;
 }
 
 export function setOrbTheme(theme: OrbTheme): void {
-    if (theme === currentOrbTheme) {
+    if (theme === getOrbTheme()) {
         return;
     }
     currentOrbTheme = theme;
@@ -790,7 +818,7 @@ export function subscribeOrbTheme(listener: (theme: OrbTheme) => void): () => vo
 }
 
 export function useOrbTheme(): OrbTheme {
-    const [theme, setTheme] = useState<OrbTheme>(currentOrbTheme);
+    const [theme, setTheme] = useState<OrbTheme>(getOrbTheme);
     useEffect(() => subscribeOrbTheme(setTheme), []);
     return theme;
 }

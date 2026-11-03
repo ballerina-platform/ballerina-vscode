@@ -236,14 +236,12 @@ describe("AgentTopologyDiagram - Snapshot Tests", () => {
         await renderAndCheckSnapshot({ model: { connections: [], listeners: [], services: [] }, agents: [] }, "no-agents");
     }, 15000);
 
-    test("renders the durable claims shape: inlet, people line and a three-row legend", async () => {
+    test("renders the durable claims shape: inlet and people line", async () => {
         const dom = await renderAndCheckSnapshot(durableClaimsInput(), "durable-claims-shape");
         const view = within(dom.container);
         expect(view.getByText("Durable Agent")).toBeInTheDocument();
         expect(view.getAllByText("chat")).toHaveLength(1);
         expect(view.queryByText(/Manager|Accountant/)).toBeNull();
-        ["Runs the agent", "Sends an event", "Stops for a person"].forEach((label) => expect(view.getByText(label)).toBeInTheDocument());
-        expect(view.queryByText("Delegates to")).toBeNull();
         expect(view.queryByText("Add Trigger")).toBeNull();
     }, 15000);
 });

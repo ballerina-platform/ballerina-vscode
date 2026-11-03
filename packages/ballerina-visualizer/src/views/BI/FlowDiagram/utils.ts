@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { Category, AvailableNode, BallerinaProjectComponents, FlowNode } from "@wso2/ballerina-core";
+import { Category, AvailableNode, BallerinaProjectComponents, FlowNode, NodeMetadata } from "@wso2/ballerina-core";
 import type { Category as PanelCategory, Item as PanelItem } from "@wso2/ballerina-side-panel";
 import { URI, Utils } from "vscode-uri";
 import type { SidePanelView } from "./PanelManager";
@@ -244,6 +244,13 @@ export async function settlePendingSetup(template: FlowNode | undefined, saved: 
     }
 }
 
+const missingTemplateMessage = (node: AvailableNode): string => {
+    const label = node.metadata?.label;
+    return (node.metadata?.data as NodeMetadata)?.pullRequired
+        ? `Could not download the required package for ${label}. Check your internet connection and try again.`
+        : `Could not load ${label}. Please try again.`;
+};
+
 export const getNodeTemplateForConnection = async (
     nodeId: string,
     metadata: any,
@@ -261,7 +268,11 @@ export const getNodeTemplateForConnection = async (
             id: node.codedata,
         });
 
-    const flowNode = response.flowNode;
+    const flowNode = response?.flowNode;
+    if (!flowNode) {
+        rpcClient.getCommonRpcClient().showErrorMessage({ message: missingTemplateMessage(node) });
+        throw new Error(`No node template for ${node.metadata?.label}`);
+    }
     flowNode.metadata = {
         ...node.metadata,
         description: flowNode?.metadata?.description || node?.metadata?.description,

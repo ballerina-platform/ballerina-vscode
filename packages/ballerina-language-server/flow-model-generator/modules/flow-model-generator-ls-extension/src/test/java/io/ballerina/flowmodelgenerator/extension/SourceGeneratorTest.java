@@ -206,6 +206,47 @@ public class SourceGeneratorTest extends AbstractLSTest {
         return JsonParser.parseString(TestUtil.getResponseString(result)).getAsJsonObject().getAsJsonObject("result");
     }
 
+    @Test(dataProvider = "refused-capability")
+    public void testRefusedCapabilityIsExplained(String config, String expectedMessage) throws IOException {
+        // The form shows the refusal where it happened, instead of a compiler error far from it.
+        TestConfig testConfig = gson.fromJson(Files.newBufferedReader(configDir.resolve(config)), TestConfig.class);
+        FlowModelSourceGeneratorRequest request = new FlowModelSourceGeneratorRequest(
+                sourceDir.resolve(testConfig.source()).toAbsolutePath().toString(), testConfig.diagram());
+        CompletableFuture<?> result = serviceEndpoint.request(getServiceName() + "/" + getApiName(), request);
+        JsonObject response = JsonParser.parseString(TestUtil.getResponseString(result)).getAsJsonObject()
+                .getAsJsonObject("result");
+        Assert.assertEquals(response.get("errorMsg").getAsString(), expectedMessage);
+    }
+
+    @DataProvider(name = "refused-capability")
+    private Object[][] refusedCapabilityConfigs() {
+        return new Object[][]{
+                {"durable_agent_register_event_keyed_duplicate_to_source.json",
+                        "The durable agent 'keyedAgent' already declares 'bill' in 'events'"},
+                {"durable_agent_register_event_interpolated_name_to_source.json",
+                        "A capability name must be a constant: 'string `order-${id}`' interpolates a value"},
+                {"durable_agent_register_event_keyed_rename_duplicate_to_source.json",
+                        "The durable agent 'keyedAgent' already declares 'bill' in 'events'"},
+                {"durable_agent_register_event_list_commented_to_source.json",
+                        "The durable agent's 'events' is written as a list, which ballerina/workflow 0.9.0 and later "
+                                + "do not accept, and the designer cannot rewrite its entry "
+                                + "'{name: \"note\", request: json // the note body }': declare the field as a "
+                                + "mapping keyed by name and try again"},
+                {"durable_agent_register_event_list_reference_item_to_source.json",
+                        "The durable agent's 'events' is written as a list, which ballerina/workflow 0.9.0 and later "
+                                + "do not accept, and the designer cannot rewrite its entry 'sharedEvent': declare the "
+                                + "field as a mapping keyed by name and try again"},
+                {"durable_agent_register_event_list_constant_name_to_source.json",
+                        "The durable agent's 'events' is written as a list, which ballerina/workflow 0.9.0 and later "
+                                + "do not accept, and the designer cannot rewrite its entry "
+                                + "'{name: EVENT_NAME, request: json}': declare the field as a mapping keyed by name "
+                                + "and try again"},
+                {"durable_agent_register_event_list_stale_edit_to_source.json",
+                        "The durable agent's 'events' changed since the form was opened: reopen the entry and try "
+                                + "again"}
+        };
+    }
+
     @DataProvider(name = "blank-workflow")
     private Object[][] blankWorkflowConfigs() {
         return new Object[][]{
@@ -254,6 +295,14 @@ public class SourceGeneratorTest extends AbstractLSTest {
         return new String[]{
                 "resource_action_call-http-get6.json",
                 "resource_action_call-http-post5.json",
+                // Refusals: covered by testRefusedCapabilityIsExplained, no text edits to compare
+                "durable_agent_register_event_keyed_duplicate_to_source.json",
+                "durable_agent_register_event_interpolated_name_to_source.json",
+                "durable_agent_register_event_keyed_rename_duplicate_to_source.json",
+                "durable_agent_register_event_list_commented_to_source.json",
+                "durable_agent_register_event_list_reference_item_to_source.json",
+                "durable_agent_register_event_list_constant_name_to_source.json",
+                "durable_agent_register_event_list_stale_edit_to_source.json",
                 // The following nodes are deprecated
                 "data_mapper1.json",
                 "data_mapper2.json",

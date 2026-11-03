@@ -536,6 +536,11 @@ const SECTIONS: SectionConfig[] = [
     },
 ];
 
+export function hasLibraryArtifacts(directoryMap: ProjectStructure["directoryMap"]): boolean {
+    const dirMap = directoryMap as Record<string, ProjectStructureArtifactResponse[]>;
+    return SECTIONS.some((section) => (dirMap[section.key]?.length ?? 0) > 0);
+}
+
 // ── ArtifactCard ──────────────────────────────────────────────────────────────
 
 interface ArtifactCardProps {

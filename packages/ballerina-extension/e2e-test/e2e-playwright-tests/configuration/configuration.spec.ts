@@ -202,6 +202,40 @@ export default function createTests() {
             await configEditor.verifyNumberofWarningIntegration(2);
         });
 
+        test('Edit Configuration Without Default Value', async () => {
+            const configEditor = new ConfigEditor(page.page, BI_INTEGRATOR_LABEL);
+            await configEditor.init();
+            const configurationWebView = configEditor.getWebView();
+
+            // Open the edit form of the required 'destination' variable created in the previous test
+            await configEditor.editConfigurableVariable('destination');
+            const editForm = new Form(page.page, BI_INTEGRATOR_LABEL, configurationWebView);
+            await editForm.switchToFormView(false, configurationWebView);
+
+            // Positive control: a name that is really taken must be reported, so we know the check is live.
+            const nameUsedError = configurationWebView.getByText('This variable name is already used', { exact: false });
+            await editForm.fill({
+                values: {
+                    'Variable Name*Name of the variable': { type: 'input', value: 'place' },
+                }
+            });
+            await expect(nameUsedError).toBeVisible({ timeout: 10000 });
+
+            // Back to the variable's own name: the error must clear.
+            await editForm.fill({
+                values: {
+                    'Variable Name*Name of the variable': { type: 'input', value: 'destination' },
+                }
+            });
+            await expect(nameUsedError).toHaveCount(0, { timeout: 10000 });
+
+            const saveButton = configurationWebView.getByRole('button', { name: 'Save' });
+            await expect(saveButton).toBeEnabled({ timeout: 10000 });
+            await domClick(saveButton);
+            await configEditor.verifyConfigurableVariable('destination', '', '');
+            await configEditor.verifyWarning('destination');
+        });
+
         test('Update Config TOML Value and Remove Warning', async () => {
             const configEditor = new ConfigEditor(page.page, BI_INTEGRATOR_LABEL);
             await configEditor.init();
