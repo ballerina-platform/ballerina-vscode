@@ -80,16 +80,12 @@ describe('the model access messages', () => {
 });
 
 describe('vertexSignInFailureMessage', () => {
-    // What the Anthropic provider builds from a Google-format error body it can't parse: the
-    // message is the HTTP status text, and the reason is only in the response body.
+    // What the Anthropic provider builds from an error body it can't parse: the message is the
+    // HTTP status text, and any reason is only in the response body.
+    const callError = (statusCode: number, statusText: string, responseBody = '<html></html>') =>
+        new APICallError({ message: statusText, url: 'https://aiplatform.googleapis.com', requestBodyValues: {}, statusCode, responseBody });
     const vertexCallError = (statusCode: number, statusText: string, status: string, message: string) =>
-        new APICallError({
-            message: statusText,
-            url: 'https://aiplatform.googleapis.com/v1/projects/p/locations/global/publishers/anthropic/models/claude-haiku-5-5:rawPredict',
-            requestBodyValues: {},
-            statusCode,
-            responseBody: JSON.stringify({ error: { code: statusCode, message, status } }),
-        });
+        callError(statusCode, statusText, JSON.stringify({ error: { code: statusCode, message, status } }));
 
     it('reports a Google-format 404 as the model not found, with the reason from the body', () => {
         const error = vertexCallError(404, 'Not Found', 'NOT_FOUND', 'Publisher Model `claude-haiku-5-5` was not found.');
@@ -106,16 +102,13 @@ describe('vertexSignInFailureMessage', () => {
     });
 
     // A body the reader can't parse leaves only the status text, which names no code.
-    const bareCallError = (statusCode: number, statusText: string) =>
-        new APICallError({ message: statusText, url: 'https://aiplatform.googleapis.com', requestBodyValues: {}, statusCode, responseBody: '<html></html>' });
-
     it.each([
         [401, 'Unauthorized', 'Invalid credentials.'],
         [403, 'Forbidden', 'Permission denied.'],
         [404, 'Not Found', 'was not found for this project in global'],
         [429, 'Slow Down', 'Quota exceeded.'],
     ])('classifies a %i by its status code alone', (statusCode, statusText, expected) => {
-        const message = vertexSignInFailureMessage(bareCallError(statusCode, statusText), 'global');
+        const message = vertexSignInFailureMessage(callError(statusCode, statusText), 'global');
         expect(message).toContain(expected);
         expect(message).toContain(`(${statusText})`);
     });
@@ -131,9 +124,21 @@ describe('vertexSignInFailureMessage', () => {
     });
 
     it('falls back to the message text for a failure raised before any request', () => {
-        const message = vertexSignInFailureMessage(new Error('invalid_grant: account not found (401)'), 'global');
+        const message = vertexSignInFailureMessage(new Error('invalid_grant: Invalid JWT Signature.'), 'global');
         expect(message).toContain('Invalid credentials.');
-        expect(message).toContain('(invalid_grant: account not found (401))');
+        expect(message).toContain('(invalid_grant: Invalid JWT Signature.)');
+    });
+
+    it('reads a Google error body wrapped in a one-element array', () => {
+        const body = JSON.stringify([{ error: { code: 404, message: 'Publisher Model was not found.', status: 'NOT_FOUND' } }]);
+        const message = vertexSignInFailureMessage(callError(404, 'Not Found', body), 'global');
+        expect(message).toContain('(NOT_FOUND: Publisher Model was not found.)');
+    });
+
+    it('keeps the message of a retried failure whose last attempt sent no request', () => {
+        const lastError = new Error('socket hang up');
+        const error = new RetryError({ message: 'Failed after 3 attempts.', reason: 'maxRetriesExceeded', errors: [lastError, lastError, lastError] });
+        expect(vertexSignInFailureMessage(error, 'global')).toBe('Validation failed: socket hang up');
     });
 
     it('keeps the message of an unclassified failure', () => {

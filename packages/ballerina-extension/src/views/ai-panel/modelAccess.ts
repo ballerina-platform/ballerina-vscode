@@ -58,7 +58,6 @@ export function anthropicAwsModelNotFoundMessage(region: string, detail: string)
  * Vertex AI answers in Google's error format (`{"error":{"code":404,"status":"NOT_FOUND",...}}`),
  * which the Anthropic provider can't parse, so the error's message is only the HTTP status text.
  * Classify the failure by its status code, and take the reason from Google's response body.
- * The text checks remain for failures raised before any request, such as a rejected key file.
  */
 export function vertexSignInFailureMessage(error: unknown, location: string): string {
     // A retried failure (429, 5xx) arrives wrapped, holding the last attempt's error.
@@ -68,11 +67,13 @@ export function vertexSignInFailureMessage(error: unknown, location: string): st
     const detail = googleErrorDetail(callError?.responseBody)
         ?? (lastError instanceof Error ? lastError.message : String(lastError));
     // The status code decides when there is one: the detail can name a project ID such as
-    // `my-project-401`. The text is the fallback for failures raised before any request.
+    // `my-project-401`. The text is the fallback for failures raised before any request, such as
+    // a rejected key file.
     const is = (code: number, ...needles: string[]) =>
         status !== undefined ? status === code : needles.some((needle) => detail.includes(needle));
 
-    if (is(401, '401', 'authentication', 'UNAUTHENTICATED')) {
+    // Google's sign-in library rejects a revoked or malformed key file with `invalid_grant`.
+    if (is(401, '401', 'authentication', 'UNAUTHENTICATED', 'invalid_grant')) {
         return `Invalid credentials. Please check your service account JSON file. (${detail})`;
     }
     if (is(403, '403', 'PERMISSION_DENIED')) {
