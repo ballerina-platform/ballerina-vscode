@@ -33,7 +33,7 @@ import { ChildProcess } from "child_process";
 import { LsHarness, resolveLocalLsCommand, pathToFileUri } from "@wso2/test-config/ls-harness";
 
 const launch = resolveLocalLsCommand();
-const projectRoot = path.join(__dirname, "..", "..", "test", "ls-integration", "fixtures", "hello");
+const projectRoot = path.join(__dirname, "..", "ls-integration", "fixtures", "hello");
 const mainBal = path.join(projectRoot, "main.bal");
 
 // The launcher calls System.exit once stdin closes, so the JVM exits within seconds. Without

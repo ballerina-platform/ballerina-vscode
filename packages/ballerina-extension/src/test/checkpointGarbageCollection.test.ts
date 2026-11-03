@@ -21,7 +21,7 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import * as zlib from "zlib";
-import { Uri, workspace } from "../test-support/__mocks__/vscode";
+import { Uri, workspace } from "./__mocks__/vscode";
 
 const baseDir = { current: "" };
 

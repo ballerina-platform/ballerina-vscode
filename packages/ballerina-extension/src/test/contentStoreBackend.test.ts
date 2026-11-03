@@ -21,7 +21,7 @@ import * as os from 'os';
 import * as path from 'path';
 import { randomBytes } from 'crypto';
 import type { Checkpoint, CheckpointFileEntry } from '@wso2/ballerina-core/lib/state-machine-types';
-import { Uri, workspace } from '../test-support/__mocks__/vscode';
+import { Uri, workspace } from './__mocks__/vscode';
 import { FsBlobStore } from '../views/ai-panel/checkpoint/blobStore';
 import { ContentStoreBackend } from '../views/ai-panel/checkpoint/backends/contentStoreBackend';
 import {

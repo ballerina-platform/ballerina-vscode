@@ -23,7 +23,7 @@
 import type { Uri } from "vscode";
 // The module jest maps `vscode` to, imported by path so its tabs and documents are typed as the
 // mutable stubs they are rather than the read-only API.
-import { TabInputText, window, workspace } from "../test-support/__mocks__/vscode";
+import { TabInputText, window, workspace } from "./__mocks__/vscode";
 import { closeTabsOpenedByEdit, openTabUris, saveEditedDocuments } from "../rpc-managers/ai-panel/edit-tabs";
 
 const uri = (fsPath: string, scheme = "file") =>

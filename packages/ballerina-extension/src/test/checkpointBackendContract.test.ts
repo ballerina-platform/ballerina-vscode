@@ -20,7 +20,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import type { Checkpoint } from '@wso2/ballerina-core/lib/state-machine-types';
-import { Uri } from '../test-support/__mocks__/vscode';
+import { Uri } from './__mocks__/vscode';
 import { FsBlobStore } from '../views/ai-panel/checkpoint/blobStore';
 import { InlineSnapshotBackend } from '../views/ai-panel/checkpoint/backends/inlineSnapshotBackend';
 import { ContentStoreBackend } from '../views/ai-panel/checkpoint/backends/contentStoreBackend';

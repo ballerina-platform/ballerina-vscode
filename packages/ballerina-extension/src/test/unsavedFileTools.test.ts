@@ -29,7 +29,7 @@ jest.mock("../rpc-managers/ai-panel/utils", () => ({ addToIntegration }));
 jest.mock("../rpc-managers/diagram-validity", () => ({ recordAiTouchedFile: jest.fn() }));
 jest.mock("../features/ai/utils/project/ls-schema-notifications", () => ({ seedNewPackageBaseline: jest.fn() }));
 
-import { workspace } from "../test-support/__mocks__/vscode";
+import { workspace } from "./__mocks__/vscode";
 import { createEditExecute, createReadExecute, createWriteExecute } from "../features/ai/agent/tools/text-editor";
 
 const SAVED = "function main() {\n}\n";

@@ -54,7 +54,7 @@ const addToIntegration = jest.fn(async (root: string, changes: { filePath: strin
 });
 jest.mock("../rpc-managers/ai-panel/utils", () => ({ addToIntegration }));
 
-import { workspace } from "../test-support/__mocks__/vscode";
+import { workspace } from "./__mocks__/vscode";
 import { ConnectorGeneratorTool } from "../features/ai/agent/tools/connector-generator";
 
 const SPEC = "openapi: 3.0.3\ninfo:\n  title: Orders\n  version: 1.0.0\npaths:\n  /orders:\n    get:\n      responses:\n        '200':\n          description: OK\n";

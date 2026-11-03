@@ -55,7 +55,7 @@ jest.mock("../views/ai-panel/aiMachine", () => ({ AIStateMachine: {}, openAIPane
 jest.mock("../utils", () => ({}));
 jest.mock("../utils/source-utils", () => ({ setMigrationEnhancementActive: jest.fn() }));
 
-import { Uri, workspace } from "../test-support/__mocks__/vscode";
+import { Uri, workspace } from "./__mocks__/vscode";
 import { extension } from "../BalExtensionContext";
 import {
     checkAndRunPendingEnhancement,

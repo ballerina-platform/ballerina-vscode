@@ -19,7 +19,7 @@
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { workspace } from "../test-support/__mocks__/vscode";
+import { workspace } from "./__mocks__/vscode";
 import { hasUnsavedChanges, saveIfUnsaved, saveUnsavedDocuments } from "../features/ai/utils/project/unsaved-documents";
 
 type MockDocument = (typeof workspace.textDocuments)[number] & { save: jest.Mock };

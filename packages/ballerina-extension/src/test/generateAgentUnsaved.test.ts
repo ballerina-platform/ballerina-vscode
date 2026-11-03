@@ -87,7 +87,7 @@ const saveUnsavedDocuments = jest.fn(async (_root: string) => {
 });
 jest.mock('../features/ai/utils/project/unsaved-documents', () => ({ saveUnsavedDocuments }));
 
-import { window } from '../test-support/__mocks__/vscode';
+import { window } from './__mocks__/vscode';
 import { generateAgent } from '../features/ai/agent';
 import { chatStateStorage } from '../views/ai-panel/chatStateStorage';
 import { beginRestore, endRestore } from '../views/ai-panel/checkpoint/restore-state';

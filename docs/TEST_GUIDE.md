@@ -182,10 +182,10 @@ pnpm run e2e-test           # runs the Playwright specs
 cd packages/ballerina-extension && pnpm run test:perf
 ```
 
-**How to add.** Name the file `*.perf.ts` under `src/test-support/perf`; measure and **log** timings, assert only loose ceilings.
+**How to add.** Name the file `*.perf.ts` under `src/test/perf`; measure and **log** timings, assert only loose ceilings.
 
 **Example files.**
-- [`lsLatency.perf.ts`](../packages/ballerina-extension/src/test-support/perf/lsLatency.perf.ts) — LS request-latency baseline.
+- [`lsLatency.perf.ts`](../packages/ballerina-extension/src/test/perf/lsLatency.perf.ts) — LS request-latency baseline.
 
 ---
 
@@ -199,10 +199,10 @@ rush build --to ballerina-language-server     # the suite runs the jar this buil
 cd packages/ballerina-extension && pnpm run test:reliability
 ```
 
-**How to add.** Name the file `*.reliability.ts` under `src/test-support/reliability`, start the LS with `new LsHarness(resolveLocalLsCommand())`, and skip when that returns null. Kill any process the test started in `afterEach`, so a failing test does not leave one behind.
+**How to add.** Name the file `*.reliability.ts` under `src/test/reliability`, start the LS with `new LsHarness(resolveLocalLsCommand())`, and skip when that returns null. Kill any process the test started in `afterEach`, so a failing test does not leave one behind.
 
 **Example files.**
-- [`lsProcessExit.reliability.ts`](../packages/ballerina-extension/src/test-support/reliability/lsProcessExit.reliability.ts) — the LS JVM exits after `shutdown`/`exit` and after the client closes stdin without `exit` (wso2/product-integrator#2854).
+- [`lsProcessExit.reliability.ts`](../packages/ballerina-extension/src/test/reliability/lsProcessExit.reliability.ts) — the LS JVM exits after `shutdown`/`exit` and after the client closes stdin without `exit` (wso2/product-integrator#2854).
 
 ---
 

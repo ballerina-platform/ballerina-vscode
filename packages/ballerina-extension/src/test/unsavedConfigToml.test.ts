@@ -35,7 +35,7 @@ jest.mock("../features/ai/activator", () => ({
 jest.mock("../BalExtensionContext", () => ({ extension: {} }));
 jest.mock("../rpc-managers/platform-ext/managed-connections", () => ({ getManagedLibraries: jest.fn() }));
 
-import { workspace } from "../test-support/__mocks__/vscode";
+import { workspace } from "./__mocks__/vscode";
 import { ConfigCollectorTool } from "../features/ai/agent/tools/config-collector";
 
 const CONFIG = '[myorg.mypkg]\napiKey = "old"\ntimeout = 5\n';

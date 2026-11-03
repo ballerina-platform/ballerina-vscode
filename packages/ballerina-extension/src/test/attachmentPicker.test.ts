@@ -38,7 +38,7 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 // The module jest maps `vscode` to, imported by path so the stubs tests reassign stay mutable.
-import { Uri, window, workspace } from "../test-support/__mocks__/vscode";
+import { Uri, window, workspace } from "./__mocks__/vscode";
 import { AttachmentStatus, SelectAttachmentFilesRequest } from "@wso2/ballerina-core";
 import { resolveAttachmentStartUri, selectAttachmentFiles } from "../rpc-managers/ai-panel/attachment-picker";
 

@@ -21,7 +21,7 @@ import * as os from "os";
 import * as path from "path";
 import * as zlib from "zlib";
 import type { Checkpoint } from "@wso2/ballerina-core/lib/state-machine-types";
-import { Uri, workspace } from "../test-support/__mocks__/vscode";
+import { Uri, workspace } from "./__mocks__/vscode";
 
 const baseDir = { current: "" };
 

@@ -34,11 +34,10 @@ module.exports = {
     moduleFileExtensions: ['ts', 'js', 'json', 'node'],
     testMatch: ['**/?(*.)+(spec|test).ts'],
     moduleNameMapper: {
-        '^vscode$': '<rootDir>/src/test-support/__mocks__/vscode.ts',
+        '^vscode$': '<rootDir>/src/test/__mocks__/vscode.ts',
     },
     transformIgnorePatterns: ['<rootDir>/node_modules/(?!(@wso2)/)'],
     collectCoverageFrom: [
         'src/test-support/**/*.ts',
-        '!src/test-support/__mocks__/**',
     ],
 };

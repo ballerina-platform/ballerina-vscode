@@ -19,7 +19,7 @@
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { Uri, window, workspace } from "../test-support/__mocks__/vscode";
+import { Uri, window, workspace } from "./__mocks__/vscode";
 
 jest.mock("../rpc-managers/visualizer/rpc-manager", () => ({
     VisualizerRpcManager: class {

@@ -25,7 +25,7 @@
  */
 
 import { DevantScopes } from '@wso2/wso2-platform-core';
-import { window } from '../test-support/__mocks__/vscode';
+import { window } from './__mocks__/vscode';
 import { confirmListenerAlongside, selectIntegrationType } from '../features/devant/integration-type';
 
 const PROMPT = 'Select the artifact type to be deployed';
