@@ -26,7 +26,7 @@ import { DiagramContext } from '../../../common';
 import styled from '@emotion/styled';
 import { Button, Icon, Confirm, Item, Menu, MenuItem, Popover, ThemeColors } from '@wso2/ui-toolkit';
 import { MoreVertIcon } from '../../../../resources';
-import { ServiceSettingsBadge } from './ServiceSettingsBadge';
+import { RequestContextBadge } from './RequestContextBadge';
 
 interface ServiceHeadProps {
     engine: DiagramEngine;
@@ -92,7 +92,7 @@ interface Origin {
 
 export function EntityHeadWidget(props: ServiceHeadProps) {
     const { engine, node, isSelected } = props;
-    const { setFocusedNodeId, onEditNode, goToSource, onNodeDelete, verifyTypeDelete, readonly, serviceSettings, onOpenServiceSettings } = useContext(DiagramContext);
+    const { setFocusedNodeId, onEditNode, goToSource, onNodeDelete, verifyTypeDelete, readonly, requestContext, onOpenRequestContext, onOpenServiceConfig } = useContext(DiagramContext);
 
     const displayName: string = node.getID()?.slice(node.getID()?.lastIndexOf(':') + 1);
     const isImported = !node?.entityObject?.editable;
@@ -134,11 +134,16 @@ export function EntityHeadWidget(props: ServiceHeadProps) {
         setAnchorEl(null);
     };
 
-    const showServiceSettings = node.isGraphqlRoot && !!onOpenServiceSettings && !readonly;
+    const isEditableGraphqlRoot = node.isGraphqlRoot && !readonly;
 
-    const onServiceSettings = () => {
+    const onRequestContext = () => {
         setAnchorEl(null);
-        onOpenServiceSettings?.();
+        onOpenRequestContext?.();
+    };
+
+    const onServiceConfig = () => {
+        setAnchorEl(null);
+        onOpenServiceConfig?.();
     };
 
     const onFocusedView = () => {
@@ -202,10 +207,15 @@ export function EntityHeadWidget(props: ServiceHeadProps) {
                 label: "Source",
                 onClick: () => onGoToSource()
             },
-            ...(showServiceSettings ? [{
-                id: "serviceSettings",
-                label: "Service Settings",
-                onClick: () => onServiceSettings()
+            ...(isEditableGraphqlRoot && onOpenRequestContext ? [{
+                id: "requestContext",
+                label: "Request Context",
+                onClick: () => onRequestContext()
+            }] : []),
+            ...(isEditableGraphqlRoot && onOpenServiceConfig ? [{
+                id: "serviceConfig",
+                label: "Service Configuration",
+                onClick: () => onServiceConfig()
             }] : []),
             ...(!node.isGraphqlRoot ? [{
                 id: "delete",
@@ -264,8 +274,8 @@ export function EntityHeadWidget(props: ServiceHeadProps) {
                             </ImportedLabel>
                         )}
                     </EntityNameContainer>
-                    {showServiceSettings && serviceSettings && (
-                        <ServiceSettingsBadge summary={serviceSettings} onOpen={onServiceSettings} />
+                    {isEditableGraphqlRoot && requestContext && onOpenRequestContext && (
+                        <RequestContextBadge context={requestContext} onOpen={onRequestContext} />
                     )}
                     <HeaderButtonsContainer>
                         <MenuButton appearance="icon" onClick={handleOnMenuClick} data-testid={`type-node-${displayName}-menu`} disabled={readonly}>

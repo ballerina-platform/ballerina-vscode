@@ -16,11 +16,13 @@
  *  under the License.
  */
 
-package io.ballerina.servicemodelgenerator.extension.settings;
+package io.ballerina.servicemodelgenerator.extension.graphqlcontext;
 
+import io.ballerina.compiler.api.ModuleID;
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.api.symbols.FunctionSymbol;
 import io.ballerina.compiler.api.symbols.FunctionTypeSymbol;
+import io.ballerina.compiler.api.symbols.ModuleSymbol;
 import io.ballerina.compiler.api.symbols.ParameterSymbol;
 import io.ballerina.compiler.api.symbols.Qualifier;
 import io.ballerina.compiler.api.symbols.TypeDescKind;
@@ -42,6 +44,7 @@ import io.ballerina.modelgenerator.commons.ImportPrefixReader;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.DocumentId;
 import io.ballerina.projects.Module;
+import io.ballerina.servicemodelgenerator.extension.util.ServiceModelUtils;
 import io.ballerina.tools.text.LinePosition;
 import io.ballerina.tools.text.LineRange;
 import io.ballerina.tools.text.TextDocument;
@@ -80,6 +83,7 @@ public final class GraphqlContextManager {
     static final String FIELD = "contextInit";
 
     private static final String GRAPHQL = "graphql";
+    private static final String SERVICE_CONFIG = "ServiceConfig";
     private static final String HTTP = "http";
     private static final String BALLERINA = "ballerina";
     private static final String FUNCTIONS_FILE = "functions.bal";
@@ -106,7 +110,7 @@ public final class GraphqlContextManager {
      */
     public static GraphqlContextResponse read(ServiceDeclarationNode serviceNode, SemanticModel semanticModel,
                                               Document document) {
-        Optional<ServiceSettingsManager.Target> target = graphqlTarget(serviceNode, semanticModel);
+        Optional<Target> target = graphqlTarget(serviceNode, semanticModel);
         if (target.isEmpty()) {
             return GraphqlContextResponse.unsupported();
         }
@@ -162,7 +166,7 @@ public final class GraphqlContextManager {
                                                     Path serviceFile, ServiceDeclarationNode serviceNode,
                                                     SemanticModel semanticModel, Document document,
                                                     WorkspaceManager workspaceManager) {
-        ServiceSettingsManager.Target target = graphqlTarget(serviceNode, semanticModel)
+        Target target = graphqlTarget(serviceNode, semanticModel)
                 .orElseThrow(() -> new IllegalArgumentException("Not a GraphQL service"));
         if (action == null) {
             throw new IllegalArgumentException("No action given");
@@ -176,11 +180,11 @@ public final class GraphqlContextManager {
         };
     }
 
-    private static Map<String, List<TextEdit>> create(ServiceSettingsManager.Target target, Path serviceFile,
+    private static Map<String, List<TextEdit>> create(Target target, Path serviceFile,
                                                       ServiceDeclarationNode serviceNode,
                                                       SemanticModel semanticModel,
                                                       WorkspaceManager workspaceManager) {
-        String name = uniqueName(baseName(serviceNode), ServiceSettingsManager.moduleLevelNames(semanticModel));
+        String name = uniqueName(baseName(serviceNode), moduleLevelNames(semanticModel));
         // functions.bal sits beside the service, in the same module directory.
         Path moduleDirectory = serviceFile.toAbsolutePath().getParent();
         if (moduleDirectory == null) {
@@ -213,7 +217,7 @@ public final class GraphqlContextManager {
         return edits;
     }
 
-    private static Map<String, List<TextEdit>> setEntries(ServiceSettingsManager.Target target,
+    private static Map<String, List<TextEdit>> setEntries(Target target,
                                                           SemanticModel semanticModel, Document document,
                                                           List<ContextFunctionBody.ContextEntry> entries) {
         if (entries == null) {
@@ -242,7 +246,7 @@ public final class GraphqlContextManager {
         return edits;
     }
 
-    private static Map<String, List<TextEdit>> use(ServiceSettingsManager.Target target, Path serviceFile,
+    private static Map<String, List<TextEdit>> use(Target target, Path serviceFile,
                                                    String functionName, SemanticModel semanticModel) {
         if (functionName == null || !IDENTIFIER.matcher(functionName).matches()) {
             throw new IllegalArgumentException("Not a valid function name: " + functionName);
@@ -256,7 +260,7 @@ public final class GraphqlContextManager {
         return edits;
     }
 
-    private static Map<String, List<TextEdit>> remove(ServiceSettingsManager.Target target, Path serviceFile,
+    private static Map<String, List<TextEdit>> remove(Target target, Path serviceFile,
                                                       SemanticModel semanticModel, Document document,
                                                       boolean deleteFunction) {
         Map<String, List<TextEdit>> edits = new LinkedHashMap<>();
@@ -420,16 +424,45 @@ public final class GraphqlContextManager {
                 && reference.typeDescriptor().typeKind() == TypeDescKind.ERROR;
     }
 
-    private static Optional<ServiceSettingsManager.Target> graphqlTarget(ServiceDeclarationNode serviceNode,
-                                                                         SemanticModel semanticModel) {
-        return ServiceSettingsManager.target(serviceNode, semanticModel)
-                .filter(target -> GRAPHQL.equals(target.module()));
+    /**
+     * A GraphQL service's module and its config annotation.
+     *
+     * @param org        the organization of the service's module
+     * @param module     the service's module, {@code graphql}
+     * @param annotation the service's {@code @graphql:ServiceConfig}, which may not exist yet
+     */
+    private record Target(String org, String module, ServiceConfigAnnotation annotation) {
+    }
+
+    /**
+     * The service's GraphQL module and config annotation; empty when the service is not a GraphQL service.
+     */
+    private static Optional<Target> graphqlTarget(ServiceDeclarationNode serviceNode, SemanticModel semanticModel) {
+        ModuleID moduleId = ServiceModelUtils.deriveServiceType(serviceNode, semanticModel).moduleId();
+        if (moduleId == null || !GRAPHQL.equals(moduleId.moduleName())) {
+            return Optional.empty();
+        }
+        return Optional.of(new Target(moduleId.orgName(), moduleId.moduleName(),
+                ServiceConfigAnnotation.of(serviceNode, moduleId.orgName(), moduleId.moduleName(), SERVICE_CONFIG)));
+    }
+
+    /**
+     * The names declared at module level, which a generated function name must not reuse.
+     */
+    private static Set<String> moduleLevelNames(SemanticModel semanticModel) {
+        Set<String> names = new HashSet<>();
+        semanticModel.moduleSymbols().forEach(symbol -> {
+            if (!(symbol instanceof ModuleSymbol)) {
+                symbol.getName().ifPresent(names::add);
+            }
+        });
+        return names;
     }
 
     /**
      * The function the field names, when it names one by a plain reference.
      */
-    private static Optional<String> functionName(ServiceSettingsManager.Target target) {
+    private static Optional<String> functionName(Target target) {
         Optional<ExpressionNode> value = target.annotation().valueOf(FIELD);
         if (value.isEmpty()) {
             // Written in shorthand, `{contextInit}`, the field names the function of that name.

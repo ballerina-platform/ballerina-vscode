@@ -19,7 +19,6 @@
 package io.ballerina.servicemodelgenerator.extension;
 
 import com.google.gson.Gson;
-import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
@@ -30,10 +29,10 @@ import io.ballerina.compiler.syntax.tree.ModulePartNode;
 import io.ballerina.compiler.syntax.tree.ServiceDeclarationNode;
 import io.ballerina.compiler.syntax.tree.SyntaxTree;
 import io.ballerina.modelgenerator.commons.AbstractLSTest;
+import io.ballerina.servicemodelgenerator.extension.graphqlcontext.ContextFunctionBody;
+import io.ballerina.servicemodelgenerator.extension.graphqlcontext.GraphqlContextRequest;
 import io.ballerina.servicemodelgenerator.extension.model.Codedata;
 import io.ballerina.servicemodelgenerator.extension.model.request.CommonModelFromSourceRequest;
-import io.ballerina.servicemodelgenerator.extension.settings.ContextFunctionBody;
-import io.ballerina.servicemodelgenerator.extension.settings.ServiceSettingsRequests;
 import io.ballerina.tools.text.LineRange;
 import io.ballerina.tools.text.TextDocuments;
 import org.ballerinalang.langserver.util.TestUtil;
@@ -60,8 +59,7 @@ import java.util.Map;
 import java.util.stream.Stream;
 
 /**
- * Tests for the Service Settings endpoints: {@code getServiceSettings}, {@code updateServiceSetting},
- * {@code getGraphqlContext} and {@code applyGraphqlContext}.
+ * Tests for the GraphQL request context endpoints: {@code getGraphqlContext} and {@code applyGraphqlContext}.
  *
  * <p>
  * Each case runs against a copy of a fixture project. An edit case applies the returned edits in memory and compares
@@ -71,14 +69,12 @@ import java.util.stream.Stream;
  * language server and a compilation of the GraphQL module together.
  * </p>
  */
-public class ServiceSettingsTest extends AbstractLSTest {
+public class GraphqlContextTest extends AbstractLSTest {
 
     private static final Type TEXT_EDITS_TYPE = new TypeToken<Map<String, List<TextEdit>>>() {
     }.getType();
 
     private static final Type ENTRIES_TYPE = new TypeToken<List<ContextFunctionBody.ContextEntry>>() {
-    }.getType();
-    private static final Type RECORD_VALUE_TYPE = new TypeToken<Map<String, Object>>() {
     }.getType();
     private static final Gson GSON = new Gson();
 
@@ -151,7 +147,7 @@ public class ServiceSettingsTest extends AbstractLSTest {
         Assert.assertNull(errorMsg, testConfig.description());
 
         if (testConfig.expectedResponse() != null) {
-            Assert.assertEquals(compact(testConfig.api(), response, project), testConfig.expectedResponse(),
+            Assert.assertEquals(compact(response, project), testConfig.expectedResponse(),
                     testConfig.description());
         }
         if (testConfig.expected() != null) {
@@ -193,11 +189,8 @@ public class ServiceSettingsTest extends AbstractLSTest {
     private static Object request(TestConfig testConfig, String filePath, Codedata codedata) {
         JsonObject fields = testConfig.request() == null ? new JsonObject() : testConfig.request();
         return switch (testConfig.api()) {
-            case "getServiceSettings", "getGraphqlContext" -> new CommonModelFromSourceRequest(filePath, codedata);
-            case "updateServiceSetting" -> new ServiceSettingsRequests.UpdateSetting(filePath, codedata,
-                    string(fields, "field"), string(fields, "value"),
-                    fields.has("recordValue") ? GSON.fromJson(fields.get("recordValue"), RECORD_VALUE_TYPE) : null);
-            case "applyGraphqlContext" -> new ServiceSettingsRequests.ApplyGraphqlContext(filePath, codedata,
+            case "getGraphqlContext" -> new CommonModelFromSourceRequest(filePath, codedata);
+            case "applyGraphqlContext" -> new GraphqlContextRequest(filePath, codedata,
                     string(fields, "action"), string(fields, "functionName"),
                     fields.has("deleteFunction") && fields.get("deleteFunction").getAsBoolean(),
                     fields.has("entries") ? GSON.fromJson(fields.get("entries"), ENTRIES_TYPE) : null);
@@ -220,28 +213,9 @@ public class ServiceSettingsTest extends AbstractLSTest {
     /**
      * The part of a read response a case asserts on, with absolute paths made relative to the project.
      */
-    private JsonObject compact(String api, JsonObject response, Path project) {
+    private JsonObject compact(JsonObject response, Path project) {
         JsonObject compact = new JsonObject();
         compact.add("supported", response.get("supported"));
-        if ("getServiceSettings".equals(api)) {
-            JsonArray settings = new JsonArray();
-            for (JsonElement element : response.getAsJsonArray("settings")) {
-                JsonObject setting = element.getAsJsonObject();
-                JsonObject item = new JsonObject();
-                item.add("field", setting.get("field"));
-                item.add("editorKind", setting.get("editorKind"));
-                item.add("value", setting.has("value") ? setting.get("value") : JsonNull.INSTANCE);
-                if (setting.has("recordValue")) {
-                    item.add("recordValue", setting.get("recordValue"));
-                }
-                if (setting.has("structured") && !setting.get("structured").getAsBoolean()) {
-                    item.add("structured", setting.get("structured"));
-                }
-                settings.add(item);
-            }
-            compact.add("settings", settings);
-            return compact;
-        }
         for (String key : List.of("configured", "functionName", "expression", "signatureValid", "candidates",
                 "entries", "editable", "notEditableReason")) {
             compact.add(key, response.has(key) ? response.get(key) : JsonNull.INSTANCE);
@@ -368,12 +342,12 @@ public class ServiceSettingsTest extends AbstractLSTest {
 
     @Override
     protected String getResourceDir() {
-        return "service_settings";
+        return "graphql_context";
     }
 
     @Override
     protected Class<? extends AbstractLSTest> clazz() {
-        return ServiceSettingsTest.class;
+        return GraphqlContextTest.class;
     }
 
     @Override
@@ -383,7 +357,7 @@ public class ServiceSettingsTest extends AbstractLSTest {
 
     @Override
     protected String getApiName() {
-        return "getServiceSettings";
+        return "getGraphqlContext";
     }
 
     /**

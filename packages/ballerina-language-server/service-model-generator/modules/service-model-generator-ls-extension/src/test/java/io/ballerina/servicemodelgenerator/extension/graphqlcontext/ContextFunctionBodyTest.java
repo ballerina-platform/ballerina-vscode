@@ -16,12 +16,12 @@
  *  under the License.
  */
 
-package io.ballerina.servicemodelgenerator.extension.settings;
+package io.ballerina.servicemodelgenerator.extension.graphqlcontext;
 
 import io.ballerina.compiler.syntax.tree.FunctionDefinitionNode;
 import io.ballerina.compiler.syntax.tree.ModuleMemberDeclarationNode;
 import io.ballerina.compiler.syntax.tree.NodeParser;
-import io.ballerina.servicemodelgenerator.extension.settings.ContextFunctionBody.ContextEntry;
+import io.ballerina.servicemodelgenerator.extension.graphqlcontext.ContextFunctionBody.ContextEntry;
 import io.ballerina.tools.text.LinePosition;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;

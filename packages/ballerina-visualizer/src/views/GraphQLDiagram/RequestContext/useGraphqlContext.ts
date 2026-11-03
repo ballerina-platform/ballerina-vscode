@@ -17,19 +17,13 @@
  */
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-    GraphqlContextResponse,
-    NodePosition,
-    ServiceSettingsResponse,
-    ServiceSettingsTarget,
-} from "@wso2/ballerina-core";
+import { GraphqlContextRequest, GraphqlContextResponse, NodePosition } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 
-export const SERVICE_SETTINGS_QUERY_KEY = "serviceSettings";
 export const GRAPHQL_CONTEXT_QUERY_KEY = "graphqlContext";
 
-/** The request target of a service: its file and line range. */
-export function serviceTarget(filePath: string, position: NodePosition): ServiceSettingsTarget {
+/** The request that locates a GraphQL service: its file and line range. */
+export function contextRequest(filePath: string, position: NodePosition): GraphqlContextRequest {
     return {
         filePath,
         codedata: {
@@ -41,31 +35,18 @@ export function serviceTarget(filePath: string, position: NodePosition): Service
     };
 }
 
-/** The service's settings. A failure reads as "no settings", so the diagram never breaks over them. */
-export function useServiceSettings(filePath: string, position: NodePosition) {
+/** The service's request context. A failure reads as "no context", so the diagram never breaks over it. */
+export function useGraphqlContext(filePath: string, position: NodePosition) {
     const { rpcClient } = useRpcContext();
-    return useQuery<ServiceSettingsResponse>({
-        queryKey: [SERVICE_SETTINGS_QUERY_KEY, filePath, position],
-        queryFn: () => rpcClient.getServiceDesignerRpcClient().getServiceSettings(serviceTarget(filePath, position)),
+    return useQuery<GraphqlContextResponse>({
+        queryKey: [GRAPHQL_CONTEXT_QUERY_KEY, filePath, position],
+        queryFn: () => rpcClient.getServiceDesignerRpcClient().getGraphqlContext(contextRequest(filePath, position)),
         enabled: !!filePath && !!position && !!rpcClient,
     });
 }
 
-/** The service's request context. */
-export function useGraphqlContext(filePath: string, position: NodePosition, enabled: boolean) {
-    const { rpcClient } = useRpcContext();
-    return useQuery<GraphqlContextResponse>({
-        queryKey: [GRAPHQL_CONTEXT_QUERY_KEY, filePath, position],
-        queryFn: () => rpcClient.getServiceDesignerRpcClient().getGraphqlContext(serviceTarget(filePath, position)),
-        enabled: enabled && !!filePath && !!position && !!rpcClient,
-    });
-}
-
-/** Refetches everything the settings panel shows, after an edit. */
-export function useInvalidateServiceSettings() {
+/** Refetches the request context, after an edit. */
+export function useInvalidateGraphqlContext() {
     const queryClient = useQueryClient();
-    return () => Promise.all([
-        queryClient.invalidateQueries({ queryKey: [SERVICE_SETTINGS_QUERY_KEY] }),
-        queryClient.invalidateQueries({ queryKey: [GRAPHQL_CONTEXT_QUERY_KEY] }),
-    ]);
+    return () => queryClient.invalidateQueries({ queryKey: [GRAPHQL_CONTEXT_QUERY_KEY] });
 }

@@ -52,13 +52,8 @@ import DynamicModal from "../../components/Modal";
 import { BreadcrumbContainer, BreadcrumbItem, BreadcrumbSeparator } from "../BI/Forms/FlowNodeForm";
 import React from "react";
 import { removeForwardSlashes } from "../BI/ServiceDesigner/utils";
-import { ServiceSettingsPanel } from "../BI/ServiceSettings/ServiceSettingsPanel";
-import { toBadgeSummary } from "../BI/ServiceSettings/summary";
-import {
-    GRAPHQL_CONTEXT_QUERY_KEY,
-    SERVICE_SETTINGS_QUERY_KEY,
-    useServiceSettings,
-} from "../BI/ServiceSettings/useServiceSettings";
+import { RequestContextPanel } from "./RequestContext/RequestContextPanel";
+import { GRAPHQL_CONTEXT_QUERY_KEY, useGraphqlContext } from "./RequestContext/useGraphqlContext";
 
 const SpinnerContainer = styled.div`
     display: flex;
@@ -101,7 +96,7 @@ export function GraphQLDiagram(props: GraphQLDiagramProps) {
     const [isTypeEditorOpen, setIsTypeEditorOpen] = useState(false);
     const [editingType, setEditingType] = useState<Type>();
     const [focusedNodeId, setFocusedNodeId] = useState<string | undefined>(undefined);
-    const [isServiceSettingsOpen, setIsServiceSettingsOpen] = useState<boolean>(false);
+    const [isRequestContextOpen, setIsRequestContextOpen] = useState<boolean>(false);
 
     const [stack, setStack] = useState<StackItem[]>([{
         isDirty: false,
@@ -210,22 +205,21 @@ export function GraphQLDiagram(props: GraphQLDiagramProps) {
         enabled: !!filePath && !!rpcClient,
     });
 
-    const { data: serviceSettings, isLoading: isServiceSettingsLoading } = useServiceSettings(filePath, position);
-    const settingsSupported = !!serviceSettings?.supported;
+    const { data: requestContext, isLoading: isRequestContextLoading } = useGraphqlContext(filePath, position);
+    const contextSupported = !!requestContext?.supported;
 
     rpcClient?.onProjectContentUpdated((state: boolean) => {
         if (state) {
             // Instead of calling getGraphqlDesignModel directly, invalidate the query
             queryClient.invalidateQueries({ queryKey: ["graphqlTypeModel"] });
-            // An edit made anywhere, including in source, can change the service's settings.
-            queryClient.invalidateQueries({ queryKey: [SERVICE_SETTINGS_QUERY_KEY] });
+            // An edit made anywhere, including in source, can change the request context.
             queryClient.invalidateQueries({ queryKey: [GRAPHQL_CONTEXT_QUERY_KEY] });
         }
     });
 
-    const openServiceSettings = () => {
+    const openRequestContext = () => {
         setIsServiceEditorOpen(false);
-        setIsServiceSettingsOpen(true);
+        setIsRequestContextOpen(true);
     };
 
     const handleOnGoToSource = (node: Type) => {
@@ -244,7 +238,7 @@ export function GraphQLDiagram(props: GraphQLDiagramProps) {
 
     const onTypeEdit = async (typeId: string, isGraphqlRoot?: boolean) => {
         if (isGraphqlRoot) {
-            setIsServiceSettingsOpen(false);
+            setIsRequestContextOpen(false);
             setIsServiceEditorOpen(true);
             return;
         }
@@ -479,8 +473,14 @@ export function GraphQLDiagram(props: GraphQLDiagramProps) {
                             updateFocusedNodeId={handleFocusedNodeIdChange}
                             onTypeDelete={onTypeDelete}
                             verifyTypeDelete={verifyTypeDelete}
-                            serviceSettings={settingsSupported ? toBadgeSummary(serviceSettings.settings) : undefined}
-                            onOpenServiceSettings={settingsSupported ? openServiceSettings : undefined}
+                            requestContext={requestContext?.configured
+                                ? {
+                                    functionName: requestContext.functionName,
+                                    keys: requestContext.entries.map((entry) => entry.key),
+                                }
+                                : undefined}
+                            onOpenRequestContext={contextSupported ? openRequestContext : undefined}
+                            onOpenServiceConfig={handleServiceEdit}
                         />
                     ) : null}
                 </ViewContent>
@@ -503,15 +503,15 @@ export function GraphQLDiagram(props: GraphQLDiagramProps) {
                     onClose={() => setIsServiceEditorOpen(false)}
                 />
             )}
-            {isServiceSettingsOpen && settingsSupported && (
-                <ServiceSettingsPanel
+            {isRequestContextOpen && contextSupported && (
+                <RequestContextPanel
                     filePath={filePath}
                     position={position}
-                    settings={serviceSettings}
-                    loading={isServiceSettingsLoading}
-                    onClose={() => setIsServiceSettingsOpen(false)}
-                    onOpenAdvanced={() => {
-                        setIsServiceSettingsOpen(false);
+                    context={requestContext}
+                    loading={isRequestContextLoading}
+                    onClose={() => setIsRequestContextOpen(false)}
+                    onOpenServiceConfig={() => {
+                        setIsRequestContextOpen(false);
                         handleServiceEdit();
                     }}
                 />

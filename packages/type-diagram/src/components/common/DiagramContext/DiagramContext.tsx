@@ -20,11 +20,13 @@ import React, { createContext, ReactNode } from 'react';
 import { Type } from '@wso2/ballerina-core';
 
 /**
- * The settings set on a service, as the root node's settings badge summarises them.
+ * A GraphQL service's request context, as the root node's context indicator summarises it.
  */
-export interface ServiceSettingsSummary {
-    /** One entry per setting that is set, in display order. */
-    items: { label: string; summary: string }[];
+export interface RequestContextSummary {
+    /** The function the service's `contextInit` names. */
+    functionName?: string;
+    /** The keys the context function sets, in source order. */
+    keys: string[];
 }
 
 interface DiagramContextProps {
@@ -39,8 +41,12 @@ interface DiagramContextProps {
     goToSource?: (node: Type) => void,
     onNodeDelete?: (typeId: string) => void;
     verifyTypeDelete?: (typeId: string) => Promise<boolean>;
-    serviceSettings?: ServiceSettingsSummary;
-    onOpenServiceSettings?: () => void;
+    /** The service's request context; absent when it has none. */
+    requestContext?: RequestContextSummary;
+    /** Opens the request context editor; the root node offers it when given. */
+    onOpenRequestContext?: () => void;
+    /** Opens the service's full configuration; the root node offers it when given. */
+    onOpenServiceConfig?: () => void;
 }
 
 interface IDiagramContext {
@@ -54,8 +60,12 @@ interface IDiagramContext {
     goToSource?: (node: Type) => void
     onNodeDelete?: (typeId: string) => void;
     verifyTypeDelete?: (typeId: string) => Promise<boolean>;
-    serviceSettings?: ServiceSettingsSummary;
-    onOpenServiceSettings?: () => void;
+    /** The service's request context; absent when it has none. */
+    requestContext?: RequestContextSummary;
+    /** Opens the request context editor; the root node offers it when given. */
+    onOpenRequestContext?: () => void;
+    /** Opens the service's full configuration; the root node offers it when given. */
+    onOpenServiceConfig?: () => void;
 }
 
 const defaultState: any = {};
@@ -74,8 +84,9 @@ export function DesignDiagramContext(props: DiagramContextProps) {
         goToSource,
         onNodeDelete,
         verifyTypeDelete,
-        serviceSettings,
-        onOpenServiceSettings
+        requestContext,
+        onOpenRequestContext,
+        onOpenServiceConfig
     } = props;
 
     let context: IDiagramContext = {
@@ -89,8 +100,9 @@ export function DesignDiagramContext(props: DiagramContextProps) {
         goToSource,
         onNodeDelete,
         verifyTypeDelete,
-        serviceSettings,
-        onOpenServiceSettings
+        requestContext,
+        onOpenRequestContext,
+        onOpenServiceConfig
     }
 
     return (

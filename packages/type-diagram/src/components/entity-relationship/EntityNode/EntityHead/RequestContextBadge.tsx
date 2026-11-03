@@ -18,11 +18,11 @@
 
 import React from 'react';
 import styled from '@emotion/styled';
-import { Icon, ThemeColors, Tooltip } from '@wso2/ui-toolkit';
-import { ServiceSettingsSummary } from '../../../common/DiagramContext/DiagramContext';
+import { Codicon, ThemeColors, Tooltip } from '@wso2/ui-toolkit';
+import { RequestContextSummary } from '../../../common/DiagramContext/DiagramContext';
 
 // Deliberately quiet: it reads like the node's other header controls, not like a call to action. The schema is
-// what the diagram is about; the settings indicator only says that some are set.
+// what the diagram is about; the context indicator only says that the service has a request context.
 const BadgeButton = styled.button`
     display: inline-flex;
     align-items: center;
@@ -70,31 +70,33 @@ const TooltipHint = styled.span`
     color: ${ThemeColors.ON_SURFACE_VARIANT};
 `;
 
-interface ServiceSettingsBadgeProps {
-    summary: ServiceSettingsSummary;
+const TooltipKeys = styled.span`
+    font-family: var(--vscode-editor-font-family);
+`;
+
+interface RequestContextBadgeProps {
+    context: RequestContextSummary;
     onOpen: () => void;
 }
 
 /**
- * The root node's settings badge: a gear and the number of settings set on the service. Hovering lists them;
- * clicking opens the Service Settings panel. Renders nothing when no setting is set, so a service without
- * configuration keeps a clean header.
+ * The root node's request context indicator: shown when the service sets `contextInit`, with the number of values
+ * the context carries. Hovering names the function and its keys; clicking opens the Request Context editor.
  */
-export function ServiceSettingsBadge({ summary, onOpen }: ServiceSettingsBadgeProps) {
-    const count = summary.items.length;
-    if (count === 0) {
-        return null;
-    }
-    const label = `${count} service setting${count === 1 ? '' : 's'} set. Open Service Settings`;
+export function RequestContextBadge({ context, onOpen }: RequestContextBadgeProps) {
+    const count = context.keys.length;
+    const label = `Request context${count > 0 ? ` with ${count} value${count === 1 ? '' : 's'}` : ''}. `
+        + 'Open Request Context';
     const content = (
         <TooltipList>
-            {summary.items.map((item) => (
-                <span key={item.label}>
-                    <TooltipLabel>{item.label}</TooltipLabel>
-                    {item.summary ? `: ${item.summary}` : ''}
-                </span>
-            ))}
-            <TooltipHint>Click to open Service Settings</TooltipHint>
+            <span>
+                <TooltipLabel>Request context</TooltipLabel>
+                {context.functionName ? `: ${context.functionName}` : ''}
+            </span>
+            {count > 0
+                ? <TooltipKeys>{context.keys.join(', ')}</TooltipKeys>
+                : <span>No values set yet</span>}
+            <TooltipHint>Click to edit</TooltipHint>
         </TooltipList>
     );
     return (
@@ -102,14 +104,14 @@ export function ServiceSettingsBadge({ summary, onOpen }: ServiceSettingsBadgePr
             <BadgeButton
                 type="button"
                 aria-label={label}
-                data-testid="service-settings-badge"
+                data-testid="request-context-badge"
                 onClick={(event) => {
                     event.stopPropagation();
                     onOpen();
                 }}
             >
-                <Icon name="bi-settings" sx={{ width: 12, height: 12, fontSize: 12 }} iconSx={{ fontSize: 12, color: "inherit" }} />
-                {count}
+                <Codicon name="symbol-namespace" sx={{ fontSize: 12, width: 12, height: 12 }} iconSx={{ fontSize: 12 }} />
+                Context{count > 0 ? ` ${count}` : ''}
             </BadgeButton>
         </Tooltip>
     );

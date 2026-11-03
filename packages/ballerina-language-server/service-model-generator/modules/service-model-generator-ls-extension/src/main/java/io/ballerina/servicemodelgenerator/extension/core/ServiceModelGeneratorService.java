@@ -54,6 +54,9 @@ import io.ballerina.servicemodelgenerator.extension.connector.ModelResolutionExc
 import io.ballerina.servicemodelgenerator.extension.connector.PlatformDependencyEditUtil;
 import io.ballerina.servicemodelgenerator.extension.connector.TriggerModelReader;
 import io.ballerina.servicemodelgenerator.extension.connector.TriggerPropertiesRegistry;
+import io.ballerina.servicemodelgenerator.extension.graphqlcontext.GraphqlContextManager;
+import io.ballerina.servicemodelgenerator.extension.graphqlcontext.GraphqlContextRequest;
+import io.ballerina.servicemodelgenerator.extension.graphqlcontext.GraphqlContextResponse;
 import io.ballerina.servicemodelgenerator.extension.model.Codedata;
 import io.ballerina.servicemodelgenerator.extension.model.Function;
 import io.ballerina.servicemodelgenerator.extension.model.Listener;
@@ -107,11 +110,6 @@ import io.ballerina.servicemodelgenerator.extension.model.response.ServiceModelR
 import io.ballerina.servicemodelgenerator.extension.model.response.TriggerListResponse;
 import io.ballerina.servicemodelgenerator.extension.model.response.TriggerResponse;
 import io.ballerina.servicemodelgenerator.extension.model.response.ValidatePropertyResponse;
-import io.ballerina.servicemodelgenerator.extension.settings.GraphqlContextManager;
-import io.ballerina.servicemodelgenerator.extension.settings.GraphqlContextResponse;
-import io.ballerina.servicemodelgenerator.extension.settings.ServiceSettingsManager;
-import io.ballerina.servicemodelgenerator.extension.settings.ServiceSettingsRequests;
-import io.ballerina.servicemodelgenerator.extension.settings.ServiceSettingsResponse;
 import io.ballerina.servicemodelgenerator.extension.util.FTPListenerUtil;
 import io.ballerina.servicemodelgenerator.extension.util.FunctionBadge;
 import io.ballerina.servicemodelgenerator.extension.util.ListenerUtil;
@@ -913,50 +911,6 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
     }
 
     /**
-     * Get the Service Settings of a service: the curated fields of its config annotation and any other field set.
-     *
-     * @param request the service's file and codedata
-     * @return {@link ServiceSettingsResponse} with {@code supported} false for a service type with no settings
-     */
-    @JsonRequest
-    public CompletableFuture<ServiceSettingsResponse> getServiceSettings(CommonModelFromSourceRequest request) {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                Optional<ResolvedService> resolved = resolveService(request.filePath(), request.codedata());
-                if (resolved.isEmpty()) {
-                    return ServiceSettingsResponse.unsupported();
-                }
-                return ServiceSettingsManager.read(resolved.get().serviceNode(), resolved.get().semanticModel());
-            } catch (Throwable e) {
-                return ServiceSettingsResponse.error(e);
-            }
-        });
-    }
-
-    /**
-     * Get the edits that set, or remove, one field of a service's config annotation.
-     *
-     * @param request the service, the field and its value; a null or blank value removes the field
-     * @return {@link CommonSourceResponse} with the edits
-     */
-    @JsonRequest
-    public CompletableFuture<CommonSourceResponse> updateServiceSetting(ServiceSettingsRequests.UpdateSetting request) {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                Optional<ResolvedService> resolved = resolveService(request.filePath(), request.codedata());
-                if (resolved.isEmpty()) {
-                    return new CommonSourceResponse();
-                }
-                List<TextEdit> edits = ServiceSettingsManager.update(resolved.get().serviceNode(),
-                        resolved.get().semanticModel(), request.field(), request.value(), request.recordValue());
-                return new CommonSourceResponse(Map.of(request.filePath(), edits));
-            } catch (Throwable e) {
-                return new CommonSourceResponse(e);
-            }
-        });
-    }
-
-    /**
      * Get the request context of a GraphQL service: the function its {@code contextInit} names, and the module
      * functions that could be picked instead.
      *
@@ -987,7 +941,7 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
      */
     @JsonRequest
     public CompletableFuture<CommonSourceResponse> applyGraphqlContext(
-            ServiceSettingsRequests.ApplyGraphqlContext request) {
+            GraphqlContextRequest request) {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 Optional<ResolvedService> resolved = resolveService(request.filePath(), request.codedata());

@@ -31,7 +31,7 @@ import { DiagramControls } from './components/Controls/DiagramControls';
 import { OverlayLayerModel } from './components/OverlayLoader';
 import { FilteringInfoBanner } from './components/FilteringInfoBanner';
 import { Type } from '@wso2/ballerina-core';
-import { ServiceSettingsSummary } from './components/common/DiagramContext/DiagramContext';
+import { RequestContextSummary } from './components/common/DiagramContext/DiagramContext';
 import { focusToNode } from './utils/utils';
 import { graphqlModeller } from './utils/model-mapper/entityModelMapper';
 
@@ -48,10 +48,12 @@ interface TypeDiagramProps {
     onTypeEdit: (typeId: string, isGraphqlRoot?: boolean) => void;
     onTypeDelete: (typeId: string) => void;
     verifyTypeDelete: (typeId: string) => Promise<boolean>;
-    /** The settings set on the service, shown as a badge on the GraphQL root node. */
-    serviceSettings?: ServiceSettingsSummary;
-    /** Opens the service's settings; shown on the GraphQL root node when given. */
-    onOpenServiceSettings?: () => void;
+    /** The GraphQL service's request context, shown on the root node when set. */
+    requestContext?: RequestContextSummary;
+    /** Opens the request context editor; offered on the GraphQL root node when given. */
+    onOpenRequestContext?: () => void;
+    /** Opens the service's full configuration; offered on the GraphQL root node when given. */
+    onOpenServiceConfig?: () => void;
 }
 
 export interface ModelResult {
@@ -60,7 +62,7 @@ export interface ModelResult {
 }
 
 export function TypeDiagram(props: TypeDiagramProps) {
-    const { typeModel, showProblemPanel, selectedNodeId, goToSource, focusedNodeId, readonly, updateFocusedNodeId, rootService, isGraphql, verifyTypeDelete, serviceSettings, onOpenServiceSettings } = props;
+    const { typeModel, showProblemPanel, selectedNodeId, goToSource, focusedNodeId, readonly, updateFocusedNodeId, rootService, isGraphql, verifyTypeDelete, requestContext, onOpenRequestContext, onOpenServiceConfig } = props;
 
     const [diagramEngine] = useState<DiagramEngine>(createEntitiesEngine());
     const [diagramModel, setDiagramModel] = useState<DiagramModel>(undefined);
@@ -150,8 +152,9 @@ export function TypeDiagram(props: TypeDiagramProps) {
         goToSource,
         onNodeDelete,
         verifyTypeDelete,
-        serviceSettings,
-        onOpenServiceSettings
+        requestContext,
+        onOpenRequestContext,
+        onOpenServiceConfig
     }
 
     const refreshDiagram = () => {

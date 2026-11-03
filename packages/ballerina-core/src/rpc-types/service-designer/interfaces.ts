@@ -63,78 +63,15 @@ export interface OpenApiEndpointsResponse {
 }
 
 // ---------------------------------------------------------------------------
-// Service Settings: the fields of a service's config annotation (e.g. @graphql:ServiceConfig)
+// GraphQL request context: the function a GraphQL service's `contextInit` names
 // ---------------------------------------------------------------------------
 
-/**
- * The editor a setting uses. A field with no descriptor of its own is `advanced` and is edited in the full
- * service config form.
- */
-export type ServiceSettingEditorKind = "toggle" | "number" | "text" | "record" | "contextInit" | "advanced";
-
-/** The editor of a record setting's sub-field. */
-export type ServiceSettingFieldKind = "toggle" | "integer" | "decimal" | "text" | "textList";
-
-/** A sub-field value of a record setting. */
-export type ServiceSettingFieldValue = boolean | number | string | string[];
-
-/** A sub-field of a record setting, such as `allowOrigins` of `cors`. */
-export interface ServiceSettingField {
-    name: string;
-    label: string;
-    description?: string;
-    kind: ServiceSettingFieldKind;
-    /** The record type's default; absent when it has none. */
-    defaultValue?: ServiceSettingFieldValue;
-    placeholder?: string;
-}
-
-export interface ServiceSetting {
-    field: string;
-    label: string;
-    description?: string;
-    editorKind: ServiceSettingEditorKind;
-    /** The module's value when the field is absent, as a Ballerina expression. */
-    defaultValue?: string;
-    placeholder?: string;
-    /** The value set in source, as written. Absent when the field is not set. */
-    value?: string;
-    /** For a record setting: the sub-fields its editor shows. */
-    fields?: ServiceSettingField[];
-    /**
-     * For a record setting that is set: its sub-field values as written. Absent when unset, or when the value is not
-     * a mapping of plain literals the editor knows.
-     */
-    recordValue?: Record<string, ServiceSettingFieldValue>;
-    /** False when a record setting is set to a value its editor cannot show; it is then edited in the full form. */
-    structured: boolean;
-}
-
-/** Locates a service: its file and its line range. */
-export interface ServiceSettingsTarget {
+/** Locates a GraphQL service: its file and its line range. */
+export interface GraphqlContextRequest {
     filePath: string;
     codedata: {
         lineRange: LineRange;
     };
-}
-
-export type ServiceSettingsRequest = ServiceSettingsTarget;
-
-export interface ServiceSettingsResponse {
-    /** False for a service type with no settings; the designer then shows none. */
-    supported: boolean;
-    moduleName?: string;
-    /** The curated settings in display order, then any other field set in source. */
-    settings: ServiceSetting[];
-    errorMsg?: string;
-}
-
-export interface UpdateServiceSettingRequest extends ServiceSettingsTarget {
-    field: string;
-    /** A Ballerina expression; empty or absent removes the field. */
-    value?: string;
-    /** For a record setting: its sub-field values, used instead of `value`. Values at their default are left out. */
-    recordValue?: Record<string, ServiceSettingFieldValue>;
 }
 
 /** Where a context value comes from. */
@@ -178,7 +115,7 @@ export interface GraphqlContextResponse {
 
 export type GraphqlContextAction = "create" | "use" | "remove" | "setEntries";
 
-export interface ApplyGraphqlContextRequest extends ServiceSettingsTarget {
+export interface ApplyGraphqlContextRequest extends GraphqlContextRequest {
     action: GraphqlContextAction;
     /** For `use`: the function to point `contextInit` at. */
     functionName?: string;
@@ -188,7 +125,7 @@ export interface ApplyGraphqlContextRequest extends ServiceSettingsTarget {
     entries?: ContextEntry[];
 }
 
-/** The outcome of a settings edit. */
-export interface ServiceSettingsEditResponse {
+/** The outcome of a request context edit. */
+export interface GraphqlContextEditResponse {
     errorMsg?: string;
 }

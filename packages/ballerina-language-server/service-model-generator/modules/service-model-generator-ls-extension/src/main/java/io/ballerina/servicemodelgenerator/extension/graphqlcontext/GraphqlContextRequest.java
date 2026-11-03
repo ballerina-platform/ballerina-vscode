@@ -16,46 +16,22 @@
  *  under the License.
  */
 
-package io.ballerina.servicemodelgenerator.extension.settings;
+package io.ballerina.servicemodelgenerator.extension.graphqlcontext;
 
 import io.ballerina.servicemodelgenerator.extension.model.Codedata;
 
 import java.util.List;
-import java.util.Map;
 
 /**
- * Requests of the Service Settings endpoints.
+ * Changes a GraphQL service's request context.
+ *
+ * @param filePath       the file of the service
+ * @param codedata       the service's codedata, whose line range locates it
+ * @param action         {@code create}, {@code use}, {@code remove} or {@code setEntries}
+ * @param functionName   for {@code use}, the function to point {@code contextInit} at
+ * @param deleteFunction for {@code remove}, also delete the function when nothing else references it
+ * @param entries        for {@code setEntries}, the values the context should carry
  */
-public final class ServiceSettingsRequests {
-
-    private ServiceSettingsRequests() {
-    }
-
-    /**
-     * Sets one field of a service's config annotation.
-     *
-     * @param filePath the file of the service
-     * @param codedata the service's codedata, whose line range locates it
-     * @param field    the field to set
-     * @param value       the value as a Ballerina expression; null or blank removes the field
-     * @param recordValue for a record setting, its sub-field values, used instead of {@code value}; sub-fields at
-     *                    their default are left out
-     */
-    public record UpdateSetting(String filePath, Codedata codedata, String field, String value,
-                                Map<String, Object> recordValue) {
-    }
-
-    /**
-     * Changes a GraphQL service's request context.
-     *
-     * @param filePath       the file of the service
-     * @param codedata       the service's codedata, whose line range locates it
-     * @param action         {@code create}, {@code use}, {@code remove} or {@code setEntries}
-     * @param functionName   for {@code use}, the function to point {@code contextInit} at
-     * @param deleteFunction for {@code remove}, also delete the function when nothing else references it
-     * @param entries        for {@code setEntries}, the values the context should carry
-     */
-    public record ApplyGraphqlContext(String filePath, Codedata codedata, String action, String functionName,
-                                      Boolean deleteFunction, List<ContextFunctionBody.ContextEntry> entries) {
-    }
+public record GraphqlContextRequest(String filePath, Codedata codedata, String action, String functionName,
+                                    Boolean deleteFunction, List<ContextFunctionBody.ContextEntry> entries) {
 }

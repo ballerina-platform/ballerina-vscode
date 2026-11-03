@@ -87,14 +87,10 @@ import {
     validateProperty,
     ApplyGraphqlContextRequest,
     GraphqlContextResponse,
-    ServiceSettingsEditResponse,
-    ServiceSettingsRequest,
-    ServiceSettingsResponse,
-    UpdateServiceSettingRequest,
+    GraphqlContextEditResponse,
+    GraphqlContextRequest,
     applyGraphqlContext,
-    getGraphqlContext,
-    getServiceSettings,
-    updateServiceSetting
+    getGraphqlContext
 } from "@wso2/ballerina-core";
 import { HOST_EXTENSION } from "vscode-messenger-common";
 import { Messenger } from "vscode-messenger-webview";
@@ -214,19 +210,11 @@ export class ServiceDesignerRpcClient implements ServiceDesignerAPI {
         return this._messenger.sendRequest(listOpenApiEndpoints, HOST_EXTENSION, params);
     }
 
-    getServiceSettings(params: ServiceSettingsRequest): Promise<ServiceSettingsResponse> {
-        return this._messenger.sendRequest(getServiceSettings, HOST_EXTENSION, params);
-    }
-
-    updateServiceSetting(params: UpdateServiceSettingRequest): Promise<ServiceSettingsEditResponse> {
-        return this._messenger.sendRequest(updateServiceSetting, HOST_EXTENSION, params);
-    }
-
-    getGraphqlContext(params: ServiceSettingsRequest): Promise<GraphqlContextResponse> {
+    getGraphqlContext(params: GraphqlContextRequest): Promise<GraphqlContextResponse> {
         return this._messenger.sendRequest(getGraphqlContext, HOST_EXTENSION, params);
     }
 
-    applyGraphqlContext(params: ApplyGraphqlContextRequest): Promise<ServiceSettingsEditResponse> {
+    applyGraphqlContext(params: ApplyGraphqlContextRequest): Promise<GraphqlContextEditResponse> {
         return this._messenger.sendRequest(applyGraphqlContext, HOST_EXTENSION, params);
     }
 }

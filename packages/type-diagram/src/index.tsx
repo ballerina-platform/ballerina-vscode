@@ -17,4 +17,4 @@
  */
 
 export { TypeDiagram } from "./Diagram";
-export type { ServiceSettingsSummary } from "./components/common/DiagramContext/DiagramContext";
+export type { RequestContextSummary } from "./components/common/DiagramContext/DiagramContext";

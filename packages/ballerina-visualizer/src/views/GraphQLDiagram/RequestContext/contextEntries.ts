@@ -18,12 +18,20 @@
 
 import type { ContextEntry, ContextEntrySource } from "@wso2/ballerina-core";
 
-/** How each source reads in the editor: its name, the label of its value field and an example value. */
-export const SOURCE_OPTIONS: Record<ContextEntrySource, { label: string; valueLabel: string; placeholder: string }> = {
-    header: { label: "Request header", valueLabel: "Header name", placeholder: "x-user-id" },
-    query: { label: "Query parameter", valueLabel: "Parameter name", placeholder: "tenant" },
-    value: { label: "Fixed value", valueLabel: "Value", placeholder: "production" },
-    expression: { label: "Expression", valueLabel: "Expression", placeholder: "request.rawPath" },
+/**
+ * How each source reads in the editor: its name, the short tag of its list row, the label of its value field and an
+ * example value.
+ */
+export const SOURCE_OPTIONS: Record<ContextEntrySource, {
+    label: string;
+    tag: string;
+    valueLabel: string;
+    placeholder: string;
+}> = {
+    header: { label: "Request header", tag: "Header", valueLabel: "Header name", placeholder: "x-user-id" },
+    query: { label: "Query parameter", tag: "Query", valueLabel: "Parameter name", placeholder: "tenant" },
+    value: { label: "Fixed value", tag: "Value", valueLabel: "Value", placeholder: "production" },
+    expression: { label: "Expression", tag: "Expression", valueLabel: "Expression", placeholder: "request.rawPath" },
 };
 
 /** Whether the source reads from the request, so it can be required. */

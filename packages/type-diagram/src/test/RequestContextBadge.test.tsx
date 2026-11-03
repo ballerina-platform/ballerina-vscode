@@ -19,34 +19,35 @@
 import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import { ServiceSettingsBadge } from "../components/entity-relationship/EntityNode/EntityHead/ServiceSettingsBadge";
+import { RequestContextBadge } from "../components/entity-relationship/EntityNode/EntityHead/RequestContextBadge";
 
-const items = (count: number) =>
-    Array.from({ length: count }, (_, i) => ({ label: `Setting ${i + 1}`, summary: `value ${i + 1}` }));
+const keys = (count: number) => Array.from({ length: count }, (_, i) => `key${i + 1}`);
 
-describe("ServiceSettingsBadge", () => {
-    it("renders nothing when no setting is set", () => {
-        const { container } = render(<ServiceSettingsBadge summary={{ items: [] }} onOpen={jest.fn()} />);
-        expect(container).toBeEmptyDOMElement();
+describe("RequestContextBadge", () => {
+    it("reads as Context alone when the context carries no values yet", () => {
+        render(<RequestContextBadge context={{ functionName: "graphqlContextInit", keys: [] }} onOpen={jest.fn()} />);
+        const badge = screen.getByTestId("request-context-badge");
+        expect(badge).toHaveTextContent(/^Context$/);
+        expect(badge).toHaveAccessibleName("Request context. Open Request Context");
     });
 
-    it.each([1, 2, 5, 14])("shows the number of settings set (%i) and names it for screen readers", (count) => {
-        render(<ServiceSettingsBadge summary={{ items: items(count) }} onOpen={jest.fn()} />);
-        const badge = screen.getByTestId("service-settings-badge");
-        expect(badge).toHaveTextContent(String(count));
+    it.each([1, 2, 7])("shows the number of values the context carries (%i)", (count) => {
+        render(<RequestContextBadge context={{ functionName: "ctx", keys: keys(count) }} onOpen={jest.fn()} />);
+        const badge = screen.getByTestId("request-context-badge");
+        expect(badge).toHaveTextContent(`Context ${count}`);
         expect(badge).toHaveAccessibleName(
-            `${count} service setting${count === 1 ? "" : "s"} set. Open Service Settings`);
+            `Request context with ${count} value${count === 1 ? "" : "s"}. Open Request Context`);
     });
 
-    it("opens the settings on click without the click reaching the node", () => {
+    it("opens the editor on click without the click reaching the node", () => {
         const onOpen = jest.fn();
         const onNodeClick = jest.fn();
         render(
             <div onClick={onNodeClick}>
-                <ServiceSettingsBadge summary={{ items: items(2) }} onOpen={onOpen} />
+                <RequestContextBadge context={{ keys: keys(2) }} onOpen={onOpen} />
             </div>
         );
-        fireEvent.click(screen.getByTestId("service-settings-badge"));
+        fireEvent.click(screen.getByTestId("request-context-badge"));
         expect(onOpen).toHaveBeenCalledTimes(1);
         expect(onNodeClick).not.toHaveBeenCalled();
     });

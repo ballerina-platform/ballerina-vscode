@@ -16,7 +16,7 @@
  *  under the License.
  */
 
-package io.ballerina.servicemodelgenerator.extension.settings;
+package io.ballerina.servicemodelgenerator.extension.graphqlcontext;
 
 import io.ballerina.tools.text.LineRange;
 
