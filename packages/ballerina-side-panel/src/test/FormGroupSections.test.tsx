@@ -18,10 +18,10 @@
 
 // A form section the language server declares can ask for one of its fields to be filled, though each is
 // optional on its own (a task names its roles, its users, or both). The section says so in its description,
-// is marked required, sits with the main fields, and holds a save that leaves the ask unmet.
+// is marked required, sits with the main fields, and keeps Save disabled while the ask is unmet.
 
 import React from "react";
-import { act, fireEvent, render } from "@testing-library/react";
+import { act, render } from "@testing-library/react";
 import type { FieldGroup, FormField } from "../components/Form/types";
 import { Form } from "../components/Form";
 import { isFilledValue, isSectionAskUnmet } from "../components/Form/utils";
@@ -139,37 +139,35 @@ describe("Form — sections", () => {
         expect(text.indexOf("Extras")).toBeGreaterThan(advancedAt);
     });
 
-    const save = async (container: HTMLElement) => {
-        const button = Array.from(container.querySelectorAll("vscode-button, button"))
-            .find((candidate) => candidate.textContent?.trim() === "Save") as HTMLElement;
-        expect(button).toBeTruthy();
-        await act(async () => {
-            fireEvent.click(button);
-        });
+    // Save's disabled state is not observable under jsdom (see Form.test.tsx); the form reports the same
+    // condition through onValidityChange, which is what a host gating its own Save reads.
+    const validityOf = async (formFields: FormField[], group: FieldGroup = ASSIGNMENT) => {
+        const onValidityChange = jest.fn();
+        render(<Form formFields={formFields} groups={[group]} onSubmit={() => {}}
+            onValidityChange={onValidityChange} {...common} />);
         await settle();
+        return onValidityChange.mock.calls[onValidityChange.mock.calls.length - 1]?.[0];
     };
 
-    it("holds a save that leaves the ask unmet, opening the section", async () => {
-        const onSubmit = jest.fn();
-        const collapsed = { ...ASSIGNMENT, defaultCollapsed: true };
-        const { container } = render(<Form formFields={audience()} groups={[collapsed]} onSubmit={onSubmit} {...common} />);
-        await settle();
-        expect(sectionBody(container, "Assignment").style.display).toBe("none");
-        await save(container);
-        expect(onSubmit).not.toHaveBeenCalled();
-        expect(sectionBody(container, "Assignment").style.display).toBe("flex");
-    });
+    const withExcludedUser = audience().map((member) =>
+        (member.key === "excludedUsers" ? { ...member, value: ["bob"] } : member));
 
     it.each([
-        ["the roles", ["ops"], ""],
-        ["the users", "", ["alice"]],
-    ])("saves once %s are filled", async (_, roles, users) => {
-        const onSubmit = jest.fn();
-        const { container } = render(
-            <Form formFields={audience(roles, users)} groups={[ASSIGNMENT]} onSubmit={onSubmit} {...common} />
-        );
-        await settle();
-        await save(container);
-        expect(onSubmit).toHaveBeenCalledTimes(1);
+        ["nobody is named", audience(), false],
+        ["only an excluded user is named", withExcludedUser, false],
+        ["the roles are filled", audience(["ops"]), true],
+        ["the users are filled", audience("", ["alice"]), true],
+        ["the roles are nil and the users filled", audience("()", ["alice"]), true],
+    ] as const)("holds Save exactly while the ask is unmet: %s", async (_, formFields, valid) => {
+        expect(await validityOf([...formFields])).toBe(valid);
+    });
+
+    it("leaves Save to the rest of the form when the section asks for nothing", async () => {
+        expect(await validityOf(audience(), { ...ASSIGNMENT, requireAnyOf: [] })).toBe(true);
+    });
+
+    it("does not hold Save for a section whose fields are all hidden", async () => {
+        const hidden = audience().map((member) => (member.group ? { ...member, hidden: true } : member));
+        expect(await validityOf(hidden)).toBe(true);
     });
 });

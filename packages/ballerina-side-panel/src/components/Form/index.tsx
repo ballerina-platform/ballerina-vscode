@@ -786,11 +786,16 @@ export const Form = forwardRef((props: FormProps, _ref) => {
 
     /**
      * Holds a save while a shown section's ask is unmet: none of the fields it requires one of is filled.
-     * Opens those sections and turns their descriptions into the error, which says what filling them takes.
+     * Save is already disabled then; this covers the other submit paths (Open in Data Mapper, Function
+     * Editor). Opens those sections and turns their descriptions into the error, which says what filling
+     * them takes.
      */
-    const holdForSectionAsks = (data: FormValues): boolean => {
-        const unmet = (groups ?? []).filter((group) => isSectionAskUnmet(group, data)
+    const unmetSectionAsks = (values: FormValues): FieldGroup[] =>
+        (groups ?? []).filter((group) => isSectionAskUnmet(group, values)
             && formFields.some((field) => field.group === group.id && !field.hidden && field.enabled !== false));
+
+    const holdForSectionAsks = (data: FormValues): boolean => {
+        const unmet = unmetSectionAsks(data);
         if (unmet.length === 0) {
             return false;
         }
@@ -1207,6 +1212,8 @@ export const Form = forwardRef((props: FormProps, _ref) => {
     const watchedValues = watch();
     const hasIncompleteRequiredFields = !!onFormValidation &&
         hasIncompleteRequiredFormFields(formFields, watchedValues);
+    // A shown section asking for one of its fields, with none filled: Save waits for it as for a required field.
+    const hasUnmetSectionAsk = unmetSectionAsks(watchedValues).length > 0;
 
     // Computed once per render and shared by disableSaveButton below and the onValidityChange effect,
     // rather than calling the store twice — see the disableSaveButton comment for what these cover.
@@ -1221,6 +1228,7 @@ export const Form = forwardRef((props: FormProps, _ref) => {
 
     const errorCount = Object.keys(errors).length;
     const formIsValid = isValid && formStateIsValid && !isValidating && errorCount === 0 && !hasIncompleteRequiredFields &&
+        !hasUnmetSectionAsk &&
         (!concertMessage || !concertRequired || isUserConcert) && !isIdentifierEditing && !isSubComponentEnabled &&
         !hasBlockingLiveErrors && !isLiveValidating;
 
@@ -1246,7 +1254,7 @@ export const Form = forwardRef((props: FormProps, _ref) => {
     const disableSaveButton =
         isValidating || props.disableSaveButton || (concertMessage && concertRequired && !isUserConcert) ||
         isIdentifierEditing || isSubComponentEnabled || isValidatingForm || hasIncompleteRequiredFields ||
-        !formStateIsValid || Object.keys(errors).length > 0 ||
+        hasUnmetSectionAsk || !formStateIsValid || Object.keys(errors).length > 0 ||
         hasBlockingLiveErrors || isLiveValidating;
 
     const handleShowMoreClick = () => {
