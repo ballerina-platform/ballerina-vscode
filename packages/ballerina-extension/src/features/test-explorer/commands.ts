@@ -21,6 +21,7 @@ import { commands, TestItem, window, workspace, WorkspaceEdit, Uri, Range } from
 import { openView, StateMachine, history } from "../../stateMachine";
 import { BI_COMMANDS, EVENT_TYPE, MACHINE_VIEW, Annotation, ValueProperty, GetTestFunctionResponse, TestFunction, TestsDiscoveryResponse, ComponentInfo, isSamePath, TextEdit } from "@wso2/ballerina-core";
 import { isTestFunctionItem } from "./discover";
+import { parseTestFunctionId } from "./test-id";
 import path from "path";
 import { promises as fs } from 'fs';
 import { needsProjectDiscovery, requiresPackageSelection, selectPackageOrPrompt } from "../../utils/command-utils";
@@ -55,8 +56,11 @@ export function activateEditBiTest(ballerinaExtInstance: BallerinaExtension) {
             return;
         }
 
-        const fileName = entry.id.split(":")[2];
-        const fileUri = path.resolve(projectPath, `tests`, fileName);
+        const testId = parseTestFunctionId(entry.id);
+        if (!testId) {
+            return;
+        }
+        const fileUri = path.resolve(projectPath, `tests`, testId.fileName);
         if (fileUri) {
             const range = entry.range;
             openView(EVENT_TYPE.OPEN_VIEW, {
@@ -178,15 +182,13 @@ export function activateEditBiTest(ballerinaExtInstance: BallerinaExtension) {
             return;
         }
 
-        // Parse test ID: test:${projectPath}:${fileName}:${functionName}
-        const idParts = entry.id.split(":");
-        if (idParts.length < 4) {
+        const testId = parseTestFunctionId(entry.id);
+        if (!testId) {
             window.showErrorMessage('Unable to parse test item ID.');
             return;
         }
 
-        const fileName = idParts[2];
-        const functionName = idParts[3];
+        const { fileName, functionName } = testId;
         const fileUri = path.resolve(projectPath, `tests`, fileName);
 
         // Determine test type for confirmation message

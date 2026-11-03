@@ -162,6 +162,7 @@ runs:
           packages/ballerina-extension/e2e-test/test-resources/videos/**
           packages/ballerina-extension/e2e-test/test-resources/screenshots/**
           packages/ballerina-extension/e2e-test/test-resources/snapshots/**
+          packages/ballerina-extension/e2e-test/test-resources/logs/**
           packages/ballerina-extension/record.mp4
         retention-days: 5
 

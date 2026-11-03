@@ -16,13 +16,15 @@
  * under the License.
  */
 
-import { useState, useRef, ChangeEvent } from "react";
+import { useState } from "react";
 import { Attachment, Command, SkillCommand } from "@wso2/ballerina-core";
+import { useRpcContext } from "@wso2/ballerina-rpc-client";
+import { MAX_FILE_SIZE, MAX_TOTAL_ATTACHMENT_SIZE } from "../../../utils/attachment/attachmentUtils";
+import type { AttachmentPolicy } from "../../../utils/attachment/attachmentManager";
 
 export interface AttachmentOptions {
     multiple: boolean;
-    acceptResolver: (command: Command | null, skillCommand?: SkillCommand) => string;
-    handleAttachmentSelection: (e: ChangeEvent<HTMLInputElement>, command: Command | null, skillCommand?: SkillCommand) => Promise<Attachment[]>;
+    resolveAttachmentPolicy: (command: Command | null, skillCommand?: SkillCommand) => AttachmentPolicy;
 }
 
 interface UseAttachmentsProps {
@@ -32,19 +34,25 @@ interface UseAttachmentsProps {
 }
 
 export function useAttachments({ attachmentOptions, activeCommand, activeSkillCommand }: UseAttachmentsProps) {
+    const { rpcClient } = useRpcContext();
     const [attachments, setAttachments] = useState<Attachment[]>([]);
-    const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-    // open file input
-    function handleAttachClick() {
-        if (fileInputRef.current) {
-            fileInputRef.current.click();
+    // open the host file picker (starts in the current project directory)
+    async function handleAttachClick() {
+        try {
+            const results = await rpcClient.getAiPanelRpcClient().selectAttachmentFiles({
+                canSelectMany: attachmentOptions.multiple,
+                maxFileSize: MAX_FILE_SIZE,
+                maxTotalSize: MAX_TOTAL_ATTACHMENT_SIZE,
+                ...attachmentOptions.resolveAttachmentPolicy(activeCommand, activeSkillCommand),
+            });
+            addAttachments(results);
+        } catch (error) {
+            console.error("Failed to attach files:", error);
         }
     }
 
-    // handle user file selection
-    async function onAttachmentSelection(e: React.ChangeEvent<HTMLInputElement>) {
-        const results = await attachmentOptions.handleAttachmentSelection(e, activeCommand, activeSkillCommand);
+    function addAttachments(results: Attachment[]) {
         setAttachments((prev) => {
             const updated = [...prev];
             results.forEach((newFile) => {
@@ -72,9 +80,7 @@ export function useAttachments({ attachmentOptions, activeCommand, activeSkillCo
 
     return {
         attachments,
-        fileInputRef,
         handleAttachClick,
-        onAttachmentSelection,
         removeAttachment,
         removeAllAttachments,
     };

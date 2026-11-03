@@ -15,7 +15,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { expect, Locator, test } from '@playwright/test';
+import { expect, Frame, Locator, test } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
 import { switchToIFrame } from '@wso2/playwright-vscode-tester';
@@ -29,6 +29,20 @@ const DURABLE_AGENT_PROJECT_TEMPLATE = path.join(__dirname, '..', 'data', 'durab
 
 // A list row can still be sliding in when it first resolves, which Playwright reports as outside the
 // viewport; settle it before clicking.
+// Opens a capability's edit form from the agent box. The box ignores clicks while the canvas is read-only,
+// which it stays after a capability save until the side panel lets go: the circle can already be drawn then,
+// so the click is repeated until the form shows.
+async function openCapability(webview: Frame, capability: Locator, formReady: Locator): Promise<void> {
+    for (let attempt = 0; attempt < 6; attempt++) {
+        await webview.getByTestId('side-panel').waitFor({ state: 'hidden', timeout: 30000 }).catch(() => undefined);
+        await capability.click({ force: true });
+        if (await formReady.waitFor({ state: 'visible', timeout: 10000 }).then(() => true, () => false)) {
+            return;
+        }
+    }
+    throw new Error('the registered capability did not open its edit form');
+}
+
 async function clickListItem(sidePanel: Locator, name: string): Promise<void> {
     const item = sidePanel.getByText(name, { exact: true }).first();
     await item.waitFor({ state: 'visible', timeout: 60000 });
@@ -89,8 +103,7 @@ export default function createTests() {
             await capability.waitFor({ timeout: 60000 });
 
             logStep('Open the registered entry and check its edit form');
-            await capability.click({ force: true });
-            await saveButton.waitFor({ state: 'visible', timeout: 60000 });
+            await openCapability(webview, capability, saveButton);
             // The name and description show what the runtime uses, read-only: the function's name and doc comment.
             await expect(webview.getByText('Activity Name', { exact: true })).toBeVisible();
             await expect(webview.getByText('Activity Description', { exact: true })).toBeVisible();

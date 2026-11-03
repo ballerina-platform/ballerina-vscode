@@ -20,6 +20,7 @@
 // Extend as contract tests need more surface.
 
 import * as nodeFs from "fs";
+import * as nodePath from "path";
 
 /** Editor tab input, matched with `instanceof` by anything that filters tabs. */
 export class TabInputText {
@@ -33,6 +34,8 @@ export const window = {
     // Return types are widened past `undefined` so a test can answer as the user would have.
     showWarningMessage: (_message?: string, ..._items: string[]): Promise<string | undefined> =>
         Promise.resolve(undefined),
+    showOpenDialog: (_options?: unknown): Promise<{ fsPath: string }[] | undefined> => Promise.resolve(undefined),
+    showTextDocument: (_uri: unknown, _options?: unknown): Promise<unknown> => Promise.resolve(undefined),
     showQuickPick: (_items?: readonly string[], _options?: { placeHolder?: string }): Promise<string | undefined> =>
         Promise.resolve(undefined),
     withProgress: <T>(_options: unknown, task: (progress: { report(_v: unknown): void }) => Thenable<T>) =>
@@ -56,6 +59,7 @@ export const workspace = {
     // Backed by the real filesystem so tests can drive file-restoring code against a temp dir.
     fs: {
         readFile: (uri: { fsPath: string }) => Promise.resolve(nodeFs.readFileSync(uri.fsPath)),
+        stat: async (uri: { fsPath: string }) => ({ size: nodeFs.statSync(uri.fsPath).size }),
         writeFile: (uri: { fsPath: string }, content: Uint8Array) => {
             nodeFs.writeFileSync(uri.fsPath, content);
             return Promise.resolve();
@@ -91,6 +95,11 @@ export const commands = {
 export const Uri = {
     file: (p: string) => ({ fsPath: p, path: p, scheme: "file", toString: () => p }),
     parse: (p: string) => ({ fsPath: p, path: p, scheme: "file", toString: () => p }),
+    // Keeps the base's scheme, like the real joinPath does for remote URIs.
+    joinPath: (base: { fsPath: string; path: string; scheme: string }, ...segments: string[]) => {
+        const fsPath = nodePath.join(base.fsPath, ...segments);
+        return { ...base, fsPath, path: nodePath.posix.join(base.path, ...segments), toString: () => `${base.scheme}:${fsPath}` };
+    },
 };
 
 export enum ConfigurationTarget {
@@ -149,7 +158,8 @@ export const extensions = {
     getExtension: (id: string) => (extensions.installed.has(id) ? { id, isActive: true } : undefined),
 };
 
-export const env = { openExternal: () => Promise.resolve(true) };
+// Tests assign `appRoot` to stand in for the running editor's install location.
+export const env = { appRoot: "", openExternal: () => Promise.resolve(true) };
 
 export default {
     window,
@@ -157,6 +167,7 @@ export default {
     commands,
     Uri,
     ViewColumn,
+    ConfigurationTarget,
     ProgressLocation,
     Position,
     Range,

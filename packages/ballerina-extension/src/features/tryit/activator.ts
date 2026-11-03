@@ -36,6 +36,7 @@ import { requiresPackageSelection, selectIntegrationOrPrompt } from "../../utils
 import { VisualizerWebview } from "../../views/visualizer/webview";
 import { TracerMachine } from "../tracing";
 import { resolveServiceType, ServiceType } from "./service-type";
+import { readExistingConfigValues } from "../../utils/toml-utils";
 
 // File constants
 const FILE_NAMES = {
@@ -51,6 +52,13 @@ const chatSessionMap: Map<string, string> = new Map();
 // Export a function to update the session ID for an endpoint (used when clearing chat)
 export function updateChatSessionId(endpoint: string, newSessionId: string): void {
     chatSessionMap.set(endpoint, newSessionId);
+}
+
+// User-edited chat endpoints, keyed by project and the detected endpoint they replace
+const chatEndpointOverrides: Map<string, string> = new Map();
+
+export function overrideChatEndpoint(endpointKey: string, chatEndpoint: string): void {
+    chatEndpointOverrides.set(endpointKey, chatEndpoint);
 }
 
 export function activateTryItCommand(ballerinaExtInstance: BallerinaExtension) {
@@ -209,7 +217,7 @@ async function openTryItView(withNotice: boolean = false, resourceMetadata?: Res
             const existingEntry = agentServicesWithPorts.find(e => e.service === selectedService);
             selectedService.port = existingEntry ? existingEntry.port : await getServicePort(projectPath, selectedService);
 
-            await openChatView(selectedService, agentServicesWithPorts, wasServiceAlreadyRunning);
+            await openChatView(projectPath, selectedService, agentServicesWithPorts, wasServiceAlreadyRunning);
         }
 
         // Setup the error log watcher
@@ -303,6 +311,7 @@ function getAgentDisplayName(basePath: string): string {
 }
 
 async function openChatView(
+    projectPath: string,
     selectedService: ServiceInfo,
     allAgentServices: { service: ServiceInfo; port: number }[],
     wasServiceAlreadyRunning: boolean
@@ -310,7 +319,9 @@ async function openChatView(
     try {
         // Build agent info for all agent services
         const agents = allAgentServices.map(({ service, port }) => {
-            const chatEndpoint = buildChatEndpoint(service.basePath, port);
+            const detectedChatEp = buildChatEndpoint(service.basePath, port);
+            const endpointKey = `${projectPath}|${detectedChatEp}`;
+            const chatEndpoint = chatEndpointOverrides.get(endpointKey) ?? detectedChatEp;
             let sessionId: string;
 
             if (!wasServiceAlreadyRunning) {
@@ -325,6 +336,7 @@ async function openChatView(
                 name: getAgentDisplayName(service.basePath),
                 basePath: service.basePath,
                 chatEp: chatEndpoint,
+                endpointKey,
                 chatSessionId: sessionId,
             };
         });
@@ -529,6 +541,12 @@ async function getOpenAPIDefinition(service: ServiceInfo): Promise<OAISpec> {
     }
 }
 
+function getDefaultListenerPort(projectDir: string): number {
+    const { defaultListenerPort } = readExistingConfigValues(
+        path.join(projectDir, 'Config.toml'), ['defaultListenerPort'], 'ballerina', 'http');
+    return parseInt(defaultListenerPort) || 9090;
+}
+
 async function getServicePort(projectDir: string, service: ServiceInfo, openapiSpec?: OAISpec): Promise<number> {
     try {
         // If the service has an anonymous listener, directly use the port defined inline
@@ -536,9 +554,8 @@ async function getServicePort(projectDir: string, service: ServiceInfo, openapiS
             return parseInt(service.listener.port);
         }
 
-        // If the listener uses http:getDefaultListener(), resolve to the default port (9090)
         if (service.listener.port?.includes('getDefaultListener')) {
-            return 9090;
+            return getDefaultListenerPort(projectDir);
         }
 
         // Try to get default port from OpenAPI spec first

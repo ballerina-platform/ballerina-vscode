@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { ChatReqMessage, ChatRespMessage, TraceInput, TraceStatus, TraceStatusRequest, ChatHistoryResponse, AgentStatusResponse, ClearChatResponse, ExecutionStep, SessionInput, SessionInfoResponse, AgentInfo, AvailableAgentsResponse, SwitchAgentRequest, SwitchAgentResponse, SubmitDecisionRequest, ApprovalOutcome, ApprovalRequest, HumanDecision, DecisionMessage, PendingApprovalInfo } from "./interfaces";
+import { ChatReqMessage, ChatRespMessage, TraceInput, TraceStatus, TraceStatusRequest, ChatHistoryResponse, AgentStatusResponse, ClearChatResponse, ExecutionStep, SessionInput, SessionInfoResponse, AgentInfo, AvailableAgentsResponse, SwitchAgentRequest, SwitchAgentResponse, SubmitDecisionRequest, ApprovalOutcome, ApprovalRequest, HumanDecision, DecisionMessage, PendingApprovalInfo, SetChatEndpointRequest } from "./interfaces";
 
 export interface AgentChatAPI {
     getChatMessage: (params: ChatReqMessage) => Promise<ChatRespMessage>;
@@ -29,8 +29,9 @@ export interface AgentChatAPI {
     clearChatHistory: () => Promise<ClearChatResponse>;
     getAgentStatus: () => Promise<AgentStatusResponse>;
     getSessionInfo: () => Promise<SessionInfoResponse>;
+    setChatEndpoint: (params: SetChatEndpointRequest) => Promise<SessionInfoResponse>;
     getAvailableChatAgents: () => Promise<AvailableAgentsResponse>;
     switchChatAgent: (params: SwitchAgentRequest) => Promise<SwitchAgentResponse>;
 }
 
-export type { ChatReqMessage, ChatRespMessage, TraceInput, TraceStatus, TraceStatusRequest, ChatHistoryResponse, AgentStatusResponse, ClearChatResponse, ExecutionStep, SessionInput, SessionInfoResponse, AgentInfo, AvailableAgentsResponse, SwitchAgentRequest, SwitchAgentResponse, SubmitDecisionRequest, ApprovalOutcome, ApprovalRequest, HumanDecision, DecisionMessage, PendingApprovalInfo };
+export type { ChatReqMessage, ChatRespMessage, TraceInput, TraceStatus, TraceStatusRequest, ChatHistoryResponse, AgentStatusResponse, ClearChatResponse, ExecutionStep, SessionInput, SessionInfoResponse, AgentInfo, AvailableAgentsResponse, SwitchAgentRequest, SwitchAgentResponse, SubmitDecisionRequest, ApprovalOutcome, ApprovalRequest, HumanDecision, DecisionMessage, PendingApprovalInfo, SetChatEndpointRequest };

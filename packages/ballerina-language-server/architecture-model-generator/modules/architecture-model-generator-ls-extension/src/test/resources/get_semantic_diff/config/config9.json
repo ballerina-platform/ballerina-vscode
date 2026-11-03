@@ -33,7 +33,11 @@
         "metadata": {
           "accessor": "get",
           "servicePath": "/api",
-          "resourcePath": "data"
+          "serviceType": "http",
+          "serviceId": "ai:///main.bal#4:0",
+          "serviceListeners": "httpListener",
+          "resourcePath": "data",
+          "functionKind": "resource"
         }
       },
       {

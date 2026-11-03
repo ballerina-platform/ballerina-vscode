@@ -43,11 +43,13 @@ jest.mock("../features/ai/utils/project/temp-project", () => ({
     getReviewBaselinePath: (p: string) => `${p}-review-baseline`,
 }));
 
-import { ChatStateStorage } from "../views/ai-panel/chatStateStorage";
+import { ChatStateStorage, chatStateStorage } from "../views/ai-panel/chatStateStorage";
+import { runEventStore } from "../features/ai/utils/run-event-store";
 import {
     assertNoRestoreInProgress,
     beginRestore,
     endRestore,
+    isResponseRunning,
     isRestoreInProgress,
 } from "../views/ai-panel/checkpoint/restore-state";
 
@@ -135,5 +137,35 @@ describe("workspace busy while an execution is registered", () => {
         } as never);
 
         expect(storage.hasActiveExecutionFor("/ws/payments")).toBe(false);
+    });
+});
+
+// Revert and restore both ask this before they rewrite files.
+describe("response running", () => {
+    const WORKSPACE = "/ws/orders";
+
+    afterEach(() => {
+        chatStateStorage.clearActiveExecution(WORKSPACE, "thread-1");
+        runEventStore.endRun(WORKSPACE, "thread-1", "gen-1");
+    });
+
+    it("is true while a turn holds a thread, even before it begins a tracked run", () => {
+        chatStateStorage.setActiveExecution(WORKSPACE, "thread-1", {
+            generationId: "gen-1",
+            abortController: new AbortController(),
+        } as never);
+
+        expect(isResponseRunning(WORKSPACE)).toBe(true);
+        expect(isResponseRunning("/ws/payments")).toBe(false);
+    });
+
+    it("is true while a tracked run is going", () => {
+        runEventStore.beginRun(WORKSPACE, "thread-1", "gen-1");
+
+        expect(isResponseRunning(WORKSPACE)).toBe(true);
+    });
+
+    it("is false when nothing is running", () => {
+        expect(isResponseRunning(WORKSPACE)).toBe(false);
     });
 });

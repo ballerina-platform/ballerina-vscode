@@ -1,0 +1,10 @@
+# AUTO-GENERATED FILE. DO NOT MODIFY.
+
+[ballerina]
+dependencies-toml-version = "2"
+distribution-version = "2201.10.0"
+
+[[package]]
+org = "ballerina"
+name = "workflow"
+version = "0.8.3"
