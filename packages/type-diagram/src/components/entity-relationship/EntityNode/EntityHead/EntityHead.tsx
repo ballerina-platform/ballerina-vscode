@@ -38,13 +38,13 @@ const MenuButton = styled(Button)`
     border-radius: 5px;
 `;
 
-const HeaderButtonsContainer = styled.div`
+const HeaderButtonsContainer = styled.div<{ hasTag?: boolean }>`
     display: flex;
     flex-direction: row;
     align-items: center;
     margin-left: auto;
     justify-content: flex-end;
-    width: 45px;
+    width: ${(props: { hasTag?: boolean }) => (props.hasTag ? "auto" : "45px")};
 `;
 
 const EntityNameContainer = styled.div`
@@ -135,6 +135,7 @@ export function EntityHeadWidget(props: ServiceHeadProps) {
     };
 
     const isEditableGraphqlRoot = node.isGraphqlRoot && !readonly;
+    const showContextTag = isEditableGraphqlRoot && !!requestContext && !!onOpenRequestContext;
 
     const onRequestContext = () => {
         setAnchorEl(null);
@@ -264,10 +265,10 @@ export function EntityHeadWidget(props: ServiceHeadProps) {
                             </ImportedLabel>
                         )}
                     </EntityNameContainer>
-                    {isEditableGraphqlRoot && requestContext && onOpenRequestContext && (
-                        <RequestContextBadge context={requestContext} onOpen={onRequestContext} />
-                    )}
-                    <HeaderButtonsContainer>
+                    <HeaderButtonsContainer hasTag={showContextTag}>
+                        {showContextTag && (
+                            <RequestContextBadge onOpen={onRequestContext} />
+                        )}
                         <MenuButton appearance="icon" onClick={handleOnMenuClick} data-testid={`type-node-${displayName}-menu`} disabled={readonly}>
                             <MoreVertIcon />
                         </MenuButton>

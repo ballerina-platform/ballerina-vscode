@@ -24,20 +24,19 @@ import { RequestContextBadge } from "../components/entity-relationship/EntityNod
 import { structureOf } from "../Diagram";
 
 describe("RequestContextBadge", () => {
-    it.each([[[]], [["scope"]], [["scope", "tenant", "page"]]])(
-        "shows only an icon, never a count, for %p", (keys: string[]) => {
-            render(<RequestContextBadge context={{ functionName: "graphqlContextInit", keys }} onOpen={jest.fn()} />);
-            const badge = screen.getByTestId("request-context-badge");
-            expect(badge).toHaveTextContent(/^$/);
-            expect(badge).toHaveAccessibleName("Request context. Open Request Context");
-        });
+    it("reads Context and says what it means", () => {
+        render(<RequestContextBadge onOpen={jest.fn()} />);
+        const badge = screen.getByTestId("request-context-badge");
+        expect(badge).toHaveTextContent(/^Context$/);
+        expect(badge).toHaveAccessibleName("Request context. Open Request Context");
+    });
 
     it("opens the editor on click without the click reaching the node", () => {
         const onOpen = jest.fn();
         const onNodeClick = jest.fn();
         render(
             <div onClick={onNodeClick}>
-                <RequestContextBadge context={{ keys: ["scope"] }} onOpen={onOpen} />
+                <RequestContextBadge onOpen={onOpen} />
             </div>
         );
         fireEvent.click(screen.getByTestId("request-context-badge"));

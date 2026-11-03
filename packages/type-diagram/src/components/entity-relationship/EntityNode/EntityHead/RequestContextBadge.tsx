@@ -18,61 +18,53 @@
 
 import React from 'react';
 import styled from '@emotion/styled';
-import { Button, Icon, ThemeColors, Tooltip } from '@wso2/ui-toolkit';
-import { RequestContextSummary } from '../../../common/DiagramContext/DiagramContext';
+import { Codicon, ThemeColors, Tooltip } from '@wso2/ui-toolkit';
 
-// The same icon button as the node's ⋮ menu, so the two read as one group of header controls: same size, same
-// hover, same focus ring. It carries no text or count; the tooltip says what it is.
-const ContextButton = styled(Button)`
-    border-radius: 5px;
-`;
-
-const TooltipList = styled.div`
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    padding: 2px 0;
-    font-size: 12px;
-    white-space: nowrap;
-`;
-
-const TooltipTitle = styled.span`
-    font-weight: 600;
-`;
-
-const TooltipDetail = styled.span`
-    font-family: var(--vscode-editor-font-family);
-`;
-
-const TooltipHint = styled.span`
-    margin-top: 4px;
+// A status tag, not a type chip. In this node a filled, square-cornered grey chip means a field's type, so the
+// indicator deliberately differs on every axis: a rounded pill, an outline instead of a fill, and a leading check in
+// the accent colour, which says "configured". It is vertically centred with the ⋮ menu.
+const ContextTag = styled.button`
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+    height: 20px;
+    margin-right: 2px;
+    padding: 0 8px 0 6px;
+    border: 1px solid ${ThemeColors.OUTLINE_VARIANT};
+    border-radius: 10px;
+    background: transparent;
     color: ${ThemeColors.ON_SURFACE_VARIANT};
+    font-family: GilmerRegular;
+    font-size: 11px;
+    line-height: 18px;
+    white-space: nowrap;
+    cursor: pointer;
+
+    &:hover {
+        border-color: ${ThemeColors.PRIMARY};
+        color: ${ThemeColors.ON_SURFACE};
+    }
+
+    &:focus-visible {
+        outline: 1px solid ${ThemeColors.PRIMARY};
+        outline-offset: 1px;
+    }
 `;
 
 interface RequestContextBadgeProps {
-    context: RequestContextSummary;
     onOpen: () => void;
 }
 
 /**
- * The root node's request context indicator: an icon button beside the ⋮ menu, shown when the service has a
- * request context. Hovering names the function and the values it sets; clicking opens the Request Context editor.
+ * The root node's request context indicator: a "Context" status tag beside the ⋮ menu, shown when the service
+ * has a request context. Clicking opens the Request Context editor.
  */
-export function RequestContextBadge({ context, onOpen }: RequestContextBadgeProps) {
-    const content = (
-        <TooltipList>
-            <TooltipTitle>Request context</TooltipTitle>
-            {context.functionName && <TooltipDetail>{context.functionName}</TooltipDetail>}
-            {context.keys.length > 0
-                ? <TooltipDetail>{context.keys.join(', ')}</TooltipDetail>
-                : <span>No values set yet</span>}
-            <TooltipHint>Click to edit</TooltipHint>
-        </TooltipList>
-    );
+export function RequestContextBadge({ onOpen }: RequestContextBadgeProps) {
     return (
-        <Tooltip content={content} position="top">
-            <ContextButton
-                appearance="icon"
+        <Tooltip content="Context is configured" position="top">
+            <ContextTag
+                type="button"
                 aria-label="Request context. Open Request Context"
                 data-testid="request-context-badge"
                 onClick={(event: React.MouseEvent) => {
@@ -80,8 +72,13 @@ export function RequestContextBadge({ context, onOpen }: RequestContextBadgeProp
                     onOpen();
                 }}
             >
-                <Icon name="bi-variable" sx={{ width: 16, height: 16, fontSize: 16 }} iconSx={{ fontSize: 16 }} />
-            </ContextButton>
+                <Codicon
+                    name="check"
+                    sx={{ fontSize: 12, width: 12, height: 12 }}
+                    iconSx={{ fontSize: 12, color: ThemeColors.PRIMARY }}
+                />
+                Context
+            </ContextTag>
         </Tooltip>
     );
 }
