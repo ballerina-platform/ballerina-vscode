@@ -135,7 +135,17 @@ export type FormField = {
 export type FieldGroup = {
     id: string;
     label: string;
+    /** Shown at the top of the section: what it is for, or what filling it in takes. */
+    description?: string;
     defaultCollapsed?: boolean;
+    /**
+     * Keys of member fields of which at least one must be filled before the form saves, though each is optional
+     * on its own: e.g. a task names its roles, its users, or both. Such a section is marked required on its
+     * header, and a save without one opens it with its description shown as the error.
+     */
+    requireAnyOf?: string[];
+    /** Id of the section this one renders inside, after that section's own fields; absent for a top-level one. */
+    parent?: string;
 };
 
 export type ParameterValue = {

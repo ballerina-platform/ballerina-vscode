@@ -59,6 +59,7 @@ import io.ballerina.compiler.syntax.tree.Token;
 import io.ballerina.flowmodelgenerator.core.Constants;
 import io.ballerina.flowmodelgenerator.core.UserFacingException;
 import io.ballerina.flowmodelgenerator.core.model.FormBuilder;
+import io.ballerina.flowmodelgenerator.core.model.FormGroup;
 import io.ballerina.flowmodelgenerator.core.model.NodeBuilder;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Option;
@@ -1964,10 +1965,81 @@ public class WorkflowUtil {
     /**
      * What to say when a task names nobody. One wording, because the same rule is checked in the
      * panel before a save and again here when the source is written, and the person sees whichever
-     * got there first. Mirrored in the designer's own check (workflowAudienceValidation.ts).
+     * got there first. Mirrored in the designer's own check (workflowAudienceValidation.ts), which the
+     * review forms still use.
      */
     public static final String AUDIENCE_REQUIRED_MESSAGE =
             "Name who may decide this: fill in the roles, the users, or both";
+
+    /**
+     * The property keys of one form's six audience fields. The module shares these fields across a workflow's
+     * human task, a durable agent's task and an activity's review, and each form names them its own way, so the
+     * grouping is described once over the keys.
+     *
+     * @param roles         the deciding roles
+     * @param users         the deciding users
+     * @param excludedUsers users who may not decide, whatever their roles
+     * @param excludedRoles roles whose holders may not decide
+     * @param adminRoles    roles that administer the task
+     * @param adminUsers    users who administer the task
+     */
+    public record AudienceKeys(String roles, String users, String excludedUsers, String excludedRoles,
+                               String adminRoles, String adminUsers) {
+
+        /**
+         * A task form's keys: the shared field names, with the form's own key for the deciding roles.
+         *
+         * @param userRolesKey property key of the deciding roles
+         * @return the keys
+         */
+        public static AudienceKeys task(String userRolesKey) {
+            return new AudienceKeys(userRolesKey, USERS_KEY, EXCLUDED_USERS_KEY, EXCLUDED_ROLES_KEY,
+                    ADMINISTRATOR_ROLES_KEY, ADMINISTRATOR_USERS_KEY);
+        }
+    }
+
+    private static final String DECIDERS_GROUP_LABEL = "Who decides";
+    private static final String DECIDERS_GROUP_DESCRIPTION = "Fill in the roles, the users, or both";
+    private static final String EXCLUDED_GROUP_LABEL = "Excluded";
+    private static final String EXCLUDED_GROUP_DESCRIPTION = "May not decide, whatever their roles";
+    private static final String ADMINISTRATORS_GROUP_LABEL = "Administrators";
+    private static final String ADMINISTRATORS_GROUP_DESCRIPTION =
+            "May see, reassign, move the deadline, fail or complete it";
+
+    /**
+     * The three sections a form's audience renders in, as the module groups it: who decides, who may not and
+     * who administers. Only the first asks for anything. Each field is optional on its own, but the roles or the
+     * users must name someone, so "Who decides" is required and open, and the form holds the save until one is
+     * filled. The exclusions and administrators name nobody who decides, so they sit inside it, collapsed.
+     *
+     * @param id   prefix of the section ids, unique within the form
+     * @param keys the form's audience keys
+     * @return the sections, "Who decides" first
+     */
+    public static List<FormGroup> audienceGroups(String id, AudienceKeys keys) {
+        String decidersId = id + "-deciders";
+        return List.of(
+                new FormGroup(decidersId, DECIDERS_GROUP_LABEL, DECIDERS_GROUP_DESCRIPTION, false,
+                        List.of(keys.roles(), keys.users())),
+                new FormGroup(id + "-excluded", EXCLUDED_GROUP_LABEL, EXCLUDED_GROUP_DESCRIPTION, true,
+                        List.of(), decidersId),
+                new FormGroup(id + "-administrators", ADMINISTRATORS_GROUP_LABEL, ADMINISTRATORS_GROUP_DESCRIPTION,
+                        true, List.of(), decidersId));
+    }
+
+    /**
+     * Places a form's audience fields, those present, in its {@link #audienceGroups audience sections}.
+     *
+     * @param properties the live property map, updated in place
+     * @param id         prefix of the section ids, unique within the form
+     * @param keys       the form's audience keys
+     */
+    public static void groupAudience(Map<String, Property> properties, String id, AudienceKeys keys) {
+        List<FormGroup> groups = audienceGroups(id, keys);
+        groups.get(0).assign(properties, keys.roles(), keys.users());
+        groups.get(1).assign(properties, keys.excludedUsers(), keys.excludedRoles());
+        groups.get(2).assign(properties, keys.adminRoles(), keys.adminUsers());
+    }
 
     /** Property key of the step identity a call takes to name itself in the descriptor graph. */
     public static final String STEP_ID_KEY = "stepId";
