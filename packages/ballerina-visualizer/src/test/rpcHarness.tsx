@@ -22,7 +22,7 @@
 // share ONE context:
 //
 //   jest.mock("@wso2/ballerina-rpc-client", () => {
-//       const h = require("../../test/rpcHarness");
+//       const h = require("../../rpcHarness");
 //       return { __esModule: true, useRpcContext: h.useRpcContext, Context: h.TestRpcContext };
 //   });
 //

@@ -29,9 +29,9 @@ Four **scope levels**, ordered by how much of the system each test actually runs
 
 | Level | Tests | Runtime | Env | PR-gated | Location |
 |---|---|---|---|---|---|
-| **L1** Unit / contract | pure logic + shared-type (enum) invariants | ms | node/jsdom | ✅ | `<pkg>/src/**`, `ballerina-core/src/test` |
-| **L2** Component (render) | React components from data | 10–100 ms | jsdom | ✅ | `<pkg>/src/**` |
-| **L3** LS-integration | real headless LS over stdio | seconds | node/jsdom | ❌ nightly | `ballerina-extension/.../ls-integration` + `*.capture.test.ts` |
+| **L1** Unit / contract | pure logic + shared-type (enum) invariants | ms | node/jsdom | ✅ | `<pkg>/src/test/**` |
+| **L2** Component (render) | React components from data | 10–100 ms | jsdom | ✅ | `<pkg>/src/test/**` |
+| **L3** LS-integration | real headless LS over stdio | seconds | node/jsdom | ❌ nightly | `ballerina-extension/src/test/ls-integration` + `*.capture.test.ts` |
 | **L4** E2E smoke | full VSCode via Playwright | minutes | vscode | matrix | `ballerina-extension/e2e-test` |
 | _orthogonal_ · **Perf / QA** | latency baselines, visual/a11y | seconds | node | ❌ manual | `ballerina-extension/.../perf` |
 
@@ -63,8 +63,8 @@ If the function is trapped in a heavy file, extract it first (move + re-export; 
 **Example files.**
 - [`enums.contract.test.ts`](../packages/ballerina-core/src/test/enums.contract.test.ts) — the auto-discovering enum contract-invariant suite.
 - [`editorUtils.test.ts`](../packages/ballerina-side-panel/src/test/editorUtils.test.ts) · [`typeCompletionUtils.test.ts`](../packages/ballerina-side-panel/src/test/typeCompletionUtils.test.ts) · [`formValidationUtils.test.ts`](../packages/ballerina-side-panel/src/test/formValidationUtils.test.ts) — side-panel value/validation utils.
-- [`diagnostics.test.ts`](../packages/ballerina-visualizer/src/utils/diagnostics.test.ts) · [`range.test.ts`](../packages/ballerina-visualizer/src/utils/range.test.ts) · [`convertConfig.test.ts`](../packages/ballerina-visualizer/src/utils/convertConfig.test.ts) — visualizer diagnostic filtering / range math / form assembly (extracted from `bi.tsx`).
-- [`TypeBrowser/utils.test.ts`](../packages/ballerina-visualizer/src/views/BI/ServiceDesigner/components/TypeBrowser/utils.test.ts) — type-search matching invariants (#602/#619).
+- [`diagnostics.test.ts`](../packages/ballerina-visualizer/src/test/utils/diagnostics.test.ts) · [`range.test.ts`](../packages/ballerina-visualizer/src/test/utils/range.test.ts) · [`convertConfig.test.ts`](../packages/ballerina-visualizer/src/test/utils/convertConfig.test.ts) — visualizer diagnostic filtering / range math / form assembly (extracted from `bi.tsx`).
+- [`TypeBrowser/utils.test.ts`](../packages/ballerina-visualizer/src/test/views/BI/ServiceDesigner/components/TypeBrowser/utils.test.ts) — type-search matching invariants (#602/#619).
 
 ---
 
@@ -149,9 +149,9 @@ BAL_UPDATE_FIXTURES=1 npx jest --config jest.realdata.config.js
 
 **Example files.**
 - [`ls-harness.js`](../packages/test-config/ls-harness.js) — the shared spawn/initialize/request harness, published from `@wso2/test-config` and imported as `@wso2/test-config/ls-harness`.
-- [`ls.test.ts`](../packages/ballerina-extension/src/test-support/ls-integration/ls.test.ts) — baseline LS requests.
-- [`nodeTemplateInvariants.test.ts`](../packages/ballerina-extension/src/test-support/ls-integration/nodeTemplateInvariants.test.ts) — connector node-template type invariants (#1491 class; intentionally red until the LS bug is fixed).
-- [`headlessHost.test.ts`](../packages/ballerina-extension/src/test-support/ls-integration/headlessHost.test.ts) — real rpc-manager handler against the real LS.
+- [`ls.test.ts`](../packages/ballerina-extension/src/test/ls-integration/ls.test.ts) — baseline LS requests.
+- [`nodeTemplateInvariants.test.ts`](../packages/ballerina-extension/src/test/ls-integration/nodeTemplateInvariants.test.ts) — connector node-template type invariants (#1491 class; intentionally red until the LS bug is fixed).
+- [`headlessHost.test.ts`](../packages/ballerina-extension/src/test/ls-integration/headlessHost.test.ts) — real rpc-manager handler against the real LS.
 
 ---
 

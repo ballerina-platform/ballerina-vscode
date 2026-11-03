@@ -35,6 +35,7 @@
         ".vscode-test",
         "target",
         "extractedDistribution",
+        "src/test",
         "src/test-support"
     ],
     "include": [
