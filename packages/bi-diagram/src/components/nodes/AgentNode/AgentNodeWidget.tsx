@@ -1087,23 +1087,26 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
         ...(!isTypeDefinition ? [{ id: "delete", label: "Delete", onClick: () => deleteNode() }] : []),
     ];
 
-    const toolMenuItems = (tool: ToolData): Item[] => [
-        ...(agentNode?.onSelectTool || agentNode?.onSelectMcpToolkit ? [{
-            id: "edit",
-            label: "Edit",
-            onClick: () => onToolClick(tool),
-        }] : []),
-        ...(agentNode?.goToTool ? [{
-            id: "view",
-            label: "View",
-            onClick: () => onImplementTool(tool),
-        }] : []),
-        ...(agentNode?.onDeleteTool ? [{
-            id: "delete",
-            label: "Delete",
-            onClick: () => onDeleteTool(tool),
-        }] : []),
-    ];
+    const toolMenuItems = (tool: ToolData): Item[] => {
+        const canOpen = agentNode?.canOpenTool?.(tool) ?? true;
+        return [
+            ...(canOpen && (agentNode?.onSelectTool || agentNode?.onSelectMcpToolkit) ? [{
+                id: "edit",
+                label: "Edit",
+                onClick: () => onToolClick(tool),
+            }] : []),
+            ...(canOpen && agentNode?.goToTool ? [{
+                id: "view",
+                label: "View",
+                onClick: () => onImplementTool(tool),
+            }] : []),
+            ...(agentNode?.onDeleteTool ? [{
+                id: "delete",
+                label: "Delete",
+                onClick: () => onDeleteTool(tool),
+            }] : []),
+        ];
+    };
 
     const memoryMenuItems: Item[] = [
         {

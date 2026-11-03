@@ -17,14 +17,15 @@
  */
 
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AgentNodeActions } from "@wso2/bi-diagram";
-import { AgentUsage, EVENT_TYPE, FlowNode, MACHINE_VIEW, NodeMetadata, NodePosition, ProjectStructureArtifactResponse, SearchNodesQuery, ToolData }
+import { AgentUsage, EVENT_TYPE, FlowNode, MACHINE_VIEW, NodeMetadata, NodePosition, ProjectStructureArtifactResponse, SearchNodesQuery, ToolData, VisualizerLocation }
     from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { findClassByName, findFunctionByName } from "../FlowDiagram/utils";
 import {
     findAgentScopedNode as findAgentScopedNodeAt,
+    getWorkspaceAgentTools,
     refreshAgentNodeLineRange,
     removeMcpServerFromAgentNode,
     removeToolFromAgentNode,
@@ -84,6 +85,11 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
     const [selectedTool, setSelectedTool] = useState<ToolData>();
     const [selectedAgentName, setSelectedAgentName] = useState("");
     const [backOverride, setBackOverride] = useState<(() => void) | null>(null);
+    const [workspaceTools, setWorkspaceTools] = useState<Map<string, VisualizerLocation>>(new Map());
+    useEffect(() => {
+        void getWorkspaceAgentTools(rpcClient).then(setWorkspaceTools);
+    }, [rpcClient]);
+    const isImportedTool = (tool: ToolData) => tool.name.includes(":");
     const activate = useCallback((node: FlowNode) => {
         setAgentNode(node);
         host.onSelectionChange?.(node);
@@ -214,6 +220,16 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
         if (!tool?.name) {
             return;
         }
+        if (isImportedTool(tool)) {
+            const location = workspaceTools.get(tool.name);
+            if (location) {
+                await rpcClient.getVisualizerRpcClient().openView({
+                    type: EVENT_TYPE.OPEN_VIEW,
+                    location: { ...location, view: form ? MACHINE_VIEW.AIAgentToolForm : MACHINE_VIEW.BIDiagram },
+                });
+            }
+            return;
+        }
         const resolved = await resolveToolFunction(tool.name, node);
         if (!resolved) {
             return;
@@ -231,7 +247,7 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
                 view: form ? MACHINE_VIEW.AIAgentToolForm : MACHINE_VIEW.BIDiagram,
             },
         });
-    }, [resolveToolFunction, rpcClient]);
+    }, [resolveToolFunction, rpcClient, workspaceTools]);
 
     const deleteMcpVariableAndClass = useCallback(async (tool: ToolData) => {
         const variableNodes = await rpcClient.getBIDiagramRpcClient().getModuleNodes();
@@ -336,6 +352,7 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
         },
         onDeleteTool: (tool, node) => void deleteTool(tool, resolve(node)),
         goToTool: (tool, node) => void openTool(tool, resolve(node), false),
+        canOpenTool: (tool) => !isImportedTool(tool) || workspaceTools.has(tool.name),
         onSelectMemoryManager: (node) => void selectMemory(resolve(node)),
         onSelectMemoryStore: (node) => void selectMemoryStore(resolve(node)),
         onDeleteMemoryManager: (node) => void deleteMemory(resolve(node)),
@@ -343,7 +360,7 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
         onAddTrigger: host.onAddTrigger && ((node) => host.onAddTrigger(resolve(node))),
         onDeleteTrigger: host.onDeleteTrigger && ((usage, node) => host.onDeleteTrigger(usage, resolve(node))),
         onTryTrigger: host.onTryTrigger && ((usage, node) => host.onTryTrigger(usage, resolve(node))),
-    }), [activate, deleteMemory, deleteTool, host, openTool, resolve, selectMemory, selectMemoryStore]);
+    }), [activate, deleteMemory, deleteTool, host, openTool, resolve, selectMemory, selectMemoryStore, workspaceTools]);
 
     const setBackHandler = useCallback(
         (handler: (() => void) | null) => setBackOverride(() => handler),

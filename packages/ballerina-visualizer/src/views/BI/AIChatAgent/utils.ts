@@ -660,6 +660,23 @@ export const resolveAgentDefinitionLocation = async (
     return undefined;
 };
 
+// Keyed by how another package references the tool: `<package>:<tool>`.
+export const getWorkspaceAgentTools = async (rpcClient: BallerinaRpcClient): Promise<Map<string, VisualizerLocation>> => {
+    const structure = await rpcClient.getBIDiagramRpcClient().getProjectStructure();
+    const tools = new Map<string, VisualizerLocation>();
+    for (const project of structure?.projects ?? []) {
+        for (const tool of project.directoryMap?.[DIRECTORY_MAP.AGENT_TOOL] ?? []) {
+            tools.set(`${project.projectName}:${tool.name}`, {
+                documentUri: tool.path,
+                position: tool.position,
+                projectPath: project.projectPath,
+                identifier: tool.name,
+            });
+        }
+    }
+    return tools;
+};
+
 export const goToAgentDefinitionFromInstance = async (instanceNode: FlowNode, rpcClient: BallerinaRpcClient) => {
     const location = await resolveAgentDefinitionLocation(instanceNode, rpcClient);
     if (!location) return;
