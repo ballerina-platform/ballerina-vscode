@@ -86,7 +86,7 @@ async function fillExpression(webview: Frame, key: string, value: string): Promi
 // loader up until the refreshed model has rendered, so a click that follows a save too soon finds nothing.
 async function clickAffordance(webview: Frame, kind: 'event' | 'humanTask'): Promise<void> {
     await webview.getByTestId('side-panel').waitFor({ state: 'hidden', timeout: 60000 }).catch(() => undefined);
-    const affordance = webview.getByTestId(`durable-agent-affordance-${kind}`).first();
+    const affordance = webview.getByTestId(`durable-agent-add-${kind}`).first();
     await affordance.waitFor({ state: 'visible', timeout: 60000 });
     await affordance.click({ force: true });
 }
