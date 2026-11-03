@@ -67,7 +67,6 @@ jest.mock("../../components/AgentStatusOrb/orbTheme", () => ({
 
 jest.mock("../../components/AgentStatusOrb/shared", () => ({
     __esModule: true,
-    ACCENT_CORE: "core",
     ACCENT_FRAME: ["f0", "f1", "f2"],
     ACCENT_SPHERE: ["s0", "s1", "s2"],
     AGENT_BUILDER_ORB_COLORS: { idle: ["a0", "a1", "a2"] },
