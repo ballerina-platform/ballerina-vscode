@@ -210,7 +210,7 @@ cd packages/ballerina-extension && pnpm run test:reliability
 
 Not a level, but everything above depends on it:
 - **`@wso2/test-config`** — the shared Jest preset (jsdom, transforms, asset mocks, single-React pin) + `loadFixture(s)`. Adopt in ~3 lines: add the devDeps + `jest.config.js` = `{ ...require('@wso2/test-config/jest-preset'), rootDir: '.' }`. Full recipe: [`packages/test-config/README.md`](../packages/test-config/README.md).
-- **Fixture recorder** — [`fixtureRecorder.ts`](../packages/ballerina-extension/src/test-support/fixtureRecorder.ts): env-gated (`BAL_RECORD_FIXTURES`) taps on the LS client + webview RPC that dump `{method, request, response}`. Dormant otherwise (zero production impact).
+- **Fixture recorder** — [`fixtureRecorder.ts`](../packages/ballerina-extension/src/utils/fixtureRecorder.ts): env-gated (`BAL_RECORD_FIXTURES`) taps on the LS client + webview RPC that dump `{method, request, response}`. Dormant otherwise (zero production impact).
 - **Capture script** — [`capture-fixtures.js`](../packages/ballerina-extension/scripts/capture-fixtures.js) (`pnpm run capture-fixtures`): runs the E2E with recording on and dedupes the dump into per-method fixtures.
 
 > **Review captured fixtures before committing.** Secret redaction is **key-name based** (`token`, `password`, `apiKey`, …) — a secret embedded inside a *value* under a non-matching key (e.g. a token in a URL query string) is **not** masked. The recorder is env-gated and fixtures are curated, so eyeball every new/updated `fixture.json` for leaked credentials or machine-specific data before it lands.

@@ -22,7 +22,7 @@
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { methodToSlug, redactSecrets, rewritePaths, isRecording, recordLs } from "../test-support/fixtureRecorder";
+import { methodToSlug, redactSecrets, rewritePaths, isRecording, recordLs } from "../utils/fixtureRecorder";
 
 describe("methodToSlug", () => {
     it("converts slashes to dots", () => {

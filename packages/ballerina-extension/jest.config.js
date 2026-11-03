@@ -38,6 +38,6 @@ module.exports = {
     },
     transformIgnorePatterns: ['<rootDir>/node_modules/(?!(@wso2)/)'],
     collectCoverageFrom: [
-        'src/test-support/**/*.ts',
+        'src/utils/fixtureRecorder.ts',
     ],
 };
