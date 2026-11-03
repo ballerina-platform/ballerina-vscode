@@ -35,6 +35,7 @@ export const window = {
     showWarningMessage: (_message?: string, ..._items: string[]): Promise<string | undefined> =>
         Promise.resolve(undefined),
     showOpenDialog: (_options?: unknown): Promise<{ fsPath: string }[] | undefined> => Promise.resolve(undefined),
+    showTextDocument: (_uri: unknown, _options?: unknown): Promise<unknown> => Promise.resolve(undefined),
     showQuickPick: (_items?: readonly string[], _options?: { placeHolder?: string }): Promise<string | undefined> =>
         Promise.resolve(undefined),
     withProgress: <T>(_options: unknown, task: (progress: { report(_v: unknown): void }) => Thenable<T>) =>
