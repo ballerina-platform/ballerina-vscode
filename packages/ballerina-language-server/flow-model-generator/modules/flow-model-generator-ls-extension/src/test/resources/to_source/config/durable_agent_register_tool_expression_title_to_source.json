@@ -90,14 +90,14 @@
         "range": {
           "start": {
             "line": 20,
-            "character": 5
+            "character": 4
           },
           "end": {
             "line": 20,
             "character": 5
           }
         },
-        "newText": "\n,\n    tools: [{tool: searchClaimDocs, approvalPolicy: {userRoles: \"finance\", title: refundTitle}}]"
+        "newText": "],\n    tools: [{tool: searchClaimDocs, approvalPolicy: {userRoles: \"finance\", title: refundTitle}}]"
       }
     ]
   }

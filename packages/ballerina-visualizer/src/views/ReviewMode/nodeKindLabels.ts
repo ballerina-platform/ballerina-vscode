@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { NodeKindEnum, SemanticDiff } from "@wso2/ballerina-core";
+import { NodeKindEnum, ObjectFunctionKind, SemanticDiff } from "@wso2/ballerina-core";
 
 /**
  * Shared nodeKind wording for the review surfaces (ReviewMode + ReviewBar) — a deliberate
@@ -24,7 +24,6 @@ import { NodeKindEnum, SemanticDiff } from "@wso2/ballerina-core";
  */
 const NODE_KIND_LABELS: Record<number, string> = {
     [NodeKindEnum.MODULE_FUNCTION]: "function",
-    [NodeKindEnum.OBJECT_FUNCTION]: "resource",
     [NodeKindEnum.TYPE_DEFINITION]: "type",
     [NodeKindEnum.DATA_MAPPING_FUNCTION]: "data mapping",
     [NodeKindEnum.MODULE_VARIABLE]: "variable",
@@ -35,14 +34,34 @@ const NODE_KIND_LABELS: Record<number, string> = {
     [NodeKindEnum.IMPORT_DECLARATION]: "import",
 };
 
+const OBJECT_FUNCTION_KIND_LABELS: Record<ObjectFunctionKind, string> = {
+    resource: "resource",
+    remote: "remote",
+    init: "init",
+    method: "method",
+};
+
 export function getNodeKindLabel(nodeKind: number, metadata?: SemanticDiff["metadata"]): string {
-    // OBJECT_FUNCTION covers both service resource/remote members and plain class
-    // methods; only the former carry resource metadata (accessor/servicePath).
-    if (nodeKind === NodeKindEnum.OBJECT_FUNCTION
-        && !(metadata as { accessor?: string } | undefined)?.accessor) {
-        return "method";
+    if (nodeKind === NodeKindEnum.OBJECT_FUNCTION) {
+        return OBJECT_FUNCTION_KIND_LABELS[getObjectFunctionKind(metadata)] ?? "method";
     }
     return NODE_KIND_LABELS[nodeKind] ?? "component";
+}
+
+/**
+ * Kind of an OBJECT_FUNCTION diff. When an older LS sends no functionKind, it is inferred:
+ * resources have an accessor and a resource path, and remote functions came with the function
+ * name as the accessor and an empty resource path.
+ */
+export function getObjectFunctionKind(metadata?: SemanticDiff["metadata"]): ObjectFunctionKind {
+    const m = metadata as { functionKind?: ObjectFunctionKind; accessor?: string; resourcePath?: string } | undefined;
+    if (m?.functionKind) {
+        return m.functionKind;
+    }
+    if (!m?.accessor) {
+        return "method";
+    }
+    return m.resourcePath ? "resource" : "remote";
 }
 
 /**

@@ -1,0 +1,89 @@
+{
+  "source": "durable_agent_module.bal",
+  "description": "Edit a listed data event whose line moved after the form opened: the conversion is refused instead of writing the key twice",
+  "diagram": {
+    "id": "1",
+    "metadata": {
+      "label": "Register Event",
+      "description": "Register Event"
+    },
+    "codedata": {
+      "node": "DURABLE_AGENT_REGISTER_EVENT",
+      "org": "ballerina",
+      "module": "workflow",
+      "object": "DurableAgent",
+      "symbol": "registerUpdateEvents",
+      "parentSymbol": "supportAgent",
+      "lineRange": {
+        "fileName": "durable_agent_module.bal",
+        "startLine": {
+          "line": 12,
+          "offset": 4
+        },
+        "endLine": {
+          "line": 12,
+          "offset": 5
+        }
+      },
+      "isNew": false
+    },
+    "returning": false,
+    "properties": {
+      "name": {
+        "metadata": {
+          "label": "Name",
+          "description": "Name"
+        },
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "selected": true,
+            "ballerinaType": "string"
+          }
+        ],
+        "value": "payment",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "requestType": {
+        "metadata": {
+          "label": "Request Type",
+          "description": "Request Type"
+        },
+        "types": [
+          {
+            "fieldType": "TYPE",
+            "selected": true,
+            "ballerinaType": "json"
+          }
+        ],
+        "value": "Payment",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "cardinality": {
+        "metadata": {
+          "label": "Cardinality",
+          "description": "Cardinality"
+        },
+        "types": [
+          {
+            "fieldType": "SINGLE_SELECT",
+            "selected": true
+          }
+        ],
+        "value": "",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      }
+    },
+    "flags": 0
+  },
+  "output": {}
+}

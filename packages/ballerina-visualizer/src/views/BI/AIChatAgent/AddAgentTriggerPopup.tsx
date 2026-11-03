@@ -27,6 +27,7 @@ import ButtonCard from '../../../components/ButtonCard';
 import { RelativeLoader } from '../../../components/RelativeLoader';
 import { getIntegrationIcon } from '../ComponentListView/integrationIcon';
 import { cardMatchesSearch, isBetaModule } from '../ComponentListView/componentListUtils';
+import { VOICE_AGENT_ARTIFACT_INFO } from '../components/artifactCards';
 import { CentralSearchPanel } from '../ComponentListView/CentralSearchPanel';
 import {
     BackButton,
@@ -103,11 +104,28 @@ const channelDefaults = (channel: ServiceModel, agentName: string) =>
         ? { basePath: deriveBasePath(agentName) }
         : undefined;
 
+// Chat and voice match their cards on the Integrator's Add Artifact screen, not their module's brand glyph.
+const CHANNEL_CODICONS: Record<string, string> = {
+    ai: "comment-discussion",
+    [VOICE_AGENT_ARTIFACT_INFO.moduleName]: "mic",
+};
+
+// The built-in chat and voice channels lead their section; the rest follow by name.
+const PINNED_CHANNELS = ["ai", VOICE_AGENT_ARTIFACT_INFO.moduleName];
+
+const pinRank = (channel: ServiceModel) => {
+    const rank = PINNED_CHANNELS.indexOf(channel.moduleName);
+    return rank === -1 ? PINNED_CHANNELS.length : rank;
+};
+
+const byPinThenName = (a: ServiceModel, b: ServiceModel) =>
+    pinRank(a) - pinRank(b) || a.name.localeCompare(b.name);
+
 const channelIcon = (channel: ServiceModel) =>
-    channel.moduleName === "ai"
+    CHANNEL_CODICONS[channel.moduleName]
         ? (
             <Icon
-                name="comment-discussion"
+                name={CHANNEL_CODICONS[channel.moduleName]}
                 isCodicon
                 sx={{ display: "flex", alignItems: "center", justifyContent: "center" }}
                 iconSx={{ fontSize: "24px", width: "24px", height: "24px" }}
@@ -166,7 +184,7 @@ export function AddAgentTriggerPopup(props: AddAgentTriggerPopupProps) {
                 channels: (triggers.local ?? [])
                     .filter((trigger) => trigger.agentTriggerKind === section.kind
                         && cardMatchesSearch(trigger.name, query, trigger.moduleName))
-                    .sort((a, b) => a.name.localeCompare(b.name)),
+                    .sort(byPinThenName),
             }))
             .filter((section) => section.channels.length > 0 && (!agentEvent || section.kind in EVENT_TRIGGER_SECTIONS)),
         [triggers, query, agentEvent]

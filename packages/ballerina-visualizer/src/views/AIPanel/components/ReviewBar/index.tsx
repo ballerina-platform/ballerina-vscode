@@ -19,8 +19,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import styled from "@emotion/styled";
 import { SemanticDiff, ChangeTypeEnum, NodeKindEnum, MACHINE_VIEW, VisualizerLocation } from "@wso2/ballerina-core";
-import { getNodeKindLabel } from "../../../ReviewMode/nodeKindLabels";
+import { getNodeKindLabel, getObjectFunctionKind } from "../../../ReviewMode/nodeKindLabels";
 import { getColorByMethod } from "../../../BI/ServiceDesigner/components/ResourceAccordion";
+import { getServiceGroupInfo, ServiceGroupInfo } from "./serviceGroups";
 
 const Container = styled.div<{ subtle?: boolean; expanded?: boolean }>`
     display: flex;
@@ -277,6 +278,7 @@ interface DiffEntry {
 interface DiffGroup {
     groupLabel: string;
     entries: DiffEntry[];
+    service?: ServiceGroupInfo;
 }
 
 type ViewMode = "diagram" | "code";
@@ -341,10 +343,10 @@ function getFileName(filePath: string): string {
 function getDiffLabel(diff: SemanticDiff): string {
     if (diff.metadata) {
         if (diff.nodeKind === NODE_KIND_RESOURCE) {
-            // Class methods are OBJECT_FUNCTION diffs too but carry only `name` —
-            // fall through to it when there's no resource path.
-            const m = diff.metadata as { accessor?: string; servicePath?: string; resourcePath?: string };
-            if (m.resourcePath) return m.resourcePath;
+            const m = diff.metadata as { accessor?: string; resourcePath?: string; name?: string };
+            if (getObjectFunctionKind(diff.metadata) === "resource" && m.resourcePath) return m.resourcePath;
+            // An older LS sent a remote function's name as the accessor.
+            if (!m.name && m.accessor) return m.accessor;
         }
         const m = diff.metadata as { name?: string };
         if (m.name) return m.name;
@@ -446,7 +448,7 @@ function buildPackageGroups(
 function buildGroupsWithOffset(semanticDiffs: SemanticDiff[], startIndex: number): { groups: DiffGroup[]; viewCount: number } {
     let viewIndex = startIndex;
 
-    const serviceGroups: Record<string, DiffEntry[]> = {};
+    const serviceGroups: Record<string, DiffGroup> = {};
     const functionEntries: DiffEntry[] = [];
     const typeEntries: DiffEntry[] = [];
     // Non-diagram construct kinds (constants, module vars, listeners, classes, enums, imports)
@@ -458,17 +460,13 @@ function buildGroupsWithOffset(semanticDiffs: SemanticDiff[], startIndex: number
         if (isType && hasTypeView) continue;
         if (isType) hasTypeView = true;
 
-        // OBJECT_FUNCTION covers both service members and plain class methods; only the
-        // former carry a servicePath, and only they belong under a service group.
-        const servicePath = diff.nodeKind === NODE_KIND_RESOURCE
-            ? (diff.metadata as { servicePath?: string } | undefined)?.servicePath
-            : undefined;
+        const service = getServiceGroupInfo(diff);
 
         const entry: DiffEntry = {
             symbol: getSymbol(diff.changeType),
             changeType: diff.changeType,
             label: isType ? "Types" : getDiffLabel(diff),
-            accessor: servicePath !== undefined
+            accessor: service && getObjectFunctionKind(diff.metadata) === "resource"
                 ? (diff.metadata as { accessor?: string } | undefined)?.accessor?.toUpperCase()
                 : undefined,
             kindLabel: getDiffKindLabel(diff),
@@ -477,10 +475,11 @@ function buildGroupsWithOffset(semanticDiffs: SemanticDiff[], startIndex: number
         };
         viewIndex++;
 
-        if (servicePath !== undefined) {
-            const svcPath = servicePath || "/";
-            if (!serviceGroups[svcPath]) serviceGroups[svcPath] = [];
-            serviceGroups[svcPath].push(entry);
+        if (service) {
+            if (!serviceGroups[service.key]) {
+                serviceGroups[service.key] = { groupLabel: `service ${service.key}`, entries: [], service };
+            }
+            serviceGroups[service.key].entries.push(entry);
         } else if (diff.nodeKind === NODE_KIND_FUNCTION || diff.nodeKind === NODE_KIND_RESOURCE) {
             // Plain functions, and class methods (OBJECT_FUNCTION without a service path)
             functionEntries.push(entry);
@@ -493,9 +492,7 @@ function buildGroupsWithOffset(semanticDiffs: SemanticDiff[], startIndex: number
 
     const groups: DiffGroup[] = [];
 
-    for (const [svcPath, entries] of Object.entries(serviceGroups)) {
-        groups.push({ groupLabel: `service ${svcPath}`, entries });
-    }
+    groups.push(...Object.values(serviceGroups));
     if (functionEntries.length > 0) {
         groups.push({ groupLabel: "functions", entries: functionEntries });
     }
@@ -642,7 +639,8 @@ const CollapsibleGroupList: React.FC<{
     return (
         <ChangeList>
             {groups.map((group, gi) => {
-                const isService = group.groupLabel.startsWith("service ");
+                const { service } = group;
+                const isService = !!service;
                 const isFunctions = group.groupLabel === "functions";
                 const isTypes = group.groupLabel === "types";
                 const isDesign = group.groupLabel === "design";
@@ -651,7 +649,7 @@ const CollapsibleGroupList: React.FC<{
                 const isCollapsed = !!collapsed[gi];
 
                 const displayLabel = isService
-                    ? group.groupLabel.slice("service ".length)
+                    ? service.displayPath
                     : isDeclarations
                     ? "declarations"
                     : "functions";
@@ -673,7 +671,11 @@ const CollapsibleGroupList: React.FC<{
                                 {isDeclarations && (
                                     <span className="codicon codicon-symbol-variable" style={{ fontSize: "11px", color: "var(--vscode-descriptionForeground)" }} />
                                 )}
-                                {isService && <span style={{ color: "var(--vscode-descriptionForeground)", fontWeight: 400 }}>service</span>}
+                                {isService && (
+                                    <span style={{ color: "var(--vscode-descriptionForeground)", fontWeight: 400 }}>
+                                        {service.serviceType ? `${service.serviceType} service` : "service"}
+                                    </span>
+                                )}
                                 <span>{displayLabel}</span>
                                 <CountBadge>{group.entries.length}</CountBadge>
                             </CollapsibleHeader>

@@ -103,8 +103,17 @@ export function resolveBrandIconFromUrl(url: string | undefined | null): BrandIc
     return resolveBrandIcon(resolveModuleFromIconUrl(url));
 }
 
+/** Matches by the icon URL's module, since the service type carries the import alias. */
+export function isVoiceAgentService(type: string | undefined | null, iconUrl: string | undefined | null): boolean {
+    return resolveModuleFromIconUrl(iconUrl) === VOICE_AGENT_MODULE || !!type?.endsWith(":VoiceService");
+}
+
+/** The module behind the WSO2 Integration voice agent. */
+export const VOICE_AGENT_MODULE = "ai.wso2.integration";
+
 export const ENTRY_TYPE_GLYPH: Record<string, BrandIcon & { isCodicon?: boolean }> = {
     ai: { glyph: "comment-discussion", isCodicon: true },
+    [VOICE_AGENT_MODULE]: { glyph: "mic", isCodicon: true },
     automation: { glyph: "bi-task" },
 };
 

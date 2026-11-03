@@ -16,7 +16,10 @@
  * under the License.
  */
 
+import * as fs from 'fs';
 import * as path from 'path';
+import { promisify } from 'util';
+import * as zlib from 'zlib';
 import {
     WorkspaceChatState,
     ChatThread,
@@ -28,6 +31,7 @@ import {
 import { approvalManager } from '../../features/ai/state/ApprovalManager';
 import { cleanupTempProject } from '../../features/ai/utils/project/temp-project';
 import { generateId } from './idGenerators';
+import { resolveWorkspaceIdentity } from './workspaceIdentity';
 import {
     CopilotPersistenceStore,
     PersistedThread,
@@ -38,6 +42,8 @@ import {
     PersistedCodeContext,
 } from '@wso2/copilot-utilities/chat-persistence';
 
+export { resolveWorkspaceIdentity };
+
 // Console-summary fields persisted alongside the shared schema. They are optional
 // additions, so no schema version bump: the store writes the object as-is, and
 // migrations spread every field through.
@@ -45,25 +51,18 @@ type StoredGeneration = PersistedGeneration & { consoleSummary?: string };
 type StoredThread = PersistedThread & { consoleOrigin?: boolean };
 
 const THREAD_NAME_MAX_LENGTH = 60;
+const CHECKPOINT_GC_DEBOUNCE_MS = 5000;
+const CHECKPOINT_GC_MIN_AGE_MS = 60 * 60 * 1000;
+
+export interface ChatStateStorageOptions {
+    checkpointGc?: { debounceMs?: number; minAgeMs?: number };
+}
 const UNNAMED_THREAD_NAME = 'New Chat';
 
 /** The label auto-naming would give this thread — its first prompt, or the unnamed sentinel. */
 function deriveThreadName(thread: ChatThread): string {
     const firstPrompt = thread.generations[0]?.userPrompt?.slice(0, THREAD_NAME_MAX_LENGTH).trim();
     return firstPrompt || UNNAMED_THREAD_NAME;
-}
-
-/**
- * Resolve a stable workspace identity for persistence hashing.
- *
- * In the cloud editor, every project is checked out at the same filesystem path
- * inside its container, so hashing the path would collide across projects when
- * a container is reused. When the cloud-assigned project id is available via
- * `CLOUD_INITIAL_PROJECT_ID`, use it directly as the identity. Otherwise fall
- * back to the resolved path (local dev and any non-cloud environment).
- */
-export function resolveWorkspaceIdentity(projectRootPath: string): string {
-    return process.env.CLOUD_INITIAL_PROJECT_ID ?? path.resolve(projectRootPath);
 }
 
 /**
@@ -248,9 +247,6 @@ function fromPersistedThread(pt: StoredThread): ChatThread {
     };
 }
 
-// workspaceRoot rides along unchecked by PersistedCheckpoint, which the shared library owns:
-// saveCheckpoint spreads what it is handed and migrateCheckpoint returns the parsed object as-is,
-// so the field survives the round trip without the shared type having to know about it.
 function toPersistedCheckpoint(checkpoint: Checkpoint): Omit<PersistedCheckpoint, 'schemaVersion'> {
     return {
         id: checkpoint.id,
@@ -258,10 +254,22 @@ function toPersistedCheckpoint(checkpoint: Checkpoint): Omit<PersistedCheckpoint
         timestamp: checkpoint.timestamp,
         fileList: checkpoint.fileList,
         snapshotSize: checkpoint.snapshotSize,
+        storage: checkpoint.storage ?? { kind: 'inline' },
         workspaceSnapshot: checkpoint.workspaceSnapshot,
         workspaceRoot: checkpoint.workspaceRoot,
         ignorePatterns: checkpoint.ignorePatterns,
-    } as Omit<PersistedCheckpoint, 'schemaVersion'>;
+    };
+}
+
+const gunzip = promisify(zlib.gunzip);
+
+async function decodesAsJson(raw: Buffer): Promise<boolean> {
+    try {
+        JSON.parse((await gunzip(raw)).toString('utf8'));
+        return true;
+    } catch {
+        return false;
+    }
 }
 
 function fromPersistedCheckpoint(pc: PersistedCheckpoint): Checkpoint {
@@ -272,8 +280,10 @@ function fromPersistedCheckpoint(pc: PersistedCheckpoint): Checkpoint {
         fileList: pc.fileList,
         snapshotSize: pc.snapshotSize,
         workspaceSnapshot: pc.workspaceSnapshot,
-        workspaceRoot: (pc as { workspaceRoot?: string }).workspaceRoot,
-        ignorePatterns: (pc as { ignorePatterns?: string[] }).ignorePatterns,
+        storage: pc.storage,
+        schemaVersion: pc.schemaVersion,
+        workspaceRoot: pc.workspaceRoot,
+        ignorePatterns: pc.ignorePatterns,
     };
 }
 
@@ -304,10 +314,18 @@ export class ChatStateStorage {
 
     private generationStatusObservers: Set<GenerationStatusObserver> = new Set();
 
-    constructor() {
+    private readonly checkpointGcDebounceMs: number;
+    private readonly checkpointGcMinAgeMs: number;
+    private checkpointGcTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
+    private checkpointGcRuns: Map<string, Promise<void>> = new Map();
+    private checkpointStoreLocks: Map<string, Promise<void>> = new Map();
+
+    constructor(options: ChatStateStorageOptions = {}) {
         this.persistenceStore = new CopilotPersistenceStore({
             workspaceIdResolver: resolveWorkspaceIdentity,
         });
+        this.checkpointGcDebounceMs = options.checkpointGc?.debounceMs ?? CHECKPOINT_GC_DEBOUNCE_MS;
+        this.checkpointGcMinAgeMs = options.checkpointGc?.minAgeMs ?? CHECKPOINT_GC_MIN_AGE_MS;
     }
 
     // ============================================
@@ -663,6 +681,7 @@ export class ChatStateStorage {
 
         workspace.threads.delete(threadId);
         this.persistenceStore.deleteThread(projectRootPath, threadId);
+        this.scheduleCheckpointGc(projectRootPath);
 
         if (workspace.activeThreadId === threadId) {
             // Pick the newest remaining thread, or create a fresh one
@@ -779,14 +798,21 @@ export class ChatStateStorage {
     ): Promise<void> {
         try {
             // Dynamic import to avoid circular dependencies
-            const { captureWorkspaceSnapshot } = await import('../../views/ai-panel/checkpoint/checkpointUtils');
+            const { getCheckpointService } = await import('../../views/ai-panel/checkpoint/checkpointService');
             const { notifyCheckpointCaptured } = await import('../../RPCLayer');
 
-            const checkpoint = await captureWorkspaceSnapshot(generationId);
+            const service = getCheckpointService(projectRootPath);
+            const checkpoint = await this.withCheckpointStoreLock(projectRootPath, async () => {
+                const captured = await service.capture(generationId, {
+                    previous: service.pickPrevious(this.inMemoryCheckpoints(projectRootPath)),
+                });
+                if (captured) {
+                    await this.addCheckpointToGeneration(projectRootPath, threadId, generationId, captured);
+                }
+                return captured;
+            });
 
             if (checkpoint) {
-                await this.addCheckpointToGeneration(projectRootPath, threadId, generationId, checkpoint);
-
                 notifyCheckpointCaptured({
                     messageId: generationId,
                     checkpointId: checkpoint.id,
@@ -794,6 +820,153 @@ export class ChatStateStorage {
             }
         } catch (error) {
             console.error('[ChatStateStorage] Failed to capture checkpoint:', error);
+        }
+    }
+
+    private *inMemoryCheckpoints(projectRootPath: string): Iterable<Checkpoint> {
+        for (const thread of this.storage.get(projectRootPath)?.threads.values() ?? []) {
+            for (const generation of thread.generations) {
+                if (generation.checkpoint) {
+                    yield generation.checkpoint;
+                }
+            }
+        }
+    }
+
+    private scheduleCheckpointGc(projectRootPath: string): void {
+        clearTimeout(this.checkpointGcTimers.get(projectRootPath));
+        const timer = setTimeout(() => {
+            this.checkpointGcTimers.delete(projectRootPath);
+            this.startCheckpointGc(projectRootPath);
+        }, this.checkpointGcDebounceMs);
+        timer.unref?.();
+        this.checkpointGcTimers.set(projectRootPath, timer);
+    }
+
+    async flushCheckpointGc(projectRootPath: string): Promise<void> {
+        const timer = this.checkpointGcTimers.get(projectRootPath);
+        if (timer !== undefined) {
+            clearTimeout(timer);
+            this.checkpointGcTimers.delete(projectRootPath);
+            this.startCheckpointGc(projectRootPath);
+        }
+        await this.checkpointGcRuns.get(projectRootPath);
+    }
+
+    private startCheckpointGc(projectRootPath: string): void {
+        const previous = this.checkpointGcRuns.get(projectRootPath) ?? Promise.resolve();
+        const run = previous
+            .then(() => this.collectCheckpointGarbage(projectRootPath))
+            .catch(error => console.error('[ChatStateStorage] Checkpoint garbage collection failed:', error));
+        this.checkpointGcRuns.set(projectRootPath, run);
+        run.finally(() => {
+            if (this.checkpointGcRuns.get(projectRootPath) === run) {
+                this.checkpointGcRuns.delete(projectRootPath);
+            }
+        });
+    }
+
+    private async collectCheckpointGarbage(projectRootPath: string): Promise<void> {
+        await Promise.allSettled([...this.pendingCheckpointCaptures.values()]);
+        const { getCheckpointService } = await import('./checkpoint/checkpointService');
+        const service = getCheckpointService(projectRootPath);
+        if (!service.hasStoredContent()) {
+            return;
+        }
+        // Loaded outside the lock so captures are not held up by reading large persisted checkpoints.
+        const persisted = new Map<string, Checkpoint>();
+        const heldInMemory: [string, string][] = [];
+        for (const threadId of this.persistenceStore.listThreadIds(projectRootPath)) {
+            const inMemory = this.inMemoryGenerationIds(projectRootPath, threadId);
+            for (const generationId of this.persistenceStore.listCheckpoints(projectRootPath, threadId)) {
+                if (inMemory.has(generationId)) {
+                    heldInMemory.push([threadId, generationId]);
+                } else if (!await this.loadForGc(projectRootPath, threadId, generationId, persisted)) {
+                    return;
+                }
+            }
+        }
+        await this.withCheckpointStoreLock(projectRootPath, async () => {
+            for (const [threadId, generationId] of heldInMemory) {
+                if (!this.inMemoryGenerationIds(projectRootPath, threadId).has(generationId)
+                    && !await this.loadForGc(projectRootPath, threadId, generationId, persisted)) {
+                    return;
+                }
+            }
+            const live = [...this.inMemoryCheckpoints(projectRootPath), ...persisted.values()];
+            await service.collectGarbage(live, { minAgeMs: this.checkpointGcMinAgeMs });
+        });
+    }
+
+    private inMemoryGenerationIds(projectRootPath: string, threadId: string): Set<string> {
+        const generations = this.storage.get(projectRootPath)?.threads.get(threadId)?.generations ?? [];
+        return new Set(generations.filter(g => g.checkpoint).map(g => g.id));
+    }
+
+    /** Adds a persisted checkpoint to `into`; false means GC cannot tell which blobs it holds and must not run. */
+    private async loadForGc(
+        projectRootPath: string, threadId: string, generationId: string, into: Map<string, Checkpoint>
+    ): Promise<boolean> {
+        const loaded = await this.persistenceStore.loadCheckpointAsync(projectRootPath, threadId, generationId);
+        if (loaded) {
+            into.set(`${threadId}/${generationId}`, fromPersistedCheckpoint(loaded));
+            return true;
+        }
+        const file = this.checkpointFile(projectRootPath, threadId, generationId);
+        let raw: Buffer;
+        try {
+            raw = await fs.promises.readFile(file);
+        } catch (error) {
+            if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') {
+                return true;
+            }
+            console.warn(`[ChatStateStorage] Skipping checkpoint garbage collection: cannot read checkpoint ${generationId}:`, error);
+            return false;
+        }
+        if (await decodesAsJson(raw)) {
+            // The file reads and parses now, so the failed load was transient or a migration failure; retry once.
+            const retried = await this.persistenceStore.loadCheckpointAsync(projectRootPath, threadId, generationId);
+            if (retried) {
+                into.set(`${threadId}/${generationId}`, fromPersistedCheckpoint(retried));
+                return true;
+            }
+        }
+        if (!this.quarantineCheckpoint(file, generationId)) {
+            console.warn(`[ChatStateStorage] Skipping checkpoint garbage collection: checkpoint ${generationId} is unreadable`);
+            return false;
+        }
+        return true;
+    }
+
+    private checkpointFile(projectRootPath: string, threadId: string, generationId: string): string {
+        return path.join(this.getThreadDir(projectRootPath, threadId), 'checkpoints', `${generationId}.snapshot.gz`);
+    }
+
+    // A capture can reuse a blob a sweep has already judged unused; running them one at a time closes that gap.
+    // Keyed like the blob store, so roots that share one store share one lock.
+    private withCheckpointStoreLock<T>(projectRootPath: string, task: () => Promise<T>): Promise<T> {
+        const key = resolveWorkspaceIdentity(projectRootPath);
+        const previous = this.checkpointStoreLocks.get(key) ?? Promise.resolve();
+        const run = previous.then(task);
+        const settled = run.then(() => undefined, () => undefined);
+        this.checkpointStoreLocks.set(key, settled);
+        settled.then(() => {
+            if (this.checkpointStoreLocks.get(key) === settled) {
+                this.checkpointStoreLocks.delete(key);
+            }
+        });
+        return run;
+    }
+
+    // An unreadable checkpoint can never be restored, but while it is listed GC cannot tell which blobs it holds.
+    private quarantineCheckpoint(file: string, generationId: string): boolean {
+        try {
+            fs.renameSync(file, `${file}.unreadable`);
+            console.warn(`[ChatStateStorage] Moved unreadable checkpoint ${generationId} aside to ${file}.unreadable`);
+            return true;
+        } catch (error) {
+            console.error(`[ChatStateStorage] Failed to move unreadable checkpoint ${generationId} aside:`, error);
+            return false;
         }
     }
 
@@ -844,6 +1017,7 @@ export class ChatStateStorage {
             this.flushThread(projectRootPath, threadId);
             // Also clean up checkpoint file if it exists
             this.persistenceStore.deleteCheckpoint(projectRootPath, threadId, generationId);
+            this.scheduleCheckpointGc(projectRootPath);
             console.log(`[ChatStateStorage] Removed generation: ${generationId}`);
         }
     }
@@ -1228,6 +1402,7 @@ export class ChatStateStorage {
         thread.updatedAt = Date.now();
         // Persist thread with updated checkpoint flags
         this.flushThread(projectRootPath, threadId);
+        this.scheduleCheckpointGc(projectRootPath);
     }
 
     /**
@@ -1286,6 +1461,7 @@ export class ChatStateStorage {
         for (let i = checkpointGenerationIndex; i < thread.generations.length; i++) {
             this.persistenceStore.deleteCheckpoint(projectRootPath, threadId, thread.generations[i].id);
         }
+        this.scheduleCheckpointGc(projectRootPath);
 
         // Truncate generations at the checkpoint
         // Remove the generation WITH the checkpoint and everything after it

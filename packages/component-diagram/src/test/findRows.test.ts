@@ -124,6 +124,7 @@ describe("buildFindFacets", () => {
 
     it("labels chat services and unknown modules", () => {
         expect(entryKind(entry("chat", [], { glyphType: "ai", subtitle: "Agent Chat" }))).toBe("Chat");
+        expect(entryKind(entry("voice", [], { glyphType: "ai.wso2.integration", subtitle: "Voice Chat" }))).toBe("Voice Chat");
         expect(entryKind(entry("orders", [], { glyphType: "kafka", subtitle: "kafka:Listener" }))).toBe("Kafka");
         expect(entryKind(entry("rpc", [], { glyphType: "grpc" }))).toBe("GRPC");
     });
