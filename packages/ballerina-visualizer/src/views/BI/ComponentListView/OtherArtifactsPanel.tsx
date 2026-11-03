@@ -17,7 +17,7 @@
  */
 import React, { useEffect, useState } from 'react';
 import { useRpcContext } from '@wso2/ballerina-rpc-client';
-import { DIRECTORY_MAP, EVENT_TYPE, MACHINE_VIEW } from '@wso2/ballerina-core';
+import { DIRECTORY_MAP, EVENT_TYPE, MACHINE_VIEW, ProductMode } from '@wso2/ballerina-core';
 
 import { CardGrid, PanelViewMore, Title, TitleWrapper } from './styles';
 import { BodyText } from '../../styles';
@@ -25,6 +25,9 @@ import ButtonCard from '../../../components/ButtonCard';
 import { useVisualizerContext } from '../../../Context';
 import { ARTIFACT_TOOLTIP_MAX_WIDTH, OTHER_ARTIFACT_CARDS } from '../components/artifactCards';
 import { cardMatchesSearch } from './componentListUtils';
+import { useProductMode } from '../../../hooks/useProductMode';
+
+const AGENT_BUILDER_HIDDEN_CARDS = [DIRECTORY_MAP.CONNECTION, DIRECTORY_MAP.AGENT, DIRECTORY_MAP.CONFIGURABLE];
 
 interface OtherArtifactsPanelProps {
     isNPSupported: boolean;
@@ -39,6 +42,7 @@ export function OtherArtifactsPanel(props: OtherArtifactsPanelProps) {
     const { isNPSupported, isLibrary = false, hideHeader = false, onCardClick } = props;
     const { rpcClient } = useRpcContext();
     const { setPopupMessage } = useVisualizerContext();
+    const isAgentBuilder = useProductMode() === ProductMode.AGENT_BUILDER;
     const [experimentalEnabled, setExperimentalEnabled] = useState(false);
 
     useEffect(() => {
@@ -125,8 +129,12 @@ export function OtherArtifactsPanel(props: OtherArtifactsPanelProps) {
         (card) =>
             (showNaturalFunctions || !card.requiresNaturalFunctions) &&
             (isLibrary || !card.requiresLibrary) &&
-            cardMatchesSearch(card.displayName, q)
+            cardMatchesSearch(card.displayName, q) &&
+            !(isAgentBuilder && AGENT_BUILDER_HIDDEN_CARDS.includes(card.directoryKey))
     );
+    if (isAgentBuilder) {
+        cards.sort((a, b) => Number(b.directoryKey === DIRECTORY_MAP.AGENT_DEFINITION) - Number(a.directoryKey === DIRECTORY_MAP.AGENT_DEFINITION));
+    }
     if (cards.length === 0) {
         return null;
     }
