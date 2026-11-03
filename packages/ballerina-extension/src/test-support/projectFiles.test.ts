@@ -121,6 +121,18 @@ describe("listProjectFiles", () => {
         expect(isReadableProjectFile(root, "linkdir/secret.bal")).toBe(false);
     });
 
+    it("works when the root is opened with a different case than on disk", async () => {
+        const project = path.join(root, "MyProj");
+        fs.mkdirSync(project);
+        fs.writeFileSync(path.join(project, "main.bal"), "x");
+        const variant = path.join(root, "myproj");
+        if (!fs.existsSync(variant)) {
+            return; // case-sensitive file system
+        }
+        expect(await listProjectFiles(variant, { pattern: "*.bal" })).toEqual(["main.bal"]);
+        expect(isReadableProjectFile(variant, "main.bal")).toBe(true);
+    });
+
     it("works when the root itself is reached through a symlink", async () => {
         const alias = `${root}-alias`;
         fs.symlinkSync(root, alias);

@@ -234,7 +234,7 @@ export function formatCodebaseStructure(projects: ProjectSource[], tempProjectPa
 
     const activeProject = projects.find(project => project.isActive) ?? projects[0];
 
-    // Other packages come first and outside the budget: one short line each, and the prompt tells the model they are here.
+    // Other packages are charged first and never dropped: one short line each, and the prompt tells the model they are here.
     for (const project of projects) {
         if (project === activeProject) {
             continue;

@@ -62,9 +62,10 @@ export function isAllowedProjectPath(relPath: string): boolean {
     return !segments.slice(0, -1).some(isBlockedDirSegment);
 }
 
+// Native realpath everywhere: it returns the on-disk case on macOS, and the JS one does not, so mixing them breaks isInside.
 function realRoot(root: string): string {
     try {
-        return fs.realpathSync(root);
+        return fs.realpathSync.native(root);
     } catch {
         return path.resolve(root);
     }
@@ -89,7 +90,7 @@ export function isReadableProjectFile(root: string, relPath: string): boolean {
         return true;
     }
     try {
-        const real = fs.realpathSync(target);
+        const real = fs.realpathSync.native(target);
         // The name rule runs on the link target too, so `alias.bal -> Config.toml` stays out.
         return isInside(rootReal, real) && isAllowedProjectPath(path.relative(rootReal, real));
     } catch {
