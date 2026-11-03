@@ -22,6 +22,10 @@ import type { TextEdit } from "vscode-languageserver-protocol";
 import { StateMachine } from "../../../stateMachine";
 import { normalizeToLf, readAndNormalize, restoreEol } from "../utils/eol-utils";
 import { isWorkspaceTempProject } from "./tools/path-utils";
+import { escapeXmlText } from "../migration/project-map-format";
+import { REQ_KEY } from "../../../rpc-managers/ai-panel/constants";
+
+const LISTING_MAX_CHARS = 16_000;
 
 /**
  * Files that require path sanitization (temp paths replaced with workspace paths)
@@ -141,10 +145,8 @@ ${sourceFile.content}
 }
 
 /**
- * Collects files from a ProjectSource, split into regular files (with content) and
- * generated connector files (paths only — content is large and fetched on demand).
- * @param project ProjectSource to collect files from
- * @param includePackagePath Whether to prepend packagePath to file paths (for multi-project case)
+ * Collects files from a ProjectSource, split into regular files and generated connector files.
+ * Paths are posix, prefixed with the package path when `includePackagePath` is set.
  */
 function collectFilesFromProject(
     project: ProjectSource,
@@ -152,10 +154,14 @@ function collectFilesFromProject(
 ): { files: SourceFile[]; generatedFiles: SourceFile[] } {
     const files: SourceFile[] = [];
     const generatedFiles: SourceFile[] = [];
-    const prefix = includePackagePath && project.packagePath ? `${project.packagePath}/` : "";
+    const packagePath = project.packagePath?.replace(/\\/g, "/");
+    const prefix = includePackagePath && packagePath ? `${packagePath}/` : "";
 
-    // Collect source files
     for (const sourceFile of project.sourceFiles) {
+        // The requirements entry is not a file; the Natural Programming note carries its text.
+        if (sourceFile.filePath === REQ_KEY) {
+            continue;
+        }
         files.push({
             filePath: `${prefix}${sourceFile.filePath}`,
             content: sourceFile.content,
@@ -183,11 +189,10 @@ function collectFilesFromProject(
         }
     }
 
-    // Collect test files
     if (project.projectTests) {
         for (const testFile of project.projectTests) {
             files.push({
-                filePath: `${prefix}tests/${testFile.filePath}`,
+                filePath: `${prefix}tests/${testFile.filePath.replace(/\\/g, "/")}`,
                 content: testFile.content,
             });
         }
@@ -196,73 +201,90 @@ function collectFilesFromProject(
     return { files, generatedFiles };
 }
 
-/**
- * Formats a file with its content in XML format
- * @param file SourceFile with path and content
- * @returns Formatted XML string for the file
- */
-function formatFileWithContent(file: SourceFile): string {
-    const lang = file.filePath.endsWith('.toml') ? 'toml' : 'ballerina';
-    return `<file path="${file.filePath}">
-\`\`\`${lang}
-${file.content}
-\`\`\`
-</file>`;
+function countLines(content: string): number {
+    if (content.length === 0) {
+        return 0;
+    }
+    return content.split("\n").length - (content.endsWith("\n") ? 1 : 0);
 }
 
-/**
- * Formats complete codebase structure into XML for Claude
- * Used when starting a new session without history
- * @param projects Array of ProjectSource objects
- * @returns Formatted XML string with codebase structure including file contents
- */
+function formatConfigFiles(tempProjectPath: string | undefined, project: ProjectSource, isWorkspace: boolean): string {
+    if (!tempProjectPath) {
+        return "";
+    }
+    const pkgRoot = isWorkspace && project.packagePath
+        ? path.join(tempProjectPath, project.packagePath)
+        : tempProjectPath;
+    const mainConfig = fs.existsSync(path.join(pkgRoot, "Config.toml")) ? "present" : "absent";
+    const testConfig = fs.existsSync(path.join(pkgRoot, "tests", "Config.toml")) ? "present" : "absent";
+    return `<config_files main="${mainConfig}" tests="${testConfig}"/>`;
+}
+
+/** Files with line counts but no contents; the agent reads what it needs with glob, grep and file_read. */
 export function formatCodebaseStructure(projects: ProjectSource[], tempProjectPath?: string): string {
     let text = "<codebase_structure>\n";
-    text += "This is the complete structure of the codebase you are working with. ";
-    text += "You do not need to acknowledge or list these files in your response. ";
-    text += "This information is provided for your awareness only.\n\n";
+    text += "The project's Ballerina source and config files with their line counts. ";
+    text += "Contents are not included, and other files (OpenAPI specs, SQL, data) are not listed: ";
+    text += "use glob, grep and file_read.\n\n";
 
     const context = StateMachine.context();
     const isWorkspace = context.projectInfo?.projectKind === PROJECT_KIND.WORKSPACE_PROJECT;
 
-    // Include workspace Ballerina.toml for workspace projects
     if (isWorkspace && tempProjectPath) {
         text += formatWorkspaceToml(tempProjectPath);
     }
 
-    for (const project of projects) {
-        const { files, generatedFiles } = collectFilesFromProject(project, isWorkspace);
-        const activeStatus = project.isActive ? ' active="true"' : "";
+    const activeProject = projects.find(project => project.isActive) ?? projects[0];
+    let budget = LISTING_MAX_CHARS - text.length;
+    let unlisted = 0;
+    const listWithinBudget = (entries: string[]): number => {
+        for (let i = 0; i < entries.length; i++) {
+            if (unlisted > 0 || entries[i].length + 1 > budget) {
+                return entries.length - i;
+            }
+            budget -= entries[i].length + 1;
+            text += `${entries[i]}\n`;
+        }
+        return 0;
+    };
 
-        text += `<project name="${project.projectName}"${activeStatus}>\n`;
-        text += "<files>\n";
-        text += files.map(formatFileWithContent).join("\n");
-        text += "\n</files>\n";
-
-        if (generatedFiles.length > 0) {
+    if (activeProject) {
+        const { files, generatedFiles } = collectFilesFromProject(activeProject, isWorkspace);
+        text += `<project name="${escapeXmlText(activeProject.projectName)}" active="true">\n<files>\n`;
+        unlisted += listWithinBudget(files.map(file => `<file path="${escapeXmlText(file.filePath)}" lines="${countLines(file.content)}"/>`));
+        text += "</files>\n";
+        if (generatedFiles.length > 0 && unlisted > 0) {
+            unlisted += generatedFiles.length;
+        } else if (generatedFiles.length > 0) {
             text += "<generated_files>\n";
-            text += generatedFiles.map(f => `<file path="${f.filePath}"/>`).join("\n");
-            text += "\n</generated_files>\n";
+            unlisted += listWithinBudget(generatedFiles.map(file => `<file path="${escapeXmlText(file.filePath)}"/>`));
+            text += "</generated_files>\n";
         }
-
-        if (tempProjectPath) {
-            const pkgRoot = isWorkspace && project.packagePath
-                ? path.join(tempProjectPath, project.packagePath)
-                : tempProjectPath;
-            const mainConfig = fs.existsSync(path.join(pkgRoot, "Config.toml")) ? "present" : "absent";
-            const testConfig = fs.existsSync(path.join(pkgRoot, "tests", "Config.toml")) ? "present" : "absent";
-            text += `<config_files main="${mainConfig}" tests="${testConfig}"/>\n`;
-        }
-
+        const configFiles = formatConfigFiles(tempProjectPath, activeProject, isWorkspace);
+        text += configFiles ? `${configFiles}\n` : "";
         text += "</project>\n";
     }
 
+    for (const project of projects) {
+        if (project === activeProject) {
+            continue;
+        }
+        const { files, generatedFiles } = collectFilesFromProject(project, isWorkspace);
+        const fileCount = files.length + generatedFiles.length;
+        const packagePath = project.packagePath?.replace(/\\/g, "/") ?? "";
+        const entry = `<package name="${escapeXmlText(project.projectName)}" path="${escapeXmlText(packagePath)}" files="${fileCount}">${formatConfigFiles(tempProjectPath, project, isWorkspace)}</package>`;
+        unlisted += listWithinBudget([entry]) > 0 ? fileCount : 0;
+    }
+
+    if (unlisted > 0) {
+        text += `… ${unlisted} more files not listed. Use glob to find them.\n`;
+    }
     text += "</codebase_structure>";
 
     if (isWorkspace) {
         text += `Note: This is a Ballerina workspace with multiple packages. File paths are prefixed with their package paths (e.g., "mainpackage/main.bal").
-Files from external packages (not the active package) are marked with the externalPackageName attribute (e.g., <file filename="otherpackage/main.bal" externalPackageName="otherpackage">).
-You can import these packages by just using the package name (e.g., import otherpackage;).
+Only the active package's files are listed; each other package is a <package> entry, so use glob to find its files.
+You can import another package by its package name (e.g., import otherpackage;).
 When creating or modifying files, you should always prefer making edits for the current active package. Make sure to include the package path as prefix for the file edits.`;
     }
 
@@ -425,7 +447,7 @@ export function formatCodeContext(codeContext: CodeContext, tempProjectPath: str
     return `
 ** Note: ${getCodeContextInstruction(codeContext.type)} **
 <selected_code>
-<file path="${codeContext.filePath}">
+<file path="${codeContext.filePath}" lines="${startLine + 1}-${endLine + 1}">
 ${contextLines.join("\n")}
 </file>
 </selected_code>`;

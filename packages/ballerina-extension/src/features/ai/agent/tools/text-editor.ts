@@ -1019,16 +1019,12 @@ export function createWriteTool(execute: WriteExecute) {
   });
 }
 
-// The line number prefix format is: spaces + line number + tab. Everything after that tab is the actual file content to match. Never include any part of the line number prefix in the old_string or new_string.
-// ensure you preserve the exact indentation (tabs/spaces) as it appears AFTER the line number prefix.
-
 // 2. Edit Tool
 export function createEditTool(execute: EditExecute) {
   return tool({
-    description: `Performs exact string replacements in files. 
+    description: `Performs exact string replacements in files.
     Usage:
-    - You must read the chat history at least once before editing, as the user’s message contains the content of the each source file. This tool will error if you attempt an edit without reading the chat history. 
-    - When editing text content of a file that you obtained from the chat history you read earlier, ensure you preserve the exact indentation (tabs/spaces) as it appears AFTER the line number prefix.
+    - Read the lines you change with ${FILE_READ_TOOL_NAME} first; old_string must match the file as it is now, including its exact indentation (tabs/spaces).
     - If there are multiple edits to be made to the same file, prefer using the ${FILE_BATCH_EDIT_TOOL_NAME} tool instead of this one.
     - Do not create new files using this tool. Only edit existing files. If the file does not exist, Use ${FILE_WRITE_TOOL_NAME} to create new files.
     - NEVER proactively edit documentation files (*.md) or README files. Only edit documentation files if explicitly requested by the User.
@@ -1050,7 +1046,7 @@ export function createBatchEditTool(execute: MultiEditExecute) {
   return tool({
     description: `This is a tool for making multiple edits to a single file in one operation. It is built on top of the ${FILE_SINGLE_EDIT_TOOL_NAME} tool and allows you to perform multiple find-and-replace operations efficiently. Prefer this tool over the ${FILE_SINGLE_EDIT_TOOL_NAME} tool when you need to make multiple edits to the same file.
     Before using this tool:
-    1. You must read the chat history at least once before editing, as the user’s message contains the content of the each source file and the context.
+    1. Read the lines you change with ${FILE_READ_TOOL_NAME} first; each old_string must match the file as it is now.
     2. Verify the file path is correct
     3. Do not create new files using this tool. Only edit existing files. If the file does not exist, Use ${FILE_WRITE_TOOL_NAME} to create new files.
     To make multiple file edits, provide the following:
