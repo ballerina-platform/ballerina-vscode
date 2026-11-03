@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { DiagramEngine, DiagramModel } from '@projectstorm/react-diagrams';
 import { NavigationWrapperCanvasWidget, ProgressRing, ThemeColors } from '@wso2/ui-toolkit';
 import { createEntitiesEngine, entityModeller } from './utils';
@@ -52,8 +52,7 @@ interface TypeDiagramProps {
     requestContext?: RequestContextSummary;
     /** Opens the request context editor; offered on the GraphQL root node when given. */
     onOpenRequestContext?: () => void;
-    /** Opens the service's full configuration; offered on the GraphQL root node when given. */
-    onOpenServiceConfig?: () => void;
+
 }
 
 export interface ModelResult {
@@ -61,8 +60,16 @@ export interface ModelResult {
     isFirstLevelDependenciesFiltered?: boolean;
 }
 
+/**
+ * A fingerprint of what the diagram draws: the types and their members, without the source positions that every
+ * edit above them shifts.
+ */
+export function structureOf(typeModel: Type[], rootService?: Type): string {
+    return JSON.stringify({ typeModel, rootService }, (key, value) => key === "lineRange" ? undefined : value);
+}
+
 export function TypeDiagram(props: TypeDiagramProps) {
-    const { typeModel, showProblemPanel, selectedNodeId, goToSource, focusedNodeId, readonly, updateFocusedNodeId, rootService, isGraphql, verifyTypeDelete, requestContext, onOpenRequestContext, onOpenServiceConfig } = props;
+    const { typeModel, showProblemPanel, selectedNodeId, goToSource, focusedNodeId, readonly, updateFocusedNodeId, rootService, isGraphql, verifyTypeDelete, requestContext, onOpenRequestContext } = props;
 
     const [diagramEngine] = useState<DiagramEngine>(createEntitiesEngine());
     const [diagramModel, setDiagramModel] = useState<DiagramModel>(undefined);
@@ -70,8 +77,22 @@ export function TypeDiagram(props: TypeDiagramProps) {
     const [selectedDiagramNode, setSelectedDiagramNode] = useState<string>(selectedNodeId);
     const [isFirstLevelFiltered, setIsFirstLevelFiltered] = useState<boolean>(false);
 
+    // What the diagram shows, without where each type sits in source: an edit elsewhere in a file (adding an
+    // annotation, say) moves every line range below it but changes nothing on the canvas.
+    const drawnStructure = useRef<string>();
+    const drawnFocus = useRef<string>();
+
     useEffect(() => {
-        drawDiagram(focusedNodeId);
+        const structure = structureOf(typeModel, rootService);
+        const unchanged = drawnStructure.current === structure && drawnFocus.current === focusedNodeId
+            && !!diagramEngine.getModel();
+        drawnStructure.current = structure;
+        drawnFocus.current = focusedNodeId;
+        if (unchanged) {
+            refreshInPlace();
+        } else {
+            drawDiagram(focusedNodeId);
+        }
     }, [typeModel, focusedNodeId, rootService]);
 
     useEffect(() => {
@@ -121,6 +142,32 @@ export function TypeDiagram(props: TypeDiagramProps) {
         }
     }
 
+    /**
+     * Rebuilds the model from the latest types, so every node carries current source positions, while keeping the
+     * view exactly as it is: each node stays where it was, and the zoom and scroll are kept. No loading overlay and no
+     * re-layout, so a change that does not touch the schema does not flicker the canvas.
+     */
+    const refreshInPlace = () => {
+        const current = diagramEngine.getModel();
+        const next = isGraphql && rootService
+            ? graphqlModeller(rootService, typeModel)
+            : entityModeller(typeModel, focusedNodeId).model;
+        if (!current || !next) {
+            return;
+        }
+        next.getNodes().forEach((node) => {
+            const previous = current.getNode(node.getID());
+            if (previous) {
+                node.setPosition(previous.getX(), previous.getY());
+            }
+        });
+        next.setZoomLevel(current.getZoomLevel());
+        next.setOffset(current.getOffsetX(), current.getOffsetY());
+        diagramEngine.setModel(next);
+        setDiagramModel(next);
+        diagramEngine.repaintCanvas();
+    };
+
     // const defaultOrg = useRef<string>('');
 
     const styles = useStyles();
@@ -153,8 +200,7 @@ export function TypeDiagram(props: TypeDiagramProps) {
         onNodeDelete,
         verifyTypeDelete,
         requestContext,
-        onOpenRequestContext,
-        onOpenServiceConfig
+        onOpenRequestContext
     }
 
     const refreshDiagram = () => {

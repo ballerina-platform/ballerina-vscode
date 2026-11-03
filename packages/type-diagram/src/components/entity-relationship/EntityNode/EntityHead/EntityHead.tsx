@@ -92,7 +92,7 @@ interface Origin {
 
 export function EntityHeadWidget(props: ServiceHeadProps) {
     const { engine, node, isSelected } = props;
-    const { setFocusedNodeId, onEditNode, goToSource, onNodeDelete, verifyTypeDelete, readonly, requestContext, onOpenRequestContext, onOpenServiceConfig } = useContext(DiagramContext);
+    const { setFocusedNodeId, onEditNode, goToSource, onNodeDelete, verifyTypeDelete, readonly, requestContext, onOpenRequestContext } = useContext(DiagramContext);
 
     const displayName: string = node.getID()?.slice(node.getID()?.lastIndexOf(':') + 1);
     const isImported = !node?.entityObject?.editable;
@@ -139,11 +139,6 @@ export function EntityHeadWidget(props: ServiceHeadProps) {
     const onRequestContext = () => {
         setAnchorEl(null);
         onOpenRequestContext?.();
-    };
-
-    const onServiceConfig = () => {
-        setAnchorEl(null);
-        onOpenServiceConfig?.();
     };
 
     const onFocusedView = () => {
@@ -211,11 +206,6 @@ export function EntityHeadWidget(props: ServiceHeadProps) {
                 id: "requestContext",
                 label: "Request Context",
                 onClick: () => onRequestContext()
-            }] : []),
-            ...(isEditableGraphqlRoot && onOpenServiceConfig ? [{
-                id: "serviceConfig",
-                label: "Service Configuration",
-                onClick: () => onServiceConfig()
             }] : []),
             ...(!node.isGraphqlRoot ? [{
                 id: "delete",

@@ -45,8 +45,6 @@ interface DiagramContextProps {
     requestContext?: RequestContextSummary;
     /** Opens the request context editor; the root node offers it when given. */
     onOpenRequestContext?: () => void;
-    /** Opens the service's full configuration; the root node offers it when given. */
-    onOpenServiceConfig?: () => void;
 }
 
 interface IDiagramContext {
@@ -64,8 +62,6 @@ interface IDiagramContext {
     requestContext?: RequestContextSummary;
     /** Opens the request context editor; the root node offers it when given. */
     onOpenRequestContext?: () => void;
-    /** Opens the service's full configuration; the root node offers it when given. */
-    onOpenServiceConfig?: () => void;
 }
 
 const defaultState: any = {};
@@ -85,8 +81,7 @@ export function DesignDiagramContext(props: DiagramContextProps) {
         onNodeDelete,
         verifyTypeDelete,
         requestContext,
-        onOpenRequestContext,
-        onOpenServiceConfig
+        onOpenRequestContext
     } = props;
 
     let context: IDiagramContext = {
@@ -101,8 +96,7 @@ export function DesignDiagramContext(props: DiagramContextProps) {
         onNodeDelete,
         verifyTypeDelete,
         requestContext,
-        onOpenRequestContext,
-        onOpenServiceConfig
+        onOpenRequestContext
     }
 
     return (

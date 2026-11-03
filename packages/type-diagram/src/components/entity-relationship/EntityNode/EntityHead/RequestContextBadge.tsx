@@ -18,38 +18,13 @@
 
 import React from 'react';
 import styled from '@emotion/styled';
-import { Codicon, ThemeColors, Tooltip } from '@wso2/ui-toolkit';
+import { Button, Icon, ThemeColors, Tooltip } from '@wso2/ui-toolkit';
 import { RequestContextSummary } from '../../../common/DiagramContext/DiagramContext';
 
-// Deliberately quiet: it reads like the node's other header controls, not like a call to action. The schema is
-// what the diagram is about; the context indicator only says that the service has a request context.
-const BadgeButton = styled.button`
-    display: inline-flex;
-    align-items: center;
-    gap: 3px;
-    height: 20px;
-    padding: 0 5px;
-    border: none;
-    border-radius: 4px;
-    background: transparent;
-    color: ${ThemeColors.ON_SURFACE_VARIANT};
-    font-family: GilmerRegular;
-    font-size: 11px;
-    line-height: 1;
-    opacity: 0.85;
-    cursor: pointer;
-
-    &:hover {
-        opacity: 1;
-        color: ${ThemeColors.ON_SURFACE};
-        background-color: ${ThemeColors.SURFACE_CONTAINER};
-    }
-
-    &:focus-visible {
-        opacity: 1;
-        outline: 1px solid ${ThemeColors.PRIMARY};
-        outline-offset: 1px;
-    }
+// The same icon button as the node's ⋮ menu, so the two read as one group of header controls: same size, same
+// hover, same focus ring. It carries no text or count; the tooltip says what it is.
+const ContextButton = styled(Button)`
+    border-radius: 5px;
 `;
 
 const TooltipList = styled.div`
@@ -61,17 +36,17 @@ const TooltipList = styled.div`
     white-space: nowrap;
 `;
 
-const TooltipLabel = styled.span`
+const TooltipTitle = styled.span`
     font-weight: 600;
+`;
+
+const TooltipDetail = styled.span`
+    font-family: var(--vscode-editor-font-family);
 `;
 
 const TooltipHint = styled.span`
     margin-top: 4px;
     color: ${ThemeColors.ON_SURFACE_VARIANT};
-`;
-
-const TooltipKeys = styled.span`
-    font-family: var(--vscode-editor-font-family);
 `;
 
 interface RequestContextBadgeProps {
@@ -80,39 +55,33 @@ interface RequestContextBadgeProps {
 }
 
 /**
- * The root node's request context indicator: shown when the service sets `contextInit`, with the number of values
- * the context carries. Hovering names the function and its keys; clicking opens the Request Context editor.
+ * The root node's request context indicator: an icon button beside the ⋮ menu, shown when the service has a
+ * request context. Hovering names the function and the values it sets; clicking opens the Request Context editor.
  */
 export function RequestContextBadge({ context, onOpen }: RequestContextBadgeProps) {
-    const count = context.keys.length;
-    const label = `Request context${count > 0 ? ` with ${count} value${count === 1 ? '' : 's'}` : ''}. `
-        + 'Open Request Context';
     const content = (
         <TooltipList>
-            <span>
-                <TooltipLabel>Request context</TooltipLabel>
-                {context.functionName ? `: ${context.functionName}` : ''}
-            </span>
-            {count > 0
-                ? <TooltipKeys>{context.keys.join(', ')}</TooltipKeys>
+            <TooltipTitle>Request context</TooltipTitle>
+            {context.functionName && <TooltipDetail>{context.functionName}</TooltipDetail>}
+            {context.keys.length > 0
+                ? <TooltipDetail>{context.keys.join(', ')}</TooltipDetail>
                 : <span>No values set yet</span>}
             <TooltipHint>Click to edit</TooltipHint>
         </TooltipList>
     );
     return (
         <Tooltip content={content} position="top">
-            <BadgeButton
-                type="button"
-                aria-label={label}
+            <ContextButton
+                appearance="icon"
+                aria-label="Request context. Open Request Context"
                 data-testid="request-context-badge"
-                onClick={(event) => {
+                onClick={(event: React.MouseEvent) => {
                     event.stopPropagation();
                     onOpen();
                 }}
             >
-                <Codicon name="symbol-namespace" sx={{ fontSize: 12, width: 12, height: 12 }} iconSx={{ fontSize: 12 }} />
-                Context{count > 0 ? ` ${count}` : ''}
-            </BadgeButton>
+                <Icon name="bi-variable" sx={{ width: 16, height: 16, fontSize: 16 }} iconSx={{ fontSize: 16 }} />
+            </ContextButton>
         </Tooltip>
     );
 }

@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { GraphqlContextRequest, GraphqlContextResponse, NodePosition } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 
@@ -42,6 +42,8 @@ export function useGraphqlContext(filePath: string, position: NodePosition) {
         queryKey: [GRAPHQL_CONTEXT_QUERY_KEY, filePath, position],
         queryFn: () => rpcClient.getServiceDesignerRpcClient().getGraphqlContext(contextRequest(filePath, position)),
         enabled: !!filePath && !!position && !!rpcClient,
+        // Keep the indicator and the panel steady while a moved service's context reloads.
+        placeholderData: keepPreviousData,
     });
 }
 

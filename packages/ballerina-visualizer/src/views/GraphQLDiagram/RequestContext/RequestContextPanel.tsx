@@ -96,6 +96,16 @@ const AddButtonWrapper = styled.div`
     margin: 8px 0;
 `;
 
+// The resource form's row icons assume one edit and one delete; this row has three actions, so they get even
+// spacing of their own instead of the edit wrapper's, which leaves none between two of them.
+const FunctionActions = styled(ActionIconWrapper)`
+    gap: 10px;
+
+    & > div {
+        margin-left: 0;
+    }
+`;
+
 const PickerRow = styled.div`
     display: flex;
     align-items: flex-end;
@@ -220,11 +230,7 @@ export function RequestContextPanel(props: RequestContextPanelProps) {
         <>
             <Section>
                 <Typography sx={{ marginBlockEnd: 4 }} variant="h4">Context Function</Typography>
-                <Hint>
-                    A request context passes values from each request, such as a header, to your resolvers. Each
-                    resolver reads them through its <Code>graphql:Context</Code> parameter. Creating one adds a
-                    context function to <Code>functions.bal</Code> and sets it on this service.
-                </Hint>
+                <Hint>Pass values from each request, such as headers, to your resolvers.</Hint>
                 <Button
                     appearance="primary"
                     disabled={busy}
@@ -236,7 +242,7 @@ export function RequestContextPanel(props: RequestContextPanelProps) {
             </Section>
             {candidates.length > 0 && (
                 <Section>
-                    <Hint>Or use a function you have already written:</Hint>
+                    <Hint>Or use an existing function:</Hint>
                     <PickerRow>
                         {functionDropdown}
                         <Button
@@ -268,7 +274,7 @@ export function RequestContextPanel(props: RequestContextPanelProps) {
                                 <Codicon name="symbol-method" sx={{ marginRight: 8 }} />
                                 <FunctionName>{context.functionName ?? context.expression}</FunctionName>
                             </div>
-                            <ActionIconWrapper>
+                            <FunctionActions>
                                 {canOpen && (
                                     <EditIconWrapper title="Open in flow diagram">
                                         <Codicon name="go-to-file" onClick={openFunction} />
@@ -282,7 +288,7 @@ export function RequestContextPanel(props: RequestContextPanelProps) {
                                 <DeleteIconWrapper title="Remove the request context">
                                     <Codicon name="trash" onClick={() => setEditing({ kind: "remove" })} />
                                 </DeleteIconWrapper>
-                            </ActionIconWrapper>
+                            </FunctionActions>
                         </ContentSection>
                     </HeaderLabel>
                     {context.functionName && !context.signatureValid && (

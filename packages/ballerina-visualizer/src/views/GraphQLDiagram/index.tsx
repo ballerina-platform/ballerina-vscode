@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
     Type,
     NodePosition,
@@ -42,7 +42,7 @@ import {
 import styled from "@emotion/styled";
 import { GraphqlServiceEditor } from "./GraphqlServiceEditor";
 import { PanelContainer } from "@wso2/ballerina-side-panel";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { TopNavigationBar } from "../../components/TopNavigationBar";
 import { TitleBar } from "../../components/TitleBar";
 import { GraphqlObjectViewer } from "./ObjectViewer";
@@ -200,6 +200,9 @@ export function GraphQLDiagram(props: GraphQLDiagramProps) {
     } = useQuery<GetGraphqlTypeResponse>({
         queryKey: ["graphqlTypeModel", filePath, position],
         queryFn: fetchGraphqlTypeModel,
+        // An edit above the service moves its position, which is part of the key. Keep showing the current diagram
+        // while the moved service loads, instead of dropping back to the loading spinner.
+        placeholderData: keepPreviousData,
         retry: 3,
         retryDelay: 2000,
         enabled: !!filePath && !!rpcClient,
@@ -208,14 +211,18 @@ export function GraphQLDiagram(props: GraphQLDiagramProps) {
     const { data: requestContext, isLoading: isRequestContextLoading } = useGraphqlContext(filePath, position);
     const contextSupported = !!requestContext?.supported;
 
-    rpcClient?.onProjectContentUpdated((state: boolean) => {
-        if (state) {
-            // Instead of calling getGraphqlDesignModel directly, invalidate the query
-            queryClient.invalidateQueries({ queryKey: ["graphqlTypeModel"] });
-            // An edit made anywhere, including in source, can change the request context.
-            queryClient.invalidateQueries({ queryKey: [GRAPHQL_CONTEXT_QUERY_KEY] });
-        }
-    });
+    // Registered once: registering on every render added another listener each time, so one change refetched the
+    // model several times and the diagram redrew once per refetch.
+    useEffect(() => {
+        rpcClient?.onProjectContentUpdated((state: boolean) => {
+            if (state) {
+                // Instead of calling getGraphqlDesignModel directly, invalidate the query
+                queryClient.invalidateQueries({ queryKey: ["graphqlTypeModel"] });
+                // An edit made anywhere, including in source, can change the request context.
+                queryClient.invalidateQueries({ queryKey: [GRAPHQL_CONTEXT_QUERY_KEY] });
+            }
+        });
+    }, [rpcClient]);
 
     const openRequestContext = () => {
         setIsServiceEditorOpen(false);
@@ -480,7 +487,6 @@ export function GraphQLDiagram(props: GraphQLDiagramProps) {
                                 }
                                 : undefined}
                             onOpenRequestContext={contextSupported ? openRequestContext : undefined}
-                            onOpenServiceConfig={handleServiceEdit}
                         />
                     ) : null}
                 </ViewContent>

@@ -19,36 +19,59 @@
 import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
+import { Type } from "@wso2/ballerina-core";
 import { RequestContextBadge } from "../components/entity-relationship/EntityNode/EntityHead/RequestContextBadge";
-
-const keys = (count: number) => Array.from({ length: count }, (_, i) => `key${i + 1}`);
+import { structureOf } from "../Diagram";
 
 describe("RequestContextBadge", () => {
-    it("reads as Context alone when the context carries no values yet", () => {
-        render(<RequestContextBadge context={{ functionName: "graphqlContextInit", keys: [] }} onOpen={jest.fn()} />);
-        const badge = screen.getByTestId("request-context-badge");
-        expect(badge).toHaveTextContent(/^Context$/);
-        expect(badge).toHaveAccessibleName("Request context. Open Request Context");
-    });
-
-    it.each([1, 2, 7])("shows the number of values the context carries (%i)", (count) => {
-        render(<RequestContextBadge context={{ functionName: "ctx", keys: keys(count) }} onOpen={jest.fn()} />);
-        const badge = screen.getByTestId("request-context-badge");
-        expect(badge).toHaveTextContent(`Context ${count}`);
-        expect(badge).toHaveAccessibleName(
-            `Request context with ${count} value${count === 1 ? "" : "s"}. Open Request Context`);
-    });
+    it.each([[[]], [["scope"]], [["scope", "tenant", "page"]]])(
+        "shows only an icon, never a count, for %p", (keys: string[]) => {
+            render(<RequestContextBadge context={{ functionName: "graphqlContextInit", keys }} onOpen={jest.fn()} />);
+            const badge = screen.getByTestId("request-context-badge");
+            expect(badge).toHaveTextContent(/^$/);
+            expect(badge).toHaveAccessibleName("Request context. Open Request Context");
+        });
 
     it("opens the editor on click without the click reaching the node", () => {
         const onOpen = jest.fn();
         const onNodeClick = jest.fn();
         render(
             <div onClick={onNodeClick}>
-                <RequestContextBadge context={{ keys: keys(2) }} onOpen={onOpen} />
+                <RequestContextBadge context={{ keys: ["scope"] }} onOpen={onOpen} />
             </div>
         );
         fireEvent.click(screen.getByTestId("request-context-badge"));
         expect(onOpen).toHaveBeenCalledTimes(1);
         expect(onNodeClick).not.toHaveBeenCalled();
+    });
+});
+
+describe("diagram structure", () => {
+    const type = (name: string, line: number, fields: string[], node = "RECORD"): Type => ({
+        name,
+        editable: true,
+        metadata: { label: name, description: "" },
+        properties: {},
+        codedata: { node, lineRange: { fileName: "main.bal", startLine: { line, offset: 0 },
+            endLine: { line: line + 3, offset: 1 } } },
+        includes: [],
+        members: fields.map((field) => ({ kind: "FIELD", name: field, type: "string", refs: [] })),
+        allowAdditionalFields: false,
+    } as unknown as Type);
+
+    it("is unchanged when an edit only moves types in source, so the diagram refreshes in place", () => {
+        const before = structureOf([type("Book", 10, ["title"])], type("/graphql", 20, ["book"]));
+        const after = structureOf([type("Book", 14, ["title"])], type("/graphql", 24, ["book"]));
+        expect(after).toBe(before);
+    });
+
+    it.each([
+        ["a field is added", [type("Book", 10, ["title", "author"])], type("/graphql", 20, ["book"])],
+        ["a type is added", [type("Book", 10, ["title"]), type("Author", 30, ["name"])], type("/graphql", 20, ["book"])],
+        ["a type changes kind", [type("Book", 10, ["title"], "CLASS")], type("/graphql", 20, ["book"])],
+        ["an operation is added", [type("Book", 10, ["title"])], type("/graphql", 20, ["book", "books"])],
+    ])("changes when %s, so the diagram is redrawn", (_case, typeModel: Type[], rootService: Type) => {
+        const before = structureOf([type("Book", 10, ["title"])], type("/graphql", 20, ["book"]));
+        expect(structureOf(typeModel, rootService)).not.toBe(before);
     });
 });
