@@ -959,48 +959,38 @@ public class TypeTransformer {
         if (typeSymbol.typeKind() != TypeDescKind.INTERSECTION) {
             return typeSymbol;
         }
+        // Multiple non-readonly types cannot be represented by the readonly flag alone
+        return soleNonReadonlyMember((IntersectionTypeSymbol) typeSymbol).orElse(typeSymbol);
+    }
 
+    /**
+     * Returns the only member of an intersection type that is not {@code readonly}.
+     *
+     * @param intersectionTypeSymbol the intersection type
+     * @return the only non-readonly member, or empty when there is none or more than one
+     */
+    private static Optional<TypeSymbol> soleNonReadonlyMember(IntersectionTypeSymbol intersectionTypeSymbol) {
         TypeSymbol nonReadonlyTypeSymbol = null;
-        for (TypeSymbol memberTypeSymbol : ((IntersectionTypeSymbol) typeSymbol).memberTypeDescriptors()) {
+        for (TypeSymbol memberTypeSymbol : intersectionTypeSymbol.memberTypeDescriptors()) {
             if (memberTypeSymbol.typeKind() == TypeDescKind.READONLY) {
                 continue;
             }
             if (nonReadonlyTypeSymbol != null) {
-                // Multiple non-readonly types cannot be represented by the readonly flag alone
-                return typeSymbol;
+                return Optional.empty();
             }
             nonReadonlyTypeSymbol = memberTypeSymbol;
         }
-        return nonReadonlyTypeSymbol == null ? typeSymbol : nonReadonlyTypeSymbol;
+        return Optional.ofNullable(nonReadonlyTypeSymbol);
     }
 
     private Object handleAsFirstClassNonIntersectionType(IntersectionTypeSymbol intersectionTypeSymbol,
                                                          TypeData.TypeDataBuilder typeDataBuilder) {
-        TypeSymbol nonReadonlyTypeSymbol = null;
-        List<TypeSymbol> intersectionMemberTypes = intersectionTypeSymbol.memberTypeDescriptors();
+        // Treat the type as a first-class non-intersection type only when it has a single non-readonly member
+        TypeSymbol nonReadonlyTypeSymbol = soleNonReadonlyMember(intersectionTypeSymbol).orElse(null);
 
-        // Check for non-readonly type members to treat the type as a first-class non-intersection type
-        for (TypeSymbol typeSymbol : intersectionMemberTypes) {
-            if (typeSymbol.typeKind() == TypeDescKind.READONLY) {
-                continue;
-            }
-
-            if (typeSymbol.typeKind() == TypeDescKind.INTERSECTION) {
-                // If a member type is an intersection type, we don't handle it as a first-class non-intersection type
-                return transform(intersectionTypeSymbol, typeDataBuilder);
-            }
-
-            if (nonReadonlyTypeSymbol == null) {
-                nonReadonlyTypeSymbol = typeSymbol;
-            } else {
-                // If there are multiple non-readonly types,
-                // we handle the intersection type as a first-class intersection type
-                return transform(intersectionTypeSymbol, typeDataBuilder);
-            }
-        }
-
-        if (nonReadonlyTypeSymbol == null || nonReadonlyTypeSymbol.typeKind() == TypeDescKind.TYPE_REFERENCE) {
-            // If no non-readonly type is found or the found non-readonly type is a type-reference type,
+        if (nonReadonlyTypeSymbol == null || nonReadonlyTypeSymbol.typeKind() == TypeDescKind.INTERSECTION
+                || nonReadonlyTypeSymbol.typeKind() == TypeDescKind.TYPE_REFERENCE) {
+            // If there is no single non-readonly member, or it is an intersection or a type-reference type,
             // we treat it as a first-class intersection type
             return transform(intersectionTypeSymbol, typeDataBuilder);
         }

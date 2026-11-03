@@ -129,7 +129,9 @@ const isNodeOf = (type: string | Type, ...nodes: string[]): boolean =>
 // Wrap union and intersection types in parentheses where they are an operand of another type descriptor
 const toParenthesizedSource = (type: string | Type): string => {
     const source = typeToSource(type);
-    return isNodeOf(type, 'UNION', 'INTERSECTION') ? `(${source})` : source;
+    // `T?` is already a single operand, so `string?[]` stays as the user wrote it
+    const isOptional = source.endsWith('?') && !source.includes(' | ');
+    return isNodeOf(type, 'UNION', 'INTERSECTION') && !isOptional ? `(${source})` : source;
 };
 
 const intersectionMemberToSource = (member: Member): string => {

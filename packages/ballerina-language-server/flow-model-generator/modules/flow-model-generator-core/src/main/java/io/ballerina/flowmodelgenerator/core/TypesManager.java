@@ -739,7 +739,7 @@ public class TypesManager {
                 UnionTypeSymbol unionTypeSymbol = (UnionTypeSymbol) typeSymbol;
                 List<TypeSymbol> unionMembers = unionTypeSymbol.memberTypeDescriptors();
                 unionMembers.forEach(member -> {
-                    if (member.typeKind() == TypeDescKind.ARRAY || member.typeKind() == TypeDescKind.INTERSECTION) {
+                    if (member.typeKind() == TypeDescKind.ARRAY) {
                         addMemberTypes(member, symbolMap);
                     } else {
                         addToMapIfForeignAndNotAdded(symbolMap, member);
@@ -750,15 +750,14 @@ public class TypesManager {
                 ArrayTypeSymbol arrayTypeSymbol = (ArrayTypeSymbol) typeSymbol;
                 TypeSymbol arrMemberTypeDesc = arrayTypeSymbol.memberTypeDescriptor();
                 if (arrMemberTypeDesc.typeKind() == TypeDescKind.ARRAY
-                        || arrMemberTypeDesc.typeKind() == TypeDescKind.UNION
-                        || arrMemberTypeDesc.typeKind() == TypeDescKind.INTERSECTION) {
+                        || arrMemberTypeDesc.typeKind() == TypeDescKind.UNION) {
                     addMemberTypes(arrMemberTypeDesc, symbolMap);
                 } else {
                     addToMapIfForeignAndNotAdded(symbolMap, arrMemberTypeDesc);
                 }
             }
             case INTERSECTION -> {
-                // A readonly field is typed as `T & readonly`; collect T (the readonly member is not a reference)
+                // Collect T from `T & readonly`, for readonly fields and for `readonly & T` type definitions
                 IntersectionTypeSymbol intersectionTypeSymbol = (IntersectionTypeSymbol) typeSymbol;
                 intersectionTypeSymbol.memberTypeDescriptors().forEach(member -> {
                     if (member.typeKind() == TypeDescKind.ARRAY || member.typeKind() == TypeDescKind.UNION) {
