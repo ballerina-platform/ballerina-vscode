@@ -36,6 +36,7 @@ import {
     FILE_SINGLE_EDIT_TOOL_NAME,
     FILE_WRITE_TOOL_NAME
 } from './tools/text-editor';
+import { createGlobTool, createGrepTool, GLOB_TOOL_NAME, GREP_TOOL_NAME } from './tools/project-search';
 import { GenerationType } from '../utils/libs/libraries';
 import { createConnectorGeneratorTool, CONNECTOR_GENERATOR_TOOL } from './tools/connector-generator';
 import { SpecContext } from './tools/connector-spec-source';
@@ -204,6 +205,8 @@ export function createToolRegistryParts(opts: ToolRegistryOptions): ToolRegistry
         [FILE_READ_TOOL_NAME]: createReadTool(
             createReadExecute(eventHandler, tempProjectPath)
         ),
+        [GLOB_TOOL_NAME]: createGlobTool(eventHandler, tempProjectPath),
+        [GREP_TOOL_NAME]: createGrepTool(eventHandler, tempProjectPath),
         [DIAGNOSTICS_TOOL_NAME]: createDiagnosticsTool(tempProjectPath, eventHandler, editDiagnostics),
         [TEST_RUNNER_TOOL_NAME]: createTestRunnerTool(tempProjectPath, eventHandler),
         // Migration source tools — registered only when a source project path is available

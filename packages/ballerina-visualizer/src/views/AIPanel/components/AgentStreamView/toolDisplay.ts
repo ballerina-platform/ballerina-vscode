@@ -34,6 +34,8 @@ interface ToolIconEntry { loading: string; done?: string; }
 
 const TOOL_ICON_MAP: Record<string, ToolIconEntry> = {
     file_read:                     { loading: "codicon-go-to-file" },
+    glob:                          { loading: "codicon-files" },
+    grep:                          { loading: "codicon-search" },
     file_write:                    { loading: "codicon-edit" },
     file_edit:                     { loading: "codicon-edit" },
     file_batch_edit:               { loading: "codicon-edit" },
@@ -130,6 +132,8 @@ export function getToolCallDisplay(toolName: string | undefined, toolInput: any)
     }
     switch (toolName) {
         case "file_read":    return { label: "Reading",   detail: getFileName(toolInput?.fileName) + "..." };
+        case "glob":         return { label: toolInput?.pattern ? "Finding files:" : "Finding files...", detail: toolInput?.pattern };
+        case "grep":         return { label: toolInput?.pattern ? "Searching for:" : "Searching the code...", detail: toolInput?.pattern };
         case "file_write":   return { label: "Creating",  detail: getFileName(toolInput?.fileName) + "..." };
         case "file_edit":
         case "file_batch_edit": return { label: "Updating", detail: getFileName(toolInput?.fileName) + "..." };
@@ -176,6 +180,8 @@ export function getToolResultDisplay(toolName: string | undefined, toolOutput: a
     }
     switch (toolName) {
         case "file_read":    return { label: "Read",    detail: getFileName(toolOutput?.fileName) };
+        case "glob":         return { label: toolOutput?.success === false ? "File search failed" : "Found files:", detail: toolOutput?.success === false ? undefined : toolOutput?.pattern };
+        case "grep":         return { label: toolOutput?.success === false ? "Code search failed" : "Searched for:", detail: toolOutput?.success === false ? undefined : toolOutput?.pattern };
         case "file_write":   return { label: toolOutput?.action === "updated" ? "Updated" : "Created", detail: getFileName(toolOutput?.fileName) };
         case "file_edit":
         case "file_batch_edit": return { label: "Updated", detail: getFileName(toolOutput?.fileName) };

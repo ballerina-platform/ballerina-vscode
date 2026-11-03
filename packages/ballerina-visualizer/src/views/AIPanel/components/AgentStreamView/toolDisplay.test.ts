@@ -79,6 +79,14 @@ describe("getToolCallDisplay", () => {
         });
     });
 
+    it("shows the pattern for glob and grep", () => {
+        expect(getToolCallDisplay("glob", { pattern: "**/*.bal" })).toEqual({ label: "Finding files:", detail: "**/*.bal" });
+        expect(getToolCallDisplay("grep", { pattern: "getOrders" })).toEqual({ label: "Searching for:", detail: "getOrders" });
+        expect(getToolCallDisplay("grep", undefined)).toEqual({ label: "Searching the code...", detail: undefined });
+        expect(getToolResultDisplay("grep", { success: true, pattern: "getOrders" })).toEqual({ label: "Searched for:", detail: "getOrders" });
+        expect(getToolResultDisplay("glob", { success: false, pattern: "*.bal" })).toEqual({ label: "File search failed", detail: undefined });
+    });
+
     it("treats single and batch edits the same", () => {
         const single = getToolCallDisplay("file_edit", { fileName: "x.bal" });
         expect(getToolCallDisplay("file_batch_edit", { fileName: "x.bal" })).toEqual(single);
