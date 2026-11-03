@@ -34,36 +34,45 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Holds a task form's audience section to its contract: every audience field renders in it, and the section
- * itself asks for the roles or the users — the one omission the source generator refuses — in that refusal's
- * own words. The form enforces the ask, so this pins what it is told.
+ * Holds a form's audience sections to the module's grouping: who decides (the one section that asks for
+ * anything, and only for the roles or the users — the omission the source generator refuses), and inside it,
+ * collapsed, who may not and who administers. The form enforces the ask, so this pins what it is told.
  */
 public class AudienceGroupTest {
 
     private static final Gson GSON = new Gson();
 
-    @DataProvider(name = "taskRoleKeys")
-    public Object[][] taskRoleKeys() {
-        return new Object[][]{{HumanTaskBuilder.USER_ROLES_KEY}, {DurableAgentHumanTaskBuilder.USER_ROLES_KEY}};
+    @DataProvider(name = "audienceKeys")
+    public Object[][] audienceKeys() {
+        return new Object[][]{
+                {WorkflowUtil.AudienceKeys.task(HumanTaskBuilder.USER_ROLES_KEY)},
+                {WorkflowUtil.AudienceKeys.task(DurableAgentHumanTaskBuilder.USER_ROLES_KEY)},
+                // The review forms name the same fields with a prefix; the grouping must not care.
+                {new WorkflowUtil.AudienceKeys("retryUserRoles", "retryUsers", "retryExcludedUsers",
+                        "retryExcludedRoles", "retryAdministratorRoles", "retryAdministratorUsers")}
+        };
     }
 
-    @Test(dataProvider = "taskRoleKeys")
-    public void testGroupAudiencePlacesEveryAudienceField(String userRolesKey) {
-        List<String> audienceKeys = new ArrayList<>();
-        audienceKeys.add(userRolesKey);
-        audienceKeys.addAll(WorkflowUtil.AUDIENCE_KEYS);
+    @Test(dataProvider = "audienceKeys")
+    public void testGroupAudiencePlacesEachFieldInItsSection(WorkflowUtil.AudienceKeys keys) {
+        List<String> audienceKeys = List.of(keys.roles(), keys.users(), keys.excludedUsers(), keys.excludedRoles(),
+                keys.adminRoles(), keys.adminUsers());
         Map<String, Property> properties = new LinkedHashMap<>();
         for (String key : audienceKeys) {
             properties.put(key, property(true));
         }
         properties.put("taskName", property(false));
 
-        WorkflowUtil.groupAudience(properties, userRolesKey);
+        WorkflowUtil.groupAudience(properties, "audience", keys);
 
-        FormGroup expected = WorkflowUtil.audienceGroup(userRolesKey);
+        List<FormGroup> groups = WorkflowUtil.audienceGroups("audience", keys);
+        Map<String, FormGroup> expected = Map.of(
+                keys.roles(), groups.get(0), keys.users(), groups.get(0),
+                keys.excludedUsers(), groups.get(1), keys.excludedRoles(), groups.get(1),
+                keys.adminRoles(), groups.get(2), keys.adminUsers(), groups.get(2));
         for (String key : audienceKeys) {
             Property grouped = properties.get(key);
-            Assert.assertEquals(grouped.metadata().data().get(FormGroup.DATA_KEY), expected, key);
+            Assert.assertEquals(grouped.metadata().data().get(FormGroup.DATA_KEY), expected.get(key), key);
             Assert.assertFalse(grouped.advanced(), key + " renders in its section, not the advanced options");
         }
         Property taskName = properties.get("taskName");
@@ -73,25 +82,39 @@ public class AudienceGroupTest {
                 "grouping keeps the property order");
     }
 
-    @Test(dataProvider = "taskRoleKeys")
-    public void testSectionAsksForTheRolesOrTheUsers(String userRolesKey) {
-        FormGroup group = WorkflowUtil.audienceGroup(userRolesKey);
+    @Test(dataProvider = "audienceKeys")
+    public void testOnlyWhoDecidesAsksAndTheRestNestCollapsed(WorkflowUtil.AudienceKeys keys) {
+        List<FormGroup> groups = WorkflowUtil.audienceGroups("audience", keys);
+        Assert.assertEquals(groups.size(), 3);
+        FormGroup deciders = groups.get(0);
         // Exactly the two fields either of which satisfies the source generator; the excluded and
         // administrator fields name nobody who may decide.
-        Assert.assertEquals(group.requireAnyOf(), List.of(userRolesKey, WorkflowUtil.USERS_KEY));
-        Assert.assertFalse(group.collapsed(), "a section that must be filled in opens");
-        Assert.assertEquals(group.description(), WorkflowUtil.AUDIENCE_REQUIRED_MESSAGE,
-                "the section says up front what the refusal would");
+        Assert.assertEquals(deciders.requireAnyOf(), List.of(keys.roles(), keys.users()));
+        Assert.assertFalse(deciders.collapsed(), "a section that must be filled in opens");
+        Assert.assertNull(deciders.parent());
+        Assert.assertEquals(deciders.label(), "Who decides");
+        for (FormGroup nested : groups.subList(1, 3)) {
+            Assert.assertEquals(nested.requireAnyOf(), List.of(), nested.label() + " asks for nothing");
+            Assert.assertTrue(nested.collapsed(), nested.label() + " stays out of the way");
+            Assert.assertEquals(nested.parent(), deciders.id(), nested.label() + " renders inside Who decides");
+        }
+        Assert.assertEquals(groups.stream().map(FormGroup::id).distinct().count(), 3L);
 
-        // The form reads the section from the property's metadata, as serialized.
-        JsonObject wire = JsonParser.parseString(GSON.toJson(group)).getAsJsonObject();
-        Assert.assertEquals(wire.get("id").getAsString(), "audience");
+        // The form reads the sections from the property's metadata, as serialized: a top-level section
+        // carries no parent at all.
+        JsonObject wire = JsonParser.parseString(GSON.toJson(deciders)).getAsJsonObject();
+        Assert.assertEquals(wire.get("id").getAsString(), "audience-deciders");
         Assert.assertEquals(wire.getAsJsonArray("requireAnyOf").size(), 2);
+        Assert.assertFalse(wire.has("parent"));
+        Assert.assertEquals(JsonParser.parseString(GSON.toJson(groups.get(2))).getAsJsonObject()
+                .get("parent").getAsString(), "audience-deciders");
     }
 
     @Test
     public void testSectionWithoutAnAskRequiresNothing() {
-        Assert.assertEquals(new FormGroup("x", "X", null, true, null).requireAnyOf(), List.of());
+        FormGroup group = new FormGroup("x", "X", null, true, null);
+        Assert.assertEquals(group.requireAnyOf(), List.of());
+        Assert.assertNull(group.parent());
     }
 
     private static Property property(boolean advanced) {

@@ -38,15 +38,23 @@ import java.util.Map;
  * @param requireAnyOf member keys of which at least one must be filled before the form saves, though each is
  *                     optional on its own; empty when the section asks for nothing. The form marks such a
  *                     section as required
+ * @param parent       id of the section this one renders inside, after the parent's own fields; {@code null}
+ *                     for a top-level section. A nested section takes its parent's place in the form
  * @since 1.10.0
  */
-public record FormGroup(String id, String label, String description, boolean collapsed, List<String> requireAnyOf) {
+public record FormGroup(String id, String label, String description, boolean collapsed, List<String> requireAnyOf,
+                        String parent) {
 
     /** Key under a property's {@code metadata.data} that names its group. */
     public static final String DATA_KEY = "group";
 
     public FormGroup {
         requireAnyOf = requireAnyOf == null ? List.of() : List.copyOf(requireAnyOf);
+    }
+
+    /** A top-level section. */
+    public FormGroup(String id, String label, String description, boolean collapsed, List<String> requireAnyOf) {
+        this(id, label, description, collapsed, requireAnyOf, null);
     }
 
     /**

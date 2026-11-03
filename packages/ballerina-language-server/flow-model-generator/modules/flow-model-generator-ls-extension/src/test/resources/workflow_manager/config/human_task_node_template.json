@@ -57,9 +57,9 @@
           "description": "Role(s) permitted to complete this task; may be left empty when users are named",
           "data": {
             "group": {
-              "id": "audience",
-              "label": "Assignment",
-              "description": "Name who may decide this: fill in the roles, the users, or both",
+              "id": "audience-deciders",
+              "label": "Who decides",
+              "description": "Fill in the roles, the users, or both",
               "collapsed": false,
               "requireAnyOf": [
                 "userRoles",
@@ -284,9 +284,9 @@
           "description": "User id(s) permitted to answer it, whatever their roles",
           "data": {
             "group": {
-              "id": "audience",
-              "label": "Assignment",
-              "description": "Name who may decide this: fill in the roles, the users, or both",
+              "id": "audience-deciders",
+              "label": "Who decides",
+              "description": "Fill in the roles, the users, or both",
               "collapsed": false,
               "requireAnyOf": [
                 "userRoles",
@@ -325,14 +325,12 @@
           "description": "User id(s) that may not answer it, whatever their roles",
           "data": {
             "group": {
-              "id": "audience",
-              "label": "Assignment",
-              "description": "Name who may decide this: fill in the roles, the users, or both",
-              "collapsed": false,
-              "requireAnyOf": [
-                "userRoles",
-                "users"
-              ]
+              "id": "audience-excluded",
+              "label": "Excluded",
+              "description": "May not decide, whatever their roles",
+              "collapsed": true,
+              "requireAnyOf": [],
+              "parent": "audience-deciders"
             }
           }
         },
@@ -366,14 +364,12 @@
           "description": "Role(s) that may not answer it",
           "data": {
             "group": {
-              "id": "audience",
-              "label": "Assignment",
-              "description": "Name who may decide this: fill in the roles, the users, or both",
-              "collapsed": false,
-              "requireAnyOf": [
-                "userRoles",
-                "users"
-              ]
+              "id": "audience-excluded",
+              "label": "Excluded",
+              "description": "May not decide, whatever their roles",
+              "collapsed": true,
+              "requireAnyOf": [],
+              "parent": "audience-deciders"
             }
           }
         },
@@ -407,14 +403,12 @@
           "description": "Role(s) that administer it: they see it, may reassign it, move its deadline,\nfail it, or complete it — a completion by them is recorded as an administrator's",
           "data": {
             "group": {
-              "id": "audience",
-              "label": "Assignment",
-              "description": "Name who may decide this: fill in the roles, the users, or both",
-              "collapsed": false,
-              "requireAnyOf": [
-                "userRoles",
-                "users"
-              ]
+              "id": "audience-administrators",
+              "label": "Administrators",
+              "description": "May see, reassign, move the deadline, fail or complete it",
+              "collapsed": true,
+              "requireAnyOf": [],
+              "parent": "audience-deciders"
             }
           }
         },
@@ -448,14 +442,12 @@
           "description": "User id(s) that administer it, whatever their roles",
           "data": {
             "group": {
-              "id": "audience",
-              "label": "Assignment",
-              "description": "Name who may decide this: fill in the roles, the users, or both",
-              "collapsed": false,
-              "requireAnyOf": [
-                "userRoles",
-                "users"
-              ]
+              "id": "audience-administrators",
+              "label": "Administrators",
+              "description": "May see, reassign, move the deadline, fail or complete it",
+              "collapsed": true,
+              "requireAnyOf": [],
+              "parent": "audience-deciders"
             }
           }
         },

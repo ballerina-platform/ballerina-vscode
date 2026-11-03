@@ -388,9 +388,9 @@ public class HumanTaskBuilder extends CallBuilder {
         WorkflowUtil.restyleRoleProperties(properties, USER_ROLES_KEY, WorkflowUtil.USERS_KEY,
                 WorkflowUtil.EXCLUDED_USERS_KEY, WorkflowUtil.EXCLUDED_ROLES_KEY,
                 WorkflowUtil.ADMINISTRATOR_ROLES_KEY, WorkflowUtil.ADMINISTRATOR_USERS_KEY);
-        // Six role fields read as one question — who may act on this task — so they render as one
-        // section, which is also where the audience rule reports.
-        WorkflowUtil.groupAudience(properties, USER_ROLES_KEY);
+        // The audience renders as the module groups it: who decides (where the audience rule reports),
+        // and inside it, collapsed, who may not and who administers.
+        WorkflowUtil.groupAudience(properties, "audience", WorkflowUtil.AudienceKeys.task(USER_ROLES_KEY));
         relabel(properties, TASK_INPUT_KEY, TASK_INPUT_LABEL, TASK_INPUT_DOC);
         openEmptyInputAsExpression(properties, TASK_INPUT_KEY);
         openEmptyInputAsExpression(properties, PAYLOAD_KEY);
@@ -574,7 +574,7 @@ public class HumanTaskBuilder extends CallBuilder {
                                 + TASK_NAME_LABEL + "'."));
         // The roles may be nil when users are named: `userRoles = ()` says those users alone decide.
         // A diagnostics pass writes the call regardless, so the compiler can still check every other
-        // field: the form holds the save itself while its audience section names nobody.
+        // field: the form holds the save itself while its "Who decides" section names nobody.
         if (!sourceBuilder.isForDiagnostics()
                 && WorkflowUtil.audienceSource(sourceBuilder, USER_ROLES_KEY).isBlank()
                 && WorkflowUtil.audienceSource(sourceBuilder, WorkflowUtil.USERS_KEY).isBlank()) {
