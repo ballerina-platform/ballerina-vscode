@@ -579,6 +579,7 @@ export function AgentBuilderOverview({ projectPath, agentFocus, isInDevant, isIC
                                 <Layer $show={!canvasVisible}>
                                     <EmptyState
                                         isLibrary={isLibrary}
+                                        packageName={projectStructure?.projectName}
                                         onCreateFromScratch={() =>
                                             isLibrary ? setShowAddLibraryArtifact(true) : setShowAddAgent(true)
                                         }
