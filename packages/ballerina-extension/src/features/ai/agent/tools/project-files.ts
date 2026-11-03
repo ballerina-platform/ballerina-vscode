@@ -88,7 +88,9 @@ export function isReadableProjectFile(root: string, relPath: string): boolean {
         return true;
     }
     try {
-        return isInside(rootReal, fs.realpathSync(target));
+        const real = fs.realpathSync(target);
+        // The name rule runs on the link target too, so `alias.bal -> Config.toml` stays out.
+        return isInside(rootReal, real) && isAllowedProjectPath(path.relative(rootReal, real));
     } catch {
         return false;
     }
@@ -148,10 +150,14 @@ export async function listProjectFiles(root: string, options: ListProjectFilesOp
         ignore: IGNORED_DIR_GLOBS,
     });
 
-    const prefix = scopeSegments.length > 0 ? `${scopeSegments.join("/")}/` : "";
     const files: string[] = [];
     for (const match of matches) {
-        const rel = `${prefix}${toPosixRelative(match)}`;
+        // Brace expansion can turn a relative-looking pattern into an absolute one.
+        const absolute = path.resolve(base, match);
+        if (!isInside(rootReal, absolute)) {
+            continue;
+        }
+        const rel = toPosixRelative(path.relative(rootReal, absolute));
         if (isReadableProjectFile(rootReal, rel)) {
             files.push(rel);
         }

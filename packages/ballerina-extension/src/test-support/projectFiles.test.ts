@@ -97,6 +97,19 @@ describe("listProjectFiles", () => {
         await expect(listProjectFiles(root, { path: "missing" })).rejects.toThrow(/does not exist/);
     });
 
+    it("drops matches that brace expansion sends outside the project", async () => {
+        const result = await listProjectFiles(root, { pattern: `{${outside}/secret.bal,main.bal}` });
+        expect(result).toEqual(["main.bal"]);
+    });
+
+    it("applies the name rule to a symlink's target", async () => {
+        fs.symlinkSync(path.join(root, "Config.toml"), path.join(root, "alias.bal"));
+        fs.symlinkSync(path.join(root, ".env"), path.join(root, "env.txt"));
+        expect(isReadableProjectFile(root, "alias.bal")).toBe(false);
+        expect(isReadableProjectFile(root, "env.txt")).toBe(false);
+        expect(await listProjectFiles(root, { pattern: "*.{bal,txt}" })).toEqual(["main.bal"]);
+    });
+
     it("drops a symlink that points out of the project", async () => {
         fs.symlinkSync(path.join(outside, "secret.bal"), path.join(root, "link.bal"));
         fs.symlinkSync(outside, path.join(root, "linkdir"));
