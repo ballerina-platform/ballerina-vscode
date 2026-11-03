@@ -69,6 +69,12 @@ describe("grep", () => {
         ]);
     });
 
+    it("marks a match as a match even when it was printed as context first", async () => {
+        write("c.bal", "a1\nb2\nc3");
+        const result = await grepProject(root, { pattern: "[ab][12]", path: "c.bal", output_mode: "content", context: 1 });
+        expect(result.message.split("\n")).toEqual(["c.bal:1:a1", "c.bal:2:b2", "c.bal-3-c3"]);
+    });
+
     it("never searches Config.toml or hidden files", async () => {
         const result = await grepProject(root, { pattern: "resource function get orders", output_mode: "content" });
         expect(result.message).not.toMatch(/Config\.toml|\.env/);

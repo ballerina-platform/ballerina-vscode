@@ -1097,7 +1097,7 @@ export function createReadTool(execute: ReadExecute) {
     Usage:
     - For workspace projects, include the package directory prefix in the file path (e.g., "myPackage/main.bal").
     - Reads the whole file by default. Use offset (first line, 1-based) and limit (number of lines) to read part of it, for example around the lines grep found.
-    - One call returns at most ${MAX_READ_LINES} lines or ${MAX_READ_CHARS} characters; a longer read ends with a note saying where to continue.
+    - One call returns at most ${MAX_READ_LINES} lines or ${MAX_READ_CHARS} characters; a longer read includes a note saying where to continue.
     - Lines longer than ${MAX_LINE_LENGTH} characters are truncated.
     - Content read in earlier turns may be out of date; the user can edit files between turns.`,
     inputSchema: z.object({

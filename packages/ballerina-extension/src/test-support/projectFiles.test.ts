@@ -113,8 +113,10 @@ describe("listProjectFiles", () => {
     it("drops a symlink that points out of the project", async () => {
         fs.symlinkSync(path.join(outside, "secret.bal"), path.join(root, "link.bal"));
         fs.symlinkSync(outside, path.join(root, "linkdir"));
-        expect(await listProjectFiles(root, { pattern: "**/*.bal" })).not.toEqual(
-            expect.arrayContaining(["link.bal"]));
+        expect(await listProjectFiles(root, { pattern: "**/*.bal" })).toEqual([
+            "main.bal", "modules/db/db.bal", "tests/main_test.bal",
+        ]);
+        expect(await listProjectFiles(root, { pattern: "linkdir/*.bal" })).toEqual([]);
         expect(isReadableProjectFile(root, "link.bal")).toBe(false);
         expect(isReadableProjectFile(root, "linkdir/secret.bal")).toBe(false);
     });
@@ -143,6 +145,8 @@ describe("isAllowedProjectPath", () => {
         ["pkg1/.agents/skills/x/SKILL.md", false],
         [".env", false],
         ["target/bin/a.bal", false],
+        ["Target/cache/x.json", false],
+        ["pkg1/TARGET/a.bal", false],
         ["data.csv", false],
         ["../main.bal", false],
     ])("%s → %s", (rel, allowed) => {

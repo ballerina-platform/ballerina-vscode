@@ -35,7 +35,8 @@ export function toPosixRelative(p: string): string {
 }
 
 function isBlockedDirSegment(segment: string, index: number): boolean {
-    if (IGNORED_DIR_NAMES.has(segment)) {
+    // Lower-cased: on macOS and Windows "Target/" is the same folder as "target/".
+    if (IGNORED_DIR_NAMES.has(segment.toLowerCase())) {
         return true;
     }
     return segment.startsWith(".") && !(index === 0 && segment === ALLOWED_DOT_DIR);
@@ -150,17 +151,22 @@ export async function listProjectFiles(root: string, options: ListProjectFilesOp
         ignore: IGNORED_DIR_GLOBS,
     });
 
-    const files: string[] = [];
-    for (const match of matches) {
+    const candidates = matches
+        .map(match => path.resolve(base, match))
         // Brace expansion can turn a relative-looking pattern into an absolute one.
-        const absolute = path.resolve(base, match);
-        if (!isInside(rootReal, absolute)) {
-            continue;
-        }
-        const rel = toPosixRelative(path.relative(rootReal, absolute));
-        if (isReadableProjectFile(rootReal, rel)) {
-            files.push(rel);
-        }
+        .filter(absolute => isInside(rootReal, absolute))
+        .map(absolute => toPosixRelative(path.relative(rootReal, absolute)))
+        .filter(isAllowedProjectPath);
+    const readable = await Promise.all(candidates.map(rel => resolvesInsideRoot(rootReal, rel)));
+    return candidates.filter((_, index) => readable[index]).sort();
+}
+
+// Async so a large listing does not block the extension host; realpath catches symlinked folders on the way too.
+async function resolvesInsideRoot(rootReal: string, rel: string): Promise<boolean> {
+    try {
+        const real = await fs.promises.realpath(path.resolve(rootReal, rel));
+        return isInside(rootReal, real) && isAllowedProjectPath(path.relative(rootReal, real));
+    } catch {
+        return false;
     }
-    return files.sort();
 }

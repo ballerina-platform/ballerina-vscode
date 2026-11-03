@@ -164,7 +164,7 @@ export async function grepProject(root: string, input: GrepInput, abortSignal?: 
                 out.push("--");
             }
             for (let j = Math.max(from, lastPrinted + 1); j <= to; j++) {
-                const sep = j === i ? ":" : "-";
+                const sep = j === i || regex.test(searchable(lines[j])) ? ":" : "-";
                 if (!out.push(`${file}${sep}${j + 1}${sep}${printable(lines[j])}`)) {
                     break;
                 }
@@ -199,7 +199,7 @@ export function createGlobTool(eventHandler: CopilotEventHandler, root: string) 
     - Hidden files (other than .agents/), Config.toml and the target/ build folder are never listed.`,
         inputSchema: z.object({
             pattern: z.string().describe("Glob pattern, relative to path if given, otherwise to the project root"),
-            path: z.string().optional().describe("Directory to search in, relative to the project root (e.g. \"pkg1\")"),
+            path: z.string().optional().describe("File or directory to search in, relative to the project root (e.g. \"pkg1\")"),
         }),
         execute: async (input: { pattern: string; path?: string }) => {
             eventHandler({ type: "tool_call", toolName: GLOB_TOOL_NAME, toolInput: { pattern: input.pattern, path: input.path } });

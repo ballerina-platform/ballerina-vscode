@@ -98,7 +98,7 @@ describe("formatCodebaseStructure listing", () => {
         const text = formatCodebaseStructure([project(false)]);
 
         expect(text).toContain('<project name="my_pkg" active="true">');
-        expect(text).toContain('<file path="main.bal" lines="2"/>');
+        expect(text).toContain('<file path="main.bal" lines="3"/>');
         expect(text).not.toContain("public function main");
         expect(text).not.toContain("public type Foo");
     });
@@ -123,7 +123,7 @@ describe("formatCodebaseStructure listing", () => {
 
         const text = formatCodebaseStructure([odd]);
 
-        expect(text).toContain('<file path="pkgs/a&amp;b/main.bal" lines="2"/>');
+        expect(text).toContain('<file path="pkgs/a&amp;b/main.bal" lines="3"/>');
         expect(text).toContain('<file path="pkgs/a&amp;b/tests/unit/x_test.bal" lines="0"/>');
     });
 
@@ -138,7 +138,7 @@ describe("formatCodebaseStructure listing", () => {
 
             const text = formatCodebaseStructure([other, active], root);
 
-            expect(text).toContain('<file path="main_pkg/main.bal" lines="2"/>');
+            expect(text).toContain('<file path="main_pkg/main.bal" lines="3"/>');
             expect(text).not.toContain('<file path="other/');
             expect(text).toContain('<package name="other_pkg" path="other" files="2"><config_files main="present" tests="absent"/></package>');
             expect(text).toContain('<config_files main="absent" tests="absent"/>\n</project>');
@@ -154,9 +154,21 @@ describe("formatCodebaseStructure listing", () => {
 
         const text = formatCodebaseStructure([first, second]);
 
-        expect(text).toContain('<file path="a/main.bal" lines="2"/>');
+        expect(text).toContain('<file path="a/main.bal" lines="3"/>');
         expect(text).toContain('<package name="b_pkg" path="b" files="2">');
         expect(first.isActive).toBeUndefined();
+    });
+
+    it("keeps every other package's line when the active package fills the budget", () => {
+        mockProjectKind = "WORKSPACE_PROJECT";
+        const active = { ...project(false), packagePath: "big", isActive: true };
+        active.sourceFiles = Array.from({ length: 1000 }, (_, i) => ({ filePath: `file_${i}.bal`, content: "x" }));
+        const other = { ...project(false), projectName: "other_pkg", packagePath: "other", isActive: false };
+
+        const text = formatCodebaseStructure([active, other]);
+
+        expect(text).toContain('<package name="other_pkg" path="other" files="2">');
+        expect(text).toMatch(/… \d+ more files not listed/);
     });
 
     it("stops at 16,000 characters and says how many files were left out", () => {

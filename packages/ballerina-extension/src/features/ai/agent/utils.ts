@@ -202,10 +202,8 @@ function collectFilesFromProject(
 }
 
 function countLines(content: string): number {
-    if (content.length === 0) {
-        return 0;
-    }
-    return content.split("\n").length - (content.endsWith("\n") ? 1 : 0);
+    // Same count as file_read reports, so a listed line count is a valid offset bound.
+    return content.length === 0 ? 0 : content.split("\n").length;
 }
 
 function formatConfigFiles(tempProjectPath: string | undefined, project: ProjectSource, isWorkspace: boolean): string {
@@ -235,6 +233,17 @@ export function formatCodebaseStructure(projects: ProjectSource[], tempProjectPa
     }
 
     const activeProject = projects.find(project => project.isActive) ?? projects[0];
+
+    // Other packages come first and outside the budget: one short line each, and the prompt tells the model they are here.
+    for (const project of projects) {
+        if (project === activeProject) {
+            continue;
+        }
+        const { files, generatedFiles } = collectFilesFromProject(project, isWorkspace);
+        const packagePath = project.packagePath?.replace(/\\/g, "/") ?? "";
+        text += `<package name="${escapeXmlText(project.projectName)}" path="${escapeXmlText(packagePath)}" files="${files.length + generatedFiles.length}">${formatConfigFiles(tempProjectPath, project, isWorkspace)}</package>\n`;
+    }
+
     let budget = LISTING_MAX_CHARS - text.length;
     let unlisted = 0;
     const listWithinBudget = (entries: string[]): number => {
@@ -263,17 +272,6 @@ export function formatCodebaseStructure(projects: ProjectSource[], tempProjectPa
         const configFiles = formatConfigFiles(tempProjectPath, activeProject, isWorkspace);
         text += configFiles ? `${configFiles}\n` : "";
         text += "</project>\n";
-    }
-
-    for (const project of projects) {
-        if (project === activeProject) {
-            continue;
-        }
-        const { files, generatedFiles } = collectFilesFromProject(project, isWorkspace);
-        const fileCount = files.length + generatedFiles.length;
-        const packagePath = project.packagePath?.replace(/\\/g, "/") ?? "";
-        const entry = `<package name="${escapeXmlText(project.projectName)}" path="${escapeXmlText(packagePath)}" files="${fileCount}">${formatConfigFiles(tempProjectPath, project, isWorkspace)}</package>`;
-        unlisted += listWithinBudget([entry]) > 0 ? fileCount : 0;
     }
 
     if (unlisted > 0) {
