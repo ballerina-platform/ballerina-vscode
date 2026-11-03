@@ -65,7 +65,7 @@ import { buildAgentToolFields, buildApprovalToolData, buildRequiresApprovalField
 import { ImplementationBadge } from "../../../components/ImplementationBadge";
 import { FUNCTION_CALL, KNOWLEDGE_BASE_CALL, METHOD_CALL, REMOTE_ACTION_CALL, RESOURCE_ACTION_CALL } from "../../../constants";
 import { NewToolSelectionMode } from "./NewTool";
-import { buildOAuthFields, fetchOAuthConfigProperties, toAgentToolReference, ZERO_LINE_RANGE } from "./utils";
+import { buildOAuthFields, fetchOAuthConfigProperties, toAgentToolReference, toAgentToolsCategory, ZERO_LINE_RANGE } from "./utils";
 import { assertFunctionSearchSuccess, FUNCTIONS_PAGE_SIZE } from "../../../utils/function-pagination";
 import { useFunctionPaginationController } from "../../../utils/useFunctionPaginationController";
 import { countSectionLeafNodes, findFunctionByName, mergePanelCategories } from "../FlowDiagram/utils";
@@ -721,7 +721,8 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
             });
         }
         if (onExistingToolSelect) {
-            filteredResponse.splice(1, 0, ...response.categories.filter(isAgentToolsCategory));
+            filteredResponse.splice(1, 0, ...response.categories.filter(isAgentToolsCategory)
+                .map(toAgentToolsCategory).filter((category) => category.items.length > 0));
         }
         return convertFunctionCategoriesToSidePanelCategories(filteredResponse as Category[], functionType,
             Boolean(onExistingToolSelect));

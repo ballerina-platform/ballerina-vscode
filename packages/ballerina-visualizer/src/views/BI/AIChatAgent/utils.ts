@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { AgentEventChannel, AgentKind, AgentToolData, AvailableNode, BISearchRequest, BISearchResponse, CodeData, ConfigVariable, DIRECTORY_MAP, ELineRange, EVENT_TYPE, FlowNode, GET_DEFAULT_MODEL_PROVIDER, isAgentDeclarationNode, LinePosition, LineRange, MACHINE_VIEW, NodeKind, NodePosition, ProjectStructureArtifactResponse, Property, SearchKind, SearchNodesQuery, ToolData, ToolParameters, VisualizerLocation } from "@wso2/ballerina-core";
+import { AgentEventChannel, AgentKind, AgentToolData, AvailableNode, BISearchRequest, BISearchResponse, Category, CodeData, ConfigVariable, DIRECTORY_MAP, ELineRange, EVENT_TYPE, FlowNode, GET_DEFAULT_MODEL_PROVIDER, isAgentDeclarationNode, LinePosition, LineRange, MACHINE_VIEW, NodeKind, NodePosition, ProjectStructureArtifactResponse, Property, SearchKind, SearchNodesQuery, ToolData, ToolParameters, VisualizerLocation } from "@wso2/ballerina-core";
 import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
 import { FormField } from "@wso2/ballerina-side-panel";
 import { cloneDeep } from "lodash";
@@ -725,6 +725,16 @@ export const toAgentToolReference = (codedata: CodeData): { toolName: string; im
     const prefix = codedata.module.split(".").pop();
     return { toolName: `${prefix}:${codedata.symbol}`, imports: { [prefix]: `${codedata.org}/${codedata.module}` } };
 };
+
+// Agent tools show the tool icon, and packages without any are left out.
+export const toAgentToolsCategory = (category: Category): Category => ({
+    ...category,
+    items: category.items
+        .map((item) => "codedata" in item
+            ? { ...item, metadata: { ...item.metadata, icon: "bi-wrench" } }
+            : toAgentToolsCategory(item as Category))
+        .filter((item) => "codedata" in item || (item as Category).items.length > 0),
+});
 
 export const addToolToAgentNode = async (agentNode: FlowNode, toolName: string, imports?: Record<string, string>) => {
     if (!agentNode || agentNode.codedata?.node !== "AGENT") return null;
