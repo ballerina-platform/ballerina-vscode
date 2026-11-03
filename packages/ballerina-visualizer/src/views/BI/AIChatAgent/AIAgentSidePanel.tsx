@@ -65,7 +65,7 @@ import { buildAgentToolFields, buildApprovalToolData, buildRequiresApprovalField
 import { ImplementationBadge } from "../../../components/ImplementationBadge";
 import { FUNCTION_CALL, KNOWLEDGE_BASE_CALL, METHOD_CALL, REMOTE_ACTION_CALL, RESOURCE_ACTION_CALL } from "../../../constants";
 import { NewToolSelectionMode } from "./NewTool";
-import { buildOAuthFields, fetchOAuthConfigProperties, ZERO_LINE_RANGE } from "./utils";
+import { buildOAuthFields, fetchOAuthConfigProperties, toAgentToolReference, ZERO_LINE_RANGE } from "./utils";
 import { assertFunctionSearchSuccess, FUNCTIONS_PAGE_SIZE } from "../../../utils/function-pagination";
 import { useFunctionPaginationController } from "../../../utils/useFunctionPaginationController";
 import { countSectionLeafNodes, findFunctionByName, mergePanelCategories } from "../FlowDiagram/utils";
@@ -345,6 +345,7 @@ export interface BIFlowDiagramProps {
     mode?: NewToolSelectionMode;
     onViewChange?: (view: SidePanelView, navigateBack?: () => void) => void;
     onAgentToolCreated?: (functionName: string) => void;
+    onExistingToolSelect?: (toolName: string, imports?: Record<string, string>) => void | Promise<void>;
     onCancel?: () => void;
     connectionDependency?: ConnectionDependencyConfig;
 }
@@ -404,7 +405,7 @@ const INITIAL_FIELDS: FormField[] = [
 ];
 
 export function AIAgentSidePanel(props: BIFlowDiagramProps) {
-    const { agentNode, projectPath, onSubmit, mode = NewToolSelectionMode.ALL, onViewChange, onAgentToolCreated, onCancel, connectionDependency } = props;
+    const { agentNode, projectPath, onSubmit, mode = NewToolSelectionMode.ALL, onViewChange, onAgentToolCreated, onExistingToolSelect, onCancel, connectionDependency } = props;
     const { rpcClient } = useRpcContext();
     const dependencyMode = Boolean(connectionDependency);
 
@@ -707,11 +708,10 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
         });
     }, [agentNode, dependencyMode]);
 
-    // Drops agent tools, which cannot become tools again, and converts the rest for the panel.
+    // Agent tools cannot become tools again, so they are listed only when they can be attached as they are.
     const toToolCandidateCategories = (response: BISearchResponse, functionType: FUNCTION_TYPE): PanelCategory[] => {
-        const filteredResponse = response.categories.filter((category) => {
-            return category.metadata.label !== "Agent Tools";
-        });
+        const isAgentToolsCategory = (category: Category | AvailableNode) => category.metadata.label === "Agent Tools";
+        const filteredResponse = response.categories.filter((category) => !isAgentToolsCategory(category));
 
         // Remove agent tool functions from integration category
         const currentIntegrationCategory = filteredResponse[0];
@@ -720,7 +720,11 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                 return !(item.metadata?.data as NodeMetadata)?.isAgentTool;
             });
         }
-        return convertFunctionCategoriesToSidePanelCategories(filteredResponse as Category[], functionType);
+        if (onExistingToolSelect) {
+            filteredResponse.splice(1, 0, ...response.categories.filter(isAgentToolsCategory));
+        }
+        return convertFunctionCategoriesToSidePanelCategories(filteredResponse as Category[], functionType,
+            Boolean(onExistingToolSelect));
     };
 
     // Returns the default view's categories when not searching, or undefined when a newer search superseded it.
@@ -1080,6 +1084,11 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
 
         try {
             const { node } = metadata as { node: AvailableNode };
+            if (onExistingToolSelect && (node.metadata?.data as NodeMetadata)?.isAgentTool) {
+                const { toolName, imports } = toAgentToolReference(node.codedata);
+                await onExistingToolSelect(toolName, imports);
+                return;
+            }
             setToolNodeId(nodeId);
             selectedNodeRef.current = node;
             setSelectedNodeCodeData(node.codedata);

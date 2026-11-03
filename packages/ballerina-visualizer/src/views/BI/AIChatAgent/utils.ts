@@ -718,7 +718,15 @@ export const removeMcpServerFromAgentNode = (agentNode: FlowNode, toolkitNameToR
     return updatedAgentNode;
 };
 
-export const addToolToAgentNode = async (agentNode: FlowNode, toolName: string) => {
+export const toAgentToolReference = (codedata: CodeData): { toolName: string; imports?: Record<string, string> } => {
+    if (codedata.data?.moduleRelation === "CURRENT_MODULE") {
+        return { toolName: codedata.symbol };
+    }
+    const prefix = codedata.module.split(".").pop();
+    return { toolName: `${prefix}:${codedata.symbol}`, imports: { [prefix]: `${codedata.org}/${codedata.module}` } };
+};
+
+export const addToolToAgentNode = async (agentNode: FlowNode, toolName: string, imports?: Record<string, string>) => {
     if (!agentNode || agentNode.codedata?.node !== "AGENT") return null;
     // clone the node to avoid modifying the original
     const updatedAgentNode = cloneDeep(agentNode);
@@ -757,6 +765,9 @@ export const addToolToAgentNode = async (agentNode: FlowNode, toolName: string) 
         return agentNode;
     }
     updatedAgentNode.properties.tools.value = toolsValue;
+    if (imports) {
+        updatedAgentNode.properties.tools.imports = { ...updatedAgentNode.properties.tools.imports, ...imports };
+    }
     updatedAgentNode.codedata.isNew = false;
     return updatedAgentNode;
 };

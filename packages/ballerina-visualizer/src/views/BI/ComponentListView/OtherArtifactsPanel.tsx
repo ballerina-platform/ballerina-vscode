@@ -23,11 +23,12 @@ import { CardGrid, PanelViewMore, Title, TitleWrapper } from './styles';
 import { BodyText } from '../../styles';
 import ButtonCard from '../../../components/ButtonCard';
 import { useVisualizerContext } from '../../../Context';
-import { ARTIFACT_TOOLTIP_MAX_WIDTH, OTHER_ARTIFACT_CARDS } from '../components/artifactCards';
+import { ARTIFACT_TOOLTIP_MAX_WIDTH, OTHER_ARTIFACT_CARDS, sortAgentBuilderFirst } from '../components/artifactCards';
 import { cardMatchesSearch } from './componentListUtils';
 import { useProductMode } from '../../../hooks/useProductMode';
 
 const AGENT_BUILDER_HIDDEN_CARDS = [DIRECTORY_MAP.CONNECTION, DIRECTORY_MAP.AGENT, DIRECTORY_MAP.CONFIGURABLE];
+const AGENT_BUILDER_ONLY_CARDS = [DIRECTORY_MAP.AGENT_TOOL];
 
 interface OtherArtifactsPanelProps {
     isNPSupported: boolean;
@@ -83,6 +84,13 @@ export function OtherArtifactsPanel(props: OtherArtifactsPanelProps) {
                     view: MACHINE_VIEW.AddAgentDefinition,
                 },
             });
+        } else if (key === DIRECTORY_MAP.AGENT_TOOL) {
+            await rpcClient.getVisualizerRpcClient().openView({
+                type: EVENT_TYPE.OPEN_VIEW,
+                location: {
+                    view: MACHINE_VIEW.AIAgentToolForm,
+                },
+            });
         } else if (key === DIRECTORY_MAP.DATA_MAPPER) {
             await rpcClient.getVisualizerRpcClient().openView({
                 type: EVENT_TYPE.OPEN_VIEW,
@@ -130,12 +138,10 @@ export function OtherArtifactsPanel(props: OtherArtifactsPanelProps) {
             (showNaturalFunctions || !card.requiresNaturalFunctions) &&
             (isLibrary || !card.requiresLibrary) &&
             cardMatchesSearch(card.displayName, q) &&
-            !(isAgentBuilder && AGENT_BUILDER_HIDDEN_CARDS.includes(card.directoryKey))
+            !(isAgentBuilder ? AGENT_BUILDER_HIDDEN_CARDS : AGENT_BUILDER_ONLY_CARDS).includes(card.directoryKey)
     );
-    if (isAgentBuilder) {
-        cards.sort((a, b) => Number(b.directoryKey === DIRECTORY_MAP.AGENT_DEFINITION) - Number(a.directoryKey === DIRECTORY_MAP.AGENT_DEFINITION));
-    }
-    if (cards.length === 0) {
+    const orderedCards = isAgentBuilder ? sortAgentBuilderFirst(cards, (card) => card.directoryKey) : cards;
+    if (orderedCards.length === 0) {
         return null;
     }
 
@@ -150,7 +156,7 @@ export function OtherArtifactsPanel(props: OtherArtifactsPanelProps) {
                 </TitleWrapper>
             )}
             <CardGrid>
-                {cards.map((card) => (
+                {orderedCards.map((card) => (
                     <ButtonCard
                         id={card.id}
                         key={card.id}
