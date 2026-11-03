@@ -18,7 +18,7 @@
 
 // @wso2/ballerina-core's barrel re-exports WSConnection, which requires vscode-ws-jsonrpc — an
 // ESM-only package jest can't load without extra transform config. formUtils only uses the pure
-// getPrimaryInputType from it at runtime, so we stub that (matching src/utils/bi.test.ts).
+// getPrimaryInputType from it at runtime, so we stub that (matching src/test/utils/bi.test.ts).
 jest.mock("@wso2/ballerina-core", () => ({
     getPrimaryInputType: (types: any[]) => types?.[0],
 }));
