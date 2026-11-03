@@ -1206,7 +1206,8 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                 width={AGENT_USAGE_COLUMN_WIDTH + 10}
                 height={model.node.viewState?.ch}
                 viewBox={`0 0 ${USAGE_COLUMN_RIGHT_X} ${containerHeight}`}
-                style={{ marginRight: "-10px", position: "relative", zIndex: 1 }}
+                // Visible overflow keeps the voice cloud badge whole when its trigger is the first row.
+                style={{ marginRight: "-10px", position: "relative", zIndex: 1, overflow: "visible" }}
             >
                 {usages.map((usage: AgentUsage, index: number) => {
                     const isRowActive = isUsageActive(usage);
@@ -1293,6 +1294,28 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                             >
                                 <UsageIcon usage={usage} codedata={model.node?.codedata} />
                             </foreignObject>
+                            {!usage.parentAgent && isVoiceAgentService(usage.type, usage.icon) && (
+                                // Voice services are deployed to the cloud; badge the trigger box's top-right corner.
+                                <g data-testid="voice-cloud-badge" style={{ pointerEvents: "all" }}>
+                                    <title>Runs in the cloud</title>
+                                    <circle
+                                        cx="290"
+                                        cy="2"
+                                        r="10"
+                                        fill={ThemeColors.SURFACE_DIM}
+                                        stroke={NODE_BORDER_COLOR}
+                                        strokeWidth={1.5}
+                                    />
+                                    <foreignObject x="283" y="-5" width="14" height="14" style={{ pointerEvents: "none" }}>
+                                        <Icon
+                                            name="cloud"
+                                            isCodicon
+                                            sx={{ width: 14, height: 14, fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", color: ThemeColors.ON_SURFACE }}
+                                            iconSx={{ fontSize: "14px", lineHeight: 1 }}
+                                        />
+                                    </foreignObject>
+                                </g>
+                            )}
 
                             {usage.serviceLabel && (
                                 <text
