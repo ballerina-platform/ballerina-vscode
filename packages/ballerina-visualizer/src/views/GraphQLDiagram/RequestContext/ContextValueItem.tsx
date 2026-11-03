@@ -29,8 +29,6 @@ import {
     IconTextWrapper,
     IconWrapper,
     OptionLabel,
-    disabledHeaderLabel,
-    headerLabelStyles,
 } from "../../BI/ServiceDesigner/styles";
 import { SOURCE_OPTIONS, describeEntry } from "./contextEntries";
 
@@ -40,6 +38,17 @@ const SourceCell = styled(IconTextWrapper)`
     flex-shrink: 0;
 `;
 
+// The label takes the space left after the actions and shrinks into it, so a long source is cut off with an
+// ellipsis instead of running into the edit and delete icons and pushing them out of the row.
+const LabelArea = styled.div<{ clickable: boolean }>`
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+    margin-left: 12px;
+    cursor: ${(props: { clickable: boolean }) => (props.clickable ? "pointer" : "default")};
+`;
+
 const Label = styled.div`
     display: flex;
     align-items: center;
@@ -47,7 +56,17 @@ const Label = styled.div`
     min-width: 0;
 `;
 
+const Actions = styled(ActionIconWrapper)`
+    flex-shrink: 0;
+    margin-left: 8px;
+`;
+
+const Content = styled(ContentSection)`
+    min-width: 0;
+`;
+
 const Key = styled.span`
+    flex-shrink: 0;
     color: var(--vscode-editor-foreground);
     font-family: var(--vscode-font-family);
     white-space: nowrap;
@@ -63,6 +82,7 @@ const Source = styled.span`
 `;
 
 const Required = styled.span`
+    flex-shrink: 0;
     font-size: 12px;
     color: var(--vscode-editorHint-foreground, #b0b0b0);
     font-style: italic;
@@ -92,25 +112,25 @@ export function ContextValueItem({ entry, readonly, onEdit, onDelete }: ContextV
                 </IconWrapper>
                 <OptionLabel>{option.tag}</OptionLabel>
             </SourceCell>
-            <ContentSection>
-                <div className={readonly ? disabledHeaderLabel : headerLabelStyles} onClick={readonly ? undefined : onEdit}>
+            <Content>
+                <LabelArea clickable={!readonly} onClick={readonly ? undefined : onEdit}>
                     <Label>
                         <Key>{entry.key}</Key>
                         <Source title={source}>{source}</Source>
                         {entry.required && <Required>required</Required>}
                     </Label>
-                </div>
+                </LabelArea>
                 {!readonly && (
-                    <ActionIconWrapper>
+                    <Actions>
                         <EditIconWrapper>
                             <Codicon name="edit" onClick={onEdit} />
                         </EditIconWrapper>
                         <DeleteIconWrapper>
                             <Codicon name="trash" onClick={onDelete} />
                         </DeleteIconWrapper>
-                    </ActionIconWrapper>
+                    </Actions>
                 )}
-            </ContentSection>
+            </Content>
         </HeaderLabel>
     );
 }
