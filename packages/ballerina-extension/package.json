@@ -1661,7 +1661,7 @@
         "webpack": "5.104.1",
         "webpack-cli": "6.0.1",
         "yarn": "1.22.19",
-        "@playwright/test": "1.55.1",
+        "@playwright/test": "1.64.1",
         "@wso2/playwright-vscode-tester": "workspace:*",
         "@wso2/test-config": "workspace:*"
     },
