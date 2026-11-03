@@ -22,6 +22,7 @@ import { test } from '@playwright/test';
 import * as helpers from './utils/helpers';
 import { extensionsFolder, newProjectPath, zipProjectSnapshot } from './utils/helpers';
 import { downloadExtensionFromMarketplace } from '@wso2/playwright-vscode-tester';
+import { descendants, killProcessTree } from './utils/helpers/processTree';
 import fs from 'fs';
 import path from 'path';
 const videosFolder = path.join(__dirname, '..', 'test-resources', 'videos');
@@ -89,6 +90,7 @@ import workflowForms from './workflow/workflow-forms.spec';
 import durableAgentRoleFields from './workflow/durable-agent-role-fields.spec';
 import workflowRoleFields from './workflow/workflow-role-fields.spec';
 import workflowRuntimeSection from './workflow/workflow-runtime-section.spec';
+import durableAgentForms from './workflow/durable-agent-forms.spec';
 import automationFlowNodes from './diagram/flow-nodes.spec';
 
 import httpTryItExisting from './tryit/http-try-it-existing.spec';
@@ -199,6 +201,8 @@ test.describe('Ballerina E2E Group 2', { tag: '@group2' }, async () => {
     // <----Workflow Test---->
     test.describe(workflowRoleFields);
     test.describe(workflowRuntimeSection);
+    // The durable agent's event, human task, send-event and Generate forms (wso2/product-integrator#2809-#2811).
+    test.describe(durableAgentForms);
 });
 
 test.describe('Ballerina E2E Group 3', { tag: '@group3' }, async () => {
@@ -359,8 +363,21 @@ test.afterAll(async () => {
     if (helpers.vscode) {
         console.log('🛑 Terminating VS Code Electron app...');
         try {
-            const electronProcess = helpers.vscode.process?.();
+            // process() throws once the app has already gone; the reap below still has to run then.
+            let electronProcess: ReturnType<typeof helpers.vscode.process> | undefined;
+            try {
+                electronProcess = helpers.vscode.process?.();
+            } catch {
+                electronProcess = undefined;
+            }
             if (electronProcess && !electronProcess.killed) {
+                // SIGKILL reaches Electron alone: the language server the extension host spawned
+                // keeps running on its stdio until the job ends, one JVM per VS Code launch (19 were
+                // still alive at the end of a group 5 job). Enough of them starve the runner and
+                // the job ends with "The runner has received a shutdown signal".
+                const children = descendants(electronProcess.pid);
+                // taskkill /T walks the tree from a live root only, so on Windows it runs before the SIGKILL.
+                const killedFirst = process.platform === 'win32' ? killProcessTree(electronProcess.pid, children) : 0;
                 await new Promise<void>((resolve) => {
                     let settled = false;
                     const done = () => {
@@ -378,9 +395,13 @@ test.afterAll(async () => {
                         done();
                     }
                 });
-                console.log('✅ VS Code Electron app terminated');
+                const killedAfter = process.platform === 'win32' ? 0 : killProcessTree(electronProcess.pid, children);
+                const killed = killedFirst + killedAfter + helpers.reapAllProcessesSeenUnderVSCode();
+                console.log(`✅ VS Code Electron app terminated (${killed} processes it or its reloads had spawned killed with it)`);
             } else {
-                console.log('ℹ️  No live Electron process to terminate');
+                // The app is gone, but the language servers its reloads left behind are not.
+                const killed = helpers.reapAllProcessesSeenUnderVSCode();
+                console.log(`ℹ️  No live Electron process to terminate (${killed} processes its reloads had spawned killed)`);
             }
         } catch (err) {
             console.warn(`⚠️  Failed to terminate Electron: ${(err as Error).message}`);

@@ -191,7 +191,7 @@ public class DurableAgentRegisterEventBuilder extends CallBuilder {
 
     @Override
     public Map<Path, List<TextEdit>> toSource(SourceBuilder sourceBuilder) {
-        // Object model: the event lives on the declaration's `events` list.
+        // Object model: the event lives on the declaration's `events`, keyed by its name.
         WorkflowUtil.requireDurableAgentObjectTarget(sourceBuilder);
         if (WorkflowUtil.isCapabilityDeleteRequest(sourceBuilder)) {
             return WorkflowUtil.removeAgentCapabilityEntry(sourceBuilder);
@@ -207,9 +207,8 @@ public class DurableAgentRegisterEventBuilder extends CallBuilder {
                 .map(p -> p.value() == null ? "" : p.value().toString().trim()).orElse("");
         String cardinality = sourceBuilder.getProperty(CARDINALITY_KEY)
                 .map(p -> p.value() == null ? "" : p.value().toString().trim()).orElse("");
-        StringBuilder entry = new StringBuilder("{name: ")
-                .append(WorkflowUtil.constantNameLiteral(eventName))
-                .append(", request: ").append(requestType.isBlank() ? DEFAULT_REQUEST_TYPE : requestType);
+        StringBuilder entry = new StringBuilder("request: ")
+                .append(requestType.isBlank() ? DEFAULT_REQUEST_TYPE : requestType);
         if (!responseType.isBlank()) {
             entry.append(", response: ").append(responseType);
         }
@@ -223,8 +222,7 @@ public class DurableAgentRegisterEventBuilder extends CallBuilder {
         } else if (!cardinality.isBlank() && !MULTI_EVENT.equals(cardinality)) {
             entry.append(", cardinality: ").append(cardinality);
         }
-        entry.append("}");
-        return WorkflowUtil.upsertAgentCapabilityEntry(sourceBuilder, "events", entry.toString());
+        return WorkflowUtil.upsertNamedCapabilityEntry(sourceBuilder, "events", eventName, entry.toString());
     }
 
 }

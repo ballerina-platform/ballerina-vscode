@@ -23,6 +23,7 @@ import { Button, Codicon } from "@wso2/ui-toolkit";
 import {
     AddSkillRequest,
     DeleteSkillRequest,
+    ProductMode,
     SkillEntry,
     SkillTier,
     ToggleSkillRequest,
@@ -31,7 +32,7 @@ import { AIChatView, PrimaryActionButton } from "../../styles";
 import { Loader } from "../Loader";
 import SkillRow from "./SkillRow";
 import AddSkillModal from "./AddSkillModal";
-import { useShortAssistantName } from "../../../../hooks/useProductMode";
+import { useProductMode, useShortAssistantName } from "../../../../hooks/useProductMode";
 
 // ─── Styled components ───────────────────────────────────────────────────────
 
@@ -159,6 +160,7 @@ interface SkillsManagerProps {
 
 const SkillsManager: React.FC<SkillsManagerProps> = ({ onClose, backTooltip, onSkillsChange }) => {
     const shortName = useShortAssistantName();
+    const agentBuilder = useProductMode() === ProductMode.AGENT_BUILDER;
     const { rpcClient } = useRpcContext();
     const [skills, setSkills] = useState<SkillEntry[]>([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -301,7 +303,7 @@ const SkillsManager: React.FC<SkillsManagerProps> = ({ onClose, backTooltip, onS
                     <Loader label="Loading skills…" />
                 ) : (
                     <>
-                        {renderSection(SkillTier.BUILTIN, "Built-in", `Skills shipped with ${shortName}.`, builtinSkills, "No built-in skills.")}
+                        {renderSection(SkillTier.BUILTIN, "Built-in", agentBuilder ? `Skills shipped with ${shortName}.` : "Skills shipped with Copilot.", builtinSkills, "No built-in skills.")}
                         {renderSection(SkillTier.PROJECT, "Project", "Saved to this project and shared with your team.", projectSkills, "No project skills yet.")}
                         {renderSection(SkillTier.USER, "User", "Available across all your projects.", userSkills, "No user skills yet.")}
                     </>

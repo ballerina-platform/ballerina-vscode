@@ -24,7 +24,9 @@ import io.ballerina.compiler.syntax.tree.SyntaxTree;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerUISchemaModel;
 import io.ballerina.servicemodelgenerator.extension.builder.service.agent.AgentTriggerChannel;
 import io.ballerina.servicemodelgenerator.extension.builder.service.agent.AgentTriggerChannels;
+import io.ballerina.servicemodelgenerator.extension.builder.service.agent.AgentTriggerContext;
 import io.ballerina.servicemodelgenerator.extension.builder.service.agent.HttpAgentTriggerChannel;
+import io.ballerina.servicemodelgenerator.extension.builder.service.agent.VoiceAgentChannel;
 import io.ballerina.servicemodelgenerator.extension.connector.SchemaDrivenSourceGenerator;
 import io.ballerina.servicemodelgenerator.extension.connector.TriggerModelReader;
 import io.ballerina.servicemodelgenerator.extension.connector.TriggerPropertiesRegistry;
@@ -171,6 +173,40 @@ public class AgentTriggerGenerationTest {
                 "session should key on the conversation: " + src);
         Assert.assertTrue(src.contains("self.telegramClient->sendMessage(message.chat.id, replyText)"),
                 "reply should go back out through the service's own client: " + src);
+    }
+
+    /** Renders from a hand-built context, since the voice schema needs newer stdlibs than this suite ships. */
+    private String generateForVoiceAgent(String agentKind) {
+        ServiceInitModel form = new ServiceInitModel("ai-wso2-integration", "Voice Chat", "",
+                "ballerinax", "ai.wso2.integration", "ai.wso2.integration", "1.1.0", "ai", "");
+        AgentTriggerContext context = new AgentTriggerContext("integration", "voiceListener", "supportAgent",
+                "ballerina", agentKind, Map.of(), form, null);
+        return normalized(new VoiceAgentChannel().serviceBlock(context));
+    }
+
+    @Test
+    public void testVoiceAgentServiceIsWiredToTheAgent() {
+        String src = generateForVoiceAgent(null);
+
+        Assert.assertTrue(src.contains("isolated service integration:VoiceService on voiceListener {"),
+                "VoiceService is an isolated service type, so the service must be isolated too: " + src);
+        Assert.assertTrue(src.contains("isolated remote function onChatMessage(integration:ChatMessage message) "
+                        + "returns string|error"),
+                "the handler should implement the VoiceService contract: " + src);
+        Assert.assertTrue(src.contains("string response = check supportAgent.run(message.message, "
+                        + "sessionId = message.sessionId);\n        return response;"),
+                "the agent call should be its own statement, so the flow diagram draws it as an agent node: " + src);
+    }
+
+    @Test
+    public void testVoiceAgentKeepsADurableAgentsHelpersIsolated() {
+        String src = generateForVoiceAgent(AgentTriggerContext.DURABLE_KIND);
+
+        Assert.assertTrue(src.contains("isolated function durableTurn(")
+                        && src.contains("isolated function instanceFor("),
+                "an isolated service can only call isolated methods: " + src);
+        Assert.assertTrue(src.contains("string response = check self.durableTurn(message.sessionId, message.message);"),
+                "a durable agent should answer through its session's instance: " + src);
     }
 
     @Test
@@ -1247,6 +1283,8 @@ public class AgentTriggerGenerationTest {
                         + "kept the picker to a curated few");
         Assert.assertEquals(AgentTriggerChannels.kindOf("ballerinax", "whatsapp.business", "event"), "CHAT",
                 "a chat channel owns its reply path, so it keeps its own implementation");
+        Assert.assertEquals(AgentTriggerChannels.kindOf("ballerinax", "ai.wso2.integration", "ai"), "CHAT",
+                "the voice chat replies in the conversation, so it is offered beside the chat channels");
     }
 
     @Test

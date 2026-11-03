@@ -1,0 +1,41 @@
+{
+  "description": "Services sharing a base path whose annotations all change are still paired one-to-one",
+  "projectPath": "annotation_change_cases",
+  "output": {
+    "loadDesignDiagrams": false,
+    "semanticDiffs": [
+      {
+        "changeType": "MODIFICATION",
+        "nodeKind": "OBJECT_FUNCTION",
+        "uri": "ai:///main.bal",
+        "lineRange": {
+          "fileName": "main.bal",
+          "startLine": {
+            "line": 29,
+            "offset": 8
+          },
+          "endLine": {
+            "line": 29,
+            "offset": 41
+          }
+        },
+        "previousLineRange": {
+          "fileName": "main.bal",
+          "startLine": {
+            "line": 29,
+            "offset": 8
+          },
+          "endLine": {
+            "line": 29,
+            "offset": 34
+          }
+        },
+        "metadata": {
+          "name": "onMessage",
+          "servicePath": "",
+          "functionKind": "remote"
+        }
+      }
+    ]
+  }
+}

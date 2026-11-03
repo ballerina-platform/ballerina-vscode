@@ -31,14 +31,16 @@ declare global {
 }
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
+let mockSeededMode = "integrator";
+
 // The core barrel pulls in ESM-only LS transport modules that jest cannot load.
 jest.mock("@wso2/ballerina-core", () => ({
     __esModule: true,
     AIMachineEventType: { LOGOUT: "LOGOUT" },
     ProductMode: { BALLERINA: "ballerina", INTEGRATOR: "integrator", AGENT_BUILDER: "agent-builder" },
-    seededProductMode: () => "integrator",
+    seededProductMode: () => mockSeededMode,
     assistantName: () => "WSO2 Integrator Copilot",
-    shortAssistantName: () => "Integrator Copilot",
+    shortAssistantName: (mode: string) => (mode === "agent-builder" ? "Agent Builder Copilot" : "Integrator Copilot"),
     assistantTagline: () => "",
 }));
 
@@ -174,6 +176,17 @@ describe("SettingsPanel General toggles", () => {
         await render(makeRpcClient(true).client);
 
         const headers = Array.from(container.querySelectorAll("h3"), (h) => h.textContent);
-        expect(headers).toEqual(["Customize Integrator Copilot", "General", "Integrations", "Account"]);
+        expect(headers).toEqual(["Customize Copilot", "General", "Integrations", "Account"]);
+    });
+
+    it("names the product in the Customize header in Agent Builder", async () => {
+        mockSeededMode = "agent-builder";
+        try {
+            await render(makeRpcClient(true).client);
+            const headers = Array.from(container.querySelectorAll("h3"), (h) => h.textContent);
+            expect(headers[0]).toBe("Customize Agent Builder Copilot");
+        } finally {
+            mockSeededMode = "integrator";
+        }
     });
 });

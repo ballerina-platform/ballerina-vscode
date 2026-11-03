@@ -112,14 +112,16 @@
       // Security overrides — keep in sync with trivy findings. Bump to the
       // first fix version listed for each CVE. If a bump breaks workspace
       // consumers, narrow the selector (e.g. "pkg@<x.y.z": "x.y.z").
-      // Security fix: no 5.x fix; only @vscode/vsce reaches it, through @azure/identity.
-      "@azure/msal-node": "7.1.0",
       "@babel/core@>=7 <8": "7.29.6",
+      // Security fix: @azure/identity (via @vscode/vsce, packaging only) asks
+      // for ^6, and the only fix is 7.1.0.
+      "@azure/msal-node@>=5 <7.1.0": "7.1.0",
       // Security fix: no 1.x fix; force the 2.x line, at the version fixing
-      // a follow-up advisory on the earlier 2.x releases. Transitive-only
+      // follow-up advisories on the earlier 2.x releases (2.1.3 for the
+      // serveStatic double-decode). Transitive-only
       // (used by the wso2-vscode-extensions submodule's tooling), not
       // shipped in the built extension.
-      "@hono/node-server": "2.0.10",
+      "@hono/node-server": "2.1.3",
       "@tootallnate/once": "3.0.1",
       "axios@<1.20.0": "1.20.0",
       "body-parser@>=1 <2": "1.20.9",
@@ -135,9 +137,15 @@
       // Security fix: 3.1.7 is the current 3.x line fix. Bump past the
       // previous override version, which is now itself flagged.
       "fast-uri": "3.1.9",
-      "follow-redirects": "1.16.1",
+      // Security fix: cross-realm sensitiveHeaders bypass, fixed in 1.16.2.
+      "follow-redirects": "1.16.2",
       "form-data@>=2 <3": "2.5.6",
       "form-data@>=4 <5": "4.0.6",
+      // Security fix: AbortSignal cancellation bypass. No 11.x backport; 14.x
+      // keeps the 11.x API. Scoped to the transitive consumers so ui-toolkit's
+      // direct (dev-only) glob@11.1.0 pin in the submodule still matches.
+      "@vscode/vsce>glob@11": "14.0.3",
+      "rimraf@6>glob@11": "14.0.3",
       "handlebars": "4.7.10",
       // Security fix: ReDoS in the CORS middleware, fixed in 4.12.34.
       // Bumped again to 4.13.5 for a follow-up set of advisories (query-parser
@@ -158,11 +166,12 @@
       // Security fix: 10.5.1 is the first release covering all flagged
       // advisories.
       "ip-address@10": "10.7.4",
-      "joi@>=17 <18": "17.13.8",
+      "joi@>=17 <18": "17.13.9",
       // Security fix: rename() prototype set and a prototype pollution
       // advisory. ballerina-low-code-diagram pins 18.2.5 directly; keep
-      // the 18.x line at the fixed version.
-      "joi@>=18 <19": "18.2.9",
+      // the 18.x line at the fixed version. Bumped to 18.3.1 / 17.13.9 for
+      // the email({ multiple: true }) quadratic-split DoS.
+      "joi@>=18 <19": "18.3.1",
       // js-yaml v3 has no in-line fix; the fix only lands in v4.3.0+.
       // Force all consumers to v4 — revert with narrower selector if a
       // workspace package needs the v3 sync API.
@@ -191,15 +200,15 @@
       "proxy-addr": "2.0.8",
       // Security fix: bump past the previous override version, which is now
       // itself flagged.
-      "qs@6": "6.16.0",
+      "qs@6": "6.16.1",
       "serialize-javascript": "7.1.3",
       "shell-quote": "1.11.0",
       "source-map-js": "1.2.2",
       "tmp": "0.2.7",
       // No 5.x release fixes the flagged advisories, so 5.x moves up a major and
-      // 6.x (@ai-sdk/provider-utils) is pinned; 6.28.1 covers all of them.
+      // 6.x (@ai-sdk/provider-utils) is pinned; 6.29.1 covers all of them.
       "undici@>=5 <7": "6.29.1",
-      // 7.29.1 is the 7.x fix line covering all flagged undici advisories.
+      // 7.30.1 is the 7.x fix line covering all flagged undici advisories.
       "undici@>=7 <8": "7.30.1",
       // uuid 8.x has no in-line fix; bump to 11.1.1 (fix line for v11). Revert
       // if this breaks consumers that strictly need uuid v8 API.

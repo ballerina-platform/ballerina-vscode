@@ -1,0 +1,105 @@
+{
+  "source": "durable_agent_module.bal",
+  "description": "Edit a listed data event on a keyed release: the field is rewritten as the keyed map with the edited entry in place",
+  "diagram": {
+    "id": "1",
+    "metadata": {
+      "label": "Register Event",
+      "description": "Register Event"
+    },
+    "codedata": {
+      "node": "DURABLE_AGENT_REGISTER_EVENT",
+      "org": "ballerina",
+      "module": "workflow",
+      "object": "DurableAgent",
+      "symbol": "registerUpdateEvents",
+      "parentSymbol": "supportAgent",
+      "lineRange": {
+        "fileName": "durable_agent_module.bal",
+        "startLine": {
+          "line": 11,
+          "offset": 8
+        },
+        "endLine": {
+          "line": 11,
+          "offset": 46
+        }
+      },
+      "isNew": false
+    },
+    "returning": false,
+    "properties": {
+      "name": {
+        "metadata": {
+          "label": "Name",
+          "description": "Name"
+        },
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "selected": true,
+            "ballerinaType": "string"
+          }
+        ],
+        "value": "billSubmitted",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "requestType": {
+        "metadata": {
+          "label": "Request Type",
+          "description": "Request Type"
+        },
+        "types": [
+          {
+            "fieldType": "TYPE",
+            "selected": true,
+            "ballerinaType": "json"
+          }
+        ],
+        "value": "Bill",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "cardinality": {
+        "metadata": {
+          "label": "Cardinality",
+          "description": "Cardinality"
+        },
+        "types": [
+          {
+            "fieldType": "SINGLE_SELECT",
+            "selected": true
+          }
+        ],
+        "value": "",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      }
+    },
+    "flags": 0
+  },
+  "output": {
+    "durable_agent_module.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 9,
+            "character": 12
+          },
+          "end": {
+            "line": 12,
+            "character": 5
+          }
+        },
+        "newText": "{\n        customerMessage: {request: string, response: string},\n        billSubmitted: {request: Bill}\n    }"
+      }
+    ]
+  }
+}

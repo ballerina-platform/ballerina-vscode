@@ -55,11 +55,13 @@ import {
     DEFAULT_MODEL_PROVIDER_LABEL,
     isDefaultModelProviderExpr,
     NodeMetadata,
+    isVoiceAgentService,
     resolveBrandIcon,
     resolveEntryTypeGlyph,
     resolveKindDefaultIcon,
     triggerScopeNoun,
     VisualizerLocation,
+    VOICE_AGENT_MODULE,
 } from "@wso2/ballerina-core";
 
 import { flowDashAnimation, isToolTraceActive, releaseBoxHover, sanitizeAgentData, sanitizeId, toolEntryMatchesTools, usageRowFadeIn } from "../agentNodeUtils";
@@ -584,7 +586,10 @@ export function UsageIcon(props: { usage: AgentUsage; codedata?: FlowNode["coded
     if (usage.parentAgent) {
         return <Icon name="bi-ai-agent" sx={{ fontSize: 24, width: 24, height: 24 }} />;
     }
-    const modulePart = usage.type?.includes(":") ? usage.type.split(":")[0] : usage.type;
+    // A voice service's type carries its import alias, so it is matched on the module instead.
+    const modulePart = isVoiceAgentService(usage.type, usage.icon)
+        ? VOICE_AGENT_MODULE
+        : usage.type?.includes(":") ? usage.type.split(":")[0] : usage.type;
 
     const typeGlyph = resolveEntryTypeGlyph(modulePart);
     if (typeGlyph) {
