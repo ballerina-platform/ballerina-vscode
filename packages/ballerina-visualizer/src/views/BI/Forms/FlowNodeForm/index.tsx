@@ -96,6 +96,7 @@ import {
     convertRecordTypeToCompletionItem,
     convertItemsToCompletionItems,
 } from "../../../../utils/bi";
+import { getFormGroups } from "../../../../utils/node-property-utils";
 import IfForm from "../IfForm";
 import { ConnectionConfigurationPopup } from "../../Connection/ConnectionConfigurationPopup";
 import { createPortal } from "react-dom";
@@ -841,6 +842,9 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         [node, nodeFormTemplate, targetLineRange]
     );
 
+    // The sections the language server declares on the fields (`metadata.data.group`).
+    const formGroups = useMemo(() => getFormGroups(fields ?? []), [fields]);
+
     const canFixFormDiagnostics = useMemo(
         () => formDiagnostics.length > 0 && !!diagnosticsTargetRange && !showProgressIndicator && isAiUserAuthenticated,
         [diagnosticsTargetRange, formDiagnostics, isAiUserAuthenticated, showProgressIndicator]
@@ -1369,15 +1373,16 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     };
 
     const handleFormValidation = async (data: FormValues, dirtyFields?: any): Promise<boolean> => {
-        // A task naming nobody is refused when the source is generated, which is after the save has
-        // left the panel. Catching it here keeps the panel open with what was typed.
+        // A review naming nobody is refused when the source is generated, which is after the save has
+        // left the panel. Catching it here keeps the panel open with what was typed. A form declaring a
+        // task holds the save itself: its audience section asks for the roles or the users.
         //
         // Reported as a notification rather than a field diagnostic: a diagnostic seeds the form's
         // own error state, which disables Save and is cleared only when the fields are rebuilt —
         // and the only thing that rebuilds them is a validation pass the disabled button can no
         // longer start. The panel would be stuck holding a message about a field the person had
         // already fixed.
-        const audienceError = validateWorkflowAudience(data, node?.codedata?.node);
+        const audienceError = validateWorkflowAudience(data);
         if (audienceError) {
             rpcClient.getCommonRpcClient().showErrorMessage({ message: audienceError.message });
             return false;
@@ -2307,6 +2312,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                 <Form
                     ref={ref}
                     formFields={fields}
+                    groups={formGroups}
                     formDiagnostics={formDiagnostics}
                     formDiagnosticsAction={formDiagnostics.length > 0 ? (
                         <Tooltip content={formDiagnosticsFixTooltip}>

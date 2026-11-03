@@ -28,19 +28,9 @@ describe("validateWorkflowAudience", () => {
         expect(validateWorkflowAudience({ approvalPolicy: "HumanApproval", approvalUsers: "bob" })).toBeUndefined();
     });
 
-    it("refuses a declared task that names nobody, by node kind", () => {
-        expect(validateWorkflowAudience({}, "DURABLE_AGENT_HUMAN_TASK")?.fieldKey).toBe("userRoles");
-        expect(validateWorkflowAudience({ users: "alice" }, "DURABLE_AGENT_HUMAN_TASK")).toBeUndefined();
-        // A node that declares no task is not subject to the rule.
-        expect(validateWorkflowAudience({}, "ACTIVITY_CALL")).toBeUndefined();
-    });
-
-    // User Roles is optional on the Human Task form, so this rule alone keeps an empty audience from saving.
-    it("refuses a human task whose role and user lists are both empty", () => {
-        expect(validateWorkflowAudience({ userRoles: [], users: [] }, "HUMAN_TASK")?.fieldKey).toBe("userRoles");
-        expect(validateWorkflowAudience({ userRoles: "()", users: [] }, "HUMAN_TASK")).toBeDefined();
-        expect(validateWorkflowAudience({ userRoles: [], users: ["alice"] }, "HUMAN_TASK")).toBeUndefined();
-        expect(validateWorkflowAudience({ userRoles: ["manager"], users: [] }, "HUMAN_TASK")).toBeUndefined();
+    // A form declaring a task gets the rule from the language server (HumanTaskBuilder.formRules), not here.
+    it("leaves a task's own audience to the language server", () => {
+        expect(validateWorkflowAudience({ userRoles: [], users: [] })).toBeUndefined();
     });
 
     it("treats the empty shapes a cleared field leaves behind as naming nobody", () => {

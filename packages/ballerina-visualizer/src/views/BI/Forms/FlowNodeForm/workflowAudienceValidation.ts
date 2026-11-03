@@ -17,10 +17,14 @@
  */
 
 /**
- * A task that names nobody can be decided by nobody, so the workflow module refuses it and the
+ * A review that names nobody can be decided by nobody, so the workflow module refuses it and the
  * compiler reports it. The language server refuses it too, but only once the form has been
  * submitted, which is too late: the save is already on its way. These rules run before the submit,
  * so the panel stays open with what the person typed.
+ *
+ * Only the reviews a policy raises are checked here. A form that declares a task itself (Human
+ * Task, a durable agent's human task) gets the same rule from the language server, as a finding in
+ * its audience section: see `HumanTaskBuilder.formRules`.
  */
 
 /** The audience a review or task names, by the keys the form holds them under. */
@@ -33,14 +37,10 @@ interface AudiencePair {
 
 const RETRY_REVIEW: AudiencePair = { roles: "retryUserRoles", users: "retryUsers" };
 const APPROVAL_REVIEW: AudiencePair = { roles: "approvalUserRoles", users: "approvalUsers" };
-const TASK_AUDIENCE: AudiencePair = { roles: "userRoles", users: "users" };
 
 /** Retry policy values that raise a review. */
 const REVIEWING_RETRY_POLICIES = ["ManualRetry", "RetryBeforeReview"];
 const HUMAN_APPROVAL = "HumanApproval";
-
-/** Node kinds whose own form declares a task, rather than a policy that raises one. */
-const TASK_NODES = ["DURABLE_AGENT_HUMAN_TASK", "HUMAN_TASK"];
 
 // Mirrors WorkflowUtil.AUDIENCE_REQUIRED_MESSAGE, so the wording does not change with how far the
 // save got before the rule caught it.
@@ -71,22 +71,15 @@ function namesNobody(values: Record<string, any>, audience: AudiencePair): boole
 /**
  * Checks the audiences a form declares, and returns the first one that names nobody.
  *
- * @param values   the form's current values
- * @param nodeKind the node being edited, which decides whether its own fields declare a task
+ * @param values the form's current values
  * @returns the failure, or undefined when every audience in play names someone
  */
-export function validateWorkflowAudience(
-    values: Record<string, any>,
-    nodeKind?: string
-): AudienceValidationError | undefined {
+export function validateWorkflowAudience(values: Record<string, any>): AudienceValidationError | undefined {
     if (REVIEWING_RETRY_POLICIES.includes(String(values.retryPolicy ?? "")) && namesNobody(values, RETRY_REVIEW)) {
         return { fieldKey: RETRY_REVIEW.roles, message: MESSAGE };
     }
     if (String(values.approvalPolicy ?? "") === HUMAN_APPROVAL && namesNobody(values, APPROVAL_REVIEW)) {
         return { fieldKey: APPROVAL_REVIEW.roles, message: MESSAGE };
-    }
-    if (nodeKind && TASK_NODES.includes(nodeKind) && namesNobody(values, TASK_AUDIENCE)) {
-        return { fieldKey: TASK_AUDIENCE.roles, message: MESSAGE };
     }
     return undefined;
 }
