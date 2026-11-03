@@ -21,11 +21,11 @@ import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Button, Codicon, Icon } from "@wso2/ui-toolkit";
 
 import { AIChatView, DangerActionButton, PrimaryActionButton, SuccessActionButton } from "../styles";
-import { AIMachineEventType, AgentsMdFileInfoDTO, CopilotToggleSetting, McpServerStatusDTO, SkillEntry } from "@wso2/ballerina-core";
+import { AIMachineEventType, AgentsMdFileInfoDTO, CopilotToggleSetting, McpServerStatusDTO, ProductMode, SkillEntry } from "@wso2/ballerina-core";
 import { CustomizeRow, CustomizeEntry } from "./CustomizeRow";
 import { SettingsToggle } from "../components/SettingsToggle";
 import type { PanelRoute } from "../components/AIChat";
-import { useShortAssistantName } from "../../../hooks/useProductMode";
+import { useProductMode, useShortAssistantName } from "../../../hooks/useProductMode";
 
 // ── Layout ────────────────────────────────────────────────────────────────────
 
@@ -244,6 +244,7 @@ interface SettingsPanelProps {
 
 export const SettingsPanel = (props: SettingsPanelProps) => {
     const shortName = useShortAssistantName();
+    const agentBuilder = useProductMode() === ProductMode.AGENT_BUILDER;
     const { rpcClient } = useRpcContext();
 
     const [copilotAuthorized, setCopilotAuthorized] = React.useState(false);
@@ -420,7 +421,7 @@ export const SettingsPanel = (props: SettingsPanelProps) => {
             <PanelContent>
                 {/* Customize Copilot */}
                 <Section>
-                    <SectionHeader>Customize {shortName}</SectionHeader>
+                    <SectionHeader>{agentBuilder ? `Customize ${shortName}` : "Customize Copilot"}</SectionHeader>
                     <EntryList>
                         {customizeEntries.map(entry => (
                             <CustomizeRow key={entry.id} entry={entry} />

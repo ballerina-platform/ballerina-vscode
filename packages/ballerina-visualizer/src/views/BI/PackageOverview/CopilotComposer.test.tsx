@@ -32,10 +32,10 @@ jest.mock("@wso2/ballerina-core", () => ({
         SET_COPILOT_INLINE_STATUS: "ballerina.set.copilot.inline.status",
     },
     // The product-mode helpers keep their real behaviour so a test can pick the product.
-    ProductMode: { BALLERINA: "ballerina", INTEGRATOR: "integrator" },
+    ProductMode: { BALLERINA: "ballerina", INTEGRATOR: "integrator", AGENT_BUILDER: "agent-builder" },
     seededProductMode: () => {
         const seed = (window as unknown as { productMode?: string }).productMode;
-        return seed === "ballerina" || seed === "integrator" ? seed : undefined;
+        return seed === "ballerina" || seed === "integrator" || seed === "agent-builder" ? seed : undefined;
     },
     assistantName: (mode: string) => (mode === "ballerina" ? "Ballerina Copilot" : "WSO2 Integrator Copilot"),
     assistantTagline: (mode: string) =>
@@ -96,7 +96,7 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 const ORB_LABEL = "Open WSO2 Integrator Copilot";
 
 /** The extension host seeds this into every webview. */
-function seedProductMode(mode: "ballerina" | "integrator" | undefined): void {
+function seedProductMode(mode: "ballerina" | "integrator" | "agent-builder" | undefined): void {
     (window as unknown as { productMode?: string }).productMode = mode;
 }
 
@@ -202,5 +202,44 @@ describe("CopilotComposer orb affordance", () => {
         );
         expect(factors.length).toBeGreaterThan(0);
         expect(Math.min(...factors)).toBeGreaterThan(1.13);
+    });
+});
+
+describe("CopilotComposer send button", () => {
+    let container: HTMLDivElement;
+    let root: Root;
+
+    beforeEach(() => {
+        __resetAgentRunStatusStoreForTests();
+        mockRpcClient = makeRpcClient().client;
+        container = document.createElement("div");
+        document.body.appendChild(container);
+        root = createRoot(container);
+    });
+
+    afterEach(() => {
+        act(() => root.unmount());
+        container.remove();
+        mockRpcClient = undefined;
+        seedProductMode(undefined);
+    });
+
+    const sendIcon = async (mode: "integrator" | "agent-builder") => {
+        seedProductMode(mode);
+        await act(async () => {
+            root.render(<CopilotComposer onAddArtifactManually={jest.fn()} />);
+        });
+        const send = Array.from(container.querySelectorAll("button")).find((b) =>
+            b.getAttribute("aria-label")?.startsWith("Send to")
+        );
+        return send?.querySelector("i")?.getAttribute("data-icon");
+    };
+
+    it("keeps the Integrator paper plane outside Agent Builder", async () => {
+        expect(await sendIcon("integrator")).toBe("Send");
+    });
+
+    it("uses Agent Builder's up arrow in Agent Builder", async () => {
+        expect(await sendIcon("agent-builder")).toBe("arrow-up");
     });
 });

@@ -241,6 +241,8 @@ jobs:
       - name: Upload nightly build jar
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
+          # Named per leg so ls-ubuntu-reliability can download the jar for its branch.
+          name: ls-jar-${{ matrix.version }}
           path: packages/ballerina-language-server/build/ballerina-language-server-${{ matrix.version }}.jar
           if-no-files-found: error
 
@@ -282,6 +284,75 @@ jobs:
           # against the default branch head and no branch ever gets a baseline. It also
           # keeps the coverage artifact name unique per leg.
           codecov-branch: ${{ matrix.branch }}
+
+  # Runs the reliability suite (packages/ballerina-extension/src/test-support/reliability)
+  # against the jar ls-ubuntu-pack built for the same branch, e.g. that the LS process exits
+  # when its client goes away (wso2/product-integrator#2854).
+  ls-ubuntu-reliability:
+    name: LS Ubuntu reliability (${{ matrix.branch }})
+    needs:
+      - ls-prepare-matrix
+      - ls-ubuntu-pack
+    if: ${{ !inputs.skipLSTests }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    concurrency:
+      group: ls-ubuntu-reliability-${{ matrix.branch }}-${{ github.ref_name }}
+      cancel-in-progress: true
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.ls-prepare-matrix.outputs.targets) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: refs/heads/${{ matrix.branch }}
+          persist-credentials: false
+          submodules: recursive
+
+      # A branch cut before the suite was added has nothing to run.
+      - name: Check for the reliability suite
+        id: suite
+        shell: bash
+        run: |
+          if [ -f packages/ballerina-extension/jest.reliability.config.js ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::${{ matrix.branch }} has no reliability suite; skipping."
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download nightly build jar
+        if: steps.suite.outputs.present == 'true'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: ls-jar-${{ matrix.version }}
+          path: ls-jar
+
+      - name: Setup Rush
+        if: steps.suite.outputs.present == 'true'
+        uses: gigara/setup-rush@7ba3446572d15f5eacc85de383ad9679dfb7223c # v1.2.0
+        with:
+          pnpm: 10.10.0
+          node: 22.x
+          rush-install: true
+
+      - name: Set Up Ballerina
+        if: steps.suite.outputs.present == 'true'
+        uses: ./.github/actions/setup-ballerina
+
+      - name: Run reliability tests
+        if: steps.suite.outputs.present == 'true'
+        shell: bash
+        working-directory: packages/ballerina-extension
+        env:
+          BAL_LS_JAR: ${{ github.workspace }}/ls-jar/ballerina-language-server-${{ matrix.version }}.jar
+          # Fail instead of skipping when the jar, distribution or JDK is not found.
+          BAL_RELIABILITY_REQUIRED: 'true'
+        run: |
+          set -euo pipefail
+          BAL_LS_CMD="$(command -v bal)" pnpm run test:reliability
 
   ls-windows-build:
     name: LS Windows build (${{ matrix.branch }})
@@ -425,6 +496,7 @@ jobs:
       - sync-nightly
       - ls-ubuntu-pack
       - ls-ubuntu-test
+      - ls-ubuntu-reliability
       - ls-windows-build
       - ls-trivy
       - Build
@@ -438,6 +510,7 @@ jobs:
         && needs.ls-trivy.result == 'success'
         && needs.Build.result == 'success'
         && (needs.ls-ubuntu-test.result == 'success' || (inputs.skipLSTests && needs.ls-ubuntu-test.result == 'skipped'))
+        && (needs.ls-ubuntu-reliability.result == 'success' || (inputs.skipLSTests && needs.ls-ubuntu-reliability.result == 'skipped'))
         && (needs.ls-windows-build.result == 'success' || (inputs.skipLSTests && needs.ls-windows-build.result == 'skipped')) }}
     permissions:
       contents: write
@@ -496,6 +569,7 @@ jobs:
     needs:
       - ls-ubuntu-pack
       - ls-ubuntu-test
+      - ls-ubuntu-reliability
       - ls-windows-build
       - ls-trivy
       - Build
@@ -528,6 +602,7 @@ jobs:
       - ls-prepare-matrix
       - ls-ubuntu-pack
       - ls-ubuntu-test
+      - ls-ubuntu-reliability
       - ls-windows-build
       - ls-trivy
       - Build
