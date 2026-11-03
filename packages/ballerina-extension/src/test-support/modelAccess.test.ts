@@ -99,6 +99,12 @@ describe('vertexSignInFailureMessage', () => {
         expect(message).toContain('(NOT_FOUND: Publisher Model `claude-haiku-5-5` was not found.)');
     });
 
+    it('lets the status code win over a code-like number in the body', () => {
+        const error = vertexCallError(404, 'Not Found', 'NOT_FOUND',
+            'Publisher Model `projects/my-project-401/locations/global/publishers/anthropic/models/claude-haiku-5-5` was not found.');
+        expect(vertexSignInFailureMessage(error, 'global')).toContain('was not found for this project in global');
+    });
+
     // A body the reader can't parse leaves only the status text, which names no code.
     const bareCallError = (statusCode: number, statusText: string) =>
         new APICallError({ message: statusText, url: 'https://aiplatform.googleapis.com', requestBodyValues: {}, statusCode, responseBody: '<html></html>' });

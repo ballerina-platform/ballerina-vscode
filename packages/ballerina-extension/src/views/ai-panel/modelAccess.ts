@@ -67,18 +67,21 @@ export function vertexSignInFailureMessage(error: unknown, location: string): st
     const status = callError?.statusCode;
     const detail = googleErrorDetail(callError?.responseBody)
         ?? (lastError instanceof Error ? lastError.message : String(lastError));
-    const mentions = (...needles: string[]) => needles.some((needle) => detail.includes(needle));
+    // The status code decides when there is one: the detail can name a project ID such as
+    // `my-project-401`. The text is the fallback for failures raised before any request.
+    const is = (code: number, ...needles: string[]) =>
+        status !== undefined ? status === code : needles.some((needle) => detail.includes(needle));
 
-    if (status === 401 || mentions('401', 'authentication', 'UNAUTHENTICATED')) {
+    if (is(401, '401', 'authentication', 'UNAUTHENTICATED')) {
         return `Invalid credentials. Please check your service account JSON file. (${detail})`;
     }
-    if (status === 403 || mentions('403', 'PERMISSION_DENIED')) {
+    if (is(403, '403', 'PERMISSION_DENIED')) {
         return `Permission denied. Please ensure your service account has access to Vertex AI. (${detail})`;
     }
-    if (status === 404 || mentions('404', 'NOT_FOUND')) {
+    if (is(404, '404', 'NOT_FOUND')) {
         return vertexModelNotFoundMessage(location, detail);
     }
-    if (status === 429 || mentions('429', 'Too Many Requests', 'RESOURCE_EXHAUSTED')) {
+    if (is(429, '429', 'Too Many Requests', 'RESOURCE_EXHAUSTED')) {
         return `Quota exceeded. Your GCP project may have 0 quota for this Anthropic model — request a quota increase in GCP Console → IAM & Admin → Quotas. (${detail})`;
     }
     return `Validation failed: ${detail}`;
