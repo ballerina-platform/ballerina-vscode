@@ -59,6 +59,7 @@ import io.ballerina.compiler.syntax.tree.Token;
 import io.ballerina.flowmodelgenerator.core.Constants;
 import io.ballerina.flowmodelgenerator.core.UserFacingException;
 import io.ballerina.flowmodelgenerator.core.model.FormBuilder;
+import io.ballerina.flowmodelgenerator.core.model.FormGroup;
 import io.ballerina.flowmodelgenerator.core.model.NodeBuilder;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Option;
@@ -1968,6 +1969,34 @@ public class WorkflowUtil {
      */
     public static final String AUDIENCE_REQUIRED_MESSAGE =
             "Name who may decide this: fill in the roles, the users, or both";
+
+    /**
+     * The section a task's audience renders in: who decides, who may not, who administers. Required and open
+     * by default: each field is optional on its own, but a task must name someone, by role or by user, before
+     * it can be saved, so the section asks for either and the form holds the save until one is filled. Its
+     * description is the wording the source generator refuses the omission with.
+     *
+     * @param userRolesKey property key of the deciding roles
+     * @return the section
+     */
+    public static FormGroup audienceGroup(String userRolesKey) {
+        return new FormGroup("audience", "Assignment", AUDIENCE_REQUIRED_MESSAGE, false,
+                List.of(userRolesKey, USERS_KEY));
+    }
+
+    /**
+     * Places a task form's audience fields — the deciding roles and every {@link #AUDIENCE_KEYS} field
+     * present — in the {@link #audienceGroup audience section}, roles first.
+     *
+     * @param properties   the live property map, updated in place
+     * @param userRolesKey property key of the deciding roles
+     */
+    public static void groupAudience(Map<String, Property> properties, String userRolesKey) {
+        List<String> keys = new ArrayList<>();
+        keys.add(userRolesKey);
+        keys.addAll(AUDIENCE_KEYS);
+        audienceGroup(userRolesKey).assign(properties, keys.toArray(String[]::new));
+    }
 
     /** Property key of the step identity a call takes to name itself in the descriptor graph. */
     public static final String STEP_ID_KEY = "stepId";

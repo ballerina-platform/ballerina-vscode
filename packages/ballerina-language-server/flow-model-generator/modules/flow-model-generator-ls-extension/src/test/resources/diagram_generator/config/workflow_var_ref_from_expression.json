@@ -5325,7 +5325,19 @@
           "userRoles": {
             "metadata": {
               "label": "User Roles",
-              "description": "Role(s) permitted to complete this task; may be left empty when users are named"
+              "description": "Role(s) permitted to complete this task; may be left empty when users are named",
+              "data": {
+                "group": {
+                  "id": "audience",
+                  "label": "Assignment",
+                  "description": "Name who may decide this: fill in the roles, the users, or both",
+                  "collapsed": false,
+                  "requireAnyOf": [
+                    "userRoles",
+                    "users"
+                  ]
+                }
+              }
             },
             "types": [
               {
@@ -5585,7 +5597,19 @@
           "users": {
             "metadata": {
               "label": "Users",
-              "description": "User id(s) permitted to answer it, whatever their roles"
+              "description": "User id(s) permitted to answer it, whatever their roles",
+              "data": {
+                "group": {
+                  "id": "audience",
+                  "label": "Assignment",
+                  "description": "Name who may decide this: fill in the roles, the users, or both",
+                  "collapsed": false,
+                  "requireAnyOf": [
+                    "userRoles",
+                    "users"
+                  ]
+                }
+              }
             },
             "types": [
               {
@@ -5603,7 +5627,7 @@
             "placeholder": "",
             "optional": true,
             "editable": true,
-            "advanced": true,
+            "advanced": false,
             "hidden": false,
             "codedata": {
               "kind": "INCLUDED_FIELD",
@@ -5614,7 +5638,19 @@
           "excludedUsers": {
             "metadata": {
               "label": "Excluded Users",
-              "description": "User id(s) that may not answer it, whatever their roles"
+              "description": "User id(s) that may not answer it, whatever their roles",
+              "data": {
+                "group": {
+                  "id": "audience",
+                  "label": "Assignment",
+                  "description": "Name who may decide this: fill in the roles, the users, or both",
+                  "collapsed": false,
+                  "requireAnyOf": [
+                    "userRoles",
+                    "users"
+                  ]
+                }
+              }
             },
             "types": [
               {
@@ -5632,7 +5668,7 @@
             "placeholder": "",
             "optional": true,
             "editable": true,
-            "advanced": true,
+            "advanced": false,
             "hidden": false,
             "codedata": {
               "kind": "INCLUDED_FIELD",
@@ -5643,7 +5679,19 @@
           "excludedRoles": {
             "metadata": {
               "label": "Excluded Roles",
-              "description": "Role(s) that may not answer it"
+              "description": "Role(s) that may not answer it",
+              "data": {
+                "group": {
+                  "id": "audience",
+                  "label": "Assignment",
+                  "description": "Name who may decide this: fill in the roles, the users, or both",
+                  "collapsed": false,
+                  "requireAnyOf": [
+                    "userRoles",
+                    "users"
+                  ]
+                }
+              }
             },
             "types": [
               {
@@ -5661,7 +5709,7 @@
             "placeholder": "",
             "optional": true,
             "editable": true,
-            "advanced": true,
+            "advanced": false,
             "hidden": false,
             "codedata": {
               "kind": "INCLUDED_FIELD",
@@ -5672,7 +5720,19 @@
           "administratorRoles": {
             "metadata": {
               "label": "Administrator Roles",
-              "description": "Role(s) that administer it: they see it, may reassign it, move its deadline,\nfail it, or complete it — a completion by them is recorded as an administrator's"
+              "description": "Role(s) that administer it: they see it, may reassign it, move its deadline,\nfail it, or complete it — a completion by them is recorded as an administrator's",
+              "data": {
+                "group": {
+                  "id": "audience",
+                  "label": "Assignment",
+                  "description": "Name who may decide this: fill in the roles, the users, or both",
+                  "collapsed": false,
+                  "requireAnyOf": [
+                    "userRoles",
+                    "users"
+                  ]
+                }
+              }
             },
             "types": [
               {
@@ -5690,7 +5750,7 @@
             "placeholder": "",
             "optional": true,
             "editable": true,
-            "advanced": true,
+            "advanced": false,
             "hidden": false,
             "codedata": {
               "kind": "INCLUDED_FIELD",
@@ -5701,7 +5761,19 @@
           "administratorUsers": {
             "metadata": {
               "label": "Administrator Users",
-              "description": "User id(s) that administer it, whatever their roles"
+              "description": "User id(s) that administer it, whatever their roles",
+              "data": {
+                "group": {
+                  "id": "audience",
+                  "label": "Assignment",
+                  "description": "Name who may decide this: fill in the roles, the users, or both",
+                  "collapsed": false,
+                  "requireAnyOf": [
+                    "userRoles",
+                    "users"
+                  ]
+                }
+              }
             },
             "types": [
               {
@@ -5719,7 +5791,7 @@
             "placeholder": "",
             "optional": true,
             "editable": true,
-            "advanced": true,
+            "advanced": false,
             "hidden": false,
             "codedata": {
               "kind": "INCLUDED_FIELD",

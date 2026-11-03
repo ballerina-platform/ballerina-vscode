@@ -97,6 +97,7 @@ public class DurableAgentHumanTaskBuilder extends CallBuilder {
                 .stepOut()
                 .addProperty(USER_ROLES_KEY);
         WorkflowUtil.addAudienceProperties(this);
+        WorkflowUtil.groupAudience(properties().build(), USER_ROLES_KEY);
         // The completion type drives the task inbox's completion form (schema generation and
         // runtime validation of the submitted payload) — typically a record type.
         // Optional: the module defaults the completion type to anydata (a free-form
