@@ -1,0 +1,160 @@
+// Copyright (c) 2026, WSO2 LLC. (https://www.wso2.com/) All Rights Reserved.
+
+// WSO2 LLC. licenses this file to you under the Apache License,
+// Version 2.0 (the "License"); you may not use this file except
+// in compliance with the License.
+// You may obtain a copy of the License at
+
+// http://www.apache.org/licenses/LICENSE-2.0
+
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied. See the License for the
+// specific language governing permissions and limitations
+// under the License.
+
+import * as fs from "fs";
+import * as path from "path";
+import { glob } from "glob";
+import { PathValidationError, RESTRICTED_READ_FILES, VALID_FILE_EXTENSIONS, resolveContained } from "./path-utils";
+
+/**
+ * The one rule for which project files the agent may see. glob, grep and file_read all go
+ * through it, so a file the agent can find it can read, and a file it may not read never
+ * shows up in any tool.
+ */
+
+const IGNORED_DIR_NAMES = new Set(["target"]);
+const IGNORED_DIR_GLOBS = ["**/target/**"];
+// Project skills live in .agents/skills/<name>/SKILL.md; other dot paths (.env, .git, MCP configs) can hold secrets.
+const ALLOWED_DOT_DIR = ".agents";
+
+export function toPosixRelative(p: string): string {
+    return path.posix.normalize(p.replace(/\\/g, "/")).replace(/^(\.\/)+/, "").replace(/^\/+/, "");
+}
+
+function isBlockedDirSegment(segment: string, index: number): boolean {
+    if (IGNORED_DIR_NAMES.has(segment)) {
+        return true;
+    }
+    return segment.startsWith(".") && !(index === 0 && segment === ALLOWED_DOT_DIR);
+}
+
+/** Whether a project-relative path passes the policy by name alone. */
+export function isAllowedProjectPath(relPath: string): boolean {
+    if (!relPath || relPath.includes("\0")) {
+        return false;
+    }
+    const posix = toPosixRelative(relPath);
+    const segments = posix.split("/");
+    if (segments.some(segment => segment === "" || segment === "." || segment === "..")) {
+        return false;
+    }
+    const fileName = segments[segments.length - 1].toLowerCase();
+    if (fileName.startsWith(".") || !VALID_FILE_EXTENSIONS.some(ext => fileName.endsWith(ext))) {
+        return false;
+    }
+    if (RESTRICTED_READ_FILES.some(restricted => restricted.toLowerCase() === fileName)) {
+        return false;
+    }
+    return !segments.slice(0, -1).some(isBlockedDirSegment);
+}
+
+function realRoot(root: string): string {
+    try {
+        return fs.realpathSync(root);
+    } catch {
+        return path.resolve(root);
+    }
+}
+
+function isInside(rootReal: string, candidate: string): boolean {
+    const rel = path.relative(rootReal, candidate);
+    return rel !== "" && rel !== ".." && !rel.startsWith(`..${path.sep}`) && !path.isAbsolute(rel);
+}
+
+/** The name policy plus a realpath check, so a symlink cannot reach outside the project. */
+export function isReadableProjectFile(root: string, relPath: string): boolean {
+    if (!isAllowedProjectPath(relPath)) {
+        return false;
+    }
+    const rootReal = realRoot(root);
+    const target = path.resolve(rootReal, toPosixRelative(relPath));
+    if (!isInside(rootReal, target)) {
+        return false;
+    }
+    if (!fs.existsSync(target)) {
+        return true;
+    }
+    try {
+        return isInside(rootReal, fs.realpathSync(target));
+    } catch {
+        return false;
+    }
+}
+
+export interface ListProjectFilesOptions {
+    path?: string;
+    /** Glob pattern relative to `path`; every file when omitted. */
+    pattern?: string;
+    /** Match a pattern without a slash against file names at any depth. */
+    matchBase?: boolean;
+}
+
+function assertRelativeInput(value: string, label: string): void {
+    if (path.isAbsolute(value) || /^[a-zA-Z]:/.test(value) || value.includes("..") || value.includes("\0")) {
+        throw new PathValidationError(`Invalid ${label} "${value}": use a path relative to the project root, without "..".`);
+    }
+}
+
+/** Project files the agent may see, as sorted posix paths relative to `root`. */
+export async function listProjectFiles(root: string, options: ListProjectFilesOptions = {}): Promise<string[]> {
+    if (options.path !== undefined) {
+        assertRelativeInput(options.path, "path");
+    }
+    if (options.pattern !== undefined) {
+        assertRelativeInput(options.pattern, "pattern");
+    }
+    const rootReal = realRoot(root);
+    const scope = options.path ? toPosixRelative(options.path).replace(/\/+$/, "") : "";
+    const base = scope && scope !== "." ? resolveContained(rootReal, scope) : rootReal;
+
+    let stat: fs.Stats;
+    try {
+        stat = await fs.promises.stat(base);
+    } catch {
+        throw new PathValidationError(`Path "${options.path}" does not exist in the project.`);
+    }
+    if (stat.isFile()) {
+        if (!isReadableProjectFile(rootReal, scope)) {
+            throw new PathValidationError(`"${options.path}" cannot be searched: the agent is not permitted to read it.`);
+        }
+        return [scope];
+    }
+    const scopeSegments = scope && scope !== "." ? scope.split("/") : [];
+    if (scopeSegments.some(isBlockedDirSegment)) {
+        throw new PathValidationError(`"${options.path}" cannot be searched: the agent is not permitted to read it.`);
+    }
+
+    const matches = await glob(options.pattern || "**/*", {
+        cwd: base,
+        nodir: true,
+        dot: false,
+        posix: true,
+        windowsPathsNoEscape: true,
+        matchBase: options.matchBase,
+        follow: false,
+        ignore: IGNORED_DIR_GLOBS,
+    });
+
+    const prefix = scopeSegments.length > 0 ? `${scopeSegments.join("/")}/` : "";
+    const files: string[] = [];
+    for (const match of matches) {
+        const rel = `${prefix}${toPosixRelative(match)}`;
+        if (isReadableProjectFile(rootReal, rel)) {
+            files.push(rel);
+        }
+    }
+    return files.sort();
+}

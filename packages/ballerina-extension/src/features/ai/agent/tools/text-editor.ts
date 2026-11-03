@@ -27,6 +27,8 @@ import { addToIntegration } from "../../../../rpc-managers/ai-panel/utils";
 import { recordAiTouchedFile } from "../../../../rpc-managers/diagram-validity";
 import { seedNewPackageBaseline } from "../../utils/project/ls-schema-notifications";
 import { hasUnsavedChanges, saveIfUnsaved, unsavedChangesError } from "../../utils/project/unsaved-documents";
+import { MAX_LINE_LENGTH, RESTRICTED_READ_FILES, VALID_FILE_EXTENSIONS } from "./path-utils";
+import { isReadableProjectFile, toPosixRelative } from "./project-files";
 
 /**
  * Serializes the read-modify-write cycle per file. Each tool reads from disk and writes back
@@ -246,14 +248,9 @@ interface TextEditorResult {
 // Constants
 // ============================================================================
 
-const VALID_FILE_EXTENSIONS = [
-    '.bal', '.toml', '.md', '.sql', ".yaml", ".yml", ".json", ".graphql", ".txt"
-];
-
-const RESTRICTED_READ_FILES = ['Config.toml'];
-
-const MAX_LINE_LENGTH = 2000;
 const PREVIEW_LENGTH = 200;
+const MAX_READ_LINES = 2000;
+const MAX_READ_CHARS = 80_000;
 
 // ============================================================================
 // Error Messages
@@ -382,6 +379,23 @@ function truncateLongLines(content: string, maxLength: number = MAX_LINE_LENGTH)
     }
     return line;
   }).join('\n');
+}
+
+/** Lines start..requestedEnd (1-based), stopping early at MAX_READ_LINES or MAX_READ_CHARS. */
+function readWithinCaps(lines: string[], start: number, requestedEnd: number): { text: string; end: number } {
+  const out: string[] = [];
+  let chars = 0;
+  let end = start - 1;
+  for (let line = start; line <= requestedEnd && out.length < MAX_READ_LINES; line++) {
+    const text = truncateLongLines(lines[line - 1]);
+    if (out.length > 0 && chars + text.length + 1 > MAX_READ_CHARS) {
+      break;
+    }
+    out.push(text);
+    chars += text.length + 1;
+    end = line;
+  }
+  return { text: out.join('\n'), end };
 }
 
 // ============================================================================
@@ -872,9 +886,7 @@ export function createReadExecute(
       };
     }
 
-    // Block reads of restricted files (e.g. Config.toml) in any path
-    const fileName = (file_path.replace(/\\/g, '/').split('/').pop() ?? '').toLowerCase();
-    if (RESTRICTED_READ_FILES.some(f => f.toLowerCase() === fileName)) {
+    if (!isReadableProjectFile(tempProjectPath, toPosixRelative(file_path))) {
       console.error(`[FileReadTool] Blocked read of restricted file: ${file_path}`);
       return {
         success: false,
@@ -913,45 +925,36 @@ export function createReadExecute(
       return result;
     }
 
-    // Split content into lines
     const lines = content.split('\n');
     const totalLines = lines.length;
+    const start = offset ?? 1;
 
-    // Handle ranged read
-    if (offset !== undefined && limit !== undefined) {
-      const validation = validateLineRange(offset, limit, totalLines);
-      if (!validation.valid) {
-        console.error(`[FileReadTool] Invalid line range for file: ${file_path}, offset: ${offset}, limit: ${limit}`);
-        const result = {
-          success: false,
-          message: validation.error!,
-          error: `Error: ${ErrorMessages.INVALID_LINE_RANGE}`
-        };
-        emitFileToolResult(eventHandler, FILE_READ_TOOL_NAME, result, file_path);
-        return result;
-      }
-
-      const startIndex = offset - 1; // Convert to 0-based index
-      const endIndex = Math.min(startIndex + limit, totalLines);
-      const rangedLines = lines.slice(startIndex, endIndex);
-      const rangedContent = truncateLongLines(rangedLines.join('\n'));
-
-      console.log(`[FileReadTool] Read lines ${offset} to ${endIndex} from file: ${file_path}`);
+    const validation = validateLineRange(start, limit ?? 1, totalLines);
+    if (!validation.valid) {
+      console.error(`[FileReadTool] Invalid line range for file: ${file_path}, offset: ${offset}, limit: ${limit}`);
       const result = {
-        success: true,
-        message: `Read lines ${offset} to ${endIndex} from '${file_path}' (${endIndex - startIndex} lines).${unsavedNote} \nContent:${rangedContent}`,
+        success: false,
+        message: validation.error!,
+        error: `Error: ${ErrorMessages.INVALID_LINE_RANGE}`
       };
       emitFileToolResult(eventHandler, FILE_READ_TOOL_NAME, result, file_path);
       return result;
     }
 
-    // Return full content
-    const truncatedContent = truncateLongLines(content);
+    const requestedEnd = Math.min(totalLines, limit === undefined ? totalLines : start - 1 + limit);
+    const { text, end } = readWithinCaps(lines, start, requestedEnd);
+    const isWholeFile = start === 1 && end === totalLines;
+    const capNote = end < requestedEnd
+      ? `\n[Showing lines ${start}-${end} of ${totalLines}. The rest is past the read limit; call ${FILE_READ_TOOL_NAME} with offset=${end + 1}, or grep for what you need.]`
+      : '';
 
-    console.log(`[FileReadTool] Read entire file: ${file_path}, total lines: ${totalLines}`);
+    console.log(`[FileReadTool] Read lines ${start} to ${end} of ${totalLines} from file: ${file_path}`);
+    const header = isWholeFile
+      ? `Read entire file '${file_path}' (${totalLines} lines).`
+      : `Read lines ${start} to ${end} from '${file_path}' (${end - start + 1} of ${totalLines} lines).`;
     const result = {
       success: true,
-      message: `Read entire file '${file_path}' (${totalLines} lines).${unsavedNote}\nContent:${truncatedContent}`,
+      message: `${header}${unsavedNote}${capNote}\nContent:${text}`,
     };
     emitFileToolResult(eventHandler, FILE_READ_TOOL_NAME, result, file_path);
     return result;
@@ -1093,19 +1096,18 @@ export function createBatchEditTool(execute: MultiEditExecute) {
 // 4. Read Tool
 export function createReadTool(execute: ReadExecute) {
   return tool({
-    description: `Reads a file from the local filesystem.
-    ALWAYS prefer reading files mentioned in the user’s message in the chat history first. Only use this tool if you need to read a file that is not present in the chat history.
-    NOTE: The following files are restricted and cannot be read: ${RESTRICTED_READ_FILES.join(", ")}.
+    description: `Reads a file from the project.
+    NOTE: These cannot be read: ${RESTRICTED_READ_FILES.join(", ")}, hidden files (other than .agents/), and the target/ build folder.
     Usage:
     - For workspace projects, include the package directory prefix in the file path (e.g., "myPackage/main.bal").
-    - You can optionally specify a line offset and limit (especially handy for long files).
-    - Any lines longer than 2000 characters will be truncated
-    - The file content will be returned as string
-    - If the file is very large, consider using the offset and limit parameters to read it in chunks.`,
+    - Reads the whole file by default. Use offset (first line, 1-based) and limit (number of lines) to read part of it, for example around the lines grep found.
+    - One call returns at most ${MAX_READ_LINES} lines or ${MAX_READ_CHARS} characters; a longer read ends with a note saying where to continue.
+    - Lines longer than ${MAX_LINE_LENGTH} characters are truncated.
+    - Content read in earlier turns may be out of date; the user can edit files between turns.`,
     inputSchema: z.object({
       file_path: z.string().describe(getFilePathDescription("read")),
-      offset: z.number().optional().describe("The line number to start reading from. Only provide if the file is too large to read at once"),
-      limit: z.number().optional().describe("The number of lines to read. Only provide if the file is too large to read at once.")
+      offset: z.number().int().min(1).optional().describe("The 1-based line number to start reading from"),
+      limit: z.number().int().min(1).optional().describe("The number of lines to read")
     }),
     execute
   });
