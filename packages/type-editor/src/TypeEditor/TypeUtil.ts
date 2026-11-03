@@ -130,7 +130,7 @@ const isNodeOf = (type: string | Type, ...nodes: string[]): boolean =>
 const toParenthesizedSource = (type: string | Type): string => {
     const source = typeToSource(type);
     // `T?` is already a single operand, so `string?[]` stays as the user wrote it
-    const isOptional = source.endsWith('?') && !source.includes(' | ');
+    const isOptional = isNodeOf(type, 'UNION') && source.endsWith('?') && !source.includes(' | ');
     return isNodeOf(type, 'UNION', 'INTERSECTION') && !isOptional ? `(${source})` : source;
 };
 
