@@ -19,27 +19,42 @@
 // Pure Ballerina.toml edits behind the ICP toggle, kept free of vscode imports so they
 // can be unit tested.
 
-const SECTION_HEADER = '[build-options]';
+const SECTION_NAME = 'build-options';
+const SECTION_HEADER = `[${SECTION_NAME}]`;
 
 export const ICP_BUILD_OPTION_KEYS = ['observabilityIncluded', 'remoteManagement'];
 
+// A key may be bare (`key`), basic-quoted (`"key"`) or literal-quoted (`'key'`); all three
+// name the same key, so a quoted one must be matched or an edit would duplicate it.
 function keyOf(line: string): string | undefined {
-    return line.match(/^\s*([A-Za-z0-9_-]+)\s*=/)?.[1];
+    const match = line.match(/^\s*(?:([A-Za-z0-9_-]+)|"([^"\\]*)"|'([^']*)')\s*=/);
+    return match ? match[1] ?? match[2] ?? match[3] : undefined;
 }
 
-function isTableHeader(line: string): boolean {
-    const trimmed = line.trim();
-    return trimmed.startsWith('[') && trimmed.endsWith(']');
+// The name of a `[table]` or `[[array]]` header, tolerating a trailing comment, spacing
+// inside the brackets and quoted segments.
+function tableHeader(line: string): { name: string; isArray: boolean } | undefined {
+    const match = line.match(/^\s*(\[\[?)([^\]#]*)\]\]?\s*(?:#.*)?$/);
+    if (!match) {
+        return undefined;
+    }
+    const name = match[2].split('.')
+        .map(segment => segment.trim().replace(/^"(.*)"$|^'(.*)'$/, '$1$2'))
+        .join('.');
+    return { name, isArray: match[1] === '[[' };
 }
 
 function findSection(lines: string[]): { start: number; end: number } | undefined {
-    const start = lines.findIndex(line => line.trim() === SECTION_HEADER);
+    const start = lines.findIndex(line => {
+        const header = tableHeader(line);
+        return header?.name === SECTION_NAME && !header.isArray;
+    });
     if (start === -1) {
         return undefined;
     }
     let end = lines.length;
     for (let i = start + 1; i < lines.length; i++) {
-        if (isTableHeader(lines[i])) {
+        if (tableHeader(lines[i])) {
             end = i;
             break;
         }

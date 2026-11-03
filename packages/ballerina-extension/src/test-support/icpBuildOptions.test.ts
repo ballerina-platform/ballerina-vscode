@@ -47,6 +47,10 @@ const MANIFESTS: Record<string, string> = {
     "one ICP option already true": `${PACKAGE}\n[build-options]\nobservabilityIncluded = true\n`,
     "ICP options already true": `${PACKAGE}\n[build-options]\nobservabilityIncluded = true\nremoteManagement = true\n`,
     "a key sharing an ICP option's prefix": `${PACKAGE}\n[build-options]\nremoteManagementPort = 9264\n`,
+    "quoted ICP options": `${PACKAGE}\n[build-options]\n"remoteManagement" = false\n'observabilityIncluded' = false\n`,
+    "a build-options header with a trailing comment": `${PACKAGE}\n[build-options] # ICP settings\nsticky = true\n`,
+    "a quoted, spaced build-options header": `${PACKAGE}\n[ "build-options" ]\nsticky = true\n`,
+    "a commented table after build-options with its own remoteManagement": `${PACKAGE}\n[build-options]\nsticky = true\n\n[other] # settings\nremoteManagement = false\n`,
 };
 
 function buildOptions(content: string): Record<string, unknown> {
