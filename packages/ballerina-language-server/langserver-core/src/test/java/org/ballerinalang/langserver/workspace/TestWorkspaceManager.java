@@ -1592,6 +1592,26 @@ public class TestWorkspaceManager {
         workspaceManager.document(file).orElseThrow().modify().withContent(text).apply();
     }
 
+    @Test(description = "Test a crashed expression copy is rebuilt when the next form opens")
+    public void testCrashedExprCopyRebuiltForNextForm() throws WorkspaceDocumentException, IOException {
+        Path file = RESOURCE_DIRECTORY.resolve("myproject").resolve("main.bal").toAbsolutePath();
+        BallerinaWorkspaceManagerProxyImpl proxy =
+                new BallerinaWorkspaceManagerProxyImpl(new LanguageServerContextImpl());
+        String fileUri = file.toUri().toString();
+        String exprUri = fileUri.replace("file:///", "expr:///");
+        String text = Files.readString(file);
+        proxy.didOpen(openParams(fileUri, text));
+        proxy.didOpen(openParams(exprUri, text));
+        BallerinaWorkspaceManager copy = (BallerinaWorkspaceManager) proxy.get(exprUri);
+        copy.sourceRootToProject.get(copy.projectRoot(file)).setCompilationCrashed(true);
+        Assert.assertTrue(copy.semanticModel(file).isEmpty(), "A crashed copy should have no semantic model");
+
+        closeParams(proxy, exprUri);
+        proxy.didOpen(openParams(exprUri, text));
+
+        Assert.assertTrue(copy.semanticModel(file).isPresent(), "The next form should get a rebuilt copy");
+    }
+
     private static DidOpenTextDocumentParams openParams(String uri, String text) {
         DidOpenTextDocumentParams params = new DidOpenTextDocumentParams();
         TextDocumentItem item = new TextDocumentItem();

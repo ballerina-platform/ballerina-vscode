@@ -296,11 +296,17 @@ public class BallerinaWorkspaceManagerProxyImpl implements BallerinaWorkspaceMan
         // Reuses the clone while it still matches the source, discarding a previous form's edits to the file.
         public void openOrReuse(Project sourceProject, Path filePath, String text) throws WorkspaceDocumentException {
             openForms.add(filePath);
-            if (!isSyncedWith(sourceProject)) {
+            if (!isSyncedWith(sourceProject) || crashed(filePath)) {
                 open(sourceProject);
             }
             reset(filePath, text);
             touch(filePath);
+        }
+
+        // A copy whose compilation crashed returns no semantic model until it is rebuilt.
+        private boolean crashed(Path filePath) {
+            ProjectContext context = sourceRootToProject.get(projectRoot(filePath));
+            return context != null && context.compilationCrashed();
         }
 
         // Drops every copy with no open form that went unused for the idle timeout.
