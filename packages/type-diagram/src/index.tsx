@@ -17,4 +17,3 @@
  */
 
 export { TypeDiagram } from "./Diagram";
-export type { RequestContextSummary } from "./components/common/DiagramContext/DiagramContext";

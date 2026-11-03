@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { GraphqlContextRequest, GraphqlContextResponse, NodePosition } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 
@@ -45,10 +45,4 @@ export function useGraphqlContext(filePath: string, position: NodePosition) {
         // Keep the indicator and the panel steady while a moved service's context reloads.
         placeholderData: keepPreviousData,
     });
-}
-
-/** Refetches the request context, after an edit. */
-export function useInvalidateGraphqlContext() {
-    const queryClient = useQueryClient();
-    return () => queryClient.invalidateQueries({ queryKey: [GRAPHQL_CONTEXT_QUERY_KEY] });
 }

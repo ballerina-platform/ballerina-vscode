@@ -20,7 +20,6 @@ import type { ContextEntry, ContextEntrySource } from "@wso2/ballerina-core";
 import {
     SOURCE_OPTIONS,
     canBeRequired,
-    hasErrors,
     isDirty,
     newEntry,
     normalizeEntries,
@@ -43,7 +42,7 @@ const corpus: ContextEntry[] = [
 
 describe("context entries", () => {
     it("accepts every entry the language server can read back", () => {
-        expect(hasErrors(validateEntries(corpus))).toBe(false);
+        expect(validateEntries(corpus).every((error) => !error.key && !error.value)).toBe(true);
     });
 
     it("leaves a valid list unchanged when normalizing, so saving it is a no-op", () => {
@@ -106,6 +105,6 @@ describe("context entries", () => {
     it("starts a new entry as an empty, required header, which validation flags until filled", () => {
         const entry = newEntry();
         expect(entry).toEqual({ key: "", source: "header", value: "", required: true });
-        expect(hasErrors(validateEntries([entry]))).toBe(true);
+        expect(validateEntries([entry]).some((error) => error.key || error.value)).toBe(true);
     });
 });

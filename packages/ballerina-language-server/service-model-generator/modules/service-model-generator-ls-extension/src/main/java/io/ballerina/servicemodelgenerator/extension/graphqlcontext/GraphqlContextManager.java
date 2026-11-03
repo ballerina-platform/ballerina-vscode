@@ -45,11 +45,11 @@ import io.ballerina.projects.Document;
 import io.ballerina.projects.DocumentId;
 import io.ballerina.projects.Module;
 import io.ballerina.servicemodelgenerator.extension.util.ServiceModelUtils;
+import io.ballerina.servicemodelgenerator.extension.util.Utils;
 import io.ballerina.tools.text.LinePosition;
 import io.ballerina.tools.text.LineRange;
 import io.ballerina.tools.text.TextDocument;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceManager;
-import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.TextEdit;
 
@@ -63,6 +63,9 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+import static io.ballerina.servicemodelgenerator.extension.util.Utils.toPosition;
+import static io.ballerina.servicemodelgenerator.extension.util.Utils.toRange;
+
 /**
  * The request context of a GraphQL service: the function its {@code contextInit} field names, which builds the
  * {@code graphql:Context} each resolver receives.
@@ -75,10 +78,10 @@ import java.util.regex.Pattern;
  */
 public final class GraphqlContextManager {
 
-    public static final String ACTION_CREATE = "create";
-    public static final String ACTION_USE = "use";
-    public static final String ACTION_REMOVE = "remove";
-    public static final String ACTION_SET_ENTRIES = "setEntries";
+    private static final String ACTION_CREATE = "create";
+    private static final String ACTION_USE = "use";
+    private static final String ACTION_REMOVE = "remove";
+    private static final String ACTION_SET_ENTRIES = "setEntries";
 
     static final String FIELD = "contextInit";
 
@@ -115,11 +118,11 @@ public final class GraphqlContextManager {
             return GraphqlContextResponse.unsupported();
         }
         List<String> candidates = candidates(semanticModel);
-        Map<String, String> fields = target.get().annotation().fieldValues();
-        if (!fields.containsKey(FIELD)) {
+        Optional<String> configured = target.get().annotation().fieldSource(FIELD);
+        if (configured.isEmpty()) {
             return GraphqlContextResponse.notConfigured(candidates);
         }
-        String expression = fields.get(FIELD);
+        String expression = configured.get();
         Optional<String> functionName = functionName(target.get());
         if (functionName.isEmpty()) {
             // A lambda or a qualified reference: shown as written, and edited only in source.
@@ -188,7 +191,7 @@ public final class GraphqlContextManager {
                                                       ServiceDeclarationNode serviceNode,
                                                       SemanticModel semanticModel,
                                                       WorkspaceManager workspaceManager) {
-        String name = uniqueName(baseName(serviceNode), moduleLevelNames(semanticModel));
+        String name = Utils.generateTypeIdentifier(moduleLevelNames(semanticModel), baseName(serviceNode));
         // functions.bal sits beside the service, in the same module directory.
         Path moduleDirectory = serviceFile.toAbsolutePath().getParent();
         if (moduleDirectory == null) {
@@ -204,7 +207,7 @@ public final class GraphqlContextManager {
         String function = functionSource(name, httpPrefix, graphqlPrefix);
 
         List<TextEdit> functionEdits = new ArrayList<>();
-        Range fileStart = range(root.lineRange().startLine());
+        Range fileStart = toRange(root.lineRange().startLine());
         if (root.imports().isEmpty() && root.members().isEmpty()) {
             String text = imports.isEmpty() ? function : imports + NEW_LINE + function;
             functionEdits.add(new TextEdit(fileStart, text + NEW_LINE));
@@ -212,7 +215,7 @@ public final class GraphqlContextManager {
             if (!imports.isEmpty()) {
                 functionEdits.add(new TextEdit(fileStart, imports.toString()));
             }
-            functionEdits.add(appendAtEnd(root, function));
+            functionEdits.add(Utils.appendAtEndOfModule(root, function));
         }
 
         Map<String, List<TextEdit>> edits = new LinkedHashMap<>();
@@ -229,10 +232,7 @@ public final class GraphqlContextManager {
         }
         String functionName = functionName(target)
                 .orElseThrow(() -> new IllegalArgumentException("This service has no context function to edit"));
-        if (!candidates(semanticModel).contains(functionName)) {
-            throw new IllegalArgumentException(functionName + " does not have the signature a contextInit "
-                    + "function needs");
-        }
+        requireContextInit(semanticModel, functionName);
         FunctionLocation location = findFunction(document.module(), functionName)
                 .filter(found -> found.filePath() != null)
                 .orElseThrow(() -> new IllegalArgumentException(functionName + " is not in this integration"));
@@ -244,10 +244,8 @@ public final class GraphqlContextManager {
             throw new IllegalArgumentException(e.getMessage() + " Edit it in the flow diagram.", e);
         }
         ContextFunctionBody.Replacement replacement = body.replaceEntries(entries);
-        Map<String, List<TextEdit>> edits = new LinkedHashMap<>();
-        addEdits(edits, location.filePath(), List.of(new TextEdit(
-                new Range(position(replacement.start()), position(replacement.end())), replacement.text())));
-        return edits;
+        return Map.of(location.filePath(), List.of(new TextEdit(
+                new Range(toPosition(replacement.start()), toPosition(replacement.end())), replacement.text())));
     }
 
     private static Map<String, List<TextEdit>> use(Target target, Path serviceFile,
@@ -255,13 +253,8 @@ public final class GraphqlContextManager {
         if (functionName == null || !IDENTIFIER.matcher(functionName).matches()) {
             throw new IllegalArgumentException("Not a valid function name: " + functionName);
         }
-        if (!candidates(semanticModel).contains(functionName)) {
-            throw new IllegalArgumentException(functionName + " does not have the signature a contextInit "
-                    + "function needs");
-        }
-        Map<String, List<TextEdit>> edits = new LinkedHashMap<>();
-        addEdits(edits, serviceFile.toString(), target.annotation().setField(FIELD, functionName));
-        return edits;
+        requireContextInit(semanticModel, functionName);
+        return Map.of(serviceFile.toString(), target.annotation().setField(FIELD, functionName));
     }
 
     private static Map<String, List<TextEdit>> remove(Target target, Path serviceFile,
@@ -357,13 +350,25 @@ public final class GraphqlContextManager {
             LinePosition start = LinePosition.from(span[0], 0);
             LinePosition stop = end + 1 < lineCount ? LinePosition.from(end + 1, 0)
                     : LinePosition.from(end, textDocument.line(end).length());
-            edits.add(new TextEdit(new Range(position(start), position(stop)), ""));
+            edits.add(new TextEdit(new Range(toPosition(start), toPosition(stop)), ""));
         }
         return edits;
     }
 
     private static boolean isBlank(TextDocument textDocument, int line) {
         return textDocument.line(line).text().isBlank();
+    }
+
+    /**
+     * Refuses a function that is not a module function with the signature a {@code contextInit} field accepts.
+     *
+     * @throws IllegalArgumentException when it is not
+     */
+    private static void requireContextInit(SemanticModel semanticModel, String functionName) {
+        if (moduleFunction(semanticModel, functionName).filter(GraphqlContextManager::isContextInit).isEmpty()) {
+            throw new IllegalArgumentException(functionName + " does not have the signature a contextInit "
+                    + "function needs");
+        }
     }
 
     /**
@@ -470,7 +475,7 @@ public final class GraphqlContextManager {
         Optional<ExpressionNode> value = target.annotation().valueOf(FIELD);
         if (value.isEmpty()) {
             // Written in shorthand, `{contextInit}`, the field names the function of that name.
-            return target.annotation().fieldValues().containsKey(FIELD) ? Optional.of(FIELD) : Optional.empty();
+            return target.annotation().fieldSource(FIELD).map(source -> FIELD);
         }
         if (value.get() instanceof SimpleNameReferenceNode reference) {
             return Optional.of(reference.name().text());
@@ -526,17 +531,6 @@ public final class GraphqlContextManager {
         return base + NAME_SUFFIX;
     }
 
-    static String uniqueName(String base, Set<String> taken) {
-        if (!taken.contains(base)) {
-            return base;
-        }
-        int suffix = 1;
-        while (taken.contains(base + suffix)) {
-            suffix++;
-        }
-        return base + suffix;
-    }
-
     static String functionSource(String name, String httpPrefix, String graphqlPrefix) {
         return "isolated function " + name + "(" + httpPrefix + ":RequestContext requestContext, " + httpPrefix
                 + ":Request request) returns " + graphqlPrefix + ":Context|error {" + NEW_LINE
@@ -558,25 +552,10 @@ public final class GraphqlContextManager {
         return prefix;
     }
 
-    private static TextEdit appendAtEnd(ModulePartNode root, String text) {
-        LinePosition insertAt = root.members().isEmpty()
-                ? root.imports().get(root.imports().size() - 1).lineRange().endLine()
-                : root.members().get(root.members().size() - 1).lineRange().endLine();
-        return new TextEdit(range(insertAt), NEW_LINE + NEW_LINE + text);
-    }
-
     private static void addEdits(Map<String, List<TextEdit>> edits, String filePath, List<TextEdit> fileEdits) {
         if (fileEdits.isEmpty()) {
             return;
         }
         edits.computeIfAbsent(filePath, key -> new ArrayList<>()).addAll(fileEdits);
-    }
-
-    private static Position position(LinePosition linePosition) {
-        return new Position(linePosition.line(), linePosition.offset());
-    }
-
-    private static Range range(LinePosition linePosition) {
-        return new Range(position(linePosition), position(linePosition));
     }
 }

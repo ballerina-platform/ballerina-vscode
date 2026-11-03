@@ -31,17 +31,17 @@ import io.ballerina.compiler.syntax.tree.ServiceDeclarationNode;
 import io.ballerina.compiler.syntax.tree.SpecificFieldNode;
 import io.ballerina.compiler.syntax.tree.Token;
 import io.ballerina.modelgenerator.commons.ImportPrefixReader;
+import io.ballerina.servicemodelgenerator.extension.util.Utils;
 import io.ballerina.tools.text.LinePosition;
-import io.ballerina.tools.text.LineRange;
-import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.TextEdit;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
+
+import static io.ballerina.servicemodelgenerator.extension.util.Utils.toPosition;
+import static io.ballerina.servicemodelgenerator.extension.util.Utils.toRange;
 
 /**
  * A service's config annotation, such as {@code @graphql:ServiceConfig}, and the edits that change one of its fields.
@@ -100,23 +100,14 @@ final class ServiceConfigAnnotation {
         return new ServiceConfigAnnotation(serviceNode, rootNode, org, module, annotationName, found);
     }
 
-    boolean exists() {
-        return annotation != null;
-    }
-
     /**
-     * The fields set in source, in source order, each mapped to its value as written. A shorthand field
-     * ({@code {contextInit}}) maps to its own name, which is the variable it refers to.
+     * The field's value as written; empty when the field is absent. A shorthand field ({@code {contextInit}})
+     * reads as its own name, which is the variable it refers to.
      */
-    Map<String, String> fieldValues() {
-        Map<String, String> values = new LinkedHashMap<>();
-        for (MappingFieldNode field : fields()) {
-            if (field instanceof SpecificFieldNode specificField) {
-                String name = fieldName(specificField);
-                values.put(name, specificField.valueExpr().map(value -> value.toSourceCode().strip()).orElse(name));
-            }
-        }
-        return values;
+    Optional<String> fieldSource(String field) {
+        return findField(field).map(found -> found.valueExpr()
+                .map(value -> value.toSourceCode().strip())
+                .orElse(field));
     }
 
     /**
@@ -137,7 +128,7 @@ final class ServiceConfigAnnotation {
         String baseIndent = indentOf(annotation.lineRange().startLine());
         if (mapping.isEmpty()) {
             // `@graphql:ServiceConfig` written without a body.
-            return List.of(new TextEdit(range(annotation.lineRange().endLine()),
+            return List.of(new TextEdit(toRange(annotation.lineRange().endLine()),
                     " " + body(field, value, baseIndent)));
         }
 
@@ -145,20 +136,20 @@ final class ServiceConfigAnnotation {
         if (existing.isPresent()) {
             SpecificFieldNode specificField = existing.get();
             if (specificField.valueExpr().isPresent()) {
-                return List.of(new TextEdit(range(specificField.valueExpr().get().lineRange()), value));
+                return List.of(new TextEdit(toRange(specificField.valueExpr().get().lineRange()), value));
             }
-            return List.of(new TextEdit(range(specificField.fieldName().lineRange().endLine()), ": " + value));
+            return List.of(new TextEdit(toRange(specificField.fieldName().lineRange().endLine()), ": " + value));
         }
 
         SeparatedNodeList<MappingFieldNode> fields = mapping.get().fields();
         if (fields.isEmpty()) {
-            return List.of(new TextEdit(range(mapping.get().lineRange()), body(field, value, baseIndent)));
+            return List.of(new TextEdit(toRange(mapping.get().lineRange()), body(field, value, baseIndent)));
         }
         MappingFieldNode last = fields.get(fields.size() - 1);
         LinePosition lastStart = last.lineRange().startLine();
         boolean inline = lastStart.line() == mapping.get().openBrace().lineRange().startLine().line();
         String separator = inline ? ", " : "," + NEW_LINE + indentOf(lastStart);
-        return List.of(new TextEdit(range(last.lineRange().endLine()), separator + field + ": " + value));
+        return List.of(new TextEdit(toRange(last.lineRange().endLine()), separator + field + ": " + value));
     }
 
     /**
@@ -193,7 +184,7 @@ final class ServiceConfigAnnotation {
             start = fields.get(index - 1).lineRange().endLine();
             end = fields.get(index).lineRange().endLine();
         }
-        return List.of(new TextEdit(new Range(position(start), position(end)), ""));
+        return List.of(new TextEdit(new Range(toPosition(start), toPosition(end)), ""));
     }
 
     private List<TextEdit> removeAnnotation() {
@@ -211,7 +202,7 @@ final class ServiceConfigAnnotation {
         if (end == null) {
             end = firstServiceToken().lineRange().startLine();
         }
-        return List.of(new TextEdit(new Range(position(annotation.lineRange().startLine()), position(end)), ""));
+        return List.of(new TextEdit(new Range(toPosition(annotation.lineRange().startLine()), toPosition(end)), ""));
     }
 
     private List<TextEdit> newAnnotation(String field, String value) {
@@ -219,13 +210,13 @@ final class ServiceConfigAnnotation {
         String prefix = ImportPrefixReader.resolve(rootNode, org, module, null);
         if (rootNode != null && ImportPrefixReader.existingImportPrefix(rootNode, org, module).isEmpty()) {
             // The listener can be declared in another file, so the service's own file need not import the module.
-            edits.add(new TextEdit(range(rootNode.lineRange().startLine()), importStatement(org, module, prefix)));
+            edits.add(new TextEdit(toRange(rootNode.lineRange().startLine()), importStatement(org, module, prefix)));
         }
         LinePosition insertAt = firstServiceToken().lineRange().startLine();
         String baseIndent = indentOf(insertAt);
         String text = "@" + prefix + ":" + annotationName + " " + body(field, value, baseIndent) + NEW_LINE
                 + baseIndent;
-        edits.add(new TextEdit(range(insertAt), text));
+        edits.add(new TextEdit(toRange(insertAt), text));
         return edits;
     }
 
@@ -249,11 +240,11 @@ final class ServiceConfigAnnotation {
         return Optional.empty();
     }
 
+    /**
+     * The import statement for the module under the prefix, on a line of its own.
+     */
     static String importStatement(String org, String module, String prefix) {
-        int lastDot = module.lastIndexOf('.');
-        String naturalPrefix = lastDot < 0 ? module : module.substring(lastDot + 1);
-        String alias = prefix.equals(naturalPrefix) ? "" : " as " + prefix;
-        return "import " + org + "/" + module + alias + ";" + NEW_LINE;
+        return Utils.getImportStmt(org, module, prefix).strip() + NEW_LINE;
     }
 
     private static String fieldName(SpecificFieldNode field) {
@@ -273,17 +264,5 @@ final class ServiceConfigAnnotation {
 
     private static String indentOf(LinePosition position) {
         return " ".repeat(Math.max(0, position.offset()));
-    }
-
-    private static Position position(LinePosition linePosition) {
-        return new Position(linePosition.line(), linePosition.offset());
-    }
-
-    private static Range range(LinePosition linePosition) {
-        return new Range(position(linePosition), position(linePosition));
-    }
-
-    private static Range range(LineRange lineRange) {
-        return new Range(position(lineRange.startLine()), position(lineRange.endLine()));
     }
 }

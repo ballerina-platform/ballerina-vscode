@@ -211,18 +211,16 @@ export function GraphQLDiagram(props: GraphQLDiagramProps) {
     const { data: requestContext, isLoading: isRequestContextLoading } = useGraphqlContext(filePath, position);
     const contextSupported = !!requestContext?.supported;
 
-    // Registered once: registering on every render added another listener each time, so one change refetched the
-    // model several times and the diagram redrew once per refetch.
-    useEffect(() => {
-        rpcClient?.onProjectContentUpdated((state: boolean) => {
-            if (state) {
-                // Instead of calling getGraphqlDesignModel directly, invalidate the query
-                queryClient.invalidateQueries({ queryKey: ["graphqlTypeModel"] });
-                // An edit made anywhere, including in source, can change the request context.
-                queryClient.invalidateQueries({ queryKey: [GRAPHQL_CONTEXT_QUERY_KEY] });
-            }
-        });
-    }, [rpcClient]);
+    // Registered once per mount and removed on unmount: a listener that outlives the view would refetch, and redraw,
+    // once more for every time the view was opened.
+    useEffect(() => rpcClient?.onProjectContentUpdated((state: boolean) => {
+        if (state) {
+            // Instead of calling getGraphqlDesignModel directly, invalidate the query
+            queryClient.invalidateQueries({ queryKey: ["graphqlTypeModel"] });
+            // An edit made anywhere, including in source and in the Request Context panel, can change the context.
+            queryClient.invalidateQueries({ queryKey: [GRAPHQL_CONTEXT_QUERY_KEY] });
+        }
+    }), [rpcClient, queryClient]);
 
     const openRequestContext = () => {
         setIsServiceEditorOpen(false);
@@ -480,12 +478,7 @@ export function GraphQLDiagram(props: GraphQLDiagramProps) {
                             updateFocusedNodeId={handleFocusedNodeIdChange}
                             onTypeDelete={onTypeDelete}
                             verifyTypeDelete={verifyTypeDelete}
-                            requestContext={requestContext?.configured
-                                ? {
-                                    functionName: requestContext.functionName,
-                                    keys: requestContext.entries.map((entry) => entry.key),
-                                }
-                                : undefined}
+                            hasRequestContext={!!requestContext?.configured}
                             onOpenRequestContext={contextSupported ? openRequestContext : undefined}
                         />
                     ) : null}

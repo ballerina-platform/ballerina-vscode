@@ -52,9 +52,9 @@ import {
 import { ContextValueItem } from "./ContextValueItem";
 import { ContextValueEditor } from "./ContextValueEditor";
 import { isDirty, newEntry, normalizeEntries } from "./contextEntries";
-import { contextRequest, useInvalidateGraphqlContext } from "./useGraphqlContext";
+import { contextRequest } from "./useGraphqlContext";
 
-export const CONTEXT_INIT_SIGNATURE =
+const CONTEXT_INIT_SIGNATURE =
     "isolated function (http:RequestContext, http:Request) returns graphql:Context|error";
 
 const Section = styled.div`
@@ -136,7 +136,6 @@ interface RequestContextPanelProps {
 export function RequestContextPanel(props: RequestContextPanelProps) {
     const { filePath, position, context, loading, onClose, onOpenServiceConfig } = props;
     const { rpcClient } = useRpcContext();
-    const invalidate = useInvalidateGraphqlContext();
     const [draft, setDraft] = useState<ContextEntry[]>(context?.entries ?? []);
     const [editing, setEditing] = useState<Editing>();
     const [picked, setPicked] = useState<string>("");
@@ -164,7 +163,7 @@ export function RequestContextPanel(props: RequestContextPanelProps) {
                 setError(response.errorMsg);
                 return;
             }
-            await invalidate();
+            // The edit updates the project, and the diagram's content-updated listener refetches the context.
             setEditing(undefined);
             if (closeAfter) {
                 onClose();
@@ -266,6 +265,21 @@ export function RequestContextPanel(props: RequestContextPanelProps) {
         const expressionScope = context.functionFilePath && context.valueScope
             ? { filePath: context.functionFilePath, lineRange: context.valueScope }
             : undefined;
+        // The editor of the value at the index; the index just past the last value is a new one.
+        const renderValueEditor = (index: number) => {
+            const isNew = index === draft.length;
+            return (
+                <ContextValueEditor
+                    key={`editor-${index}`}
+                    entry={isNew ? newEntry() : draft[index]}
+                    others={draft.filter((_, i) => i !== index)}
+                    isNew={isNew}
+                    expressionScope={expressionScope}
+                    onSave={(entry) => saveValue(index, entry)}
+                    onCancel={() => setEditing(undefined)}
+                />
+            );
+        };
         const dirty = isDirty(context.entries, draft);
         return (
             <>
@@ -361,17 +375,7 @@ export function RequestContextPanel(props: RequestContextPanelProps) {
                                 <Hint>No values yet. Add one to pass request data to your resolvers.</Hint>
                             )}
                             {draft.map((entry, index) => (
-                                editing?.kind === "value" && editing.index === index ? (
-                                    <ContextValueEditor
-                                        key={`editor-${index}`}
-                                        entry={entry}
-                                        others={draft.filter((_, i) => i !== index)}
-                                        isNew={false}
-                                        expressionScope={expressionScope}
-                                        onSave={(updated) => saveValue(index, updated)}
-                                        onCancel={() => setEditing(undefined)}
-                                    />
-                                ) : (
+                                editing?.kind === "value" && editing.index === index ? renderValueEditor(index) : (
                                     <ContextValueItem
                                         key={`${entry.key}-${index}`}
                                         entry={entry}
@@ -381,16 +385,8 @@ export function RequestContextPanel(props: RequestContextPanelProps) {
                                     />
                                 )
                             ))}
-                            {editing?.kind === "value" && editing.index === draft.length && (
-                                <ContextValueEditor
-                                    entry={newEntry()}
-                                    others={draft}
-                                    isNew={true}
-                                    expressionScope={expressionScope}
-                                    onSave={(entry) => saveValue(draft.length, entry)}
-                                    onCancel={() => setEditing(undefined)}
-                                />
-                            )}
+                            {editing?.kind === "value" && editing.index === draft.length
+                                && renderValueEditor(draft.length)}
                             {!editing && (
                                 <AddButtonWrapper>
                                     <LinkButton
@@ -435,8 +431,6 @@ export function RequestContextPanel(props: RequestContextPanelProps) {
             <SidePanelBody data-testid="request-context-panel">
                 {loading && !context ? (
                     <ProgressRing />
-                ) : context?.errorMsg ? (
-                    <ErrorText role="alert">Could not read the request context: {context.errorMsg}</ErrorText>
                 ) : context?.configured ? (
                     renderConfigured()
                 ) : (

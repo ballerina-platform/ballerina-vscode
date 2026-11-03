@@ -1436,8 +1436,9 @@ export class ExtendedLangClient extends LanguageClient implements ExtendedLangCl
         return this.sendRequest<GraphqlContextResponse>(EXTENDED_APIS.BI_SERVICE_GET_GRAPHQL_CONTEXT, params);
     }
 
-    async applyGraphqlContext(params: ApplyGraphqlContextRequest): Promise<ListenerSourceCodeResponse> {
-        return this.sendRequest<ListenerSourceCodeResponse>(EXTENDED_APIS.BI_SERVICE_APPLY_GRAPHQL_CONTEXT, params);
+    async applyGraphqlContext(params: ApplyGraphqlContextRequest): Promise<ListenerSourceCodeResponse & { errorMsg?: string }> {
+        return this.sendRequest<ListenerSourceCodeResponse & { errorMsg?: string }>(
+            EXTENDED_APIS.BI_SERVICE_APPLY_GRAPHQL_CONTEXT, params);
     }
 
     async updateServiceClass(params: ServiceClassSourceRequest): Promise<SourceEditResponse> {

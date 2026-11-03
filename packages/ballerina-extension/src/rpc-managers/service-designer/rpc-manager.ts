@@ -643,6 +643,10 @@ export class ServiceDesignerRpcManager implements ServiceDesignerAPI {
         }
     }
 
+    /**
+     * Applies the edits of a request context change. A refused change (an error message, or no edits) changes
+     * nothing and reports why, so the panel can show it instead of failing silently.
+     */
     async applyGraphqlContext(params: ApplyGraphqlContextRequest): Promise<GraphqlContextEditResponse> {
         const descriptions: Record<ApplyGraphqlContextRequest["action"], string> = {
             create: "Create request context",
@@ -650,28 +654,15 @@ export class ServiceDesignerRpcManager implements ServiceDesignerAPI {
             remove: "Remove request context",
             setEntries: "Update request context values",
         };
-        return this.applyContextEdits(() => StateMachine.langClient().applyGraphqlContext(params),
-            descriptions[params.action]);
-    }
-
-    /**
-     * Applies the edits a request context change returns. A refused request (an error message, or no edits) changes
-     * nothing and reports why, so the panel can show it instead of failing silently.
-     */
-    private async applyContextEdits(
-        request: () => Promise<ListenerSourceCodeResponse & { errorMsg?: string }>,
-        description: string
-    ): Promise<GraphqlContextEditResponse> {
         try {
-            const res = await request();
+            const res = await StateMachine.langClient().applyGraphqlContext(params);
             if (res?.errorMsg) {
                 return { errorMsg: res.errorMsg };
             }
             const hasEdits = Object.values(res?.textEdits ?? {}).some((edits) => edits.length > 0);
-            if (!hasEdits) {
-                return {};
+            if (hasEdits) {
+                await updateSourceCode({ textEdits: res.textEdits, description: descriptions[params.action] });
             }
-            await updateSourceCode({ textEdits: res.textEdits, description });
             return {};
         } catch (error) {
             return { errorMsg: error instanceof Error ? error.message : String(error) };

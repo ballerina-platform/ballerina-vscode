@@ -30,7 +30,7 @@ import {
     IconWrapper,
     OptionLabel,
 } from "../../BI/ServiceDesigner/styles";
-import { SOURCE_OPTIONS, describeEntry } from "./contextEntries";
+import { SOURCE_OPTIONS } from "./contextEntries";
 
 // The resource form's response rows give this cell 225px; context rows sit in a narrower panel.
 const SourceCell = styled(IconTextWrapper)`
@@ -103,7 +103,7 @@ export function ContextValueItem({ entry, readonly, onEdit, onDelete }: ContextV
     const option = SOURCE_OPTIONS[entry.source];
     const source = entry.source === "expression" ? entry.value : `"${entry.value}"`;
     return (
-        <HeaderLabel data-testid={`context-value-${entry.key}`} aria-label={`${entry.key}: ${describeEntry(entry)}`}>
+        <HeaderLabel data-testid={`context-value-${entry.key}`} aria-label={`${entry.key}: ${option.tag} ${source}${entry.required ? ", required" : ""}`}>
             <SourceCell onClick={readonly ? undefined : onEdit}>
                 <IconWrapper>
                     {entry.source === "header" || entry.source === "query"

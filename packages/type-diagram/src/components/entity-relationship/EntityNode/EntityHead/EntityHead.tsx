@@ -38,13 +38,13 @@ const MenuButton = styled(Button)`
     border-radius: 5px;
 `;
 
-const HeaderButtonsContainer = styled.div<{ hasTag?: boolean }>`
+const HeaderButtonsContainer = styled.div`
     display: flex;
     flex-direction: row;
     align-items: center;
     margin-left: auto;
     justify-content: flex-end;
-    width: ${(props: { hasTag?: boolean }) => (props.hasTag ? "auto" : "45px")};
+    min-width: 45px;
 `;
 
 const EntityNameContainer = styled.div`
@@ -92,7 +92,7 @@ interface Origin {
 
 export function EntityHeadWidget(props: ServiceHeadProps) {
     const { engine, node, isSelected } = props;
-    const { setFocusedNodeId, onEditNode, goToSource, onNodeDelete, verifyTypeDelete, readonly, requestContext, onOpenRequestContext } = useContext(DiagramContext);
+    const { setFocusedNodeId, onEditNode, goToSource, onNodeDelete, verifyTypeDelete, readonly, hasRequestContext, onOpenRequestContext } = useContext(DiagramContext);
 
     const displayName: string = node.getID()?.slice(node.getID()?.lastIndexOf(':') + 1);
     const isImported = !node?.entityObject?.editable;
@@ -135,7 +135,7 @@ export function EntityHeadWidget(props: ServiceHeadProps) {
     };
 
     const isEditableGraphqlRoot = node.isGraphqlRoot && !readonly;
-    const showContextTag = isEditableGraphqlRoot && !!requestContext && !!onOpenRequestContext;
+    const showContextTag = isEditableGraphqlRoot && !!hasRequestContext && !!onOpenRequestContext;
 
     const onRequestContext = () => {
         setAnchorEl(null);
@@ -265,7 +265,7 @@ export function EntityHeadWidget(props: ServiceHeadProps) {
                             </ImportedLabel>
                         )}
                     </EntityNameContainer>
-                    <HeaderButtonsContainer hasTag={showContextTag}>
+                    <HeaderButtonsContainer>
                         {showContextTag && (
                             <RequestContextBadge onOpen={onRequestContext} />
                         )}

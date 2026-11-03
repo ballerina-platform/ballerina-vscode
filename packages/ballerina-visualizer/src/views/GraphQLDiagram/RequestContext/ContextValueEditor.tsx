@@ -150,7 +150,7 @@ export function ContextValueEditor({ entry, others, isNew, expressionScope, onSa
                         value={draft.value}
                         placeholder={option.placeholder}
                         description={draft.source === "expression"
-                            ? "A Ballerina expression. The request is available as request." : undefined}
+                            ? EXPRESSION_PROPERTY.metadata.description : undefined}
                         onTextChange={(value: string) => setDraft({ ...draft, value })}
                         errorMsg={showErrors ? errors.value : undefined}
                         sx={draft.source === "expression"

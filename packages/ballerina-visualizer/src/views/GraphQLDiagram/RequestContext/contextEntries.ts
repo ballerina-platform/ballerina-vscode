@@ -79,10 +79,6 @@ export function validateEntries(entries: ContextEntry[]): EntryErrors[] {
     });
 }
 
-export function hasErrors(errors: EntryErrors[]): boolean {
-    return errors.some((error) => error.key || error.value);
-}
-
 /** The entries as they are saved: keys and request-value names trimmed. Fixed values are kept exactly. */
 export function normalizeEntries(entries: ContextEntry[]): ContextEntry[] {
     return entries.map((entry) => ({
@@ -96,18 +92,4 @@ export function normalizeEntries(entries: ContextEntry[]): ContextEntry[] {
 /** Whether the draft differs from what the function sets now. */
 export function isDirty(saved: ContextEntry[], draft: ContextEntry[]): boolean {
     return JSON.stringify(normalizeEntries(saved)) !== JSON.stringify(normalizeEntries(draft));
-}
-
-/** A one-line description of where an entry's value comes from, for a read-only list. */
-export function describeEntry(entry: ContextEntry): string {
-    switch (entry.source) {
-        case "header":
-            return `Header "${entry.value}"${entry.required ? ", required" : ""}`;
-        case "query":
-            return `Query parameter "${entry.value}"${entry.required ? ", required" : ""}`;
-        case "value":
-            return `"${entry.value}"`;
-        default:
-            return entry.value;
-    }
 }

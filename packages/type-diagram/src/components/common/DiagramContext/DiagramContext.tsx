@@ -19,16 +19,6 @@
 import React, { createContext, ReactNode } from 'react';
 import { Type } from '@wso2/ballerina-core';
 
-/**
- * A GraphQL service's request context, as the root node's context indicator summarises it.
- */
-export interface RequestContextSummary {
-    /** The function the service's `contextInit` names. */
-    functionName?: string;
-    /** The keys the context function sets, in source order. */
-    keys: string[];
-}
-
 interface DiagramContextProps {
     children?: ReactNode;
     hasDiagnostics: boolean;
@@ -41,8 +31,8 @@ interface DiagramContextProps {
     goToSource?: (node: Type) => void,
     onNodeDelete?: (typeId: string) => void;
     verifyTypeDelete?: (typeId: string) => Promise<boolean>;
-    /** The service's request context; absent when it has none. */
-    requestContext?: RequestContextSummary;
+    /** Whether the GraphQL service has a request context, which its root node then indicates. */
+    hasRequestContext?: boolean;
     /** Opens the request context editor; the root node offers it when given. */
     onOpenRequestContext?: () => void;
 }
@@ -58,8 +48,8 @@ interface IDiagramContext {
     goToSource?: (node: Type) => void
     onNodeDelete?: (typeId: string) => void;
     verifyTypeDelete?: (typeId: string) => Promise<boolean>;
-    /** The service's request context; absent when it has none. */
-    requestContext?: RequestContextSummary;
+    /** Whether the GraphQL service has a request context, which its root node then indicates. */
+    hasRequestContext?: boolean;
     /** Opens the request context editor; the root node offers it when given. */
     onOpenRequestContext?: () => void;
 }
@@ -80,7 +70,7 @@ export function DesignDiagramContext(props: DiagramContextProps) {
         goToSource,
         onNodeDelete,
         verifyTypeDelete,
-        requestContext,
+        hasRequestContext,
         onOpenRequestContext
     } = props;
 
@@ -95,7 +85,7 @@ export function DesignDiagramContext(props: DiagramContextProps) {
         goToSource,
         onNodeDelete,
         verifyTypeDelete,
-        requestContext,
+        hasRequestContext,
         onOpenRequestContext
     }
 
