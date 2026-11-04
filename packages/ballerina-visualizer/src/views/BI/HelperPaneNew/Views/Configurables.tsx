@@ -18,7 +18,7 @@
 
 import { CompletionInsertText, ConfigVariable, ExpressionProperty, FlowNode, LineRange, TomlPackage } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { ReactNode, useEffect, useMemo, useState } from "react";
+import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import ExpandableList from "../Components/ExpandableList";
 import { Codicon, CompletionItem, Divider, SearchBox, Typography } from "@wso2/ui-toolkit";
 import { ScrollableContainer } from "../Components/ScrollableContainer";
@@ -35,6 +35,7 @@ import { useHelperPaneNavigation } from "../hooks/useHelperPaneNavigation";
 import { BreadcrumbNavigation } from "../Components/BreadcrumbNavigation";
 import { getPropertyFromFormField, InputMode, useOptionalFieldContext } from "@wso2/ballerina-side-panel";
 import { isArrayOfObjectsType, isPrimitiveType, shouldShowNavigationArrow } from "../utils/types";
+import { ArrayIndexBadge, ArrayIndexControls, ArrayIndexLabel, ArrayIndexRow, ArrayIndexStepButton } from "../styles/ArrayIndexStepper";
 
 type ConfigVariablesState = {
     [category: string]: {
@@ -95,9 +96,10 @@ export const Configurables = (props: ConfigurablesPageProps) => {
         filteredCompletions = [], handleRetrieveCompletions } = props;
 
     const { rpcClient } = useRpcContext();
-    const { breadCrumbSteps, navigateToNext, navigateToNextArray, navigateToBreadcrumb, isAtRoot, getCurrentNavigationPath, getLeafSeparator } = useHelperPaneNavigation("Configurables");
+    const { breadCrumbSteps, navigateToNext, navigateToNextArray, updateLastStepArrayIndex, navigateToBreadcrumb, isAtRoot, getCurrentNavigationPath, getLeafSeparator } = useHelperPaneNavigation("Configurables");
     const fieldContext = useOptionalFieldContext();
-    const canNavigate = !!handleRetrieveCompletions && !!fieldContext?.field;
+    // Both halves of the completion round-trip are needed to list fields; otherwise stay flat.
+    const canNavigate = !!handleRetrieveCompletions && !!props.filteredCompletions && !!fieldContext?.field;
     const [configVariables, setConfigVariables] = useState<ListItem[]>([]);
     const [errorMessage, setErrorMessage] = useState<string>('');
     const [configVarNode, setCofigVarNode] = useState<FlowNode>();
@@ -243,7 +245,39 @@ export const Configurables = (props: ConfigurablesPageProps) => {
 
     // ---- Field access below a configurable (completion-driven, mirrors Inputs/Variables) ----
     const [isFieldsLoading, setIsFieldsLoading] = useState<boolean>(false);
+    const [hasFieldLoadError, setHasFieldLoadError] = useState<boolean>(false);
+    // Only the latest request may settle the loader; an earlier path's request can finish after it.
+    const fieldRequestIdRef = useRef(0);
     const navigationPath = useMemo(() => getCurrentNavigationPath(), [breadCrumbSteps]);
+
+    const currentStep = breadCrumbSteps[breadCrumbSteps.length - 1];
+    const isInArrayContext = !isAtRoot() && currentStep?.isArrayAccess === true;
+    const currentArrayIndex = currentStep?.arrayIndex ?? 0;
+
+    // Local index state for immediate UI feedback; synced to navigation after debounce (as in Inputs).
+    const [localArrayIndex, setLocalArrayIndex] = useState(0);
+    const localIndexRef = useRef(0);
+    const indexDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    useEffect(() => {
+        localIndexRef.current = currentArrayIndex;
+        setLocalArrayIndex(currentArrayIndex);
+    }, [currentStep?.replaceText]);
+
+    useEffect(() => {
+        return () => { if (indexDebounceRef.current) clearTimeout(indexDebounceRef.current); };
+    }, []);
+
+    const handleArrayIndexStep = (delta: number) => {
+        const newIndex = Math.max(0, localIndexRef.current + delta);
+        localIndexRef.current = newIndex;
+        setLocalArrayIndex(newIndex);
+
+        if (indexDebounceRef.current) clearTimeout(indexDebounceRef.current);
+        indexDebounceRef.current = setTimeout(() => {
+            updateLastStepArrayIndex(newIndex);
+        }, 400);
+    };
 
     useEffect(() => {
         if (isAtRoot() || !canNavigate) {
@@ -253,13 +287,27 @@ export const Configurables = (props: ConfigurablesPageProps) => {
         const triggerCharacter = fieldContext.triggerCharacters?.find(
             (char) => completionContext[completionContext.length - 1] === char
         );
+        const requestId = ++fieldRequestIdRef.current;
+        const isCurrent = () => requestId === fieldRequestIdRef.current;
         setIsFieldsLoading(true);
+        setHasFieldLoadError(false);
         handleRetrieveCompletions(
             completionContext,
             getPropertyFromFormField(fieldContext.field),
             completionContext.length,
             triggerCharacter
-        ).finally(() => setIsFieldsLoading(false));
+        )
+            .catch((error) => {
+                console.error("Failed to load configurable fields:", error);
+                if (isCurrent()) {
+                    setHasFieldLoadError(true);
+                }
+            })
+            .finally(() => {
+                if (isCurrent()) {
+                    setIsFieldsLoading(false);
+                }
+            });
     }, [breadCrumbSteps, targetLineRange]);
 
     const fieldItems = useMemo(() => {
@@ -355,6 +403,20 @@ export const Configurables = (props: ConfigurablesPageProps) => {
                     navigateToBreadcrumb(step);
                 }}
             />
+            {isInArrayContext && (
+                <ArrayIndexRow>
+                    <ArrayIndexLabel>Index</ArrayIndexLabel>
+                    <ArrayIndexControls>
+                        <ArrayIndexStepButton onClick={() => handleArrayIndexStep(-1)} disabled={localArrayIndex === 0}>
+                            -
+                        </ArrayIndexStepButton>
+                        <ArrayIndexBadge>{localArrayIndex}</ArrayIndexBadge>
+                        <ArrayIndexStepButton onClick={() => handleArrayIndexStep(1)}>
+                            +
+                        </ArrayIndexStepButton>
+                    </ArrayIndexControls>
+                </ArrayIndexRow>
+            )}
             {!isAtRoot() ? (
                 <>
                     {fieldItems.length >= 6 && (
@@ -365,6 +427,8 @@ export const Configurables = (props: ConfigurablesPageProps) => {
                     <ScrollableContainer style={{ margin: '8px 0px' }}>
                         {isFieldsLoading ? (
                             <HelperPaneCustom.Loader />
+                        ) : hasFieldLoadError ? (
+                            <EmptyItemsPlaceHolder message="Failed to load fields" />
                         ) : filteredFieldItems.length === 0 ? (
                             <EmptyItemsPlaceHolder message={searchValue ? "No fields found for your search" : "No fields found"} />
                         ) : (
