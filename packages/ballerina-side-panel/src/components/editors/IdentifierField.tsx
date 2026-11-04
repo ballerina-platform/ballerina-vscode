@@ -21,7 +21,7 @@ import React, { useState, useCallback, useEffect, useRef } from "react";
 import { debounce } from "lodash";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { useFormContext } from "../../context";
-import { buildRequiredRule, capitalize, getFriendlyIdentifierMessage, getPropertyFromFormField, mapDiagnosticsServerityToFormSeverity } from "./utils";
+import { buildRequiredRule, capitalize, fetchIdentifierDiagnostics, getFriendlyIdentifierMessage, getPropertyFromFormField } from "./utils";
 import { buildValidate } from "../Form/validationRules";
 import { FormField } from "../Form/types";
 export interface IdentifierFieldProps {
@@ -82,26 +82,21 @@ export function IdentifierField(props: IdentifierFieldProps) {
         const requestId = ++latestRequestRef.current;
         const isStale = () => requestId !== latestRequestRef.current;
         try {
-            const response = await rpcClient.getBIDiagramRpcClient().getExpressionDiagnostics({
+            const { first, firstError } = await fetchIdentifierDiagnostics(rpcClient, {
                 filePath: fileName,
-                context: {
-                    expression: value,
-                    startLine: targetLineRange?.startLine,
-                    offset: 0,
-                    lineOffset: 0,
-                    codedata: field.codedata,
-                    property: getPropertyFromFormField(field)
-                }
+                startLine: targetLineRange?.startLine,
+                value,
+                property: getPropertyFromFormField(field),
+                codedata: field.codedata,
+                label: field.label,
             });
             if (isStale()) {
                 return;
             }
-            if (response.diagnostics.length > 0) {
-                const rawDiagnostic = response.diagnostics[0];
-                setFormDiagnostics([{ message: getFriendlyIdentifierMessage(rawDiagnostic.message, field.label), severity: mapDiagnosticsServerityToFormSeverity(rawDiagnostic.severity) }]);
-                const errorDiagnostic = response.diagnostics.find((d) => d.severity === 1);
-                if (errorDiagnostic) {
-                    setError(field.key, { type: "identifier_diagnostic", message: getFriendlyIdentifierMessage(errorDiagnostic.message, field.label) });
+            if (first) {
+                setFormDiagnostics([first]);
+                if (firstError) {
+                    setError(field.key, { type: "identifier_diagnostic", message: firstError.message });
                 } else {
                     showClientRuleError(value);
                 }
