@@ -547,9 +547,11 @@ describe("PackageOverview ICP toggle", () => {
         expect(icpCheckbox().checked).toBe(false);
     });
 
+    // A missing Ballerina.toml is caught before main.bal is touched, so the extension reports
+    // the untouched state, off (icpFiles.test.ts covers that check). The box must follow it.
     it("unticks the box when the extension could not enable ICP", async () => {
         const { rpcClient } = makeRpc(emptyDirectoryMap(), {},
-            { addICPResponse: { enabled: false, errorMsg: "Ballerina.toml not found" } });
+            { addICPResponse: { enabled: false, errorMsg: "Failed to enable ICP: Ballerina.toml not found in /p" } });
         await renderOverview(rpcClient);
 
         await toggle();

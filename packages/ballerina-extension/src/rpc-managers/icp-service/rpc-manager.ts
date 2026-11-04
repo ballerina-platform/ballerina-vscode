@@ -32,11 +32,13 @@ import { getProjectHandle, getStoredICPSecret } from "../../features/icp/setup";
 import { ensureICPServerRunning, isICPServerRunning, getICPUrl } from "../../features/icp";
 import { isICPSupported } from "../../utils/config";
 import { addICPBuildOptions, removeICPBuildOptions } from "./build-options";
-
-const ICP_IMPORTS = [
-    'import wso2/icp.runtime.bridge as _;',
-    'import ballerinax/metrics.logs as _;',
-];
+import {
+    ballerinaTomlPathOf,
+    buildAddImportsTextEdits,
+    buildRemoveImportsTextEdits,
+    checkCanToggleICP,
+    isICPEnabledOnDisk,
+} from "./icp-files";
 
 function getIntegrationName(projectPath: string): string {
     const context = StateMachine.context();
@@ -53,83 +55,18 @@ function getIntegrationName(projectPath: string): string {
     return projectInfo?.title || projectInfo?.name || path.basename(projectPath);
 }
 
-function buildAddImportsTextEdits(projectPath: string): { [key: string]: TextEdit[] } {
-    const mainBalPath = path.join(projectPath, 'main.bal');
-    if (!fs.existsSync(mainBalPath)) {
-        return {};
-    }
-
-    const content = fs.readFileSync(mainBalPath, 'utf-8');
-    const lines = content.split('\n');
-
-    const missingImports = ICP_IMPORTS.filter(imp => !content.includes(imp));
-    if (missingImports.length === 0) {
-        return {};
-    }
-
-    // Insert after the last existing import line
-    let insertLine = 0;
-    for (let i = 0; i < lines.length; i++) {
-        if (lines[i].trim().startsWith('import ')) {
-            insertLine = i + 1;
-        }
-    }
-
-    const newText = missingImports.join('\n') + '\n';
-    const edit: TextEdit = {
-        range: {
-            start: { line: insertLine, character: 0 },
-            end: { line: insertLine, character: 0 },
-        },
-        newText,
-    };
-
-    return { [mainBalPath]: [edit] };
-}
-
-function buildRemoveImportsTextEdits(projectPath: string): { [key: string]: TextEdit[] } {
-    const mainBalPath = path.join(projectPath, 'main.bal');
-    if (!fs.existsSync(mainBalPath)) {
-        return {};
-    }
-
-    const content = fs.readFileSync(mainBalPath, 'utf-8');
-    const lines = content.split('\n');
-
-    const edits: TextEdit[] = [];
-    for (let i = 0; i < lines.length; i++) {
-        if (ICP_IMPORTS.includes(lines[i].trim())) {
-            edits.push({
-                range: {
-                    start: { line: i, character: 0 },
-                    end: { line: i + 1, character: 0 },
-                },
-                newText: '',
-            });
-        }
-    }
-
-    if (edits.length === 0) {
-        return {};
-    }
-
-    // Sort in reverse line order so removals don't shift subsequent line numbers
-    edits.sort((a, b) => b.range.start.line - a.range.start.line);
-    return { [mainBalPath]: edits };
-}
-
 // Not updateSourceCode: it waits for an artifact change, and an import-only edit makes none, so it
 // timed out and aborted the toggle before the Ballerina.toml and Config.toml writes.
 async function applyImportEdits(textEdits: { [key: string]: TextEdit[] }): Promise<void> {
     const workspaceEdit = new vscode.WorkspaceEdit();
     for (const [filePath, edits] of Object.entries(textEdits)) {
+        const uri = vscode.Uri.file(filePath);
+        if (!fs.existsSync(filePath)) {
+            workspaceEdit.createFile(uri, { ignoreIfExists: true });
+        }
         for (const edit of edits) {
             const { start, end } = edit.range;
-            workspaceEdit.replace(
-                vscode.Uri.file(filePath),
-                new vscode.Range(start.line, start.character, end.line, end.character),
-                edit.newText
-            );
+            workspaceEdit.replace(uri, new vscode.Range(start.line, start.character, end.line, end.character), edit.newText);
         }
     }
     if (!await vscode.workspace.applyEdit(workspaceEdit)) {
@@ -143,22 +80,23 @@ async function applyImportEdits(textEdits: { [key: string]: TextEdit[] }): Promi
     }
 }
 
-// After a failed toggle the files may be partly written, so report what they now say rather than
-// assuming the toggle left them as they were; fall back to that assumption only if the check fails.
-async function reconcileICPState(projectPath: string, assumed: boolean, errorMsg: string): Promise<ICPEnabledResponse> {
-    try {
-        const { enabled } = await StateMachine.context().langClient.isIcpEnabled({ projectPath }) as ICPEnabledResponse;
-        return { enabled, errorMsg };
-    } catch {
-        return { enabled: assumed, errorMsg };
-    }
+function isUnsaved(filePath: string): boolean {
+    return vscode.workspace.textDocuments.some(document => document.isDirty && isSamePath(document.uri.fsPath, filePath));
+}
+
+// After a failed toggle the files may be partly written, so report what they now say, and tell
+// the user why rather than leaving the checkbox to untick silently.
+function reportFailure(projectPath: string, errorMsg: string): ICPEnabledResponse {
+    vscode.window.showErrorMessage(errorMsg);
+    return { enabled: isICPEnabledOnDisk(projectPath), errorMsg };
+}
+
+function errorText(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
 }
 
 function updateBallerinaToml(projectPath: string, edit: (content: string) => string): void {
-    const tomlPath = path.join(projectPath, 'Ballerina.toml');
-    if (!fs.existsSync(tomlPath)) {
-        throw new Error(`Ballerina.toml not found in ${projectPath}`);
-    }
+    const tomlPath = ballerinaTomlPathOf(projectPath);
     const content = fs.readFileSync(tomlPath, 'utf-8');
     const updated = edit(content);
     if (updated !== content) {
@@ -233,16 +171,16 @@ export class ICPServiceRpcManager implements ICPServiceAPI {
         if (!isICPSupported()) {
             return { enabled: false };
         }
-        const context = StateMachine.context();
-        const projectPath: string = params.projectPath || context.projectPath;
+        const projectPath: string = params.projectPath || StateMachine.context().projectPath;
         try {
+            checkCanToggleICP(projectPath, isUnsaved);
             await applyImportEdits(buildAddImportsTextEdits(projectPath));
             updateBallerinaToml(projectPath, addICPBuildOptions);
             await addICPConfigToml(projectPath);
-            return await context.langClient.isIcpEnabled({ projectPath });
+            return { enabled: isICPEnabledOnDisk(projectPath) };
         } catch (error) {
             console.error('[ICP] Failed to enable ICP for', projectPath, error);
-            return reconcileICPState(projectPath, false, `Failed to enable ICP: ${error}`);
+            return reportFailure(projectPath, `Failed to enable ICP: ${errorText(error)}`);
         }
     }
 
@@ -250,19 +188,18 @@ export class ICPServiceRpcManager implements ICPServiceAPI {
         if (!isICPSupported()) {
             return { enabled: false };
         }
-        const context = StateMachine.context();
-        const projectPath: string = params.projectPath || context.projectPath;
+        const projectPath: string = params.projectPath || StateMachine.context().projectPath;
         try {
+            checkCanToggleICP(projectPath, isUnsaved);
             await applyImportEdits(buildRemoveImportsTextEdits(projectPath));
             updateBallerinaToml(projectPath, removeICPBuildOptions);
             removeICPConfigToml(projectPath);
-            return await context.langClient.isIcpEnabled({ projectPath });
+            return { enabled: isICPEnabledOnDisk(projectPath) };
         } catch (error) {
             console.error('[ICP] Failed to disable ICP for', projectPath, error);
-            return reconcileICPState(projectPath, true, `Failed to disable ICP: ${error}`);
+            return reportFailure(projectPath, `Failed to disable ICP: ${errorText(error)}`);
         }
     }
-
 
     async isICPServerRunning(params: ICPEnabledRequest): Promise<ICPEnabledResponse> {
         return { enabled: isICPSupported() && isICPServerRunning() };
@@ -304,20 +241,11 @@ export class ICPServiceRpcManager implements ICPServiceAPI {
         }
     }
 
+    // The same check addICP and disableICP report, so the checkbox reads a half-done enable as off.
     async isIcpEnabled(params: ICPEnabledRequest): Promise<ICPEnabledResponse> {
         if (!isICPSupported()) {
             return { enabled: false };
         }
-        return new Promise(async (resolve) => {
-            const context = StateMachine.context();
-            try {
-                const projectPath: string = params.projectPath || context.projectPath;
-                const param = { projectPath };
-                const res: ICPEnabledResponse = await context.langClient.isIcpEnabled(param);
-                resolve(res);
-            } catch (error) {
-                console.log(error);
-            }
-        });
+        return { enabled: isICPEnabledOnDisk(params.projectPath || StateMachine.context().projectPath) };
     }
 }
