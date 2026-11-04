@@ -288,11 +288,13 @@ export const getProviderCacheControl = (ttl: CacheTtl = '1h'): ProviderCacheOpti
 
 /**
  * Whether this login's requests can carry mid-conversation `role: "system"` messages, tool changes
- * and the thinking-binding control. The WSO2 LLM proxy rebuilds each request from its own records,
- * which (2026-10-21) reject the first two, and the deployed proxy may not forward the binding beta.
+ * and the thinking-binding control. Only the direct Anthropic API has been verified live with them.
+ * The WSO2 LLM proxy rebuilds each request from its own records, which (2026-10-21) reject the
+ * first two. Bedrock, Vertex AI and Claude Platform on AWS are untested with their betas, so they
+ * take the same fallback as the proxy (the notice folded into the user message) until they are.
  */
 export function supportsMidConversationSystem(loginMethod: LoginMethod): boolean {
-    return loginMethod !== LoginMethod.BI_INTEL;
+    return loginMethod === LoginMethod.ANTHROPIC_KEY;
 }
 
 export type { AnthropicEffort } from "./provider-model-options";

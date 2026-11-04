@@ -119,8 +119,7 @@ function supportsCompaction(loginMethod: LoginMethod): boolean {
     return loginMethod === LoginMethod.ANTHROPIC_KEY
         || loginMethod === LoginMethod.BI_INTEL
         || loginMethod === LoginMethod.VERTEX_AI
-        || loginMethod === LoginMethod.ANTHROPIC_AWS
-        || loginMethod === LoginMethod.AWS_BEDROCK;
+        || loginMethod === LoginMethod.ANTHROPIC_AWS;
 }
 
 /**
@@ -509,8 +508,9 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
             const systemPromptText = getSystemPrompt();
             const baseHash = hashPrefixBase(systemPromptText, await describeTools(toolRegistry.builtIns));
             const deferredBuiltIns = Object.keys(toolRegistry.builtIns).filter(name => isDeferredTool(toolRegistry.builtIns[name]));
-            // Without mid-conversation system messages (the WSO2 proxy), the turn's notice rides its
-            // user message and late MCP tools are loaded with tool_search; see prefix-state.ts.
+            // Without mid-conversation system messages (every login but the direct Anthropic API), the
+            // turn's notice rides its user message and late MCP tools are loaded with tool_search; see
+            // prefix-state.ts.
             const systemInMessages = supportsMidConversationSystem(loginMethod);
             // What this turn adds to the prefix the history was sent with (prefix-state.ts). A
             // compaction restart plans it again with no previous state, as a new history.
