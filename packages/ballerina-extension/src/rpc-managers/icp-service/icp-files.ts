@@ -39,6 +39,10 @@ export function ballerinaTomlPathOf(projectPath: string): string {
     return path.join(projectPath, 'Ballerina.toml');
 }
 
+export function configTomlPathOf(projectPath: string): string {
+    return path.join(projectPath, 'Config.toml');
+}
+
 /**
  * Throws if the toggle could not finish, so it fails before writing anything rather than
  * after the imports are already in main.bal.
@@ -47,12 +51,23 @@ export function checkCanToggleICP(projectPath: string, isUnsaved: (filePath: str
     if (!fs.existsSync(ballerinaTomlPathOf(projectPath))) {
         throw new Error(`Ballerina.toml not found in ${projectPath}`);
     }
-    // The import edits are computed from the file on disk, so they would land on the wrong
-    // lines of an unsaved buffer, and saving them would also save the user's own changes.
-    const mainBalPath = mainBalPathOf(projectPath);
-    if (isUnsaved(mainBalPath)) {
-        throw new Error(`${mainBalPath} has unsaved changes. Save it and try again.`);
+    // The toggle edits these files from what is on disk: an unsaved buffer would misplace the
+    // import edits, have its own changes saved with them, or overwrite the toml writes later.
+    const toggledFiles = [mainBalPathOf(projectPath), ballerinaTomlPathOf(projectPath), configTomlPathOf(projectPath)];
+    for (const filePath of toggledFiles) {
+        if (isUnsaved(filePath)) {
+            throw new Error(`${filePath} has unsaved changes. Save it and try again.`);
+        }
     }
+}
+
+// An import counts only on a line of its own, so a commented-out one is not taken as present.
+function isImportLine(line: string, importLine: string): boolean {
+    return line.trim().startsWith(importLine);
+}
+
+function hasImport(content: string, importLine: string): boolean {
+    return content.split('\n').some(line => isImportLine(line, importLine));
 }
 
 /**
@@ -63,7 +78,7 @@ export function isICPEnabledOnDisk(projectPath: string): boolean {
     try {
         const mainBal = fs.readFileSync(mainBalPathOf(projectPath), 'utf-8');
         const manifest = fs.readFileSync(ballerinaTomlPathOf(projectPath), 'utf-8');
-        return mainBal.includes(ICP_BRIDGE_IMPORT) && hasICPBuildOptions(manifest);
+        return hasImport(mainBal, ICP_BRIDGE_IMPORT) && hasICPBuildOptions(manifest);
     } catch {
         return false;
     }
@@ -78,7 +93,7 @@ export function buildAddImportsTextEdits(projectPath: string): { [key: string]: 
     const content = fs.existsSync(mainBalPath) ? fs.readFileSync(mainBalPath, 'utf-8') : '';
     const lines = content.split('\n');
 
-    const missingImports = ICP_IMPORTS.filter(imp => !content.includes(imp));
+    const missingImports = ICP_IMPORTS.filter(imp => !hasImport(content, imp));
     if (missingImports.length === 0) {
         return {};
     }
@@ -103,7 +118,7 @@ export function buildRemoveImportsTextEdits(projectPath: string): { [key: string
     const lines = fs.readFileSync(mainBalPath, 'utf-8').split('\n');
     const edits: TextEdit[] = [];
     for (let i = 0; i < lines.length; i++) {
-        if (ICP_IMPORTS.includes(lines[i].trim())) {
+        if (ICP_IMPORTS.some(imp => isImportLine(lines[i], imp))) {
             edits.push({
                 range: { start: { line: i, character: 0 }, end: { line: i + 1, character: 0 } },
                 newText: '',

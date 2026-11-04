@@ -34,6 +34,7 @@ import { isICPSupported } from "../../utils/config";
 import { addICPBuildOptions, removeICPBuildOptions } from "./build-options";
 import {
     ballerinaTomlPathOf,
+    configTomlPathOf,
     buildAddImportsTextEdits,
     buildRemoveImportsTextEdits,
     checkCanToggleICP,
@@ -105,7 +106,7 @@ function updateBallerinaToml(projectPath: string, edit: (content: string) => str
 }
 
 async function addICPConfigToml(projectPath: string): Promise<void> {
-    const configPath = path.join(projectPath, 'Config.toml');
+    const configPath = configTomlPathOf(projectPath);
     let config: Record<string, any> = {};
 
     if (fs.existsSync(configPath)) {
@@ -139,7 +140,7 @@ async function addICPConfigToml(projectPath: string): Promise<void> {
 }
 
 function removeICPConfigToml(projectPath: string): void {
-    const configPath = path.join(projectPath, 'Config.toml');
+    const configPath = configTomlPathOf(projectPath);
 
     if (!fs.existsSync(configPath)) {
         return;
