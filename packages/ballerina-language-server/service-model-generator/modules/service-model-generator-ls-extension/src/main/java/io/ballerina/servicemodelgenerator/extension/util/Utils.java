@@ -640,7 +640,7 @@ public final class Utils {
         }
         String typeName = typeRef.getName().get();
         ModuleID moduleId = typeRef.getModule().get().id();
-        String packageInfo = moduleId.orgName() + COLON + moduleId.packageName() + COLON + moduleId.version();
+        String packageInfo = moduleId.orgName() + COLON + moduleId.moduleName() + COLON + moduleId.version();
         return new PropertyType.Builder()
                 .fieldType(Value.FieldType.RECORD_MAP_EXPRESSION)
                 .ballerinaType(prefix + COLON + typeName)
