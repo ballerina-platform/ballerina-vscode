@@ -61,7 +61,7 @@ coverage:
         # Tolerate sub-1% drops: which LS tests run varies slightly between runs.
         threshold: 1%
         informational: true
-      typescript:
+      extension-and-ui:
         flags:
           - typescript
         target: auto
@@ -74,7 +74,7 @@ coverage:
           - language-server
         target: auto
         informational: true
-      typescript:
+      extension-and-ui:
         flags:
           - typescript
         target: auto
