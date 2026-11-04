@@ -147,6 +147,8 @@ export function RequestContextPanel(props: RequestContextPanelProps) {
 
     // A save, or an edit made in source, refreshes the context; start again from what the function sets now.
     const savedSignature = JSON.stringify(context?.entries ?? []);
+    // An error belongs to the editor it came from: opening, switching or cancelling one drops it.
+    useEffect(() => setError(undefined), [editing]);
     useEffect(() => {
         setDraft(context?.entries ?? []);
         setEditing(undefined);
@@ -291,7 +293,21 @@ export function RequestContextPanel(props: RequestContextPanelProps) {
                     <Typography sx={{ marginBlockEnd: 4 }} variant="h4">Context Function</Typography>
                     <HeaderLabel data-testid="context-function">
                         <ContentSection>
-                            <div className={headerLabelStyles} onClick={canOpen ? openFunction : undefined}>
+                            <div
+                                className={headerLabelStyles}
+                                {...(canOpen && {
+                                    role: "button",
+                                    tabIndex: 0,
+                                    title: "Open in flow diagram",
+                                    onClick: openFunction,
+                                    onKeyDown: (event: React.KeyboardEvent) => {
+                                        if (event.key === "Enter" || event.key === " ") {
+                                            event.preventDefault();
+                                            openFunction();
+                                        }
+                                    },
+                                })}
+                            >
                                 <Codicon name="symbol-method" sx={{ marginRight: 8 }} />
                                 <FunctionName>{context.functionName ?? context.expression}</FunctionName>
                             </div>
@@ -328,6 +344,7 @@ export function RequestContextPanel(props: RequestContextPanelProps) {
                             </EditorContent>
                             <Divider />
                             {functionDropdown}
+                            {error && <ErrorText role="alert">{error}</ErrorText>}
                             <ActionButtons
                                 primaryButton={{
                                     text: busy ? "Saving..." : "Use",
@@ -355,6 +372,7 @@ export function RequestContextPanel(props: RequestContextPanelProps) {
                                     onChange={setDeleteFunction}
                                 />
                             )}
+                            {error && <ErrorText role="alert">{error}</ErrorText>}
                             <ActionButtons
                                 primaryButton={{
                                     text: busy ? "Removing..." : "Remove",
@@ -412,7 +430,9 @@ export function RequestContextPanel(props: RequestContextPanelProps) {
                         </Notice>
                     )}
                 </Section>
-                {error && <ErrorText role="alert">{error}</ErrorText>}
+                {error && editing?.kind !== "function" && editing?.kind !== "remove" && (
+                    <ErrorText role="alert">{error}</ErrorText>
+                )}
                 <Divider />
                 {allConfigs}
                 <ActionButtons
