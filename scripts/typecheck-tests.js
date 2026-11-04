@@ -35,7 +35,7 @@ const REPO = path.resolve(__dirname, "..");
 const PKGS_DIR = path.join(REPO, "packages");
 
 // A reported error path counts as "test code" when it lives in a test file / test dir.
-const TEST_PATH = /(\.(test|spec)\.[cm]?[jt]sx?|[\\/]test[\\/]|[\\/]test-support[\\/])/;
+const TEST_PATH = /(\.(test|spec)\.[cm]?[jt]sx?|[\\/]test[\\/])/;
 const ERROR_LINE = /^(.+?)\((\d+),(\d+)\): error TS\d+:/;
 
 const packages = fs
