@@ -99,6 +99,22 @@
             },
             {
               "metadata": {
+                "label": "Caller",
+                "description": "The base client used in the generated client code to provide remote functions for interacting with the caller.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_grpc_1.15.1.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "grpc",
+                "packageName": "grpc",
+                "symbol": "Caller",
+                "version": "1.15.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
                 "label": "CancelledError",
                 "description": "Represents the operation canceled(typically by the caller) error.",
                 "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_grpc_1.15.1.png"
@@ -147,8 +163,8 @@
             },
             {
               "metadata": {
-                "label": "ClientAuthConfig",
-                "description": "Defines the authentication configurations for the HTTP client.",
+                "label": "Client",
+                "description": "The base client used in the generated client code to provide the capability for initiating the contact and executing remote calls with a remote gRPC service.",
                 "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_grpc_1.15.1.png"
               },
               "codedata": {
@@ -156,23 +172,7 @@
                 "org": "ballerina",
                 "module": "grpc",
                 "packageName": "grpc",
-                "symbol": "ClientAuthConfig",
-                "version": "1.15.1"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "ClientAuthError",
-                "description": "Represents an error when client authentication error occured.",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_grpc_1.15.1.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerina",
-                "module": "grpc",
-                "packageName": "grpc",
-                "symbol": "ClientAuthError",
+                "symbol": "Client",
                 "version": "1.15.1"
               },
               "enabled": true

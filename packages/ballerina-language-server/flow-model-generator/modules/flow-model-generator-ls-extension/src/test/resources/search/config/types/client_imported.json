@@ -1,0 +1,427 @@
+{
+  "description": "Client classes of an indexed imported module (ballerina/http) are listed under Imported Types (wso2/product-integrator#343)",
+  "kind": "TYPE",
+  "source": "proj2/automation.bal",
+  "queryMap": {
+    "q": "Client"
+  },
+  "categories": [
+    {
+      "metadata": {
+        "label": "Current Integration",
+        "description": "Components defined within the current integration",
+        "keywords": [
+          "Project",
+          "Local",
+          "Function",
+          "Types",
+          "Data Mapper"
+        ]
+      },
+      "items": [
+        {
+          "metadata": {
+            "label": "mod1.Weather (Generated)",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "Client",
+                "description": "# Introduction\nWeatherAPI.com provides access to weather and geo data via a JSON/XML restful API. It allows developers to create desktop, web and mobile applications using this data very easy. We provide following data through our API:    \n- Real-time weather\n- 14 day weather forecast\n- Historical Weather\n- Marine Weather and Tide Data\n- Future Weather (Upto 365 days ahead)\n- Daily and hourly intervals\n- 15 min interval (Enterprise only)\n- Astronomy\n- Time zone\n- Location data\n- Sports\n- Search or Autocomplete API\n- Weather Alerts\n- Air Quality Data\n- Bulk Request\n\n# Getting Started  \n\nYou need to [signup](https://www.weatherapi.com/signup.aspx) and then you can find your API key under [your account](https://www.weatherapi.com/login.aspx), and start using API right away!\n\nTry our weather API by using interactive [API Explorer](https://www.weatherapi.com/api-explorer.aspx).\n\nWe also have SDK for popular framework/languages available on [Github](https://github.com/weatherapicom/) for quick integrations.\n\nIf you find any features missing or have any suggestions, please [contact us](https://www.weatherapi.com/contact.aspx).  \n\n# Authentication  \n\nAPI access to the data is protected by an API key. If at anytime, you find the API key has become vulnerable, please regenerate the key using Regenerate button next to the API key.  \n\nAuthentication to the WeatherAPI.com API is provided by passing your API key as request parameter through an API .    \n\n##  key parameter \nkey=YOUR API KEY "
+              },
+              "codedata": {
+                "node": "CLASS",
+                "org": "lakshanweerasinghe",
+                "module": "mod1.Weather",
+                "packageName": "mod1",
+                "symbol": "Client",
+                "version": "0.1.0",
+                "isGenerated": true,
+                "data": {
+                  "moduleRelation": "SAME_PACKAGE_MODULE",
+                  "moduleKind": "SUBMODULE"
+                }
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "Current",
+                "description": ""
+              },
+              "codedata": {
+                "node": "RECORD",
+                "org": "lakshanweerasinghe",
+                "module": "mod1.Weather",
+                "packageName": "mod1",
+                "symbol": "Current",
+                "version": "0.1.0",
+                "isGenerated": true,
+                "data": {
+                  "moduleRelation": "SAME_PACKAGE_MODULE",
+                  "moduleKind": "SUBMODULE"
+                }
+              },
+              "enabled": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "label": "Imported Types",
+        "description": "Types imported from other integrations",
+        "keywords": [
+          "Imported",
+          "Type",
+          "Library"
+        ]
+      },
+      "items": [
+        {
+          "metadata": {
+            "label": "http",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "ClientError",
+                "description": "Defines the possible client error types.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "ClientError",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "ClientConnectorError",
+                "description": "Represents a client connector error that occurred.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "ClientConnectorError",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "ClientOAuth2Handler",
+                "description": "Defines the OAuth2 handler for client authentication.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "ClientOAuth2Handler",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "ClientSocketConfig",
+                "description": "Provides settings related to client socket configuration.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "ClientSocketConfig",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "ClientAuthConfig",
+                "description": "Defines the authentication configurations for the HTTP client.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "ClientAuthConfig",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "ClientBasicAuthHandler",
+                "description": "Defines the Basic Auth handler for client authentication.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "ClientBasicAuthHandler",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "ClientAuthError",
+                "description": "Defines the Auth error types that returned from client.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "ClientAuthError",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "ClientBearerTokenAuthHandler",
+                "description": "Defines the Bearer token auth handler for client authentication.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "ClientBearerTokenAuthHandler",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "ClientSelfSignedJwtAuthHandler",
+                "description": "Defines the self signed JWT handler for client authentication.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "ClientSelfSignedJwtAuthHandler",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "ClientHttp2Settings",
+                "description": "Provides settings related to HTTP/2 protocol.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "ClientHttp2Settings",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "ClientObject",
+                "description": "The representation of the http Client object type for managing resilient clients.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "ClientObject",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "ClientHttp1Settings",
+                "description": "Provides settings related to HTTP/1.x protocol.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "ClientHttp1Settings",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "ClientSecureSocket",
+                "description": "Provides configurations for facilitating secure communication with a remote HTTP endpoint.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "ClientSecureSocket",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "ClientRequestError",
+                "description": "Represents an error, which occurred due to bad syntax or incomplete info in the client request(4xx HTTP response).",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "ClientRequestError",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "Client",
+                "description": "The HTTP client provides functionality to connect to remote HTTP services and perform requests using standard HTTP methods like GET, POST, PUT, DELETE, etc.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "Client",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "ClientConfiguration",
+                "description": "Provides a set of configurations for controlling the behaviours when communicating with a remote HTTP endpoint.\nThe following fields are inherited from the other configuration records in addition to the `Client`-specific\nconfigs.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "ClientConfiguration",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "CommonClientConfiguration",
+                "description": "Common client configurations for the next level clients.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "CommonClientConfiguration",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "FailoverClient",
+                "description": "An HTTP client endpoint which provides failover support over multiple HTTP clients.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "FailoverClient",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "CookieConfig",
+                "description": "Client configuration for cookies.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "CookieConfig",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "VerifyClient",
+                "description": "Represents client verify options.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "VerifyClient",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "label": "Standard Library",
+        "description": "Components supported officially by Ballerina",
+        "keywords": [
+          "Ballerina",
+          "Library"
+        ]
+      },
+      "items": []
+    }
+  ]
+}

@@ -454,9 +454,10 @@ class TypeSearchCommand extends SearchCommand {
      * the state of every dependency of a project that has been built once, so this tier returned nothing at all for
      * exactly the projects it exists to serve.</p>
      *
-     * <p>Client classes are excluded: those are connectors rather than types, mirroring what the index generator
-     * itself leaves out. Enums are included, but have to be asked for separately: {@code EnumSymbol} is a
-     * {@code TypeDefinitionSymbol}, yet {@link ModuleSymbol#typeDefinitions()} does not return them.</p>
+     * <p>Client classes are included: a client is a type too ({@code http:Client} as a field type,
+     * {@code http:Caller} as a parameter type), as the index generator also records them. Enums are included,
+     * but have to be asked for separately: {@code EnumSymbol} is a {@code TypeDefinitionSymbol}, yet
+     * {@link ModuleSymbol#typeDefinitions()} does not return them.</p>
      *
      * <p>Scoring starts from the same sanitized query the indexed tiers are given, but it is deliberately
      * <i>wider</i> than they are: the index is queried by FTS token prefix, while this scores substring and
@@ -481,9 +482,6 @@ class TypeSearchCommand extends SearchCommand {
             // Every one of those three lists holds Qualifiable symbols, so this cast is safe.
             Qualifiable qualifiable = (Qualifiable) symbol;
             if (!qualifiable.qualifiers().contains(Qualifier.PUBLIC)) {
-                continue;
-            }
-            if (symbol instanceof ClassSymbol && qualifiable.qualifiers().contains(Qualifier.CLIENT)) {
                 continue;
             }
             if (symbol.getName().isEmpty() || !isWritableTypeName(symbol.getName().get())) {

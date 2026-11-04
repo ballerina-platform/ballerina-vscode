@@ -223,6 +223,10 @@ public class SearchIndexGenerator {
                     if (classSymbol.qualifiers().contains(Qualifier.CLIENT)) {
                         SearchDatabaseManager.insertConnector(info.get().name(), info.get().description(), "Connector",
                                 packageId);
+                        // A client class is also a type (an http:Client field, an http:Caller parameter), so type
+                        // search must find it. connector_exclude.json trims only the Connector table.
+                        SearchDatabaseManager.insertType(info.get().name(), info.get().description(), "client",
+                                packageId);
                     } else {
                         SearchDatabaseManager.insertType(info.get().name(), info.get().description(), "class",
                                 packageId);

@@ -1,0 +1,105 @@
+{
+  "description": "Client classes of a library module that is not imported (ballerinax/redis) are listed in the library category (wso2/product-integrator#602)",
+  "kind": "TYPE",
+  "source": "empty.bal",
+  "queryMap": {
+    "q": "redis Client"
+  },
+  "categories": [
+    {
+      "metadata": {
+        "label": "Current Integration",
+        "description": "Components defined within the current integration",
+        "keywords": [
+          "Project",
+          "Local",
+          "Function",
+          "Types",
+          "Data Mapper"
+        ]
+      },
+      "items": []
+    },
+    {
+      "metadata": {
+        "label": "Imported Types",
+        "description": "Types imported from other integrations",
+        "keywords": [
+          "Imported",
+          "Type",
+          "Library"
+        ]
+      },
+      "items": []
+    },
+    {
+      "metadata": {
+        "label": "Standard Library",
+        "description": "Components supported officially by Ballerina",
+        "keywords": [
+          "Ballerina",
+          "Library"
+        ]
+      },
+      "items": [
+        {
+          "metadata": {
+            "label": "redis",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "ConnectionConfig",
+                "description": "The client endpoint configuration for Redis.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_redis_3.2.1.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerinax",
+                "module": "redis",
+                "packageName": "redis",
+                "symbol": "ConnectionConfig",
+                "version": "3.2.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "Options",
+                "description": "Connection options for Redis client endpoint.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_redis_3.2.1.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerinax",
+                "module": "redis",
+                "packageName": "redis",
+                "symbol": "Options",
+                "version": "3.2.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "Client",
+                "description": "Ballerina Redis connector provides the capability to access Redis cache.\nThis connector lets you to perform operations to access and manipulate key-value data stored in a Redis database. \n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_redis_3.2.1.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerinax",
+                "module": "redis",
+                "packageName": "redis",
+                "symbol": "Client",
+                "version": "3.2.1"
+              },
+              "enabled": true
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

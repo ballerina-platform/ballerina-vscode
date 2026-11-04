@@ -1,0 +1,387 @@
+{
+  "description": "Client classes of an imported module that is absent from the search index (ballerina/grpc) are resolved by live compilation and listed under Imported Types",
+  "kind": "TYPE",
+  "source": "live_fallback_types/main.bal",
+  "queryMap": {
+    "q": "Client"
+  },
+  "categories": [
+    {
+      "metadata": {
+        "label": "Current Integration",
+        "description": "Components defined within the current integration",
+        "keywords": [
+          "Project",
+          "Local",
+          "Function",
+          "Types",
+          "Data Mapper"
+        ]
+      },
+      "items": []
+    },
+    {
+      "metadata": {
+        "label": "Imported Types",
+        "description": "Types imported from other integrations",
+        "keywords": [
+          "Imported",
+          "Type",
+          "Library"
+        ]
+      },
+      "items": [
+        {
+          "metadata": {
+            "label": "grpc",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "Client",
+                "description": "The base client used in the generated client code to provide the capability for initiating the contact and executing remote calls with a remote gRPC service.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_grpc_1.15.1.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "grpc",
+                "packageName": "grpc",
+                "symbol": "Client",
+                "version": "1.15.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "ClientAuthConfig",
+                "description": "Defines the authentication configurations for the HTTP client.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_grpc_1.15.1.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "grpc",
+                "packageName": "grpc",
+                "symbol": "ClientAuthConfig",
+                "version": "1.15.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "ClientAuthError",
+                "description": "Represents an error when client authentication error occured.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_grpc_1.15.1.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "grpc",
+                "packageName": "grpc",
+                "symbol": "ClientAuthError",
+                "version": "1.15.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "ClientBasicAuthHandler",
+                "description": "Defines the Basic Auth handler for client authentication.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_grpc_1.15.1.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "grpc",
+                "packageName": "grpc",
+                "symbol": "ClientBasicAuthHandler",
+                "version": "1.15.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "ClientBearerTokenAuthHandler",
+                "description": "Defines the Bearer token auth handler for client authentication.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_grpc_1.15.1.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "grpc",
+                "packageName": "grpc",
+                "symbol": "ClientBearerTokenAuthHandler",
+                "version": "1.15.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "ClientConfiguration",
+                "description": "Configurations for managing the gRPC client endpoint.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_grpc_1.15.1.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "grpc",
+                "packageName": "grpc",
+                "symbol": "ClientConfiguration",
+                "version": "1.15.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "ClientOAuth2Handler",
+                "description": "Defines the OAuth2 handler for client authentication.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_grpc_1.15.1.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "grpc",
+                "packageName": "grpc",
+                "symbol": "ClientOAuth2Handler",
+                "version": "1.15.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "ClientSelfSignedJwtAuthHandler",
+                "description": "Defines the self signed JWT handler for client authentication.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_grpc_1.15.1.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "grpc",
+                "packageName": "grpc",
+                "symbol": "ClientSelfSignedJwtAuthHandler",
+                "version": "1.15.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "ClientSecureSocket",
+                "description": "Configurations for facilitating secure communication with a remote gRPC endpoint.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_grpc_1.15.1.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "grpc",
+                "packageName": "grpc",
+                "symbol": "ClientSecureSocket",
+                "version": "1.15.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "OAuth2ClientCredentialsGrantConfig",
+                "description": "Represents OAuth2 client credentials grant configurations for OAuth2 authentication.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_grpc_1.15.1.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "grpc",
+                "packageName": "grpc",
+                "symbol": "OAuth2ClientCredentialsGrantConfig",
+                "version": "1.15.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "VerifyClient",
+                "description": "Represents client verify options.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_grpc_1.15.1.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "grpc",
+                "packageName": "grpc",
+                "symbol": "VerifyClient",
+                "version": "1.15.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "AbstractClientEndpoint",
+                "description": "Represents the abstract gRPC client endpoint. This abstract object is used in the generated client.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_grpc_1.15.1.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "grpc",
+                "packageName": "grpc",
+                "symbol": "AbstractClientEndpoint",
+                "version": "1.15.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "StreamingClient",
+                "description": "The base client used in the generated client code to provide the gRPC streaming client actions for\ninteracting  with the gRPC server.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_grpc_1.15.1.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "grpc",
+                "packageName": "grpc",
+                "symbol": "StreamingClient",
+                "version": "1.15.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "Caller",
+                "description": "The base client used in the generated client code to provide remote functions for interacting with the caller.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_grpc_1.15.1.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "grpc",
+                "packageName": "grpc",
+                "symbol": "Caller",
+                "version": "1.15.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "ExtensionRequest",
+                "description": "This is used for internal purposes to support reflection.\nThe type name and extension number sent by the client when requesting `file_containing_extension`.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_grpc_1.15.1.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "grpc",
+                "packageName": "grpc",
+                "symbol": "ExtensionRequest",
+                "version": "1.15.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "InvalidArgumentError",
+                "description": "Represents client specified an invalid argument error.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_grpc_1.15.1.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "grpc",
+                "packageName": "grpc",
+                "symbol": "InvalidArgumentError",
+                "version": "1.15.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "PoolConfiguration",
+                "description": "Configurations for managing the gRPC client connection pool.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_grpc_1.15.1.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "grpc",
+                "packageName": "grpc",
+                "symbol": "PoolConfiguration",
+                "version": "1.15.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "RetryConfiguration",
+                "description": "Configurations for facilitating the retry capability of the gRPC client.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_grpc_1.15.1.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "grpc",
+                "packageName": "grpc",
+                "symbol": "RetryConfiguration",
+                "version": "1.15.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "ServerReflectionRequest",
+                "description": "This is used for internal purposes to support reflection.\nThe message sent by the client when calling `ServerReflectionInfo` method.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_grpc_1.15.1.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "grpc",
+                "packageName": "grpc",
+                "symbol": "ServerReflectionRequest",
+                "version": "1.15.1"
+              },
+              "enabled": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "label": "Standard Library",
+        "description": "Components supported officially by Ballerina",
+        "keywords": [
+          "Ballerina",
+          "Library"
+        ]
+      },
+      "items": [
+        {
+          "metadata": {
+            "label": "dayforce",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "Client",
+                "description": "",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_dayforce_0.1.0.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerinax",
+                "module": "dayforce",
+                "packageName": "dayforce",
+                "symbol": "Client",
+                "version": "0.1.0"
+              },
+              "enabled": true
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -306,6 +306,22 @@
             },
             {
               "metadata": {
+                "label": "Caller",
+                "description": "The base client used in the generated client code to provide remote functions for interacting with the caller.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_grpc_1.15.1.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "grpc",
+                "packageName": "grpc",
+                "symbol": "Caller",
+                "version": "1.15.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
                 "label": "CancelledError",
                 "description": "Represents the operation canceled(typically by the caller) error.",
                 "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_grpc_1.15.1.png"
@@ -348,22 +364,6 @@
                 "module": "grpc",
                 "packageName": "grpc",
                 "symbol": "CertValidationType",
-                "version": "1.15.1"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "ClientAuthConfig",
-                "description": "Defines the authentication configurations for the HTTP client.",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_grpc_1.15.1.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerina",
-                "module": "grpc",
-                "packageName": "grpc",
-                "symbol": "ClientAuthConfig",
                 "version": "1.15.1"
               },
               "enabled": true

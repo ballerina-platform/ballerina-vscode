@@ -518,6 +518,31 @@
         },
         {
           "metadata": {
+            "label": "java.jms",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "Connection",
+                "description": "Represents JMS Connection.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_java.jms_1.2.1.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerinax",
+                "module": "java.jms",
+                "packageName": "java.jms",
+                "symbol": "Connection",
+                "version": "1.2.1"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
             "label": "power.bi",
             "description": "",
             "keywords": []
@@ -661,31 +686,6 @@
                 "packageName": "azure.ad",
                 "symbol": "ConnectionConfig",
                 "version": "2.5.0"
-              },
-              "enabled": true
-            }
-          ]
-        },
-        {
-          "metadata": {
-            "label": "client.config",
-            "description": "",
-            "keywords": []
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "ConnectionConfig",
-                "description": "Client configuration details.",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_client.config_1.0.1.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "client.config",
-                "packageName": "client.config",
-                "symbol": "ConnectionConfig",
-                "version": "1.0.1"
               },
               "enabled": true
             }

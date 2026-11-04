@@ -380,6 +380,22 @@
                 "version": "1.5.1"
               },
               "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "Client",
+                "description": "This is a generated connector from [Open Weather Map API version 2.5](https://openweathermap.org/) OpenAPI Specification. \nThe Open Weather Map API provides access to current weather data and weather forecast of any location worldwide including 200,000 cities by consuming the [`Current Weather Data`](https://openweathermap.org/current) and [`One Call`](https://openweathermap.org/api/one-call-api) API endpoints.  ",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_openweathermap_1.5.1.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerinax",
+                "module": "openweathermap",
+                "packageName": "openweathermap",
+                "symbol": "Client",
+                "version": "1.5.1"
+              },
+              "enabled": true
             }
           ]
         },
@@ -418,6 +434,81 @@
                 "module": "googleapis.bigquery",
                 "packageName": "googleapis.bigquery",
                 "symbol": "ArimaSingleModelForecastingMetrics",
+                "version": "1.5.1"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "odweather",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "Client",
+                "description": "This is a generated connector for [ODWeather API v1.0](https://api.oceandrivers.com/) OpenAPI specification.\nThe ODWeather API provides the capability to access the real time and forecast ocean information.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_odweather_1.5.1.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerinax",
+                "module": "odweather",
+                "packageName": "odweather",
+                "symbol": "Client",
+                "version": "1.5.1"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "pocketsmith",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "Client",
+                "description": "This is a generated connector for [PocketSmith API v2.0](https://www.pocketsmith.com/) OpenAPI specification.\nThe public PocketSmith API. It's a powerful interface for online money management with cash flow forecasts as well as superb historical tracking.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_pocketsmith_1.5.1.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerinax",
+                "module": "pocketsmith",
+                "packageName": "pocketsmith",
+                "symbol": "Client",
+                "version": "1.5.1"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "powertoolsdeveloper.weather",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "Client",
+                "description": "This is a generated connector for [Apptigent PowerTools Developer API v2021.3.01](https://portal.apptigent.com/node/904) OpenAPI specification.\n'Apptigent PowerTools Developer Edition is a powerful suite of API endpoints for custom applications running on any stack. \nManipulate text, modify collections, format dates and times, convert currency, perform advanced mathematical calculations, shorten URL's, encode strings, convert text to speech, translate content into multiple languages, process images, and more. \nPowerTools is the ultimate developer toolkit.'\nThis connector provides the capability for weather conditions, forecasts and related operations.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_powertoolsdeveloper.weather_1.5.1.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerinax",
+                "module": "powertoolsdeveloper.weather",
+                "packageName": "powertoolsdeveloper.weather",
+                "symbol": "Client",
                 "version": "1.5.1"
               },
               "enabled": true
