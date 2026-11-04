@@ -129,6 +129,12 @@ describe('vertexSignInFailureMessage', () => {
         expect(message).toContain('(invalid_grant: Invalid JWT Signature.)');
     });
 
+    it.each(['client_email', 'private_key'])('reports a key file without its %s field as invalid credentials', (field) => {
+        const message = vertexSignInFailureMessage(new Error(`The incoming JSON object does not contain a ${field} field`), 'global');
+        expect(message).toContain('Invalid credentials.');
+        expect(message).toContain(`(The incoming JSON object does not contain a ${field} field)`);
+    });
+
     it('reads a Google error body wrapped in a one-element array', () => {
         const body = JSON.stringify([{ error: { code: 404, message: 'Publisher Model was not found.', status: 'NOT_FOUND' } }]);
         const message = vertexSignInFailureMessage(callError(404, 'Not Found', body), 'global');

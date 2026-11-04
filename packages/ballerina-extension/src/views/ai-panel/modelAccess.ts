@@ -72,8 +72,10 @@ export function vertexSignInFailureMessage(error: unknown, location: string): st
     const is = (code: number, ...needles: string[]) =>
         status !== undefined ? status === code : needles.some((needle) => detail.includes(needle));
 
-    // Google's sign-in library rejects a revoked or malformed key file with `invalid_grant`.
-    if (is(401, '401', 'authentication', 'UNAUTHENTICATED', 'invalid_grant')) {
+    // Google's sign-in library rejects a revoked or malformed key file with `invalid_grant`, and a
+    // key file without its `client_email` or `private_key` field before it sends anything.
+    if (is(401, '401', 'authentication', 'UNAUTHENTICATED', 'invalid_grant',
+        'does not contain a client_email field', 'does not contain a private_key field')) {
         return `Invalid credentials. Please check your service account JSON file. (${detail})`;
     }
     if (is(403, '403', 'PERMISSION_DENIED')) {
