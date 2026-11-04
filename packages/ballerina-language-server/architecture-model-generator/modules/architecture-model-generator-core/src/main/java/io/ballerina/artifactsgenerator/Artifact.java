@@ -100,6 +100,7 @@ public record Artifact(String id, LineRange location, String type, String name, 
     private static final Map<String, String> entryPointMap = Map.ofEntries(
             Map.entry("ai", "AI Agent Services"),
             Map.entry("mcp", "MCP Service"),
+            Map.entry("mcp.v2", "MCP Service"),
             Map.entry("http", "HTTP Service"),
             Map.entry("graphql", "GraphQL Service"),
             Map.entry("tcp", "TCP Service"),
