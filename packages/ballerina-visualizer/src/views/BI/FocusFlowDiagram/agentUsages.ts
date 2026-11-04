@@ -83,6 +83,7 @@ const SERVICE_TYPE_LABELS: Record<string, string> = {
     grpc: "gRPC Service",
     tcp: "TCP Service",
     mcp: "MCP Service",
+    mcpv2: "MCP Service",
 };
 
 function serviceTypeLabel(type?: string): string | undefined {
