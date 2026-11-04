@@ -80,11 +80,15 @@ export function TypeDiagram(props: TypeDiagramProps) {
     // annotation, say) moves every line range below it but changes nothing on the canvas.
     const drawnStructure = useRef<string>();
     const drawnFocus = useRef<string>();
+    // The layout a draw schedules once the nodes have rendered; until it runs, the model has no positions to keep.
+    const pendingLayout = useRef<ReturnType<typeof setTimeout>>();
+
+    useEffect(() => () => clearTimeout(pendingLayout.current), []);
 
     useEffect(() => {
         const structure = structureOf(typeModel, rootService);
         const unchanged = drawnStructure.current === structure && drawnFocus.current === focusedNodeId
-            && !!diagramEngine.getModel();
+            && !!diagramEngine.getModel() && !pendingLayout.current;
         drawnStructure.current = structure;
         drawnFocus.current = focusedNodeId;
         if (unchanged) {
@@ -120,8 +124,11 @@ export function TypeDiagram(props: TypeDiagramProps) {
             diagramEngine.setModel(diagramModel);
             setDiagramModel(diagramModel);
 
-            // Layout and focus handling
-            setTimeout(() => {
+            // Layout and focus handling. A layout still pending from an earlier draw would lay out this model and
+            // then put its own back on the engine, so it is dropped.
+            clearTimeout(pendingLayout.current);
+            pendingLayout.current = setTimeout(() => {
+                pendingLayout.current = undefined;
                 dagreEngine.redistribute(diagramEngine.getModel());
 
                 if (selectedNodeId) {
