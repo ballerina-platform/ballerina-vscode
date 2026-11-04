@@ -124,6 +124,24 @@ describe("grep", () => {
         expect(lines[lines.length - 1]).toMatch(/^\[Output capped at 200 lines/);
     });
 
+    it("rejects an empty pattern", async () => {
+        expect(await grepProject(root, { pattern: "  " })).toEqual({ success: false, message: "The pattern is empty. Give a pattern to search for." });
+    });
+
+    it("reports a file it cannot read and keeps searching the rest", async () => {
+        const realReadFile = fs.promises.readFile;
+        const spy = jest.spyOn(fs.promises, "readFile").mockImplementation(((file: fs.PathLike, ...rest: unknown[]) =>
+            String(file).endsWith("main.bal")
+                ? Promise.reject(new Error("EACCES"))
+                : (realReadFile as (...args: unknown[]) => Promise<string>)(file, ...rest)) as typeof fs.promises.readFile);
+        try {
+            const result = await grepProject(root, { pattern: "return" });
+            expect(result.message.split("\n")).toEqual(["modules/db/db.bal", "[Could not read 1 file(s): main.bal.]"]);
+        } finally {
+            spy.mockRestore();
+        }
+    });
+
     it("stops when aborted", async () => {
         const controller = new AbortController();
         controller.abort();
@@ -147,6 +165,10 @@ describe("glob", () => {
         const lines = (await globProject(root, { pattern: "gen/*.bal" })).message.split("\n");
         expect(lines).toHaveLength(MAX_RESULT_LINES + 1);
         expect(lines[lines.length - 1]).toBe("[Output capped at 200 of 250 files. Narrow the pattern or path.]");
+    });
+
+    it("rejects an empty pattern", async () => {
+        expect((await globProject(root, { pattern: "" })).success).toBe(false);
     });
 
     it("returns an error for a path outside the project", async () => {

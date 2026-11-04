@@ -65,7 +65,14 @@ function scopeSuffix(scope?: string): string {
     return scope ? ` in ${scope}` : "";
 }
 
+function emptyPatternResult(): SearchResult {
+    return { success: false, message: "The pattern is empty. Give a pattern to search for." };
+}
+
 export async function globProject(root: string, input: { pattern: string; path?: string }): Promise<SearchResult> {
+    if (!input.pattern?.trim()) {
+        return emptyPatternResult();
+    }
     try {
         const files = await listProjectFiles(root, { pattern: input.pattern, path: input.path });
         if (files.length === 0) {
@@ -100,11 +107,18 @@ function searchable(line: string): string {
     return line.length > MAX_LINE_LENGTH ? line.slice(0, MAX_LINE_LENGTH) : line;
 }
 
+function fileSample(files: string[]): string {
+    return `${files.slice(0, 5).join(", ")}${files.length > 5 ? ", …" : ""}`;
+}
+
 function printable(line: string): string {
     return line.length > MAX_PRINTED_LINE_CHARS ? `${line.slice(0, MAX_PRINTED_LINE_CHARS)}…` : line;
 }
 
 export async function grepProject(root: string, input: GrepInput, abortSignal?: AbortSignal): Promise<SearchResult> {
+    if (!input.pattern?.trim()) {
+        return emptyPatternResult();
+    }
     if (!isSafeGrepPattern(input.pattern)) {
         return {
             success: false,
@@ -130,21 +144,24 @@ export async function grepProject(root: string, input: GrepInput, abortSignal?: 
     const rootPath = path.resolve(root);
     const out = new OutputBuffer();
     const skipped: string[] = [];
+    const unreadable: string[] = [];
 
     for (const file of files) {
         if (abortSignal?.aborted) {
             return { success: false, message: "Search stopped." };
         }
         const fullPath = path.join(rootPath, file);
+        let lines: string[];
         try {
             if ((await fs.promises.stat(fullPath)).size > MAX_GREP_FILE_BYTES) {
                 skipped.push(file);
                 continue;
             }
+            lines = (await fs.promises.readFile(fullPath, "utf8")).split(/\r?\n/);
         } catch {
+            unreadable.push(file);
             continue;
         }
-        const lines = (await fs.promises.readFile(fullPath, "utf8")).split(/\r?\n/);
 
         if (!contentMode) {
             if (lines.some(line => regex.test(searchable(line))) && !out.push(file)) {
@@ -183,7 +200,10 @@ export async function grepProject(root: string, input: GrepInput, abortSignal?: 
     }
     if (skipped.length > 0) {
         console.log(`[GrepTool] Skipped ${skipped.length} file(s) over ${MAX_GREP_FILE_BYTES} bytes.`);
-        notes.push(`[Skipped ${skipped.length} file(s) over 1 MB: ${skipped.slice(0, 5).join(", ")}${skipped.length > 5 ? ", …" : ""}. Read them with file_read and offset/limit.]`);
+        notes.push(`[Skipped ${skipped.length} file(s) over 1 MB: ${fileSample(skipped)}. Read them with file_read and offset/limit.]`);
+    }
+    if (unreadable.length > 0) {
+        notes.push(`[Could not read ${unreadable.length} file(s): ${fileSample(unreadable)}.]`);
     }
     if (out.lines.length === 0) {
         return { success: true, message: [`No matches for /${input.pattern}/${scopeSuffix(input.path)}.`, ...notes].join("\n") };
