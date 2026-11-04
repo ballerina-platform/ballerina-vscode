@@ -38,6 +38,7 @@ import {
     GeneralPayloadContext,
     getPrimaryInputType,
     Imports,
+    isMcpModule,
     LineRange,
     ParameterModel,
     PropertyModel,
@@ -58,6 +59,7 @@ import ArtifactForm from "../../../Forms/ArtifactForm";
 import { sanitizedResourcePath } from "../../utils";
 import { AnnotationExpressionFieldHandle } from "./AnnotationExpressionField";
 import { AnnotationConfigSection } from "./AnnotationConfigSection";
+import { McpAdvancedSection } from "./McpAdvancedSection";
 import {
     addedParametersOf,
     CODEDATA_METADATA_FLAG,
@@ -864,6 +866,8 @@ export function TriggerHandlerForm(props: TriggerHandlerFormProps) {
             : { ...section, units: section.units.filter((unit) => !ADVANCED_KINDS.has(unit.kind)) })
         .filter((section) => section.units.length > 0);
     const hasAdvancedBox = looseAdvancedUnits.length > 0 || advancedSections.length > 0;
+    // MCP presents its advanced box itself; the layout metadata still decides what goes in it.
+    const isMcpAdvanced = isMcpModule(serviceModel.moduleName);
 
     const firstAnnotationSectionKey = bodySections
         .find((section) => section.units.some((unit) => unit.kind === "ANNOTATION"))?.key;
@@ -1100,37 +1104,44 @@ export function TriggerHandlerForm(props: TriggerHandlerFormProps) {
                                 {headerTemplate.metadata.description}
                             </Typography>
                         )}
-                        {headerParameters.map((param, index) => (
-                            <HeaderParamItem
-                                key={`header-${index}`}
-                                param={param}
-                                onDelete={handleHeaderDelete}
-                                onEditClick={handleHeaderEditClick}
-                            />
-                        ))}
-                        {headerEditModel && (
-                            <HeaderParamEditor
-                                isNew={isNewHeaderParam}
-                                param={headerEditModel}
-                                onChange={handleHeaderChange}
-                                onSave={handleHeaderSave}
-                                onCancel={handleHeaderCancel}
-                                type="HEADER"
-                            />
-                        )}
-                        {!headerEditModel && (
-                            <AddButtonWrapper>
-                                <LinkButton onClick={handleAddHeaderClick}>
-                                    <Codicon name="add" />
-                                    <>Header</>
-                                </LinkButton>
-                            </AddButtonWrapper>
-                        )}
+                        {renderHeaderControls()}
                     </>
                 )}
             </>
         );
     };
+
+    /* The individually bound headers: their list, the open editor, and the add button */
+    const renderHeaderControls = (): ReactNode => (
+        <>
+            {headerParameters.map((param, index) => (
+                <HeaderParamItem
+                    key={`header-${index}`}
+                    param={param}
+                    onDelete={handleHeaderDelete}
+                    onEditClick={handleHeaderEditClick}
+                />
+            ))}
+            {headerEditModel && (
+                <HeaderParamEditor
+                    isNew={isNewHeaderParam}
+                    param={headerEditModel}
+                    onChange={handleHeaderChange}
+                    onSave={handleHeaderSave}
+                    onCancel={handleHeaderCancel}
+                    type="HEADER"
+                />
+            )}
+            {!headerEditModel && (
+                <AddButtonWrapper>
+                    <LinkButton onClick={handleAddHeaderClick}>
+                        <Codicon name="add" />
+                        <>Header</>
+                    </LinkButton>
+                </AddButtonWrapper>
+            )}
+        </>
+    );
 
     /** One section's units, batched into the chrome each kind needs. */
     const renderSectionUnits = (section: ResolvedSection): ReactNode[] => {
@@ -1265,8 +1276,18 @@ export function TriggerHandlerForm(props: TriggerHandlerFormProps) {
                                 <Typography variant="body2">Advanced Configurations</Typography>
                             </CollapsibleHeader>
                             <CollapsibleContent isExpanded={isAdvancedExpanded}>
-                                {looseAdvancedUnits.length > 0 && renderAdvancedBody(looseAdvancedUnits)}
-                                {advancedSections.map((section) => {
+                                {isMcpAdvanced && (
+                                    <McpAdvancedSection
+                                        looseUnits={looseAdvancedUnits}
+                                        sections={advancedSections}
+                                        headerTemplate={headerTemplate}
+                                        headerControls={renderHeaderControls()}
+                                        onParamToggle={handleAdvancedParamToggle}
+                                        renderOtherUnits={renderSectionUnits}
+                                    />
+                                )}
+                                {!isMcpAdvanced && looseAdvancedUnits.length > 0 && renderAdvancedBody(looseAdvancedUnits)}
+                                {!isMcpAdvanced && advancedSections.map((section) => {
                                     const body = renderSectionUnits(section);
                                     if (body.length === 0) {
                                         return null;
