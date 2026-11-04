@@ -61,13 +61,62 @@ export function checkCanToggleICP(projectPath: string, isUnsaved: (filePath: str
     }
 }
 
-// An import counts only on a line of its own, so a commented-out one is not taken as present.
-function isImportLine(line: string, importLine: string): boolean {
-    return line.trim().startsWith(importLine);
+interface ImportDeclaration {
+    start: number;
+    end: number;
+    text: string;
+}
+
+// Spacing never changes an import, so `import  wso2/icp.runtime.bridge as _ ;` still matches.
+function normalizeImport(text: string): string {
+    return text.replace(/\s+/g, ' ').replace(/\s*([/.;])\s*/g, '$1').trim();
+}
+
+/**
+ * The import declarations at the top of a .bal file, as offsets into it. Imports come before
+ * every other module-level declaration, so the scan skips whitespace and comments and stops at
+ * the first thing that is not an import: commented-out imports and import-like text further
+ * down are never taken as present.
+ */
+function importDeclarations(content: string): ImportDeclaration[] {
+    const declarations: ImportDeclaration[] = [];
+    let pos = content.charCodeAt(0) === 0xFEFF ? 1 : 0;
+    while (pos < content.length) {
+        if (/\s/.test(content[pos])) {
+            pos++;
+        } else if (content.startsWith('//', pos)) {
+            const newline = content.indexOf('\n', pos);
+            pos = newline === -1 ? content.length : newline + 1;
+        } else if (/^import\b/.test(content.slice(pos, pos + 7))) {
+            const semicolon = content.indexOf(';', pos);
+            if (semicolon === -1) {
+                break;
+            }
+            declarations.push({ start: pos, end: semicolon + 1, text: content.slice(pos, semicolon + 1) });
+            pos = semicolon + 1;
+        } else {
+            break;
+        }
+    }
+    return declarations;
+}
+
+function isICPImport(declaration: ImportDeclaration, importLine: string): boolean {
+    return normalizeImport(declaration.text) === normalizeImport(importLine);
 }
 
 function hasImport(content: string, importLine: string): boolean {
-    return content.split('\n').some(line => isImportLine(line, importLine));
+    return importDeclarations(content).some(declaration => isICPImport(declaration, importLine));
+}
+
+function isBlank(char: string): boolean {
+    return char === ' ' || char === '\t';
+}
+
+function positionAt(content: string, offset: number): { line: number; character: number } {
+    const before = content.slice(0, offset);
+    const line = before.split('\n').length - 1;
+    return { line, character: offset - (before.lastIndexOf('\n') + 1) };
 }
 
 /**
@@ -91,46 +140,91 @@ export function isICPEnabledOnDisk(projectPath: string): boolean {
 export function buildAddImportsTextEdits(projectPath: string): { [key: string]: TextEdit[] } {
     const mainBalPath = mainBalPathOf(projectPath);
     const content = fs.existsSync(mainBalPath) ? fs.readFileSync(mainBalPath, 'utf-8') : '';
-    const lines = content.split('\n');
 
     const missingImports = ICP_IMPORTS.filter(imp => !hasImport(content, imp));
     if (missingImports.length === 0) {
         return {};
     }
 
-    let insertLine = 0;
-    for (let i = 0; i < lines.length; i++) {
-        if (lines[i].trim().startsWith('import ')) {
-            insertLine = i + 1;
-        }
-    }
-
-    const position = { line: insertLine, character: 0 };
+    const declarations = importDeclarations(content);
+    const lastImport = declarations[declarations.length - 1];
+    const position = { line: lastImport ? positionAt(content, lastImport.end).line + 1 : 0, character: 0 };
     return { [mainBalPath]: [{ range: { start: position, end: position }, newText: missingImports.join('\n') + '\n' }] };
 }
 
+/**
+ * The edits that remove every ICP import from main.bal. An import that shares its lines with
+ * nothing but other ICP imports and a trailing comment takes the whole lines with it; one that
+ * shares them with other source is cut out alone, leaving that source in place.
+ */
 export function buildRemoveImportsTextEdits(projectPath: string): { [key: string]: TextEdit[] } {
     const mainBalPath = mainBalPathOf(projectPath);
     if (!fs.existsSync(mainBalPath)) {
         return {};
     }
 
-    const lines = fs.readFileSync(mainBalPath, 'utf-8').split('\n');
-    const edits: TextEdit[] = [];
-    for (let i = 0; i < lines.length; i++) {
-        if (ICP_IMPORTS.some(imp => isImportLine(lines[i], imp))) {
-            edits.push({
-                range: { start: { line: i, character: 0 }, end: { line: i + 1, character: 0 } },
-                newText: '',
-            });
+    const content = fs.readFileSync(mainBalPath, 'utf-8');
+    const icpImports = importDeclarations(content)
+        .filter(declaration => ICP_IMPORTS.some(imp => isICPImport(declaration, imp)));
+
+    // Group the ICP imports by the lines they span, so each group is decided as a whole.
+    const groups: { start: number; end: number; imports: ImportDeclaration[] }[] = [];
+    for (const declaration of icpImports) {
+        const start = content.lastIndexOf('\n', declaration.start - 1) + 1;
+        const newline = content.indexOf('\n', declaration.end);
+        const end = newline === -1 ? content.length : newline + 1;
+        const last = groups[groups.length - 1];
+        if (last && start < last.end) {
+            last.end = Math.max(last.end, end);
+            last.imports.push(declaration);
+        } else {
+            groups.push({ start, end, imports: [declaration] });
         }
     }
 
-    if (edits.length === 0) {
+    const ranges: { start: number; end: number }[] = [];
+    for (const group of groups) {
+        let rest = '';
+        let cursor = group.start;
+        for (const declaration of group.imports) {
+            rest += content.slice(cursor, declaration.start);
+            cursor = declaration.end;
+        }
+        rest += content.slice(cursor, group.end);
+        if (rest.split('\n').every(line => line.trim() === '' || line.trim().startsWith('//'))) {
+            ranges.push({ start: group.start, end: group.end });
+            continue;
+        }
+        for (const declaration of group.imports) {
+            let start = declaration.start;
+            let end = declaration.end;
+            while (end < content.length && isBlank(content[end])) {
+                end++;
+            }
+            // Last on its line: take the spacing before it instead, so none is left trailing.
+            if (end === content.length || content[end] === '\n' || content[end] === '\r') {
+                end = declaration.end;
+                while (start > 0 && isBlank(content[start - 1])) {
+                    start--;
+                }
+            }
+            const previous = ranges[ranges.length - 1];
+            if (previous && previous.end >= start) {
+                previous.end = Math.max(previous.end, end);
+            } else {
+                ranges.push({ start, end });
+            }
+        }
+    }
+
+    if (ranges.length === 0) {
         return {};
     }
 
-    // Reverse line order so removals don't shift the lines of the ones still to apply.
-    edits.sort((a, b) => b.range.start.line - a.range.start.line);
+    // Last first, so applying one removal doesn't shift the ones still to apply.
+    const edits: TextEdit[] = ranges.reverse().map(range => ({
+        range: { start: positionAt(content, range.start), end: positionAt(content, range.end) },
+        newText: '',
+    }));
     return { [mainBalPath]: edits };
 }

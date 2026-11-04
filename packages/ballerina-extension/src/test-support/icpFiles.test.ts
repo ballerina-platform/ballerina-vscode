@@ -24,6 +24,7 @@
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
+import type { TextEdit } from "@wso2/ballerina-core";
 import { addICPBuildOptions } from "../rpc-managers/icp-service/build-options";
 import {
     buildAddImportsTextEdits,
@@ -48,6 +49,24 @@ function write(name: string, content: string): void {
 }
 
 const nothingUnsaved = () => false;
+
+const [BRIDGE, METRICS] = ICP_IMPORTS;
+
+// Applies the edits the way a WorkspaceEdit does: every range refers to the original text.
+function applyEdits(content: string, edits: TextEdit[] = []): string {
+    const lineStarts = [0];
+    for (let i = 0; i < content.length; i++) {
+        if (content[i] === "\n") {
+            lineStarts.push(i + 1);
+        }
+    }
+    const offset = ({ line, character }: { line: number; character: number }) =>
+        line < lineStarts.length ? lineStarts[line] + character : content.length;
+    return [...edits]
+        .sort((a, b) => offset(b.range.start) - offset(a.range.start))
+        .reduce((text, edit) =>
+            text.slice(0, offset(edit.range.start)) + edit.newText + text.slice(offset(edit.range.end)), content);
+}
 
 describe("checkCanToggleICP", () => {
     it("refuses a project with no Ballerina.toml", () => {
@@ -77,6 +96,12 @@ describe("isICPEnabledOnDisk", () => {
         ["a commented-out bridge import", `// ${ICP_BRIDGE_IMPORT}\n${MAIN_BAL}`, addICPBuildOptions(MANIFEST), false],
         ["only the build options", MAIN_BAL, addICPBuildOptions(MANIFEST), false],
         ["both halves", enabledMainBal, addICPBuildOptions(MANIFEST), true],
+        ["the bridge import after another import on its line", `import ballerina/io; ${BRIDGE}\n${MAIN_BAL}`,
+            addICPBuildOptions(MANIFEST), true],
+        ["the bridge import spaced differently", `import  wso2/icp.runtime.bridge as _ ;\n${MAIN_BAL}`,
+            addICPBuildOptions(MANIFEST), true],
+        ["the bridge import only after a declaration", `${MAIN_BAL}// x\nstring s = "${BRIDGE}";\n`,
+            addICPBuildOptions(MANIFEST), false],
     ])("with %s is %s", (_label, mainBal, manifest, expected) => {
         write("main.bal", mainBal);
         write("Ballerina.toml", manifest);
@@ -113,6 +138,13 @@ describe("buildAddImportsTextEdits", () => {
         expect(edit.newText).toBe(`${ICP_IMPORTS.join("\n")}\n`);
     });
 
+    it("adds no second copy of an import that follows another import on its line", () => {
+        write("main.bal", `import ballerina/io; ${BRIDGE}\n${MAIN_BAL}`);
+        const [edit] = buildAddImportsTextEdits(projectDir)[path.join(projectDir, "main.bal")];
+        expect(edit.newText).toBe(`${METRICS}\n`);
+        expect(edit.range.start).toEqual({ line: 2, character: 0 });
+    });
+
     it("adds nothing when the imports are already there", () => {
         write("main.bal", `${ICP_IMPORTS.join("\n")}\n${MAIN_BAL}`);
         expect(buildAddImportsTextEdits(projectDir)).toEqual({});
@@ -120,9 +152,43 @@ describe("buildAddImportsTextEdits", () => {
 });
 
 describe("buildRemoveImportsTextEdits", () => {
-    it("removes an import with a trailing comment and leaves a commented-out one", () => {
-        write("main.bal", `${ICP_BRIDGE_IMPORT} // icp\n// ${ICP_IMPORTS[1]}\n${MAIN_BAL}`);
+    const BODY = `\nlistener http:Listener l = new (9090);\n`;
+
+    it.each([
+        ["imports on lines of their own", `import ballerina/http;\n${BRIDGE}\n${METRICS}\n${BODY}`,
+            `import ballerina/http;\n${BODY}`],
+        ["an import with a trailing comment", `import ballerina/http;\n${BRIDGE} // icp\n${BODY}`,
+            `import ballerina/http;\n${BODY}`],
+        ["both imports on one line", `import ballerina/http;\n${BRIDGE} ${METRICS}\n${BODY}`,
+            `import ballerina/http;\n${BODY}`],
+        ["an import after another import on its line", `import ballerina/http; ${BRIDGE}\n${METRICS}\n${BODY}`,
+            `import ballerina/http;\n${BODY}`],
+        ["an import before another import on its line", `${BRIDGE} import ballerina/http;\n${BODY}`,
+            `import ballerina/http;\n${BODY}`],
+        ["an import between two others", `import ballerina/http; ${BRIDGE} import ballerina/io;\n${BODY}`,
+            `import ballerina/http; import ballerina/io;\n${BODY}`],
+        ["a commented-out import", `import ballerina/http;\n// ${BRIDGE}\n${BRIDGE}\n${BODY}`,
+            `import ballerina/http;\n// ${BRIDGE}\n${BODY}`],
+        ["import text after the imports", `${BRIDGE}\nimport ballerina/http;\nstring s = "${METRICS}";\n`,
+            `import ballerina/http;\nstring s = "${METRICS}";\n`],
+        ["the last line with no newline", `import ballerina/http;\n${BRIDGE}`, `import ballerina/http;\n`],
+    ])("removes only the ICP imports from %s", (_label, mainBal, expected) => {
+        write("main.bal", mainBal);
         const edits = buildRemoveImportsTextEdits(projectDir)[path.join(projectDir, "main.bal")];
-        expect(edits.map(edit => edit.range.start.line)).toEqual([0]);
+        expect(applyEdits(mainBal, edits)).toBe(expected);
+    });
+
+    it("removes nothing when there is no ICP import", () => {
+        write("main.bal", MAIN_BAL);
+        expect(buildRemoveImportsTextEdits(projectDir)).toEqual({});
+    });
+
+    it("round-trips: enabling then disabling leaves main.bal as it was", () => {
+        const mainBal = `import ballerina/http; import ballerina/io;\n${BODY}`;
+        write("main.bal", mainBal);
+        const enabled = applyEdits(mainBal, buildAddImportsTextEdits(projectDir)[path.join(projectDir, "main.bal")]);
+        write("main.bal", enabled);
+        const edits = buildRemoveImportsTextEdits(projectDir)[path.join(projectDir, "main.bal")];
+        expect(applyEdits(enabled, edits)).toBe(mainBal);
     });
 });
