@@ -325,6 +325,24 @@ public class LibraryMetadataReaderTest {
         Assert.assertTrue(READER.readArtifactInfo(root).isEmpty());
     }
 
+    @Test
+    public void testMetadataDirOfDefaultModule() {
+        Assert.assertEquals(LibraryMetadataReader.metadataDir("mcp", "mcp"), "metadata");
+        Assert.assertEquals(LibraryMetadataReader.metadataDir("aws.sqs", "aws.sqs"), "metadata");
+    }
+
+    @Test
+    public void testMetadataDirOfNonDefaultModule() {
+        Assert.assertEquals(LibraryMetadataReader.metadataDir("mcp", "mcp.v2"), "metadata/modules/v2");
+        Assert.assertEquals(LibraryMetadataReader.metadataDir("aws", "aws.sqs.types"), "metadata/modules/sqs.types");
+    }
+
+    @Test
+    public void testMetadataDirOfUnrelatedModuleFallsBackToPackageMetadata() {
+        // A dotted package whose name merely shares a prefix with the module is not its owner.
+        Assert.assertEquals(LibraryMetadataReader.metadataDir("mcp", "mcpx.v2"), "metadata");
+    }
+
     /** A package root shipping the given {@code metadata/trigger-metadata.json}. */
     private static Path shipping(String json) throws IOException {
         Path root = Files.createTempDirectory("shipped-metadata");

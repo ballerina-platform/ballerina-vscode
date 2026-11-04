@@ -66,8 +66,12 @@ public final class LibraryMetadataReader {
 
     private static final Logger LOGGER = Logger.getLogger(LibraryMetadataReader.class.getName());
 
-    private static final String TRIGGER_METADATA_RESOURCE_PATH = "metadata/trigger-metadata.json";
-    private static final String TRIGGER_UI_METADATA_RESOURCE_PATH = "metadata/trigger-ui-metadata.json";
+    private static final String METADATA_DIR = "metadata";
+    /** Where a non-default module's metadata lives, under {@link #METADATA_DIR}, keyed by its name within the
+     * package (e.g. {@code metadata/modules/v2} for {@code mcp.v2} of {@code ballerina/mcp}). */
+    private static final String MODULE_METADATA_DIR = METADATA_DIR + "/modules/";
+    private static final String TRIGGER_METADATA_FILE = "trigger-metadata.json";
+    private static final String TRIGGER_UI_METADATA_FILE = "trigger-ui-metadata.json";
     private static final int MAX_CACHE_SIZE = 2;
     private static final Pattern SUPPORTED_VERSION = Pattern.compile("^v1\\.\\d+$");
     private static final Set<String> SELF_NAMED_TRIGGER_KIND_MODULES = Set.of("http", "graphql", "mcp", "ai");
@@ -77,7 +81,7 @@ public final class LibraryMetadataReader {
 
     private static final LibraryMetadataReader INSTANCE = new LibraryMetadataReader();
 
-    private final Cache<String, Optional<Path>> packageRootCache =
+    private final Cache<String, Optional<MetadataLocation>> packageRootCache =
             Caffeine.newBuilder().maximumSize(MAX_CACHE_SIZE).expireAfterWrite(PACKAGE_ROOT_CACHE_TTL).build();
 
     private final Gson plainGson = new Gson();
@@ -91,17 +95,20 @@ public final class LibraryMetadataReader {
 
     /** The connector's own {@code metadata/trigger-metadata.json}, resolved from its {@code .bala}. */
     public Optional<TriggerMetadataModel> getTriggerMetadataModel(ModuleInfo moduleInfo) {
-        return packageRoot(moduleInfo).flatMap(this::readTriggerMetadataModel);
+        return packageRoot(moduleInfo).flatMap(location -> readTriggerMetadataModel(location.packageRoot(),
+                location.metadataDir()));
     }
 
     /** The connector's sparse {@code metadata/trigger-ui-metadata.json}, resolved from its {@code .bala}. */
     public Optional<TriggerUIMetadataModel> getTriggerUIMetadataModel(ModuleInfo moduleInfo) {
-        return packageRoot(moduleInfo).flatMap(this::readTriggerUIMetadataModel);
+        return packageRoot(moduleInfo).flatMap(location -> readTriggerUIMetadataModel(location.packageRoot(),
+                location.metadataDir()));
     }
 
     /** Reads the artifact-tree projection without materializing or caching the complete L2 document. */
     public Optional<ArtifactMetadata> getArtifactMetadata(ModuleInfo moduleInfo) {
-        Optional<ArtifactMetadata> metadata = packageRoot(moduleInfo).flatMap(this::readArtifactMetadata);
+        Optional<ArtifactMetadata> metadata = packageRoot(moduleInfo)
+                .flatMap(location -> readArtifactMetadata(location.packageRoot(), location.metadataDir()));
         if (metadata.isPresent() && metadata.get().triggerKind() != null) {
             return metadata;
         }
@@ -138,21 +145,28 @@ public final class LibraryMetadataReader {
      * where a missing metadata file is a valid fallback.
      */
     public MetadataStatus inspectMetadata(ModuleInfo moduleInfo, boolean localRepository) {
-        Optional<Path> root = localRepository ? localPackageRoot(moduleInfo) : packageRoot(moduleInfo);
-        if (root.isEmpty()) {
+        Optional<MetadataLocation> location = localRepository
+                ? localPackageRoot(moduleInfo).map(MetadataLocation::ofDefaultModule)
+                : packageRoot(moduleInfo);
+        if (location.isEmpty()) {
             return new MetadataStatus(false, false, false, false, false);
         }
-        return inspectMetadata(root.get());
+        return inspectMetadata(location.get().packageRoot(), location.get().metadataDir());
     }
 
     // Package-private so the tests can inspect a hand-built package root, as with readTriggerMetadataModel.
     MetadataStatus inspectMetadata(Path packageRoot) {
-        Path metadata = packageRoot.resolve(TRIGGER_METADATA_RESOURCE_PATH);
-        Path uiMetadata = packageRoot.resolve(TRIGGER_UI_METADATA_RESOURCE_PATH);
+        return inspectMetadata(packageRoot, METADATA_DIR);
+    }
+
+    private MetadataStatus inspectMetadata(Path packageRoot, String metadataDir) {
+        Path metadata = packageRoot.resolve(metadataDir).resolve(TRIGGER_METADATA_FILE);
+        Path uiMetadata = packageRoot.resolve(metadataDir).resolve(TRIGGER_UI_METADATA_FILE);
         boolean metadataPresent = Files.isRegularFile(metadata);
         boolean uiMetadataPresent = Files.isRegularFile(uiMetadata);
-        boolean metadataValid = metadataPresent && readTriggerMetadataModel(packageRoot).isPresent();
-        boolean uiMetadataValid = !uiMetadataPresent || readTriggerUIMetadataModel(packageRoot).isPresent();
+        boolean metadataValid = metadataPresent && readTriggerMetadataModel(packageRoot, metadataDir).isPresent();
+        boolean uiMetadataValid = !uiMetadataPresent
+                || readTriggerUIMetadataModel(packageRoot, metadataDir).isPresent();
         return new MetadataStatus(true, metadataPresent, metadataValid, uiMetadataPresent, uiMetadataValid);
     }
 
@@ -240,10 +254,15 @@ public final class LibraryMetadataReader {
     // Package-private rather than private: both public reads funnel through here, so the tests
     // exercise the shared tail directly instead of once per entry point.
     Optional<TriggerMetadataModel> readTriggerMetadataModel(Path packageRoot) {
-        return readResourceFile(packageRoot, TRIGGER_METADATA_RESOURCE_PATH).flatMap(json -> {
+        return readTriggerMetadataModel(packageRoot, METADATA_DIR);
+    }
+
+    private Optional<TriggerMetadataModel> readTriggerMetadataModel(Path packageRoot, String metadataDir) {
+        String resourcePath = metadataDir + "/" + TRIGGER_METADATA_FILE;
+        return readResourceFile(packageRoot, resourcePath).flatMap(json -> {
             try {
                 TriggerMetadataModel model = TriggerMetadataGson.instance().fromJson(json, TriggerMetadataModel.class);
-                return requireSupportedVersion(model, packageRoot.resolve(TRIGGER_METADATA_RESOURCE_PATH).toString());
+                return requireSupportedVersion(model, packageRoot.resolve(resourcePath).toString());
             } catch (RuntimeException e) {
                 return Optional.empty();
             }
@@ -251,9 +270,13 @@ public final class LibraryMetadataReader {
     }
 
     Optional<TriggerUIMetadataModel> readTriggerUIMetadataModel(Path packageRoot) {
-        return readResourceFile(packageRoot, TRIGGER_UI_METADATA_RESOURCE_PATH)
-                .flatMap(json -> parseTriggerUIMetadata(json,
-                        packageRoot.resolve(TRIGGER_UI_METADATA_RESOURCE_PATH).toString()));
+        return readTriggerUIMetadataModel(packageRoot, METADATA_DIR);
+    }
+
+    private Optional<TriggerUIMetadataModel> readTriggerUIMetadataModel(Path packageRoot, String metadataDir) {
+        String resourcePath = metadataDir + "/" + TRIGGER_UI_METADATA_FILE;
+        return readResourceFile(packageRoot, resourcePath)
+                .flatMap(json -> parseTriggerUIMetadata(json, packageRoot.resolve(resourcePath).toString()));
     }
 
     Optional<ArtifactInfo.Resolved> readArtifactInfo(Path packageRoot) {
@@ -262,7 +285,12 @@ public final class LibraryMetadataReader {
     }
 
     Optional<ArtifactMetadata> readArtifactMetadata(Path packageRoot) {
-        Optional<Path> metadataFile = resolveSafeRelativePath(packageRoot, TRIGGER_UI_METADATA_RESOURCE_PATH);
+        return readArtifactMetadata(packageRoot, METADATA_DIR);
+    }
+
+    private Optional<ArtifactMetadata> readArtifactMetadata(Path packageRoot, String metadataDir) {
+        Optional<Path> metadataFile = resolveSafeRelativePath(packageRoot,
+                metadataDir + "/" + TRIGGER_UI_METADATA_FILE);
         if (metadataFile.isEmpty()) {
             return Optional.empty();
         }
@@ -384,32 +412,54 @@ public final class LibraryMetadataReader {
         return Optional.empty();
     }
 
+    /**
+     * Where a module's metadata is read from.
+     *
+     * @param packageRoot the {@code .bala} root of the package that owns the module
+     * @param metadataDir the directory under {@code packageRoot} holding its {@code trigger-metadata.json}
+     */
+    private record MetadataLocation(Path packageRoot, String metadataDir) {
+
+        static MetadataLocation ofDefaultModule(Path packageRoot) {
+            return new MetadataLocation(packageRoot, METADATA_DIR);
+        }
+    }
+
     /** The local {@code .bala} root of {@code moduleInfo}. Only a hit is memoized. */
-    private Optional<Path> packageRoot(ModuleInfo moduleInfo) {
+    private Optional<MetadataLocation> packageRoot(ModuleInfo moduleInfo) {
         if (moduleInfo == null || moduleInfo.org() == null || moduleInfo.moduleName() == null) {
             return Optional.empty();
         }
         String key = moduleInfo.org() + "/" + moduleInfo.moduleName() + ":"
                 + (moduleInfo.version() == null ? "" : moduleInfo.version());
-        Optional<Path> cached = packageRootCache.getIfPresent(key);
+        Optional<MetadataLocation> cached = packageRootCache.getIfPresent(key);
         if (cached != null) {
             return cached;
         }
-        Optional<Path> resolved = resolvePackageRoot(moduleInfo);
+        Optional<MetadataLocation> resolved = resolvePackageRoot(moduleInfo);
         if (resolved.isPresent()) {
             packageRootCache.put(key, resolved);
         }
         return resolved;
     }
 
-    private Optional<Path> resolvePackageRoot(ModuleInfo moduleInfo) {
+    private Optional<MetadataLocation> resolvePackageRoot(ModuleInfo moduleInfo) {
         try {
-            Optional<Package> pkg = PackageUtil.getModulePackageOffline(
+            Optional<Package> pkg = PackageUtil.getModuleOwnerPackageOffline(
                     moduleInfo.org(), moduleInfo.moduleName(), moduleInfo.version());
-            return pkg.map(aPackage -> aPackage.project().sourceRoot());
+            return pkg.map(aPackage -> new MetadataLocation(aPackage.project().sourceRoot(),
+                    metadataDir(aPackage.descriptor().name().value(), moduleInfo.moduleName())));
         } catch (Throwable e) {
             return Optional.empty();
         }
+    }
+
+    /** {@link #METADATA_DIR} for a package's default module, else that module's {@link #MODULE_METADATA_DIR}. */
+    static String metadataDir(String packageName, String moduleName) {
+        if (moduleName.equals(packageName) || !moduleName.startsWith(packageName + ".")) {
+            return METADATA_DIR;
+        }
+        return MODULE_METADATA_DIR + moduleName.substring(packageName.length() + 1);
     }
 
     /**
