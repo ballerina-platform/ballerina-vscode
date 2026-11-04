@@ -285,7 +285,7 @@ jobs:
           # keeps the coverage artifact name unique per leg.
           codecov-branch: ${{ matrix.branch }}
 
-  # Runs the reliability suite (packages/ballerina-extension/src/test-support/reliability)
+  # Runs the reliability suite (packages/ballerina-extension/src/test/reliability)
   # against the jar ls-ubuntu-pack built for the same branch, e.g. that the LS process exits
   # when its client goes away (wso2/product-integrator#2854).
   ls-ubuntu-reliability:
