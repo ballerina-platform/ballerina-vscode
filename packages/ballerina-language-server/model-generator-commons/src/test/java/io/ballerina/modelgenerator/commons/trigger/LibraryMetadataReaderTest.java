@@ -343,6 +343,37 @@ public class LibraryMetadataReaderTest {
         Assert.assertEquals(LibraryMetadataReader.metadataDir("mcp", "mcpx.v2"), "metadata");
     }
 
+    @Test
+    public void testMetadataDirOfDottedPackageDefaultModule() {
+        // Dotted package names from trigger_properties.json: the module is the package itself, so the
+        // dots never turn into a modules/ suffix.
+        for (String dotted : new String[]{"googleapis.chat", "trigger.github", "trigger.shopify", "solace.jms",
+                "sap.jco", "aws.sqs", "whatsapp.business", "azure.storage.files", "ai.wso2.integration"}) {
+            Assert.assertEquals(LibraryMetadataReader.metadataDir(dotted, dotted), "metadata", dotted);
+        }
+    }
+
+    @Test
+    public void testMetadataDirOfSubmoduleOfDottedPackage() {
+        // ballerinax/googleapis.gmail ships googleapis.gmail.oas and googleapis.gmail.mock: only the part after
+        // the (dotted) package name is the module's key.
+        Assert.assertEquals(LibraryMetadataReader.metadataDir("googleapis.gmail", "googleapis.gmail.oas"),
+                "metadata/modules/oas");
+        Assert.assertEquals(LibraryMetadataReader.metadataDir("googleapis.gmail", "googleapis.gmail.mock"),
+                "metadata/modules/mock");
+        Assert.assertEquals(LibraryMetadataReader.metadataDir("health.fhir.r4", "health.fhir.r4.parser.utils"),
+                "metadata/modules/parser.utils");
+    }
+
+    @Test
+    public void testMetadataDirOfDottedPackageSharingAPrefixWithoutADotBoundary() {
+        // ballerinax/health.fhir.r4 and ballerinax/health.fhir.r4utils.fhirpath are distinct packages on Central;
+        // the shared "health.fhir.r4" text is not a module boundary.
+        Assert.assertEquals(LibraryMetadataReader.metadataDir("health.fhir.r4", "health.fhir.r4utils.fhirpath"),
+                "metadata");
+        Assert.assertEquals(LibraryMetadataReader.metadataDir("googleapis.gmail", "googleapis.gmailx"), "metadata");
+    }
+
     /** A package root shipping the given {@code metadata/trigger-metadata.json}. */
     private static Path shipping(String json) throws IOException {
         Path root = Files.createTempDirectory("shipped-metadata");
