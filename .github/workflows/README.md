@@ -413,6 +413,23 @@ from nowhere else): coverage is reported but never fails a build. To flip it to 
 set `informational: false` on the statuses there — worth doing only after the first full CI
 run establishes the real baseline, since the `range` there is currently a placeholder.
 
+## TypeScript test coverage
+
+The `fast-tests` job in `reusable-build.yml` runs Jest with `--coverage` in every package
+that has a `jest.config.js`, and uploads the per-package `lcov.info` files to Codecov under
+the `typescript` flag. Each package is a Codecov component, so the PR comment shows one
+number per package.
+
+- **Paths are rewritten before the upload.** Jest writes paths relative to the package
+  (`SF:src/...`), which Codecov cannot map because the same `src/` path exists in several
+  packages. The `Make lcov paths repo-relative` step prefixes each path with its package
+  directory. The `fast-tests-coverage` artifact is uploaded before that step, so it keeps
+  the package-relative paths.
+- **Untested files are not listed.** Jest reports only files that a test loads, so a source
+  file with no test does not appear at 0%.
+- **Carried forward.** When a build skips the fast tests, Codecov reuses the base commit's
+  `typescript` report instead of reporting 0%.
+
 ## Required GitHub secrets for publishing and notifications
 
 - `BALLERINA_BOT_USERNAME` / `BALLERINA_BOT_TOKEN` — `release-pre-release.yml`, when
@@ -430,10 +447,11 @@ run establishes the real baseline, since the `range` there is currently a placeh
 - `COPILOT_ROOT_URL` / `COPILOT_DEV_ROOT_URL` / `APPINSIGHTS_INSTRUMENTATION_KEY` —
   `schedule.yml`, `devBuild.yml`, and `release-pre-release.yml`: optional build-time
   endpoint and telemetry configuration. Pull-request builds receive none of these secrets.
-- `CODECOV_TOKEN` — every workflow that runs LS tests: authenticates the language server
-  coverage upload. Unset, the upload falls back to Codecov's tokenless flow for public
+- `CODECOV_TOKEN` — every workflow that runs LS tests or the fast tests: authenticates the
+  language server and TypeScript coverage uploads. Unset, the upload falls back to Codecov's tokenless flow for public
   repositories; either way it never fails a build. See
-  [Language server test coverage](#language-server-test-coverage).
+  [Language server test coverage](#language-server-test-coverage) and
+  [TypeScript test coverage](#typescript-test-coverage).
 
 Configure these in the new repo's settings before triggering anything.
 

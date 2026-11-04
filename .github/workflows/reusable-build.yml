@@ -68,7 +68,7 @@ on:
       APPINSIGHTS_INSTRUMENTATION_KEY:
         required: false
       CODECOV_TOKEN:
-        # Optional: language server coverage uploads fall back to Codecov's
+        # Optional: language server and TypeScript coverage uploads fall back to Codecov's
         # tokenless flow for public repositories when this is not set.
         required: false
 
@@ -288,6 +288,36 @@ jobs:
           path: packages/*/coverage/lcov.info
           if-no-files-found: warn
           retention-days: 5
+
+      # Jest writes lcov paths relative to each package (SF:src/...). Codecov cannot
+      # map those to the repo, because the same src/ path exists in several packages,
+      # so prefix each path with its package directory. Runs after the artifact upload,
+      # which keeps the package-relative files.
+      - name: Make lcov paths repo-relative
+        id: lcov
+        if: ${{ !cancelled() }}
+        run: |
+          shopt -s nullglob
+          files=()
+          for f in packages/*/coverage/lcov.info; do
+            pkg=$(dirname "$(dirname "$f")")
+            sed -i "s|^SF:|SF:${pkg}/|" "$f"
+            files+=("$f")
+          done
+          echo "files=$(IFS=,; echo "${files[*]}")" >> "$GITHUB_OUTPUT"
+
+      - name: Upload coverage to Codecov
+        if: ${{ !cancelled() && steps.lcov.outputs.files != '' }}
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ${{ steps.lcov.outputs.files }}
+          flags: typescript
+          name: typescript-fast-tests
+          disable_search: true
+          # Coverage is informational (see codecov.yml); a Codecov outage or a missing
+          # token must never fail the build.
+          fail_ci_if_error: false
 
   BalE2ETest:
     name: Run Ballerina e2e Test
