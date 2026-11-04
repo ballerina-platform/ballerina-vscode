@@ -42,7 +42,7 @@ export async function diagramClick(locator: Locator): Promise<void> {
 export async function clickText(frame: Frame, text: string): Promise<void> {
     const target = frame.getByText(text, { exact: true }).last();
     // Side panels slide in, and a forced click does not wait for its target to enter the viewport.
-    await expect(target).toBeInViewport({ timeout: 30000 });
+    await expect(target).toBeInViewport({ ratio: 1, timeout: 30000 });
     await target.click({ force: true });
 }
 
