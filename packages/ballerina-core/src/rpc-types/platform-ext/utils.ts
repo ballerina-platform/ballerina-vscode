@@ -17,7 +17,7 @@
  */
 
 import { DevantScopes } from "@wso2/wso2-platform-core";
-import { IntegrationKind, isIntegrationKind } from "../../utils/identifier-utils";
+import { IntegrationKind, isIntegrationKind, isMcpModule } from "../../utils/identifier-utils";
 
 const INTEGRATION_API_MODULES: ReadonlySet<string> = new Set(["http", "graphql", "tcp"]);
 const EVENT_INTEGRATION_MODULES: ReadonlySet<string> = new Set([
@@ -26,12 +26,11 @@ const EVENT_INTEGRATION_MODULES: ReadonlySet<string> = new Set([
 ]);
 const FILE_INTEGRATION_MODULES: ReadonlySet<string> = new Set(["ftp", "file"]);
 const AI_AGENT_MODULE = "ai";
-const MCP_MODULE = "mcp";
 
 export function findDevantScopeByModule(moduleName: string): DevantScopes | undefined {
     if (AI_AGENT_MODULE === moduleName) {
         return DevantScopes.AI_AGENT;
-    } else if (MCP_MODULE === moduleName) {
+    } else if (isMcpModule(moduleName)) {
         return DevantScopes.MCP;
     } else if (INTEGRATION_API_MODULES.has(moduleName)) {
         return DevantScopes.INTEGRATION_AS_API;

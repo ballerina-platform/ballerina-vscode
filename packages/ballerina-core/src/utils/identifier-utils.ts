@@ -52,10 +52,20 @@ const EVENT_INTEGRATION_MODULES: ReadonlySet<string> = new Set([
 /** Modules that map to the FILE_INTEGRATION scope. */
 const FILE_INTEGRATION_MODULES: ReadonlySet<string> = new Set(["ftp", "file", "smb", "azure.storage.files"]);
 
+/**
+ * MCP server modules of the `mcp` package: the `mcp.v2` submodule, which new servers are created with, and the root
+ * module `mcp`, whose services are deprecated but whose existing servers are still edited and run.
+ */
+export const MCP_MODULES: ReadonlySet<string> = new Set(["mcp", "mcp.v2"]);
+
+export function isMcpModule(moduleName: string | undefined): boolean {
+    return moduleName !== undefined && MCP_MODULES.has(moduleName);
+}
+
 export function findScopeByModule(moduleName: string): SCOPE {
     if (moduleName === "ai") {
         return SCOPE.AI_AGENT;
-    } else if (moduleName === "mcp") {
+    } else if (isMcpModule(moduleName)) {
         return SCOPE.MCP;
     } else if (INTEGRATION_API_MODULES.has(moduleName)) {
         return SCOPE.INTEGRATION_AS_API;

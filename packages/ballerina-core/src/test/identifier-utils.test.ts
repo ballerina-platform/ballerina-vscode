@@ -20,7 +20,7 @@ import { DevantScopes } from "@wso2/wso2-platform-core";
 import { DIRECTORY_MAP, ProjectStructure } from "../interfaces/bi";
 import { SCOPE } from "../interfaces/shared-types";
 import { findDevantScope } from "../rpc-types/platform-ext/utils";
-import { findScope, hasWorkflowArtifacts } from "../utils/identifier-utils";
+import { findScope, hasWorkflowArtifacts, isMcpModule } from "../utils/identifier-utils";
 
 describe("metadata-driven integration scope", () => {
     it.each([
@@ -38,6 +38,16 @@ describe("metadata-driven integration scope", () => {
         expect(findScope(undefined, "kafka")).toBe(SCOPE.EVENT_INTEGRATION);
         expect(findScope(undefined, "ftp")).toBe(SCOPE.FILE_INTEGRATION);
         expect(findScope(undefined, "tcp")).toBe(SCOPE.INTEGRATION_AS_API);
+    });
+
+    it.each(["mcp", "mcp.v2"])("maps the %s module to the MCP scope and deployment scope", (moduleName) => {
+        expect(isMcpModule(moduleName)).toBe(true);
+        expect(findScope(undefined, moduleName)).toBe(SCOPE.MCP);
+        expect(findDevantScope(undefined, moduleName)).toBe(DevantScopes.MCP);
+    });
+
+    it.each(["http", "v2", "mcp.v3", undefined])("does not treat %s as an MCP module", (moduleName) => {
+        expect(isMcpModule(moduleName)).toBe(false);
     });
 
     it.each([
