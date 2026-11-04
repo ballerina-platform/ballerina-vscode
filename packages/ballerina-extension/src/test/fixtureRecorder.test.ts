@@ -16,8 +16,8 @@
  * under the License.
  */
 
-// Reference L3 (host-side, node env) test: the fixture recorder that captures
-// LS/RPC traffic. See docs/TEST_BACKLOG.md L3-01. Runs with no VSCode spawn.
+// Host-side (node env) L1 test of the fixture recorder that captures
+// LS/RPC traffic. See docs/TEST_GUIDE.md ("Foundation"). Runs with no VSCode spawn.
 
 import * as fs from "fs";
 import * as os from "os";

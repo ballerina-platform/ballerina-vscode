@@ -41,7 +41,7 @@ import * as fs from "fs/promises";
 import { loadFixtures } from "@wso2/test-config/fixtures";
 
 // The full @wso2/ballerina-core barrel drags in ESM LS-connection code jest can't transform, so mock
-// the one constant bir-cache-recovery imports (matches how other test-support suites mock this package).
+// the one constant bir-cache-recovery imports (matches how other suites in src/test mock this package).
 jest.mock("@wso2/ballerina-core", () => ({
     PRODUCT_INTEGRATOR_ISSUES_URL: "https://github.com/wso2/product-integrator/issues",
 }));

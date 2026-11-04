@@ -23,7 +23,7 @@
 //   BAL_RECORD_FIXTURES=1 BAL_FIXTURES_DIR=/tmp/fixtures code --extensionDevelopmentPath ...
 //
 // Output layout: <BAL_FIXTURES_DIR>/<kind>/<method-slug>/<NNNN>.json
-// See docs/TEST_PLAN.md §5 for the capture/curation workflow.
+// See docs/TEST_GUIDE.md (L2 "Choice 2" and "Foundation") for the capture/curation workflow.
 
 import * as fs from "fs";
 import * as os from "os";

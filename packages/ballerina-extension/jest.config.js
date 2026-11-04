@@ -16,14 +16,14 @@
  * under the License.
  */
 
-// Host-side fast tests (L1 pure logic + L3 RPC/LS contract). Node environment,
-// no VSCode spawn — `vscode` is mocked. Scoped to src/test so it never
-// picks up the VSCode-spawning mocha suite under test/. See docs/TEST_PLAN.md (L3).
+// Host-side fast tests (L1 pure logic + RPC/LS contract). Node environment,
+// no VSCode spawn, `vscode` is mocked. Scoped to src/test so it never
+// picks up the VSCode-spawning mocha suite under test/. See docs/TEST_GUIDE.md.
 
 module.exports = {
     testEnvironment: 'node',
     roots: ['<rootDir>/src/test'],
-    // LS-integration (L4) tests run in their own job/config — they spawn a real LS.
+    // LS-integration (L3) tests run in their own job/config — they spawn a real LS.
     testPathIgnorePatterns: ['/node_modules/', '/ls-integration/'],
     transform: {
         '^.+\\.ts$': ['ts-jest', {
@@ -38,6 +38,8 @@ module.exports = {
     },
     transformIgnorePatterns: ['<rootDir>/node_modules/(?!(@wso2)/)'],
     collectCoverageFrom: [
-        'src/utils/fixtureRecorder.ts',
+        'src/**/*.ts',
+        '!src/**/*.d.ts',
+        '!src/test/**',
     ],
 };
