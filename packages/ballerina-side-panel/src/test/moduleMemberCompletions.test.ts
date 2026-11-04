@@ -21,8 +21,10 @@ import type { CompletionItem } from "@wso2/ui-toolkit";
 import { buildCompletionSource } from "../components/editors/MultiModeExpressionEditor/ChipExpressionEditor/CodeUtils";
 import {
     endsWithModulePrefix,
+    endsWithModulePrefixInMode,
     filterCompletionsByPrefix,
 } from "../components/editors/MultiModeExpressionEditor/ChipExpressionEditor/utils";
+import { InputMode } from "../components/editors/MultiModeExpressionEditor/ChipExpressionEditor/types";
 
 const item = (label: string, kind: string): CompletionItem =>
     ({ label, value: label, kind, description: "", sortText: "A" } as unknown as CompletionItem);
@@ -94,6 +96,7 @@ describe("filterCompletionsByPrefix", () => {
 describe("endsWithModulePrefix", () => {
     it.each([
         "kafka:",
+        "file:",
         "x + kafka:",
         "foo(kafka:",
         "foo(a, kafka:",
@@ -124,10 +127,31 @@ describe("endsWithModulePrefix", () => {
     });
 });
 
+describe("endsWithModulePrefixInMode", () => {
+    it.each([InputMode.EXP, InputMode.RECORD, InputMode.MAP, InputMode.ARRAY, undefined])(
+        "detects `kafka:` in code mode %p",
+        (mode) => {
+            expect(endsWithModulePrefixInMode("kafka:", mode)).toBe(true);
+        }
+    );
+
+    it.each([InputMode.TEXT, InputMode.TEMPLATE, InputMode.PROMPT, InputMode.TEXT_ARRAY, InputMode.SIMPLE_TEXT])(
+        "INVARIANT: `word:` is prose, not a module prefix, in %p mode",
+        (mode) => {
+            expect(endsWithModulePrefixInMode("Note:", mode)).toBe(false);
+        }
+    );
+});
+
 describe("buildCompletionSource while typing", () => {
     it("INVARIANT: right after `module:` every returned member is offered", async () => {
         expect(await labelsShownWhileTyping("kafka:", KAFKA_MODULE_MEMBERS))
             .toEqual(KAFKA_MODULE_MEMBERS.map((c) => c.label));
+    });
+
+    it("stays closed after `word:` when the caller says it is not a module prefix", async () => {
+        const source = buildCompletionSource(async () => KAFKA_MODULE_MEMBERS, undefined, () => false);
+        expect(await source(typingContext("Note:"))).toBeNull();
     });
 
     it("narrows module members by the typed prefix, across kinds", async () => {

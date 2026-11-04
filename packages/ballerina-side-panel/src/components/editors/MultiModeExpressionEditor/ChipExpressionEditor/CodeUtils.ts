@@ -901,7 +901,8 @@ export const buildOnChangeListner = (
 
 export const buildCompletionSource = (
     getCompletions: () => Promise<CompletionItem[]>,
-    onAccept?: (docValue: string, item: CompletionItem) => void
+    onAccept?: (docValue: string, item: CompletionItem) => void,
+    isModulePrefix: (textBeforeCursor: string) => boolean = endsWithModulePrefix
 ) => {
     return async (context: CompletionContext): Promise<CompletionResult | null> => {
         const textBeforeCursor = context.state.doc.toString().slice(0, context.pos);
@@ -909,7 +910,7 @@ export const buildCompletionSource = (
 
         const word = context.matchBefore(/\w*/);
         // Right after `.` or `module:` the list is the accessible members, so show it without a typed prefix.
-        const isMemberAccess = lastNonSpaceChar === '.' || endsWithModulePrefix(textBeforeCursor);
+        const isMemberAccess = lastNonSpaceChar === '.' || isModulePrefix(textBeforeCursor);
         if (!isMemberAccess && (
             !word || (word.from === word.to && !context.explicit)
         )) {

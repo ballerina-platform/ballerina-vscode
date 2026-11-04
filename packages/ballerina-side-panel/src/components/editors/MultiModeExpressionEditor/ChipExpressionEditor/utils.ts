@@ -264,6 +264,18 @@ export const endsWithModulePrefix = (textBeforeCursor: string): boolean => {
     return true;
 };
 
+// In these modes the editor holds prose, where `Note:` is just text, not a module prefix.
+const PROSE_INPUT_MODES = new Set<InputMode>([
+    InputMode.TEXT,
+    InputMode.TEMPLATE,
+    InputMode.PROMPT,
+    InputMode.TEXT_ARRAY,
+    InputMode.SIMPLE_TEXT,
+]);
+
+export const endsWithModulePrefixInMode = (textBeforeCursor: string, inputMode?: InputMode): boolean =>
+    !PROSE_INPUT_MODES.has(inputMode) && endsWithModulePrefix(textBeforeCursor);
+
 const splitTopLevelFields = (body: string): Record<string, string> => {
     const fields: Record<string, string> = {};
     let depth = 0;
