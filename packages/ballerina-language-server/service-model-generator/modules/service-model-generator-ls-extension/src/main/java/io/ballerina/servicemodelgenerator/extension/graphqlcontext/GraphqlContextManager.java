@@ -218,9 +218,16 @@ public final class GraphqlContextManager {
             functionEdits.add(Utils.appendAtEndOfModule(root, function));
         }
 
+        List<TextEdit> configEdits = target.annotation().setField(FIELD, name);
+        if (!imports.isEmpty() && functionsFile.normalize().equals(serviceFile.toAbsolutePath().normalize())) {
+            // The service is in functions.bal itself: an import a new annotation needs is already being added.
+            Set<String> pending = Set.of(imports.toString().split(NEW_LINE));
+            configEdits = configEdits.stream().filter(edit -> !pending.contains(edit.getNewText().strip())).toList();
+        }
+
         Map<String, List<TextEdit>> edits = new LinkedHashMap<>();
         addEdits(edits, functionsFile.toString(), functionEdits);
-        addEdits(edits, serviceFile.toString(), target.annotation().setField(FIELD, name));
+        addEdits(edits, serviceFile.toString(), configEdits);
         return edits;
     }
 
