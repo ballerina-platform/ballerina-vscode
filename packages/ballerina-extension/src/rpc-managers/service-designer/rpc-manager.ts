@@ -85,6 +85,9 @@ import { writeBallerinaFileDidOpen } from "../../utils/modification";
 import { updateSourceCode } from "../../utils/source-utils";
 import { generateExamplePayload } from "../../features/ai/payload-generator/payload_json";
 
+/** The JSON-RPC error code of a request the language server does not implement. */
+const JSON_RPC_METHOD_NOT_FOUND = -32601;
+
 /**
  * The ERROR-severity subset of a save-time validation response. Only these mean the language server
  * refused to generate source; WARNINGs accompany a successful generation and must not block it.
@@ -631,8 +634,11 @@ export class ServiceDesignerRpcManager implements ServiceDesignerAPI {
         try {
             return await StateMachine.langClient().getGraphqlContext(params);
         } catch (error) {
+            // A language server without this request has no request context support; any other failure is a read
+            // that failed, which must not look like a service without a context.
+            const methodNotFound = (error as { code?: number })?.code === JSON_RPC_METHOD_NOT_FOUND;
             return {
-                supported: false,
+                supported: !methodNotFound,
                 configured: false,
                 signatureValid: false,
                 candidates: [],

@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { GraphqlContextRequest, GraphqlContextResponse, NodePosition } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 
@@ -35,12 +35,29 @@ export function contextRequest(filePath: string, position: NodePosition): Graphq
     };
 }
 
-/** The service's request context. A failure reads as "no context", so the diagram never breaks over it. */
+/**
+ * A failed read reported over the last context read successfully, so a configured context keeps its indicator, menu
+ * item and unsaved panel edits instead of looking like no context. With nothing read before, the failure stands:
+ * the service is still reported as supporting a context, so the panel opens and shows why it could not be read.
+ */
+export function withLastKnownContext(response: GraphqlContextResponse,
+                                     previous?: GraphqlContextResponse): GraphqlContextResponse {
+    if (!response?.errorMsg || !previous) {
+        return response;
+    }
+    return { ...previous, errorMsg: response.errorMsg };
+}
+
+/** The service's request context. A failed read carries its `errorMsg`, which the panel shows. */
 export function useGraphqlContext(filePath: string, position: NodePosition) {
     const { rpcClient } = useRpcContext();
+    const queryClient = useQueryClient();
+    const queryKey = [GRAPHQL_CONTEXT_QUERY_KEY, filePath, position];
     return useQuery<GraphqlContextResponse>({
-        queryKey: [GRAPHQL_CONTEXT_QUERY_KEY, filePath, position],
-        queryFn: () => rpcClient.getServiceDesignerRpcClient().getGraphqlContext(contextRequest(filePath, position)),
+        queryKey,
+        queryFn: async () => withLastKnownContext(
+            await rpcClient.getServiceDesignerRpcClient().getGraphqlContext(contextRequest(filePath, position)),
+            queryClient.getQueryData<GraphqlContextResponse>(queryKey)),
         enabled: !!filePath && !!position && !!rpcClient,
         // Keep the indicator and the panel steady while a moved service's context reloads.
         placeholderData: keepPreviousData,

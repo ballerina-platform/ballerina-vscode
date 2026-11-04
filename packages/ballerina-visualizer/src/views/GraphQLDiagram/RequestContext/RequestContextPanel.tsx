@@ -429,8 +429,15 @@ export function RequestContextPanel(props: RequestContextPanelProps) {
     return (
         <PanelContainer title="Request Context" show={true} onClose={onClose}>
             <SidePanelBody data-testid="request-context-panel">
+                {context?.errorMsg && (
+                    <ErrorText role="alert" data-testid="context-read-error">
+                        The request context could not be read: {context.errorMsg}
+                    </ErrorText>
+                )}
                 {loading && !context ? (
                     <ProgressRing />
+                ) : context?.errorMsg && !context.configured ? (
+                    allConfigs
                 ) : context?.configured ? (
                     renderConfigured()
                 ) : (

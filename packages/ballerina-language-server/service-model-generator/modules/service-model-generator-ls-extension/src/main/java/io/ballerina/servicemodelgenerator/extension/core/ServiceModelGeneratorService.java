@@ -915,7 +915,8 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
      * functions that could be picked instead.
      *
      * @param request the service's file and codedata
-     * @return {@link GraphqlContextResponse} with {@code supported} false for a service that is not a GraphQL service
+     * @return {@link GraphqlContextResponse} with {@code supported} false for a service that is not a GraphQL service,
+     *         and an {@code errorMsg} when the context could not be read
      */
     @JsonRequest
     public CompletableFuture<GraphqlContextResponse> getGraphqlContext(CommonModelFromSourceRequest request) {

@@ -39,7 +39,8 @@ import java.util.List;
  * @param notEditableReason why the values cannot be edited; null when they can
  * @param valueScope       where in the function's file a value expression is in scope, for an expression editor's
  *                         completions and diagnostics; null when the values cannot be edited
- * @param errorMsg         an unexpected failure; null on success
+ * @param errorMsg         an unexpected failure; null on success. A failed read keeps {@code supported} true, so it
+ *                         is never mistaken for a service with no request context
  */
 public record GraphqlContextResponse(boolean supported, boolean configured, String functionName, String expression,
                                      String functionFilePath, LineRange functionRange, boolean signatureValid,
@@ -58,7 +59,7 @@ public record GraphqlContextResponse(boolean supported, boolean configured, Stri
     }
 
     public static GraphqlContextResponse error(Throwable e) {
-        return new GraphqlContextResponse(false, false, null, null, null, null, false, List.of(), List.of(), false,
+        return new GraphqlContextResponse(true, false, null, null, null, null, false, List.of(), List.of(), false,
                 null, null, e.getMessage() != null ? e.getMessage() : e.toString());
     }
 }
