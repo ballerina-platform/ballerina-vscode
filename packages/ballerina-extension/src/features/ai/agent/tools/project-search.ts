@@ -52,6 +52,14 @@ export interface SearchResult {
     message: string;
 }
 
+/** What the chat row is worded from; the model only gets `message`. */
+export interface SearchFacts {
+    count?: number;
+    unit?: "files" | "lines";
+    capped?: boolean;
+    aborted?: boolean;
+}
+
 class OutputBuffer {
     readonly lines: string[] = [];
     private chars = 0;
@@ -84,14 +92,14 @@ function emptyPatternResult(): SearchResult {
     return { success: false, message: "The pattern is empty. Give a pattern to search for." };
 }
 
-export async function globProject(root: string, input: { pattern: string; path?: string }): Promise<SearchResult> {
+export async function globProject(root: string, input: { pattern: string; path?: string }): Promise<SearchResult & SearchFacts> {
     if (!input.pattern?.trim()) {
         return emptyPatternResult();
     }
     try {
         const files = await listProjectFiles(root, { pattern: input.pattern, path: input.path });
         if (files.length === 0) {
-            return { success: true, message: `No files match ${input.pattern}${scopeSuffix(input.path)}.` };
+            return { success: true, message: `No files match ${input.pattern}${scopeSuffix(input.path)}.`, count: 0 };
         }
         const out = new OutputBuffer();
         for (const file of files) {
@@ -103,7 +111,7 @@ export async function globProject(root: string, input: { pattern: string; path?:
             console.log(`[GlobTool] Output capped: ${files.length} files matched.`);
             out.lines.push(`[Output capped at ${out.lines.length} of ${files.length} files. Narrow the pattern or path.]`);
         }
-        return { success: true, message: out.lines.join("\n") };
+        return { success: true, message: out.lines.join("\n"), count: files.length };
     } catch (error) {
         return errorResult(error);
     }
@@ -126,11 +134,14 @@ function printable(line: string): string {
     return line.length > MAX_PRINTED_LINE_CHARS ? `${line.slice(0, MAX_PRINTED_LINE_CHARS)}…` : line;
 }
 
-export async function grepProject(root: string, input: GrepInput, abortSignal?: AbortSignal): Promise<SearchResult> {
-    if (!input.pattern?.trim()) {
+export async function grepProject(root: string, input: GrepInput, abortSignal?: AbortSignal): Promise<SearchResult & SearchFacts> {
+    // Models used to ripgrep start a pattern with (?i), which JavaScript rejects.
+    const inlineIgnoreCase = input.pattern?.startsWith("(?i)") ?? false;
+    const source = inlineIgnoreCase ? input.pattern.slice(4) : input.pattern;
+    if (!source?.trim()) {
         return emptyPatternResult();
     }
-    if (!isSafeGrepPattern(input.pattern)) {
+    if (!isSafeGrepPattern(source)) {
         return {
             success: false,
             message: `Rejected pattern /${input.pattern}/: it is too long or can backtrack badly (a repetition nested in another repetition, a backreference, or a repeated group whose alternatives start with the same character). Simplify it, for example (a+)+ to a+, or (a|ab)+ to a[b]?.`,
@@ -138,7 +149,7 @@ export async function grepProject(root: string, input: GrepInput, abortSignal?: 
     }
     let regex: RegExp;
     try {
-        regex = new RegExp(input.pattern, input.case_insensitive ? "i" : "");
+        regex = new RegExp(source, input.case_insensitive || inlineIgnoreCase ? "i" : "");
     } catch (error) {
         return { success: false, message: `Invalid regular expression: ${error instanceof Error ? error.message : String(error)}` };
     }
@@ -159,10 +170,11 @@ export async function grepProject(root: string, input: GrepInput, abortSignal?: 
     const matchContext = vm.createContext({ regex, maxChars: MAX_LINE_LENGTH, lines: [] as string[], firstOnly: false });
     let matchingMs = 0;
     let timedOutAt = -1;
+    let matched = 0;
 
     for (const file of files) {
         if (abortSignal?.aborted) {
-            return { success: false, message: "Search stopped." };
+            return { success: false, message: "Search stopped.", aborted: true };
         }
         const fullPath = path.join(rootPath, file);
         let lines: string[];
@@ -197,8 +209,11 @@ export async function grepProject(root: string, input: GrepInput, abortSignal?: 
         }
 
         if (!contentMode) {
-            if (hits.length > 0 && !out.push(file)) {
-                break;
+            if (hits.length > 0) {
+                if (!out.push(file)) {
+                    break;
+                }
+                matched++;
             }
             continue;
         }
@@ -218,6 +233,9 @@ export async function grepProject(root: string, input: GrepInput, abortSignal?: 
                 const sep = hitSet.has(j) ? ":" : "-";
                 if (!out.push(`${file}${sep}${j + 1}${sep}${printable(lines[j])}`)) {
                     break;
+                }
+                if (sep === ":") {
+                    matched++;
                 }
             }
             lastPrinted = Math.max(lastPrinted, to);
@@ -242,10 +260,11 @@ export async function grepProject(root: string, input: GrepInput, abortSignal?: 
     if (unreadable.length > 0) {
         notes.push(`[Could not read ${unreadable.length} file(s): ${fileSample(unreadable)}.]`);
     }
+    const facts: SearchFacts = { count: matched, unit: contentMode ? "lines" : "files", capped: out.full || timedOutAt >= 0 || undefined };
     if (out.lines.length === 0) {
-        return { success: true, message: [`No matches for /${input.pattern}/${scopeSuffix(input.path)}.`, ...notes].join("\n") };
+        return { success: true, message: [`No matches for /${input.pattern}/${scopeSuffix(input.path)}.`, ...notes].join("\n"), ...facts };
     }
-    return { success: true, message: [...out.lines, ...notes].join("\n") };
+    return { success: true, message: [...out.lines, ...notes].join("\n"), ...facts };
 }
 
 export function createGlobTool(eventHandler: CopilotEventHandler, root: string) {
@@ -260,9 +279,9 @@ export function createGlobTool(eventHandler: CopilotEventHandler, root: string) 
         }),
         execute: async (input: { pattern: string; path?: string }) => {
             eventHandler({ type: "tool_call", toolName: GLOB_TOOL_NAME, toolInput: { pattern: input.pattern, path: input.path } });
-            const result = await globProject(root, input);
-            eventHandler({ type: "tool_result", toolName: GLOB_TOOL_NAME, toolOutput: { success: result.success, pattern: input.pattern } });
-            return result;
+            const { success, message, ...facts } = await globProject(root, input);
+            eventHandler({ type: "tool_result", toolName: GLOB_TOOL_NAME, toolOutput: { success, pattern: input.pattern, path: input.path, ...facts } });
+            return { success, message };
         },
     });
 }
@@ -286,9 +305,9 @@ export function createGrepTool(eventHandler: CopilotEventHandler, root: string) 
         }),
         execute: async (input: GrepInput, options?: { abortSignal?: AbortSignal }) => {
             eventHandler({ type: "tool_call", toolName: GREP_TOOL_NAME, toolInput: { pattern: input.pattern, path: input.path, glob: input.glob } });
-            const result = await grepProject(root, input, options?.abortSignal);
-            eventHandler({ type: "tool_result", toolName: GREP_TOOL_NAME, toolOutput: { success: result.success, pattern: input.pattern } });
-            return result;
+            const { success, message, ...facts } = await grepProject(root, input, options?.abortSignal);
+            eventHandler({ type: "tool_result", toolName: GREP_TOOL_NAME, toolOutput: { success, pattern: input.pattern, path: input.path, glob: input.glob, ...facts } });
+            return { success, message };
         },
     });
 }

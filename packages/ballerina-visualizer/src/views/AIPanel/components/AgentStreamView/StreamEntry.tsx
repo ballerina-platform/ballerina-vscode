@@ -37,6 +37,7 @@ import {
     ItemDetail,
     ItemLabel,
     ItemMarkdownWrapper,
+    ItemMeta,
     ItemRow,
     ItemsArea,
     ItemsInner,
@@ -54,6 +55,7 @@ import {
     getToolIcon,
     getToolResultDisplay,
     getToolResultIcon,
+    isRetriedSearchSlip,
     isToolResultInProgress,
 } from "./toolDisplay";
 
@@ -127,20 +129,21 @@ function renderItem(item: StreamItem, idx: number, streamActive: boolean, rpcCli
             if (COMMAND_OUTPUT_TOOLS.has(item.toolName ?? "")) {
                 return <CommandOutputCard key={idx} toolName={item.toolName} toolInput={item.toolInput} />;
             }
-            const { label, detail } = getToolCallDisplay(item.toolName, item.toolInput);
+            const { label, detail, title } = getToolCallDisplay(item.toolName, item.toolInput);
             return (
                 <ItemRow key={idx}>
                     <ToolIcon loading={streamActive}>
                         <span className={`codicon ${getToolIcon(item.toolName, "loading")}`} />
                     </ToolIcon>
-                    <ItemLabel loading={streamActive}>
-                        {label}{detail && <ItemDetail title={detail}>{detail}</ItemDetail>}
+                    <ItemLabel loading={streamActive} title={title ?? detail}>
+                        {label}{detail && <ItemDetail>{detail}</ItemDetail>}
                     </ItemLabel>
                 </ItemRow>
             );
         }
         case "tool_result": {
             if (item.toolName === "Clarify" && !item.toolOutput?.skipped) return null;
+            if (isRetriedSearchSlip(item)) return null;
             if (item.toolName === "hurlRunnerTool") {
                 return <TryItCard key={idx} output={item.toolOutput} rpcClient={rpcClient} />;
             }
@@ -148,7 +151,7 @@ function renderItem(item: StreamItem, idx: number, streamActive: boolean, rpcCli
                 return <CommandOutputCard key={idx} toolName={item.toolName} toolOutput={item.toolOutput} isResult={true} />;
             }
             const hint = item.toolOutput?.query ?? item.toolOutput?.url;
-            const { label, detail } = getToolResultDisplay(item.toolName, item.toolOutput, hint);
+            const { label, detail, meta, title } = getToolResultDisplay(item.toolName, item.toolOutput, hint);
             // A subagent heartbeat (`status: "running"`) is still work in progress: keep the row spinning.
             const inProgress = streamActive && isToolResultInProgress(item);
             return (
@@ -156,9 +159,10 @@ function renderItem(item: StreamItem, idx: number, streamActive: boolean, rpcCli
                     <ToolIcon loading={inProgress} failed={item.failed}>
                         <span className={`codicon ${inProgress ? getToolIcon(item.toolName, "loading") : getToolResultIcon(item.toolName, item.toolOutput)}`} />
                     </ToolIcon>
-                    <ItemLabel loading={inProgress} failed={item.failed}>
-                        {label}{detail && <ItemDetail title={detail}>{detail}</ItemDetail>}
+                    <ItemLabel loading={inProgress} failed={item.failed} title={title ?? detail}>
+                        {label}{detail && <ItemDetail>{detail}</ItemDetail>}
                     </ItemLabel>
+                    {meta && <ItemMeta>· {meta}</ItemMeta>}
                 </ItemRow>
             );
         }

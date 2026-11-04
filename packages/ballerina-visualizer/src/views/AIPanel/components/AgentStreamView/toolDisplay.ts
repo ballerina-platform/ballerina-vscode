@@ -123,6 +123,95 @@ export function getFileName(filePath: string | undefined): string {
 export interface ToolCallDisplay {
     label: string;
     detail?: string;
+    /** Shown after the label and never clipped, e.g. a result count. */
+    meta?: string;
+    title?: string;
+}
+
+export function countOf(n: number, noun: string, capped?: boolean): string {
+    return `${n}${capped ? "+" : ""} ${noun}${n === 1 && !capped ? "" : "s"}`;
+}
+
+const GLOB_CHARS = /[*?[\]{}!]/;
+
+/**
+ * A glob pattern in plain words: a file name, or a kind of file ("file", ".bal file"), plus the folder
+ * it is limited to. Undefined when it has no plain reading (e.g. "*.{bal,toml}"); the row then shows the pattern.
+ */
+export function globInWords(pattern: string, path?: string): { name?: string; noun?: string; scope?: string } | undefined {
+    const segments = pattern.replace(/^\.\//, "").split("/").filter(Boolean);
+    const last = segments.pop();
+    if (!last) return undefined;
+    const folders: string[] = [];
+    for (const segment of segments) {
+        if (GLOB_CHARS.test(segment)) break;
+        folders.push(segment);
+    }
+    const base = path?.replace(/^\.\/?/, "").replace(/\/+$/, "");
+    const scope = [base, ...folders].filter(Boolean).join("/") || undefined;
+    if (!GLOB_CHARS.test(last)) return { name: last, scope };
+    if (last === "*" || last === "**") return { noun: "file", scope };
+    const ext = /^\*(\.[\w-]+)$/.exec(last);
+    return ext ? { noun: `${ext[1]} file`, scope } : undefined;
+}
+
+function globCallDisplay(input: any): ToolCallDisplay {
+    const pattern: string | undefined = input?.pattern;
+    if (!pattern) return { label: "Finding files..." };
+    const words = globInWords(pattern, input?.path);
+    if (!words) return { label: "Finding files matching:", detail: pattern };
+    const where = words.scope ? ` in ${words.scope}` : "";
+    return words.name
+        ? { label: `Looking for ${words.name}${where}...`, title: pattern }
+        : { label: `Finding ${words.noun}s${where}...`, title: pattern };
+}
+
+function globResultDisplay(output: any): ToolCallDisplay {
+    if (output?.success === false) return { label: "File search failed" };
+    const pattern: string | undefined = output?.pattern;
+    if (!pattern) return { label: "Found files" };
+    const count: number | undefined = typeof output?.count === "number" ? output.count : undefined;
+    const words = globInWords(pattern, output?.path);
+    if (!words) {
+        if (count === 0) return { label: "No files match:", detail: pattern };
+        return { label: count === undefined ? "Found files matching:" : `Found ${countOf(count, "file")} matching:`, detail: pattern };
+    }
+    const where = words.scope ? ` in ${words.scope}` : "";
+    if (words.name) {
+        if (count === 0) return { label: `${words.name} not found${where}`, title: pattern };
+        if (count !== undefined && count > 1) return { label: `Found ${count} files named ${words.name}${where}`, title: pattern };
+        return { label: `Found ${words.name}${where}`, title: pattern };
+    }
+    if (count === 0) return { label: `No ${words.noun}s found${where}`, title: pattern };
+    return { label: `Found ${count === undefined ? `${words.noun}s` : countOf(count, words.noun!)}${where}`, title: pattern };
+}
+
+function grepCallDisplay(input: any): ToolCallDisplay {
+    const pattern: string | undefined = input?.pattern;
+    if (!pattern) return { label: "Searching the code..." };
+    const detail = `${pattern}${input?.path ? ` in ${input.path}` : ""}`;
+    return { label: "Searching for:", detail, title: input?.glob ? `${detail} (files: ${input.glob})` : undefined };
+}
+
+function grepResultDisplay(output: any): ToolCallDisplay {
+    if (output?.success === false) return { label: output?.aborted ? "Search stopped" : "Code search failed" };
+    const pattern: string | undefined = output?.pattern;
+    if (!pattern) return { label: "Searched the code" };
+    const detail = `${pattern}${output?.path ? ` in ${output.path}` : ""}`;
+    const count: number | undefined = typeof output?.count === "number" ? output.count : undefined;
+    const meta = count === undefined ? undefined
+        : count === 0 ? (output?.capped ? "stopped early" : "no matches")
+        : countOf(count, output?.unit === "lines" ? "line" : "file", output?.capped);
+    return { label: "Searched for:", detail, meta, title: output?.glob ? `${detail} (files: ${output.glob})` : undefined };
+}
+
+/**
+ * A glob or grep the agent got wrong (bad regex, empty pattern, bad path) and retries on its own:
+ * nothing the user can act on, so the row is left out. A thrown error (`failed`) and a stop still show.
+ */
+export function isRetriedSearchSlip(item: { toolName?: string; toolOutput?: any; failed?: boolean }): boolean {
+    return (item.toolName === "glob" || item.toolName === "grep")
+        && !item.failed && item.toolOutput?.success === false && !item.toolOutput?.aborted;
 }
 
 export function getToolCallDisplay(toolName: string | undefined, toolInput: any): ToolCallDisplay {
@@ -132,8 +221,8 @@ export function getToolCallDisplay(toolName: string | undefined, toolInput: any)
     }
     switch (toolName) {
         case "file_read":    return { label: "Reading",   detail: getFileName(toolInput?.fileName) + "..." };
-        case "glob":         return { label: toolInput?.pattern ? "Finding files:" : "Finding files...", detail: toolInput?.pattern };
-        case "grep":         return { label: toolInput?.pattern ? "Searching for:" : "Searching the code...", detail: toolInput?.pattern };
+        case "glob":         return globCallDisplay(toolInput);
+        case "grep":         return grepCallDisplay(toolInput);
         case "file_write":   return { label: "Creating",  detail: getFileName(toolInput?.fileName) + "..." };
         case "file_edit":
         case "file_batch_edit": return { label: "Updating", detail: getFileName(toolInput?.fileName) + "..." };
@@ -180,8 +269,8 @@ export function getToolResultDisplay(toolName: string | undefined, toolOutput: a
     }
     switch (toolName) {
         case "file_read":    return { label: "Read",    detail: getFileName(toolOutput?.fileName) };
-        case "glob":         return { label: toolOutput?.success === false ? "File search failed" : "Found files:", detail: toolOutput?.success === false ? undefined : toolOutput?.pattern };
-        case "grep":         return { label: toolOutput?.success === false ? "Code search failed" : "Searched for:", detail: toolOutput?.success === false ? undefined : toolOutput?.pattern };
+        case "glob":         return globResultDisplay(toolOutput);
+        case "grep":         return grepResultDisplay(toolOutput);
         case "file_write":   return { label: toolOutput?.action === "updated" ? "Updated" : "Created", detail: getFileName(toolOutput?.fileName) };
         case "file_edit":
         case "file_batch_edit": return { label: "Updated", detail: getFileName(toolOutput?.fileName) };

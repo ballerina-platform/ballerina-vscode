@@ -227,6 +227,14 @@ export const ItemDetail = styled.span`
     font-size: 12px;
 `;
 
+export const ItemMeta = styled.span`
+    flex-shrink: 0;
+    margin-left: -3px;
+    font-size: 12px;
+    color: var(--vscode-descriptionForeground);
+    white-space: nowrap;
+`;
+
 // ── Inline card (config / connector) ─────────────────────────────────────────
 
 export const InlineCard = styled.div<{ status?: "active" | "done" | "error" }>`

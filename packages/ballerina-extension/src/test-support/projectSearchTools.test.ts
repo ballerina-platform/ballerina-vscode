@@ -19,7 +19,7 @@
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { globProject, GREP_TIME_BUDGET_MS, grepProject, MAX_GREP_FILE_BYTES, MAX_RESULT_LINES } from "../features/ai/agent/tools/project-search";
+import { createGrepTool, globProject, GREP_TIME_BUDGET_MS, grepProject, MAX_GREP_FILE_BYTES, MAX_RESULT_LINES } from "../features/ai/agent/tools/project-search";
 
 let root: string;
 
@@ -45,7 +45,7 @@ afterEach(() => {
 describe("grep", () => {
     it("returns matching files by default", async () => {
         const result = await grepProject(root, { pattern: "orders?\\(" });
-        expect(result).toEqual({ success: true, message: "main.bal" });
+        expect(result).toEqual({ success: true, message: "main.bal", count: 1, unit: "files" });
     });
 
     it("returns matching lines with line numbers in content mode", async () => {
@@ -93,7 +93,7 @@ describe("grep", () => {
     });
 
     it("says no matches only when there are none", async () => {
-        expect(await grepProject(root, { pattern: "kafka" })).toEqual({ success: true, message: "No matches for /kafka/." });
+        expect(await grepProject(root, { pattern: "kafka" })).toEqual({ success: true, message: "No matches for /kafka/.", count: 0, unit: "files" });
         const invalid = await grepProject(root, { pattern: "(" });
         expect(invalid.success).toBe(false);
         expect(invalid.message).toMatch(/Invalid regular expression/);
@@ -133,10 +133,29 @@ describe("grep", () => {
         const lines = (await grepProject(root, { pattern: "int v", output_mode: "content" })).message.split("\n");
         expect(lines).toHaveLength(MAX_RESULT_LINES + 1);
         expect(lines[lines.length - 1]).toMatch(/^\[Output capped at 200 lines/);
+        expect(await grepProject(root, { pattern: "int v", output_mode: "content" })).toMatchObject({ count: MAX_RESULT_LINES, unit: "lines", capped: true });
     });
 
     it("rejects an empty pattern", async () => {
         expect(await grepProject(root, { pattern: "  " })).toEqual({ success: false, message: "The pattern is empty. Give a pattern to search for." });
+        expect((await grepProject(root, { pattern: "(?i)" })).success).toBe(false);
+    });
+
+    it("reads a leading (?i) as case-insensitive", async () => {
+        expect((await grepProject(root, { pattern: "(?i)ORDERS?\\(" })).message.split("\n")).toEqual(["main.bal", "modules/db/db.bal", "tests/main_test.bal"]);
+        expect((await grepProject(root, { pattern: "ORDERS?\\(" })).message).toMatch(/^No matches/);
+    });
+
+    it("counts matching lines in content mode, not context lines", async () => {
+        expect(await grepProject(root, { pattern: "return \\[\\]", output_mode: "content", context: 1 })).toMatchObject({ count: 2, unit: "lines" });
+        expect((await grepProject(root, { pattern: "return \\[\\]", output_mode: "content" })).capped).toBeUndefined();
+    });
+
+    it("gives the model only the message and the chat row the counts", async () => {
+        const events: any[] = [];
+        const grep = createGrepTool((event: any) => events.push(event), root) as any;
+        expect(await grep.execute({ pattern: "return", path: "modules" }, {})).toEqual({ success: true, message: "modules/db/db.bal" });
+        expect(events.at(-1).toolOutput).toEqual({ success: true, pattern: "return", path: "modules", glob: undefined, count: 1, unit: "files" });
     });
 
     it("reports a file it cannot read and keeps searching the rest", async () => {
@@ -156,7 +175,7 @@ describe("grep", () => {
     it("stops when aborted", async () => {
         const controller = new AbortController();
         controller.abort();
-        expect(await grepProject(root, { pattern: "return" }, controller.signal)).toEqual({ success: false, message: "Search stopped." });
+        expect(await grepProject(root, { pattern: "return" }, controller.signal)).toEqual({ success: false, message: "Search stopped.", aborted: true });
     });
 });
 
@@ -166,7 +185,7 @@ describe("glob", () => {
             "main.bal", "modules/db/db.bal", "tests/main_test.bal",
         ]);
         expect((await globProject(root, { pattern: "*.bal" })).message).toBe("main.bal");
-        expect((await globProject(root, { pattern: "*.toml" })).message).toBe("No files match *.toml.");
+        expect(await globProject(root, { pattern: "*.toml" })).toEqual({ success: true, message: "No files match *.toml.", count: 0 });
     });
 
     it("caps the output and says so", async () => {
@@ -176,6 +195,7 @@ describe("glob", () => {
         const lines = (await globProject(root, { pattern: "gen/*.bal" })).message.split("\n");
         expect(lines).toHaveLength(MAX_RESULT_LINES + 1);
         expect(lines[lines.length - 1]).toBe("[Output capped at 200 of 250 files. Narrow the pattern or path.]");
+        expect(await globProject(root, { pattern: "gen/*.bal" })).toMatchObject({ count: 250 });
     });
 
     it("rejects an empty pattern", async () => {
