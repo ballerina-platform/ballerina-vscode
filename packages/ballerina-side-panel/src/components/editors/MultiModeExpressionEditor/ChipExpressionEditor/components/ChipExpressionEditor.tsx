@@ -49,7 +49,7 @@ import {
     createTooltipPositioningHandlers,
     AVERAGE_HELPER_PANE_HEIGHT
 } from "../CodeUtils";
-import { coerceChipEditorValue, correctTokenStreamPositions, normalizeEditorValue } from "../utils";
+import { coerceChipEditorValue, correctTokenStreamPositions, endsWithModulePrefix, normalizeEditorValue } from "../utils";
 import { history } from "@codemirror/commands";
 import { autocompletion } from "@codemirror/autocomplete";
 import { FloatingButtonContainer, FloatingToggleButton, ChipEditorContainer } from "../styles";
@@ -219,7 +219,9 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
         props.onChange(configuration.deserializeValue(newValue), cursor.position.to);
         const textBeforeCursor = newValue.slice(0, cursor.position.to);
         const lastNonSpaceChar = textBeforeCursor.trimEnd().slice(-1);
-        const isTrigger = lastNonSpaceChar === '+' || lastNonSpaceChar === ':';
+        // `module:` is answered by the completion popup; the helper pane would cover it.
+        const isTrigger = lastNonSpaceChar === '+' ||
+            (lastNonSpaceChar === ':' && !endsWithModulePrefix(textBeforeCursor));
         const isRangeSelection = cursor.position.to !== cursor.position.from;
 
         if (newValue === '' || isTrigger || isRangeSelection) {
