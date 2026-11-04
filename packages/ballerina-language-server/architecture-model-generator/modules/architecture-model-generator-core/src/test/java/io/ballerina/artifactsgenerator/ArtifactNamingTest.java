@@ -55,6 +55,16 @@ public class ArtifactNamingTest {
         Assert.assertNull(Artifact.unquote(null));
     }
 
+    @Test(description = "Treat an identifier that only repeats the display label as no identifier")
+    public void testRepeatsLabel() {
+        Assert.assertTrue(Artifact.repeatsLabel("MCP Service", "MCP Service"));
+        Assert.assertTrue(Artifact.repeatsLabel(" mcp service ", "MCP Service"));
+        Assert.assertFalse(Artifact.repeatsLabel("Greeter Tools", "MCP Service"));
+        Assert.assertFalse(Artifact.repeatsLabel("MCP Service v2", "MCP Service"));
+        Assert.assertFalse(Artifact.repeatsLabel(null, "MCP Service"));
+        Assert.assertFalse(Artifact.repeatsLabel("MCP Service", null));
+    }
+
     @Test(description = "Read an artifact name from a top-level or a dotted, nested service annotation field")
     public void testExtractServiceAnnotationField() {
         ServiceDeclarationNode mcp = service("""
