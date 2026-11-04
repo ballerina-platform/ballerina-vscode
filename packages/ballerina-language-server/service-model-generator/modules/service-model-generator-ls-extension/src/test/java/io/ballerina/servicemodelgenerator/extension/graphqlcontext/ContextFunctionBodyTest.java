@@ -149,6 +149,8 @@ public class ContextFunctionBodyTest {
                 {List.of(new ContextEntry("a", "query", "  ", false))},
                 {List.of(new ContextEntry("a", "expression", "request.", false))},
                 {List.of(new ContextEntry("a", "expression", "", false))},
+                {List.of(new ContextEntry("a", "expression", "foo // note", false))},
+                {List.of(new ContextEntry("a", "expression", "foo // note\n    + bar", false))},
                 {List.of(new ContextEntry("a", "cookie", "a", false))},
         };
     }

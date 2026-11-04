@@ -233,8 +233,14 @@ public final class ContextFunctionBody {
                     // Any text is a valid fixed value.
                 }
                 case SOURCE_EXPRESSION -> {
-                    if (value.isBlank() || NodeParser.parseExpression(value).hasDiagnostics()) {
+                    ExpressionNode expression = NodeParser.parseExpression(value);
+                    if (value.isBlank() || expression.hasDiagnostics()) {
                         throw new IllegalArgumentException("\"" + entry.key() + "\" needs a valid expression.");
+                    }
+                    // A trailing comment would swallow the rest of the written statement, and a comment anywhere
+                    // makes the body read back as not editable.
+                    if (hasComment(expression)) {
+                        throw new IllegalArgumentException("\"" + entry.key() + "\" cannot contain a comment.");
                     }
                 }
                 default -> throw new IllegalArgumentException("Unknown value source: " + source);
