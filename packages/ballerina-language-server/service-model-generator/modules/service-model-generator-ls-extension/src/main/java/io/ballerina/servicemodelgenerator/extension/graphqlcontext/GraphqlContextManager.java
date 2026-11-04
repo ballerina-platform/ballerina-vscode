@@ -157,7 +157,7 @@ public final class GraphqlContextManager {
     }
 
     /**
-     * The edits for the given action, keyed by file path.
+     * The edits for the given action, keyed by file path, with a note when the change did less than was asked.
      *
      * @param action         {@link #ACTION_CREATE} generates a new function and points the field at it,
      *                       {@link #ACTION_USE} points the field at the existing function named by
@@ -168,7 +168,7 @@ public final class GraphqlContextManager {
      * @throws IllegalArgumentException when the service is not a GraphQL service, or the action or function is not
      *                                  valid
      */
-    public static Map<String, List<TextEdit>> apply(String action, String functionName, boolean deleteFunction,
+    public static GraphqlContextEditResponse apply(String action, String functionName, boolean deleteFunction,
                                                     List<ContextFunctionBody.ContextEntry> entries,
                                                     Path serviceFile, ServiceDeclarationNode serviceNode,
                                                     SemanticModel semanticModel, Document document,
@@ -179,10 +179,12 @@ public final class GraphqlContextManager {
             throw new IllegalArgumentException("No action given");
         }
         return switch (action) {
-            case ACTION_CREATE -> create(target, serviceFile, serviceNode, semanticModel, workspaceManager);
-            case ACTION_USE -> use(target, serviceFile, functionName, semanticModel);
+            case ACTION_CREATE -> new GraphqlContextEditResponse(
+                    create(target, serviceFile, serviceNode, semanticModel, workspaceManager));
+            case ACTION_USE -> new GraphqlContextEditResponse(use(target, serviceFile, functionName, semanticModel));
             case ACTION_REMOVE -> remove(target, serviceFile, semanticModel, document, deleteFunction);
-            case ACTION_SET_ENTRIES -> setEntries(target, semanticModel, document, entries);
+            case ACTION_SET_ENTRIES -> new GraphqlContextEditResponse(
+                    setEntries(target, semanticModel, document, entries));
             default -> throw new IllegalArgumentException("Unknown action: " + action);
         };
     }
@@ -264,25 +266,29 @@ public final class GraphqlContextManager {
         return Map.of(serviceFile.toString(), target.annotation().setField(FIELD, functionName));
     }
 
-    private static Map<String, List<TextEdit>> remove(Target target, Path serviceFile,
-                                                      SemanticModel semanticModel, Document document,
-                                                      boolean deleteFunction) {
+    private static GraphqlContextEditResponse remove(Target target, Path serviceFile,
+                                                     SemanticModel semanticModel, Document document,
+                                                     boolean deleteFunction) {
         Map<String, List<TextEdit>> edits = new LinkedHashMap<>();
         addEdits(edits, serviceFile.toString(), target.annotation().removeField(FIELD));
         if (!deleteFunction) {
-            return edits;
+            return new GraphqlContextEditResponse(edits);
         }
         Optional<String> functionName = functionName(target);
         if (functionName.isEmpty()) {
-            return edits;
+            return new GraphqlContextEditResponse(edits);
         }
         Optional<FunctionSymbol> symbol = moduleFunction(semanticModel, functionName.get());
         Optional<FunctionLocation> location = findFunction(document.module(), functionName.get());
+        if (symbol.isEmpty() || location.isEmpty() || location.get().filePath() == null) {
+            return new GraphqlContextEditResponse(edits, "Kept " + functionName.get()
+                    + " because it could not be found in this integration.", null);
+        }
         // The definition and this service's reference are the only two a function used nowhere else has. The same
         // reference can be reported more than once, so distinct locations are counted.
-        if (symbol.isEmpty() || location.isEmpty() || location.get().filePath() == null
-                || distinctReferences(semanticModel, symbol.get()) > 2) {
-            return edits;
+        if (distinctReferences(semanticModel, symbol.get()) > 2) {
+            return new GraphqlContextEditResponse(edits, "Kept " + functionName.get()
+                    + " because it is used elsewhere.", null);
         }
         FunctionDefinitionNode function = location.get().node();
         List<int[]> spans = new ArrayList<>();
@@ -302,7 +308,7 @@ public final class GraphqlContextManager {
             }
         }
         addEdits(edits, location.get().filePath(), deleteLines(spans, function.syntaxTree().textDocument()));
-        return edits;
+        return new GraphqlContextEditResponse(edits);
     }
 
     private static long distinctReferences(SemanticModel semanticModel, FunctionSymbol symbol) {

@@ -133,4 +133,6 @@ export interface ApplyGraphqlContextRequest extends GraphqlContextRequest {
 /** The outcome of a request context edit. */
 export interface GraphqlContextEditResponse {
     errorMsg?: string;
+    /** Something the edit did differently from what was asked, such as a function kept because it is still used. */
+    note?: string;
 }

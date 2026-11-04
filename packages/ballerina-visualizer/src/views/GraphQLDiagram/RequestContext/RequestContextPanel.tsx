@@ -142,6 +142,8 @@ export function RequestContextPanel(props: RequestContextPanelProps) {
     const [deleteFunction, setDeleteFunction] = useState(true);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string>();
+    // What the last change did differently from what was asked, such as keeping a function still in use.
+    const [note, setNote] = useState<string>();
 
     // A save, or an edit made in source, refreshes the context; start again from what the function sets now.
     const savedSignature = JSON.stringify(context?.entries ?? []);
@@ -154,6 +156,7 @@ export function RequestContextPanel(props: RequestContextPanelProps) {
                          closeAfter = false) => {
         setBusy(true);
         setError(undefined);
+        setNote(undefined);
         try {
             const response = await rpcClient.getServiceDesignerRpcClient().applyGraphqlContext({
                 ...contextRequest(filePath, position),
@@ -164,6 +167,7 @@ export function RequestContextPanel(props: RequestContextPanelProps) {
                 return;
             }
             // The edit updates the project, and the diagram's content-updated listener refetches the context.
+            setNote(response?.note);
             setEditing(undefined);
             if (closeAfter) {
                 onClose();
@@ -434,6 +438,7 @@ export function RequestContextPanel(props: RequestContextPanelProps) {
                         The request context could not be read: {context.errorMsg}
                     </ErrorText>
                 )}
+                {note && <Notice role="status" data-testid="context-note">{note}</Notice>}
                 {loading && !context ? (
                     <ProgressRing />
                 ) : context?.errorMsg && !context.configured ? (

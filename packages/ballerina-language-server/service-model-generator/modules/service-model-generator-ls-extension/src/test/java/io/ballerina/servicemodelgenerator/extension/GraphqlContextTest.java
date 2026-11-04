@@ -145,6 +145,10 @@ public class GraphqlContextTest extends AbstractLSTest {
             return;
         }
         Assert.assertNull(errorMsg, testConfig.description());
+        // A change that does less than was asked says so; any other change carries no note.
+        String note = response.has("note") && !response.get("note").isJsonNull()
+                ? response.get("note").getAsString() : null;
+        Assert.assertEquals(note, testConfig.expectedNote(), testConfig.description());
 
         if (testConfig.expectedResponse() != null) {
             Assert.assertEquals(compact(response, project), testConfig.expectedResponse(),
@@ -370,9 +374,11 @@ public class GraphqlContextTest extends AbstractLSTest {
      * @param request          the request fields other than {@code filePath} and {@code codedata}
      * @param expected         for an edit, the directory under {@code expected/} holding the files it should produce
      * @param expectedResponse for a read, the compact response it should return
+     * @param expectedNote     for an edit, the note it should return; absent when it should return none
      * @param expectError      whether the request should be refused
      */
     private record TestConfig(String description, String project, String file, String api, JsonObject request,
-                              String expected, JsonObject expectedResponse, boolean expectError) {
+                              String expected, JsonObject expectedResponse, String expectedNote,
+                              boolean expectError) {
     }
 }

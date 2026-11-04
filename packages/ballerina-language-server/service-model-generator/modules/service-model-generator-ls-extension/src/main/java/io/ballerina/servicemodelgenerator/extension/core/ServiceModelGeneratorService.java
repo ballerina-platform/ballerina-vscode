@@ -54,6 +54,7 @@ import io.ballerina.servicemodelgenerator.extension.connector.ModelResolutionExc
 import io.ballerina.servicemodelgenerator.extension.connector.PlatformDependencyEditUtil;
 import io.ballerina.servicemodelgenerator.extension.connector.TriggerModelReader;
 import io.ballerina.servicemodelgenerator.extension.connector.TriggerPropertiesRegistry;
+import io.ballerina.servicemodelgenerator.extension.graphqlcontext.GraphqlContextEditResponse;
 import io.ballerina.servicemodelgenerator.extension.graphqlcontext.GraphqlContextManager;
 import io.ballerina.servicemodelgenerator.extension.graphqlcontext.GraphqlContextRequest;
 import io.ballerina.servicemodelgenerator.extension.graphqlcontext.GraphqlContextResponse;
@@ -938,24 +939,24 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
      * Get the edits that create, pick or remove a GraphQL service's request context function.
      *
      * @param request the service and the action
-     * @return {@link CommonSourceResponse} with the edits, which may span the service's file and functions.bal
+     * @return {@link GraphqlContextEditResponse} with the edits, which may span the service's file and functions.bal,
+     *         and a note when the change did less than was asked
      */
     @JsonRequest
-    public CompletableFuture<CommonSourceResponse> applyGraphqlContext(
+    public CompletableFuture<GraphqlContextEditResponse> applyGraphqlContext(
             GraphqlContextRequest request) {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 Optional<ResolvedService> resolved = resolveService(request.filePath(), request.codedata());
                 if (resolved.isEmpty()) {
-                    return new CommonSourceResponse();
+                    return new GraphqlContextEditResponse(Map.of());
                 }
-                Map<String, List<TextEdit>> edits = GraphqlContextManager.apply(request.action(),
+                return GraphqlContextManager.apply(request.action(),
                         request.functionName(), Boolean.TRUE.equals(request.deleteFunction()), request.entries(),
                         Path.of(request.filePath()), resolved.get().serviceNode(), resolved.get().semanticModel(),
                         resolved.get().document(), this.workspaceManager);
-                return new CommonSourceResponse(edits);
             } catch (Throwable e) {
-                return new CommonSourceResponse(e);
+                return GraphqlContextEditResponse.error(e);
             }
         });
     }

@@ -1,0 +1,12 @@
+{
+  "description": "A function another service still uses is kept, and the response says so",
+  "project": "graphql_context_shared",
+  "api": "applyGraphqlContext",
+  "request": {
+    "action": "remove",
+    "deleteFunction": true
+  },
+  "expected": "context_remove_shared_function",
+  "expectedNote": "Kept graphqlContextInit because it is used elsewhere.",
+  "file": "main.bal"
+}

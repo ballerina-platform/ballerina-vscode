@@ -669,7 +669,7 @@ export class ServiceDesignerRpcManager implements ServiceDesignerAPI {
             if (hasEdits) {
                 await updateSourceCode({ textEdits: res.textEdits, description: descriptions[params.action] });
             }
-            return {};
+            return res?.note ? { note: res.note } : {};
         } catch (error) {
             return { errorMsg: error instanceof Error ? error.message : String(error) };
         }
