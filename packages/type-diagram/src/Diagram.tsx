@@ -51,7 +51,6 @@ interface TypeDiagramProps {
     hasRequestContext?: boolean;
     /** Opens the request context editor; offered on the GraphQL root node when given. */
     onOpenRequestContext?: () => void;
-
 }
 
 export interface ModelResult {

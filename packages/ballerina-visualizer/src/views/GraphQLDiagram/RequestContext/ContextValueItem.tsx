@@ -122,10 +122,10 @@ export function ContextValueItem({ entry, readonly, onEdit, onDelete }: ContextV
                 </LabelArea>
                 {!readonly && (
                     <Actions>
-                        <EditIconWrapper>
+                        <EditIconWrapper title="Edit value">
                             <Codicon name="edit" onClick={onEdit} />
                         </EditIconWrapper>
-                        <DeleteIconWrapper>
+                        <DeleteIconWrapper title="Delete value">
                             <Codicon name="trash" onClick={onDelete} />
                         </DeleteIconWrapper>
                     </Actions>

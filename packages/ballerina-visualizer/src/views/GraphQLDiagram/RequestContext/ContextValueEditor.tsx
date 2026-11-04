@@ -31,7 +31,7 @@ import { SOURCE_OPTIONS, canBeRequired, validateEntries, withSource } from "./co
 const EXPRESSION_PROPERTY: PropertyModel = {
     metadata: {
         label: "Expression",
-        description: "A Ballerina expression. The request is available as request.",
+        description: "A Ballerina expression. Use request to read the incoming HTTP request.",
     },
     types: [{ fieldType: "EXPRESSION", selected: true }],
     optional: false,
