@@ -1,15 +1,15 @@
 {
   "1": {
-    "name": "mcp",
+    "name": "mcp.v2",
     "orgName": "ballerina",
     "packageName": "mcp",
     "keywords": [
       "mcp"
     ],
     "triggerName": "MCP Service",
-    "version": "1.3.0",
+    "version": "1.5.0",
     "kind": "mcp",
-    "minSupportedVersion": "1.3.0",
+    "minSupportedVersion": "1.5.0",
     "description": "A service that exposes tools to AI agents through the Model Context Protocol (MCP)."
   },
   "2": {

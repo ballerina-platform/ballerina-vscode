@@ -132,6 +132,8 @@ import static io.ballerina.servicemodelgenerator.extension.util.Constants.KIND_R
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.KIND_REQUIRED;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.KIND_RESOURCE;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.KIND_SUBSCRIPTION;
+import static io.ballerina.servicemodelgenerator.extension.util.Constants.MCP;
+import static io.ballerina.servicemodelgenerator.extension.util.Constants.MCP_V2;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.NEW_LINE;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.OPEN_PAREN;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.PROPERTY_DESIGN_APPROACH;
@@ -1704,6 +1706,11 @@ public final class Utils {
 
     public static String upperCaseFirstLetter(String value) {
         return value.substring(0, 1).toUpperCase(Locale.ROOT) + value.substring(1).toLowerCase(Locale.ROOT);
+    }
+
+    /** Whether {@code moduleName} is an MCP server module: the {@code mcp} package's root module or {@code mcp.v2}. */
+    public static boolean isMcpModule(String moduleName) {
+        return MCP.equals(moduleName) || MCP_V2.equals(moduleName);
     }
 
     /** Whether {@code orgName}/{@code packageName} ships with the Ballerina distribution and needs no Central pull. */
