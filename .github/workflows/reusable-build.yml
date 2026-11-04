@@ -303,7 +303,8 @@ jobs:
       fail-fast: false
       matrix:
         group: [group1, group2, group3, group4, group5]
-    runs-on: ${{ inputs.runOnAWS && inputs.awsRunnerId || 'ubuntu-latest' }}
+    # The Try It tests run hurl, whose Linux build needs libxml2.so.2; Ubuntu 26.04 only ships libxml2.so.16.
+    runs-on: ${{ inputs.runOnAWS && inputs.awsRunnerId || 'ubuntu-24.04' }}
     steps:
       - name: Restore build
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
