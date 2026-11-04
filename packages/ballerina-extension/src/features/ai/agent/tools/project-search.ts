@@ -158,6 +158,7 @@ export async function grepProject(root: string, input: GrepInput, abortSignal?: 
     const unreadable: string[] = [];
     const matchContext = vm.createContext({ regex, maxChars: MAX_LINE_LENGTH, lines: [] as string[], firstOnly: false });
     let matchingMs = 0;
+    let timedOutAt = -1;
 
     for (const file of files) {
         if (abortSignal?.aborted) {
@@ -184,14 +185,12 @@ export async function grepProject(root: string, input: GrepInput, abortSignal?: 
             matchContext.firstOnly = !contentMode;
             hits = MATCH_LINES.runInContext(matchContext, { timeout: Math.max(1, remainingMs) });
         } catch (error) {
-            if ((error as { code?: string }).code === "ERR_SCRIPT_EXECUTION_TIMEOUT") {
-                console.log(`[GrepTool] Stopped /${input.pattern}/ after ${GREP_TIME_BUDGET_MS} ms.`);
-                return {
-                    success: false,
-                    message: `Search stopped: /${input.pattern}/ took longer than ${GREP_TIME_BUDGET_MS / 1000} seconds. Simplify the pattern (avoid stacked repeats such as .*.* or \\w+\\w+) or narrow path or glob.`,
-                };
+            if ((error as { code?: string }).code !== "ERR_SCRIPT_EXECUTION_TIMEOUT") {
+                throw error;
             }
-            throw error;
+            console.log(`[GrepTool] Stopped /${input.pattern}/ after ${GREP_TIME_BUDGET_MS} ms.`);
+            timedOutAt = files.indexOf(file);
+            break;
         } finally {
             matchingMs += Date.now() - started;
             matchContext.lines = [];
@@ -229,6 +228,9 @@ export async function grepProject(root: string, input: GrepInput, abortSignal?: 
     }
 
     const notes: string[] = [];
+    if (timedOutAt >= 0) {
+        notes.push(`[Search stopped after ${timedOutAt} of ${files.length} files: it ran longer than ${GREP_TIME_BUDGET_MS / 1000} seconds, so results are partial. Simplify the pattern (avoid stacked repeats such as .*.* or \\w+\\w+) or narrow path or glob.]`);
+    }
     if (out.full) {
         console.log(`[GrepTool] Output capped for /${input.pattern}/${scopeSuffix(input.path)}.`);
         notes.push(`[Output capped at ${out.lines.length} lines. Narrow the pattern, path or glob.]`);

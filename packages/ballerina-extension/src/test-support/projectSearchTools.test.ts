@@ -111,13 +111,15 @@ describe("grep", () => {
         expect(result.message).toMatch(/^No matches/);
     });
 
-    it("stops a pattern that runs away on a long line instead of freezing", async () => {
+    it("stops a pattern that runs away on a long line and keeps what it found", async () => {
         write("resources/data.json", "a".repeat(2000));
         const started = Date.now();
-        const result = await grepProject(root, { pattern: "\\w+\\w+\\w+@", glob: "*.json" });
+        const result = await grepProject(root, { pattern: "\\w+\\w+\\w+@|isolated" });
         expect(Date.now() - started).toBeLessThan(GREP_TIME_BUDGET_MS + 2000);
-        expect(result.success).toBe(false);
-        expect(result.message).toMatch(/^Search stopped: .* took longer than 3 seconds/);
+        expect(result.message.split("\n")).toEqual([
+            "modules/db/db.bal",
+            "[Search stopped after 2 of 4 files: it ran longer than 3 seconds, so results are partial. Simplify the pattern (avoid stacked repeats such as .*.* or \\w+\\w+) or narrow path or glob.]",
+        ]);
     }, 15_000);
 
     it("skips files over 1 MB and says so", async () => {
