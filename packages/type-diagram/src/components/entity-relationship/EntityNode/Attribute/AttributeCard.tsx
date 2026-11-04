@@ -35,7 +35,7 @@ interface AttributeProps {
 
 export function AttributeWidget(props: AttributeProps) {
     const { node, engine, attribute, isSelected } = props;
-    const { setSelectedNodeId } = useContext(DiagramContext);
+    const { setSelectedNodeId, onOperationSelect, readonly } = useContext(DiagramContext);
 
     const [isHovered, setIsHovered] = useState<boolean>(false);
     const attributePorts = useRef<PortModel[]>([]);
@@ -60,6 +60,17 @@ export function AttributeWidget(props: AttributeProps) {
 
     const hasLinkedNode = !!attribute?.refs?.[0];
 
+    // GraphQL root node rows are operations; clicking one opens its flow diagram.
+    const isOperation = node.isGraphqlRoot && !!onOperationSelect && !readonly;
+
+    const onClickOnOperation = (event: React.MouseEvent) => {
+        // Ctrl/Cmd-click is go-to-source, handled by the wrapper around the row.
+        if (event.ctrlKey || event.metaKey) {
+            return;
+        }
+        onOperationSelect(attribute as TypeFunctionModel);
+    }
+
     return (
         <CtrlClickGo2Source node={node.entityObject}>
             <AttributeContainer
@@ -71,7 +82,13 @@ export function AttributeWidget(props: AttributeProps) {
                     port={node.getPort(`left-${node.getID()}/${attribute.name}`)}
                     engine={engine}
                 />
-                <AttributeName>{attribute.name}</AttributeName>
+                <AttributeName
+                    onClick={isOperation ? onClickOnOperation : undefined}
+                    style={isOperation ? { cursor: 'pointer' } : undefined}
+                    data-testid={isOperation ? `graphql-operation-${attribute.name}` : undefined}
+                >
+                    {attribute.name}
+                </AttributeName>
                 {node.entityObject?.codedata?.node !== 'UNION' &&
                     node.entityObject?.codedata?.node !== 'ENUM' &&
                     node.entityObject?.codedata?.node !== 'ARRAY' &&
