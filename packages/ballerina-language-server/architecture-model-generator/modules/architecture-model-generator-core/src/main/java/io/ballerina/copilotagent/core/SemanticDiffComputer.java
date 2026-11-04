@@ -22,6 +22,7 @@ import io.ballerina.compiler.syntax.tree.BlockStatementNode;
 import io.ballerina.compiler.syntax.tree.ClassDefinitionNode;
 import io.ballerina.compiler.syntax.tree.DoStatementNode;
 import io.ballerina.compiler.syntax.tree.ExpressionFunctionBodyNode;
+import io.ballerina.compiler.syntax.tree.ExpressionNode;
 import io.ballerina.compiler.syntax.tree.ForEachStatementNode;
 import io.ballerina.compiler.syntax.tree.ForkStatementNode;
 import io.ballerina.compiler.syntax.tree.FunctionBodyBlockNode;
@@ -37,7 +38,9 @@ import io.ballerina.compiler.syntax.tree.Node;
 import io.ballerina.compiler.syntax.tree.NodeList;
 import io.ballerina.compiler.syntax.tree.NonTerminalNode;
 import io.ballerina.compiler.syntax.tree.OnFailClauseNode;
+import io.ballerina.compiler.syntax.tree.QualifiedNameReferenceNode;
 import io.ballerina.compiler.syntax.tree.ServiceDeclarationNode;
+import io.ballerina.compiler.syntax.tree.SimpleNameReferenceNode;
 import io.ballerina.compiler.syntax.tree.StatementNode;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.compiler.syntax.tree.Token;
@@ -57,12 +60,15 @@ import io.ballerina.designmodelgenerator.core.model.Listener;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.Module;
 import io.ballerina.projects.Project;
+import io.ballerina.tools.text.LinePosition;
 import io.ballerina.tools.text.LineRange;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -770,6 +776,28 @@ public class SemanticDiffComputer {
     private void computeServiceDiffs(Map<String, ServiceDeclarationNode> originalServiceMap,
                                      Map<String, ServiceDeclarationNode> modifiedServiceMap) {
 
+        // Identical declarations are numbered in order, so inserting one shifts the numbers; pair unchanged ones
+        // first, each with the nearest identical original, so a change to one copy isn't put on another
+        Map<String, List<ServiceDeclarationNode>> originalServicesBySource = new HashMap<>();
+        originalServiceMap.values().forEach(service -> originalServicesBySource
+                .computeIfAbsent(service.toSourceCode(), source -> new ArrayList<>()).add(service));
+        Set<ServiceDeclarationNode> unchangedOriginals = Collections.newSetFromMap(new IdentityHashMap<>());
+        modifiedServiceMap.values().removeIf(modifiedService -> {
+            List<ServiceDeclarationNode> candidates = originalServicesBySource.get(modifiedService.toSourceCode());
+            if (candidates == null || candidates.isEmpty()) {
+                return false;
+            }
+            int nearest = 0;
+            for (int i = 1; i < candidates.size(); i++) {
+                if (distance(candidates.get(i), modifiedService) < distance(candidates.get(nearest), modifiedService)) {
+                    nearest = i;
+                }
+            }
+            unchangedOriginals.add(candidates.remove(nearest));
+            return true;
+        });
+        originalServiceMap.values().removeIf(unchangedOriginals::contains);
+
         List<String> foundServices = new ArrayList<>();
         for (Map.Entry<String, ServiceDeclarationNode> entry : originalServiceMap.entrySet()) {
             String serviceName = entry.getKey();
@@ -820,13 +848,14 @@ public class SemanticDiffComputer {
             loadDesignDiagrams = true;
             originalServiceMap.forEach((serviceName, originalService) -> {
                 ServiceMemberMap originalServiceMemberMap = extractServiceMembers(originalService);
-                String servicePath = getServicePath(originalService);
-                String serviceType = originalServiceTypes.resolve(originalService).orElse(null);
+                // An added service can be declared at the same line
+                ServiceInfo service = new ServiceInfo(getServicePath(originalService),
+                        originalServiceTypes.resolve(originalService).orElse(null),
+                        getServiceId(originalService) + "#removed", getServiceListeners(originalService));
 
                 originalServiceMemberMap.getObjectMethods().forEach((key, originalMethod) -> {
                     LineRange lineRange = originalMethod.lineRange();
-                    Map<String, String> metadata =
-                            buildServiceMemberMetadata(originalMethod, servicePath, serviceType);
+                    Map<String, String> metadata = buildServiceMemberMetadata(originalMethod, service);
                     SemanticDiff diff = new SemanticDiff(ChangeType.DELETION, NodeKind.OBJECT_FUNCTION,
                             resolveUri(lineRange.fileName()), lineRange, metadata);
                     this.semanticDiffs.add(diff);
@@ -844,13 +873,13 @@ public class SemanticDiffComputer {
             ServiceMethodExtractor modifiedServiceMethodExtractor =
                     new ServiceMethodExtractor(modifiedServiceMemberMap);
             modifiedService.accept(modifiedServiceMethodExtractor);
-            String servicePath = getServicePath(modifiedService);
-            String serviceType = modifiedServiceTypes.resolve(modifiedService).orElse(null);
+            ServiceInfo service = new ServiceInfo(getServicePath(modifiedService),
+                    modifiedServiceTypes.resolve(modifiedService).orElse(null), getServiceId(modifiedService),
+                    getServiceListeners(modifiedService));
 
             modifiedServiceMemberMap.getObjectMethods().forEach((key, modifiedMethod) -> {
                 LineRange lineRange = modifiedMethod.lineRange();
-                Map<String, String> metadata =
-                        buildServiceMemberMetadata(modifiedMethod, servicePath, serviceType);
+                Map<String, String> metadata = buildServiceMemberMetadata(modifiedMethod, service);
                 SemanticDiff diff = new SemanticDiff(ChangeType.ADDITION, NodeKind.OBJECT_FUNCTION,
                         resolveUri(lineRange.fileName()), lineRange, metadata);
                 this.semanticDiffs.add(diff);
@@ -887,11 +916,16 @@ public class SemanticDiffComputer {
 
         ServiceMemberMap original = extractServiceMembers(originalService);
         ServiceMemberMap modified = extractServiceMembers(modifiedService);
-        String servicePath = getServicePath(modifiedService);
-        String originalServiceType = originalServiceTypes.resolve(originalService).orElse(null);
-        String modifiedServiceType = modifiedServiceTypes.resolve(modifiedService).orElse(null);
-        analyzeMethodChanges(original.getObjectMethods(), modified.getObjectMethods(), servicePath,
-                originalServiceType, modifiedServiceType);
+        String originalType = originalServiceTypes.resolve(originalService).orElse(null);
+        String modifiedType = modifiedServiceTypes.resolve(modifiedService).orElse(null);
+        ServiceInfo modifiedInfo = new ServiceInfo(getServicePath(modifiedService), modifiedType,
+                getServiceId(modifiedService), getServiceListeners(modifiedService));
+        // Path-less services of different types pair up too; keep the replaced one's members apart
+        ServiceInfo originalInfo = Objects.equals(originalType, modifiedType)
+                ? modifiedInfo
+                : new ServiceInfo(getServicePath(originalService), originalType,
+                        getServiceId(originalService) + "#removed", getServiceListeners(originalService));
+        analyzeMethodChanges(original.getObjectMethods(), modified.getObjectMethods(), originalInfo, modifiedInfo);
     }
 
     /**
@@ -899,21 +933,18 @@ public class SemanticDiffComputer {
      *
      * @param originalMethods Map of original method names to their definition nodes
      * @param modifiedMethods Map of modified method names to their definition nodes
-     * @param servicePath     the base path of the service containing these methods
-     * @param originalServiceType the original service's type, or null when unknown; used for deletions
-     * @param modifiedServiceType the modified service's type, or null when unknown
+     * @param originalService the service the methods belong to, as seen by deletions
+     * @param modifiedService the service the methods belong to, as seen by additions and modifications
      */
     private void analyzeMethodChanges(Map<String, FunctionDefinitionNode> originalMethods,
                                       Map<String, FunctionDefinitionNode> modifiedMethods,
-                                      String servicePath,
-                                      String originalServiceType,
-                                      String modifiedServiceType) {
+                                      ServiceInfo originalService,
+                                      ServiceInfo modifiedService) {
 
         originalMethods.forEach((key, originalMethod) -> {
             if (!modifiedMethods.containsKey(key)) {
                 LineRange lineRange = originalMethod.lineRange();
-                Map<String, String> metadata =
-                        buildServiceMemberMetadata(originalMethod, servicePath, originalServiceType);
+                Map<String, String> metadata = buildServiceMemberMetadata(originalMethod, originalService);
                 SemanticDiff diff = new SemanticDiff(ChangeType.DELETION, NodeKind.OBJECT_FUNCTION,
                         resolveUri(lineRange.fileName()), lineRange, metadata);
                 this.semanticDiffs.add(diff);
@@ -921,8 +952,7 @@ public class SemanticDiffComputer {
             }
         });
         modifiedMethods.forEach((key, modifiedMethod) -> {
-            Map<String, String> metadata =
-                    buildServiceMemberMetadata(modifiedMethod, servicePath, modifiedServiceType);
+            Map<String, String> metadata = buildServiceMemberMetadata(modifiedMethod, modifiedService);
             if (originalMethods.containsKey(key)) {
                 FunctionDefinitionNode originalMethod = originalMethods.get(key);
                 compareFunctionBodies(originalMethod, modifiedMethod, NodeKind.OBJECT_FUNCTION, metadata);
@@ -1163,32 +1193,84 @@ public class SemanticDiffComputer {
     }
 
     private static Map<String, String> buildServiceMemberMetadata(FunctionDefinitionNode functionNode,
-                                                                  String servicePath,
-                                                                  String serviceType) {
+                                                                  ServiceInfo service) {
 
         String functionKind = getFunctionKind(functionNode);
         Map<String, String> metadata = new LinkedHashMap<>();
         // Only resource functions have an accessor and a resource path; other members are identified by name.
         if (FUNCTION_KIND_RESOURCE.equals(functionKind)) {
             metadata.put("accessor", functionNode.functionName().text());
-            putServiceInfo(metadata, servicePath, serviceType);
+            putServiceInfo(metadata, service);
             metadata.put("resourcePath", functionNode.relativeResourcePath().stream()
                     .map(node -> node.toSourceCode().trim())
                     .collect(Collectors.joining("")));
         } else {
             metadata.put("name", functionNode.functionName().text());
-            putServiceInfo(metadata, servicePath, serviceType);
+            putServiceInfo(metadata, service);
         }
         metadata.put(FUNCTION_KIND_KEY, functionKind);
         return metadata;
     }
 
-    private static void putServiceInfo(Map<String, String> metadata, String servicePath, String serviceType) {
+    private static void putServiceInfo(Map<String, String> metadata, ServiceInfo service) {
 
-        metadata.put("servicePath", servicePath);
-        if (serviceType != null) {
-            metadata.put("serviceType", serviceType);
+        metadata.put("servicePath", service.path());
+        if (service.type() != null) {
+            metadata.put("serviceType", service.type());
         }
+        metadata.put("serviceId", service.id());
+        if (service.listeners() != null) {
+            metadata.put("serviceListeners", service.listeners());
+        }
+    }
+
+    /**
+     * How many lines apart two declarations are, or {@link Integer#MAX_VALUE} when they are in different files.
+     */
+    private static int distance(ServiceDeclarationNode original, ServiceDeclarationNode modified) {
+
+        LineRange originalRange = original.lineRange();
+        LineRange modifiedRange = modified.lineRange();
+        if (!originalRange.fileName().equals(modifiedRange.fileName())) {
+            return Integer.MAX_VALUE;
+        }
+        return Math.abs(originalRange.startLine().line() - modifiedRange.startLine().line());
+    }
+
+    /**
+     * Where the service is declared; unlike type and path, unique per service.
+     */
+    private String getServiceId(ServiceDeclarationNode service) {
+
+        // The column keeps services on one line apart; a file offset would shift with CRLF line endings
+        LinePosition start = service.lineRange().startLine();
+        return resolveUri(service.lineRange().fileName()) + "#" + start.line() + ":" + start.offset();
+    }
+
+    /**
+     * @return the service's listener names, or null when any listener is an inline {@code new} expression
+     */
+    private static String getServiceListeners(ServiceDeclarationNode service) {
+
+        List<String> listeners = new ArrayList<>();
+        for (ExpressionNode expression : service.expressions()) {
+            if (!(expression instanceof SimpleNameReferenceNode || expression instanceof QualifiedNameReferenceNode)) {
+                return null;
+            }
+            listeners.add(expression.toSourceCode().trim());
+        }
+        return listeners.isEmpty() ? null : String.join(", ", listeners);
+    }
+
+    /**
+     * What a service member's diff says about its service.
+     *
+     * @param path      the service's base path, empty when it has none
+     * @param type      the listener's module, or null when syntax doesn't tell
+     * @param id        unique per service in the diff
+     * @param listeners the listener names, or null when any listener is an inline expression
+     */
+    private record ServiceInfo(String path, String type, String id, String listeners) {
     }
 
     /**

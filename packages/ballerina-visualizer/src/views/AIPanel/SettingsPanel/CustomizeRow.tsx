@@ -17,13 +17,11 @@
  */
 import React from "react";
 import styled from "@emotion/styled";
-import { Button, Codicon } from "@wso2/ui-toolkit";
 
 /**
  * A single "Customize Copilot" entry. Each extension point (MCP, Skills,
  * Agent instructions, …) declares only the affordances it needs:
  *  - `toggle`       → enable/disable switch
- *  - `onEditFile`   → code-edit icon that opens the backing file (e.g. AGENTS.md)
  *  - `onOpenPanel`  → makes the row navigable; renders the › chevron
  * Rows render the same way regardless of which affordances are present.
  */
@@ -33,14 +31,13 @@ export interface CustomizeEntry {
     label: string;
     subtitle?: string;
     disabled?: boolean;
+    tooltip?: string;
     toggle?: {
         on: boolean;
         pending?: boolean;
         onToggle: () => void;
         title?: string;
     };
-    onEditFile?: () => void;
-    editFileTitle?: string;
     onOpenPanel?: () => void;
 }
 
@@ -151,7 +148,7 @@ const stop = (e: React.MouseEvent) => e.stopPropagation();
 export const CustomizeRow: React.FC<{ entry: CustomizeEntry }> = ({ entry }) => {
     const clickable = !!entry.onOpenPanel && !entry.disabled;
     const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (clickable && (e.key === "Enter" || e.key === " ")) {
+        if (clickable && !e.repeat && (e.key === "Enter" || e.key === " ")) {
             e.preventDefault();
             entry.onOpenPanel?.();
         }
@@ -165,7 +162,7 @@ export const CustomizeRow: React.FC<{ entry: CustomizeEntry }> = ({ entry }) => 
             role={entry.onOpenPanel ? "button" : undefined}
             tabIndex={clickable ? 0 : undefined}
             aria-disabled={entry.disabled || undefined}
-            title={entry.disabled ? "Coming soon" : undefined}
+            title={entry.disabled ? "Coming soon" : entry.tooltip}
         >
             <IconWrap>{entry.icon}</IconWrap>
             <Info>
@@ -189,16 +186,6 @@ export const CustomizeRow: React.FC<{ entry: CustomizeEntry }> = ({ entry }) => 
                             onClick={entry.toggle.onToggle}
                         />
                     )
-                )}
-                {entry.onEditFile && (
-                    <Button
-                        appearance="icon"
-                        tooltip={entry.editFileTitle ?? "Edit file"}
-                        disabled={entry.disabled}
-                        onClick={entry.onEditFile}
-                    >
-                        <Codicon name="go-to-file" />
-                    </Button>
                 )}
             </Actions>
             {entry.onOpenPanel && (

@@ -17,7 +17,7 @@
  */
 
 import { LanguageClient, LanguageClientOptions, ServerOptions } from "vscode-languageclient/node";
-import { isRecording, recordLs } from "../test-support/fixtureRecorder";
+import { isRecording, recordLs } from "../utils/fixtureRecorder";
 import { CodeAction, CodeActionParams, DocumentSymbol, DocumentSymbolParams, ExecuteCommandParams, RenameParams, SymbolInformation, WorkspaceEdit } from "monaco-languageclient";
 import {
     Connectors,
@@ -614,7 +614,7 @@ export class ExtendedLangClient extends LanguageClient implements ExtendedLangCl
 
     // Records all LS request/response traffic to fixtures when BAL_RECORD_FIXTURES is set.
     // When not recording this is a single branch on a cached const per request (no env read).
-    // See src/test-support/fixtureRecorder.ts.
+    // See src/utils/fixtureRecorder.ts.
     public sendRequest<R = any>(...args: any[]): Promise<R> {
         const result = (super.sendRequest as any)(...args) as Promise<R>;
         if (RECORDING_ENABLED) {
