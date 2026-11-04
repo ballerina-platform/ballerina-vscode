@@ -50,6 +50,21 @@ export function handlerGroupId(fn: FunctionModel): string | undefined {
     return fn.group ?? fn.metadata?.label;
 }
 
+/**
+ * Whether the handler form shows the variant selector (e.g. CSV/JSON/XML of an FTP file handler). Add mode keeps
+ * the seeded model's own variant. Edit mode shows the handler's fixed variant only when its group really has
+ * variants: a repeatable handler without any (an MCP tool) stays addable in the catalog, which alone must not
+ * conjure a selector.
+ */
+export function showsVariantSelector(isNew: boolean, fn: FunctionModel | null | undefined,
+                                     addableVariants: FunctionModel[]): boolean {
+    if (isNew) {
+        return !!fn?.variantLabel;
+    }
+    return addableVariants.length > 0
+        && (!!fn?.variantLabel || addableVariants.some((variant) => !!variant.variantLabel));
+}
+
 /** True when the service's functions carry the schema-driven handler-catalog markers. */
 export function isSchemaTriggerFunction(fn: FunctionModel): boolean {
     return !!fn.group;

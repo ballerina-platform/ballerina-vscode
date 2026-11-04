@@ -79,6 +79,7 @@ import {
     isModifierActive,
     isPayloadParameter,
     payloadParametersOf,
+    showsVariantSelector,
     propertiesOfRole,
     withAddedParameters,
 } from "./payloadComposer";
@@ -500,7 +501,7 @@ export function TriggerHandlerForm(props: TriggerHandlerFormProps) {
 
     // ----- variant selection -----
 
-    const hasVariants = isNew ? !!functionModel?.variantLabel : addableVariants.length > 0;
+    const hasVariants = showsVariantSelector(isNew, functionModel, addableVariants);
     const selectedVariantLabel = functionModel?.variantLabel ?? functionModel?.name?.metadata?.label ?? "";
 
     const handleVariantChange = (label: string) => {
