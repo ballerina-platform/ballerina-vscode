@@ -20,10 +20,10 @@ import { NoObjectGeneratedError } from 'ai';
 
 /**
  * Runs a Claude Sonnet `generateObject` call once more when the model answered without the object.
- * On Vertex AI the provider has no native structured output, so the SDK offers a `json` tool
- * instead, and Claude Sonnet 5.5 rejects forced tool use: the SDK sends that tool with
+ * On Vertex AI and Bedrock the provider has no native structured output, so the SDK offers a `json`
+ * tool instead, and Claude Sonnet 5.5 rejects forced tool use: the SDK sends that tool with
  * `tool_choice: auto`, and the model can answer in text, which throws `NoObjectGeneratedError`.
- * The Claude API (`output_config.format`) and Bedrock (JSON instructions) do not take this path.
+ * The Claude API family uses `output_config.format` and does not take this path.
  */
 export async function retryOnNoObject<T>(label: string, call: () => Promise<T>): Promise<T> {
     try {

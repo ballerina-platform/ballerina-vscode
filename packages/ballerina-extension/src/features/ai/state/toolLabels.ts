@@ -91,6 +91,8 @@ export function describeToolCall(toolName: string, toolInput?: any): string {
             return 'Reading a web page';
         case 'invoke_skill':
             return 'Loading a skill';
+        case 'tool_search':
+            return 'Loading tools';
         default:
             if (toolName.startsWith('mcp__')) {
                 const parts = toolName.split('__');

@@ -33,7 +33,8 @@ export interface StreamContext {
     // Configuration (immutable during stream)
     projects: ProjectSource[];
     messageId: string;
-    userMessageContent: any;
+    /** The turn's leading messages (its user message, then its notice), as sent and saved. */
+    turnLead: ModelMessage[];
 
     // Response promise (for message history and abort/finish handling). Current streamText
     // call only — see `carriedMessages`.

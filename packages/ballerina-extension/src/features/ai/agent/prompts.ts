@@ -33,7 +33,8 @@ import { CONCURRENCY_CODING_RULES } from "./concurrency-rules";
 import { extractResourceDocumentContent, flattenProjectToFiles } from "../utils/ai-utils";
 import { BALLERINA_RUN_TOOL_NAME } from "./tools/ballerina-run";
 import { BALLERINA_STOP_TOOL_NAME } from "./tools/ballerina-stop";
-import { getBuiltInSkillsSection, getProjectSkillsSection, getUserSkillsSection, getDisabledSkillsSection, ProjectSkillMeta } from "./skills";
+import { getSkillsGuidanceSection } from "./skills";
+import { TOOL_SEARCH_TOOL_NAME } from "./tools/tool-search";
 import { WEB_SEARCH_TOOL_NAME, WEB_FETCH_TOOL_NAME } from "./tools/web-tools";
 import { copilotName } from '../../../utils/config';
 // TODO(auto-memory): temporarily disabled for this release — restore once the memory feature is refined.
@@ -66,9 +67,11 @@ import { copilotName } from '../../../utils/config';
 // }
 
 /**
- * Generates the system prompt for the design agent
+ * Generates the system prompt for the design agent. Fixed text only, the same for every user,
+ * project and turn, so it is cached across users and never rewritten inside a thread; what
+ * changes goes into a system message after the turn's user message (prefix-state.ts).
  */
-export function getSystemPrompt(projects: ProjectSource[], op: OperationType, userSkills: ProjectSkillMeta[], disabledSkills?: Set<string>, disabledSkillMetas?: Array<{ name: string; trigger: string }>): string {
+export function getSystemPrompt(): string {
     return `You are ${copilotName()}, an expert assistant specialized in Ballerina help with relavant integration usecases. You will be helping with designing a solution for user query in a step-by-step manner.
 
 Answer queries related to Ballerina and integrations. If a query is unrelated, politely decline.
@@ -299,19 +302,13 @@ When running tests:
 2. Use ${TEST_RUNNER_TOOL_NAME} to run the test suite. Note that you don't have to use ${BALLERINA_RUN_TOOL_NAME} prior to using ${TEST_RUNNER_TOOL_NAME} as the tool will automatically run the app and then run the tests.
 3. Only if there are failures or errors, briefly mention what failed and fix them, then re-run.
 
-${getUserSkillsSection(userSkills)}
-
-${getBuiltInSkillsSection(disabledSkills)}
-
-${getDisabledSkillsSection(disabledSkillMetas ?? [])}
+${getSkillsGuidanceSection()}
 
 # Web Tools
 You have access to ${WEB_SEARCH_TOOL_NAME} and ${WEB_FETCH_TOOL_NAME} tools. Always check skill trigger conditions first — if an active skill references web search, follow the skill's instructions. Otherwise prefer domain-specific tools, and use web tools only when no suitable domain-specific tool can answer the query, or when the user provides a URL or asks for live/external information.
 
-# MCP Tools
-You may have access to tools provided by connected MCP (Model Context Protocol) servers, namespaced \`mcp__<server>__<tool>\`. Always check skill trigger conditions first — if an active skill references such a tool, follow the skill's instructions. Otherwise prefer the built-in Ballerina and integration tools for core code work, and reach for an MCP tool only when it offers a capability the built-in tools don't.
-
-${getNPSuffix(projects, op)}
+# Deferred Tools
+Some tools are deferred: a system message lists them by name only, and a later one names any added or removed since. Call ${TOOL_SEARCH_TOOL_NAME} to load a deferred tool before calling it; once loaded it works like any other tool. Tools from connected MCP (Model Context Protocol) servers are always deferred and namespaced \`mcp__<server>__<tool>\`. Always check skill trigger conditions first — if an active skill references such a tool, follow the skill's instructions. Otherwise prefer the built-in Ballerina and integration tools for core code work, and reach for an MCP tool only when it offers a capability the built-in tools don't.
 `;
 }
 
@@ -333,7 +330,6 @@ export function getUserPrompt(
     params: GenerateAgentCodeRequest,
     tempProjectPath: string,
     projects: ProjectSource[],
-    projectSkills: ProjectSkillMeta[],
     webSearchEnabled: boolean,
     agentsMdBlockText?: string,
     codebase?: { omitCodebaseDump?: boolean; codebaseMapText?: string },
@@ -444,14 +440,6 @@ ${queryParts.join('\n\n')}
         });
     }
 
-    const projectSkillsSection = getProjectSkillsSection(projectSkills);
-    if (projectSkillsSection) {
-        content.push({
-            type: 'text' as const,
-            text: projectSkillsSection
-        });
-    }
-
     content.push({
         type: 'text' as const,
         text: getSystemContextBlock()
@@ -461,7 +449,7 @@ ${queryParts.join('\n\n')}
 }
 
 export function getWebToolsHint(): string {
-    return `<system-reminder>Web search is enabled: ${WEB_SEARCH_TOOL_NAME} and ${WEB_FETCH_TOOL_NAME} run without asking the user for approval. Use ${WEB_SEARCH_TOOL_NAME} for live or up-to-date information, and ${WEB_FETCH_TOOL_NAME} when the user provides a URL.</system-reminder>`;
+    return `<system-reminder>Web search is enabled: ${WEB_SEARCH_TOOL_NAME} and ${WEB_FETCH_TOOL_NAME} run without asking the user for approval. Use ${WEB_SEARCH_TOOL_NAME} for live or up-to-date information, and ${WEB_FETCH_TOOL_NAME} when the user provides a URL. Both are deferred: load them with ${TOOL_SEARCH_TOOL_NAME} first.</system-reminder>`;
 }
 
 function getGenerationType(isPlanMode: boolean): string {
@@ -471,7 +459,8 @@ function getGenerationType(isPlanMode: boolean): string {
     return `<system-reminder> Edit Mode is enabled. Avoid using Task management and make the edits directly. </system-reminder>`;
 }
 
-function getNPSuffix(projects: ProjectSource[], op?: OperationType): string {
+/** The Natural Programming note for this turn's operation, or '' when it has none. */
+export function getNPSuffix(projects: ProjectSource[], op?: OperationType): string {
     let basePrompt: string = "Note: You are in a special Natural Programming mode. Follow the NP guidelines strictly in addition to what you've given. \n";
     if (!op) {
         return "";

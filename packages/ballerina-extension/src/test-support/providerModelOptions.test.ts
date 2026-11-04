@@ -19,46 +19,31 @@
 import { resolveHaikuObjectModelOptions, resolveProviderModelOptions } from '../features/ai/utils/provider-model-options';
 
 describe('resolveProviderModelOptions', () => {
-    it('puts adaptive thinking and the effort in the anthropic namespace outside Bedrock', () => {
-        expect(resolveProviderModelOptions(false, 'medium', 'summarized')).toEqual({
+    it('puts adaptive thinking and the effort in the anthropic namespace', () => {
+        expect(resolveProviderModelOptions('medium', 'summarized')).toEqual({
             anthropic: { thinking: { type: 'adaptive', display: 'summarized' }, effort: 'medium' },
         });
     });
 
-    it('gives Bedrock the same settings through reasoningConfig, which its Converse provider reads', () => {
-        expect(resolveProviderModelOptions(true, 'low', 'summarized')).toEqual({
-            bedrock: { reasoningConfig: { type: 'adaptive', display: 'summarized', maxReasoningEffort: 'low' } },
-        });
-    });
-
     it('leaves display out when none is asked for, so the API default applies', () => {
-        expect(resolveProviderModelOptions(false, 'low')).toEqual({
+        expect(resolveProviderModelOptions('low')).toEqual({
             anthropic: { thinking: { type: 'adaptive' }, effort: 'low' },
         });
-        expect(resolveProviderModelOptions(true, 'high')).toEqual({
-            bedrock: { reasoningConfig: { type: 'adaptive', maxReasoningEffort: 'high' } },
-        });
     });
 
-    it.each([false, true])('never sends disabled thinking, which Sonnet 5.5 rejects (Bedrock: %s)', (isBedrock) => {
-        expect(JSON.stringify(resolveProviderModelOptions(isBedrock, 'low'))).not.toContain('disabled');
+    it('never sends disabled thinking, which Sonnet 5.5 rejects', () => {
+        expect(JSON.stringify(resolveProviderModelOptions('low'))).not.toContain('disabled');
     });
 });
 
 describe('resolveHaikuObjectModelOptions', () => {
-    it('disables thinking on Vertex AI, where the json tool goes out with forced tool choice', () => {
-        expect(resolveHaikuObjectModelOptions('vertex', 'low')).toEqual({
+    it.each(['vertex', 'bedrock'] as const)('disables thinking on %s, where the json tool goes out with forced tool choice', (provider) => {
+        expect(resolveHaikuObjectModelOptions(provider, 'low')).toEqual({
             anthropic: { thinking: { type: 'disabled' }, effort: 'low' },
         });
     });
 
-    it('disables thinking on Bedrock through the raw request fields, keeping the effort', () => {
-        expect(resolveHaikuObjectModelOptions('bedrock', 'low')).toEqual({
-            bedrock: { reasoningConfig: { maxReasoningEffort: 'low' }, additionalModelRequestFields: { thinking: { type: 'disabled' } } },
-        });
-    });
-
     it('keeps adaptive thinking where the SDK uses native structured output', () => {
-        expect(resolveHaikuObjectModelOptions('other', 'low')).toEqual(resolveProviderModelOptions(false, 'low'));
+        expect(resolveHaikuObjectModelOptions('other', 'low')).toEqual(resolveProviderModelOptions('low'));
     });
 });

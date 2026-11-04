@@ -80,6 +80,8 @@ export function populateHistoryForAgent(chatHistory: any[]): ModelMessage[] {
             messages.push({
                 role: entry.role,
                 content: entry.content,
+                // A mid-conversation system message's tool changes are part of what was sent.
+                ...(entry.role === 'system' && entry.providerOptions ? { providerOptions: entry.providerOptions } : {}),
             });
         }
     }

@@ -19,7 +19,11 @@
 /**
  * Thinking and effort options for Claude Sonnet and Claude Haiku calls, kept apart from ai-client.ts so
  * Jest can load them: ai-client pulls in vscode and auth, and the `@wso2/ballerina-core` barrel drags in
- * the ESM-only `vscode-ws-jsonrpc`, so callers pass whether the login method is Bedrock rather than the enum.
+ * the ESM-only `vscode-ws-jsonrpc`, so callers pass a plain provider name rather than the enum.
+ *
+ * Every login method, Bedrock included, reaches Claude through an `@ai-sdk/anthropic` Messages model, so
+ * every option goes under the `anthropic` key. Bedrock's model also reads its own `bedrock` key, but
+ * replayed reasoning reads its signature from `anthropic` only.
  */
 
 export type AnthropicEffort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
@@ -32,13 +36,11 @@ export type AnthropicEffort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 export type ThinkingDisplay = 'summarized' | 'omitted';
 
 export type ProviderModelOptions =
-    | { anthropic: { thinking: { type: 'adaptive'; display?: ThinkingDisplay }; effort: AnthropicEffort } }
-    | { bedrock: { reasoningConfig: { type: 'adaptive'; display?: ThinkingDisplay; maxReasoningEffort: AnthropicEffort } } };
+    { anthropic: { thinking: { type: 'adaptive'; display?: ThinkingDisplay }; effort: AnthropicEffort } };
 
 export type HaikuObjectModelOptions =
     | ProviderModelOptions
-    | { anthropic: { thinking: { type: 'disabled' }; effort: AnthropicEffort } }
-    | { bedrock: { reasoningConfig: { maxReasoningEffort: AnthropicEffort }; additionalModelRequestFields: { thinking: { type: 'disabled' } } } };
+    | { anthropic: { thinking: { type: 'disabled' }; effort: AnthropicEffort } };
 
 /** Which provider shape a login method's structured output takes; see `resolveHaikuObjectModelOptions`. */
 export type StructuredOutputProvider = 'bedrock' | 'vertex' | 'other';
@@ -47,19 +49,9 @@ export type StructuredOutputProvider = 'bedrock' | 'vertex' | 'other';
  * Claude Sonnet 5.5 rejects `thinking: {type: "disabled"}`, so every Sonnet call runs adaptive
  * thinking and `effort` is the one lever on how much it thinks; its levels differ from Sonnet 5's.
  * Thinking shares `maxOutputTokens` with the reply, so each call's cap must leave room for both.
- *
- * Bedrock's Converse API ignores the `anthropic` namespace; its provider reads `reasoningConfig` and
- * writes `thinking` and `output_config.effort` into the request itself.
  */
-export function resolveProviderModelOptions(
-    isBedrock: boolean,
-    effort: AnthropicEffort,
-    display?: ThinkingDisplay,
-): ProviderModelOptions {
+export function resolveProviderModelOptions(effort: AnthropicEffort, display?: ThinkingDisplay): ProviderModelOptions {
     const displayOption = display ? { display } : {};
-    if (isBedrock) {
-        return { bedrock: { reasoningConfig: { type: 'adaptive', ...displayOption, maxReasoningEffort: effort } } };
-    }
     return { anthropic: { thinking: { type: 'adaptive', ...displayOption }, effort } };
 }
 
@@ -68,16 +60,10 @@ export function resolveProviderModelOptions(
  * for Haiku 5.5, so the SDK falls back to a `json` tool with forced tool choice (`any`), which the API
  * rejects while thinking is on. Haiku 5.5 thinks by default, so those two get thinking disabled
  * explicitly; elsewhere the SDK uses `output_config.format` and the call keeps adaptive thinking.
- *
- * Bedrock's `reasoningConfig` writes no `thinking` field for a disabled type, so the disabled block goes
- * through `additionalModelRequestFields`, which the Converse provider passes on unchanged.
  */
 export function resolveHaikuObjectModelOptions(provider: StructuredOutputProvider, effort: AnthropicEffort): HaikuObjectModelOptions {
-    if (provider === 'bedrock') {
-        return { bedrock: { reasoningConfig: { maxReasoningEffort: effort }, additionalModelRequestFields: { thinking: { type: 'disabled' } } } };
-    }
-    if (provider === 'vertex') {
+    if (provider === 'bedrock' || provider === 'vertex') {
         return { anthropic: { thinking: { type: 'disabled' }, effort } };
     }
-    return resolveProviderModelOptions(false, effort);
+    return resolveProviderModelOptions(effort);
 }
