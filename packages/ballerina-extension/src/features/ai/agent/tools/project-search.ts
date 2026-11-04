@@ -18,6 +18,7 @@ import { tool } from "ai";
 import { z } from "zod";
 import * as fs from "fs";
 import * as path from "path";
+import * as vm from "vm";
 import { CopilotEventHandler } from "../../utils/events";
 import { isSafeGrepPattern } from "../../utils/libs/docs-fs-tools";
 import { MAX_LINE_LENGTH, RecoverableAgentError } from "./path-utils";
@@ -31,6 +32,20 @@ export const MAX_RESULT_CHARS = 20_000;
 export const MAX_GREP_FILE_BYTES = 1024 * 1024;
 const MAX_PRINTED_LINE_CHARS = 500;
 const MAX_CONTEXT_LINES = 5;
+export const GREP_TIME_BUDGET_MS = 3000;
+
+// Runs in a vm context so its timeout can stop a pattern that backtracks badly (e.g. \w+\w+\w+@) on a long line.
+const MATCH_LINES = new vm.Script(`(() => {
+    const hits = [];
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (regex.test(line.length > maxChars ? line.slice(0, maxChars) : line)) {
+            hits.push(i);
+            if (firstOnly) { break; }
+        }
+    }
+    return hits;
+})()`);
 
 export interface SearchResult {
     success: boolean;
@@ -103,10 +118,6 @@ export interface GrepInput {
     case_insensitive?: boolean;
 }
 
-function searchable(line: string): string {
-    return line.length > MAX_LINE_LENGTH ? line.slice(0, MAX_LINE_LENGTH) : line;
-}
-
 function fileSample(files: string[]): string {
     return `${files.slice(0, 5).join(", ")}${files.length > 5 ? ", …" : ""}`;
 }
@@ -145,6 +156,8 @@ export async function grepProject(root: string, input: GrepInput, abortSignal?: 
     const out = new OutputBuffer();
     const skipped: string[] = [];
     const unreadable: string[] = [];
+    const matchContext = vm.createContext({ regex, maxChars: MAX_LINE_LENGTH, lines: [] as string[], firstOnly: false });
+    let matchingMs = 0;
 
     for (const file of files) {
         if (abortSignal?.aborted) {
@@ -163,17 +176,39 @@ export async function grepProject(root: string, input: GrepInput, abortSignal?: 
             continue;
         }
 
+        const remainingMs = GREP_TIME_BUDGET_MS - matchingMs;
+        let hits: number[];
+        const started = Date.now();
+        try {
+            matchContext.lines = lines;
+            matchContext.firstOnly = !contentMode;
+            hits = MATCH_LINES.runInContext(matchContext, { timeout: Math.max(1, remainingMs) });
+        } catch (error) {
+            if ((error as { code?: string }).code === "ERR_SCRIPT_EXECUTION_TIMEOUT") {
+                console.log(`[GrepTool] Stopped /${input.pattern}/ after ${GREP_TIME_BUDGET_MS} ms.`);
+                return {
+                    success: false,
+                    message: `Search stopped: /${input.pattern}/ took longer than ${GREP_TIME_BUDGET_MS / 1000} seconds. Simplify the pattern (avoid stacked repeats such as .*.* or \\w+\\w+) or narrow path or glob.`,
+                };
+            }
+            throw error;
+        } finally {
+            matchingMs += Date.now() - started;
+            matchContext.lines = [];
+        }
+
         if (!contentMode) {
-            if (lines.some(line => regex.test(searchable(line))) && !out.push(file)) {
+            if (hits.length > 0 && !out.push(file)) {
                 break;
             }
             continue;
         }
 
+        const hitSet = new Set(hits);
         let lastPrinted = -1;
-        for (let i = 0; i < lines.length && !out.full; i++) {
-            if (!regex.test(searchable(lines[i]))) {
-                continue;
+        for (const i of hits) {
+            if (out.full) {
+                break;
             }
             const from = Math.max(0, i - context);
             const to = Math.min(lines.length - 1, i + context);
@@ -181,7 +216,7 @@ export async function grepProject(root: string, input: GrepInput, abortSignal?: 
                 out.push("--");
             }
             for (let j = Math.max(from, lastPrinted + 1); j <= to; j++) {
-                const sep = j === i || regex.test(searchable(lines[j])) ? ":" : "-";
+                const sep = hitSet.has(j) ? ":" : "-";
                 if (!out.push(`${file}${sep}${j + 1}${sep}${printable(lines[j])}`)) {
                     break;
                 }
@@ -237,7 +272,7 @@ export function createGrepTool(eventHandler: CopilotEventHandler, root: string) 
     - Narrow the search with path (a file or directory) and glob (a file filter such as "*.bal" or "tests/**"; a filter without "/" matches file names at any depth).
     - Case-sensitive unless case_insensitive is true.
     - Returns at most ${MAX_RESULT_LINES} lines. Only the first ${MAX_LINE_LENGTH} characters of each line are searched, and files over 1 MB are skipped.
-    - Patterns that can backtrack badly (nested repetition such as (a+)+, backreferences) are rejected.
+    - Patterns that can backtrack badly (nested repetition such as (a+)+, backreferences) are rejected, and a search that runs longer than ${GREP_TIME_BUDGET_MS / 1000} seconds is stopped.
     - Searches the same files glob can list.`,
         inputSchema: z.object({
             pattern: z.string().describe("Regular expression to search for"),

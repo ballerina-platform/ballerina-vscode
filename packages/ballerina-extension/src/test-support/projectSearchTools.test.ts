@@ -19,7 +19,7 @@
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { globProject, grepProject, MAX_GREP_FILE_BYTES, MAX_RESULT_LINES } from "../features/ai/agent/tools/project-search";
+import { globProject, GREP_TIME_BUDGET_MS, grepProject, MAX_GREP_FILE_BYTES, MAX_RESULT_LINES } from "../features/ai/agent/tools/project-search";
 
 let root: string;
 
@@ -110,6 +110,15 @@ describe("grep", () => {
         expect(Date.now() - started).toBeLessThan(1000);
         expect(result.message).toMatch(/^No matches/);
     });
+
+    it("stops a pattern that runs away on a long line instead of freezing", async () => {
+        write("resources/data.json", "a".repeat(2000));
+        const started = Date.now();
+        const result = await grepProject(root, { pattern: "\\w+\\w+\\w+@", glob: "*.json" });
+        expect(Date.now() - started).toBeLessThan(GREP_TIME_BUDGET_MS + 2000);
+        expect(result.success).toBe(false);
+        expect(result.message).toMatch(/^Search stopped: .* took longer than 3 seconds/);
+    }, 15_000);
 
     it("skips files over 1 MB and says so", async () => {
         write("resources/big.json", "x".repeat(MAX_GREP_FILE_BYTES + 1));
