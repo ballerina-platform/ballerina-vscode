@@ -73,7 +73,8 @@ The derivation depends on the *shape* of the extension version, not on the branc
 | PR / local | either | untouched | `5.14.0-SNAPSHOT` (never packaged) | no |
 | Nightly | `-SNAPSHOT` | `major.(minor-1).<minutes since 2020-01-01 UTC>` | `5.13.3458370` | yes |
 | Pre-release (`isPreRelease: true`) | `-SNAPSHOT` | `major.(minor-1).<minutes since 2020-01-01 UTC>` | `5.13.3458385` | yes |
-| Pre-release | concrete | as authored | `5.13.3458385` | yes |
+| Pre-release | concrete, not yet released | as authored | `5.14.0` | yes |
+| Pre-release | concrete, `vX.Y.Z` already released | next odd minor (or same odd minor) + stamp | `6.0.0` → `6.1.26101902` | yes |
 | Release | `-SNAPSHOT` | minus `-SNAPSHOT` | `5.14.0` | no |
 | Release | concrete | as authored | `5.14.1` | no |
 
@@ -103,8 +104,12 @@ minor of `0`, or on an odd snapshot minor. A positive even source minor is requi
 `minor - 1` is always the odd pre-release channel. `updateVersion` therefore only calls it
 when the extension manifest actually carries `-SNAPSHOT`; on a release line or staging
 branch the authored version is published as-is.
-**Consequence:** those branches must be bumped by hand between releases, or the second run
-reuses a version that both the Marketplace and the git tag reject.
+**Consequence:** those branches must be bumped by hand between releases. A pre-release from a
+branch whose version is already released is moved above it (`nightly-version.js --after-release`)
+rather than reusing the tag. A real release at an already-released version fails in
+`.github/actions/release`, which never replaces a published asset with different bytes and
+never reuses a release of the other kind (pre-release vs release); a re-run with the same
+artifact skips the assets already attached.
 
 After a release cut from `main`, `.github/actions/pr` opens a PR returning `main` to
 `major.(minor+2).0-SNAPSHOT` — `+2`, because `+1` would land on an odd minor, i.e. the
