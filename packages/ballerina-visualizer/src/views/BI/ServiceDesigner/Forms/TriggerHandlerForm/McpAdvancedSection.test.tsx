@@ -22,9 +22,9 @@
 import React from "react";
 import { createRoot, Root } from "react-dom/client";
 import { act } from "react-dom/test-utils";
-import type { ParameterModel } from "@wso2/ballerina-core";
+import type { ParameterModel, PropertyModel } from "@wso2/ballerina-core";
 
-import { McpAdvancedSection } from "./McpAdvancedSection";
+import { isMcpToolFieldShown, McpAdvancedSection, withMcpToolRules } from "./McpAdvancedSection";
 import type { HandlerUnit, ResolvedSection } from "./handlerLayout";
 
 declare global {
@@ -162,5 +162,40 @@ describe("McpAdvancedSection", () => {
         render({ sections: [withAnnotation], renderOtherUnits });
         expect(renderOtherUnits).toHaveBeenCalledWith({ ...withAnnotation, units: [annotation] });
         expect(container.textContent).toContain("shared");
+    });
+});
+
+// The @mcpv2:Tool section: structured output Off and an explicit output schema cannot be combined, so the form
+// hides Output Schema and stops emitting it whenever Off is chosen, and leaves it alone otherwise.
+describe("MCP tool annotation rules", () => {
+    const tool = (structuredOutput?: { enabled: boolean; value: string }, schemaEnabled = true): PropertyModel =>
+        ({
+            properties: {
+                ...(structuredOutput ? { structuredOutput } : {}),
+                outputSchema: { enabled: schemaEnabled, value: "{\"type\": \"object\"}" },
+                scopes: { enabled: false, value: "" },
+            },
+        } as unknown as PropertyModel);
+
+    const cases: [string, PropertyModel, boolean][] = [
+        ["Auto (unchecked)", tool({ enabled: false, value: "false" }), true],
+        ["no structured output field", tool(undefined), true],
+        ["Required", tool({ enabled: true, value: "true" }), true],
+        ["Off", tool({ enabled: true, value: "false" }), false],
+    ];
+
+    it.each(cases)("shows Output Schema only when structured output is not Off: %s", (_, annotation, shown) => {
+        expect(isMcpToolFieldShown("outputSchema", annotation)).toBe(shown);
+        expect(isMcpToolFieldShown("scopes", annotation)).toBe(true);
+        expect(isMcpToolFieldShown("structuredOutput", annotation)).toBe(true);
+    });
+
+    it.each(cases)("stops emitting Output Schema only when structured output is Off: %s", (_, annotation, shown) => {
+        const ruled = withMcpToolRules(annotation);
+        const outputSchema = ruled.properties?.outputSchema as PropertyModel;
+        expect(outputSchema.enabled).toBe(shown);
+        if (shown) {
+            expect(ruled).toBe(annotation);
+        }
     });
 });

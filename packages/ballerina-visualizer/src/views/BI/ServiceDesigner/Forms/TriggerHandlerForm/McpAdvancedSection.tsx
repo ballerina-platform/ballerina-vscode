@@ -19,7 +19,7 @@
 import React, { Fragment, type ReactNode } from "react";
 import styled from "@emotion/styled";
 import { CheckBox, Typography } from "@wso2/ui-toolkit";
-import type { ParameterModel } from "@wso2/ballerina-core";
+import type { ParameterModel, PropertyModel } from "@wso2/ballerina-core";
 
 import { type HandlerUnit, type ResolvedSection } from "./handlerLayout";
 
@@ -76,6 +76,32 @@ const RowLabel = styled.div`
 `;
 
 const MCP_KINDS: ReadonlySet<HandlerUnit["kind"]> = new Set(["ADVANCED_PARAM", "HEADERS"]);
+
+/** Whether the tool annotation sets `structuredOutput: false`, which mcp.v2 rejects alongside an `outputSchema`. */
+function isStructuredOutputOff(toolAnnotation: PropertyModel): boolean {
+    const structuredOutput = toolAnnotation.properties?.structuredOutput as PropertyModel | undefined;
+    return !!structuredOutput && structuredOutput.enabled !== false && String(structuredOutput.value) === "false";
+}
+
+/** Output Schema has no meaning once structured output is Off, so the tool form hides it. */
+export function isMcpToolFieldShown(fieldKey: string, toolAnnotation: PropertyModel): boolean {
+    return fieldKey !== "outputSchema" || !isStructuredOutputOff(toolAnnotation);
+}
+
+/**
+ * Clears Output Schema when structured output is turned Off: hiding the field alone would still emit it, and
+ * mcp.v2 fails the build on `structuredOutput: false` with an explicit `outputSchema`.
+ */
+export function withMcpToolRules(toolAnnotation: PropertyModel): PropertyModel {
+    const outputSchema = toolAnnotation.properties?.outputSchema as PropertyModel | undefined;
+    if (!outputSchema || outputSchema.enabled === false || !isStructuredOutputOff(toolAnnotation)) {
+        return toolAnnotation;
+    }
+    return {
+        ...toolAnnotation,
+        properties: { ...toolAnnotation.properties, outputSchema: { ...outputSchema, enabled: false } },
+    };
+}
 
 export interface McpAdvancedSectionProps {
     /** Advanced units outside any labeled section, rendered first with no heading. */

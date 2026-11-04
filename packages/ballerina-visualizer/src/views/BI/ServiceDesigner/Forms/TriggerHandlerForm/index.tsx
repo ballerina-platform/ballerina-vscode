@@ -59,7 +59,7 @@ import ArtifactForm from "../../../Forms/ArtifactForm";
 import { sanitizedResourcePath } from "../../utils";
 import { AnnotationExpressionFieldHandle } from "./AnnotationExpressionField";
 import { AnnotationConfigSection } from "./AnnotationConfigSection";
-import { McpAdvancedSection } from "./McpAdvancedSection";
+import { isMcpToolFieldShown, McpAdvancedSection, withMcpToolRules } from "./McpAdvancedSection";
 import {
     addedParametersOf,
     CODEDATA_METADATA_FLAG,
@@ -1060,11 +1060,15 @@ export function TriggerHandlerForm(props: TriggerHandlerFormProps) {
                 filePath={props.filePath}
                 targetLineRange={functionModel.codedata?.lineRange}
                 disabled={isSaving}
-                onChange={handleAnnotationChange}
+                onChange={isMcpAdvanced
+                    ? (annotationKey, updated) => handleAnnotationChange(annotationKey, withMcpToolRules(updated))
+                    : handleAnnotationChange}
                 onImportsChange={handleAnnotationImportsChange}
                 registerFieldRef={registerFieldRef}
                 onDiagnosticsChange={handleFieldDiagnostics}
                 onValidationStateChange={handleFieldValidationState}
+                plain={isMcpAdvanced}
+                isFieldShown={isMcpAdvanced ? isMcpToolFieldShown : undefined}
             />
         );
     };
