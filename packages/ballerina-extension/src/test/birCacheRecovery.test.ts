@@ -30,9 +30,10 @@
  * other distributions, the pulled bala/, other packages or versions, or the distribution itself.
  *
  * The clear invariant is table-driven from JSON fixtures under fixtures/bir-cache/ (see
- * docs/TEST_PLAN.md §5). Each fixture materializes a realistic ~/.ballerina tree in a temp home,
- * runs the real clear against it, and asserts what is resolved, removed, and kept. Add a fixture
- * (e.g. issue-2251.json) to guard a new case.
+ * docs/TEST_GUIDE.md, L1 "How to add" and the conventions checklist). Each fixture
+ * materializes a realistic ~/.ballerina tree in a temp home, runs the real clear against it,
+ * and asserts what is resolved, removed, and kept. Add a fixture (e.g. issue-2251.json) to
+ * guard a new case.
  */
 
 import * as os from "os";

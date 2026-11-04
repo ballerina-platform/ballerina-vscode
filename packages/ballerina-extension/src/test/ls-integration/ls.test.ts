@@ -16,8 +16,8 @@
  * under the License.
  */
 
-// Reference L4 test: drives a real headless Ballerina LS (no VSCode) against a
-// small .bal fixture project. See docs/TEST_BACKLOG.md L4-01/L4-02.
+// Reference L3 test: drives a real headless Ballerina LS (no VSCode) against a
+// small .bal fixture project. See docs/TEST_GUIDE.md ("L3 — LS-integration").
 // Skips automatically when no Ballerina distribution is available.
 
 import * as fs from "fs";
