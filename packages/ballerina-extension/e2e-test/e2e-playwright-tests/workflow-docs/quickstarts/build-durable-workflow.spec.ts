@@ -316,6 +316,17 @@ export default function createTests() {
                 await ui.palette(['Workflow', 'Run Workflow']);
             });
             await j.step('8.9', 'Select the `orderWorkflow` under **Current Integration**.', async () => {
+                // The form now opens at once, with the project's only workflow selected in **Workflow**.
+                const panel = await ui.panel();
+                if (await panel.getByText(/Workflow ID Variable Name/i).first().waitFor({ state: 'visible', timeout: 15000 }).then(() => true, () => false)) {
+                    await j.finding({
+                        kind: 'gap',
+                        says: 'Select the `orderWorkflow` under **Current Integration**',
+                        actual: 'Clicking **Run Workflow** opens its form at once; **Workflow** already holds `orderWorkflow`, the project\'s only workflow',
+                        suggestion: 'Drop this step, or say that **Workflow** is preselected when the project has one workflow and is picked from the dropdown otherwise.',
+                    });
+                    return;
+                }
                 await ui.clickText(await ui.panel('orderWorkflow'), 'orderWorkflow');
             });
             await j.step('8.10', 'Under **Input**, switch from **Record** to **Expression** and set **Input** to the request payload. Leave **Workflow ID Variable Name** as `workflowId`, then click **Save**.', async () => {

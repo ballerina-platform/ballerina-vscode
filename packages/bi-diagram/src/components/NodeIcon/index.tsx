@@ -77,6 +77,7 @@ const NODE_COLOR_GROUPS = {
         "SEND_DATA",
         // Running or calling another workflow hands the flow to it, so these read as control flow.
         "WORKFLOW_RUN",
+        "WORKFLOW_RUN_WITH_ID",
         "CHILD_WORKFLOW_RUN",
         "CHILD_WORKFLOW_CALL",
         "CHILD_WORKFLOW_WAIT",
@@ -358,6 +359,7 @@ const NODE_ICONS: Record<NodeKind, React.FC<{ size: number; color: string; isDBC
     NP_FUNCTION: ({ size, color }) => <Icon name="bi-ai-function" sx={{ fontSize: size, width: size, height: size, color }} />,
     DATA_MAPPER_CALL: ({ size, color }) => <Icon name="dataMapper" sx={{ fontSize: size, width: size, height: size, color }} />,
     WORKFLOW_RUN: ({ size, color }) => <Icon name="bi-flowchart" sx={{ fontSize: size, width: size, height: size, color }} />,
+    WORKFLOW_RUN_WITH_ID: ({ size, color }) => <Icon name="bi-flowchart" sx={{ fontSize: size, width: size, height: size, color }} />,
     CHILD_WORKFLOW_RUN: ({ size, color }) => <Icon name="bi-flowchart" sx={{ fontSize: size, width: size, height: size, color }} />,
     CHILD_WORKFLOW_CALL: ({ size, color }) => <Icon name="bi-flowchart" sx={{ fontSize: size, width: size, height: size, color }} />,
     CHILD_WORKFLOW_WAIT: ({ size, color }) => <Icon name="bi-flowchart" sx={{ fontSize: size, width: size, height: size, color }} />,

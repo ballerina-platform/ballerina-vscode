@@ -1,0 +1,313 @@
+{
+  "start": {
+    "line": 10,
+    "offset": 0
+  },
+  "end": {
+    "line": 12,
+    "offset": 1
+  },
+  "source": "workflow_run_with_id.bal",
+  "description": "workflow:runWithId is read back as a WORKFLOW_RUN_WITH_ID node with the workflow dropdown, the id and the typed input",
+  "diagram": {
+    "fileName": "workflow_run_with_id.bal",
+    "nodes": [
+      {
+        "id": "42905",
+        "metadata": {
+          "label": "Start",
+          "data": {
+            "kind": "Function",
+            "label": "main",
+            "isServiceFunction": false,
+            "return": "error?"
+          }
+        },
+        "codedata": {
+          "node": "EVENT_START",
+          "lineRange": {
+            "fileName": "workflow_run_with_id.bal",
+            "startLine": {
+              "line": 10,
+              "offset": 38
+            },
+            "endLine": {
+              "line": 12,
+              "offset": 1
+            }
+          },
+          "sourceCode": "public function main() returns error? {\n    string id = check workflow:runWithId(orderWorkflow, \"order-1\", {orderId: \"1\"});\n}"
+        },
+        "returning": false,
+        "flags": 0
+      },
+      {
+        "id": "42863",
+        "metadata": {
+          "label": "Run with ID",
+          "description": "Run a new workflow instance under an id you choose",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_1.0.0.png"
+        },
+        "codedata": {
+          "node": "WORKFLOW_RUN_WITH_ID",
+          "org": "ballerina",
+          "module": "workflow",
+          "packageName": ".",
+          "symbol": "orderWorkflow",
+          "version": "0.0.0",
+          "lineRange": {
+            "fileName": "workflow_run_with_id.bal",
+            "startLine": {
+              "line": 11,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 11,
+              "offset": 83
+            }
+          },
+          "sourceCode": "string id = check workflow:runWithId(orderWorkflow, \"order-1\", {orderId: \"1\"});"
+        },
+        "returning": false,
+        "properties": {
+          "workflow": {
+            "metadata": {
+              "label": "Workflow",
+              "description": "The workflow to start"
+            },
+            "types": [
+              {
+                "fieldType": "SINGLE_SELECT",
+                "options": [
+                  {
+                    "label": "orderWorkflow",
+                    "value": "orderWorkflow"
+                  }
+                ],
+                "selected": true
+              }
+            ],
+            "value": "orderWorkflow",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "REQUIRED"
+            }
+          },
+          "instanceId": {
+            "metadata": {
+              "label": "Instance Id",
+              "description": "The instance id to start under"
+            },
+            "types": [
+              {
+                "fieldType": "TEXT",
+                "ballerinaType": "string",
+                "selected": true
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string",
+                "selected": false
+              }
+            ],
+            "value": "\"order-1\"",
+            "placeholder": "\"\"",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "REQUIRED",
+              "originalName": "instanceId"
+            }
+          },
+          "input": {
+            "metadata": {
+              "label": "Input",
+              "description": "Input data for the workflow"
+            },
+            "types": [
+              {
+                "fieldType": "RECORD_MAP_EXPRESSION",
+                "ballerinaType": "OrderInput",
+                "typeMembers": [
+                  {
+                    "type": "OrderInput",
+                    "packageInfo": "$anon:.:0.0.0",
+                    "packageName": ".",
+                    "kind": "RECORD_TYPE",
+                    "selected": false
+                  }
+                ],
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "OrderInput",
+                "selected": false
+              }
+            ],
+            "value": "{orderId: \"1\"}",
+            "placeholder": "",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "dependentProperty": "workflow"
+            }
+          },
+          "ifRunning": {
+            "metadata": {
+              "label": "If Running",
+              "description": "What to do when an instance with this id is running"
+            },
+            "types": [
+              {
+                "fieldType": "SINGLE_SELECT",
+                "options": [
+                  {
+                    "label": "FAIL",
+                    "value": "\"FAIL\""
+                  },
+                  {
+                    "label": "USE_EXISTING",
+                    "value": "\"USE_EXISTING\""
+                  }
+                ],
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "workflow:RunningInstancePolicy",
+                "selected": false
+              }
+            ],
+            "placeholder": "\"FAIL\"",
+            "optional": true,
+            "editable": true,
+            "advanced": true,
+            "hidden": false,
+            "codedata": {
+              "kind": "DEFAULTABLE",
+              "originalName": "ifRunning"
+            },
+            "defaultValue": "\"FAIL\""
+          },
+          "ifClosed": {
+            "metadata": {
+              "label": "If Closed",
+              "description": "What to do when an instance with this id has closed"
+            },
+            "types": [
+              {
+                "fieldType": "SINGLE_SELECT",
+                "options": [
+                  {
+                    "label": "ALLOW_DUPLICATE",
+                    "value": "\"ALLOW_DUPLICATE\""
+                  },
+                  {
+                    "label": "ALLOW_DUPLICATE_FAILED_ONLY",
+                    "value": "\"ALLOW_DUPLICATE_FAILED_ONLY\""
+                  },
+                  {
+                    "label": "REJECT_DUPLICATE",
+                    "value": "\"REJECT_DUPLICATE\""
+                  }
+                ],
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "workflow:ClosedInstancePolicy",
+                "selected": false
+              }
+            ],
+            "placeholder": "\"ALLOW_DUPLICATE\"",
+            "optional": true,
+            "editable": true,
+            "advanced": true,
+            "hidden": false,
+            "codedata": {
+              "kind": "DEFAULTABLE",
+              "originalName": "ifClosed"
+            },
+            "defaultValue": "\"ALLOW_DUPLICATE\""
+          },
+          "checkError": {
+            "metadata": {
+              "label": "Check Error",
+              "description": "Trigger error flow"
+            },
+            "types": [
+              {
+                "fieldType": "FLAG",
+                "selected": true
+              }
+            ],
+            "value": true,
+            "optional": false,
+            "editable": true,
+            "advanced": true,
+            "hidden": true
+          },
+          "variable": {
+            "metadata": {
+              "label": "Variable Name",
+              "description": "Name of the variable"
+            },
+            "types": [
+              {
+                "fieldType": "IDENTIFIER",
+                "selected": true
+              }
+            ],
+            "value": "id",
+            "optional": false,
+            "editable": false,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "lineRange": {
+                "fileName": "workflow_run_with_id.bal",
+                "startLine": {
+                  "line": 11,
+                  "offset": 11
+                },
+                "endLine": {
+                  "line": 11,
+                  "offset": 13
+                }
+              }
+            }
+          },
+          "type": {
+            "metadata": {
+              "label": "Variable Type",
+              "description": "Type of the variable"
+            },
+            "types": [
+              {
+                "fieldType": "TYPE",
+                "selected": true
+              }
+            ],
+            "value": "string",
+            "placeholder": "var",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {}
+          }
+        },
+        "flags": 1
+      }
+    ],
+    "connections": []
+  }
+}

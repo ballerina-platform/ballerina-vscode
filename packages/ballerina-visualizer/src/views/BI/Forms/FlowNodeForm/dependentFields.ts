@@ -23,7 +23,7 @@ import { NodeProperties } from "@wso2/ballerina-core";
  * is gated on these: a SINGLE_SELECT is common — a model provider, a type — and a template fetched
  * for `symbol: "gpt-4o"` asks the language server for a symbol that does not exist.
  */
-const WORKFLOW_PICKING_NODES = ["WORKFLOW_RUN", "CHILD_WORKFLOW_RUN", "CHILD_WORKFLOW_CALL"];
+const WORKFLOW_PICKING_NODES = ["WORKFLOW_RUN", "WORKFLOW_RUN_WITH_ID", "CHILD_WORKFLOW_RUN", "CHILD_WORKFLOW_CALL"];
 
 /** Whether this node's form is one that retypes its fields from a chosen workflow. */
 export function picksWorkflow(nodeKind: string | undefined): boolean {

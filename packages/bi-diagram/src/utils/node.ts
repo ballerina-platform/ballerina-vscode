@@ -33,11 +33,12 @@ import { Branch, FlowNode, FlowNodeDiffState } from "./types";
 // send, wait, human task, ...) that draws that border unconditionally, so this set doesn't govern
 // them — they're only listed here for documentation. The kinds that actually consult this set via
 // isWorkflowNode() are the ones sharing a general-purpose widget with non-workflow nodes: the API
-// call box (WORKFLOW_RUN, CHILD_WORKFLOW_RUN, CHILD_WORKFLOW_CALL) and the base node fallback used
+// call box (WORKFLOW_RUN, WORKFLOW_RUN_WITH_ID, CHILD_WORKFLOW_RUN, CHILD_WORKFLOW_CALL) and the base node fallback used
 // by any kind with no dedicated widget (UPDATE_DATA, SLEEP). Don't treat this list as the
 // authoritative index of which kinds get the workflow border — check the widget itself for that.
 const WORKFLOW_NODE_KINDS = new Set([
     "WORKFLOW_RUN",
+    "WORKFLOW_RUN_WITH_ID",
     "CHILD_WORKFLOW_RUN",
     "CHILD_WORKFLOW_CALL",
     "CHILD_WORKFLOW_SEND_DATA",
@@ -93,6 +94,7 @@ const WORKFLOW_ACTION_NODE_KINDS = new Set([
     "WAIT_DATA",
     "UPDATE_DATA",
     "WORKFLOW_RUN",
+    "WORKFLOW_RUN_WITH_ID",
     "CHILD_WORKFLOW_RUN",
     "CHILD_WORKFLOW_CALL",
     "CHILD_WORKFLOW_WAIT",

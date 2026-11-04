@@ -4,7 +4,7 @@
     "line": 3,
     "offset": 0
   },
-  "description": "workflow:run picked from the function search opens the workflow node with no workflow preselected",
+  "description": "workflow:run picked from the function search opens the workflow node; the only workflow is preselected",
   "codedata": {
     "node": "FUNCTION_CALL",
     "org": "ballerina",
@@ -23,6 +23,7 @@
       "node": "WORKFLOW_RUN",
       "org": "ballerina",
       "module": "workflow",
+      "symbol": "orderWorkflow",
       "isNew": true
     },
     "returning": false,
@@ -44,7 +45,7 @@
             "selected": true
           }
         ],
-        "value": "",
+        "value": "orderWorkflow",
         "optional": false,
         "editable": true,
         "advanced": false,
@@ -60,8 +61,22 @@
         },
         "types": [
           {
+            "fieldType": "RECORD_MAP_EXPRESSION",
+            "ballerinaType": "OrderInput",
+            "typeMembers": [
+              {
+                "type": "OrderInput",
+                "packageInfo": "test:workflow_function:0.1.0",
+                "packageName": "workflow_function",
+                "kind": "RECORD_TYPE",
+                "selected": false
+              }
+            ],
+            "selected": false
+          },
+          {
             "fieldType": "EXPRESSION",
-            "ballerinaType": "anydata",
+            "ballerinaType": "OrderInput",
             "selected": false
           }
         ],
@@ -70,7 +85,7 @@
         "optional": false,
         "editable": true,
         "advanced": false,
-        "hidden": true,
+        "hidden": false,
         "codedata": {
           "dependentProperty": "workflow"
         }

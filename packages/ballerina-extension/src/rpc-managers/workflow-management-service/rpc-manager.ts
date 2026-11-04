@@ -95,7 +95,14 @@ export class WorkflowManagementServiceRpcManager implements WorkflowManagementSe
     // The switch edits Config.toml without opening it, so a notice says what changed.
     private async switchWorkflowRuntime(params: WorkflowManagementRequest, mode: string): Promise<WorkflowRuntimeStatusResponse> {
         const projectPath: string = params.projectPath || StateMachine.context().projectPath;
-        const errorMsg = setWorkflowRuntimeMode(projectPath, mode);
+        let errorMsg: string | undefined;
+        try {
+            errorMsg = setWorkflowRuntimeMode(projectPath, mode);
+        } catch (error) {
+            // A read or write failure answers the RPC like any other refused update.
+            errorMsg = `Could not update Config.toml: ${error instanceof Error ? error.message : String(error)}`;
+            window.showWarningMessage(errorMsg);
+        }
         const status = await getWorkflowRuntimeStatus(projectPath);
         if (errorMsg) {
             return { ...status, errorMsg };

@@ -167,7 +167,7 @@ describe("fields that follow a workflow dropdown", () => {
     });
 
     it("asks for a template only where a dropdown holds a workflow", () => {
-        expect(["WORKFLOW_RUN", "CHILD_WORKFLOW_RUN", "CHILD_WORKFLOW_CALL"].every(picksWorkflow)).toBe(true);
+        expect(["WORKFLOW_RUN", "WORKFLOW_RUN_WITH_ID", "CHILD_WORKFLOW_RUN", "CHILD_WORKFLOW_CALL"].every(picksWorkflow)).toBe(true);
         // A model provider's dropdown holds a model name, not a symbol to fetch a template for.
         expect(picksWorkflow("AGENT_CALL")).toBe(false);
         expect(picksWorkflow("CHILD_WORKFLOW_WAIT")).toBe(false);

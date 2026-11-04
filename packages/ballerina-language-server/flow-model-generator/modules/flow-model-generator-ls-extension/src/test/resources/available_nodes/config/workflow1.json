@@ -175,6 +175,23 @@
         },
         {
           "metadata": {
+            "label": "Run with ID",
+            "description": "Run a new workflow instance under an id you choose",
+            "keywords": [
+              "Run Workflow with ID",
+              "Instance ID"
+            ],
+            "data": {
+              "method": "runWithId"
+            }
+          },
+          "codedata": {
+            "node": "WORKFLOW_RUN_WITH_ID"
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
             "label": "Send Data Event",
             "description": "Send a data event to a running workflow instance"
           },
