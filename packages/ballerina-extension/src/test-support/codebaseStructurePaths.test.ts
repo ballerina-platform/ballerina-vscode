@@ -85,7 +85,7 @@ describe("formatCodebaseStructure module paths", () => {
 
     it("keeps the package prefix for workspace projects", () => {
         mockProjectKind = "WORKSPACE_PROJECT";
-        const workspaceProject = { ...project(false), packagePath: "pkg1" };
+        const workspaceProject = { ...project(false), packagePath: "pkg1", isActive: true };
 
         const text = formatCodebaseStructure([workspaceProject]);
 
@@ -118,6 +118,7 @@ describe("formatCodebaseStructure listing", () => {
         const odd = {
             ...project(false),
             packagePath: "pkgs\\a&b",
+            isActive: true,
             projectTests: [{ filePath: "unit\\x_test.bal", content: "" }],
         };
 
@@ -147,16 +148,25 @@ describe("formatCodebaseStructure listing", () => {
         }
     });
 
-    it("treats the first package as active when none is", () => {
+    it("marks no package active in a workspace where none is", () => {
         mockProjectKind = "WORKSPACE_PROJECT";
         const first = { ...project(false), packagePath: "a" };
         const second = { ...project(false), projectName: "b_pkg", packagePath: "b" };
 
         const text = formatCodebaseStructure([first, second]);
 
-        expect(text).toContain('<file path="a/main.bal" lines="3"/>');
+        expect(text).not.toContain('active="true"');
+        expect(text).toContain('<package name="my_pkg" path="a" files="2">');
         expect(text).toContain('<package name="b_pkg" path="b" files="2">');
-        expect(first.isActive).toBeUndefined();
+        expect(text).toContain("No package is active");
+        expect(text).not.toContain("current active package");
+    });
+
+    it("lists a single package in full even without the active flag", () => {
+        const text = formatCodebaseStructure([project(false)]);
+
+        expect(text).toContain('<project name="my_pkg" active="true">');
+        expect(text).toContain('<file path="main.bal" lines="3"/>');
     });
 
     it("keeps every other package's line when the active package fills the budget", () => {

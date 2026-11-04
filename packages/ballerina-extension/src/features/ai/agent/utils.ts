@@ -232,7 +232,8 @@ export function formatCodebaseStructure(projects: ProjectSource[], tempProjectPa
         text += formatWorkspaceToml(tempProjectPath);
     }
 
-    const activeProject = projects.find(project => project.isActive) ?? projects[0];
+    // A workspace opened at its root has no active package; then none is listed in full or marked active.
+    const activeProject = projects.find(project => project.isActive) ?? (isWorkspace ? undefined : projects[0]);
 
     // Other packages are charged first and never dropped: one short line each, and the prompt tells the model they are here.
     for (const project of projects) {
@@ -279,11 +280,16 @@ export function formatCodebaseStructure(projects: ProjectSource[], tempProjectPa
     }
     text += "</codebase_structure>";
 
-    if (isWorkspace) {
+    if (isWorkspace && activeProject) {
         text += `Note: This is a Ballerina workspace with multiple packages. File paths are prefixed with their package paths (e.g., "mainpackage/main.bal").
 Only the active package's files are listed; each other package is a <package> entry, so use glob to find its files.
 You can import another package by its package name (e.g., import otherpackage;).
 When creating or modifying files, you should always prefer making edits for the current active package. Make sure to include the package path as prefix for the file edits.`;
+    } else if (isWorkspace) {
+        text += `Note: This is a Ballerina workspace with multiple packages. File paths are prefixed with their package paths (e.g., "mainpackage/main.bal").
+No package is active, so each package is a <package> entry: use glob to find its files, and work in the package the request is about.
+You can import another package by its package name (e.g., import otherpackage;).
+Make sure to include the package path as prefix for the file edits.`;
     }
 
     return text;

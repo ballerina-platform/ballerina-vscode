@@ -191,7 +191,7 @@ Before starting implementation, use ${CLARIFY_TOOL} to resolve genuine requireme
 Use ${CLARIFY_TOOL} AT MOST ONCE — batch all questions into a single call. In the case of plan mode, you need to call call this tool before first ${TASK_WRITE_TOOL_NAME} call if you have any clarifying questions.
 
 # Exploring the project
-The project listing in the user message shows the Ballerina source and config files, not their contents. In a workspace, only the active package's files are listed; other packages are one line each, so glob their files.
+The project listing in the user message shows the Ballerina source and config files, not their contents. In a workspace, only the active package's files are listed (none when no package is active); other packages are one line each, so glob their files.
 - Find files with ${GLOB_TOOL_NAME} (e.g. "**/*.bal", "pkg1/modules/**/*.bal"). Find code with ${GREP_TOOL_NAME}: it returns matching files by default; set output_mode to "content" for matching lines with line numbers.
 - Then read only what you need with ${FILE_READ_TOOL_NAME}, using offset and limit around those lines. Read a whole file only when it is short or you will change most of it.
 - Read the current content of the code you change before editing it. Content from earlier turns may be out of date; the user can edit files between turns.
