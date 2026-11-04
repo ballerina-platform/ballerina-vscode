@@ -55,6 +55,9 @@ import static io.ballerina.servicemodelgenerator.extension.util.Constants.KIND_V
  */
 public final class TriggerFunctionAdapter {
 
+    private static final String RETURN_TYPE_LABEL = "Return Type";
+    private static final String RETURN_TYPE_DESCRIPTION = "The return type of the function.";
+
     private TriggerFunctionAdapter() {
     }
 
@@ -405,8 +408,11 @@ public final class TriggerFunctionAdapter {
             return null;
         }
         String rendered = renderReturnType(model);
+        // The connector's own wording when its metadata states one; the generic text otherwise.
+        String description = model.metadata() != null && notBlank(model.metadata().description())
+                ? model.metadata().description() : RETURN_TYPE_DESCRIPTION;
         Value returnValue = new Value.ValueBuilder()
-                .setMetadata(new MetaData("Return Type", "The return type of the function."))
+                .setMetadata(new MetaData(label(model.metadata(), RETURN_TYPE_LABEL), description))
                 .value(rendered)
                 .types(List.of(PropertyType.types(Value.FieldType.TYPE)))
                 .setPlaceholder(rendered)

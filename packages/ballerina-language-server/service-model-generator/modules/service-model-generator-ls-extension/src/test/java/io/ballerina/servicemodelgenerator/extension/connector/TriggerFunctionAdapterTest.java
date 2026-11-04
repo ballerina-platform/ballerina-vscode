@@ -177,6 +177,39 @@ public class TriggerFunctionAdapterTest {
         }
     }
 
+    /** A connector's own return type wording reaches the designer; without one, the generic text does. */
+    @Test
+    public void testReturnTypeMetadataReachesTheWireModel() {
+        TriggerUISchemaModel.FunctionModel base = schemaFunction(model("kafka"), "onConsumerRecord");
+
+        Function described = TriggerFunctionAdapter.toFunction(withReturnTypeMetadata(base,
+                new TriggerUISchemaModel.Metadata("Result", "What the handler returns.", null, null, null,
+                        null, null, null, null, null)));
+        Assert.assertEquals(described.getReturnType().getMetadata().label(), "Result");
+        Assert.assertEquals(described.getReturnType().getMetadata().description(), "What the handler returns.");
+
+        Function undescribed = TriggerFunctionAdapter.toFunction(withReturnTypeMetadata(base, null));
+        Assert.assertEquals(undescribed.getReturnType().getMetadata().label(), "Return Type");
+        Assert.assertEquals(undescribed.getReturnType().getMetadata().description(),
+                "The return type of the function.");
+    }
+
+    /** Copies a schema function, substituting its return type's metadata. */
+    private TriggerUISchemaModel.FunctionModel withReturnTypeMetadata(TriggerUISchemaModel.FunctionModel model,
+                                                                      TriggerUISchemaModel.Metadata metadata) {
+        TriggerUISchemaModel.ReturnType returnType = model.returnType();
+        TriggerUISchemaModel.ReturnType replaced = new TriggerUISchemaModel.ReturnType(metadata, returnType.type(),
+                returnType.typeEditable(), returnType.typeConstraint(), returnType.enabled(), returnType.editable(),
+                returnType.optional(), returnType.hasError(), returnType.importStatements(), returnType.codedata(),
+                returnType.validations());
+        return new TriggerUISchemaModel.FunctionModel(model.metadata(), model.name(), model.nameEditable(),
+                model.nameMetadata(), model.kind(), model.accessor(), model.qualifiers(), model.group(),
+                model.variantLabel(), model.enabled(), model.editable(), model.optional(),
+                model.canAddParameters(), model.repeatable(), model.documentation(), model.documentationSchema(),
+                model.parameters(), model.parameterSchema(), model.properties(), replaced, model.layout(),
+                model.codedata(), model.validations());
+    }
+
     /** Copies a schema function, substituting its layout. */
     private TriggerUISchemaModel.FunctionModel withLayout(TriggerUISchemaModel.FunctionModel model,
                                                           List<TriggerUISchemaModel.LayoutSection> layout) {
