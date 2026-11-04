@@ -159,7 +159,7 @@ function entryPointTrigger(
     };
 }
 
-const TRY_IT_PROTOCOLS = new Set(["http", "ai", "graphql", "mcp"]);
+const TRY_IT_PROTOCOLS = new Set(["http", "ai", "graphql", "mcp", "mcpv2"]);
 
 function tryItFor(model: CDModel, service: CDService): AgentUsageTryIt | undefined {
     if (!TRY_IT_PROTOCOLS.has(modulePrefix(service.type))) {
