@@ -30,6 +30,11 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 jest.mock("@wso2/ballerina-core", () => ({
     __esModule: true,
     AIMachineEventType: { LOGOUT: "LOGOUT" },
+    ProductMode: { BALLERINA: "ballerina", INTEGRATOR: "integrator", AGENT_BUILDER: "agent-builder" },
+    seededProductMode: () => "integrator",
+    assistantName: () => "WSO2 Integrator Copilot",
+    shortAssistantName: () => "Integrator Copilot",
+    assistantTagline: () => "",
 }));
 
 jest.mock("@wso2/ballerina-rpc-client", () => {
