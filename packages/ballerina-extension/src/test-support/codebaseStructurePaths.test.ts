@@ -158,6 +158,7 @@ describe("formatCodebaseStructure listing", () => {
         expect(text).not.toContain('active="true"');
         expect(text).toContain('<package name="my_pkg" path="a" files="2">');
         expect(text).toContain('<package name="b_pkg" path="b" files="2">');
+        expect(text).toContain("</codebase_structure>\nNote: This is a Ballerina workspace");
         expect(text).toContain("No package is active");
         expect(text).not.toContain("current active package");
     });

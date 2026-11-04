@@ -278,7 +278,7 @@ export function formatCodebaseStructure(projects: ProjectSource[], tempProjectPa
     if (unlisted > 0) {
         text += `… ${unlisted} more files not listed. Use glob to find them.\n`;
     }
-    text += "</codebase_structure>";
+    text += isWorkspace ? "</codebase_structure>\n" : "</codebase_structure>";
 
     if (isWorkspace && activeProject) {
         text += `Note: This is a Ballerina workspace with multiple packages. File paths are prefixed with their package paths (e.g., "mainpackage/main.bal").
