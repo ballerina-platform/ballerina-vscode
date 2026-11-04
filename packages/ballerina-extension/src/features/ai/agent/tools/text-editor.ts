@@ -425,7 +425,7 @@ export function createWriteExecute(
     // Emit tool_call event
     emitFileToolCall(eventHandler, FILE_WRITE_TOOL_NAME, file_path);
 
-    console.log(`[FileWriteTool] Writing to ${file_path}, content: ${content.substring(0, 50)}${content.length > 100 ? '... [truncated]' : ''}`);
+    console.log(`[FileWriteTool] Writing ${content.length} characters to ${file_path}`);
 
     // Validate file path
     const pathValidation = validateFilePath(tempProjectPath, file_path);
@@ -547,7 +547,7 @@ export function createEditExecute(
     // Emit tool_call event
     emitFileToolCall(eventHandler, FILE_SINGLE_EDIT_TOOL_NAME, file_path);
 
-    console.log(`[FileEditTool] Editing ${file_path}, replacing '${old_string.substring(0, 50)}' with '${new_string.substring(0,50)}', replace_all: ${replace_all}`);
+    console.log(`[FileEditTool] Editing ${file_path}, replace_all: ${replace_all}`);
 
     // Validate file path
     const pathValidation = validateFilePath(tempProjectPath, file_path);

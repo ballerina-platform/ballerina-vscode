@@ -100,7 +100,7 @@ export async function globProject(root: string, input: { pattern: string; path?:
             }
         }
         if (out.full) {
-            console.log(`[GlobTool] Output capped for ${input.pattern}: ${files.length} files matched.`);
+            console.log(`[GlobTool] Output capped: ${files.length} files matched.`);
             out.lines.push(`[Output capped at ${out.lines.length} of ${files.length} files. Narrow the pattern or path.]`);
         }
         return { success: true, message: out.lines.join("\n") };
@@ -188,7 +188,7 @@ export async function grepProject(root: string, input: GrepInput, abortSignal?: 
             if ((error as { code?: string }).code !== "ERR_SCRIPT_EXECUTION_TIMEOUT") {
                 throw error;
             }
-            console.log(`[GrepTool] Stopped /${input.pattern}/ after ${GREP_TIME_BUDGET_MS} ms.`);
+            console.log(`[GrepTool] Stopped after ${GREP_TIME_BUDGET_MS} ms.`);
             timedOutAt = files.indexOf(file);
             break;
         } finally {
@@ -232,7 +232,7 @@ export async function grepProject(root: string, input: GrepInput, abortSignal?: 
         notes.push(`[Search stopped after ${timedOutAt} of ${files.length} files: it ran longer than ${GREP_TIME_BUDGET_MS / 1000} seconds, so results are partial. Simplify the pattern (avoid stacked repeats such as .*.* or \\w+\\w+) or narrow path or glob.]`);
     }
     if (out.full) {
-        console.log(`[GrepTool] Output capped for /${input.pattern}/${scopeSuffix(input.path)}.`);
+        console.log(`[GrepTool] Output capped.`);
         notes.push(`[Output capped at ${out.lines.length} lines. Narrow the pattern, path or glob.]`);
     }
     if (skipped.length > 0) {
