@@ -80,8 +80,8 @@ public final class ConnectorUpgradeAdvisor {
                 if (minSupportedVersion == null) {
                     return;
                 }
-                String currentVersion = ConnectorVersionResolver.resolve(project, orgName, property.packageName(),
-                        null);
+                String packageName = property.effectivePackageName();
+                String currentVersion = ConnectorVersionResolver.resolve(project, orgName, packageName, null);
                 if (currentVersion == null) {
                     return;
                 }
@@ -89,7 +89,7 @@ public final class ConnectorUpgradeAdvisor {
                     return;
                 }
                 boolean breaking = crossesMinorBoundary(currentVersion, minSupportedVersion);
-                advice.add(new ConnectorUpgradeAdvice(orgName, moduleName, property.packageName(), currentVersion,
+                advice.add(new ConnectorUpgradeAdvice(orgName, moduleName, packageName, currentVersion,
                         minSupportedVersion, breaking, usedInFile));
             });
         }
