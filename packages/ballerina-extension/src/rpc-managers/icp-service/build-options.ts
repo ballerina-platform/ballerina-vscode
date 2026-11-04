@@ -26,9 +26,18 @@ export const ICP_BUILD_OPTION_KEYS = ['observabilityIncluded', 'remoteManagement
 
 // A key may be bare (`key`), basic-quoted (`"key"`) or literal-quoted (`'key'`); all three
 // name the same key, so a quoted one must be matched or an edit would duplicate it.
+// `lead` is everything up to the value and `trail` everything after it, such as a comment.
+const KEY_VALUE = /^(\s*(?:([A-Za-z0-9_-]+)|"([^"\\]*)"|'([^']*)')\s*=\s*)("[^"]*"|'[^']*'|[^\s#]*)(.*)$/;
+
+function keyValueOf(line: string): { key: string; lead: string; value: string; trail: string } | undefined {
+    const match = line.match(KEY_VALUE);
+    return match
+        ? { key: match[2] ?? match[3] ?? match[4], lead: match[1], value: match[5], trail: match[6] }
+        : undefined;
+}
+
 function keyOf(line: string): string | undefined {
-    const match = line.match(/^\s*(?:([A-Za-z0-9_-]+)|"([^"\\]*)"|'([^']*)')\s*=/);
-    return match ? match[1] ?? match[2] ?? match[3] : undefined;
+    return keyValueOf(line)?.key;
 }
 
 // The name of a `[table]` or `[[array]]` header, tolerating a trailing comment, spacing
@@ -85,11 +94,29 @@ export function addICPBuildOptions(content: string): string {
         if (index === -1) {
             missing.push(`${key} = true`);
         } else {
-            lines[section.start + 1 + index] = `${key} = true`;
+            // Swap only the value, so the key's spelling and a trailing comment survive.
+            const { lead, trail } = keyValueOf(lines[section.start + 1 + index]);
+            lines[section.start + 1 + index] = `${lead}true${trail}`;
         }
     }
     lines.splice(section.start + 1, 0, ...missing);
     return withTrailingNewline(lines.join('\n'));
+}
+
+/**
+ * Whether every ICP build option is set to `true` in the `[build-options]` section.
+ */
+export function hasICPBuildOptions(content: string): boolean {
+    const lines = content.split('\n');
+    const section = findSection(lines);
+    if (!section) {
+        return false;
+    }
+    const values = new Map(lines.slice(section.start + 1, section.end)
+        .map(keyValueOf)
+        .filter(entry => entry !== undefined)
+        .map(entry => [entry.key, entry.value]));
+    return ICP_BUILD_OPTION_KEYS.every(key => values.get(key) === 'true');
 }
 
 /**

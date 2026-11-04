@@ -19,12 +19,14 @@
 // L1 — the Ballerina.toml edits behind the ICP toggle (`rpc-managers/icp-service/build-options`).
 // Invariants over a corpus of manifests: after enabling, every ICP build option is `true`
 // exactly once inside [build-options] and nothing else changes; after disabling, no ICP build
-// option is left and the user's own options survive. Enable is idempotent, and disable undoes
-// an enable on a manifest that had no ICP options to begin with.
+// option is left and the user's own options survive. Enable is idempotent, keeps every comment,
+// and disable undoes an enable on a manifest that had no ICP options to begin with.
+// `hasICPBuildOptions` agrees with both: true after enabling, false after disabling.
 
 import { parse } from "@iarna/toml";
 import {
     addICPBuildOptions,
+    hasICPBuildOptions,
     ICP_BUILD_OPTION_KEYS,
     removeICPBuildOptions,
 } from "../rpc-managers/icp-service/build-options";
@@ -50,8 +52,13 @@ const MANIFESTS: Record<string, string> = {
     "quoted ICP options": `${PACKAGE}\n[build-options]\n"remoteManagement" = false\n'observabilityIncluded' = false\n`,
     "a build-options header with a trailing comment": `${PACKAGE}\n[build-options] # ICP settings\nsticky = true\n`,
     "a quoted, spaced build-options header": `${PACKAGE}\n[ "build-options" ]\nsticky = true\n`,
+    "ICP options with trailing comments": `${PACKAGE}\n[build-options]\nobservabilityIncluded = false # traces\nremoteManagement=false   # keep\n`,
     "a commented table after build-options with its own remoteManagement": `${PACKAGE}\n[build-options]\nsticky = true\n\n[other] # settings\nremoteManagement = false\n`,
 };
+
+function comments(content: string): string[] {
+    return content.match(/#.*$/gm) ?? [];
+}
 
 function buildOptions(content: string): Record<string, unknown> {
     return (parse(content)["build-options"] ?? {}) as Record<string, unknown>;
@@ -78,6 +85,19 @@ describe.each(Object.entries(MANIFESTS))("ICP build options on a manifest with %
         expect(enabled.endsWith("\n")).toBe(true);
     });
 
+    it("keeps every comment when enabling", () => {
+        const enabled = addICPBuildOptions(manifest);
+        for (const comment of comments(manifest)) {
+            expect(enabled).toContain(comment);
+        }
+    });
+
+    it("reports ICP as enabled after enabling and not after disabling", () => {
+        const enabled = addICPBuildOptions(manifest);
+        expect(hasICPBuildOptions(enabled)).toBe(true);
+        expect(hasICPBuildOptions(removeICPBuildOptions(enabled))).toBe(false);
+    });
+
     it("is idempotent", () => {
         const once = addICPBuildOptions(manifest);
         expect(addICPBuildOptions(once)).toBe(once);
@@ -91,6 +111,15 @@ describe.each(Object.entries(MANIFESTS))("ICP build options on a manifest with %
         if (Object.keys(userOptions).length === 0) {
             expect(disabled).not.toContain("[build-options]");
         }
+    });
+});
+
+describe("hasICPBuildOptions", () => {
+    it("is false while any ICP option is missing or not true", () => {
+        expect(hasICPBuildOptions(PACKAGE)).toBe(false);
+        expect(hasICPBuildOptions(MANIFESTS["one ICP option already true"])).toBe(false);
+        expect(hasICPBuildOptions(MANIFESTS["ICP options set to false"])).toBe(false);
+        expect(hasICPBuildOptions(`${PACKAGE}\n[other]\nobservabilityIncluded = true\nremoteManagement = true\n`)).toBe(false);
     });
 });
 
