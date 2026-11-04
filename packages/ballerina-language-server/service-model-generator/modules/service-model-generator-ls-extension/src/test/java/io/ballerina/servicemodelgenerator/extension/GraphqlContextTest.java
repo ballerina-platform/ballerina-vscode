@@ -304,10 +304,15 @@ public class GraphqlContextTest extends AbstractLSTest {
                 String content = edited.containsKey(actual) ? edited.get(actual)
                         : Files.exists(actual) ? Files.readString(actual) : null;
                 Assert.assertNotNull(content, description + ": missing " + actual);
-                Assert.assertEquals(content, Files.readString(expected),
+                // A Windows checkout gives the fixtures CRLF endings while the inserted text uses LF.
+                Assert.assertEquals(normalizeLineEndings(content), normalizeLineEndings(Files.readString(expected)),
                         description + ": " + expectedDir.relativize(expected));
             }
         }
+    }
+
+    private static String normalizeLineEndings(String text) {
+        return text.replace("\r\n", "\n");
     }
 
     private static Path copyProject(Path source) throws IOException {
