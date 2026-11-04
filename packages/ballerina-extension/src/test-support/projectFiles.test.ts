@@ -104,6 +104,17 @@ describe("listProjectFiles", () => {
         expect(isReadableProjectFile(root, "new.bal")).toBe(true);
     });
 
+    it("refuses a new file whose folder is a symlink into a blocked folder", () => {
+        fs.symlinkSync(path.join(root, ".wso2"), path.join(root, "cfg"));
+        fs.symlinkSync(path.join(root, "target"), path.join(root, "out"));
+        expect(isReadableProjectFile(root, "cfg/new.json")).toBe(false);
+        expect(isReadableProjectFile(root, "out/new.bal")).toBe(false);
+    });
+
+    it("allows a new file when the project folder is not created yet", () => {
+        expect(isReadableProjectFile(path.join(root, "not", "yet"), "notes.md")).toBe(true);
+    });
+
     it("refuses a dangling symlink and anything under a dangling symlinked folder", () => {
         fs.symlinkSync(path.join(outside, "missing.bal"), path.join(root, "ghost.bal"));
         fs.symlinkSync(path.join(outside, "missing"), path.join(root, "ghostdir"));

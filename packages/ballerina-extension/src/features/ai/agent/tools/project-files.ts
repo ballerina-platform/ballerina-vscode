@@ -98,13 +98,16 @@ export function isReadableProjectFile(root: string, relPath: string): boolean {
     try {
         // lstat, not existsSync: a dangling symlink must count as present, or a write would follow it out.
         if (!entryExists(target)) {
-            // A file about to be written: its nearest existing folder must not lead out through a symlink.
+            if (!entryExists(rootReal)) {
+                return true;
+            }
+            // A file about to be written: where it really lands passes the same rules, so `cfg -> .wso2` cannot plant .wso2/mcp.json.
             let parent = path.dirname(target);
             while (!entryExists(parent)) {
                 parent = path.dirname(parent);
             }
-            const realParent = fs.realpathSync.native(parent);
-            return realParent === rootReal || isInside(rootReal, realParent);
+            const realTarget = path.join(fs.realpathSync.native(parent), path.relative(parent, target));
+            return isInside(rootReal, realTarget) && isAllowedProjectPath(path.relative(rootReal, realTarget));
         }
         const real = fs.realpathSync.native(target);
         // The name rule runs on the link target too, so `alias.bal -> Config.toml` stays out.
