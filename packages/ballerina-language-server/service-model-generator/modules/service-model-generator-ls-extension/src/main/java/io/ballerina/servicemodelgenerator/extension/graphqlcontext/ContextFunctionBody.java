@@ -381,6 +381,7 @@ public final class ContextFunctionBody {
         }
         // check request.getQueryParamValue("q").ensureType(string)
         if (value instanceof CheckExpressionNode check
+                && check.checkKeyword().kind() == SyntaxKind.CHECK_KEYWORD
                 && check.expression() instanceof MethodCallExpressionNode ensureType
                 && ENSURE_TYPE.equals(ensureType.methodName().toSourceCode().strip())
                 && ensureType.expression() instanceof MethodCallExpressionNode getParam

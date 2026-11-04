@@ -129,10 +129,15 @@ public class ContextFunctionBodyTest {
     public void anUnknownValueFormReadsAsAnExpression() throws Exception {
         ContextFunctionBody body = ContextFunctionBody.parse(parse(function(START
                 + "    context.set(\"a\", check request.getHeader(\"a\").ensureType());\n"
-                + "    context.set(\"b\", \"unknown \\u{61} escape\");\n" + END)));
+                + "    context.set(\"b\", \"unknown \\u{61} escape\");\n"
+                + "    context.set(\"c\", checkpanic request.getQueryParamValue(\"c\").ensureType(string));\n"
+                + "    context.set(\"d\", checkpanic request.getHeader(\"d\"));\n" + END)));
         Assert.assertEquals(body.entries(), List.of(
                 new ContextEntry("a", "expression", "check request.getHeader(\"a\").ensureType()", false),
-                new ContextEntry("b", "expression", "\"unknown \\u{61} escape\"", false)));
+                new ContextEntry("b", "expression", "\"unknown \\u{61} escape\"", false),
+                new ContextEntry("c", "expression",
+                        "checkpanic request.getQueryParamValue(\"c\").ensureType(string)", false),
+                new ContextEntry("d", "expression", "checkpanic request.getHeader(\"d\")", false)));
     }
 
     @DataProvider(name = "invalid")
