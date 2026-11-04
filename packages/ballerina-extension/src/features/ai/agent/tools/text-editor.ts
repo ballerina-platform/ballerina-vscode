@@ -268,7 +268,6 @@ const ErrorMessages = {
   INVALID_LINE_RANGE: 'Invalid line range',
   EDIT_FAILED: 'Edit operation failed',
   NO_EDITS: 'No edits provided',
-  FILE_READ_NOT_PERMITTED: 'File read not permitted',
   WRITE_FAILED: 'Write operation failed',
   WRITE_NOT_PERSISTED: 'Change was not persisted to disk',
   UNSAVED_CHANGES: 'File has unsaved changes in the editor',
@@ -298,7 +297,7 @@ async function refuseIfUnsaved(
 // Validation Functions
 // ============================================================================
 
-function validateFilePath(filePath: string): ValidationResult {
+function validateFilePath(tempProjectPath: string, filePath: string): ValidationResult {
   if (!filePath || typeof filePath !== 'string') {
     return {
       valid: false,
@@ -321,6 +320,13 @@ function validateFilePath(filePath: string): ValidationResult {
     return {
       valid: false,
       error: `File must have a valid extension: ${VALID_FILE_EXTENSIONS.join(', ')}`
+    };
+  }
+
+  if (!isReadableProjectFile(tempProjectPath, toPosixRelative(filePath))) {
+    return {
+      valid: false,
+      error: `Access to '${filePath}' is not permitted: the agent cannot read or change hidden files (other than .agents/), ${RESTRICTED_READ_FILES.join(", ")}, the target/ build folder, or anything outside the project.`
     };
   }
 
@@ -422,7 +428,7 @@ export function createWriteExecute(
     console.log(`[FileWriteTool] Writing to ${file_path}, content: ${content.substring(0, 50)}${content.length > 100 ? '... [truncated]' : ''}`);
 
     // Validate file path
-    const pathValidation = validateFilePath(file_path);
+    const pathValidation = validateFilePath(tempProjectPath, file_path);
     if (!pathValidation.valid) {
       console.error(`[FileWriteTool] Invalid file path: ${file_path}`);
       const result = {
@@ -544,7 +550,7 @@ export function createEditExecute(
     console.log(`[FileEditTool] Editing ${file_path}, replacing '${old_string.substring(0, 50)}' with '${new_string.substring(0,50)}', replace_all: ${replace_all}`);
 
     // Validate file path
-    const pathValidation = validateFilePath(file_path);
+    const pathValidation = validateFilePath(tempProjectPath, file_path);
     if (!pathValidation.valid) {
       console.error(`[FileEditTool] Invalid file path: ${file_path}`);
       const result = {
@@ -708,7 +714,7 @@ export function createMultiEditExecute(
     console.log(`[FileMultiEditTool] Editing ${file_path} with ${edits.length} edits.`);
 
     // Validate file path
-    const pathValidation = validateFilePath(file_path);
+    const pathValidation = validateFilePath(tempProjectPath, file_path);
     if (!pathValidation.valid) {
       console.error(`[FileMultiEditTool] Invalid file path: ${file_path}`);
       const result = {
@@ -876,22 +882,13 @@ export function createReadExecute(
     const { file_path, offset, limit } = args;
 
     // Validate file path
-    const pathValidation = validateFilePath(file_path);
+    const pathValidation = validateFilePath(tempProjectPath, file_path);
     if (!pathValidation.valid) {
       console.error(`[FileReadTool] Invalid file path: ${file_path}`);
       return {
         success: false,
         message: pathValidation.error!,
         error: `Error: ${ErrorMessages.INVALID_FILE_PATH}`
-      };
-    }
-
-    if (!isReadableProjectFile(tempProjectPath, toPosixRelative(file_path))) {
-      console.error(`[FileReadTool] Blocked read of restricted file: ${file_path}`);
-      return {
-        success: false,
-        message: `Reading '${file_path}' is not permitted.`,
-        error: `Error: ${ErrorMessages.FILE_READ_NOT_PERMITTED}`
       };
     }
 

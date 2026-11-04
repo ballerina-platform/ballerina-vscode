@@ -86,10 +86,16 @@ export function isReadableProjectFile(root: string, relPath: string): boolean {
     if (!isInside(rootReal, target)) {
         return false;
     }
-    if (!fs.existsSync(target)) {
-        return true;
-    }
     try {
+        if (!fs.existsSync(target)) {
+            // A file about to be written: its nearest existing folder must not lead out through a symlink.
+            let parent = path.dirname(target);
+            while (!fs.existsSync(parent)) {
+                parent = path.dirname(parent);
+            }
+            const realParent = fs.realpathSync.native(parent);
+            return realParent === rootReal || isInside(rootReal, realParent);
+        }
         const real = fs.realpathSync.native(target);
         // The name rule runs on the link target too, so `alias.bal -> Config.toml` stays out.
         return isInside(rootReal, real) && isAllowedProjectPath(path.relative(rootReal, real));
@@ -123,6 +129,12 @@ export async function listProjectFiles(root: string, options: ListProjectFilesOp
     const rootReal = realRoot(root);
     const scope = options.path ? toPosixRelative(options.path).replace(/\/+$/, "") : "";
     const base = scope && scope !== "." ? resolveContained(rootReal, scope) : rootReal;
+    const notPermitted = () => new PathValidationError(`"${options.path}" cannot be searched: the agent is not permitted to read it.`);
+    const scopeSegments = scope && scope !== "." ? scope.split("/") : [];
+    // Before the stat, so a blocked path gets the same answer whether it exists or not.
+    if (scopeSegments.some(isBlockedDirSegment)) {
+        throw notPermitted();
+    }
 
     let stat: fs.Stats;
     try {
@@ -132,13 +144,9 @@ export async function listProjectFiles(root: string, options: ListProjectFilesOp
     }
     if (stat.isFile()) {
         if (!isReadableProjectFile(rootReal, scope)) {
-            throw new PathValidationError(`"${options.path}" cannot be searched: the agent is not permitted to read it.`);
+            throw notPermitted();
         }
         return [scope];
-    }
-    const scopeSegments = scope && scope !== "." ? scope.split("/") : [];
-    if (scopeSegments.some(isBlockedDirSegment)) {
-        throw new PathValidationError(`"${options.path}" cannot be searched: the agent is not permitted to read it.`);
     }
 
     const matches = await glob(options.pattern || "**/*", {

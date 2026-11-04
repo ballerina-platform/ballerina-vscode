@@ -24,7 +24,7 @@ jest.mock("../rpc-managers/ai-panel/utils", () => ({ addToIntegration: jest.fn()
 jest.mock("../rpc-managers/diagram-validity", () => ({ recordAiTouchedFile: jest.fn() }));
 jest.mock("../features/ai/utils/project/ls-schema-notifications", () => ({ seedNewPackageBaseline: jest.fn() }));
 
-import { createReadExecute, createReadTool } from "../features/ai/agent/tools/text-editor";
+import { createEditExecute, createMultiEditExecute, createReadExecute, createReadTool, createWriteExecute } from "../features/ai/agent/tools/text-editor";
 
 let root: string;
 let read: ReturnType<typeof createReadExecute>;
@@ -120,5 +120,44 @@ describe("file_read limits", () => {
         expect(schema.safeParse({ file_path: "main.bal", offset: 1, limit: 10 }).success).toBe(true);
         expect(schema.safeParse({ file_path: "main.bal", offset: 0 }).success).toBe(false);
         expect(schema.safeParse({ file_path: "main.bal", limit: 1.5 }).success).toBe(false);
+    });
+});
+
+describe("file_edit and file_write follow the same file rule", () => {
+    it("does not edit or show a file the agent may not read", async () => {
+        fs.writeFileSync(path.join(root, "Config.toml"), "apiKey = \"SECRET\"");
+        fs.mkdirSync(path.join(root, ".wso2"));
+        fs.writeFileSync(path.join(root, ".wso2", "mcp.json"), "{\"token\":\"SECRET\"}");
+        const edit = createEditExecute(jest.fn(), root);
+        const batchEdit = createMultiEditExecute(jest.fn(), root);
+        const results = [
+            await edit({ file_path: "Config.toml", old_string: "zzz", new_string: "y" }),
+            await batchEdit({ file_path: ".wso2/mcp.json", edits: [{ old_string: "zzz", new_string: "y" }] }),
+        ];
+        for (const result of results) {
+            expect(result.success).toBe(false);
+            expect(result.message).toContain("not permitted");
+            expect(result.message).not.toContain("SECRET");
+        }
+    });
+
+    it("does not overwrite Config.toml", async () => {
+        fs.writeFileSync(path.join(root, "Config.toml"), "apiKey = \"SECRET\"");
+        const result = await createWriteExecute(jest.fn(), root)({ file_path: "Config.toml", content: "x = 1", overwrite: true });
+        expect(result.success).toBe(false);
+        expect(fs.readFileSync(path.join(root, "Config.toml"), "utf8")).toBe("apiKey = \"SECRET\"");
+    });
+
+    it("does not write a new file through a symlinked folder that leads out of the project", async () => {
+        const outside = fs.mkdtempSync(path.join(os.tmpdir(), "file-write-outside-"));
+        try {
+            fs.symlinkSync(outside, path.join(root, "linkdir"));
+            const result = await createWriteExecute(jest.fn(), root)({ file_path: "linkdir/new/x.bal", content: "int x = 1;" });
+            expect(result.success).toBe(false);
+            expect(result.message).toContain("not permitted");
+            expect(fs.readdirSync(outside)).toEqual([]);
+        } finally {
+            fs.rmSync(outside, { recursive: true, force: true });
+        }
     });
 });

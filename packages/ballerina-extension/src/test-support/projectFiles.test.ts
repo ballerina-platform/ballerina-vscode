@@ -90,6 +90,20 @@ describe("listProjectFiles", () => {
         await expect(listProjectFiles(root, { path: "target" })).rejects.toThrow(/not permitted/);
     });
 
+    it("gives the same answer for a blocked path whether it exists or not", async () => {
+        await expect(listProjectFiles(root, { path: ".env" })).rejects.toThrow(/not permitted/);
+        await expect(listProjectFiles(root, { path: ".envx" })).rejects.toThrow(/not permitted/);
+        await expect(listProjectFiles(root, { path: "target/none" })).rejects.toThrow(/not permitted/);
+    });
+
+    it("refuses a new file under a symlinked folder that leads out", () => {
+        fs.symlinkSync(outside, path.join(root, "linkdir"));
+        expect(isReadableProjectFile(root, "linkdir/new.bal")).toBe(false);
+        expect(isReadableProjectFile(root, "linkdir/a/b/new.bal")).toBe(false);
+        expect(isReadableProjectFile(root, "modules/new/x.bal")).toBe(true);
+        expect(isReadableProjectFile(root, "new.bal")).toBe(true);
+    });
+
     it("rejects paths and patterns that leave the project", async () => {
         await expect(listProjectFiles(root, { path: "../" })).rejects.toThrow(/Invalid path/);
         await expect(listProjectFiles(root, { pattern: "{..,x}/a.bal" })).rejects.toThrow(/Invalid pattern/);
