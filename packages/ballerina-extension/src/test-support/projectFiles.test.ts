@@ -104,6 +104,13 @@ describe("listProjectFiles", () => {
         expect(isReadableProjectFile(root, "new.bal")).toBe(true);
     });
 
+    it("refuses a dangling symlink and anything under a dangling symlinked folder", () => {
+        fs.symlinkSync(path.join(outside, "missing.bal"), path.join(root, "ghost.bal"));
+        fs.symlinkSync(path.join(outside, "missing"), path.join(root, "ghostdir"));
+        expect(isReadableProjectFile(root, "ghost.bal")).toBe(false);
+        expect(isReadableProjectFile(root, "ghostdir/x.bal")).toBe(false);
+    });
+
     it("rejects paths and patterns that leave the project", async () => {
         await expect(listProjectFiles(root, { path: "../" })).rejects.toThrow(/Invalid path/);
         await expect(listProjectFiles(root, { pattern: "{..,x}/a.bal" })).rejects.toThrow(/Invalid pattern/);

@@ -152,9 +152,13 @@ describe("file_edit and file_write follow the same file rule", () => {
         const outside = fs.mkdtempSync(path.join(os.tmpdir(), "file-write-outside-"));
         try {
             fs.symlinkSync(outside, path.join(root, "linkdir"));
-            const result = await createWriteExecute(jest.fn(), root)({ file_path: "linkdir/new/x.bal", content: "int x = 1;" });
-            expect(result.success).toBe(false);
-            expect(result.message).toContain("not permitted");
+            fs.symlinkSync(path.join(outside, "missing.bal"), path.join(root, "ghost.bal"));
+            const write = createWriteExecute(jest.fn(), root);
+            for (const file_path of ["linkdir/new/x.bal", "ghost.bal"]) {
+                const result = await write({ file_path, content: "int x = 1;" });
+                expect(result.success).toBe(false);
+                expect(result.message).toContain("not permitted");
+            }
             expect(fs.readdirSync(outside)).toEqual([]);
         } finally {
             fs.rmSync(outside, { recursive: true, force: true });

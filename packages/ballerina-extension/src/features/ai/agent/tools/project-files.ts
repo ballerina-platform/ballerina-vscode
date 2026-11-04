@@ -76,6 +76,15 @@ function isInside(rootReal: string, candidate: string): boolean {
     return rel !== "" && rel !== ".." && !rel.startsWith(`..${path.sep}`) && !path.isAbsolute(rel);
 }
 
+function entryExists(p: string): boolean {
+    try {
+        fs.lstatSync(p);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
 /** The name policy plus a realpath check, so a symlink cannot reach outside the project. */
 export function isReadableProjectFile(root: string, relPath: string): boolean {
     if (!isAllowedProjectPath(relPath)) {
@@ -87,10 +96,11 @@ export function isReadableProjectFile(root: string, relPath: string): boolean {
         return false;
     }
     try {
-        if (!fs.existsSync(target)) {
+        // lstat, not existsSync: a dangling symlink must count as present, or a write would follow it out.
+        if (!entryExists(target)) {
             // A file about to be written: its nearest existing folder must not lead out through a symlink.
             let parent = path.dirname(target);
-            while (!fs.existsSync(parent)) {
+            while (!entryExists(parent)) {
                 parent = path.dirname(parent);
             }
             const realParent = fs.realpathSync.native(parent);
