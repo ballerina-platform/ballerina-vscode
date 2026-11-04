@@ -98,6 +98,13 @@ public class ContextFunctionBodyTest {
                 {"a computed key", START + "    context.set(key, \"b\");\n" + END},
                 {"a named argument", START + "    context.set('key = \"a\", value = \"b\");\n" + END},
                 {"an expression body", null},
+                {"a comment between sets", START + "    context.set(\"a\", \"b\");\n    // why we read this\n"
+                        + "    context.set(\"c\", \"d\");\n" + END},
+                {"a comment after the declaration", "    graphql:Context context = new; // note\n"
+                        + "    context.set(\"a\", \"b\");\n" + END},
+                {"a comment before the return", START + "    context.set(\"a\", \"b\");\n    // note\n" + END},
+                {"a comment inside a set", START + "    context.set(\"a\", // note\n        \"b\");\n" + END},
+                {"a comment with no sets", START + "    // note\n" + END},
         };
     }
 
@@ -109,6 +116,13 @@ public class ContextFunctionBodyTest {
                 : function(body);
         Assert.assertThrows(ContextFunctionBody.NotEditableException.class,
                 () -> ContextFunctionBody.parse(parse(source)));
+    }
+
+    @Test
+    public void commentsOutsideTheReplacedSpanStayEditable() throws Exception {
+        ContextFunctionBody body = ContextFunctionBody.parse(parse(function("    // build the context\n" + START
+                + "    context.set(\"a\", \"b\");\n    return context; // done\n}")));
+        Assert.assertEquals(body.entries(), List.of(new ContextEntry("a", "value", "b", false)));
     }
 
     @Test

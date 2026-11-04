@@ -30,9 +30,13 @@ import io.ballerina.compiler.syntax.tree.FunctionBodyBlockNode;
 import io.ballerina.compiler.syntax.tree.FunctionDefinitionNode;
 import io.ballerina.compiler.syntax.tree.ImplicitNewExpressionNode;
 import io.ballerina.compiler.syntax.tree.MethodCallExpressionNode;
+import io.ballerina.compiler.syntax.tree.Minutiae;
+import io.ballerina.compiler.syntax.tree.MinutiaeList;
 import io.ballerina.compiler.syntax.tree.NilLiteralNode;
+import io.ballerina.compiler.syntax.tree.Node;
 import io.ballerina.compiler.syntax.tree.NodeList;
 import io.ballerina.compiler.syntax.tree.NodeParser;
+import io.ballerina.compiler.syntax.tree.NonTerminalNode;
 import io.ballerina.compiler.syntax.tree.ParameterNode;
 import io.ballerina.compiler.syntax.tree.PositionalArgumentNode;
 import io.ballerina.compiler.syntax.tree.QualifiedNameReferenceNode;
@@ -42,6 +46,7 @@ import io.ballerina.compiler.syntax.tree.SeparatedNodeList;
 import io.ballerina.compiler.syntax.tree.SimpleNameReferenceNode;
 import io.ballerina.compiler.syntax.tree.StatementNode;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
+import io.ballerina.compiler.syntax.tree.Token;
 import io.ballerina.compiler.syntax.tree.VariableDeclarationNode;
 import io.ballerina.tools.text.LinePosition;
 
@@ -157,6 +162,17 @@ public final class ContextFunctionBody {
         for (int i = 1; i < statements.size() - 1; i++) {
             entries.add(entry(statements.get(i), contextName, requestName).orElseThrow(() ->
                     new NotEditableException("The function does more than set context values.")));
+        }
+        // A rewrite replaces everything between the first and last statements, so a comment there would be lost.
+        boolean commented = edgeToken(statements.get(0), false)
+                .filter(token -> hasComment(token.trailingMinutiae())).isPresent()
+                || edgeToken(statements.get(statements.size() - 1), true)
+                .filter(token -> hasComment(token.leadingMinutiae())).isPresent();
+        for (int i = 1; i < statements.size() - 1 && !commented; i++) {
+            commented = hasComment(statements.get(i));
+        }
+        if (commented) {
+            throw new NotEditableException("The function has comments among its context values.");
         }
         int column = statements.get(0).lineRange().startLine().offset();
         return new ContextFunctionBody(contextName, requestName, List.copyOf(entries),
@@ -278,6 +294,47 @@ public final class ContextFunctionBody {
                 && CONTEXT_TYPE.equals(newType.identifier().text())
                 && explicitNew.parenthesizedArgList().arguments().isEmpty();
         return createsContext ? Optional.of(binding.variableName().text()) : Optional.empty();
+    }
+
+    /**
+     * The node's first or last token.
+     */
+    private static Optional<Token> edgeToken(Node node, boolean first) {
+        if (node instanceof Token token) {
+            return Optional.of(token);
+        }
+        List<Node> children = new ArrayList<>();
+        ((NonTerminalNode) node).children().forEach(children::add);
+        for (int i = 0; i < children.size(); i++) {
+            Optional<Token> token = edgeToken(children.get(first ? i : children.size() - 1 - i), first);
+            if (token.isPresent()) {
+                return token;
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static boolean hasComment(Node node) {
+        if (node instanceof Token token) {
+            return hasComment(token.leadingMinutiae()) || hasComment(token.trailingMinutiae());
+        }
+        if (node instanceof NonTerminalNode nonTerminal) {
+            for (Node child : nonTerminal.children()) {
+                if (hasComment(child)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static boolean hasComment(MinutiaeList minutiae) {
+        for (Minutiae item : minutiae) {
+            if (item.kind() == SyntaxKind.COMMENT_MINUTIAE) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static boolean returnsName(StatementNode statement, String name) {
