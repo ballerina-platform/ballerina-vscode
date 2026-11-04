@@ -38,6 +38,11 @@ service mcp:Service /tools on tools {}`, { basePath: "/tools", port: 9090 }],
         ["root path", "listener mcp:Listener l = new (8080);\nservice mcp:Service / on l {}", { basePath: "/", port: 8080 }],
         ["no path", "listener mcp:Listener l = new (8080);\nservice mcp:Service on l {}", { basePath: "/", port: 8080 }],
         ["configurable port", "configurable int port = 8080;\nlistener mcp:Listener l = new (port);\nservice mcp:Service /mcp on l {}", { basePath: "/mcp", port: undefined }],
+        ["v2 named listener", `listener mcpv2:StreamableHttpListener mcpListener = new (8080);
+@mcpv2:StreamableHttpServiceConfig {info: {name: "MCP Service", version: "1.0.0"}}
+service mcpv2:StreamableHttpService /mcp on mcpListener {
+}`, { basePath: "/mcp", port: 8080 }],
+        ["v2 inline listener", "service mcpv2:StreamableHttpService /tools on new mcpv2:StreamableHttpListener(7070) {}", { basePath: "/tools", port: 7070 }],
     ])("reads the base path and port from a %s", (_case, source, expected) => {
         expect(findMcpService([source])).toEqual(expected);
     });

@@ -40,10 +40,12 @@ export interface McpServiceDeclaration {
     port?: number;
 }
 
-const SERVICE = /service\s+mcp:\w*Service\s+(?:([^\s{]+)\s+)?on\s+([^{]+?)\s*\{/;
-const INLINE_LISTENER = /new\s+mcp:\w*Listener\s*\(\s*(?:port\s*=\s*)?(\d+)/;
+// `mcpv2` is the prefix new servers import `ballerina/mcp.v2` under; `mcp` is the package's root module, whose
+// services are deprecated.
+const SERVICE = /service\s+mcp(?:v2)?:\w*Service\s+(?:([^\s{]+)\s+)?on\s+([^{]+?)\s*\{/;
+const INLINE_LISTENER = /new\s+mcp(?:v2)?:\w*Listener\s*\(\s*(?:port\s*=\s*)?(\d+)/;
 const NAMED_LISTENER = (name: string) =>
-    new RegExp(`listener\\s+mcp:\\w*Listener\\s+${name}\\s*=\\s*(?:check\\s+)?new\\s*(?:mcp:\\w*Listener)?\\s*\\(\\s*(?:port\\s*=\\s*)?(\\d+)`);
+    new RegExp(`listener\\s+mcp(?:v2)?:\\w*Listener\\s+${name}\\s*=\\s*(?:check\\s+)?new\\s*(?:mcp(?:v2)?:\\w*Listener)?\\s*\\(\\s*(?:port\\s*=\\s*)?(\\d+)`);
 
 // A local trace toggle the agent flow keeps out of Git; it never declares services.
 const LOCAL_ONLY_SOURCES = new Set(["trace_enabled.bal"]);
@@ -70,7 +72,7 @@ export function repositoryRootFor(projectPath: string): string {
     return fs.existsSync(workspaceToml) && /^\s*\[workspace\]/m.test(fs.readFileSync(workspaceToml, "utf-8")) ? parent : projectPath;
 }
 
-/** Finds the first `ballerina/mcp` service across the given sources, and the port of the listener it attaches to. */
+/** Finds the first `ballerina/mcp` (or `mcp.v2`) service across the given sources, and the port of the listener it attaches to. */
 export function findMcpService(sources: string[]): McpServiceDeclaration | undefined {
     const text = sources.join("\n");
     const service = SERVICE.exec(text);
