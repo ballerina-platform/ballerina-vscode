@@ -536,11 +536,25 @@ public class PackageUtil {
         while ((lastDot = candidate.lastIndexOf('.')) > 0) {
             candidate = candidate.substring(0, lastDot);
             Optional<Package> owner = getModulePackageOffline(org, candidate, version);
-            if (owner.isPresent() && findModule(owner.get(), moduleName).isPresent()) {
+            if (owner.isPresent() && hasModuleNamed(owner.get(), moduleName)) {
                 return owner;
             }
         }
         return Optional.empty();
+    }
+
+    /**
+     * Whether {@code pkg} has a module whose fully qualified name is exactly {@code moduleName}. Unlike
+     * {@link #findModule}, a bare name is not qualified with the package name: during the prefix walk that would
+     * accept package {@code a} as the owner of {@code a.b} when it merely has a module named {@code a.a.b}.
+     */
+    private static boolean hasModuleNamed(Package pkg, String moduleName) {
+        for (Module module : pkg.modules()) {
+            if (module.moduleName().toString().equals(moduleName)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static Optional<Path> resolveOfflineModuleBala(String org, String name, String version) {
