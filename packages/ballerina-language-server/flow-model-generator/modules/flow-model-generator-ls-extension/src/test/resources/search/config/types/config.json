@@ -185,22 +185,6 @@
             },
             {
               "metadata": {
-                "label": "FailoverClientConfiguration",
-                "description": "Provides a set of HTTP related configurations and failover related configurations.\nThe following fields are inherited from the other configuration records in addition to the failover client-specific\nconfigs.",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerina",
-                "module": "http",
-                "packageName": "http",
-                "symbol": "FailoverClientConfiguration",
-                "version": "2.16.2"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
                 "label": "KeepAlive",
                 "description": "Defines the possible values for the keep-alive configuration in service and client endpoints.",
                 "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
@@ -211,6 +195,22 @@
                 "module": "http",
                 "packageName": "http",
                 "symbol": "KeepAlive",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "FailoverClientConfiguration",
+                "description": "Provides a set of HTTP related configurations and failover related configurations.\nThe following fields are inherited from the other configuration records in addition to the failover client-specific\nconfigs.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "FailoverClientConfiguration",
                 "version": "2.16.2"
               },
               "enabled": true

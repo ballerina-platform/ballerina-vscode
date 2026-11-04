@@ -1108,22 +1108,6 @@
             },
             {
               "metadata": {
-                "label": "Caller",
-                "description": "The caller actions for responding to client requests.",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerina",
-                "module": "http",
-                "packageName": "http",
-                "symbol": "Caller",
-                "version": "2.16.2"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
                 "label": "CertKey",
                 "description": "Represents combination of certificate, private key and private key password if encrypted.\n",
                 "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
@@ -1252,22 +1236,6 @@
             },
             {
               "metadata": {
-                "label": "Client",
-                "description": "The HTTP client provides functionality to connect to remote HTTP services and perform requests using standard HTTP methods like GET, POST, PUT, DELETE, etc.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerina",
-                "module": "http",
-                "packageName": "http",
-                "symbol": "Client",
-                "version": "2.16.2"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
                 "label": "ClientAuthConfig",
                 "description": "Defines the authentication configurations for the HTTP client.",
                 "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
@@ -1278,6 +1246,38 @@
                 "module": "http",
                 "packageName": "http",
                 "symbol": "ClientAuthConfig",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "ClientAuthError",
+                "description": "Defines the Auth error types that returned from client.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "ClientAuthError",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "ClientBasicAuthHandler",
+                "description": "Defines the Basic Auth handler for client authentication.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "ClientBasicAuthHandler",
                 "version": "2.16.2"
               },
               "enabled": true

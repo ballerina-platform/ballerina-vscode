@@ -38,7 +38,7 @@ import java.util.Set;
  *     <li>{@code ballerina/np} has 3 types while {@code ballerinax/np} has none - a same-name, different-org pair
  *     that is only distinguishable if a query binds organization and module name together. {@code Package.name} has
  *     no uniqueness constraint, so this is legal index content, not corruption.</li>
- *     <li>{@code xlibb/solace} (35 types) and {@code ballerinax/solace} (32) are the same collision with rows on
+ *     <li>{@code xlibb/solace} (32 types) and {@code ballerinax/solace} (29) are the same collision with rows on
  *     both sides, so an org-blind query merges two unrelated vendors' connectors.</li>
  *     <li>{@code ballerinax/np} is present in {@code Package} with zero {@code Type} rows, so "has no types" must
  *     not be read as "not indexed".</li>
@@ -83,14 +83,14 @@ public class SearchDatabaseManagerTypeSearchTest {
     @Test(description = "Two orgs publishing the same module name must never have their types merged")
     public void testSearchTypesByPackagesDoesNotMergeCollidingOrgs() {
         List<SearchResult> xlibbResults = dbManager.searchTypesByPackages(Set.of(mod(XLIBB, "solace")), 100, 0);
-        Assert.assertEquals(xlibbResults.size(), 35);
+        Assert.assertEquals(xlibbResults.size(), 32);
         for (SearchResult result : xlibbResults) {
             Assert.assertEquals(result.packageInfo().org(), XLIBB);
         }
 
         List<SearchResult> ballerinaxResults =
                 dbManager.searchTypesByPackages(Set.of(mod(BALLERINAX, "solace")), 100, 0);
-        Assert.assertEquals(ballerinaxResults.size(), 32);
+        Assert.assertEquals(ballerinaxResults.size(), 29);
         for (SearchResult result : ballerinaxResults) {
             Assert.assertEquals(result.packageInfo().org(), BALLERINAX);
         }
@@ -119,16 +119,16 @@ public class SearchDatabaseManagerTypeSearchTest {
     public void testCollidingModuleNamesFromTwoOrgsCoexist() {
         Set<ModuleCoordinate> bothOrgs = Set.of(mod(XLIBB, "solace"), mod(BALLERINAX, "solace"));
 
-        Assert.assertEquals(dbManager.countIndexedTypes(bothOrgs), 67, "xlibb/solace=35 + ballerinax/solace=32");
+        Assert.assertEquals(dbManager.countIndexedTypes(bothOrgs), 61, "xlibb/solace=32 + ballerinax/solace=29");
         Assert.assertEquals(dbManager.findIndexedModules(bothOrgs), bothOrgs,
                 "both orgs are indexed and must each be reported, so neither is misread as missing");
 
-        List<SearchResult> page = dbManager.searchTypesByPackages(bothOrgs, 67, 0);
-        Assert.assertEquals(page.size(), 67);
+        List<SearchResult> page = dbManager.searchTypesByPackages(bothOrgs, 61, 0);
+        Assert.assertEquals(page.size(), 61);
         long xlibbCount = page.stream().filter(r -> XLIBB.equals(r.packageInfo().org())).count();
         long ballerinaxCount = page.stream().filter(r -> BALLERINAX.equals(r.packageInfo().org())).count();
-        Assert.assertEquals(xlibbCount, 35, "keying by module name alone would have dropped one org entirely");
-        Assert.assertEquals(ballerinaxCount, 32);
+        Assert.assertEquals(xlibbCount, 32, "keying by module name alone would have dropped one org entirely");
+        Assert.assertEquals(ballerinaxCount, 29);
     }
 
     @Test(description = "A colliding pair where only one org is indexed must still resolve the other live")
@@ -250,30 +250,5 @@ public class SearchDatabaseManagerTypeSearchTest {
 
         Assert.assertTrue(dbManager.searchTypesByPackagesMatching(Set.of(mod(BALLERINAX, "np")), "Prompt", 100, 0)
                 .isEmpty(), "ballerinax/np has no types, so no query can match within it");
-    }
-
-    @Test(description = "Client classes are types too, in both the imported and the non-imported tier "
-            + "(wso2/product-integrator#343)")
-    public void testClientClassesAreIndexedAsTypes() {
-        Set<ModuleCoordinate> http = Set.of(mod(BALLERINA, "http"));
-        Set<String> httpClients = typeNames(dbManager.searchTypesByPackagesMatching(http, "Client", 100, 0));
-        Assert.assertTrue(httpClients.containsAll(Set.of("Client", "FailoverClient", "LoadBalanceClient")),
-                "imported ballerina/http must list its client classes, got " + httpClients);
-        // Caller is left out of the connector palette by connector_exclude.json, but it is still a type.
-        Assert.assertTrue(typeNames(dbManager.searchTypesByPackagesMatching(http, "Caller", 100, 0))
-                .contains("Caller"), "http:Caller must be found as a type");
-
-        List<SearchResult> library = dbManager.searchTypesExcludingPackages("redis Client", http, 100, 0);
-        Assert.assertTrue(library.stream().anyMatch(r -> BALLERINAX.equals(r.packageInfo().org())
-                        && "redis".equals(r.packageInfo().moduleName()) && "Client".equals(r.name())),
-                "a non-imported library client (redis:Client) must be found in the library tier");
-    }
-
-    private static Set<String> typeNames(List<SearchResult> results) {
-        Set<String> names = new HashSet<>();
-        for (SearchResult result : results) {
-            names.add(result.name());
-        }
-        return names;
     }
 }

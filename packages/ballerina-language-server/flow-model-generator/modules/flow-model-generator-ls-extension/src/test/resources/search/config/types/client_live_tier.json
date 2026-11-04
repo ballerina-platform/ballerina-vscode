@@ -358,24 +358,24 @@
       "items": [
         {
           "metadata": {
-            "label": "dayforce",
+            "label": "alfresco",
             "description": "",
             "keywords": []
           },
           "items": [
             {
               "metadata": {
-                "label": "Client",
+                "label": "ClientBody",
                 "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_dayforce_0.1.0.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_alfresco_2.0.2.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
                 "org": "ballerinax",
-                "module": "dayforce",
-                "packageName": "dayforce",
-                "symbol": "Client",
-                "version": "0.1.0"
+                "module": "alfresco",
+                "packageName": "alfresco",
+                "symbol": "ClientBody",
+                "version": "2.0.2"
               },
               "enabled": true
             }
