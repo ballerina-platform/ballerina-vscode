@@ -743,9 +743,10 @@ export const toAgentToolReference = (codedata: CodeData): { toolName: string; im
     return { toolName: `${prefix}:${codedata.symbol}`, imports: { [prefix]: `${codedata.org}/${codedata.module}` } };
 };
 
-// Agent tools show the tool icon, and packages without any are left out.
+// Agent tools show the tool icon; empty packages and the "(Current Integration)" suffix, which adds "Create Function", are dropped.
 export const toAgentToolsCategory = (category: Category): Category => ({
     ...category,
+    metadata: { ...category.metadata, label: category.metadata.label.replace(/ \(Current Integration\)$/i, "") },
     items: category.items
         .map((item) => "codedata" in item
             ? { ...item, metadata: { ...item.metadata, icon: "bi-wrench" } }
