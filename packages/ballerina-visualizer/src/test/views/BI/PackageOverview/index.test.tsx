@@ -166,6 +166,7 @@ function emptyDirectoryMap(): Record<string, unknown[]> {
 
 interface ICPRpc {
     addICPResponse?: { enabled?: boolean; errorMsg?: string };
+    enabledOnDisk?: boolean;
 }
 
 interface WorkflowRpc {
@@ -198,7 +199,7 @@ function makeRpc(directoryMap: Record<string, unknown[]>, workflow: WorkflowRpc 
         return runtime;
     });
     const icpRpc = {
-        isIcpEnabled: jest.fn(async (_request: { projectPath: string }) => ({ enabled: false })),
+        isIcpEnabled: jest.fn(async (_request: { projectPath: string }) => ({ enabled: icp.enabledOnDisk ?? false })),
         addICP: jest.fn(async (_request: { projectPath: string }) => icp.addICPResponse ?? { enabled: true }),
         disableICP: jest.fn(async (_request: { projectPath: string }) => ({ enabled: false })),
         isICPServerRunning: jest.fn(async () => ({ enabled: false })),
@@ -527,11 +528,12 @@ describe("PackageOverview ICP toggle", () => {
         }
     };
 
-    it("reads the ICP state of the integration on screen", async () => {
-        const { rpcClient, icpRpc } = makeRpc(emptyDirectoryMap());
+    it.each([true, false])("reads the ICP state of the integration on screen (enabled: %s)", async enabled => {
+        const { rpcClient, icpRpc } = makeRpc(emptyDirectoryMap(), {}, { enabledOnDisk: enabled });
         await renderOverview(rpcClient);
 
         expect(icpRpc.isIcpEnabled).toHaveBeenCalledWith({ projectPath: PROJECT_PATH });
+        expect(icpCheckbox().checked).toBe(enabled);
     });
 
     it("enables and disables ICP for the integration on screen", async () => {
