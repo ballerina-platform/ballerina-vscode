@@ -437,7 +437,15 @@ public class SourceBuilder {
      * predefined lang-lib prefixes (e.g. {@code int}, {@code error}) are legal unescaped and left as-is.
      */
     public String referenceQualifier(String org, String module) {
-        String prefix = importPrefix(org, module);
+        return referenceQualifier(org, module, null);
+    }
+
+    /**
+     * As {@link #referenceQualifier(String, String)}, but a module the file does not import yet is imported under
+     * {@code preferredPrefix} rather than its natural prefix.
+     */
+    public String referenceQualifier(String org, String module, String preferredPrefix) {
+        String prefix = importPrefix(org, module, false, preferredPrefix);
         if (prefix.isEmpty()) {
             return "";
         }
@@ -447,6 +455,10 @@ public class SourceBuilder {
     }
 
     private String importPrefix(String org, String module, boolean defaultNamespace) {
+        return importPrefix(org, module, defaultNamespace, null);
+    }
+
+    private String importPrefix(String org, String module, boolean defaultNamespace, String preferredPrefix) {
         if (org == null || module == null) {
             return "";
         }
@@ -470,7 +482,7 @@ public class SourceBuilder {
             imports.putIfAbsent(importSignature + " as _", null);
             return "";
         }
-        String prefix = prefixes().prefixFor(org, module);
+        String prefix = prefixes().prefixFor(org, module, preferredPrefix);
         imports.put(importSignature, prefix);
         return prefix;
     }

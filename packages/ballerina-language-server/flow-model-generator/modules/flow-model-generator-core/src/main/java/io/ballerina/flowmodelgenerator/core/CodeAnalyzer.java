@@ -4212,6 +4212,9 @@ public class CodeAnalyzer extends NodeVisitor {
                 McpToolKitBuilder.setDisplayProperties(nodeBuilder,
                         AiUtils.readDisplayField(classSymbol, AiUtils.DISPLAY_LABEL),
                         AiUtils.readDisplayField(classSymbol, AiUtils.DISPLAY_ICON_PATH));
+                if (isMcpV2ToolKit(classSymbol)) {
+                    nodeBuilder.codedata().data(McpToolKitBuilder.MCP_PROTOCOL_KEY, McpToolKitBuilder.MCP_PROTOCOL_V2);
+                }
             }
         }
         if (kind == NodeKind.MCP_TOOL_KIT) {
@@ -6058,6 +6061,21 @@ public class CodeAnalyzer extends NodeVisitor {
             }
         }
         return hasTool;
+    }
+
+    /**
+     * Checks whether a generated MCP toolkit class is built on the mcp.v2 client, by the module of its
+     * {@code mcpClient} field.
+     */
+    private boolean isMcpV2ToolKit(ClassSymbol classSymbol) {
+        ClassFieldSymbol mcpClientField = classSymbol.fieldDescriptors().get("mcpClient");
+        if (mcpClientField == null) {
+            return false;
+        }
+        return mcpClientField.typeDescriptor().getModule()
+                .map(module -> Constants.Ai.BALLERINA_ORG.equals(module.id().orgName())
+                        && Constants.Ai.MCP_V2_MODULE.equals(module.id().moduleName()))
+                .orElse(false);
     }
 
     /**

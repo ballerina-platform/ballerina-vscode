@@ -94,6 +94,15 @@ public final class ModulePrefixContext {
      * </p>
      */
     public String prefixFor(String org, String module) {
+        return prefixFor(org, module, null);
+    }
+
+    /**
+     * As {@link #prefixFor(String, String)}, but a module the file does not import yet is allocated
+     * {@code preferredPrefix} instead of its natural prefix, e.g. {@code mcp.v2} as {@code mcpv2}. An import already
+     * in the file still wins, and a taken preferred prefix is suffixed like any other.
+     */
+    public String prefixFor(String org, String module, String preferredPrefix) {
         if (module == null || module.isBlank()) {
             return "";
         }
@@ -117,7 +126,7 @@ public final class ModulePrefixContext {
         if (existing.isPresent()) {
             resolved = existing.get();
         } else {
-            resolved = ModuleAliasResolver.allocate(module, null, claimed);
+            resolved = ModuleAliasResolver.allocate(module, preferredPrefix, claimed);
             pendingImports.put(key, resolved);
         }
         claimed.add(resolved);
