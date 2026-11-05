@@ -68,8 +68,9 @@ on:
       APPINSIGHTS_INSTRUMENTATION_KEY:
         required: false
       CODECOV_TOKEN:
-        # Optional: language server and TypeScript coverage uploads fall back to Codecov's
-        # tokenless flow for public repositories when this is not set.
+        # Optional: unset, Codecov accepts the language server and TypeScript coverage
+        # uploads only from fork PRs, or from any branch if the organization has turned
+        # off token authentication for public repositories.
         required: false
 
 jobs:
@@ -232,7 +233,9 @@ jobs:
   # Fast, deterministic tests (unit / component / contract) that run on every PR.
   # Auto-discovers every package that has a jest.config.js, so new jest packages
   # from the test-coverage rollout (docs/TEST_PLAN.md, docs/TEST_BACKLOG.md) are
-  # picked up automatically — no edits to this workflow needed.
+  # picked up automatically — no edits to this workflow needed. A new package's coverage
+  # is uploaded too, but it gets its own line in the Codecov PR comment only after it is
+  # added as a component in codecov.yml.
   fast-tests:
     name: Fast tests (unit + component + contract)
     needs: Build_Stage
@@ -259,6 +262,7 @@ jobs:
           rush-install: true
 
       - name: Run jest across all packages with a jest.config.js
+        id: jest
         run: |
           set -uo pipefail
           shopt -s nullglob
@@ -292,10 +296,11 @@ jobs:
       # Jest writes lcov paths relative to each package (SF:src/...). Codecov cannot
       # map those to the repo, because the same src/ path exists in several packages,
       # so prefix each path with its package directory. Runs after the artifact upload,
-      # which keeps the package-relative files.
+      # which keeps the package-relative files. Skipped when any jest run fails: a package
+      # that stopped partway leaves partial or no lcov, which would read as a coverage drop.
       - name: Make lcov paths repo-relative
         id: lcov
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.jest.outcome == 'success' }}
         run: |
           shopt -s nullglob
           files=()

@@ -88,22 +88,14 @@ flags:
     # When they do not run, reuse the base commit's report instead of reporting 0%.
     carryforward: true
   typescript:
-    # The packages with a jest.config.js, whose fast tests upload coverage.
-    paths:
-      - packages/ballerina-core/
-      - packages/ballerina-extension/
-      - packages/ballerina-side-panel/
-      - packages/ballerina-visualizer/
-      - packages/bi-diagram/
-      - packages/component-diagram/
-      - packages/record-creator/
-      - packages/sequence-diagram/
-      - packages/type-diagram/
+    # No paths filter: the upload only sends packages/*/coverage/lcov.info, and each file
+    # covers only its own package, so a new jest package is included without an edit here.
     # Fast tests are skipped when a build is not needed; reuse the base commit's report.
     carryforward: true
 
 # One component per package, so the PR comment and dashboard show a number per package.
 # Components add no statuses of their own; the flagged statuses above stay the only checks.
+# Components need explicit paths: add one here when a package gets a jest.config.js.
 component_management:
   individual_components:
     - component_id: language_server
