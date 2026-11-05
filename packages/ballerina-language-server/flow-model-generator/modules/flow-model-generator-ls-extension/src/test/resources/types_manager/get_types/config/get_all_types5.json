@@ -1,0 +1,369 @@
+{
+  "filePath": "test_pack5/types.bal",
+  "description": "Get the imported type of a readonly field as a dependency",
+  "types": [
+    {
+      "name": "ballerina/time:Date",
+      "editable": false,
+      "metadata": {
+        "label": "ballerina/time:Date",
+        "description": "A date in the proleptic Gregorian calendar.\n"
+      },
+      "codedata": {
+        "node": "RECORD",
+        "lineRange": {
+          "fileName": "time_types.bal",
+          "startLine": {
+            "line": 108,
+            "offset": 12
+          },
+          "endLine": {
+            "line": 108,
+            "offset": 16
+          }
+        }
+      },
+      "properties": {
+        "name": {
+          "metadata": {
+            "label": "Type name",
+            "description": "Unique name to identify the type"
+          },
+          "types": [
+            {
+              "fieldType": "IDENTIFIER",
+              "selected": true
+            }
+          ],
+          "value": "ballerina/time:Date",
+          "optional": false,
+          "editable": false,
+          "advanced": false,
+          "hidden": false
+        },
+        "isPublic": {
+          "metadata": {
+            "label": "public",
+            "description": "Make visible across the project"
+          },
+          "types": [
+            {
+              "fieldType": "FLAG",
+              "selected": true
+            }
+          ],
+          "value": "true",
+          "optional": true,
+          "editable": true,
+          "advanced": false,
+          "hidden": false
+        },
+        "description": {
+          "metadata": {
+            "label": "Type description",
+            "description": "Detailed description about the type"
+          },
+          "types": [
+            {
+              "fieldType": "TEXT",
+              "selected": true
+            }
+          ],
+          "value": "A date in the proleptic Gregorian calendar.\n",
+          "optional": false,
+          "editable": true,
+          "advanced": false,
+          "hidden": false
+        },
+        "isArray": {
+          "metadata": {
+            "label": "Is array type",
+            "description": "Is this type an array or list value"
+          },
+          "types": [
+            {
+              "fieldType": "FLAG",
+              "selected": true
+            }
+          ],
+          "value": "false",
+          "optional": true,
+          "editable": true,
+          "advanced": true,
+          "hidden": false
+        },
+        "arraySize": {
+          "metadata": {
+            "label": "Size of the array",
+            "description": "Array dimensions"
+          },
+          "types": [
+            {
+              "fieldType": "TEXT",
+              "selected": true
+            }
+          ],
+          "value": "",
+          "optional": true,
+          "editable": true,
+          "advanced": true,
+          "hidden": false
+        }
+      },
+      "members": [
+        {
+          "kind": "FIELD",
+          "refs": [
+            "ballerina/time:ZoneOffset"
+          ],
+          "type": "time:ZoneOffset",
+          "typeName": "time:ZoneOffset",
+          "name": "utcOffset",
+          "optional": true,
+          "readonly": false,
+          "isGraphqlId": false,
+          "docs": "",
+          "annotationAttachments": [],
+          "imports": {
+            "time": "ballerina/time:2.8.3"
+          },
+          "selected": false
+        },
+        {
+          "kind": "FIELD",
+          "refs": [],
+          "type": "int",
+          "typeName": "int",
+          "name": "year",
+          "optional": false,
+          "readonly": false,
+          "isGraphqlId": false,
+          "docs": "",
+          "annotationAttachments": [],
+          "selected": false
+        },
+        {
+          "kind": "FIELD",
+          "refs": [],
+          "type": "int",
+          "typeName": "int",
+          "name": "month",
+          "optional": false,
+          "readonly": false,
+          "isGraphqlId": false,
+          "docs": "",
+          "annotationAttachments": [],
+          "selected": false
+        },
+        {
+          "kind": "FIELD",
+          "refs": [],
+          "type": "int",
+          "typeName": "int",
+          "name": "day",
+          "optional": false,
+          "readonly": false,
+          "isGraphqlId": false,
+          "docs": "",
+          "annotationAttachments": [],
+          "selected": false
+        },
+        {
+          "kind": "FIELD",
+          "refs": [],
+          "type": "int",
+          "typeName": "int",
+          "name": "hour",
+          "optional": true,
+          "readonly": false,
+          "isGraphqlId": false,
+          "docs": "",
+          "annotationAttachments": [],
+          "selected": false
+        },
+        {
+          "kind": "FIELD",
+          "refs": [],
+          "type": "int",
+          "typeName": "int",
+          "name": "minute",
+          "optional": true,
+          "readonly": false,
+          "isGraphqlId": false,
+          "docs": "",
+          "annotationAttachments": [],
+          "selected": false
+        },
+        {
+          "kind": "FIELD",
+          "refs": [
+            "ballerina/time:Seconds"
+          ],
+          "type": "time:Seconds",
+          "typeName": "time:Seconds",
+          "name": "second",
+          "optional": true,
+          "readonly": false,
+          "isGraphqlId": false,
+          "docs": "",
+          "annotationAttachments": [],
+          "imports": {
+            "time": "ballerina/time:2.8.3"
+          },
+          "selected": false
+        }
+      ],
+      "includes": [
+        "time:DateFields",
+        "time:OptionalTimeOfDayFields"
+      ],
+      "annotationAttachments": [],
+      "allowAdditionalFields": true
+    },
+    {
+      "name": "Event",
+      "editable": true,
+      "metadata": {
+        "label": "Event",
+        "description": "Record with a readonly field of an imported type"
+      },
+      "codedata": {
+        "node": "RECORD",
+        "lineRange": {
+          "fileName": "types.bal",
+          "startLine": {
+            "line": 3,
+            "offset": 5
+          },
+          "endLine": {
+            "line": 3,
+            "offset": 10
+          }
+        }
+      },
+      "properties": {
+        "name": {
+          "metadata": {
+            "label": "Type name",
+            "description": "Unique name to identify the type"
+          },
+          "types": [
+            {
+              "fieldType": "IDENTIFIER",
+              "selected": true
+            }
+          ],
+          "value": "Event",
+          "optional": false,
+          "editable": false,
+          "advanced": false,
+          "hidden": false
+        },
+        "isPublic": {
+          "metadata": {
+            "label": "public",
+            "description": "Make visible across the project"
+          },
+          "types": [
+            {
+              "fieldType": "FLAG",
+              "selected": true
+            }
+          ],
+          "value": "false",
+          "optional": true,
+          "editable": true,
+          "advanced": false,
+          "hidden": false
+        },
+        "description": {
+          "metadata": {
+            "label": "Type description",
+            "description": "Detailed description about the type"
+          },
+          "types": [
+            {
+              "fieldType": "TEXT",
+              "selected": true
+            }
+          ],
+          "value": "Record with a readonly field of an imported type",
+          "optional": false,
+          "editable": true,
+          "advanced": false,
+          "hidden": false
+        },
+        "isArray": {
+          "metadata": {
+            "label": "Is array type",
+            "description": "Is this type an array or list value"
+          },
+          "types": [
+            {
+              "fieldType": "FLAG",
+              "selected": true
+            }
+          ],
+          "value": "false",
+          "optional": true,
+          "editable": true,
+          "advanced": true,
+          "hidden": false
+        },
+        "arraySize": {
+          "metadata": {
+            "label": "Size of the array",
+            "description": "Array dimensions"
+          },
+          "types": [
+            {
+              "fieldType": "TEXT",
+              "selected": true
+            }
+          ],
+          "value": "",
+          "optional": true,
+          "editable": true,
+          "advanced": true,
+          "hidden": false
+        }
+      },
+      "members": [
+        {
+          "kind": "FIELD",
+          "refs": [],
+          "type": "string",
+          "typeName": "string",
+          "name": "id",
+          "optional": false,
+          "readonly": false,
+          "isGraphqlId": false,
+          "docs": "",
+          "annotationAttachments": [],
+          "selected": false
+        },
+        {
+          "kind": "FIELD",
+          "refs": [
+            "ballerina/time:Date"
+          ],
+          "type": "time:Date",
+          "typeName": "time:Date",
+          "name": "createdAt",
+          "optional": false,
+          "readonly": true,
+          "isGraphqlId": false,
+          "docs": "",
+          "annotationAttachments": [],
+          "imports": {
+            "time": "ballerina/time:2.8.3"
+          },
+          "selected": false
+        }
+      ],
+      "includes": [],
+      "annotationAttachments": [],
+      "allowAdditionalFields": false
+    }
+  ]
+}
