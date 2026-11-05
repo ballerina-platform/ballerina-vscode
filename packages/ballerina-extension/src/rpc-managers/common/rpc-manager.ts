@@ -55,7 +55,6 @@ import {
     SetWebviewCacheRequestParam,
     ShowInfoModalRequest,
     ShowQuickPickRequest,
-    isPathInside,
 } from "@wso2/ballerina-core";
 import child_process from 'child_process';
 import path from "path";
@@ -91,6 +90,7 @@ import {
     isPathInsideProject,
     nextAvailablePath,
     openPublishDescriptionInEditor,
+    projectRelativePath,
     resolveIntegrationRoot,
     selectSampleDownloadPath,
     toIntegrationRelative
@@ -280,8 +280,9 @@ export class CommonRpcManager implements CommonRPCAPI {
         if (!root) {
             return { path: picked, absolutePath: picked };
         }
-        if (isPathInside(root, picked)) {
-            return { path: toIntegrationRelative(root, picked), absolutePath: picked };
+        const relativePath = projectRelativePath(root, picked);
+        if (relativePath) {
+            return { path: relativePath, absolutePath: picked };
         }
 
         const dest = await copyIntoIntegration(root, picked, params.targetDir ?? "libs");

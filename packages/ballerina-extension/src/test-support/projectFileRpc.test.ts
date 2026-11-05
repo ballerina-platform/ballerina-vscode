@@ -20,7 +20,8 @@
 // (the copy-into-`<root>/<targetDir>` behavior backing the RPC, including the traversal
 // guard added for a hostile `targetDir`) and `resolveIntegrationRoot` (its walk-up/walk-down
 // package-root resolution), plus `isPathInsideProject`, the case/symlink-tolerant containment
-// check `selectFileOrDirPath` uses to tell whether a picked file is already in the project.
+// check `selectFileOrDirPath` uses to tell whether a picked file is already in the project, and
+// `projectRelativePath`, its relativizing counterpart behind `selectProjectRelativeFile`.
 // The real `@wso2/ballerina-core`/`../../utils` barrels pull in a WebSocket LS client and
 // vscode status-bar calls that jest cannot load, so both are stubbed;
 // `isPathInside` is re-implemented minimally here (trailing-slash-agnostic prefix check) to
@@ -73,7 +74,7 @@ import * as os from "os";
 import * as path from "path";
 import { window } from "vscode";
 import { StateMachine } from "../stateMachine";
-import { copyIntoIntegration, isPathInsideProject, resolveIntegrationRoot } from "../rpc-managers/common/utils";
+import { copyIntoIntegration, isPathInsideProject, projectRelativePath, resolveIntegrationRoot } from "../rpc-managers/common/utils";
 
 describe("copyIntoIntegration", () => {
     let root: string;
@@ -220,6 +221,17 @@ describe("isPathInsideProject — fixtures", () => {
         }
 
         expect(isPathInsideProject(at(fx.projectPath), at(fx.filePath))).toBe(fx.expectedInside);
+
+        // `projectRelativePath` agrees, and an inside file's relative path stays inside the project
+        // and names the picked file, whichever spelling (case/symlink) made it match.
+        const rel = projectRelativePath(at(fx.projectPath), at(fx.filePath));
+        if (!fx.expectedInside) {
+            expect(rel).toBeUndefined();
+            return;
+        }
+        expect(rel).toMatch(/^\.\//);
+        expect(rel).not.toMatch(/(^|\/)\.\.(\/|$)/);
+        expect(fs.realpathSync.native(path.join(at(fx.projectPath), rel!))).toBe(fs.realpathSync.native(at(fx.filePath)));
     });
 
     // The same #1476 layout against the real filesystem, where the platform folds case itself.

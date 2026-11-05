@@ -154,10 +154,31 @@ export function isPathInsideProject(projectPath: string, filePath: string): bool
         return true;
     }
     try {
+        // `.native` is required: plain `fs.realpathSync` keeps the input's letter case on macOS.
         return isPathInside(fs.realpathSync.native(projectPath), fs.realpathSync.native(filePath));
     } catch {
         // Unresolvable path (deleted, permission denied): fall back to the old prompt rather than fail the pick.
         return false;
+    }
+}
+
+/**
+ * `filePath` relative to `projectPath` (see {@link toIntegrationRelative}) when it is inside per
+ * {@link isPathInsideProject}, else `undefined`. When only the on-disk paths match, those are
+ * relativized instead, so a case or symlink difference can't produce `../<project spelled
+ * differently>/...`.
+ */
+export function projectRelativePath(projectPath: string, filePath: string): string | undefined {
+    if (isPathInside(projectPath, filePath)) {
+        return toIntegrationRelative(projectPath, filePath);
+    }
+    if (!isPathInsideProject(projectPath, filePath)) {
+        return undefined;
+    }
+    try {
+        return toIntegrationRelative(fs.realpathSync.native(projectPath), fs.realpathSync.native(filePath));
+    } catch {
+        return undefined;
     }
 }
 
