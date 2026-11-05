@@ -1,0 +1,108 @@
+name: "Run fast tests"
+description: >-
+  Runs jest with coverage in every package that has a jest.config.js, uploads the
+  per-package lcov files as an artifact, and uploads them to Codecov under the
+  `typescript` flag. Expects a built workspace with rush dependencies installed.
+# Composite-action inputs only support description / required / default; all values
+# are strings.
+inputs:
+  codecov-token:
+    description: >-
+      Codecov upload token. Without it, Codecov accepts uploads only from fork PRs, or
+      from any branch if the organization has turned off token authentication for
+      public repositories. Either way the upload never fails the job.
+    required: false
+    default: ''
+  codecov-branch:
+    description: >-
+      Branch to attribute the coverage upload to. Set this only when the workflow
+      checked out a ref other than the one that triggered it (schedule.yml's
+      multi-branch matrix); leave empty to let the Codecov action derive branch
+      and commit from the event, which is what PR builds need.
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    # Auto-discovers every package that has a jest.config.js, so a new jest package
+    # needs no edit here. Its coverage is uploaded too, but it gets its own line in the
+    # Codecov PR comment only after it is added as a component in codecov.yml.
+    - name: Run jest across all packages with a jest.config.js
+      id: jest
+      shell: bash
+      run: |
+        set -uo pipefail
+        shopt -s nullglob
+        failed=0
+        for cfg in packages/*/jest.config.js; do
+          pkg=$(dirname "$cfg")
+          echo "::group::jest ${pkg}"
+          if ! ( cd "$pkg" && xvfb-run --auto-servernum node --experimental-require-module ./node_modules/jest/bin/jest.js --coverage --ci ); then
+            echo "::error::jest failed in ${pkg}"
+            failed=1
+          fi
+          echo "::endgroup::"
+        done
+        exit $failed
+
+    - name: Resolve coverage upload metadata
+      if: ${{ !cancelled() }}
+      id: coverage
+      shell: bash
+      env:
+        CODECOV_BRANCH: ${{ inputs.codecov-branch }}
+        REF_NAME: ${{ github.ref_name }}
+      run: |
+        # Override the commit only alongside an explicit branch: on a pull_request event
+        # the Codecov action's own detection is correct, and HEAD is a merge commit that
+        # would be attributed to the wrong place.
+        if [ -n "$CODECOV_BRANCH" ]; then
+          echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+        fi
+        # Artifact names cannot contain '/', which both branch names ('builds/nightly')
+        # and PR refs ('123/merge') do.
+        echo "label=$(echo "${CODECOV_BRANCH:-$REF_NAME}" | tr '/' '-')" >> "$GITHUB_OUTPUT"
+
+    - name: Upload coverage (per-package lcov)
+      if: ${{ !cancelled() }}
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      with:
+        name: fast-tests-coverage-${{ steps.coverage.outputs.label }}
+        path: packages/*/coverage/lcov.info
+        if-no-files-found: warn
+        retention-days: 5
+
+    # Jest writes lcov paths relative to each package (SF:src/...). Codecov cannot
+    # map those to the repo, because the same src/ path exists in several packages,
+    # so prefix each path with its package directory. Runs after the artifact upload,
+    # which keeps the package-relative files. Skipped when any jest run fails: a package
+    # that stopped partway leaves partial or no lcov, which would read as a coverage drop.
+    - name: Make lcov paths repo-relative
+      id: lcov
+      if: ${{ !cancelled() && steps.jest.outcome == 'success' }}
+      shell: bash
+      run: |
+        shopt -s nullglob
+        files=()
+        for f in packages/*/coverage/lcov.info; do
+          pkg=$(dirname "$(dirname "$f")")
+          sed -i "s|^SF:|SF:${pkg}/|" "$f"
+          files+=("$f")
+        done
+        echo "files=$(IFS=,; echo "${files[*]}")" >> "$GITHUB_OUTPUT"
+
+    - name: Upload coverage to Codecov
+      if: ${{ !cancelled() && steps.lcov.outputs.files != '' }}
+      uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+      with:
+        token: ${{ inputs.codecov-token }}
+        files: ${{ steps.lcov.outputs.files }}
+        flags: typescript
+        name: typescript-fast-tests
+        disable_search: true
+        override_branch: ${{ inputs.codecov-branch }}
+        override_commit: ${{ steps.coverage.outputs.commit }}
+        # Coverage is informational (see codecov.yml); a Codecov outage or a missing
+        # token must never fail the build.
+        fail_ci_if_error: false

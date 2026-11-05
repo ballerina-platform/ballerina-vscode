@@ -415,17 +415,23 @@ run establishes the real baseline, since the `range` there is currently a placeh
 
 ## TypeScript test coverage
 
-The `fast-tests` job in `reusable-build.yml` runs Jest with `--coverage` in every package
-that has a `jest.config.js`, and uploads the per-package `lcov.info` files to Codecov under
-the `typescript` flag. Each package listed as a component in `codecov.yml` gets its own
+The `fast-tests` action (`.github/actions/fast-tests`) runs Jest with `--coverage` in every
+package that has a `jest.config.js`, and uploads the per-package `lcov.info` files to Codecov
+under the `typescript` flag. Two jobs call it: `fast-tests` in `reusable-build.yml` for PR
+builds, and `fast-tests-coverage` in `schedule.yml` for each nightly matrix branch. Each package listed as a component in `codecov.yml` gets its own
 line in the PR comment. Components need explicit paths, so a package that gets a
 `jest.config.js` also needs a component there.
 
 - **Paths are rewritten before the upload.** Jest writes paths relative to the package
   (`SF:src/...`), which Codecov cannot map because the same `src/` path exists in several
   packages. The `Make lcov paths repo-relative` step prefixes each path with its package
-  directory. The `fast-tests-coverage` artifact is uploaded before that step, so it keeps
-  the package-relative paths.
+  directory. The `fast-tests-coverage-<branch>` artifact is uploaded before that step, so
+  it keeps the package-relative paths.
+- **The nightly run gives PRs a base report.** PR builds upload only for the PR head. The
+  nightly `fast-tests-coverage` job uploads for each matrix branch, attributed with
+  `codecov-branch` as in the language server upload, so Codecov has a `typescript` report on
+  the base branch to compare a PR against. Only the `X.Y.x` leg is an ancestor of PR bases;
+  `builds/nightly` carries a version commit that no PR branches from.
 - **Untested files show at 0%, except in two packages.** `collectCoverageFrom` makes Jest
   list source files that no test loads, at 0%. `ballerina-extension` and `ballerina-core`
   set `roots` to `src/test`, and Jest finds untested files only under `roots`, so those two
