@@ -386,7 +386,16 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             }
 
             if (params?.isConnector) {
-                const artifacts = await updateSourceCode({ textEdits: model.textEdits, description: this.getSourceDescription(params) });
+                // A new connection also writes config.bal and Config.toml; only its own artifact answers the save.
+                const artifacts = await updateSourceCode({
+                    textEdits: model.textEdits,
+                    artifactData: {
+                        artifactType: DIRECTORY_MAP.CONNECTION,
+                        identifier: params.flowNode.properties?.variable?.value?.toString()
+                    },
+                    description: this.getSourceDescription(params),
+                    skipUpdateViewOnTomlUpdate: true
+                });
                 return { artifacts };
             }
 

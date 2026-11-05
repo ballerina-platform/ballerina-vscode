@@ -79,6 +79,21 @@
     "flags": 1
   },
   "output": {
+    "new_connection4/config.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "configurable string moduleHttpExClUrl = ?;"
+      }
+    ],
     "new_connection4/connections.bal": [
       {
         "range": {
@@ -91,7 +106,22 @@
             "character": 63
           }
         },
-        "newText": "\nfinal http:Client moduleHttpExCl = check new (\"http://localhost:9090\", {});"
+        "newText": "\nfinal http:Client moduleHttpExCl = check new (moduleHttpExClUrl, {});"
+      }
+    ],
+    "new_connection4/Config.toml": [
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "moduleHttpExClUrl = \"http://localhost:9090\"\n"
       }
     ]
   }
