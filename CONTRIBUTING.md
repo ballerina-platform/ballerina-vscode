@@ -179,6 +179,10 @@ we push tests **down** a layered pyramid so most coverage is fast and determinis
 data?" → L2. "Do the two sides exchange the right message?" → L3. "Does the LS produce
 the right model?" → L4. Whole app → L5 (only if no lower layer can see it).
 
+The language server also has its own Gradle/TestNG suite in
+`packages/ballerina-language-server`, outside this pyramid. See
+[Language server tests (Java)](docs/TEST_GUIDE.md#language-server-tests-java).
+
 ### Running the fast tests (L0–L3)
 
 Fast tests use **Jest** (Node ≥ 20 required):
