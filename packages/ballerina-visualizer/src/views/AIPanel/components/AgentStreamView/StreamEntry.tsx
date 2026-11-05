@@ -26,6 +26,8 @@ import ConnectorCard from "./ConnectorCard";
 import CommandOutputCard from "./CommandOutputCard";
 import TryItCard from "./TryItCard";
 import ThinkingSegment from "./ThinkingSegment";
+import GroupRow from "./GroupRow";
+import { groupRows, summarizeGroup } from "./rowGroups";
 import {
     DoneCircle,
     DotWrapper,
@@ -222,6 +224,24 @@ function renderItem(item: StreamItem, idx: number, streamActive: boolean, rpcCli
     }
 }
 
+// Groups only rows that render, so a hidden result or a blank text item does not split a group.
+function renderItems(items: StreamItem[], streamActive: boolean, rpcClient?: any): React.ReactNode[] {
+    const rows = items
+        .map((item, idx) => ({ item, idx, node: renderItem(item, idx, streamActive, rpcClient) }))
+        .filter((row) => row.node !== null && row.node !== undefined);
+    return groupRows(rows).map((unit) => unit.kind === "row"
+        ? unit.row.node
+        : (
+            <GroupRow
+                key={`group-${unit.rows[0].idx}`}
+                group={unit.group}
+                summary={summarizeGroup(unit.group, unit.rows.map((row) => row.item), streamActive)}
+            >
+                {unit.rows.map((row) => row.node)}
+            </GroupRow>
+        ));
+}
+
 // ── NodeStatus helper ─────────────────────────────────────────────────────────
 
 function getNodeStatus(entry: StreamEntry, isLast: boolean, isLoading: boolean): "active" | "done" {
@@ -261,7 +281,7 @@ const StreamEntryComponent: React.FC<StreamEntryComponentProps> = ({
         if (!hasItems) return null;
         return (
             <EntryBlock style={{ flexDirection: "column" }}>
-                {entry.items.map((item, idx) => renderItem(item, idx, isLast && isLoading, rpcClient))}
+                {renderItems(entry.items, isLast && isLoading, rpcClient)}
             </EntryBlock>
         );
     }
@@ -292,7 +312,7 @@ const StreamEntryComponent: React.FC<StreamEntryComponentProps> = ({
                 {hasItems && (
                     <ItemsArea expanded={expanded}>
                         <ItemsInner ref={innerRef}>
-                            {entry.items.map((item, idx) => renderItem(item, idx, isLast && isLoading, rpcClient))}
+                            {renderItems(entry.items, isLast && isLoading, rpcClient)}
                         </ItemsInner>
                     </ItemsArea>
                 )}
