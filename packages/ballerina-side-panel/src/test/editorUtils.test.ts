@@ -38,6 +38,7 @@ import {
     buildStringArray,
     buildStringMap,
     withHeldValue,
+    getPropertyFromFormField,
 } from "../components/editors/utils";
 
 describe("capitalize", () => {
@@ -205,5 +206,19 @@ describe("withHeldValue on a list-or-expression field", () => {
         const definition = roleField();
         withHeldValue(definition, { retryUsers: "input.id" });
         expect(selected(definition)).toBe("TEXT_SET");
+    });
+});
+
+describe("getPropertyFromFormField", () => {
+    const field = (codedata?: any, imports?: any) => ({ key: "model", value: "", types: [], codedata, imports }) as any;
+
+    it("adds static item imports to the checked property", () => {
+        const items = [{ id: "d", label: "Default", value: "check ai:x()", imports: { ai: "ballerina/ai" } }];
+        expect(getPropertyFromFormField(field({ staticItems: items }, { http: "ballerina/http" })).imports)
+            .toEqual({ http: "ballerina/http", ai: "ballerina/ai" });
+    });
+    it("keeps the field imports when no static item has imports", () => {
+        expect(getPropertyFromFormField(field({ staticItems: [{ id: "v", label: "v", value: "v" }] })).imports)
+            .toBeUndefined();
     });
 });
