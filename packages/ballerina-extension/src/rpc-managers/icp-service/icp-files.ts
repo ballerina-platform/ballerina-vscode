@@ -146,10 +146,23 @@ export function buildAddImportsTextEdits(projectPath: string): { [key: string]: 
         return {};
     }
 
+    // Written with the file's own line ending, so a CRLF main.bal gets no LF-only lines.
+    const eol = content.includes('\r\n') ? '\r\n' : '\n';
+    const imports = missingImports.join(eol);
     const declarations = importDeclarations(content);
     const lastImport = declarations[declarations.length - 1];
-    const position = { line: lastImport ? positionAt(content, lastImport.end).line + 1 : 0, character: 0 };
-    return { [mainBalPath]: [{ range: { start: position, end: position }, newText: missingImports.join('\n') + '\n' }] };
+    const newline = lastImport ? content.indexOf('\n', lastImport.end) : -1;
+    let position = { line: 0, character: 0 };
+    let newText = imports + eol;
+    if (lastImport && newline === -1) {
+        // The last import ends the file with no newline: a position past the last line would be
+        // clamped to its end, gluing the new imports onto it.
+        position = positionAt(content, content.length);
+        newText = eol + imports;
+    } else if (lastImport) {
+        position = { line: positionAt(content, newline).line + 1, character: 0 };
+    }
+    return { [mainBalPath]: [{ range: { start: position, end: position }, newText }] };
 }
 
 /**

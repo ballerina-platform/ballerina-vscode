@@ -145,6 +145,21 @@ describe("buildAddImportsTextEdits", () => {
         expect(edit.range.start).toEqual({ line: 2, character: 0 });
     });
 
+    it("puts the imports on lines of their own when the last import ends the file", () => {
+        const mainBal = "import ballerina/http;";
+        write("main.bal", mainBal);
+        const edits = buildAddImportsTextEdits(projectDir)[path.join(projectDir, "main.bal")];
+        expect(applyEdits(mainBal, edits)).toBe(`import ballerina/http;\n${ICP_IMPORTS.join("\n")}`);
+    });
+
+    it("writes the imports with the CRLF line endings of main.bal", () => {
+        const mainBal = MAIN_BAL.replace(/\n/g, "\r\n");
+        write("main.bal", mainBal);
+        const edits = buildAddImportsTextEdits(projectDir)[path.join(projectDir, "main.bal")];
+        expect(applyEdits(mainBal, edits))
+            .toBe(`import ballerina/http;\r\n${ICP_IMPORTS.join("\r\n")}\r\n\r\nlistener http:Listener l = new (9090);\r\n`);
+    });
+
     it("adds nothing when the imports are already there", () => {
         write("main.bal", `${ICP_IMPORTS.join("\n")}\n${MAIN_BAL}`);
         expect(buildAddImportsTextEdits(projectDir)).toEqual({});
@@ -172,6 +187,8 @@ describe("buildRemoveImportsTextEdits", () => {
         ["import text after the imports", `${BRIDGE}\nimport ballerina/http;\nstring s = "${METRICS}";\n`,
             `import ballerina/http;\nstring s = "${METRICS}";\n`],
         ["the last line with no newline", `import ballerina/http;\n${BRIDGE}`, `import ballerina/http;\n`],
+        ["a CRLF main.bal", `import ballerina/http; ${BRIDGE}\r\n${METRICS}\r\n${BODY.replace(/\n/g, "\r\n")}`,
+            `import ballerina/http;\r\n${BODY.replace(/\n/g, "\r\n")}`],
     ])("removes only the ICP imports from %s", (_label, mainBal, expected) => {
         write("main.bal", mainBal);
         const edits = buildRemoveImportsTextEdits(projectDir)[path.join(projectDir, "main.bal")];
