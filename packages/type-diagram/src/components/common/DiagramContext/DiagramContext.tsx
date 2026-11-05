@@ -17,7 +17,7 @@
  */
 
 import React, { createContext, ReactNode } from 'react';
-import { Type } from '@wso2/ballerina-core';
+import { Type, TypeFunctionModel } from '@wso2/ballerina-core';
 
 interface DiagramContextProps {
     children?: ReactNode;
@@ -31,6 +31,7 @@ interface DiagramContextProps {
     goToSource?: (node: Type) => void,
     onNodeDelete?: (typeId: string) => void;
     verifyTypeDelete?: (typeId: string) => Promise<boolean>;
+    onOperationSelect?: (operation: TypeFunctionModel) => void;
 }
 
 interface IDiagramContext {
@@ -44,6 +45,7 @@ interface IDiagramContext {
     goToSource?: (node: Type) => void
     onNodeDelete?: (typeId: string) => void;
     verifyTypeDelete?: (typeId: string) => Promise<boolean>;
+    onOperationSelect?: (operation: TypeFunctionModel) => void;
 }
 
 const defaultState: any = {};
@@ -61,7 +63,8 @@ export function DesignDiagramContext(props: DiagramContextProps) {
         onEditNode,
         goToSource,
         onNodeDelete,
-        verifyTypeDelete
+        verifyTypeDelete,
+        onOperationSelect
     } = props;
 
     let context: IDiagramContext = {
@@ -74,7 +77,8 @@ export function DesignDiagramContext(props: DiagramContextProps) {
         onEditNode,
         goToSource,
         onNodeDelete,
-        verifyTypeDelete
+        verifyTypeDelete,
+        onOperationSelect
     }
 
     return (

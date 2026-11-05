@@ -26,7 +26,8 @@ import {
     MACHINE_VIEW,
     TypeNodeKind,
     Member,
-    Protocol
+    Protocol,
+    TypeFunctionModel
 } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { TypeDiagram as TypeDesignDiagram } from "@wso2/type-diagram";
@@ -265,6 +266,45 @@ export function GraphQLDiagram(props: GraphQLDiagramProps) {
         });
     };
 
+    // The type model carries no source ranges for operations, so resolve the clicked one against
+    // the service model (same kinds and names the operations panel lists) and open its flow.
+    const handleOperationSelect = async (operation: TypeFunctionModel) => {
+        const kind = operation.kind === "REMOTE" ? "MUTATION"
+            : operation.accessor === "subscribe" ? "SUBSCRIPTION" : "QUERY";
+        try {
+            const { service } = await rpcClient.getServiceDesignerRpcClient().getServiceModelFromCode({
+                filePath,
+                codedata: {
+                    lineRange: {
+                        startLine: { line: position?.startLine, offset: position?.startColumn },
+                        endLine: { line: position?.endLine, offset: position?.endColumn },
+                    },
+                },
+            });
+            const lineRange = service?.functions
+                ?.find((func) => func.kind === kind && func.name?.value === operation.name)
+                ?.codedata?.lineRange;
+            if (!lineRange) {
+                console.error(`Operation '${operation.name}' not found in the service model`);
+                return;
+            }
+            await rpcClient.getVisualizerRpcClient().openView({
+                type: EVENT_TYPE.OPEN_VIEW,
+                location: {
+                    position: {
+                        startLine: lineRange.startLine.line,
+                        startColumn: lineRange.startLine.offset,
+                        endLine: lineRange.endLine.line,
+                        endColumn: lineRange.endLine.offset,
+                    },
+                    documentUri: filePath,
+                },
+            });
+        } catch (error) {
+            console.error("Error opening the operation:", error);
+        }
+    };
+
     const handleOnImplementation = async (type: Type) => {
         await rpcClient.getVisualizerRpcClient().openView({
             type: EVENT_TYPE.OPEN_VIEW,
@@ -459,6 +499,7 @@ export function GraphQLDiagram(props: GraphQLDiagramProps) {
                             updateFocusedNodeId={handleFocusedNodeIdChange}
                             onTypeDelete={onTypeDelete}
                             verifyTypeDelete={verifyTypeDelete}
+                            onOperationSelect={handleOperationSelect}
                         />
                     ) : null}
                 </ViewContent>
