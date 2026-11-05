@@ -16,8 +16,10 @@
  * under the License.
  */
 
-// Our own tags and comments stay HTML for rehype-raw; any other tag in a reply is shown as written.
-const KEEP_AS_HTML = /^<(\/?(badge|error)\b|!--)/i;
+// A node stays HTML only when it is exactly one of our tags or one comment. Remark puts a whole
+// HTML block in one node, so a block that only starts with an allowed tag is shown as text.
+const OUR_TAG = /^<\/?(badge|error)(\s+[\w-]+(="[^"<>]*")?)*\s*>$/i;
+const COMMENT = /^<!--(?:(?!-->)[\s\S])*-->$/;
 
 interface MdNode {
     type: string;
@@ -25,15 +27,15 @@ interface MdNode {
     children?: MdNode[];
 }
 
-/**
- * Remark plugin: turns raw HTML nodes into text after parsing. Escaping the markdown string instead
- * left `&lt;id&gt;` on screen inside code, where markdown does not decode entities.
- */
+/** Remark plugin: raw HTML in a reply becomes text after parsing, so code spans keep `<id>` as written. */
 export function remarkRawHtmlAsText() {
     return (tree: MdNode): void => {
         const walk = (node: MdNode): void => {
-            if (node.type === "html" && !KEEP_AS_HTML.test((node.value ?? "").trim())) {
-                node.type = "text";
+            if (node.type === "html") {
+                const value = (node.value ?? "").trim();
+                if (!OUR_TAG.test(value) && !COMMENT.test(value)) {
+                    node.type = "text";
+                }
             }
             node.children?.forEach(walk);
         };

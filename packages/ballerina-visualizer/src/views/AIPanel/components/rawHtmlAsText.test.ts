@@ -47,5 +47,26 @@ it("shows a reply's raw tags as text and keeps our badge, error and comment tags
         "html:<badge data-type=\"x\">", "text:Agent", "html:</badge>",
         "html:<!-- note -->",
     ]);
-    expect(types(tree.children.slice(1))).toEqual(["html:<error>\nfailed\n</error>", "text:<script>alert(1)</script>"]);
+    expect(types(tree.children.slice(1))).toEqual(["text:<error>\nfailed\n</error>", "text:<script>alert(1)</script>"]);
+});
+
+it("keeps a node as HTML only when it is exactly one allowed tag or one comment", () => {
+    const keep = [
+        "<badge data-system=\"true\" data-auth=\"x\" data-type=\"command\" data-command=\"/help\">",
+        "</badge>",
+        "<error data-system=\"true\" data-auth=\"x\">",
+        "</error>",
+        "<!-- note -->",
+    ];
+    const asText = [
+        "<error>\n<iframe src=\"https://example.com\"></iframe>\n</error>",
+        "<badge data-type=\"x\"><img src=x onerror=alert(1)>",
+        "<!-- a --><img src=x onerror=alert(1)>",
+        "<!-- a --><img src=x>-->",
+        "<badges>",
+        "<error data-x=\"a>b\">",
+    ];
+    const tree = { type: "root", children: [...keep, ...asText].map(html) };
+    remarkRawHtmlAsText()(tree);
+    expect(tree.children.map((n) => n.type)).toEqual([...keep.map(() => "html"), ...asText.map(() => "text")]);
 });
