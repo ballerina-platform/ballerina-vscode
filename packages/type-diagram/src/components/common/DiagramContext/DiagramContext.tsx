@@ -17,7 +17,7 @@
  */
 
 import React, { createContext, ReactNode } from 'react';
-import { Type } from '@wso2/ballerina-core';
+import { Type, TypeFunctionModel } from '@wso2/ballerina-core';
 
 interface DiagramContextProps {
     children?: ReactNode;
@@ -29,6 +29,7 @@ interface DiagramContextProps {
     setSelectedNodeId?: (id: string) => void;
     onEditNode?: (id: string, isGraphqlRoot?: boolean) => void;
     goToSource?: (node: Type) => void,
+    onFunctionOpen?: (node: Type, func: TypeFunctionModel) => void;
     onNodeDelete?: (typeId: string) => void;
     verifyTypeDelete?: (typeId: string) => Promise<boolean>;
 }
@@ -42,6 +43,8 @@ interface IDiagramContext {
     setSelectedNodeId?: (id: string) => void;
     onEditNode?: (id: string, isGraphqlRoot?: boolean) => void;
     goToSource?: (node: Type) => void
+    /** Opens a class method's implementation; the method names of a class are links only when set. */
+    onFunctionOpen?: (node: Type, func: TypeFunctionModel) => void;
     onNodeDelete?: (typeId: string) => void;
     verifyTypeDelete?: (typeId: string) => Promise<boolean>;
 }
@@ -60,6 +63,7 @@ export function DesignDiagramContext(props: DiagramContextProps) {
         setSelectedNodeId,
         onEditNode,
         goToSource,
+        onFunctionOpen,
         onNodeDelete,
         verifyTypeDelete
     } = props;
@@ -73,6 +77,7 @@ export function DesignDiagramContext(props: DiagramContextProps) {
         setSelectedNodeId,
         onEditNode,
         goToSource,
+        onFunctionOpen,
         onNodeDelete,
         verifyTypeDelete
     }

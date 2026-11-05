@@ -23,6 +23,7 @@ import {
     DIRECTORY_MAP,
     CDModel,
     CDService,
+    CDLocation,
     NodePosition,
     CDAutomation,
     CDConnection,
@@ -201,9 +202,15 @@ export function ComponentDiagram(props: ComponentDiagramProps) {
     };
 
     const removeAgentNodesForService = async (service: CDService) => {
+        // Only the functions declared in the service go with it. A TCP service also lists the handlers of
+        // its connection service class, which stays behind and may still use the agents.
+        const isDeclaredInService = (location: CDLocation) =>
+            location.filePath === service.location.filePath
+            && location.startLine.line >= service.location.startLine.line
+            && location.endLine.line <= service.location.endLine.line;
         const allFunctions = [...(service.remoteFunctions || []), ...(service.resourceFunctions || [])];
         for (const func of allFunctions) {
-            if (!func.location) continue;
+            if (!func.location || !isDeclaredInService(func.location)) continue;
             try {
                 const response = await rpcClient.getBIDiagramRpcClient().getFlowModel({
                     filePath: func.location.filePath,

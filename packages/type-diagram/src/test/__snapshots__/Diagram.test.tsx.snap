@@ -277,10 +277,10 @@ exports[`Type Diagram - Snapshot Tests renders all types correctly: all-types 1`
 .css-16 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center;}
 .css-7 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; width: 100%;}
 .css-12 {display: flex; height: fit-content; width: fit-content;}
+.css-14 {-webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; color: var(--vscode-foreground); display: flex; -webkit-flex: 1; -ms-flex: 1; flex: 1; font-family: GilmerRegular; font-size: 12px; line-height: 30px; padding-right: 8px; text-align: left; min-width: fit-content; white-space: nowrap;}
 .css-20 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; padding: 8px; border-radius: 4px; background-color: var(--vscode-sideBar-background); fill: var(--vscode-foreground); width: 32px; height: 32px; cursor: pointer;}
 .css-20:active {background-color: var(--vscode-editor-inactiveSelectionBackground);}
 .css-20:hover {background-color: var(--vscode-editor-inactiveSelectionBackground);}
-.css-14 {-webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; color: var(--vscode-foreground); display: flex; -webkit-flex: 1; -ms-flex: 1; flex: 1; font-family: GilmerRegular; font-size: 12px; line-height: 30px; padding-right: 8px; text-align: left; min-width: fit-content; white-space: nowrap;}
 .css-22 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; gap: 0;}
 .css-22>*:first-child {border-bottom-left-radius: 0; border-bottom-right-radius: 0;}
 .css-22>*:last-child {border-top-left-radius: 0; border-top-right-radius: 0;}
@@ -1634,10 +1634,10 @@ exports[`Type Diagram - Snapshot Tests renders class types correctly: class-type
 .css-16 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center;}
 .css-7 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; width: 100%;}
 .css-12 {display: flex; height: fit-content; width: fit-content;}
+.css-14 {-webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; color: var(--vscode-foreground); display: flex; -webkit-flex: 1; -ms-flex: 1; flex: 1; font-family: GilmerRegular; font-size: 12px; line-height: 30px; padding-right: 8px; text-align: left; min-width: fit-content; white-space: nowrap;}
 .css-20 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; padding: 8px; border-radius: 4px; background-color: var(--vscode-sideBar-background); fill: var(--vscode-foreground); width: 32px; height: 32px; cursor: pointer;}
 .css-20:active {background-color: var(--vscode-editor-inactiveSelectionBackground);}
 .css-20:hover {background-color: var(--vscode-editor-inactiveSelectionBackground);}
-.css-14 {-webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; color: var(--vscode-foreground); display: flex; -webkit-flex: 1; -ms-flex: 1; flex: 1; font-family: GilmerRegular; font-size: 12px; line-height: 30px; padding-right: 8px; text-align: left; min-width: fit-content; white-space: nowrap;}
 .css-22 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; gap: 0;}
 .css-22>*:first-child {border-bottom-left-radius: 0; border-bottom-right-radius: 0;}
 .css-22>*:last-child {border-top-left-radius: 0; border-top-right-radius: 0;}
@@ -2629,10 +2629,10 @@ exports[`Type Diagram - Snapshot Tests renders record types correctly: record-ty
 .css-16 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center;}
 .css-7 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; width: 100%;}
 .css-12 {display: flex; height: fit-content; width: fit-content;}
+.css-14 {-webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; color: var(--vscode-foreground); display: flex; -webkit-flex: 1; -ms-flex: 1; flex: 1; font-family: GilmerRegular; font-size: 12px; line-height: 30px; padding-right: 8px; text-align: left; min-width: fit-content; white-space: nowrap;}
 .css-20 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; padding: 8px; border-radius: 4px; background-color: var(--vscode-sideBar-background); fill: var(--vscode-foreground); width: 32px; height: 32px; cursor: pointer;}
 .css-20:active {background-color: var(--vscode-editor-inactiveSelectionBackground);}
 .css-20:hover {background-color: var(--vscode-editor-inactiveSelectionBackground);}
-.css-14 {-webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; color: var(--vscode-foreground); display: flex; -webkit-flex: 1; -ms-flex: 1; flex: 1; font-family: GilmerRegular; font-size: 12px; line-height: 30px; padding-right: 8px; text-align: left; min-width: fit-content; white-space: nowrap;}
 .css-22 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; gap: 0;}
 .css-22>*:first-child {border-bottom-left-radius: 0; border-bottom-right-radius: 0;}
 .css-22>*:last-child {border-top-left-radius: 0; border-top-right-radius: 0;}
@@ -3291,10 +3291,10 @@ exports[`Type Diagram - Snapshot Tests renders single type correctly: single-typ
 .css-16 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center;}
 .css-7 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; width: 100%;}
 .css-12 {display: flex; height: fit-content; width: fit-content;}
+.css-14 {-webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; color: var(--vscode-foreground); display: flex; -webkit-flex: 1; -ms-flex: 1; flex: 1; font-family: GilmerRegular; font-size: 12px; line-height: 30px; padding-right: 8px; text-align: left; min-width: fit-content; white-space: nowrap;}
 .css-20 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; padding: 8px; border-radius: 4px; background-color: var(--vscode-sideBar-background); fill: var(--vscode-foreground); width: 32px; height: 32px; cursor: pointer;}
 .css-20:active {background-color: var(--vscode-editor-inactiveSelectionBackground);}
 .css-20:hover {background-color: var(--vscode-editor-inactiveSelectionBackground);}
-.css-14 {-webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; color: var(--vscode-foreground); display: flex; -webkit-flex: 1; -ms-flex: 1; flex: 1; font-family: GilmerRegular; font-size: 12px; line-height: 30px; padding-right: 8px; text-align: left; min-width: fit-content; white-space: nowrap;}
 .css-22 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; gap: 0;}
 .css-22>*:first-child {border-bottom-left-radius: 0; border-bottom-right-radius: 0;}
 .css-22>*:last-child {border-top-left-radius: 0; border-top-right-radius: 0;}
