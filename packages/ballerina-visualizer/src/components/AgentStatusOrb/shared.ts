@@ -201,7 +201,8 @@ export const AmbientFrame = styled.div<AmbientFrameProps>`
     width: 100%;
     min-width: 0;
     box-sizing: border-box;
-    padding: ${(props: AmbientFrameProps) => props.$variant === "hero" ? "1.5px" : "1px"};
+    /* Whole pixels: a 1.5px ring renders thinner on one edge when the box sits on a fractional y. */
+    padding: 1px;
     border-radius: ${(props: AmbientFrameProps) => props.$variant === "hero" ? "14px" : "10px"};
     background: ${(props: AmbientFrameProps) => {
         if (props.$agentBuilder) {
