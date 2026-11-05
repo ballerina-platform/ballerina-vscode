@@ -152,6 +152,17 @@ describe("buildAddImportsTextEdits", () => {
         expect(applyEdits(mainBal, edits)).toBe(`import ballerina/http;\n${ICP_IMPORTS.join("\n")}`);
     });
 
+    // Imports must precede every other declaration, so they cannot go after source sharing the line.
+    it.each([
+        ["with a newline after it", "import ballerina/http; function f() {}\n"],
+        ["at the end of the file", "import ballerina/http; function f() {}"],
+    ])("puts the imports before source on the last import's line %s", (_label, mainBal) => {
+        write("main.bal", mainBal);
+        const edits = buildAddImportsTextEdits(projectDir)[path.join(projectDir, "main.bal")];
+        expect(applyEdits(mainBal, edits))
+            .toBe(mainBal.replace("import ballerina/http;", `import ballerina/http;\n${ICP_IMPORTS.join("\n")}\n`));
+    });
+
     it("writes the imports with the CRLF line endings of main.bal", () => {
         const mainBal = MAIN_BAL.replace(/\n/g, "\r\n");
         write("main.bal", mainBal);

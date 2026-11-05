@@ -152,9 +152,17 @@ export function buildAddImportsTextEdits(projectPath: string): { [key: string]: 
     const declarations = importDeclarations(content);
     const lastImport = declarations[declarations.length - 1];
     const newline = lastImport ? content.indexOf('\n', lastImport.end) : -1;
+    const restOfLine = lastImport
+        ? content.slice(lastImport.end, newline === -1 ? content.length : newline).trim()
+        : '';
     let position = { line: 0, character: 0 };
     let newText = imports + eol;
-    if (lastImport && newline === -1) {
+    if (lastImport && restOfLine !== '' && !restOfLine.startsWith('//')) {
+        // Source follows the last import on its line: imports must come before it, so the new
+        // ones go straight after that import rather than on the next line.
+        position = positionAt(content, lastImport.end);
+        newText = eol + imports + eol;
+    } else if (lastImport && newline === -1) {
         // The last import ends the file with no newline: a position past the last line would be
         // clamped to its end, gluing the new imports onto it.
         position = positionAt(content, content.length);
