@@ -89,7 +89,8 @@ export interface GroupSummary {
     running: boolean;
 }
 
-export function summarizeGroup(group: RowGroupId, items: StreamItem[], streamActive: boolean): GroupSummary {
+/** `latestStep`: nothing follows the group yet, so a live turn is still working on it. */
+export function summarizeGroup(group: RowGroupId, items: StreamItem[], streamActive: boolean, latestStep = false): GroupSummary {
     const def = ROW_GROUPS[group];
     const seen = new Map<Facet, Set<string>>();
     let searches = 0;
@@ -113,10 +114,11 @@ export function summarizeGroup(group: RowGroupId, items: StreamItem[], streamAct
 
     const open = items.filter((item) => item.kind === "tool_call");
     const latest = open[open.length - 1];
-    if (streamActive && latest?.kind === "tool_call") {
-        const call = getToolCallDisplay(latest.toolName, latest.toolInput);
-        const detail = call.label === def.running ? call.detail : [call.label, call.detail].filter(Boolean).join(" ");
-        return { label: def.running, detail, meta: def.countsInLabel ? undefined : counts || undefined, running: true };
+    if (streamActive && (latest?.kind === "tool_call" || latestStep)) {
+        const call = latest?.kind === "tool_call" ? getToolCallDisplay(latest.toolName, latest.toolInput) : undefined;
+        const detail = call && (call.label === def.running ? call.detail : [call.label, call.detail].filter(Boolean).join(" "));
+        if (def.countsInLabel) return { label: !call && counts ? `${def.running} ${counts}` : def.running, detail, running: true };
+        return { label: def.running, detail, meta: counts || undefined, running: true };
     }
     if (def.countsInLabel) return { label: counts ? `${def.done} ${counts}` : def.done, running: false };
     return { label: def.done, meta: counts || undefined, running: false };

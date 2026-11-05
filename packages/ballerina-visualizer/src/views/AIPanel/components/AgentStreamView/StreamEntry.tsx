@@ -229,13 +229,14 @@ function renderItems(items: StreamItem[], streamActive: boolean, rpcClient?: any
     const rows = items
         .map((item, idx) => ({ item, idx, node: renderItem(item, idx, streamActive, rpcClient) }))
         .filter((row) => row.node !== null && row.node !== undefined);
-    return groupRows(rows).map((unit) => unit.kind === "row"
+    const units = groupRows(rows);
+    return units.map((unit, i) => unit.kind === "row"
         ? unit.row.node
         : (
             <GroupRow
                 key={`group-${unit.rows[0].idx}`}
                 group={unit.group}
-                summary={summarizeGroup(unit.group, unit.rows.map((row) => row.item), streamActive)}
+                summary={summarizeGroup(unit.group, unit.rows.map((row) => row.item), streamActive, i === units.length - 1)}
             >
                 {unit.rows.map((row) => row.node)}
             </GroupRow>

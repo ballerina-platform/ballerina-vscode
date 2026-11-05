@@ -86,6 +86,14 @@ describe("summarizeGroup", () => {
             .toEqual({ label: "Updating", detail: "main.bal in mcp...", meta: undefined, running: true });
     });
 
+    it("stays in the present tense between calls while it is the turn's latest step", () => {
+        expect(summarizeGroup("explore", [glob("**/*.bal"), grep("order")], true, true))
+            .toEqual({ label: "Exploring the project", meta: "2 searches", running: true });
+        expect(summarizeGroup("update", [edited("a.bal"), edited("b.bal")], true, true)).toEqual({ label: "Updating 2 files", running: true });
+        expect(summarizeGroup("explore", [glob("**/*.bal"), grep("order")], true, false).label).toBe("Explored the project");
+        expect(summarizeGroup("explore", [glob("**/*.bal"), grep("order")], false, true).label).toBe("Explored the project");
+    });
+
     it("reads as done once the turn stops, counting only finished calls", () => {
         expect(summarizeGroup("explore", [read("a.bal"), read("b.bal"), reading("c.bal")], false))
             .toEqual({ label: "Explored the project", meta: "2 files read", running: false });
