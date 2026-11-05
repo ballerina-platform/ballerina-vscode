@@ -218,7 +218,6 @@ function formatConfigFiles(tempProjectPath: string | undefined, project: Project
     return `<config_files main="${mainConfig}" tests="${testConfig}"/>`;
 }
 
-/** Files with line counts but no contents; the agent reads what it needs with glob, grep and file_read. */
 export function formatCodebaseStructure(projects: ProjectSource[], tempProjectPath?: string): string {
     let text = "<codebase_structure>\n";
     text += "The project's Ballerina source and config files with their line counts. ";
@@ -232,10 +231,10 @@ export function formatCodebaseStructure(projects: ProjectSource[], tempProjectPa
         text += formatWorkspaceToml(tempProjectPath);
     }
 
-    // A workspace opened at its root has no active package; then none is listed in full or marked active.
+    // A workspace opened at its root has no active package.
     const activeProject = projects.find(project => project.isActive) ?? (isWorkspace ? undefined : projects[0]);
 
-    // Other packages are charged first and never dropped: one short line each, and the prompt tells the model they are here.
+    // Other packages go first and are never dropped from the budget.
     for (const project of projects) {
         if (project === activeProject) {
             continue;

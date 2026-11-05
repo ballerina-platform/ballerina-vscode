@@ -387,7 +387,6 @@ function truncateLongLines(content: string, maxLength: number = MAX_LINE_LENGTH)
   }).join('\n');
 }
 
-/** Lines start..requestedEnd (1-based), stopping early at MAX_READ_LINES or MAX_READ_CHARS. */
 function readWithinCaps(lines: string[], start: number, requestedEnd: number): { text: string; end: number } {
   const out: string[] = [];
   let chars = 0;

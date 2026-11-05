@@ -34,7 +34,7 @@ const MAX_PRINTED_LINE_CHARS = 500;
 const MAX_CONTEXT_LINES = 5;
 export const GREP_TIME_BUDGET_MS = 3000;
 
-// Runs in a vm context so its timeout can stop a pattern that backtracks badly (e.g. \w+\w+\w+@) on a long line.
+// In a vm so a timeout can stop a pattern that backtracks badly on a long line.
 const MATCH_LINES = new vm.Script(`(() => {
     const hits = [];
     for (let i = 0; i < lines.length; i++) {
@@ -52,7 +52,7 @@ export interface SearchResult {
     message: string;
 }
 
-/** What the chat row is worded from; the model only gets `message`. */
+// For the chat row only; the model gets just `message`.
 export interface SearchFacts {
     count?: number;
     unit?: "files" | "lines";

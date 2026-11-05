@@ -123,7 +123,7 @@ export function getFileName(filePath: string | undefined): string {
 export interface ToolCallDisplay {
     label: string;
     detail?: string;
-    /** Shown after the label and never clipped, e.g. a result count. */
+    /** After the label; never clipped. */
     meta?: string;
     title?: string;
 }
@@ -134,10 +134,7 @@ export function countOf(n: number, noun: string, capped?: boolean, plural = `${n
 
 const GLOB_CHARS = /[*?[\]{}!]/;
 
-/**
- * A glob pattern in plain words: a file name, or a kind of file ("file", ".bal file"), plus the folder
- * it is limited to. Undefined when it has no plain reading (e.g. "*.{bal,toml}"); the row then shows the pattern.
- */
+// Undefined when the pattern has no plain reading; the row then shows it as is.
 export function globInWords(pattern: string, path?: string): { name?: string; noun?: string; scope?: string } | undefined {
     const segments = pattern.replace(/^\.\//, "").split("/").filter(Boolean);
     const last = segments.pop();
@@ -186,7 +183,7 @@ function globResultDisplay(output: any): ToolCallDisplay {
     return { label: `Found ${count === undefined ? `${words.noun}s` : countOf(count, words.noun!)}${where}`, title: pattern };
 }
 
-/** The pattern as shown (a leading ripgrep-style "(?i)" means nothing to a user) and the raw one on hover. */
+// A leading ripgrep "(?i)" is hidden; the raw pattern stays on hover.
 function grepWording(o: { pattern: string; path?: string; glob?: string }): { detail: string; title?: string } {
     const where = o.path ? ` in ${o.path}` : "";
     const detail = `${o.pattern.replace(/^\(\?i\)(?=.)/, "")}${where}`;
@@ -210,10 +207,7 @@ function grepResultDisplay(output: any): ToolCallDisplay {
     return { label: "Searched for:", ...grepWording(output), meta };
 }
 
-/**
- * A glob or grep the agent got wrong (bad regex, empty pattern, bad path) and retries on its own:
- * nothing the user can act on, so the row is left out. A thrown error (`failed`) and a stop still show.
- */
+// The agent's own slip, which it retries; a thrown error or a stop still shows.
 export function isRetriedSearchSlip(item: { toolName?: string; toolOutput?: any; failed?: boolean }): boolean {
     return (item.toolName === "glob" || item.toolName === "grep")
         && !item.failed && item.toolOutput?.success === false && !item.toolOutput?.aborted;

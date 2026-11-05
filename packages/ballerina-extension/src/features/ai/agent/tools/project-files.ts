@@ -19,15 +19,11 @@ import * as path from "path";
 import { glob } from "glob";
 import { PathValidationError, RESTRICTED_READ_FILES, VALID_FILE_EXTENSIONS, resolveContained } from "./path-utils";
 
-/**
- * The one rule for which project files the agent may see. glob, grep and file_read all go
- * through it, so a file the agent can find it can read, and a file it may not read never
- * shows up in any tool.
- */
+// The one file rule shared by glob, grep and the file tools.
 
 const IGNORED_DIR_NAMES = new Set(["target"]);
 const IGNORED_DIR_GLOBS = ["**/target/**"];
-// Project skills live in .agents/skills/<name>/SKILL.md; other dot paths (.env, .git, MCP configs) can hold secrets.
+// .agents/ holds project skills; other dot paths (.env, .git, MCP configs) can hold secrets.
 const ALLOWED_DOT_DIR = ".agents";
 
 export function toPosixRelative(p: string): string {
@@ -42,7 +38,6 @@ function isBlockedDirSegment(segment: string, index: number): boolean {
     return segment.startsWith(".") && !(index === 0 && segment === ALLOWED_DOT_DIR);
 }
 
-/** Whether a project-relative path passes the policy by name alone. */
 export function isAllowedProjectPath(relPath: string): boolean {
     if (!relPath || relPath.includes("\0")) {
         return false;
@@ -62,7 +57,7 @@ export function isAllowedProjectPath(relPath: string): boolean {
     return !segments.slice(0, -1).some(isBlockedDirSegment);
 }
 
-// Native realpath everywhere: it returns the on-disk case on macOS, and the JS one does not, so mixing them breaks isInside.
+// Native realpath on both sides: the JS one keeps the typed case on macOS, which breaks isInside.
 function realRoot(root: string): string {
     try {
         return fs.realpathSync.native(root);
@@ -85,7 +80,6 @@ function entryExists(p: string): boolean {
     }
 }
 
-/** The name policy plus a realpath check, so a symlink cannot reach outside the project. */
 export function isReadableProjectFile(root: string, relPath: string): boolean {
     if (!isAllowedProjectPath(relPath)) {
         return false;
@@ -101,7 +95,7 @@ export function isReadableProjectFile(root: string, relPath: string): boolean {
             if (!entryExists(rootReal)) {
                 return true;
             }
-            // A file about to be written: where it really lands passes the same rules, so `cfg -> .wso2` cannot plant .wso2/mcp.json.
+            // A new file: check where it really lands (cfg -> .wso2 must not plant .wso2/mcp.json).
             let parent = path.dirname(target);
             while (!entryExists(parent)) {
                 parent = path.dirname(parent);
@@ -110,7 +104,7 @@ export function isReadableProjectFile(root: string, relPath: string): boolean {
             return isInside(rootReal, realTarget) && isAllowedProjectPath(path.relative(rootReal, realTarget));
         }
         const real = fs.realpathSync.native(target);
-        // The name rule runs on the link target too, so `alias.bal -> Config.toml` stays out.
+        // The name rule applies to the link target too (alias.bal -> Config.toml).
         return isInside(rootReal, real) && isAllowedProjectPath(path.relative(rootReal, real));
     } catch {
         return false;
@@ -119,7 +113,6 @@ export function isReadableProjectFile(root: string, relPath: string): boolean {
 
 export interface ListProjectFilesOptions {
     path?: string;
-    /** Glob pattern relative to `path`; every file when omitted. */
     pattern?: string;
     /** Match a pattern without a slash against file names at any depth. */
     matchBase?: boolean;
@@ -131,7 +124,6 @@ function assertRelativeInput(value: string, label: string): void {
     }
 }
 
-/** Project files the agent may see, as sorted posix paths relative to `root`. */
 export async function listProjectFiles(root: string, options: ListProjectFilesOptions = {}): Promise<string[]> {
     if (options.path !== undefined) {
         assertRelativeInput(options.path, "path");
@@ -183,7 +175,7 @@ export async function listProjectFiles(root: string, options: ListProjectFilesOp
     return candidates.filter((_, index) => readable[index]).sort();
 }
 
-// Async so a large listing does not block the extension host; realpath catches symlinked folders on the way too.
+// Async: a large listing must not block the extension host.
 async function resolvesInsideRoot(rootReal: string, rel: string): Promise<boolean> {
     try {
         const real = await fs.promises.realpath(path.resolve(rootReal, rel));

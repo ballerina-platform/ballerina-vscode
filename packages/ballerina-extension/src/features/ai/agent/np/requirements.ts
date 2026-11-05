@@ -17,10 +17,7 @@
 import type { ProjectSource } from "@wso2/ballerina-core";
 import { REQ_KEY } from "../../../../rpc-managers/ai-panel/constants";
 
-/**
- * The active package's requirements document. Another package's is used only when the active
- * one has no entry at all; an empty entry (the document failed to convert) is kept as it is.
- */
+// Another package's document is used only when the active one has no entry; an empty entry (conversion failed) is kept.
 export function extractRequirementsDocument(projects: readonly ProjectSource[]): string {
     const findEntry = (project: ProjectSource | undefined) =>
         project?.sourceFiles.find(file => file.filePath === REQ_KEY);
