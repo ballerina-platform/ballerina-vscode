@@ -71,8 +71,29 @@ function findSection(lines: string[]): { start: number; end: number } | undefine
     return { start, end };
 }
 
-function withTrailingNewline(content: string): string {
-    return content.length > 0 && !content.endsWith('\n') ? content + '\n' : content;
+// Split on either line ending and join back with the file's own, so a CRLF manifest is
+// matched line by line and gets no LF-only lines added to it.
+function splitLines(content: string): { lines: string[]; eol: string } {
+    return { lines: content.split(/\r?\n/), eol: content.includes('\r\n') ? '\r\n' : '\n' };
+}
+
+function joinLines(lines: string[], eol: string): string {
+    const content = lines.join(eol);
+    return content.length > 0 && !content.endsWith(eol) ? content + eol : content;
+}
+
+// `build-options = { ... }` or `build-options.key = ...` before the first table: adding a
+// `[build-options]` table next to it would define the table twice.
+function hasInlineBuildOptions(lines: string[]): boolean {
+    for (const line of lines) {
+        if (tableHeader(line)) {
+            return false;
+        }
+        if (/^\s*["']?build-options["']?\s*[.=]/.test(line)) {
+            return true;
+        }
+    }
+    return false;
 }
 
 /**
@@ -80,12 +101,15 @@ function withTrailingNewline(content: string): string {
  * missing keys, and flipping keys that are present with any other value.
  */
 export function addICPBuildOptions(content: string): string {
-    const lines = content.split('\n');
+    const { lines, eol } = splitLines(content);
     const section = findSection(lines);
 
     if (!section) {
+        if (hasInlineBuildOptions(lines)) {
+            throw new Error(`Ballerina.toml sets ${SECTION_NAME} inline. Move it to a [${SECTION_NAME}] table and try again.`);
+        }
         lines.push('', SECTION_HEADER, ...ICP_BUILD_OPTION_KEYS.map(key => `${key} = true`));
-        return withTrailingNewline(lines.join('\n'));
+        return joinLines(lines, eol);
     }
 
     const missing: string[] = [];
@@ -100,14 +124,14 @@ export function addICPBuildOptions(content: string): string {
         }
     }
     lines.splice(section.start + 1, 0, ...missing);
-    return withTrailingNewline(lines.join('\n'));
+    return joinLines(lines, eol);
 }
 
 /**
  * Whether every ICP build option is set to `true` in the `[build-options]` section.
  */
 export function hasICPBuildOptions(content: string): boolean {
-    const lines = content.split('\n');
+    const { lines } = splitLines(content);
     const section = findSection(lines);
     if (!section) {
         return false;
@@ -124,7 +148,7 @@ export function hasICPBuildOptions(content: string): boolean {
  * else is left in it.
  */
 export function removeICPBuildOptions(content: string): string {
-    const lines = content.split('\n');
+    const { lines, eol } = splitLines(content);
     const section = findSection(lines);
     if (!section) {
         return content;
@@ -138,5 +162,5 @@ export function removeICPBuildOptions(content: string): string {
     } else {
         lines.splice(section.start + 1, section.end - section.start - 1, ...remaining);
     }
-    return withTrailingNewline(lines.join('\n'));
+    return joinLines(lines, eol);
 }

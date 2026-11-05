@@ -38,7 +38,7 @@ version = "0.1.0"
 distribution = "2201.13.0"
 `;
 
-const MANIFESTS: Record<string, string> = {
+const LF_MANIFESTS: Record<string, string> = {
     "no build-options section": PACKAGE,
     "no trailing newline": PACKAGE.trimEnd(),
     "empty build-options section": `${PACKAGE}\n[build-options]\n`,
@@ -55,6 +55,18 @@ const MANIFESTS: Record<string, string> = {
     "ICP options with trailing comments": `${PACKAGE}\n[build-options]\nobservabilityIncluded = false # traces\nremoteManagement=false   # keep\n`,
     "a commented table after build-options with its own remoteManagement": `${PACKAGE}\n[build-options]\nsticky = true\n\n[other] # settings\nremoteManagement = false\n`,
 };
+
+// Every manifest again with CRLF line endings, as a manifest saved on Windows has.
+const MANIFESTS: Record<string, string> = {
+    ...LF_MANIFESTS,
+    ...Object.fromEntries(Object.entries(LF_MANIFESTS)
+        .map(([label, manifest]) => [`${label} (CRLF)`, manifest.replace(/\n/g, "\r\n")])),
+};
+
+// True when every line break in the content is the one the manifest uses.
+function keepsLineEndings(manifest: string, content: string): boolean {
+    return manifest.includes("\r\n") ? !/(^|[^\r])\n/.test(content) : !content.includes("\r");
+}
 
 function comments(content: string): string[] {
     return content.match(/#.*$/gm) ?? [];
@@ -83,6 +95,7 @@ describe.each(Object.entries(MANIFESTS))("ICP build options on a manifest with %
         });
         expect(withoutBuildOptions(enabled)).toEqual(withoutBuildOptions(manifest));
         expect(enabled.endsWith("\n")).toBe(true);
+        expect(keepsLineEndings(manifest, enabled)).toBe(true);
     });
 
     it("keeps every comment when enabling", () => {
@@ -108,6 +121,7 @@ describe.each(Object.entries(MANIFESTS))("ICP build options on a manifest with %
 
         expect(buildOptions(disabled)).toEqual(userOptions);
         expect(withoutBuildOptions(disabled)).toEqual(withoutBuildOptions(manifest));
+        expect(keepsLineEndings(manifest, disabled)).toBe(true);
         if (Object.keys(userOptions).length === 0) {
             expect(disabled).not.toContain("[build-options]");
         }
@@ -120,6 +134,16 @@ describe("hasICPBuildOptions", () => {
         expect(hasICPBuildOptions(MANIFESTS["one ICP option already true"])).toBe(false);
         expect(hasICPBuildOptions(MANIFESTS["ICP options set to false"])).toBe(false);
         expect(hasICPBuildOptions(`${PACKAGE}\n[other]\nobservabilityIncluded = true\nremoteManagement = true\n`)).toBe(false);
+    });
+});
+
+describe("addICPBuildOptions", () => {
+    // A second [build-options] table next to an inline one is a duplicate-table error.
+    it.each([
+        ["an inline table", `build-options = { sticky = true }\n${PACKAGE}`],
+        ["a dotted key", `build-options.sticky = true\n${PACKAGE}`],
+    ])("refuses build options set with %s", (_label, manifest) => {
+        expect(() => addICPBuildOptions(manifest)).toThrow(/inline/);
     });
 });
 
