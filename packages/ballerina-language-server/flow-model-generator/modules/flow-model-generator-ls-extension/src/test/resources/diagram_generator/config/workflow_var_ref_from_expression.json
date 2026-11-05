@@ -5308,15 +5308,6 @@
             "editable": true,
             "advanced": false,
             "hidden": false,
-            "diagnostics": {
-              "hasDiagnostics": true,
-              "diagnostics": [
-                {
-                  "severity": "ERROR",
-                  "message": "missing required parameter 'taskInput' in call to 'awaitHumanTask()'"
-                }
-              ]
-            },
             "codedata": {
               "kind": "REQUIRED",
               "originalName": "taskName"
@@ -5809,7 +5800,13 @@
           }
         },
         "diagnostics": {
-          "hasDiagnostics": true
+          "hasDiagnostics": true,
+          "diagnostics": [
+            {
+              "severity": "ERROR",
+              "message": "missing required parameter 'taskInput' in call to 'awaitHumanTask()'"
+            }
+          ]
         },
         "flags": 1
       }
