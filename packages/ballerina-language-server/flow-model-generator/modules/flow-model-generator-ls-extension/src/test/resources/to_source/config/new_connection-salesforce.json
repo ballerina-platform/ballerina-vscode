@@ -129,7 +129,7 @@
             "character": 0
           }
         },
-        "newText": "sfSalesBaseUrl = \"https://acme.my.salesforce.com\"\nsfSalesAuthTokenUrl = \"https://acme.my.salesforce.com/services/oauth2/token\"\nsfSalesAuthClientId = \"sales-client\"\nsfSalesAuthClientSecret = \"s3cr\\\"et\"\nsfSalesApiVersion = \"60.0\"\nsfSalesTimeout = 30\nsfSalesProxyHost = \"proxy.acme.com\"\nsfSalesProxyPassword = \"pr0xy😀\\\"\\\\u{41}\"\nsfSalesSecureSocketKeyPath = \"/certs/sales.p12\"\nsfSalesSecureSocketKeyPassword = \"ks-pass\"\n"
+        "newText": "sfSalesBaseUrl = \"https://acme.my.salesforce.com\"\nsfSalesAuthTokenUrl = \"https://acme.my.salesforce.com/services/oauth2/token\"\nsfSalesAuthClientId = \"sales-client\"\nsfSalesAuthClientSecret = \"s3cr\\\"et\"\nsfSalesApiVersion = \"60.0\"\nsfSalesTimeout = 30.0\nsfSalesProxyHost = \"proxy.acme.com\"\nsfSalesProxyPassword = \"pr0xy😀\\\"\\\\u{41}\"\nsfSalesSecureSocketKeyPath = \"/certs/sales.p12\"\nsfSalesSecureSocketKeyPassword = \"ks-pass\"\n"
       }
     ]
   }

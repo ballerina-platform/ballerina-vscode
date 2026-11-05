@@ -53,6 +53,8 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -149,13 +151,15 @@ public class NewConnectionBuilder extends CallBuilder {
     private List<Configurable> useConfigurables(SourceBuilder sourceBuilder) {
         Map<String, Property> properties = sourceBuilder.flowNode.properties();
         String connection = properties.get(Property.VARIABLE_KEY).value().toString();
-        Map<String, Symbol> moduleSymbols = sourceBuilder.workspaceManager.semanticModel(sourceBuilder.filePath)
+        Optional<SemanticModel> semanticModel = sourceBuilder.workspaceManager.semanticModel(sourceBuilder.filePath);
+        Map<String, Symbol> moduleSymbols = semanticModel
                 .map(model -> model.moduleSymbols().stream()
                         .filter(symbol -> symbol.getName().isPresent())
                         .collect(Collectors.toMap(symbol -> symbol.getName().get(), symbol -> symbol,
                                 (first, second) -> first)))
                 .orElse(Map.of());
-        ConnectionConfigurables configurables = new ConnectionConfigurables(connection, moduleSymbols);
+        ConnectionConfigurables configurables = new ConnectionConfigurables(connection, moduleSymbols,
+                symbol -> semanticModel.map(model -> !model.references(symbol, false).isEmpty()).orElse(true));
         Codedata codedata = sourceBuilder.flowNode.codedata();
         String connector = connectorId(codedata.org(), codedata.resolvePackageName(), codedata.module(),
                 codedata.object(), codedata.version());
@@ -209,7 +213,7 @@ public class NewConnectionBuilder extends CallBuilder {
 
     /**
      * Sets each value in Config.toml: in place where the key has one, at the root module's top-level keys otherwise.
-     * The value replacements come first, as the inserted lines would move them.
+     * The extension applies the edits one by one, so the replacements come last in the file first, then the insertion.
      */
     private static void writeConfigToml(SourceBuilder sourceBuilder, Path projectRoot,
                                         List<Configurable> configurables) {
@@ -218,21 +222,29 @@ public class NewConnectionBuilder extends CallBuilder {
         }
         Path configToml = projectRoot.resolve(CONFIG_TOML);
         Optional<Toml> toml = readToml(configToml);
-        String moduleKey = sourceBuilder.workspaceManager.project(sourceBuilder.filePath)
-                .map(project -> project.currentPackage().packageOrg().value() + "."
-                        + project.currentPackage().packageName().value())
+        String packageName = sourceBuilder.workspaceManager.project(sourceBuilder.filePath)
+                .map(project -> project.currentPackage().packageName().value())
                 .orElse("");
+        String moduleKey = sourceBuilder.workspaceManager.project(sourceBuilder.filePath)
+                .map(project -> project.currentPackage().packageOrg().value() + "." + packageName)
+                .orElse("");
+        List<TextEdit> replaced = new ArrayList<>();
         StringBuilder inserted = new StringBuilder();
         for (Configurable configurable : configurables) {
-            Optional<TomlValueNode> value = toml.flatMap(t -> t.<TomlValueNode>get(configurable.name())
-                    .or(() -> t.getTable(moduleKey).flatMap(table -> table.get(configurable.name()))));
+            Optional<TomlValueNode> value = toml.flatMap(t -> t.<TomlValueNode>get(configurable.key())
+                    .or(() -> t.getTable(moduleKey).flatMap(table -> table.get(configurable.key())))
+                    .or(() -> t.getTable(packageName).flatMap(table -> table.get(configurable.key()))));
             if (value.isPresent()) {
-                sourceBuilder.addTextEdit(configToml, new TextEdit(
-                        CommonUtils.toRange(value.get().location().lineRange()), configurable.configTomlValue()));
+                replaced.add(new TextEdit(CommonUtils.toRange(value.get().location().lineRange()),
+                        configurable.configTomlValue()));
             } else {
                 inserted.append(configurable.configTomlEntry()).append(System.lineSeparator());
             }
         }
+        replaced.stream()
+                .sorted(Comparator.comparing((TextEdit edit) -> edit.getRange().getStart().getLine())
+                        .thenComparing(edit -> edit.getRange().getStart().getCharacter()).reversed())
+                .forEach(edit -> sourceBuilder.addTextEdit(configToml, edit));
         if (!inserted.isEmpty()) {
             sourceBuilder.addTextEdit(configToml,
                     new TextEdit(CommonUtils.toRange(LinePosition.from(0, 0)), inserted.toString()));
