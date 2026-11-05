@@ -1,6 +1,6 @@
 ---
 name: ballerina-test-writer
-description: Use when adding tests for a change in this repo, or when checking which tests a change or PR needs. Proposes a test plan (level, file, invariant, defect caught) for the diff, waits for confirmation, then writes and verifies unit, component, LS-integration, and Java language server tests. Hands E2E work to ballerina-e2e-writer.
+description: Use when adding tests for a change in this repo, or when checking which tests a change or PR needs. Proposes a test plan (level, file, invariant, defect caught) for the diff, waits for confirmation, then writes and verifies unit, component, LS-integration, Java language server, performance, and reliability tests. Hands E2E work to ballerina-e2e-writer.
 ---
 
 # Ballerina Test Writer
@@ -47,6 +47,8 @@ defect the lower one cannot see.
 | A component that renders a shape the language server returns | L2 render from a captured fixture, plus its capture test | `references/component.md` |
 | Extension host code that calls the language server (RPC manager, client) | L3 LS-integration | `references/ls-integration.md` |
 | Java code in `packages/ballerina-language-server` | Java LS test | `references/language-server.md` |
+| The cost of an operation a user waits for (LS request, search, opening a form or diagram) | Performance, in addition to the functional row | `references/non-functional.md` |
+| How a process or resource starts, stops, or is released (LS JVM, child processes, watchers) | Reliability | `references/non-functional.md` |
 | Behaviour only a running VS Code shows: activation, webview wiring, CodeMirror editors, interaction that needs `requestAnimationFrame` | L4 E2E | hand to `ballerina-e2e-writer` |
 
 A change that spans layers gets a row per layer it changes. For example, a Java fix to
@@ -57,8 +59,8 @@ When the visible defect is in the UI but the cause is in the language server, te
 cause at the language server level, and add an L4 row only if the user flow itself
 (the editor showing an error, a save failing) has no E2E coverage. State which in the
 plan.
-Not covered here: performance and reliability suites (see `docs/TEST_GUIDE.md`), and
-installer smoke tests (they live in `wso2/product-integrator`).
+Not covered here: security and accessibility tests (no suite exists yet), and installer
+smoke tests (they live in `wso2/product-integrator`).
 
 A change with no behaviour change (rename, formatting, comments, types only) needs no
 test. Say so in the plan rather than inventing one.
@@ -81,7 +83,8 @@ One row per test. Wait for the developer to confirm or edit before writing.
 - **Changed expected output:** when the change alters the response of existing
   cases, the row is "regenerate `<n>` configs in `<dir>`", with the field that changes.
   Its revert check is that the regenerated configs fail without the change.
-- **Data:** synthetic, captured fixture, or Java JSON config.
+- **Data:** synthetic, captured fixture, Java JSON config, or (for performance) the
+  project the operation runs on.
 - **Defect:** the concrete wrong behaviour the test fails on. A row without one is cut.
 
 List anything deliberately not tested, with the reason (for example "L3 not added:
@@ -111,11 +114,14 @@ Every check must pass before reporting:
    - Test for existing code: break the asserted behaviour with a one-line edit, run,
      then revert the edit.
    A test that still passes is not catching anything. Rewrite it or drop the row.
+   Exception: a performance test with a loose ceiling usually still passes; report its
+   logged numbers with and without the change instead (see `references/non-functional.md`).
    Exception: for a race or other timing-dependent defect, a revert may still pass.
    Do not write a test that relies on timing; make the race deterministic (hold the
    lock, use a latch) or list it under "not tested" with the reason.
 4. **It runs where intended.** A fast test is picked up by the package's
-   `jest.config.js`; an L3 or capture test uses its non-`jest.config.js` config so it
+   `jest.config.js`; an L3, capture, performance, or reliability test uses its
+   non-`jest.config.js` config so it
    stays out of the fast suite.
 
 ## 6. Report
