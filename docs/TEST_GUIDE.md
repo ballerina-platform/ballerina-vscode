@@ -206,6 +206,32 @@ cd packages/ballerina-extension && pnpm run test:reliability
 
 ---
 
+## Language server tests (Java)
+
+**What.** TestNG tests for the Java language server in `packages/ballerina-language-server`, about 430 test classes. Most call one LS API in-process against a `.bal` source and compare the JSON response with an expected response stored in a config file. They run on a PR when language server files change (or with the `Checks/Run LS Tests` label), on Linux and Windows, and report coverage to Codecov (see `.github/workflows/README.md`).
+
+**How to run.**
+```bash
+cd packages/ballerina-language-server
+./gradlew test -PskipCoverage                                          # all modules
+./gradlew :flow-model-generator:flow-model-generator-ls-extension:test \
+    --tests '*GetNodeTemplateTest' -PskipCoverage                       # one class
+```
+Needs Java 21. Gradle unpacks the Ballerina distribution itself.
+
+**How to add.** Most test classes extend `AbstractLSTest` (`model-generator-commons`), which reads every `*.json` under `src/test/resources/<getResourceDir()>/config/` as one test case and resolves sources from `.../source/`.
+- **A case for an existing API:** add a JSON config (and a `.bal` source if none fits) to the resource directory of the test class whose `getApiName()` matches the API. No Java change.
+- **A new API:** add a test class that extends `AbstractLSTest` and implements `getResourceDir()`, `clazz()`, and `getApiName()`, with its own resource directory.
+- **Expected response:** uncomment the `updateConfig(...)` call in the test, run it once, then comment it out again. Review the generated JSON before committing: it records the current behaviour, which is not always the correct one. Do not commit the call uncommented, because the test then rewrites its expected output when it fails.
+- **Modules with a TestNG suite file:** where the module's `build.gradle` names a `testng.xml` suite (about 25 modules, including `flow-model-generator-core`), add a new test class to that `testng.xml`, or it does not run.
+- **A plain TestNG test:** when one request per config cannot show the defect (state carried between requests, concurrency, a utility class with no LS API), write a regular TestNG class in the module that owns the code.
+
+**Example files.**
+- [`GetNodeTemplateTest.java`](../packages/ballerina-language-server/flow-model-generator/modules/flow-model-generator-ls-extension/src/test/java/io/ballerina/flowmodelgenerator/extension/knowledgebasemanager/GetNodeTemplateTest.java) — one API, one config record, `updateConfig` left commented.
+- [`AbstractLSTest.java`](../packages/ballerina-language-server/model-generator-commons/src/main/java/io/ballerina/modelgenerator/commons/AbstractLSTest.java) — config discovery, `skipList()`, and `updateConfig()`.
+
+---
+
 ## Foundation (shared infra)
 
 Not a level, but everything above depends on it:
