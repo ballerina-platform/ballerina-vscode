@@ -18,17 +18,26 @@ Three kinds of test, in order of preference:
    class with no LS API (for example `ProjectLocks`). Put it in the module that owns
    the code, under `src/test/java`.
 
-In a module whose `build.gradle` names a `testng.xml` suite (about 25 modules,
-including `flow-model-generator-core`), a new test class runs only after it is added
-to that `testng.xml`. Check the module's `build.gradle` before adding a class.
+Before adding a class, read the module's `src/test/resources/testng.xml`. Suites that
+list classes need a `<class>` entry, or the class never runs. Suites that include the
+class's package with `<package>` need no entry; adding one runs the class twice.
 
 ## Write
 
-- The config holds the input (source file, position, code data) and the expected
-  response. Name the file after the case, and `issue-<n>.json` for a bug fix with an
-  issue number.
+- The config holds the input (source file, position, code data), a `description`,
+  and the expected response. Fill in `description`: the failure message prints it.
+  Name the file after the case, and `issue-<n>.json` for a bug fix with an issue number.
+- A skipped case needs a javadoc paragraph above `skipList()` with the reason and a
+  tracking link.
+- Do not change a `stdlib*Version` pin in `gradle.properties` to make a test pass.
+  Fixture package versions are moved in `build-config/ballerina_dependencies/`; follow
+  "Fixture dependency versions" in the guide, and regenerate every config that refers
+  to a package whose version moved in `Dependencies.toml`.
+- New code that resolves packages goes through `PackageUtil`, so tests stay offline.
+  Do not read `ls.test.offline` directly or construct a `CentralAPIClient`.
 - To fill in the expected response, uncomment the `updateConfig(...)` call in the test,
-  run it once, then comment it out again. Never commit a test with the call active: the
+  run it once (that run still fails; the next one uses the new value), then comment it
+  out again. Never commit a test with the call active: the
   test then rewrites its expected output on every failure.
 - The generated expected response is the current behaviour, not the correct one. Read
   the JSON diff and check every value against the intended behaviour before keeping it.
@@ -43,4 +52,4 @@ cd packages/ballerina-language-server
 
 `<module-path>` is the project path from `settings.gradle`, for example
 `flow-model-generator:flow-model-generator-ls-extension`. Needs Java 21. Gradle unpacks
-the Ballerina distribution itself.
+the Ballerina distribution itself. For a failure, see "Debugging a failure" in the guide.
