@@ -22,7 +22,7 @@ import { remarkRawHtmlAsText } from "./rawHtmlAsText";
 const html = (value: string) => ({ type: "html", value });
 
 it("shows a reply's raw tags as text and keeps our badge and error tags as HTML", () => {
-    const tree = {
+    const tree: { type: string; children: Array<{ type: string; value?: string; children?: any[] }> } = {
         type: "root",
         children: [{
             type: "paragraph",
