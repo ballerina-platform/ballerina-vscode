@@ -272,6 +272,7 @@ export function ProjectDestinationForm({
     const firstFieldRef = useRef<HTMLInputElement>(null);
     const defaultPathInitialized = useRef(false);
     const orgNameInitialized = useRef(false);
+    const fetchedOrgName = useRef<string>();
     const projectNameTouchedRef = useRef(false);
     // Set the moment the user edits the integration name, so the async default-name
     // indexing below never clobbers what they typed.
@@ -364,10 +365,26 @@ export function ProjectDestinationForm({
             setOrgName(organizations[0].handle);
         } else {
             wsClient.getDefaultOrgName()
-                .then(({ orgName: defaultOrgName }) => setOrgName(defaultOrgName))
+                .then(({ orgName: defaultOrgName }) => {
+                    fetchedOrgName.current = defaultOrgName;
+                    setOrgName(defaultOrgName);
+                })
                 .catch((error) => console.error("Failed to fetch default org name:", error));
         }
     }, [organizations, wsClient]);
+
+    // Sign-in usually completes after mount: swap the fetched default for the user's org
+    // once, unless the field was edited in the meantime. A fetched default that is one of
+    // the user's orgs (e.g. the workspace's org) is kept.
+    useEffect(() => {
+        if (organizations?.length && fetchedOrgName.current !== undefined && orgName === fetchedOrgName.current) {
+            const fetched = fetchedOrgName.current;
+            fetchedOrgName.current = undefined;
+            if (!organizations.some((o) => o.handle === fetched)) {
+                setOrgName(organizations[0].handle);
+            }
+        }
+    }, [organizations, orgName]);
 
     // Seed the Default project location once (`<defaultLocation>/default`). The
     // realtime validation then reports whether it already exists (add into it) or
@@ -763,7 +780,11 @@ export function ProjectDestinationForm({
                             data={{ packageName: effectivePackageName, orgName, version }}
                             onChange={(data) => {
                                 if (data.packageName !== undefined) setPackageName(data.packageName);
-                                if (data.orgName !== undefined) setOrgName(data.orgName);
+                                if (data.orgName !== undefined) {
+                                    // A user edit is final — never swap it for the signed-in org.
+                                    fetchedOrgName.current = undefined;
+                                    setOrgName(data.orgName);
+                                }
                                 if (data.version !== undefined) setVersion(data.version);
                             }}
                             isLibrary={false}
