@@ -21,7 +21,7 @@ import * as path from "path";
 import * as vm from "vm";
 import { CopilotEventHandler } from "../../utils/events";
 import { isSafeGrepPattern } from "../../utils/libs/docs-fs-tools";
-import { MAX_LINE_LENGTH, RecoverableAgentError } from "./path-utils";
+import { MAX_LINE_LENGTH, RecoverableAgentError, VALID_FILE_EXTENSIONS } from "./path-utils";
 import { listProjectFiles } from "./project-files";
 
 export const GLOB_TOOL_NAME = "glob";
@@ -58,6 +58,7 @@ export interface SearchFacts {
     unit?: "files" | "lines";
     capped?: boolean;
     aborted?: boolean;
+    failed?: boolean;
 }
 
 class OutputBuffer {
@@ -76,12 +77,12 @@ class OutputBuffer {
     }
 }
 
-function errorResult(error: unknown): SearchResult {
+function errorResult(error: unknown): SearchResult & SearchFacts {
     if (error instanceof RecoverableAgentError) {
         return { success: false, message: error.message };
     }
     console.error("[ProjectSearch] Unexpected error:", error);
-    return { success: false, message: `Search failed: ${error instanceof Error ? error.message : String(error)}` };
+    return { success: false, message: `Search failed: ${error instanceof Error ? error.message : String(error)}`, failed: true };
 }
 
 function scopeSuffix(scope?: string): string {
@@ -272,15 +273,17 @@ export function createGlobTool(eventHandler: CopilotEventHandler, root: string) 
         description: `Finds project files by name with a glob pattern, for example "**/*.bal" or "pkg1/modules/**/*.bal".
     - Standard glob rules: "*.bal" matches only the top level; use "**/*.bal" for any depth.
     - Returns paths relative to the project root, sorted, at most ${MAX_RESULT_LINES}.
+    - Only ${VALID_FILE_EXTENSIONS.join(", ")} files are visible.
     - Hidden files (other than .agents/), Config.toml and the target/ build folder are never listed.`,
         inputSchema: z.object({
             pattern: z.string().describe("Glob pattern, relative to path if given, otherwise to the project root"),
             path: z.string().optional().describe("File or directory to search in, relative to the project root (e.g. \"pkg1\")"),
         }),
-        execute: async (input: { pattern: string; path?: string }) => {
-            eventHandler({ type: "tool_call", toolName: GLOB_TOOL_NAME, toolInput: { pattern: input.pattern, path: input.path } });
-            const { success, message, ...facts } = await globProject(root, input);
-            eventHandler({ type: "tool_result", toolName: GLOB_TOOL_NAME, toolOutput: { success, pattern: input.pattern, path: input.path, ...facts } });
+        execute: async (input: { pattern: string; path?: string }, options?: { toolCallId?: string }) => {
+            const toolCallId = options?.toolCallId;
+            eventHandler({ type: "tool_call", toolName: GLOB_TOOL_NAME, toolCallId, toolInput: { pattern: input.pattern, path: input.path } });
+            const { success, message, failed, ...facts } = await globProject(root, input);
+            eventHandler({ type: "tool_result", toolName: GLOB_TOOL_NAME, toolCallId, failed, toolOutput: { success, pattern: input.pattern, path: input.path, ...facts } });
             return { success, message };
         },
     });
@@ -294,7 +297,7 @@ export function createGrepTool(eventHandler: CopilotEventHandler, root: string) 
     - Case-sensitive unless case_insensitive is true.
     - Returns at most ${MAX_RESULT_LINES} lines. Only the first ${MAX_LINE_LENGTH} characters of each line are searched, and files over 1 MB are skipped.
     - Patterns that can backtrack badly (nested repetition such as (a+)+, backreferences) are rejected, and a search that runs longer than ${GREP_TIME_BUDGET_MS / 1000} seconds is stopped.
-    - Searches the same files glob can list.`,
+    - Searches the same files glob can list: only ${VALID_FILE_EXTENSIONS.join(", ")} files.`,
         inputSchema: z.object({
             pattern: z.string().describe("Regular expression to search for"),
             path: z.string().optional().describe("File or directory to search in, relative to the project root"),
@@ -304,10 +307,11 @@ export function createGrepTool(eventHandler: CopilotEventHandler, root: string) 
             context: z.number().optional().describe(`Lines of context around each match (at most ${MAX_CONTEXT_LINES}), content mode only`),
             case_insensitive: z.boolean().optional().describe("Match case-insensitively"),
         }),
-        execute: async (input: GrepInput, options?: { abortSignal?: AbortSignal }) => {
-            eventHandler({ type: "tool_call", toolName: GREP_TOOL_NAME, toolInput: { pattern: input.pattern, path: input.path, glob: input.glob } });
-            const { success, message, ...facts } = await grepProject(root, input, options?.abortSignal);
-            eventHandler({ type: "tool_result", toolName: GREP_TOOL_NAME, toolOutput: { success, pattern: input.pattern, path: input.path, glob: input.glob, ...facts } });
+        execute: async (input: GrepInput, options?: { abortSignal?: AbortSignal; toolCallId?: string }) => {
+            const toolCallId = options?.toolCallId;
+            eventHandler({ type: "tool_call", toolName: GREP_TOOL_NAME, toolCallId, toolInput: { pattern: input.pattern, path: input.path, glob: input.glob } });
+            const { success, message, failed, ...facts } = await grepProject(root, input, options?.abortSignal);
+            eventHandler({ type: "tool_result", toolName: GREP_TOOL_NAME, toolCallId, failed, toolOutput: { success, pattern: input.pattern, path: input.path, glob: input.glob, ...facts } });
             return { success, message };
         },
     });

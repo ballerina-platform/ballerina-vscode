@@ -1780,7 +1780,7 @@ const AIChat: React.FC = () => {
                 return;
             }
 
-            const errorTemplate = `\n\n<error data-system="true" data-auth="${SYSTEM_ERROR_SECRET}">${errorContent}</error>`;
+            const errorTemplate = `\n\n<error data-system="true" data-auth="${SYSTEM_ERROR_SECRET}">${String(errorContent).trim()}</error>`;
             setMessages((prevMessages) => {
                 const newMessages = [...prevMessages];
                 const targetIndex = ensureAssistantMessage(newMessages);
@@ -1984,9 +1984,9 @@ const AIChat: React.FC = () => {
             } else {
                 updateLastMessage((lastContent) => {
                     if (error && "message" in error) {
-                        return lastContent + `\n\n<error data-system="true" data-auth="${SYSTEM_ERROR_SECRET}">${error.message}</error>`;
+                        return lastContent + `\n\n<error data-system="true" data-auth="${SYSTEM_ERROR_SECRET}">${String(error.message).trim()}</error>`;
                     }
-                    return lastContent + `\n\n<error data-system="true" data-auth="${SYSTEM_ERROR_SECRET}">${error}</error>`;
+                    return lastContent + `\n\n<error data-system="true" data-auth="${SYSTEM_ERROR_SECRET}">${String(error).trim()}</error>`;
                 });
             }
         }

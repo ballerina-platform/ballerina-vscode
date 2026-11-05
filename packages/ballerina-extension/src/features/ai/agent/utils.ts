@@ -221,7 +221,7 @@ function formatConfigFiles(tempProjectPath: string | undefined, project: Project
 export function formatCodebaseStructure(projects: ProjectSource[], tempProjectPath?: string): string {
     let text = "<codebase_structure>\n";
     text += "The project's Ballerina source and config files with their line counts. ";
-    text += "Contents are not included, and other files (OpenAPI specs, SQL, data) are not listed: ";
+    text += "Contents are not included, and other files (OpenAPI specs, SQL, JSON) are not listed: ";
     text += "use glob, grep and file_read.\n\n";
 
     const context = StateMachine.context();

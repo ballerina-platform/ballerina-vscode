@@ -19,7 +19,7 @@
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { createGrepTool, globProject, GREP_TIME_BUDGET_MS, grepProject, MAX_GREP_FILE_BYTES, MAX_RESULT_LINES } from "../features/ai/agent/tools/project-search";
+import { createGlobTool, createGrepTool, globProject, GREP_TIME_BUDGET_MS, grepProject, MAX_GREP_FILE_BYTES, MAX_RESULT_LINES } from "../features/ai/agent/tools/project-search";
 
 let root: string;
 
@@ -156,6 +156,22 @@ describe("grep", () => {
         expect(grep.inputSchema.safeParse({ pattern: "x", context: 6 }).success).toBe(true);
         write("long.bal", Array.from({ length: 20 }, (_, i) => `line ${i + 1}`).join("\n"));
         expect((await grepProject(root, { pattern: "^line 10$", path: "long.bal", output_mode: "content", context: 6 })).message.split("\n")).toHaveLength(11);
+    });
+
+    it("marks an unexpected error as failed and pairs its events with the call", async () => {
+        const files = require("../features/ai/agent/tools/project-files");
+        const spy = jest.spyOn(files, "listProjectFiles").mockRejectedValue(new Error("EMFILE"));
+        try {
+            const events: any[] = [];
+            const grep = createGrepTool((event: any) => events.push(event), root) as any;
+            expect(await grep.execute({ pattern: "x" }, { toolCallId: "call-1" })).toEqual({ success: false, message: "Search failed: EMFILE" });
+            expect(events.map((e) => [e.type, e.toolCallId, e.failed])).toEqual([["tool_call", "call-1", undefined], ["tool_result", "call-1", true]]);
+        } finally {
+            spy.mockRestore();
+        }
+        const glob = createGlobTool(() => undefined, root) as any;
+        expect(glob.description).toContain("Only .bal, .toml");
+        expect(createGrepTool(() => undefined, root).description).toContain("only .bal, .toml");
     });
 
     it("gives the model only the message and the chat row the counts", async () => {

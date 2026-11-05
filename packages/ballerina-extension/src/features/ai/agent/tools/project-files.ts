@@ -19,8 +19,6 @@ import * as path from "path";
 import { glob } from "glob";
 import { PathValidationError, RESTRICTED_READ_FILES, VALID_FILE_EXTENSIONS, resolveContained } from "./path-utils";
 
-// The one file rule shared by glob, grep and the file tools.
-
 const IGNORED_DIR_NAMES = new Set(["target"]);
 const IGNORED_DIR_GLOBS = ["**/target/**"];
 // .agents/ holds project skills; other dot paths (.env, .git, MCP configs) can hold secrets.
@@ -175,7 +173,6 @@ export async function listProjectFiles(root: string, options: ListProjectFilesOp
     return candidates.filter((_, index) => readable[index]).sort();
 }
 
-// Async: a large listing must not block the extension host.
 async function resolvesInsideRoot(rootReal: string, rel: string): Promise<boolean> {
     try {
         const real = await fs.promises.realpath(path.resolve(rootReal, rel));
