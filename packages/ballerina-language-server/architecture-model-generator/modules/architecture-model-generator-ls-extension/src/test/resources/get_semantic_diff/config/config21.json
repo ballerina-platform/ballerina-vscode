@@ -1,0 +1,32 @@
+{
+  "description": "A change to one of two identical services stays on that service",
+  "projectPath": "identical_service_cases",
+  "output": {
+    "loadDesignDiagrams": true,
+    "semanticDiffs": [
+      {
+        "changeType": "DELETION",
+        "nodeKind": "OBJECT_FUNCTION",
+        "uri": "ai:///main.bal",
+        "lineRange": {
+          "fileName": "main.bal",
+          "startLine": {
+            "line": 31,
+            "offset": 4
+          },
+          "endLine": {
+            "line": 33,
+            "offset": 5
+          }
+        },
+        "metadata": {
+          "name": "onError",
+          "servicePath": "",
+          "serviceId": "ai:///main.bal#26:0",
+          "serviceListeners": "queueListener",
+          "functionKind": "remote"
+        }
+      }
+    ]
+  }
+}
