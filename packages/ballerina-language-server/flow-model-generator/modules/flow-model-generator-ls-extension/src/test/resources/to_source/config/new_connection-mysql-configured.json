@@ -1,6 +1,6 @@
 {
   "source": "new_connection7/main.bal",
-  "description": "A quoted connection name and nullable fields: 'client's string? user and password, and its Options? options, become configurables; Config.toml keys are the names' values, without the quote",
+  "description": "A quoted connection name and nullable fields: 'client's string? user and password, and its Options? options, become configurables; the configurables are named without the quote ('client gets clientHost), as their names are no keywords",
   "diagram": {
     "id": "31",
     "metadata": {
@@ -300,7 +300,7 @@
             "character": 0
           }
         },
-        "newText": "configurable string 'clientHost = ?;\nconfigurable string 'clientUser = ?;\nconfigurable string 'clientPassword = ?;\nconfigurable int 'clientPort = ?;\nconfigurable decimal 'clientConnectTimeout = ?;\nconfigurable string 'clientServerTimezone = ?;"
+        "newText": "configurable string clientHost = ?;\nconfigurable string clientUser = ?;\nconfigurable string clientPassword = ?;\nconfigurable int clientPort = ?;\nconfigurable decimal clientConnectTimeout = ?;\nconfigurable string clientServerTimezone = ?;"
       }
     ],
     "new_connection7/connections.bal": [
@@ -341,7 +341,7 @@
             "character": 0
           }
         },
-        "newText": "final mysql:Client 'client = check new ('clientHost, 'clientUser, 'clientPassword, port = 'clientPort, options = {connectTimeout: 'clientConnectTimeout, serverTimezone: 'clientServerTimezone});"
+        "newText": "final mysql:Client 'client = check new (clientHost, clientUser, clientPassword, port = clientPort, options = {connectTimeout: clientConnectTimeout, serverTimezone: clientServerTimezone});"
       }
     ],
     "new_connection7/Config.toml": [

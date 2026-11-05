@@ -37,6 +37,7 @@ import io.ballerina.flowmodelgenerator.core.UserFacingException;
 import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.tools.text.TextRange;
 import org.apache.commons.lang3.StringUtils;
+import org.ballerinalang.langserver.common.utils.CommonUtil;
 import org.ballerinalang.langserver.common.utils.NameUtil;
 
 import java.math.BigInteger;
@@ -72,6 +73,7 @@ public class ConnectionConfigurables {
             TypeDescKind.BOOLEAN, "boolean");
     private static final Pattern STRING_ESCAPE = Pattern.compile("\\\\(?:u\\{(\\p{XDigit}{1,6})}|.)");
     private static final Pattern HEX_INTEGER = Pattern.compile("0[xX]\\p{XDigit}+");
+    private static final Pattern PLAIN_IDENTIFIER = Pattern.compile("[A-Za-z_][A-Za-z0-9_]*");
     private static final Pattern BARE_TOML_KEY = Pattern.compile("[A-Za-z0-9_-]+");
 
     private final String connection;
@@ -95,7 +97,7 @@ public class ConnectionConfigurables {
     /**
      * A configurable the connection refers to, with the literal it replaces.
      *
-     * @param name     the configurable's name, as written in source
+     * @param name     the configurable's name as source writes it, quoted only if a keyword
      * @param key      the configurable's name as a value, which Config.toml uses
      * @param type     the configurable's type
      * @param literal  the literal the connection was given
@@ -184,6 +186,7 @@ public class ConnectionConfigurables {
                 name = distinctName(name, kind.get());
                 existing = moduleSymbols.get(valueOf(name));
             }
+            name = sourceName(name);
             usedNames.add(valueOf(name));
             replacements.add(new Replacement(literal.literalToken().textRange(), name));
             configurables.add(new Configurable(name, valueOf(name), CONFIGURABLE_TYPES.get(kind.get()),
@@ -323,6 +326,14 @@ public class ConnectionConfigurables {
      * A Ballerina string literal as a TOML string: the escapes are the same, except a code point,
      * <code>&#92;u{1F600}</code>, which becomes the character itself. Ballerina reads no TOML code point escape.
      */
+    /**
+     * A name as source writes it, quoted only if a keyword: connection {@code 'client} gets {@code clientHost}.
+     */
+    private static String sourceName(String name) {
+        String value = valueOf(name);
+        return PLAIN_IDENTIFIER.matcher(value).matches() ? CommonUtil.escapeReservedKeyword(value) : name;
+    }
+
     private static String tomlChars(String value) {
         return value.codePoints().mapToObj(ConnectionConfigurables::tomlChar)
                 .collect(Collectors.joining("", "\"", "\""));
