@@ -29,32 +29,11 @@ import ballerina from "../../../languages/ballerina.js";
 import { SYSTEM_BADGE_SECRET, SYSTEM_ERROR_SECRET } from "./AIChatInput/constants";
 import ErrorBox from "./ErrorBox";
 import { ColorThemeKind, isLightTheme } from "@wso2/ballerina-core";
+import { remarkRawHtmlAsText } from "./rawHtmlAsText";
 
 // Register custom languages with highlight.js
 hljs.registerLanguage("yaml", yaml);
 hljs.registerLanguage("ballerina", ballerina);
-
-// Escapes HTML tags except our custom <badge> and <error> tags
-// Uses context-aware detection to distinguish HTML tags from generic type parameters
-const escapeHtmlForCustomTags = (markdown: string): string => {
-    return markdown.replace(/<\/?([a-zA-Z][a-zA-Z0-9]*)\b[^>]*>/g, (match, tagName, offset, fullString) => {
-        // Preserve our custom tags - they need to be processed by rehypeRaw
-        if (tagName.toLowerCase() === 'badge' || tagName.toLowerCase() === 'error') {
-            return match;
-        }
-
-        // Check character before '<' - if it's a word character, it's likely a generic type
-        // Examples: "convert<ABCType>", "List<String>", "Map<int, string>"
-        const charBefore = offset > 0 ? fullString[offset - 1] : '';
-        if (/\w/.test(charBefore)) {
-            return match; // Don't escape - likely generic type parameter
-        }
-
-        // Escape standalone HTML tags (preceded by space, newline, or start of string)
-        // Examples: "<script>", "<div>", etc.
-        return match.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    });
-};
 
 
 interface MarkdownRendererProps {
@@ -298,13 +277,10 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ markdownContent }) 
         },
     });
 
-    // Escape HTML except <badge> tags
-    const safeContent = escapeHtmlForCustomTags(markdownContent);
-
     return (
         <div style={markdownWrapperStyle}>
             <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
+                remarkPlugins={[remarkGfm, remarkRawHtmlAsText]}
                 rehypePlugins={[rehypeRaw]}
                 components={{
                     ...MarkdownCodeRenderer,
@@ -324,7 +300,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ markdownContent }) 
                     td: ({ children }: { children?: React.ReactNode }) => <td style={tdStyle}>{children}</td>,
                 } as any}
             >
-                {safeContent}
+                {markdownContent}
             </ReactMarkdown>
         </div>
     );
