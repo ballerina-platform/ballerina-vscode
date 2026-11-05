@@ -462,7 +462,7 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
 
     // ----- navigation (open an existing view) -----
 
-    const handleOpenDiagram = async (resource: FunctionModel) => {
+    const handleOpenDiagram = async (resource: FunctionModel, documentUri: string = filePath) => {
         const lineRange: LineRange = resource.codedata.lineRange;
         const nodePosition: NodePosition = {
             startLine: lineRange.startLine.line,
@@ -472,7 +472,33 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
         };
         await rpcClient
             .getVisualizerRpcClient()
-            .openView({ type: EVENT_TYPE.OPEN_VIEW, location: { position: nodePosition, documentUri: filePath } });
+            .openView({ type: EVENT_TYPE.OPEN_VIEW, location: { position: nodePosition, documentUri } });
+    };
+
+    // A TCP service hands each connection to the service class `onConnect` returns, so the handlers
+    // users implement (onBytes, onError, onClose) live on that class rather than on the service.
+    const connectionServiceClass = serviceModel?.connectionServiceClass;
+
+    // The class is resolved from the service's own module, so its file is a sibling of the service's.
+    const handleOpenConnectionHandler = (handler: FunctionModel) =>
+        handleOpenDiagram(handler, filePath.replace(/[^/\\]+$/, handler.codedata.lineRange.fileName));
+
+    // Adding, configuring or removing a handler belongs to the class, so it opens in the class designer.
+    const handleOpenConnectionServiceClass = async () => {
+        const { fileName, startLine, endLine } = connectionServiceClass.codedata.lineRange;
+        await rpcClient.getVisualizerRpcClient().openView({
+            type: EVENT_TYPE.OPEN_VIEW,
+            location: {
+                view: MACHINE_VIEW.BIServiceClassDesigner,
+                position: {
+                    startLine: startLine.line,
+                    startColumn: startLine.offset,
+                    endLine: endLine.line,
+                    endColumn: endLine.offset,
+                },
+                documentUri: fileName,
+            },
+        });
     };
 
     const openInit = async (resource: ProjectStructureArtifactResponse) => {
@@ -1257,6 +1283,37 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
                                 </>
                             )}
 
+                            {connectionServiceClass && (
+                                <>
+                                    <SectionHeader
+                                        title="Connection Handlers"
+                                        subtitle={`Define how ${connectionServiceClass.name} handles data and events on each connection`}
+                                    >
+                                        <ActionGroup>
+                                            <Button
+                                                appearance="secondary"
+                                                tooltip={`Open ${connectionServiceClass.name} to add or configure handlers`}
+                                                onClick={handleOpenConnectionServiceClass}
+                                            >
+                                                <Codicon name="symbol-class" sx={{ marginRight: 8 }} />
+                                                <ButtonText>{connectionServiceClass.name}</ButtonText>
+                                            </Button>
+                                        </ActionGroup>
+                                    </SectionHeader>
+                                    <FunctionsContainer>
+                                        {connectionServiceClass.functions
+                                            ?.filter((handler) => handler.kind === "REMOTE")
+                                            .map((handler) => (
+                                                <ResourceAccordion
+                                                    key={handler.name.value}
+                                                    functionModel={handler}
+                                                    goToSource={() => { }}
+                                                    onResourceImplement={handleOpenConnectionHandler}
+                                                />
+                                            ))}
+                                    </FunctionsContainer>
+                                </>
+                            )}
 
                             {resources.filter((resource) => resource.type === DIRECTORY_MAP.FUNCTION && resource.name !== "init").length > 0 && (
                                 <>

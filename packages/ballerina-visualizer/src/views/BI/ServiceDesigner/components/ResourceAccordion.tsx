@@ -131,8 +131,10 @@ export interface ResourceAccordionProps {
     functionModel: FunctionModel;
     method?: string;
     goToSource: (resource: FunctionModel) => void;
-    onEditResource: (resource: FunctionModel) => void;
-    onDeleteResource: (resource: FunctionModel) => void;
+    /** Omit to hide the edit button. */
+    onEditResource?: (resource: FunctionModel) => void;
+    /** Omit to hide the delete button. */
+    onDeleteResource?: (resource: FunctionModel) => void;
     onResourceImplement: (resource: FunctionModel) => void;
     deletionTypeLabel?: string;
     /** Grays out the edit button even when the resource is otherwise editable (nothing to configure). */

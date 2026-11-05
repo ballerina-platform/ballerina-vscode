@@ -60,6 +60,8 @@ export interface ServiceModel {
     properties?: ConfigProperties;
     functions?: FunctionModel[];
     schemaFunctions?: FunctionModel[];
+    /** TCP only: the service class `onConnect` returns, which holds the per-connection handlers (onBytes, ...). */
+    connectionServiceClass?: ServiceClassModel;
     codedata?: CodeData;
 }
 
