@@ -1,0 +1,8 @@
+[package]
+org = "wso2"
+name = "same_line_service_cases"
+version = "0.1.0"
+title = "same line service cases"
+
+[build-options]
+sticky = true
