@@ -326,6 +326,8 @@ const HelperPaneNewEl = ({
                                 onClose={onClose}
                                 inputMode={inputMode}
                                 devantExpressionEditor={devantExpressionEditor}
+                                filteredCompletions={filteredCompletions}
+                                handleRetrieveCompletions={handleRetrieveCompletions}
                             />
                         </SlidingPane>
                     )}
@@ -359,6 +361,8 @@ const HelperPaneNewEl = ({
                             onClose={onClose}
                             inputMode={inputMode}
                             excludedConfigs={devantExpressionEditor?.devantConfigs || []}
+                            filteredCompletions={filteredCompletions}
+                            handleRetrieveCompletions={handleRetrieveCompletions}
                         />
                     </SlidingPane>
 
