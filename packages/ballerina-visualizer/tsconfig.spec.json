@@ -24,6 +24,6 @@
         // Grandfathered: pre-existing test (predates the test framework) whose fixtures don't
         // match the current Metadata / NodeProperties types. Tracked separately; remove this
         // line once its 21 type errors are fixed.
-        "src/utils/bi.test.ts"
+        "src/test/utils/bi.test.ts"
     ]
 }

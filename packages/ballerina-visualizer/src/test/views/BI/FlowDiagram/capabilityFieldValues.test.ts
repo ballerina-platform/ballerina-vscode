@@ -1,0 +1,269 @@
+/**
+ * Copyright (c) 2026, WSO2 LLC. (https://www.wso2.com) All Rights Reserved.
+ *
+ * WSO2 LLC. licenses this file to you under the Apache License,
+ * Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+// A capability form is a fresh template seeded with source. These pin the half that was missing:
+// putting each value in the right mode, so a reference is not written back as a literal.
+
+import { capabilityValueText, seedCapabilityValue, SeedableProperty, showActivityIdentityReadOnly } from "../../../../views/BI/FlowDiagram/capabilityFieldValues";
+// The same table core's `parseTextArraySource` is held to, so this copy of the parser cannot
+// drift from it without one of the two suites failing.
+import corpus from "../../../../../../ballerina-core/src/utils/__fixtures__/roleValues.json";
+
+const dualMode = (): SeedableProperty => ({
+    value: "",
+    types: [
+        { fieldType: "TEXT", selected: true },
+        { fieldType: "EXPRESSION", selected: false },
+    ],
+});
+
+const expressionOnly = (): SeedableProperty => ({ value: "", types: [{ fieldType: "EXPRESSION", selected: true }] });
+
+const modeOf = (property: SeedableProperty) => property.types?.find((type) => type.selected)?.fieldType;
+
+const listMode = (): SeedableProperty => ({
+    value: "",
+    types: [
+        { fieldType: "TEXT_SET", selected: true },
+        { fieldType: "EXPRESSION", selected: false },
+    ],
+});
+
+describe("the shared role-value corpus", () => {
+    it.each((corpus as { note: string; source: string; items: string[] | null }[])
+        .filter((entry) => entry.source !== "")
+        .map((entry) => [entry.note, entry.source, entry.items] as const))(
+        "%s", (_note, source, items) => {
+            const property = listMode();
+            seedCapabilityValue(property, source);
+            expect(property.value).toEqual(items ?? source);
+        });
+});
+
+describe("seedCapabilityValue", () => {
+    it("fills a role list with the names a literal or a list names", () => {
+        const single = listMode();
+        seedCapabilityValue(single, '"finance"');
+        expect(single.value).toEqual(["finance"]);
+        expect(modeOf(single)).toBe("TEXT_SET");
+
+        const several = listMode();
+        seedCapabilityValue(several, '["finance", "manager"]');
+        expect(several.value).toEqual(["finance", "manager"]);
+        expect(modeOf(several)).toBe("TEXT_SET");
+    });
+
+    // The one escape a re-encode cannot reproduce. Kept identical to the core decoder and to
+    // WorkflowUtil on the language server side.
+    it("decodes a numeric escape in a role list rather than doubling its backslash", () => {
+        const property = listMode();
+        seedCapabilityValue(property, '["grin \\u{1F600}", "\\u{41}BC"]');
+        expect(property.value).toEqual(["grin \u{1F600}", "ABC"]);
+    });
+
+    it("names nobody for the shapes that state no role", () => {
+        for (const source of ["()", "[]"]) {
+            const property = listMode();
+            seedCapabilityValue(property, source);
+            expect(property.value).toEqual([]);
+        }
+    });
+
+    it("keeps a role reference an expression even beside a role list", () => {
+        const property = listMode();
+        seedCapabilityValue(property, "financeRoles");
+        expect(property.value).toBe("financeRoles");
+        expect(modeOf(property)).toBe("EXPRESSION");
+    });
+
+    it("puts a string literal in the text box, without its quotes", () => {
+        const property = dualMode();
+        seedCapabilityValue(property, '"finance"');
+        expect(property.value).toBe("finance");
+        expect(modeOf(property)).toBe("TEXT");
+    });
+
+    it("keeps a bare reference an expression, which is the bug this fixes", () => {
+        const property = dualMode();
+        seedCapabilityValue(property, "financeRoles");
+        expect(property.value).toBe("financeRoles");
+        expect(modeOf(property)).toBe("EXPRESSION");
+    });
+
+    it.each(['["finance", "ops"]', "string `Order ${id}`", "getRoles()", "config:roles", "()"])(
+        "treats %s as an expression",
+        (source) => {
+            const property = dualMode();
+            seedCapabilityValue(property, source);
+            expect(property.value).toBe(source);
+            expect(modeOf(property)).toBe("EXPRESSION");
+        }
+    );
+
+    it("resolves the escapes a literal carries", () => {
+        const property = dualMode();
+        seedCapabilityValue(property, '"Say \\"go\\"\\nnow"');
+        expect(property.value).toBe('Say "go"\nnow');
+        expect(modeOf(property)).toBe("TEXT");
+    });
+
+    it("keeps an escaped backslash from swallowing the character after it", () => {
+        // `"C:\\new"` is a path. Decoding the escapes one at a time turned its `\\n` into a line break.
+        const property = dualMode();
+        seedCapabilityValue(property, '"C:\\\\new"');
+        expect(property.value).toBe("C:\\new");
+        expect(property.value).not.toContain("\n");
+    });
+
+    it("leaves a trailing lone backslash alone rather than reading past the end", () => {
+        const property = dualMode();
+        seedCapabilityValue(property, '"ends with \\\\"');
+        expect(property.value).toBe("ends with \\");
+    });
+
+    it("decodes a numeric escape the way the language server does", () => {
+        const property = dualMode();
+        seedCapabilityValue(property, '"grin \\u{1F600}"');
+        expect(property.value).toBe("grin \u{1F600}");
+    });
+
+    it("leaves an out-of-range code point as written instead of throwing", () => {
+        // `String.fromCodePoint` rejects anything above 0x10FFFF, and a throw here would stop the
+        // whole form from opening. The language server leaves the escape as written.
+        const property = dualMode();
+        seedCapabilityValue(property, '"grin \\u{110000}"');
+        expect(property.value).toBe("grin \\u{110000}");
+    });
+
+    it("leaves a lone surrogate as written", () => {
+        const property = dualMode();
+        seedCapabilityValue(property, '"half \\u{D800}"');
+        expect(property.value).toBe("half \\u{D800}");
+    });
+
+    it("keeps the backslash of an escape the syntax does not define", () => {
+        const property = dualMode();
+        seedCapabilityValue(property, '"no brace \\uabc"');
+        expect(property.value).toBe("no brace \\uabc");
+    });
+
+    it("does not mistake a concatenation that merely starts and ends with a quote", () => {
+        const property = dualMode();
+        seedCapabilityValue(property, '"a" + b + "c"');
+        expect(modeOf(property)).toBe("EXPRESSION");
+        expect(property.value).toBe('"a" + b + "c"');
+    });
+
+    it("leaves a single-mode field as source, whatever the value looks like", () => {
+        const property = expressionOnly();
+        seedCapabilityValue(property, '"finance"');
+        expect(property.value).toBe('"finance"');
+        expect(modeOf(property)).toBe("EXPRESSION");
+    });
+
+    it("decodes a literal into a doc box, which is text in a single mode", () => {
+        const property: SeedableProperty = { value: "", types: [{ fieldType: "DOC_TEXT", selected: true }] };
+        seedCapabilityValue(property, '"Charges the card"');
+        expect(property.value).toBe("Charges the card");
+        expect(modeOf(property)).toBe("DOC_TEXT");
+    });
+
+    it("leaves a text-only field selected when its value is not a literal", () => {
+        // A name written as a template has no expression editor to switch to, so the field keeps
+        // the only mode it has rather than ending up with none selected.
+        const property: SeedableProperty = { value: "", types: [{ fieldType: "TEXT", selected: true }] };
+        seedCapabilityValue(property, "string `approve-${id}`");
+        expect(property.value).toBe("string `approve-${id}`");
+        expect(modeOf(property)).toBe("TEXT");
+    });
+
+    it("keeps a type reference and an enum member as they stand", () => {
+        const type: SeedableProperty = { value: "", types: [{ fieldType: "TYPE", selected: true }] };
+        seedCapabilityValue(type, "ClaimReview");
+        expect(type.value).toBe("ClaimReview");
+        expect(modeOf(type)).toBe("TYPE");
+
+        const select: SeedableProperty = { value: "", types: [{ fieldType: "SINGLE_SELECT", selected: true }] };
+        seedCapabilityValue(select, "SINGLE_EVENT");
+        expect(select.value).toBe("SINGLE_EVENT");
+        expect(modeOf(select)).toBe("SINGLE_SELECT");
+    });
+
+    it("seeds a field with no declared types at all", () => {
+        const property: SeedableProperty = { value: "" };
+        seedCapabilityValue(property, "SINGLE_EVENT");
+        expect(property.value).toBe("SINGLE_EVENT");
+    });
+
+    it("reads a value as text for display, decoding only a literal", () => {
+        expect(capabilityValueText('"Charges the card"')).toBe("Charges the card");
+        expect(capabilityValueText("descriptionVar")).toBe("descriptionVar");
+        expect(capabilityValueText(undefined)).toBeUndefined();
+        expect(capabilityValueText("")).toBe("");
+    });
+
+    // The text box writes what was typed as a `string `...`` template, so a name saved that way
+    // must read back as text on the canvas and in the box (wso2/product-integrator#2623).
+    it("reads a template the text box wrote as text, and an interpolating one as source", () => {
+        expect(capabilityValueText("string `Lookup bill`")).toBe("Lookup bill");
+        // A template keeps its backslashes, so its body reads back exactly as written.
+        expect(capabilityValueText('string `Say \\"hi\\"`')).toBe('Say \\"hi\\"');
+        expect(capabilityValueText('string `C:\\temp`')).toBe('C:\\temp');
+        expect(capabilityValueText("string ``")).toBe("");
+        expect(capabilityValueText("string `Bill ${id}`")).toBe("string `Bill ${id}`");
+
+        const name = dualMode();
+        seedCapabilityValue(name, "string `Lookup bill`");
+        expect(name.value).toBe("Lookup bill");
+        expect(modeOf(name)).toBe("TEXT");
+
+        const computed = dualMode();
+        seedCapabilityValue(computed, "string `Bill ${id}`");
+        expect(computed.value).toBe("string `Bill ${id}`");
+        expect(modeOf(computed)).toBe("EXPRESSION");
+    });
+});
+
+// The add template hides an activity entry's name and description (wso2/product-integrator#2622);
+// the edit form is where they are set, so the reveal must touch exactly those two.
+describe("showActivityIdentityReadOnly", () => {
+    const hiddenTemplate = () => ({
+        activity: { value: "lookupBill", hidden: true } as SeedableProperty,
+        name: { value: "", hidden: true } as SeedableProperty,
+        description: { value: "", hidden: true } as SeedableProperty,
+        "bindings.api": { value: "", hidden: false } as SeedableProperty,
+    });
+
+    it("shows the name and description read-only, and nothing else", () => {
+        const properties = hiddenTemplate();
+        showActivityIdentityReadOnly(properties);
+        expect(properties.name.hidden).toBe(false);
+        expect(properties.description.hidden).toBe(false);
+        expect(properties.name.editable).toBe(false);
+        expect(properties.description.editable).toBe(false);
+        expect(properties["bindings.api"].editable).toBeUndefined();
+        expect(properties.activity.hidden).toBe(true);
+        expect(properties["bindings.api"].hidden).toBe(false);
+    });
+
+    it("tolerates a template without them", () => {
+        const properties = { activity: { value: "lookupBill", hidden: true } as SeedableProperty };
+        expect(() => showActivityIdentityReadOnly(properties)).not.toThrow();
+        expect(() => showActivityIdentityReadOnly(undefined)).not.toThrow();
+    });
+});
