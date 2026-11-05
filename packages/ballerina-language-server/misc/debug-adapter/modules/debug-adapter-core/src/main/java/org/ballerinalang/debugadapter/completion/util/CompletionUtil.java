@@ -75,7 +75,7 @@ public final class CompletionUtil {
                                                   NonTerminalNode node, int lineNumber) {
         SuspendedContext suspendedContext = completionContext.getSuspendedContext();
         TextDocument textDocument = suspendedContext.getDocument().textDocument();
-        List<String> lines = Arrays.asList(textDocument.toString().split(System.lineSeparator()));
+        List<String> lines = Arrays.asList(textDocument.toString().split("\\R"));
 
         if (node.kind() == SyntaxKind.FUNCTION_BODY_BLOCK) {
             int nodeStartLine = node.lineRange().startLine().line();

@@ -296,8 +296,9 @@ public class ExtractToConfigurableCodeAction implements RangeBasedCodeActionProv
         }
 
         if (configurableVarNode != null) {
+            String declaration = configurableVarNode.toString();
             return new ConfigurableData(new Position(configurableVarNode.lineRange().startLine().line(), 0),
-                    !configurableVarNode.toString().startsWith(System.lineSeparator()));
+                    !declaration.startsWith("\n") && !declaration.startsWith("\r"));
         } else if (importsList.isEmpty()) {
             return new ConfigurableData(
                     PositionUtil.toPosition(modulePartNode.lineRange().startLine()), false);

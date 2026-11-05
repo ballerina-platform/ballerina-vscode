@@ -254,8 +254,9 @@ public class ExtractToConstantCodeAction implements RangeBasedCodeActionProvider
             return new ConstantData(
                     new Position(lastImport.lineRange().endLine().line() + 1, 0), true);
         } else {
+            String declaration = declarationNode.toString();
             return new ConstantData(new Position(declarationNode.lineRange().startLine().line(), 0),
-                    !declarationNode.toString().startsWith(System.lineSeparator()));
+                    !declaration.startsWith("\n") && !declaration.startsWith("\r"));
         }
     }
 

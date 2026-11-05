@@ -59,6 +59,7 @@ import { extension } from "../../BalExtensionContext";
 import { StateMachine } from "../../stateMachine";
 import { TracerMachine } from "../tracing/tracer-machine";
 import { getActiveTracingProvider, updateOrAddSection } from "../tracing/utils";
+import { detectEol } from "../ai/utils/eol-utils";
 import { getProjectTomlValues } from "../../utils/config";
 
 const EXTERNAL_TOKEN_EXPIRY = "720h";
@@ -352,7 +353,7 @@ async function writeAmpConfig(projectPath: string, otelEndpoint: string, apiKey:
         vscode.window.showInformationMessage("Added Config.toml to .gitignore.");
     }
     await untrack(projectPath, "Config.toml");
-    fs.writeFileSync(configPath, updated.endsWith("\n") ? updated : updated + "\n");
+    fs.writeFileSync(configPath, updated.endsWith("\n") ? updated : updated + detectEol(updated));
 }
 
 async function pushAndRebuild(projectPath: string): Promise<string> {
@@ -405,7 +406,7 @@ function ensureAmpInstrumentation(projectPath: string): boolean {
     const tomlPath = path.join(projectPath, "Ballerina.toml");
     const toml = fs.readFileSync(tomlPath, "utf-8");
     if (!/observabilityIncluded\s*=\s*true/.test(toml)) {
-        fs.writeFileSync(tomlPath, updateOrAddSection(toml, "build-options", { observabilityIncluded: true }) + "\n");
+        fs.writeFileSync(tomlPath, updateOrAddSection(toml, "build-options", { observabilityIncluded: true }) + detectEol(toml));
     }
     return true;
 }

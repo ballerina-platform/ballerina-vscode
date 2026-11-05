@@ -24,7 +24,7 @@ jest.mock("@wso2/ballerina-core", () => ({
 }));
 
 import { FormValues } from "@wso2/ballerina-side-panel";
-import { buildApprovalToolData } from "./formUtils";
+import { buildApprovalToolData, stripCodeFencesInline } from "./formUtils";
 
 // The picker's existing-function candidate list. A typed approval-function name present here is an
 // existing predicate (referenced as-is); one absent from it is new (drives generateApprovalFunction).
@@ -78,5 +78,12 @@ describe("buildApprovalToolData", () => {
             requiresApproval: "isHighValue",
             generateApprovalFunction: "true",
         });
+    });
+});
+
+describe("stripCodeFencesInline", () => {
+    it.each([["LF", "\n"], ["CRLF", "\r\n"]])("joins %s lines into one line", (_, eol) => {
+        const text = `Sends a message.${eol}Returns the reply.${eol}\`\`\`ballerina${eol}check send();${eol}\`\`\``;
+        expect(stripCodeFencesInline(text)).toBe("Sends a message. Returns the reply.");
     });
 });

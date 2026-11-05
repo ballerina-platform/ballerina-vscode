@@ -55,7 +55,7 @@ public class CommentBuilder extends NodeBuilder {
         if (property.isEmpty()) {
             throw new IllegalStateException("Comment must be defined for a comment node");
         }
-        String formattedComment = Arrays.stream(property.get().toSourceCode().split("\n"))
+        String formattedComment = Arrays.stream(property.get().toSourceCode().split("\\R"))
                 .map(line -> DOUBLE_SLASH + line + NEW_LINE)
                 .collect(Collectors.joining());
         return sourceBuilder

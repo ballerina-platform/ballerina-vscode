@@ -260,7 +260,7 @@ public class HttpFunctionBuilder extends AbstractFunctionBuilder {
         List<String> newTypeDefinitions = new ArrayList<>();
 
         String functionNode = NEW_LINE_WITH_TAB + generateHttpResourceDefinition(context.function(), newTypeDefinitions,
-                importsForMainBal, importsForTypesBal).replace(NEW_LINE, NEW_LINE_WITH_TAB) + NEW_LINE;
+                importsForMainBal, importsForTypesBal).replaceAll("\\R", NEW_LINE_WITH_TAB) + NEW_LINE;
 
         List<TextEdit> mainBalTextEdits = new ArrayList<>();
         textEditsMap.put(context.filePath(), mainBalTextEdits);

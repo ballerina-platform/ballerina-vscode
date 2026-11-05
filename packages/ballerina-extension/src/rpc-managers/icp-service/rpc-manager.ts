@@ -32,6 +32,7 @@ import { parse, stringify } from "@iarna/toml";
 import { getProjectHandle, getStoredICPSecret } from "../../features/icp/setup";
 import { ensureICPServerRunning, isICPServerRunning, getICPUrl } from "../../features/icp";
 import { isICPSupported } from "../../utils/config";
+import { detectEol } from "../../features/ai/utils/eol-utils";
 
 const ICP_IMPORTS = [
     'import wso2/icp.runtime.bridge as _;',
@@ -125,8 +126,9 @@ function addICPBuildOptions(projectPath: string): void {
     }
 
     let content = fs.readFileSync(tomlPath, 'utf-8');
+    const eol = detectEol(content);
     const sectionHeader = '[build-options]';
-    const lines = content.split('\n');
+    const lines = content.split(/\r?\n/);
     const sectionIndex = lines.findIndex(line => line.trim() === sectionHeader);
 
     if (sectionIndex !== -1) {
@@ -160,8 +162,8 @@ function addICPBuildOptions(projectPath: string): void {
         lines.push('', sectionHeader, 'observabilityIncluded = true', 'remoteManagement = true');
     }
 
-    content = lines.join('\n');
-    if (!content.endsWith('\n')) { content += '\n'; }
+    content = lines.join(eol);
+    if (!content.endsWith('\n')) { content += eol; }
     fs.writeFileSync(tomlPath, content, 'utf-8');
 }
 

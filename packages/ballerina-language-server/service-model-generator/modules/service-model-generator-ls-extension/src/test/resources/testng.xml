@@ -88,6 +88,7 @@ under the License.
             <class name="io.ballerina.servicemodelgenerator.extension.connector.ModelResolutionErrorTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.core.OpenApiServiceTypeNameCollisionTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.util.StringLiteralPropertyTest"/>
+            <class name="io.ballerina.servicemodelgenerator.extension.util.FormTextLineBreakTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.validation.LsRuleValidatorsTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.validation.OpenApiServiceTypeNameValidatorTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.validation.ValidationResultSerializationTest"/>

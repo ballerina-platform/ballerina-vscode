@@ -407,7 +407,8 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
         let cancelled = false;
         const updateEditorState = async () => {
             const currentDoc = viewRef.current!.state.doc.toString();
-            const isExternalUpdate = serializedValue !== currentDoc;
+            // CodeMirror stores line breaks as \n, values read from CRLF files keep \r\n.
+            const isExternalUpdate = serializedValue.replace(/\r\n?/g, "\n") !== currentDoc;
 
             if (!isTokenUpdateScheduled && !isExternalUpdate) {
                 setIsValueResolving(false);

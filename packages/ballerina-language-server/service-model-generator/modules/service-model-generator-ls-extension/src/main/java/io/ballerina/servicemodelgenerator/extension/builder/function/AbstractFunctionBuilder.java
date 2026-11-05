@@ -252,7 +252,7 @@ public abstract class AbstractFunctionBuilder implements NodeBuilder<Function> {
         // Pass the file so annotation module prefixes resolve to what it actually imports.
         String functionNode = NEW_LINE_WITH_TAB + generateFunctionDefSource(context.function(), List.of(),
                 Utils.FunctionAddContext.FUNCTION_ADD, FUNCTION_ADD, imports, rootNode)
-                .replace(NEW_LINE, NEW_LINE_WITH_TAB);
+                .replaceAll("\\R", NEW_LINE_WITH_TAB);
 
         List<String> importStmts = new ArrayList<>();
         imports.values().forEach(moduleId -> {
