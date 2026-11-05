@@ -14,7 +14,7 @@ workflow because the extension manifest owns the shared extension/LS version.
 |---|---|---|
 | `reusable-build.yml` | `workflow_call` only | Reusable build pipeline (ballerina-only) |
 | `devBuild.yml` | manual + `workflow_call` | Builds a custom branch as a timestamped pre-release VSIX. It creates workflow artifacts only: no GitHub release and no marketplace publication. `schedule.yml` reuses this workflow after stamping the nightly branch. |
-| `schedule.yml` | nightly cron + manual | Syncs the `builds/nightly` branch, runs the LS multi-branch pack/test/Windows-build matrix, calls `devBuild.yml`, and moves the `nightly` tag after every job passes. Manual runs can select a source branch and set `skipLSTests` to drop the LS Ubuntu test and Windows build jobs (e.g. to unblock a release; pack, Trivy and the extension build still gate the tag), and otherwise behave exactly like scheduled nightlies, including notifications. The VSIX remains a workflow artifact; no GitHub Release is created. See [Versioning](#versioning) and [The nightly branch](#the-nightly-branch). |
+| `schedule.yml` | nightly cron + manual | Syncs the `builds/nightly` branch, runs the LS multi-branch pack/test/reliability/Windows-build matrix, calls `devBuild.yml`, and moves the `nightly` tag after every job passes. Manual runs can select a source branch and set `skipLSTests` to drop the LS Ubuntu test, Ubuntu reliability and Windows build jobs (e.g. to unblock a release; pack, Trivy and the extension build still gate the tag), and otherwise behave exactly like scheduled nightlies, including notifications. The VSIX remains a workflow artifact; no GitHub Release is created. See [Versioning](#versioning) and [The nightly branch](#the-nightly-branch). |
 | `e2e-scheduled.yml` | every 6h cron + manual | Runs the Playwright E2E suite on Linux and Windows against the nightly VSIX without rebuilding, and tracks flakiness over time. See [Scheduled E2E testing](#scheduled-e2e-testing). |
 | `pull-request.yml` | PRs + manual | Detects changes with `dorny/paths-filter`; if anything build-relevant changed, runs `reusable-build.yml` which builds the entire chain (LS via Gradle, then all TS packages and the extension VSIX via rush) in a single job. Windows LS tests run without coverage (`-PskipCoverage`). |
 | `release-pre-release.yml` | manual dispatch | Builds either a timestamped pre-release or the release version authored in the extension manifest. Its `githubRelease` input creates a GitHub Release with the VSIX and LS jar and publishes the matching `io.ballerina:ballerina-language-server` package. Real releases also perform the release branch/PR handling. |
@@ -413,6 +413,36 @@ from nowhere else): coverage is reported but never fails a build. To flip it to 
 set `informational: false` on the statuses there — worth doing only after the first full CI
 run establishes the real baseline, since the `range` there is currently a placeholder.
 
+## TypeScript test coverage
+
+The `fast-tests` action (`.github/actions/fast-tests`) runs Jest with `--coverage` in every
+package that has a `jest.config.js`, and uploads the per-package `lcov.info` files to Codecov
+under the `typescript` flag. Two jobs call it: `fast-tests` in `reusable-build.yml` for PR
+builds, and `fast-tests-coverage` in `schedule.yml` for each nightly matrix branch. Each package listed as a component in `codecov.yml` gets its own
+line in the PR comment. Components need explicit paths, so a package that gets a
+`jest.config.js` also needs a component there.
+
+- **Paths are rewritten before the upload.** Jest writes paths relative to the package
+  (`SF:src/...`), which Codecov cannot map because the same `src/` path exists in several
+  packages. The `Make lcov paths repo-relative` step prefixes each path with its package
+  directory. The `fast-tests-coverage-<branch>` artifact is uploaded before that step, so
+  it keeps the package-relative paths.
+- **The nightly run gives PRs a base report.** PR builds upload only for the PR head. The
+  nightly `fast-tests-coverage` job uploads for each matrix branch, attributed with
+  `codecov-branch` as in the language server upload, so Codecov has a `typescript` report on
+  the base branch to compare a PR against. Only the `X.Y.x` leg is an ancestor of PR bases;
+  `builds/nightly` carries a version commit that no PR branches from.
+- **Untested files show at 0%, except in two packages.** `collectCoverageFrom` makes Jest
+  list source files that no test loads, at 0%. `ballerina-extension` and `ballerina-core`
+  set `roots` to `src/test`, and Jest finds untested files only under `roots`, so those two
+  packages list only files that a test loads.
+- **No upload when a jest run fails.** A package that stopped partway leaves partial or no
+  lcov, which would read as a coverage drop. This differs from the language server upload,
+  which runs even when tests fail.
+- **Carried forward.** When a build runs but skips the fast tests, Codecov reuses the base
+  commit's `typescript` report instead of reporting 0%. When `pull-request.yml` skips the
+  whole build, no upload reaches the commit and Codecov posts no TypeScript number.
+
 ## Required GitHub secrets for publishing and notifications
 
 - `BALLERINA_BOT_USERNAME` / `BALLERINA_BOT_TOKEN` — `release-pre-release.yml`, when
@@ -430,10 +460,12 @@ run establishes the real baseline, since the `range` there is currently a placeh
 - `COPILOT_ROOT_URL` / `COPILOT_DEV_ROOT_URL` / `APPINSIGHTS_INSTRUMENTATION_KEY` —
   `schedule.yml`, `devBuild.yml`, and `release-pre-release.yml`: optional build-time
   endpoint and telemetry configuration. Pull-request builds receive none of these secrets.
-- `CODECOV_TOKEN` — every workflow that runs LS tests: authenticates the language server
-  coverage upload. Unset, the upload falls back to Codecov's tokenless flow for public
-  repositories; either way it never fails a build. See
-  [Language server test coverage](#language-server-test-coverage).
+- `CODECOV_TOKEN` — every workflow that runs LS tests or the fast tests: authenticates the
+  language server and TypeScript coverage uploads. Unset, Codecov accepts an upload only
+  from a fork PR, or from any branch if the organization has turned off token
+  authentication for public repositories; either way it never fails a build. See
+  [Language server test coverage](#language-server-test-coverage) and
+  [TypeScript test coverage](#typescript-test-coverage).
 
 Configure these in the new repo's settings before triggering anything.
 

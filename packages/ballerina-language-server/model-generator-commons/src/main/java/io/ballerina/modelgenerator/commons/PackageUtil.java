@@ -715,6 +715,22 @@ public class PackageUtil {
      */
     public static Optional<Package> findWorkspacePackage(Project project, String org, String packageName,
                                                          String moduleName) {
+        return findWorkspacePackage(project, org, packageName, moduleName, null);
+    }
+
+    /**
+     * Finds a workspace-sibling package matching the given org, package/module name and version. A workspace can
+     * hold more than one version of the same package, so pass the version when the exact package is required.
+     *
+     * @param project     the current project used to discover the workspace
+     * @param org         the target package's organization
+     * @param packageName the target package name (may be {@code null} if only {@code moduleName} is known)
+     * @param moduleName  the target module name (may be {@code null} if only {@code packageName} is known)
+     * @param version     the target package version, or {@code null} to match any version
+     * @return the matching workspace sibling's {@link Package}, or empty if none found / not in a workspace
+     */
+    public static Optional<Package> findWorkspacePackage(Project project, String org, String packageName,
+                                                         String moduleName, String version) {
         if (project == null || org == null) {
             return Optional.empty();
         }
@@ -728,7 +744,8 @@ public class PackageUtil {
                 Package currentPackage = childProject.currentPackage();
                 String currentPackageName = currentPackage.packageName().value();
                 if (currentPackage.packageOrg().value().equals(org)
-                        && (currentPackageName.equals(packageName) || currentPackageName.equals(moduleName))) {
+                        && (currentPackageName.equals(packageName) || currentPackageName.equals(moduleName))
+                        && (version == null || version.equals(currentPackage.packageVersion().toString()))) {
                     return Optional.of(currentPackage);
                 }
             }

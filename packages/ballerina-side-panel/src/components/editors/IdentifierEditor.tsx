@@ -23,7 +23,7 @@ import { useFormContext } from "../../context";
 import styled from "@emotion/styled";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { debounce } from "lodash";
-import { buildRequiredRule, getFriendlyIdentifierMessage, getPropertyFromFormField } from "./utils";
+import { buildRequiredRule, fetchIdentifierDiagnostics, getFriendlyIdentifierMessage, getPropertyFromFormField } from "./utils";
 
 const EditRow = styled.div`
     display: flex;
@@ -195,23 +195,20 @@ export function IdentifierEditor(props: IdentifierEditorProps) {
             return;
         }
 
-        const response = await rpcClient.getBIDiagramRpcClient().getExpressionDiagnostics({
+        const { first } = await fetchIdentifierDiagnostics(rpcClient, {
             filePath: field.lineRange?.fileName,
-            context: {
-                expression: value,
-                startLine: {
-                    line: field.lineRange?.startLine?.line,
-                    offset: field.lineRange?.startLine?.offset
-                },
-                offset: 0,
-                lineOffset: 0,
-                codedata: field.codedata,
-                property: getPropertyFromFormField(field)
-            }
+            startLine: {
+                line: field.lineRange?.startLine?.line,
+                offset: field.lineRange?.startLine?.offset
+            },
+            value,
+            property: getPropertyFromFormField(field),
+            codedata: field.codedata,
+            label: field.label,
         });
 
-        if (response.diagnostics.length > 0) {
-            setIdentifierErrorMsg(getFriendlyIdentifierMessage(response.diagnostics[0].message, field.label));
+        if (first) {
+            setIdentifierErrorMsg(first.message);
             setIsIdentifierValid(false);
         } else {
             setIdentifierErrorMsg("");

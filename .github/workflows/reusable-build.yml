@@ -68,8 +68,9 @@ on:
       APPINSIGHTS_INSTRUMENTATION_KEY:
         required: false
       CODECOV_TOKEN:
-        # Optional: language server coverage uploads fall back to Codecov's
-        # tokenless flow for public repositories when this is not set.
+        # Optional: unset, Codecov accepts the language server and TypeScript coverage
+        # uploads only from fork PRs, or from any branch if the organization has turned
+        # off token authentication for public repositories.
         required: false
 
 jobs:
@@ -133,9 +134,34 @@ jobs:
           COPILOT_DEV_ROOT_URL: ${{ secrets.COPILOT_DEV_ROOT_URL }}
           APPINSIGHTS_INSTRUMENTATION_KEY: ${{ secrets.APPINSIGHTS_INSTRUMENTATION_KEY }}
 
+      - name: Install Trivy
+        # get.trivy.dev (used by setup-trivy's install.sh) stopped resolving on
+        # 2026-11-03; install from the GitHub release with a pinned sha256 instead.
+        shell: bash
+        working-directory: ${{ github.workspace }}
+        env:
+          TRIVY_VERSION: 0.69.3
+          TRIVY_SHA256_X64: 1816b632dfe529869c740c0913e36bd1629cb7688bd5634f4a858c1d57c88b75
+          TRIVY_SHA256_ARM64: 7e3924a974e912e57b4a99f65ece7931f8079584dae12eb7845024f97087bdfd
+        run: |
+          case "$RUNNER_ARCH" in
+            X64) arch=64bit; sha="$TRIVY_SHA256_X64" ;;
+            ARM64) arch=ARM64; sha="$TRIVY_SHA256_ARM64" ;;
+            *) echo "::error::Unsupported runner arch: $RUNNER_ARCH"; exit 1 ;;
+          esac
+          tarball="trivy_${TRIVY_VERSION}_Linux-${arch}.tar.gz"
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/$tarball" \
+            "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/$tarball"
+          echo "$sha  $RUNNER_TEMP/$tarball" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/trivy-bin"
+          tar -xzf "$RUNNER_TEMP/$tarball" -C "$RUNNER_TEMP/trivy-bin" trivy
+          echo "$RUNNER_TEMP/trivy-bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/trivy-bin/trivy" --version
+
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
         with:
+          skip-setup-trivy: true
           scan-type: 'fs'
           scan-ref: '.'
           format: 'table'
@@ -207,7 +233,10 @@ jobs:
   # Fast, deterministic tests (unit / component / contract) that run on every PR.
   # Auto-discovers every package that has a jest.config.js, so new jest packages
   # from the test-coverage rollout (docs/TEST_PLAN.md, docs/TEST_BACKLOG.md) are
-  # picked up automatically — no edits to this workflow needed.
+  # picked up automatically — no edits to this workflow needed. A new package's coverage
+  # is uploaded too, but it gets its own line in the Codecov PR comment only after it is
+  # added as a component in codecov.yml. schedule.yml runs the same action nightly on each
+  # release branch, which gives PRs a base report to compare against.
   fast-tests:
     name: Fast tests (unit + component + contract)
     needs: Build_Stage
@@ -233,36 +262,17 @@ jobs:
           node: 22.x
           rush-install: true
 
-      - name: Run jest across all packages with a jest.config.js
-        run: |
-          set -uo pipefail
-          shopt -s nullglob
-          failed=0
-          for cfg in packages/*/jest.config.js; do
-            pkg=$(dirname "$cfg")
-            echo "::group::jest ${pkg}"
-            if ! ( cd "$pkg" && xvfb-run --auto-servernum node --experimental-require-module ./node_modules/jest/bin/jest.js --coverage --ci ); then
-              echo "::error::jest failed in ${pkg}"
-              failed=1
-            fi
-            echo "::endgroup::"
-          done
-          exit $failed
+      # Runs jest with coverage and uploads it to Codecov; see the action for details.
+      - name: Run fast tests
+        uses: ./.github/actions/fast-tests
+        with:
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Type-check test code
         # Test files are excluded from the emitting build and babel/ts-jest don't type-check
         # at run time, so this catches type errors in test code. Reports only test-file errors
         # (pre-existing production / cross-package errors are tallied but don't gate).
         run: node scripts/typecheck-tests.js
-
-      - name: Upload coverage (per-package lcov)
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: fast-tests-coverage
-          path: packages/*/coverage/lcov.info
-          if-no-files-found: warn
-          retention-days: 5
 
   BalE2ETest:
     name: Run Ballerina e2e Test
@@ -278,7 +288,8 @@ jobs:
       fail-fast: false
       matrix:
         group: [group1, group2, group3, group4, group5]
-    runs-on: ${{ inputs.runOnAWS && inputs.awsRunnerId || 'ubuntu-latest' }}
+    # The Try It tests run hurl, whose Linux build needs libxml2.so.2; Ubuntu 26.04 only ships libxml2.so.16.
+    runs-on: ${{ inputs.runOnAWS && inputs.awsRunnerId || 'ubuntu-24.04' }}
     steps:
       - name: Restore build
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4

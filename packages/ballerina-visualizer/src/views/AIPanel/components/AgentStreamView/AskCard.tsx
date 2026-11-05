@@ -18,6 +18,7 @@
 
 import React, { useState } from "react";
 import styled from "@emotion/styled";
+import type { ClarifyQuestion } from "@wso2/ballerina-core";
 import {
     InlineCard,
     InlineCardHeader,
@@ -72,6 +73,10 @@ const QAAnswerChip = styled.span`
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
+export function getAnswerLabel(question: ClarifyQuestion | undefined, answer: string): string {
+    return question?.options?.find(option => option.value === answer)?.label ?? answer;
+}
+
 interface AskCardProps {
     data: Record<string, any>;
     rpcClient?: any;
@@ -87,6 +92,7 @@ const AskCard: React.FC<AskCardProps> = ({ data }) => {
 
     if (stage === "answered") {
         const answers: Array<{ question: string; answers: string[] }> = data.answers ?? [];
+        const questions: ClarifyQuestion[] = data.questions ?? [];
         const hasAnswers = answers.length > 0;
         return (
             <InlineCard status="done">
@@ -111,7 +117,7 @@ const AskCard: React.FC<AskCardProps> = ({ data }) => {
                                     <QAQuestion>{a.question}</QAQuestion>
                                     <QAAnswerRow>
                                         {a.answers.map((ans, j) => (
-                                            <QAAnswerChip key={j}>{ans}</QAAnswerChip>
+                                            <QAAnswerChip key={j}>{getAnswerLabel(questions[i], ans)}</QAAnswerChip>
                                         ))}
                                     </QAAnswerRow>
                                 </QAItem>

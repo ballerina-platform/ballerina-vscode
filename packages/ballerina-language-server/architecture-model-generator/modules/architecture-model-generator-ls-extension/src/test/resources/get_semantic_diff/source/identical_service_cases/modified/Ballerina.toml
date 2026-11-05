@@ -1,0 +1,8 @@
+[package]
+org = "wso2"
+name = "identical_service_cases"
+version = "0.1.0"
+title = "identical service cases"
+
+[build-options]
+sticky = true
