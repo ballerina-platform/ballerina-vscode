@@ -22,7 +22,8 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import type { TextEdit } from "@wso2/ballerina-core";
-import { hasICPBuildOptions } from "./build-options";
+import { parse } from "@iarna/toml";
+import { addICPBuildOptions, hasICPBuildOptions } from "./build-options";
 
 export const ICP_BRIDGE_IMPORT = 'import wso2/icp.runtime.bridge as _;';
 
@@ -47,8 +48,13 @@ export function configTomlPathOf(projectPath: string): string {
  * Throws if the toggle could not finish, so it fails before writing anything rather than
  * after the imports are already in main.bal.
  */
-export function checkCanToggleICP(projectPath: string, isUnsaved: (filePath: string) => boolean): void {
-    if (!fs.existsSync(ballerinaTomlPathOf(projectPath))) {
+export function checkCanToggleICP(
+    projectPath: string,
+    isUnsaved: (filePath: string) => boolean,
+    enabling: boolean
+): void {
+    const tomlPath = ballerinaTomlPathOf(projectPath);
+    if (!fs.existsSync(tomlPath)) {
         throw new Error(`Ballerina.toml not found in ${projectPath}`);
     }
     // The toggle edits these files from what is on disk: an unsaved buffer would misplace the
@@ -58,6 +64,22 @@ export function checkCanToggleICP(projectPath: string, isUnsaved: (filePath: str
         if (isUnsaved(filePath)) {
             throw new Error(`${filePath} has unsaved changes. Save it and try again.`);
         }
+    }
+    // Both toggles rewrite Config.toml through a parser, so one that does not parse would fail
+    // only after main.bal and Ballerina.toml were already changed.
+    const configPath = configTomlPathOf(projectPath);
+    if (fs.existsSync(configPath)) {
+        try {
+            parse(fs.readFileSync(configPath, 'utf-8'));
+        } catch (error) {
+            const reason = error instanceof Error ? error.message : String(error);
+            throw new Error(`${configPath} is not valid TOML. Fix it and try again. ${reason}`);
+        }
+    }
+    // The same build-options edit enabling makes, run without writing, so a manifest it refuses
+    // (an inline build-options) is refused before the imports go in.
+    if (enabling) {
+        addICPBuildOptions(fs.readFileSync(tomlPath, 'utf-8'));
     }
 }
 

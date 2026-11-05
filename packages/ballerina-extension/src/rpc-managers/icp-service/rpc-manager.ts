@@ -166,7 +166,7 @@ export class ICPServiceRpcManager implements ICPServiceAPI {
         }
         const projectPath: string = params.projectPath || StateMachine.context().projectPath;
         try {
-            checkCanToggleICP(projectPath, isUnsaved);
+            checkCanToggleICP(projectPath, isUnsaved, true);
             await applyImportEdits(buildAddImportsTextEdits(projectPath));
             updateBallerinaToml(projectPath, addICPBuildOptions);
             await addICPConfigToml(projectPath);
@@ -185,7 +185,7 @@ export class ICPServiceRpcManager implements ICPServiceAPI {
         }
         const projectPath: string = params.projectPath || StateMachine.context().projectPath;
         try {
-            checkCanToggleICP(projectPath, isUnsaved);
+            checkCanToggleICP(projectPath, isUnsaved, false);
             await applyImportEdits(buildRemoveImportsTextEdits(projectPath));
             updateBallerinaToml(projectPath, removeICPBuildOptions);
             removeICPConfigToml(projectPath);

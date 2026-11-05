@@ -71,19 +71,34 @@ function applyEdits(content: string, edits: TextEdit[] = []): string {
 describe("checkCanToggleICP", () => {
     it("refuses a project with no Ballerina.toml", () => {
         write("main.bal", MAIN_BAL);
-        expect(() => checkCanToggleICP(projectDir, nothingUnsaved)).toThrow(/Ballerina\.toml not found/);
+        expect(() => checkCanToggleICP(projectDir, nothingUnsaved, true)).toThrow(/Ballerina\.toml not found/);
     });
 
     it.each(["main.bal", "Ballerina.toml", "Config.toml"])("refuses while %s has unsaved changes", name => {
         write("Ballerina.toml", MANIFEST);
         write("main.bal", MAIN_BAL);
         const unsaved = path.join(projectDir, name);
-        expect(() => checkCanToggleICP(projectDir, filePath => filePath === unsaved)).toThrow(/unsaved changes/);
+        expect(() => checkCanToggleICP(projectDir, filePath => filePath === unsaved, true)).toThrow(/unsaved changes/);
     });
 
-    it("allows a project with a Ballerina.toml and nothing unsaved", () => {
+    // Both toggles rewrite Config.toml after main.bal and Ballerina.toml, so one that does not
+    // parse must stop them before those are touched.
+    it.each([true, false])("refuses a Config.toml that does not parse (enabling: %s)", enabling => {
         write("Ballerina.toml", MANIFEST);
-        expect(() => checkCanToggleICP(projectDir, nothingUnsaved)).not.toThrow();
+        write("Config.toml", "[wso2.icp\nsecret = ");
+        expect(() => checkCanToggleICP(projectDir, nothingUnsaved, enabling)).toThrow(/Config\.toml is not valid TOML/);
+    });
+
+    it("refuses to enable on a manifest with inline build-options, but still allows disabling", () => {
+        write("Ballerina.toml", `build-options = { sticky = true }\n${MANIFEST}`);
+        expect(() => checkCanToggleICP(projectDir, nothingUnsaved, true)).toThrow(/inline/);
+        expect(() => checkCanToggleICP(projectDir, nothingUnsaved, false)).not.toThrow();
+    });
+
+    it.each([true, false])("allows a project with a valid manifest and nothing unsaved (enabling: %s)", enabling => {
+        write("Ballerina.toml", MANIFEST);
+        write("Config.toml", `[wso2.icp.runtime.bridge]\nenvironment = "dev"\n`);
+        expect(() => checkCanToggleICP(projectDir, nothingUnsaved, enabling)).not.toThrow();
     });
 });
 
