@@ -265,8 +265,8 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
             "Config value of the variable for tests, to be used in tests/Config.toml";
 
     public static final String CONFIG_VAR_DOC_KEY = "documentation";
-    public static final String CONFIG_VAR_DOC_LABEL = "Documentation";
-    public static final String CONFIG_VAR_DOC_DOC = "Variable documentation in Markdown format";
+    public static final String CONFIG_VAR_DOC_LABEL = "Description";
+    public static final String CONFIG_VAR_DOC_DOC = "Description of the variable";
 
     public static final String PARAMETER_LABEL = "Parameter";
     public static final String PARAMETER_DOC = "Function parameter";

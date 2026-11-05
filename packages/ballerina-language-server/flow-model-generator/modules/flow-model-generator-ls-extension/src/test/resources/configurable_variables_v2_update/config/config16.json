@@ -84,8 +84,8 @@
         },
         "documentation": {
           "metadata": {
-            "label": "Documentation",
-            "description": "Variable documentation in Markdown format."
+            "label": "Description",
+            "description": "Description of the variable"
           },
           "valueType": "STRING",
           "value": "Deployment mode.\n\n- `LOCAL` — Connects to a local server.\n  This is the default mode.\n",

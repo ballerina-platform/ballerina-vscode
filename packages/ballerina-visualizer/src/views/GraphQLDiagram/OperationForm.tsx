@@ -155,7 +155,7 @@ export function OperationForm(props: OperationFormProps) {
         if (model.documentation) {
             initialFields.push({
                 key: 'documentation',
-                label: model.documentation.metadata?.label || 'Documentation',
+                label: model.documentation.metadata?.label || 'Description',
                 type: getPrimaryInputType(model.documentation?.types)?.fieldType || 'STRING',
                 optional: model.documentation.optional,
                 enabled: model.documentation.enabled,
