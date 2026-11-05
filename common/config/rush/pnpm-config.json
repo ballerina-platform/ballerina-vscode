@@ -137,9 +137,15 @@
       // Security fix: 3.1.7 is the current 3.x line fix. Bump past the
       // previous override version, which is now itself flagged.
       "fast-uri": "3.1.9",
-      "follow-redirects": "1.16.1",
+      // Security fix: cross-realm sensitiveHeaders bypass, fixed in 1.16.2.
+      "follow-redirects": "1.16.2",
       "form-data@>=2 <3": "2.5.6",
       "form-data@>=4 <5": "4.0.6",
+      // Security fix: AbortSignal cancellation bypass. No 11.x backport; 14.x
+      // keeps the 11.x API. Scoped to the transitive consumers so ui-toolkit's
+      // direct (dev-only) glob@11.1.0 pin in the submodule still matches.
+      "@vscode/vsce>glob@11": "14.0.3",
+      "rimraf@6>glob@11": "14.0.3",
       "handlebars": "4.7.10",
       // Security fix: ReDoS in the CORS middleware, fixed in 4.12.34.
       // Bumped again to 4.13.5 for a follow-up set of advisories (query-parser
@@ -160,11 +166,12 @@
       // Security fix: 10.5.1 is the first release covering all flagged
       // advisories.
       "ip-address@10": "10.7.4",
-      "joi@>=17 <18": "17.13.8",
+      "joi@>=17 <18": "17.13.9",
       // Security fix: rename() prototype set and a prototype pollution
       // advisory. ballerina-low-code-diagram pins 18.2.5 directly; keep
-      // the 18.x line at the fixed version.
-      "joi@>=18 <19": "18.2.9",
+      // the 18.x line at the fixed version. Bumped to 18.3.1 / 17.13.9 for
+      // the email({ multiple: true }) quadratic-split DoS.
+      "joi@>=18 <19": "18.3.1",
       // js-yaml v3 has no in-line fix; the fix only lands in v4.3.0+.
       // Force all consumers to v4 — revert with narrower selector if a
       // workspace package needs the v3 sync API.
