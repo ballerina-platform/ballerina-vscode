@@ -30,7 +30,8 @@ import { formatActiveFileReminder } from "./activeFileReminder";
 import { DATA_BINDING_CODING_RULES } from "./data-binding-rules";
 import { getRequirementAnalysisCodeGenPrefix, getRequirementAnalysisTestGenPrefix } from "./np/prompts";
 import { CONCURRENCY_CODING_RULES } from "./concurrency-rules";
-import { extractResourceDocumentContent, flattenProjectToFiles } from "../utils/ai-utils";
+import { extractRequirementsDocument } from "./np/requirements";
+import { GLOB_TOOL_NAME, GREP_TOOL_NAME } from "./tools/project-search";
 import { BALLERINA_RUN_TOOL_NAME } from "./tools/ballerina-run";
 import { BALLERINA_STOP_TOOL_NAME } from "./tools/ballerina-stop";
 import { getSkillsGuidanceSection } from "./skills";
@@ -103,6 +104,7 @@ Before offering choices, work out what each one needs beyond the project and you
 In the <system-reminder> tags, you will see if Plan mode is enabled. When its enabled, you must follow the below instructions strictly.
 
 ### Step 1: Create High-Level Design
+When the requirement changes existing code, first read the parts of the project it touches (see "Exploring the project").
 Create a very high-level and concise design plan for the given user requirement.
 
 ### Step 2: Break Down Into Tasks and Execute
@@ -165,6 +167,7 @@ This plan will be visible to the user and the execution will be guided on the ta
 In the <system-reminder> tags, you will see if Edit mode is enabled. When its enabled, you must follow the below instructions strictly.
 
 ### Step 1: Create High-Level Design
+When the requirement changes existing code, first read the parts of the project it touches (see "Exploring the project").
 Plan the implementation approach in your reasoning. Keep output minimal — no design explanations or step-by-step plans. Avoid using ${TASK_WRITE_TOOL_NAME} tool in this mode.
 
 ### Step 2: Identify necessary libraries
@@ -186,6 +189,13 @@ Once the code is written and validated, provide a very concise summary of the ov
 Before starting implementation, use ${CLARIFY_TOOL} to resolve genuine requirement gaps — apply smart defaults where reasonable, but do not silently assume a specific technology when the user's intent or infrastructure determines the right choice.
 
 Use ${CLARIFY_TOOL} AT MOST ONCE — batch all questions into a single call. In the case of plan mode, you need to call call this tool before first ${TASK_WRITE_TOOL_NAME} call if you have any clarifying questions.
+
+# Exploring the project
+The project listing in the user message shows the Ballerina source and config files, not their contents. In a workspace, only the active package's files are listed (none when no package is active); other packages are one line each, so glob their files.
+- Find files with ${GLOB_TOOL_NAME} (e.g. "**/*.bal", "pkg1/modules/**/*.bal"). Find code with ${GREP_TOOL_NAME}: it returns matching files by default; set output_mode to "content" for matching lines with line numbers.
+- Then read only what you need with ${FILE_READ_TOOL_NAME}, using offset and limit around those lines. Read a whole file only when it is short or you will change most of it.
+- Read the current content of the code you change before editing it. Content from earlier turns may be out of date; the user can edit files between turns.
+- Run independent ${GLOB_TOOL_NAME}, ${GREP_TOOL_NAME} and ${FILE_READ_TOOL_NAME} calls in parallel in one message.
 
 # Code Generation Guidelines
 When generating Ballerina code strictly follow these syntax and structure guidelines:
@@ -213,8 +223,8 @@ When generating Ballerina code strictly follow these syntax and structure guidel
 ${getLanglibInstructions()}
 
 ### Local Connectors
-- If the codebase structure shows connector modules in generated/moduleName, import using: import packageName.moduleName
-- Generated connector files appear under a \`<generated_files>\` block in the codebase structure as path-only entries (e.g. \`<file path="generated/moduleName/client.bal"/>\`) — no source content is included. Use the \`${FILE_READ_TOOL_NAME}\` tool with the listed path to fetch the content when needed.
+- If the project listing shows connector modules in generated/moduleName, import using: import packageName.moduleName
+- Generated connector files appear under a \`<generated_files>\` block in the project listing as path-only entries (e.g. \`<file path="generated/moduleName/client.bal"/>\`) — no source content is included. Use the \`${FILE_READ_TOOL_NAME}\` tool with the listed path to fetch the content when needed.
 
 ## Code Structure
 - In WSO2 Integrator, Automation is simply an app with a main method unless user specifically mentions a service. Cron Job kind of requirements are handled in the deployment level for Kubernetes or Integration platform level.
@@ -259,7 +269,7 @@ ${CONCURRENCY_CODING_RULES}
             FILE_WRITE_TOOL_NAME,
         ].join(
             ", "
-        )} tools. The complete existing source code will be provided in the <existing_code> section of the user prompt.
+        )} tools. Read the code you change first (see "Exploring the project").
 - When making replacements inside an existing file, provide the **exact old string** and the **exact new string** with all newlines, spaces, and indentation, being mindful to replace nearby occurrences together to minimize the number of tool calls.
 - Do NOT create a new markdown file to document each change or summarize your work unless specifically requested by the user.
 - Do not manually add/modify Dependencies.toml. For Config.toml configuration management, use ${CONFIG_COLLECTOR_TOOL}.
@@ -289,7 +299,7 @@ In WSO2 Integrator, a Ballerina workspace is called a **project** and a Ballerin
 # Running, invoking and tests
 - You should only Run or write tests if the user explicitly asks to do so.
 - Providing values to configurables is a runtime task and should only do it before running or executing the tests.
-- For Config.toml configuration value management, use ${CONFIG_COLLECTOR_TOOL}. The codebase listing shows <config_files main="present|absent" tests="present|absent"/> per project indicating whether Config.toml files exist.
+- For Config.toml configuration value management, use ${CONFIG_COLLECTOR_TOOL}. The project listing shows <config_files main="present|absent" tests="present|absent"/> per package indicating whether Config.toml files exist.
 - **Before EVERY ${CONFIG_COLLECTOR_TOOL} COLLECT call, check for connector-auth configurables.** For any connector client whose auth is fed by configurables, group those configurables under \`managedConnections\` keyed by the connector's library ("org/package") instead of leaving them in the plain \`variables\` array — even when a credential looks like an ordinary secret (a bearer/bot/access token used by a connector is a connector auth credential, not a plain variable). Tag each group with authType: \`oauth2RefreshToken\` (map clientId, clientSecret, refreshToken, refreshUrl) or \`staticToken\` (map the single token).
 - The auth structure does NOT change this. Some libraries expose the OAuth config via a directly-named type (e.g. \`oauth2:OAuth2RefreshTokenGrantConfig\`); others wrap it inside the connector's own config record (e.g. a \`ConnectionConfig\` whose \`auth\` field carries the credentials). Both are grouped the same way — look at the credential fields, not where they sit.
 - You do NOT decide which (library, shape) combinations are actually managed — the tool verifies each against the managed registry and silently downgrades unsupported ones to manual entry. So emit a group for ANY connector credential that fits one of the two shapes; grouping a candidate that turns out to be unsupported is harmless. That tolerance covers the library and shape only — every mapped name must be a configurable that already exists in source, spelled exactly as declared. Only leave TRULY non-connector secrets (e.g. a database password, or a standalone API key not tied to any connector) in \`variables\`.
@@ -465,9 +475,9 @@ export function getNPSuffix(projects: ProjectSource[], op?: OperationType): stri
     if (!op) {
         return "";
     } else if (op === "CODE_FOR_USER_REQUIREMENT") {
-        basePrompt += getRequirementAnalysisCodeGenPrefix(extractResourceDocumentContent(flattenProjectToFiles(projects)));
+        basePrompt += getRequirementAnalysisCodeGenPrefix(extractRequirementsDocument(projects));
     } else if (op === "TESTS_FOR_USER_REQUIREMENT") {
-        basePrompt += getRequirementAnalysisTestGenPrefix(extractResourceDocumentContent(flattenProjectToFiles(projects)));
+        basePrompt += getRequirementAnalysisTestGenPrefix(extractRequirementsDocument(projects));
     }
     return basePrompt;
 }

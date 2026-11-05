@@ -94,7 +94,7 @@ Here's an example of how your output should be structured:
 Please provide your summary based on the conversation so far, following this structure and ensuring precision and thoroughness in your response.`;
 
 const CODEBASE_DUMP_NOTE = `
-The \`<codebase_structure>\` block is re-injected the same way, with the files as they are after compaction. Do NOT copy file contents from it into the summary. Under Files and Code Sections, name the files that were read or changed and why, and quote only the lines that matter.`;
+The \`<codebase_structure>\` block is re-injected the same way, but it lists files without their contents, and file contents read earlier will be gone. Under Files and Code Sections, name the files that were read or changed and why, and quote the lines that matter for the next steps.`;
 
 export const COMPACT_SYSTEM_REMINDER_AUTO_TRIGGERED = `
 <system-reminder>
