@@ -47,6 +47,19 @@ afterEach(() => {
 });
 
 describe("file_read limits", () => {
+    it("tells the chat row which lines a partial read returned", async () => {
+        fs.writeFileSync(path.join(root, "main.bal"), lines(3000));
+        const events: any[] = [];
+        const readWithEvents = createReadExecute((event: any) => events.push(event), root);
+        await readWithEvents({ file_path: "main.bal", offset: 280, limit: 41 });
+        expect(events.at(-1).toolOutput).toMatchObject({ fileName: "main.bal", startLine: 280, endLine: 320 });
+        await readWithEvents({ file_path: "main.bal" });
+        expect(events.at(-1).toolOutput).toMatchObject({ startLine: 1, endLine: 2000 });
+        fs.writeFileSync(path.join(root, "small.bal"), lines(10));
+        await readWithEvents({ file_path: "small.bal" });
+        expect(events.at(-1).toolOutput.startLine).toBeUndefined();
+    });
+
     it("reads a short file whole", async () => {
         fs.writeFileSync(path.join(root, "main.bal"), lines(10));
         const result = await read({ file_path: "main.bal" });

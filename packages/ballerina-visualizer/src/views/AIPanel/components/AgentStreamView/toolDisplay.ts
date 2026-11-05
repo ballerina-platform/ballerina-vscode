@@ -115,6 +115,17 @@ export function getFileName(filePath: string | undefined): string {
     return i !== -1 ? filePath.substring(i + 1) : filePath;
 }
 
+// "main.bal in agent", so two packages' main.bal rows differ; a bare or absolute path shows just the name.
+export function fileInFolder(filePath: string | undefined): string {
+    const p = (filePath ?? "").replace(/\\/g, "/").replace(/^\.\//, "");
+    const i = p.lastIndexOf("/");
+    return i <= 0 || /^([a-zA-Z]:)?\//.test(p) ? getFileName(p || undefined) : `${p.slice(i + 1)} in ${p.slice(0, i)}`;
+}
+
+function fileRow(label: string, filePath: string | undefined, running: boolean): ToolCallDisplay {
+    return { label, detail: `${fileInFolder(filePath)}${running ? "..." : ""}`, title: filePath };
+}
+
 /**
  * How a tool step is worded in the UI. `detail` is a fragment meant to follow
  * `label` — a filename, query, or path. Exported alongside getToolCallDisplay,
@@ -218,12 +229,12 @@ export function getToolCallDisplay(toolName: string | undefined, toolInput: any)
         if (mcp) return { label: `Calling ${mcp.server} · ${mcp.tool}...` };
     }
     switch (toolName) {
-        case "file_read":    return { label: "Reading",   detail: getFileName(toolInput?.fileName) + "..." };
+        case "file_read":    return fileRow("Reading", toolInput?.fileName, true);
         case "glob":         return globCallDisplay(toolInput);
         case "grep":         return grepCallDisplay(toolInput);
-        case "file_write":   return { label: "Creating",  detail: getFileName(toolInput?.fileName) + "..." };
+        case "file_write":   return fileRow("Creating", toolInput?.fileName, true);
         case "file_edit":
-        case "file_batch_edit": return { label: "Updating", detail: getFileName(toolInput?.fileName) + "..." };
+        case "file_batch_edit": return fileRow("Updating", toolInput?.fileName, true);
         case "TaskWrite":    return { label: "Planning..." };
         case "Subagent": {
             const who = subagentName(toolInput);
@@ -266,12 +277,16 @@ export function getToolResultDisplay(toolName: string | undefined, toolOutput: a
         if (mcp) return { label: `${mcp.server} · ${mcp.tool}` };
     }
     switch (toolName) {
-        case "file_read":    return { label: "Read",    detail: getFileName(toolOutput?.fileName) };
+        case "file_read": {
+            const range = typeof toolOutput?.startLine === "number" && typeof toolOutput?.endLine === "number"
+                ? `lines ${toolOutput.startLine}–${toolOutput.endLine}` : undefined;
+            return { ...fileRow("Read", toolOutput?.fileName, false), meta: range };
+        }
         case "glob":         return globResultDisplay(toolOutput);
         case "grep":         return grepResultDisplay(toolOutput);
-        case "file_write":   return { label: toolOutput?.action === "updated" ? "Updated" : "Created", detail: getFileName(toolOutput?.fileName) };
+        case "file_write":   return fileRow(toolOutput?.action === "updated" ? "Updated" : "Created", toolOutput?.fileName, false);
         case "file_edit":
-        case "file_batch_edit": return { label: "Updated", detail: getFileName(toolOutput?.fileName) };
+        case "file_batch_edit": return fileRow("Updated", toolOutput?.fileName, false);
         case "TaskWrite":    return { label: "Plan ready" };
         case "Subagent": {
             const what = subagentLabel(toolOutput);

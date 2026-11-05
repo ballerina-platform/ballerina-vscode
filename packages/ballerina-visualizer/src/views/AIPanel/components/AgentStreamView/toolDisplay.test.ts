@@ -72,12 +72,31 @@ describe("getToolCallDisplay", () => {
     it("names file tools with their filename", () => {
         expect(getToolCallDisplay("file_read", { fileName: "a/main.bal" })).toEqual({
             label: "Reading",
-            detail: "main.bal...",
+            detail: "main.bal in a...",
+            title: "a/main.bal",
         });
         expect(getToolCallDisplay("file_write", { fileName: "a/main.bal" })).toEqual({
             label: "Creating",
-            detail: "main.bal...",
+            detail: "main.bal in a...",
+            title: "a/main.bal",
         });
+    });
+
+    it("tells two packages' files with the same name apart", () => {
+        expect(getToolResultDisplay("file_read", { fileName: "agent/main.bal" }).detail).toBe("main.bal in agent");
+        expect(getToolResultDisplay("file_read", { fileName: "mcp/main.bal" }).detail).toBe("main.bal in mcp");
+        expect(getToolResultDisplay("file_edit", { fileName: "orders/modules/db/db.bal" }).detail).toBe("db.bal in orders/modules/db");
+        expect(getToolResultDisplay("file_write", { fileName: "agent\\config.bal", action: "created" }).detail).toBe("config.bal in agent");
+        expect(getToolResultDisplay("file_read", { fileName: "./main.bal" }).detail).toBe("main.bal");
+        expect(getToolResultDisplay("file_read", { fileName: "main.bal" }).detail).toBe("main.bal");
+        expect(getToolResultDisplay("file_read", { fileName: "/Users/me/proj/main.bal" }).detail).toBe("main.bal");
+        expect(getToolResultDisplay("file_read", { fileName: "C:/proj/main.bal" }).detail).toBe("main.bal");
+    });
+
+    it("shows the lines a partial read returned, and nothing for a whole file or an old chat", () => {
+        expect(getToolResultDisplay("file_read", { fileName: "modules/front/front.bal", startLine: 280, endLine: 320 }))
+            .toEqual({ label: "Read", detail: "front.bal in modules/front", title: "modules/front/front.bal", meta: "lines 280–320" });
+        expect(getToolResultDisplay("file_read", { fileName: "main.bal" }).meta).toBeUndefined();
     });
 
     describe("glob rows", () => {

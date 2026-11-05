@@ -215,7 +215,8 @@ function emitFileToolResult(
     eventHandler: CopilotEventHandler,
     toolName: string,
     result: TextEditorResult,
-    file_path?: string
+    file_path?: string,
+    extra?: Record<string, unknown>
 ): void {
     eventHandler({
         type: "tool_result",
@@ -223,7 +224,8 @@ function emitFileToolResult(
         toolOutput: {
             success: result.success,
             action: result.action,
-            fileName: file_path
+            fileName: file_path,
+            ...extra
         }
     });
 }
@@ -952,7 +954,7 @@ export function createReadExecute(
       success: true,
       message: `${header}${unsavedNote}${capNote}\nContent:${text}`,
     };
-    emitFileToolResult(eventHandler, FILE_READ_TOOL_NAME, result, file_path);
+    emitFileToolResult(eventHandler, FILE_READ_TOOL_NAME, result, file_path, isWholeFile ? undefined : { startLine: start, endLine: end });
     return result;
   };
 }
