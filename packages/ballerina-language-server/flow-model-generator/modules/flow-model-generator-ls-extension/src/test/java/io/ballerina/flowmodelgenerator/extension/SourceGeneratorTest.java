@@ -29,6 +29,7 @@ import io.ballerina.modelgenerator.commons.AbstractLSTest;
 import io.ballerina.modelgenerator.commons.FileSystemUtils;
 import io.ballerina.tools.text.LinePosition;
 import org.ballerinalang.langserver.util.TestUtil;
+import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.TextEdit;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -262,8 +263,48 @@ public class SourceGeneratorTest extends AbstractLSTest {
                 {"sfVar", message.formatted("sfVar")},
                 {"sfConst", message.formatted("sfConst")},
                 {"sfFn", message.formatted("sfFn")},
-                {"sfInt", message.formatted("sfInt")}
+                {"sfInt", message.formatted("sfInt")},
+                {"'sfInt", message.formatted("sfInt")}
         };
+    }
+
+    @Test
+    public void testReAddedConnectionEditsApplyOneByOne() throws IOException {
+        // The extension applies Config.toml's edits one by one, each to the text the one before left.
+        TestConfig testConfig = gson.fromJson(
+                Files.newBufferedReader(configDir.resolve("new_connection-salesforce-readd.json")), TestConfig.class);
+        FlowModelSourceGeneratorRequest request = new FlowModelSourceGeneratorRequest(
+                sourceDir.resolve(testConfig.source()).toAbsolutePath().toString(), testConfig.diagram());
+        Map<String, List<TextEdit>> textEdits = gson.fromJson(
+                getResponseAndCloseFile(request, testConfig.source()).getAsJsonObject("textEdits"), textEditListType);
+        Path configToml = Path.of("new_connection-salesforce-readd", "Config.toml");
+        String text = Files.readString(sourceDir.resolve(configToml));
+        for (TextEdit edit : textEdits.entrySet().stream().filter(entry -> Path.of(entry.getKey()).endsWith(configToml))
+                .findFirst().orElseThrow().getValue()) {
+            text = apply(text, edit);
+        }
+        Assert.assertEquals(text.replace("\r\n", "\n"), """
+                sfSalesAuthClientId1 = "acme-client"
+                sfSalesAuthClientSecret = "s3cret"
+                sfSalesBaseUrl = "https://acme.my.salesforce.com"
+                sfSalesAuthClientId = "old-client"
+
+                [sfdemo]
+                sfSalesAuthTokenUrl = "https://acme.my.salesforce.com/services/oauth2/token"
+                """);
+    }
+
+    private static String apply(String text, TextEdit edit) {
+        return text.substring(0, offset(text, edit.getRange().getStart())) + edit.getNewText()
+                + text.substring(offset(text, edit.getRange().getEnd()));
+    }
+
+    private static int offset(String text, Position position) {
+        int offset = 0;
+        for (int line = 0; line < position.getLine(); line++) {
+            offset = text.indexOf('\n', offset) + 1;
+        }
+        return offset + position.getCharacter();
     }
 
     @DataProvider(name = "refused-capability")

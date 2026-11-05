@@ -184,7 +184,7 @@
             "character": 0
           }
         },
-        "newText": "dsAdminServiceUrl = \"https://demo.docusign.net/management\"\ndsAdminAuthToken = \"dsToken\"\ndsAdminTimeout = 60\n"
+        "newText": "dsAdminServiceUrl = \"https://demo.docusign.net/management\"\ndsAdminAuthToken = \"dsToken\"\ndsAdminTimeout = 60.0\n"
       }
     ]
   }

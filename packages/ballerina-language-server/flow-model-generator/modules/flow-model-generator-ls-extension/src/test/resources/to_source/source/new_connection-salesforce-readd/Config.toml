@@ -1,0 +1,6 @@
+sfSalesBaseUrl = """
+https://old.my.salesforce.com"""
+sfSalesAuthClientId = "old-client"
+
+[sfdemo]
+sfSalesAuthTokenUrl = "https://old.my.salesforce.com/services/oauth2/token"
