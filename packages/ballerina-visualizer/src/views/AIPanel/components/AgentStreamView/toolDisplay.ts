@@ -195,7 +195,8 @@ function globResultDisplay(output: any): ToolCallDisplay {
 
 // A leading ripgrep "(?i)" is hidden; the raw pattern stays on hover.
 function grepWording(o: { pattern: string; path?: string; glob?: string }): { detail: string; title?: string } {
-    const where = o.path ? ` in ${o.path}` : "";
+    const folder = o.path?.replace(/^\.\/?/, "").replace(/\/+$/, "");
+    const where = folder ? ` in ${folder}` : "";
     const detail = `${o.pattern.replace(/^\(\?i\)(?=.)/, "")}${where}`;
     const title = `${o.pattern}${where}${o.glob ? ` (files: ${o.glob})` : ""}`;
     return { detail, title: title === detail ? undefined : title };

@@ -142,6 +142,8 @@ describe("getToolCallDisplay", () => {
             expect(getToolCallDisplay("grep", { pattern: "duplicate", path: "modules/front", glob: "*.bal" }))
                 .toEqual({ label: "Searching for:", detail: "duplicate in modules/front", title: "duplicate in modules/front (files: *.bal)" });
             expect(getToolCallDisplay("grep", undefined)).toEqual({ label: "Searching the code..." });
+            expect(getToolCallDisplay("grep", { pattern: "slack", path: "." }).detail).toBe("slack");
+            expect(getToolCallDisplay("grep", { pattern: "slack", path: "./pkg1/" }).detail).toBe("slack in pkg1");
         });
 
         it("counts files, or lines in content mode, and marks a capped count", () => {
