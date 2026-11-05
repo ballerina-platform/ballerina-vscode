@@ -300,7 +300,8 @@ export function createGrepTool(eventHandler: CopilotEventHandler, root: string) 
             path: z.string().optional().describe("File or directory to search in, relative to the project root"),
             glob: z.string().optional().describe("File filter, e.g. \"*.bal\""),
             output_mode: z.enum(["files_with_matches", "content"]).optional().describe("\"files_with_matches\" (default) or \"content\""),
-            context: z.number().int().min(0).max(MAX_CONTEXT_LINES).optional().describe("Lines of context around each match, content mode only"),
+            // Not capped in the schema: a rejected call shows as a failed row, and grepProject clamps it anyway.
+            context: z.number().optional().describe(`Lines of context around each match (at most ${MAX_CONTEXT_LINES}), content mode only`),
             case_insensitive: z.boolean().optional().describe("Match case-insensitively"),
         }),
         execute: async (input: GrepInput, options?: { abortSignal?: AbortSignal }) => {

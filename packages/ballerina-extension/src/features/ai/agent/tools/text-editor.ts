@@ -925,9 +925,10 @@ export function createReadExecute(
 
     const lines = content.split('\n');
     const totalLines = lines.length;
-    const start = offset ?? 1;
+    const start = Math.trunc(offset ?? 1);
+    const lineLimit = limit === undefined ? undefined : Math.trunc(limit);
 
-    const validation = validateLineRange(start, limit ?? 1, totalLines);
+    const validation = validateLineRange(start, lineLimit ?? 1, totalLines);
     if (!validation.valid) {
       console.error(`[FileReadTool] Invalid line range for file: ${file_path}, offset: ${offset}, limit: ${limit}`);
       const result = {
@@ -939,7 +940,7 @@ export function createReadExecute(
       return result;
     }
 
-    const requestedEnd = Math.min(totalLines, limit === undefined ? totalLines : start - 1 + limit);
+    const requestedEnd = Math.min(totalLines, lineLimit === undefined ? totalLines : start - 1 + lineLimit);
     const { text, end } = readWithinCaps(lines, start, requestedEnd);
     const isWholeFile = start === 1 && end === totalLines;
     const capNote = end < requestedEnd
@@ -1100,8 +1101,8 @@ export function createReadTool(execute: ReadExecute) {
     - Content read in earlier turns may be out of date; the user can edit files between turns.`,
     inputSchema: z.object({
       file_path: z.string().describe(getFilePathDescription("read")),
-      offset: z.number().int().min(1).optional().describe("The 1-based line number to start reading from"),
-      limit: z.number().int().min(1).optional().describe("The number of lines to read")
+      offset: z.number().optional().describe("The 1-based line number to start reading from"),
+      limit: z.number().optional().describe("The number of lines to read")
     }),
     execute
   });

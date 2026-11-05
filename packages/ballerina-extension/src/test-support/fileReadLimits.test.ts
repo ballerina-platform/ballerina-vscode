@@ -60,6 +60,14 @@ describe("file_read limits", () => {
         expect(events.at(-1).toolOutput.startLine).toBeUndefined();
     });
 
+    it("accepts any number for offset and limit and rounds fractions down", async () => {
+        fs.writeFileSync(path.join(root, "main.bal"), lines(10));
+        const schema = (createReadTool(read) as any).inputSchema;
+        expect(schema.safeParse({ file_path: "main.bal", offset: 0, limit: 2.5 }).success).toBe(true);
+        expect(contentOf((await read({ file_path: "main.bal", offset: 2.9, limit: 2.5 })).message)).toEqual(["2", "3"]);
+        expect((await read({ file_path: "main.bal", offset: 0 })).message).toMatch(/Invalid offset 0/);
+    });
+
     it("reads a short file whole", async () => {
         fs.writeFileSync(path.join(root, "main.bal"), lines(10));
         const result = await read({ file_path: "main.bal" });
@@ -128,12 +136,6 @@ describe("file_read limits", () => {
         expect(result.success).toBe(true);
     });
 
-    it("accepts only positive whole numbers for offset and limit", () => {
-        const schema = (createReadTool(read) as unknown as { inputSchema: { safeParse(v: unknown): { success: boolean } } }).inputSchema;
-        expect(schema.safeParse({ file_path: "main.bal", offset: 1, limit: 10 }).success).toBe(true);
-        expect(schema.safeParse({ file_path: "main.bal", offset: 0 }).success).toBe(false);
-        expect(schema.safeParse({ file_path: "main.bal", limit: 1.5 }).success).toBe(false);
-    });
 });
 
 describe("file_edit and file_write follow the same file rule", () => {

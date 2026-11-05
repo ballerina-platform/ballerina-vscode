@@ -151,6 +151,13 @@ describe("grep", () => {
         expect((await grepProject(root, { pattern: "return \\[\\]", output_mode: "content" })).capped).toBeUndefined();
     });
 
+    it("takes a context above the cap instead of rejecting the call", async () => {
+        const grep = createGrepTool(() => undefined, root) as any;
+        expect(grep.inputSchema.safeParse({ pattern: "x", context: 6 }).success).toBe(true);
+        write("long.bal", Array.from({ length: 20 }, (_, i) => `line ${i + 1}`).join("\n"));
+        expect((await grepProject(root, { pattern: "^line 10$", path: "long.bal", output_mode: "content", context: 6 })).message.split("\n")).toHaveLength(11);
+    });
+
     it("gives the model only the message and the chat row the counts", async () => {
         const events: any[] = [];
         const grep = createGrepTool((event: any) => events.push(event), root) as any;
