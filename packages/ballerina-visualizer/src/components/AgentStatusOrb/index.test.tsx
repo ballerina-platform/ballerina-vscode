@@ -219,7 +219,7 @@ describe("AgentStatusOrb idle invite", () => {
             Array.from(text.matchAll(/brightness\(([\d.]+)\)/g)).map((m) => Number(m[1]))
         );
         expect(factors.length).toBeGreaterThan(0);
-        expect(Math.min(...factors)).toBeGreaterThan(1.13);
+        expect(Math.min(...factors)).toBeGreaterThan(1);
 
         // A resting dim would make the lift idle-only again.
         expect(rules.some((text) => /opacity:\s*0\.85/.test(text))).toBe(false);

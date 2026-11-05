@@ -32,9 +32,9 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 jest.mock("@wso2/ballerina-core", () => ({ __esModule: true }));
 
-jest.mock("@wso2/ui-toolkit", () => ({
+jest.mock("./BotIcon", () => ({
     __esModule: true,
-    Icon: ({ iconSx }: { iconSx?: { color?: string } }) => <i data-testid="icon" data-color={iconSx?.color} />,
+    BotIcon: ({ color }: { color: string }) => <i data-testid="icon" data-color={color} />,
 }));
 
 jest.mock("./ShaderOrb", () => ({
@@ -44,8 +44,6 @@ jest.mock("./ShaderOrb", () => ({
 
 jest.mock("./shared", () => ({
     __esModule: true,
-    ACCENT_CORE: "accent-core",
-    ACCENT_FRAME: ["frame-0", "frame-1", "frame-2"],
     AGENT_BUILDER_ORB_COLORS: {
         "idle": ["ab-idle-0", "ab-idle-1", "ab-idle-2"],
         "running": ["ab-run-0", "ab-run-1", "ab-run-2"],
@@ -57,10 +55,8 @@ jest.mock("./shared", () => ({
     Gloss: () => <i data-testid="gloss" />,
     IconOverlay: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
     ORB_ENERGY: { "idle": 0, "running": 1, "awaiting-input": 0.5, "completed": 0.3, "error": 0.2 },
-    SpinArc: ({ color }: { color: string }) => <i data-testid="solid-spin" data-color={color} />,
-    Sphere: ({ colors, highlightColor }: { colors: string[]; highlightColor?: string }) => (
-        <i data-testid="sphere" data-colors={colors.join()} data-highlight={highlightColor ?? ""} />
-    ),
+    SpinArc: () => <i data-testid="solid-spin" />,
+    Sphere: ({ colors }: { colors: string[] }) => <i data-testid="sphere" data-colors={colors.join()} />,
     useOrbTheme: () => "animated",
 }));
 
@@ -95,16 +91,15 @@ describe("CopilotOrb styles", () => {
     it("draws the solid orb in Agent Builder's palette, without gloss, and with a white icon", () => {
         const { byId } = render("solid");
         expect(byId("sphere")?.getAttribute("data-colors")).toBe("ab-idle-0,ab-idle-1,ab-idle-2");
-        expect(byId("sphere")?.getAttribute("data-highlight")).toBe("accent-core");
         expect(byId("shader")).toBeNull();
         expect(byId("gloss")).toBeNull();
         expect(byId("icon")?.getAttribute("data-color")).toBe("#ffffff");
     });
 
-    it("spins the solid orb's own arc in the accent frame colour while running", () => {
+    it("spins the solid orb's own arc while running", () => {
         const { byId } = render("solid", "running");
         expect(byId("sphere")?.getAttribute("data-colors")).toBe("ab-run-0,ab-run-1,ab-run-2");
-        expect(byId("solid-spin")?.getAttribute("data-color")).toBe("frame-1");
+        expect(byId("solid-spin")).not.toBeNull();
     });
 
     it("keeps the caller's colours and the gloss for the animated orb", () => {

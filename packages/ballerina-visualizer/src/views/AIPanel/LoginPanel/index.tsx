@@ -26,7 +26,6 @@ import { Banner } from "../../../components/Banner";
 import { CopilotOrb } from "../../../components/AgentStatusOrb/CopilotOrb";
 import { useOrbColors } from "../../../components/AgentStatusOrb/orbTheme";
 import {
-    ACCENT_CORE,
     ACCENT_SPHERE,
     frameTriple,
     IconOverlay,
@@ -34,6 +33,7 @@ import {
     ORB_ENERGY,
     Sphere,
 } from "../../../components/AgentStatusOrb/shared";
+import { BotIcon } from "../../../components/AgentStatusOrb/BotIcon";
 import { useAssistantName, useAssistantTagline, useProductMode } from "../../../hooks/useProductMode";
 
 const LOGIN_ORB_SIZE = 58;
@@ -403,13 +403,9 @@ const LoginPanel: React.FC<{ embedded?: boolean; subtitle?: React.ReactNode }> =
             {agentBuilder ? (
                 <HeaderContent>
                     <OrbAura $colors={frameTriple(ACCENT_SPHERE[0])}>
-                        <Sphere colors={ACCENT_SPHERE} energy={ORB_ENERGY.idle} highlightColor={ACCENT_CORE} />
+                        <Sphere colors={ACCENT_SPHERE} energy={ORB_ENERGY.idle} />
                         <IconOverlay>
-                            <Icon
-                                name="bi-ai-chat"
-                                sx={{ width: 26, height: 26 }}
-                                iconSx={{ fontSize: "26px", color: "#ffffff", cursor: "default" }}
-                            />
+                            <BotIcon size={26} color="#ffffff" />
                         </IconOverlay>
                     </OrbAura>
                     <Title>{assistantName}</Title>

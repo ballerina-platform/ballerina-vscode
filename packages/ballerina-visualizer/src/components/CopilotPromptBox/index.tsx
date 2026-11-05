@@ -38,7 +38,7 @@ const Composer = styled.div`
     gap: 8px;
     min-width: 0;
     padding: 12px 12px 8px;
-    border-radius: 12.5px;
+    border-radius: 13px;
     background: var(--vscode-editorWidget-background);
     cursor: text;
 `;

@@ -884,7 +884,7 @@ export class CommonRpcManager implements CommonRPCAPI {
         }
 
         // check if the central PAT is configured in the settings.toml
-        const settingsTomlFilePath = path.join(os.homedir(), '.ballerina', 'settings.toml');
+        const settingsTomlFilePath = path.join(os.homedir(), '.ballerina', 'Settings.toml');
         if (fs.existsSync(settingsTomlFilePath)) {
             const tomlContent = await fs.promises.readFile(settingsTomlFilePath, 'utf-8');
             try {

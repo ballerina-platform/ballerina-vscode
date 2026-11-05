@@ -72,6 +72,7 @@ export const ModalStack: React.FC = () => {
                     <Popup
                         key={group[0].id}
                         title={top.title}
+                        subtitle={top.subtitle}
                         width={top.width}
                         height={top.height}
                         onClose={below ? () => popToModal(below[below.length - 1].id) : clearModals}
