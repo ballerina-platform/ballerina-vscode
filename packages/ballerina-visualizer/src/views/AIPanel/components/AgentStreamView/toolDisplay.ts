@@ -128,8 +128,8 @@ export interface ToolCallDisplay {
     title?: string;
 }
 
-export function countOf(n: number, noun: string, capped?: boolean): string {
-    return `${n}${capped ? "+" : ""} ${noun}${n === 1 && !capped ? "" : "s"}`;
+export function countOf(n: number, noun: string, capped?: boolean, plural = `${noun}s`): string {
+    return `${n}${capped ? "+" : ""} ${n === 1 && !capped ? noun : plural}`;
 }
 
 const GLOB_CHARS = /[*?[\]{}!]/;
@@ -186,23 +186,28 @@ function globResultDisplay(output: any): ToolCallDisplay {
     return { label: `Found ${count === undefined ? `${words.noun}s` : countOf(count, words.noun!)}${where}`, title: pattern };
 }
 
+/** The pattern as shown (a leading ripgrep-style "(?i)" means nothing to a user) and the raw one on hover. */
+function grepWording(o: { pattern: string; path?: string; glob?: string }): { detail: string; title?: string } {
+    const where = o.path ? ` in ${o.path}` : "";
+    const detail = `${o.pattern.replace(/^\(\?i\)(?=.)/, "")}${where}`;
+    const title = `${o.pattern}${where}${o.glob ? ` (files: ${o.glob})` : ""}`;
+    return { detail, title: title === detail ? undefined : title };
+}
+
 function grepCallDisplay(input: any): ToolCallDisplay {
-    const pattern: string | undefined = input?.pattern;
-    if (!pattern) return { label: "Searching the code..." };
-    const detail = `${pattern}${input?.path ? ` in ${input.path}` : ""}`;
-    return { label: "Searching for:", detail, title: input?.glob ? `${detail} (files: ${input.glob})` : undefined };
+    if (!input?.pattern) return { label: "Searching the code..." };
+    return { label: "Searching for:", ...grepWording(input) };
 }
 
 function grepResultDisplay(output: any): ToolCallDisplay {
     if (output?.success === false) return { label: output?.aborted ? "Search stopped" : "Code search failed" };
-    const pattern: string | undefined = output?.pattern;
-    if (!pattern) return { label: "Searched the code" };
-    const detail = `${pattern}${output?.path ? ` in ${output.path}` : ""}`;
+    if (!output?.pattern) return { label: "Searched the code" };
     const count: number | undefined = typeof output?.count === "number" ? output.count : undefined;
     const meta = count === undefined ? undefined
         : count === 0 ? (output?.capped ? "stopped early" : "no matches")
-        : countOf(count, output?.unit === "lines" ? "line" : "file", output?.capped);
-    return { label: "Searched for:", detail, meta, title: output?.glob ? `${detail} (files: ${output.glob})` : undefined };
+        : output?.unit === "lines" ? countOf(count, "match", output?.capped, "matches")
+        : countOf(count, "file", output?.capped);
+    return { label: "Searched for:", ...grepWording(output), meta };
 }
 
 /**

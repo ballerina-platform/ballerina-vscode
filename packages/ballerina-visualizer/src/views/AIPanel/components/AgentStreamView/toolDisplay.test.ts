@@ -126,7 +126,9 @@ describe("getToolCallDisplay", () => {
         it("counts files, or lines in content mode, and marks a capped count", () => {
             expect(getToolResultDisplay("grep", { success: true, pattern: "loadData", count: 2, unit: "files" }).meta).toBe("2 files");
             expect(getToolResultDisplay("grep", { success: true, pattern: "loadData", count: 1, unit: "files" }).meta).toBe("1 file");
-            expect(getToolResultDisplay("grep", { success: true, pattern: "Order", count: 12, unit: "lines" }).meta).toBe("12 lines");
+            expect(getToolResultDisplay("grep", { success: true, pattern: "Order", count: 12, unit: "lines" }).meta).toBe("12 matches");
+            expect(getToolResultDisplay("grep", { success: true, pattern: "Order", count: 1, unit: "lines" }).meta).toBe("1 match");
+            expect(getToolResultDisplay("grep", { success: true, pattern: "int v", count: 200, unit: "lines", capped: true }).meta).toBe("200+ matches");
             expect(getToolResultDisplay("grep", { success: true, pattern: "^import ", count: 200, unit: "files", capped: true }).meta).toBe("200+ files");
             expect(getToolResultDisplay("grep", { success: true, pattern: "kafka", count: 0, unit: "files" }).meta).toBe("no matches");
             expect(getToolResultDisplay("grep", { success: true, pattern: "\\w+\\w+@", count: 0, unit: "files", capped: true }).meta).toBe("stopped early");
@@ -135,6 +137,13 @@ describe("getToolCallDisplay", () => {
         it("falls back for chats saved before counts were sent", () => {
             expect(getToolResultDisplay("grep", { success: true, pattern: "getOrders" })).toEqual({ label: "Searched for:", detail: "getOrders", meta: undefined, title: undefined });
             expect(getToolResultDisplay("grep", undefined)).toEqual({ label: "Searched the code" });
+        });
+
+        it("leaves a leading (?i) out of the row and keeps it on hover", () => {
+            expect(getToolCallDisplay("grep", { pattern: "(?i)order" })).toEqual({ label: "Searching for:", detail: "order", title: "(?i)order" });
+            expect(getToolResultDisplay("grep", { success: true, pattern: "(?i)loadData", path: "mcp", count: 2, unit: "files" }))
+                .toEqual({ label: "Searched for:", detail: "loadData in mcp", title: "(?i)loadData in mcp", meta: "2 files" });
+            expect(getToolCallDisplay("grep", { pattern: "(?i)" }).detail).toBe("(?i)");
         });
 
         it("says a stopped search stopped", () => {
