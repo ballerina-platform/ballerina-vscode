@@ -29,11 +29,11 @@ Four **scope levels**, ordered by how much of the system each test actually runs
 
 | Level | Tests | Runtime | Env | PR-gated | Location |
 |---|---|---|---|---|---|
-| **L1** Unit / contract | pure logic + shared-type (enum) invariants | ms | node/jsdom | ✅ | `<pkg>/src/**`, `ballerina-core/src/test` |
-| **L2** Component (render) | React components from data | 10–100 ms | jsdom | ✅ | `<pkg>/src/**` |
-| **L3** LS-integration | real headless LS over stdio | seconds | node/jsdom | ❌ nightly | `ballerina-extension/.../ls-integration` + `*.capture.test.ts` |
+| **L1** Unit / contract | pure logic + shared-type (enum) invariants | ms | node/jsdom | ✅ | `<pkg>/src/test/**` |
+| **L2** Component (render) | React components from data | 10–100 ms | jsdom | ✅ | `<pkg>/src/test/**` |
+| **L3** LS-integration | real headless LS over stdio | seconds | node/jsdom | ❌ nightly | `ballerina-extension/src/test/ls-integration` + `*.capture.test.ts` |
 | **L4** E2E smoke | full VSCode via Playwright | minutes | vscode | matrix | `ballerina-extension/e2e-test` |
-| _orthogonal_ · **Perf / QA** | latency baselines, visual/a11y | seconds | node | ❌ manual | `ballerina-extension/.../perf` |
+| _orthogonal_ · **Perf / QA** | latency baselines, visual/a11y | seconds | node | ❌ manual | `ballerina-extension/src/test/perf` |
 
 Push tests **down** the pyramid: anything provable at a lower scope level never gets written higher. **Perf/QA is not a scope tier** — performance is a non-functional dimension that cuts across L1–L4 — so it's tracked as its own suite rather than a numbered level. The host↔LS/webview **rpc contract** likewise isn't its own tier — the request/response ride on captured fixtures (consumed at L2) and are re-checked by the L3 drift-check; see [L2 → captured data](#choice-2--the-data-source-by-intent).
 
@@ -63,8 +63,8 @@ If the function is trapped in a heavy file, extract it first (move + re-export; 
 **Example files.**
 - [`enums.contract.test.ts`](../packages/ballerina-core/src/test/enums.contract.test.ts) — the auto-discovering enum contract-invariant suite.
 - [`editorUtils.test.ts`](../packages/ballerina-side-panel/src/test/editorUtils.test.ts) · [`typeCompletionUtils.test.ts`](../packages/ballerina-side-panel/src/test/typeCompletionUtils.test.ts) · [`formValidationUtils.test.ts`](../packages/ballerina-side-panel/src/test/formValidationUtils.test.ts) — side-panel value/validation utils.
-- [`diagnostics.test.ts`](../packages/ballerina-visualizer/src/utils/diagnostics.test.ts) · [`range.test.ts`](../packages/ballerina-visualizer/src/utils/range.test.ts) · [`convertConfig.test.ts`](../packages/ballerina-visualizer/src/utils/convertConfig.test.ts) — visualizer diagnostic filtering / range math / form assembly (extracted from `bi.tsx`).
-- [`TypeBrowser/utils.test.ts`](../packages/ballerina-visualizer/src/views/BI/ServiceDesigner/components/TypeBrowser/utils.test.ts) — type-search matching invariants (#602/#619).
+- [`diagnostics.test.ts`](../packages/ballerina-visualizer/src/test/utils/diagnostics.test.ts) · [`range.test.ts`](../packages/ballerina-visualizer/src/test/utils/range.test.ts) · [`convertConfig.test.ts`](../packages/ballerina-visualizer/src/test/utils/convertConfig.test.ts) — visualizer diagnostic filtering / range math / form assembly (extracted from `bi.tsx`).
+- [`TypeBrowser/utils.test.ts`](../packages/ballerina-visualizer/src/test/views/BI/ServiceDesigner/components/TypeBrowser/utils.test.ts) — type-search matching invariants (#602/#619).
 
 ---
 
@@ -149,9 +149,9 @@ BAL_UPDATE_FIXTURES=1 npx jest --config jest.realdata.config.js
 
 **Example files.**
 - [`ls-harness.js`](../packages/test-config/ls-harness.js) — the shared spawn/initialize/request harness, published from `@wso2/test-config` and imported as `@wso2/test-config/ls-harness`.
-- [`ls.test.ts`](../packages/ballerina-extension/src/test-support/ls-integration/ls.test.ts) — baseline LS requests.
-- [`nodeTemplateInvariants.test.ts`](../packages/ballerina-extension/src/test-support/ls-integration/nodeTemplateInvariants.test.ts) — connector node-template type invariants (#1491 class; intentionally red until the LS bug is fixed).
-- [`headlessHost.test.ts`](../packages/ballerina-extension/src/test-support/ls-integration/headlessHost.test.ts) — real rpc-manager handler against the real LS.
+- [`ls.test.ts`](../packages/ballerina-extension/src/test/ls-integration/ls.test.ts) — baseline LS requests.
+- [`nodeTemplateInvariants.test.ts`](../packages/ballerina-extension/src/test/ls-integration/nodeTemplateInvariants.test.ts) — connector node-template type invariants (#1491 class; intentionally red until the LS bug is fixed).
+- [`headlessHost.test.ts`](../packages/ballerina-extension/src/test/ls-integration/headlessHost.test.ts) — real rpc-manager handler against the real LS.
 
 ---
 
@@ -182,10 +182,10 @@ pnpm run e2e-test           # runs the Playwright specs
 cd packages/ballerina-extension && pnpm run test:perf
 ```
 
-**How to add.** Name the file `*.perf.ts` under `src/test-support/perf`; measure and **log** timings, assert only loose ceilings.
+**How to add.** Name the file `*.perf.ts` under `src/test/perf`; measure and **log** timings, assert only loose ceilings.
 
 **Example files.**
-- [`lsLatency.perf.ts`](../packages/ballerina-extension/src/test-support/perf/lsLatency.perf.ts) — LS request-latency baseline.
+- [`lsLatency.perf.ts`](../packages/ballerina-extension/src/test/perf/lsLatency.perf.ts) — LS request-latency baseline.
 
 ---
 
@@ -199,10 +199,10 @@ rush build --to ballerina-language-server     # the suite runs the jar this buil
 cd packages/ballerina-extension && pnpm run test:reliability
 ```
 
-**How to add.** Name the file `*.reliability.ts` under `src/test-support/reliability`, start the LS with `new LsHarness(resolveLocalLsCommand())`, and skip when that returns null. Kill any process the test started in `afterEach`, so a failing test does not leave one behind.
+**How to add.** Name the file `*.reliability.ts` under `src/test/reliability`, start the LS with `new LsHarness(resolveLocalLsCommand())`, and skip when that returns null. Kill any process the test started in `afterEach`, so a failing test does not leave one behind.
 
 **Example files.**
-- [`lsProcessExit.reliability.ts`](../packages/ballerina-extension/src/test-support/reliability/lsProcessExit.reliability.ts) — the LS JVM exits after `shutdown`/`exit` and after the client closes stdin without `exit` (wso2/product-integrator#2854).
+- [`lsProcessExit.reliability.ts`](../packages/ballerina-extension/src/test/reliability/lsProcessExit.reliability.ts) — the LS JVM exits after `shutdown`/`exit` and after the client closes stdin without `exit` (wso2/product-integrator#2854).
 
 ---
 
@@ -210,7 +210,7 @@ cd packages/ballerina-extension && pnpm run test:reliability
 
 Not a level, but everything above depends on it:
 - **`@wso2/test-config`** — the shared Jest preset (jsdom, transforms, asset mocks, single-React pin) + `loadFixture(s)`. Adopt in ~3 lines: add the devDeps + `jest.config.js` = `{ ...require('@wso2/test-config/jest-preset'), rootDir: '.' }`. Full recipe: [`packages/test-config/README.md`](../packages/test-config/README.md).
-- **Fixture recorder** — [`fixtureRecorder.ts`](../packages/ballerina-extension/src/test-support/fixtureRecorder.ts): env-gated (`BAL_RECORD_FIXTURES`) taps on the LS client + webview RPC that dump `{method, request, response}`. Dormant otherwise (zero production impact).
+- **Fixture recorder** — [`fixtureRecorder.ts`](../packages/ballerina-extension/src/utils/fixtureRecorder.ts): env-gated (`BAL_RECORD_FIXTURES`) taps on the LS client + webview RPC that dump `{method, request, response}`. Dormant otherwise (zero production impact).
 - **Capture script** — [`capture-fixtures.js`](../packages/ballerina-extension/scripts/capture-fixtures.js) (`pnpm run capture-fixtures`): runs the E2E with recording on and dedupes the dump into per-method fixtures.
 
 > **Review captured fixtures before committing.** Secret redaction is **key-name based** (`token`, `password`, `apiKey`, …) — a secret embedded inside a *value* under a non-matching key (e.g. a token in a URL query string) is **not** masked. The recorder is env-gated and fixtures are curated, so eyeball every new/updated `fixture.json` for leaked credentials or machine-specific data before it lands.
