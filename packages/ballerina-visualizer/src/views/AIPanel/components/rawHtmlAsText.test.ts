@@ -18,11 +18,10 @@
 
 import { remarkRawHtmlAsText } from "./rawHtmlAsText";
 
-// react-markdown is ESM-only and not transformed here, so the tree is the one remark builds for
-// "Returns `error(\"'<id>'\")` for List<string>, <b>bold</b> and <badge data-type=\"x\">Agent</badge>".
+// The tree remark builds; react-markdown is ESM-only and not transformed here.
 const html = (value: string) => ({ type: "html", value });
 
-it("shows a reply's raw tags as text and keeps our badge, error and comment tags as HTML", () => {
+it("shows a reply's raw tags as text and keeps our badge and error tags as HTML", () => {
     const tree = {
         type: "root",
         children: [{
@@ -45,24 +44,25 @@ it("shows a reply's raw tags as text and keeps our badge, error and comment tags
         "text:<string>",
         "text:<b>", "text:bold", "text:</b>",
         "html:<badge data-type=\"x\">", "text:Agent", "html:</badge>",
-        "html:<!-- note -->",
+        "text:<!-- note -->",
     ]);
     expect(types(tree.children.slice(1))).toEqual(["text:<error>\nfailed\n</error>", "text:<script>alert(1)</script>"]);
 });
 
-it("keeps a node as HTML only when it is exactly one allowed tag or one comment", () => {
+it("keeps a node as HTML only when it is exactly one badge or error tag", () => {
     const keep = [
         "<badge data-system=\"true\" data-auth=\"x\" data-type=\"command\" data-command=\"/help\">",
         "</badge>",
         "<error data-system=\"true\" data-auth=\"x\">",
         "</error>",
-        "<!-- note -->",
     ];
     const asText = [
         "<error>\n<iframe src=\"https://example.com\"></iframe>\n</error>",
         "<badge data-type=\"x\"><img src=x onerror=alert(1)>",
         "<!-- a --><img src=x onerror=alert(1)>",
         "<!-- a --><img src=x>-->",
+        "<!--> <img src=x onerror=alert(1)> -->",
+        "<!-- note -->",
         "<badges>",
         "<error data-x=\"a>b\">",
     ];

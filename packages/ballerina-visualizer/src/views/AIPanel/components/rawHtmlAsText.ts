@@ -16,10 +16,8 @@
  * under the License.
  */
 
-// A node stays HTML only when it is exactly one of our tags or one comment. Remark puts a whole
-// HTML block in one node, so a block that only starts with an allowed tag is shown as text.
+// Exactly one of our tags: remark puts a whole HTML block in one node.
 const OUR_TAG = /^<\/?(badge|error)(\s+[\w-]+(="[^"<>]*")?)*\s*>$/i;
-const COMMENT = /^<!--(?:(?!-->)[\s\S])*-->$/;
 
 interface MdNode {
     type: string;
@@ -27,15 +25,12 @@ interface MdNode {
     children?: MdNode[];
 }
 
-/** Remark plugin: raw HTML in a reply becomes text after parsing, so code spans keep `<id>` as written. */
+/** Raw HTML in a reply becomes text, so code keeps `<id>` as written. */
 export function remarkRawHtmlAsText() {
     return (tree: MdNode): void => {
         const walk = (node: MdNode): void => {
-            if (node.type === "html") {
-                const value = (node.value ?? "").trim();
-                if (!OUR_TAG.test(value) && !COMMENT.test(value)) {
-                    node.type = "text";
-                }
+            if (node.type === "html" && !OUR_TAG.test((node.value ?? "").trim())) {
+                node.type = "text";
             }
             node.children?.forEach(walk);
         };
