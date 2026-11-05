@@ -85,11 +85,10 @@ function isUnsaved(filePath: string): boolean {
     return vscode.workspace.textDocuments.some(document => document.isDirty && isSamePath(document.uri.fsPath, filePath));
 }
 
-// After a failed toggle the files may be partly written, so report what they now say, and tell
-// the user why rather than leaving the checkbox to untick silently.
-function reportFailure(projectPath: string, errorMsg: string): ICPEnabledResponse {
+// Tell the user why the toggle failed rather than leaving the checkbox to change silently.
+function reportFailure(enabled: boolean, errorMsg: string): ICPEnabledResponse {
     vscode.window.showErrorMessage(errorMsg);
-    return { enabled: isICPEnabledOnDisk(projectPath), errorMsg };
+    return { enabled, errorMsg };
 }
 
 function errorText(error: unknown): string {
@@ -109,13 +108,10 @@ async function addICPConfigToml(projectPath: string): Promise<void> {
     const configPath = configTomlPathOf(projectPath);
     let config: Record<string, any> = {};
 
+    // A Config.toml that does not parse is left alone: writing over it would drop the user's
+    // own configuration.
     if (fs.existsSync(configPath)) {
-        try {
-            const content = fs.readFileSync(configPath, 'utf-8');
-            config = parse(content) as Record<string, any>;
-        } catch (error) {
-            console.error('[ICP] Error reading Config.toml:', error);
-        }
+        config = parse(fs.readFileSync(configPath, 'utf-8')) as Record<string, any>;
     }
 
     // Build nested structure for [wso2.icp.runtime.bridge]
@@ -146,24 +142,20 @@ function removeICPConfigToml(projectPath: string): void {
         return;
     }
 
-    try {
-        const content = fs.readFileSync(configPath, 'utf-8');
-        const config = parse(content) as Record<string, any>;
-
-        // Remove the bridge section
-        if (config.wso2?.icp?.runtime?.bridge) {
-            delete config.wso2.icp.runtime.bridge;
-
-            // Clean up empty parent objects
-            if (Object.keys(config.wso2.icp.runtime).length === 0) { delete config.wso2.icp.runtime; }
-            if (Object.keys(config.wso2.icp).length === 0) { delete config.wso2.icp; }
-            if (Object.keys(config.wso2).length === 0) { delete config.wso2; }
-        }
-
-        fs.writeFileSync(configPath, stringify(config), 'utf-8');
-    } catch (error) {
-        console.error('[ICP] Error removing ICP config from Config.toml:', error);
+    // Throws on a Config.toml that does not parse, so disableICP reports it rather than
+    // reporting success with the bridge settings still in place.
+    const config = parse(fs.readFileSync(configPath, 'utf-8')) as Record<string, any>;
+    if (!config.wso2?.icp?.runtime?.bridge) {
+        return;
     }
+
+    delete config.wso2.icp.runtime.bridge;
+    // Clean up empty parent objects
+    if (Object.keys(config.wso2.icp.runtime).length === 0) { delete config.wso2.icp.runtime; }
+    if (Object.keys(config.wso2.icp).length === 0) { delete config.wso2.icp; }
+    if (Object.keys(config.wso2).length === 0) { delete config.wso2; }
+
+    fs.writeFileSync(configPath, stringify(config), 'utf-8');
 }
 
 export class ICPServiceRpcManager implements ICPServiceAPI {
@@ -181,7 +173,9 @@ export class ICPServiceRpcManager implements ICPServiceAPI {
             return { enabled: isICPEnabledOnDisk(projectPath) };
         } catch (error) {
             console.error('[ICP] Failed to enable ICP for', projectPath, error);
-            return reportFailure(projectPath, `Failed to enable ICP: ${errorText(error)}`);
+            // Report off even if the imports and build options were written: every step is
+            // idempotent, so the user can tick the checkbox again to retry.
+            return reportFailure(false, `Failed to enable ICP: ${errorText(error)}`);
         }
     }
 
@@ -198,7 +192,8 @@ export class ICPServiceRpcManager implements ICPServiceAPI {
             return { enabled: isICPEnabledOnDisk(projectPath) };
         } catch (error) {
             console.error('[ICP] Failed to disable ICP for', projectPath, error);
-            return reportFailure(projectPath, `Failed to disable ICP: ${errorText(error)}`);
+            // The files may be partly reverted, so report what they now say.
+            return reportFailure(isICPEnabledOnDisk(projectPath), `Failed to disable ICP: ${errorText(error)}`);
         }
     }
 
