@@ -4,10 +4,8 @@ import io.ballerina.compiler.api.symbols.ClassSymbol;
 import io.ballerina.compiler.syntax.tree.ClassDefinitionNode;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
 import io.ballerina.compiler.syntax.tree.ServiceDeclarationNode;
+import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.TcpConnectionServiceResolver;
-import io.ballerina.projects.DocumentId;
-import io.ballerina.projects.Module;
-import io.ballerina.projects.Project;
 import io.ballerina.servicemodelgenerator.extension.model.Service;
 import io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel;
 import io.ballerina.servicemodelgenerator.extension.model.context.AddModelContext;
@@ -19,7 +17,6 @@ import io.ballerina.servicemodelgenerator.extension.util.Utils;
 import io.ballerina.tools.text.LineRange;
 import org.eclipse.lsp4j.TextEdit;
 
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -147,20 +144,12 @@ public final class TCPServiceBuilder extends AbstractServiceBuilder {
         return service;
     }
 
-    /**
-     * Finds the class definition among the documents of the service's module, where the resolver guarantees the
-     * class is declared.
-     */
     private static Optional<ClassDefinitionNode> findClassDefinition(ClassSymbol classSymbol,
                                                                      ModelFromSourceContext context) {
-        Project project = context.project();
-        DocumentId documentId = project.documentId(Path.of(context.filePath()));
-        Module module = project.currentPackage().module(documentId.moduleId());
-        return module.documentIds().stream()
-                .map(id -> module.document(id).syntaxTree())
-                .map(syntaxTree -> TcpConnectionServiceResolver.findClassDefinition(classSymbol, syntaxTree))
-                .flatMap(Optional::stream)
-                .findFirst();
+        return classSymbol.getLocation()
+                .map(location -> CommonUtils.getDocument(context.project(), location))
+                .flatMap(document -> TcpConnectionServiceResolver.findClassDefinition(classSymbol,
+                        document.syntaxTree()));
     }
 
     @Override

@@ -71,7 +71,7 @@ public class IntermediateModel {
         protected String displayName;
         protected String sortText;
         protected String serviceType;
-        // A TCP service's handlers live on the service class `onConnect` returns; null for any other service
+        // TCP only, see TcpConnectionServiceResolver
         protected String connectionServiceClass;
         protected final List<String> namedListeners = new ArrayList<>();
         protected final List<Listener> anonListeners = new ArrayList<>();

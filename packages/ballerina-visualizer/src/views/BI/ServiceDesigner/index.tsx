@@ -475,8 +475,6 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
             .openView({ type: EVENT_TYPE.OPEN_VIEW, location: { position: nodePosition, documentUri } });
     };
 
-    // A TCP service hands each connection to the service class `onConnect` returns, so the handlers
-    // users implement (onBytes, onError, onClose) live on that class rather than on the service.
     const connectionServiceClass = serviceModel?.connectionServiceClass;
 
     // The class is resolved from the service's own module, so its file is a sibling of the service's.
@@ -1307,7 +1305,6 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
                                                 <ResourceAccordion
                                                     key={handler.name.value}
                                                     functionModel={handler}
-                                                    goToSource={() => { }}
                                                     onResourceImplement={handleOpenConnectionHandler}
                                                 />
                                             ))}

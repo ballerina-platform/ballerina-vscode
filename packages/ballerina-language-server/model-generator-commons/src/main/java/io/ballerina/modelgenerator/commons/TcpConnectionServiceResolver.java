@@ -18,12 +18,11 @@
 
 package io.ballerina.modelgenerator.commons;
 
-import io.ballerina.compiler.api.ModuleID;
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.api.symbols.ClassSymbol;
-import io.ballerina.compiler.api.symbols.ModuleSymbol;
 import io.ballerina.compiler.api.symbols.Qualifier;
 import io.ballerina.compiler.api.symbols.ServiceDeclarationSymbol;
+import io.ballerina.compiler.api.symbols.Symbol;
 import io.ballerina.compiler.api.symbols.TypeSymbol;
 import io.ballerina.compiler.syntax.tree.ClassDefinitionNode;
 import io.ballerina.compiler.syntax.tree.ExplicitNewExpressionNode;
@@ -51,7 +50,6 @@ import java.util.Optional;
  */
 public final class TcpConnectionServiceResolver {
 
-    private static final String BALLERINA_ORG = "ballerina";
     private static final String TCP_MODULE = "tcp";
     private static final String ON_CONNECT = "onConnect";
 
@@ -69,22 +67,19 @@ public final class TcpConnectionServiceResolver {
      */
     public static Optional<ClassSymbol> findConnectionServiceClass(ServiceDeclarationNode serviceNode,
                                                                    SemanticModel semanticModel) {
-        Optional<ServiceDeclarationSymbol> serviceSymbol = semanticModel.symbol(serviceNode)
-                .filter(ServiceDeclarationSymbol.class::isInstance)
-                .map(ServiceDeclarationSymbol.class::cast);
-        if (serviceSymbol.isEmpty() || !isTcpService(serviceSymbol.get())) {
-            return Optional.empty();
-        }
-        Optional<ModuleID> serviceModule = serviceSymbol.get().getModule().map(ModuleSymbol::id);
-        if (serviceModule.isEmpty()) {
-            return Optional.empty();
-        }
+        // The syntactic onConnect check runs first: it rules out nearly every other service without a symbol lookup.
         Optional<FunctionDefinitionNode> onConnect = serviceNode.members().stream()
                 .filter(FunctionDefinitionNode.class::isInstance)
                 .map(FunctionDefinitionNode.class::cast)
                 .filter(function -> ON_CONNECT.equals(function.functionName().text().trim()))
                 .findFirst();
-        if (onConnect.isEmpty()) {
+        Optional<ModuleInfo> serviceModule = onConnect.flatMap(function -> semanticModel.symbol(serviceNode))
+                .filter(ServiceDeclarationSymbol.class::isInstance)
+                .map(ServiceDeclarationSymbol.class::cast)
+                .filter(TcpConnectionServiceResolver::isTcpService)
+                .flatMap(Symbol::getModule)
+                .map(module -> ModuleInfo.from(module.id()));
+        if (serviceModule.isEmpty()) {
             return Optional.empty();
         }
 
@@ -97,9 +92,7 @@ public final class TcpConnectionServiceResolver {
                 .filter(ClassSymbol.class::isInstance)
                 .map(ClassSymbol.class::cast)
                 .filter(classSymbol -> classSymbol.qualifiers().contains(Qualifier.SERVICE))
-                .filter(classSymbol -> classSymbol.getModule()
-                        .map(module -> isSameModule(module.id(), serviceModule.get()))
-                        .orElse(false))
+                .filter(classSymbol -> CommonUtils.isWithinPackageModule(classSymbol, serviceModule.get()))
                 .findFirst();
     }
 
@@ -107,8 +100,7 @@ public final class TcpConnectionServiceResolver {
      * Finds the definition of a class within the given syntax tree.
      *
      * @param classSymbol the class to look up
-     * @param syntaxTree  the syntax tree of a document of the class's module (a file name is unique only within
-     *                    a module)
+     * @param syntaxTree  the syntax tree of a document of the class's module
      * @return the class definition, or empty when the class is not declared in this document
      */
     public static Optional<ClassDefinitionNode> findClassDefinition(ClassSymbol classSymbol, SyntaxTree syntaxTree) {
@@ -123,17 +115,13 @@ public final class TcpConnectionServiceResolver {
                 .map(ClassDefinitionNode.class::cast);
     }
 
-    private static boolean isSameModule(ModuleID first, ModuleID second) {
-        return first.orgName().equals(second.orgName()) && first.moduleName().equals(second.moduleName());
-    }
-
     private static boolean isTcpService(ServiceDeclarationSymbol serviceSymbol) {
         return serviceSymbol.listenerTypes().stream().anyMatch(TcpConnectionServiceResolver::isTcpType);
     }
 
     private static boolean isTcpType(TypeSymbol typeSymbol) {
         return CommonUtils.getRawType(typeSymbol).getModule()
-                .map(module -> BALLERINA_ORG.equals(module.id().orgName())
+                .map(module -> CommonUtils.BALLERINA_ORG_NAME.equals(module.id().orgName())
                         && TCP_MODULE.equals(module.id().moduleName()))
                 .orElse(false);
     }

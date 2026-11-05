@@ -222,13 +222,12 @@ public class DesignModelGenerator {
     }
 
     /**
-     * The remote functions of a service, followed by those of the class a TCP service hands each connection to:
-     * those are the handlers users implement, so the service presents them as its own.
+     * The remote functions of a service, followed by those of a TCP service's connection service class.
      */
     private static List<IntermediateModel.FunctionModel> serviceRemoteFunctions(
             IntermediateModel intermediateModel, IntermediateModel.ServiceModel serviceModel) {
-        IntermediateModel.ServiceClassModel connectionServiceClass = serviceModel.connectionServiceClass == null
-                ? null : intermediateModel.serviceClassModelMap.get(serviceModel.connectionServiceClass);
+        IntermediateModel.ServiceClassModel connectionServiceClass =
+                intermediateModel.serviceClassModelMap.get(serviceModel.connectionServiceClass);
         if (connectionServiceClass == null) {
             return serviceModel.remoteFunctions;
         }

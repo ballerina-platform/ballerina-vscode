@@ -198,9 +198,10 @@ public class CodeAnalyzer extends NodeVisitor {
         IntermediateModel.ServiceModel serviceModel = new IntermediateModel.ServiceModel(
                 displayName, absoluteResourcePath, sortText, getLocation(lineRange));
         serviceModel.serviceType = serviceType;
-        TcpConnectionServiceResolver.findConnectionServiceClass(serviceDeclarationNode, semanticModel)
+        serviceModel.connectionServiceClass = TcpConnectionServiceResolver
+                .findConnectionServiceClass(serviceDeclarationNode, semanticModel)
                 .flatMap(ClassSymbol::getName)
-                .ifPresent(className -> serviceModel.connectionServiceClass = className);
+                .orElse(null);
         this.currentServiceModel = serviceModel;
         intermediateModel.serviceModelMap.put(String.valueOf(lineRange.hashCode()), serviceModel);
 

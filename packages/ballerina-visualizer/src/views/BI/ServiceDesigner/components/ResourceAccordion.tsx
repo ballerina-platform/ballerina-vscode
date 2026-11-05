@@ -130,7 +130,7 @@ export function getColorByMethod(method: string) {
 export interface ResourceAccordionProps {
     functionModel: FunctionModel;
     method?: string;
-    goToSource: (resource: FunctionModel) => void;
+    goToSource?: (resource: FunctionModel) => void;
     /** Omit to hide the edit button. */
     onEditResource?: (resource: FunctionModel) => void;
     /** Omit to hide the delete button. */
@@ -156,7 +156,7 @@ export function ResourceAccordion(params: ResourceAccordionProps) {
 
     const handleShowDiagram = (e: Event) => {
         e.stopPropagation(); // Stop the event propagation
-        goToSource(functionModel);
+        goToSource?.(functionModel);
     };
 
     const handleEditResource = (e: React.MouseEvent<HTMLElement | SVGSVGElement>) => {
