@@ -26,7 +26,7 @@ interface RowGroup {
     done: string;
     running: string;
     icon: string;
-    /** "Updated 4 files" rather than "Explored the project · 9 files read". */
+    /** "Updated 4 files" rather than "Explored · 9 files read". */
     countsInLabel?: boolean;
     facets: Partial<Record<Facet, [singular: string, plural: string]>>;
 }
@@ -34,8 +34,8 @@ interface RowGroup {
 // The only place that decides grouping: change a tool's group here to merge or split groups.
 export const ROW_GROUPS: Record<RowGroupId, RowGroup> = {
     explore: {
-        done: "Explored the project",
-        running: "Exploring the project",
+        done: "Explored",
+        running: "Exploring",
         icon: "codicon-search",
         facets: { read: ["file read", "files read"], search: ["search", "searches"] },
     },

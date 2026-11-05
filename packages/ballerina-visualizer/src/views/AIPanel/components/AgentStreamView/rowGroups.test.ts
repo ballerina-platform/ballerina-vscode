@@ -68,7 +68,7 @@ describe("groupRows", () => {
 describe("summarizeGroup", () => {
     it("counts files read once each and every search", () => {
         expect(summarizeGroup("explore", [glob("**/*.bal"), grep("order"), read("a/main.bal"), read("a/main.bal"), read("b/main.bal")], false))
-            .toEqual({ label: "Explored the project", meta: "2 files read, 2 searches", running: false });
+            .toEqual({ label: "Explored", meta: "2 files read, 2 searches", running: false });
         expect(summarizeGroup("explore", [read("a.bal"), read("b.bal")], false).meta).toBe("2 files read");
         expect(summarizeGroup("explore", [grep("x")], false).meta).toBe("1 search");
     });
@@ -80,7 +80,7 @@ describe("summarizeGroup", () => {
 
     it("shows the latest running call while the turn is live", () => {
         expect(summarizeGroup("explore", [read("agent/main.bal"), grep("x"), reading("mcp/config.bal")], true)).toEqual({
-            label: "Exploring the project", detail: "Reading config.bal in mcp...", meta: "1 file read, 1 search", running: true,
+            label: "Exploring", detail: "Reading config.bal in mcp...", meta: "1 file read, 1 search", running: true,
         });
         expect(summarizeGroup("update", [edited("a.bal"), { kind: "tool_call", toolName: "file_edit", toolInput: { fileName: "mcp/main.bal" } }], true))
             .toEqual({ label: "Updating", detail: "main.bal in mcp...", meta: undefined, running: true });
@@ -88,14 +88,14 @@ describe("summarizeGroup", () => {
 
     it("stays in the present tense between calls while it is the turn's latest step", () => {
         expect(summarizeGroup("explore", [glob("**/*.bal"), grep("order")], true, true))
-            .toEqual({ label: "Exploring the project", meta: "2 searches", running: true });
+            .toEqual({ label: "Exploring", meta: "2 searches", running: true });
         expect(summarizeGroup("update", [edited("a.bal"), edited("b.bal")], true, true)).toEqual({ label: "Updating 2 files", running: true });
-        expect(summarizeGroup("explore", [glob("**/*.bal"), grep("order")], true, false).label).toBe("Explored the project");
-        expect(summarizeGroup("explore", [glob("**/*.bal"), grep("order")], false, true).label).toBe("Explored the project");
+        expect(summarizeGroup("explore", [glob("**/*.bal"), grep("order")], true, false).label).toBe("Explored");
+        expect(summarizeGroup("explore", [glob("**/*.bal"), grep("order")], false, true).label).toBe("Explored");
     });
 
     it("reads as done once the turn stops, counting only finished calls", () => {
         expect(summarizeGroup("explore", [read("a.bal"), read("b.bal"), reading("c.bal")], false))
-            .toEqual({ label: "Explored the project", meta: "2 files read", running: false });
+            .toEqual({ label: "Explored", meta: "2 files read", running: false });
     });
 });
