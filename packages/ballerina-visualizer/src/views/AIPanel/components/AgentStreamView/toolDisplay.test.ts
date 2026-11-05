@@ -84,7 +84,7 @@ describe("getToolCallDisplay", () => {
         it("words a running search in plain terms and keeps the pattern on hover", () => {
             expect(getToolCallDisplay("glob", { pattern: "**/*.bal" })).toEqual({ label: "Finding .bal files...", title: "**/*.bal" });
             expect(getToolCallDisplay("glob", { pattern: "music-for-weather/**/*.bal" }).label).toBe("Finding .bal files in music-for-weather...");
-            expect(getToolCallDisplay("glob", { pattern: "**/data.json" }).label).toBe("Looking for data.json...");
+            expect(getToolCallDisplay("glob", { pattern: "**/data.json" }).label).toBe("Looking for files named data.json...");
             expect(getToolCallDisplay("glob", { pattern: "*.bal", path: "./pkg1/" }).label).toBe("Finding .bal files in pkg1...");
             expect(getToolCallDisplay("glob", { pattern: "**/*" }).label).toBe("Finding files...");
             expect(getToolCallDisplay("glob", undefined)).toEqual({ label: "Finding files..." });
@@ -96,9 +96,11 @@ describe("getToolCallDisplay", () => {
             expect(getToolResultDisplay("glob", { success: true, pattern: "music-for-weather/**/*.bal", count: 7 }).label).toBe("Found 7 .bal files in music-for-weather");
             expect(getToolResultDisplay("glob", { success: true, pattern: "**/*", count: 245 }).label).toBe("Found 245 files");
             expect(getToolResultDisplay("glob", { success: true, pattern: "**/*.yaml", count: 0 }).label).toBe("No .yaml files found");
-            expect(getToolResultDisplay("glob", { success: true, pattern: "**/data.json", count: 1 }).label).toBe("Found data.json");
-            expect(getToolResultDisplay("glob", { success: true, pattern: "**/data.json", count: 0 }).label).toBe("data.json not found");
+            expect(getToolResultDisplay("glob", { success: true, pattern: "**/data.json", count: 1 }).label).toBe("Found 1 file named data.json");
             expect(getToolResultDisplay("glob", { success: true, pattern: "**/data.json", count: 2 }).label).toBe("Found 2 files named data.json");
+            expect(getToolResultDisplay("glob", { success: true, pattern: "**/data.json", count: 0 }).label).toBe("No files named data.json");
+            expect(getToolResultDisplay("glob", { success: true, pattern: "pkg/**/data.json", count: 2 }).label).toBe("Found 2 files named data.json in pkg");
+            expect(getToolResultDisplay("glob", { success: true, pattern: "**/data.json" }).label).toBe("Found files named data.json");
         });
 
         it("shows the pattern when it has no plain reading", () => {

@@ -135,7 +135,7 @@ export function countOf(n: number, noun: string, capped?: boolean, plural = `${n
 const GLOB_CHARS = /[*?[\]{}!]/;
 
 // Undefined when the pattern has no plain reading; the row then shows it as is.
-export function globInWords(pattern: string, path?: string): { name?: string; noun?: string; scope?: string } | undefined {
+export function globInWords(pattern: string, path?: string): { name?: string; noun: string; scope?: string } | undefined {
     const segments = pattern.replace(/^\.\//, "").split("/").filter(Boolean);
     const last = segments.pop();
     if (!last) return undefined;
@@ -146,7 +146,7 @@ export function globInWords(pattern: string, path?: string): { name?: string; no
     }
     const base = path?.replace(/^\.\/?/, "").replace(/\/+$/, "");
     const scope = [base, ...folders].filter(Boolean).join("/") || undefined;
-    if (!GLOB_CHARS.test(last)) return { name: last, scope };
+    if (!GLOB_CHARS.test(last)) return { name: last, noun: "file", scope };
     if (last === "*" || last === "**") return { noun: "file", scope };
     const ext = /^\*(\.[\w-]+)$/.exec(last);
     return ext ? { noun: `${ext[1]} file`, scope } : undefined;
@@ -159,7 +159,7 @@ function globCallDisplay(input: any): ToolCallDisplay {
     if (!words) return { label: "Finding files matching:", detail: pattern };
     const where = words.scope ? ` in ${words.scope}` : "";
     return words.name
-        ? { label: `Looking for ${words.name}${where}...`, title: pattern }
+        ? { label: `Looking for files named ${words.name}${where}...`, title: pattern }
         : { label: `Finding ${words.noun}s${where}...`, title: pattern };
 }
 
@@ -175,12 +175,11 @@ function globResultDisplay(output: any): ToolCallDisplay {
     }
     const where = words.scope ? ` in ${words.scope}` : "";
     if (words.name) {
-        if (count === 0) return { label: `${words.name} not found${where}`, title: pattern };
-        if (count !== undefined && count > 1) return { label: `Found ${count} files named ${words.name}${where}`, title: pattern };
-        return { label: `Found ${words.name}${where}`, title: pattern };
+        if (count === 0) return { label: `No files named ${words.name}${where}`, title: pattern };
+        return { label: `Found ${count === undefined ? "files" : countOf(count, "file")} named ${words.name}${where}`, title: pattern };
     }
     if (count === 0) return { label: `No ${words.noun}s found${where}`, title: pattern };
-    return { label: `Found ${count === undefined ? `${words.noun}s` : countOf(count, words.noun!)}${where}`, title: pattern };
+    return { label: `Found ${count === undefined ? `${words.noun}s` : countOf(count, words.noun)}${where}`, title: pattern };
 }
 
 // A leading ripgrep "(?i)" is hidden; the raw pattern stays on hover.
