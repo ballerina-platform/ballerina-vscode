@@ -28,6 +28,7 @@ import { useTypeHelperContext } from '../Context';
 import {
     applyTypedText,
     canToggleModifier,
+    getGraphQLNonNullInfo,
     parseTypeShape,
     splitTypedSuffixes,
     SyntaxToggleItem,
@@ -65,6 +66,11 @@ interface TypeFieldProps {
     modifiers?: readonly TypeModifier[];
     /** Further toggles to show at the end of the field, before the modifiers. */
     extraToggles?: SyntaxToggleItem[];
+    /**
+     * Shows the nullable modifier the GraphQL way, as a non-null `!` toggle that is on for a type that is not nullable.
+     * GraphQL types are nullable unless marked non-null, so a new type starts nullable.
+     */
+    nonNullToggle?: boolean;
 }
 
 export const TypeField = forwardRef<HTMLInputElement, TypeFieldProps>((props, ref) => {
@@ -83,7 +89,8 @@ export const TypeField = forwardRef<HTMLInputElement, TypeFieldProps>((props, re
         required,
         autoFocus,
         modifiers,
-        extraToggles = []
+        extraToggles = [],
+        nonNullToggle = false
     } = props;
     const { onTypeItemClick, onTypeCreate, ...rest } = useTypeHelperContext();
 
@@ -101,10 +108,17 @@ export const TypeField = forwardRef<HTMLInputElement, TypeFieldProps>((props, re
     const [draft, setDraft] = useState<string | undefined>(undefined);
     const lastWritten = useRef<string | undefined>(undefined);
 
-    const shape = parseTypeShape(memberName ?? '', modifiers);
-    // A stream's modifiers belong to its value type, inside its brackets, so a stream is shown as it is written. A type
-    // the LS sent as a structure is shown the same way as one typed in, from its source.
-    const showsModifiersApart = !!modifiers?.length && !isAnonymousRecord && !shape.stream;
+    // A GraphQL type starts nullable; the choice is kept while the field is empty, as there is no type to hold it.
+    const [nullableWhileEmpty, setNullableWhileEmpty] = useState<boolean>(true);
+    const parsedShape = parseTypeShape(memberName ?? '', modifiers);
+    const shape = nonNullToggle && !parsedShape.base && !parsedShape.nullable
+        ? { ...parsedShape, nullable: nullableWhileEmpty }
+        : parsedShape;
+    // A stream's modifiers belong to its value type, inside its brackets, so a stream is shown as it is written, and so
+    // is a type made of modifiers alone, e.g. `error?`, which would otherwise show as an empty box. A type the LS sent
+    // as a structure is shown the same way as one typed in, from its source.
+    const isModifiersOnly = !parsedShape.base && (parsedShape.nullable || parsedShape.error);
+    const showsModifiersApart = !!modifiers?.length && !isAnonymousRecord && !shape.stream && !isModifiersOnly;
     const isDraftCurrent = draft !== undefined && lastWritten.current === memberName;
     const shownValue = showsModifiersApart ? (isDraftCurrent ? draft : shape.base) : memberName;
 
@@ -120,6 +134,8 @@ export const TypeField = forwardRef<HTMLInputElement, TypeFieldProps>((props, re
             return;
         }
         setDraft(splitTypedSuffixes(e.target.value).base);
+        // Clearing the type keeps its nullability for whatever is typed next.
+        setNullableWhileEmpty(shape.nullable);
         applyType(applyTypedText(shape, e.target.value));
     };
 
@@ -283,16 +299,30 @@ export const TypeField = forwardRef<HTMLInputElement, TypeFieldProps>((props, re
         validateType(memberName);
     }, []);
 
+    const toggleModifier = (modifier: TypeModifier) => {
+        if (nonNullToggle && modifier === 'nullable' && !shape.base) {
+            setNullableWhileEmpty(!shape.nullable);
+            return;
+        }
+        applyType(toggleTypeModifier(memberName ?? '', modifier, !shape[modifier], modifiers));
+    };
+
     const toggles: SyntaxToggleItem[] = [
         ...extraToggles,
-        ...(showsModifiersApart ? modifiers : []).map((modifier) => ({
+        ...(showsModifiersApart ? modifiers : []).map((modifier) => nonNullToggle && modifier === 'nullable' ? {
+            id: 'non-null',
+            glyph: '!',
+            ...getGraphQLNonNullInfo(!shape.nullable),
+            pressed: !shape.nullable,
+            onToggle: () => toggleModifier(modifier)
+        } : {
             id: modifier,
             glyph: MODIFIER_GLYPHS[modifier],
             ...TYPE_MODIFIER_INFO[modifier],
             pressed: shape[modifier],
             disabled: !canToggleModifier(shape, modifier),
-            onToggle: () => applyType(toggleTypeModifier(memberName ?? '', modifier, !shape[modifier], modifiers))
-        }))
+            onToggle: () => toggleModifier(modifier)
+        })
     ];
 
     return (

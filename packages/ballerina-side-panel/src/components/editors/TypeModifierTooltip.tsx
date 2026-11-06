@@ -39,6 +39,17 @@ export const TYPE_MODIFIER_INFO: Record<TypeModifier, { title: string; descripti
     },
 };
 
+/**
+ * What a GraphQL non-null toggle tells the user, in GraphQL's words: GraphQL reads a type the other way round from
+ * Ballerina, so a Ballerina `T` is the non-null `T!` and a `T?` is the nullable `T`. A description the LS states for
+ * the current choice is used in place of the default one.
+ */
+export function getGraphQLNonNullInfo(nonNull: boolean, stated?: string): { title: string; description: string } {
+    return nonNull
+        ? { title: "Non-null (!)", description: `${stated ?? "The value is never null"}. Turn off to allow null.` }
+        : { title: "Nullable", description: `${stated ?? "The value can be null"}. Turn on to make it non-null (!).` };
+}
+
 const TooltipBody = styled.div`
     display: flex;
     flex-direction: column;

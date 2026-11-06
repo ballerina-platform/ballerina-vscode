@@ -24,6 +24,7 @@ import {
     ComponentModel,
     ComponentModelDeprecated,
     Member,
+    Type,
     TypeFunctionModel
 } from '@wso2/ballerina-core';
 import { EntityFactory, EntityLinkFactory, EntityPortFactory } from '../components/entity-relationship';
@@ -238,13 +239,16 @@ export const getAttributeType = (attr: Member | TypeFunctionModel): string => {
         return type;
     }
 
-    // A union with nil is shown as written, `T?`, rather than as `T|()`.
+    // A union with nil is shown as written, `T?`, rather than as `T|()`. The `?` is grouped with what it decorates
+    // when it would otherwise bind to a part of it: a member of a union or an intersection, or a function's return.
     const formatUnionType = (types: string[]): string => {
         const values = types.filter((t) => t !== '()');
-        if (values.length === 1 && values.length < types.length) {
-            return /[|&]/.test(values[0]) ? `(${values[0]})?` : `${values[0]}?`;
+        if (values.length === 0 || values.length === types.length) {
+            return types.join('|');
         }
-        return types.join('|');
+        const value = values.join('|');
+        const isCompound = /[|&]/.test(value) || /^((isolated|transactional)\s+)*function\b/.test(value);
+        return isCompound ? `(${value})?` : `${value}?`;
     };
 
     // Get base type representation based on node kind
@@ -261,9 +265,10 @@ export const getAttributeType = (attr: Member | TypeFunctionModel): string => {
             case 'ARRAY':
                 const elementType = memberTypes[0];
                 const elementMember = members[0];
-                // Check if the immediate child is a union type
+                // A union element is grouped, unless its nil made it a `T?`, to which the `[]` already binds as a whole
                 const isUnionType = typeof elementMember.type === 'object' && elementMember.type.codedata.node === 'UNION';
-                baseType = isUnionType ? `(${elementType})[]` : `${elementType}[]`;
+                const isNilable = isUnionType && (elementMember.type as Type).members.some((m) => m.type === '()');
+                baseType = isUnionType && !isNilable ? `(${elementType})[]` : `${elementType}[]`;
                 break;
             case 'UNION':
                 baseType = formatUnionType(memberTypes);

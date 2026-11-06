@@ -112,6 +112,28 @@ function hasErrorMember(type: string): boolean {
     return splitTopLevel(type, "|").some((member) => member === "error" || member === "error?");
 }
 
+/** The stream completion with an error added, keeping what else the user wrote it can complete with. */
+function withErrorMember(completion: string | undefined): string {
+    const written = completion?.trim();
+    if (!written || written === "()") {
+        return "error?";
+    }
+    return hasErrorMember(written) ? written : `${written}|error`;
+}
+
+/** The stream completion with its error members taken out, or nothing when only nil is left. */
+function withoutErrorMembers(completion: string | undefined): string | undefined {
+    if (!completion?.trim()) {
+        return undefined;
+    }
+    if (!hasErrorMember(completion)) {
+        return completion;
+    }
+    const rest = splitTopLevel(completion, "|").map((member) => (member === "error?" ? "()" : member))
+        .filter((member) => member !== "error");
+    return rest.every((member) => member === "()") ? undefined : rest.join("|");
+}
+
 function parseValue(text: string, extractError: boolean): TypeShape {
     // An unparenthesized function type has no outer modifiers: `function () returns int|error` returns the union.
     if (isFunctionType(text)) {
@@ -162,6 +184,7 @@ function parseValue(text: string, extractError: boolean): TypeShape {
 /**
  * Reads the modifiers of a type, as a user typed it. An error is read as a modifier only where the field offers the
  * Error toggle; elsewhere it stays part of the type, so that `int|error` turned into a list is `(int|error)[]`.
+ * A stream is the exception: its error is always read from its completion type, where no other toggle can move it.
  */
 export function parseTypeShape(type: string, modifiers: readonly TypeModifier[] = TYPE_MODIFIERS): TypeShape {
     const text = (type ?? "").trim();
@@ -193,11 +216,9 @@ export function printTypeShape(shape: TypeShape): string {
     if (!shape.stream) {
         return printValue(shape, true);
     }
-    // The completion the user wrote is kept unless the toggle turned its meaning around.
+    // Only the error is added to or taken out of the completion the user wrote; anything else in it is kept.
     const written = shape.stream.completion;
-    const completion = shape.error
-        ? (written && hasErrorMember(written) ? written : "error?")
-        : (written && !hasErrorMember(written) ? written : undefined);
+    const completion = shape.error ? withErrorMember(written) : withoutErrorMembers(written);
     const value = printValue(shape, false);
     return completion ? `stream<${value}, ${completion}>` : `stream<${value}>`;
 }
@@ -281,4 +302,62 @@ export function toggleTypeModifier(
         return type;
     }
     return printTypeShape({ ...shape, [modifier]: on });
+}
+
+/** A GraphQL field's return type as its form shows it: the type, and apart from it whether the field can fail. */
+export interface GraphQLReturnType {
+    type: string;
+    returnsError: boolean;
+}
+
+/**
+ * Whether a subscription returns its error in place of the stream, as in `stream<T>|error`, rather than ending the
+ * stream with it, as in `stream<T, error?>`.
+ */
+export function hasErrorOutsideStream(type: string): boolean {
+    const shape = parseTypeShape(type);
+    return !shape.stream && shape.error && !!parseTypeShape(shape.base).stream;
+}
+
+/** Reads a GraphQL field's return type into the form. A new field can fail unless the user says otherwise. */
+export function readGraphQLReturnType(value: string): GraphQLReturnType {
+    const text = (value ?? "").trim();
+    if (!text) {
+        return { type: "", returnsError: true };
+    }
+    const shape = parseTypeShape(text);
+    return { type: printTypeShape({ ...shape, error: false }), returnsError: shape.error };
+}
+
+/**
+ * The type as typed, with an error at its top level read as a modifier even where a nil wraps the union holding it,
+ * e.g. `(Profile|error)?`, so that a typed `|error` counts the same as the Returns Error flag.
+ */
+function readTypedReturnType(type: string): TypeShape {
+    const shape = parseTypeShape(type);
+    if (shape.stream || shape.list || shape.error || !shape.base) {
+        return shape;
+    }
+    const inner = parseTypeShape(shape.base);
+    return inner.error ? { ...inner, nullable: inner.nullable || shape.nullable } : shape;
+}
+
+/**
+ * Writes a GraphQL field's return type back from the form. An untouched field keeps the text it was loaded with,
+ * a `|error` typed into the type counts as the field returning an error, and a subscription's error goes back where
+ * it was loaded from: around the stream or in its completion.
+ */
+export function writeGraphQLReturnType(original: string, type: string, returnsError: boolean): string {
+    const loaded = readGraphQLReturnType(original);
+    if ((original ?? "").trim() && loaded.type === type && loaded.returnsError === returnsError) {
+        return original;
+    }
+    if (!(type ?? "").trim()) {
+        return type;
+    }
+    const shape = readTypedReturnType(type);
+    if (shape.stream && hasErrorOutsideStream(original)) {
+        return returnsError ? `${type.trim()}|error` : type.trim();
+    }
+    return printTypeShape({ ...shape, error: returnsError || shape.error });
 }

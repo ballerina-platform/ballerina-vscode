@@ -35,13 +35,14 @@ import { FormField } from "../Form/types";
 import { useFormContext } from "../../context";
 import { Controller } from "react-hook-form";
 import { S } from "./ExpressionEditor";
-import { buildRequiredRule, getPropertyFromFormField, sanitizeType } from "./utils";
+import { buildRequiredRule, sanitizeType } from "./utils";
 import { debounce } from "lodash";
 import styled from "@emotion/styled";
 import ReactMarkdown from "react-markdown";
 import { getFieldTypeLabel, NodeProperties, PropertyModel } from "@wso2/ballerina-core";
 import { canOfferTypeCreation } from "./typeCreationGate";
 import { SyntaxToggles } from "./SyntaxToggles";
+import { getGraphQLNonNullInfo } from "./TypeModifierTooltip";
 import { parseTypeShape, printTypeShape, toggleTypeModifier, TypeModifier } from "./typeModifiers";
 
 const isGraphQLScalarType = (type: string): boolean => {
@@ -165,16 +166,10 @@ const withoutTypedNil = (text: string): string => {
     return trimmed.endsWith("?") ? trimmed.slice(0, -1) : text;
 };
 
-/**
- * What the non-null toggle tells the user, in GraphQL's words: GraphQL reads a type the other way round from
- * Ballerina, so a Ballerina `T` is the non-null `T!` and a `T?` is the nullable `T`.
- */
+/** What the non-null toggle tells the user, with the description the LS states for the choice, if any. */
 const getNonNullInfo = (field: FormField, nonNull: boolean): { title: string; description: string } => {
     const messages: PropertyModel | undefined = field.properties?.["nullableAction"]?.properties;
-    const stated = messages?.[nonNull ? "false" : "true"]?.metadata?.description;
-    return nonNull
-        ? { title: "Non-null (!)", description: `${stated ?? "The value is never null"}. Turn off to allow null.` }
-        : { title: "Nullable", description: `${stated ?? "The value can be null"}. Turn on to make it non-null (!).` };
+    return getGraphQLNonNullInfo(nonNull, messages?.[nonNull ? "false" : "true"]?.metadata?.description);
 };
 
 // The expression editor places an end adornment beside its box, not inside it, so the non-null toggle is laid over
@@ -223,8 +218,7 @@ export function ActionTypeEditor(props: ActionTypeEditorProps) {
         onBlur,
         onCompletionItemSelect,
         onSave,
-        onCancel,
-        getExpressionEditorDiagnostics
+        onCancel
     } = expressionEditor;
 
     const exprRef = useRef<FormExpressionEditorRef>(null);
@@ -481,21 +475,6 @@ export function ActionTypeEditor(props: ActionTypeEditorProps) {
 
                                         // Set show default completion
                                         const typeExists = referenceTypes.find((type) => type.label === updatedValue);
-
-                                        // disabling expression editor diagnostics for type field 
-                                        // as the expressionEditor/diagnstics API is currently
-                                        // having a limitation on validating the type fields
-                                        
-                                        // if (getExpressionEditorDiagnostics) {
-                                        //     const required = !field.optional;
-
-                                        //     getExpressionEditorDiagnostics(
-                                        //         (required ?? !field.optional) || updatedValue !== '',
-                                        //         updatedValue,
-                                        //         field.key,
-                                        //         getPropertyFromFormField(field)
-                                        //     );
-                                        // }
 
                                         handleNewTypeSelected && handleNewTypeSelected(typeExists ? typeExists : updatedValue)
                                         const validTypeForCreation = updatedValue.match(/^[a-zA-Z_'][a-zA-Z0-9_]*$/);

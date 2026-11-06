@@ -50,11 +50,10 @@ Start Integration project. Then navigate to the type diagram through the project
   `toHaveValue` instead of reading the value once.
 - Saving the popup auto-assigns the newly created type to the field that opened
   the helper panel.
-- The optional-field toggle is `vscode-button[title="Set as an Optional Field"]`
-  in the field row. Its icon colour flips from
-  `g[fill="var(--vscode-descriptionForeground)"]` (inactive) to
-  `g[fill="var(--vscode-button-background)"]` (active) — assert the fill
-  attribute, not CSS classes.
+- The optional-field toggle is `[data-testid="syntax-toggle-optional-field"]`
+  at the end of the field name. While off it shows only when the row is hovered
+  or focused, so hover the row first. Assert its `aria-pressed` (`"false"` →
+  `"true"`), not CSS classes or colours.
 - In the Edit Type panel the name field (`data-testid="type-name-display"`) is
   **readonly**. Renaming requires clicking the pencil
   (`vscode-button[title="Rename"]`), which swaps in an editable field with its

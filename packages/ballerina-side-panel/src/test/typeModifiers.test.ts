@@ -22,11 +22,13 @@
 import {
     applyTypedText,
     parseTypeShape,
+    readGraphQLReturnType,
     splitTypedSuffixes,
     toGraphQLNullability,
     toggleTypeModifier,
     TYPE_MODIFIERS,
     TypeModifier,
+    writeGraphQLReturnType,
 } from "../components/editors/typeModifiers";
 
 const CORPUS = [
@@ -59,6 +61,8 @@ const CORPUS = [
     "stream<Profile?, error?>",
     "stream<Profile[], error>",
     "stream<Profile, ()>",
+    "stream<int, string|error>",
+    "stream<anydata, kafka:Error?>",
 ];
 
 describe("parseTypeShape", () => {
@@ -122,6 +126,11 @@ describe("toggleTypeModifier", () => {
         ["stream<Profile>", "error", true, "stream<Profile, error?>"],
         ["stream<Profile, error>", "list", true, "stream<Profile[], error>"],
         ["stream<Profile, error?>", "error", false, "stream<Profile>"],
+        // Only the error is added to or taken out of a completion; what else it can complete with is kept.
+        ["stream<int, string|error>", "error", false, "stream<int, string>"],
+        ["stream<int, string>", "error", true, "stream<int, string|error>"],
+        ["stream<anydata, kafka:Error?>", "error", true, "stream<anydata, kafka:Error?|error>"],
+        ["stream<Profile, ()>", "error", true, "stream<Profile, error?>"],
         ["error?", "error", false, "()"],
         ["function () returns int|error", "list", true, "(function () returns int|error)[]"],
         ["function () returns int", "error", true, "(function () returns int)|error"],
@@ -234,5 +243,46 @@ describe("toGraphQLNullability", () => {
         ["", ""],
     ])("writes %s as %s", (type, expected) => {
         expect(toGraphQLNullability(type)).toBe(expected);
+    });
+});
+
+describe("GraphQL return type", () => {
+    it.each([
+        ["", { type: "", returnsError: true }],
+        ["Profile", { type: "Profile", returnsError: false }],
+        ["Profile|error", { type: "Profile", returnsError: true }],
+        ["stream<Review>|error", { type: "stream<Review>", returnsError: true }],
+        ["stream<Review, error?>", { type: "stream<Review>", returnsError: true }],
+    ])("reads %s into the form", (value, expected) => {
+        expect(readGraphQLReturnType(value)).toEqual(expected);
+    });
+
+    // INVARIANT: saving a field the user did not change writes back the text it was loaded with.
+    it.each([
+        ...CORPUS,
+        "error|Profile",
+        "Profile|error?",
+        "stream<Review>|error",
+        "stream<Review, error?>|error",
+    ])("INVARIANT: an untouched %s is saved as written", (value) => {
+        const { type, returnsError } = readGraphQLReturnType(value);
+        expect(writeGraphQLReturnType(value, type, returnsError)).toBe(value);
+    });
+
+    it.each([
+        ["", "Profile", true, "Profile|error"],
+        ["Profile|error", "Profile", false, "Profile"],
+        ["", "stream<Profile>", true, "stream<Profile, error?>"],
+        ["stream<Review, error?>", "stream<Review>", false, "stream<Review>"],
+        // A subscription's error goes back around the stream when it was loaded from there.
+        ["stream<Review>|error", "stream<Review?>", true, "stream<Review?>|error"],
+        ["stream<Review>|error", "stream<Review>", false, "stream<Review>"],
+        ["stream<Review, error?>|error", "stream<Review?, error?>", true, "stream<Review?, error?>|error"],
+        // A typed `|error` counts as the field returning an error, never lost nor written twice.
+        ["Profile", "Profile|error", false, "Profile|error"],
+        ["", "(Profile|error)?", true, "Profile?|error"],
+        ["", "(Profile[]|error)?", false, "Profile[]?|error"],
+    ])("on %s, saving %s with Returns Error %s gives %s", (original, type, returnsError, expected) => {
+        expect(writeGraphQLReturnType(original, type, returnsError)).toBe(expected);
     });
 });

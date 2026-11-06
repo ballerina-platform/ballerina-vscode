@@ -43,14 +43,17 @@ export { ApprovalEditor, AddApprovalFunctionForm } from "./ApprovalEditor";
 export {
     applyTypedText,
     canToggleModifier,
+    hasErrorOutsideStream,
     parseTypeShape,
     printTypeShape,
+    readGraphQLReturnType,
     splitTypedSuffixes,
     toggleTypeModifier,
     TYPE_MODIFIERS,
-    VALUE_TYPE_MODIFIERS
+    VALUE_TYPE_MODIFIERS,
+    writeGraphQLReturnType
 } from "./typeModifiers";
-export { TYPE_MODIFIER_INFO } from "./TypeModifierTooltip";
+export { getGraphQLNonNullInfo, TYPE_MODIFIER_INFO } from "./TypeModifierTooltip";
 export { revealSyntaxTogglesOnHover, SyntaxToggles } from "./SyntaxToggles";
 export type { SyntaxToggleItem } from "./SyntaxToggles";
-export type { TypeModifier } from "./typeModifiers";
+export type { GraphQLReturnType, TypeModifier } from "./typeModifiers";
