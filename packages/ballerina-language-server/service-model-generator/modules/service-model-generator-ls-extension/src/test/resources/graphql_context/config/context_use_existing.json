@@ -1,0 +1,11 @@
+{
+  "description": "Points contextInit at an existing function with the right signature",
+  "project": "graphql_with_config",
+  "api": "applyGraphqlContext",
+  "request": {
+    "action": "use",
+    "functionName": "existingContextInit"
+  },
+  "expected": "context_use_existing",
+  "file": "main.bal"
+}

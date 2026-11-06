@@ -1,0 +1,24 @@
+{
+  "description": "A key used twice is refused",
+  "project": "graphql_context_set",
+  "api": "applyGraphqlContext",
+  "request": {
+    "action": "setEntries",
+    "entries": [
+      {
+        "key": "scope",
+        "source": "header",
+        "value": "scope",
+        "required": true
+      },
+      {
+        "key": "scope",
+        "source": "header",
+        "value": "x-tenant",
+        "required": false
+      }
+    ]
+  },
+  "expectError": true,
+  "file": "main.bal"
+}

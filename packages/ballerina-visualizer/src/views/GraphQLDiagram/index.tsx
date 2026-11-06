@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
     Type,
     NodePosition,
@@ -42,7 +42,7 @@ import {
 import styled from "@emotion/styled";
 import { GraphqlServiceEditor } from "./GraphqlServiceEditor";
 import { PanelContainer } from "@wso2/ballerina-side-panel";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { TopNavigationBar } from "../../components/TopNavigationBar";
 import { TitleBar } from "../../components/TitleBar";
 import { GraphqlObjectViewer } from "./ObjectViewer";
@@ -52,6 +52,8 @@ import DynamicModal from "../../components/Modal";
 import { BreadcrumbContainer, BreadcrumbItem, BreadcrumbSeparator } from "../BI/Forms/FlowNodeForm";
 import React from "react";
 import { removeForwardSlashes } from "../BI/ServiceDesigner/utils";
+import { RequestContextPanel } from "./RequestContext/RequestContextPanel";
+import { GRAPHQL_CONTEXT_QUERY_KEY, useGraphqlContext } from "./RequestContext/useGraphqlContext";
 
 const SpinnerContainer = styled.div`
     display: flex;
@@ -94,6 +96,7 @@ export function GraphQLDiagram(props: GraphQLDiagramProps) {
     const [isTypeEditorOpen, setIsTypeEditorOpen] = useState(false);
     const [editingType, setEditingType] = useState<Type>();
     const [focusedNodeId, setFocusedNodeId] = useState<string | undefined>(undefined);
+    const [isRequestContextOpen, setIsRequestContextOpen] = useState<boolean>(false);
 
     const [stack, setStack] = useState<StackItem[]>([{
         isDirty: false,
@@ -197,17 +200,32 @@ export function GraphQLDiagram(props: GraphQLDiagramProps) {
     } = useQuery<GetGraphqlTypeResponse>({
         queryKey: ["graphqlTypeModel", filePath, position],
         queryFn: fetchGraphqlTypeModel,
+        // An edit above the service moves its position, which is part of the key. Keep showing the current diagram
+        // while the moved service loads, instead of dropping back to the loading spinner.
+        placeholderData: keepPreviousData,
         retry: 3,
         retryDelay: 2000,
         enabled: !!filePath && !!rpcClient,
     });
 
-    rpcClient?.onProjectContentUpdated((state: boolean) => {
+    const { data: requestContext, isLoading: isRequestContextLoading } = useGraphqlContext(filePath, position);
+    const contextSupported = !!requestContext?.supported;
+
+    // Registered once per mount and removed on unmount: a listener that outlives the view would refetch, and redraw,
+    // once more for every time the view was opened.
+    useEffect(() => rpcClient?.onProjectContentUpdated((state: boolean) => {
         if (state) {
             // Instead of calling getGraphqlDesignModel directly, invalidate the query
             queryClient.invalidateQueries({ queryKey: ["graphqlTypeModel"] });
+            // An edit made anywhere, including in source and in the Request Context panel, can change the context.
+            queryClient.invalidateQueries({ queryKey: [GRAPHQL_CONTEXT_QUERY_KEY] });
         }
-    });
+    }), [rpcClient, queryClient]);
+
+    const openRequestContext = () => {
+        setIsServiceEditorOpen(false);
+        setIsRequestContextOpen(true);
+    };
 
     const handleOnGoToSource = (node: Type) => {
         if (!rpcClient || !node.codedata.lineRange) {
@@ -225,6 +243,7 @@ export function GraphQLDiagram(props: GraphQLDiagramProps) {
 
     const onTypeEdit = async (typeId: string, isGraphqlRoot?: boolean) => {
         if (isGraphqlRoot) {
+            setIsRequestContextOpen(false);
             setIsServiceEditorOpen(true);
             return;
         }
@@ -459,6 +478,8 @@ export function GraphQLDiagram(props: GraphQLDiagramProps) {
                             updateFocusedNodeId={handleFocusedNodeIdChange}
                             onTypeDelete={onTypeDelete}
                             verifyTypeDelete={verifyTypeDelete}
+                            hasRequestContext={!!requestContext?.configured}
+                            onOpenRequestContext={contextSupported ? openRequestContext : undefined}
                         />
                     ) : null}
                 </ViewContent>
@@ -479,6 +500,19 @@ export function GraphQLDiagram(props: GraphQLDiagramProps) {
                         },
                     }}
                     onClose={() => setIsServiceEditorOpen(false)}
+                />
+            )}
+            {isRequestContextOpen && contextSupported && (
+                <RequestContextPanel
+                    filePath={filePath}
+                    position={position}
+                    context={requestContext}
+                    loading={isRequestContextLoading}
+                    onClose={() => setIsRequestContextOpen(false)}
+                    onOpenServiceConfig={() => {
+                        setIsRequestContextOpen(false);
+                        handleServiceEdit();
+                    }}
                 />
             )}
             {isTypeEditorOpen && editingType && editingType.codedata.node !== "CLASS" && (

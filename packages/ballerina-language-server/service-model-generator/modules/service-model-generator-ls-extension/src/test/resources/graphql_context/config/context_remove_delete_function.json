@@ -1,0 +1,11 @@
+{
+  "description": "Deleting the function also drops the imports only it used",
+  "project": "graphql_context_set",
+  "api": "applyGraphqlContext",
+  "request": {
+    "action": "remove",
+    "deleteFunction": true
+  },
+  "expected": "context_remove_delete_function",
+  "file": "main.bal"
+}

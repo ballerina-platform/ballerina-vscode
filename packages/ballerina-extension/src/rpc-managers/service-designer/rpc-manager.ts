@@ -18,6 +18,7 @@
  * THIS FILE INCLUDES AUTO GENERATED CODE
  */
 import {
+    ApplyGraphqlContextRequest,
     ConnectorUpgradeAdvice,
     ConnectorUpgradeAdviceRequest,
     ConnectorUpgradeAdviceResponse,
@@ -28,6 +29,9 @@ import {
     ExportOASResponse,
     GetOASSpecRequest,
     GetOASSpecResponse,
+    GraphqlContextEditResponse,
+    GraphqlContextRequest,
+    GraphqlContextResponse,
     FunctionFromSourceRequest,
     FunctionFromSourceResponse,
     FunctionModelRequest,
@@ -80,6 +84,9 @@ import {
 import { writeBallerinaFileDidOpen } from "../../utils/modification";
 import { updateSourceCode } from "../../utils/source-utils";
 import { generateExamplePayload } from "../../features/ai/payload-generator/payload_json";
+
+/** The JSON-RPC error code of a request the language server does not implement. */
+const JSON_RPC_METHOD_NOT_FOUND = -32601;
 
 /**
  * The ERROR-severity subset of a save-time validation response. Only these mean the language server
@@ -620,6 +627,51 @@ export class ServiceDesignerRpcManager implements ServiceDesignerAPI {
             return { spec: match?.spec ?? null };
         } catch {
             return { spec: null };
+        }
+    }
+
+    async getGraphqlContext(params: GraphqlContextRequest): Promise<GraphqlContextResponse> {
+        try {
+            return await StateMachine.langClient().getGraphqlContext(params);
+        } catch (error) {
+            // A language server without this request has no request context support; any other failure is a read
+            // that failed, which must not look like a service without a context.
+            const methodNotFound = (error as { code?: number })?.code === JSON_RPC_METHOD_NOT_FOUND;
+            return {
+                supported: !methodNotFound,
+                configured: false,
+                signatureValid: false,
+                candidates: [],
+                entries: [],
+                editable: false,
+                errorMsg: error instanceof Error ? error.message : String(error)
+            };
+        }
+    }
+
+    /**
+     * Applies the edits of a request context change. A refused change (an error message, or no edits) changes
+     * nothing and reports why, so the panel can show it instead of failing silently.
+     */
+    async applyGraphqlContext(params: ApplyGraphqlContextRequest): Promise<GraphqlContextEditResponse> {
+        const descriptions: Record<ApplyGraphqlContextRequest["action"], string> = {
+            create: "Create request context",
+            use: "Set request context",
+            remove: "Remove request context",
+            setEntries: "Update request context values",
+        };
+        try {
+            const res = await StateMachine.langClient().applyGraphqlContext(params);
+            if (res?.errorMsg) {
+                return { errorMsg: res.errorMsg };
+            }
+            const hasEdits = Object.values(res?.textEdits ?? {}).some((edits) => edits.length > 0);
+            if (hasEdits) {
+                await updateSourceCode({ textEdits: res.textEdits, description: descriptions[params.action] });
+            }
+            return res?.note ? { note: res.note } : {};
+        } catch (error) {
+            return { errorMsg: error instanceof Error ? error.message : String(error) };
         }
     }
 }

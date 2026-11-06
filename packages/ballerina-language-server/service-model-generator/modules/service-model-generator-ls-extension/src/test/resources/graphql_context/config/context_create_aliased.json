@@ -1,0 +1,10 @@
+{
+  "description": "Uses the service file's import alias in the annotation, and names the function from the base path",
+  "project": "graphql_aliased",
+  "api": "applyGraphqlContext",
+  "request": {
+    "action": "create"
+  },
+  "expected": "context_create_aliased",
+  "file": "main.bal"
+}

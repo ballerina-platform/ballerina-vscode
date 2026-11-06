@@ -1,0 +1,68 @@
+{
+  "description": "Reads every value source back as the entry it was written from",
+  "project": "graphql_context_all",
+  "api": "getGraphqlContext",
+  "expectedResponse": {
+    "supported": true,
+    "configured": true,
+    "functionName": "graphqlContextInit",
+    "expression": "graphqlContextInit",
+    "signatureValid": true,
+    "candidates": [
+      "graphqlContextInit"
+    ],
+    "entries": [
+      {
+        "key": "scope",
+        "source": "header",
+        "value": "scope",
+        "required": true
+      },
+      {
+        "key": "tenant",
+        "source": "header",
+        "value": "x-tenant",
+        "required": false
+      },
+      {
+        "key": "page",
+        "source": "query",
+        "value": "page",
+        "required": true
+      },
+      {
+        "key": "lang",
+        "source": "query",
+        "value": "lang",
+        "required": false
+      },
+      {
+        "key": "env",
+        "source": "value",
+        "value": "prod \"blue\"",
+        "required": false
+      },
+      {
+        "key": "path",
+        "source": "expression",
+        "value": "request.rawPath",
+        "required": false
+      }
+    ],
+    "editable": true,
+    "notEditableReason": null,
+    "functionFile": "functions.bal",
+    "valueScope": {
+      "fileName": "functions.bal",
+      "startLine": {
+        "line": 11,
+        "offset": 4
+      },
+      "endLine": {
+        "line": 11,
+        "offset": 4
+      }
+    }
+  },
+  "file": "main.bal"
+}

@@ -65,7 +65,11 @@ import {
     ValidatePropertyRequest,
     getOASSpec,
     listOpenApiEndpoints,
-    validateProperty
+    validateProperty,
+    getGraphqlContext,
+    applyGraphqlContext,
+    GraphqlContextRequest,
+    ApplyGraphqlContextRequest
 } from "@wso2/ballerina-core";
 import { Messenger } from "vscode-messenger";
 import { ServiceDesignerRpcManager } from "./rpc-manager";
@@ -99,4 +103,6 @@ export function registerServiceDesignerRpcHandlers(messenger: Messenger) {
     messenger.onRequest(getOASSpec, (args: GetOASSpecRequest) => rpcManger.getOASSpec(args));
     messenger.onRequest(listOpenApiEndpoints, (args: OpenApiEndpointsRequest) => rpcManger.listOpenApiEndpoints(args));
     messenger.onRequest(validateProperty, (args: ValidatePropertyRequest) => rpcManger.validateProperty(args));
+    messenger.onRequest(getGraphqlContext, (args: GraphqlContextRequest) => rpcManger.getGraphqlContext(args));
+    messenger.onRequest(applyGraphqlContext, (args: ApplyGraphqlContextRequest) => rpcManger.applyGraphqlContext(args));
 }
