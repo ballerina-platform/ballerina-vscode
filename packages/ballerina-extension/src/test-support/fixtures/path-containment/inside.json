@@ -1,0 +1,7 @@
+{
+    "description": "a file under the project path, spelled the same way, is inside",
+    "tree": ["graphqlintegration/schema.graphql"],
+    "projectPath": "graphqlintegration",
+    "filePath": "graphqlintegration/schema.graphql",
+    "expectedInside": true
+}

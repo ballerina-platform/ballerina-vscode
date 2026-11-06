@@ -55,7 +55,6 @@ import {
     SetWebviewCacheRequestParam,
     ShowInfoModalRequest,
     ShowQuickPickRequest,
-    isPathInside,
 } from "@wso2/ballerina-core";
 import child_process from 'child_process';
 import path from "path";
@@ -88,8 +87,10 @@ import {
     getUpdatedSource,
     handleDownloadFile,
     handlePublishDescriptionSetup,
+    isPathInsideProject,
     nextAvailablePath,
     openPublishDescriptionInEditor,
+    projectRelativePath,
     resolveIntegrationRoot,
     selectSampleDownloadPath,
     toIntegrationRelative
@@ -228,7 +229,7 @@ export class CommonRpcManager implements CommonRPCAPI {
                 } else {
                     const filePath = selectedFile[0].fsPath;
                     const projectPath = StateMachine.context().projectPath;
-                    if (!params.allowOutsideProject && projectPath && !isPathInside(projectPath, filePath)) {
+                    if (!params.allowOutsideProject && projectPath && !isPathInsideProject(projectPath, filePath)) {
                         const resp = await window.showErrorMessage('The selected file is not within your project. Do you want to move it inside the project?', { modal: true }, 'Yes');
                         if (resp === 'Yes') {
                             // Move the file inside the project
@@ -279,8 +280,9 @@ export class CommonRpcManager implements CommonRPCAPI {
         if (!root) {
             return { path: picked, absolutePath: picked };
         }
-        if (isPathInside(root, picked)) {
-            return { path: toIntegrationRelative(root, picked), absolutePath: picked };
+        const relativePath = projectRelativePath(root, picked);
+        if (relativePath) {
+            return { path: relativePath, absolutePath: picked };
         }
 
         const dest = await copyIntoIntegration(root, picked, params.targetDir ?? "libs");
