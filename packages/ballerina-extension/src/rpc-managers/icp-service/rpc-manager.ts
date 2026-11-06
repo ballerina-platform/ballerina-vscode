@@ -32,7 +32,7 @@ import { parse, stringify } from "@iarna/toml";
 import { getProjectHandle, getStoredICPSecret } from "../../features/icp/setup";
 import { ensureICPServerRunning, isICPServerRunning, getICPUrl } from "../../features/icp";
 import { isICPSupported } from "../../utils/config";
-import { detectEol } from "../../features/ai/utils/eol-utils";
+import { detectEol, EolSequence, restoreEol } from "../../features/ai/utils/eol-utils";
 
 const ICP_IMPORTS = [
     'import wso2/icp.runtime.bridge as _;',
@@ -214,10 +214,12 @@ function removeICPBuildOptions(projectPath: string): void {
 async function addICPConfigToml(projectPath: string): Promise<void> {
     const configPath = path.join(projectPath, 'Config.toml');
     let config: Record<string, any> = {};
+    let eol: EolSequence = '\n';
 
     if (fs.existsSync(configPath)) {
         try {
             const content = fs.readFileSync(configPath, 'utf-8');
+            eol = detectEol(content);
             config = parse(content) as Record<string, any>;
         } catch (error) {
             console.error('[ICP] Error reading Config.toml:', error);
@@ -242,7 +244,7 @@ async function addICPConfigToml(projectPath: string): Promise<void> {
         ...(storedSecret ? { secret: storedSecret } : {}),
     };
 
-    fs.writeFileSync(configPath, stringify(config), 'utf-8');
+    fs.writeFileSync(configPath, restoreEol(stringify(config), eol), 'utf-8');
 }
 
 function removeICPConfigToml(projectPath: string): void {
@@ -266,7 +268,7 @@ function removeICPConfigToml(projectPath: string): void {
             if (Object.keys(config.wso2).length === 0) { delete config.wso2; }
         }
 
-        fs.writeFileSync(configPath, stringify(config), 'utf-8');
+        fs.writeFileSync(configPath, restoreEol(stringify(config), detectEol(content)), 'utf-8');
     } catch (error) {
         console.error('[ICP] Error removing ICP config from Config.toml:', error);
     }
