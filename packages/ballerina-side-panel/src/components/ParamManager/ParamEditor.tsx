@@ -23,6 +23,7 @@ import { EditorContainer } from './styles';
 import { Parameter } from './ParamManager';
 import Form from '../Form';
 import { FormField, FormValues, HelperpaneOnChangeOptions } from '../Form/types';
+import { withPreservedGraphqlId } from './graphqlId';
 import { useFormContext } from '../../context';
 import { InputType, RecordTypeField, TextEdit } from '@wso2/ballerina-core';
 import { HelperPaneHeight } from '@wso2/ui-toolkit';
@@ -105,7 +106,7 @@ export function ParamEditor(props: ParamProps) {
     }, [paramFields]);
 
     const handleOnSave = async (data: FormValues) => {
-        parameter.formValues = data;
+        parameter.formValues = withPreservedGraphqlId(data, parameter.formValues);
         setIsSaving(true);
         try {
             await onSave(parameter);
