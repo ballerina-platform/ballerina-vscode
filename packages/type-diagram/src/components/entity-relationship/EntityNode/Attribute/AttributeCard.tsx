@@ -77,6 +77,15 @@ export function AttributeWidget(props: AttributeProps) {
         onFunctionOpen(node.entityObject, openableFunction);
     };
 
+    const onKeyDownOnName = (event: React.KeyboardEvent) => {
+        if (event.key !== 'Enter' && event.key !== ' ') {
+            return;
+        }
+        // Space would otherwise scroll the canvas.
+        event.preventDefault();
+        onFunctionOpen(node.entityObject, openableFunction);
+    };
+
     return (
         <CtrlClickGo2Source node={node.entityObject}>
             <AttributeContainer
@@ -91,6 +100,12 @@ export function AttributeWidget(props: AttributeProps) {
                 <AttributeName
                     isClickable={!!openableFunction}
                     onClick={openableFunction ? onClickOnName : undefined}
+                    {...(openableFunction && {
+                        role: 'button',
+                        tabIndex: 0,
+                        'aria-label': `Open ${attribute.name}`,
+                        onKeyDown: onKeyDownOnName,
+                    })}
                 >
                     {attribute.name}
                 </AttributeName>

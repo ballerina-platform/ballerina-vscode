@@ -97,6 +97,23 @@ describe("Type diagram class method links", () => {
         expect(onFunctionOpen).not.toHaveBeenCalled();
     }, 15000);
 
+    test("exposes every link as a focusable button that opens on Enter and Space", async () => {
+        const onFunctionOpen = jest.fn();
+        renderDiagram(onFunctionOpen);
+
+        for (const func of OPENABLE) {
+            const link = await screen.findByRole("button", { name: `Open ${func.name}` });
+            expect(link).toHaveAttribute("tabindex", "0");
+            fireEvent.keyDown(link, { key: "Enter" });
+            fireEvent.keyDown(link, { key: " " });
+            fireEvent.keyDown(link, { key: "a" });
+        }
+        expect(onFunctionOpen).toHaveBeenCalledTimes(OPENABLE.length * 2);
+        for (const name of [...RESOURCES.map((func) => func.name), ...recordFieldNames]) {
+            expect(screen.queryByRole("button", { name: `Open ${name}` })).toBeNull();
+        }
+    }, 15000);
+
     test("keeps Ctrl/Cmd+click going to source", async () => {
         const onFunctionOpen = jest.fn();
         const { goToSource } = renderDiagram(onFunctionOpen);
