@@ -404,9 +404,7 @@ public final class LibraryMetadataReader {
 
     private Optional<Path> resolvePackageRoot(ModuleInfo moduleInfo) {
         try {
-            Optional<Package> pkg = PackageUtil.getModulePackageOffline(
-                    moduleInfo.org(), moduleInfo.moduleName(), moduleInfo.version());
-            return pkg.map(aPackage -> aPackage.project().sourceRoot());
+            return PackageUtil.getModuleBalaOffline(moduleInfo.org(), moduleInfo.moduleName(), moduleInfo.version());
         } catch (Throwable e) {
             return Optional.empty();
         }
