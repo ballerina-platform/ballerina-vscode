@@ -21,6 +21,7 @@ import { DiscoverToolsModal } from "./Mcp/DiscoverToolsModal";
 import { RequiresAuthCheckbox } from "./Mcp/RequiresAuthCheckbox";
 import { attemptValueResolution, createMockTools, extractOriginalValues, generateToolKitName } from "./Mcp/utils";
 import { mcpServerVariableName } from "./Mcp/serverName";
+import { readHttpConfigAuth, writeHttpConfigAuth } from "./Mcp/httpConfigAuth";
 import { cleanServerUrl } from "./formUtils";
 import { Container, LoaderContainer } from "./styles";
 import { extractAccessToken, getEndOfFileLineRange, refreshAgentNodeLineRange, removeQuotes, resolveAgentNodePosition, resolveVariableValue, resolveAuthConfig, checkAiPackageVersionSupport } from "./utils";
@@ -65,10 +66,16 @@ interface McpServerInfo {
 const MCP_PROTOCOL_KEY = "mcpProtocol";
 const MCP_PROTOCOL_V1 = "v1";
 const MCP_PROTOCOL_V2 = "v2";
+// An mcp.v2 toolkit takes its auth inside this field; the form shows it as the auth field too
+const HTTP_CONFIG_FIELD_KEY = "httpConfig";
 
 // Delegates to the shared removeQuotes so `"url"` and string `url` compare equal.
 const normalizeExpressionValue = (value: unknown): string =>
     typeof value === "string" ? removeQuotes(value) : "";
+
+// Compares expressions regardless of their whitespace.
+const compactExpression = (value: unknown): string =>
+    typeof value === "string" ? value.replace(/\s+/g, "") : "";
 
 const uniqueName = (base: string, reserved: Set<string>): string => {
     if (!reserved.has(base)) return base;
@@ -121,6 +128,17 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
     const [mcpToolsError, setMcpToolsError] = useState<string>("");
     const [toolScopes, setToolScopes] = useState<ToolScopes>({});
     const [includeContext, setIncludeContext] = useState(false);
+
+    // An mcp.v2 toolkit takes its auth inside httpConfig. The auth field and the auth entry of httpConfig are kept
+    // in step, using the last value each side was synced from to tell which side the user changed.
+    const [mcpV2, setMcpV2] = useState(false);
+    const mcpV2Ref = useRef(false);
+    // The httpConfig value when it is not a mapping constructor, such as a variable, whose auth cannot be synced
+    const [httpConfigExpression, setHttpConfigExpression] = useState<string | undefined>();
+    const authValueRef = useRef<string | undefined>();
+    const httpConfigValueRef = useRef<string | undefined>();
+    const lastSyncedAuthRef = useRef<string | undefined>();
+    const lastSyncedHttpConfigRef = useRef<{ value: string | undefined } | null>(null);
 
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [isSaving, setIsSaving] = useState<boolean>(false);
@@ -225,6 +243,8 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
         setShowScopes(scopesSupported);
 
         mcpToolKitNodeTemplateRef.current = template;
+        mcpV2Ref.current = template?.codedata?.data?.[MCP_PROTOCOL_KEY] === MCP_PROTOCOL_V2;
+        setMcpV2(mcpV2Ref.current);
 
         if (editMode) {
             await setupEditMode(existingMcpToolKit);
@@ -504,7 +524,16 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
             const node = mcpToolKitNodeRef.current;
             if (!node) return;
 
-            const { serverUrl: savedUrl, auth: savedAuth, permittedTools, requiresAuth: savedRequiresAuth, toolScopes: savedToolScopes } = extractOriginalValues(node);
+            const originalValues = extractOriginalValues(node);
+            const { serverUrl: savedUrl, permittedTools, toolScopes: savedToolScopes } = originalValues;
+            let { auth: savedAuth, requiresAuth: savedRequiresAuth } = originalValues;
+            if (mcpV2Ref.current) {
+                // The saved auth of an mcp.v2 toolkit is in its httpConfig
+                const savedHttpConfigAuth = readHttpConfigAuth(
+                    (node.properties as Record<string, { value?: unknown }>)?.[HTTP_CONFIG_FIELD_KEY]?.value as string);
+                savedAuth = savedHttpConfigAuth.kind === "record" ? savedHttpConfigAuth.auth : "";
+                savedRequiresAuth = savedAuth !== "";
+            }
 
             lastProcessedValuesRef.current = { serverUrl: savedUrl, auth: savedAuth };
 
@@ -688,6 +717,20 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
                 delete (node.properties as any)[INCLUDE_CONTEXT_PROPERTY];
             }
 
+            if (mcpV2) {
+                // The generated code takes auth inside httpConfig; the language server leaves out the auth field
+                const properties = node.properties as Record<string, { value?: unknown }>;
+                const httpConfigProperty = properties[HTTP_CONFIG_FIELD_KEY];
+                const authValue = properties[AUTH_FIELD_KEY]?.value;
+                if (httpConfigProperty) {
+                    const merged = writeHttpConfigAuth(httpConfigProperty.value as string,
+                        requiresAuth && typeof authValue === "string" ? authValue : "");
+                    if (merged !== undefined) {
+                        httpConfigProperty.value = merged;
+                    }
+                }
+            }
+
             let targetAgentNode: FlowNode | undefined;
             if (agentDefinition) {
                 await rpcClient.getBIDiagramRpcClient().saveClassMember({
@@ -771,6 +814,10 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
                     <RequiresAuthCheckbox
                         checked={requiresAuth}
                         onChange={() => setRequiresAuth(prev => !prev)}
+                        {...(mcpV2 && requiresAuth && httpConfigExpression !== undefined && {
+                            description: `Authentication is set inside the HTTP configuration ` +
+                                `\`${httpConfigExpression.trim()}\`. Change it there.`
+                        })}
                     />
                 ),
                 index: 1
@@ -813,12 +860,14 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
                 index: 0,
                 advanced: true,
             }];
-    }, [availableMcpTools, selectedMcpTools, loadingMcpTools, mcpToolsError, serverUrl, handleToolSelectionChange, handleSelectAllTools, isSaveDisabled, requiresAuth, toolsInclude, editMode, toolSource, resolutionError, handleRetryFetch, toolScopes, handleToolScopesChange, showScopes, includeContext]);
+    }, [availableMcpTools, selectedMcpTools, loadingMcpTools, mcpToolsError, serverUrl, handleToolSelectionChange, handleSelectAllTools, isSaveDisabled, requiresAuth, toolsInclude, editMode, toolSource, resolutionError, handleRetryFetch, toolScopes, handleToolScopesChange, showScopes, includeContext, mcpV2, httpConfigExpression]);
 
     const fieldOverrides = useMemo(() => ({
         auth: {
             advanced: false,
-            hidden: !requiresAuth
+            hidden: !requiresAuth,
+            // The auth inside a variable httpConfig cannot be changed from the form
+            ...(mcpV2 && httpConfigExpression !== undefined && { editable: false })
         },
         toolKitName: {
             advanced: true,
@@ -827,7 +876,61 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
         variable: {
             editable: !editMode,
         }
-    }), [requiresAuth, editMode]);
+    }), [requiresAuth, editMode, mcpV2, httpConfigExpression]);
+
+    // Keeps the auth field and the auth entry of httpConfig in step for an mcp.v2 toolkit. Both run on every form
+    // change, so each acts only when its own source changed since it last ran. Auth is applied first, so a change
+    // made in httpConfig is not overwritten by the auth field's earlier value.
+    const httpConfigAuthDerivations = useMemo(() => !mcpV2 ? [] : [
+        {
+            sourceField: AUTH_FIELD_KEY,
+            targetField: HTTP_CONFIG_FIELD_KEY,
+            breakOnManualEdit: false,
+            deriveFn: (authValue: unknown) => {
+                const current = httpConfigValueRef.current;
+                const desired = requiresAuth && typeof authValue === "string" ? authValue.trim() : "";
+                const previous = lastSyncedAuthRef.current;
+                lastSyncedAuthRef.current = desired;
+                const changed = previous === undefined
+                    ? desired !== ""
+                    : compactExpression(previous) !== compactExpression(desired);
+                const currentAuth = readHttpConfigAuth(current);
+                if (!changed || currentAuth.kind !== "record"
+                    || compactExpression(currentAuth.auth) === compactExpression(desired)) {
+                    return current;
+                }
+                const updated = writeHttpConfigAuth(current, desired) ?? current;
+                httpConfigValueRef.current = updated;
+                return updated;
+            }
+        },
+        {
+            sourceField: HTTP_CONFIG_FIELD_KEY,
+            targetField: AUTH_FIELD_KEY,
+            breakOnManualEdit: false,
+            deriveFn: (httpConfigValue: unknown) => {
+                const value = typeof httpConfigValue === "string" ? httpConfigValue : undefined;
+                const currentAuth = authValueRef.current;
+                const previous = lastSyncedHttpConfigRef.current;
+                lastSyncedHttpConfigRef.current = { value };
+                const httpConfigAuth = readHttpConfigAuth(value);
+                setHttpConfigExpression(httpConfigAuth.kind === "expression" ? value : undefined);
+                if ((previous && previous.value === value) || httpConfigAuth.kind !== "record"
+                    || compactExpression(httpConfigAuth.auth) === compactExpression(currentAuth)
+                    // On first load, an httpConfig without auth leaves an auth value already given, such as one
+                    // from an Agent Manager binding, to be written into httpConfig
+                    || (!previous && httpConfigAuth.auth === "")) {
+                    return currentAuth;
+                }
+                lastSyncedAuthRef.current = httpConfigAuth.auth;
+                authValueRef.current = httpConfigAuth.auth;
+                if (httpConfigAuth.auth !== "") {
+                    setRequiresAuth(true);
+                }
+                return httpConfigAuth.auth;
+            }
+        }
+    ], [mcpV2, requiresAuth]);
 
     const form = mcpToolKitNodeTemplateRef && (
         <FlowNodeForm
@@ -841,6 +944,11 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
             onSubmit={handleSave}
             onChange={(fieldKey, value) => {
                 const processed = lastProcessedValuesRef.current;
+                if (fieldKey === AUTH_FIELD_KEY) {
+                    authValueRef.current = value;
+                } else if (fieldKey === HTTP_CONFIG_FIELD_KEY) {
+                    httpConfigValueRef.current = value;
+                }
                 if (fieldKey === RESULT_FIELD_KEY) {
                     if (value && value !== autoNameRef.current && value !== defaultNameRef.current) {
                         nameEditedRef.current = true;
@@ -868,6 +976,7 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
                     }
                 }
             }}
+            derivedFields={httpConfigAuthDerivations}
             showProgressIndicator={isSaving}
             disableSaveButton={isSaveDisabled}
             injectedComponents={injectedComponents}
