@@ -84,7 +84,8 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public class Type {
 
-    private static final Map<String, VisitedType> visitedTypeMap = new HashMap<>();
+    // Per thread, since concurrent requests convert types and each conversion clears the map when it ends.
+    private static final ThreadLocal<Map<String, VisitedType>> visitedTypeMap = ThreadLocal.withInitial(HashMap::new);
 
     @Expose
     public String name;
@@ -147,7 +148,7 @@ public class Type {
     }
 
     public static void clearVisitedTypeMap() {
-        visitedTypeMap.clear();
+        visitedTypeMap.get().clear();
     }
 
     public static Optional<Type> fromSyntaxNode(Node node, SemanticModel semanticModel) {
@@ -296,14 +297,14 @@ public class Type {
     }
 
     public static VisitedType getVisitedType(String typeName) {
-        if (visitedTypeMap.containsKey(typeName)) {
-            return visitedTypeMap.get(typeName);
+        if (visitedTypeMap.get().containsKey(typeName)) {
+            return visitedTypeMap.get().get(typeName);
         }
         return null;
     }
 
     public static void completeVisitedTypeEntry(String typeName, Type typeNode) {
-        VisitedType visitedType = visitedTypeMap.get(typeName);
+        VisitedType visitedType = visitedTypeMap.get().get(typeName);
         visitedType.setCompleted(true);
         visitedType.setTypeNode(typeNode);
     }
@@ -313,11 +314,16 @@ public class Type {
     }
 
     public static Type fromSemanticSymbol(Symbol symbol, SemanticModel semanticModel) {
-        return fromSemanticSymbol(symbol, new HashMap<>(), semanticModel, null);
+        return fromSemanticSymbol(symbol, semanticModel, null);
     }
 
     public static Type fromSemanticSymbol(Symbol symbol, SemanticModel semanticModel, String packageName) {
-        return fromSemanticSymbol(symbol, new HashMap<>(), semanticModel, packageName);
+        // The visited map only guards recursion within one traversal; callers mutate the nodes it holds.
+        try {
+            return fromSemanticSymbol(symbol, new HashMap<>(), semanticModel, packageName);
+        } finally {
+            clearVisitedTypeMap();
+        }
     }
 
 
@@ -335,7 +341,7 @@ public class Type {
                 if (typeName.contains("record {")) {
                     type = getRecordType(recordTypeSymbol, documentationMap, semanticModel, packageName);
                 } else {
-                    visitedTypeMap.put(typeName, new VisitedType());
+                    visitedTypeMap.get().put(typeName, new VisitedType());
                     type = getRecordType(recordTypeSymbol, documentationMap, semanticModel, packageName);
                     completeVisitedTypeEntry(typeName, type);
                 }
@@ -361,7 +367,7 @@ public class Type {
             if (visitedType != null) {
                 return getAlreadyVisitedType(symbol, typeName, visitedType, true);
             } else {
-                visitedTypeMap.put(typeName, new VisitedType());
+                visitedTypeMap.get().put(typeName, new VisitedType());
                 type = getUnionType(unionSymbol, documentationMap, semanticModel, packageName);
                 completeVisitedTypeEntry(typeName, type);
             }
@@ -378,7 +384,7 @@ public class Type {
             if (visitedType != null) {
                 return getAlreadyVisitedType(symbol, typeName, visitedType, false);
             } else {
-                visitedTypeMap.put(typeName, new VisitedType());
+                visitedTypeMap.get().put(typeName, new VisitedType());
                 type = getIntersectionType(intersectionTypeSymbol, documentationMap, semanticModel, packageName);
                 completeVisitedTypeEntry(typeName, type);
             }

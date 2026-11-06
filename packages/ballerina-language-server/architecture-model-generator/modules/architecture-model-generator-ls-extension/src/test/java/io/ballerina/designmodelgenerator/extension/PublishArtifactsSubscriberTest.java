@@ -22,6 +22,7 @@ import io.ballerina.artifactsgenerator.Artifact;
 import io.ballerina.artifactsgenerator.ArtifactGenerationDebouncer;
 import io.ballerina.artifactsgenerator.ArtifactsCache;
 import io.ballerina.designmodelgenerator.extension.request.ArtifactsRequest;
+import io.ballerina.designmodelgenerator.extension.request.FlushArtifactsRequest;
 import io.ballerina.designmodelgenerator.extension.response.ArtifactsParams;
 import io.ballerina.modelgenerator.commons.AbstractLSTest;
 import org.ballerinalang.langserver.LSContextOperation;
@@ -41,6 +42,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
@@ -50,7 +52,10 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Test cases for publishing artifacts.
@@ -268,6 +273,122 @@ public class PublishArtifactsSubscriberTest extends AbstractLSTest {
     }
 
     @Test
+    public void testImmediateTaskReleasesItsKey() throws Exception {
+        ArtifactGenerationDebouncer debouncer = ArtifactGenerationDebouncer.getInstance();
+        for (int i = 0; i < 2000; i++) {
+            String key = "immediate-task-" + i;
+            debouncer.debounce(key, () -> { }, 0);
+            waitForDebouncerCompletion(key, 1);
+        }
+    }
+
+    @Test
+    public void testFlushArtifactsRunsOnlyTheEditedPackages() throws Exception {
+        String packagePath = getSourcePath("new");
+        String edited = Path.of(packagePath, "main.bal").toAbsolutePath().normalize().toUri().toString();
+        String samePackage = Path.of(packagePath, "functions.bal").toAbsolutePath().normalize().toUri().toString();
+        String otherPackage = Files.createTempFile("other_package", ".bal").toUri().toString();
+        Set<String> ran = ConcurrentHashMap.newKeySet();
+        ArtifactGenerationDebouncer debouncer = ArtifactGenerationDebouncer.getInstance();
+        for (String key : List.of(edited, samePackage, otherPackage)) {
+            debouncer.debounce(key, () -> ran.add(key), 60_000);
+        }
+
+        serviceEndpoint.request("designModelService/flushArtifacts", new FlushArtifactsRequest(List.of(edited))).get();
+        waitForFlushedTasks();
+        Assert.assertEquals(ran, Set.of(edited, samePackage));
+
+        debouncer.flushAll();
+        waitForDebouncerCompletion(otherPackage, 10);
+        Assert.assertTrue(ran.contains(otherPackage));
+    }
+
+    @Test(dataProvider = "package-files")
+    public void testFlushArtifactsResolvesAnyPackageFileToItsPackage(String relativePath) throws Exception {
+        String packagePath = getSourcePath("new");
+        String pending = Path.of(packagePath, "types.bal").toAbsolutePath().normalize().toUri().toString();
+        String touched = Path.of(packagePath, relativePath).toAbsolutePath().normalize().toUri().toString();
+        String otherPackage = Files.createTempFile("other_package", ".bal").toUri().toString();
+        Set<String> ran = ConcurrentHashMap.newKeySet();
+        ArtifactGenerationDebouncer debouncer = ArtifactGenerationDebouncer.getInstance();
+        for (String key : List.of(pending, otherPackage)) {
+            debouncer.debounce(key, () -> ran.add(key), 60_000);
+        }
+
+        serviceEndpoint.request("designModelService/flushArtifacts", new FlushArtifactsRequest(List.of(touched))).get();
+        waitForFlushedTasks();
+        Assert.assertEquals(ran, Set.of(pending), "Wrong updates flushed for " + relativePath);
+
+        debouncer.flushAll();
+        waitForDebouncerCompletion(otherPackage, 10);
+    }
+
+    @Test(dataProvider = "files-outside-packages")
+    public void testFlushArtifactsIgnoresFilesOutsideAnyPackage(String uri) throws Exception {
+        String pending = Path.of(getSourcePath("new"), "types.bal").toAbsolutePath().normalize().toUri().toString();
+        Set<String> ran = ConcurrentHashMap.newKeySet();
+        ArtifactGenerationDebouncer debouncer = ArtifactGenerationDebouncer.getInstance();
+        debouncer.debounce(pending, () -> ran.add(pending), 60_000);
+
+        serviceEndpoint.request("designModelService/flushArtifacts", new FlushArtifactsRequest(List.of(uri))).get();
+        waitForFlushedTasks();
+        Assert.assertTrue(ran.isEmpty(), "A file outside any package flushed another package: " + uri);
+
+        debouncer.flushAll();
+        waitForDebouncerCompletion(pending, 10);
+    }
+
+    @DataProvider(name = "files-outside-packages")
+    public Object[][] filesOutsidePackages() {
+        Path missing = Path.of(System.getProperty("java.io.tmpdir"), "no-such-package", "main.bal");
+        return new Object[][]{{missing.toUri().toString()}, {"untitled:Untitled-1"}};
+    }
+
+    @Test
+    public void testNewerDebounceCancelsAFlushedTask() throws Exception {
+        ArtifactGenerationDebouncer debouncer = ArtifactGenerationDebouncer.getInstance();
+        CountDownLatch release = new CountDownLatch(1);
+        // Holds the debouncer's thread, so the flushed task is still queued when the newer debounce arrives.
+        debouncer.debounce("busy-debouncer", () -> {
+            try {
+                release.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }, 0);
+        AtomicInteger flushedRuns = new AtomicInteger();
+        debouncer.debounce("superseded", flushedRuns::incrementAndGet, 60_000);
+        debouncer.flush("superseded"::equals);
+        debouncer.debounce("superseded", () -> { }, 60_000);
+        release.countDown();
+        waitForFlushedTasks();
+        Assert.assertEquals(flushedRuns.get(), 0, "The flushed task ran after a newer debounce replaced it");
+
+        debouncer.flushAll();
+        waitForDebouncerCompletion("superseded", 10);
+    }
+
+    @Test
+    public void testDidOpenPublishesTheOpenedFile() throws Exception {
+        initializeProject();
+        String fileUri = Path.of(getSourcePath("new"), "main.bal").toAbsolutePath().normalize().toUri().toString();
+        DocumentServiceContext context = ContextBuilder.buildDocumentServiceContext(fileUri,
+                languageServer.getWorkspaceManager(), LSContextOperation.TXT_DID_OPEN,
+                languageServer.getServerContext());
+        ExtendedLanguageClient mockClient = Mockito.mock(ExtendedLanguageClient.class);
+
+        // A file changed on disk while closed reaches the language server only through didOpen.
+        publishArtifactsSubscriber.onEvent(mockClient, context, languageServer.getServerContext());
+        waitForDebouncerCompletion(fileUri);
+        Mockito.verify(mockClient, Mockito.times(1)).publishArtifacts(Mockito.any(ArtifactsParams.class));
+    }
+
+    @DataProvider(name = "package-files")
+    public Object[][] packageFiles() {
+        return new Object[][]{{"Ballerina.toml"}, {"modules/db/persist_types.bal"}, {"."}};
+    }
+
+    @Test
     public void testMultipleDidChangeEventsOnDifferentFiles() throws Exception {
         // Initialize project cache with artifacts
         initializeProject();
@@ -419,7 +540,18 @@ public class PublishArtifactsSubscriberTest extends AbstractLSTest {
         }
     }
 
+    // The debouncer runs tasks one at a time in order, so a task queued now runs after every flushed one.
+    private void waitForFlushedTasks() throws Exception {
+        String marker = "flushed-tasks-done";
+        ArtifactGenerationDebouncer.getInstance().debounce(marker, () -> { }, 0);
+        waitForDebouncerCompletion(marker, 10);
+    }
+
     private void waitForDebouncerCompletion(String key) throws Exception {
+        waitForDebouncerCompletion(key, 100);
+    }
+
+    private void waitForDebouncerCompletion(String key, long pollMillis) throws Exception {
         ArtifactGenerationDebouncer debouncer = ArtifactGenerationDebouncer.getInstance();
         long startTime = System.currentTimeMillis();
         long timeout = 5000; // 5 seconds timeout
@@ -432,7 +564,7 @@ public class PublishArtifactsSubscriberTest extends AbstractLSTest {
             if (map.get(key) == null) {
                 return;
             }
-            Thread.sleep(100);
+            Thread.sleep(pollMillis);
         }
         Assert.fail("Timed out waiting for debouncer to finish processing");
     }
