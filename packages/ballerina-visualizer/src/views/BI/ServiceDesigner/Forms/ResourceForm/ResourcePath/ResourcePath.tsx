@@ -109,14 +109,14 @@ const PATH_PARAM_SEGMENT_REGEX = /^\[[^\]]+\]$/;
  * so a path typed plain matches the same path read back from the source.
  */
 export function normalizeResourcePathId(resourceId: string): string {
-	const parts = resourceId.split('#');
-	if (parts.length > 0) {
-		parts[0] = parts[0].toLowerCase();
-	}
-	if (parts.length > 1) {
-		parts[1] = toDisplayPath(parts[1]);
-	}
-	return parts.join('#');
+	const [method, path] = splitResourcePathId(resourceId);
+	return path === undefined ? method.toLowerCase() : `${method.toLowerCase()}#${toDisplayPath(path)}`;
+}
+
+/** Splits a resource path ID at its first `#`: the path itself may hold a `#` (`orders\#draft`). */
+function splitResourcePathId(resourceId: string): [string, string | undefined] {
+	const separator = resourceId.indexOf('#');
+	return separator === -1 ? [resourceId, undefined] : [resourceId.slice(0, separator), resourceId.slice(separator + 1)];
 }
 
 export function getResourcePathId(method: PropertyModel, path: PropertyModel | string): string {
@@ -147,8 +147,8 @@ function isDuplicateResourcePath(pathID: string, existingPathID: string): boolea
 		return true;
 	}
 
-	const [method, path] = pathID.split('#');
-	const [existingMethod, existingPath] = existingPathID.split('#');
+	const [method, path = ""] = splitResourcePathId(pathID);
+	const [existingMethod, existingPath = ""] = splitResourcePathId(existingPathID);
 	return method === existingMethod && hasSameResourcePathPattern(path, existingPath);
 }
 

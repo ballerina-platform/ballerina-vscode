@@ -24,7 +24,7 @@ import styled from "@emotion/styled";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { debounce } from "lodash";
 import { toSourceIdentifier } from "@wso2/ballerina-core";
-import { buildRequiredRule, fetchIdentifierDiagnostics, getFriendlyIdentifierMessage, getPropertyFromFormField, requiresSourceForm, toEditableName } from "./utils";
+import { buildRequiredRule, fetchIdentifierDiagnostics, getFriendlyIdentifierMessage, getPropertyFromFormField, toEditableName } from "./utils";
 import { buildValidate } from "../Form/validationRules";
 import { FieldTypeChip } from "./FieldTypeChip";
 
@@ -183,9 +183,8 @@ export function IdentifierEditor(props: IdentifierEditorProps) {
                 newName: String(tempValue)
             });
 
-            // The rename wrote the name in source form; keep the form value in step with it
-            const sourceName = requiresSourceForm(nodeInfo?.kind) ? String(tempValue)
-                : toSourceIdentifier(String(tempValue));
+            // The extension host writes every rename through toSourceIdentifier; keep the form value in step with it
+            const sourceName = toSourceIdentifier(String(tempValue));
             setValue(field.key, sourceName);
             field.value = sourceName;
             setIsEditing(false);

@@ -299,6 +299,13 @@ export function ContextTypeCreatorTab(props: ContextTypeCreatorProps) {
     };
 
     const editTypeName = async () => {
+        // The name check is debounced, so a quick click can get here before it runs: check GraphQL's rule again
+        const graphqlError = isGraphql ? getGraphqlNameError(tempName) : undefined;
+        if (graphqlError) {
+            setNameError(graphqlError);
+            setIsTypeNameValid(false);
+            return;
+        }
         saveButtonClicked.current = true;
         if (!tempName || tempName === type.name) {
             cancelEditing();

@@ -148,7 +148,7 @@ export function OperationForm(props: OperationFormProps) {
             documentation: model.name.metadata?.description || '',
             value: model.name.value,
             // GraphQL names allow only letters, digits and underscores
-            types: withGraphqlNameRule(model.name?.types),
+            types: isGraphqlView ? withGraphqlNameRule(model.name?.types) : model.name?.types,
             lineRange: model?.name?.codedata?.lineRange
         });
 
@@ -181,7 +181,8 @@ export function OperationForm(props: OperationFormProps) {
                 value: model.parameters.map((param, index) => convertParameterToParamValue(param, index)),
                 paramManagerProps: {
                     paramValues: model.parameters.map((param, index) => convertParameterToParamValue(param, index)),
-                    formFields: convertSchemaToFormFields(model.schema),
+                    formFields: isGraphqlView ? withGraphqlArgumentNameRule(convertSchemaToFormFields(model.schema))
+                        : convertSchemaToFormFields(model.schema),
                     handleParameter: handleParamChange
                 },
                 types: [{ fieldType: "PARAM_MANAGER", selected: false }]
@@ -279,6 +280,11 @@ export function OperationForm(props: OperationFormProps) {
             )}
         </>
     );
+}
+
+/** Adds the GraphQL name rule to the argument name field (`variable`), so an argument GraphQL cannot serve is rejected. */
+export function withGraphqlArgumentNameRule(fields: FormField[]): FormField[] {
+    return fields.map((field) => field.key === "variable" ? { ...field, types: withGraphqlNameRule(field.types) } : field);
 }
 
 export function convertSchemaToFormFields(schema: ConfigProperties): FormField[] {
