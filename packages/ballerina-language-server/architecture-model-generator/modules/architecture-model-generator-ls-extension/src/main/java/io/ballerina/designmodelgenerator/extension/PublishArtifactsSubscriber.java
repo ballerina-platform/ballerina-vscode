@@ -50,7 +50,6 @@ public class PublishArtifactsSubscriber implements EventSubscriber {
     private static final String AI_URI = "ai";
     private static final String LOAD_PROJECT = "loadProject";
     private static final String RELOAD_PROJECT = "reloadProject";
-    private static final String DID_OPEN = "text/didOpen";
 
     @Override
     public EventKind eventKind() {
@@ -64,9 +63,8 @@ public class PublishArtifactsSubscriber implements EventSubscriber {
         // 1. If the event occurred in the cloned project
         // 2. During the loading of the project
         String operationName = context.operation().getName();
-        // Opening a file does not change its artifacts.
         if (context.fileUri().startsWith(AI_URI) || context.fileUri().startsWith(EXPR_URI)
-                || LOAD_PROJECT.equals(operationName) || DID_OPEN.equals(operationName)) {
+                || LOAD_PROJECT.equals(operationName)) {
             return;
         }
 

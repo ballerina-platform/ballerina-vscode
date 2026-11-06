@@ -47,6 +47,18 @@ public class BalaPackageCacheTest {
     }
 
     @Test
+    public void testRetriesAWarmUpThatResolvesNothing() throws InterruptedException {
+        String key = "ballerina/no_such_package:0.0.1";
+        PackageUtil.prewarm("ballerina", "no_such_package", "0.0.1");
+
+        long deadline = System.currentTimeMillis() + 30_000;
+        while (PackageUtil.PREWARMED.contains(key) && System.currentTimeMillis() < deadline) {
+            Thread.sleep(50);
+        }
+        Assert.assertFalse(PackageUtil.PREWARMED.contains(key), "A failed warm-up must be retried on the next load");
+    }
+
+    @Test
     public void testKeepsAPackageThatCompiles() {
         Package pkg = mockPackage(BALA);
         Mockito.when(pkg.getCompilation()).thenReturn(Mockito.mock(PackageCompilation.class));

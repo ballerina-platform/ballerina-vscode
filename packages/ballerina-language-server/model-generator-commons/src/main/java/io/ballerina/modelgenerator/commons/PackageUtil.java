@@ -222,7 +222,7 @@ public class PackageUtil {
     // A compiled library holds 5-320 MB, so few are kept; an uncompiled one is cheap and saves a reload per render.
     static final BalaPackageCache BALA_PACKAGES = new BalaPackageCache(3, 16, Duration.ofMinutes(10));
 
-    private static final Set<String> PREWARMED = ConcurrentHashMap.newKeySet();
+    static final Set<String> PREWARMED = ConcurrentHashMap.newKeySet();
     private static final String AI_PACKAGE = "ai";
 
     // One load per bala at a time, outside BALA_PACKAGES so a slow load never blocks other balas.
@@ -361,9 +361,17 @@ public class PackageUtil {
      * @param version     The version of the package
      */
     public static void prewarm(String org, String packageName, String version) {
-        if (PREWARMED.add(org + "/" + packageName + ":" + version)) {
-            CompletableFuture.runAsync(() -> resolveModulePackage(org, packageName, version)
-                    .ifPresent(PackageUtil::getCompilation));
+        String key = org + "/" + packageName + ":" + version;
+        if (PREWARMED.add(key)) {
+            CompletableFuture.supplyAsync(() -> resolveModulePackage(org, packageName, version)
+                            .map(PackageUtil::getCompilation))
+                    .whenComplete((compilation, error) -> {
+                        if (error != null || compilation.isEmpty()) {
+                            // A failure may be a passing network problem, so the next project load tries again.
+                            PREWARMED.remove(key);
+                            LOGGER.log(Level.FINE, "Warming up " + key + " failed", error);
+                        }
+                    });
         }
     }
 

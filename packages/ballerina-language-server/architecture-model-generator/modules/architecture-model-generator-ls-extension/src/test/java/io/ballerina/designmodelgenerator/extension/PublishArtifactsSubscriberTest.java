@@ -54,6 +54,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Test cases for publishing artifacts.
@@ -293,8 +295,7 @@ public class PublishArtifactsSubscriberTest extends AbstractLSTest {
         }
 
         serviceEndpoint.request("designModelService/flushArtifacts", new FlushArtifactsRequest(List.of(edited))).get();
-        waitForDebouncerCompletion(edited, 10);
-        waitForDebouncerCompletion(samePackage, 10);
+        waitForFlushedTasks();
         Assert.assertEquals(ran, Set.of(edited, samePackage));
 
         debouncer.flushAll();
@@ -315,11 +316,71 @@ public class PublishArtifactsSubscriberTest extends AbstractLSTest {
         }
 
         serviceEndpoint.request("designModelService/flushArtifacts", new FlushArtifactsRequest(List.of(touched))).get();
-        waitForDebouncerCompletion(pending, 10);
+        waitForFlushedTasks();
         Assert.assertEquals(ran, Set.of(pending), "Wrong updates flushed for " + relativePath);
 
         debouncer.flushAll();
         waitForDebouncerCompletion(otherPackage, 10);
+    }
+
+    @Test(dataProvider = "files-outside-packages")
+    public void testFlushArtifactsIgnoresFilesOutsideAnyPackage(String uri) throws Exception {
+        String pending = Path.of(getSourcePath("new"), "types.bal").toAbsolutePath().normalize().toUri().toString();
+        Set<String> ran = ConcurrentHashMap.newKeySet();
+        ArtifactGenerationDebouncer debouncer = ArtifactGenerationDebouncer.getInstance();
+        debouncer.debounce(pending, () -> ran.add(pending), 60_000);
+
+        serviceEndpoint.request("designModelService/flushArtifacts", new FlushArtifactsRequest(List.of(uri))).get();
+        waitForFlushedTasks();
+        Assert.assertTrue(ran.isEmpty(), "A file outside any package flushed another package: " + uri);
+
+        debouncer.flushAll();
+        waitForDebouncerCompletion(pending, 10);
+    }
+
+    @DataProvider(name = "files-outside-packages")
+    public Object[][] filesOutsidePackages() {
+        Path missing = Path.of(System.getProperty("java.io.tmpdir"), "no-such-package", "main.bal");
+        return new Object[][]{{missing.toUri().toString()}, {"untitled:Untitled-1"}};
+    }
+
+    @Test
+    public void testNewerDebounceCancelsAFlushedTask() throws Exception {
+        ArtifactGenerationDebouncer debouncer = ArtifactGenerationDebouncer.getInstance();
+        CountDownLatch release = new CountDownLatch(1);
+        // Holds the debouncer's thread, so the flushed task is still queued when the newer debounce arrives.
+        debouncer.debounce("busy-debouncer", () -> {
+            try {
+                release.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }, 0);
+        AtomicInteger flushedRuns = new AtomicInteger();
+        debouncer.debounce("superseded", flushedRuns::incrementAndGet, 60_000);
+        debouncer.flush("superseded"::equals);
+        debouncer.debounce("superseded", () -> { }, 60_000);
+        release.countDown();
+        waitForFlushedTasks();
+        Assert.assertEquals(flushedRuns.get(), 0, "The flushed task ran after a newer debounce replaced it");
+
+        debouncer.flushAll();
+        waitForDebouncerCompletion("superseded", 10);
+    }
+
+    @Test
+    public void testDidOpenPublishesTheOpenedFile() throws Exception {
+        initializeProject();
+        String fileUri = Path.of(getSourcePath("new"), "main.bal").toAbsolutePath().normalize().toUri().toString();
+        DocumentServiceContext context = ContextBuilder.buildDocumentServiceContext(fileUri,
+                languageServer.getWorkspaceManager(), LSContextOperation.TXT_DID_OPEN,
+                languageServer.getServerContext());
+        ExtendedLanguageClient mockClient = Mockito.mock(ExtendedLanguageClient.class);
+
+        // A file changed on disk while closed reaches the language server only through didOpen.
+        publishArtifactsSubscriber.onEvent(mockClient, context, languageServer.getServerContext());
+        waitForDebouncerCompletion(fileUri);
+        Mockito.verify(mockClient, Mockito.times(1)).publishArtifacts(Mockito.any(ArtifactsParams.class));
     }
 
     @DataProvider(name = "package-files")
@@ -477,6 +538,13 @@ public class PublishArtifactsSubscriberTest extends AbstractLSTest {
             compareJsonElements(gson.toJsonTree(publishedArtifacts), gson.toJsonTree(expectedArtifacts));
             Assert.fail(String.format("Failed test: '%s' (%s)", testConfig.source(), configJsonPath));
         }
+    }
+
+    // The debouncer runs tasks one at a time in order, so a task queued now runs after every flushed one.
+    private void waitForFlushedTasks() throws Exception {
+        String marker = "flushed-tasks-done";
+        ArtifactGenerationDebouncer.getInstance().debounce(marker, () -> { }, 0);
+        waitForDebouncerCompletion(marker, 10);
     }
 
     private void waitForDebouncerCompletion(String key) throws Exception {

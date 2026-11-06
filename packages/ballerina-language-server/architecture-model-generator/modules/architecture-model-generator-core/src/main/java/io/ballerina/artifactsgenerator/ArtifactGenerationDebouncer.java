@@ -137,7 +137,9 @@ public class ArtifactGenerationDebouncer {
         synchronized (registrationLock) {
             delayedMap.forEach((key, holder) -> {
                 if (keys.test(key) && holder.future().cancel(false)) {
-                    scheduler.execute(holder.run());
+                    // Registered with its new future, so a newer debounce or a project reload still cancels it.
+                    delayedMap.put(key, new ScheduledTaskHolder(holder.promise(), scheduler.submit(holder.run()),
+                            holder.run()));
                 }
             });
         }

@@ -101,13 +101,13 @@ public class DesignModelGeneratorService implements ExtendedLanguageServerServic
                 Path projectPath = Path.of(request.projectPath());
                 WorkspaceManager workspaceManager = workspaceManagerProxy.get();
                 Project project = workspaceManager.loadProject(projectPath);
-                // Every project view loads this; only the Agent Builder warms ballerina/ai for a project without it.
+                response.setArtifacts(ArtifactsGenerator.artifacts(project));
+                // After artifacts() resolved the project under its lock; Agent Builder also warms one without ai.
                 try {
                     PackageUtil.prewarmAgentLibrary(project, isAgentBuilder());
                 } catch (RuntimeException ignored) {
                     // A failed warm-up must not cost the artifacts response.
                 }
-                response.setArtifacts(ArtifactsGenerator.artifacts(project));
                 response.setUri(request.projectPath());
                 String projectName = project.currentPackage().packageName().value();
                 String moduleName = workspaceManager.module(projectPath)
@@ -146,14 +146,14 @@ public class DesignModelGeneratorService implements ExtendedLanguageServerServic
     @JsonRequest
     public CompletableFuture<Boolean> flushArtifacts(FlushArtifactsRequest request) {
         // The edits' didChange ran before this request, as notifications are handled in order on the reader thread.
-        List<Path> roots = request == null || request.uris() == null ? List.of() : projectRoots(request.uris());
-        if (roots.isEmpty()) {
+        if (request == null || request.uris() == null || request.uris().isEmpty()) {
             ArtifactGenerationDebouncer.getInstance().flushAll();
-        } else {
-            // Other packages keep their delay, so one package's save does not cut their typing bursts short.
-            ArtifactGenerationDebouncer.getInstance().flush(key -> PathUtil.getPathFromURI(key)
-                    .map(path -> roots.stream().anyMatch(path::startsWith)).orElse(false));
+            return CompletableFuture.completedFuture(true);
         }
+        List<Path> roots = projectRoots(request.uris());
+        // Other packages keep their delay, so one package's save does not cut their typing bursts short.
+        ArtifactGenerationDebouncer.getInstance().flush(key -> PathUtil.getPathFromURI(key)
+                .map(path -> roots.stream().anyMatch(path::startsWith)).orElse(false));
         return CompletableFuture.completedFuture(true);
     }
 
