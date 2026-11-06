@@ -224,7 +224,7 @@ public abstract class AbstractServiceBuilder implements ServiceNodeBuilder {
         if (Objects.nonNull(serviceContract) && serviceContract.isEnabledWithValue()) {
             builder.append(service.getServiceContractTypeName()).append(SPACE);
         } else if (Objects.nonNull(serviceBasePath) && serviceBasePath.isEnabledWithValue()) {
-            builder.append(getValueString(serviceBasePath)).append(SPACE);
+            builder.append(IdentifierUtil.toSourcePath(getValueString(serviceBasePath))).append(SPACE);
         } else if (Objects.nonNull(stringLiteralProperty) && stringLiteralProperty.isEnabledWithValue()) {
             builder.append(getValueString(stringLiteralProperty)).append(SPACE);
         }
