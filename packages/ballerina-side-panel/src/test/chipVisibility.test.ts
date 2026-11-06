@@ -21,6 +21,7 @@
 import { InputMode } from "../components/editors/MultiModeExpressionEditor/ChipExpressionEditor/types";
 import { getEditorConfiguration } from "../components/editors/ExpressionField";
 import { ExpressionModeEditorConfig } from "../components/editors/MultiModeExpressionEditor/Configurations";
+import { getArrayItemEditorConfiguration } from "../components/editors/MultiModeExpressionEditor/DynamicArrayBuilder/DynamicArrayBuilder";
 
 const ALL_MODES = Object.values(InputMode) as InputMode[];
 
@@ -33,5 +34,10 @@ describe("chip rendering per input mode", () => {
 
     it("the expanded Expression mode config turns chips off", () => {
         expect(new ExpressionModeEditorConfig().showChips()).toBe(false);
+    });
+
+    it("array items: expression items turn chips off, text items keep them", () => {
+        expect(getArrayItemEditorConfiguration(false).showChips()).toBe(false);
+        expect(getArrayItemEditorConfiguration(true).showChips()).toBe(true);
     });
 });

@@ -23,8 +23,11 @@ import type { ExpressionFieldProps } from "../../ExpressionField";
 import { ChipExpressionEditorComponent } from "../ChipExpressionEditor/components/ChipExpressionEditor";
 import { useFormContext } from "../../../../context";
 import { S } from "../styles";
-import { ChipExpressionEditorDefaultConfiguration } from "../ChipExpressionEditor/ChipExpressionDefaultConfig";
-import { StringTemplateEditorConfig } from "../Configurations";
+import { ExpressionModeEditorConfig, StringTemplateEditorConfig } from "../Configurations";
+
+// Text items keep chips; expression items show plain source, like Expression mode.
+export const getArrayItemEditorConfiguration = (isTextSet: boolean) =>
+    isTextSet ? new StringTemplateEditorConfig() : new ExpressionModeEditorConfig();
 
 interface DynamicArrayBuilderProps {
     label: string;
@@ -189,7 +192,7 @@ export const DynamicArrayBuilder = (props: DynamicArrayBuilderProps) => {
                         //show the type related editor in the field editor and the whole editor should
                         //have a switch to show the array editor mode and the expression mode.
                         //Exception: TEXT_SET uses StringTemplateEditorConfig for TEXT mode
-                        configuration={isTextSet ? new StringTemplateEditorConfig() : new ChipExpressionEditorDefaultConfiguration()}
+                        configuration={getArrayItemEditorConfiguration(isTextSet)}
                         placeholder={expressionFieldProps.field.placeholder}
                         onNormalizeValue={(normalizedValue) => {
                             const updatedArray = [...currentValuesRef.current];
