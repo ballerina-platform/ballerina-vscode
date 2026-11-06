@@ -18,6 +18,7 @@
 
 package io.ballerina.flowmodelgenerator.extension;
 
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
 import io.ballerina.flowmodelgenerator.extension.request.ComponentDeleteRequest;
@@ -86,6 +87,58 @@ public class DeleteComponentTest extends AbstractLSTest {
 //            updateConfig(configJsonPath, updatedConfig);
             Assert.fail(String.format("Failed test: '%s' (%s)", testConfig.description(), configJsonPath));
         }
+    }
+
+    @Test
+    public void testDeleteComponentsKeepsSharedImport() throws IOException {
+        List<TextEdit> edits = deleteComponents(component(6, 0, 9, 1), component(11, 0, 15, 1));
+        Assert.assertEquals(edits.stream().map(edit -> edit.getRange().getStart().getLine()).toList(), List.of(6, 11));
+        Assert.assertEquals(edits.get(1).getRange().getEnd().getLine(), 15);
+    }
+
+    @Test
+    public void testDeleteComponentsRemovesImportUnusedByAll() throws IOException {
+        List<TextEdit> edits = deleteComponents(component(6, 0, 9, 1), component(11, 0, 15, 1),
+                component(17, 0, 24, 1));
+        Assert.assertEquals(edits.stream().map(edit -> edit.getRange().getStart().getLine()).toList(),
+                List.of(0, 6, 11, 17));
+        Assert.assertTrue(edits.stream().allMatch(edit -> edit.getNewText().isEmpty()));
+    }
+
+    @Test
+    public void testDeleteComponentsRemovesAListenerPassedExplicitlyOnce() throws IOException {
+        String file = "delete_component_listener_project/cases.bal";
+        List<TextEdit> edits = deleteComponentsIn(file, component(file, 12, 0, 16, 1), component(file, 2, 0, 2, 52));
+        Assert.assertEquals(edits.stream().filter(edit -> edit.getRange().getStart().getLine() == 2).count(), 1);
+        Assert.assertEquals(edits.size(), 2);
+    }
+
+    private List<TextEdit> deleteComponents(JsonObject... components) throws IOException {
+        return deleteComponentsIn("delete_component1.bal", components);
+    }
+
+    private List<TextEdit> deleteComponentsIn(String file, JsonObject... components) throws IOException {
+        String sourcePath = getSourcePath(file);
+        List<JsonElement> componentList = List.of(components);
+        ComponentDeleteRequest request = new ComponentDeleteRequest(sourcePath, components[0], false, componentList);
+        Map<String, List<TextEdit>> textEdits =
+                gson.fromJson(getResponse(request).getAsJsonObject("textEdits"), textEditListType);
+        Assert.assertEquals(textEdits.size(), 1);
+        return textEdits.values().iterator().next();
+    }
+
+    private static JsonObject component(int startLine, int startColumn, int endLine, int endColumn) {
+        return component("delete_component1.bal", startLine, startColumn, endLine, endColumn);
+    }
+
+    private static JsonObject component(String file, int startLine, int startColumn, int endLine, int endColumn) {
+        JsonObject component = new JsonObject();
+        component.addProperty("filePath", file);
+        component.addProperty("startLine", startLine);
+        component.addProperty("startColumn", startColumn);
+        component.addProperty("endLine", endLine);
+        component.addProperty("endColumn", endColumn);
+        return component;
     }
 
 

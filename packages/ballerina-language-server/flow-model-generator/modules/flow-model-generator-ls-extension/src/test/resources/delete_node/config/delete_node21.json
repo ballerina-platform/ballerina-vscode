@@ -1,0 +1,37 @@
+{
+  "description": "Delete a node without a module reference keeps an already-unused import",
+  "functionStart": {
+    "line": 3,
+    "offset": 0
+  },
+  "functionEnd": {
+    "line": 7,
+    "offset": 1
+  },
+  "nodeStart": {
+    "line": 5,
+    "offset": 4
+  },
+  "nodeEnd": {
+    "line": 5,
+    "offset": 14
+  },
+  "source": "delete_node_imports1.bal",
+  "output": {
+    "delete_node_imports1.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 5,
+            "character": 4
+          },
+          "end": {
+            "line": 5,
+            "character": 14
+          }
+        },
+        "newText": ""
+      }
+    ]
+  }
+}

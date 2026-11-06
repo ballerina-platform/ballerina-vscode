@@ -18,6 +18,7 @@
 
 package io.ballerina.flowmodelgenerator.extension;
 
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
 import io.ballerina.flowmodelgenerator.core.model.Branch;
@@ -58,6 +59,27 @@ public class DeleteNodeTest extends AbstractLSTest {
         TestConfig testConfig = gson.fromJson(Files.newBufferedReader(configJsonPath), TestConfig.class);
 
         String sourceFile = sourceDir.resolve(testConfig.source()).toAbsolutePath().toString();
+        FlowNode nodeToDelete = findNodeToDelete(sourceFile, testConfig, configJsonPath);
+        FlowNodeDeleteRequest deleteRequest = new FlowNodeDeleteRequest(sourceFile, gson.toJsonTree(nodeToDelete));
+        JsonObject deleteResponse = getResponse(deleteRequest).getAsJsonObject("textEdits");
+        Map<String, List<TextEdit>> actualTextEdits = gson.fromJson(deleteResponse, textEditListType);
+
+        assertTextEdits(actualTextEdits, testConfig, configJsonPath);
+    }
+
+    @Test
+    public void testFormattedDelete() throws IOException {
+        Path configJsonPath = configDir.resolve("delete_node1.json");
+        TestConfig testConfig = gson.fromJson(Files.newBufferedReader(configJsonPath), TestConfig.class);
+        String sourceFile = sourceDir.resolve(testConfig.source()).toAbsolutePath().toString();
+        JsonElement node = gson.toJsonTree(findNodeToDelete(sourceFile, testConfig, configJsonPath));
+
+        JsonObject rawEdits = getResponse(new FlowNodeDeleteRequest(sourceFile, node)).getAsJsonObject("textEdits");
+        JsonObject response = getResponse(new FlowNodeDeleteRequest(sourceFile, node, true));
+        SourceGeneratorTest.assertFormattedEdits(response, rawEdits);
+    }
+
+    private FlowNode findNodeToDelete(String sourceFile, TestConfig testConfig, Path configJsonPath) {
         FlowModelGeneratorRequest request = new FlowModelGeneratorRequest(sourceFile, testConfig.functionStart(),
                 testConfig.functionEnd());
         JsonObject jsonMap = getResponse(request, "flowDesignService/getFlowModel").getAsJsonObject("flowModel");
@@ -73,11 +95,7 @@ public class DeleteNodeTest extends AbstractLSTest {
         if (nodeToDelete == null) {
             Assert.fail(String.format("Failed test: '%s', cannot find the node to delete", configJsonPath));
         }
-        FlowNodeDeleteRequest deleteRequest = new FlowNodeDeleteRequest(sourceFile, gson.toJsonTree(nodeToDelete));
-        JsonObject deleteResponse = getResponse(deleteRequest).getAsJsonObject("textEdits");
-        Map<String, List<TextEdit>> actualTextEdits = gson.fromJson(deleteResponse, textEditListType);
-
-        assertTextEdits(actualTextEdits, testConfig, configJsonPath);
+        return nodeToDelete;
     }
 
     @Override

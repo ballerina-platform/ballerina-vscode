@@ -537,6 +537,7 @@ enum EXTENDED_APIS {
     WSDL_API_CLIENT_GENERATE = 'wsdlService/genClient',
     GET_PROJECT_INFO = 'designModelService/projectInfo',
     GET_ARTIFACTS = 'designModelService/artifacts',
+    FLUSH_ARTIFACTS = 'designModelService/flushArtifacts',
     PUBLISH_ARTIFACTS = 'designModelService/publishArtifacts',
     COPILOT_ALL_LIBRARIES = 'copilotLibraryManager/getLibrariesList',
     COPILOT_FILTER_LIBRARIES = 'copilotLibraryManager/getFilteredLibraries',
@@ -726,6 +727,11 @@ export class ExtendedLangClient extends LanguageClient implements ExtendedLangCl
 
     async getProjectInfo(params: ProjectInfoRequest): Promise<ProjectInfo> {
         return this.sendRequest<ProjectInfo>(EXTENDED_APIS.GET_PROJECT_INFO, params);
+    }
+
+    // Publishes pending artifact updates at once, for edits applied on purpose rather than typed.
+    async flushArtifacts(uris: string[]): Promise<boolean> {
+        return this.sendRequest<boolean>(EXTENDED_APIS.FLUSH_ARTIFACTS, { uris });
     }
 
     async definition(params: DefinitionParams): Promise<Location | Location[] | LocationLink[]> {

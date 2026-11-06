@@ -1,0 +1,63 @@
+{
+  "description": "Delete the last http use prunes it and an already-unused import",
+  "functionStart": {
+    "line": 4,
+    "offset": 0
+  },
+  "functionEnd": {
+    "line": 7,
+    "offset": 1
+  },
+  "nodeStart": {
+    "line": 5,
+    "offset": 4
+  },
+  "nodeEnd": {
+    "line": 5,
+    "offset": 56
+  },
+  "source": "delete_node_imports2.bal",
+  "output": {
+    "delete_node_imports2.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 22
+          }
+        },
+        "newText": ""
+      },
+      {
+        "range": {
+          "start": {
+            "line": 2,
+            "character": 0
+          },
+          "end": {
+            "line": 2,
+            "character": 21
+          }
+        },
+        "newText": ""
+      },
+      {
+        "range": {
+          "start": {
+            "line": 5,
+            "character": 4
+          },
+          "end": {
+            "line": 5,
+            "character": 56
+          }
+        },
+        "newText": ""
+      }
+    ]
+  }
+}

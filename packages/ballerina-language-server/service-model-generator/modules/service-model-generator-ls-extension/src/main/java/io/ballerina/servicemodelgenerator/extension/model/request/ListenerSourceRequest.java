@@ -20,5 +20,9 @@ package io.ballerina.servicemodelgenerator.extension.model.request;
 
 import io.ballerina.servicemodelgenerator.extension.model.Listener;
 
-public record ListenerSourceRequest(String filePath, Listener listener) {
+public record ListenerSourceRequest(String filePath, Listener listener, boolean formatted) {
+
+    public ListenerSourceRequest(String filePath, Listener listener) {
+        this(filePath, listener, false);
+    }
 }
