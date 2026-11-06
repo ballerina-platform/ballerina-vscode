@@ -219,11 +219,16 @@ public class FormBuilder<T> extends FacetedBuilder<T> {
 
     public FormBuilder<T> type(String typeName, String label, boolean editable, Boolean modified, LineRange lineRange,
                                String importStatements, boolean hidden) {
+        return type(typeName, label, Property.TYPE_DOC, editable, modified, lineRange, importStatements, hidden);
+    }
+
+    public FormBuilder<T> type(String typeName, String label, String description, boolean editable, Boolean modified,
+                               LineRange lineRange, String importStatements, boolean hidden) {
         String replacedTypeName = TypeParameterReplacer.replaceTypeParameters(typeName);
         propertyBuilder
                 .metadata()
                     .label(label)
-                    .description(Property.TYPE_DOC)
+                    .description(description)
                     .stepOut()
                 .codedata()
                     .stepOut()
@@ -311,13 +316,19 @@ public class FormBuilder<T> extends FacetedBuilder<T> {
                 : dataVariable(node, Property.VARIABLE_NAME, Property.TYPE_LABEL, true, names, false);
     }
 
-    public FormBuilder<T> dataVariable(TypedBindingPatternNode node, String variableLabel, String typeDoc,
+    public FormBuilder<T> dataVariable(TypedBindingPatternNode node, String variableLabel, String typeLabel,
                                        boolean editable, Set<String> names, boolean hidden) {
-        return dataVariable(node, variableLabel, typeDoc, Property.VARIABLE_DOC, editable, names, hidden);
+        return dataVariable(node, variableLabel, typeLabel, Property.VARIABLE_DOC, editable, names, hidden);
     }
 
-    public FormBuilder<T> dataVariable(TypedBindingPatternNode node, String variableLabel, String typeDoc,
+    public FormBuilder<T> dataVariable(TypedBindingPatternNode node, String variableLabel, String typeLabel,
                                        String variableDoc, boolean editable, Set<String> names, boolean hidden) {
+        return dataVariable(node, variableLabel, typeLabel, variableDoc, Property.TYPE_DOC, editable, names, hidden);
+    }
+
+    public FormBuilder<T> dataVariable(TypedBindingPatternNode node, String variableLabel, String typeLabel,
+                                       String variableDoc, String typeDoc, boolean editable,
+                                       Set<String> names, boolean hidden) {
         data(node == null ? null : node.bindingPattern(), variableLabel, variableDoc,
                 NameUtil.generateTypeName("var", names), false);
 
@@ -331,7 +342,13 @@ public class FormBuilder<T> extends FacetedBuilder<T> {
                     .map(typeSymbol -> CommonUtils.getTypeSignature(semanticModel, typeSymbol, true, moduleInfo))
                     .orElse(CommonUtils.getVariableName(node));
         }
-        return type(typeName, typeDoc, editable, null, node == null ? null : node.typeDescriptor().lineRange(), hidden);
+        return type(typeName, typeLabel, typeDoc, editable, null,
+                node == null ? null : node.typeDescriptor().lineRange(), null, hidden);
+    }
+
+    public FormBuilder<T> forEachVariable(TypedBindingPatternNode node, Set<String> names) {
+        return dataVariable(node, Property.VARIABLE_NAME, Property.TYPE_LABEL, Property.FOREACH_VARIABLE_DOC,
+                Property.FOREACH_TYPE_DOC, true, names, false);
     }
 
     public Property.Builder<FormBuilder<T>> custom() {

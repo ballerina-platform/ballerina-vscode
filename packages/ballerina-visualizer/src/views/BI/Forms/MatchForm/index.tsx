@@ -133,7 +133,7 @@ export function MatchForm(props: MatchFormProps) {
             {
                 metadata: {
                     label: "Pattern",
-                    description: "Binding pattern",
+                    description: "Pattern or value to match the target against",
                 },
                 value: "",
                 optional: false,
@@ -253,13 +253,13 @@ export function MatchForm(props: MatchFormProps) {
                 patterns: {
                     metadata: {
                         label: "Patterns",
-                        description: "List of binding patterns",
+                        description: "Patterns to match the target against",
                     },
                     value: [
                         {
                             metadata: {
                                 label: "Pattern",
-                                description: "Binding pattern",
+                                description: "Pattern or value to match the target against",
                             },
                             value: "",
                             types: [{ fieldType: "EXPRESSION", selected: false }],
@@ -384,14 +384,14 @@ export function MatchForm(props: MatchFormProps) {
                     patterns: {
                         metadata: {
                             label: "Patterns",
-                            description: "List of binding patterns",
+                            description: "Patterns to match the target against",
                         },
                         types: [{ fieldType: "SINGLE_SELECT", selected: false }],
                         value: [
                             {
                                 metadata: {
                                     label: "Pattern",
-                                    description: "Binding pattern",
+                                    description: "Pattern or value to match the target against",
                                 },
                                 types: [{ fieldType: "EXPRESSION", selected: false }],
                                 value: "_",
