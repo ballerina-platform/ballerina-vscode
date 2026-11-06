@@ -1,5 +1,5 @@
 {
-  "description": "",
+  "description": "A keyword name is accepted: it is quoted ('type) when the source is written",
   "filePath": "source.bal",
   "context": {
     "expression": "type",
@@ -29,23 +29,5 @@
       "advanced": false
     }
   },
-  "diagnostics": [
-    {
-      "range": {
-        "start": {
-          "line": 26,
-          "character": 8
-        },
-        "end": {
-          "line": 26,
-          "character": 12
-        }
-      },
-      "severity": "Error",
-      "code": {
-        "left": "BCE3100"
-      },
-      "message": "`type` is a reserved keyword"
-    }
-  ]
+  "diagnostics": []
 }

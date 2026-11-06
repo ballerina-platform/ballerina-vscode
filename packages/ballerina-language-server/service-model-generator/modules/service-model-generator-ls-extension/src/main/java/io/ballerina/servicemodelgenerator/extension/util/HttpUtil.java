@@ -43,6 +43,7 @@ import io.ballerina.compiler.syntax.tree.ServiceDeclarationNode;
 import io.ballerina.compiler.syntax.tree.SpecificFieldNode;
 import io.ballerina.compiler.syntax.tree.TypeDefinitionNode;
 import io.ballerina.modelgenerator.commons.CommonUtils;
+import io.ballerina.modelgenerator.commons.IdentifierUtil;
 import io.ballerina.servicemodelgenerator.extension.model.Codedata;
 import io.ballerina.servicemodelgenerator.extension.model.Function;
 import io.ballerina.servicemodelgenerator.extension.model.FunctionReturnType;
@@ -307,8 +308,9 @@ public final class HttpUtil {
             }
             if (annotationReference.equals(HTTP_HEADER_PARAM_ANNOTATION)) {
                 Optional<MappingConstructorExpressionNode> mappingNode = annotation.annotValue();
+                // Without a `name` remap, the header's wire name is the parameter's plain name
                 String headerName = mappingNode.isPresent() ? extractFieldValue(mappingNode.get(), "name")
-                        : parameter.getName().getValue();
+                        : IdentifierUtil.toPlainName(parameter.getName().getValue());
                 Value headerNameProperty = new Value.ValueBuilder()
                         .types(List.of(PropertyType.types(Value.FieldType.IDENTIFIER)))
                         .value(headerName)
@@ -481,8 +483,8 @@ public final class HttpUtil {
             builder.append(getValueString(accessor).toLowerCase(Locale.ROOT)).append(SPACE);
         }
 
-        // function identifier
-        builder.append(getValueString(function.getName()));
+        // function identifier: the resource path, typed plain (orders/line-items) or in source form
+        builder.append(IdentifierUtil.toSourcePath(getValueString(function.getName())));
         String functionSignature = generateHttpResourceSignature(function, newTypeDefinitions, importsForMainBal,
                 importsForTypesBal, true);
         builder.append(functionSignature);
@@ -579,7 +581,8 @@ public final class HttpUtil {
             }
 
             // Build parameter definition
-            paramDef.append(getValueString(paramType)).append(" ").append(getValueString(param.getName()));
+            paramDef.append(getValueString(paramType)).append(" ")
+                    .append(IdentifierUtil.escapeIfNeeded(getValueString(param.getName())));
 
             // Add default value if present
             Value defaultValue = param.getDefaultValue();

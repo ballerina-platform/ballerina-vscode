@@ -1,0 +1,47 @@
+{
+  "description": "A plain name matches a declaration written in escaped form (order\\-count), so it is reported as redeclared",
+  "filePath": "source.bal",
+  "context": {
+    "expression": "order-count",
+    "startLine": {
+      "line": 15,
+      "offset": 35
+    },
+    "offset": 2,
+    "property": {
+      "metadata": {
+        "label": "Name",
+        "description": "Name of the variable"
+      },
+      "types": [
+        {
+          "fieldType": "IDENTIFIER",
+          "scope": "Global"
+        }
+      ],
+      "value": "i",
+      "optional": false,
+      "editable": true,
+      "advanced": false
+    }
+  },
+  "diagnostics": [
+    {
+      "range": {
+        "start": {
+          "line": 15,
+          "character": 35
+        },
+        "end": {
+          "line": 15,
+          "character": 46
+        }
+      },
+      "severity": "Error",
+      "code": {
+        "left": "BCE2008"
+      },
+      "message": "redeclared symbol 'order-count'"
+    }
+  ]
+}
