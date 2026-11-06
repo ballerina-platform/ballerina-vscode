@@ -43,6 +43,7 @@ under the License.
     <test name="common-utils-test" parallel="false">
         <classes>
             <class name="io.ballerina.modelgenerator.commons.CommonUtilsTest"/>
+            <class name="io.ballerina.modelgenerator.commons.IdentifierUtilTest"/>
         </classes>
     </test>
 </suite>
