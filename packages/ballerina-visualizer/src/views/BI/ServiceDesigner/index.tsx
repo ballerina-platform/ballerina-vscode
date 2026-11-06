@@ -462,7 +462,7 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
 
     // ----- navigation (open an existing view) -----
 
-    const handleOpenDiagram = async (resource: FunctionModel) => {
+    const handleOpenDiagram = async (resource: FunctionModel, documentUri: string = filePath) => {
         const lineRange: LineRange = resource.codedata.lineRange;
         const nodePosition: NodePosition = {
             startLine: lineRange.startLine.line,
@@ -472,7 +472,41 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
         };
         await rpcClient
             .getVisualizerRpcClient()
-            .openView({ type: EVENT_TYPE.OPEN_VIEW, location: { position: nodePosition, documentUri: filePath } });
+            .openView({ type: EVENT_TYPE.OPEN_VIEW, location: { position: nodePosition, documentUri } });
+    };
+
+    const connectionServiceClass = serviceModel?.connectionServiceClass;
+
+    // The class is resolved from the service's own module, so its file is a sibling of the service's.
+    const toServiceSiblingPath = (fileName: string) => filePath.replace(/[^/\\]+$/, fileName);
+
+    const handleOpenConnectionHandler = (handler: FunctionModel) =>
+        handleOpenDiagram(handler, toServiceSiblingPath(handler.codedata.lineRange.fileName));
+
+    const connectionHandlers = connectionServiceClass?.functions?.filter((handler) => handler.kind === "REMOTE") ?? [];
+
+    // Adding, configuring or removing a handler belongs to the class, so it opens in the class designer.
+    const handleOpenConnectionServiceClass = async () => {
+        const { fileName, startLine, endLine } = connectionServiceClass.codedata.lineRange;
+        // The class designer resolves its file against the project root, so pass the path relative to it: the class
+        // may sit in a non-default module, next to the service rather than at the root.
+        const classPath = toServiceSiblingPath(fileName);
+        const documentUri = projectPath && classPath.startsWith(projectPath)
+            ? classPath.slice(projectPath.length).replace(/^[/\\]+/, "")
+            : fileName;
+        await rpcClient.getVisualizerRpcClient().openView({
+            type: EVENT_TYPE.OPEN_VIEW,
+            location: {
+                view: MACHINE_VIEW.BIServiceClassDesigner,
+                position: {
+                    startLine: startLine.line,
+                    startColumn: startLine.offset,
+                    endLine: endLine.line,
+                    endColumn: endLine.offset,
+                },
+                documentUri,
+            },
+        });
     };
 
     const openInit = async (resource: ProjectStructureArtifactResponse) => {
@@ -1257,6 +1291,41 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
                                 </>
                             )}
 
+                            {connectionServiceClass && (
+                                <>
+                                    <SectionHeader
+                                        title="Connection Handlers"
+                                        subtitle={`Define how ${connectionServiceClass.name} handles data and events on each connection`}
+                                    >
+                                        <ActionGroup>
+                                            <Button
+                                                appearance="secondary"
+                                                tooltip={`Open ${connectionServiceClass.name} to add or configure handlers`}
+                                                onClick={handleOpenConnectionServiceClass}
+                                            >
+                                                <Codicon name="symbol-class" sx={{ marginRight: 8 }} />
+                                                <ButtonText>{connectionServiceClass.name}</ButtonText>
+                                            </Button>
+                                        </ActionGroup>
+                                    </SectionHeader>
+                                    <FunctionsContainer>
+                                        {connectionHandlers.map((handler) => (
+                                            <ResourceAccordion
+                                                key={handler.name.value}
+                                                functionModel={handler}
+                                                onResourceImplement={handleOpenConnectionHandler}
+                                            />
+                                        ))}
+                                    </FunctionsContainer>
+                                    {connectionHandlers.length === 0 && (
+                                        <EmptyReadmeContainer>
+                                            <Description variant="body2">
+                                                {`No connection handlers found. Open ${connectionServiceClass.name} to add one.`}
+                                            </Description>
+                                        </EmptyReadmeContainer>
+                                    )}
+                                </>
+                            )}
 
                             {resources.filter((resource) => resource.type === DIRECTORY_MAP.FUNCTION && resource.name !== "init").length > 0 && (
                                 <>

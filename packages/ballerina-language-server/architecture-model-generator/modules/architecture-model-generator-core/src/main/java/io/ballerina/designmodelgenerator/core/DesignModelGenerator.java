@@ -153,7 +153,7 @@ public class DesignModelGenerator {
             });
 
             List<Function> remoteFunctions = new ArrayList<>();
-            serviceModel.remoteFunctions.forEach(remoteFunction -> {
+            serviceRemoteFunctions(intermediateModel, serviceModel).forEach(remoteFunction -> {
                 analyzeServiceFunction(intermediateModel, remoteFunction, serviceModel, connections, workflows,
                         serviceSendData, serviceInvalidSendData);
                 remoteFunctions.add(new Function(remoteFunction.name, remoteFunction.location,
@@ -219,6 +219,21 @@ public class DesignModelGenerator {
                 .setWorkflows(intermediateModel.workflowMap.values().stream().toList())
                 .setActivities(intermediateModel.activityMap.values().stream().toList())
                 .build();
+    }
+
+    /**
+     * The remote functions of a service, followed by those of a TCP service's connection service class.
+     */
+    private static List<IntermediateModel.FunctionModel> serviceRemoteFunctions(
+            IntermediateModel intermediateModel, IntermediateModel.ServiceModel serviceModel) {
+        IntermediateModel.ServiceClassModel connectionServiceClass =
+                intermediateModel.serviceClassModelMap.get(serviceModel.connectionServiceClass);
+        if (connectionServiceClass == null) {
+            return serviceModel.remoteFunctions;
+        }
+        List<IntermediateModel.FunctionModel> remoteFunctions = new ArrayList<>(serviceModel.remoteFunctions);
+        remoteFunctions.addAll(connectionServiceClass.remoteFunctions);
+        return remoteFunctions;
     }
 
     /**

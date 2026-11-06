@@ -47,6 +47,7 @@ import io.ballerina.compiler.syntax.tree.TypeDescriptorNode;
 import io.ballerina.flowmodelgenerator.core.AiUtils;
 import io.ballerina.flowmodelgenerator.core.utils.WorkflowUtil;
 import io.ballerina.modelgenerator.commons.CommonUtils;
+import io.ballerina.modelgenerator.commons.TcpConnectionServiceResolver;
 import org.ballerinalang.langserver.commons.BallerinaCompilerApi;
 
 import java.util.Optional;
@@ -182,6 +183,18 @@ public class ModuleNodeTransformer extends NodeTransformer<Optional<Artifact>> {
         serviceDeclarationNode.members().forEach(member -> {
             member.apply(this).ifPresent(serviceBuilder::child);
         });
+
+        // A TCP service's handlers (onBytes, ...) live on the class `onConnect` returns, so they are listed with the
+        // service. Only a class in the service's own file is taken: a file's artifacts are regenerated only when that
+        // file changes, so handlers from another file would go stale.
+        TcpConnectionServiceResolver.findConnectionServiceClass(serviceDeclarationNode, semanticModel)
+                .flatMap(classSymbol -> TcpConnectionServiceResolver.findClassDefinition(classSymbol,
+                        serviceDeclarationNode.syntaxTree()))
+                .ifPresent(classDef -> classDef.members().stream()
+                        .filter(FunctionDefinitionNode.class::isInstance)
+                        .map(FunctionDefinitionNode.class::cast)
+                        .filter(method -> hasQualifier(method.qualifierList(), SyntaxKind.REMOTE_KEYWORD))
+                        .forEach(method -> transform(method).ifPresent(serviceBuilder::child)));
 
         return Optional.of(serviceBuilder.build());
     }

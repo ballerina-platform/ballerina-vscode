@@ -56,6 +56,8 @@ public class Service {
     // what exists in the user's source, `schemaFunctions` the connector-shipped addable catalog
     // (one entry per handler variant, consumed entries removed). Null for every other service kind.
     private List<Function> schemaFunctions;
+    // TCP only, see TcpConnectionServiceResolver; null for every other service kind.
+    private ServiceClass connectionServiceClass;
 
     public Service(String id, String name, String type, String triggerKind, String displayName, String moduleName,
                    String orgName,
@@ -103,6 +105,14 @@ public class Service {
 
     public void setSchemaFunctions(List<Function> schemaFunctions) {
         this.schemaFunctions = schemaFunctions;
+    }
+
+    public ServiceClass getConnectionServiceClass() {
+        return connectionServiceClass;
+    }
+
+    public void setConnectionServiceClass(ServiceClass connectionServiceClass) {
+        this.connectionServiceClass = connectionServiceClass;
     }
 
     public Codedata getCodedata() {

@@ -71,6 +71,8 @@ public class IntermediateModel {
         protected String displayName;
         protected String sortText;
         protected String serviceType;
+        // TCP only, see TcpConnectionServiceResolver
+        protected String connectionServiceClass;
         protected final List<String> namedListeners = new ArrayList<>();
         protected final List<Listener> anonListeners = new ArrayList<>();
 
@@ -124,10 +126,12 @@ public class IntermediateModel {
     public static class ServiceClassModel {
         protected final String name;
         protected final Set<FunctionModel> functionModels;
+        protected final List<FunctionModel> remoteFunctions;
 
         public ServiceClassModel(String name) {
             this.name = name;
             this.functionModels = new HashSet<>();
+            this.remoteFunctions = new ArrayList<>();
         }
     }
 }
