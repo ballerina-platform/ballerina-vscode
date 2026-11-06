@@ -39,4 +39,8 @@ export const DEFAULT_PROVIDER_TOKEN_REFRESH_FAILED = "Could not refresh the WSO2
 export const DEFAULT_PROVIDER_NOT_CONFIGURED_PROMPT = "This integration uses the WSO2 default AI provider, but it isn't configured yet. Configure it now?";
 export const CONFIGURE_DEFAULT_PROVIDER_ACTION = "Configure Now";
 export const RUN_CANCELLED_DEFAULT_PROVIDER_NOT_CONFIGURED = "Run cancelled: the WSO2 default AI provider isn't configured.";
+export const DEFAULT_PROVIDER_UNAVAILABLE_FOR_AGENT = "Nothing was run: the project uses the WSO2 default model provider, and its access token could not be set up. "
+    + "That needs the user signed in with a WSO2 account; if they already are, the session may have expired or the connection failed. "
+    + "Tell the user this in one plain sentence and offer two choices: sign in with a WSO2 account (or sign in again) and retry, "
+    + "or switch to a model provider they have a key for.";
 export const LLM_API_BASE_PATH = "/llm-api/v1.0";
