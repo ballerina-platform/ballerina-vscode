@@ -515,6 +515,15 @@ export function getNodeTitle(node: FlowNode) {
         return label;
     }
 
+    // AI component calls name the component kind rather than the provider package (`azure : retrieve`).
+    const componentKind = node.codedata?.node === "KNOWLEDGE_BASE_CALL" ? "Knowledge Base"
+        : (node.metadata?.data as { connectorType?: string } | undefined)?.connectorType === "dataLoader"
+            && node.codedata?.node === "METHOD_CALL" ? "Data Loader"
+        : undefined;
+    if (componentKind) {
+        return `${componentKind} : ${label}`;
+    }
+
     if (node.codedata?.org === "ballerina" || node.codedata?.org === "ballerinax") {
         const module = node.codedata.module?.includes(".")
             ? node.codedata.module.split(".").pop()

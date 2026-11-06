@@ -1,0 +1,117 @@
+{
+  "description": "Artifacts generation for AI components declared as their ai interface type and constructed with an explicit new",
+  "source": "explicit_new_ai_components.bal",
+  "packageName": ".",
+  "output": {
+    "Connections": {
+      "embeddingProvider": {
+        "id": "embeddingProvider",
+        "location": {
+          "fileName": "explicit_new_ai_components.bal",
+          "startLine": {
+            "line": 3,
+            "offset": 0
+          },
+          "endLine": {
+            "line": 3,
+            "offset": 125
+          }
+        },
+        "type": "CONNECTION",
+        "name": "embeddingProvider",
+        "scope": "Global",
+        "visibility": "module",
+        "icon": {
+          "url": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png",
+          "source": "ballerina-central"
+        },
+        "module": "ai",
+        "children": {},
+        "metadata": {
+          "connectorType": "embeddingProvider"
+        }
+      },
+      "knowledgeBase": {
+        "id": "knowledgeBase",
+        "location": {
+          "fileName": "explicit_new_ai_components.bal",
+          "startLine": {
+            "line": 5,
+            "offset": 0
+          },
+          "endLine": {
+            "line": 5,
+            "offset": 98
+          }
+        },
+        "type": "CONNECTION",
+        "name": "knowledgeBase",
+        "scope": "Global",
+        "visibility": "module",
+        "icon": {
+          "url": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png",
+          "source": "ballerina-central"
+        },
+        "module": "ai",
+        "children": {},
+        "metadata": {
+          "connectorType": "knowledgeBase"
+        }
+      },
+      "modelProvider": {
+        "id": "modelProvider",
+        "location": {
+          "fileName": "explicit_new_ai_components.bal",
+          "startLine": {
+            "line": 2,
+            "offset": 0
+          },
+          "endLine": {
+            "line": 2,
+            "offset": 107
+          }
+        },
+        "type": "CONNECTION",
+        "name": "modelProvider",
+        "scope": "Global",
+        "visibility": "module",
+        "icon": {
+          "url": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png",
+          "source": "ballerina-central"
+        },
+        "module": "ai",
+        "children": {},
+        "metadata": {
+          "connectorType": "modelProvider"
+        }
+      },
+      "vectorStore": {
+        "id": "vectorStore",
+        "location": {
+          "fileName": "explicit_new_ai_components.bal",
+          "startLine": {
+            "line": 4,
+            "offset": 0
+          },
+          "endLine": {
+            "line": 4,
+            "offset": 70
+          }
+        },
+        "type": "CONNECTION",
+        "name": "vectorStore",
+        "scope": "Global",
+        "visibility": "module",
+        "icon": {
+          "url": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png",
+          "source": "ballerina-central"
+        },
+        "module": "ai",
+        "children": {},
+        "metadata": {
+          "connectorType": "vectorStore"
+        }
+      }
+    }
+  }
+}

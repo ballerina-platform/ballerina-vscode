@@ -1644,6 +1644,151 @@
           }
         },
         "flags": 1
+      },
+      {
+        "id": "34802",
+        "metadata": {
+          "label": "Memory Store",
+          "description": "Initializes a new in-memory store.\n",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png"
+        },
+        "codedata": {
+          "node": "SHORT_TERM_MEMORY_STORE",
+          "org": "ballerina",
+          "module": "ai",
+          "object": "InMemoryShortTermMemoryStore",
+          "symbol": "init",
+          "lineRange": {
+            "fileName": "main.bal",
+            "startLine": {
+              "line": 3,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 3,
+              "offset": 82
+            }
+          },
+          "sourceCode": "final ai:ShortTermMemoryStore store = check new ai:InMemoryShortTermMemoryStore();",
+          "data": {
+            "explicitNewType": "ai:InMemoryShortTermMemoryStore"
+          }
+        },
+        "returning": false,
+        "properties": {
+          "size": {
+            "metadata": {
+              "label": "Size",
+              "description": "The maximum capacity for stored messages"
+            },
+            "types": [
+              {
+                "fieldType": "NUMBER",
+                "ballerinaType": "int",
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "int",
+                "selected": false
+              }
+            ],
+            "placeholder": "0",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "DEFAULTABLE",
+              "originalName": "size"
+            },
+            "defaultValue": "10"
+          },
+          "checkError": {
+            "metadata": {
+              "label": "Check Error",
+              "description": "Terminate on error"
+            },
+            "types": [
+              {
+                "fieldType": "FLAG",
+                "selected": true
+              }
+            ],
+            "value": true,
+            "optional": false,
+            "editable": false,
+            "advanced": true,
+            "hidden": true
+          },
+          "scope": {
+            "metadata": {
+              "label": "Connection Scope",
+              "description": "Scope of the connection, Global or Local"
+            },
+            "types": [
+              {
+                "fieldType": "ENUM",
+                "selected": true
+              }
+            ],
+            "value": "Global",
+            "optional": false,
+            "editable": true,
+            "advanced": true,
+            "hidden": true
+          },
+          "variable": {
+            "metadata": {
+              "label": "Variable Name",
+              "description": "Name of the variable"
+            },
+            "types": [
+              {
+                "fieldType": "IDENTIFIER",
+                "selected": true
+              }
+            ],
+            "value": "store",
+            "optional": false,
+            "editable": false,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "lineRange": {
+                "fileName": "main.bal",
+                "startLine": {
+                  "line": 3,
+                  "offset": 30
+                },
+                "endLine": {
+                  "line": 3,
+                  "offset": 35
+                }
+              }
+            }
+          },
+          "type": {
+            "metadata": {
+              "label": "Variable Type",
+              "description": "Type of the variable"
+            },
+            "types": [
+              {
+                "fieldType": "TYPE",
+                "selected": true
+              }
+            ],
+            "value": "ai:ShortTermMemoryStore",
+            "placeholder": "var",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {}
+          }
+        },
+        "flags": 1
       }
     ],
     "variables": [
@@ -2189,151 +2334,6 @@
               }
             ],
             "value": "ai:Memory",
-            "placeholder": "var",
-            "optional": false,
-            "editable": true,
-            "advanced": false,
-            "hidden": false,
-            "codedata": {}
-          }
-        },
-        "flags": 1
-      },
-      {
-        "id": "34802",
-        "metadata": {
-          "label": "Memory Store",
-          "description": "Initializes a new in-memory store.\n",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png"
-        },
-        "codedata": {
-          "node": "SHORT_TERM_MEMORY_STORE",
-          "org": "ballerina",
-          "module": "ai",
-          "object": "InMemoryShortTermMemoryStore",
-          "symbol": "init",
-          "lineRange": {
-            "fileName": "main.bal",
-            "startLine": {
-              "line": 3,
-              "offset": 0
-            },
-            "endLine": {
-              "line": 3,
-              "offset": 82
-            }
-          },
-          "sourceCode": "final ai:ShortTermMemoryStore store = check new ai:InMemoryShortTermMemoryStore();",
-          "data": {
-            "explicitNewType": "ai:InMemoryShortTermMemoryStore"
-          }
-        },
-        "returning": false,
-        "properties": {
-          "size": {
-            "metadata": {
-              "label": "Size",
-              "description": "The maximum capacity for stored messages"
-            },
-            "types": [
-              {
-                "fieldType": "NUMBER",
-                "ballerinaType": "int",
-                "selected": false
-              },
-              {
-                "fieldType": "EXPRESSION",
-                "ballerinaType": "int",
-                "selected": false
-              }
-            ],
-            "placeholder": "0",
-            "optional": true,
-            "editable": true,
-            "advanced": false,
-            "hidden": false,
-            "codedata": {
-              "kind": "DEFAULTABLE",
-              "originalName": "size"
-            },
-            "defaultValue": "10"
-          },
-          "checkError": {
-            "metadata": {
-              "label": "Check Error",
-              "description": "Terminate on error"
-            },
-            "types": [
-              {
-                "fieldType": "FLAG",
-                "selected": true
-              }
-            ],
-            "value": true,
-            "optional": false,
-            "editable": false,
-            "advanced": true,
-            "hidden": true
-          },
-          "scope": {
-            "metadata": {
-              "label": "Connection Scope",
-              "description": "Scope of the connection, Global or Local"
-            },
-            "types": [
-              {
-                "fieldType": "ENUM",
-                "selected": true
-              }
-            ],
-            "value": "Global",
-            "optional": false,
-            "editable": true,
-            "advanced": true,
-            "hidden": true
-          },
-          "variable": {
-            "metadata": {
-              "label": "Variable Name",
-              "description": "Name of the variable"
-            },
-            "types": [
-              {
-                "fieldType": "IDENTIFIER",
-                "selected": true
-              }
-            ],
-            "value": "store",
-            "optional": false,
-            "editable": false,
-            "advanced": false,
-            "hidden": false,
-            "codedata": {
-              "lineRange": {
-                "fileName": "main.bal",
-                "startLine": {
-                  "line": 3,
-                  "offset": 30
-                },
-                "endLine": {
-                  "line": 3,
-                  "offset": 35
-                }
-              }
-            }
-          },
-          "type": {
-            "metadata": {
-              "label": "Variable Type",
-              "description": "Type of the variable"
-            },
-            "types": [
-              {
-                "fieldType": "TYPE",
-                "selected": true
-              }
-            ],
-            "value": "ai:ShortTermMemoryStore",
             "placeholder": "var",
             "optional": false,
             "editable": true,

@@ -210,8 +210,8 @@ export function MemoryManagerConfig(props: MemoryConfigProps): JSX.Element {
 
             if (existingMemoryVariable) {
                 // Existing memory variable found - use its line range for editing/replacing
-                const existingType = existingMemoryVariable.properties.type.value.toString();
-                const isSameType = existingType.includes(memoryCodeData.object);
+                // The constructed class, not the declared type: `ai:Memory m = check new ai:ShortTermMemory(...)`.
+                const isSameType = existingMemoryVariable.codedata?.object === memoryCodeData.object;
 
                 targetLineRange.current = existingMemoryVariable.codedata?.lineRange;
                 setMemoryNode(isSameType ? existingMemoryVariable : undefined);
