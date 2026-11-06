@@ -25,6 +25,7 @@ import { FormField } from "../Form/types";
 import { buildRequiredRule, getValueForDropdown } from "./utils";
 import { useFormContext } from "../../context";
 import { SubPanel, SubPanelView } from "@wso2/ballerina-core";
+import { FieldTypeChip } from "./FieldTypeChip";
 
 namespace S {
     export const Container = styled.div({
@@ -174,6 +175,7 @@ export function MultiSelectEditor(props: MultiSelectEditorProps) {
         <S.Container>
             <S.LabelContainer>
                 <S.Label>{field.label}</S.Label>
+                <FieldTypeChip types={field.types} />
             </S.LabelContainer>
             <S.Description>{field.documentation}</S.Description>
             {[...Array(dropdownCount)].map((_, index) => {
