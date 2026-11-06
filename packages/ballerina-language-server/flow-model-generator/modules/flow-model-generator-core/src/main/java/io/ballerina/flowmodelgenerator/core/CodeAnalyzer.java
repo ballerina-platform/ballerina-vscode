@@ -954,6 +954,8 @@ public class CodeAnalyzer extends NodeVisitor {
                         toolsData.add(new ToolData(toolName, getIcon(toolName), getToolDescription(toolName), type,
                                 requiresApproval, null));
                     }
+                } else if (element instanceof QualifiedNameReferenceNode qualifiedRef) {
+                    toolsData.add(importedToolData(qualifiedRef));
                 }
             }
             agentInfo.put(AiUtils.AGENT_TOOLS_KEY, toolsData);
@@ -5734,6 +5736,17 @@ public class CodeAnalyzer extends NodeVisitor {
             return Optional.ofNullable(classSymbol.methods().get(toolName));
         }
         return Optional.empty();
+    }
+
+    private ToolData importedToolData(QualifiedNameReferenceNode toolRef) {
+        Optional<FunctionSymbol> function = semanticModel.symbol(toolRef)
+                .filter(FunctionSymbol.class::isInstance)
+                .map(FunctionSymbol.class::cast);
+        String description = function.flatMap(FunctionSymbol::documentation)
+                .flatMap(Documentation::description)
+                .orElse("");
+        boolean requiresApproval = function.isPresent() && AiUtils.readRequiresApproval(function.get(), project);
+        return new ToolData(toolRef.toSourceCode().trim(), "", description, null, requiresApproval, null);
     }
 
     private String getToolDescription(String toolName) {

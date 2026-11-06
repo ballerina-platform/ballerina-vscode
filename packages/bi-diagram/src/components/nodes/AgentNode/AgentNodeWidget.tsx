@@ -725,6 +725,8 @@ export function EdgeAddButton(props: {
     );
 }
 
+const TOOL_ICON_SX = { width: "24px", height: "24px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px" };
+
 function getAgentNodePresentation(variant: "agent" | "typedAgent", agentInfo?: NodeMetadata["agentInfo"]): AgentNodePresentation {
     const isTypeDefinition = variant === "typedAgent";
     const agentWidgetType = isTypeDefinition ? NodeTypes.TYPED_AGENT_NODE : NodeTypes.AGENT_NODE;
@@ -1085,23 +1087,26 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
         ...(!isTypeDefinition ? [{ id: "delete", label: "Delete", onClick: () => deleteNode() }] : []),
     ];
 
-    const toolMenuItems = (tool: ToolData): Item[] => [
-        ...(agentNode?.onSelectTool || agentNode?.onSelectMcpToolkit ? [{
-            id: "edit",
-            label: "Edit",
-            onClick: () => onToolClick(tool),
-        }] : []),
-        ...(agentNode?.goToTool ? [{
-            id: "view",
-            label: "View",
-            onClick: () => onImplementTool(tool),
-        }] : []),
-        ...(agentNode?.onDeleteTool ? [{
-            id: "delete",
-            label: "Delete",
-            onClick: () => onDeleteTool(tool),
-        }] : []),
-    ];
+    const toolMenuItems = (tool: ToolData): Item[] => {
+        const canOpen = agentNode?.canOpenTool?.(tool) ?? true;
+        return [
+            ...(canOpen && (agentNode?.onSelectTool || agentNode?.onSelectMcpToolkit) ? [{
+                id: "edit",
+                label: "Edit",
+                onClick: () => onToolClick(tool),
+            }] : []),
+            ...(canOpen && agentNode?.goToTool ? [{
+                id: "view",
+                label: "View",
+                onClick: () => onImplementTool(tool),
+            }] : []),
+            ...(agentNode?.onDeleteTool ? [{
+                id: "delete",
+                label: "Delete",
+                onClick: () => onDeleteTool(tool),
+            }] : []),
+        ];
+    };
 
     const memoryMenuItems: Item[] = [
         {
@@ -1900,11 +1905,11 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                         <ConnectorIcon
                                             url={tool.path}
                                             style={{ width: 24, height: 24, fontSize: 24 }}
-                                            fallbackIcon={<Icon name="bi-function" sx={{ fontSize: "24px" }} />}
+                                            fallbackIcon={<Icon name="bi-wrench" sx={TOOL_ICON_SX} iconSx={{ display: "flex" }} />}
                                             codedata={model.node?.codedata}
                                         />
                                     ) : (
-                                        <Icon name="bi-function" sx={{ fontSize: "24px" }} />
+                                        <Icon name="bi-wrench" sx={TOOL_ICON_SX} iconSx={{ display: "flex" }} />
                                     )}
                                 </div>
                             </foreignObject>

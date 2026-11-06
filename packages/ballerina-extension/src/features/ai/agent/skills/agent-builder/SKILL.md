@@ -56,6 +56,10 @@ Do not indent the continuation lines of `instructions` to match the surrounding 
 whitespace is part of the string and is shown to the user in the prompt editor. Start every
 continuation line at column 0, as above.
 
+Never put a doc comment above a module-level `ai:Agent` declaration. The `ai` compiler plugin
+rewrites the declaration, and with a doc comment above it the build fails with
+`documentation not attached to a construct` on a line the source does not have.
+
 ## Model provider
 
 Use the default model provider inline in the `ai:Agent` construction, as in the example above:
