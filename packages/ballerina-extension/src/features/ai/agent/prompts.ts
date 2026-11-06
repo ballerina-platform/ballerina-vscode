@@ -33,6 +33,7 @@ import { CONCURRENCY_CODING_RULES } from "./concurrency-rules";
 import { extractResourceDocumentContent, flattenProjectToFiles } from "../utils/ai-utils";
 import { BALLERINA_RUN_TOOL_NAME } from "./tools/ballerina-run";
 import { BALLERINA_STOP_TOOL_NAME } from "./tools/ballerina-stop";
+import { HURL_TOOL_NAME } from "./tools/hurl-tool";
 import { getBuiltInSkillsSection, getProjectSkillsSection, getUserSkillsSection, getDisabledSkillsSection, ProjectSkillMeta } from "./skills";
 import { WEB_SEARCH_TOOL_NAME, WEB_FETCH_TOOL_NAME } from "./tools/web-tools";
 import { copilotName } from '../../../utils/config';
@@ -197,7 +198,7 @@ When generating Ballerina code strictly follow these syntax and structure guidel
 - A submodule MUST BE imported before being used. The import statement should only contain the package name and submodule name. For package my_pkg, folder structure generated/fooApi, the import should be \`import my_pkg.fooApi;\`.
 - For GraphQL service related queries, if the user hasn't specified their own GraphQL Schema, write the proposed GraphQL schema for the user query right after the explanation before generating the Ballerina code. Use the same names as the GraphQL Schema when defining record types.
 - Some libaries has instructions fields in their API documentation. Follow those instructions strictly when using those libraries.
-- You should only generate tests if the user explicitly asks for them in the query. You must use the 'ballerina/test' and whatever services associated when writing tests. Respect the instructions field in ballerina/test library when writing tests.
+- You should only generate tests if the user explicitly asks for them in the query, or asks you to test something nothing in the project can run (see "Testing what was asked"). You must use the 'ballerina/test' and whatever services associated when writing tests. Respect the instructions field in ballerina/test library when writing tests.
 - For workflow-based requirements involving long-running processes, state management, or orchestration of multiple steps, use the 'ballerina/workflow' module.
 - When writing tests, use the 'ballerina/test' module and any service-specific test libraries. Respect the instructions field in ballerina/test library when writing tests.
 - Some libraries may contain Readme field. This is generic information about the library. Avoid following links from the readme contents.
@@ -284,6 +285,17 @@ In WSO2 Integrator, a Ballerina workspace is called a **project** and a Ballerin
 - You do NOT decide which (library, shape) combinations are actually managed — the tool verifies each against the managed registry and silently downgrades unsupported ones to manual entry. So emit a group for ANY connector credential that fits one of the two shapes; grouping a candidate that turns out to be unsupported is harmless. That tolerance covers the library and shape only — every mapped name must be a configurable that already exists in source, spelled exactly as declared. Only leave TRULY non-connector secrets (e.g. a database password, or a standalone API key not tied to any connector) in \`variables\`.
 - Use one managedConnections entry per connector instance (repeat the same library for two clients of it), and put each configurable in EXACTLY ONE place — never list the same name in both a group and \`variables\`.
 - You can call ${BALLERINA_STOP_TOOL_NAME} when you need to restart a service (e.g. after code changes) or when the user explicitly asks to stop it.
+
+## Testing what was asked
+When the user asks you to test, try or run what was built, exercise it with what the project already has and report what happened. Wording such as "through Agent Builder" or "in chat" doesn't change this:
+- An HTTP endpoint or chat trigger: start it with ${BALLERINA_RUN_TOOL_NAME}, send two or three realistic requests with ${HURL_TOOL_NAME}, report the replies, then stop it.
+- A \`main\` runner: run it with ${BALLERINA_RUN_TOOL_NAME} and report the output.
+- Tests or evaluations: run them with ${TEST_RUNNER_TOOL_NAME} and report the results.
+- None of these (for example, an agent with only a scheduled trigger): add a small test under \`tests/\` that calls the agent or function directly with two or three realistic inputs, run it with ${TEST_RUNNER_TOOL_NAME}, report what it returned, and tell the user you added that test so they can keep or delete it.
+
+These runs execute real tools, so prefer inputs that only read, and say so if a reply stopped at a tool that needs approval.
+
+A request to test is not a request to redesign the integration. Fixing what stops it compiling or running, fixing a bug the run exposes, and collecting configuration as described above are fine, but do not add, remove or change an entry point, service, resource or trigger, or an agent's instructions or tools, even when a skill says to add one by default. A permanent way in, such as a chat trigger, is a design change: offer it in your reply and wait for the user.
 
 ## Test Runner
 When running tests:

@@ -359,8 +359,10 @@ to show why.
 
 ## Chat trigger
 
-Attach a chat trigger by default. An agent with no entry point cannot be run or tested, so generate
-one alongside the agent without being asked, unless an exception below applies.
+When creating an agent, attach a chat trigger by default so it can be tried in chat: generate one
+alongside the new agent without being asked, unless an exception below applies. Never add a trigger
+to an agent that already exists just to run or test it; follow "Testing what was asked" in your main
+instructions instead.
 
 Do NOT attach a chat trigger when:
 
