@@ -15,6 +15,8 @@
  */
 package org.ballerinalang.langserver.commons.workspace;
 
+import java.util.concurrent.locks.Lock;
+
 /**
  * A proxy implementation for the workspace manager.
  *
@@ -38,4 +40,11 @@ public interface WorkspaceManagerProxy {
      * @return {@link WorkspaceManager}
      */
     WorkspaceManager get(String fileUri);
+
+    /**
+     * Returns the lock a temporary edit of the expression copy holds until the edit is reverted.
+     *
+     * @return the expression copy lock
+     */
+    Lock exprCopyLock();
 }

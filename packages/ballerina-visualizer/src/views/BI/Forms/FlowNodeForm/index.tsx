@@ -204,6 +204,8 @@ interface FlowNodeFormProps {
     onConnectionCreated?: () => void; // Notified when a connection (e.g. model provider) is created from a field
 }
 
+const SUPERSEDED = Symbol("superseded");
+
 const EXPRESSION_FIELD_TYPES = new Set([
     "EXPRESSION",
     "ACTION_OR_EXPRESSION",
@@ -704,6 +706,9 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     };
 
     const diagnosticsRequestRef = useRef(0);
+    // The newest check asked for, and the tail of the checks queued before it.
+    const latestDiagnostics = useRef<{ form: string; result: Promise<FlowNode | null> }>();
+    const diagnosticsQueue = useRef<Promise<unknown>>(Promise.resolve());
 
     const setDiagnosticsToFields = (data: FormValues, nodeWithDiagnostics: FlowNode) => {
         setFormDiagnostics(nodeWithDiagnostics?.diagnostics?.diagnostics ?? []);
@@ -1305,42 +1310,45 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         return await convertToFnSignature(signatureHelp);
     };
 
-    const getFormWithDiagnostics = async (node: FlowNode): Promise<FlowNode | null> => {
-        // Update node with new line range only for creation forms (not edit forms)
-        const nodeToProcess = props.editForm
-            ? node
-            : createNodeWithUpdatedLineRange(node, targetLineRange);
-
-        const issueRequest = () =>
-            rpcClient.getBIDiagramRpcClient().getFormDiagnostics({
+    const requestFormDiagnostics = async (node: FlowNode, nodeToProcess: FlowNode): Promise<FlowNode | null> => {
+        try {
+            const response = await rpcClient.getBIDiagramRpcClient().getFormDiagnostics({
                 flowNode: nodeToProcess,
                 filePath: fileName
             });
-
-        const isDebounceCancellation = (resp: any) =>
-            !resp?.flowNode &&
-            typeof resp?.errorMsg === "string" &&
-            resp.errorMsg.includes("Debounced");
-
-        try {
-            let response = await issueRequest();
-            // The backend debounces concurrent diagnostics requests; the older one resolves
-            // with a cancellation envelope. Retry past the debounce window so save sees the
-            // real verdict instead of treating cancellation as "no diagnostics".
-            let retries = 2;
-            while (isDebounceCancellation(response) && retries-- > 0) {
-                await new Promise(resolve => setTimeout(resolve, 300));
-                response = await issueRequest();
-            }
-
-            if (response.flowNode) {
-                return response.flowNode as FlowNode;
-            }
-            return node;
+            return (response.flowNode as FlowNode) ?? node;
         } catch (error) {
             console.error(">>> Error getting form diagnostics", error);
             return null;
         }
+    };
+
+    // One check at a time: an unchanged form shares the running check, and a check overtaken while queued is skipped.
+    const getFormWithDiagnostics = (node: FlowNode): Promise<FlowNode | null> => {
+        // Update node with new line range only for creation forms (not edit forms)
+        const nodeToProcess = props.editForm
+            ? node
+            : createNodeWithUpdatedLineRange(node, targetLineRange);
+        const form = JSON.stringify(nodeToProcess);
+        if (latestDiagnostics.current?.form === form) {
+            return latestDiagnostics.current.result;
+        }
+        const turn = diagnosticsQueue.current.then<FlowNode | null | typeof SUPERSEDED>(() =>
+            latestDiagnostics.current?.form === form ? requestFormDiagnostics(node, nodeToProcess) : SUPERSEDED
+        );
+        diagnosticsQueue.current = turn;
+        const check = {
+            form,
+            result: turn.then((result) => (result === SUPERSEDED ? latestDiagnostics.current!.result : result))
+        };
+        latestDiagnostics.current = check;
+        // A settled answer goes stale when other code changes, so only a running check is shared.
+        check.result.finally(() => {
+            if (latestDiagnostics.current === check) {
+                latestDiagnostics.current = undefined;
+            }
+        });
+        return check.result;
     };
 
     const hasPropertyDiagnosticMessages = (nodeWithDiagnostics: FlowNode | null): boolean => {
