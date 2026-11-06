@@ -164,7 +164,7 @@ export namespace S {
         minWidth: 0
     });
 
-    export const Type = styled.div<{ isVisible: boolean }>(({ isVisible }) => ({
+    export const Type = styled.div({
         color: ThemeColors.PRIMARY,
         fontFamily: 'monospace',
         fontSize: '10px',
@@ -177,18 +177,8 @@ export namespace S {
         maxWidth: '120px',
         overflow: 'hidden',
         textOverflow: 'ellipsis',
-        whiteSpace: 'nowrap',
-        opacity: 0,
-        animation: `${isVisible ? 'fadeIn' : 'fadeOut'} 0.2s ease-${isVisible ? 'in' : 'out'} forwards`,
-        '@keyframes fadeIn': {
-            '0%': { opacity: 0 },
-            '100%': { opacity: 1 }
-        },
-        '@keyframes fadeOut': {
-            '0%': { opacity: 1 },
-            '100%': { opacity: 0 }
-        }
-    }));
+        whiteSpace: 'nowrap'
+    });
 
     export const Label = styled.label({
         color: 'var(--vscode-editor-foreground)',
@@ -428,7 +418,6 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
     const key = fieldKey ?? field.key;
     const readOnly = field.editable === false;
     const defaultHint = getDefaultHint(field);
-    const [focused, setFocused] = useState<boolean>(false);
     const [formDiagnostics, setFormDiagnostics] = useState(field.diagnostics);
     const [isExpandedModalOpen, setIsExpandedModalOpen] = useState(false);
 
@@ -542,8 +531,6 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
     }, [fieldValue, targetLineRange]);
 
     const handleFocus = async (controllerOnChange?: (value: string) => void) => {
-        setFocused(true);
-
         // If in guided mode with recordTypeField, open ConfigureRecordPage directly
         if (inputMode === InputMode.RECORD && recordTypeField && onOpenRecordConfigPage) {
             const currentValue = watch(key) || '';
@@ -575,7 +562,6 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
     };
 
     const handleBlur = async () => {
-        setFocused(false);
         await onBlur?.();
     };
 
@@ -691,7 +677,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
                                         {defaultHint && <S.DefaultValue style={{ marginLeft: '8px' }}>{`(Default: ${defaultHint}) `}</S.DefaultValue>}
                                         {(required ?? !field.optional) && <RequiredFormInput />}
                                         {getFieldTypeLabel(field.types) && (
-                                            <S.Type style={{ marginLeft: '5px' }} isVisible={focused} title={getFieldTypeLabel(field.types)}>
+                                            <S.Type style={{ marginLeft: '5px' }} title={getFieldTypeLabel(field.types)}>
                                                 {sanitizeType(getFieldTypeLabel(field.types))}
                                             </S.Type>
                                         )}

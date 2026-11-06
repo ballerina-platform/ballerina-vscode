@@ -200,7 +200,6 @@ export function ActionTypeEditor(props: ActionTypeEditorProps) {
 
     const cursorPositionRef = useRef<number | undefined>(undefined);
     const [showDefaultCompletion, setShowDefaultCompletion] = useState<boolean>(false);
-    const [focused, setFocused] = useState<boolean>(false);
     const [isTypeOptional, setIsTypeOptional] = useState<boolean>(false);
     const [isCodeActionMenuOpen, setIsCodeActionMenuOpen] = useState<boolean>(false);
     const [isGraphqlId, setIsGraphqlId] = useState<boolean>(field.isGraphqlId || false);
@@ -321,7 +320,6 @@ export function ActionTypeEditor(props: ActionTypeEditorProps) {
     };
 
     const handleFocus = async (value: string) => {
-        setFocused(true);
         // Trigger actions on focus
         await onFocus?.();
         await retrieveVisibleTypes(value, value.length, true, field.types, field.key);
@@ -329,7 +327,6 @@ export function ActionTypeEditor(props: ActionTypeEditorProps) {
     };
 
     const handleBlur = async () => {
-        setFocused(false);
         // Trigger actions on blur
         await onBlur?.();
         setShowDefaultCompletion(undefined);
@@ -593,7 +590,6 @@ export function ActionTypeEditor(props: ActionTypeEditorProps) {
                 </S.Header>
                 {getFieldTypeLabel(field.types) &&
                     <S.Type
-                        isVisible={focused}
                         title={getFieldTypeLabel(field.types)}
                     >
                         {sanitizeType(getFieldTypeLabel(field.types))}

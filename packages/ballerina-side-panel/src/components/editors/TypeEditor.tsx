@@ -271,7 +271,7 @@ export function TypeEditor(props: TypeEditorProps) {
                                 <S.Label>{field.label}</S.Label>
                                 {!field.optional && <RequiredFormInput />}
                                 {getFieldTypeLabel(field.types) && (
-                                    <S.Type style={{ marginLeft: '5px' }} isVisible={focused} title={getFieldTypeLabel(field.types)}>
+                                    <S.Type style={{ marginLeft: '5px' }} title={getFieldTypeLabel(field.types)}>
                                         {sanitizeType(getFieldTypeLabel(field.types))}
                                     </S.Type>
                                 )}
