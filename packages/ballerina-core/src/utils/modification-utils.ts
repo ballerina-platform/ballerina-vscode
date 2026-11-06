@@ -19,24 +19,9 @@
 import { NodePosition } from "@wso2/syntax-tree";
 import { ListenerConfigFormState, STModification, ServiceConfigState, getComponentSource } from "..";
 import { getInsertComponentSource } from "./template-utils";
+import { keywords } from "./keywords";
 
-export const keywords = [
-    "if", "else", "fork", "join", "while", "foreach",
-    "in", "return", "returns", "break", "transaction",
-    "transactional", "retry", "commit", "rollback", "continue",
-    "typeof", "enum", "wait", "check", "checkpanic", "panic",
-    "trap", "match", "import", "public", "private",
-    "as", "lock", "new", "record", "limit", "start", "flush",
-    "abstract", "external", "final", "listener", "remote", "is", 
-    "from", "on", "select", "where", "annotation", "type", 
-    "function", "resource", "service", "worker", "object", "client", 
-    "const", "let", "source", "parameter", "field", "xmlns", "true", "false", 
-    "null", "table", "do", "base16", "base64", "conflict", "outer", "equals", 
-    "boolean", "int", "float", "string", "decimal", "handle", "var", "any", 
-    "anydata", "byte", "future", "typedesc", "map", "json", "xml", "error", 
-    "never", "readonly", "distinct", "stream", "isolated", "configurable", 
-    "class", "order", "by", "ascending", "descending", "!is", "fail"
-];
+export { keywords };
 
 export async function InsertorDelete(
     modifications: STModification[]
