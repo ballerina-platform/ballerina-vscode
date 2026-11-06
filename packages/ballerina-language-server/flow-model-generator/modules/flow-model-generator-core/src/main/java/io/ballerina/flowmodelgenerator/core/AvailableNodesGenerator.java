@@ -55,6 +55,7 @@ import io.ballerina.flowmodelgenerator.core.model.node.KnowledgeBaseBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.ModelProviderBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.NPFunctionCall;
 import io.ballerina.flowmodelgenerator.core.model.node.VectorStoreBuilder;
+import io.ballerina.flowmodelgenerator.core.utils.A2aUtil;
 import io.ballerina.flowmodelgenerator.core.utils.ConnectorUtil;
 import io.ballerina.flowmodelgenerator.core.utils.WorkflowUtil;
 import io.ballerina.modelgenerator.commons.CommonUtils;
@@ -101,6 +102,8 @@ import static io.ballerina.modelgenerator.commons.CommonUtils.isPersistClient;
 public class AvailableNodesGenerator {
 
     private final Category.Builder rootBuilder;
+    private A2aUtil.ExecutorScope a2aScope;
+    private LinePosition a2aPosition;
     private final SemanticModel semanticModel;
     private final Document document;
     private final Package pkg;
@@ -152,6 +155,9 @@ public class AvailableNodesGenerator {
             this.rootBuilder.stepIn(Category.Name.CONNECTIONS).items(new ArrayList<>(connections)).stepOut();
         }
 
+        this.a2aScope = findA2aExecutorScope(position).orElse(null);
+        this.a2aPosition = position;
+
         boolean insideTestFunction = isInsideTestFunction(position);
         List<Item> items = new ArrayList<>();
         items.addAll(getAvailableFlowNodes(position, disableBallerinaAiNodes, isInWorkflowFunction));
@@ -169,6 +175,86 @@ public class AvailableNodesGenerator {
         }
 
         return jsonArray;
+    }
+
+    private Optional<A2aUtil.ExecutorScope> findA2aExecutorScope(LinePosition position) {
+        return A2aUtil.findExecutorScope(this.semanticModel, this.document, position);
+    }
+
+    private Category getA2aCategory(A2aUtil.ExecutorScope scope) {
+        List<Item> updaterItems = new ArrayList<>(getA2aTaskUpdaterNodes(scope));
+        updaterItems.addAll(getA2aTaskInfoNodes(scope));
+        Category taskUpdater = new Category.Builder(null).name(Category.Name.A2A_TASK_UPDATER)
+                .items(updaterItems).build();
+        Category taskStore = new Category.Builder(null).name(Category.Name.A2A_TASK_STORE)
+                .items(getA2aTaskStoreNodes(scope)).build();
+        return new Category.Builder(null).name(Category.Name.A2A)
+                .items(List.of(taskUpdater, taskStore)).build();
+    }
+
+    private static AvailableNode a2aMethodNode(A2aUtil.ExecutorScope scope, NodeKind kind, String object,
+                                               String objectName, String method, String description,
+                                               boolean enabled) {
+        return new AvailableNode(
+                new Metadata.Builder<>(null).label(method).description(description).build(),
+                new Codedata.Builder<>(null)
+                        .node(kind)
+                        .org(scope.org())
+                        .module(scope.module())
+                        .packageName(scope.packageName())
+                        .version(scope.version())
+                        .object(object)
+                        .symbol(method)
+                        .parentSymbol(objectName)
+                        .build(),
+                enabled);
+    }
+
+    private List<Item> getA2aTaskUpdaterNodes(A2aUtil.ExecutorScope scope) {
+        String[][] updates = {
+                {"working", "Tell the caller the task is being worked on."},
+                {"addArtifact", "Attach the agent's answer to the task as its result."},
+                {"complete", "Mark the task completed, so the caller gets the result."},
+                {"failed", "Mark the task failed."},
+                {"reject", "Refuse the task without working on it."},
+                {"requireInput", "Ask the caller for more input before going on."},
+                {"requireAuth", "Ask the caller to authenticate before going on."},
+        };
+        List<Item> items = new ArrayList<>();
+        for (String[] update : updates) {
+            items.add(a2aMethodNode(scope, NodeKind.A2A_TASK_UPDATE, "TaskUpdater", scope.updaterName(),
+                    update[0], update[1], true));
+        }
+        return items;
+    }
+
+    private List<Item> getA2aTaskInfoNodes(A2aUtil.ExecutorScope scope) {
+        return List.of(
+                a2aMethodNode(scope, NodeKind.METHOD_CALL, "TaskUpdater", scope.updaterName(), "getTaskId",
+                        "The id of the task being run.", true),
+                a2aMethodNode(scope, NodeKind.METHOD_CALL, "TaskUpdater", scope.updaterName(), "getContextId",
+                        "The id of the conversation the task belongs to; use it as the agent's session id.", true));
+    }
+
+    private List<Item> getA2aTaskStoreNodes(A2aUtil.ExecutorScope scope) {
+        Optional<String> store = findA2aTaskStore(this.a2aPosition);
+        String name = store.orElse("taskStore");
+        String hint = store.isPresent() ? "" : " Needs a task store in scope: declare an a2a:InMemoryTaskStore and "
+                + "pass it to the handler.";
+        return List.of(
+                a2aMethodNode(scope, NodeKind.A2A_TASK_STORE, "InMemoryTaskStore", name, "get",
+                        "Read one task from the task store, for an owner." + hint, store.isPresent()),
+                a2aMethodNode(scope, NodeKind.A2A_TASK_STORE, "InMemoryTaskStore", name, "list",
+                        "List the tasks the task store holds for an owner." + hint, store.isPresent()));
+    }
+
+    private Optional<String> findA2aTaskStore(LinePosition position) {
+        for (Symbol symbol : getScopedSymbols(position).values()) {
+            if (symbol instanceof VariableSymbol variable && AiUtils.isA2aTaskStoreType(variable.typeDescriptor())) {
+                return variable.getName();
+            }
+        }
+        return Optional.empty();
     }
 
     private boolean isInsideWorkflowFunction(LinePosition position) {
@@ -576,7 +662,11 @@ public class AvailableNodesGenerator {
         Category agentCategory = new Category.Builder(null).name(Category.Name.AGENT)
                 .items(List.of(agent)).build();
 
-        return List.of(directLlmCategory, ragCategory, agentCategory);
+        List<Item> aiNodes = new ArrayList<>(List.of(directLlmCategory, ragCategory, agentCategory));
+        if (this.a2aScope != null) {
+            aiNodes.add(getA2aCategory(this.a2aScope));
+        }
+        return aiNodes;
     }
 
 

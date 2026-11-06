@@ -441,5 +441,21 @@
     "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.wso2.integration_1.1.1.png",
     "kind": "ai",
     "minSupportedVersion": "1.1.1"
+  },
+  "29": {
+    "name": "a2a",
+    "orgName": "ballerina",
+    "packageName": "a2a",
+    "keywords": [
+      "a2a",
+      "agent",
+      "agent-to-agent",
+      "protocol"
+    ],
+    "triggerName": "A2A",
+    "version": "1.0.0",
+    "kind": "agent-a2a",
+    "minSupportedVersion": "1.0.0",
+    "description": "Publish an agent so other agents can call it over the A2A protocol."
   }
 }

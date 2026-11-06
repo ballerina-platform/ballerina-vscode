@@ -67,6 +67,7 @@ import {
 } from "./Forms/TriggerHandlerForm/payloadComposer";
 import { getTryItAIDefaultPromptService, getTryItDropdownOptions, TryItOptionValue, TryItQuickPickItem } from "../shared/tryIt";
 import { ServiceModelError } from "./ServiceModelError";
+import { A2aOperations } from "./A2aOperations";
 
 const LoadingContainer = styled.div`
     display: flex;
@@ -656,17 +657,29 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
     };
 
     const handleFunctionDelete = async (model: FunctionModel) => {
-        console.log("Deleting Resource Model:", model);
-        const component: ComponentInfo = {
-            name: model.name.value,
-            filePath: model.codedata.lineRange.fileName,
-            startLine: model.codedata.lineRange.startLine.line,
-            startColumn: model.codedata.lineRange.startLine.offset,
-            endLine: model.codedata.lineRange.endLine.line,
-            endColumn: model.codedata.lineRange.endLine.offset,
-        };
-        await rpcClient.getBIDiagramRpcClient().deleteByComponentInfo({ filePath, component });
+        await deleteFunctions([model]);
+    };
 
+    const deleteFunctions = async (models: FunctionModel[]) => {
+        const lastFirst = [...models].sort(
+            (a, b) => b.codedata.lineRange.startLine.line - a.codedata.lineRange.startLine.line
+        );
+        for (const model of lastFirst) {
+            const component: ComponentInfo = {
+                name: model.name.value,
+                filePath: model.codedata.lineRange.fileName,
+                startLine: model.codedata.lineRange.startLine.line,
+                startColumn: model.codedata.lineRange.startLine.offset,
+                endLine: model.codedata.lineRange.endLine.line,
+                endColumn: model.codedata.lineRange.endLine.offset,
+            };
+            await rpcClient.getBIDiagramRpcClient().deleteByComponentInfo({ filePath, component });
+        }
+
+        await refreshServiceAfterEdit();
+    };
+
+    const refreshServiceAfterEdit = async () => {
         const context = await rpcClient.getVisualizerLocation();
         const projectPath = context.projectPath;
         const projectStructure = await rpcClient.getBIDiagramRpcClient().getProjectStructure();
@@ -1090,7 +1103,6 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
                                 </ServiceMetadataContainer>
                             )}
 
-
                             {resources.filter((resource) => resource.type === DIRECTORY_MAP.FUNCTION && resource.name === "init").length > 0 && (
                                 <>
                                     <SectionHeader
@@ -1117,7 +1129,6 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
 
                                 </>
                             )}
-
 
                             {/* Listing Resources in HTTP (and, read-only for adding, a chat agent's fixed chat/decision pair) */}
                             {(isHttpService || isAiService) && (
@@ -1200,10 +1211,13 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
                             {!isHttpService && !isAiService && (
                                 <>
                                     <SectionHeader
-                                        title={isFileService ? "File Handlers" : isMcpService ? "Tools" : "Event Handlers"}
+                                        title={isFileService ? "File Handlers" : isMcpService ? "Tools"
+                                            : serviceModel.moduleName === "a2a" ? "Operations" : "Event Handlers"}
                                         subtitle={enabledHandlers.length === 0 ? "" : isMcpService
                                             ? "Define how the mcp service responds to tool calls"
-                                            : `Define how the service responds to events`}
+                                            : serviceModel.moduleName === "a2a"
+                                                ? "The A2A operations this agent serves"
+                                                : `Define how the service responds to events`}
                                     >
                                         <ActionGroup>
                                             {enabledHandlers.length !== 0 && unusedHandlers.length > 0 && (
@@ -1218,6 +1232,13 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
                                             )}
                                         </ActionGroup>
                                     </SectionHeader>
+                                    {serviceModel.moduleName === "a2a" ? (
+                                        <A2aOperations
+                                            handlers={enabledHandlers}
+                                            onDeleteGroup={deleteFunctions}
+                                            onImplement={handleOpenDiagram}
+                                        />
+                                    ) : (
                                     <FunctionsContainer>
                                         {enabledHandlers.map((functionModel, index) => {
                                             // A schema-driven handler with nothing configurable (e.g.
@@ -1238,6 +1259,7 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
                                             );
                                         })}
                                     </FunctionsContainer>
+                                    )}
 
                                     {enabledHandlers.length === 0 && (
                                         <EmptyReadmeContainer>
@@ -1256,7 +1278,6 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
                                     )}
                                 </>
                             )}
-
 
                             {resources.filter((resource) => resource.type === DIRECTORY_MAP.FUNCTION && resource.name !== "init").length > 0 && (
                                 <>

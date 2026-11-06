@@ -45,6 +45,7 @@ import { useDiagramContext } from "../../DiagramContext";
 import { BaseNodeModel } from "./BaseNodeModel";
 import { ELineRange, FlowNode } from "@wso2/ballerina-core";
 import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
+import { AgentReferenceRow } from "../AgentWidget/AgentReferenceRow";
 import {
     getDiffContainerStyles,
     getDiffTitleStyles,
@@ -57,6 +58,9 @@ import {
 import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
 import { NodeNoteChip } from "../../NodeNoteChip";
 
+const A2A_HANDLER_ACCENT_COLOR = "var(--vscode-charts-blue)";
+const A2A_HANDLER_BG_COLOR = `color-mix(in srgb, ${A2A_HANDLER_ACCENT_COLOR} 9%, ${NODE_BG_COLOR})`;
+
 export namespace NodeStyles {
     export type NodeStyleProp = {
         disabled: boolean;
@@ -66,6 +70,7 @@ export namespace NodeStyles {
         isActiveBreakpoint?: boolean;
         isSelected?: boolean;
         isWorkflowNode?: boolean;
+        isA2aHandler?: boolean;
     };
     export const Node = styled.div<NodeStyleProp>`
         display: flex;
@@ -76,8 +81,15 @@ export namespace NodeStyles {
         min-height: ${NODE_HEIGHT}px;
         padding: 0 ${NODE_PADDING}px;
         background-color: ${(props: NodeStyleProp) =>
-            props?.isActiveBreakpoint ? NODE_BG_BREAKPOINT_COLOR : props.hovered && !props.disabled && !props.readOnly ? NODE_BG_HOVER_COLOR : NODE_BG_COLOR};
+            props?.isActiveBreakpoint
+                ? NODE_BG_BREAKPOINT_COLOR
+                : props.hovered && !props.disabled && !props.readOnly
+                    ? NODE_BG_HOVER_COLOR
+                    : props.isA2aHandler
+                        ? A2A_HANDLER_BG_COLOR
+                        : NODE_BG_COLOR};
         color: ${NODE_TEXT_COLOR};
+        ${(props: NodeStyleProp) => (props.isA2aHandler ? `border-left: 4px solid ${A2A_HANDLER_ACCENT_COLOR} !important;` : "")}
         opacity: ${(props: NodeStyleProp) => (props.disabled ? 0.7 : 1)};
         border: ${(props: NodeStyleProp) =>
             props.disabled
@@ -219,6 +231,7 @@ export function BaseNodeWidget(props: BaseNodeWidgetProps) {
         selectedNodeId,
         project,
         nodeComments,
+        goToA2aHandler,
     } = useDiagramContext();
 
     const noteComments = nodeComments?.get(model.node.id) ?? [];
@@ -443,6 +456,11 @@ export function BaseNodeWidget(props: BaseNodeWidgetProps) {
         nodeDescription = model.node.properties.msg.value;
     }
 
+    const isA2aHandler = model.node.codedata.node === "A2A_HANDLER_CALL";
+    if (isA2aHandler) {
+        nodeDescription = model.node.properties?.variable?.value ?? "";
+    }
+
     const hasError = nodeHasError(model.node);
     const isWorkflowStyledNode = isWorkflowNode(model.node);
 
@@ -455,6 +473,7 @@ export function BaseNodeWidget(props: BaseNodeWidgetProps) {
             isActiveBreakpoint={isActiveBreakpoint}
             isSelected={isSelected}
             isWorkflowNode={isWorkflowStyledNode}
+            isA2aHandler={isA2aHandler}
             style={getDiffContainerStyles(model.node)}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => { setIsHovered(false); setIsNoteActive(false); }}
@@ -582,6 +601,20 @@ export function BaseNodeWidget(props: BaseNodeWidgetProps) {
                     document.body
                 )}
             </NodeStyles.Row>
+            {isA2aHandler && (
+                <div style={{ width: "100%", paddingBottom: 8, boxSizing: "border-box" }}>
+                    <AgentReferenceRow
+                        label="handler"
+                        buttonLabel="Open Handler"
+                        clickable={Boolean(goToA2aHandler) && !readOnly}
+                        onOpen={(event) => {
+                            event.stopPropagation();
+                            goToA2aHandler?.(model.node);
+                        }}
+                        onButtonHoverChange={() => { }}
+                    />
+                </div>
+            )}
             <NodeStyles.BottomPortWidget port={model.getPort("out")!} engine={engine} />
         </NodeStyles.Node>
     );

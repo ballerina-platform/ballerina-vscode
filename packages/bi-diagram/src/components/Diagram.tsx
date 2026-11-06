@@ -64,6 +64,7 @@ export interface DiagramProps {
     goToSource?: (node: FlowNode) => void;
     openView?: (location: VisualizerLocation) => void;
     goToAgent?: (node: FlowNode) => void;
+    goToA2aHandler?: (node: FlowNode) => void;
     goToAgentDefinition?: (node: FlowNode) => void;
     getAgentDefinitionLocation?: (node: FlowNode) => Promise<VisualizerLocation | undefined>;
     draftNode?: DraftNodeConfig;
@@ -116,6 +117,7 @@ export function Diagram(props: DiagramProps) {
         goToSource,
         openView,
         goToAgent,
+        goToA2aHandler,
         goToAgentDefinition,
         getAgentDefinitionLocation,
         draftNode,
@@ -347,6 +349,7 @@ export function Diagram(props: DiagramProps) {
         goToSource: goToSource,
         openView: openView,
         goToAgent: goToAgent,
+        goToA2aHandler: goToA2aHandler,
         goToAgentDefinition: goToAgentDefinition,
         getAgentDefinitionLocation: getAgentDefinitionLocation,
         draftNode: draftNode,
