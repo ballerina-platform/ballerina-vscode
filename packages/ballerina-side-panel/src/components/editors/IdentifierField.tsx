@@ -23,6 +23,8 @@ import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { useFormContext } from "../../context";
 import { buildRequiredRule, capitalize, fetchIdentifierDiagnostics, getFriendlyIdentifierMessage, getPropertyFromFormField, toEditableName } from "./utils";
 import { buildValidate } from "../Form/validationRules";
+import { useFieldDiagnostics } from "../Form/useFieldDiagnostics";
+import { dedupeMessages } from "../Form/DiagnosticsStore";
 import { FormField } from "../Form/types";
 import { FieldTypeChip } from "./FieldTypeChip";
 export interface IdentifierFieldProps {
@@ -39,6 +41,12 @@ export function IdentifierField(props: IdentifierFieldProps) {
     const { watch, formState, register, setValue, setError, clearErrors } = form;
     const { errors } = formState;
     const [formDiagnostics, setFormDiagnostics] = useState(field.diagnostics);
+    // A failing `validations[]` rule (such as the GraphQL name rule) only marks the form invalid until submit, which
+    // disables Save with nothing shown; the live result is rendered directly, as TextEditor does.
+    const liveDiagnostics = useFieldDiagnostics(field, {
+        filePath: fileName,
+        moduleName: field.codedata?.moduleName,
+    });
     // Defer validation of a pristine empty field until touched.
     const [isTouched, setIsTouched] = useState(Boolean(field.value));
 
@@ -109,11 +117,16 @@ export function IdentifierField(props: IdentifierFieldProps) {
         validate: buildValidate(field)
     })
     const { onChange } = registerField;
+    const errorMsg = dedupeMessages([
+        errors[field.key]?.message?.toString(),
+        ...liveDiagnostics.errors.map((diagnostic) => diagnostic.message),
+    ]).join("\n");
 
 
     const handleOnChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFormDiagnostics([]);
         onChange(e);
+        liveDiagnostics.onValueChange(e.target.value);
         field.onValueChange?.(e.target.value as string);
     }
 
@@ -129,13 +142,13 @@ export function IdentifierField(props: IdentifierFieldProps) {
                 description={field.documentation}
                 placeholder={field.placeholder}
                 readOnly={!field.editable}
-                errorMsg={errors[field.key]?.message.toString()}
+                errorMsg={errorMsg}
                 onBlur={() => { setIsTouched(true); onBlur?.(); }}
                 onFocus={() => handleOnFieldFocus?.(field.key)}
                 autoFocus={autoFocus}
                 sx={{ width: "100%" }}
             />
-            {(!errors[field.key]?.message) && formDiagnostics && formDiagnostics.length > 0 && (
+            {!errorMsg && formDiagnostics && formDiagnostics.length > 0 && (
                 <ErrorBanner errorMsg={formDiagnostics.map(d => d.message).join('\n')} />
             )}
         </div>
