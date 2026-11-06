@@ -220,10 +220,16 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
             ?.[AUTH_FIELD_KEY];
         if (mcpV2Ref.current && properties && !properties[AUTH_FIELD_KEY] && templateAuth) {
             const httpConfigAuth = readHttpConfigAuth(properties[HTTP_CONFIG_FIELD_KEY]?.value as string);
-            properties[AUTH_FIELD_KEY] = {
-                ...cloneDeep(templateAuth),
-                value: httpConfigAuth.kind === "record" ? httpConfigAuth.auth : ""
-            };
+            const authValue = httpConfigAuth.kind === "record" ? httpConfigAuth.auth : "";
+            const authProperty = { ...cloneDeep(templateAuth), value: authValue } as Record<string, unknown>;
+            // A mapping constructor opens in the record mode, as the language server marks it for a field read
+            // from source
+            if (authValue.startsWith("{") && Array.isArray(authProperty.types)) {
+                for (const type of authProperty.types as { fieldType?: string; selected?: boolean }[]) {
+                    type.selected = type.fieldType === "RECORD_MAP_EXPRESSION";
+                }
+            }
+            properties[AUTH_FIELD_KEY] = authProperty;
         }
 
         mcpToolKitNodeRef.current = mcpToolKitVariable;
