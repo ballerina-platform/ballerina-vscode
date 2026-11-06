@@ -127,10 +127,15 @@ export function IdentifierField(props: IdentifierFieldProps) {
         return () => validateIdentifierName.cancel();
     }, [fieldValue, isTouched, validateIdentifierName]);
 
-    // Clear error on unmount so it doesn't persist and block save after the field is gone
+    // Clear error on unmount so it doesn't persist and block save after the field is gone.
+    // Bump the request id first so an in-flight diagnostics response is treated as stale
+    // and can't set the error again after this cleanup.
     useEffect(() => {
         const key = field.key;
-        return () => clearErrors(key);
+        return () => {
+            latestRequestRef.current++;
+            clearErrors(key);
+        };
     }, [field.key, clearErrors]);
 
     const registerField = register(field.key, {
