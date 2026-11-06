@@ -534,7 +534,17 @@ public class CommonUtils {
         }
     }
 
-    private static Optional<Document> findDocument(Project project, Location location, String moduleName) {
+    /**
+     * Finds the document a location points into, within one module of the package when {@code moduleName} is given.
+     * A file name shared by documents in different modules is resolved through the module; an ambiguous match
+     * returns empty.
+     *
+     * @param project    the project to search
+     * @param location   the location, e.g. a symbol's
+     * @param moduleName the owning module's name, or {@code null} to search every module
+     * @return the document, if exactly one matches
+     */
+    public static Optional<Document> findDocument(Project project, Location location, String moduleName) {
         String locationFileName = location.lineRange().fileName().replace('\\', '/');
         List<Document> exactMatches = new ArrayList<>();
         List<Document> suffixMatches = new ArrayList<>();

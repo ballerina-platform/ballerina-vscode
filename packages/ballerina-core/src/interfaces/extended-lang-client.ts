@@ -1796,6 +1796,8 @@ export interface TypeFunctionModel {
     refs: string[];
     imports?: Imports;
     isGraphqlId?: boolean;
+    /** GraphQL type of the exposed field in SDL notation (e.g. `[Book!]!`); only set in the GraphQL type model. */
+    graphqlType?: string;
     properties?: { [key: string]: any };
 }
 
@@ -1834,6 +1836,8 @@ export interface Member {
     selected?: boolean;
     typeName?: string;
     isGraphqlId?: boolean;
+    /** GraphQL type in SDL notation (e.g. `ID!`); only set in the GraphQL type model. */
+    graphqlType?: string;
 }
 
 export interface GetGraphqlTypeRequest {

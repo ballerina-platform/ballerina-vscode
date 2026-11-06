@@ -267,7 +267,8 @@
             "advanced": false,
             "hidden": false
           }
-        }
+        },
+        "graphqlType": "(ProfileType|String)!"
       }
     ],
     "allowAdditionalFields": false

@@ -33,12 +33,13 @@ import java.util.Set;
  * @param workflowSendData workflow data events sent by the function via workflow:sendData(), keyed by workflow uuid
  * @param invalidWorkflowSendData uuids of workflows targeted by workflow:sendData() calls whose data event name is
  *                                unknown or does not match any event declared by the workflow function
+ * @param graphqlField the GraphQL field this function exposes, or {@code null} outside a GraphQL service
  *
  * @since 1.0.0
  */
 public record ResourceFunction(String accessor, String path, Location location, Set<String> connections,
                                Set<String> workflows, Map<String, Set<String>> workflowSendData,
-                               Set<String> invalidWorkflowSendData) {
+                               Set<String> invalidWorkflowSendData, GraphqlField graphqlField) {
 
     @Override
     public int hashCode() {
@@ -47,6 +48,6 @@ public record ResourceFunction(String accessor, String path, Location location, 
         int workflowSendData = workflowSendData() != null ? workflowSendData().size() : 0;
         int invalidWorkflowSendData = invalidWorkflowSendData() != null ? invalidWorkflowSendData().size() : 0;
         return Objects.hash(accessor().hashCode(), path().hashCode(), location().hashCode(), connections, workflows,
-                workflowSendData, invalidWorkflowSendData);
+                workflowSendData, invalidWorkflowSendData, Objects.hashCode(graphqlField()));
     }
 }

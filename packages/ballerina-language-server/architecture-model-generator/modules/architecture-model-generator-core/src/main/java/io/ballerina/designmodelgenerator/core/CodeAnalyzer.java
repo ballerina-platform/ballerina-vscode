@@ -96,6 +96,7 @@ import io.ballerina.designmodelgenerator.core.model.Location;
 import io.ballerina.designmodelgenerator.core.model.Workflow;
 import io.ballerina.flowmodelgenerator.core.Constants;
 import io.ballerina.flowmodelgenerator.core.utils.WorkflowUtil;
+import io.ballerina.modelgenerator.commons.GraphqlTypeMapper;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.trigger.LibraryMetadataReader;
 import io.ballerina.modelgenerator.commons.trigger.models.ArtifactIcon;
@@ -119,6 +120,7 @@ public class CodeAnalyzer extends NodeVisitor {
     private final IntermediateModel intermediateModel;
     private IntermediateModel.FunctionModel currentFunctionModel;
     private IntermediateModel.ServiceModel currentServiceModel;
+    private boolean isGraphqlService;
     private final Path rootPath;
     private final ConnectionFinder connectionFinder;
     private IntermediateModel.ServiceClassModel currentServiceClass;
@@ -198,6 +200,8 @@ public class CodeAnalyzer extends NodeVisitor {
                 displayName, absoluteResourcePath, sortText, getLocation(lineRange));
         serviceModel.serviceType = serviceType;
         this.currentServiceModel = serviceModel;
+        this.isGraphqlService = serviceSymbol.isPresent()
+                && GraphqlTypeMapper.isGraphqlService((ServiceDeclarationSymbol) serviceSymbol.get());
         intermediateModel.serviceModelMap.put(String.valueOf(lineRange.hashCode()), serviceModel);
 
         for (ExpressionNode expressionNode : serviceDeclarationNode.expressions()) {
@@ -242,6 +246,7 @@ public class CodeAnalyzer extends NodeVisitor {
         }
         serviceDeclarationNode.members().forEach(member -> member.accept(this));
         this.currentServiceModel = null;
+        this.isGraphqlService = false;
     }
 
     @Override
@@ -252,6 +257,10 @@ public class CodeAnalyzer extends NodeVisitor {
             Optional<Symbol> symbol = this.semanticModel.symbol(functionDefinitionNode);
             if (symbol.isPresent()) {
                 MethodSymbol methodSymbol = (MethodSymbol) symbol.get();
+                if (this.isGraphqlService) {
+                    this.currentFunctionModel.graphqlField =
+                            GraphqlFieldResolver.resolve(functionDefinitionNode, methodSymbol);
+                }
                 if (functionDefinitionNode.kind() == SyntaxKind.RESOURCE_ACCESSOR_DEFINITION) {
                     this.currentFunctionModel.path = CommonUtils.getResourcePathStr(semanticModel,
                             (ResourceMethodSymbol) methodSymbol);
