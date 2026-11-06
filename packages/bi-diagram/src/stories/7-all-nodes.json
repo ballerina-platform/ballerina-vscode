@@ -1248,7 +1248,7 @@
                                                         "patterns": {
                                                             "metadata": {
                                                                 "label": "Patterns",
-                                                                "description": "List of binding patterns"
+                                                                "description": "Patterns to match the target against"
                                                             },
                                                             "types": [
                                                                 {
@@ -1260,7 +1260,7 @@
                                                                 {
                                                                     "metadata": {
                                                                         "label": "Pattern",
-                                                                        "description": "Binding pattern"
+                                                                        "description": "Pattern or value to match the target against"
                                                                     },
                                                                     "types": [
                                                                         {
@@ -1362,7 +1362,7 @@
                                                         "patterns": {
                                                             "metadata": {
                                                                 "label": "Patterns",
-                                                                "description": "List of binding patterns"
+                                                                "description": "Patterns to match the target against"
                                                             },
                                                             "types": [
                                                                 {
@@ -1374,7 +1374,7 @@
                                                                 {
                                                                     "metadata": {
                                                                         "label": "Pattern",
-                                                                        "description": "Binding pattern"
+                                                                        "description": "Pattern or value to match the target against"
                                                                     },
                                                                     "types": [
                                                                         {
@@ -1549,7 +1549,7 @@
                                                         "patterns": {
                                                             "metadata": {
                                                                 "label": "Patterns",
-                                                                "description": "List of binding patterns"
+                                                                "description": "Patterns to match the target against"
                                                             },
                                                             "types": [
                                                                 {
@@ -1561,7 +1561,7 @@
                                                                 {
                                                                     "metadata": {
                                                                         "label": "Pattern",
-                                                                        "description": "Binding pattern"
+                                                                        "description": "Pattern or value to match the target against"
                                                                     },
                                                                     "types": [
                                                                         {
@@ -1590,7 +1590,7 @@
                                                 "matchTarget": {
                                                     "metadata": {
                                                         "label": "Target",
-                                                        "description": "Match target expression"
+                                                        "description": "Expression or value to evaluate against the case patterns"
                                                     },
                                                     "types": [
                                                         {
@@ -3556,7 +3556,7 @@
                                 "variable": {
                                     "metadata": {
                                         "label": "Variable Name",
-                                        "description": "Name of the variable"
+                                        "description": "Name of the variable that holds the current item"
                                     },
                                     "types": [
                                         {
@@ -3586,7 +3586,7 @@
                                 "type": {
                                     "metadata": {
                                         "label": "Variable Type",
-                                        "description": "Type of the variable"
+                                        "description": "Type of each item in the collection"
                                     },
                                     "types": [
                                         {

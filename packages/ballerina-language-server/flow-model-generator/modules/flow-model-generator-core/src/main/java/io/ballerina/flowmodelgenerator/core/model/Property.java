@@ -194,7 +194,7 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
 
     public static final String MATCH_TARGET_KEY = "matchTarget";
     public static final String MATCH_TARGET_LABEL = "Target";
-    public static final String MATCH_TARGET_DOC = "Match target expression";
+    public static final String MATCH_TARGET_DOC = "Expression or value to evaluate against the case patterns";
 
     public static final String IGNORE_KEY = "ignore";
     public static final String IGNORE_LABEL = "Ignore";
@@ -211,6 +211,8 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
     public static final String COLLECTION_KEY = "collection";
     public static final String COLLECTION_LABEL = "Collection";
     public static final String COLLECTION_DOC = "Collection to iterate";
+    public static final String FOREACH_VARIABLE_DOC = "Name of the variable that holds the current item";
+    public static final String FOREACH_TYPE_DOC = "Type of each item in the collection";
 
     public static final String CHECK_ERROR_KEY = "checkError";
     public static final String CHECK_ERROR_LABEL = "Check Error";
@@ -240,9 +242,9 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
 
     public static final String PATTERNS_KEY = "patterns";
     public static final String PATTERNS_LABEL = "Patterns";
-    public static final String PATTERNS_DOC = "List of binding patterns";
+    public static final String PATTERNS_DOC = "Patterns to match the target against";
     public static final String PATTERN_LABEL = "Pattern";
-    public static final String PATTERN_DOC = "Binding pattern";
+    public static final String PATTERN_DOC = "Pattern or value to match the target against";
 
     public static final String GUARD_KEY = "guard";
     public static final String GUARD_DOC = "Guard expression";
