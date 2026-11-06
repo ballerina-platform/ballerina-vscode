@@ -62,7 +62,7 @@ import {
     AvailableNode,
 } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { FormContext, Provider, FormFieldLoadingProvider, useFormFieldLoadingContext } from "../../context";
+import { FormContext, Provider, FormFieldLoadingProvider, useFormContext, useFormFieldLoadingContext } from "../../context";
 import {
     formatJSONLikeString,
     updateFormFieldWithImports,
@@ -998,6 +998,13 @@ export const Form = forwardRef((props: FormProps, _ref) => {
 
     const canOpenInFunctionEditor = selectedNode === "FUNCTION_CREATION";
 
+    // A nested form (an array element, a map entry) is given no location of its own, so its editors
+    // take the parent's: without a file the language server returns no tokens and no chips render.
+    // Only the context inherits it; the props stay unset so the nested form never reports dirtiness.
+    const parentContext = useFormContext();
+    const editorTargetLineRange = targetLineRange ?? (nestedForm ? parentContext?.targetLineRange : undefined);
+    const editorFileName = fileName ?? (nestedForm ? parentContext?.fileName : undefined);
+
     const contextValue: FormContext = {
         form: {
             control,
@@ -1015,8 +1022,8 @@ export const Form = forwardRef((props: FormProps, _ref) => {
             ...expressionEditor,
             getExpressionEditorDiagnostics: handleGetExpressionDiagnostics,
         },
-        targetLineRange,
-        fileName,
+        targetLineRange: editorTargetLineRange,
+        fileName: editorFileName,
         popupManager: popupManager,
         nodeInfo: {
             kind: selectedNode,
