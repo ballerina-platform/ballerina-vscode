@@ -16,9 +16,9 @@
  * under the License.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { type BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
-import { BuildMode, SCOPE } from "@wso2/ballerina-core";
+import { BuildMode, ProjectStructure, SCOPE } from "@wso2/ballerina-core";
 import { IOpenInConsoleCmdParams, WICommandIds } from "@wso2/wso2-platform-core";
 import { usePlatformExtContext } from "../providers/platform-ext-ctx-provider";
 
@@ -152,5 +152,92 @@ export function useDeploymentControl(
         handleDockerBuild,
         handleJarBuild,
         goToDevant,
+    };
+}
+
+export type IcpAction = "enableAll" | "disableAll" | "enableRemaining";
+
+export interface WorkspaceIcpState {
+    statusByProjectPath: Record<string, boolean>;
+    state: "all" | "partial" | "none";
+    enabledCount: number;
+    totalCount: number;
+    actionLoading: IcpAction | null;
+    enableAll: () => Promise<void>;
+    disableAll: () => Promise<void>;
+    enableRemaining: () => Promise<void>;
+}
+
+/** ICP status of every integration in the workspace, plus the enable/disable-all actions. */
+export function useWorkspaceIcp(
+    rpcClient: BallerinaRpcClient,
+    projects: ProjectStructure[] | undefined,
+    isICPSupported?: boolean
+): WorkspaceIcpState {
+    const [statusByProjectPath, setStatusByProjectPath] = useState<Record<string, boolean>>({});
+    const [actionLoading, setActionLoading] = useState<IcpAction | null>(null);
+    const projectPaths = useMemo(
+        () => (projects ?? []).filter((project) => !project.isLibrary).map((project) => project.projectPath),
+        [projects]
+    );
+
+    const sync = useCallback(async () => {
+        if (!isICPSupported || projectPaths.length === 0) {
+            setStatusByProjectPath({});
+            return;
+        }
+        try {
+            const statuses = await Promise.all(
+                projectPaths.map((projectPath) => rpcClient.getICPRpcClient().isIcpEnabled({ projectPath }))
+            );
+            setStatusByProjectPath(
+                Object.fromEntries(projectPaths.map((projectPath, index) => [projectPath, Boolean(statuses[index]?.enabled)]))
+            );
+        } catch (error) {
+            console.error("Failed to sync ICP status:", error);
+        }
+    }, [rpcClient, projectPaths, isICPSupported]);
+
+    useEffect(() => {
+        sync();
+    }, [sync]);
+
+    const run = async (action: IcpAction, paths: string[], enable: boolean) => {
+        setActionLoading(action);
+        try {
+            for (const projectPath of paths) {
+                try {
+                    if (enable) {
+                        await rpcClient.getICPRpcClient().addICP({ projectPath });
+                    } else {
+                        await rpcClient.getICPRpcClient().disableICP({ projectPath });
+                    }
+                } catch (error) {
+                    console.error("Failed to update ICP for project:", projectPath, error);
+                }
+            }
+        } finally {
+            await sync();
+            setActionLoading(null);
+        }
+    };
+
+    const enabledCount = projectPaths.filter((projectPath) => statusByProjectPath[projectPath]).length;
+    let state: WorkspaceIcpState["state"] = "partial";
+    if (enabledCount === 0) {
+        state = "none";
+    } else if (enabledCount === projectPaths.length) {
+        state = "all";
+    }
+
+    return {
+        statusByProjectPath,
+        state,
+        enabledCount,
+        totalCount: projectPaths.length,
+        actionLoading,
+        enableAll: () => run("enableAll", projectPaths, true),
+        disableAll: () => run("disableAll", projectPaths, false),
+        enableRemaining: () => run("enableRemaining", projectPaths.filter((projectPath) => !statusByProjectPath[projectPath]), true),
     };
 }

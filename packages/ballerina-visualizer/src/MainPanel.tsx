@@ -385,7 +385,12 @@ const MainPanel = () => {
                             if (await rpcClient.getCommonRpcClient().agentBuilderModeEnabled()) {
                                 const { AgentBuilderWorkspaceOverview } = await import("./views/BI/AgentBuilderWorkspaceOverview");
                                 if (isStaleNavigation()) return;
-                                setViewComponent(<AgentBuilderWorkspaceOverview isInDevant={value.isInDevant} />);
+                                setViewComponent(
+                                    <AgentBuilderWorkspaceOverview
+                                        isInDevant={value.isInDevant}
+                                        isICPSupported={value.metadata?.isICPSupported}
+                                    />
+                                );
                                 break;
                             }
                             const { WorkspaceOverview } = await import("./views/BI/WorkspaceOverview");

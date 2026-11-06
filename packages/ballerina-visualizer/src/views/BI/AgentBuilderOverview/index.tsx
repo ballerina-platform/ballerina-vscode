@@ -31,7 +31,7 @@ import { AgentSelection, EntrySelection, TriggerSelection } from "@wso2/componen
 import { Button, Codicon, Icon, ProgressRing, ThemeColors } from "@wso2/ui-toolkit";
 import { PageHeader } from "../components/PageHeader";
 import { TopNavigationBar } from "../../../components/TopNavigationBar";
-import { DeploymentPanel, SidePanel } from "../../../components/DeploymentControl";
+import { DeploymentPanel, SidePanel, useDeployPanelCollapsed } from "../../../components/DeploymentControl";
 import { useDeploymentControl } from "../../../hooks/useDeploymentControl";
 import { getIntegrationTypes, hasWorkflowArtifacts, validateComponentName, useProjectContentRefresh } from "../PackageOverview/utils";
 import { hasLibraryArtifacts } from "../PackageOverview/LibraryOverview";
@@ -208,26 +208,6 @@ export interface AgentFocusRequest {
     requestId: number;
 }
 
-const DEPLOY_PANEL_COLLAPSED_KEY = "ballerina.agentBuilderOverview.deployPanelCollapsed";
-
-// Unlike the integrator overview, the drawer starts collapsed here until the user opens it once.
-// Storage may be unavailable/quota-restricted in the webview — fall back to that same default.
-function loadDeployCollapsed(): boolean {
-    try {
-        return localStorage.getItem(DEPLOY_PANEL_COLLAPSED_KEY) !== "false";
-    } catch {
-        return true;
-    }
-}
-
-function storeDeployCollapsed(collapsed: boolean): void {
-    try {
-        localStorage.setItem(DEPLOY_PANEL_COLLAPSED_KEY, String(collapsed));
-    } catch {
-        return;
-    }
-}
-
 interface AgentBuilderOverviewProps {
     projectPath: string;
     agentFocus?: AgentFocusRequest;
@@ -246,7 +226,7 @@ function hasTriggerArtifacts(directoryMap: ProjectStructure["directoryMap"] | un
 export function AgentBuilderOverview({ projectPath, agentFocus, isInDevant, isICPSupported }: AgentBuilderOverviewProps) {
     const { rpcClient } = useRpcContext();
     const [projectStructure, setProjectStructure] = useState<ProjectStructure>();
-    const [deployCollapsed, setDeployCollapsed] = useState<boolean>(loadDeployCollapsed);
+    const [deployCollapsed, handleToggleDeployPanel] = useDeployPanelCollapsed();
     const [isInProject, setIsInProject] = useState(false);
     const [showAddAgent, setShowAddAgent] = useState(false);
     const [showAddLibraryArtifact, setShowAddLibraryArtifact] = useState(false);
@@ -426,13 +406,6 @@ export function AgentBuilderOverview({ projectPath, agentFocus, isInDevant, isIC
 
     const handleRun = () => {
         rpcClient.getCommonRpcClient().executeCommand({ commands: [BI_COMMANDS.BI_RUN_PROJECT] });
-    };
-
-    const handleToggleDeployPanel = () => {
-        setDeployCollapsed((collapsed) => {
-            storeDeployCollapsed(!collapsed);
-            return !collapsed;
-        });
     };
 
     const headerActions = (

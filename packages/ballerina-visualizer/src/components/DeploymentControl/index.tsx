@@ -23,5 +23,7 @@ export {
     DeploymentHeader,
     DeploymentBody,
     DeploymentOption,
+    WorkspaceDeploymentPanel,
+    useDeployPanelCollapsed,
 } from "./DeploymentPanel";
 export type { DeploymentPanelProps, DeploymentOptionProps } from "./DeploymentPanel";

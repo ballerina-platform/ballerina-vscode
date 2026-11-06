@@ -16,16 +16,26 @@
  * under the License.
  */
 
-import React, { ReactNode, useState } from "react";
+import React, { ReactNode, useCallback, useState } from "react";
 import styled from "@emotion/styled";
 import { useQuery } from "@tanstack/react-query";
-import { ProjectStructure, isSamePath, BI_COMMANDS, ProductMode, hasWorkflowArtifacts, DIRECTORY_MAP } from "@wso2/ballerina-core";
+import {
+    ProjectStructure,
+    ProjectStructureResponse,
+    isSamePath,
+    BI_COMMANDS,
+    BuildMode,
+    ProductMode,
+    hasWorkflowArtifacts,
+    DIRECTORY_MAP,
+} from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Typography, Codicon, ProgressRing, Button, Divider, CheckBox, ThemeColors } from "@wso2/ui-toolkit";
 import { VSCodeLink } from "@vscode/webview-ui-toolkit/react";
-import { WICommandIds } from "@wso2/wso2-platform-core";
+import { IOpenInConsoleCmdParams, WICommandIds } from "@wso2/wso2-platform-core";
 import { usePlatformExtContext } from "../../providers/platform-ext-ctx-provider";
-import { DeploymentControlState } from "../../hooks/useDeploymentControl";
+import { DeploymentControlState, WorkspaceIcpState, useWorkspaceIcp } from "../../hooks/useDeploymentControl";
+import { getWorkspaceDeploymentState } from "../../views/BI/PackageOverview/utils";
 import { AgentManagerSection, agentManagerTag, useAgentManagerStatus } from "./AgentManagerSection";
 import { McpPublishSection, mcpPublishTag, useMcpPublishStatus } from "./McpPublishSection";
 import { useProductMode } from "../../hooks/useProductMode";
@@ -57,6 +67,38 @@ export const SidePanel = styled.div<{ collapsed?: boolean }>`
     visibility: ${(props: { collapsed?: boolean }) => (props.collapsed ? "hidden" : "visible")};
     transition: opacity 180ms ease, flex-basis 220ms ease, width 220ms ease, margin-left 220ms ease, visibility 220ms;
 `;
+
+const DEPLOY_PANEL_COLLAPSED_KEY = "ballerina.agentBuilderOverview.deployPanelCollapsed";
+
+// Unlike the integrator overview, the drawer starts collapsed here until the user opens it once.
+// Storage may be unavailable/quota-restricted in the webview — fall back to that same default.
+function loadDeployCollapsed(): boolean {
+    try {
+        return localStorage.getItem(DEPLOY_PANEL_COLLAPSED_KEY) !== "false";
+    } catch {
+        return true;
+    }
+}
+
+function storeDeployCollapsed(collapsed: boolean): void {
+    try {
+        localStorage.setItem(DEPLOY_PANEL_COLLAPSED_KEY, String(collapsed));
+    } catch {
+        return;
+    }
+}
+
+/** Collapsed state of the Agent Builder Deploy drawer, shared by the project and integration pages. */
+export function useDeployPanelCollapsed(): [boolean, () => void] {
+    const [collapsed, setCollapsed] = useState<boolean>(loadDeployCollapsed);
+    const toggle = useCallback(() => {
+        setCollapsed((prev) => {
+            storeDeployCollapsed(!prev);
+            return !prev;
+        });
+    }, []);
+    return [collapsed, toggle];
+}
 
 interface DeploymentOptionContainerProps {
     isExpanded: boolean;
@@ -302,6 +344,7 @@ function useWso2Cloud(projectPath: string) {
     };
 
     return {
+        data,
         available: platformExtState.isExtInstalled && !isLoading,
         isDeployed: !!data?.isLoggedIn && !!projectMeta?.hasComponent,
         hasLocalChanges: !!projectMeta?.hasLocalChanges,
@@ -311,41 +354,40 @@ function useWso2Cloud(projectPath: string) {
 }
 
 interface Wso2CloudBodyProps {
-    cloud: ReturnType<typeof useWso2Cloud>;
-    noun: string;
+    cloud: Pick<ReturnType<typeof useWso2Cloud>, "isDeployed" | "hasLocalChanges" | "isRefreshing" | "refresh">;
+    summary: string;
+    deployLabel?: string;
     canDeploy: boolean;
     handleDeploy: () => Promise<void>;
     goToDevant: () => void;
 }
 
-function Wso2CloudBody({ cloud, noun, canDeploy, handleDeploy, goToDevant }: Wso2CloudBodyProps) {
+function Wso2CloudBody({ cloud, summary, deployLabel, canDeploy, handleDeploy, goToDevant }: Wso2CloudBodyProps) {
     const { rpcClient } = useRpcContext();
-    if (!cloud.isDeployed) {
-        return (
-            <>
-                <p>Build and run this {noun} on WSO2 Cloud, a fully managed platform.<LearnMore url={WSO2_CLOUD_DOCS} /></p>
-                <ButtonContainer>
-                    <Button appearance="secondary" onClick={handleDeploy} disabled={!canDeploy} tooltip={canDeploy ? "" : NOT_DEPLOYABLE}>
-                        Deploy to WSO2 Cloud
-                    </Button>
-                </ButtonContainer>
-            </>
-        );
-    }
+    const hasLocalChanges = cloud.isDeployed && cloud.hasLocalChanges;
     return (
         <>
-            <p>This {noun} is deployed on WSO2 Cloud.<LearnMore url={WSO2_CLOUD_DOCS} /></p>
-            {cloud.hasLocalChanges && <p>Commit and push your changes to redeploy.</p>}
+            <p>{summary}<LearnMore url={WSO2_CLOUD_DOCS} /></p>
+            {hasLocalChanges && <p>Commit and push your changes to redeploy.</p>}
             <ButtonContainer>
-                {cloud.hasLocalChanges && (
+                {hasLocalChanges && (
                     <Button appearance="primary" onClick={() => rpcClient.getCommonRpcClient().executeCommand({ commands: ["workbench.scm.focus"] })}>
                         Open Source Control
                     </Button>
                 )}
-                <Button appearance="secondary" onClick={goToDevant} disabled={cloud.isRefreshing}>Open in Console</Button>
-                {cloud.isRefreshing
-                    ? <ProgressRing sx={{ width: 16, height: 16 }} />
-                    : <Button appearance="icon" tooltip="Refresh Deployment Status" onClick={cloud.refresh}><Codicon name="refresh" /></Button>}
+                {deployLabel && (
+                    <Button appearance="secondary" onClick={handleDeploy} disabled={!canDeploy} tooltip={canDeploy ? "" : NOT_DEPLOYABLE}>
+                        {deployLabel}
+                    </Button>
+                )}
+                {cloud.isDeployed && (
+                    <>
+                        <Button appearance="secondary" onClick={goToDevant} disabled={cloud.isRefreshing}>Open in Console</Button>
+                        {cloud.isRefreshing
+                            ? <ProgressRing sx={{ width: 16, height: 16 }} />
+                            : <Button appearance="icon" tooltip="Refresh Deployment Status" onClick={cloud.refresh}><Codicon name="refresh" /></Button>}
+                    </>
+                )}
             </ButtonContainer>
         </>
     );
@@ -582,6 +624,37 @@ export interface DeploymentPanelProps extends DeploymentControlState {
 }
 
 type ItemFactory = (id: string, title: string, tag: string | undefined, body: ReactNode) => ReactNode;
+type DrawerSection = "deploy" | "monitor";
+
+function useDrawerItems(initiallyOpen: Partial<Record<DrawerSection, string>>) {
+    const [open, setOpen] = useState(initiallyOpen);
+    return (section: DrawerSection): ItemFactory => (id, title, tag, body) => {
+        const isExpanded = open[section] === id;
+        return (
+            <DrawerItem key={id} title={title} tag={tag} isExpanded={isExpanded} onToggle={() => setOpen({ ...open, [section]: isExpanded ? undefined : id })}>
+                {body}
+            </DrawerItem>
+        );
+    };
+}
+
+function DrawerSections({ lead, deploy, monitor }: { lead: string; deploy: ReactNode[]; monitor: ReactNode[] }) {
+    return (
+        <>
+            <Title variant="h3">Deploy</Title>
+            <SectionLead>{lead}</SectionLead>
+            {deploy}
+            {monitor.length > 0 && (
+                <>
+                    <Divider sx={{ margin: "16px 0" }} />
+                    <Title variant="h3">Management</Title>
+                    <SectionLead>Monitor and manage your deployments.</SectionLead>
+                    {monitor}
+                </>
+            )}
+        </>
+    );
+}
 
 const enabledTag = (enabled: boolean) => (enabled ? "Enabled" : undefined);
 
@@ -624,30 +697,25 @@ export function DeploymentPanel(props: DeploymentPanelProps) {
     const { data: mcpPublish } = useMcpPublishStatus(projectPath, hasMcpService && isOpen);
     const showWorkflow = props.hasWorkflows || props.workflowImported;
     const workflowRuntime = useWorkflowRuntime(projectPath, showWorkflow && isOpen);
-    const [open, setOpen] = useState<Partial<Record<"deploy" | "monitor", string>>>(
+    const itemIn = useDrawerItems(
         agentMode ? { deploy: "agentManager" } : hasMcpService ? { deploy: "mcpPublish", monitor: "icp" } : { deploy: "cloud", monitor: "icp" });
 
     if (isInDevant) {
         return <DevantDashboard projectStructure={props.projectStructure} handleDeploy={handleDeploy} goToDevant={goToDevant} />;
     }
 
-    const itemIn = (section: "deploy" | "monitor"): ItemFactory => (id, title, tag, body) => {
-        const isExpanded = open[section] === id;
-        return (
-            <DrawerItem key={id} title={title} tag={tag} isExpanded={isExpanded} onToggle={() => setOpen({ ...open, [section]: isExpanded ? undefined : id })}>
-                {body}
-            </DrawerItem>
-        );
-    };
     const item = itemIn("deploy");
     const agentManagerSection = (part: "deploy" | "monitor") => (
         <AgentManagerSection projectPath={projectPath} part={part} active={isOpen} ampTracingEnabled={ampTracingEnabled} handleAmpTracing={handleAmpTracing} />
     );
 
+    const cloudStatus = cloud.isDeployed
+        ? { summary: `This ${noun} is deployed on WSO2 Cloud.` }
+        : { summary: `Build and run this ${noun} on WSO2 Cloud, a fully managed platform.`, deployLabel: "Deploy to WSO2 Cloud" };
     const agentManagerItem = hasAgents && item("agentManager", "WSO2 Agent Manager",
         agentManagerTag(agentManager), agentManagerSection("deploy"));
     const cloudItem = cloud.available && item("cloud", "WSO2 Cloud", cloud.isDeployed ? "Deployed" : undefined,
-        <Wso2CloudBody cloud={cloud} noun={noun} canDeploy={hasDeployableIntegration && !cloud.isRefreshing}
+        <Wso2CloudBody cloud={cloud} {...cloudStatus} canDeploy={hasDeployableIntegration && !cloud.isRefreshing}
             handleDeploy={handleDeploy} goToDevant={goToDevant} />);
     const dockerItem = item("docker", "Docker Image", undefined,
         <BuildOption description="Build a container image to deploy on Kubernetes or any container platform."
@@ -668,18 +736,103 @@ export function DeploymentPanel(props: DeploymentPanelProps) {
     });
 
     return (
+        <DrawerSections
+            lead={`Deploy this ${noun} to a managed platform, or package it to run on your own infrastructure.`}
+            deploy={deployItems}
+            monitor={monitor}
+        />
+    );
+}
+
+function WorkspaceIcpBody({ icp }: { icp: WorkspaceIcpState }) {
+    const actions: Record<WorkspaceIcpState["state"], [string, () => Promise<void>]> = {
+        none: ["Enable ICP for All Integrations", icp.enableAll],
+        partial: ["Enable ICP for Remaining Integrations", icp.enableRemaining],
+        all: ["Disable ICP for All Integrations", icp.disableAll],
+    };
+    const [label, onClick] = actions[icp.state];
+    return (
         <>
-            <Title variant="h3">Deploy</Title>
-            <SectionLead>Deploy this {noun} to a managed platform, or package it to run on your own infrastructure.</SectionLead>
-            {deployItems}
-            {monitor.length > 0 && (
-                <>
-                    <Divider sx={{ margin: "16px 0" }} />
-                    <Title variant="h3">Management</Title>
-                    <SectionLead>Monitor and manage your deployments.</SectionLead>
-                    {monitor}
-                </>
-            )}
+            <p>Monitor and manage integration deployments from a central console.<LearnMore url={ICP_DOCS} /></p>
+            <p>ICP monitoring is enabled for {icp.enabledCount} of {icp.totalCount} integrations.</p>
+            <ButtonContainer>
+                <Button appearance="secondary" onClick={onClick} disabled={icp.actionLoading !== null}>{label}</Button>
+                {icp.actionLoading && <ProgressRing sx={{ width: 16, height: 16 }} />}
+            </ButtonContainer>
+            <LocalICPDeployment />
         </>
+    );
+}
+
+export function workspaceCloudStatus(deployedCount: number, totalCount: number) {
+    if (deployedCount === 0) {
+        return {
+            summary: "Build and run the integrations in this project on WSO2 Cloud, a fully managed platform.",
+            deployLabel: "Deploy to WSO2 Cloud",
+        };
+    }
+    if (deployedCount < totalCount) {
+        return {
+            summary: `${deployedCount} of ${totalCount} integrations are deployed on WSO2 Cloud.`,
+            deployLabel: "Deploy Remaining",
+            tag: "Partially Deployed",
+        };
+    }
+    return { summary: "All integrations in this project are deployed on WSO2 Cloud.", tag: "Deployed" };
+}
+
+export interface WorkspaceDeploymentPanelProps {
+    projectCollection: ProjectStructureResponse;
+    isInDevant: boolean;
+    isICPSupported?: boolean;
+}
+
+export function WorkspaceDeploymentPanel({ projectCollection, isInDevant, isICPSupported }: WorkspaceDeploymentPanelProps) {
+    const { rpcClient } = useRpcContext();
+    const workspacePath = projectCollection.workspacePath ?? "";
+    const cloud = useWso2Cloud(workspacePath);
+    const icp = useWorkspaceIcp(rpcClient, projectCollection.projects, isICPSupported);
+    const itemIn = useDrawerItems({ deploy: "cloud" });
+    const item = itemIn("deploy");
+
+    const { libraryProjectPaths, undeployedProjectScopes, hasDeployableIntegration } =
+        getWorkspaceDeploymentState(projectCollection, cloud.data);
+    const integrations = (cloud.data?.projectsMetadata ?? []).filter((meta) => !libraryProjectPaths.has(meta.projectPath));
+    const deployed = integrations.filter((meta) => meta.hasComponent);
+    const status = workspaceCloudStatus(deployed.length, integrations.length);
+
+    const handleDeploy = async () => {
+        await rpcClient.getBIDiagramRpcClient().deployWorkspace({ projectScopes: undeployedProjectScopes, rootDirectory: workspacePath });
+    };
+    const goToDevant = () => {
+        rpcClient.getCommonRpcClient().executeCommand({
+            commands: [
+                WICommandIds.OpenInConsole,
+                { componentFsPath: deployed[0]?.projectPath, newComponentParams: { buildPackLang: "ballerina" } } as IOpenInConsoleCmdParams,
+            ],
+        });
+    };
+
+    const cloudItem = cloud.available && item("cloud", "WSO2 Cloud", status.tag,
+        <Wso2CloudBody
+            cloud={{ ...cloud, isDeployed: deployed.length > 0, hasLocalChanges: deployed.some((meta) => meta.hasLocalChanges) }}
+            summary={status.summary} deployLabel={status.deployLabel}
+            canDeploy={undeployedProjectScopes.length > 0 && !cloud.isRefreshing}
+            handleDeploy={handleDeploy} goToDevant={goToDevant} />);
+    const dockerItem = item("docker", "Docker Image", undefined,
+        <BuildOption description="Build container images to deploy on Kubernetes or any container platform."
+            label="Build Images" enabled={hasDeployableIntegration} onBuild={() => rpcClient.getBIDiagramRpcClient().buildProject(BuildMode.DOCKER)} />);
+    const vmItem = item("vm", "Virtual Machine", undefined,
+        <BuildOption description="Build executable JARs to run on any server with a Java runtime."
+            label="Build JARs" enabled={hasDeployableIntegration} onBuild={() => rpcClient.getBIDiagramRpcClient().buildProject(BuildMode.JAR)} />);
+    const icpItem = isICPSupported && !isInDevant && itemIn("monitor")("icp", "Integration Control Plane",
+        enabledTag(icp.state === "all"), <WorkspaceIcpBody icp={icp} />);
+
+    return (
+        <DrawerSections
+            lead="Deploy the integrations in this project to a managed platform, or package them to run on your own infrastructure."
+            deploy={isInDevant ? [cloudItem] : [cloudItem, dockerItem, vmItem]}
+            monitor={icpItem ? [icpItem] : []}
+        />
     );
 }
