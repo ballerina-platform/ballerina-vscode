@@ -304,6 +304,9 @@ export function toggleTypeModifier(
     return printTypeShape({ ...shape, [modifier]: on });
 }
 
+/** The form key of a GraphQL field's Returns Error flag, which its form keeps apart from the return type. */
+export const GRAPHQL_RETURNS_ERROR_KEY = "returnsError";
+
 /** A GraphQL field's return type as its form shows it: the type, and apart from it whether the field can fail. */
 export interface GraphQLReturnType {
     type: string;

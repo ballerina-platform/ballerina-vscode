@@ -43,7 +43,13 @@ import { getFieldTypeLabel, NodeProperties, PropertyModel } from "@wso2/ballerin
 import { canOfferTypeCreation } from "./typeCreationGate";
 import { SyntaxToggles } from "./SyntaxToggles";
 import { getGraphQLNonNullInfo } from "./TypeModifierTooltip";
-import { parseTypeShape, printTypeShape, toggleTypeModifier, TypeModifier } from "./typeModifiers";
+import {
+    GRAPHQL_RETURNS_ERROR_KEY,
+    parseTypeShape,
+    printTypeShape,
+    toggleTypeModifier,
+    TypeModifier
+} from "./typeModifiers";
 
 const isGraphQLScalarType = (type: string): boolean => {
     const scalarTypes = [
@@ -192,6 +198,13 @@ const InlineToggles = styled.div`
     z-index: 1;
 `;
 
+const ReturnsErrorHint = styled.div`
+    margin-top: 4px;
+    font-family: var(--font-family);
+    font-size: 12px;
+    color: var(--vscode-descriptionForeground);
+`;
+
 const getDefaultCompletion = (newType: string) => {
     return (
         <S.TitleContainer data-testid="add-type-completion">
@@ -206,7 +219,11 @@ const getDefaultCompletion = (newType: string) => {
 export function ActionTypeEditor(props: ActionTypeEditorProps) {
     const { field, openRecordEditor, handleOnFieldFocus, handleOnTypeChange, autoFocus, handleNewTypeSelected } = props;
     const { form, expressionEditor } = useFormContext();
-    const { control } = form;
+    const { control, watch } = form;
+    // Returns Error sits in the collapsed advanced options, so the return type says so while it is on. A form without
+    // the flag, e.g. an argument's, shows nothing.
+    const returnsError = field.key === "returnType" ? watch?.(GRAPHQL_RETURNS_ERROR_KEY) : undefined;
+    const showsReturnsErrorHint = returnsError === true || returnsError === "true";
     const {
         types,
         referenceTypes,
@@ -524,6 +541,11 @@ export function ActionTypeEditor(props: ActionTypeEditorProps) {
                                 </InlineToggles>
                             </TypeInputContainer>
                             {error?.message && <ErrorBanner errorMsg={error.message.toString()} />}
+                            {showsReturnsErrorHint && (
+                                <ReturnsErrorHint data-testid="returns-error-hint">
+                                    Also returns an error. Change this under Advanced Configurations.
+                                </ReturnsErrorHint>
+                            )}
 
                             {/* GraphQL ID Checkbox - only shown for scalar types */}
                             {showGraphqlCheckbox ? (

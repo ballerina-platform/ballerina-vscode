@@ -23,6 +23,7 @@ import {
     FormField,
     FormImports,
     FormValues,
+    GRAPHQL_RETURNS_ERROR_KEY,
     hasErrorOutsideStream,
     Parameter,
     readGraphQLReturnType,
@@ -33,13 +34,8 @@ import { getImportsForProperty } from '../../utils/bi';
 
 // A GraphQL field's error is set apart from its type, as an advanced option: a resolver can fail, so a field returns
 // an error unless the user says otherwise.
-const RETURNS_ERROR_KEY = 'returnsError';
-
-// Returns Error sits in the collapsed advanced options, so the return type says it is there and on by default.
-const withReturnsErrorHint = (description: string): string => {
-    const hint = 'Returns an error too by default; change it under **Advanced Configurations**.';
-    return description ? `${description.trim()} ${hint}` : hint;
-};
+// The return type box says so while the flag is on, as the flag sits in the collapsed advanced options.
+const RETURNS_ERROR_KEY = GRAPHQL_RETURNS_ERROR_KEY;
 
 interface OperationFormProps {
     model: FunctionModel;
@@ -216,9 +212,7 @@ export function OperationForm(props: OperationFormProps) {
                 enabled: model.returnType.enabled,
                 editable: model.returnType.editable,
                 advanced: model.returnType.advanced,
-                documentation: isGraphqlView
-                    ? withReturnsErrorHint(model.returnType.metadata?.description || '')
-                    : model.returnType.metadata?.description || '',
+                documentation: model.returnType.metadata?.description || '',
                 value: isGraphqlView ? graphqlReturnType.type : returnTypeValue,
                 properties: model.returnType.properties,
                 types: model.returnType?.types,

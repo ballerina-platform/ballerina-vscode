@@ -125,3 +125,19 @@ describe("ActionTypeEditor non-null toggle", () => {
         expect(getForm().getValues("returnType")).toBe("int?");
     });
 });
+
+describe("ActionTypeEditor Returns Error hint", () => {
+    const renderWithFlag = (flag: boolean | undefined) =>
+        renderWithForm(<ActionTypeEditor field={graphqlField("Profile")} />, {
+            defaultValues: flag === undefined ? { returnType: "Profile" } : { returnType: "Profile", returnsError: flag },
+            context: { expressionEditor },
+        });
+
+    it("says the field returns an error while the flag is on", () => {
+        expect(renderWithFlag(true).queryByTestId("returns-error-hint")).toBeInTheDocument();
+    });
+
+    it.each([false, undefined])("shows nothing while the flag is %s", (flag) => {
+        expect(renderWithFlag(flag).queryByTestId("returns-error-hint")).not.toBeInTheDocument();
+    });
+});

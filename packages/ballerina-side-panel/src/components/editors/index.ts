@@ -43,6 +43,7 @@ export { ApprovalEditor, AddApprovalFunctionForm } from "./ApprovalEditor";
 export {
     applyTypedText,
     canToggleModifier,
+    GRAPHQL_RETURNS_ERROR_KEY,
     hasErrorOutsideStream,
     parseTypeShape,
     printTypeShape,
