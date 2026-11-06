@@ -187,7 +187,7 @@
       "variable": {
         "metadata": {
           "label": "Data variable",
-          "description": "Name of the variable"
+          "description": "Name of the variable that holds the current item"
         },
         "valueType": "IDENTIFIER",
         "value": "item",
@@ -197,7 +197,7 @@
       "type": {
         "metadata": {
           "label": "Data type",
-          "description": "Type of the variable"
+          "description": "Type of each item in the collection"
         },
         "valueType": "TYPE",
         "value": "int",

@@ -47,14 +47,14 @@
           "patterns": {
             "metadata": {
               "label": "Patterns",
-              "description": "List of binding patterns"
+              "description": "Patterns to match the target against"
             },
             "valueType": "SINGLE_SELECT",
             "value": [
               {
                 "metadata": {
                   "label": "Pattern",
-                  "description": "Binding pattern"
+                  "description": "Pattern or value to match the target against"
                 },
                 "valueType": "EXPRESSION",
                 "value": "var q",
@@ -138,14 +138,14 @@
           "patterns": {
             "metadata": {
               "label": "Patterns",
-              "description": "List of binding patterns"
+              "description": "Patterns to match the target against"
             },
             "valueType": "SINGLE_SELECT",
             "value": [
               {
                 "metadata": {
                   "label": "Pattern",
-                  "description": "Binding pattern"
+                  "description": "Pattern or value to match the target against"
                 },
                 "valueType": "EXPRESSION",
                 "value": "var q",
@@ -229,14 +229,14 @@
           "patterns": {
             "metadata": {
               "label": "Patterns",
-              "description": "List of binding patterns"
+              "description": "Patterns to match the target against"
             },
             "valueType": "SINGLE_SELECT",
             "value": [
               {
                 "metadata": {
                   "label": "Pattern",
-                  "description": "Binding pattern"
+                  "description": "Pattern or value to match the target against"
                 },
                 "valueType": "EXPRESSION",
                 "value": "var q",
@@ -320,14 +320,14 @@
           "patterns": {
             "metadata": {
               "label": "Patterns",
-              "description": "List of binding patterns"
+              "description": "Patterns to match the target against"
             },
             "valueType": "SINGLE_SELECT",
             "value": [
               {
                 "metadata": {
                   "label": "Pattern",
-                  "description": "Binding pattern"
+                  "description": "Pattern or value to match the target against"
                 },
                 "valueType": "EXPRESSION",
                 "value": "_",
@@ -383,7 +383,7 @@
       "matchTarget": {
         "metadata": {
           "label": "Target",
-          "description": "Match target expression"
+          "description": "Expression or value to evaluate against the case patterns"
         },
         "valueType": "EXPRESSION",
         "value": "quantity ",
