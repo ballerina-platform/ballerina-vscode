@@ -87,6 +87,9 @@ public class McpToolKitBuilder extends NodeBuilder {
     private static final String PERMITTED_TOOLS_PROPERTY = "permittedTools";
     private static final String TOOL_SCOPES_PROPERTY = "toolScopes";
     private static final String INCLUDE_CONTEXT_PROPERTY = "includeContext";
+    // How the MCP server presents itself, kept on the generated class as @display {label, iconPath}
+    public static final String TOOL_KIT_LABEL_PROPERTY = "toolKitLabel";
+    public static final String TOOL_KIT_ICON_PROPERTY = "toolKitIcon";
     private static final String TOOL_SCOPES_PROPERTY_LABEL = "Tool Scopes";
     private static final String TOOL_SCOPES_DESCRIPTION = "OAuth scopes for each tool";
     private static final String AI_MCP_TOOL_KIT_CLASS = "McpToolKit";
@@ -192,6 +195,25 @@ public class McpToolKitBuilder extends NodeBuilder {
                 .addProperty(INCLUDE_CONTEXT_PROPERTY);
     }
 
+    /**
+     * Records how the MCP server presents itself, so the generated toolkit class carries it as
+     * {@code @display {label, iconPath}}. Either value may be absent.
+     */
+    public static void setDisplayProperties(NodeBuilder nodeBuilder, String label, String icon) {
+        if (label != null && !label.isBlank()) {
+            nodeBuilder.properties().custom()
+                    .metadata().label("MCP Server Name").description("How the MCP server names itself").stepOut()
+                    .value(label).hidden().optional(true).editable().stepOut()
+                    .addProperty(TOOL_KIT_LABEL_PROPERTY);
+        }
+        if (icon != null && !icon.isBlank()) {
+            nodeBuilder.properties().custom()
+                    .metadata().label("MCP Server Icon").description("The icon the MCP server advertises").stepOut()
+                    .value(icon).hidden().optional(true).editable().stepOut()
+                    .addProperty(TOOL_KIT_ICON_PROPERTY);
+        }
+    }
+
     private boolean hasCompatibleAiVersion(String aiModuleVersion) {
         // checks if aiModule version is latest or have required features implemented in ai module
         return aiModuleVersion == null || AiUtils.compareSemver(aiModuleVersion, MINIMUM_COMPATIBLE_AI_VERSION) >= 0;
@@ -279,8 +301,10 @@ public class McpToolKitBuilder extends NodeBuilder {
             defaultRange = CommonUtils.toRange(lineRange);
         }
 
-        Set<String> ignoredProperties =
-                new HashSet<>(Set.of(VARIABLE_KEY, TYPE_KEY, SCOPE_KEY, CHECK_ERROR_KEY));
+        Set<String> ignoredProperties = new HashSet<>(Set.of(VARIABLE_KEY, TYPE_KEY, SCOPE_KEY, CHECK_ERROR_KEY,
+                TOOL_KIT_LABEL_PROPERTY, TOOL_KIT_ICON_PROPERTY));
+        String displayLabel = stringValue(sourceBuilder.flowNode.properties().remove(TOOL_KIT_LABEL_PROPERTY));
+        String displayIcon = stringValue(sourceBuilder.flowNode.properties().remove(TOOL_KIT_ICON_PROPERTY));
         Property toolKitNameProperty = getToolKitNameProperty(sourceBuilder.flowNode);
         if (toolKitNameProperty == null) {
             // Generate the following code
@@ -301,8 +325,8 @@ public class McpToolKitBuilder extends NodeBuilder {
 
             Map<String, List<String>> toolScopesMap = parseToolScopes(sourceBuilder.flowNode);
             boolean includeContext = parseIncludeContext(sourceBuilder.flowNode);
-            String sourceCode = generateMcpToolKitClassSource(toolKitName, permittedTools, toolScopesMap,
-                    includeContext);
+            String sourceCode = displayAnnotation(displayLabel, displayIcon)
+                    + generateMcpToolKitClassSource(toolKitName, permittedTools, toolScopesMap, includeContext);
 
             // Check if class definition data exists in codedata
             Map<Path, List<TextEdit>> classTextEdits = null;
@@ -374,6 +398,54 @@ public class McpToolKitBuilder extends NodeBuilder {
             throw new RuntimeException(e);
         }
         return defaultRange;
+    }
+
+    private static String stringValue(Property property) {
+        if (property == null || !(property.value() instanceof String value)) {
+            return null;
+        }
+        String unquoted = value.strip();
+        if (unquoted.length() >= 2 && unquoted.startsWith("\"") && unquoted.endsWith("\"")) {
+            unquoted = unquoted.substring(1, unquoted.length() - 1);
+        }
+        return unquoted.isBlank() ? null : unquoted;
+    }
+
+    /**
+     * The {@code @display} annotation that names the toolkit class after its MCP server and carries the
+     * server's icon; empty when the server stated neither.
+     */
+    static String displayAnnotation(String label, String icon) {
+        if (label == null && icon == null) {
+            return "";
+        }
+        StringBuilder annotation = new StringBuilder("@display {label: ")
+                .append(toStringLiteral(label == null ? "" : label));
+        if (icon != null) {
+            annotation.append(", iconPath: ").append(toStringLiteral(icon));
+        }
+        return annotation.append("}").append(NEW_LINE).toString();
+    }
+
+    private static String toStringLiteral(String value) {
+        StringBuilder literal = new StringBuilder("\"");
+        value.codePoints().forEach(codePoint -> {
+            switch (codePoint) {
+                case '"' -> literal.append("\\\"");
+                case '\\' -> literal.append("\\\\");
+                case '\n' -> literal.append("\\n");
+                case '\r' -> literal.append("\\r");
+                case '\t' -> literal.append("\\t");
+                default -> {
+                    if (Character.isISOControl(codePoint)) {
+                        literal.append("\\u{").append(Integer.toHexString(codePoint)).append("}");
+                    } else {
+                        literal.appendCodePoint(codePoint);
+                    }
+                }
+            }
+        });
+        return literal.append("\"").toString();
     }
 
     private static Property getToolKitNameProperty(FlowNode flowNode) {

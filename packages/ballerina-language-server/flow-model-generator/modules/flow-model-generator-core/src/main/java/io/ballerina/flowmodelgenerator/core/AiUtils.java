@@ -23,6 +23,7 @@ import io.ballerina.centralconnector.RemoteCentral;
 import io.ballerina.centralconnector.response.DependentPackage;
 import io.ballerina.compiler.api.ModuleID;
 import io.ballerina.compiler.api.SemanticModel;
+import io.ballerina.compiler.api.symbols.Annotatable;
 import io.ballerina.compiler.api.symbols.AnnotationAttachmentSymbol;
 import io.ballerina.compiler.api.symbols.ClassFieldSymbol;
 import io.ballerina.compiler.api.symbols.ClassSymbol;
@@ -212,6 +213,8 @@ public class AiUtils {
     private static final String AGENT_TOOL_ANNOT = "AgentTool";
     private static final String REQUIRES_APPROVAL = "requiresApproval";
     private static final String DISPLAY_ANNOT = "display";
+    public static final String DISPLAY_LABEL = "label";
+    public static final String DISPLAY_ICON_PATH = "iconPath";
     private static final String DISPLAY_GROUPS = "groups";
     static final String AI_GROUP_PATH_KEY = "aiGroupPath";
     private static final String SYSTEM_PROMPT_ROLE = "role";
@@ -1925,14 +1928,40 @@ public class AiUtils {
     }
 
     private static String readDisplayIcon(MethodSymbol method) {
-        for (AnnotationAttachmentSymbol annot : method.annotAttachments()) {
+        return readDisplayField(method, DISPLAY_ICON_PATH);
+    }
+
+    /**
+     * Reads a field of a symbol's {@code @display} annotation, such as {@code label} or {@code iconPath}.
+     *
+     * @return the field's value, or {@code null} when the symbol has no {@code @display} or it leaves the field
+     * blank
+     */
+    public static String readDisplayField(Annotatable symbol, String field) {
+        for (AnnotationAttachmentSymbol annot : symbol.annotAttachments()) {
             if (annot.typeDescriptor() != null && annot.typeDescriptor().nameEquals(DISPLAY_ANNOT)
                     && annot.attachmentValue().isPresent()
                     && unwrapConstant(annot.attachmentValue().get()) instanceof Map<?, ?> map) {
-                return constantString(map.get("iconPath"));
+                return constantString(map.get(field));
             }
         }
         return null;
+    }
+
+    /**
+     * The icon an MCP toolkit's class carries in {@code @display {iconPath}}, written from the icon its MCP server
+     * advertises.
+     */
+    public static Optional<String> mcpToolKitIcon(TypeSymbol typeSymbol) {
+        return asMcpToolKitClass(typeSymbol).map(classSymbol -> readDisplayField(classSymbol, DISPLAY_ICON_PATH));
+    }
+
+    /**
+     * The name an MCP toolkit's class carries in {@code @display {label}}, written from the name its MCP server
+     * gives itself.
+     */
+    public static Optional<String> mcpToolKitLabel(TypeSymbol typeSymbol) {
+        return asMcpToolKitClass(typeSymbol).map(classSymbol -> readDisplayField(classSymbol, DISPLAY_LABEL));
     }
 
     /**

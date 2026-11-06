@@ -2227,6 +2227,11 @@ export interface McpToolsResponse {
         description?: string;
     }>;
     errorMsg?: string;
+    // How the server names itself: its serverInfo title or name, else its OAuth resource_name. Present even when
+    // the server rejected the request for lack of authorization.
+    serverName?: string;
+    // An http(s) icon the server advertises in serverInfo.icons.
+    serverIcon?: string;
 }
 
 export interface AIGentToolsResponse {

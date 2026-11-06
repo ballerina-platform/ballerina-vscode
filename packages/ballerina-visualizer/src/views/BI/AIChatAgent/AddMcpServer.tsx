@@ -7,7 +7,8 @@
  * You may not alter or remove any copyright or other notice from copies of this content.
  */
 
-import { AgentManagerMcpBinding, FlowNode, LineRange, NodePosition, ProductMode } from "@wso2/ballerina-core";
+import { AgentManagerMcpBinding, FlowNode, LineRange, McpToolsResponse, NodePosition, ProductMode } from "@wso2/ballerina-core";
+import type { FormHandle } from "@wso2/ballerina-side-panel";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { cloneDeep, debounce } from "lodash";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -19,6 +20,7 @@ import { McpToolsSelection, ToolScopes } from "./Mcp/McpToolsSelection";
 import { DiscoverToolsModal } from "./Mcp/DiscoverToolsModal";
 import { RequiresAuthCheckbox } from "./Mcp/RequiresAuthCheckbox";
 import { attemptValueResolution, createMockTools, extractOriginalValues, generateToolKitName } from "./Mcp/utils";
+import { mcpServerVariableName } from "./Mcp/serverName";
 import { cleanServerUrl } from "./formUtils";
 import { Container, LoaderContainer } from "./styles";
 import { extractAccessToken, getEndOfFileLineRange, refreshAgentNodeLineRange, removeQuotes, resolveAgentNodePosition, resolveVariableValue, resolveAuthConfig, checkAiPackageVersionSupport } from "./utils";
@@ -48,6 +50,17 @@ const AUTH_FIELD_KEY = "auth";
 const RESULT_FIELD_KEY = "variable";
 const TOOLKIT_NAME_FIELD_KEY = "toolKitName";
 const INCLUDE_CONTEXT_PROPERTY = "includeContext";
+// Hidden properties the language server writes onto the toolkit class as @display {label, iconPath}.
+const TOOLKIT_LABEL_PROPERTY = "toolKitLabel";
+const TOOLKIT_ICON_PROPERTY = "toolKitIcon";
+// How long the server check waits after the URL stops changing, and how long a save waits for one still running.
+const SERVER_PROBE_DELAY_MS = 500;
+const SERVER_PROBE_SAVE_WAIT_MS = 5000;
+
+interface McpServerInfo {
+    name?: string;
+    icon?: string;
+}
 
 // Delegates to the shared removeQuotes so `"url"` and string `url` compare equal.
 const normalizeExpressionValue = (value: unknown): string =>
@@ -59,6 +72,34 @@ const uniqueName = (base: string, reserved: Set<string>): string => {
     while (reserved.has(`${base}${i}`)) i++;
     return `${base}${i}`;
 };
+
+// Names already declared at module level, which a toolkit named after its server must not reuse.
+function moduleLevelNames(moduleNodes?: { flowModel?: { connections?: FlowNode[]; variables?: FlowNode[] } }): Set<string> {
+    const names = new Set<string>();
+    for (const node of [...(moduleNodes?.flowModel?.connections ?? []), ...(moduleNodes?.flowModel?.variables ?? [])]) {
+        const properties = node.properties as Record<string, { value?: unknown }> | undefined;
+        for (const key of [RESULT_FIELD_KEY, TOOLKIT_NAME_FIELD_KEY]) {
+            const value = properties?.[key]?.value;
+            if (typeof value === "string" && value) {
+                names.add(value);
+            }
+        }
+    }
+    return names;
+}
+
+const stringValue = (value: unknown): string | undefined =>
+    typeof value === "string" && value.trim() ? value : undefined;
+
+// Sets or clears a hidden property the language server reads when it writes the toolkit.
+function setHiddenProperty(node: FlowNode, key: string, value?: string) {
+    const properties = node.properties as Record<string, unknown>;
+    if (!value) {
+        delete properties[key];
+        return;
+    }
+    properties[key] = { metadata: { label: key }, value, optional: true, editable: true, hidden: true };
+}
 
 export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
     const { agentNode, agentDefinition, onSave, editMode = false } = props;
@@ -95,8 +136,24 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
 
     const agentFilePathRef = useRef<string>("");
     const agentFileEndLineRangeRef = useRef<LineRange | null>(null);
-    const formRef = useRef<any>(null);
+    const formRef = useRef<FormHandle>(null);
     const projectPathUriRef = useRef<string>("");
+
+    // A new toolkit is named after its server until the user names it: serverInfoRef holds what the server said,
+    // autoNameRef the name this form set from it, and defaultNameRef the template's generated name.
+    const serverInfoRef = useRef<McpServerInfo>({});
+    const autoNameRef = useRef<string | undefined>(undefined);
+    const defaultNameRef = useRef<string>("");
+    const nameEditedRef = useRef<boolean>(false);
+    // The toolkit class name follows the variable name, by whatever means it was set, until the user edits it.
+    const autoToolKitNameRef = useRef<string | undefined>(undefined);
+    const defaultToolKitNameRef = useRef<string>("");
+    const toolKitNameEditedRef = useRef<boolean>(false);
+    // Module-level names are fetched in the background, so opening the form does not wait for a compilation.
+    const reservedNamesRef = useRef<Promise<Set<string>>>(Promise.resolve(new Set()));
+    const probeSeqRef = useRef<number>(0);
+    // The scheduled or running server check, so a save made before it answers can wait for it.
+    const probeRef = useRef<{ timer?: ReturnType<typeof setTimeout>; start?: () => void; running?: Promise<void> }>({});
 
     const fetchMcpToolKitTemplate = async () => {
         const response = await rpcClient.getBIDiagramRpcClient().getNodeTemplate({
@@ -129,8 +186,13 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
         }
 
         mcpToolKitNodeRef.current = mcpToolKitVariable;
-        setIncludeContext((mcpToolKitVariable.properties as Record<string, { value?: unknown }> | undefined)
-            ?.[INCLUDE_CONTEXT_PROPERTY]?.value === true);
+        const savedProperties = mcpToolKitVariable.properties as Record<string, { value?: unknown }> | undefined;
+        setIncludeContext(savedProperties?.[INCLUDE_CONTEXT_PROPERTY]?.value === true);
+        // The form drops hidden values on submit, so the class's saved @display is carried to the save by hand.
+        serverInfoRef.current = {
+            name: stringValue(savedProperties?.[TOOLKIT_LABEL_PROPERTY]?.value),
+            icon: stringValue(savedProperties?.[TOOLKIT_ICON_PROPERTY]?.value),
+        };
         initializeEditMode();
     };
 
@@ -161,6 +223,12 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
             if (reserved?.length && variableProp && typeof variableProp.value === "string") {
                 variableProp.value = uniqueName(variableProp.value, new Set(reserved));
             }
+            defaultNameRef.current = typeof variableProp?.value === "string" ? variableProp.value : "";
+            const toolKitNameValue = (template.properties as any)?.[TOOLKIT_NAME_FIELD_KEY]?.value;
+            defaultToolKitNameRef.current = typeof toolKitNameValue === "string" ? toolKitNameValue : "";
+            reservedNamesRef.current = agentDefinition
+                ? Promise.resolve(new Set(reserved ?? []))
+                : fetchModuleNodes().then(moduleLevelNames, () => new Set<string>());
             mcpToolKitNodeRef.current = template;
         }
 
@@ -221,6 +289,7 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
                 serviceUrl: cleanUrl,
                 accessToken
             });
+            applyServerInfo(response, await reservedNamesRef.current);
 
             if (response.errorMsg) {
                 const errorMessage = `Failed to fetch tools from MCP server: ${response.errorMsg}`;
@@ -260,6 +329,115 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
             return [];
         }
     }, [rpcClient, requiresAuth]);
+
+    // Names a new toolkit after its server unless the user has named it, and keeps the server's name and icon
+    // for the generated class. A server that stops answering gives the generated name back.
+    function applyServerInfo(response: McpToolsResponse | undefined, reserved: Set<string>) {
+        if (editMode) {
+            return;
+        }
+        const info: McpServerInfo = { name: response?.serverName, icon: response?.serverIcon };
+        serverInfoRef.current = info;
+        if (nameEditedRef.current || pickedProxy.current) {
+            return;
+        }
+        const name = mcpServerVariableName(info.name, reserved) ?? defaultNameRef.current;
+        if (name && name !== autoNameRef.current) {
+            autoNameRef.current = name;
+            formRef.current?.setFieldValue(RESULT_FIELD_KEY, name);
+        }
+    }
+
+    // The class name for a variable name. The generated variable name keeps the language server's generated class
+    // name, which is already unique.
+    function toolKitNameFor(variableName: unknown, reserved: Set<string>): string | undefined {
+        if (!defaultToolKitNameRef.current || typeof variableName !== "string") {
+            return undefined;
+        }
+        return !variableName.trim() || variableName === defaultNameRef.current
+            ? defaultToolKitNameRef.current
+            : uniqueName(generateToolKitName(variableName), reserved);
+    }
+
+    // Keeps the toolkit class name in step with the variable name until the user names the class.
+    async function followVariableName(variableName: unknown) {
+        if (editMode || toolKitNameEditedRef.current) {
+            return;
+        }
+        const toolKitName = toolKitNameFor(variableName, await reservedNamesRef.current);
+        if (toolKitName && toolKitName !== autoToolKitNameRef.current && !toolKitNameEditedRef.current) {
+            autoToolKitNameRef.current = toolKitName;
+            formRef.current?.setFieldValue(TOOLKIT_NAME_FIELD_KEY, toolKitName);
+        }
+    }
+
+    // A save made before the server check answers would write the generated name and no @display, so it runs
+    // a scheduled check at once and waits a bounded time for it, then names the saved node as the form would have.
+    async function nameAfterServer(node: FlowNode) {
+        const probe = probeRef.current;
+        if (probe.timer) {
+            clearTimeout(probe.timer);
+            probe.start?.();
+        }
+        if (probe.running) {
+            await Promise.race([probe.running, new Promise((resolve) => setTimeout(resolve, SERVER_PROBE_SAVE_WAIT_MS))]);
+        }
+        const properties = node.properties as Record<string, { value?: unknown }>;
+        const variable = properties[RESULT_FIELD_KEY];
+        if (variable && autoNameRef.current && !nameEditedRef.current && !pickedProxy.current) {
+            variable.value = autoNameRef.current;
+        }
+        const toolKit = properties[TOOLKIT_NAME_FIELD_KEY];
+        const toolKitName = toolKitNameFor(variable?.value, await reservedNamesRef.current);
+        if (toolKit && toolKitName && !toolKitNameEditedRef.current) {
+            toolKit.value = toolKitName;
+        }
+    }
+
+    // With "all tools" there is no tool fetch to learn the server from, so ask it who it is.
+    const probeServerInfo = useCallback(async (url: string, authValue: string) => {
+        const seq = ++probeSeqRef.current;
+        const resolvedUrl = cleanServerUrl(
+            await resolveVariableValue(url, rpcClient, projectPathUriRef.current, agentFilePathRef.current)
+        );
+        let response: McpToolsResponse | undefined;
+        if (resolvedUrl !== null) {
+            const resolvedAuth = await resolveAuthConfig(authValue, rpcClient, projectPathUriRef.current, agentFilePathRef.current);
+            // Without a token an authorized server still names itself through its OAuth metadata.
+            const accessToken = extractAccessToken(resolvedAuth) ?? undefined;
+            response = await rpcClient.getAIAgentRpcClient()
+                .getMcpTools({ serviceUrl: resolvedUrl, accessToken })
+                .catch((): undefined => undefined);
+        }
+        const reserved = await reservedNamesRef.current;
+        if (seq === probeSeqRef.current) applyServerInfo(response, reserved);
+    }, [rpcClient, editMode]);
+
+    const cancelProbe = () => {
+        clearTimeout(probeRef.current.timer);
+        probeRef.current = {};
+    };
+
+    useEffect(() => {
+        if (editMode || toolsInclude === "selected") {
+            cancelProbe();
+            return;
+        }
+        if (!serverUrl.trim()) {
+            cancelProbe();
+            probeSeqRef.current++;
+            void reservedNamesRef.current.then((reserved) => applyServerInfo(undefined, reserved));
+            return;
+        }
+        const probe: typeof probeRef.current = {};
+        probe.start = () => {
+            probe.timer = undefined;
+            probe.running = probeServerInfo(serverUrl, auth);
+        };
+        probe.timer = setTimeout(probe.start, SERVER_PROBE_DELAY_MS);
+        probeRef.current = probe;
+        return () => clearTimeout(probe.timer);
+    }, [serverUrl, auth, toolsInclude, editMode, probeServerInfo]);
 
     useEffect(() => {
         initPanel();
@@ -476,6 +654,12 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
                 delete (node.properties as any)["toolScopes"];
             }
 
+            if (!editMode) {
+                await nameAfterServer(node);
+            }
+            setHiddenProperty(node, TOOLKIT_LABEL_PROPERTY, serverInfoRef.current.name);
+            setHiddenProperty(node, TOOLKIT_ICON_PROPERTY, serverInfoRef.current.icon);
+
             if (includeContext) {
                 (node.properties as any)[INCLUDE_CONTEXT_PROPERTY] = {
                     metadata: { label: "Pass agent context" },
@@ -546,6 +730,10 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
         }
         pickedProxy.current = undefined;
         mcpToolKitNodeRef.current.properties = picked.properties;
+        nameEditedRef.current = false;
+        autoNameRef.current = undefined;
+        toolKitNameEditedRef.current = false;
+        autoToolKitNameRef.current = undefined;
         setServerUrl("");
         setAuth("");
         setRequiresAuth(false);
@@ -642,7 +830,16 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
             onSubmit={handleSave}
             onChange={(fieldKey, value) => {
                 const processed = lastProcessedValuesRef.current;
-                if (fieldKey === SERVER_URL_FIELD_KEY) {
+                if (fieldKey === RESULT_FIELD_KEY) {
+                    if (value && value !== autoNameRef.current && value !== defaultNameRef.current) {
+                        nameEditedRef.current = true;
+                    }
+                    followVariableName(value);
+                } else if (fieldKey === TOOLKIT_NAME_FIELD_KEY) {
+                    if (value && value !== autoToolKitNameRef.current && value !== defaultToolKitNameRef.current) {
+                        toolKitNameEditedRef.current = true;
+                    }
+                } else if (fieldKey === SERVER_URL_FIELD_KEY) {
                     const isReplay = processed !== null &&
                         normalizeExpressionValue(value) === normalizeExpressionValue(processed.serverUrl);
                     setServerUrl(value);
@@ -660,14 +857,6 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
                     }
                 }
             }}
-            derivedFields={editMode ? [] : [
-                {
-                    sourceField: RESULT_FIELD_KEY,
-                    targetField: TOOLKIT_NAME_FIELD_KEY,
-                    deriveFn: generateToolKitName,
-                    breakOnManualEdit: true
-                }
-            ]}
             showProgressIndicator={isSaving}
             disableSaveButton={isSaveDisabled}
             injectedComponents={injectedComponents}

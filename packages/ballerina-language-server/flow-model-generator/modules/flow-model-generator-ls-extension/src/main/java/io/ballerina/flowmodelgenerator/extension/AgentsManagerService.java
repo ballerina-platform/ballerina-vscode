@@ -262,7 +262,17 @@ public class AgentsManagerService implements ExtendedLanguageServerService {
                 }
 
                 // Send initialize request with optional authentication
-                String sessionId = McpClient.sendInitializeRequest(serviceUrl, accessToken, sslConfig);
+                McpClient.InitializeResult initialized;
+                try {
+                    initialized = McpClient.initialize(serviceUrl, accessToken, sslConfig);
+                } catch (McpClient.UnauthorizedException e) {
+                    // Without a token the server still names itself in its protected resource metadata.
+                    response.setServerInfo(McpClient.fetchResourceMetadataServerInfo(serviceUrl,
+                            e.wwwAuthenticate(), sslConfig));
+                    throw e;
+                }
+                response.setServerInfo(initialized.serverInfo());
+                String sessionId = initialized.sessionId();
 
                 // Send initialized notification to complete the handshake
                 McpClient.sendInitializedNotification(serviceUrl, sessionId, accessToken, sslConfig);

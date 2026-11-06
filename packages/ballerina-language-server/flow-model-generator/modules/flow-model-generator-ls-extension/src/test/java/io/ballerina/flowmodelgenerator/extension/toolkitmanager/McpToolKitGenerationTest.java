@@ -48,6 +48,7 @@ public class McpToolKitGenerationTest extends AbstractLSTest {
     protected Object[] getConfigsList() {
         return new Object[][]{
                 {Path.of("mcp_toolkit_generation_with_class.json")},
+                {Path.of("mcp_toolkit_generation_with_server_display.json")},
                 {Path.of("mcp_toolkit_generation_without_class.json")},
                 {Path.of("mcp_toolkit_generation_edit.json")},
                 {Path.of("mcp_toolkit_generation_edit_with_scopes.json")},

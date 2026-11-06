@@ -22,6 +22,7 @@ import com.google.gson.Gson;
 import io.ballerina.compiler.api.ModuleID;
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.api.symbols.AnnotationAttachmentSymbol;
+import io.ballerina.compiler.api.symbols.ClassFieldSymbol;
 import io.ballerina.compiler.api.symbols.ClassSymbol;
 import io.ballerina.compiler.api.symbols.Documentation;
 import io.ballerina.compiler.api.symbols.FunctionSymbol;
@@ -927,7 +928,9 @@ public class CodeAnalyzer extends NodeVisitor {
                     String toolName = fieldName.name().text();
                     Optional<String> mcpClassName = resolveMcpToolKitClassName(fieldAccess);
                     if (mcpClassName.isPresent()) {
-                        toolsData.add(new ToolData(toolName, ICON_PATH, "", MCP_SERVER, false, mcpClassName.get()));
+                        Optional<TypeSymbol> toolKitType = mcpToolKitType(fieldAccess);
+                        toolsData.add(new ToolData(toolName, mcpToolKitIcon(toolKitType), "", MCP_SERVER,
+                                false, mcpClassName.get(), mcpToolKitLabel(toolKitType)));
                         continue;
                     }
                     MethodSymbol method = resolveToolMethod(fieldAccess, toolName).orElse(null);
@@ -938,21 +941,22 @@ public class CodeAnalyzer extends NodeVisitor {
                             .orElse("");
                     boolean requiresApproval = method != null
                             && AiUtils.readRequiresApproval(method, project);
-                    toolsData.add(new ToolData(toolName, icon, description, type, requiresApproval, null));
+                    toolsData.add(new ToolData(toolName, icon, description, type, requiresApproval, null, null));
                 } else if (element instanceof SimpleNameReferenceNode nameRef) {
                     String toolName = nameRef.name().text();
                     Symbol symbol = semanticModel.symbol(element).orElse(null);
                     Optional<String> mcpClassName = resolveMcpToolKitClassName(nameRef);
                     if (mcpClassName.isPresent()) {
-                        toolsData.add(new ToolData(toolName, ICON_PATH, getToolDescription(""), MCP_SERVER, false,
-                                mcpClassName.get()));
+                        Optional<TypeSymbol> toolKitType = mcpToolKitType(nameRef);
+                        toolsData.add(new ToolData(toolName, mcpToolKitIcon(toolKitType), getToolDescription(""),
+                                MCP_SERVER, false, mcpClassName.get(), mcpToolKitLabel(toolKitType)));
                     } else {
                         String type = symbol instanceof FunctionSymbol function && isAgentDelegationTool(function)
                                 ? AGENT_TOOL_TYPE : null;
                         boolean requiresApproval = symbol != null
                                 && AiUtils.readRequiresApproval(symbol, project);
                         toolsData.add(new ToolData(toolName, getIcon(toolName), getToolDescription(toolName), type,
-                                requiresApproval, null));
+                                requiresApproval, null, null));
                     }
                 }
             }
@@ -4205,6 +4209,9 @@ public class CodeAnalyzer extends NodeVisitor {
                 if (hasContextInAllMcpTools(classSymbol)) {
                     McpToolKitBuilder.setIncludeContextProperty(nodeBuilder);
                 }
+                McpToolKitBuilder.setDisplayProperties(nodeBuilder,
+                        AiUtils.readDisplayField(classSymbol, AiUtils.DISPLAY_LABEL),
+                        AiUtils.readDisplayField(classSymbol, AiUtils.DISPLAY_ICON_PATH));
             }
         }
         if (kind == NodeKind.MCP_TOOL_KIT) {
@@ -5725,6 +5732,24 @@ public class CodeAnalyzer extends NodeVisitor {
         return semanticModel.typeOf(expressionNode).flatMap(AiUtils::mcpToolKitClassName);
     }
 
+    private Optional<TypeSymbol> mcpToolKitType(ExpressionNode expressionNode) {
+        return semanticModel.symbol(expressionNode)
+                .flatMap(symbol -> symbol instanceof VariableSymbol variable ? Optional.of(variable.typeDescriptor())
+                        : symbol instanceof ClassFieldSymbol field ? Optional.of(field.typeDescriptor())
+                        : Optional.empty())
+                .or(() -> semanticModel.typeOf(expressionNode));
+    }
+
+    // The icon the toolkit's class carries from its MCP server, else the generic MCP icon.
+    private static String mcpToolKitIcon(Optional<TypeSymbol> toolKitType) {
+        return toolKitType.flatMap(AiUtils::mcpToolKitIcon).orElse(ICON_PATH);
+    }
+
+    // The name the toolkit's class carries from its MCP server, or null when it has none.
+    private static String mcpToolKitLabel(Optional<TypeSymbol> toolKitType) {
+        return toolKitType.flatMap(AiUtils::mcpToolKitLabel).orElse(null);
+    }
+
     private Optional<MethodSymbol> resolveToolMethod(FieldAccessExpressionNode fieldAccess, String toolName) {
         Node parent = fieldAccess.parent();
         while (parent != null && !(parent instanceof ClassDefinitionNode)) {
@@ -6190,8 +6215,10 @@ public class CodeAnalyzer extends NodeVisitor {
 
     }
 
+    // label: the display name to show for the tool, when it differs from its variable name (an MCP toolkit's
+    // server name); null otherwise.
     private record ToolData(String name, String path, String description, String type,
-                            boolean requiresApproval, String className) {
+                            boolean requiresApproval, String className, String label) {
 
     }
 

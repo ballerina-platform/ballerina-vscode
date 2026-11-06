@@ -19,6 +19,7 @@
 package io.ballerina.flowmodelgenerator.core;
 
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
@@ -190,11 +191,44 @@ public class McpClient {
         return keyStore;
     }
 
+    /**
+     * The outcome of the {@code initialize} handshake: the session to use for later requests and how the server
+     * presents itself.
+     *
+     * @param sessionId  the {@code mcp-session-id} the server assigned, or {@code null} for a stateless server
+     * @param serverInfo the server's name and icon
+     */
+    public record InitializeResult(String sessionId, McpServerInfo serverInfo) {
+    }
+
+    /**
+     * Thrown when the server answers {@code initialize} with 401 Unauthorized. It carries the server's
+     * {@code WWW-Authenticate} challenge, which points at the metadata that still names the server.
+     */
+    public static class UnauthorizedException extends IOException {
+
+        private final String wwwAuthenticate;
+
+        public UnauthorizedException(String message, String wwwAuthenticate) {
+            super(message);
+            this.wwwAuthenticate = wwwAuthenticate;
+        }
+
+        public String wwwAuthenticate() {
+            return wwwAuthenticate;
+        }
+    }
+
     public static String sendInitializeRequest(String serviceUrl, String accessToken) throws IOException {
         return sendInitializeRequest(serviceUrl, accessToken, null);
     }
 
     public static String sendInitializeRequest(String serviceUrl, String accessToken, SslConfig sslConfig)
+            throws IOException {
+        return initialize(serviceUrl, accessToken, sslConfig).sessionId();
+    }
+
+    public static InitializeResult initialize(String serviceUrl, String accessToken, SslConfig sslConfig)
             throws IOException {
         HttpURLConnection conn = null;
         try {
@@ -220,7 +254,7 @@ public class McpClient {
                       "id":1,
                       "method":"initialize",
                       "params":{
-                        "protocolVersion":"2025-03-26",
+                        "protocolVersion":"2025-11-25",
                         "capabilities":{},
                         "clientInfo":{
                           "name":"MCP Client",
@@ -237,8 +271,12 @@ public class McpClient {
             int responseCode = conn.getResponseCode();
             if (responseCode != HttpURLConnection.HTTP_OK) {
                 String errorMessage = readErrorStream(conn);
-                throw new IOException("HTTP " + responseCode + ": " +
-                        (errorMessage != null ? errorMessage : conn.getResponseMessage()));
+                String message = "HTTP " + responseCode + ": " +
+                        (errorMessage != null ? errorMessage : conn.getResponseMessage());
+                if (responseCode == HttpURLConnection.HTTP_UNAUTHORIZED) {
+                    throw new UnauthorizedException(message, conn.getHeaderField("WWW-Authenticate"));
+                }
+                throw new IOException(message);
             }
 
             Map<String, List<String>> headers = conn.getHeaderFields();
@@ -253,7 +291,15 @@ public class McpClient {
                 }
             }
 
-            return sessionId;
+            McpServerInfo serverInfo;
+            try {
+                JsonObject response = readJsonRpcResponse(conn);
+                serverInfo = response == null ? McpServerInfo.empty() : McpServerInfo.fromInitializeResponse(response);
+            } catch (RuntimeException e) {
+                // The handshake succeeded; a body the probe cannot read only costs the server's name and icon.
+                serverInfo = McpServerInfo.empty();
+            }
+            return new InitializeResult(sessionId, serverInfo);
         } catch (java.net.MalformedURLException e) {
             throw new IOException("Invalid URL: " + e.getMessage(), e);
         } catch (java.net.UnknownHostException e) {
@@ -428,6 +474,73 @@ public class McpClient {
             }
         }
         return new JsonArray();
+    }
+
+    /**
+     * Fetches the server's OAuth protected resource metadata (RFC 9728) to name a server that requires
+     * authorization. Returns an empty result when the metadata is missing, unreadable or names nothing.
+     */
+    public static McpServerInfo fetchResourceMetadataServerInfo(String serviceUrl, String wwwAuthenticate,
+                                                                SslConfig sslConfig) {
+        String metadataUrl = McpServerInfo.resourceMetadataUrl(serviceUrl, wwwAuthenticate);
+        if (metadataUrl == null) {
+            return McpServerInfo.empty();
+        }
+        HttpURLConnection conn = null;
+        try {
+            conn = (HttpURLConnection) URI.create(metadataUrl).toURL().openConnection();
+            applySslConfig(conn, sslConfig);
+            conn.setRequestMethod("GET");
+            conn.setRequestProperty("Accept", "application/json");
+            conn.setConnectTimeout(CONNECTION_TIMEOUT_MS);
+            conn.setReadTimeout(READ_TIMEOUT_MS);
+            if (conn.getResponseCode() != HttpURLConnection.HTTP_OK) {
+                return McpServerInfo.empty();
+            }
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
+                JsonElement metadata = JsonParser.parseReader(reader);
+                return metadata.isJsonObject()
+                        ? McpServerInfo.fromResourceMetadata(metadata.getAsJsonObject())
+                        : McpServerInfo.empty();
+            }
+        } catch (IOException | RuntimeException e) {
+            return McpServerInfo.empty();
+        } finally {
+            if (conn != null) {
+                conn.disconnect();
+            }
+        }
+    }
+
+    // Reads one JSON-RPC response, from a plain JSON body or the first data event of an SSE stream.
+    private static JsonObject readJsonRpcResponse(HttpURLConnection conn) throws IOException {
+        String contentType = conn.getContentType();
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
+            String json = null;
+            if (contentType != null && contentType.contains("text/event-stream")) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    if (line.startsWith("data:")) {
+                        json = line.substring(5).strip();
+                        break;
+                    }
+                }
+            } else {
+                StringBuilder fullResponse = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    fullResponse.append(line);
+                }
+                json = fullResponse.toString();
+            }
+            if (json == null || json.isBlank()) {
+                return null;
+            }
+            JsonElement element = JsonParser.parseString(json);
+            return element.isJsonObject() ? element.getAsJsonObject() : null;
+        }
     }
 
     private static JsonArray parseToolsFromJson(String json) {

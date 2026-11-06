@@ -148,6 +148,8 @@ export type ToolData = {
     targetAgent?: AgentToolTarget;
     // MCP toolkit's module-qualified class name, used to match dev-time trace spans.
     className?: string;
+    // Name to show instead of `name` (the variable): an MCP toolkit's server name, from its class's @display label.
+    label?: string;
 };
 
 export type AgentToolTarget = {
