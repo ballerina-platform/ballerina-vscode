@@ -63,4 +63,10 @@ export class ChipExpressionEditorDefaultConfiguration {
     getHelperPaneHiddenItems(): HelperPaneMenuItem[] {
         return [];
     }
+
+    // Whether tokens render as chips. When false the editor shows the raw source and never
+    // fetches the token stream, so every chip behaviour (click-to-edit, guards) stays inert.
+    showChips(): boolean {
+        return true;
+    }
 }

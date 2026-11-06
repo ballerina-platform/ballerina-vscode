@@ -415,11 +415,13 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
             }
 
             const startLine = props.targetLineRange?.startLine;
-            const tokenStream = await expressionEditorRpcManager?.getExpressionTokens(
-                deserializeValue,
-                props.fileName,
-                startLine !== undefined ? startLine : undefined
-            );
+            const tokenStream = configuration.showChips()
+                ? await expressionEditorRpcManager?.getExpressionTokens(
+                    deserializeValue,
+                    props.fileName,
+                    startLine !== undefined ? startLine : undefined
+                )
+                : undefined;
 
             // Drop stale responses where the value changed mid-await
             if (cancelled) return;

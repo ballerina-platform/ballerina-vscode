@@ -238,6 +238,13 @@ export class ChipExpressionEditorConfig extends ChipExpressionEditorDefaultConfi
     }
 }
 
+// Expression mode shows plain Ballerina source instead of chips.
+export class ExpressionModeEditorConfig extends ChipExpressionEditorDefaultConfiguration {
+    showChips(): boolean {
+        return false;
+    }
+}
+
 export class NumberExpressionEditorConfig extends ChipExpressionEditorDefaultConfiguration {
     DECIMAL_INPUT_REGEX = /^\d*\.?\d*$/;
 
