@@ -26,6 +26,8 @@ export type ModeSwitcherContextType = {
     types: InputType[];
     isRecordTypeField: boolean;
     isModeSwitcherEnabled: boolean;
+    // The editor in view replaced another one, so it should load in place rather than as a fresh form.
+    hasSwitchedMode?: boolean;
 };
 
 const ModeSwitcherContext = createContext<ModeSwitcherContextType | undefined>(undefined);
@@ -42,6 +44,7 @@ type ModeSwitcherProviderProps = {
     types: InputType[];
     isRecordTypeField: boolean;
     isModeSwitcherEnabled: boolean;
+    hasSwitchedMode?: boolean;
 };
 
 export const ModeSwitcherProvider = ({
@@ -50,7 +53,8 @@ export const ModeSwitcherProvider = ({
     onModeChange,
     types,
     isRecordTypeField,
-    isModeSwitcherEnabled
+    isModeSwitcherEnabled,
+    hasSwitchedMode
 }: ModeSwitcherProviderProps) => {
     return (
         <ModeSwitcherContext.Provider
@@ -59,7 +63,8 @@ export const ModeSwitcherProvider = ({
                 onModeChange,
                 types,
                 isRecordTypeField,
-                isModeSwitcherEnabled
+                isModeSwitcherEnabled,
+                hasSwitchedMode
             }}
         >
             {children}

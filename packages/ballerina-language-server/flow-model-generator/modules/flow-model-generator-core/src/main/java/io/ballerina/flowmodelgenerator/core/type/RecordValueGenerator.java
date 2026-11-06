@@ -20,6 +20,7 @@ package io.ballerina.flowmodelgenerator.core.type;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -293,7 +294,7 @@ public class RecordValueGenerator {
             }
             case "error" -> builder.append("error(\"Custom Error\")");
             case "map" -> builder.append("{}");
-            case "object" -> builder.append("object {}");
+            case "object" -> builder.append(isAiPrompt(jsonObject) ? "``" : "object {}");
             case "stream" -> builder.append("new;");
             case "table" -> builder.append("table []");
             default -> {
@@ -310,6 +311,13 @@ public class RecordValueGenerator {
                 }
             }
         }
+    }
+
+    private static boolean isAiPrompt(JsonObject json) {
+        return json.get("typeInfo") instanceof JsonObject typeInfo
+                && new JsonPrimitive("ballerina").equals(typeInfo.get("orgName"))
+                && new JsonPrimitive("ai").equals(typeInfo.get("moduleName"))
+                && new JsonPrimitive("Prompt").equals(typeInfo.get("name"));
     }
 
     private static String getIndent(int indentLevel) {

@@ -115,6 +115,7 @@ export const applyModifications = async (rpcClient: BallerinaRpcClient, modifica
             filePath
         });
     }
+    return parseSuccess;
 };
 
 // Parameter object for ParamManager

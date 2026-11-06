@@ -210,7 +210,25 @@
           "prompt": {
             "metadata": {
               "label": "Prompt",
-              "description": "The prompt to use in the chat messages"
+              "description": "The prompt to use in the chat messages",
+              "data": {
+                "promptVariable": {
+                  "name": "llmPrompt",
+                  "value": "Hello World!",
+                  "lineRange": {
+                    "fileName": "model_provider_generate_expression.bal",
+                    "startLine": {
+                      "line": 5,
+                      "offset": 26
+                    },
+                    "endLine": {
+                      "line": 5,
+                      "offset": 40
+                    }
+                  },
+                  "references": 1
+                }
+              }
             },
             "types": [
               {

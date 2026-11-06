@@ -108,7 +108,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
     const [agentPanel, setAgentPanel] = useState<AgentPanel>("NONE");
     const suppressAgentTypeReloadRef = useRef(false);
     const suppressAgentReloadRef = useRef(false);
-    const [agentFormKey, setAgentFormKey] = useState(0);
+    const [isSavingAgentForm, setIsSavingAgentForm] = useState(false);
 
     const [model, setModel] = useState<Flow>();
     const [suggestedModel, setSuggestedModel] = useState<Flow>();
@@ -290,7 +290,6 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                 return;
             }
             agentDeclRef.current = agentDecl;
-            setAgentFormKey((key) => key + 1);
 
             const connections = fetchedFlow?.connections || [];
             const renderNode: FlowNode = kind === "AGENT"
@@ -371,6 +370,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         }
         suppressAgentTypeReloadRef.current = false;
         setShowProgressIndicator(true);
+        setIsSavingAgentForm(true);
         try {
             const fileName = model?.fileName;
             await rpcClient.getBIDiagramRpcClient().getSourceCode({ filePath: fileName, flowNode: updatedNode });
@@ -378,6 +378,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
             console.error(">>> agent focus: error saving agent form", error);
         } finally {
             setShowProgressIndicator(false);
+            setIsSavingAgentForm(false);
             handleCloseAgentPanel();
         }
     };
@@ -1011,7 +1012,6 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                 : { model: { hidden: true }, type: { hidden: true }, variable: { label: "Agent Name", documentation: "Name of the agent" } };
             return (
                 <FlowNodeForm
-                    key={agentFormKey}
                     fileName={model?.fileName || ""}
                     node={node}
                     nodeFormTemplate={node}
@@ -1019,9 +1019,9 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                     projectPath={projectPath}
                     editForm={true}
                     onSubmit={handleSubmitAgentForm}
-                    submitText={showProgressIndicator ? "Saving..." : "Save"}
-                    showProgressIndicator={showProgressIndicator}
-                    disableSaveButton={showProgressIndicator}
+                    submitText={isSavingAgentForm ? "Saving..." : "Save"}
+                    showProgressIndicator={isSavingAgentForm}
+                    disableSaveButton={isSavingAgentForm}
                     fieldOverrides={fieldOverrides}
                     injectedComponents={isAgentType ? agentTypePromptInjection : undefined}
                     hideInfoBanner={isAgentType && Boolean(agentTypePromptInjection)}

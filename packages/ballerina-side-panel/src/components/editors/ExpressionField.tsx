@@ -132,6 +132,16 @@ export const getEditorConfiguration = (inputMode: InputMode) => {
     }
 };
 
+// A string expression keeps its meaning in a string prompt as an interpolation; an ai:Prompt one cannot be interpolated.
+export const toPromptInterpolation = (mode: InputMode, value: string, ballerinaType?: string): string | undefined => {
+    if (mode !== InputMode.PROMPT || ballerinaType === "ai:Prompt") {
+        return undefined;
+    }
+    const config = new StringTemplateEditorConfig();
+    const trimmed = value.trim();
+    return config.getIsValueCompatible(trimmed) ? undefined : config.deserializeValue(`\${${trimmed}}`);
+};
+
 export const ExpressionField: React.FC<ExpressionFieldProps> = (props: ExpressionFieldProps) => {
     const {
         inputMode,
@@ -365,6 +375,7 @@ export const ExpressionField: React.FC<ExpressionFieldProps> = (props: Expressio
             isExpandedVersion={false}
             completions={completions}
             onChange={onChange}
+            onFocus={onFocus}
             onBlur={onBlur}
             value={value}
             sanitizedExpression={sanitizedExpression}

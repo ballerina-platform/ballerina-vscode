@@ -634,9 +634,6 @@ export const Form = forwardRef((props: FormProps, _ref) => {
     }
     const sawInitialLoadingRef = useRef(false);
     useEffect(() => {
-        if (!opensPrefilled) {
-            return;
-        }
         if (loadingFields.size > 0) {
             sawInitialLoadingRef.current = true;
         }
@@ -649,11 +646,11 @@ export const Form = forwardRef((props: FormProps, _ref) => {
         }
         const timer = setTimeout(() => setInitialLoadSettled(true), 0);
         return () => clearTimeout(timer);
-    }, [loadingFields.size, initialLoadSettled, opensPrefilled]);
+    }, [loadingFields.size, initialLoadSettled]);
 
-    const isFormLoading = opensPrefilled
-        ? !initialLoadSettled && (loadingFields.size > 0 || expectsInitialLoadRef.current)
-        : loadingFields.size > 0;
+    // Only the first load hides the form; an editor remounted later (a mode switch) loads in place.
+    const isFormLoading = !initialLoadSettled
+        && (loadingFields.size > 0 || (opensPrefilled && expectsInitialLoadRef.current));
 
     // Bubble loading state up to the parent form when this is a nested form
     useEffect(() => {
@@ -798,13 +795,13 @@ export const Form = forwardRef((props: FormProps, _ref) => {
         }
     }
 
-    const handleFormValidation = async (formData?: FormValues, forceValidation?: boolean): Promise<boolean> => {
+    const handleFormValidation = async (formData?: FormValues, forceValidation?: boolean, inBackground?: boolean): Promise<boolean> => {
         const data = formData ?? getValues();
         if (!onFormValidation || (!forceValidation && !canRunExternalFormValidation(data))) {
             return true;
         }
-
-        return runExternalFormValidation(data);
+        // Save validates again before it submits, so a refresh that only updates diagnostics need not hold the button.
+        return inBackground ? onFormValidation(data, dirtyFields) : runExternalFormValidation(data);
     }
 
     const handleOnBlur = async () => {
