@@ -88,7 +88,7 @@ public class ExistingListenerResolverTest {
         perListener.put("a", new Value.ValueBuilder().value("a").build());
         perListener.put("b", new Value.ValueBuilder().value("b").build());
 
-        Value selector = ExistingListenerResolver.assembleSelector(List.of("a", "b"), perListener, "hubspot");
+        Value selector = ExistingListenerResolver.assembleSelector(List.of("a", "b"), perListener, "hubspot", null);
 
         Assert.assertEquals(selector.getTypes().getFirst().fieldType(), Value.FieldType.SINGLE_SELECT);
         Assert.assertNull(selector.getTypes().getFirst().options(),
@@ -229,6 +229,37 @@ public class ExistingListenerResolverTest {
         ServiceInitModel model = TriggerModelReader.getInstance()
                 .getGeneratedServiceInitModel(entry.org(), entry.module(), entry.version()).orElseThrow();
         return model.getProperties().get("listener").getChoices().getFirst().getProperties();
+    }
+
+    /** The selector states the listeners' type, so the form can show it beside the field's label. */
+    @Test
+    public void testSelectorCarriesTheListenersSharedType() {
+        Map<String, Value> perListener = new LinkedHashMap<>();
+        perListener.put("a", new Value.ValueBuilder().value("a").build());
+
+        Value selector = ExistingListenerResolver.assembleSelector(List.of("a"), perListener, "mcp",
+                "mcp:Listener");
+
+        Assert.assertEquals(selector.getTypes().getFirst().ballerinaType(), "mcp:Listener");
+        Assert.assertNull(selector.getTypes().getFirst().options(), "typing the selector must not add options");
+    }
+
+    /**
+     * The selector can only state a type that holds for whichever listener is picked: listeners of one type
+     * share it, listeners of different types have none in common.
+     */
+    @Test
+    public void testSharedListenerTypeOnlyWhenEveryListenerAgrees() throws Exception {
+        Value createNewBranch = loadMcpMultiCreationModel().getProperties()
+                .get("listener").getChoices().get(0);
+        List<Value> branches = ExistingListenerResolver.listenerTypeBranches(createNewBranch);
+
+        Assert.assertEquals(ExistingListenerResolver.sharedListenerType(List.of(branches.get(1), branches.get(1))),
+                "mcp:Listener", "listeners of one type share it, module-qualified");
+        Assert.assertNull(ExistingListenerResolver.sharedListenerType(List.of(branches.get(0), branches.get(1))),
+                "listeners of different types have no type in common");
+        Assert.assertNull(ExistingListenerResolver.sharedListenerType(List.of(branches.get(0), createNewBranch)),
+                "a listener whose type is unknown leaves the selector untyped");
     }
 
     /** A single-listener connector has no selector, so an existing listener reads against create-new. */
