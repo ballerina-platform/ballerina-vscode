@@ -1390,6 +1390,9 @@ public class AgentTriggerGenerationTest {
         Assert.assertEquals(src.split("\\.run\\(", -1).length - 1, 1, "run() starts the instance, once: " + src);
         Assert.assertTrue(src.contains("claimAgent.run(\"\")"),
                 "an empty prompt makes the instance wait for the first chat message: " + src);
+        Assert.assertTrue(src.contains("claimAgent.getResult(existing, string) is workflow:AgentBusyError")
+                        && src.contains("import ballerina/workflow;"),
+                "a session whose conversation ended should get a new instance: " + src);
         Assert.assertTrue(src.indexOf(".run(") > src.indexOf("function instanceFor(string sessionKey)"),
                 "the one run() belongs to instanceFor: " + src);
         Assert.assertFalse(src.contains("sessionId ="), "DurableAgent.run takes no sessionId: " + src);

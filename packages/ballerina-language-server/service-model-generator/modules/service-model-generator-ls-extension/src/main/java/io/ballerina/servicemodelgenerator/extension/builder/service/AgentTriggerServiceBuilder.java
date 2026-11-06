@@ -86,6 +86,7 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
     private static final String INDENT = "    ";
     private static final String EVENTS_FIELD = "events";
     private static final String RESPONSE_FIELD = "response";
+    private static final String WORKFLOW_MODULE = "ballerina/workflow";
 
     public static boolean handles(ServiceModelRequest request) {
         return request != null && handles(request.orgName(), request.moduleName(), request.version(),
@@ -156,8 +157,7 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
         Map<String, List<TextEdit>> edits = new LinkedHashMap<>(buildEdits(filledModel, triggerModel.orElse(null),
                 channel.get(), rootNode, context.filePath()));
         Map<String, String> formValues = flattenFormValues(filledModel.getProperties());
-        if (channel.get().kind() == AgentTriggerKind.CHAT
-                && AgentTriggerContext.DURABLE_KIND.equals(formValues.get(AGENT_KIND_PROPERTY))) {
+        if (isDurableChat(channel.get(), formValues)) {
             addChatEventDeclaration(edits, context, formValues.get(AGENT_NAME_PROPERTY));
         }
         if (filledModel.isLocalRepository()) {
@@ -165,6 +165,11 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
                     filledModel.getPackageName(), filledModel.getVersion());
         }
         return edits;
+    }
+
+    private static boolean isDurableChat(AgentTriggerChannel channel, Map<String, String> formValues) {
+        return channel.kind() == AgentTriggerKind.CHAT
+                && AgentTriggerContext.DURABLE_KIND.equals(formValues.get(AGENT_KIND_PROPERTY));
     }
 
     private static void addChatEventDeclaration(Map<String, List<TextEdit>> edits,
@@ -270,8 +275,12 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
         Map<String, String> formValues = flattenFormValues(filledModel.getProperties());
         reclaimChannelKeys(formValues, filledModel, channel);
         List<TextEdit> edits = new ArrayList<>();
+        List<String> moduleRefs = new ArrayList<>(channel.imports());
+        if (isDurableChat(channel, formValues)) {
+            moduleRefs.add(WORKFLOW_MODULE);
+        }
         String imports = SchemaDrivenSourceGenerator.buildImports(filledModel, triggerModel, rootNode, emitAlias,
-                channel.imports());
+                moduleRefs);
         if (!imports.isEmpty()) {
             edits.add(new TextEdit(Utils.toRange(rootNode.lineRange().startLine()), imports));
         }

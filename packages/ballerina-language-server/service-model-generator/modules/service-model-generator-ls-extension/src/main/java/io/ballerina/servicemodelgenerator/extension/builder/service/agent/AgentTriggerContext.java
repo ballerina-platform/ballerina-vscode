@@ -67,7 +67,8 @@ public record AgentTriggerContext(String emitAlias, String listenerVarName, Stri
                     // Serializes every session's first turn; a slow `run` here delays other sessions too.
                     lock {
                         string? existing = self.durableSessions[sessionKey];
-                        if existing is string {
+                        // A conversation the agent closed or that timed out gets a new instance.
+                        if existing is string && {{agent}}.getResult(existing, string) is workflow:AgentBusyError {
                             return existing;
                         }
                         string id = check {{agent}}.run("");
