@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { getGraphqlNameError, GRAPHQL_NAME_RULE, keywords, ValidationRule, ValidationSeverity } from "@wso2/ballerina-core";
+import { getGraphqlNameError, GRAPHQL_NAME_RULE, keywords, toDisplayName, ValidationRule, ValidationSeverity } from "@wso2/ballerina-core";
 import { FormField } from "./types";
 
 /**
@@ -81,8 +81,8 @@ const BALLERINA_RESERVED_WORDS = new Set(keywords);
 
 const IDENTIFIER_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 
-/** A path param: a type and a name in brackets (`[int id]`, `[string... rest]`). */
-const PATH_PARAM_PATTERN = /^\[\s*[^\s\]][^\]]*\s+[^\s\]]+\s*\]$/;
+/** A path param: a type, an optional `...` and one name in brackets (`[int id]`, `[string... rest]`). */
+const PATH_PARAM_PATTERN = /^\[\s*[^\s\]]+(?:\s*\.\.\.)?\s+[^\s\]]+\s*\]$/;
 
 /** Quoted identifiers (`'foo`, and by extension `'service`) bypass the reserved-word check. */
 const isQuotedIdentifier = (value: string): boolean => value.startsWith("'");
@@ -426,9 +426,12 @@ function isValidResourcePath(path: string): boolean {
     });
 }
 
-/** A plain path segment: anything but empty, or a stray path param bracket. */
+/**
+ * A plain path segment: anything but empty, a stray path param bracket or a `"` (a quoted path is checked without
+ * its quotes). A segment of only escapes (`\`) is empty once written.
+ */
 function isValidPathSegment(segment: string): boolean {
-    return segment !== "" && !segment.startsWith("[") && !/\s/.test(segment);
+    return segment !== "" && !segment.startsWith("[") && !/[\s"]/.test(segment) && toDisplayName(segment) !== "";
 }
 
 /**

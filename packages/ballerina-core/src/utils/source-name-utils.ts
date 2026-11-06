@@ -163,7 +163,8 @@ function splitPath(path: string): string[] {
             current += ch + path[++i];
             continue;
         }
-        if (ch === "[") {
+        // A `[` opens a path param only at the start of a segment; elsewhere (`a[b`) it is an ordinary character
+        if (ch === "[" && (bracketDepth > 0 || current.trim() === "")) {
             bracketDepth++;
         } else if (ch === "]" && bracketDepth > 0) {
             bracketDepth--;

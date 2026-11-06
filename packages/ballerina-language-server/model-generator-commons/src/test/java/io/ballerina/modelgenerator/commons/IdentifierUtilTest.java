@@ -24,7 +24,7 @@ import org.testng.annotations.Test;
 
 /**
  * Tests for {@link IdentifierUtil}. The same vectors are used by the webview display helper tests
- * ({@code ballerina-core/src/utils/identifier-utils.test.ts}), so the two stay in step.
+ * ({@code ballerina-core/src/test/source-name-utils.test.ts}), so the two stay in step.
  *
  * @since 1.7.0
  */
@@ -41,6 +41,7 @@ public class IdentifierUtilTest {
                 {"type", "'type", "type"},
                 {"'type", "'type", "type"},
                 {"'name", "name", "name"},
+                {"'type-x", "type\\-x", "type-x"},
                 {"key", "key", "key"},
                 {"string", "'string", "string"},
                 {"_", "_", "_"},
@@ -117,6 +118,7 @@ public class IdentifierUtilTest {
                 {"[string... rest]", "[string... rest]", "[string... rest]"},
                 {"files/[string... rest]", "files/[string... rest]", "files/[string... rest]"},
                 {"v1/2024", "v1/\\2024", "v1/2024"},
+                {"/a[b/c", "/a\\[b/c", "/a[b/c"},
                 {"\"/literal-path\"", "\"/literal-path\"", "\"/literal-path\""},
         };
     }

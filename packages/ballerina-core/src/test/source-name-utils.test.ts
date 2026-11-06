@@ -29,6 +29,7 @@ describe("toSourceIdentifier / toDisplayName", () => {
         ["type", "'type", "type"],
         ["'type", "'type", "type"],
         ["'name", "name", "name"],
+        ["'type-x", "type\\-x", "type-x"],
         ["key", "key", "key"],
         ["string", "'string", "string"],
         ["_", "_", "_"],
@@ -70,6 +71,7 @@ describe("toDisplayPath", () => {
         ["orders/[int id]/line\\-items", "orders/[int id]/line-items"],
         ["[string... rest]", "[string... rest]"],
         ["v1/\\2024", "v1/2024"],
+        ["/a\\[b/c", "/a[b/c"],
         ["\"/literal-path\"", "\"/literal-path\""],
     ];
 

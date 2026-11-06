@@ -254,6 +254,15 @@ public class ValidationEngineTest {
     public void testServicePathRejectsEmptySegments() {
         assertFails(node("Base Path", "/api//orders", rule("common.validate.service.path")));
         assertFails(node("Base Path", "/api/", rule("common.validate.service.path")));
+        // A segment of only escapes is empty once written
+        assertFails(node("Base Path", "/api/\\", rule("common.validate.service.path")));
+    }
+
+    @Test
+    public void testServicePathRejectsQuotesInsideSegments() {
+        assertPasses(node("Base Path", "\"/foo\"", rule("common.validate.service.path")));
+        assertFails(node("Base Path", "\"/foo\"bar\"", rule("common.validate.service.path")));
+        assertFails(node("Base Path", "/foo\"bar", rule("common.validate.service.path")));
     }
 
     @Test

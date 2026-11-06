@@ -255,7 +255,8 @@ public final class IdentifierUtil {
                 current.append(c).append(path.charAt(++i));
                 continue;
             }
-            if (c == '[') {
+            // A `[` opens a path param only at the start of a segment; elsewhere (`a[b`) it is an ordinary character
+            if (c == '[' && (bracketDepth > 0 || current.toString().isBlank())) {
                 bracketDepth++;
             } else if (c == ']' && bracketDepth > 0) {
                 bracketDepth--;

@@ -35,17 +35,21 @@ describe.each(["common.validate.service.path", "vscode.validate.resource.path"])
         }
     );
 
-    it.each(["/chat rooms", "chat//rooms", "chat/"])("rejects %s", (path) => {
+    // A segment of only escapes is empty once written, and a quoted path cannot hold another quote
+    it.each(["/chat rooms", "chat//rooms", "chat/", "chat/\\", "\"/foo\"bar\"", "/foo\"bar"])("rejects %s", (path) => {
         expect(run(rule, path)).toBeDefined();
     });
 });
 
 describe("vscode.validate.resource.path path params", () => {
-    it.each(["rooms/[string id]", "files/[string... rest]", "orders/[int id]/line-items"])("accepts %s", (path) => {
+    it.each([
+        "rooms/[string id]", "files/[string... rest]", "files/[string ... rest]", "orders/[int id]/line-items",
+        "items/[int|string id]", "\"/quoted\"",
+    ])("accepts %s", (path) => {
         expect(run("vscode.validate.resource.path", path)).toBeUndefined();
     });
 
-    it.each(["rooms/[id]", "rooms/[string id"])("rejects %s", (path) => {
+    it.each(["rooms/[id]", "rooms/[string id", "rooms/[a b c]"])("rejects %s", (path) => {
         expect(run("vscode.validate.resource.path", path)).toBeDefined();
     });
 });
