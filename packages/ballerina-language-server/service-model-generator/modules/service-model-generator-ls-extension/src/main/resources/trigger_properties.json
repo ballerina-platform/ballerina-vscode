@@ -436,7 +436,7 @@
       "agent",
       "websocket"
     ],
-    "triggerName": "Voice Agent Service",
+    "triggerName": "Voice Chat",
     "version": "1.1.1",
     "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.wso2.integration_1.1.1.png",
     "kind": "ai",
