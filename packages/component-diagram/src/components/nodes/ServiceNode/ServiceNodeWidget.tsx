@@ -19,7 +19,8 @@
 import React, { useState } from "react";
 import styled from "@emotion/styled";
 import { DiagramEngine, PortWidget } from "@projectstorm/react-diagrams-core";
-import { Button, Item, Menu, MenuItem, Popover, ThemeColors } from "@wso2/ui-toolkit";
+import { Button, Icon, Item, Menu, MenuItem, Popover, ThemeColors } from "@wso2/ui-toolkit";
+import { VOICE_AGENT_MODULE } from "@wso2/ballerina-core";
 import { MoreVertIcon } from "../../../resources/icons/nodes/MoreVertIcon";
 import { ServiceNodeModel, rowPortName } from "./ServiceNodeModel";
 import {
@@ -122,6 +123,13 @@ const RowLabel = styled.span<{ hovered: boolean }>`
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+`;
+
+const CloudBadge = styled.div`
+    flex: none;
+    display: flex;
+    align-items: center;
+    color: ${ThemeColors.ON_SURFACE_VARIANT};
 `;
 
 const Footer = styled.div`
@@ -290,6 +298,7 @@ export function ServiceNodeWidget(props: ServiceNodeWidgetProps) {
     const rowDimmed = (handler: TopologyHandler): boolean =>
         focus !== undefined && focus.nodes.has(entry.id) && !focus.nodes.has(handler.id);
     const menu = useCardMenu(entry);
+    const isCloudHosted = entry.glyphType === VOICE_AGENT_MODULE;
 
     return (
         <Card receded={receded}>
@@ -304,6 +313,11 @@ export function ServiceNodeWidget(props: ServiceNodeWidgetProps) {
                     <Title hovered={headerHovered}>{entry.title}</Title>
                     <Subtitle>{entry.subtitle}</Subtitle>
                 </Titles>
+                {isCloudHosted && (
+                    <CloudBadge title="Runs in the cloud">
+                        <Icon name="cloud" isCodicon sx={{ width: 16, height: 16, fontSize: 16 }} iconSx={{ fontSize: 16 }} />
+                    </CloudBadge>
+                )}
                 {isService && <CardMenuButton menu={menu} />}
             </Header>
             {isService && <CardMenuPopover menu={menu} />}
