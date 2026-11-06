@@ -149,3 +149,5 @@ type OrderWrapper record {|
 type PersonStream stream<Person, error?>;
 
 type NameAndScores [string, int...];
+
+type PersonWithAddresses [Person, Address...];

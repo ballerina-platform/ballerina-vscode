@@ -37,6 +37,7 @@ import io.ballerina.compiler.api.symbols.StreamTypeSymbol;
 import io.ballerina.compiler.api.symbols.Symbol;
 import io.ballerina.compiler.api.symbols.SymbolKind;
 import io.ballerina.compiler.api.symbols.TableTypeSymbol;
+import io.ballerina.compiler.api.symbols.TupleTypeSymbol;
 import io.ballerina.compiler.api.symbols.TypeDefinitionSymbol;
 import io.ballerina.compiler.api.symbols.TypeDescKind;
 import io.ballerina.compiler.api.symbols.TypeReferenceTypeSymbol;
@@ -928,7 +929,14 @@ public class TypesManager {
                     });
                 });
             }
-            case FUNCTION, TUPLE -> {
+            case TUPLE -> {
+                TupleTypeSymbol tupleTypeSymbol = (TupleTypeSymbol) typeSymbol;
+                tupleTypeSymbol.memberTypeDescriptors().forEach(memberType ->
+                        addDependencyTypes(memberType, references, skipParameters));
+                tupleTypeSymbol.restTypeDescriptor().ifPresent(restType ->
+                        addDependencyTypes(restType, references, skipParameters));
+            }
+            case FUNCTION -> {
                 // TODO: Implement
             }
             case TYPE_REFERENCE -> {
