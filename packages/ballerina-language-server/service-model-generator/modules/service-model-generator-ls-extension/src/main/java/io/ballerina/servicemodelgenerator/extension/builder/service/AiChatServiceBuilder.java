@@ -19,6 +19,7 @@
 package io.ballerina.servicemodelgenerator.extension.builder.service;
 
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
+import io.ballerina.modelgenerator.commons.IdentifierUtil;
 import io.ballerina.servicemodelgenerator.extension.model.Function;
 import io.ballerina.servicemodelgenerator.extension.model.PropertyType;
 import io.ballerina.servicemodelgenerator.extension.model.Service;
@@ -134,33 +135,21 @@ public final class AiChatServiceBuilder extends AbstractServiceBuilder {
         return Map.of(context.filePath(), edits);
     }
 
-    private String getAgentNameFromService(Service service) {
+    /**
+     * The agent variable the generated {@code chat} resource invokes. The wizard sends the name as the user typed
+     * it, and the agent declaration writes it through {@link IdentifierUtil#escapeIfNeeded}, so the same helper is
+     * used here: {@code ai-chat-agent} becomes {@code ai\-chat\-agent} in both places.
+     *
+     * @param service the service model, carrying the {@code agentName} property
+     * @return the agent variable in source form, or {@code chat} when no name is given
+     */
+    static String getAgentNameFromService(Service service) {
         Value agentNameValue = service.getProperty(AGENT_NAME_PROPERTY);
-        String rawAgentName = agentNameValue != null && agentNameValue.isEnabledWithValue()
-                ? agentNameValue.getValue()
-                : DEFAULT_AGENT_NAME;
-        return sanitizeIdentifier(rawAgentName);
-    }
-
-    private String sanitizeIdentifier(String name) {
-        if (name == null || name.trim().isEmpty()) {
+        if (agentNameValue == null || !agentNameValue.isEnabledWithValue()
+                || agentNameValue.getValue().isBlank()) {
             return DEFAULT_AGENT_NAME;
         }
-
-        // Replace any character that is not a letter, digit, or underscore with an underscore
-        String sanitized = name.replaceAll("[^A-Za-z0-9_]", "_");
-
-        // If the identifier starts with a digit, prefix it with an underscore
-        if (!sanitized.isEmpty() && Character.isDigit(sanitized.charAt(0))) {
-            sanitized = "_" + sanitized;
-        }
-
-        // If after sanitization the string is empty or contains only underscores, fallback to "chat"
-        if (sanitized.isEmpty() || sanitized.matches("_+")) {
-            return DEFAULT_AGENT_NAME;
-        }
-
-        return sanitized;
+        return IdentifierUtil.escapeIfNeeded(agentNameValue.getValue().strip());
     }
 
     private void addDefaultListenerEdit(AddModelContext context, List<TextEdit> edits) {
