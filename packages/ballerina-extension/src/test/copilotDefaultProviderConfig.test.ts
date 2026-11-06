@@ -131,7 +131,8 @@ describe("refreshDefaultProviderToken with the prompt (Run button, Testing view)
 });
 
 describe("Copilot test tool", () => {
-    const runTests = () => (createTestRunnerTool(root, jest.fn()) as unknown as {
+    const events = jest.fn();
+    const runTests = () => (createTestRunnerTool(root, events) as unknown as {
         execute: (input: object, context: object) => Promise<{ output: string; exitCode: number }>;
     }).execute({}, { toolCallId: "t1" });
 
@@ -154,6 +155,10 @@ describe("Copilot test tool", () => {
 
         expect(await runTests()).toEqual({ output: DEFAULT_PROVIDER_UNAVAILABLE_FOR_AGENT, exitCode: -1 });
         expect(mockSpawn).not.toHaveBeenCalled();
+        expect(events).toHaveBeenLastCalledWith(expect.objectContaining({
+            type: "tool_result",
+            toolOutput: expect.objectContaining({ status: "error", summary: "Tests did not complete" }),
+        }));
     });
 });
 

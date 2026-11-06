@@ -73,7 +73,7 @@ export function createTestRunnerTool(
                 type: "tool_result",
                 toolName: TEST_RUNNER_TOOL_NAME,
                 toolCallId,
-                toolOutput: { status, summary: parseTestSummary(result.output), command: "bal test", exitCode: result.exitCode, output: result.output },
+                toolOutput: { status, summary: parseTestSummary(result.output, result.exitCode), command: "bal test", exitCode: result.exitCode, output: result.output },
             });
 
             return result;
@@ -81,7 +81,7 @@ export function createTestRunnerTool(
     });
 }
 
-function parseTestSummary(output: string): string {
+function parseTestSummary(output: string, exitCode: number): string {
     const passingMatch = output.match(/(\d+)\s+passing/);
     const failingMatch = output.match(/(\d+)\s+failing/);
     if (passingMatch) {
@@ -90,7 +90,7 @@ function parseTestSummary(output: string): string {
         const total = passing + failing;
         return `Tests completed: ${passing}/${total} passing`;
     }
-    return "Tests completed";
+    return exitCode === 0 ? "Tests completed" : "Tests did not complete";
 }
 
 async function packagePaths(projectPath: string): Promise<string[]> {
