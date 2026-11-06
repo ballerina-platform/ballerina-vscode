@@ -42,6 +42,7 @@ import io.ballerina.servicemodelgenerator.extension.model.ValidationRule;
 import io.ballerina.servicemodelgenerator.extension.model.Value;
 import io.ballerina.servicemodelgenerator.extension.model.context.GetServiceInitModelContext;
 import io.ballerina.servicemodelgenerator.extension.validation.GenerationRefusedException;
+import io.ballerina.tools.text.LinePosition;
 import io.ballerina.tools.text.TextDocuments;
 import org.eclipse.lsp4j.TextEdit;
 import org.testng.Assert;
@@ -65,6 +66,12 @@ public class AgentTriggerGenerationTest {
     private static final Map<String, String> DURABLE = Map.of(AGENT_KIND_PROPERTY, "durable");
     private static final String SERVICE_TYPE_PROPERTY = "serviceType";
     private static final String HANDLER_PROPERTY = "agentEventHandler";
+    private static final String DURABLE_AGENT = """
+            final workflow:DurableAgent claimAgent = check new ({
+                systemPrompt: {role: string `Claims`, instructions: string `File claims.`},
+                model: provider%s
+            });
+            """;
     private final Gson gson = new Gson();
 
     /** The org publishing {@code moduleName} in the trigger picker, so tests can name a module alone. */
@@ -202,10 +209,12 @@ public class AgentTriggerGenerationTest {
     public void testVoiceAgentKeepsADurableAgentsHelpersIsolated() {
         String src = generateForVoiceAgent(AgentTriggerContext.DURABLE_KIND);
 
-        Assert.assertTrue(src.contains("isolated function runAgent(string query) returns string|error {"),
+        Assert.assertTrue(src.contains("isolated function durableTurn(string sessionKey, string text)")
+                        && src.contains("isolated function instanceFor(string sessionKey)"),
                 "an isolated service can only call isolated methods: " + src);
-        Assert.assertTrue(src.contains("string response = check self.runAgent(message.message);"),
-                "a durable agent should answer with its run's result: " + src);
+        Assert.assertTrue(src.contains("string response = check self.durableTurn(message.sessionId, "
+                        + "message.message);"),
+                "a durable agent should answer through the session's instance: " + src);
     }
 
     @Test
@@ -1371,34 +1380,34 @@ public class AgentTriggerGenerationTest {
         return form;
     }
 
-    private static void assertDurableChat(String src) {
-        Assert.assertEquals(src.split("claimAgent\\.waitForResult\\(check claimAgent\\.run\\(", -1).length - 1, 1,
-                "a chat message runs the agent once and answers with the instance's result: " + src);
-        Assert.assertFalse(src.contains("sendData") || src.contains("durableSessions"),
-                "a chat trigger only runs the agent; data events are added from the diagram: " + src);
+    private static void assertDurableChat(String src, String turn) {
+        Assert.assertTrue(src.contains(turn), "the chat turn should go through the session's instance: " + src);
+        Assert.assertTrue(src.contains("private map<string> durableSessions = {};"),
+                "the service should keep one instance per session: " + src);
+        Assert.assertTrue(src.contains("string token = check claimAgent.sendData(instanceId, \"chat\", text);")
+                        && src.contains("return claimAgent.waitForDataResult(instanceId, token);"),
+                "a turn is a sendData on the chat channel awaited through its token: " + src);
+        Assert.assertEquals(src.split("\\.run\\(", -1).length - 1, 1, "run() starts the instance, once: " + src);
+        Assert.assertTrue(src.contains("claimAgent.run(\"\")"),
+                "an empty prompt makes the instance wait for the first chat message: " + src);
+        Assert.assertTrue(src.indexOf(".run(") > src.indexOf("function instanceFor(string sessionKey)"),
+                "the one run() belongs to instanceFor: " + src);
         Assert.assertFalse(src.contains("sessionId ="), "DurableAgent.run takes no sessionId: " + src);
     }
 
     @Test
-    public void testDurableAgentChatAnswersWithTheRunResult() {
+    public void testDurableAgentChatTurnsThroughAnInstance() {
         String src = render(AgentTriggerServiceBuilder.buildEdits(durableForm("ballerina", "ai", "/claims"), null,
                 channel("ballerina", "ai"), rootOf("\n"), "main.bal"));
 
-        assertDurableChat(src);
-        Assert.assertTrue(src.contains(
-                        "string stringResult = check claimAgent.waitForResult(check claimAgent.run(request.message));"),
-                "the resource can check, so it needs no helper: " + src);
-        Assert.assertFalse(src.contains("runAgent"), "the resource can check, so it needs no helper: " + src);
+        assertDurableChat(src, "check self.durableTurn(request.sessionId, request.message)");
     }
 
     @Test
-    public void testDurableGoogleChatAnswersThroughAHelper() {
+    public void testDurableGoogleChatTurnsThroughAnInstance() {
         String src = generateForAgent("googleapis.chat", "claimAgent", null, DURABLE);
 
-        assertDurableChat(src);
-        Assert.assertTrue(src.contains("function runAgent(string query) returns string|error {")
-                        && src.contains("string|error result = self.runAgent(text);"),
-                "the reply function cannot check, so the run goes through a helper that can: " + src);
+        assertDurableChat(src, "self.durableTurn(\"googlechat:\" + (event.space?.name ?: \"unknown\"), text)");
     }
 
     @Test
@@ -1444,6 +1453,49 @@ public class AgentTriggerGenerationTest {
                 .filter(entry -> !entry.getValue().isHidden())
                 .map(Map.Entry::getKey)
                 .toList();
+    }
+
+    private String withChatEvent(String source) {
+        TextEdit edit = AgentTriggerServiceBuilder.chatEventEdit(rootOf(source), "claimAgent").orElseThrow();
+        int offset = TextDocuments.from(source).textPositionFrom(LinePosition.from(
+                edit.getRange().getStart().getLine(), edit.getRange().getStart().getCharacter()));
+        return normalized(source.substring(0, offset) + edit.getNewText() + source.substring(offset));
+    }
+
+    @Test
+    public void testDurableChatDeclaresTheChatEvent() {
+        String src = withChatEvent(DURABLE_AGENT.formatted(""));
+
+        Assert.assertTrue(src.contains(
+                        "    model: provider,\n    events: {chat: {request: string, response: string}}\n"),
+                "every chat turn is sent on `chat`, so the agent has to declare it: " + src);
+    }
+
+    @Test
+    public void testDurableChatAddsToTheDeclaredEvents() {
+        String src = withChatEvent(DURABLE_AGENT.formatted(",\n    events: {shipping: {request: string}}"));
+
+        Assert.assertTrue(src.contains(
+                        "events: {shipping: {request: string}, chat: {request: string, response: string}}"),
+                "the chat event joins the agent's other events: " + src);
+    }
+
+    @Test
+    public void testDurableChatGivesAOneWayChatEventAResponse() {
+        String src = withChatEvent(DURABLE_AGENT.formatted(",\n    events: {chat: {request: string}}"));
+
+        Assert.assertTrue(src.contains("events: {chat: {request: string, response: string}}"),
+                "a one-way chat event has no reply to read, so it needs a response type: " + src);
+    }
+
+    @Test
+    public void testDurableChatKeepsADeclaredChatEvent() {
+        String source = DURABLE_AGENT.formatted(",\n    events: {chat: {request: string, response: string}}");
+
+        Assert.assertTrue(AgentTriggerServiceBuilder.chatEventEdit(rootOf(source), "claimAgent").isEmpty(),
+                "an agent that already declares `chat` needs no edit");
+        Assert.assertTrue(AgentTriggerServiceBuilder.chatEventEdit(rootOf(source), "otherAgent").isEmpty(),
+                "another agent's declaration is not touched");
     }
 
 
