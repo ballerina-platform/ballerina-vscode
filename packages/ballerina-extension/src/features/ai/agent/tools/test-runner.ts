@@ -14,12 +14,16 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import * as path from 'path';
 import { tool } from 'ai';
 import { z } from 'zod';
 import { CopilotEventHandler } from '../../utils/events';
 import { extension } from '../../../../BalExtensionContext';
 import { spawnProcess, killProcessGroup } from './running-service-manager';
 import { BALLERINA_COMMANDS } from '../../../project/cmds/cmd-runner';
+import { getWorkspaceTomlValues } from '../../../../utils';
+import { refreshDefaultProviderToken } from '../../utils';
+import { DEFAULT_PROVIDER_UNAVAILABLE_FOR_AGENT } from '../../constants';
 import { DIAGNOSTICS_TOOL_NAME } from './diagnostics';
 
 export const TEST_RUNNER_TOOL_NAME = "runTests";
@@ -89,7 +93,25 @@ function parseTestSummary(output: string): string {
     return "Tests completed";
 }
 
+async function packagePaths(projectPath: string): Promise<string[]> {
+    const packages = (await getWorkspaceTomlValues(projectPath))?.workspace?.packages ?? [];
+    return packages.length > 0 ? packages.map((pkg) => path.join(projectPath, pkg)) : [projectPath];
+}
+
+async function refreshProviderTokens(packages: string[]): Promise<boolean> {
+    for (const packagePath of packages) {
+        if (!(await refreshDefaultProviderToken(packagePath, false))) {
+            return false;
+        }
+    }
+    return true;
+}
+
 async function runBallerinaTests(cwd: string): Promise<TestRunResult> {
+    if (!(await refreshProviderTokens(await packagePaths(cwd)))) {
+        return { output: DEFAULT_PROVIDER_UNAVAILABLE_FOR_AGENT, exitCode: -1 };
+    }
+
     const balCmd = extension.ballerinaExtInstance.getBallerinaCmd();
 
     const logs: string[] = [];
