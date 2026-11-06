@@ -580,7 +580,7 @@ exports[`Type Diagram - Snapshot Tests renders all types correctly: all-types 1`
                 <span
                   class="css-15"
                 >
-                  Post|()
+                  Post?
                 </span>
                 <div
                   class="port "
@@ -604,7 +604,7 @@ exports[`Type Diagram - Snapshot Tests renders all types correctly: all-types 1`
                 <span
                   class="css-15"
                 >
-                  User|()
+                  User?
                 </span>
                 <div
                   class="port "
@@ -1484,7 +1484,7 @@ exports[`Type Diagram - Snapshot Tests renders all types correctly: all-types 1`
                 <span
                   class="css-15"
                 >
-                  User|()
+                  User?
                 </span>
                 <div
                   class="port "
@@ -1937,7 +1937,7 @@ exports[`Type Diagram - Snapshot Tests renders class types correctly: class-type
                 <span
                   class="css-15"
                 >
-                  Post|()
+                  Post?
                 </span>
                 <div
                   class="port "
@@ -1961,7 +1961,7 @@ exports[`Type Diagram - Snapshot Tests renders class types correctly: class-type
                 <span
                   class="css-15"
                 >
-                  User|()
+                  User?
                 </span>
                 <div
                   class="port "
@@ -2337,7 +2337,7 @@ exports[`Type Diagram - Snapshot Tests renders class types correctly: class-type
                 <span
                   class="css-15"
                 >
-                  User|()
+                  User?
                 </span>
                 <div
                   class="port "
@@ -3523,7 +3523,7 @@ exports[`Type Diagram - Snapshot Tests renders single type correctly: single-typ
                 <span
                   class="css-15"
                 >
-                  Post|()
+                  Post?
                 </span>
                 <div
                   class="port "
@@ -3547,7 +3547,7 @@ exports[`Type Diagram - Snapshot Tests renders single type correctly: single-typ
                 <span
                   class="css-15"
                 >
-                  User|()
+                  User?
                 </span>
                 <div
                   class="port "

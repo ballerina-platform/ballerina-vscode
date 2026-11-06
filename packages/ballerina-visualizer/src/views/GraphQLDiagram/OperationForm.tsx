@@ -19,8 +19,27 @@
 import React, { useState, useEffect } from 'react';
 import { FunctionModel, LineRange, ParameterModel, ConfigProperties, PropertyModel, RecordTypeField, Property, PropertyTypeMemberInfo, getPrimaryInputType } from '@wso2/ballerina-core';
 import { ArtifactForm } from '../BI/Forms/ArtifactForm';
-import { FormField, FormImports, FormValues, Parameter } from '@wso2/ballerina-side-panel';
+import {
+    FormField,
+    FormImports,
+    FormValues,
+    hasErrorOutsideStream,
+    Parameter,
+    readGraphQLReturnType,
+    TYPE_MODIFIER_INFO,
+    writeGraphQLReturnType
+} from '@wso2/ballerina-side-panel';
 import { getImportsForProperty } from '../../utils/bi';
+
+// A GraphQL field's error is set apart from its type, as an advanced option: a resolver can fail, so a field returns
+// an error unless the user says otherwise.
+const RETURNS_ERROR_KEY = 'returnsError';
+
+// Returns Error sits in the collapsed advanced options, so the return type says it is there and on by default.
+const withReturnsErrorHint = (description: string): string => {
+    const hint = 'Returns an error too by default; change it under **Advanced Configurations**.';
+    return description ? `${description.trim()} ${hint}` : hint;
+};
 
 interface OperationFormProps {
     model: FunctionModel;
@@ -167,6 +186,10 @@ export function OperationForm(props: OperationFormProps) {
             });
         }
 
+        const returnTypeValue = model.returnType?.value || '';
+        const graphqlReturnType = readGraphQLReturnType(returnTypeValue);
+        const endsStreamWithError = model.kind === 'SUBSCRIPTION' && !hasErrorOutsideStream(returnTypeValue);
+
         // Add parameters and other fields
         initialFields.push(
             {
@@ -193,13 +216,32 @@ export function OperationForm(props: OperationFormProps) {
                 enabled: model.returnType.enabled,
                 editable: model.returnType.editable,
                 advanced: model.returnType.advanced,
-                documentation: model.returnType.metadata?.description || '',
-                value: model.returnType?.value || '',
+                documentation: isGraphqlView
+                    ? withReturnsErrorHint(model.returnType.metadata?.description || '')
+                    : model.returnType.metadata?.description || '',
+                value: isGraphqlView ? graphqlReturnType.type : returnTypeValue,
                 properties: model.returnType.properties,
                 types: model.returnType?.types,
                 isGraphqlId: isGraphqlView ? (model.returnType as any).isGraphqlId : undefined
             }
         );
+
+        if (isGraphqlView) {
+            initialFields.push({
+                key: RETURNS_ERROR_KEY,
+                label: TYPE_MODIFIER_INFO.error.title,
+                type: 'FLAG',
+                optional: true,
+                enabled: true,
+                editable: true,
+                advanced: true,
+                documentation: endsStreamWithError
+                    ? 'The stream can end with an error.'
+                    : TYPE_MODIFIER_INFO.error.description,
+                value: graphqlReturnType.returnsError,
+                types: [{ fieldType: 'FLAG', selected: true }]
+            });
+        }
 
         const properties = convertConfigToFormFields(model);
         initialFields.push(...properties);
@@ -240,7 +282,13 @@ export function OperationForm(props: OperationFormProps) {
         const paramList = params ? getFunctionParametersList(params) : [];
         const newFunctionModel = { ...model };
         newFunctionModel.name.value = name;
-        newFunctionModel.returnType.value = returnType;
+        newFunctionModel.returnType.value = isGraphqlView
+            ? writeGraphQLReturnType(
+                model.returnType?.value || '',
+                returnType,
+                data[RETURNS_ERROR_KEY] === true || data[RETURNS_ERROR_KEY] === 'true'
+            )
+            : returnType;
         newFunctionModel.parameters = paramList;
         if (documentation !== undefined && newFunctionModel.documentation !== undefined) {
             newFunctionModel.documentation.value = documentation;

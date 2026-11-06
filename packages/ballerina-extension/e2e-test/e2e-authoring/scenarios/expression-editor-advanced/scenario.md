@@ -168,9 +168,9 @@ All items below are CONFIRMED through the authoring daemon (steps 01–12).
   the inline "View Type Diagram"/"Add Type" actions (the node itself has no
   click command); the type helper panel in the type editor lets you pick
   `int` for a field via dblclick on the `type-field` cell. Mark `age` as
-  **optional** via the "?" icon button next to the field row
-  (`vscode-button[title="Set as an Optional Field"]`) — its icon fill flips
-  from `descriptionForeground` to `button-background` when active; generated
+  **optional** via the "?" toggle at the end of the field name
+  (`[data-testid="syntax-toggle-optional-field"]`, shown while the row is
+  hovered) — its `aria-pressed` flips to `"true"` when active; generated
   source is `int age?;` and it later shows in the Record Configuration modal's
   field tree as "int (Optional)".
 - **Mode switcher timing (confirmed, 4 independent live tests)**: the

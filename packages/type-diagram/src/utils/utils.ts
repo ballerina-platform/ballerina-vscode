@@ -24,6 +24,7 @@ import {
     ComponentModel,
     ComponentModelDeprecated,
     Member,
+    Type,
     TypeFunctionModel
 } from '@wso2/ballerina-core';
 import { EntityFactory, EntityLinkFactory, EntityPortFactory } from '../components/entity-relationship';
@@ -230,20 +231,31 @@ export function focusToNode(node: NodeModel, currentZoomLevel: number, diagramEn
 
 export const getAttributeType = (attr: Member | TypeFunctionModel): string => {
 
+    // An optional field (`T name?`) can be left out of its record, which says nothing of its type: the field's name
+    // shows that, not its type.
     const type = 'returnType' in attr ? attr.returnType : (attr as Member).type;
-    const isOptional = 'optional' in attr && attr.optional;
 
     if (typeof type === 'string') {
-        return isOptional ? `${type}|()` : type;
+        return type;
     }
 
-    const formatUnionType = (types: string[]): string => types.join('|');
+    // A union with nil is shown as written, `T?`, rather than as `T|()`. The `?` is grouped with what it decorates
+    // when it would otherwise bind to a part of it: a member of a union or an intersection, or a function's return.
+    const formatUnionType = (types: string[]): string => {
+        const values = types.filter((t) => t !== '()');
+        if (values.length === 0 || values.length === types.length) {
+            return types.join('|');
+        }
+        const value = values.join('|');
+        const isCompound = /[|&]/.test(value) || /^((isolated|transactional)\s+)*function\b/.test(value);
+        return isCompound ? `(${value})?` : `${value}?`;
+    };
 
     // Get base type representation based on node kind
     const getTypeString = (members: Member[]): string => {
         const memberTypes = members.map(member => {
             if (typeof member.type === 'string') {
-                return member.optional ? `${member.type}|()` : member.type;
+                return member.type;
             }
             return getAttributeType(member);
         });
@@ -253,9 +265,10 @@ export const getAttributeType = (attr: Member | TypeFunctionModel): string => {
             case 'ARRAY':
                 const elementType = memberTypes[0];
                 const elementMember = members[0];
-                // Check if the immediate child is a union type
+                // A union element is grouped, unless its nil made it a `T?`, to which the `[]` already binds as a whole
                 const isUnionType = typeof elementMember.type === 'object' && elementMember.type.codedata.node === 'UNION';
-                baseType = isUnionType ? `(${elementType})[]` : `${elementType}[]`;
+                const isNilable = isUnionType && (elementMember.type as Type).members.some((m) => m.type === '()');
+                baseType = isUnionType && !isNilable ? `(${elementType})[]` : `${elementType}[]`;
                 break;
             case 'UNION':
                 baseType = formatUnionType(memberTypes);
@@ -272,7 +285,7 @@ export const getAttributeType = (attr: Member | TypeFunctionModel): string => {
                     : `table<${tableType}>`;
                 break;
             case 'STREAM':
-                baseType = `stream<${[...members].reverse().join(',')}>`;
+                baseType = `stream<${[...memberTypes].reverse().join(', ')}>`;
                 break;
             case 'FUTURE':
                 baseType = `future<${memberTypes[0] || ''}>`;
@@ -281,12 +294,12 @@ export const getAttributeType = (attr: Member | TypeFunctionModel): string => {
                 baseType = `typedesc<${memberTypes[0] || ''}>`;
                 break;
             case 'TUPLE':
-                baseType = `[${[...members].reverse().join(',')}]`;
+                baseType = `[${[...memberTypes].reverse().join(', ')}]`;
                 break;
             case 'RECORD':
                 const recordMembers = [...members].reverse().map(member => {
                     const memberType = typeof member.type === 'string' ? member.type : getAttributeType(member);
-                    return `${memberType} ${member.name}`;
+                    return `${memberType} ${member.name}${member.optional ? '?' : ''}`;
                 });
                 baseType = `record {${recordMembers.join(', ')}}`;// TODO: Verify anonymous records representation
                 break;
@@ -297,7 +310,7 @@ export const getAttributeType = (attr: Member | TypeFunctionModel): string => {
                 baseType = type.name || 'unknown';
         }
 
-        return isOptional ? `${baseType}|()` : baseType;
+        return baseType;
     };
 
     return getTypeString(type.members);

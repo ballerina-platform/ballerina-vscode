@@ -24,8 +24,13 @@ import { typeToSource, defaultAnonymousRecordType, isGraphQLScalarType } from '.
 import { RecordEditor } from './RecordEditor';
 import { AdvancedOptions } from './AdvancedOptions';
 import { IdentifierField } from './IdentifierField';
+import {
+    revealSyntaxTogglesOnHover,
+    SyntaxToggleItem,
+    SyntaxToggles,
+    VALUE_TYPE_MODIFIERS
+} from '@wso2/ballerina-side-panel';
 import { TypeField } from './TypeField';
-import { OptionalFieldIcon, CurlyBracesIcon } from '../assets/icons';
 
 interface FieldEditorProps {
     member: Member;
@@ -46,6 +51,14 @@ const ButtonDeactivated = styled.div<{}>`
 const ButtonActive = styled.div<{}>`
     opacity: 1;
     color: 'var(--vscode-editorWarning-foreground)';
+`;
+
+const FieldRow = styled.div`
+    display: flex;
+    gap: 8px;
+    align-items: start;
+    justify-content: space-between;
+    ${revealSyntaxTogglesOnHover}
 `;
 
 const ExpandIconButton = styled(Button)`
@@ -147,9 +160,31 @@ export const FieldEditor: React.FC<FieldEditorProps> = (props) => {
         return false;
     }
 
+    // Each toggle sits where the syntax it writes goes: `string name?` for an optional field, `record {} name` for an
+    // inline record.
+    const optionalFieldToggle: SyntaxToggleItem = {
+        id: 'optional-field',
+        glyph: '?',
+        title: 'Optional field',
+        description: 'The field can be left out of the record. Unlike Nullable, which lets it hold nil.',
+        example: 'string name?',
+        pressed: !!member?.optional,
+        onToggle: toggleOptional
+    };
+
+    const inlineRecordToggle: SyntaxToggleItem = {
+        id: 'inline-record',
+        glyph: '{}',
+        title: 'Inline record',
+        description: "Defines the field's type here as a record of its own fields.",
+        example: 'record {| … |} address',
+        pressed: isRecord(member.type),
+        onToggle: toggleRecord
+    };
+
     return (
         <>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'start', justifyContent: 'space-between' }}>
+            <FieldRow>
                 <ExpandIconButton
                     data-testid={`field-expand-btn`}
                     appearance="icon"
@@ -163,6 +198,7 @@ export const FieldEditor: React.FC<FieldEditorProps> = (props) => {
                         onChange={handleNameChange}
                         rootType={type}
                         onValidationError={(hasError) => onFieldValidation(true, hasError)}
+                        endAdornment={<SyntaxToggles items={[optionalFieldToggle]} />}
                     />
                 </div>
                 <div style={{ width: '100%' }}>
@@ -175,6 +211,8 @@ export const FieldEditor: React.FC<FieldEditorProps> = (props) => {
                         onValidationError={(hasError) => onFieldValidation(false, hasError)}
                         rootType={type}
                         isAnonymousRecord={isRecord(member.type)}
+                        modifiers={VALUE_TYPE_MODIFIERS}
+                        extraToggles={[inlineRecordToggle]}
                     />
                 </div>
                 <div style={{ display: 'flex', gap: '1px' }}>
@@ -183,17 +221,11 @@ export const FieldEditor: React.FC<FieldEditorProps> = (props) => {
                             <Codicon name="add" />
                         </Button>
                     }
-                    <Button appearance="icon" onClick={toggleRecord} tooltip='Create Inline Record'>
-                        <CurlyBracesIcon isActive={isRecord(member.type)} />
-                    </Button>
-                    <Button appearance="icon" onClick={toggleOptional} tooltip='Set as an Optional Field'>
-                        <OptionalFieldIcon isActive={member?.optional} />
-                    </Button>
                     <Button appearance="icon" onClick={onDelete} tooltip='Delete Field'>
                         <Codicon name="trash" />
                     </Button>
                 </div>
-            </div>
+            </FieldRow>
             {panelOpened && (
                 <CollapsibleSection>
                     <TextField label='Default Value' value={member.defaultValue} onChange={handleMemberDefaultValueChange} style={{ width: '180px' }} />

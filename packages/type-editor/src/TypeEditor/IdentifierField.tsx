@@ -31,6 +31,8 @@ interface IdentifierFieldProps {
     label?: string;
     onValidationError?: (isError: boolean) => void;
     autoFocus?: boolean;
+    /** Shown at the end of the field, e.g. toggles for the syntax written after the name. */
+    endAdornment?: React.ReactNode;
 }
 
 export const IdentifierField = forwardRef<HTMLInputElement, IdentifierFieldProps>((props, ref) => {
@@ -41,7 +43,8 @@ export const IdentifierField = forwardRef<HTMLInputElement, IdentifierFieldProps
         rootType,
         label,
         onValidationError,
-        autoFocus
+        autoFocus,
+        endAdornment
     } = props;
 
     const [internalErrorMsg, setInternalErrorMsg] = useState<string>("");
@@ -126,6 +129,7 @@ export const IdentifierField = forwardRef<HTMLInputElement, IdentifierFieldProps
             errorMsg={internalErrorMsg}
             label={label}
             autoFocus={autoFocus}
+            inputProps={endAdornment ? { endAdornment } : undefined}
         />
     );
 });
