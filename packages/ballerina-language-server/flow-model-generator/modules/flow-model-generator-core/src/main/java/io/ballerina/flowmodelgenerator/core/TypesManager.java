@@ -881,8 +881,9 @@ public class TypesManager {
                 addDependencyTypes(typeParam, references, skipParameters);
             }
             case STREAM -> {
-                TypeSymbol typeParam = ((StreamTypeSymbol) typeSymbol).typeParameter();
-                addDependencyTypes(typeParam, references, skipParameters);
+                StreamTypeSymbol streamTypeSymbol = (StreamTypeSymbol) typeSymbol;
+                addDependencyTypes(streamTypeSymbol.typeParameter(), references, skipParameters);
+                addDependencyTypes(streamTypeSymbol.completionValueTypeParameter(), references, skipParameters);
             }
             case INTERSECTION -> ((IntersectionTypeSymbol) typeSymbol).memberTypeDescriptors().forEach(memberTypes -> {
                 addDependencyTypes(memberTypes, references, skipParameters);

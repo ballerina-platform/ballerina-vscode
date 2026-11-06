@@ -26,6 +26,8 @@ import { getAttributeType } from "../utils/utils";
 
 const member = (type: string | Type, name?: string): Member => ({ kind: "TYPE", refs: [], type, name });
 
+const rest = (m: Member): Member => ({ ...m, kind: "REST" });
+
 const container = (node: TypeNodeKind, members: Member[]): Type => ({
     name: "",
     editable: false,
@@ -58,6 +60,11 @@ describe("getAttributeType", () => {
         ["tuple with a container member", container("TUPLE", [member("string"), member(container("MAP", [member("int")]))]),
             "[string, map<int>]"],
         ["record", container("RECORD", [member("string", "a"), member("int", "b")]), "record {string a, int b}"],
+        ["stream with a completion type", container("STREAM", [member("string"), member(container("UNION", [member("error"), member("()")]))]),
+            "stream<string, error|()>"],
+        ["tuple with a rest type", container("TUPLE", [member("string"), rest(member("int"))]), "[string, int...]"],
+        ["tuple with a union rest type", container("TUPLE", [member("string"), rest(member(container("UNION", [member("int"), member("string")])))]),
+            "[string, (int|string)...]"],
     ];
 
     it.each(cases)("renders a %s from its member types", (_, type, expected) => {
@@ -68,5 +75,11 @@ describe("getAttributeType", () => {
     it("marks an optional container field as nilable", () => {
         const optionalStream: Member = { ...member(container("STREAM", [member("string")]), "value"), optional: true };
         expect(getAttributeType(optionalStream)).toBe("stream<string>|()");
+    });
+
+    it("marks optional record fields as nilable whatever their type", () => {
+        const optional = (type: string | Type, name: string): Member => ({ ...member(type, name), optional: true });
+        const record = container("RECORD", [optional("string", "a"), optional(container("MAP", [member("int")]), "b")]);
+        expect(getAttributeType(member(record, "value"))).toBe("record {string|() a, map<int>|() b}");
     });
 });
