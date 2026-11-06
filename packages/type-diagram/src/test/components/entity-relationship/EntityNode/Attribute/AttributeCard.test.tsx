@@ -71,7 +71,9 @@ describe("Type diagram class method links", () => {
         renderDiagram(onFunctionOpen);
 
         for (const func of OPENABLE) {
-            fireEvent.click(await screen.findByText(func.name));
+            const name = await screen.findByText(func.name);
+            expect(name).toHaveStyle("cursor: pointer");
+            fireEvent.click(name);
             expect(onFunctionOpen).toHaveBeenLastCalledWith(
                 expect.objectContaining({ name: serviceClass.name }),
                 expect.objectContaining({ name: func.name, kind: func.kind })
@@ -87,7 +89,10 @@ describe("Type diagram class method links", () => {
 
         expect(recordFieldNames.length).toBeGreaterThan(0);
         for (const name of [...RESOURCES.map((func) => func.name), ...recordFieldNames]) {
-            screen.getAllByText(name).forEach((element) => fireEvent.click(element));
+            screen.getAllByText(name).forEach((element) => {
+                expect(element).not.toHaveStyle("cursor: pointer");
+                fireEvent.click(element);
+            });
         }
         expect(onFunctionOpen).not.toHaveBeenCalled();
     }, 15000);
@@ -105,11 +110,25 @@ describe("Type diagram class method links", () => {
     }, 15000);
 
     test("makes no method a link when the host cannot open methods", async () => {
-        const { goToSource } = renderDiagram();
+        // A click wired without a handler would throw inside React's event dispatch, which surfaces only as a
+        // reported error, so the error channel is watched rather than relying on fireEvent to fail.
+        const consoleError = jest.spyOn(console, "error").mockImplementation(() => undefined);
+        const onWindowError = jest.fn((event: ErrorEvent) => event.preventDefault());
+        window.addEventListener("error", onWindowError);
+        try {
+            const { goToSource } = renderDiagram();
 
-        for (const func of OPENABLE) {
-            fireEvent.click(await screen.findByText(func.name));
+            for (const func of OPENABLE) {
+                const name = await screen.findByText(func.name);
+                expect(name).not.toHaveStyle("cursor: pointer");
+                fireEvent.click(name);
+            }
+            expect(goToSource).not.toHaveBeenCalled();
+            expect(onWindowError).not.toHaveBeenCalled();
+            expect(consoleError).not.toHaveBeenCalledWith(expect.stringMatching(/Uncaught|TypeError/), expect.anything());
+        } finally {
+            window.removeEventListener("error", onWindowError);
+            consoleError.mockRestore();
         }
-        expect(goToSource).not.toHaveBeenCalled();
     }, 15000);
 });

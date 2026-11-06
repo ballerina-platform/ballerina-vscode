@@ -42,11 +42,14 @@ jest.mock("@wso2/ballerina-rpc-client", () => {
 
 // Heavy children are irrelevant to fetch ordering; stub them so the test stays in jsdom
 // with no diagram canvas, no type editor and no VSCode.
+// The stub also hands the method-open callback to the test, which drives it the way a click on a class method would.
+let capturedOnFunctionOpen: ((node: any, func: any) => Promise<void>) | undefined;
 jest.mock("@wso2/type-diagram", () => ({
     __esModule: true,
-    TypeDiagram: ({ typeModel }: any) => (
-        <div data-testid="type-model">{(typeModel ?? []).map((t: any) => t.name).join(",")}</div>
-    ),
+    TypeDiagram: ({ typeModel, onFunctionOpen }: any) => {
+        capturedOnFunctionOpen = onFunctionOpen;
+        return <div data-testid="type-model">{(typeModel ?? []).map((t: any) => t.name).join(",")}</div>;
+    },
 }));
 // Keep the refresh debounce out of the test's way.
 jest.mock("../../../views/BI/diagramRefreshDebounce", () => ({ __esModule: true, DIAGRAM_REFRESH_DEBOUNCE_MS: 0 }));
@@ -223,5 +226,128 @@ describe("TypeDiagram model fetching", () => {
         // A rejected fetch must leave the progress ring too, not hang on it forever.
         expect(progressRing()).toBeNull();
         consoleError.mockRestore();
+    });
+});
+
+// L2: opening a class method from the type diagram. The type model has no method ranges, so the method is looked up
+// in the class model: a found method opens its flow diagram, a missing one falls back to the class designer, and an
+// LS error or a rejected call is reported instead of being mistaken for "not found" or escaping as a rejection.
+describe("TypeDiagram class method open", () => {
+    let container: HTMLDivElement;
+    let root: Root;
+
+    const range = (start: number, end: number) => ({
+        fileName: "conn.bal",
+        startLine: { line: start, offset: 0 },
+        endLine: { line: end, offset: 1 },
+    });
+    const serviceClass = { name: "TcpEchoService", codedata: { node: "CLASS", lineRange: range(10, 30) } };
+    const onBytes = { name: "onBytes", kind: "REMOTE", qualifiers: ["REMOTE"] };
+
+    function makeMethodRpc(getServiceClassModel: jest.Mock) {
+        const openView = jest.fn(async (): Promise<void> => undefined);
+        const rpcClient = {
+            getVisualizerLocation: jest.fn(async () => ({ metadata: { recordFilePath: "/p/types.bal" } })),
+            getBIDiagramRpcClient: () => ({
+                getTypes: jest.fn(async () => ({ types: [serviceClass] })),
+                getServiceClassModel,
+            }),
+            getVisualizerRpcClient: () => ({
+                openView,
+                joinProjectPath: jest.fn(async ({ segments }: any) => ({ filePath: `/p/${segments[0]}` })),
+            }),
+            getCommonRpcClient: () => ({ executeCommand: jest.fn(), showErrorMessage: jest.fn() }),
+            onProjectContentUpdated: jest.fn(() => (): void => undefined),
+        };
+        return { rpcClient, openView };
+    }
+
+    beforeEach(() => {
+        capturedOnFunctionOpen = undefined;
+        container = document.createElement("div");
+        document.body.appendChild(container);
+        root = createRoot(container);
+    });
+
+    afterEach(() => {
+        act(() => root.unmount());
+        container.remove();
+    });
+
+    const renderAndOpen = async (rpcClient: any, node: any = serviceClass) => {
+        await act(async () => {
+            root.render(
+                <TestRpcContext.Provider value={{ rpcClient }}>
+                    <TypeDiagram projectPath="/p" />
+                </TestRpcContext.Provider>
+            );
+        });
+        for (let i = 0; i < 5; i++) {
+            await act(async () => undefined);
+        }
+        expect(capturedOnFunctionOpen).toBeDefined();
+        await act(async () => capturedOnFunctionOpen(node, onBytes));
+    };
+
+    it("opens the flow diagram of a method found in the class model", async () => {
+        const { rpcClient, openView } = makeMethodRpc(jest.fn(async () => ({
+            model: { functions: [{ name: { value: "onBytes" }, codedata: { lineRange: range(14, 18) } }] },
+        })));
+
+        await renderAndOpen(rpcClient);
+
+        expect(openView).toHaveBeenCalledTimes(1);
+        expect(openView).toHaveBeenCalledWith(expect.objectContaining({
+            location: expect.objectContaining({
+                identifier: "onBytes",
+                documentUri: "/p/conn.bal",
+                position: { startLine: 14, startColumn: 0, endLine: 18, endColumn: 1 },
+            }),
+        }));
+    });
+
+    it("falls back to the class designer when the method is not in the class model", async () => {
+        const { rpcClient, openView } = makeMethodRpc(jest.fn(async () => ({ model: { functions: [] as unknown[] } })));
+
+        await renderAndOpen(rpcClient);
+
+        expect(openView).toHaveBeenCalledTimes(1);
+        expect(openView).toHaveBeenCalledWith(expect.objectContaining({
+            location: expect.objectContaining({ view: "BIServiceClassDesigner" }),
+        }));
+    });
+
+    it("reports an LS error instead of falling back", async () => {
+        const consoleError = jest.spyOn(console, "error").mockImplementation(() => undefined);
+        const { rpcClient, openView } = makeMethodRpc(jest.fn(async () => ({ errorMsg: "class not found" })));
+
+        await renderAndOpen(rpcClient);
+
+        expect(openView).not.toHaveBeenCalled();
+        expect(consoleError).toHaveBeenCalledWith(expect.stringContaining("class not found"));
+        consoleError.mockRestore();
+    });
+
+    it("reports a rejected call rather than letting it escape", async () => {
+        const consoleError = jest.spyOn(console, "error").mockImplementation(() => undefined);
+        const { rpcClient, openView } = makeMethodRpc(jest.fn(async () => {
+            throw new Error("LS unavailable");
+        }));
+
+        await renderAndOpen(rpcClient);
+
+        expect(openView).not.toHaveBeenCalled();
+        expect(consoleError).toHaveBeenCalledWith(expect.stringContaining("onBytes"), expect.any(Error));
+        consoleError.mockRestore();
+    });
+
+    it("does nothing for a class without a source range", async () => {
+        const getServiceClassModel = jest.fn();
+        const { rpcClient, openView } = makeMethodRpc(getServiceClassModel);
+
+        await renderAndOpen(rpcClient, { ...serviceClass, codedata: { node: "CLASS" } });
+
+        expect(getServiceClassModel).not.toHaveBeenCalled();
+        expect(openView).not.toHaveBeenCalled();
     });
 });

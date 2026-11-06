@@ -23,6 +23,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.BALLERINA;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.CLOSE_BRACE;
@@ -44,6 +46,8 @@ import static io.ballerina.servicemodelgenerator.extension.util.Utils.populateRe
  * @since 1.2.0
  */
 public final class TCPServiceBuilder extends AbstractServiceBuilder {
+
+    private static final Logger LOGGER = Logger.getLogger(TCPServiceBuilder.class.getName());
 
     private static final String TCP_SERVICE_CLASS_NAME = "TcpEchoService";
 
@@ -135,11 +139,18 @@ public final class TCPServiceBuilder extends AbstractServiceBuilder {
         Service service = super.getModelFromSource(context);
         if (Objects.nonNull(service) && Objects.nonNull(context.project())
                 && context.node() instanceof ServiceDeclarationNode serviceNode) {
-            TcpConnectionServiceResolver.findConnectionServiceClass(serviceNode, context.semanticModel())
-                    .flatMap(classSymbol -> findClassDefinition(classSymbol, context))
-                    .ifPresent(classDef -> service.setConnectionServiceClass(
-                            ServiceClassUtil.getServiceClass(context.semanticModel(), classDef,
-                                    ServiceClassUtil.ServiceClassContext.TYPE_DIAGRAM)));
+            // The connection handlers are an addition to the service model: failing to resolve them hides only
+            // that section, never the service designer itself.
+            try {
+                TcpConnectionServiceResolver.findConnectionServiceClass(serviceNode, context.semanticModel())
+                        .flatMap(classSymbol -> findClassDefinition(classSymbol, context))
+                        .ifPresent(classDef -> service.setConnectionServiceClass(
+                                ServiceClassUtil.getServiceClass(context.semanticModel(), classDef,
+                                        ServiceClassUtil.ServiceClassContext.TYPE_DIAGRAM)));
+            } catch (RuntimeException e) {
+                LOGGER.log(Level.WARNING, "Failed to resolve the connection service class of the TCP service in "
+                        + context.filePath(), e);
+            }
         }
         return service;
     }

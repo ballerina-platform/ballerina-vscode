@@ -384,33 +384,42 @@ export function TypeDiagram(props: TypeDiagramProps) {
         if (!rpcClient || !lineRange) {
             return;
         }
-        const filePath = (await rpcClient.getVisualizerRpcClient().joinProjectPath({ segments: [lineRange.fileName] })).filePath;
-        const { model } = await rpcClient.getBIDiagramRpcClient().getServiceClassModel({
-            filePath,
-            codedata: { lineRange: { startLine: lineRange.startLine, endLine: lineRange.endLine } },
-            context: "TYPE_DIAGRAM",
-        });
-        const method = model?.functions?.find((candidate) => candidate.name?.value === func.name);
-        if (!method) {
-            // Unresolved (e.g. the source moved on since the diagram was drawn): the class itself still opens.
-            await onTypeEdit(node.name);
-            return;
-        }
-        const { startLine, endLine } = method.codedata.lineRange;
-        await rpcClient.getVisualizerRpcClient().openView({
-            type: EVENT_TYPE.OPEN_VIEW,
-            location: {
-                position: {
-                    startLine: startLine.line,
-                    startColumn: startLine.offset,
-                    endLine: endLine.line,
-                    endColumn: endLine.offset,
+        try {
+            const filePath = (await rpcClient.getVisualizerRpcClient().joinProjectPath({ segments: [lineRange.fileName] })).filePath;
+            const { model, errorMsg } = await rpcClient.getBIDiagramRpcClient().getServiceClassModel({
+                filePath,
+                codedata: { lineRange: { startLine: lineRange.startLine, endLine: lineRange.endLine } },
+                context: "TYPE_DIAGRAM",
+            });
+            if (errorMsg) {
+                console.error(`Failed to load class ${node.name} (${filePath}) to open ${func.name}: ${errorMsg}`);
+                return;
+            }
+            const method = model?.functions?.find((candidate) => candidate.name?.value === func.name);
+            const methodRange = method?.codedata?.lineRange;
+            if (!methodRange) {
+                // Unresolved (e.g. the source moved on since the diagram was drawn): the class itself still opens.
+                await onTypeEdit(node.name);
+                return;
+            }
+            const { startLine, endLine } = methodRange;
+            await rpcClient.getVisualizerRpcClient().openView({
+                type: EVENT_TYPE.OPEN_VIEW,
+                location: {
+                    position: {
+                        startLine: startLine.line,
+                        startColumn: startLine.offset,
+                        endLine: endLine.line,
+                        endColumn: endLine.offset,
+                    },
+                    type: node,
+                    identifier: method.name.value,
+                    documentUri: filePath,
                 },
-                type: node,
-                identifier: method.name.value,
-                documentUri: filePath,
-            },
-        });
+            });
+        } catch (error) {
+            console.error(`Failed to open ${func.name} of class ${node.name} (${lineRange.fileName}):`, error);
+        }
     };
 
     const onTypeEdit = async (typeId: string) => {

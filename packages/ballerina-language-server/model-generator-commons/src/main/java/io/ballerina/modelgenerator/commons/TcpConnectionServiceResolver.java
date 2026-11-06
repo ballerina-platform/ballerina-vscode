@@ -24,6 +24,7 @@ import io.ballerina.compiler.api.symbols.Qualifier;
 import io.ballerina.compiler.api.symbols.ServiceDeclarationSymbol;
 import io.ballerina.compiler.api.symbols.Symbol;
 import io.ballerina.compiler.api.symbols.TypeSymbol;
+import io.ballerina.compiler.api.symbols.UnionTypeSymbol;
 import io.ballerina.compiler.syntax.tree.ClassDefinitionNode;
 import io.ballerina.compiler.syntax.tree.ExplicitNewExpressionNode;
 import io.ballerina.compiler.syntax.tree.FunctionDefinitionNode;
@@ -38,6 +39,7 @@ import io.ballerina.tools.diagnostics.Location;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 /**
  * Resolves the service class a TCP service hands each accepted connection to.
@@ -88,7 +90,7 @@ public final class TcpConnectionServiceResolver {
         return collector.newExpressions.stream()
                 .map(semanticModel::typeOf)
                 .flatMap(Optional::stream)
-                .map(CommonUtils::getRawType)
+                .flatMap(TcpConnectionServiceResolver::rawTypeMembers)
                 .filter(ClassSymbol.class::isInstance)
                 .map(ClassSymbol.class::cast)
                 .filter(classSymbol -> classSymbol.qualifiers().contains(Qualifier.SERVICE))
@@ -113,6 +115,18 @@ public final class TcpConnectionServiceResolver {
         return Optional.of(rootNode.findNode(location.get().textRange()))
                 .filter(ClassDefinitionNode.class::isInstance)
                 .map(ClassDefinitionNode.class::cast);
+    }
+
+    /**
+     * The raw types a {@code new} expression can evaluate to. A class whose {@code init} can fail yields
+     * {@code Class|error}, so each member of a union is unwrapped as well.
+     */
+    private static Stream<TypeSymbol> rawTypeMembers(TypeSymbol typeSymbol) {
+        TypeSymbol rawType = CommonUtils.getRawType(typeSymbol);
+        if (rawType instanceof UnionTypeSymbol unionType) {
+            return unionType.memberTypeDescriptors().stream().map(CommonUtils::getRawType);
+        }
+        return Stream.of(rawType);
     }
 
     private static boolean isTcpService(ServiceDeclarationSymbol serviceSymbol) {

@@ -25,7 +25,6 @@ import { EntityPortWidget } from '../../EntityPort/EntityPortWidget';
 import { AttributeContainer, AttributeName, AttributeType } from '../styles';
 import { CtrlClickGo2Source, DiagramContext } from '../../../common';
 import { getAttributeType } from '../../../../utils/utils';
-import { isNodeClass } from '../../../../utils/model-mapper/entityModelMapper';
 
 interface AttributeProps {
     node: EntityModel;
@@ -67,7 +66,7 @@ export function AttributeWidget(props: AttributeProps) {
 
     // A class method's name opens its implementation. A resource method is named here by its symbol rather than
     // its path, so it cannot be matched to its source and stays plain text.
-    const openableFunction = onFunctionOpen && isNodeClass(node.entityObject?.codedata?.node)
+    const openableFunction = onFunctionOpen && node.entityObject?.codedata?.node === 'CLASS'
         && isFunction(attribute) && attribute.kind !== 'RESOURCE' ? attribute : undefined;
 
     const onClickOnName = (event: React.MouseEvent) => {

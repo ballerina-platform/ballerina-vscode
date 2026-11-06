@@ -478,12 +478,22 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
     const connectionServiceClass = serviceModel?.connectionServiceClass;
 
     // The class is resolved from the service's own module, so its file is a sibling of the service's.
+    const toServiceSiblingPath = (fileName: string) => filePath.replace(/[^/\\]+$/, fileName);
+
     const handleOpenConnectionHandler = (handler: FunctionModel) =>
-        handleOpenDiagram(handler, filePath.replace(/[^/\\]+$/, handler.codedata.lineRange.fileName));
+        handleOpenDiagram(handler, toServiceSiblingPath(handler.codedata.lineRange.fileName));
+
+    const connectionHandlers = connectionServiceClass?.functions?.filter((handler) => handler.kind === "REMOTE") ?? [];
 
     // Adding, configuring or removing a handler belongs to the class, so it opens in the class designer.
     const handleOpenConnectionServiceClass = async () => {
         const { fileName, startLine, endLine } = connectionServiceClass.codedata.lineRange;
+        // The class designer resolves its file against the project root, so pass the path relative to it: the class
+        // may sit in a non-default module, next to the service rather than at the root.
+        const classPath = toServiceSiblingPath(fileName);
+        const documentUri = projectPath && classPath.startsWith(projectPath)
+            ? classPath.slice(projectPath.length).replace(/^[/\\]+/, "")
+            : fileName;
         await rpcClient.getVisualizerRpcClient().openView({
             type: EVENT_TYPE.OPEN_VIEW,
             location: {
@@ -494,7 +504,7 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
                     endLine: endLine.line,
                     endColumn: endLine.offset,
                 },
-                documentUri: fileName,
+                documentUri,
             },
         });
     };
@@ -1299,16 +1309,21 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
                                         </ActionGroup>
                                     </SectionHeader>
                                     <FunctionsContainer>
-                                        {connectionServiceClass.functions
-                                            ?.filter((handler) => handler.kind === "REMOTE")
-                                            .map((handler) => (
-                                                <ResourceAccordion
-                                                    key={handler.name.value}
-                                                    functionModel={handler}
-                                                    onResourceImplement={handleOpenConnectionHandler}
-                                                />
-                                            ))}
+                                        {connectionHandlers.map((handler) => (
+                                            <ResourceAccordion
+                                                key={handler.name.value}
+                                                functionModel={handler}
+                                                onResourceImplement={handleOpenConnectionHandler}
+                                            />
+                                        ))}
                                     </FunctionsContainer>
+                                    {connectionHandlers.length === 0 && (
+                                        <EmptyReadmeContainer>
+                                            <Description variant="body2">
+                                                {`No connection handlers found. Open ${connectionServiceClass.name} to add one.`}
+                                            </Description>
+                                        </EmptyReadmeContainer>
+                                    )}
                                 </>
                             )}
 
