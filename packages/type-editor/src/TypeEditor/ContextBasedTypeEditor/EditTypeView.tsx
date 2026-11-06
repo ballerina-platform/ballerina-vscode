@@ -20,7 +20,7 @@ import React, { useCallback, useContext, useEffect, useRef, useState } from "rea
 import { TextField, Dropdown, Button, ProgressRing, Icon, Typography, ThemeColors } from "@wso2/ui-toolkit";
 import styled from "@emotion/styled";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { FormFieldInputType, Member, Type, TypeNodeKind } from "@wso2/ballerina-core";
+import { FormFieldInputType, getGraphqlNameError, Member, Type, TypeNodeKind } from "@wso2/ballerina-core";
 import { RecordEditor } from "../RecordEditor";
 import { EnumEditor } from "../EnumEditor";
 import { UnionEditor } from "../UnionEditor";
@@ -344,6 +344,13 @@ export function EditTypeView(props: EditTypeViewProps) {
             return;
         }
 
+        const graphqlError = isGraphql ? getGraphqlNameError(value) : undefined;
+        if (graphqlError) {
+            setNameError(graphqlError);
+            setIsTypeNameValid(false);
+            return;
+        }
+
         const projectPath = await rpcClient.getVisualizerLocation().then((res) => res.projectPath);
 
         const endPosition = await rpcClient.getBIDiagramRpcClient().getEndOfFile({
@@ -400,7 +407,7 @@ export function EditTypeView(props: EditTypeViewProps) {
             setNameError("");
             setIsTypeNameValid(true);
         }
-    }, 250), [rpcClient, type]);
+    }, 250), [rpcClient, type, isGraphql]);
 
     const handleOnTypeNameUpdate = (value: string) => {
         setTempName(value);

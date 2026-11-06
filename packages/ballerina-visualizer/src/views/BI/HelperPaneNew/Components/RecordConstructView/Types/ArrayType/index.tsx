@@ -17,7 +17,7 @@
  */
 import React, { useCallback, useRef, useState } from "react";
 
-import { TypeField } from "@wso2/ballerina-core";
+import { TypeField, toDisplayName } from "@wso2/ballerina-core";
 import { VSCodeCheckbox } from "@vscode/webview-ui-toolkit/react";
 import { Button, Codicon, Dropdown, Tooltip, Typography } from "@wso2/ui-toolkit";
 
@@ -270,7 +270,7 @@ export default function ArrayType(props: TypeProps & { bodyOnly?: boolean }) {
                         className={helperStyleClass.parameterCheckbox}
                     />
                     <Typography variant="body3" sx={{ margin: '0px 5px' }}>
-                        {param.name}
+                        {toDisplayName(param.name)}
                     </Typography>
                     <Typography className={helperStyleClass.suggestionDataType} variant="body3">
                         {elementTypeName}[]

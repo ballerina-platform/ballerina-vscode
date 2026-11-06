@@ -30,6 +30,7 @@ import {
     STModification,
     removeStatement,
     isSamePath,
+    withGraphqlNameRule,
 } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { ServiceModelError } from "../BI/ServiceDesigner/ServiceModelError";
@@ -394,7 +395,8 @@ export function GraphqlServiceEditor(props: GraphqlServiceEditorProps) {
                 name: {
                     ...param.name,
                     value: param.name.value || "",
-                    types: param.name.types || [{fieldType: "IDENTIFIER", selected: false}],
+                    // GraphQL argument names allow only letters, digits and underscores
+                    types: withGraphqlNameRule(param.name.types || [{fieldType: "IDENTIFIER", selected: false}]),
                     isType: param.name.isType !== undefined ? param.name.isType : false,
                 },
                 defaultValue: {

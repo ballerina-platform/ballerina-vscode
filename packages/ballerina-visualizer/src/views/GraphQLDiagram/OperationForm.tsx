@@ -17,7 +17,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { FunctionModel, LineRange, ParameterModel, ConfigProperties, PropertyModel, RecordTypeField, Property, PropertyTypeMemberInfo, getPrimaryInputType } from '@wso2/ballerina-core';
+import { FunctionModel, LineRange, ParameterModel, ConfigProperties, PropertyModel, RecordTypeField, Property, PropertyTypeMemberInfo, getPrimaryInputType, withGraphqlNameRule } from '@wso2/ballerina-core';
 import { ArtifactForm } from '../BI/Forms/ArtifactForm';
 import { FormField, FormImports, FormValues, Parameter } from '@wso2/ballerina-side-panel';
 import { getImportsForProperty } from '../../utils/bi';
@@ -147,7 +147,8 @@ export function OperationForm(props: OperationFormProps) {
             enabled: model.name.enabled,
             documentation: model.name.metadata?.description || '',
             value: model.name.value,
-            types: model.name?.types,
+            // GraphQL names allow only letters, digits and underscores
+            types: withGraphqlNameRule(model.name?.types),
             lineRange: model?.name?.codedata?.lineRange
         });
 

@@ -33,7 +33,8 @@ import {
     SHARED_COMMANDS,
     ValidationResult,
     hasBlockingValidationErrors,
-    isSamePath
+    isSamePath,
+    toDisplayPath
 } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { PanelContainer } from "@wso2/ballerina-side-panel";
@@ -53,7 +54,7 @@ import { FunctionConfigForm } from "./Forms/FunctionConfigForm";
 import { FunctionForm } from "./Forms/FunctionForm";
 import { AiResourceForm, findHeadersOption } from "./Forms/AiResourceForm";
 import { ResourceForm } from "./Forms/ResourceForm";
-import { removeForwardSlashes, canDataBind, getReadableListenerName } from "./utils";
+import { canDataBind, getReadableListenerName } from "./utils";
 import { DatabindForm } from "./Forms/DatabindForm";
 import { TriggerHandlerForm } from "./Forms/TriggerHandlerForm";
 import TriggerHandlerConfigForm from "./Forms/TriggerHandlerForm/TriggerHandlerConfigForm";
@@ -1079,7 +1080,7 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
                                                         <PropertyInline key={prop.label}>
                                                             <PropertyKey>{prop.label}:</PropertyKey>
                                                             <PropertyValue>
-                                                                {Array.isArray(prop.value) ? prop.value.join(", ") : removeForwardSlashes(prop.value)}
+                                                                {Array.isArray(prop.value) ? prop.value.join(", ") : toDisplayPath(prop.value)}
                                                             </PropertyValue>
                                                         </PropertyInline>
                                                     ))

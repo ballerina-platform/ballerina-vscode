@@ -21,7 +21,7 @@ import React, { useState, useCallback, useEffect } from "react";
 import { debounce } from "lodash";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { useFormContext } from "../../context";
-import { buildRequiredRule, capitalize, fetchIdentifierDiagnostics, getFriendlyIdentifierMessage, getPropertyFromFormField } from "./utils";
+import { buildRequiredRule, capitalize, fetchIdentifierDiagnostics, getFriendlyIdentifierMessage, getPropertyFromFormField, toEditableName } from "./utils";
 import { buildValidate } from "../Form/validationRules";
 import { FormField } from "../Form/types";
 import { FieldTypeChip } from "./FieldTypeChip";
@@ -35,7 +35,7 @@ export interface IdentifierFieldProps {
 export function IdentifierField(props: IdentifierFieldProps) {
     const { field, handleOnFieldFocus, autoFocus, onBlur } = props;
     const { rpcClient } = useRpcContext();
-    const { form, targetLineRange, fileName } = useFormContext();
+    const { form, targetLineRange, fileName, nodeInfo } = useFormContext();
     const { watch, formState, register, setValue, setError, clearErrors } = form;
     const { errors } = formState;
     const [formDiagnostics, setFormDiagnostics] = useState(field.diagnostics);
@@ -50,9 +50,10 @@ export function IdentifierField(props: IdentifierFieldProps) {
     }, [field.diagnostics, field.label]);
 
     // Sync external field value changes to the form (e.g., when a sibling field's onValueChange updates the value)
+    // A name in source form (issue\-number) is shown and edited plain (issue-number); it is escaped on save
     useEffect(() => {
-        setValue(field.key, field.value ?? '');
-    }, [field.key, field.value, setValue]);
+        setValue(field.key, toEditableName(field.value ?? '', nodeInfo?.kind));
+    }, [field.key, field.value, nodeInfo?.kind, setValue]);
 
     const validateIdentifierName = useCallback(debounce(async (value: string) => {
         try {
@@ -63,6 +64,7 @@ export function IdentifierField(props: IdentifierFieldProps) {
                 property: getPropertyFromFormField(field),
                 codedata: field.codedata,
                 label: field.label,
+                nodeKind: nodeInfo?.kind,
             });
             if (first) {
                 setFormDiagnostics([first]);
@@ -80,7 +82,7 @@ export function IdentifierField(props: IdentifierFieldProps) {
             setFormDiagnostics([]);
             clearErrors(field.key);
         }
-    }, 250), [rpcClient, field.key, field.codedata, targetLineRange, fileName, setError, clearErrors]);
+    }, 250), [rpcClient, field.key, field.codedata, targetLineRange, fileName, nodeInfo?.kind, setError, clearErrors]);
 
     // Validate on value change, but skip a pristine empty value so a freshly opened field
     // doesn't show an error upfront (Save still triggers the required rule).
@@ -103,7 +105,7 @@ export function IdentifierField(props: IdentifierFieldProps) {
 
     const registerField = register(field.key, {
         required: buildRequiredRule({ isRequired: !field.optional, label: field.label }),
-        value: field.value,
+        value: toEditableName(field.value, nodeInfo?.kind),
         validate: buildValidate(field)
     })
     const { onChange } = registerField;

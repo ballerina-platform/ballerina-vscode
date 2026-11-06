@@ -16,9 +16,9 @@
  * under the License.
  */
 
-import { Type } from "@wso2/ballerina-core";
+import { getGraphqlNameError, toDisplayName, Type } from "@wso2/ballerina-core";
 import { TextField } from "@wso2/ui-toolkit/lib/components/TextField/TextField";
-import React, { ChangeEvent, forwardRef, useCallback, useState } from "react";
+import React, { ChangeEvent, forwardRef, useCallback, useEffect, useRef, useState } from "react";
 import { useRpcContext } from '@wso2/ballerina-rpc-client';
 import { URI, Utils } from "vscode-uri";
 import { debounce } from "lodash";
@@ -31,6 +31,8 @@ interface IdentifierFieldProps {
     label?: string;
     onValidationError?: (isError: boolean) => void;
     autoFocus?: boolean;
+    /** GraphQL names allow only letters, digits and underscores, so a name that needs escaping is rejected. */
+    isGraphql?: boolean;
 }
 
 export const IdentifierField = forwardRef<HTMLInputElement, IdentifierFieldProps>((props, ref) => {
@@ -41,18 +43,40 @@ export const IdentifierField = forwardRef<HTMLInputElement, IdentifierFieldProps
         rootType,
         label,
         onValidationError,
-        autoFocus
+        autoFocus,
+        isGraphql
     } = props;
 
     const [internalErrorMsg, setInternalErrorMsg] = useState<string>("");
     const { rpcClient } = useRpcContext();
 
+    // A name read from the source (issue\-number, 'type) is shown and edited plain (issue-number, type); the
+    // language server escapes it when it writes the type. Only a value set from outside is converted, so what the
+    // user types is kept as typed.
+    const [text, setText] = useState<string>(() => toDisplayName(value ?? ""));
+    const lastEmitted = useRef<string>(value);
+    useEffect(() => {
+        if (value !== lastEmitted.current) {
+            lastEmitted.current = value;
+            setText(toDisplayName(value ?? ""));
+        }
+    }, [value]);
+
     const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
+        lastEmitted.current = event.target.value;
+        setText(event.target.value);
         onChange(event.target.value);
         validateIdentifierName(event.target.value);
     };
 
     const validateIdentifierName = useCallback(debounce(async (value: string) => {
+        const graphqlError = isGraphql ? getGraphqlNameError(value) : undefined;
+        if (graphqlError) {
+            setInternalErrorMsg(graphqlError);
+            onValidationError?.(true);
+            return;
+        }
+
         const projectPath = await rpcClient.getVisualizerLocation().then((res) => res.projectPath);
 
         const endPosition = await rpcClient.getBIDiagramRpcClient().getEndOfFile({
@@ -104,7 +128,7 @@ export const IdentifierField = forwardRef<HTMLInputElement, IdentifierFieldProps
             setInternalErrorMsg("");
             onValidationError?.(false);
         }
-    }, 250), [rpcClient, rootType]);
+    }, 250), [rpcClient, rootType, isGraphql]);
 
     const handleOnBlur = async (e: React.ChangeEvent<HTMLInputElement>) => {
         validateIdentifierName(e.target.value);
@@ -118,7 +142,7 @@ export const IdentifierField = forwardRef<HTMLInputElement, IdentifierFieldProps
         <TextField
             ref={ref}
             data-testid="identifier-field"
-            value={value}
+            value={text}
             onChange={handleChange}
             onBlur={handleOnBlur}
             onFocus={handleOnFocus}

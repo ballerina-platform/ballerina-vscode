@@ -39,6 +39,7 @@ import {
     buildStringArray,
     buildStringMap,
     withHeldValue,
+    toEditableName,
 } from "../components/editors/utils";
 
 describe("capitalize", () => {
@@ -245,5 +246,42 @@ describe("fetchIdentifierDiagnostics", () => {
                 severity: "ERROR",
             },
         });
+    });
+});
+
+describe("fetchIdentifierDiagnostics node kind", () => {
+    const property = { metadata: { label: "Name", description: "" }, value: "", optional: false, editable: true };
+    const send = async (nodeKind?: string) => {
+        const getExpressionDiagnostics = jest.fn().mockResolvedValue({ diagnostics: [] });
+        const rpcClient: any = { getBIDiagramRpcClient: () => ({ getExpressionDiagnostics }) };
+        await fetchIdentifierDiagnostics(rpcClient, {
+            filePath: "config.bal", startLine: { line: 0, offset: 0 }, value: "issue-number", property, nodeKind,
+        });
+        return getExpressionDiagnostics.mock.calls[0][0].context.codedata;
+    };
+
+    it("tells the language server a configurable name must be valid source", async () => {
+        expect(await send("CONFIG_VARIABLE")).toEqual({ node: "CONFIG_VARIABLE" });
+    });
+
+    it("sends no node kind for other forms, whose names the language server escapes", async () => {
+        expect(await send("VARIABLE")).toBeUndefined();
+        expect(await send(undefined)).toBeUndefined();
+    });
+});
+
+describe("toEditableName", () => {
+    it.each([
+        ["issue\\-number", "issue-number"],
+        ["'type", "type"],
+        ["name", "name"],
+        ["[a, b]", "[a, b]"],
+        ["{a: x\\-y}", "{a: x\\-y}"],
+    ])("shows %p as %p", (value, expected) => {
+        expect(toEditableName(value)).toBe(expected);
+    });
+
+    it("keeps the source form for a configurable", () => {
+        expect(toEditableName("'type", "CONFIG_VARIABLE")).toBe("'type");
     });
 });

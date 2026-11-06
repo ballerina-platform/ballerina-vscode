@@ -65,6 +65,31 @@ export function processSegment(
     });
 }
 
+/**
+ * A segment of a service base path or a resource function path. Only the structure is checked: any character other
+ * than whitespace and brackets is allowed (`issues-memox`, `v1.0`, `type`), because the language server escapes the
+ * segment when it writes the source.
+ */
+function processPlainSegment(
+    segment: { value: string; start: number; end: number },
+    result: ParseResult
+) {
+    const bracket = segment.value.search(/[[\]]/);
+    if (bracket !== -1) {
+        result.errors.push({
+            position: segment.start + bracket,
+            message: 'a path parameter must be a whole segment, e.g. [string id]'
+        });
+        return;
+    }
+    const whitespace = segment.value.search(/\s/);
+    if (whitespace !== -1) {
+        result.errors.push({ position: segment.start + whitespace, message: 'spaces are not allowed in a path' });
+        return;
+    }
+    result.segments.push({ type: 'segment', value: segment.value, start: segment.start, end: segment.end });
+}
+
 function tokenize(content: string, offset: number): { tokens: Token[]; errors: ParseError[] } {
     const tokens: Token[] = [];
     const errors: ParseError[] = [];
@@ -377,17 +402,10 @@ export function parseBasePath(input: string): ParseResult {
         return result;
     }
 
-    const segments = splitSegments(input);
-    for (const segment of segments) {
-        processSegment(segment, result);
-        if (keywords.includes(segment.value)) {
-            result.errors.push({
-                position: segment.start,
-                message: `usage of reserved keyword "${segment.value}"`
-            });
-            return result;
-        }
+    for (const segment of splitSegments(input)) {
+        processPlainSegment(segment, result);
     }
+    result.valid = result.errors.length === 0;
     return result;
 }
 
@@ -486,13 +504,7 @@ export function parseResourceFunctionPath(input: string): ParseResult {
         } else if (opens) {
             processParam(segment, result);
         } else {
-            processSegment(segment, result);
-            if (keywords.includes(segment.value)) {
-                result.errors.push({
-                    position: segment.start,
-                    message: `usage of reserved keyword "${segment.value}"`
-                });
-            }
+            processPlainSegment(segment, result);
         }
     }
 

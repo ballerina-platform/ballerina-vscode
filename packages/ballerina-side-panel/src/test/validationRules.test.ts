@@ -27,7 +27,35 @@ describe.each(["common.validate.service.path", "vscode.validate.resource.path"])
         expect(run(rule, path)).toBeUndefined();
     });
 
-    it.each(["function", "chat/service", "/listener", "class", "a/foreach"])("rejects the bare reserved word in %s", (path) => {
+    // Keywords are quoted and special characters escaped by the language server when it writes the source
+    it.each(["function", "chat/service", "/listener", "/issues-memox", "/issues\\-memox", "v1.0/a@b"])(
+        "accepts %s, which the language server escapes",
+        (path) => {
+            expect(run(rule, path)).toBeUndefined();
+        }
+    );
+
+    it.each(["/chat rooms", "chat//rooms", "chat/"])("rejects %s", (path) => {
         expect(run(rule, path)).toBeDefined();
+    });
+});
+
+describe("vscode.validate.resource.path path params", () => {
+    it.each(["rooms/[string id]", "files/[string... rest]", "orders/[int id]/line-items"])("accepts %s", (path) => {
+        expect(run("vscode.validate.resource.path", path)).toBeUndefined();
+    });
+
+    it.each(["rooms/[id]", "rooms/[string id"])("rejects %s", (path) => {
+        expect(run("vscode.validate.resource.path", path)).toBeDefined();
+    });
+});
+
+describe("graphql.validate.name", () => {
+    it.each(["name", "_id", "type"])("accepts %s", (name) => {
+        expect(run("graphql.validate.name", name)).toBeUndefined();
+    });
+
+    it.each(["issue-number", "1st", "a.b"])("rejects %s", (name) => {
+        expect(run("graphql.validate.name", name)).toBeDefined();
     });
 });

@@ -19,7 +19,7 @@
 import React, { useState } from 'react';
 import styled from '@emotion/styled';
 import { Button, Codicon, Confirm, Icon } from '@wso2/ui-toolkit';
-import { CodeData, FunctionModel, ProjectStructureArtifactResponse } from '@wso2/ballerina-core';
+import { CodeData, FunctionModel, ProjectStructureArtifactResponse, toDisplayPath } from '@wso2/ballerina-core';
 import { useRpcContext } from '@wso2/ballerina-rpc-client';
 import { ResourceAccordionSkeleton } from '../../../../components/Skeletons';
 
@@ -266,7 +266,7 @@ export function ResourceAccordionV2(params: ResourceAccordionPropsV2) {
                     <MethodBox color={getColorByMethod(resource.icon)}>
                         {methodName ? methodName : resource.icon ? resource.icon.split("-")[0].toUpperCase() : "REMOTE"}
                     </MethodBox>
-                    <MethodPath>{resource.name}</MethodPath>
+                    <MethodPath>{toDisplayPath(resource.name)}</MethodPath>
                 </MethodSection>
                 <ButtonSection>
                     <>
