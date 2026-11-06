@@ -202,7 +202,11 @@ public record Member(
         }
     }
 
+    /**
+     * Kind of a member. {@code REST} marks the rest descriptor of a tuple ({@code T...}), which must stay the
+     * last member.
+     */
     public enum MemberKind {
-        FIELD, TYPE, NAME
+        FIELD, TYPE, NAME, REST
     }
 }

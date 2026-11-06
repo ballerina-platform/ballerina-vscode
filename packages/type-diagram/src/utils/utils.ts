@@ -238,6 +238,8 @@ export const getAttributeType = (attr: Member | TypeFunctionModel): string => {
     }
 
     const formatUnionType = (types: string[]): string => types.join('|');
+    const isUnion = (member: Member): boolean =>
+        typeof member.type === 'object' && member.type.codedata.node === 'UNION';
 
     // Get base type representation based on node kind
     const getTypeString = (members: Member[]): string => {
@@ -252,10 +254,7 @@ export const getAttributeType = (attr: Member | TypeFunctionModel): string => {
         switch (type.codedata.node) {
             case 'ARRAY':
                 const elementType = memberTypes[0];
-                const elementMember = members[0];
-                // Check if the immediate child is a union type
-                const isUnionType = typeof elementMember.type === 'object' && elementMember.type.codedata.node === 'UNION';
-                baseType = isUnionType ? `(${elementType})[]` : `${elementType}[]`;
+                baseType = isUnion(members[0]) ? `(${elementType})[]` : `${elementType}[]`;
                 break;
             case 'UNION':
                 baseType = formatUnionType(memberTypes);
@@ -272,7 +271,7 @@ export const getAttributeType = (attr: Member | TypeFunctionModel): string => {
                     : `table<${tableType}>`;
                 break;
             case 'STREAM':
-                baseType = `stream<${[...members].reverse().join(',')}>`;
+                baseType = `stream<${memberTypes.join(', ')}>`;
                 break;
             case 'FUTURE':
                 baseType = `future<${memberTypes[0] || ''}>`;
@@ -281,13 +280,16 @@ export const getAttributeType = (attr: Member | TypeFunctionModel): string => {
                 baseType = `typedesc<${memberTypes[0] || ''}>`;
                 break;
             case 'TUPLE':
-                baseType = `[${[...members].reverse().join(',')}]`;
+                // The LS marks a tuple's rest descriptor (`T...`) with the REST kind; it is always the last member.
+                baseType = `[${members.map((member, i) => member.kind === 'REST'
+                    ? `${isUnion(member) ? `(${memberTypes[i]})` : memberTypes[i]}...`
+                    : memberTypes[i]
+                ).join(', ')}]`;
                 break;
             case 'RECORD':
-                const recordMembers = [...members].reverse().map(member => {
-                    const memberType = typeof member.type === 'string' ? member.type : getAttributeType(member);
-                    return `${memberType} ${member.name}`;
-                });
+                const recordMembers = members.map(
+                    (member, i) => `${memberTypes[i]} ${member.name}`
+                );
                 baseType = `record {${recordMembers.join(', ')}}`;// TODO: Verify anonymous records representation
                 break;
             case 'ERROR':
