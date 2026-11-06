@@ -345,7 +345,14 @@ public class PackageUtil {
                 pkg -> getCompilation(pkg).getSemanticModel(pkg.getDefaultModule().moduleId()));
     }
 
-    // The compiler reuses a dependency's cached BIR even when it was built against other dependency versions.
+    /**
+     * Compiles a BALA package, clearing and reloading once for each dependency whose cached BIR cannot be loaded.
+     * The compiler reuses a dependency's cached BIR even when it was built against other dependency versions.
+     *
+     * @param pkg the package to compile
+     * @return the compiled package, which is a reloaded instance after a retry; callers must use it instead of
+     *         {@code pkg}
+     */
     static Package compileBala(Package pkg) {
         Set<String> clearedPackages = new HashSet<>();
         Package current = pkg;
@@ -378,6 +385,8 @@ public class PackageUtil {
                         ProjectConstants.LOCAL_REPOSITORY_NAME)
                 .map(repository -> repositories.resolve(repository).resolve(cacheDirName).resolve(params.getOrg())
                         .resolve(params.getPackageName()).resolve(params.getVersion()))
+                // The segments come from the error message, so reject any '.' or '..' that would leave the cache.
+                .filter(dir -> dir.equals(dir.normalize()))
                 .filter(Files::isDirectory)
                 .toList();
         LOGGER.log(Level.WARNING, String.format("Cannot load %s/%s:%s from its cached BIR; clearing %s and "

@@ -44,6 +44,8 @@ import java.util.Set;
 public class StaleBirCacheTest {
 
     private static final String ORG = "stalebircachetest";
+    private static final String ESCAPED_DIR = ORG + "-escape";
+    private static final Project PROJECT = Mockito.mock(Project.class, Mockito.RETURNS_DEEP_STUBS);
 
     private final Path orgCache = RepoUtils.createAndGetHomeReposPath()
             .resolve(ProjectConstants.REPOSITORIES_DIR).resolve(ProjectConstants.CENTRAL_REPOSITORY_CACHE_NAME)
@@ -52,6 +54,7 @@ public class StaleBirCacheTest {
     @AfterClass(alwaysRun = true)
     public void tearDown() {
         ProjectUtils.deleteDirectory(orgCache);
+        ProjectUtils.deleteDirectory(orgCache.resolveSibling(ESCAPED_DIR));
     }
 
     @Test
@@ -61,7 +64,7 @@ public class StaleBirCacheTest {
         BLangCompilerException error = new BLangCompilerException("failed to load the module '" + ORG
                 + "/ai:1.12.0' from its BIR due to: class BSymbol cannot be cast to class BConstantSymbol");
 
-        Assert.assertTrue(PackageUtil.clearFailedBirCache(error, null, new HashSet<>()));
+        Assert.assertTrue(PackageUtil.clearFailedBirCache(error, PROJECT, new HashSet<>()));
         Assert.assertFalse(Files.exists(ai));
         Assert.assertTrue(Files.exists(mcp));
     }
@@ -71,11 +74,21 @@ public class StaleBirCacheTest {
         BLangCompilerException error = new BLangCompilerException("failed to load the module '" + ORG
                 + "/ai:1.11.0' from its BIR due to: invalid magic number");
         Set<String> cleared = new HashSet<>();
-        Assert.assertTrue(PackageUtil.clearFailedBirCache(error, null, cleared));
+        Assert.assertTrue(PackageUtil.clearFailedBirCache(error, PROJECT, cleared));
 
         Path ai = createCachedBir("ai", "1.11.0");
-        Assert.assertFalse(PackageUtil.clearFailedBirCache(error, null, cleared));
+        Assert.assertFalse(PackageUtil.clearFailedBirCache(error, PROJECT, cleared));
         Assert.assertTrue(Files.exists(ai));
+    }
+
+    @Test
+    public void testDoesNotClearOutsideThePackageCache() throws IOException {
+        Path escaped = Files.createDirectories(orgCache.resolveSibling(ESCAPED_DIR));
+        BLangCompilerException error = new BLangCompilerException("failed to load the module '" + ORG + "/..:"
+                + ESCAPED_DIR + "' from its BIR due to: invalid magic number");
+
+        PackageUtil.clearFailedBirCache(error, PROJECT, new HashSet<>());
+        Assert.assertTrue(Files.exists(escaped));
     }
 
     @Test
@@ -83,7 +96,7 @@ public class StaleBirCacheTest {
         Path ai = createCachedBir("ai", "1.13.0");
 
         Assert.assertFalse(
-                PackageUtil.clearFailedBirCache(new IllegalStateException("unrelated"), null, new HashSet<>()));
+                PackageUtil.clearFailedBirCache(new IllegalStateException("unrelated"), PROJECT, new HashSet<>()));
         Assert.assertTrue(Files.exists(ai));
     }
 
