@@ -316,18 +316,18 @@ public class FormBuilder<T> extends FacetedBuilder<T> {
                 : dataVariable(node, Property.VARIABLE_NAME, Property.TYPE_LABEL, true, names, false);
     }
 
-    public FormBuilder<T> dataVariable(TypedBindingPatternNode node, String variableLabel, String typeDoc,
+    public FormBuilder<T> dataVariable(TypedBindingPatternNode node, String variableLabel, String typeLabel,
                                        boolean editable, Set<String> names, boolean hidden) {
-        return dataVariable(node, variableLabel, typeDoc, Property.VARIABLE_DOC, editable, names, hidden);
-    }
-
-    public FormBuilder<T> dataVariable(TypedBindingPatternNode node, String variableLabel, String typeDoc,
-                                       String variableDoc, boolean editable, Set<String> names, boolean hidden) {
-        return dataVariable(node, variableLabel, typeDoc, variableDoc, Property.TYPE_DOC, editable, names, hidden);
+        return dataVariable(node, variableLabel, typeLabel, Property.VARIABLE_DOC, editable, names, hidden);
     }
 
     public FormBuilder<T> dataVariable(TypedBindingPatternNode node, String variableLabel, String typeLabel,
-                                       String variableDoc, String typeDescription, boolean editable,
+                                       String variableDoc, boolean editable, Set<String> names, boolean hidden) {
+        return dataVariable(node, variableLabel, typeLabel, variableDoc, Property.TYPE_DOC, editable, names, hidden);
+    }
+
+    public FormBuilder<T> dataVariable(TypedBindingPatternNode node, String variableLabel, String typeLabel,
+                                       String variableDoc, String typeDoc, boolean editable,
                                        Set<String> names, boolean hidden) {
         data(node == null ? null : node.bindingPattern(), variableLabel, variableDoc,
                 NameUtil.generateTypeName("var", names), false);
@@ -342,7 +342,7 @@ public class FormBuilder<T> extends FacetedBuilder<T> {
                     .map(typeSymbol -> CommonUtils.getTypeSignature(semanticModel, typeSymbol, true, moduleInfo))
                     .orElse(CommonUtils.getVariableName(node));
         }
-        return type(typeName, typeLabel, typeDescription, editable, null,
+        return type(typeName, typeLabel, typeDoc, editable, null,
                 node == null ? null : node.typeDescriptor().lineRange(), null, hidden);
     }
 
