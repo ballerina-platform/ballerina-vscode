@@ -126,6 +126,9 @@ public class McpToolKitBuilder extends NodeBuilder {
     private static final String INFO_PROPERTY = "info";
     private static final String INFO_PROPERTY_LABEL = "Info";
     private static final String INFO_PROPERTY_DESCRIPTION = "The client information sent to the MCP server";
+    private static final String HTTP_CONFIG_PROPERTY = "httpConfig";
+    // Shown on its own in the mcp.v2 form; the form keeps it in httpConfig, which is what is generated
+    private static final String AUTH_PROPERTY = "auth";
     private static final String CONNECTIONS_BAL = "connections.bal";
     public static final String MCP_CLASS_DEFINITION = "mcpClassDefinition";
     public static final String AGENT_DEFINITION_MCP_TOOL_KIT = "agentDefinitionMcpToolKit";
@@ -232,6 +235,7 @@ public class McpToolKitBuilder extends NodeBuilder {
                 Kind.DEFAULTABLE, true, false, false,
                 CommonUtils.getImportStatement(Ai.BALLERINA_ORG, Ai.MCP_PACKAGE, Ai.MCP_V2_MODULE),
                 infoType.typeDescriptor()));
+        parameters.add(getHttpAuthParameter(configType, aiTypeSource, aiVersion));
         parameters.addAll(getConfigFieldParameters(configType, aiTypeSource));
         setParameterProperties(parameters);
         AiUtils.setOptionalPropertiesAdvanced(this);
@@ -425,6 +429,10 @@ public class McpToolKitBuilder extends NodeBuilder {
             Map<String, List<String>> toolScopesMap = parseToolScopes(sourceBuilder.flowNode);
             boolean includeContext = parseIncludeContext(sourceBuilder.flowNode);
             boolean mcpV2 = data != null && MCP_PROTOCOL_V2.equals(data.get(MCP_PROTOCOL_KEY));
+            if (mcpV2) {
+                // The init method takes auth inside httpConfig, where the form has already put it
+                ignoredProperties.add(AUTH_PROPERTY);
+            }
 
             // Check if class definition data exists in codedata
             Map<Path, List<TextEdit>> classTextEdits = null;
@@ -1001,19 +1009,43 @@ public class McpToolKitBuilder extends NodeBuilder {
         RecordTypeSymbol recordType = (RecordTypeSymbol) CommonUtils.getRawType(configType.typeDescriptor());
         List<ParameterData> parameters = new ArrayList<>();
         for (Map.Entry<String, RecordFieldSymbol> entry : recordType.fieldDescriptors().entrySet()) {
-            RecordFieldSymbol field = entry.getValue();
-            TypeSymbol fieldType = field.typeDescriptor();
-            String description = field.documentation().flatMap(Documentation::description)
-                    .orElse(fieldDocs.getOrDefault(entry.getKey(), ""));
-            String defaultValue = CommonUtils.resolveDefaultValue(field, aiTypeSource.declaringModuleModel(),
-                    aiTypeSource.aiPackage());
-            parameters.add(ParameterData.from(entry.getKey(), description, null,
-                    CommonUtils.getTypeSignature(aiTypeSource.semanticModel(), fieldType, false, moduleInfo),
-                    DefaultValueGeneratorUtil.getDefaultValueForType(CommonUtils.getRawType(fieldType)),
-                    defaultValue, Kind.INCLUDED_FIELD, field.isOptional() || field.hasDefaultValue(),
-                    field.isOptional(), false, CommonUtils.getImportStatements(fieldType, moduleInfo).orElse(null),
-                    fieldType));
+            parameters.add(getFieldParameter(entry.getKey(), entry.getValue(), fieldDocs, aiTypeSource));
         }
         return parameters;
+    }
+
+    /**
+     * Returns a parameter for the {@code auth} field of the config's {@code httpConfig}. The form shows it on its own
+     * so that authentication can be configured without opening the HTTP settings; the form keeps it in step with the
+     * auth in {@code httpConfig}, which is what the generated code passes.
+     */
+    private ParameterData getHttpAuthParameter(TypeDefinitionSymbol configType, AiTypeSource aiTypeSource,
+                                               String aiVersion) {
+        RecordTypeSymbol configRecord = (RecordTypeSymbol) CommonUtils.getRawType(configType.typeDescriptor());
+        RecordFieldSymbol httpConfigField = configRecord.fieldDescriptors().get(HTTP_CONFIG_PROPERTY);
+        if (httpConfigField != null
+                && CommonUtils.getRawType(httpConfigField.typeDescriptor()) instanceof RecordTypeSymbol httpRecord) {
+            RecordFieldSymbol authField = httpRecord.fieldDescriptors().get(AUTH_PROPERTY);
+            if (authField != null) {
+                return getFieldParameter(AUTH_PROPERTY, authField, Map.of(), aiTypeSource);
+            }
+        }
+        throw new IllegalStateException(String.format("'%s.%s' is not found in ai:%s of ballerina/ai:%s",
+                HTTP_CONFIG_PROPERTY, AUTH_PROPERTY, AI_MCP_V2_CLIENT_CONFIG_TYPE, aiVersion));
+    }
+
+    private ParameterData getFieldParameter(String name, RecordFieldSymbol field, Map<String, String> fieldDocs,
+                                            AiTypeSource aiTypeSource) {
+        TypeSymbol fieldType = field.typeDescriptor();
+        String description = field.documentation().flatMap(Documentation::description)
+                .orElse(fieldDocs.getOrDefault(name, ""));
+        String defaultValue = CommonUtils.resolveDefaultValue(field, aiTypeSource.declaringModuleModel(),
+                aiTypeSource.aiPackage());
+        return ParameterData.from(name, description, null,
+                CommonUtils.getTypeSignature(aiTypeSource.semanticModel(), fieldType, false, moduleInfo),
+                DefaultValueGeneratorUtil.getDefaultValueForType(CommonUtils.getRawType(fieldType)),
+                defaultValue, Kind.INCLUDED_FIELD, field.isOptional() || field.hasDefaultValue(),
+                field.isOptional(), false, CommonUtils.getImportStatements(fieldType, moduleInfo).orElse(null),
+                fieldType);
     }
 }
