@@ -213,6 +213,19 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
             mcpToolKitVariable.codedata.lineRange.fileName = resolvedPath;
         }
 
+        // An existing mcp.v2 toolkit has no auth property, as its init takes auth inside httpConfig. The form only
+        // offers the record editor for properties of the edited node, so the template's auth is added to it.
+        const properties = mcpToolKitVariable.properties as Record<string, { value?: unknown }>;
+        const templateAuth = (mcpToolKitNodeTemplateRef.current?.properties as Record<string, { value?: unknown }>)
+            ?.[AUTH_FIELD_KEY];
+        if (mcpV2Ref.current && properties && !properties[AUTH_FIELD_KEY] && templateAuth) {
+            const httpConfigAuth = readHttpConfigAuth(properties[HTTP_CONFIG_FIELD_KEY]?.value as string);
+            properties[AUTH_FIELD_KEY] = {
+                ...cloneDeep(templateAuth),
+                value: httpConfigAuth.kind === "record" ? httpConfigAuth.auth : ""
+            };
+        }
+
         mcpToolKitNodeRef.current = mcpToolKitVariable;
         const savedProperties = mcpToolKitVariable.properties as Record<string, { value?: unknown }> | undefined;
         setIncludeContext(savedProperties?.[INCLUDE_CONTEXT_PROPERTY]?.value === true);
