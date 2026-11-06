@@ -166,7 +166,7 @@ describe("resolveIntegrationRoot", () => {
     });
 });
 
-// Containment invariant over fixtures/path-containment/: for every layout, `isPathInsideProject`
+// Containment invariant over src/test-support/fixtures/path-containment/: for every layout, `isPathInsideProject`
 // gives the expected answer. Seeds `tree` (files) and `symlinks` (link -> target) under a temp
 // dir; `spellings` maps an alternate spelling to its on-disk path by stubbing
 // `fs.realpathSync.native`, so a case-insensitive filesystem (wso2/product-integrator#1476, where
@@ -183,7 +183,7 @@ interface PathContainmentFixture {
     expectedInside: boolean;
 }
 
-const containmentFixtures = loadFixtures<PathContainmentFixture>(__dirname, "fixtures", "path-containment");
+const containmentFixtures = loadFixtures<PathContainmentFixture>(__dirname, "..", "test-support", "fixtures", "path-containment");
 
 describe("isPathInsideProject — fixtures", () => {
     let base: string;
