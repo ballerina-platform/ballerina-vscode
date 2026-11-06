@@ -22,6 +22,15 @@ import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
+import io.ballerina.compiler.api.SemanticModel;
+import io.ballerina.compiler.api.symbols.Documentation;
+import io.ballerina.compiler.api.symbols.ModuleSymbol;
+import io.ballerina.compiler.api.symbols.RecordFieldSymbol;
+import io.ballerina.compiler.api.symbols.RecordTypeSymbol;
+import io.ballerina.compiler.api.symbols.Symbol;
+import io.ballerina.compiler.api.symbols.TypeDefinitionSymbol;
+import io.ballerina.compiler.api.symbols.TypeSymbol;
+import io.ballerina.compiler.api.symbols.UnionTypeSymbol;
 import io.ballerina.compiler.syntax.tree.SyntaxInfo;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.flowmodelgenerator.core.AiUtils;
@@ -34,12 +43,17 @@ import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
 import io.ballerina.flowmodelgenerator.core.utils.FlowNodeUtil;
 import io.ballerina.flowmodelgenerator.core.utils.ParamUtils;
 import io.ballerina.modelgenerator.commons.CommonUtils;
+import io.ballerina.modelgenerator.commons.DefaultValueGeneratorUtil;
 import io.ballerina.modelgenerator.commons.FileSystemUtils;
 import io.ballerina.modelgenerator.commons.FunctionData;
 import io.ballerina.modelgenerator.commons.FunctionDataBuilder;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
+import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.modelgenerator.commons.ParameterData;
 import io.ballerina.projects.Document;
+import io.ballerina.projects.Module;
+import io.ballerina.projects.Package;
+import io.ballerina.projects.PackageCompilation;
 import io.ballerina.projects.Project;
 import io.ballerina.tools.text.LineRange;
 import org.ballerinalang.langserver.common.utils.NameUtil;
@@ -57,7 +71,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static io.ballerina.flowmodelgenerator.core.Constants.Ai;
@@ -99,19 +115,23 @@ public class McpToolKitBuilder extends NodeBuilder {
     private static final String MINIMUM_COMPATIBLE_AI_VERSION = "1.6.0";
     // First ai version whose getPermittedMcpToolConfigs accepts an mcp.v2 client
     private static final String MINIMUM_MCP_V2_AI_VERSION = "1.17.0";
-    // First mcp version with the mcp.v2 module
-    private static final String MINIMUM_MCP_V2_VERSION = "1.5.0";
-    private static final String MCP_V2_CLIENT_CLASS = "StreamableHttpClient";
     private static final String MCP_V2_IMPORT_PREFIX = "mcpv2";
-    private static final String MCP_V2_CONNECT_METHOD = "connect";
-    private static final String MCP_V2_CLIENT_INFO_PARAM = "clientInfo";
+    // The config of the generated mcp.v2 toolkit init method, which also accepts agent identity
+    private static final String AI_MCP_V2_CLIENT_CONFIG_TYPE = "McpStreamableHttpClientConfig";
+    private static final String MCP_V2_IMPLEMENTATION_TYPE = "Implementation";
+    private static final String MCP_V2_DEFAULT_INFO = "{name: \"MCP\", version: \"1.0.0\"}";
+    private static final String MCP_V2_TOOL_KIT_DESCRIPTION = "Connects to an MCP server and provides its tools";
+    private static final String SERVER_URL_PARAM = "serverUrl";
+    private static final String SERVER_URL_DESCRIPTION = "The URL of the MCP server";
     private static final String INFO_PROPERTY = "info";
     private static final String INFO_PROPERTY_LABEL = "Info";
+    private static final String INFO_PROPERTY_DESCRIPTION = "The client information sent to the MCP server";
     private static final String CONNECTIONS_BAL = "connections.bal";
     public static final String MCP_CLASS_DEFINITION = "mcpClassDefinition";
     public static final String AGENT_DEFINITION_MCP_TOOL_KIT = "agentDefinitionMcpToolKit";
     // Records which MCP client the generated toolkit class is built on, so that saving keeps the class on the same
-    // client the form was built from. Absent for toolkits built on the mcp (v1) client.
+    // client the form was built from. Absent for toolkits built on the mcp (v1) client. A template request may also
+    // carry it to ask for the form of a client; any value other than v2 means the mcp (v1) client.
     public static final String MCP_PROTOCOL_KEY = "mcpProtocol";
     public static final String MCP_PROTOCOL_V2 = "v2";
     private static final Gson gson = new Gson();
@@ -125,7 +145,19 @@ public class McpToolKitBuilder extends NodeBuilder {
     @Override
     public void setConcreteTemplateData(TemplateContext context) {
         String aiModuleVersion = getAiModuleVersion(context);
-        if (supportsMcpV2(aiModuleVersion)) {
+        // An edit gets the form of the client the toolkit is built on, named in the request or, when the request
+        // carries an existing generated class's codedata, v1 unless marked v2. A new toolkit follows the ai version.
+        Map<String, Object> requestData = context.codedata() != null ? context.codedata().data() : null;
+        Object requestedProtocol = requestData != null ? requestData.get(MCP_PROTOCOL_KEY) : null;
+        boolean mcpV2;
+        if (requestedProtocol != null) {
+            mcpV2 = MCP_PROTOCOL_V2.equals(requestedProtocol);
+        } else if (requestData != null && requestData.containsKey(MCP_CLASS_DEFINITION)) {
+            mcpV2 = false;
+        } else {
+            mcpV2 = supportsMcpV2(aiModuleVersion);
+        }
+        if (mcpV2) {
             setMcpV2TemplateData(context, aiModuleVersion);
             return;
         }
@@ -170,27 +202,20 @@ public class McpToolKitBuilder extends NodeBuilder {
 
     /**
      * Builds the form of a toolkit class generated on the mcp.v2 client. The generated init method is
-     * {@code init(string serverUrl, mcpv2:Implementation info = {...}, *mcpv2:StreamableHttpClientConfig config)},
-     * so the form is the mcp.v2 client's init method with the client info added after the server URL.
+     * {@code init(string serverUrl, mcpv2:Implementation info = {...}, *ai:McpStreamableHttpClientConfig config)},
+     * which no library function declares, so the server URL and the client info are set here and the config fields
+     * are read from the ai record.
      */
     private void setMcpV2TemplateData(TemplateContext context, String aiModuleVersion) {
-        ModuleInfo mcpV2ModuleInfo =
-                new ModuleInfo(Ai.BALLERINA_ORG, Ai.MCP_PACKAGE, Ai.MCP_V2_MODULE, getMcpModuleVersion(context));
-        FunctionData clientInitData = new FunctionDataBuilder().parentSymbolType(MCP_V2_CLIENT_CLASS)
-                .name(INIT_METHOD_NAME).moduleInfo(mcpV2ModuleInfo).userModuleInfo(moduleInfo)
-                .lsClientLogger(context.lsClientLogger()).functionResultKind(FunctionData.Kind.MCP_TOOL_KIT)
-                .workspaceManager(context.workspaceManager())
-                .filePath(context.filePath())
-                .build();
-        // The mcp.v2 client takes the client info when connecting rather than in its init method
-        FunctionData connectData = new FunctionDataBuilder().parentSymbolType(MCP_V2_CLIENT_CLASS)
-                .name(MCP_V2_CONNECT_METHOD).moduleInfo(mcpV2ModuleInfo).userModuleInfo(moduleInfo)
-                .lsClientLogger(context.lsClientLogger()).functionResultKind(FunctionData.Kind.REMOTE)
-                .workspaceManager(context.workspaceManager())
-                .filePath(context.filePath())
-                .build();
+        String aiVersion = aiModuleVersion != null ? aiModuleVersion
+                : AiUtils.getNewPackageVersion(Ai.AI_PACKAGE, MINIMUM_MCP_V2_AI_VERSION);
+        AiTypeSource aiTypeSource = getAiTypeSource(aiVersion);
+        SemanticModel aiSemanticModel = aiTypeSource.semanticModel();
+        TypeDefinitionSymbol configType =
+                getTypeDefinition(aiSemanticModel, Ai.AI_PACKAGE, AI_MCP_V2_CLIENT_CONFIG_TYPE, aiVersion);
+        TypeDefinitionSymbol infoType = getMcpV2TypeDefinition(configType, MCP_V2_IMPLEMENTATION_TYPE, aiVersion);
 
-        metadata().label(Ai.AI_PACKAGE).description(clientInitData.description())
+        metadata().label(Ai.AI_PACKAGE).description(MCP_V2_TOOL_KIT_DESCRIPTION)
                 .icon(generateIcon(Ai.BALLERINA_ORG, Ai.AI_PACKAGE, aiModuleVersion));
         codedata().org(Ai.BALLERINA_ORG).module(Ai.AI_PACKAGE).packageName(Ai.AI_PACKAGE)
                 .object(AI_MCP_TOOL_KIT_CLASS).version(aiModuleVersion)
@@ -198,22 +223,16 @@ public class McpToolKitBuilder extends NodeBuilder {
 
         // The info parameter follows the server URL, since a defaultable argument is passed positionally
         List<ParameterData> parameters = new ArrayList<>();
-        List<ParameterData> remainingParameters = new ArrayList<>();
-        for (ParameterData param : clientInitData.parameters().values()) {
-            if (param.kind() == Kind.REQUIRED) {
-                parameters.add(param);
-            } else {
-                remainingParameters.add(param);
-            }
-        }
-        ParameterData clientInfo = connectData.parameters().get(MCP_V2_CLIENT_INFO_PARAM);
-        if (clientInfo != null) {
-            parameters.add(new ParameterData(clientInfo.parameterId(), INFO_PROPERTY, clientInfo.type(),
-                    clientInfo.kind(), clientInfo.placeholder(), clientInfo.defaultValue(), clientInfo.description(),
-                    INFO_PROPERTY_LABEL, clientInfo.optional(), clientInfo.advanced(), clientInfo.deprecated(),
-                    clientInfo.importStatements(), clientInfo.typeMembers(), clientInfo.typeSymbol()));
-        }
-        parameters.addAll(remainingParameters);
+        TypeSymbol stringType = aiSemanticModel.types().STRING;
+        parameters.add(ParameterData.from(SERVER_URL_PARAM, SERVER_URL_DESCRIPTION, null,
+                stringType.signature(), DefaultValueGeneratorUtil.getDefaultValueForType(stringType), null,
+                Kind.REQUIRED, false, false, false, null, stringType));
+        parameters.add(ParameterData.from(INFO_PROPERTY, INFO_PROPERTY_DESCRIPTION, INFO_PROPERTY_LABEL,
+                MCP_V2_IMPORT_PREFIX + ":" + MCP_V2_IMPLEMENTATION_TYPE, MCP_V2_DEFAULT_INFO, MCP_V2_DEFAULT_INFO,
+                Kind.DEFAULTABLE, true, false, false,
+                CommonUtils.getImportStatement(Ai.BALLERINA_ORG, Ai.MCP_PACKAGE, Ai.MCP_V2_MODULE),
+                infoType.typeDescriptor()));
+        parameters.addAll(getConfigFieldParameters(configType, aiTypeSource));
         setParameterProperties(parameters);
         AiUtils.setOptionalPropertiesAdvanced(this);
 
@@ -534,7 +553,8 @@ public class McpToolKitBuilder extends NodeBuilder {
         if (mcpV2) {
             String mcpV2Qualifier = classSourceBuilder.referenceQualifier(Ai.BALLERINA_ORG, Ai.MCP_V2_MODULE,
                     MCP_V2_IMPORT_PREFIX);
-            return generateMcpV2ToolKitClassSource(className, permittedTools, includeContext, mcpV2Qualifier);
+            return generateMcpV2ToolKitClassSource(className, permittedTools, toolScopesMap, includeContext,
+                    mcpV2Qualifier);
         }
         classSourceBuilder.acceptImport(Ai.BALLERINA_ORG, Ai.MCP_PACKAGE);
         // OAuth scopes require log (error logging) and http (auth config) in generated code
@@ -545,8 +565,13 @@ public class McpToolKitBuilder extends NodeBuilder {
         return generateMcpToolKitClassSource(className, permittedTools, toolScopesMap, includeContext);
     }
 
-    // Tool scopes are not applied to mcp.v2 toolkits yet, as they depend on agent identity support for mcp.v2
-    private String generateMcpV2ToolKitClassSource(String className, String permittedTools, boolean includeContext,
+    /**
+     * Generates a toolkit class on the mcp.v2 client. Its config is always {@code ai:McpStreamableHttpClientConfig},
+     * whose {@code httpConfig.auth} also accepts agent identity, so the class is not regenerated with another config
+     * type when tool scopes are added or removed.
+     */
+    private String generateMcpV2ToolKitClassSource(String className, String permittedTools,
+                                                   Map<String, List<String>> toolScopesMap, boolean includeContext,
                                                    String mcpV2) {
         String permittedToolsDeclaration;
         String toolsArgument;
@@ -554,7 +579,8 @@ public class McpToolKitBuilder extends NodeBuilder {
         if (permittedTools.equals("()") || permittedTools.isBlank()) {
             permittedToolsDeclaration = "";
             toolsArgument = "self.callTool";
-            toolFunctions = getMcpV2ToolMethodSignature("callTool", includeContext, mcpV2);
+            toolFunctions = getMcpV2ToolMethodSignature("callTool", toolScopesMap.getOrDefault("callTool", List.of()),
+                    includeContext, mcpV2);
         } else {
             Map<String, String> toolMapping = generatePermittedToolsMapping(permittedTools);
             String permittedToolsMappingConstructorExp = toolMapping.entrySet().stream()
@@ -564,26 +590,38 @@ public class McpToolKitBuilder extends NodeBuilder {
                     permittedToolsMappingConstructorExp + NEW_LINE +
                     "        };" + NEW_LINE + NEW_LINE;
             toolsArgument = "permittedTools";
-            toolFunctions = toolMapping.values().stream()
-                    .map(methodName -> getMcpV2ToolMethodSignature(methodName, includeContext, mcpV2))
+            toolFunctions = toolMapping.entrySet().stream()
+                    .map(e -> getMcpV2ToolMethodSignature(e.getValue(),
+                            toolScopesMap.getOrDefault(e.getKey().replaceAll("^\"|\"$", ""), List.of()),
+                            includeContext, mcpV2))
                     .collect(Collectors.joining(System.lineSeparator()));
         }
 
-        // ai:getPermittedMcpToolConfigs takes the client info as an mcp:Implementation, which an
-        // mcp.v2:Implementation is not a subtype of, hence the conversion
+        // The mcp.v2 client does not accept agent identity, so it is taken out of the config and passed to
+        // ai:getPermittedMcpToolConfigs instead
         return "isolated class " + className + " {" + NEW_LINE +
                 "    *ai:McpBaseToolKit;" + NEW_LINE +
                 "    private final " + mcpV2 + "StreamableHttpClient mcpClient;" + NEW_LINE +
                 "    private final readonly & ai:ToolConfig[] tools;" + NEW_LINE + NEW_LINE +
                 "    public isolated function init(string serverUrl," +
-                " " + mcpV2 + "Implementation info = {name: \"MCP\", version: \"1.0.0\"}," + NEW_LINE +
-                "            *" + mcpV2 + "StreamableHttpClientConfig config) returns ai:Error? {" + NEW_LINE +
+                " " + mcpV2 + "Implementation info = " + MCP_V2_DEFAULT_INFO + "," + NEW_LINE +
+                "            *ai:" + AI_MCP_V2_CLIENT_CONFIG_TYPE + " config) returns ai:Error? {" + NEW_LINE +
                 permittedToolsDeclaration +
                 "        do {" + NEW_LINE +
-                "            self.mcpClient = check new " + mcpV2 + "StreamableHttpClient(serverUrl, config);" +
+                "            ai:" + AI_MCP_V2_CLIENT_CONFIG_TYPE + " {httpConfig, ...clientConfig} = config;" +
                 NEW_LINE +
+                "            ai:McpHttpClientConfig {auth, ...httpSettings} = httpConfig;" + NEW_LINE +
+                "            " + mcpV2 + "HttpClientConfig mcpHttpConfig = {...httpSettings};" + NEW_LINE +
+                "            ai:AgentIdAuthConfig? agentIdAuth = ();" + NEW_LINE +
+                "            if auth is ai:AgentIdAuthConfig {" + NEW_LINE +
+                "                agentIdAuth = auth;" + NEW_LINE +
+                "            } else {" + NEW_LINE +
+                "                mcpHttpConfig.auth = auth;" + NEW_LINE +
+                "            }" + NEW_LINE +
+                "            self.mcpClient = check new " + mcpV2 + "StreamableHttpClient(serverUrl, " +
+                "{...clientConfig, httpConfig: mcpHttpConfig});" + NEW_LINE +
                 "            self.tools = check ai:getPermittedMcpToolConfigs(self.mcpClient, " +
-                "info, " + toolsArgument + ").cloneReadOnly();" + NEW_LINE +
+                "info, " + toolsArgument + ", agentIdAuth).cloneReadOnly();" + NEW_LINE +
                 "        } on fail error e {" + NEW_LINE +
                 "            return error ai:Error(\"Failed to initialize MCP toolkit\", e);" + NEW_LINE +
                 "        }" + NEW_LINE +
@@ -594,11 +632,27 @@ public class McpToolKitBuilder extends NodeBuilder {
                 "}" + NEW_LINE;
     }
 
-    private String getMcpV2ToolMethodSignature(String toolName, boolean includeContext, String mcpV2) {
-        return "    @ai:AgentTool" + NEW_LINE +
-                "    public isolated function " + toolName + "(" + (includeContext ? "ai:Context ctx, " : "") +
+    // A tool with scopes sends the access token the agent obtained for it, as in the mcp (v1) toolkit
+    private String getMcpV2ToolMethodSignature(String toolName, List<String> scopes, boolean includeContext,
+                                               String mcpV2) {
+        boolean hasScopes = scopes != null && !scopes.isEmpty();
+        String annotation = hasScopes
+                ? "    @ai:AgentTool {" + NEW_LINE +
+                        "        auth: {" + NEW_LINE +
+                        "            scopes: [" + scopes.stream().map(s -> "\"" + s + "\"")
+                                .collect(Collectors.joining(", ")) + "]" + NEW_LINE +
+                        "        }" + NEW_LINE +
+                        "    }" + NEW_LINE
+                : "    @ai:AgentTool" + NEW_LINE;
+        String callTool = hasScopes
+                ? "self.mcpClient->callTool(params, headers = {\"Authorization\": " +
+                        "string `Bearer ${check ctx.getAccessToken(params.name)}`})"
+                : "self.mcpClient->callTool(params)";
+        return annotation +
+                "    public isolated function " + toolName + "(" +
+                (includeContext || hasScopes ? "ai:Context ctx, " : "") +
                 mcpV2 + "CallToolParams params) returns " + mcpV2 + "CallToolResult|error {" + NEW_LINE +
-                "        return self.mcpClient->callTool(params);" + NEW_LINE +
+                "        return " + callTool + ";" + NEW_LINE +
                 "    }" + NEW_LINE;
     }
 
@@ -876,16 +930,90 @@ public class McpToolKitBuilder extends NodeBuilder {
         }
     }
 
-    // Resolved like the version of a new MCP server, so the form never loads an mcp without the mcp.v2 module
-    private String getMcpModuleVersion(TemplateContext context) {
-        String projectVersion = null;
-        try {
-            Project project = context.workspaceManager().loadProject(context.filePath());
-            projectVersion = AiUtils.getProjectPackageVersion(project, Ai.MCP_PACKAGE);
-        } catch (WorkspaceDocumentException | EventSyncException e) {
-            // Resolve as a new dependency
+    /**
+     * The ai package and its compilation, which the ai types and their default values are read from.
+     *
+     * @param semanticModel        resolves the ai types by name
+     * @param aiPackage            the ai package
+     * @param declaringModuleModel the semantic model of an ai module, used to resolve enum defaults
+     */
+    private record AiTypeSource(SemanticModel semanticModel, Package aiPackage,
+                                Function<Module, SemanticModel> declaringModuleModel) {
+    }
+
+    // Loaded like the library of a function-based form: the bala of that version from the cache, Central or the
+    // local repository, compiled as a package of its own
+    private static AiTypeSource getAiTypeSource(String aiVersion) {
+        Package aiPackage = PackageUtil.getModulePackage(PackageUtil.getSampleProject(), Ai.BALLERINA_ORG,
+                        Ai.AI_PACKAGE, aiVersion)
+                .orElseThrow(() -> new IllegalStateException("Unable to load ballerina/ai:" + aiVersion));
+        PackageCompilation compilation = PackageUtil.getCompilation(aiPackage);
+        return new AiTypeSource(compilation.getSemanticModel(aiPackage.getDefaultModule().moduleId()), aiPackage,
+                module -> compilation.getSemanticModel(module.moduleId()));
+    }
+
+    private static TypeDefinitionSymbol getTypeDefinition(SemanticModel semanticModel, String moduleName,
+                                                          String typeName, String aiVersion) {
+        Optional<Symbol> symbol = semanticModel.types().getTypeByName(Ai.BALLERINA_ORG, moduleName, "", typeName);
+        if (symbol.isPresent() && symbol.get() instanceof TypeDefinitionSymbol typeDefinition) {
+            return typeDefinition;
         }
-        return projectVersion != null ? projectVersion
-                : AiUtils.getNewPackageVersion(Ai.MCP_PACKAGE, MINIMUM_MCP_V2_VERSION);
+        throw new IllegalStateException(String.format("'%s:%s' is not found in ballerina/ai:%s", moduleName,
+                typeName, aiVersion));
+    }
+
+    /**
+     * Returns a type of the mcp.v2 module. The ai module's semantic model does not resolve types of the modules it
+     * imports by name, so the mcp.v2 module is reached through the config record's fields, which use its types.
+     */
+    private static TypeDefinitionSymbol getMcpV2TypeDefinition(TypeDefinitionSymbol configType, String typeName,
+                                                               String aiVersion) {
+        RecordTypeSymbol recordType = (RecordTypeSymbol) CommonUtils.getRawType(configType.typeDescriptor());
+        for (RecordFieldSymbol field : recordType.fieldDescriptors().values()) {
+            TypeSymbol fieldType = field.typeDescriptor();
+            List<TypeSymbol> candidates = fieldType instanceof UnionTypeSymbol union
+                    ? union.memberTypeDescriptors() : List.of(fieldType);
+            for (TypeSymbol candidate : candidates) {
+                Optional<ModuleSymbol> module = candidate.getModule();
+                if (module.isEmpty() || !Ai.MCP_V2_MODULE.equals(module.get().id().moduleName())) {
+                    continue;
+                }
+                Optional<TypeDefinitionSymbol> typeDefinition = module.get().typeDefinitions().stream()
+                        .filter(definition -> definition.getName().filter(typeName::equals).isPresent())
+                        .findFirst();
+                if (typeDefinition.isPresent()) {
+                    return typeDefinition.get();
+                }
+            }
+        }
+        throw new IllegalStateException(String.format("'%s:%s' is not found through ballerina/ai:%s",
+                Ai.MCP_V2_MODULE, typeName, aiVersion));
+    }
+
+    /**
+     * Returns a parameter for each field of the included config record, as the function data builder does for an
+     * included record parameter.
+     */
+    private List<ParameterData> getConfigFieldParameters(TypeDefinitionSymbol configType,
+                                                         AiTypeSource aiTypeSource) {
+        Map<String, String> fieldDocs = configType.documentation()
+                .map(Documentation::parameterMap).orElse(Map.of());
+        RecordTypeSymbol recordType = (RecordTypeSymbol) CommonUtils.getRawType(configType.typeDescriptor());
+        List<ParameterData> parameters = new ArrayList<>();
+        for (Map.Entry<String, RecordFieldSymbol> entry : recordType.fieldDescriptors().entrySet()) {
+            RecordFieldSymbol field = entry.getValue();
+            TypeSymbol fieldType = field.typeDescriptor();
+            String description = field.documentation().flatMap(Documentation::description)
+                    .orElse(fieldDocs.getOrDefault(entry.getKey(), ""));
+            String defaultValue = CommonUtils.resolveDefaultValue(field, aiTypeSource.declaringModuleModel(),
+                    aiTypeSource.aiPackage());
+            parameters.add(ParameterData.from(entry.getKey(), description, null,
+                    CommonUtils.getTypeSignature(aiTypeSource.semanticModel(), fieldType, false, moduleInfo),
+                    DefaultValueGeneratorUtil.getDefaultValueForType(CommonUtils.getRawType(fieldType)),
+                    defaultValue, Kind.INCLUDED_FIELD, field.isOptional() || field.hasDefaultValue(),
+                    field.isOptional(), false, CommonUtils.getImportStatements(fieldType, moduleInfo).orElse(null),
+                    fieldType));
+        }
+        return parameters;
     }
 }
