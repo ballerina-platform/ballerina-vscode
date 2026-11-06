@@ -19,7 +19,7 @@
 import { useRef } from "react";
 import { startCase } from "lodash";
 import { FormField } from "../Form/types";
-import { CodeData, ExpressionProperty, getPrimaryInputType, InputType, LinePosition, RecordTypeField } from "@wso2/ballerina-core";
+import { CodeData, ExpressionProperty, getPrimaryInputType, InputType, LinePosition, RecordTypeField, toDisplayName } from "@wso2/ballerina-core";
 import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
 import { InputMode } from "../..";
 import { EditorMode } from "./ExpandedEditor";
@@ -472,6 +472,29 @@ export const mapDiagnosticsServerityToFormSeverity = (severity: 1 | 2 | 3 | 4) =
     }
 }
 
+/**
+ * Node kinds whose names must already be valid source: a configurable's name is also its Config.toml key, which is
+ * written from the source name, so `issue-number` is not accepted for it.
+ */
+const SOURCE_FORM_NODE_KINDS = ["CONFIG_VARIABLE"];
+
+/** Whether names of this node kind are edited in source form (see SOURCE_FORM_NODE_KINDS). */
+export function requiresSourceForm(nodeKind?: string): boolean {
+    return SOURCE_FORM_NODE_KINDS.includes(nodeKind);
+}
+
+/**
+ * The value to show in an editable name field: the plain name (`issue-number`) for a name the language server wrote
+ * in source form (`issue\-number`). The language server escapes it again when it writes the source. A binding
+ * pattern (`[a, b]`) and a name of a node kind edited in source form are shown as they are.
+ */
+export function toEditableName(value: unknown, nodeKind?: string): unknown {
+    if (typeof value !== "string" || requiresSourceForm(nodeKind) || !/^[^\s[\]{},]+$/.test(value)) {
+        return value;
+    }
+    return toDisplayName(value);
+}
+
 export type IdentifierDiagnostic = { message: string; severity: ReturnType<typeof mapDiagnosticsServerityToFormSeverity> };
 
 /**
@@ -488,8 +511,15 @@ export async function fetchIdentifierDiagnostics(
         property: ExpressionProperty;
         codedata?: CodeData;
         label?: string;
+        /** The kind of the node the form edits; only the kinds in SOURCE_FORM_NODE_KINDS are sent. */
+        nodeKind?: string;
     }
 ): Promise<{ first?: IdentifierDiagnostic; firstError?: IdentifierDiagnostic }> {
+    // The language server accepts a plain name (issue-number) and escapes it when it writes the source, except for
+    // the node kinds whose names must already be valid source; it can only tell those apart by the node kind.
+    const codedata = requiresSourceForm(request.nodeKind) && !request.codedata?.node
+        ? { ...request.codedata, node: request.nodeKind } as CodeData
+        : request.codedata;
     const response = await rpcClient.getBIDiagramRpcClient().getExpressionDiagnostics({
         filePath: request.filePath,
         context: {
@@ -497,7 +527,7 @@ export async function fetchIdentifierDiagnostics(
             startLine: request.startLine,
             offset: 0,
             lineOffset: 0,
-            codedata: request.codedata,
+            codedata,
             property: request.property,
         },
     });

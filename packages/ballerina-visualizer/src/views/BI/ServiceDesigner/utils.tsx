@@ -78,26 +78,6 @@ export function getTitleFromStatusCodeAndType(responseCodes: VisibleTypesRespons
     return responseCode ? `${responseCode.labelDetails.detail} - ${responseCode.label}` : "";
 }
 
-
-export function sanitizedHttpPath(value: string): string {
-    return removeForwardSlashes(value).replace(/-/g, '\\-').replace(/\./g, '\\.');
-}
-
-/**
- * As {@link sanitizedHttpPath}, but for a resource path whose segments may be path params: `[...]`
- * segments are kept verbatim, since escaping `[int... rest]` would make it invalid Ballerina.
- */
-export function sanitizedResourcePath(value: string): string {
-    return removeForwardSlashes(value)
-        .split("/")
-        .map((segment) => segment.startsWith("[") ? segment : segment.replace(/-/g, '\\-').replace(/\./g, '\\.'))
-        .join("/");
-}
-
-export function removeForwardSlashes(value: string): string {
-    return value?.replace(/\\/g, '');
-}
-
 export function canDataBind(functionModel: FunctionModel): boolean {
     return functionModel.properties?.canDataBind?.value === "true";
 }

@@ -37,6 +37,7 @@ import io.ballerina.flowmodelgenerator.core.utils.SourceCodeGenerator;
 import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.DefaultValueGeneratorUtil;
 import io.ballerina.modelgenerator.commons.FileSystemUtils;
+import io.ballerina.modelgenerator.commons.IdentifierUtil;
 import io.ballerina.modelgenerator.commons.ModuleAliasResolver;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.ModulePrefixContext;
@@ -110,7 +111,7 @@ public class SourceBuilder {
                          LSClientLogger lsClientLogger) {
         this.tokenBuilder = new TokenBuilder(this);
         this.textEditsMap = new HashMap<>();
-        this.flowNode = flowNode;
+        this.flowNode = withSourceIdentifiers(flowNode);
         this.workspaceManager = workspaceManager;
         this.imports = new LinkedHashMap<>();
         this.typesToGenerate = new ArrayList<>();
@@ -349,6 +350,80 @@ public class SourceBuilder {
         }
         acceptImport();
         return this;
+    }
+
+    /**
+     * Name fields accept the plain name ({@code issue-number}, {@code type}); this writes it in source form
+     * ({@code issue\-number}, {@code 'type}) before any builder reads it. Only the name fields a user types in
+     * (editable, visible IDENTIFIER properties, including those nested in parameter lists) are touched, and a value
+     * that is already valid source is left as it is.
+     */
+    private static FlowNode withSourceIdentifiers(FlowNode flowNode) {
+        Map<String, Property> properties = flowNode.properties();
+        if (properties == null || properties.isEmpty()) {
+            return flowNode;
+        }
+        Map<String, Property> updated = new LinkedHashMap<>(properties);
+        boolean changed = false;
+        for (Map.Entry<String, Property> entry : properties.entrySet()) {
+            Property property = entry.getValue();
+            if (property == null) {
+                continue;
+            }
+            if (property.value() instanceof String value && isTypedName(property)) {
+                String sourceName = IdentifierUtil.escapeIfNeeded(value);
+                if (!value.equals(sourceName)) {
+                    updated.put(entry.getKey(), Property.Builder.copyFrom(property).value(sourceName).build());
+                    changed = true;
+                }
+            } else {
+                escapeNestedNames(property.value());
+            }
+        }
+        if (!changed) {
+            return flowNode;
+        }
+        return new FlowNode(flowNode.id(), flowNode.metadata(), flowNode.codedata(), flowNode.returning(),
+                flowNode.branches(), updated, flowNode.diagnostics(), flowNode.flags());
+    }
+
+    private static boolean isTypedName(Property property) {
+        List<PropertyType> types = property.types();
+        return property.editable() && !property.hidden() && types != null && types.stream()
+                .anyMatch(type -> type.fieldType() == Property.ValueType.IDENTIFIER
+                        && (type.selected() || types.size() == 1));
+    }
+
+    /**
+     * Nested properties (e.g. function parameters) arrive as plain JSON maps, so they are updated in place.
+     */
+    @SuppressWarnings("unchecked")
+    private static void escapeNestedNames(Object value) {
+        if (value instanceof List<?> list) {
+            list.forEach(SourceBuilder::escapeNestedNames);
+            return;
+        }
+        if (!(value instanceof Map<?, ?> map)) {
+            return;
+        }
+        if (map.get("value") instanceof String name && isTypedName(map)) {
+            String sourceName = IdentifierUtil.escapeIfNeeded(name);
+            if (!name.equals(sourceName)) {
+                ((Map<String, Object>) map).put("value", sourceName);
+            }
+            return;
+        }
+        map.values().forEach(SourceBuilder::escapeNestedNames);
+    }
+
+    private static boolean isTypedName(Map<?, ?> property) {
+        if (!Boolean.TRUE.equals(property.get("editable")) || Boolean.TRUE.equals(property.get("hidden"))
+                || !(property.get("types") instanceof List<?> types)) {
+            return false;
+        }
+        return types.stream().anyMatch(type -> type instanceof Map<?, ?> typeMap
+                && Property.ValueType.IDENTIFIER.name().equals(typeMap.get("fieldType"))
+                && (Boolean.TRUE.equals(typeMap.get("selected")) || types.size() == 1));
     }
 
     public Optional<Property> getProperty(String key) {

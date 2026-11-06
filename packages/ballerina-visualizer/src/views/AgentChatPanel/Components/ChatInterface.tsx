@@ -26,7 +26,7 @@ import { ExecutionTimeline } from "./ExecutionTimeline";
 import { ApprovalCard } from "./ApprovalCard";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Icon, Button, ThemeColors, TextField } from "@wso2/ui-toolkit";
-import { SessionInfoResponse, AgentInfo, PendingApprovalInfo, HumanDecision, ChatHistoryMessage } from "@wso2/ballerina-core";
+import { SessionInfoResponse, AgentInfo, PendingApprovalInfo, HumanDecision, ChatHistoryMessage, toDisplayPath } from "@wso2/ballerina-core";
 import ReactMarkdown from "react-markdown";
 import remarkMath from 'remark-math';
 import remarkGfm from 'remark-gfm';
@@ -1081,7 +1081,7 @@ const ChatInterface: React.FC = () => {
                                             }}
                                         />
                                         <AgentItemName>{toDisplayName(agent.name)}</AgentItemName>
-                                        <AgentItemPath>{agent.basePath.replace(/\\/g, '')}</AgentItemPath>
+                                        <AgentItemPath>{toDisplayPath(agent.basePath)}</AgentItemPath>
                                     </AgentDropdownItem>
                                 ))}
                             </AgentDropdown>

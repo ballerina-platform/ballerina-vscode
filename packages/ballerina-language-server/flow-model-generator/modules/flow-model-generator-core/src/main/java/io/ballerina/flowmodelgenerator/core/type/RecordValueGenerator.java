@@ -20,6 +20,7 @@ package io.ballerina.flowmodelgenerator.core.type;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import io.ballerina.modelgenerator.commons.IdentifierUtil;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -255,7 +256,7 @@ public class RecordValueGenerator {
                 for (JsonElement field : fields.getAsJsonArray()) {
                     JsonObject fieldObj = field.getAsJsonObject();
                     if (fieldObj.has("selected") && fieldObj.get("selected").getAsBoolean()) {
-                        String fieldName = fieldObj.get("name").getAsString();
+                        String fieldName = toFieldKey(fieldObj.get("name").getAsString());
                         StringBuilder fieldValueBuilder = new StringBuilder();
                         generateValue(fieldObj, fieldValueBuilder, indentLevel + 1);
                         String fieldValue = nextIndent + fieldName + ": " + fieldValueBuilder.toString().trim();
@@ -269,6 +270,14 @@ public class RecordValueGenerator {
             builder.append(String.join(",\n", fieldValues));
         }
         builder.append("\n").append(indent).append("}");
+    }
+
+    /**
+     * The field name in the model is the plain name for a field copied in by a type inclusion (the compiler drops
+     * the quote from {@code 'type}), and the source name otherwise. Both are written as the same source key.
+     */
+    private static String toFieldKey(String fieldName) {
+        return fieldName.startsWith("\"") ? fieldName : IdentifierUtil.toSourceIdentifier(fieldName);
     }
 
     private static void generateDefaultValue(JsonObject jsonObject, StringBuilder builder, int indentLevel) {
