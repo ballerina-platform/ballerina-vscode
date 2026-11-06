@@ -826,6 +826,19 @@ public class DesignModelGenerator {
                         invalidWorkflowSendData, dependentServiceClasses);
             });
 
+            functionModel.usedFields.forEach(usedField -> {
+                IntermediateModel.FunctionModel initializer = serviceModel == null ? null
+                        : serviceModel.fieldInitializers.get(usedField);
+                if (initializer == null) {
+                    return;
+                }
+                if (!initializer.analyzed) {
+                    buildConnectionAndWorkflowGraph(intermediateModel, initializer, serviceModel);
+                }
+                extractFieldsFromFunctionModel(initializer, connections, workflows, workflowSendData,
+                        invalidWorkflowSendData, dependentServiceClasses);
+            });
+
             functionModel.dependentObjFuncs.forEach(dependentObjFunc -> {
                 if (serviceModel == null) {
                     return;

@@ -42,6 +42,7 @@ import {
     WAIT_DATA_DETAILS_WIDTH,
     WHILE_NODE_WIDTH,
     NodeTypes,
+    AGENT_CALL_REFERENCE_HEIGHT,
 } from "../resources/constants";
 import { getEvalNodeContainerHeight } from "../components/nodes/EvalNode/evalNodePresentation";
 import {
@@ -138,6 +139,10 @@ export class SizingVisitor implements BaseVisitor {
         // stretched the links leading into short-description nodes well past NODE_GAP_Y.
         if (this.estimateDescriptionLength(node) > NODE_DESCRIPTION_SINGLE_LINE_CHARS) {
             height += LABEL_HEIGHT;
+        }
+
+        if (node.codedata?.node === "A2A_HANDLER_CALL") {
+            height += AGENT_CALL_REFERENCE_HEIGHT;
         }
 
         this.setNodeSize(node, halfWidth, halfWidth, height);

@@ -74,6 +74,7 @@ public class IntermediateModel {
         protected String serviceType;
         protected final List<String> namedListeners = new ArrayList<>();
         protected final List<Listener> anonListeners = new ArrayList<>();
+        protected final Map<String, FunctionModel> fieldInitializers = new HashMap<>();
 
         public ServiceModel(String displayName, String absolutePath, String sortText, Location location) {
             this.displayName = displayName;
@@ -112,6 +113,7 @@ public class IntermediateModel {
         protected final Set<String> connections = new HashSet<>();
         protected final Set<String> workflows = new HashSet<>();
         protected final Set<String> usedClasses = new HashSet<>();
+        protected final Set<String> usedFields = new HashSet<>();
         // workflow uuid -> data event names sent via workflow:sendData
         protected final Map<String, Set<String>> workflowSendData = new HashMap<>();
         protected final Map<String, Set<String>> allDependentWorkflowSendData = new HashMap<>();

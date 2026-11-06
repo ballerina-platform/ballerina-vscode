@@ -43,7 +43,8 @@ public final class AgentTriggerChannels {
             key(GoogleChatChannel.ORG_NAME, GoogleChatChannel.MODULE_NAME), new GoogleChatChannel(),
             key(HttpAgentTriggerChannel.ORG_NAME, HttpAgentTriggerChannel.MODULE_NAME),
             new HttpAgentTriggerChannel(),
-            key(VoiceAgentChannel.ORG_NAME, VoiceAgentChannel.MODULE_NAME), new VoiceAgentChannel());
+            key(VoiceAgentChannel.ORG_NAME, VoiceAgentChannel.MODULE_NAME), new VoiceAgentChannel(),
+            key(A2aChannel.ORG_NAME, A2aChannel.MODULE_NAME), new A2aChannel());
 
     private AgentTriggerChannels() {
     }

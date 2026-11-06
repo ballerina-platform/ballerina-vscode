@@ -74,6 +74,7 @@ import io.ballerina.compiler.syntax.tree.NewExpressionNode;
 import io.ballerina.compiler.syntax.tree.Node;
 import io.ballerina.compiler.syntax.tree.NodeList;
 import io.ballerina.compiler.syntax.tree.NodeVisitor;
+import io.ballerina.compiler.syntax.tree.ObjectFieldNode;
 import io.ballerina.compiler.syntax.tree.PanicStatementNode;
 import io.ballerina.compiler.syntax.tree.PositionalArgumentNode;
 import io.ballerina.compiler.syntax.tree.QualifiedNameReferenceNode;
@@ -90,6 +91,7 @@ import io.ballerina.compiler.syntax.tree.StatementNode;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.compiler.syntax.tree.TemplateExpressionNode;
 import io.ballerina.compiler.syntax.tree.TransactionStatementNode;
+import io.ballerina.compiler.syntax.tree.TypeReferenceNode;
 import io.ballerina.compiler.syntax.tree.VariableDeclarationNode;
 import io.ballerina.compiler.syntax.tree.WhileStatementNode;
 import io.ballerina.designmodelgenerator.core.model.Activity;
@@ -114,6 +116,7 @@ import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -135,6 +138,9 @@ public class CodeAnalyzer extends NodeVisitor {
     // Enclosing if/match/fork/loop constructs of the statement being visited, outermost first.
     private final Deque<AgentCall.Group> agentCallGroups = new ArrayDeque<>();
     private static final String SELF = "self";
+    private static final String A2A_AGENT_EXECUTOR = "AgentExecutor";
+    private static final Set<String> A2A_AGENT_RUNNING_METHODS = Set.of("handleSendMessage",
+            "handleSendStreamingMessage");
 
     private static final String RUN_WORKFLOW_FN_ARG = "processFunction";
     private static final String SEND_DATA_WORKFLOW_FN_ARG = "workflow";
@@ -171,17 +177,35 @@ public class CodeAnalyzer extends NodeVisitor {
 
     @Override
     public void visit(ClassDefinitionNode classDefinitionNode) {
-        classDefinitionNode.classTypeQualifiers().stream()
-                .filter(qualifier -> qualifier.kind() == SyntaxKind.SERVICE_KEYWORD)
-                .findAny()
-                .ifPresent(qualifier -> {
-                    serviceClassName = classDefinitionNode.className().text();
-                    currentServiceClass = new IntermediateModel.ServiceClassModel(serviceClassName);
-                    intermediateModel.serviceClassModelMap.put(serviceClassName, currentServiceClass);
-                });
+        boolean isServiceClass = classDefinitionNode.classTypeQualifiers().stream()
+                .anyMatch(qualifier -> qualifier.kind() == SyntaxKind.SERVICE_KEYWORD);
+        if (isServiceClass || isA2aAgentExecutor(classDefinitionNode)) {
+            serviceClassName = classDefinitionNode.className().text();
+            currentServiceClass = new IntermediateModel.ServiceClassModel(serviceClassName);
+            intermediateModel.serviceClassModelMap.put(serviceClassName, currentServiceClass);
+        }
         classDefinitionNode.members().forEach(member -> member.accept(this));
         serviceClassName = null;
         currentServiceClass = null;
+    }
+
+    private static boolean isA2aAgentExecutor(ClassDefinitionNode classDefinitionNode) {
+        return classDefinitionNode.members().stream()
+                .anyMatch(member -> member instanceof TypeReferenceNode typeReference
+                        && typeReference.typeName().toSourceCode().trim().endsWith(A2A_AGENT_EXECUTOR));
+    }
+
+    @Override
+    public void visit(ObjectFieldNode objectFieldNode) {
+        if (currentServiceModel == null || currentFunctionModel != null || objectFieldNode.expression().isEmpty()) {
+            return;
+        }
+        IntermediateModel.FunctionModel initializer =
+                new IntermediateModel.FunctionModel(objectFieldNode.fieldName().text());
+        currentFunctionModel = initializer;
+        objectFieldNode.expression().get().accept(this);
+        currentFunctionModel = null;
+        currentServiceModel.fieldInitializers.put(objectFieldNode.fieldName().text(), initializer);
     }
 
     @Override
@@ -434,6 +458,7 @@ public class CodeAnalyzer extends NodeVisitor {
                 recordHelperCall(methodName, true, methodCallExpressionNode);
             }
             handleDurableAgentCall(methodCallExpressionNode);
+            recordAgentRunningFieldCall(methodCallExpressionNode, methodName);
         }
 
         if (isAiMethodCall(methodCallExpressionNode.expression())) {
@@ -442,6 +467,14 @@ public class CodeAnalyzer extends NodeVisitor {
         }
 
         methodCallExpressionNode.arguments().forEach(arg -> arg.accept(this));
+    }
+
+    private void recordAgentRunningFieldCall(MethodCallExpressionNode methodCallExpressionNode, String methodName) {
+        if (A2A_AGENT_RUNNING_METHODS.contains(methodName)
+                && methodCallExpressionNode.expression() instanceof FieldAccessExpressionNode fieldAccess
+                && SELF.equals(fieldAccess.expression().toSourceCode().trim())) {
+            this.currentFunctionModel.usedFields.add(fieldAccess.fieldName().toSourceCode().trim());
+        }
     }
 
     /**

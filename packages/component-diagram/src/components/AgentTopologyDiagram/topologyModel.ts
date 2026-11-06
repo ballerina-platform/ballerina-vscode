@@ -52,6 +52,7 @@ import {
 const AI_MODULE = "ai";
 const VOICE_CHAT_LABEL = "Voice Chat";
 const VOICE_SERVICE_LABEL = "Voice Chat Service";
+const A2A_MODULE = "a2a";
 const AGENT_KIND = "Agent";
 const DURABLE_AGENT_KIND = "DURABLE_AGENT";
 const DURABLE_AGENT_LABEL = "Durable Agent";
@@ -365,6 +366,9 @@ function entryLabelsFor(service: CDService): EntryLabels {
         };
     }
     const modulePrefix = (service.type ?? "").split(":")[0] || "http";
+    if (modulePrefix === A2A_MODULE) {
+        return { title: "A2A", subtitle: "Agent-to-Agent", glyphType: modulePrefix, icon: toIconDescriptor(service.icon)?.url };
+    }
     return {
         title: serviceLabel(service),
         subtitle: modulePrefix === AI_MODULE ? "Agent Chat" : service.type || `${modulePrefix}:Service`,

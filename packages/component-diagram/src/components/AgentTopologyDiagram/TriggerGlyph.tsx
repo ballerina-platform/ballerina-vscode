@@ -19,10 +19,13 @@
 import React from "react";
 import { Icon } from "@wso2/ui-toolkit";
 import { resolveBrandIcon, resolveEntryTypeGlyph } from "@wso2/ballerina-core";
-import { ConnectorIcon } from "@wso2/bi-diagram";
+import { A2aIcon, ConnectorIcon } from "@wso2/bi-diagram";
 
 export function TriggerGlyph({ glyphType, icon, size = 24 }: { glyphType: string; icon?: string; size?: number }) {
     const sx = { width: size, height: size, fontSize: size, display: "flex", alignItems: "center", justifyContent: "center" };
+    if (glyphType === "a2a") {
+        return <A2aIcon size={size} />;
+    }
     const entryGlyph = resolveEntryTypeGlyph(glyphType);
     if (entryGlyph) {
         return <Icon name={entryGlyph.glyph} isCodicon={entryGlyph.isCodicon} sx={sx} iconSx={{ fontSize: size, lineHeight: 1 }} />;

@@ -425,6 +425,13 @@ export function isWorkflowNode(nodeOrKind?: FlowNode | string) {
     return typeof nodeKind === "string" && WORKFLOW_NODE_KINDS.has(nodeKind);
 }
 
+function a2aHandlerOperation(method: string): string {
+    return method
+        .replace(/^handle/, "")
+        .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+        .toLowerCase();
+}
+
 export function getNodeTitle(node: FlowNode) {
     const getPropertyString = (key: string): string | undefined => {
         const value = (node.properties as any)?.[key]?.value;
@@ -443,6 +450,19 @@ export function getNodeTitle(node: FlowNode) {
             ?.split("(")[0]
             ?.trim();
     };
+
+    if (node.codedata?.node === "A2A_TASK_UPDATE") {
+        return node.metadata?.label ?? "update";
+    }
+
+    if (node.codedata?.node === "A2A_HANDLER_CALL") {
+        const method = node.metadata?.label ?? "";
+        return method ? `Handler: ${a2aHandlerOperation(method)}` : "Handler";
+    }
+
+    if (node.codedata?.node === "A2A_TASK_STORE") {
+        return node.metadata?.label ?? "task store";
+    }
 
     if (node.codedata?.node === "WAIT") {
         const directExpression = getPropertyString("expression");

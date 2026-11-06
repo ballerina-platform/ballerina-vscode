@@ -193,6 +193,7 @@ import io.ballerina.flowmodelgenerator.core.model.node.builtin.BuiltinActivitySt
 import io.ballerina.flowmodelgenerator.core.model.node.builtin.EmailActivityStrategy;
 import io.ballerina.flowmodelgenerator.core.model.node.builtin.RestActivityStrategy;
 import io.ballerina.flowmodelgenerator.core.model.node.builtin.SoapActivityStrategy;
+import io.ballerina.flowmodelgenerator.core.utils.A2aUtil;
 import io.ballerina.flowmodelgenerator.core.utils.ConnectorUtil;
 import io.ballerina.flowmodelgenerator.core.utils.FlowNodeUtil;
 import io.ballerina.flowmodelgenerator.core.utils.ParamUtils;
@@ -4765,6 +4766,17 @@ public class CodeAnalyzer extends NodeVisitor {
             populateAgentRunMetaData(expressionNode, classSymbol);
         } else if (isAiKnowledgeBase(classSymbol)) {
             startNode(NodeKind.KNOWLEDGE_BASE_CALL, expressionNode.parent());
+        } else if (AiUtils.isA2aTaskUpdate(classSymbol, functionName)) {
+            startNode(NodeKind.A2A_TASK_UPDATE, methodCallExpressionNode.parent());
+        } else if (AiUtils.isA2aTaskStore(classSymbol)) {
+            startNode(NodeKind.A2A_TASK_STORE, methodCallExpressionNode.parent());
+        } else if (AiUtils.isA2aDefaultHandler(classSymbol)) {
+            startNode(NodeKind.A2A_HANDLER_CALL, methodCallExpressionNode.parent());
+            if (AiUtils.isA2aRunOperation(functionName)) {
+                A2aUtil.findExecuteMethod(semanticModel, methodCallExpressionNode)
+                        .flatMap(method -> CommonUtils.getViewLineRange(method, moduleInfo, project))
+                        .ifPresent(lineRange -> nodeBuilder.properties().view(lineRange));
+            }
         } else {
             startNode(NodeKind.METHOD_CALL, methodCallExpressionNode.parent());
         }

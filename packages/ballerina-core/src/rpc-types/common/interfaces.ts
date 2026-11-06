@@ -76,7 +76,6 @@ export interface RunExternalCommandResponse {
     message: string
 }
 
-
 export interface CommandsResponse {
     data: string;
 }
@@ -107,6 +106,11 @@ export interface ProjectFileResponse {
 
 export interface ShowErrorMessageRequest {
     message: string;
+}
+
+export interface ShowWarningMessageRequest {
+    message: string;
+    dismissLabel?: string;
 }
 
 export interface ShowInfoModalRequest {

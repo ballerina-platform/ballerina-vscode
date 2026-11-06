@@ -37,6 +37,7 @@ import {
     RunExternalCommandResponse,
     SampleDownloadRequest,
     ShowErrorMessageRequest,
+    ShowWarningMessageRequest,
     TypeResponse,
     WorkspaceFileRequest,
     WorkspaceRootResponse,
@@ -68,6 +69,7 @@ import {
     selectFileOrFolderPath,
     setPreferredTryItOption,
     showErrorMessage,
+    showWarningMessage,
     SetWebviewCacheRequestParam,
     SetWebviewCache,
     RestoreWebviewCache,
@@ -158,6 +160,10 @@ export class CommonRpcClient implements CommonRPCAPI {
 
     showErrorMessage(params: ShowErrorMessageRequest): void {
         return this._messenger.sendNotification(showErrorMessage, HOST_EXTENSION, params);
+    }
+
+    showWarningMessage(params: ShowWarningMessageRequest): void {
+        return this._messenger.sendNotification(showWarningMessage, HOST_EXTENSION, params);
     }
 
     showInformationModal(params: ShowInfoModalRequest): Promise<string> {

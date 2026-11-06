@@ -83,6 +83,7 @@ const SERVICE_TYPE_LABELS: Record<string, string> = {
     grpc: "gRPC Service",
     tcp: "TCP Service",
     mcp: "MCP Service",
+    a2a: "A2A Service",
 };
 
 function serviceTypeLabel(type?: string): string | undefined {
@@ -110,6 +111,8 @@ function resourceLabel(accessor: string, path: string): string {
 function serviceName(service: CDService): string {
     return unescapePath(service.absolutePath || service.displayName || service.type);
 }
+
+const A2A_MODULE = "a2a";
 
 function modulePrefix(type?: string): string {
     return type?.includes(":") ? type.split(":")[0] : type ?? "";
@@ -276,6 +279,20 @@ function remoteUsage(service: CDService, fn: CDFunction, rows: ServiceRows): Age
     };
 }
 
+function a2aUsage(service: CDService, rows: ServiceRows, serviceTrigger?: AgentUsageTrigger): AgentUsage {
+    return {
+        label: "A2A Service",
+        serviceLabel: "Agent-to-Agent",
+        serviceName: rows.name,
+        type: service.type,
+        typeLabel: serviceTypeLabel(service.type),
+        icon: iconUrl(service.icon),
+        documentUri: service.location.filePath,
+        position: toPosition(service.location),
+        trigger: serviceTrigger,
+    };
+}
+
 function usagesForService(
     model: CDModel,
     service: CDService,
@@ -286,6 +303,9 @@ function usagesForService(
     const label = serviceLabel(service);
     const rows = serviceRows(model, service, uuid, scope);
     const { name, tryIt, serviceTrigger } = rows;
+    if (modulePrefix(service.type) === A2A_MODULE) {
+        return [a2aUsage(service, rows, serviceTrigger)];
+    }
     const usages: AgentUsage[] = [];
 
     for (const resource of service.resourceFunctions ?? []) {
@@ -381,7 +401,6 @@ export function findAgentUsages(
 
     return usages;
 }
-
 
 type DurableCaller = { workflows?: string[]; workflowSendData?: Record<string, string[]> };
 

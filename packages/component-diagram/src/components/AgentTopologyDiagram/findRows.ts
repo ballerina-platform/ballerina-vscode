@@ -46,7 +46,7 @@ export function rowFullLabel(row: Pick<FindRow, "accessor" | "label">): string {
     return row.accessor ? `${row.accessor} ${row.label}` : row.label;
 }
 
-const PROTOCOLS = new Set(["http", "https", "grpc", "tcp", "udp", "ftp", "sftp", "smtp", "imap", "mqtt", "nats", "jms", "amqp", "asb"]);
+const PROTOCOLS = new Set(["a2a", "http", "https", "grpc", "tcp", "udp", "ftp", "sftp", "smtp", "imap", "mqtt", "nats", "jms", "amqp", "asb"]);
 
 export function entryKind(entry: TopologyEntryNode): string {
     if (entry.kind === "automation") {

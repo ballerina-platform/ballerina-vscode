@@ -1,0 +1,168 @@
+{
+  "description": "Design model of an agent published over A2A: the executor class run by the service handler links the service to the agent; the executor runs the agent inline in execute",
+  "projectPath": "project_25",
+  "output": {
+    "designModel": {
+      "connections": [
+        {
+          "symbol": "tripPlanner",
+          "location": {
+            "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_25/agents.bal",
+            "startLine": {
+              "line": 4,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 8,
+              "offset": 2
+            }
+          },
+          "scope": "GLOBAL",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png",
+          "dependentFunctions": [],
+          "dependentConnection": [
+            "8cbe6a69-15ff-63fa-47d5-751155eb102c"
+          ],
+          "kind": "Agent",
+          "role": "Trip Planner",
+          "modelProvider": {
+            "symbol": "tripModel",
+            "type": "Wso2ModelProvider",
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png?wso2_icon"
+          },
+          "typeName": "Agent",
+          "uuid": "dc46952b-72fa-09d0-871f-69b90439e676",
+          "enableFlowModel": false,
+          "sortText": "agents.bal4"
+        },
+        {
+          "symbol": "tripModel",
+          "location": {
+            "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_25/agents.bal",
+            "startLine": {
+              "line": 2,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 2,
+              "offset": 74
+            }
+          },
+          "scope": "GLOBAL",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png?wso2_icon",
+          "dependentFunctions": [],
+          "dependentConnection": [],
+          "kind": "Model Provider",
+          "typeName": "Wso2ModelProvider",
+          "uuid": "8cbe6a69-15ff-63fa-47d5-751155eb102c",
+          "enableFlowModel": true,
+          "sortText": "agents.bal2"
+        }
+      ],
+      "listeners": [
+        {
+          "symbol": "tripPlannerA2aListener",
+          "location": {
+            "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_25/main.bal",
+            "startLine": {
+              "line": 3,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 3,
+              "offset": 62
+            }
+          },
+          "attachedServices": [
+            "bcc69ef9-dd87-79a3-c3c1-6dec87f2f813"
+          ],
+          "kind": "NAMED",
+          "type": "a2a:RestListener",
+          "args": [],
+          "icon": "",
+          "uuid": "047b85ac-81ec-045b-98c2-3f45824b6662",
+          "enableFlowModel": true,
+          "sortText": "main.bal3"
+        }
+      ],
+      "services": [
+        {
+          "location": {
+            "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_25/main.bal",
+            "startLine": {
+              "line": 25,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 40,
+              "offset": 1
+            }
+          },
+          "attachedListeners": [
+            "047b85ac-81ec-045b-98c2-3f45824b6662"
+          ],
+          "connections": [
+            "8cbe6a69-15ff-63fa-47d5-751155eb102c",
+            "dc46952b-72fa-09d0-871f-69b90439e676"
+          ],
+          "workflows": [],
+          "functions": [],
+          "remoteFunctions": [],
+          "resourceFunctions": [
+            {
+              "accessor": "post",
+              "path": "message\\:send",
+              "location": {
+                "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_25/main.bal",
+                "startLine": {
+                  "line": 29,
+                  "offset": 4
+                },
+                "endLine": {
+                  "line": 33,
+                  "offset": 5
+                }
+              },
+              "connections": [
+                "8cbe6a69-15ff-63fa-47d5-751155eb102c",
+                "dc46952b-72fa-09d0-871f-69b90439e676"
+              ],
+              "workflows": [],
+              "workflowSendData": {},
+              "invalidWorkflowSendData": [],
+              "agentCalls": []
+            },
+            {
+              "accessor": "get",
+              "path": "tasks/[string id]",
+              "location": {
+                "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_25/main.bal",
+                "startLine": {
+                  "line": 35,
+                  "offset": 4
+                },
+                "endLine": {
+                  "line": 39,
+                  "offset": 5
+                }
+              },
+              "connections": [],
+              "workflows": [],
+              "workflowSendData": {},
+              "invalidWorkflowSendData": [],
+              "agentCalls": []
+            }
+          ],
+          "absolutePath": "",
+          "type": "a2a:Service",
+          "icon": "",
+          "uuid": "bcc69ef9-dd87-79a3-c3c1-6dec87f2f813",
+          "enableFlowModel": true,
+          "sortText": "main.bal25"
+        }
+      ],
+      "workflows": [],
+      "activities": []
+    }
+  }
+}

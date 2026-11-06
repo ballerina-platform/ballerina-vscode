@@ -2002,6 +2002,36 @@ public class AiUtils {
         return asMcpToolKitClass(typeSymbol).isPresent();
     }
 
+    private static final Set<String> A2A_TASK_UPDATE_METHODS =
+            Set.of("working", "addArtifact", "complete", "failed", "reject", "requireInput", "requireAuth");
+    private static final Set<String> A2A_RUN_OPERATIONS = Set.of("handleSendMessage", "handleSendStreamingMessage");
+
+    public static boolean isA2aTaskUpdate(ClassSymbol classSymbol, String methodName) {
+        return isA2aClass(classSymbol, "TaskUpdater") && A2A_TASK_UPDATE_METHODS.contains(methodName);
+    }
+
+    public static boolean isA2aTaskStore(ClassSymbol classSymbol) {
+        return isA2aClass(classSymbol, "InMemoryTaskStore");
+    }
+
+    public static boolean isA2aTaskStoreType(TypeSymbol typeSymbol) {
+        return typeSymbol != null && CommonUtils.getRawType(typeSymbol) instanceof ClassSymbol classSymbol
+                && isA2aTaskStore(classSymbol);
+    }
+
+    public static boolean isA2aDefaultHandler(ClassSymbol classSymbol) {
+        return isA2aClass(classSymbol, "DefaultHandler");
+    }
+
+    public static boolean isA2aRunOperation(String methodName) {
+        return A2A_RUN_OPERATIONS.contains(methodName);
+    }
+
+    private static boolean isA2aClass(ClassSymbol classSymbol, String name) {
+        return classSymbol.nameEquals(name)
+                && classSymbol.getModule().map(module -> "a2a".equals(module.id().moduleName())).orElse(false);
+    }
+
     // Module-qualified so it matches the toolkit name the trace records at dev-time (ExecuteToolSpan.addToolKitName).
     public static Optional<String> mcpToolKitClassName(Symbol symbol) {
         TypeSymbol typeSymbol;
