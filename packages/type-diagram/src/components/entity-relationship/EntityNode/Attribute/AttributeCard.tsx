@@ -25,6 +25,7 @@ import { EntityPortWidget } from '../../EntityPort/EntityPortWidget';
 import { AttributeContainer, AttributeName, AttributeType } from '../styles';
 import { CtrlClickGo2Source, DiagramContext } from '../../../common';
 import { getAttributeType } from '../../../../utils/utils';
+import { getAttributePortName } from '../../../../utils/model-mapper/entityModelMapper';
 
 interface AttributeProps {
     node: EntityModel;
@@ -41,10 +42,11 @@ export function AttributeWidget(props: AttributeProps) {
     const attributePorts = useRef<PortModel[]>([]);
 
     let attributeType: string = getAttributeType(attribute);// TODO: FIX for anynnymous records
+    const portName = getAttributePortName(node.entityObject, attribute);
 
     useEffect(() => {
-        attributePorts.current.push(node.getPortFromID(`left-${node.getID()}/${attribute.name}`));
-        attributePorts.current.push(node.getPortFromID(`right-${node.getID()}/${attribute.name}`));
+        attributePorts.current.push(node.getPortFromID(`left-${node.getID()}/${portName}`));
+        attributePorts.current.push(node.getPortFromID(`right-${node.getID()}/${portName}`));
     }, [attribute])
 
     const handleOnHover = (task: string) => {
@@ -68,7 +70,7 @@ export function AttributeWidget(props: AttributeProps) {
                 onMouseLeave={() => handleOnHover('UNSELECT')}
             >
                 <EntityPortWidget
-                    port={node.getPort(`left-${node.getID()}/${attribute.name}`)}
+                    port={node.getPort(`left-${node.getID()}/${portName}`)}
                     engine={engine}
                 />
                 <AttributeName>{attribute.name}</AttributeName>
@@ -99,7 +101,7 @@ export function AttributeWidget(props: AttributeProps) {
                         />
                     } */}
                 <EntityPortWidget
-                    port={node.getPort(`right-${node.getID()}/${attribute.name}`)}
+                    port={node.getPort(`right-${node.getID()}/${portName}`)}
                     engine={engine}
                 />
             </AttributeContainer>

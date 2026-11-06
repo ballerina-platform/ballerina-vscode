@@ -19,6 +19,7 @@
 package io.ballerina.flowmodelgenerator.core.utils;
 
 import io.ballerina.compiler.api.ModuleID;
+import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.api.symbols.AbsResourcePathAttachPoint;
 import io.ballerina.compiler.api.symbols.AnnotationAttachmentSymbol;
 import io.ballerina.compiler.api.symbols.AnnotationSymbol;
@@ -54,8 +55,10 @@ import io.ballerina.compiler.api.symbols.TypeSymbol;
 import io.ballerina.compiler.api.symbols.UnionTypeSymbol;
 import io.ballerina.compiler.api.values.ConstantValue;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
+import io.ballerina.compiler.syntax.tree.Node;
 import io.ballerina.compiler.syntax.tree.RecordFieldWithDefaultValueNode;
 import io.ballerina.compiler.syntax.tree.RecordTypeDescriptorNode;
+import io.ballerina.compiler.syntax.tree.ServiceDeclarationNode;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.compiler.syntax.tree.SyntaxTree;
 import io.ballerina.flowmodelgenerator.core.model.AbstractBuilder;
@@ -69,7 +72,9 @@ import io.ballerina.flowmodelgenerator.core.model.TypeData;
 import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.projects.Document;
+import io.ballerina.projects.DocumentId;
 import io.ballerina.projects.Module;
+import io.ballerina.tools.diagnostics.Location;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -130,10 +135,84 @@ public class TypeTransformer {
         typeDataBuilder.members(fieldMembers);
 
         // methods
-        List<Function> methods = transformMethodSymbols(serviceDeclarationSymbol.methods());
+        List<Function> methods = getServiceMethods(module, serviceDeclarationSymbol).stream()
+                .map(this::transformFunction)
+                .toList();
         typeDataBuilder.functions(methods);
 
         return typeDataBuilder.build();
+    }
+
+    /**
+     * Returns the methods of a service in source order. A method redeclared with the same name is dropped from
+     * {@link ServiceDeclarationSymbol#methods()}, which keeps only the last declaration, but the designer still has
+     * to show the earlier one so the user can find and fix the duplicate.
+     *
+     * @param module                   the module that holds the service
+     * @param serviceDeclarationSymbol the service symbol
+     * @return every method declared in the service, in source order
+     */
+    public static List<MethodSymbol> getServiceMethods(Module module,
+                                                       ServiceDeclarationSymbol serviceDeclarationSymbol) {
+        List<MethodSymbol> knownMethods = new ArrayList<>(serviceDeclarationSymbol.methods().values());
+        Optional<ServiceDeclarationNode> serviceNode = findServiceNode(module, serviceDeclarationSymbol);
+        if (serviceNode.isEmpty()) {
+            return knownMethods;
+        }
+        SemanticModel semanticModel = null;
+        List<MethodSymbol> methods = new ArrayList<>();
+        for (Node member : serviceNode.get().members()) {
+            if (member.kind() != SyntaxKind.OBJECT_METHOD_DEFINITION
+                    && member.kind() != SyntaxKind.RESOURCE_ACCESSOR_DEFINITION) {
+                continue;
+            }
+            Optional<MethodSymbol> known = knownMethods.stream()
+                    .filter(method -> method.getLocation().filter(location -> contains(member, location)).isPresent())
+                    .findFirst();
+            if (known.isPresent()) {
+                methods.add(known.get());
+                knownMethods.remove(known.get());
+                continue;
+            }
+            // Only a redeclared method needs a semantic lookup; it is not in the symbol's method map.
+            if (semanticModel == null) {
+                semanticModel = module.getCompilation().getSemanticModel();
+            }
+            semanticModel.symbol(member)
+                    .filter(symbol -> symbol instanceof MethodSymbol)
+                    .ifPresent(symbol -> methods.add((MethodSymbol) symbol));
+        }
+        // Keep any method the syntax tree walk could not place, so nothing that was shown before is lost.
+        methods.addAll(knownMethods);
+        return methods;
+    }
+
+    private static Optional<ServiceDeclarationNode> findServiceNode(Module module,
+                                                                    ServiceDeclarationSymbol serviceDeclarationSymbol) {
+        Optional<Location> serviceLocation = serviceDeclarationSymbol.getLocation();
+        if (serviceLocation.isEmpty()) {
+            return Optional.empty();
+        }
+        String fileName = serviceLocation.get().lineRange().fileName();
+        for (DocumentId documentId : module.documentIds()) {
+            Document document = module.document(documentId);
+            if (!document.name().equals(fileName)) {
+                continue;
+            }
+            ModulePartNode modulePart = document.syntaxTree().rootNode();
+            for (Node member : modulePart.members()) {
+                if (member.kind() == SyntaxKind.SERVICE_DECLARATION && contains(member, serviceLocation.get())) {
+                    return Optional.of((ServiceDeclarationNode) member);
+                }
+            }
+            break;
+        }
+        return Optional.empty();
+    }
+
+    private static boolean contains(Node node, Location location) {
+        return node.textRange().startOffset() <= location.textRange().startOffset()
+                && location.textRange().endOffset() <= node.textRange().endOffset();
     }
 
     public Object transform(ClassSymbol classSymbol) {
