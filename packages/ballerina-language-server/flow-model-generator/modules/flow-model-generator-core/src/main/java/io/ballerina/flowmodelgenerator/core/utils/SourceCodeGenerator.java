@@ -27,6 +27,7 @@ import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.TypeData;
 import io.ballerina.modelgenerator.commons.CommonUtils;
+import io.ballerina.modelgenerator.commons.IdentifierUtil;
 import io.ballerina.modelgenerator.commons.ModulePrefixContext;
 import org.ballerinalang.langserver.common.utils.CommonUtil;
 
@@ -40,7 +41,6 @@ import java.util.Objects;
 import java.util.StringJoiner;
 import java.util.stream.Collectors;
 
-import static io.ballerina.flowmodelgenerator.core.converters.utils.DataMappingModelConverterUtils.escapeIdentifier;
 
 /**
  * Code snippet generator.
@@ -588,17 +588,8 @@ public class SourceCodeGenerator {
 
         String template = "%s %s%s"; // <type descriptor> <identifier> [= <default value>]
 
-        String rawName = member.name();
-        String fieldName;
-
-        if (rawName == null) {
-            fieldName = null;
-        } else if (rawName.startsWith("'") || rawName.startsWith("\\")) {
-            fieldName = rawName;
-        } else {
-            fieldName = escapeIdentifier(rawName);
-        }
-
+        // The name may be plain (typed in the form) or in source form (read back from the source)
+        String fieldName = IdentifierUtil.toSourceIdentifier(member.name());
         if (member.optional() && fieldName != null) {
             fieldName = fieldName + "?";
         }

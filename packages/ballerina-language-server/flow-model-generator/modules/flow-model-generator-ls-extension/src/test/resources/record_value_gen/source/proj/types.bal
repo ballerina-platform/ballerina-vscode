@@ -50,3 +50,13 @@ type ConnectionParameters record {|
     string name1;
     Person|Man person;
 |};
+
+// A keyword field copied in by a type inclusion is named without its quote (`type`) in the model
+type DocumentLike record {|
+    string 'type;
+    string content;
+|};
+
+type ChunkLike record {|
+    *DocumentLike;
+|};

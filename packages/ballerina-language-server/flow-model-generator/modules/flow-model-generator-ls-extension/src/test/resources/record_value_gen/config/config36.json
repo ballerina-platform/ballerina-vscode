@@ -1,0 +1,35 @@
+{
+  "filePath": "proj/types.bal",
+  "description": "Keyword field declared directly (named `'type` in the model) is written unchanged and the ambiguous union gets the cast",
+  "typeConstraint": "DocumentLike|ChunkLike",
+  "type": {
+    "typeName": "record",
+    "name": "DocumentLike",
+    "selected": true,
+    "fields": [
+      {
+        "name": "'type",
+        "typeName": "string",
+        "optional": false,
+        "defaultable": false,
+        "isRestType": false,
+        "selected": true,
+        "value": "\"\""
+      },
+      {
+        "name": "content",
+        "typeName": "string",
+        "optional": false,
+        "defaultable": false,
+        "isRestType": false,
+        "selected": true,
+        "value": "\"\""
+      }
+    ],
+    "hasRestType": false,
+    "optional": false,
+    "defaultable": false,
+    "isRestType": false
+  },
+  "output": "<DocumentLike> {\n    'type: \"\",\n    content: \"\"\n}"
+}
