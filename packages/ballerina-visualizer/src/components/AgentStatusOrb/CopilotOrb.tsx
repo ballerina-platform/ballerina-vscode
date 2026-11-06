@@ -29,6 +29,7 @@ import {
     IconOverlay,
     ORB_ENERGY,
     OrbTheme,
+    orbStateHues,
     SpinArc as SolidSpinArc,
     Sphere,
     useOrbTheme,
@@ -51,6 +52,7 @@ const haloPulse = keyframes`
 `;
 
 const Holder = styled.div<{ $size: number }>`
+    ${orbStateHues}
     position: relative;
     width: ${(props: { $size: number }) => props.$size}px;
     height: ${(props: { $size: number }) => props.$size}px;

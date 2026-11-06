@@ -18,7 +18,7 @@
 
 import { useEffect, useLayoutEffect, useState } from "react";
 import styled from "@emotion/styled";
-import { keyframes } from "@emotion/react";
+import { css, keyframes } from "@emotion/react";
 import { AgentRunState, AgentRunStatus, ChatNotify, MACHINE_VIEW, ProductMode, seededProductMode } from "@wso2/ballerina-core";
 import { BallerinaRpcClient, useRpcContext } from "@wso2/ballerina-rpc-client";
 import type { MiniChatPrompt } from "./promptHandoff";
@@ -96,12 +96,23 @@ function shadeTriple(base: string): [string, string, string] {
  */
 const STATE_BASE = {
     "running": "var(--vscode-progressBar-background)",
-    // Fixed, saturated hues: theme warning/diff/error colours are muted on purpose and turn muddy
-    // once the sphere lightens them.
-    "awaiting-input": "#d97706",
-    "completed": "#16a34a",
-    "error": "#dc2626",
+    "awaiting-input": "var(--orb-warning, #d97706)",
+    "completed": "var(--orb-success, #16a34a)",
+    "error": "var(--orb-error, #dc2626)",
 } as const;
+
+// Fixed hues, since theme warning/error colours turn muddy once lightened; darker on light themes for 3:1 contrast.
+export const orbStateHues = css`
+    --orb-warning: #d97706;
+    --orb-success: #16a34a;
+    --orb-error: #dc2626;
+    body.vscode-light &,
+    body.vscode-high-contrast-light & {
+        --orb-warning: #92400e;
+        --orb-success: #166534;
+        --orb-error: #b91c1c;
+    }
+`;
 
 const PRIMARY = "var(--vscode-button-background)";
 
@@ -198,6 +209,7 @@ function ambientBase(props: AmbientFrameProps): string {
  * The transcript remains neutral; this frame identifies the active Copilot surface.
  */
 export const AmbientFrame = styled.div<AmbientFrameProps>`
+    ${orbStateHues}
     width: 100%;
     min-width: 0;
     box-sizing: border-box;
@@ -316,6 +328,7 @@ interface SphereProps {
  * by `energy`, so the orb catches the eye at rest without any glow that would smudge a light theme.
  */
 export const Sphere = styled.div<SphereProps>`
+    ${orbStateHues}
     position: absolute;
     inset: 0;
     border-radius: 50%;

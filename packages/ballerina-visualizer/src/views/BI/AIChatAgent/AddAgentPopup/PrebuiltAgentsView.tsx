@@ -53,13 +53,34 @@ const FILTER_TO_SOURCE: Record<AgentFilter, string> = {
     Organization: "organization",
 };
 
-const EMPTY_MESSAGES: Record<AgentFilter, string> = {
-    All: "Definitions your organization publishes to Ballerina Central show here. Search to find public ones.",
-    Project: "No agent definitions found in this project.",
-    Organization: "No agent definitions found in your organization.",
+interface ViewCopy {
+    placeholder: string;
+    noMatch: string;
+    empty: Record<AgentFilter, string>;
+    privateItems: string;
+}
+
+const DEFINITION_COPY: ViewCopy = {
+    placeholder: "Search agent definitions...",
+    noMatch: "No agent definitions match your search.",
+    empty: {
+        All: "Definitions your organization publishes to Ballerina Central show here. Search to find public ones.",
+        Project: "No agent definitions found in this project.",
+        Organization: "No agent definitions found in your organization.",
+    },
+    privateItems: "definitions",
 };
 
-const NO_MATCH_MESSAGE = "No agent definitions match your search.";
+const AGENT_TYPE_COPY: ViewCopy = {
+    placeholder: "Search pre-built agents...",
+    noMatch: "No agents match your search.",
+    empty: {
+        All: "Agents your organization publishes to Ballerina Central show here. Search to find public ones.",
+        Project: "No agents found in this project.",
+        Organization: "No agents found in your organization.",
+    },
+    privateItems: "agents",
+};
 
 // Package summaries are Markdown, and the tooltip shows plain text.
 const summaryOf = (agent: AvailableNode): string | undefined => agent.metadata.description?.replace(/\*\*|__|`/g, "");
@@ -138,6 +159,12 @@ export function useAgentSearch(projectPath: string, searchText: string, filterTy
                     }
                 }
             })
+            .catch((error) => {
+                console.error("Error searching agents:", error);
+                rpcClient.getCommonRpcClient().showErrorMessage({
+                    message: "Failed to load agents. Please try again.",
+                });
+            })
             .finally(() => {
                 if (request === searchRequestRef.current) {
                     setIsSearching(false);
@@ -178,10 +205,10 @@ function DocsLink({ url, children }: { url: string; children: ReactNode }) {
     );
 }
 
-function TokenHint() {
+function TokenHint({ items }: { items: string }) {
     return (
         <IntroText>
-            To see your organization's private definitions, add a Ballerina Central access token and reload the
+            To see your organization's private {items}, add a Ballerina Central access token and reload the
             window. <DocsLink url={TOKEN_DOCS_URL}>How to Add a Token</DocsLink>
         </IntroText>
     );
@@ -252,6 +279,7 @@ export function PrebuiltAgentsView(props: PrebuiltAgentsViewProps) {
     const isVisible = (agent: AvailableNode) => !isAgentHidden?.(agent);
     const visibleAgents = agents.filter(isVisible);
     const isLoading = (isSearching && visibleAgents.length === 0) || isLoadingOrgAgents;
+    const copy = dependencyMode ? AGENT_TYPE_COPY : DEFINITION_COPY;
     const filters: AgentFilter[] = isWorkspace ? ["All", "Project", "Organization"] : ["All", "Organization"];
 
     // A resolved agent (codedata.object set) routes to the dependency callback or the configure view.
@@ -291,7 +319,7 @@ export function PrebuiltAgentsView(props: PrebuiltAgentsViewProps) {
             </SectionHeader>
             <StyledSearchBox
                 value={searchText}
-                placeholder="Search agent definitions..."
+                placeholder={copy.placeholder}
                 onChange={setSearchText}
                 size={60}
             />
@@ -336,9 +364,9 @@ export function PrebuiltAgentsView(props: PrebuiltAgentsViewProps) {
                 )}
             </AgentsGrid>
             {!isLoading && visibleAgents.length === 0 && (
-                <EmptyState>{searchText ? NO_MATCH_MESSAGE : EMPTY_MESSAGES[filterType]}</EmptyState>
+                <EmptyState>{searchText ? copy.noMatch : copy.empty[filterType]}</EmptyState>
             )}
-            {hasToken === false && filterType !== "Project" && <TokenHint />}
+            {hasToken === false && filterType !== "Project" && <TokenHint items={copy.privateItems} />}
         </ResultsSection>
     );
 }
