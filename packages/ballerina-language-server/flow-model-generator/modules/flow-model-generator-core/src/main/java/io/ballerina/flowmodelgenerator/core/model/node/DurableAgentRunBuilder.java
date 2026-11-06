@@ -76,8 +76,9 @@ public class DurableAgentRunBuilder extends CallBuilder {
     public static final String MAX_EVENT_WAITS_KEY = "maxEventWaits";
     public static final String MAX_ITER_LABEL = "Maximum Iterations";
     public static final String MAX_ITER_DOC = "Maximum LLM reasoning iterations per turn (default 16)";
-    public static final String INPUT_TYPE_LABEL = "Input Type";
-    public static final String INPUT_TYPE_DOC = "The structured input a run is given, e.g. json or a record type";
+    public static final String INPUT_TYPE_LABEL = "Input Data Type";
+    public static final String INPUT_TYPE_DOC = "Type of the structured payload the agent is started with. "
+            + "Leave it empty to start the agent with the query text itself.";
     public static final String RESULT_TYPE_KEY = "resultType";
     public static final String RESULT_TYPE_LABEL = "Result Type";
     public static final String RESULT_TYPE_DOC =

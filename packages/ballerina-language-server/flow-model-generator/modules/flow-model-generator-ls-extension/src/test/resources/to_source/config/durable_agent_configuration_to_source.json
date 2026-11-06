@@ -85,7 +85,7 @@
       },
       "inputType": {
         "metadata": {
-          "label": "Input Type",
+          "label": "Input Data Type",
           "description": "Input Type"
         },
         "types": [
