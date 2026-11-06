@@ -28,6 +28,7 @@ import ModeSwitcher from "../ModeSwitcher";
 import { getMapEntryValues, getMapSubFormFieldFromTypes, normalizeDiagnostics, getRepeatableErrorMessages, buildStringMap, stringToRawObjectEntries, getRecordTypeFields, mapDiagnosticsServerityToFormSeverity, getPropertyFromFormField } from "./utils";
 import { InputMode } from "./MultiModeExpressionEditor/ChipExpressionEditor/types";
 import { getInputModeFromTypes } from "./MultiModeExpressionEditor/ChipExpressionEditor/utils";
+import { FieldTypeChip } from "./FieldTypeChip";
 
 export const FormMapEditorNew = (props: FormFieldEditorProps & {
     onChange: (value: any) => void;
@@ -325,6 +326,7 @@ export const FormMapEditorNew = (props: FormFieldEditorProps & {
                             <S.LabelContainer>
                                 <S.Label>{props.field.label}</S.Label>
                                 {!props.field.optional && <RequiredFormInput />}
+                                <FieldTypeChip types={props.field.types} />
                             </S.LabelContainer>
                         </S.HeaderContainer>
                         <S.EditorMdContainer>

@@ -30,7 +30,7 @@ import {
     ThemeColors
 } from '@wso2/ui-toolkit';
 import { LinkButton } from "@wso2/ui-toolkit/lib/components/LinkButton/LinkButton";
-import { buildRequiredRule, getPropertyFromFormField, isExpandableMode, sanitizeType, toEditorMode } from './utils';
+import { buildRequiredRule, getPropertyFromFormField, isExpandableMode, toEditorMode } from './utils';
 import { getDefaultHint } from './defaultHint';
 import { buildValidate } from '../Form/validationRules';
 import { useFieldDiagnostics } from '../Form/useFieldDiagnostics';
@@ -41,7 +41,6 @@ import { useFormContext, useFormFieldLoadingContext } from '../../context';
 import {
     ExpressionProperty,
     FormDiagnostics,
-    getFieldTypeLabel,
     getPrimaryInputType,
     InputType,
     LineRange,
@@ -60,6 +59,7 @@ import { getInputModeFromTypes } from './MultiModeExpressionEditor/ChipExpressio
 import { ExpandedEditor } from './ExpandedEditor';
 import { SkeletonBase } from '../Skeletons/styles';
 
+import { FieldTypeChip } from "./FieldTypeChip";
 export type ContextAwareExpressionEditorProps = {
     id?: string;
     fieldKey?: string;
@@ -162,22 +162,6 @@ export namespace S {
     export const HeaderMain = styled.div({
         flex: 1,
         minWidth: 0
-    });
-
-    export const Type = styled.div({
-        color: ThemeColors.PRIMARY,
-        fontFamily: 'monospace',
-        fontSize: '10px',
-        border: `1px solid ${ThemeColors.PRIMARY}`,
-        borderRadius: '999px',
-        padding: '1px 6px',
-        display: 'inline-block',
-        verticalAlign: 'middle',
-        userSelect: 'none',
-        maxWidth: '120px',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        whiteSpace: 'nowrap'
     });
 
     export const Label = styled.label({
@@ -676,11 +660,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
                                         </span>
                                         {defaultHint && <S.DefaultValue style={{ marginLeft: '8px' }}>{`(Default: ${defaultHint}) `}</S.DefaultValue>}
                                         {(required ?? !field.optional) && <RequiredFormInput />}
-                                        {getFieldTypeLabel(field.types) && (
-                                            <S.Type style={{ marginLeft: '5px' }} title={getFieldTypeLabel(field.types)}>
-                                                {sanitizeType(getFieldTypeLabel(field.types))}
-                                            </S.Type>
-                                        )}
+                                        <FieldTypeChip types={field.types} />
                                     </S.LabelContainer>
                                 )}
                                 {!documentation && modeSwitcherNode}

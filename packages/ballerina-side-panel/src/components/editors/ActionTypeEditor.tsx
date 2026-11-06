@@ -39,13 +39,14 @@ import { FormField } from "../Form/types";
 import { useFormContext } from "../../context";
 import { Controller } from "react-hook-form";
 import { S } from "./ExpressionEditor";
-import { buildRequiredRule, getPropertyFromFormField, sanitizeType } from "./utils";
+import { buildRequiredRule, getPropertyFromFormField } from "./utils";
 import { debounce } from "lodash";
 import styled from "@emotion/styled";
 import ReactMarkdown from "react-markdown";
-import { getFieldTypeLabel, NodeProperties, PropertyModel } from "@wso2/ballerina-core";
+import { NodeProperties, PropertyModel } from "@wso2/ballerina-core";
 import { canOfferTypeCreation } from "./typeCreationGate";
 
+import { FieldTypeChip } from "./FieldTypeChip";
 const isGraphQLScalarType = (type: string): boolean => {
     const scalarTypes = [
         'string',
@@ -588,13 +589,7 @@ export function ActionTypeEditor(props: ActionTypeEditorProps) {
                     })()
                     }
                 </S.Header>
-                {getFieldTypeLabel(field.types) &&
-                    <S.Type
-                        title={getFieldTypeLabel(field.types)}
-                    >
-                        {sanitizeType(getFieldTypeLabel(field.types))}
-                    </S.Type>
-                }
+                <FieldTypeChip types={field.types} />
             </S.HeaderContainer>
             <Controller
                 control={control}
