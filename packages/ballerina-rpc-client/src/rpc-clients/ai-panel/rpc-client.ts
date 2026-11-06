@@ -41,6 +41,8 @@ import {
     PromptEnhancementResponse,
     RequirementSpecification,
     RestoreCheckpointRequest,
+    RestoreCheckpointResponse,
+    RestoreUndoInfo,
     RevertGenerationRequest,
     SemanticDiffRequest,
     SemanticDiffResponse,
@@ -109,6 +111,8 @@ import {
     CreateManagedConnectionResponse,
     provideConnectorSpec,
     restoreCheckpoint,
+    undoRestoreCheckpoint,
+    getRestoreUndo,
     showSignInAlert,
     submitFeedback,
     updateChatMessage,
@@ -359,8 +363,16 @@ export class AiPanelRpcClient implements AIPanelAPI {
         return this._messenger.sendRequest(getCheckpoints, HOST_EXTENSION);
     }
 
-    restoreCheckpoint(params: RestoreCheckpointRequest): Promise<void> {
+    restoreCheckpoint(params: RestoreCheckpointRequest): Promise<RestoreCheckpointResponse> {
         return this._messenger.sendRequest(restoreCheckpoint, HOST_EXTENSION, params);
+    }
+
+    undoRestoreCheckpoint(): Promise<void> {
+        return this._messenger.sendRequest(undoRestoreCheckpoint, HOST_EXTENSION);
+    }
+
+    getRestoreUndo(): Promise<RestoreUndoInfo | undefined> {
+        return this._messenger.sendRequest(getRestoreUndo, HOST_EXTENSION);
     }
 
     clearChat(): Promise<void> {

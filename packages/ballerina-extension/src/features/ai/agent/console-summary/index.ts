@@ -146,6 +146,23 @@ export function removeConsoleSummary(generationId: string): void {
     })();
 }
 
+/**
+ * Fire-and-forget: puts a turn's entry back on the console after undoing the checkpoint
+ * restore that took it off, from the summary the generation kept.
+ */
+export function republishConsoleSummary(generationId: string, summary: string): void {
+    void (async () => {
+        try {
+            if (!(await isPublishingActive())) {
+                return;
+            }
+            await commands.executeCommand<boolean>(APPEND_COMMAND, { summary, generationId });
+        } catch (error) {
+            console.warn(`[ConsoleSummary] Republish failed for ${generationId}:`, error);
+        }
+    })();
+}
+
 /** The turn's generation still exists and has not been reverted. Never creates a thread. */
 function isLive(turn: ConsoleSummaryTurn): boolean {
     const gen = chatStateStorage.getWorkspaceState(turn.projectRootPath)?.threads.get(turn.threadId)?.generations.find((g) => g.id === turn.messageId);
