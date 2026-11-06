@@ -61,6 +61,10 @@ interface McpServerInfo {
     name?: string;
     icon?: string;
 }
+// Matches McpToolKitBuilder in the language server: the MCP client a toolkit is built on
+const MCP_PROTOCOL_KEY = "mcpProtocol";
+const MCP_PROTOCOL_V1 = "v1";
+const MCP_PROTOCOL_V2 = "v2";
 
 // Delegates to the shared removeQuotes so `"url"` and string `url` compare equal.
 const normalizeExpressionValue = (value: unknown): string =>
@@ -155,26 +159,32 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
     // The scheduled or running server check, so a save made before it answers can wait for it.
     const probeRef = useRef<{ timer?: ReturnType<typeof setTimeout>; start?: () => void; running?: Promise<void> }>({});
 
-    const fetchMcpToolKitTemplate = async () => {
+    // An existing toolkit is edited with the form of the MCP client it is built on, whatever the ai version
+    const fetchMcpToolKitTemplate = async (existingNode?: FlowNode) => {
         const response = await rpcClient.getBIDiagramRpcClient().getNodeTemplate({
             position: { line: agentFileEndLineRangeRef.current.endLine.line, offset: agentFileEndLineRangeRef.current.endLine.offset },
             filePath: agentFilePathRef.current,
             id: {
                 node: "MCP_TOOL_KIT",
+                ...(existingNode && {
+                    data: { [MCP_PROTOCOL_KEY]: existingNode.codedata?.data?.[MCP_PROTOCOL_KEY] === MCP_PROTOCOL_V2 ? MCP_PROTOCOL_V2 : MCP_PROTOCOL_V1 },
+                }),
             },
         });
         return response.flowNode;
     };
+
+    const findExistingMcpToolKit = (variables: FlowNode[] = []): FlowNode | undefined =>
+        props.existingNode ?? variables?.find(
+            (v) => v.codedata?.node === "MCP_TOOL_KIT" && v.properties.variable?.value === props.name
+        );
 
     const fetchModuleNodes = async () => {
         const moduleNodes = await rpcClient.getBIDiagramRpcClient().getModuleNodes();
         return moduleNodes;
     };
 
-    const setupEditMode = async (variables: FlowNode[] = []) => {
-        const mcpToolKitVariable = props.existingNode ?? variables?.find(
-            (v) => v.codedata?.node === "MCP_TOOL_KIT" && v.properties.variable?.value === props.name
-        );
+    const setupEditMode = async (mcpToolKitVariable?: FlowNode) => {
         if (!mcpToolKitVariable) return;
 
         // Resolve relative fileName to absolute path so formDidOpen gets a valid file URI
@@ -209,14 +219,15 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
         const endLineRange = await getEndOfFileLineRange(agentNode?.codedata?.lineRange?.fileName, rpcClient);
         agentFileEndLineRangeRef.current = endLineRange;
 
-        const template = await fetchMcpToolKitTemplate();
+        const existingMcpToolKit = editMode ? findExistingMcpToolKit(moduleNodes?.flowModel?.variables) : undefined;
+        const template = await fetchMcpToolKitTemplate(existingMcpToolKit);
         const scopesSupported = await checkAiPackageVersionSupport(rpcClient, visualizerLocation.projectPath, "1.11.0");
         setShowScopes(scopesSupported);
 
         mcpToolKitNodeTemplateRef.current = template;
 
         if (editMode) {
-            await setupEditMode(moduleNodes?.flowModel?.variables);
+            await setupEditMode(existingMcpToolKit);
         } else {
             const reserved = agentDefinition?.reservedNames;
             const variableProp = (template.properties as any)?.[RESULT_FIELD_KEY];
