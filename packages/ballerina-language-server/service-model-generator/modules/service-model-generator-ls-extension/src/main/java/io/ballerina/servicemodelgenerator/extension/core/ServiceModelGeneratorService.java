@@ -1002,7 +1002,8 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
             try {
                 Optional<ResolvedService> resolved = resolveService(request.filePath(), request.codedata());
                 if (resolved.isEmpty()) {
-                    return new GraphqlContextEditResponse(Map.of());
+                    return new GraphqlContextEditResponse(Map.of(), null,
+                            "Could not find the GraphQL service to update in " + request.filePath());
                 }
                 return GraphqlContextManager.apply(request.action(),
                         request.functionName(), Boolean.TRUE.equals(request.deleteFunction()), request.entries(),
