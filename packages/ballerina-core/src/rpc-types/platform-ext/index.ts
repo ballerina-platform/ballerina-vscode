@@ -16,12 +16,21 @@
  * under the License.
  */
 
-import { GetMarketplaceListReq,MarketplaceListResp, GetMarketplaceIdlReq, MarketplaceIdlResp, ConnectionListItem, GetConnectionsReq, DeleteLocalConnectionsConfigReq, GetMarketplaceItemReq, MarketplaceItem, GetConnectionItemReq, ConnectionDetailed, CreateLocalConnectionsConfigReq, CreateThirdPartyConnectionReq, CreateComponentConnectionReq, GetComponentsReq, ComponentKind, GetDatabaseServerReq, DatabaseAdminCredential, DatabaseServer, MarketplaceDatabaseListResp, DatabaseCredential, GetProjectEnvsReq, Environment, CreateDatabaseConnectionReq, GetDatabaseItemReq, ResolveConnectionSecretsReq, ResolveConnectionSecretsResp } from "@wso2/wso2-platform-core"
+import type { Component, Environment } from "@wso2/wso2-cloud-client";
+import { GetMarketplaceListReq,MarketplaceListResp, GetMarketplaceIdlReq, MarketplaceIdlResp, ConnectionListItem, GetConnectionsReq, DeleteLocalConnectionsConfigReq, GetMarketplaceItemReq, MarketplaceItem, GetConnectionItemReq, ConnectionDetailed, CreateLocalConnectionsConfigReq, CreateThirdPartyConnectionReq, CreateComponentConnectionReq, GetComponentsReq, GetDatabaseServerReq, DatabaseAdminCredential, DatabaseServer, MarketplaceDatabaseListResp, DatabaseCredential, GetProjectEnvsReq, CreateDatabaseConnectionReq, GetDatabaseItemReq, ResolveConnectionSecretsReq, ResolveConnectionSecretsResp } from "@wso2/wso2-platform-core"
 import { DeleteDevantTempConfigReq, GenerateCustomConnectorFromOASReq, GenerateCustomConnectorFromOASResp, AddDevantTempConfigReq, AddDevantTempConfigResp, ReplaceDevantTempConfigValuesReq, RegisterDevantMarketplaceServiceReq, InitializeDevantOASConnectionReq, InitializeDevantOASConnectionResp } from "./interfaces";
 export * from "./rpc-type"
 export * from "./utils"
 
-// TODO: check if we can directly use the wso2-extension api interface
+/**
+ * What the visualizer asks the extension about WSO2 Cloud.
+ *
+ * The connection screens still speak the marketplace vocabulary
+ * (`MarketplaceItem`, `ConnectionListItem`); the extension feeds them from the
+ * platform's databases, exposed endpoints and environment-variable groups, and
+ * refuses what the platform has no counterpart for (third-party registration,
+ * reading secrets back) with a message naming the gap.
+ */
 export interface PlatformExtAPI {
     // BI ext handlers
     generateCustomConnectorFromOAS: (params: GenerateCustomConnectorFromOASReq) => Promise<GenerateCustomConnectorFromOASResp>
@@ -30,7 +39,7 @@ export interface PlatformExtAPI {
     deleteDevantTempConfigs: (params: DeleteDevantTempConfigReq) => Promise<void>
     replaceDevantTempConfigValues: (params: ReplaceDevantTempConfigValuesReq) => Promise<void>
     setConnectedToDevant: (connected: boolean) => void;
-    setSelectedComponent: (componentId: string) => void;
+    setSelectedIntegration: (integrationId: string) => void;
     setSelectedEnv: (envId: string) => void;
     // Platform ext proxies
     createThirdPartyConnection: (params: CreateThirdPartyConnectionReq) => Promise<ConnectionDetailed>
@@ -47,7 +56,7 @@ export interface PlatformExtAPI {
     getMarketplaceIdl: (params: GetMarketplaceIdlReq) => Promise<MarketplaceIdlResp>;
     getConnections: (params: GetConnectionsReq) => Promise<ConnectionListItem[]>;
     getConnection: (params: GetConnectionItemReq) => Promise<ConnectionDetailed>;
-    getComponentList: (params: GetComponentsReq) => Promise<ComponentKind[]>;
+    getIntegrationList: (params: GetComponentsReq) => Promise<Component[]>;
     deleteLocalConnectionsConfig: (params: DeleteLocalConnectionsConfigReq) => void;
     getDevantConsoleUrl: () => Promise<string>;
     refreshConnectionList: () => Promise<void>;
