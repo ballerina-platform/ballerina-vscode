@@ -18,26 +18,19 @@
 
 // The only place that talks to the managed-token-service.
 //
-// Every other Choreo control-plane call goes through the choreo-cli binary
-// (IWso2PlatformExtensionAPI → choreo-rpc → CLI → HTTPS), which owns endpoint tables, the token
-// store and retry. This service is too new to be wrapped there, so we call it directly with the
-// token the CLI hands out (`auth/getStsToken` — the same one it puts in its own Authorization
-// header). Once the service is wrapped, these three functions become platformExt delegations and
-// the host resolution below goes away with them.
+// The service is not part of the WSO2 Cloud API (ipaas-service), so it is called
+// directly with the WSO2 Cloud access token from the `wso2-cloud` authentication
+// provider. Its base URL comes from the platform configuration WSO2 Integrator
+// exposes, or from an environment override; without either, managed connections
+// are reported as unavailable rather than guessed at.
 
 import axios, { AxiosRequestConfig } from "axios";
-import { getPlatformExtensionAPI } from "../../utils/ai/auth";
+import { getCloudAccessToken, getCompatiblePlatformAPI } from "../../utils/cloud-auth";
 
-// Production endpoints only. Each region is a separate hostname — no gateway routes by identity —
-// so the host is resolved per request.
-const CHOREO_PROD_API_HOST: Record<"US" | "EU", string> = {
-    US: "https://apis.choreo.dev",
-    EU: "https://apis.eu.choreo.dev",
-};
+// Set this to target a managed-token-service directly (for example a non-production one).
+const API_HOST_OVERRIDE_VAR = "WSO2_CLOUD_MANAGED_TOKENS_URL";
 
-// Non-production hosts are not listed here; set this to target one.
-const API_HOST_OVERRIDE_VAR = "VSCODE_CHOREO_API_HOST";
-
+// The service's openapi.yaml paths, behind the gateway's `/managed-tokens/v1.0` prefix.
 const MANAGED_SERVICE_BASE_PATH = "/managed-tokens/v1.0/api/v1";
 const MANAGED_LIBRARIES_PATH = "/managed-libraries";
 const MANAGED_CONNECTIONS_PATH = "/managed-connections";
@@ -46,22 +39,20 @@ async function resolveHost(): Promise<string | undefined> {
     const override = process.env[API_HOST_OVERRIDE_VAR]?.trim();
     if (override) {
         console.log(`[managed-connections] using ${API_HOST_OVERRIDE_VAR}='${override}'.`);
-        return override;
+        return override.replace(/\/+$/, "");
     }
 
-    const api = await getPlatformExtensionAPI();
+    const api = await getCompatiblePlatformAPI();
     if (!api) {
-        console.warn("[managed-connections] WSO2 platform extension unavailable — cannot resolve a service host.");
+        console.warn("[managed-connections] WSO2 Integrator's cloud API is unavailable — cannot resolve a service host.");
         return undefined;
     }
-
-    const region = api.getAuthState()?.region === "EU" ? "EU" : "US";
-    const env = api.getWebviewStateStore()?.choreoEnv ?? "prod";
-    if (env !== "prod") {
-        console.warn(`[managed-connections] no host is listed for env='${env}' — set ${API_HOST_OVERRIDE_VAR} ` +
-            `to target it. Falling back to ${region} production.`);
+    const configured = api.getPlatformConfig().managedTokensBaseUrl?.trim();
+    if (!configured) {
+        console.warn(`[managed-connections] the WSO2 Cloud environment lists no managed-token-service; set ${API_HOST_OVERRIDE_VAR} to target one.`);
+        return undefined;
     }
-    return CHOREO_PROD_API_HOST[region];
+    return configured.replace(/\/+$/, "");
 }
 
 const BASE_HEADERS = {
@@ -90,7 +81,7 @@ const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve,
 
 /**
  * One authenticated call. The token is read per attempt, never held by the caller: the OAuth
- * flow spans a browser round-trip that can outlive a token, and getStsToken() refreshes on read.
+ * flow spans a browser round-trip that can outlive a token, and the session refreshes on read.
  *
  * Retries are GET-only — a POST that timed out may already have created a connection upstream.
  */
@@ -102,7 +93,7 @@ async function request<T>(
 ): Promise<T> {
     const host = await resolveHost();
     if (!host) {
-        throw new ManagedConnectionError("Managed connections are not available in this environment.");
+        throw new ManagedConnectionError("Managed connections are not available on WSO2 Cloud yet.");
     }
 
     const url = `${host}${MANAGED_SERVICE_BASE_PATH}${path}`;
@@ -110,7 +101,7 @@ async function request<T>(
     let lastError: unknown;
 
     for (let attempt = 1; attempt <= (isIdempotent ? MAX_ATTEMPTS : 1); attempt++) {
-        const token = await getStsTokenOrThrow();
+        const token = await getAccessTokenOrThrow();
         const config: AxiosRequestConfig = {
             headers: { ...BASE_HEADERS, Authorization: `Bearer ${token}` },
             timeout: timeoutMs,
@@ -137,14 +128,10 @@ async function request<T>(
     throw toManagedConnectionError(lastError, method, url);
 }
 
-async function getStsTokenOrThrow(): Promise<string> {
-    const api = await getPlatformExtensionAPI();
-    if (!api) {
-        throw new ManagedConnectionError("WSO2 platform extension is not installed.");
-    }
-    const token = await api.getStsToken();
+async function getAccessTokenOrThrow(): Promise<string> {
+    const token = await getCloudAccessToken({ silent: true });
     if (!token) {
-        throw new ManagedConnectionError("Not signed in to Devant. Please sign in to use managed connections.");
+        throw new ManagedConnectionError("Not signed in to WSO2 Cloud. Please sign in to use managed connections.");
     }
     return token;
 }

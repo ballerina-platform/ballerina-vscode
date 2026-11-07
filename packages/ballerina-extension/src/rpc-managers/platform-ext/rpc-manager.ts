@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2026, WSO2 LLC. (https://www.wso2.com) All Rights Reserved.
+ * Copyright (c) 2025, WSO2 LLC. (https://www.wso2.com) All Rights Reserved.
  *
  * WSO2 LLC. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
@@ -15,6 +15,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 import {
     onPlatformExtStoreStateChange,
     PlatformExtAPI,
@@ -29,6 +30,16 @@ import { Uri, window, WorkspaceEdit } from "vscode";
 import * as vscode from "vscode";
 import * as fs from "fs";
 import * as path from "path";
+import type {
+    Component,
+    ContextItemEnriched,
+    DirectoryIntegration,
+    Environment,
+    IWso2PlatformExtensionAPI,
+    LocalRuntimeEnv,
+} from "@wso2/wso2-cloud-client";
+import { NotSupportedError, isCloudError } from "@wso2/wso2-cloud-client";
+import * as yaml from "js-yaml";
 import {
     ConnectionListItem,
     DeleteLocalConnectionsConfigReq,
@@ -36,22 +47,14 @@ import {
     GetMarketplaceIdlReq,
     GetMarketplaceItemReq,
     GetMarketplaceListReq,
-    IWso2PlatformExtensionAPI,
     MarketplaceIdlResp,
     MarketplaceItem,
     MarketplaceListResp,
     ServiceInfoVisibilityEnum,
     GetConnectionItemReq,
     StartProxyServerResp,
-    StopProxyServerReq,
     ConnectionDetailed,
     DevantScopes,
-    ICreateComponentCmdParams,
-    ComponentKind,
-    ICmdParamsBase,
-    RegisterMarketplaceConfigMap,
-    Project,
-    Organization,
     CreateLocalConnectionsConfigReq,
     CreateThirdPartyConnectionReq,
     CreateComponentConnectionReq,
@@ -61,7 +64,6 @@ import {
     GetDatabaseServerReq,
     DatabaseAdminCredential,
     DatabaseCredential,
-    Environment,
     GetProjectEnvsReq,
     CreateDatabaseConnectionReq,
     GetDatabaseItemReq,
@@ -81,6 +83,7 @@ import {
     InitializeDevantOASConnectionResp,
     RegisterDevantMarketplaceServiceReq,
     ReplaceDevantTempConfigValuesReq,
+    SUPPORTED_PLATFORM_API_VERSION,
 } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
 import { StateMachine } from "../../stateMachine";
 import { CaptureBindingPattern, ModulePart, ModuleVarDecl, STKindChecker } from "@wso2/syntax-tree";
@@ -92,40 +95,87 @@ import {
     addConfigurable,
     addConnection,
     addProxyConfigurable,
-    findUniqueConnectionName,
     getConfigFileUri,
     hasContextYaml,
     processOpenApiWithApiKeyAuth,
     ProxyConfigEnvVars,
     Templates,
 } from "./platform-utils";
+import {
+    createdConnection,
+    dbCredentialsToAdminCredential,
+    dbServerToMarketplaceItem,
+    dbServerToV1DatabaseServer,
+    endpointToMarketplaceItem,
+    envGroupToConnectionDetailed,
+    envGroupToConnectionListItem,
+    parseConnectionId,
+    parseDatabaseId,
+    parseServiceId,
+    resourceRefOf,
+    databaseId,
+    serviceId,
+} from "./v1-adapters";
 import { debounce } from "lodash";
 import { BiDiagramRpcManager } from "../bi-diagram/rpc-manager";
 import { promptToAddConstruct } from "../../features/devant/add-construct-prompt";
 import { confirmListenerAlongside } from "../../features/devant/integration-type";
-import { updateSourceCode, WI_EXTENSION_ID } from "../../utils";
+import { updateSourceCode } from "../../utils";
+import { inspectPlatformAPI } from "../../utils/cloud-auth";
 
+/** Thrown for what WSO2 Cloud has no API for yet; a `NotSupportedError`, so `isCloudError` and the shared handlers know it. */
+export class CloudFeatureUnavailableError extends NotSupportedError {
+    constructor(feature: string) {
+        super(`${feature} is not available on WSO2 Cloud yet.`, { reason: "cloud_feature_unavailable" });
+        this.name = "CloudFeatureUnavailableError";
+    }
+}
+
+/**
+ * The cloud side of the BI visualizer, over WSO2 Integrator's exported
+ * platform API. State the visualizer renders lives in `platformExtStore`;
+ * the connection screens' marketplace vocabulary is served through
+ * `./v1-adapters`.
+ */
 export class PlatformExtRpcManager implements PlatformExtAPI {
     static platformExtAPI: IWso2PlatformExtensionAPI | undefined;
-    private async getPlatformExt() {
+    /** Set once WSO2 Integrator was found to speak another contract version, so it is not asked again. */
+    private static incompatibleVersion: number | undefined | null;
+
+    /**
+     * WSO2 Integrator's cloud API. An installed WSO2 Integrator that speaks
+     * another contract version counts as not installed for the screens (no
+     * cloud actions are offered), is reported once, and is not asked again.
+     */
+    private async getPlatformExt(): Promise<IWso2PlatformExtensionAPI | undefined> {
         if (PlatformExtRpcManager.platformExtAPI) {
             return PlatformExtRpcManager.platformExtAPI;
         }
-        const platformExt = vscode.extensions.getExtension(WI_EXTENSION_ID);
-        if (!platformExt) {
+        if (PlatformExtRpcManager.incompatibleVersion !== undefined) {
             return undefined;
         }
-        if (!platformExt.isActive) {
-            await platformExt.activate();
+        const verdict = await inspectPlatformAPI();
+        if (!verdict.installed) {
+            return undefined;
         }
-        platformExtStore.getState().setState({ isExtInstalled: true });
-        const platformExtAPI: IWso2PlatformExtensionAPI = platformExt.exports?.cloudAPIs;
-        await this.waitForExtensionActive(platformExtAPI);            
-        PlatformExtRpcManager.platformExtAPI = platformExtAPI;
-        return platformExtAPI;
+        platformExtStore.getState().setState({
+            isExtInstalled: !!verdict.api,
+            isCompatible: !!verdict.api,
+            platformApiVersion: verdict.version,
+        });
+        if (!verdict.api) {
+            PlatformExtRpcManager.incompatibleVersion = verdict.version ?? null;
+            const message = `WSO2 Integrator exports platform API version ${verdict.version ?? "unknown"}; this extension needs ${SUPPORTED_PLATFORM_API_VERSION}. WSO2 Cloud features are off until both extensions are updated.`;
+            log(message);
+            void vscode.window.showWarningMessage(message);
+            return undefined;
+        }
+        await this.waitForExtensionActive(verdict.api);
+        PlatformExtRpcManager.platformExtAPI = verdict.api;
+        return verdict.api;
     }
 
-    // Wait for devant features to activate
+    // Wait for the cloud features to activate
     private async waitForExtensionActive(platformExtAPI: IWso2PlatformExtensionAPI, timeoutMs: number = 30000): Promise<void> {
         const startTime = Date.now();
         while (!platformExtAPI?.isActive()) {
@@ -137,8 +187,45 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
         }
     }
 
+    private async requirePlatformExt(): Promise<IWso2PlatformExtensionAPI> {
+        const platformExt = await this.getPlatformExt();
+        if (!platformExt) {
+            throw new Error("WSO2 Integrator's cloud features are not available. Install or update the WSO2 Integrator extension.");
+        }
+        return platformExt;
+    }
+
+    /** What the store currently points at: the org handle, the project name, the integration and the environment. */
+    private selection() {
+        const state = platformExtStore.getState().state;
+        return {
+            orgHandle: state?.session?.org.handle,
+            projectName: state?.selectedContext?.projectName,
+            integration: state?.selectedIntegration?.integration,
+            env: state?.selectedEnv,
+        };
+    }
+
+    private requireProjectName(): string {
+        const { projectName } = this.selection();
+        if (!projectName) {
+            throw new Error("Link this directory with a WSO2 Cloud project first.");
+        }
+        return projectName;
+    }
+
+    private requireEnvId(): string {
+        const { env } = this.selection();
+        if (!env) {
+            throw new Error("The project has no environment to connect to.");
+        }
+        return env.id;
+    }
+
     public async initStateSubscription(messenger: Messenger) {
-        // if extension is not installed, the store will not be rehydrated
+        // The webview always hears the store, so it can show that cloud features are off.
+        await this.initSelfStoreSubscription(messenger);
+        // Without WSO2 Integrator the store is not rehydrated.
         const platformExt = await this.getPlatformExt();
         if (!platformExt) {
             return;
@@ -166,47 +253,49 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
             }
         });
 
-        await this.initSelfStoreSubscription(messenger);
     }
 
     private async initAuthState() {
         const platformExt = await this.getPlatformExt();
-        const userInfo = platformExt?.getAuthState().userInfo;
-        const selectedContext = platformExt?.getSelectedContext();
-        platformExtStore.getState().setState({ userInfo, isLoggedIn: !!userInfo, selectedContext });
-
-        if (selectedContext?.project) {
-            const envs = await platformExt?.getProjectEnvs({
-                orgId: selectedContext?.org?.id?.toString(),
-                orgUuid: selectedContext?.org?.uuid,
-                projectId: selectedContext?.project?.id,
-            });
-            const selectedEnv =
-                envs.find((env) => env.id === platformExtStore.getState().state?.selectedEnv?.id) || envs[0];
-            platformExtStore.getState().setState({ envs, selectedEnv });
-        }
+        const authState = platformExt?.getAuthState();
+        const session = authState?.session ?? null;
+        const selectedContext = platformExt?.getSelectedContext() ?? undefined;
+        platformExtStore.getState().setState({ session, isLoggedIn: !!session && authState?.status === "signed-in", selectedContext });
+        await this.refreshEnvironments(selectedContext);
 
         platformExt?.subscribeAuthState((authState) => {
-            platformExtStore.getState().setState({ userInfo: authState.userInfo, isLoggedIn: !!authState.userInfo });
+            platformExtStore.getState().setState({
+                session: authState.session,
+                isLoggedIn: !!authState.session && authState.status === "signed-in",
+            });
         });
 
-        const debouncedEnvListRefresh = debounce(async (org?: Organization, project?: Project) => {
-            if (org && project) {
-                const envs = await platformExt?.getProjectEnvs({
-                    orgId: org.id?.toString(),
-                    orgUuid: org.uuid,
-                    projectId: project.id,
-                });
-                const selectedEnv =
-                    envs.find((env) => env.id === platformExtStore.getState().state?.selectedEnv?.id) || envs[0];
-                platformExtStore.getState().setState({ envs, selectedEnv });
-            }
-        }, 1000);
+        const debouncedEnvListRefresh = debounce((context?: ContextItemEnriched) => this.refreshEnvironments(context), 1000);
 
         platformExt?.subscribeContextState(async (selectedContext) => {
             platformExtStore.getState().setState({ selectedContext });
-            debouncedEnvListRefresh(selectedContext?.org, selectedContext?.project);
+            debouncedEnvListRefresh(selectedContext);
         });
+    }
+
+    /** The project's environments in promotion order; the selection survives a refresh, else the context's default, else the first. */
+    private async refreshEnvironments(context?: ContextItemEnriched) {
+        const platformExt = await this.getPlatformExt();
+        if (!platformExt || !context?.projectName || context.foreignOrg || context.local) {
+            platformExtStore.getState().setState({ envs: [], selectedEnv: undefined });
+            return;
+        }
+        try {
+            const envs = await platformExt.environments.listOrdered(context.projectName);
+            const previous = platformExtStore.getState().state?.selectedEnv?.id;
+            const selectedEnv =
+                envs.find((env) => env.id === previous) ||
+                envs.find((env) => env.id === context.defaultEnv || env.name === context.defaultEnv) ||
+                envs[0];
+            platformExtStore.getState().setState({ envs, selectedEnv });
+        } catch (err) {
+            log(`Failed to list the environments of ${context.projectName}: ${err}`);
+        }
     }
 
     private async initFileWatcher() {
@@ -230,36 +319,36 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
 
     private async initProjectPathWatcher(projectPath: string) {
         const platformExt = await this.getPlatformExt();
-        let components: ComponentKind[] = [];
-        let matchingComponent: ComponentKind;
+        let integrations: DirectoryIntegration[] = [];
+        let matchingIntegration: DirectoryIntegration | undefined;
         let hasLocalChanges = false;
         let hasProjectYaml = false;
+        const selectedId = () => platformExtStore.getState().state?.selectedIntegration?.integration.id;
         if (projectPath) {
-            components = platformExt?.getDirectoryComponents(projectPath);
-            matchingComponent = components.find(
-                (item) => platformExtStore.getState().state?.selectedComponent?.metadata?.id === item.metadata?.id,
-            );
+            integrations = platformExt?.getDirectoryIntegrations(projectPath) ?? [];
+            matchingIntegration = integrations.find((item) => item.integration.id === selectedId());
             hasLocalChanges = await platformExt?.localRepoHasChanges(projectPath);
             hasProjectYaml = hasContextYaml(projectPath);
             await this.debouncedRefreshConnectionList();
         }
 
         platformExtStore.getState().setState({
-            components,
-            selectedComponent: matchingComponent || components[0],
+            integrations,
+            selectedIntegration: matchingIntegration || integrations[0],
             hasLocalChanges,
-            hasPossibleComponent: components.length > 0 || hasProjectYaml,
+            hasPossibleComponent: integrations.length > 0 || hasProjectYaml,
         });
 
-        const unsubscribeDirCompWatcher = platformExt?.subscribeDirComponents(projectPath, (components) => {
+        if (!projectPath) {
+            return undefined; // a workspace with no single package has no directory to watch
+        }
+        const unsubscribeDirCompWatcher = platformExt?.subscribeDirectoryIntegrations(projectPath, (integrations) => {
             const hasProjectYaml = hasContextYaml(projectPath);
-            const matchingComponent = components.find(
-                (item) => platformExtStore.getState().state?.selectedComponent?.metadata?.id === item.metadata?.id,
-            );
+            const matchingIntegration = integrations.find((item) => item.integration.id === selectedId());
             platformExtStore.getState().setState({
-                components,
-                selectedComponent: matchingComponent || components[0],
-                hasPossibleComponent: components.length > 0 || hasProjectYaml,
+                integrations,
+                selectedIntegration: matchingIntegration || integrations[0],
+                hasPossibleComponent: integrations.length > 0 || hasProjectYaml,
             });
         });
         return unsubscribeDirCompWatcher;
@@ -275,24 +364,20 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
 
             let refetchConnections = false;
             if (!state.state?.isLoggedIn && prevState?.state?.isLoggedIn) {
-                // if user is logging out
-                // todo: check if this needs to be enabled again
-                // platformExtStore.getState().setState({connections: []});
+                // signing out keeps the last list until the next refresh
             } else if (
-                state.state?.selectedComponent &&
-                state.state?.selectedComponent.metadata?.id !== prevState?.state?.selectedComponent?.metadata?.id
+                state.state?.selectedIntegration &&
+                state.state?.selectedIntegration.integration.id !== prevState?.state?.selectedIntegration?.integration.id
             ) {
-                // if component selection has changed
-                // todo: remove connections related to previous component
-                // todo: test after applying fix to support multiple components
-                // platformExtStore.getState().setState({connections: platformExtStore.getState().state?.connections?.filter(item=>item.componentId)});
                 refetchConnections = true;
             } else if (
-                state.state?.selectedContext?.project &&
-                state.state?.selectedContext?.project?.id !== prevState.state?.selectedContext?.project?.id
+                state.state?.selectedContext?.projectName &&
+                state.state?.selectedContext?.projectName !== prevState.state?.selectedContext?.projectName
             ) {
-                // if project selection has changed
                 platformExtStore.getState().setConnectionState({ list: [] });
+                refetchConnections = true;
+            } else if (state.state?.selectedEnv?.id !== prevState.state?.selectedEnv?.id) {
+                // connections are per environment on the platform
                 refetchConnections = true;
             }
 
@@ -302,19 +387,47 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
         });
     }
 
+    // ---- the catalog: what other integrations of the project expose ----
+
     async getMarketplaceItems(params: GetMarketplaceListReq): Promise<MarketplaceListResp> {
         try {
-            const platformExt = await this.getPlatformExt();
-            return platformExt?.getMarketplaceItems(params);
+            if (params?.request?.isThirdParty) {
+                // WSO2 Cloud has no third-party marketplace; the tab is empty rather than full of internal services.
+                return { count: 0, pagination: { limit: 0, offset: 0, total: 0 }, data: [] };
+            }
+            const platformExt = await this.requirePlatformExt();
+            const { orgHandle = "" } = this.selection();
+            const projectName = this.requireProjectName();
+            const envId = this.requireEnvId();
+            const integrations = await platformExt.integrations.list(projectName);
+            const perIntegration = await Promise.all(
+                integrations.map(async (integration) => {
+                    try {
+                        const endpoints = await platformExt.endpoints.listForEnvironment(integration.id, envId, projectName);
+                        return endpoints.map((endpoint) => endpointToMarketplaceItem(projectName, integration, envId, endpoint, orgHandle));
+                    } catch (err) {
+                        log(`No endpoints for ${integration.id} in ${envId}: ${err}`);
+                        return [];
+                    }
+                }),
+            );
+            const query = params?.request?.query?.toLowerCase();
+            const data = perIntegration.flat().filter((item) => !query || item.name.toLowerCase().includes(query));
+            const offset = params?.request?.offset ?? 0;
+            const limit = params?.request?.limit ?? data.length;
+            return { count: data.length, pagination: { limit, offset, total: data.length }, data: data.slice(offset, offset + limit) };
         } catch (err) {
             log(`Failed to invoke getMarketplaceItems: ${err}`);
         }
     }
 
-    async getMarketplaceDatabases(params: { orgId: string }): Promise<MarketplaceDatabaseListResp> {
+    async getMarketplaceDatabases(_params: { orgId: string }): Promise<MarketplaceDatabaseListResp> {
         try {
-            const platformExt = await this.getPlatformExt();
-            return platformExt?.getMarketplaceDatabases(params);
+            const platformExt = await this.requirePlatformExt();
+            const { orgHandle = "" } = this.selection();
+            const servers = await platformExt.dbServers.list();
+            const data = servers.map((server) => dbServerToMarketplaceItem(server, orgHandle));
+            return { count: data.length, pagination: { limit: data.length, offset: 0, total: data.length }, data };
         } catch (err) {
             log(`Failed to invoke getMarketplaceDatabases: ${err}`);
         }
@@ -322,98 +435,191 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
 
     async getMarketplaceDatabaseItem(params: GetDatabaseItemReq): Promise<MarketplaceItem> {
         try {
-            const platformExt = await this.getPlatformExt();
-            return platformExt?.getMarketplaceDatabaseItem(params);
+            const platformExt = await this.requirePlatformExt();
+            const { orgHandle = "" } = this.selection();
+            const serverId = parseDatabaseId(params.resourceId) ?? params.resourceId;
+            if (!serverId) {
+                throw new CloudFeatureUnavailableError("Opening the database behind an existing connection");
+            }
+            return dbServerToMarketplaceItem(await platformExt.dbServers.get(serverId), orgHandle);
         } catch (err) {
             log(`Failed to invoke getMarketplaceDatabaseItem: ${err}`);
+            throw err;
         }
     }
 
     async getDatabaseServer(params: GetDatabaseServerReq): Promise<DatabaseServer> {
         try {
-            const platformExt = await this.getPlatformExt();
-            return platformExt?.getDatabaseServer(params);
+            const platformExt = await this.requirePlatformExt();
+            const [server, credentials] = await Promise.all([
+                platformExt.dbServers.get(params.databaseServerId),
+                platformExt.dbServers.revealCredentials(params.databaseServerId),
+            ]);
+            return dbServerToV1DatabaseServer(server, credentials);
         } catch (err) {
             log(`Failed to invoke getDatabaseServer: ${err}`);
+            throw err;
         }
     }
 
     async getDatabaseAdminCredential(params: GetDatabaseServerReq): Promise<DatabaseAdminCredential> {
         try {
-            const platformExt = await this.getPlatformExt();
-            return platformExt?.getDatabaseAdminCredential(params);
+            const platformExt = await this.requirePlatformExt();
+            return dbCredentialsToAdminCredential(await platformExt.dbServers.revealCredentials(params.databaseServerId));
         } catch (err) {
             log(`Failed to invoke getDatabaseAdminCredential: ${err}`);
+            throw err;
         }
     }
 
+    /**
+     * Per-environment database users are a platform dependency; the server's
+     * administrator credential is what there is, offered for every environment
+     * so a connection can be made at all.
+     */
     async getDatabaseCredentials(params: GetDatabaseServerReq): Promise<DatabaseCredential[]> {
         try {
-            const platformExt = await this.getPlatformExt();
-            return platformExt?.getDatabaseCredentials(params);
+            const platformExt = await this.requirePlatformExt();
+            const { orgHandle = "" } = this.selection();
+            const server = await platformExt.dbServers.get(params.databaseServerId);
+            const item = dbServerToMarketplaceItem(server, orgHandle);
+            const environments = (platformExtStore.getState().state.envs ?? []).map((env) => env.id);
+            const now = new Date().toISOString();
+            return [
+                {
+                    id: `admin:${params.databaseServerId}`,
+                    display_name: "Administrator (the server's credentials)",
+                    database_name: item.name,
+                    applicable_environments: environments,
+                    is_super_admin: true,
+                    privilege_levels: null,
+                    created_at: now,
+                    updated_at: now,
+                },
+            ];
         } catch (err) {
             log(`Failed to invoke getDatabaseCredentials: ${err}`);
+            return [];
         }
     }
 
     async createDatabaseConnection(params: CreateDatabaseConnectionReq): Promise<ConnectionDetailed> {
         try {
-            const platformExt = await this.getPlatformExt();
-            return platformExt?.createDatabaseConnection(params);
+            const platformExt = await this.requirePlatformExt();
+            const projectName = this.requireProjectName();
+            const integration = params.componentId || this.selection().integration?.id;
+            if (!integration) {
+                throw new CloudFeatureUnavailableError("A project-level database connection");
+            }
+            // The form keys the mapping by environment id; only ids the project has are taken.
+            const known = new Set((platformExtStore.getState().state.envs ?? []).map((env) => env.id));
+            const environments = Object.keys(params.envMapping ?? {}).filter((id) => known.has(id));
+            const envs = environments.length > 0 ? environments : [this.requireEnvId()];
+            const dbServerId = parseDatabaseId(params.serviceId) ?? params.serviceId;
+            await platformExt.connections.createDatabaseConnection({ integration, dbServerId, name: params.name, environments: envs, projectName });
+            return createdConnection({ name: params.name, integration, environments: envs, kind: "DATABASE", serviceId: params.serviceId });
         } catch (err) {
             log(`Failed to invoke createDatabaseConnection: ${err}`);
+            throw err;
         }
     }
 
     async getMarketplaceItem(params: GetMarketplaceItemReq): Promise<MarketplaceItem> {
         try {
-            const platformExt = await this.getPlatformExt();
-            return platformExt?.getMarketplaceItem(params);
+            const platformExt = await this.requirePlatformExt();
+            const { orgHandle = "" } = this.selection();
+            const dbServerId = parseDatabaseId(params.serviceId);
+            if (dbServerId) {
+                return dbServerToMarketplaceItem(await platformExt.dbServers.get(dbServerId), orgHandle);
+            }
+            const ref = parseServiceId(params.serviceId);
+            if (!ref) {
+                throw new CloudFeatureUnavailableError("Opening the service behind an existing connection");
+            }
+            const envId = this.requireEnvId();
+            const [integration, endpoints] = await Promise.all([
+                platformExt.integrations.find(ref.integration, ref.project),
+                platformExt.endpoints.listForEnvironment(ref.integration, envId, ref.project),
+            ]);
+            const endpoint = endpoints.find((item) => item.name === ref.endpoint);
+            if (!endpoint) {
+                throw new Error(`${ref.integration} exposes no endpoint ${ref.endpoint} in ${envId}.`);
+            }
+            return endpointToMarketplaceItem(ref.project, integration, envId, endpoint, orgHandle);
         } catch (err) {
             log(`Failed to invoke getMarketplaceItem: ${err}`);
+            throw err;
         }
     }
 
     async getMarketplaceIdl(params: GetMarketplaceIdlReq): Promise<MarketplaceIdlResp> {
         try {
-            const platformExt = await this.getPlatformExt();
-            return platformExt?.getMarketplaceIdl(params);
+            const platformExt = await this.requirePlatformExt();
+            const ref = parseServiceId(params.serviceId);
+            if (!ref) {
+                throw new CloudFeatureUnavailableError("An API definition for this connection");
+            }
+            const envId = this.requireEnvId();
+            const content = await platformExt.endpoints.getOpenApi(ref.integration, envId, ref.endpoint, ref.project);
+            return { environmentId: envId, idlType: content ? "OpenAPI" : "", content: content ?? "" };
         } catch (err) {
             log(`Failed to invoke getMarketplaceIdl: ${err}`);
+            throw err;
         }
     }
 
+    // ---- connections: an integration's env-var groups in the selected environment ----
+
     async getConnections(params: GetConnectionsReq): Promise<ConnectionListItem[]> {
         try {
-            const platformExt = await this.getPlatformExt();
-            return platformExt?.getConnections(params);
+            const platformExt = await this.requirePlatformExt();
+            if (!params.componentId) {
+                // The platform has no project-level connections.
+                return [];
+            }
+            const projectName = params.projectId || this.requireProjectName();
+            const envId = this.requireEnvId();
+            const groups = await platformExt.connections.list(params.componentId, envId, projectName);
+            // The platform keeps no record of what a group points at; the local reference WI wrote does.
+            const localRefs = localConnectionServiceIds(platformExtStore.getState().state.selectedIntegration?.fsPath);
+            return groups.map((group) =>
+                envGroupToConnectionListItem(group, { integration: params.componentId, environment: envId }, localRefs.get(group.name ?? "")),
+            );
         } catch (err) {
             log(`Failed to invoke getConnections: ${err}`);
+            return [];
         }
     }
 
     async getConnection(params: GetConnectionItemReq): Promise<ConnectionDetailed> {
         try {
-            const platformExt = await this.getPlatformExt();
-            return platformExt?.getConnection(params);
+            const platformExt = await this.requirePlatformExt();
+            const ref = parseConnectionId(params.connectionGroupId);
+            if (!ref) {
+                throw new Error(`Unknown connection ${params.connectionGroupId}`);
+            }
+            const group = await platformExt.config.getEnvGroup(ref.integration, ref.environment, ref.name, this.selection().projectName);
+            return envGroupToConnectionDetailed(group, ref);
         } catch (err) {
             log(`Failed to invoke getConnection: ${err}`);
+            throw err;
         }
     }
 
-    async getComponentList(params: GetComponentsReq): Promise<ComponentKind[]> {
+    async getIntegrationList(params: GetComponentsReq): Promise<Component[]> {
         try {
-            const platformExt = await this.getPlatformExt();
-            return platformExt?.getComponentList(params);
+            const platformExt = await this.requirePlatformExt();
+            return await platformExt.integrations.list(params.projectId || this.requireProjectName());
         } catch (err) {
-            log(`Failed to invoke getComponentList: ${err}`);
+            log(`Failed to invoke getIntegrationList: ${err}`);
+            return [];
         }
     }
 
     async deleteLocalConnectionsConfig(params: DeleteLocalConnectionsConfigReq): Promise<void> {
         try {
-            const platformExt = await this.getPlatformExt();
-            platformExt?.deleteLocalConnectionsConfig(params);
+            const platformExt = await this.requirePlatformExt();
+            platformExt.local.deleteConnectionReference({ componentDir: params.componentDir, name: params.connectionName });
         } catch (err) {
             log(`Failed to delete connection config: ${err}`);
         }
@@ -422,72 +628,76 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
     async getDevantConsoleUrl(): Promise<string> {
         try {
             const platformExt = await this.getPlatformExt();
-            return await platformExt?.getDevantConsoleUrl();
+            return platformExt?.getPlatformConfig().consoleUrl ?? "";
         } catch (err) {
-            log(`Failed to delete connection config: ${err}`);
+            log(`Failed to read the console URL: ${err}`);
+            return "";
         }
     }
 
     async createConnectionConfig(params: CreateLocalConnectionsConfigReq): Promise<string> {
         try {
-            const platformExt = await this.getPlatformExt();
-            return await platformExt?.createConnectionConfig(params);
+            const platformExt = await this.requirePlatformExt();
+            return await platformExt.local.writeConnectionReference({
+                componentDir: params.componentDir,
+                name: params.name,
+                resourceRef: resourceRefOf(params.marketplaceItem, params.name),
+            });
         } catch (err) {
             log(`Failed to create connection config: ${err}`);
         }
     }
 
-    async createThirdPartyConnection(params: CreateThirdPartyConnectionReq): Promise<ConnectionDetailed> {
-        try {
-            const platformExt = await this.getPlatformExt();
-            return await platformExt?.createThirdPartyConnection(params);
-        } catch (err) {
-            log(`Failed to create 3rd party connection: ${err}`);
-        }
+    /** Third-party connections are a platform dependency (no marketplace registration on WSO2 Cloud). */
+    async createThirdPartyConnection(_params: CreateThirdPartyConnectionReq): Promise<ConnectionDetailed> {
+        throw new CloudFeatureUnavailableError("Connecting to a third-party service through the cloud");
     }
 
     async getProjectEnvs(params: GetProjectEnvsReq): Promise<Environment[]> {
         try {
-            const platformExt = await this.getPlatformExt();
-            return await platformExt?.getProjectEnvs(params);
+            const platformExt = await this.requirePlatformExt();
+            return await platformExt.environments.listOrdered(params.projectId || this.requireProjectName());
         } catch (err) {
             log(`Failed to get project environments: ${err}`);
+            return [];
         }
     }
 
+    /** Secret values are write-only on the platform; a form or a local run gets none back and says so. */
     async resolveConnectionSecrets(params: ResolveConnectionSecretsReq): Promise<ResolveConnectionSecretsResp> {
-        try {
-            const platformExt = await this.getPlatformExt();
-            return await platformExt?.resolveConnectionSecrets(params);
-        } catch (err) {
-            log(`Failed to resolve connection secrets: ${err}`);
+        if (params.secrets.length > 0) {
+            log(`The platform does not read secret values back; ${params.secrets.map((s) => s.key).join(", ")} have to be set locally.`);
         }
+        return { secrets: [] };
     }
 
     async createInternalConnection(params: CreateComponentConnectionReq): Promise<ConnectionDetailed> {
         try {
-            const platformExt = await this.getPlatformExt();
-            return await platformExt?.createComponentConnection(params);
+            const platformExt = await this.requirePlatformExt();
+            const projectName = params.projectId || this.requireProjectName();
+            const integration = params.componentId || this.selection().integration?.id;
+            if (!integration) {
+                throw new CloudFeatureUnavailableError("A project-level service connection");
+            }
+            const target = parseServiceId(params.serviceId);
+            if (!target) {
+                throw new Error(`Unknown service ${params.serviceId}`);
+            }
+            const envId = this.requireEnvId();
+            await platformExt.connections.createServiceConnection({ integration, target, name: params.name, environments: [envId], projectName });
+            return createdConnection({ name: params.name, integration, environments: [envId], kind: "SERVICE", serviceId: params.serviceId });
         } catch (err) {
             log(`Failed to create WSO2 Cloud connection: ${err}`);
+            throw err;
         }
     }
 
-    async stopProxyServer(params: StopProxyServerReq): Promise<void> {
-        try {
-            const platformExt = await this.getPlatformExt();
-            return platformExt?.stopProxyServer(params);
-        } catch (err) {
-            log(`Failed to stop proxy server: ${err}`);
-        }
-    }
-
-    setSelectedComponent(componentId: string): void {
-        const selectedComponent = platformExtStore
+    setSelectedIntegration(integrationId: string): void {
+        const selectedIntegration = platformExtStore
             .getState()
-            .state?.components?.find((item) => item.metadata?.id === componentId);
-        if (selectedComponent) {
-            platformExtStore.getState().setState({ selectedComponent });
+            .state?.integrations?.find((item) => item.integration.id === integrationId);
+        if (selectedIntegration) {
+            platformExtStore.getState().setState({ selectedIntegration });
         }
     }
 
@@ -575,66 +785,39 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
 
     async getAllConnections(): Promise<ConnectionListItem[]> {
         try {
-            const platformExt = await this.getPlatformExt();
-            if (
-                platformExtStore.getState().state.isLoggedIn &&
-                platformExtStore.getState().state.selectedContext?.project?.id
-            ) {
-                const projectPromise = platformExt?.getConnections({
-                    orgId: platformExtStore.getState().state.selectedContext?.org?.id?.toString(),
-                    projectId: platformExtStore.getState().state.selectedContext?.project?.id,
-                    componentId: "",
+            const state = platformExtStore.getState().state;
+            if (state.isLoggedIn && state.selectedContext?.projectName && state.selectedIntegration && state.selectedEnv) {
+                return await this.getConnections({
+                    orgId: state.session?.org.handle ?? "",
+                    projectId: state.selectedContext.projectName,
+                    componentId: state.selectedIntegration.integration.id,
                 });
-
-                const componentPromise: Promise<ConnectionListItem[]> = platformExtStore.getState().state
-                    .selectedComponent
-                    ? platformExt?.getConnections({
-                          orgId: platformExtStore.getState().state.selectedContext?.org?.id?.toString(),
-                          projectId: platformExtStore.getState().state.selectedContext?.project?.id,
-                          componentId: platformExtStore.getState().state.selectedComponent?.metadata?.id,
-                      })
-                    : Promise.resolve([]);
-
-                const [projectConnections, componentConnections] = await Promise.all([
-                    projectPromise,
-                    componentPromise,
-                ]);
-
-                return [...componentConnections, ...projectConnections];
             }
             return [];
         } catch (err) {
             log(`Failed to get all connections: ${err}`);
+            return [];
         }
     }
 
+    /**
+     * Gives a local run or debug session the integration's cloud environment.
+     * The platform has no network bridge, so only the variables are injected;
+     * secrets are write-only there and have to be set locally.
+     */
     async setupDevantProxyForDebugging(debugConfig: vscode.DebugConfiguration): Promise<void> {
-        // check if choreoConnect is provided as param, if so use pass those as param
-        const devantProxyResp = await this.startProxyServer(debugConfig);
-
-        if (devantProxyResp?.proxyServerPort) {
-            debugConfig.env = { ...(debugConfig.env || {}), ...devantProxyResp.envVars };
-            if (devantProxyResp.requiresProxy) {
-                debugConfig.env[ProxyConfigEnvVars.proxyHost.envName] = "127.0.0.1";
-                debugConfig.env[ProxyConfigEnvVars.proxyPort.envName] = `${devantProxyResp.proxyServerPort}`;
-            } else {
-                delete debugConfig.env[ProxyConfigEnvVars.proxyHost.envName];
-                delete debugConfig.env[ProxyConfigEnvVars.proxyPort.envName];
-            }
-
-            const disposable = vscode.debug.onDidTerminateDebugSession((session) => {
-                if (session.configuration === debugConfig) {
-                    this.stopProxyServer({ proxyPort: devantProxyResp.proxyServerPort });
-                    disposable.dispose();
-                }
-            });
+        const localEnv = await this.startProxyServer(debugConfig);
+        if (!localEnv) {
+            return;
         }
+        debugConfig.env = { ...(debugConfig.env || {}), ...localEnv.envVars };
+        delete debugConfig.env[ProxyConfigEnvVars.proxyHost.envName];
+        delete debugConfig.env[ProxyConfigEnvVars.proxyPort.envName];
     }
 
     async startProxyServer(
         debugConfig: vscode.DebugConfiguration,
-    ): Promise<StartProxyServerResp & { requiresProxy: boolean }> {
-        // todo: need to take in params from config
+    ): Promise<(StartProxyServerResp & { requiresProxy: boolean }) | undefined> {
         try {
             const platformExt = await this.getPlatformExt();
             const configBalFile = path.join(StateMachine.context().projectPath, "config.bal");
@@ -669,7 +852,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
                     return;
                 }
 
-                if (!platformExtStore.getState().state?.selectedContext?.project) {
+                if (!platformExtStore.getState().state?.selectedContext?.projectName) {
                     window
                         .showErrorMessage(
                             "Please associate your directory with a WSO2 Cloud project in order to connect to WSO2 Cloud while running or debugging",
@@ -684,43 +867,42 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
                 }
             }
 
+            const state = platformExtStore.getState().state;
             if (
                 debugConfig.request === "launch" &&
-                platformExtStore.getState().state?.isLoggedIn &&
-                platformExtStore.getState().state?.selectedContext?.org &&
-                platformExtStore.getState().state?.selectedContext?.project &&
-                // todo: check and fetch configs of only the connections used
-                // platformExtStore.getState().state?.devantConns?.list?.filter((item) => item.isUsed)?.length > 0 &&
-                platformExtStore.getState().state?.devantConns?.connectedToDevant
+                platformExt &&
+                state?.isLoggedIn &&
+                state?.selectedContext?.projectName &&
+                state?.devantConns?.connectedToDevant
             ) {
-                // TODO: need to check whether at least one devant connection being used
-                const resp = await window.withProgress(
+                const localEnv: LocalRuntimeEnv = await window.withProgress(
                     {
                         location: vscode.ProgressLocation.Notification,
-                        title: "Connecting to WSO2 Cloud before running/debugging the application...",
+                        title: "Reading the WSO2 Cloud environment before running/debugging the application...",
                     },
                     () =>
-                        platformExt?.startProxyServer({
-                            orgId: platformExtStore.getState().state?.selectedContext?.org?.id?.toString(),
-                            project:
-                                debugConfig?.choreoConnect?.project ||
-                                platformExtStore.getState().state?.selectedContext?.project?.id,
-                            component:
-                                debugConfig?.choreoConnect?.component ||
-                                platformExtStore.getState().state?.selectedComponent?.metadata?.id ||
-                                "",
-                            env:
-                                debugConfig?.choreoConnect?.env ||
-                                platformExtStore?.getState().state?.selectedEnv?.name ||
-                                "",
-                            skipConnection: debugConfig?.choreoConnect?.skipConnection || [],
+                        platformExt.runtime.collectLocalEnv({
+                            projectName: debugConfig?.choreoConnect?.project || state.selectedContext.projectName,
+                            integration: debugConfig?.choreoConnect?.component || state.selectedIntegration?.integration.id,
+                            environment: debugConfig?.choreoConnect?.env || state.selectedEnv?.id,
+                            skip: debugConfig?.choreoConnect?.skipConnection || [],
                         }),
                 );
-                return { ...resp, requiresProxy };
+                if (localEnv.missingSecrets.length > 0) {
+                    window.showWarningMessage(
+                        `WSO2 Cloud keeps secrets write-only, so these were not injected into the run: ${localEnv.missingSecrets.join(", ")}. Set them locally.`,
+                    );
+                }
+                if (requiresProxy) {
+                    window.showWarningMessage(
+                        "This integration is configured for the WSO2 Cloud network proxy, which is not available yet; services visible only inside the organization or project cannot be reached from this machine.",
+                    );
+                }
+                return { envVars: localEnv.envVars, proxyServerPort: 0, requiresProxy };
             }
             return { envVars: {}, proxyServerPort: 0, requiresProxy };
         } catch (err) {
-            log(`Failed to delete connection config: ${err}`);
+            log(`Failed to read the cloud environment for the run: ${err}`);
             return { envVars: {}, proxyServerPort: 0, requiresProxy: false };
         }
     }
@@ -747,9 +929,6 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
                     ?.variableName?.value;
                 if (connectionName) {
                     const projectPath = StateMachine.context().projectPath;
-                    const devantUrl = await this.getDevantConsoleUrl();
-
-                    const selected = platformExtStore.getState().state?.selectedContext;
                     const matchingConnListItem = platformExtStore
                         .getState()
                         .state?.devantConns?.list.find(
@@ -760,28 +939,14 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
                             componentDir: projectPath,
                             connectionName: matchingConnListItem.name,
                         });
-                        if (matchingConnListItem?.componentId) {
-                            await platformExt?.deleteConnection({
-                                componentPath: projectPath,
-                                connectionId: matchingConnListItem.groupUuid,
-                                connectionName: matchingConnListItem.name,
-                                orgId: selected.org.id.toString(),
+                        const ref = parseConnectionId(matchingConnListItem.groupUuid);
+                        if (ref && platformExt) {
+                            await platformExt.connections.delete({
+                                integration: ref.integration,
+                                name: ref.name,
+                                environments: [ref.environment],
+                                projectName: this.selection().projectName,
                             });
-                        } else {
-                            window
-                                .showInformationMessage(
-                                    "In-order to delete your project level WSO2 Cloud connection, please head over to WSO2 Cloud console",
-                                    "Open WSO2 Cloud",
-                                )
-                                .then((resp) => {
-                                    if (resp === "Open WSO2 Cloud") {
-                                        vscode.env.openExternal(
-                                            Uri.parse(
-                                                `${devantUrl}/organizations/${selected.org.handle}/projects/${selected.project.handler}/admin/connections`,
-                                            ),
-                                        );
-                                    }
-                                });
                         }
                     }
                 }
@@ -891,11 +1056,10 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
         params: GenerateCustomConnectorFromOASReq,
     ): Promise<GenerateCustomConnectorFromOASResp> {
         try {
-            const platformExt = await this.getPlatformExt();
             const projectPath = StateMachine.context().projectPath;
 
-            const serviceIdl = await platformExt?.getMarketplaceIdl({
-                orgId: platformExtStore.getState().state?.selectedContext?.org.id?.toString(),
+            const serviceIdl = await this.getMarketplaceIdl({
+                orgId: this.selection().orgHandle ?? "",
                 serviceId: params.marketplaceItem.serviceId,
             });
 
@@ -1013,77 +1177,11 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
         }
     }
 
-    async registerDevantMarketplaceService(params: RegisterDevantMarketplaceServiceReq): Promise<MarketplaceItem> {
-        try {
-            const platformExt = await this.getPlatformExt();
-
-            const marketplaceItems = await platformExt?.getMarketplaceItems({
-                orgId: platformExtStore.getState().state?.selectedContext?.org?.id?.toString(),
-                request: {
-                    query: params.name,
-                    limit: 100,
-                    networkVisibilityFilter: "all",
-                    sortBy: "createdTime",
-                },
-            });
-
-            let idlContent = "";
-            if (params.idlFilePath) {
-                // read contents of idlFilePath and convert it to base64
-                const idlFileContent = await fs.promises.readFile(params.idlFilePath, { encoding: "utf-8" });
-                idlContent = Buffer.from(idlFileContent).toString("base64");
-            }
-
-            const envs = await platformExt?.getProjectEnvs({
-                orgId: platformExtStore.getState().state?.selectedContext?.org?.id?.toString(),
-                orgUuid: platformExtStore.getState().state?.selectedContext?.org?.uuid,
-                projectId: platformExtStore.getState().state?.selectedContext?.project?.id,
-            });
-
-            const configs: RegisterMarketplaceConfigMap = {};
-            for (const env of envs) {
-                const endpointName = `${env.name}Endpoint`;
-                if (env.critical) {
-                    configs[endpointName] = {
-                        name: endpointName,
-                        environmentTemplateIds: [env.templateId],
-                        values: params.configs?.map((item) => ({ key: item.id, value: "" })),
-                    };
-                } else {
-                    configs[endpointName] = {
-                        name: endpointName,
-                        environmentTemplateIds: [env.templateId],
-                        values: params.configs?.map((item) => ({ key: item.id, value: item.value || "" })),
-                    };
-                }
-            }
-
-            const registeredMarketplaceItem = await platformExt?.registerMarketplaceConnection({
-                orgId: platformExtStore.getState().state?.selectedContext?.org?.id?.toString(),
-                orgUuid: platformExtStore.getState().state?.selectedContext?.org?.uuid,
-                projectId: platformExtStore.getState().state?.selectedContext?.project?.id,
-                serviceType: params.serviceType,
-                idlType: params.idlType,
-                idlContent,
-                configs,
-                schemaEntries: params.configs?.map((item) => ({
-                    name: item.id,
-                    type: "string",
-                    isSensitive: item.isSecret,
-                })),
-                name: findUniqueConnectionName(params.name, marketplaceItems.data),
-            });
-
-            const marketplaceService = await platformExt?.getMarketplaceItem({
-                orgId: platformExtStore.getState().state?.selectedContext?.org?.id?.toString(),
-                serviceId: registeredMarketplaceItem.serviceId,
-            });
-
-            return marketplaceService;
-        } catch (err) {
-            window.showErrorMessage(`Failed to create WSO2 Cloud connection: ${(err as Error).message}`);
-            log(`Failed to invoke registerDevantMarketplaceService: ${err}`);
-        }
+    /** Registering a third-party service in a marketplace is a platform dependency. */
+    async registerDevantMarketplaceService(_params: RegisterDevantMarketplaceServiceReq): Promise<MarketplaceItem> {
+        const error = new CloudFeatureUnavailableError("Registering a third-party service");
+        window.showErrorMessage(error.message);
+        throw error;
     }
 
     async replaceDevantTempConfigValues(params: ReplaceDevantTempConfigValuesReq): Promise<void> {
@@ -1160,16 +1258,54 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
             platformExtStore.getState().setConnectionState({ loading: true });
             const connections = await this.getAllConnections();
             platformExtStore.getState().setConnectionState({ list: connections, loading: false });
-            // TODO in order to improve speed during debugging, we need to bring cache connections secrets in Devant
-            /*
-            1. store connection with secret info in bal ext
-            2. start proxy server. need to pass secure host list.
-            3. leave the server running
-            4. on extension exit, kill the server if its running
-            */
         } catch (err) {
             platformExtStore.getState().setConnectionState({ loading: false });
             log(`Failed to refresh connection list: ${err}`);
         }
     }
+}
+
+/**
+ * The service ids of the connections `.wso2/component.yaml` (or the legacy
+ * `.choreo` one) records for an integration directory, by connection name.
+ */
+export function localConnectionServiceIds(componentDir: string | undefined): Map<string, string> {
+    const ids = new Map<string, string>();
+    if (!componentDir) {
+        return ids;
+    }
+    for (const dir of [".wso2", ".choreo"]) {
+        const file = path.join(componentDir, dir, "component.yaml");
+        if (!fs.existsSync(file)) {
+            continue;
+        }
+        try {
+            const content = yaml.load(fs.readFileSync(file, "utf8")) as { dependencies?: { connectionReferences?: { name?: string; resourceRef?: string }[] } } | undefined;
+            for (const ref of content?.dependencies?.connectionReferences ?? []) {
+                const id = serviceIdOfResourceRef(ref.resourceRef);
+                if (ref.name && id) {
+                    ids.set(ref.name, id);
+                }
+            }
+        } catch (err) {
+            log(`Could not read ${file}: ${err}`);
+        }
+        break;
+    }
+    return ids;
+}
+
+/** `database:<server>` and `service:<project>/<integration>/<endpoint>` as the marketplace ids the screens use. */
+export function serviceIdOfResourceRef(resourceRef: string | undefined): string | undefined {
+    if (!resourceRef) {
+        return undefined;
+    }
+    if (resourceRef.startsWith("database:")) {
+        return databaseId(resourceRef.slice("database:".length));
+    }
+    if (resourceRef.startsWith("service:")) {
+        const [project, integration, endpoint] = resourceRef.slice("service:".length).split("/");
+        return project && integration && endpoint ? serviceId({ project, integration, endpoint }) : undefined;
+    }
+    return undefined;
 }

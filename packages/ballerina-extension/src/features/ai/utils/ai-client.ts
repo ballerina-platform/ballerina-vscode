@@ -15,6 +15,7 @@
 // under the License.
 
 import { createAnthropic } from "@ai-sdk/anthropic";
+import { isInDevant } from "../../../utils/config";
 import { LanguageModel, ModelMessage, JSONValue } from "ai";
 import { createAmazonBedrock } from "@ai-sdk/amazon-bedrock";
 import { createAnthropicAws } from "@ai-sdk/anthropic-aws";
@@ -83,7 +84,7 @@ export async function fetchWithAuth(input: string | URL | Request, options: Requ
             'Connection': 'keep-alive',
             'x-product': 'bi',
             'x-usage-context': 'copilot',
-            'x-metadata': JSON.stringify({ isCloudEditor: !!process.env.CLOUD_ENV }),
+            'x-metadata': JSON.stringify({ isCloudEditor: isInDevant() }),
         };
 
         if (credentials && loginMethod === LoginMethod.BI_INTEL) {

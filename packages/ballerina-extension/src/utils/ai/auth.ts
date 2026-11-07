@@ -18,10 +18,11 @@
 
 import * as vscode from 'vscode';
 import { extension } from "../../BalExtensionContext";
-import { DEVANT_TOKEN_EXCHANGE_URL, setBackendRegion } from '../../features/ai/utils';
+import { DEVANT_TOKEN_EXCHANGE_URL } from '../../features/ai/utils';
 import axios from 'axios';
 import { AuthCredentials, BIIntelSecrets, LoginMethod, AnthropicAwsSecrets } from '@wso2/ballerina-core';
-import { IWso2PlatformExtensionAPI } from '@wso2/wso2-platform-core';
+import type { IWso2PlatformExtensionAPI } from '@wso2/wso2-cloud-client';
+import { getCloudAccessToken, getCompatiblePlatformAPI } from '../cloud-auth';
 import { jwtDecode, JwtPayload } from 'jwt-decode';
 import { copilotName, WI_EXTENSION_ID } from '../config';
 
@@ -41,16 +42,7 @@ export const isNotLoggedInError = (error: unknown): boolean => {
  * Get the WSO2 Platform extension API, activating it if needed.
  * Returns undefined if the extension is not installed.
  */
-export const getPlatformExtensionAPI = async (): Promise<IWso2PlatformExtensionAPI | undefined> => {
-    const platformExt = vscode.extensions.getExtension(WI_EXTENSION_ID);
-    if (!platformExt) {
-        return undefined;
-    }
-    if (!platformExt.isActive) {
-        await platformExt.activate();
-    }
-    return platformExt.exports?.cloudAPIs as IWso2PlatformExtensionAPI;
-};
+export const getPlatformExtensionAPI = (): Promise<IWso2PlatformExtensionAPI | undefined> => getCompatiblePlatformAPI();
 
 export type CopilotRegion = "us" | "eu";
 
@@ -60,16 +52,8 @@ export type CopilotRegion = "us" | "eu";
  * Region persistence is always best-effort.
  */
 export const getPlatformRegion = async (): Promise<CopilotRegion | undefined> => {
-    try {
-        const api = await getPlatformExtensionAPI();
-        if (!api?.isLoggedIn()) {
-            return undefined; // getAuthState() reports "US" when logged out / not ready
-        }
-        const region = api.getAuthState()?.region?.trim().toLowerCase();
-        return region === "us" || region === "eu" ? region : undefined;
-    } catch {
-        return undefined;
-    }
+    // WSO2 Cloud has one region; the deployment in use picks the Copilot backend (features/ai/utils.ts).
+    return undefined;
 };
 
 /** Returns the region saved in the currently stored BI_INTEL credentials, if any. */
@@ -200,29 +184,12 @@ export const isPlatformExtensionAvailable = (): boolean => {
 };
 
 /**
- * Get STS token from the platform extension
+ * The WSO2 Cloud access token, from the `wso2-cloud` authentication provider
+ * WSO2 Integrator registers. Kept under its old name for the callers; there is
+ * no STS exchange any more, the login token is the platform token.
  */
 export const getPlatformStsToken = async (): Promise<string | undefined> => {
-    try {
-        const api = await getPlatformExtensionAPI();
-        if (!api) {
-            return undefined;
-        }
-        if (api.isLoggedIn()) {
-            try {
-                const region = api.getAuthState()?.region;
-                if (region) {
-                    setBackendRegion(region.toLowerCase());
-                }
-            } catch {
-                /* region resolution non-fatal; keep default backend */
-            }
-        }
-        return await api.getStsToken();
-    } catch (error) {
-        console.error('Error getting STS token from platform extension:', error);
-        return undefined;
-    }
+    return getCloudAccessToken({ silent: true });
 };
 
 /**
@@ -242,7 +209,8 @@ export const isDevantUserLoggedIn = async (): Promise<boolean> => {
 };
 
 /**
- * Exchange STS token for Copilot token via the token exchange endpoint
+ * Exchange the WSO2 Cloud token for a Copilot token via the token exchange endpoint.
+ * The Copilot backend has to accept a WSO2 Cloud (ThunderID) subject token for this to succeed.
  */
 export const exchangeStsToCopilotToken = async (stsToken: string): Promise<BIIntelSecrets> => {
     try {
@@ -275,7 +243,7 @@ export const exchangeStsToCopilotToken = async (stsToken: string): Promise<BIInt
 export const refreshTokenViaStsExchange = async (): Promise<BIIntelSecrets> => {
     const stsToken = await getPlatformStsToken();
     if (!stsToken) {
-        throw new Error('Failed to get STS token from platform extension');
+        throw new Error('Not signed in to WSO2 Cloud');
     }
     return await exchangeStsToCopilotToken(stsToken);
 };
