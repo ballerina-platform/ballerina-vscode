@@ -69,9 +69,10 @@ export function ConfigureProjectForm({
     const [isOutputStructureExpanded, setIsOutputStructureExpanded] = useState(true);
     const { platformExtState } = usePlatformExtContext();
     const isLoggedIn = !!platformExtState?.isLoggedIn;
-    const organizations = isLoggedIn
-        ? (platformExtState?.userInfo?.organizations as Organization[] | undefined)
-        : undefined;
+    // A WSO2 Cloud session is for one organization, chosen at sign-in.
+    const sessionOrg = platformExtState?.session?.org;
+    const organizations: Organization[] | undefined =
+        isLoggedIn && sessionOrg ? [{ id: sessionOrg.id, handle: sessionOrg.handle, name: sessionOrg.name }] : undefined;
 
     const handleSubmit = async (values: ProjectDestinationValues) => {
         await onNext(
