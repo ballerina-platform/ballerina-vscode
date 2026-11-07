@@ -56,7 +56,7 @@ const handleComponentPushToDevant = async () => {
         await commands.executeCommand(WICommandIds.CommitAndPushToGit, {
             componentPath: projectRoot,
         } as ICommitAndPushCmdParams);
-    } else if (platformExtAPI.getDirectoryComponents(projectRoot)?.length) {
+    } else if (platformExtAPI.getDirectoryIntegrations(projectRoot)?.length) {
         debug(`project url: ${projectRoot}`);
         // push changes to repo if component for the directory already exists
         const hasChanges = await platformExtAPI.localRepoHasChanges(projectRoot);

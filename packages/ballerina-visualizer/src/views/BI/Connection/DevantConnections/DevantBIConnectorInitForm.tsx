@@ -104,7 +104,7 @@ export const DevantBIConnectorCreateForm: FC<Props> = (props) => {
             if (importedConnection) {
                 const connectionDetailed = await platformRpcClient.getConnection({
                     connectionGroupId: importedConnection.groupUuid,
-                    orgId: platformExtState?.selectedContext?.org?.id?.toString(),
+                    orgId: platformExtState?.session?.org.handle,
                 });
                 await platformRpcClient.replaceDevantTempConfigValues({
                     configs: devantConfigs,
@@ -140,14 +140,14 @@ export const DevantBIConnectorCreateForm: FC<Props> = (props) => {
                     serviceType: "REST",
                 });
 
-                const isProjectLevel = !!!platformExtState?.selectedComponent?.metadata?.id;
+                const isProjectLevel = !!!platformExtState?.selectedIntegration?.integration.id;
 
                 const createdConnection = await platformRpcClient?.createThirdPartyConnection({
-                    componentId: isProjectLevel ? "" : platformExtState?.selectedComponent?.metadata?.id,
+                    componentId: isProjectLevel ? "" : platformExtState?.selectedIntegration?.integration.id,
                     name: recentIdentifier,
-                    orgId: platformExtState?.selectedContext?.org.id?.toString(),
-                    orgUuid: platformExtState?.selectedContext?.org?.uuid,
-                    projectId: platformExtState?.selectedContext?.project.id,
+                    orgId: platformExtState?.session?.org.handle,
+                    orgUuid: platformExtState?.session?.org.uuid,
+                    projectId: platformExtState?.selectedContext?.projectName,
                     serviceSchemaId: marketplaceService.connectionSchemas[0]?.id,
                     serviceId: marketplaceService.serviceId,
                     endpointRefs: marketplaceService.endpointRefs,
@@ -174,13 +174,13 @@ export const DevantBIConnectorCreateForm: FC<Props> = (props) => {
                     DevantConnectionFlow.CREATE_THIRD_PARTY_OTHER_SELECT_BI_CONNECTOR,
                 ].includes(selectedFlow)
             ) {
-                const isProjectLevel = !!!platformExtState?.selectedComponent?.metadata?.id;
+                const isProjectLevel = !!!platformExtState?.selectedIntegration?.integration.id;
                 const createdConnection = await platformRpcClient?.createThirdPartyConnection({
-                    componentId: isProjectLevel ? "" : platformExtState?.selectedComponent?.metadata?.id,
+                    componentId: isProjectLevel ? "" : platformExtState?.selectedIntegration?.integration.id,
                     name: recentIdentifier,
-                    orgId: platformExtState?.selectedContext?.org.id?.toString(),
-                    orgUuid: platformExtState?.selectedContext?.org?.uuid,
-                    projectId: platformExtState?.selectedContext?.project.id,
+                    orgId: platformExtState?.session?.org.handle,
+                    orgUuid: platformExtState?.session?.org.uuid,
+                    projectId: platformExtState?.selectedContext?.projectName,
                     serviceSchemaId: selectedMarketplaceItem.connectionSchemas[0]?.id,
                     serviceId: selectedMarketplaceItem.serviceId,
                     endpointRefs: selectedMarketplaceItem.endpointRefs,
@@ -206,23 +206,23 @@ export const DevantBIConnectorCreateForm: FC<Props> = (props) => {
                     DevantConnectionFlow.CREATE_INTERNAL_OTHER_SELECT_BI_CONNECTOR,
                 ].includes(selectedFlow)
             ) {
-                const isProjectLevel = !!!platformExtState?.selectedComponent?.metadata?.id;
+                const isProjectLevel = !!!platformExtState?.selectedIntegration?.integration.id;
                 const visibilities = getPossibleVisibilities(
                     selectedMarketplaceItem,
                     platformExtState?.selectedContext?.project,
                 );
                 const createdConnection = await platformRpcClient?.createInternalConnection({
-                    componentId: isProjectLevel ? "" : platformExtState.selectedComponent?.metadata?.id,
+                    componentId: isProjectLevel ? "" : platformExtState?.selectedIntegration?.integration.id,
                     name: recentIdentifier,
-                    orgId: platformExtState.selectedContext?.org.id?.toString(),
-                    orgUuid: platformExtState.selectedContext?.org?.uuid,
-                    projectId: platformExtState.selectedContext?.project.id,
+                    orgId: platformExtState?.session?.org.handle,
+                    orgUuid: platformExtState?.session?.org.uuid,
+                    projectId: platformExtState?.selectedContext?.projectName,
                     serviceSchemaId: selectedMarketplaceItem.connectionSchemas[0]?.id || "",
                     serviceId: selectedMarketplaceItem.serviceId,
                     serviceVisibility: getInitialVisibility(selectedMarketplaceItem, visibilities),
                     componentType: isProjectLevel
                         ? "non-component"
-                        : getTypeForDisplayType(platformExtState.selectedComponent?.spec?.type),
+                        : getTypeForDisplayType(platformExtState?.selectedIntegration?.integration.componentType),
                     componentPath: projectPath,
                     generateCreds: true,
                 });

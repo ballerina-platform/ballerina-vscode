@@ -25,7 +25,6 @@ import { StateMachine } from "../../stateMachine";
 import { Uri, WorkspaceEdit, workspace } from "vscode";
 import { OpenAPIDefinition } from "./types";
 import * as yaml from "js-yaml";
-import { MarketplaceItem } from "@wso2/wso2-platform-core";
 import { extension } from "../../BalExtensionContext";
 import { PersistOptions, createJSONStorage } from "zustand/middleware";
 import Handlebars from "handlebars";
@@ -294,8 +293,11 @@ export const processOpenApiWithApiKeyAuth = (yamlString: string, securityType: "
     }
 };
 
+/** Persisted-store version; bumped from v1 to v2 when the state moved to the platform's shapes (session, integrations, environments). */
+const PLATFORM_STORE_VERSION = "v2";
+
 export const getWorkspaceStateStore = (storeName: string): PersistOptions<any, any> => {
-    const version = "v1";
+    const version = PLATFORM_STORE_VERSION;
     return {
         name: `${storeName}-${version}`,
         storage: createJSONStorage(() => ({
@@ -426,18 +428,18 @@ export function getDomain(rawURL: string): string {
 }
 
 /**
- * Finds a unique connection name by checking against existing marketplace items.
+ * Finds a unique connection name by checking against the existing names.
  * If the base name exists, appends a numeric counter until a unique name is found.
  * If the initial name is shorter than 3 characters, appends '-connection' to it.
  */
-export const findUniqueConnectionName = (name: string, existingMarketplaceItems: MarketplaceItem[]): string => {
+export const findUniqueConnectionName = (name: string, existing: { name: string }[]): string => {
     // If name is too short, append '-connection'
     let baseName = name;
     if (baseName.length < 3) {
         baseName = `${baseName}-connection`;
     }
 
-    const existingNames = new Set(existingMarketplaceItems.map((item) => item.name.toLowerCase()));
+    const existingNames = new Set(existing.map((item) => item.name.toLowerCase()));
 
     // Check if the base name exists
     let uniqueName = baseName;

@@ -55,12 +55,12 @@ export function CloudKnowledgeBasePage(props: CloudKnowledgeBasePageProps) {
     const { data: knowledgeBases, isLoading } = useQuery({
         queryKey: [
             "kb-marketplace-services",
-            platformExtState?.selectedContext?.org?.uuid,
+            platformExtState?.session?.org?.uuid,
             platformExtState?.selectedContext?.project?.id,
         ],
         queryFn: () =>
             platformRpcClient?.getMarketplaceItems({
-                orgId: platformExtState?.selectedContext?.org?.id?.toString(),
+                orgId: platformExtState?.session?.org?.handle,
                 request: getMarketPlaceParams,
             }),
         enabled: isSignedIn,

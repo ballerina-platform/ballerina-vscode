@@ -38,7 +38,6 @@ import {
     getAuthCredentials
 } from '../../utils/ai/auth';
 import { getBedrockRegionalPrefix } from '../../features/ai/utils/ai-client';
-import { setBackendRegion } from '../../features/ai/utils';
 import { WICommandIds } from '@wso2/wso2-platform-core';
 import { copilotName } from '../../utils/config';
 
@@ -50,16 +49,6 @@ export const checkToken = async (): Promise<AuthCredentials | undefined> => {
         try {
             // Clean up any legacy tokens on initialization
             await cleanupLegacyTokens();
-
-            // Set region from stored credentials before getAccessToken() so any token
-            // refresh triggered by expiry goes to the correct regional endpoint.
-            const storedCreds = await getAuthCredentials();
-            if (storedCreds?.loginMethod === LoginMethod.BI_INTEL) {
-                const { region } = storedCreds.secrets as BIIntelSecrets;
-                if (region) {
-                    setBackendRegion(region);
-                }
-            }
 
             // First check if we have stored credentials
             const credentials = await getAccessToken();

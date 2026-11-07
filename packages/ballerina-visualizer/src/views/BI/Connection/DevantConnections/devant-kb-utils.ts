@@ -47,7 +47,7 @@ export async function prepareDevantKnowledgeBase(deps: PrepareDevantKnowledgeBas
     // Resolve the schema that matches the chosen visibility first, then derive the OAuth2 entries
     // from that schema (the one we actually register with) so the configurables can't reference a
     // different schema's entries.
-    const isProjectLevel = !platformExtState.selectedComponent?.metadata?.id;
+    const isProjectLevel = !platformExtState.selectedIntegration?.integration.id;
     const visibilities = getPossibleVisibilities(item, platformExtState?.selectedContext?.project);
     const visibility = getInitialVisibility(item, visibilities);
     const chosenSchema =
@@ -63,7 +63,7 @@ export async function prepareDevantKnowledgeBase(deps: PrepareDevantKnowledgeBas
     try {
         const projConns = await platformRpcClient.getConnections({
             projectId: platformExtState?.selectedContext?.project?.id,
-            orgId: platformExtState?.selectedContext?.org?.id?.toString(),
+            orgId: platformExtState?.session?.org?.handle,
             componentId: "",
         });
         existingDevantConnNames = (projConns || []).map((c) => c.name);
@@ -89,17 +89,17 @@ export async function prepareDevantKnowledgeBase(deps: PrepareDevantKnowledgeBas
 
     // Register the connection in Devant (schema/visibility resolved above).
     const createdConnection = await platformRpcClient.createInternalConnection({
-        componentId: isProjectLevel ? "" : platformExtState.selectedComponent?.metadata?.id,
+        componentId: isProjectLevel ? "" : platformExtState.selectedIntegration?.integration.id,
         name: connName,
-        orgId: platformExtState.selectedContext?.org?.id?.toString(),
-        orgUuid: platformExtState.selectedContext?.org?.uuid,
+        orgId: platformExtState.session?.org?.handle,
+        orgUuid: platformExtState.session?.org?.uuid,
         projectId: platformExtState.selectedContext?.project?.id,
         serviceSchemaId: chosenSchema?.id || "",
         serviceId: item.serviceId,
         serviceVisibility: visibility,
         componentType: isProjectLevel
             ? "non-component"
-            : getTypeForDisplayType(platformExtState.selectedComponent?.spec?.type),
+            : getTypeForDisplayType(platformExtState.selectedIntegration?.integration.componentType),
         componentPath: projectPath,
         generateCreds: true,
     });
