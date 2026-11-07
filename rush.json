@@ -150,6 +150,10 @@
     {
       "packageName": "@wso2/wso2-platform-core",
       "projectFolder": "submodules/wso2-vscode-extensions/workspaces/wso2-platform/wso2-platform-core"
+    },
+    {
+      "packageName": "@wso2/wso2-cloud-client",
+      "projectFolder": "submodules/wso2-vscode-extensions/workspaces/wso2-platform/wso2-cloud-client"
     }
   ],
 

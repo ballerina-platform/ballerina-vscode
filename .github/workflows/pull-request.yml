@@ -42,6 +42,7 @@ jobs:
             build:
               - 'packages/**'
               - 'submodules/wso2-vscode-extensions/workspaces/common-libs/**'
+              - 'submodules/wso2-vscode-extensions/workspaces/wso2-platform/**'
               - 'common/**'
               - 'rush.json'
               - 'rush-config.json'
