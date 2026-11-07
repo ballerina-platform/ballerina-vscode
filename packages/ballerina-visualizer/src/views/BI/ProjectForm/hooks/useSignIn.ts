@@ -44,11 +44,11 @@ export function useSignIn() {
     }, []);
 
     useEffect(() => {
-        if (!platformExtState?.userInfo) return;
+        if (!platformExtState?.session) return;
         setIsSigningIn(false);
         clearSignInTimeout();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [platformExtState?.userInfo]);
+    }, [platformExtState?.session]);
 
     // Clean up on unmount.
     useEffect(() => () => clearSignInTimeout(), []);

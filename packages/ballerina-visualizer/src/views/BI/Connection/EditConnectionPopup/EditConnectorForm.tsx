@@ -227,7 +227,7 @@ export function EditConnectorForm(props: EditConnectorFormProps) {
                 connectorWizardRpcClient: rpcClient.getConnectorWizardRpcClient(),
                 projectPath: visualizerLocation?.projectPath,
             });
-            const orgId = platformExtState?.selectedContext?.org.id?.toString() || "";
+            const orgId = platformExtState?.session?.org.handle || "";
             let credsToUse: Record<string, string> = {}
             if (devantConnection?.resourceType === "DATABASE") {
                  const marketplaceItem = await platformRpcClient.getMarketplaceDatabaseItem({
@@ -258,7 +258,7 @@ export function EditConnectorForm(props: EditConnectorFormProps) {
                 });
             } else {
                 const connectionItem = await platformRpcClient.getConnection({ connectionGroupId: devantConnection.groupUuid, orgId });
-                const matchingConfig = connectionItem.configurations[platformExtState?.selectedEnv?.templateId]
+                const matchingConfig = connectionItem.configurations[platformExtState?.selectedEnv?.id]
                 if(matchingConfig){
                     const kv: Record<string, string> = {};
                     const secretValuesRefs: {key: string; valueRef: string}[] = []
@@ -273,10 +273,10 @@ export function EditConnectorForm(props: EditConnectorFormProps) {
                     if(secretValuesRefs.length > 0){
                         const secretsResp = await platformRpcClient.resolveConnectionSecrets({
                             orgId,
-                            componentId: platformExtState?.selectedComponent?.metadata?.id || "",
-                            projectId: platformExtState?.selectedContext?.project?.id || "",
+                            componentId: platformExtState?.selectedIntegration?.integration.id || "",
+                            projectId: platformExtState?.selectedContext?.projectName || "",
                             groupId: devantConnection.groupUuid,
-                            envTemplateId: platformExtState?.selectedEnv?.templateId || "",
+                            envTemplateId: platformExtState?.selectedEnv?.id || "",
                             secrets: secretValuesRefs
                         })
                         for(const secret of secretsResp.secrets){

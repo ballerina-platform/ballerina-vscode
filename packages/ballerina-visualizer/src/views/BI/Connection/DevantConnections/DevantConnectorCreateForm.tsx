@@ -131,17 +131,17 @@ export const DevantConnectorCreateForm: FC<DevantConnectorCreateFormProps> = ({
     const { mutate: createConnection, isPending: isCreatingConnection } = useMutation({
         mutationFn: async (data: CreateConnectionForm) => {
             const createdConnection = await platformRpcClient?.createInternalConnection({
-                componentId: isProjectLevel ? "" : platformExtState.selectedComponent?.metadata?.id,
+                componentId: isProjectLevel ? "" : platformExtState?.selectedIntegration?.integration.id,
                 name: data.name,
-                orgId: platformExtState.selectedContext?.org.id?.toString(),
-                orgUuid: platformExtState.selectedContext?.org?.uuid,
-                projectId: platformExtState.selectedContext?.project.id,
+                orgId: platformExtState?.session?.org.handle,
+                orgUuid: platformExtState?.session?.org.uuid,
+                projectId: platformExtState?.selectedContext?.projectName,
                 serviceSchemaId: marketplaceItem?.connectionSchemas?.find(item=> item.id === data.schemaId)?.id || "",
                 serviceId: marketplaceItem?.serviceId,
                 serviceVisibility: data.visibility || "PUBLIC",
                 componentType: isProjectLevel
                     ? "non-component"
-                    : getTypeForDisplayType(platformExtState.selectedComponent?.spec?.type),
+                    : getTypeForDisplayType(platformExtState?.selectedIntegration?.integration.componentType),
                 componentPath: projectPath,
                 generateCreds: true,
             });
@@ -246,7 +246,7 @@ export const DevantConnectorCreateForm: FC<DevantConnectorCreateFormProps> = ({
         );
     }
 
-    if (platformExtState.selectedComponent) {
+    if (platformExtState?.selectedIntegration) {
         advancedConfigItems.push(
             <FormStyles.Row>
                 <CheckBox

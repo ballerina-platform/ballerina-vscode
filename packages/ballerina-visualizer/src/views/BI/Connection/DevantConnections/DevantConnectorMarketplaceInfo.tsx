@@ -135,7 +135,7 @@ export const DevantConnectorMarketplaceInfo: FC<Props> = ({
         queryKey: [
             "marketplace_idl",
             {
-                orgId: platformExtState?.selectedContext?.org.id,
+                orgId: platformExtState?.session?.org.handle,
                 resourceId: item?.resourceId,
                 serviceId: item?.serviceId,
                 type: item?.serviceType,
@@ -144,7 +144,7 @@ export const DevantConnectorMarketplaceInfo: FC<Props> = ({
         queryFn: () =>
             platformRpcClient?.getMarketplaceIdl({
                 serviceId: item?.isThirdParty ? item.resourceId : item?.serviceId,
-                orgId: platformExtState?.selectedContext?.org?.id?.toString(),
+                orgId: platformExtState?.session?.org.handle,
             }),
         enabled: !!item,
     });

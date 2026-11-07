@@ -386,7 +386,8 @@ export const dbCredentialsToFieldValues = (
 }
 
 // Devant "service -> connection params" helpers, shared by the connection form and the KB flow.
-export const getPossibleVisibilities = (marketplaceItem: MarketplaceItem, project?: Project) => {
+/** Only the project's id is read, so a v2 project (WSO2 Cloud) serves as well as a v1 one. */
+export const getPossibleVisibilities = (marketplaceItem: MarketplaceItem, project?: Pick<Project, "id">) => {
     const { connectionSchemas = [], visibility: visibilities = [] } = marketplaceItem ?? {};
     const filteredVisibilities = visibilities.filter((item) => {
         if (item === ServiceInfoVisibilityEnum.Project) {
