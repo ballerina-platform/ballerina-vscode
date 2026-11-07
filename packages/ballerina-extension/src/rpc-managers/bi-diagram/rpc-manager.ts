@@ -17,6 +17,7 @@
  * 
  * THIS FILE INCLUDES AUTO GENERATED CODE
  */
+import { getCompatiblePlatformAPI } from "../../utils/cloud-auth";
 import {
     AIChatRequest,
     AddFieldRequest,
@@ -181,7 +182,6 @@ import * as path from 'path';
 import * as vscode from "vscode";
 import {
     WICommandIds,
-    IWso2PlatformExtensionAPI,
     ICreateNewIntegrationCmdParams,
     ICreateNewIntegrationCmdIntegrations,
 } from "@wso2/wso2-platform-core";
@@ -2357,18 +2357,15 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                 }
             }
 
-            const platformExt = extensions.getExtension(WI_EXTENSION_ID);
-            if (!platformExt) {
+            const platformExtAPI = await getCompatiblePlatformAPI();
+            if (!platformExtAPI) {
+                // WSO2 Integrator is not installed, or speaks another contract version; cloud features are off.
                 return { hasComponent: hasContextYaml, isLoggedIn: false };
             }
-            if (!platformExt.isActive) {
-                await platformExt.activate();
-            }
-            const platformExtAPI: IWso2PlatformExtensionAPI = platformExt.exports?.cloudAPIs;
             hasLocalChanges = await platformExtAPI.localRepoHasChanges(projectPath);
             isLoggedIn = platformExtAPI.isLoggedIn();
             if (isLoggedIn) {
-                const components = platformExtAPI.getDirectoryComponents(projectPath);
+                const components = platformExtAPI.getDirectoryIntegrations(projectPath);
                 hasComponent = components.length > 0;
                 return { isLoggedIn, hasComponent, hasLocalChanges };
             }
@@ -2420,7 +2417,10 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             if (!platformExt.isActive) {
                 await platformExt.activate();
             }
-            const platformExtAPI: IWso2PlatformExtensionAPI = platformExt.exports?.cloudAPIs;
+            const platformExtAPI = await getCompatiblePlatformAPI();
+            if (!platformExtAPI) {
+                return { isLoggedIn: false, hasAnyComponent: false, hasLocalChanges: false };
+            }
             isLoggedIn = platformExtAPI.isLoggedIn();
             hasLocalChanges = await platformExtAPI.localRepoHasChanges(repoRoot);
 
@@ -2433,7 +2433,7 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                 let projectHasLocalChanges = false;
 
                 if (isLoggedIn) {
-                    const components = platformExtAPI.getDirectoryComponents(projectPath);
+                    const components = platformExtAPI.getDirectoryIntegrations(projectPath);
                     projectHasComponent = components.length > 0;
                     if (projectHasComponent) {
                         hasAnyComponent = true;
