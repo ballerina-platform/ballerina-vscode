@@ -18,46 +18,59 @@
 
 // L3-07: node-template form-field type INVARIANTS. These are not per-issue tests —
 // each is a rule asserted over every property of every sampled connector action, so
-// it catches the whole class of bug (#1491, #105, and any future connector), not one
+// it catches the whole class of bug (#1491 and any future connector), not one
 // case. Grow coverage by adding actions to ACTIONS; the rules stay the same.
 // Requires the sampled connectors to be resolvable (cached or pulled); skips with no
-// Ballerina distribution.
+// locally built LS jar and no Ballerina distribution.
 
 import * as fs from "fs";
 import * as path from "path";
-import { LsHarness, resolveBalCommand } from "@wso2/test-config/ls-harness";
+import { LsHarness, resolveBalCommand, resolveLocalLsCommand } from "@wso2/test-config/ls-harness";
 
-const bal = resolveBalCommand();
+// Prefer the locally built LS jar, so the rules check this repository's LS rather than the one
+// bundled with the installed distribution.
+const launch = resolveLocalLsCommand() ?? resolveBalCommand();
 const projectRoot = path.join(__dirname, "fixtures", "mysql-batch");
 const mainBal = path.join(projectRoot, "main.bal");
 
 // Connector actions to sample. Each is one data point the invariants run over.
-// Add more (any org/module/object/symbol resolvable in the fixture project) to widen coverage.
+// Add more (any org/module/packageName/object/symbol resolvable in the fixture project) to widen coverage.
+// packageName is required: without it the LS looks up `<org>/null` on Central and returns an error.
 const ACTIONS = [
-    { org: "ballerinax", module: "mysql", object: "Client", symbol: "batchExecute" },
-    { org: "ballerinax", module: "mysql", object: "Client", symbol: "query" },
-    { org: "ballerinax", module: "mysql", object: "Client", symbol: "execute" },
+    { org: "ballerinax", module: "mysql", packageName: "mysql", object: "Client", symbol: "batchExecute" },
+    { org: "ballerinax", module: "mysql", packageName: "mysql", object: "Client", symbol: "query" },
+    { org: "ballerinax", module: "mysql", packageName: "mysql", object: "Client", symbol: "execute" },
 ];
 
-const ARRAY_EDITOR_TYPES = new Set(["REPEATABLE_LIST"]);
-
-function isArrayTyped(prop: any): boolean {
-    return (
-        /\[\]\s*$/.test(prop?.valueTypeConstraint ?? "") ||
-        (prop?.typeMembers ?? []).some((m: any) => m?.kind === "ARRAY_TYPE")
-    );
+// The form shows only the first and the last mode of a property (FieldFactory.tsx), and
+// opens the selected one, else the first.
+function arrayModeViolation(prop: any): string | undefined {
+    const types: any[] = prop?.types ?? [];
+    const arrayIndex = types.findIndex((t) => t?.fieldType === "REPEATABLE_LIST");
+    if (arrayIndex < 0) {
+        return undefined;
+    }
+    const modes = types.map((t) => `${t?.fieldType}${t?.selected ? "*" : ""}`).join(", ");
+    if (arrayIndex !== 0 && arrayIndex !== types.length - 1) {
+        return `array mode is hidden in [${modes}]`;
+    }
+    const selected = types.find((t) => t?.selected);
+    if (selected && !["REPEATABLE_LIST", "EXPRESSION"].includes(selected.fieldType)) {
+        return `${selected.fieldType} is selected over the array mode in [${modes}]`;
+    }
+    return undefined;
 }
 
 interface Prop { key: string; action: string; prop: any; }
 
-const describeLs = bal ? describe : describe.skip;
+const describeLs = launch ? describe : describe.skip;
 
 describeLs("node-template form-field type invariants", () => {
     const allProps: Prop[] = [];
     let sampled = 0;
 
     beforeAll(async () => {
-        const ls = new LsHarness(bal!);
+        const ls = new LsHarness(launch!);
         ls.start();
         await ls.initialize(projectRoot);
         ls.didOpen(mainBal, fs.readFileSync(mainBal, "utf8"));
@@ -70,6 +83,9 @@ describeLs("node-template form-field type invariants", () => {
             }).catch(() => undefined);
             const props = resp?.flowNode?.properties;
             if (!props) {
+                // eslint-disable-next-line no-console
+                console.warn(`[node-template invariants] ${a.module}.${a.symbol} not resolved: `
+                    + (resp?.errorMsg ?? "no response"));
                 continue;
             }
             sampled++;
@@ -84,33 +100,33 @@ describeLs("node-template form-field type invariants", () => {
         }
     }, 120_000);
 
-    // INVARIANT: a property whose type is an array must be offered as an array editor,
-    // never a singular EXPRESSION/SQL editor.
-    // This is INTENTIONALLY LEFT FAILING (red) — it surfaces open LS node-template bugs
-    // (#1491, and the same class for #105). Do NOT silence it by deleting/skipping; it
-    // turns green only once the LS maps every array-typed param to REPEATABLE_LIST.
+    // INVARIANT: a property that has an array mode must offer it — the form shows that mode,
+    // and no singular editor such as SQL is pre-selected over it (#1491).
     // Runs in the L3 (ls-integration) job, not the fast PR gate.
-    it("array-typed params are offered as array editors (REPEATABLE_LIST)", () => {
+    it("array modes are offered by the form (REPEATABLE_LIST)", () => {
         if (sampled === 0) {
             throw new Error("no connector actions resolved — cannot verify");
         }
         const violations = allProps
-            .filter(({ prop }) => isArrayTyped(prop) && !ARRAY_EDITOR_TYPES.has(prop.valueType))
-            .map(({ action, key, prop }) => `${action}.${key}: ${prop.valueTypeConstraint} offered as ${prop.valueType}`);
+            .map(({ action, key, prop }) => {
+                const reason = arrayModeViolation(prop);
+                return reason ? `${action}.${key}: ${reason}` : undefined;
+            })
+            .filter((v): v is string => v !== undefined);
         // eslint-disable-next-line no-console
         if (violations.length) { console.log("[invariant violations]\n  " + violations.join("\n  ")); }
         expect(violations).toEqual([]);
     });
 
-    // INVARIANT (should already hold): every editable, non-hidden property has a
-    // non-empty valueType — a guard against malformed node templates.
-    it("every editable property has a valueType", () => {
+    // INVARIANT (should already hold): every editable, non-hidden property has at least
+    // one input mode — a guard against malformed node templates.
+    it("every editable property has an input mode", () => {
         if (sampled === 0) {
             return;
         }
         const missing = allProps
             .filter(({ prop }) => prop.editable && !prop.hidden)
-            .filter(({ prop }) => !prop.valueType)
+            .filter(({ prop }) => !(prop.types?.length > 0))
             .map(({ action, key }) => `${action}.${key}`);
         expect(missing).toEqual([]);
     });

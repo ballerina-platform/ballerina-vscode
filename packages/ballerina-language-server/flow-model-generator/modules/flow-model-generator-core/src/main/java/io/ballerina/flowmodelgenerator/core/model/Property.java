@@ -1316,9 +1316,10 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
         private boolean handlePrimitiveType(TypeSymbol typeSymbol, String ballerinaType, SemanticModel semanticModel,
                                             ModuleInfo moduleInfo, Property.Builder<?> builder) {
 
-            // Check for SQL query types first
+            // Check for SQL query types first. The mode goes to the given builder, which is not this one when an
+            // array item template is built (e.g. sql:ParameterizedQuery[]).
             if (SQL_PARAMETERIZED_QUERY.equals(ballerinaType) || SQL_CALL_QUERY.equals(ballerinaType)) {
-                type().fieldType(ValueType.SQL_QUERY).ballerinaType(ballerinaType).selected(true).stepOut();
+                builder.type().fieldType(ValueType.SQL_QUERY).ballerinaType(ballerinaType).selected(true).stepOut();
                 return true;
             }
 
