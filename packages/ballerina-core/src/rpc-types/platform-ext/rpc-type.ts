@@ -16,7 +16,8 @@
  * under the License.
  */
 
-import { ComponentKind, ConnectionDetailed, ConnectionListItem, CreateComponentConnectionReq, CreateDatabaseConnectionReq, CreateLocalConnectionsConfigReq, CreateThirdPartyConnectionReq, DatabaseCredential, DeleteLocalConnectionsConfigReq, Environment, GetComponentsReq, GetConnectionItemReq, GetConnectionsReq, GetDatabaseItemReq, GetDatabaseServerReq, GetMarketplaceIdlReq, GetMarketplaceItemReq, GetMarketplaceListReq,GetProjectEnvsReq,MarketplaceDatabaseListResp,MarketplaceIdlResp,MarketplaceItem,MarketplaceListResp, ResolveConnectionSecretsReq, ResolveConnectionSecretsResp } from "@wso2/wso2-platform-core"
+import type { Component, Environment } from "@wso2/wso2-cloud-client";
+import { ConnectionDetailed, ConnectionListItem, CreateComponentConnectionReq, CreateDatabaseConnectionReq, CreateLocalConnectionsConfigReq, CreateThirdPartyConnectionReq, DatabaseCredential, DeleteLocalConnectionsConfigReq, GetComponentsReq, GetConnectionItemReq, GetConnectionsReq, GetDatabaseItemReq, GetDatabaseServerReq, GetMarketplaceIdlReq, GetMarketplaceItemReq, GetMarketplaceListReq,GetProjectEnvsReq,MarketplaceDatabaseListResp,MarketplaceIdlResp,MarketplaceItem,MarketplaceListResp, ResolveConnectionSecretsReq, ResolveConnectionSecretsResp } from "@wso2/wso2-platform-core"
 import { NotificationType, RequestType } from "vscode-messenger-common";
 import { AddDevantTempConfigReq, AddDevantTempConfigResp, DeleteDevantTempConfigReq, GenerateCustomConnectorFromOASReq, GenerateCustomConnectorFromOASResp, InitializeDevantOASConnectionReq, InitializeDevantOASConnectionResp, PlatformExtState, RegisterDevantMarketplaceServiceReq, ReplaceDevantTempConfigValuesReq } from "./interfaces";
 
@@ -29,7 +30,7 @@ export const deleteDevantTempConfigs: RequestType<DeleteDevantTempConfigReq,  vo
 export const replaceDevantTempConfigValues: RequestType<ReplaceDevantTempConfigValuesReq,  void> = { method: `${_preFix}/replaceDevantTempConfigValues` };
 export const getPlatformStore: RequestType<void,  PlatformExtState> = { method: `${_preFix}/getPlatformStore` };
 export const setConnectedToDevant: RequestType<boolean,  void> = { method: `${_preFix}/setConnectedToDevant` };
-export const setSelectedComponent: RequestType<string,  void> = { method: `${_preFix}/setSelectedComponent` };
+export const setSelectedIntegration: RequestType<string,  void> = { method: `${_preFix}/setSelectedIntegration` };
 export const setSelectedEnv: RequestType<string,  void> = { method: `${_preFix}/setSelectedEnv` };
 
 // Platform ext proxies
@@ -47,7 +48,7 @@ export const getMarketplaceItem: RequestType<GetMarketplaceItemReq, MarketplaceI
 export const getMarketplaceIdl: RequestType<GetMarketplaceIdlReq,  MarketplaceIdlResp> = { method: `${_preFix}/getMarketplaceIdl` };
 export const getConnections: RequestType<GetConnectionsReq,  ConnectionListItem[]> = { method: `${_preFix}/getConnections` };
 export const getConnection: RequestType<GetConnectionItemReq,  ConnectionDetailed> = { method: `${_preFix}/getConnection` };
-export const getComponentList: RequestType<GetComponentsReq,  ComponentKind[]> = { method: `${_preFix}/getComponentList` };
+export const getIntegrationList: RequestType<GetComponentsReq,  Component[]> = { method: `${_preFix}/getIntegrationList` };
 export const deleteLocalConnectionsConfig: RequestType<DeleteLocalConnectionsConfigReq,  void> = { method: `${_preFix}/deleteLocalConnectionsConfig` };
 export const getDevantConsoleUrl: RequestType<void,  string> = { method: `${_preFix}/getDevantConsoleUrl` };
 export const refreshConnectionList: RequestType<void,  void> = { method: `${_preFix}/refreshConnectionList` };
