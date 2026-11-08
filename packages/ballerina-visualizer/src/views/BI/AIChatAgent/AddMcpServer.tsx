@@ -113,7 +113,12 @@ function setHiddenProperty(node: FlowNode, key: string, value?: string) {
 }
 
 export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
-    const { agentNode, agentDefinition, onSave, editMode = false } = props;
+    const { agentNode, onSave, editMode = false } = props;
+    // Callers pass agentDefinition as a fresh object on each render, so it is compared by value: a new identity
+    // would rerun initPanel, and its loading state would send the Agent Manager gate back to its first step.
+    const agentDefinitionKey = props.agentDefinition ? JSON.stringify(props.agentDefinition) : undefined;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const agentDefinition = useMemo(() => props.agentDefinition, [agentDefinitionKey]);
     const { rpcClient } = useRpcContext();
     const agentBuilder = useProductMode() === ProductMode.AGENT_BUILDER;
 
