@@ -282,8 +282,13 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
             platformExtStore.getState().setState({ envs: [], selectedEnv: undefined });
             return;
         }
+        // A list that comes back after the selection moved to another project is dropped.
+        const stillSelected = () => platformExtStore.getState().state?.selectedContext?.projectName === context.projectName;
         try {
             const envs = await platformExt.environments.listOrdered(context.projectName);
+            if (!stillSelected()) {
+                return;
+            }
             const previous = platformExtStore.getState().state?.selectedEnv?.id;
             const selectedEnv =
                 envs.find((env) => env.id === previous) ||
@@ -291,7 +296,9 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
                 envs[0];
             platformExtStore.getState().setState({ envs, selectedEnv });
         } catch (err) {
-            log(`Failed to list the environments of ${context.projectName}: ${err}`);
+            if (stillSelected()) {
+                log(`Failed to list the environments of ${context.projectName}: ${err}`);
+            }
         }
     }
 
@@ -648,7 +655,9 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
 
     /** Third-party connections are a platform dependency (no marketplace registration on WSO2 Cloud). */
     async createThirdPartyConnection(_params: CreateThirdPartyConnectionReq): Promise<ConnectionDetailed> {
-        throw new CloudFeatureUnavailableError("Connecting to a third-party service through the cloud");
+        const error = new CloudFeatureUnavailableError("Connecting to a third-party service through the cloud");
+        window.showErrorMessage(error.message);
+        throw error;
     }
 
     async getProjectEnvs(params: GetProjectEnvsReq): Promise<Environment[]> {

@@ -257,6 +257,7 @@ export function EditConnectorForm(props: EditConnectorFormProps) {
                     password: adminCredential.password,
                 });
             } else {
+                let unresolvedSecrets: string[] = [];
                 const connectionItem = await platformRpcClient.getConnection({ connectionGroupId: devantConnection.groupUuid, orgId });
                 const matchingConfig = connectionItem.configurations[platformExtState?.selectedEnv?.id]
                 if(matchingConfig){
@@ -282,6 +283,7 @@ export function EditConnectorForm(props: EditConnectorFormProps) {
                         for(const secret of secretsResp.secrets){
                             kv[secret.key] = secret.value;
                         }
+                        unresolvedSecrets = secretValuesRefs.map((ref) => ref.key).filter((key) => !kv[key]);
                     }
 
                     let databaseType = "mysql"
@@ -304,6 +306,11 @@ export function EditConnectorForm(props: EditConnectorFormProps) {
                     newFieldValues[key] = (prop.value as string) ?? "";
                 });
                 setFieldValues(newFieldValues);
+                if (unresolvedSecrets.length > 0) {
+                    // WSO2 Cloud does not hand secret values back; connecting with them blank would only fail.
+                    setConnectionError(`WSO2 Cloud does not return secret values. Enter ${unresolvedSecrets.join(", ")} here to connect.`);
+                    return;
+                }
                 handleConnectAndIntrospect(dbProperties);
             }
         } catch (error) {

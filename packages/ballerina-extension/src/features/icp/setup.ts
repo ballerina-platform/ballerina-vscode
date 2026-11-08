@@ -194,18 +194,14 @@ export async function getStoredICPSecret(projectPath: string): Promise<string | 
 export function getProjectHandle(projectPath: string): string {
     // projectPath is the package dir; project root is its parent
     const projectRoot = path.dirname(projectPath);
-    // .wso2 is what the extensions write now; .choreo is read for repositories linked before the move.
-    for (const dir of ['.wso2', '.choreo']) {
-        const contextYaml = path.join(projectRoot, dir, 'context.yaml');
-        try {
-            const entries = readContextDocument(yaml.load(fs.readFileSync(contextYaml, 'utf-8')));
-            const project = entries[0]?.project;
-            if (project) {
-                return project;
-            }
-        } catch {
-            // file not found or parse error
+    try {
+        const contextYaml = path.join(projectRoot, '.wso2', 'context.yaml');
+        const project = readContextDocument(yaml.load(fs.readFileSync(contextYaml, 'utf-8')))[0]?.project;
+        if (project) {
+            return project;
         }
+    } catch {
+        // file not found or parse error
     }
     return 'default-project';
 }

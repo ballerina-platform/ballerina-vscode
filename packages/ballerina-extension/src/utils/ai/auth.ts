@@ -160,15 +160,6 @@ export const isPlatformExtensionAvailable = (): boolean => {
 };
 
 /**
- * The WSO2 Cloud access token, from the `wso2-cloud` authentication provider
- * WSO2 Integrator registers. Kept under its old name for the callers; there is
- * no STS exchange any more, the login token is the platform token.
- */
-export const getPlatformStsToken = async (options: { askAccess?: boolean } = {}): Promise<string | undefined> => {
-    return getCloudAccessToken(options);
-};
-
-/**
  * Check if user is logged into Devant via platform extension
  */
 export const isDevantUserLoggedIn = async (): Promise<boolean> => {
@@ -217,10 +208,10 @@ export const exchangeStsToCopilotToken = async (stsToken: string): Promise<BIInt
 };
 
 /**
- * Refresh the Copilot token using the STS token from platform extension
+ * Refresh the Copilot token by exchanging the WSO2 Cloud access token
  */
 export const refreshTokenViaStsExchange = async (): Promise<BIIntelSecrets> => {
-    const stsToken = await getPlatformStsToken();
+    const stsToken = await getCloudAccessToken();
     if (!stsToken) {
         throw new Error('Not signed in to WSO2 Cloud');
     }

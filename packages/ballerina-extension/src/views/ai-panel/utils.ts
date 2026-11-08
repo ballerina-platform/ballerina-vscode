@@ -32,12 +32,12 @@ import {
     storeAuthCredentials,
     isPlatformExtensionAvailable,
     isDevantUserLoggedIn,
-    getPlatformStsToken,
     exchangeStsToCopilotToken,
     storeBiIntelCredentials,
     getAuthCredentials
 } from '../../utils/ai/auth';
 import { getBedrockRegionalPrefix } from '../../features/ai/utils/ai-client';
+import { getCloudAccessToken } from '../../utils/cloud-auth';
 import { WICommandIds } from '@wso2/wso2-platform-core';
 import { copilotName } from '../../utils/config';
 
@@ -64,7 +64,7 @@ export const checkToken = async (): Promise<AuthCredentials | undefined> => {
                     // User is logged into Devant but no stored credentials
                     // Exchange STS token and store credentials
                     try {
-                        const stsToken = await getPlatformStsToken();
+                        const stsToken = await getCloudAccessToken();
                         if (stsToken) {
                             const secrets = await exchangeStsToCopilotToken(stsToken);
                             const newCredentials = await storeBiIntelCredentials(secrets);

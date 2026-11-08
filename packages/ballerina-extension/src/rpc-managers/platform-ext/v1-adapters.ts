@@ -399,31 +399,28 @@ export function createdConnection(params: {
 }
 
 /**
- * The connections `.wso2/component.yaml` (or the legacy `.choreo` one) records
- * for an integration directory: the service id of each, by connection name,
- * or an empty string when its reference names no service the screens know.
+ * The connections `.wso2/component.yaml` records for an integration directory:
+ * the service id of each, by connection name, or an empty string when its
+ * reference names no service the screens know.
  */
 export function localConnectionServiceIds(componentDir: string | undefined): Map<string, string> {
     const ids = new Map<string, string>();
     if (!componentDir) {
         return ids;
     }
-    for (const dir of [".wso2", ".choreo"]) {
-        const file = path.join(componentDir, dir, "component.yaml");
-        if (!fs.existsSync(file)) {
-            continue;
-        }
-        try {
-            const content = yaml.load(fs.readFileSync(file, "utf8")) as { dependencies?: { connectionReferences?: { name?: string; resourceRef?: string }[] } } | undefined;
-            for (const ref of content?.dependencies?.connectionReferences ?? []) {
-                if (ref.name) {
-                    ids.set(ref.name, serviceIdOfResourceRef(ref.resourceRef) ?? "");
-                }
+    const file = path.join(componentDir, ".wso2", "component.yaml");
+    if (!fs.existsSync(file)) {
+        return ids;
+    }
+    try {
+        const content = yaml.load(fs.readFileSync(file, "utf8")) as { dependencies?: { connectionReferences?: { name?: string; resourceRef?: string }[] } } | undefined;
+        for (const ref of content?.dependencies?.connectionReferences ?? []) {
+            if (ref.name) {
+                ids.set(ref.name, serviceIdOfResourceRef(ref.resourceRef) ?? "");
             }
-        } catch (err) {
-            console.warn(`Could not read ${file}: ${err}`);
         }
-        break;
+    } catch (err) {
+        console.warn(`Could not read ${file}: ${err}`);
     }
     return ids;
 }

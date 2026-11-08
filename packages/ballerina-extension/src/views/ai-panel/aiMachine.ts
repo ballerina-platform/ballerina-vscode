@@ -22,10 +22,10 @@ import { AIMachineStateValue, AIPanelPrompt, AIMachineEventType, AIMachineContex
 import { AiPanelWebview } from './webview';
 import { extension } from '../../BalExtensionContext';
 import { getAccessToken, getLoginMethod } from '../../utils/ai/auth';
+import { getCloudAccessToken } from '../../utils/cloud-auth';
 import { checkToken, initiateDevantAuth, logout, validateApiKey, validateAwsCredentials, validateVertexAiCredentials, validateAnthropicAwsCredentials } from './utils';
 import {
     isDevantUserLoggedIn,
-    getPlatformStsToken,
     exchangeStsToCopilotToken,
     getAuthCredentials,
     getPlatformExtensionAPI,
@@ -492,7 +492,7 @@ const aiMachine = createMachine<AIMachineContext, AIMachineSendableEvent>({
 
 const completeSsoSignIn = async (): Promise<void> => {
     // The person chose to sign in with WSO2 Cloud: ask for access to the session if this extension has none yet.
-    const stsToken = await getPlatformStsToken({ askAccess: true });
+    const stsToken = await getCloudAccessToken({ askAccess: true });
     if (!stsToken) {
         throw new Error('Could not get a WSO2 Cloud session from WSO2 Integrator');
     }

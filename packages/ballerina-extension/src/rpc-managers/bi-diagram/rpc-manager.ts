@@ -2348,9 +2348,7 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             const repoRoot = getRepoRoot(projectPath);
             if (repoRoot) {
                 const contextYamlPath = path.join(repoRoot, ".wso2", "context.yaml");
-                // leaving .choreo/context.yaml check for backward compatibility, can remove after some time
-                const choreoContextYamlPath = path.join(repoRoot, ".choreo", "context.yaml");
-                if (fs.existsSync(contextYamlPath) || fs.existsSync(choreoContextYamlPath)) {
+                if (fs.existsSync(contextYamlPath)) {
                     hasContextYaml = true;
                 }
             }
@@ -2402,10 +2400,7 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             const platformExtAPI = await getCompatiblePlatformAPI();
             if (!platformExtAPI) {
                 // Not installed, or speaking another contract version: the context file is all there is to go on.
-                const contextYamlPath = path.join(repoRoot, ".wso2", "context.yaml");
-                // leaving .choreo/context.yaml check for backward compatibility, can remove after some time
-                const choreoContextYamlPath = path.join(repoRoot, ".choreo", "context.yaml");
-                const hasContextYaml = fs.existsSync(contextYamlPath) || fs.existsSync(choreoContextYamlPath);
+                const hasContextYaml = fs.existsSync(path.join(repoRoot, ".wso2", "context.yaml"));
                 return {
                     isLoggedIn: false,
                     hasAnyComponent: hasContextYaml,
@@ -2444,9 +2439,7 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             // If not logged in, check for context.yaml as fallback
             if (!isLoggedIn) {
                 const contextYamlPath = path.join(repoRoot, ".wso2", "context.yaml");
-                // leaving .choreo/context.yaml check for backward compatibility, can remove after some time
-                const choreoContextYamlPath = path.join(repoRoot, ".choreo", "context.yaml");
-                if (fs.existsSync(contextYamlPath) || fs.existsSync(choreoContextYamlPath)) {
+                if (fs.existsSync(contextYamlPath)) {
                     hasAnyComponent = true;
                 }
             }

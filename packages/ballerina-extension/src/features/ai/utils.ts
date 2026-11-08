@@ -17,7 +17,7 @@
  */
 
 import * as fs from 'fs';
-import { getCloudEnvName } from "../../utils/cloud-auth";
+import { getCloudAccessToken, getCloudEnvName } from "../../utils/cloud-auth";
 import path from "path";
 import vscode, { Uri, workspace } from 'vscode';
 import { parse as parseToml } from '@iarna/toml';
@@ -29,7 +29,6 @@ import {
     getAuthCredentials,
     isPlatformExtensionAvailable,
     isDevantUserLoggedIn,
-    getPlatformStsToken,
     exchangeStsToCopilotToken,
     NO_AUTH_CREDENTIALS_FOUND,
     storeBiIntelCredentials,
@@ -181,7 +180,7 @@ export async function getTokenForDefaultModel() {
     if (isPlatformExtensionAvailable()) {
         const isLoggedIn = await isDevantUserLoggedIn();
         if (isLoggedIn) {
-            const stsToken = await getPlatformStsToken();
+            const stsToken = await getCloudAccessToken();
             if (stsToken) {
                 const secrets = await exchangeStsToCopilotToken(stsToken);
                 await storeBiIntelCredentials(secrets);

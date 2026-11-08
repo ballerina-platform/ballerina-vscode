@@ -18,7 +18,6 @@
 
 import React from "react";
 import { Codicon } from "@wso2/ui-toolkit";
-import { MarketplaceItem } from "@wso2/wso2-platform-core";
 import ButtonCard from "../../../../components/ButtonCard";
 import { BodyTinyInfo } from "../../../styles";
 import { usePlatformExtContext } from "../../../../providers/platform-ext-ctx-provider";
@@ -27,8 +26,6 @@ import { ConnectorsGrid, Section, SectionHeader, SectionTitle } from "../AddConn
 interface CloudKnowledgeBasePageProps {
     // Opens a blank CloudKnowledgeBase create form (manual entry, no Devant service pre-selected).
     onCreateNew: () => void;
-    // Selecting an existing cloud KB service runs the auto-provisioned create flow.
-    onSelectExisting: (item: MarketplaceItem) => void;
 }
 
 /**

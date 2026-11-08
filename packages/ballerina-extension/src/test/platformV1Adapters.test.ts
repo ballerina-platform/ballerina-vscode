@@ -88,24 +88,22 @@ describe("platform v1 adapters", () => {
 
     it("tells databases from services from plain config by an env group's keys, and never reveals secrets", () => {
         const ref = { integration: "orders", environment: "development" };
-        const db = envGroupToConnectionListItem({ name: "orders-db", sensitive: true, keys: ["DB_HOST", "DB_PASSWORD", "DB_USER"] }, ref);
+        const db = envGroupToConnectionListItem({ name: "orders-db", sensitive: true, keys: ["ORDERS_DB_DB_HOST", "ORDERS_DB_DB_PASSWORD", "ORDERS_DB_DB_USER"] }, ref);
         expect(db.resourceType).toBe("DATABASE");
         expect(parseConnectionId(db.groupUuid)).toEqual({ ...ref, name: "orders-db" });
-        expect(envGroupToConnectionListItem({ name: "inv", sensitive: true, keys: ["SERVICE_URL", "API_KEY"] }, ref).resourceType).toBe("SERVICE");
+        expect(envGroupToConnectionListItem({ name: "inv", sensitive: true, keys: ["INV_SERVICE_URL", "INV_API_KEY"] }, ref).resourceType).toBe("SERVICE");
         expect(envGroupToConnectionListItem({ name: "misc", sensitive: false, keys: ["LOG_LEVEL"] }, ref).resourceType).toBe("CONFIG");
+        // Variables without a connection prefix are plain config.
+        expect(envGroupToConnectionListItem({ name: "bare", sensitive: true, keys: ["DB_HOST", "DB_PASSWORD"] }, ref).resourceType).toBe("CONFIG");
 
-        const detailed = envGroupToConnectionDetailed({ name: "orders-db", sensitive: true, keys: ["DB_HOST", "DB_PASSWORD"], data: { DB_HOST: "db.example", DB_PASSWORD: "" } }, ref);
-        const entries = detailed.configurations.development.entries;
-        expect(entries.HostName).toMatchObject({ envVariableName: "DB_HOST", value: "db.example", isSensitive: true });
-        expect(entries.Password).toMatchObject({ envVariableName: "DB_PASSWORD", value: "" });
-
-        // Prefixed with the connection's name, as WSO2 Integrator writes them now.
-        const prefixed = envGroupToConnectionDetailed(
-            { name: "orders-db", sensitive: true, keys: ["ORDERS_DB_DB_HOST", "ORDERS_DB_DB_PASSWORD"], data: { ORDERS_DB_DB_HOST: "db.example" } },
+        const detailed = envGroupToConnectionDetailed(
+            { name: "orders-db", sensitive: true, keys: ["ORDERS_DB_DB_HOST", "ORDERS_DB_DB_PASSWORD"], data: { ORDERS_DB_DB_HOST: "db.example", ORDERS_DB_DB_PASSWORD: "" } },
             ref,
         );
-        expect(prefixed.resourceType).toBe("DATABASE");
-        expect(prefixed.configurations.development.entries.HostName).toMatchObject({ envVariableName: "ORDERS_DB_DB_HOST", value: "db.example" });
+        expect(detailed.resourceType).toBe("DATABASE");
+        const entries = detailed.configurations.development.entries;
+        expect(entries.HostName).toMatchObject({ envVariableName: "ORDERS_DB_DB_HOST", value: "db.example", isSensitive: true });
+        expect(entries.Password).toMatchObject({ envVariableName: "ORDERS_DB_DB_PASSWORD", value: "" });
     });
 
     it("describes a just-written connection so the config step can point configurables at the env vars", () => {

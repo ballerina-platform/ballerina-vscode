@@ -534,6 +534,10 @@ export const DevantDatabaseCredentials: FC<Props> = (props) => {
                 throw new Error("Credential is required to proceed");
             }
             if (!connectorCredentials) throw new Error("Connector credentials not loaded");
+            // Checked before the connection is written locally, so a refusal leaves nothing half made.
+            if (selectedMarketplaceItem && !importedConnection && !platformExtState?.selectedEnv?.id) {
+                throw new Error("Select an environment to connect in first.");
+            }
 
             const activeFieldValues = selectedMarketplaceItem && devantFieldValues ? devantFieldValues : fieldValues;
             const properties = buildDbPropertiesFromFieldValues(connectorCredentials, activeFieldValues);
