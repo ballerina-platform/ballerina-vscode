@@ -33,6 +33,7 @@ import {
     isPlatformExtensionAvailable,
     isDevantUserLoggedIn,
     exchangeStsToCopilotToken,
+    isCopilotTokenExchangeAvailable,
     storeBiIntelCredentials,
     getAuthCredentials
 } from '../../utils/ai/auth';
@@ -57,8 +58,9 @@ export const checkToken = async (): Promise<AuthCredentials | undefined> => {
                 return;
             }
 
-            // No stored credentials - check if user is logged into Devant
-            if (isPlatformExtensionAvailable()) {
+            // No stored credentials - check if user is logged into Devant. This check is silent, so a
+            // deployment without a Copilot token exchange is skipped here rather than reported.
+            if (isPlatformExtensionAvailable() && isCopilotTokenExchangeAvailable()) {
                 const isLoggedIn = await isDevantUserLoggedIn();
                 if (isLoggedIn) {
                     // User is logged into Devant but no stored credentials
