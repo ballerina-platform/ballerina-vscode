@@ -55,7 +55,7 @@ export function AgentEditorPanelContent({ controller }: { controller: AgentEdito
         case "ADD_TOOL":
             return <AddTool agentNode={agent}
                 onCreateCustomTool={() => controller.openView("NEW_TOOL_CUSTOM")}
-                onUseConnection={() => controller.openView("NEW_TOOL_CONNECTION")}
+                onUseConnector={() => controller.openView("NEW_TOOL_CONNECTION")}
                 onUseFunction={() => controller.openView("NEW_TOOL_FUNCTION")}
                 onUseAgent={() => controller.openView("NEW_TOOL_AGENT")}
                 onUseKnowledgeBase={() => controller.openView("NEW_TOOL_KNOWLEDGE_BASE")}
