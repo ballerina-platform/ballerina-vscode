@@ -66,6 +66,20 @@ public class McpServerInfoTest {
     }
 
     @Test
+    public void readsDiscoverResponse() {
+        JsonObject response = JsonParser.parseString("{\"jsonrpc\": \"2.0\", \"id\": 1, \"result\": {"
+                + "\"_meta\": {\"io.modelcontextprotocol/serverInfo\": {\"name\": \"docs\", \"title\": \"Docs\", "
+                + "\"icons\": [{\"src\": \"https://x.dev/icon.png\"}]}}, \"supportedVersions\": [\"2026-07-28\"]}}")
+                .getAsJsonObject();
+        Assert.assertEquals(McpServerInfo.fromDiscoverResponse(response),
+                new McpServerInfo("Docs", "https://x.dev/icon.png"));
+
+        JsonObject unnamed = JsonParser.parseString("{\"jsonrpc\": \"2.0\", \"id\": 1, \"result\": "
+                + "{\"supportedVersions\": [\"2026-07-28\"]}}").getAsJsonObject();
+        Assert.assertTrue(McpServerInfo.fromDiscoverResponse(unnamed).isEmpty());
+    }
+
+    @Test
     public void readsErrorResponseAsEmpty() {
         JsonObject response = JsonParser.parseString(
                 "{\"jsonrpc\": \"2.0\", \"id\": 1, \"error\": {\"code\": -32600, \"message\": \"bad\"}}")

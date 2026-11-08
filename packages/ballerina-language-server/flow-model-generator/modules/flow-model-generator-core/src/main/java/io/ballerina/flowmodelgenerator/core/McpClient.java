@@ -506,7 +506,7 @@ public class McpClient {
         JsonObject discovery = discoverModernServer(serviceUrl, accessToken, sslConfig);
         if (discovery != null) {
             return new ToolList(sendModernToolsListRequests(serviceUrl, accessToken, sslConfig),
-                    McpServerInfo.fromInitializeResponse(discovery));
+                    McpServerInfo.fromDiscoverResponse(discovery));
         }
         InitializeResult initialized = initialize(serviceUrl, accessToken, sslConfig);
         sendInitializedNotification(serviceUrl, initialized.sessionId(), accessToken, sslConfig);
