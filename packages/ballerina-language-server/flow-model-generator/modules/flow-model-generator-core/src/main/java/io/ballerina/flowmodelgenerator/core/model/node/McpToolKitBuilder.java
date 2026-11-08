@@ -219,9 +219,9 @@ public class McpToolKitBuilder extends NodeBuilder {
         TypeDefinitionSymbol infoType = getMcpV2TypeDefinition(configType, MCP_V2_IMPLEMENTATION_TYPE, aiVersion);
 
         metadata().label(Ai.AI_PACKAGE).description(MCP_V2_TOOL_KIT_DESCRIPTION)
-                .icon(generateIcon(Ai.BALLERINA_ORG, Ai.AI_PACKAGE, aiModuleVersion));
+                .icon(generateIcon(Ai.BALLERINA_ORG, Ai.AI_PACKAGE, aiVersion));
         codedata().org(Ai.BALLERINA_ORG).module(Ai.AI_PACKAGE).packageName(Ai.AI_PACKAGE)
-                .object(AI_MCP_TOOL_KIT_CLASS).version(aiModuleVersion)
+                .object(AI_MCP_TOOL_KIT_CLASS).version(aiVersion)
                 .data(MCP_PROTOCOL_KEY, MCP_PROTOCOL_V2);
 
         // The info parameter follows the server URL, since a defaultable argument is passed positionally
