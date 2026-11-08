@@ -44,38 +44,14 @@ export const isNotLoggedInError = (error: unknown): boolean => {
  */
 export const getPlatformExtensionAPI = (): Promise<IWso2PlatformExtensionAPI | undefined> => getCompatiblePlatformAPI();
 
-export type CopilotRegion = "us" | "eu";
-
 /**
- * Reads the user's region from the platform extension. Returns undefined when the
- * extension is unavailable, not logged in, or returns an unrecognised region.
- * Region persistence is always best-effort.
- */
-export const getPlatformRegion = async (): Promise<CopilotRegion | undefined> => {
-    // WSO2 Cloud has one region; the deployment in use picks the Copilot backend (features/ai/utils.ts).
-    return undefined;
-};
-
-/** Returns the region saved in the currently stored BI_INTEL credentials, if any. */
-const getStoredRegion = async (): Promise<CopilotRegion | undefined> => {
-    const creds = await getAuthCredentials();
-    if (creds?.loginMethod !== LoginMethod.BI_INTEL) {
-        return undefined;
-    }
-    const region = (creds.secrets as BIIntelSecrets).region;
-    return region === "us" || region === "eu" ? region : undefined;
-};
-
-/**
- * Stores BI_INTEL credentials, persisting the user's region so warm restarts
- * keep routing to the correct backend. Falls back to the previously saved region
- * when the platform extension is unavailable or not yet logged in.
+ * Stores BI_INTEL credentials. WSO2 Cloud has one region; the deployment in use
+ * picks the Copilot backend (features/ai/utils.ts), so no region is kept.
  */
 export const storeBiIntelCredentials = async (secrets: BIIntelSecrets): Promise<AuthCredentials> => {
-    const region = (await getPlatformRegion()) ?? (await getStoredRegion());
     const credentials: AuthCredentials = {
         loginMethod: LoginMethod.BI_INTEL,
-        secrets: { ...secrets, ...(region && { region }) }
+        secrets,
     };
     await storeAuthCredentials(credentials);
     return credentials;
@@ -188,8 +164,8 @@ export const isPlatformExtensionAvailable = (): boolean => {
  * WSO2 Integrator registers. Kept under its old name for the callers; there is
  * no STS exchange any more, the login token is the platform token.
  */
-export const getPlatformStsToken = async (): Promise<string | undefined> => {
-    return getCloudAccessToken({ silent: true });
+export const getPlatformStsToken = async (options: { askAccess?: boolean } = {}): Promise<string | undefined> => {
+    return getCloudAccessToken(options);
 };
 
 /**
@@ -213,6 +189,9 @@ export const isDevantUserLoggedIn = async (): Promise<boolean> => {
  * The Copilot backend has to accept a WSO2 Cloud (ThunderID) subject token for this to succeed.
  */
 export const exchangeStsToCopilotToken = async (stsToken: string): Promise<BIIntelSecrets> => {
+    if (!DEVANT_TOKEN_EXCHANGE_URL) {
+        throw new Error('Signing in to Copilot with WSO2 Cloud is not available for this WSO2 Cloud deployment');
+    }
     try {
         const response = await axios.post(DEVANT_TOKEN_EXCHANGE_URL, {
             subjectToken: stsToken

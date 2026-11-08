@@ -17,7 +17,7 @@
  */
 
 import * as fs from 'fs';
-import { readCloudEnvName } from "@wso2/wso2-cloud-client/vscode";
+import { getCloudEnvName } from "../../utils/cloud-auth";
 import path from "path";
 import vscode, { Uri, workspace } from 'vscode';
 import { parse as parseToml } from '@iarna/toml';
@@ -45,7 +45,8 @@ import { BallerinaExtension } from 'src/core';
 
 const config = workspace.getConfiguration('ballerina');
 // WSO2 Cloud has one region; the deployment in use (prod, stage, dev) picks the Copilot backend.
-const cloudEnv = readCloudEnvName();
+// Read once, as the session scopes are (cloud-auth.ts): a change takes effect after a reload.
+const cloudEnv = getCloudEnvName();
 const COPILOT_ROOT_URLS = new Map<string, string | undefined>([
     ["prod", process.env.COPILOT_ROOT_URL],
     ["stage", process.env.COPILOT_STAGE_ROOT_URL],
@@ -53,9 +54,14 @@ const COPILOT_ROOT_URLS = new Map<string, string | undefined>([
 ]);
 // The WSO2 Cloud access token is posted to this host, so only the person's own (user) settings may name it; a workspace cannot.
 const rootUrlOverride = config.inspect<string>('rootUrl')?.globalValue;
-export const BACKEND_URL: string = rootUrlOverride || COPILOT_ROOT_URLS.get(cloudEnv) || process.env.COPILOT_ROOT_URL;
+const envRootUrl = rootUrlOverride || COPILOT_ROOT_URLS.get(cloudEnv);
+if (!envRootUrl) {
+    console.warn(`No Copilot backend is set for the WSO2 Cloud ${cloudEnv} deployment; Copilot uses the production one, and signing in to it with WSO2 Cloud is off.`);
+}
+export const BACKEND_URL: string = envRootUrl || process.env.COPILOT_ROOT_URL;
 
-export const DEVANT_TOKEN_EXCHANGE_URL: string = BACKEND_URL + "/auth-api/v1.0/auth/token-exchange";
+/** Where a WSO2 Cloud token is exchanged: only the backend of the same deployment, never another's. */
+export const DEVANT_TOKEN_EXCHANGE_URL: string | undefined = envRootUrl ? envRootUrl + "/auth-api/v1.0/auth/token-exchange" : undefined;
 
 // This refers to old backend before FE Migration. We need to eventually remove this.
 export const OLD_BACKEND_URL: string = BACKEND_URL + "/v2.0";

@@ -129,7 +129,8 @@ async function request<T>(
 }
 
 async function getAccessTokenOrThrow(): Promise<string> {
-    const token = await getCloudAccessToken({ silent: true });
+    // Managed connections are set up at the person's request: ask for access to the session when needed.
+    const token = await getCloudAccessToken({ askAccess: true });
     if (!token) {
         throw new ManagedConnectionError("Not signed in to WSO2 Cloud. Please sign in to use managed connections.");
     }

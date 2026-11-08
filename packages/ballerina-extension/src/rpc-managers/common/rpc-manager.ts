@@ -17,6 +17,7 @@
  * 
  * THIS FILE INCLUDES AUTO GENERATED CODE
  */
+import { readContextDocument } from '@wso2/wso2-cloud-client';
 import {
     AgentRunStatus,
     BallerinaDiagnosticsRequest,
@@ -540,14 +541,14 @@ export class CommonRpcManager implements CommonRPCAPI {
             const projectPath = StateMachine.context()?.workspacePath;
 
             if (projectPath) {
-                // Check .wso2/context.yaml then .choreo/context.yaml
+                // Check .wso2/context.yaml then .choreo/context.yaml, in any shape either was written in
                 for (const contextDir of ['.wso2', '.choreo']) {
                     try {
                         const contextYamlPath = path.join(projectPath, contextDir, "context.yaml");
                         const content = await fs.promises.readFile(contextYamlPath, "utf-8");
-                        const parsed = loadYaml(content);
-                        if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0].org === "string" && parsed[0].org) {
-                            return { orgName: parsed[0].org, isLocked: true };
+                        const org = readContextDocument(loadYaml(content))[0]?.org;
+                        if (org) {
+                            return { orgName: org, isLocked: true };
                         }
                     } catch { /* file missing or unreadable — try next */ }
                 }

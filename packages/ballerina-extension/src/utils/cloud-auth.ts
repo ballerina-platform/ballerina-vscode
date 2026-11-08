@@ -34,8 +34,12 @@ export const WI_EXTENSION_ID = "wso2.wso2-integrator";
 
 export { WSO2_CLOUD_AUTH_PROVIDER_ID };
 
+let cloudEnvName: CloudEnvName | undefined;
+
+/** The WSO2 Cloud deployment in use, read once: WSO2 Integrator applies a change only after a reload, and so does this. */
 export function getCloudEnvName(): CloudEnvName {
-    return readCloudEnvName();
+    cloudEnvName ??= readCloudEnvName();
+    return cloudEnvName;
 }
 
 /** The scope a session is requested with: tokens are per environment. */
@@ -84,19 +88,31 @@ export function isCompatiblePlatformAPI(api: unknown): api is IWso2PlatformExten
 
 /**
  * A usable WSO2 Cloud access token, or undefined when the person is not signed
- * in. With `createIfNone` VS Code prompts to sign in through WSO2 Integrator.
- * WSO2 Integrator is activated first, since it registers the provider.
+ * in. WSO2 Integrator is activated first, since it registers the provider.
+ *
+ * VS Code hands another extension's session to this one only once the person
+ * has allowed it (the WSO2 Integrator product allows it up front; stock VS Code
+ * asks). `askAccess` is for something the person just did: it asks for that
+ * permission there and then when WSO2 Integrator holds a session. Otherwise
+ * nothing is shown but a request in the Accounts menu, and `silent` keeps even
+ * that away.
  */
-export async function getCloudAccessToken(options: { createIfNone?: boolean; silent?: boolean } = {}): Promise<string | undefined> {
+export async function getCloudAccessToken(options: { askAccess?: boolean; silent?: boolean } = {}): Promise<string | undefined> {
     try {
-        if (!(await getCompatiblePlatformAPI())) {
+        const api = await getCompatiblePlatformAPI();
+        if (!api) {
             return undefined;
         }
-        const session = await vscode.authentication.getSession(WSO2_CLOUD_AUTH_PROVIDER_ID, cloudSessionScopes(), {
-            createIfNone: options.createIfNone ?? false,
-            silent: options.createIfNone ? undefined : (options.silent ?? true),
+        const scopes = cloudSessionScopes();
+        const granted = await vscode.authentication.getSession(WSO2_CLOUD_AUTH_PROVIDER_ID, scopes, {
+            silent: options.askAccess || options.silent ? true : undefined,
         });
-        return session?.accessToken;
+        if (granted || !options.askAccess || !api.isLoggedIn()) {
+            return granted?.accessToken;
+        }
+        // Signed in through WSO2 Integrator, but this extension may not use the session yet.
+        const allowed = await vscode.authentication.getSession(WSO2_CLOUD_AUTH_PROVIDER_ID, scopes, { createIfNone: true });
+        return allowed?.accessToken;
     } catch (error) {
         console.error("Failed to read the WSO2 Cloud session:", error);
         return undefined;

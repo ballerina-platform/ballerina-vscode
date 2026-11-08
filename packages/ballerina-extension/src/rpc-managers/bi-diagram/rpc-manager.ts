@@ -190,7 +190,6 @@ import {
     Task,
     TaskDefinition,
     Uri, ViewColumn, commands,
-    extensions,
     tasks,
     window, workspace
 } from "vscode";
@@ -234,7 +233,6 @@ import { readOrWriteReadmeContent } from "./utils";
 import { registerFormOpen, registerFormClose, setFormDirtyState } from "./form-state";
 import { isAiSourceParseable } from "../diagram-validity";
 import { getRepoRoot } from "../platform-ext/platform-utils";
-import { WI_EXTENSION_ID } from "../../utils";
 import { notifyOnIdentifierUpdated } from "../../RPCLayer";
 import { openView } from "../../stateMachine";
 
@@ -2400,9 +2398,10 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                 return { isLoggedIn: false, hasAnyComponent: false, hasLocalChanges: false };
             }
 
-            const platformExt = extensions.getExtension(WI_EXTENSION_ID);
-            if (!platformExt) {
-                // Check for context.yaml as fallback
+            // getCompatiblePlatformAPI activates WSO2 Integrator when it is installed.
+            const platformExtAPI = await getCompatiblePlatformAPI();
+            if (!platformExtAPI) {
+                // Not installed, or speaking another contract version: the context file is all there is to go on.
                 const contextYamlPath = path.join(repoRoot, ".wso2", "context.yaml");
                 // leaving .choreo/context.yaml check for backward compatibility, can remove after some time
                 const choreoContextYamlPath = path.join(repoRoot, ".choreo", "context.yaml");
@@ -2412,14 +2411,6 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                     hasAnyComponent: hasContextYaml,
                     hasLocalChanges: false
                 };
-            }
-
-            if (!platformExt.isActive) {
-                await platformExt.activate();
-            }
-            const platformExtAPI = await getCompatiblePlatformAPI();
-            if (!platformExtAPI) {
-                return { isLoggedIn: false, hasAnyComponent: false, hasLocalChanges: false };
             }
             isLoggedIn = platformExtAPI.isLoggedIn();
             hasLocalChanges = await platformExtAPI.localRepoHasChanges(repoRoot);

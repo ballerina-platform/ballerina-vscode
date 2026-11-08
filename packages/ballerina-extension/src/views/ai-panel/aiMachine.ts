@@ -491,9 +491,10 @@ const aiMachine = createMachine<AIMachineContext, AIMachineSendableEvent>({
 });
 
 const completeSsoSignIn = async (): Promise<void> => {
-    const stsToken = await getPlatformStsToken();
+    // The person chose to sign in with WSO2 Cloud: ask for access to the session if this extension has none yet.
+    const stsToken = await getPlatformStsToken({ askAccess: true });
     if (!stsToken) {
-        throw new Error('Failed to get STS token from platform extension');
+        throw new Error('Could not get a WSO2 Cloud session from WSO2 Integrator');
     }
     const secrets = await exchangeStsToCopilotToken(stsToken);
     await storeBiIntelCredentials(secrets);

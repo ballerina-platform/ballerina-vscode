@@ -36,6 +36,11 @@ import {
     serviceId,
     SERVICE_CONNECTION_KEYS,
 } from "../rpc-managers/platform-ext/v1-adapters";
+import { localConnectionServiceIds } from "../rpc-managers/platform-ext/v1-adapters";
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
+import * as yaml from "js-yaml";
 
 const server = { id: "srv-1", name: "orders-db", status: "ACTIVE" as const, postgresVersion: "16", plan: "small", createdAt: "2026-01-01T00:00:00Z" };
 const credentials = { host: "db.example", port: "5432", database: "orders", username: "app", password: "s3cret" };
@@ -93,16 +98,50 @@ describe("platform v1 adapters", () => {
         const entries = detailed.configurations.development.entries;
         expect(entries.HostName).toMatchObject({ envVariableName: "DB_HOST", value: "db.example", isSensitive: true });
         expect(entries.Password).toMatchObject({ envVariableName: "DB_PASSWORD", value: "" });
+
+        // Prefixed with the connection's name, as WSO2 Integrator writes them now.
+        const prefixed = envGroupToConnectionDetailed(
+            { name: "orders-db", sensitive: true, keys: ["ORDERS_DB_DB_HOST", "ORDERS_DB_DB_PASSWORD"], data: { ORDERS_DB_DB_HOST: "db.example" } },
+            ref,
+        );
+        expect(prefixed.resourceType).toBe("DATABASE");
+        expect(prefixed.configurations.development.entries.HostName).toMatchObject({ envVariableName: "ORDERS_DB_DB_HOST", value: "db.example" });
     });
 
     it("describes a just-written connection so the config step can point configurables at the env vars", () => {
         const created = createdConnection({ name: "orders-db", integration: "orders", environments: ["development", "staging"], kind: "DATABASE", serviceId: "db:srv-1" });
         expect(Object.keys(created.configurations)).toEqual(["development", "staging"]);
-        expect(created.configurations.staging.entries.Username.envVariableName).toBe("DB_USER");
+        expect(created.configurations.staging.entries.Username.envVariableName).toBe("ORDERS_DB_DB_USER");
         expect(created.configurations.development.entries.Password.isSensitive).toBe(true);
         const svc = createdConnection({ name: "inv", integration: "orders", environments: ["development"], kind: "SERVICE", serviceId: "svc:p/i/e" });
-        expect(svc.configurations.development.entries.ChoreoAPIKey.envVariableName).toBe("API_KEY");
-        expect(svc.configurations.development.entries.ServiceURL.envVariableName).toBe("SERVICE_URL");
+        expect(svc.configurations.development.entries.ChoreoAPIKey.envVariableName).toBe("INV_API_KEY");
+        expect(svc.configurations.development.entries.ServiceURL.envVariableName).toBe("INV_SERVICE_URL");
+        const other = createdConnection({ name: "billing-db", integration: "orders", environments: ["development"], kind: "DATABASE", serviceId: "db:srv-2" });
+        expect(other.configurations.development.entries.HostName.envVariableName).not.toBe(created.configurations.development.entries.HostName.envVariableName);
+    });
+
+    it("reads every connection reference a component file records, by name, the ones naming no known service too", () => {
+        const dir = fs.mkdtempSync(path.join(os.tmpdir(), "bal-refs-"));
+        try {
+            fs.mkdirSync(path.join(dir, ".wso2"));
+            fs.writeFileSync(
+                path.join(dir, ".wso2", "component.yaml"),
+                yaml.dump({
+                    dependencies: {
+                        connectionReferences: [
+                            { name: "orders-db", resourceRef: "database:srv-1" },
+                            { name: "custom", resourceRef: "connection:custom" },
+                        ],
+                    },
+                }),
+            );
+            const refs = localConnectionServiceIds(dir);
+            expect(refs.get("orders-db")).toBe("db:srv-1");
+            expect(refs.has("custom")).toBe(true);
+            expect(refs.has("app_config")).toBe(false);
+        } finally {
+            fs.rmSync(dir, { recursive: true, force: true });
+        }
     });
 
     it("records what a local connection reference points at", () => {

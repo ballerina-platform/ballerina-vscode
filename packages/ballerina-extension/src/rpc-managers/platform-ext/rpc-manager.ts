@@ -39,7 +39,6 @@ import type {
     LocalRuntimeEnv,
 } from "@wso2/wso2-cloud-client";
 import { NotSupportedError, isCloudError } from "@wso2/wso2-cloud-client";
-import * as yaml from "js-yaml";
 import {
     ConnectionListItem,
     DeleteLocalConnectionsConfigReq,
@@ -113,8 +112,8 @@ import {
     parseDatabaseId,
     parseServiceId,
     resourceRefOf,
-    databaseId,
     serviceId,
+    localConnectionServiceIds,
 } from "./v1-adapters";
 import { debounce } from "lodash";
 import { BiDiagramRpcManager } from "../bi-diagram/rpc-manager";
@@ -238,18 +237,16 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
             this.debouncedRefreshConnectionList();
         }
         await this.initFileWatcher();
-        const debouncedInitProjectPathWatcher = debounce(
-            async (projectPath: string) => await this.initProjectPathWatcher(projectPath),
-            250,
-        );
-        StateMachine.service().subscribe(async (state) => {
+        // The watcher's disposer is kept by the debounced call itself: a debounced function hands its
+        // caller the previous call's result, which would dispose the wrong watcher one switch late.
+        const debouncedInitProjectPathWatcher = debounce(async (nextPath: string) => {
+            disposeProjectPathWatcher?.();
+            disposeProjectPathWatcher = await this.initProjectPathWatcher(nextPath);
+        }, 250);
+        StateMachine.service().subscribe((state) => {
             if (state.context?.projectPath && !isSamePath(state.context?.projectPath, projectPath)) {
                 projectPath = state.context?.projectPath;
-                if (disposeProjectPathWatcher) {
-                    disposeProjectPathWatcher();
-                }
-
-                disposeProjectPathWatcher = await debouncedInitProjectPathWatcher(projectPath);
+                debouncedInitProjectPathWatcher(projectPath);
             }
         });
 
@@ -580,11 +577,12 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
             const projectName = params.projectId || this.requireProjectName();
             const envId = this.requireEnvId();
             const groups = await platformExt.connections.list(params.componentId, envId, projectName);
-            // The platform keeps no record of what a group points at; the local reference WI wrote does.
+            // The platform keeps no record of what a group points at, nor which groups are connections
+            // rather than plain configuration; the local reference WI wrote for each connection does.
             const localRefs = localConnectionServiceIds(platformExtStore.getState().state.selectedIntegration?.fsPath);
-            return groups.map((group) =>
-                envGroupToConnectionListItem(group, { integration: params.componentId, environment: envId }, localRefs.get(group.name ?? "")),
-            );
+            return groups
+                .filter((group) => localRefs.has(group.name ?? ""))
+                .map((group) => envGroupToConnectionListItem(group, { integration: params.componentId, environment: envId }, localRefs.get(group.name ?? "")));
         } catch (err) {
             log(`Failed to invoke getConnections: ${err}`);
             return [];
@@ -941,10 +939,10 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
                         });
                         const ref = parseConnectionId(matchingConnListItem.groupUuid);
                         if (ref && platformExt) {
+                            // Every environment it was written to, not only the one selected now.
                             await platformExt.connections.delete({
                                 integration: ref.integration,
                                 name: ref.name,
-                                environments: [ref.environment],
                                 projectName: this.selection().projectName,
                             });
                         }
@@ -1263,49 +1261,4 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
             log(`Failed to refresh connection list: ${err}`);
         }
     }
-}
-
-/**
- * The service ids of the connections `.wso2/component.yaml` (or the legacy
- * `.choreo` one) records for an integration directory, by connection name.
- */
-export function localConnectionServiceIds(componentDir: string | undefined): Map<string, string> {
-    const ids = new Map<string, string>();
-    if (!componentDir) {
-        return ids;
-    }
-    for (const dir of [".wso2", ".choreo"]) {
-        const file = path.join(componentDir, dir, "component.yaml");
-        if (!fs.existsSync(file)) {
-            continue;
-        }
-        try {
-            const content = yaml.load(fs.readFileSync(file, "utf8")) as { dependencies?: { connectionReferences?: { name?: string; resourceRef?: string }[] } } | undefined;
-            for (const ref of content?.dependencies?.connectionReferences ?? []) {
-                const id = serviceIdOfResourceRef(ref.resourceRef);
-                if (ref.name && id) {
-                    ids.set(ref.name, id);
-                }
-            }
-        } catch (err) {
-            log(`Could not read ${file}: ${err}`);
-        }
-        break;
-    }
-    return ids;
-}
-
-/** `database:<server>` and `service:<project>/<integration>/<endpoint>` as the marketplace ids the screens use. */
-export function serviceIdOfResourceRef(resourceRef: string | undefined): string | undefined {
-    if (!resourceRef) {
-        return undefined;
-    }
-    if (resourceRef.startsWith("database:")) {
-        return databaseId(resourceRef.slice("database:".length));
-    }
-    if (resourceRef.startsWith("service:")) {
-        const [project, integration, endpoint] = resourceRef.slice("service:".length).split("/");
-        return project && integration && endpoint ? serviceId({ project, integration, endpoint }) : undefined;
-    }
-    return undefined;
 }

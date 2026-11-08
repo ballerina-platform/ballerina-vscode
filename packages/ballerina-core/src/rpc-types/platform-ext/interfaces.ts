@@ -17,7 +17,8 @@
  */
 
 import type { ContextItemEnriched, DirectoryIntegration, Environment, PlatformSession } from "@wso2/wso2-cloud-client";
-import { PLATFORM_EXTENSION_API_VERSION } from "@wso2/wso2-cloud-client";
+// The browser-safe entry: this module reaches the webviews, and the package root pulls in Node modules.
+import { PLATFORM_EXTENSION_API_VERSION } from "@wso2/wso2-cloud-client/contract";
 import {
     ConnectionConfigurations,
     ConnectionDetailed,

@@ -25,7 +25,11 @@
  * refused by the RPC manager with a message naming the gap.
  */
 
+import * as fs from "fs";
+import * as path from "path";
+import * as yaml from "js-yaml";
 import type { Component, DbCredentials, DbServer, EndpointResources, EnvVarGroup } from "@wso2/wso2-cloud-client";
+import { DATABASE_CONNECTION_VARS, SERVICE_CONNECTION_VARS, connectionVarName, connectionVarSuffix } from "@wso2/wso2-cloud-client";
 import type {
     ConnectionDetailed,
     ConnectionListItem,
@@ -36,23 +40,18 @@ import type {
 } from "@wso2/wso2-platform-core";
 
 /**
- * The env-var names WSO2 Integrator writes for a database connection, keyed
- * by the entry names the screens use: the database form matches a created
- * connection's entries to its configurables by these ids.
+ * The env-var suffixes WSO2 Integrator writes for a database connection (each
+ * prefixed with the connection's name), keyed by the entry names the screens
+ * use: the database form matches a created connection's entries to its
+ * configurables by these ids.
  */
-export const DATABASE_CONNECTION_KEYS: Record<string, string> = {
-    HostName: "DB_HOST",
-    Port: "DB_PORT",
-    DatabaseName: "DB_NAME",
-    Username: "DB_USER",
-    Password: "DB_PASSWORD",
-};
+export const DATABASE_CONNECTION_KEYS: Record<string, string> = DATABASE_CONNECTION_VARS;
 
-/** The env-var names WSO2 Integrator writes for a service connection; the entry names are what the OpenAPI connection flow looks up. */
-export const SERVICE_CONNECTION_KEYS: Record<string, string> = {
-    ServiceURL: "SERVICE_URL",
-    ChoreoAPIKey: "API_KEY",
-};
+/** The env-var suffixes WSO2 Integrator writes for a service connection; the entry names are what the OpenAPI connection flow looks up. */
+export const SERVICE_CONNECTION_KEYS: Record<string, string> = SERVICE_CONNECTION_VARS;
+
+const DATABASE_SUFFIXES = Object.values(DATABASE_CONNECTION_KEYS);
+const SERVICE_SUFFIXES = Object.values(SERVICE_CONNECTION_KEYS);
 
 const SENSITIVE_ENTRIES = new Set(["Password", "ChoreoAPIKey"]);
 
@@ -277,11 +276,13 @@ export function endpointToMarketplaceItem(project: string, integration: Componen
 
 /** What an env-var group holds, judged by its keys. */
 export function resourceTypeOf(group: Pick<EnvVarGroup, "keys" | "data">): "DATABASE" | "SERVICE" | "CONFIG" {
-    const keys = new Set(group.keys ?? Object.keys(group.data ?? {}));
-    if (keys.has(DATABASE_CONNECTION_KEYS.HostName) && keys.has(DATABASE_CONNECTION_KEYS.Password)) {
+    const suffixes = new Set(
+        (group.keys ?? Object.keys(group.data ?? {})).map((key) => connectionVarSuffix(key, [...DATABASE_SUFFIXES, ...SERVICE_SUFFIXES])),
+    );
+    if (suffixes.has(DATABASE_CONNECTION_KEYS.HostName) && suffixes.has(DATABASE_CONNECTION_KEYS.Password)) {
         return "DATABASE";
     }
-    if (keys.has(SERVICE_CONNECTION_KEYS.ServiceURL)) {
+    if (suffixes.has(SERVICE_CONNECTION_KEYS.ServiceURL)) {
         return "SERVICE";
     }
     return "CONFIG";
@@ -320,10 +321,13 @@ export function schemaIdFor(resourceType: "DATABASE" | "SERVICE" | "CONFIG"): st
 export function envGroupToConnectionDetailed(group: EnvVarGroup, ref: Omit<ConnectionRef, "name">): ConnectionDetailed {
     const item = envGroupToConnectionListItem(group, ref);
     const keys = group.keys ?? Object.keys(group.data ?? {});
-    const entryNames = entryNamesFor(resourceTypeOf(group));
+    const resourceType = resourceTypeOf(group);
+    const entryNames = entryNamesFor(resourceType);
+    const suffixes = resourceType === "DATABASE" ? DATABASE_SUFFIXES : resourceType === "SERVICE" ? SERVICE_SUFFIXES : [];
     const entries: ConnectionDetailed["configurations"][string]["entries"] = {};
     for (const key of keys) {
-        const entryName = entryNames[key] ?? key;
+        const suffix = connectionVarSuffix(key, suffixes);
+        const entryName = (suffix && entryNames[suffix]) || key;
         entries[entryName] = {
             key: entryName,
             keyUuid: key,
@@ -342,7 +346,7 @@ export function envGroupToConnectionDetailed(group: EnvVarGroup, ref: Omit<Conne
     };
 }
 
-/** Entry name by env-var name, for the kind of connection. */
+/** Entry name by env-var suffix, for the kind of connection. */
 function entryNamesFor(resourceType: "DATABASE" | "SERVICE" | "CONFIG"): Record<string, string> {
     const source = resourceType === "DATABASE" ? DATABASE_CONNECTION_KEYS : resourceType === "SERVICE" ? SERVICE_CONNECTION_KEYS : {};
     return Object.fromEntries(Object.entries(source).map(([entry, envVar]) => [envVar, entry]));
@@ -360,7 +364,8 @@ export function createdConnection(params: {
     const configurations: ConnectionDetailed["configurations"] = {};
     for (const environment of params.environments) {
         const entries: ConnectionDetailed["configurations"][string]["entries"] = {};
-        for (const [entryName, envVar] of Object.entries(keys)) {
+        for (const [entryName, suffix] of Object.entries(keys)) {
+            const envVar = connectionVarName(params.name, suffix);
             entries[entryName] = {
                 key: entryName,
                 keyUuid: envVar,
@@ -391,4 +396,49 @@ export function createdConnection(params: {
         envMapping: {},
         visibilities: [],
     };
+}
+
+/**
+ * The connections `.wso2/component.yaml` (or the legacy `.choreo` one) records
+ * for an integration directory: the service id of each, by connection name,
+ * or an empty string when its reference names no service the screens know.
+ */
+export function localConnectionServiceIds(componentDir: string | undefined): Map<string, string> {
+    const ids = new Map<string, string>();
+    if (!componentDir) {
+        return ids;
+    }
+    for (const dir of [".wso2", ".choreo"]) {
+        const file = path.join(componentDir, dir, "component.yaml");
+        if (!fs.existsSync(file)) {
+            continue;
+        }
+        try {
+            const content = yaml.load(fs.readFileSync(file, "utf8")) as { dependencies?: { connectionReferences?: { name?: string; resourceRef?: string }[] } } | undefined;
+            for (const ref of content?.dependencies?.connectionReferences ?? []) {
+                if (ref.name) {
+                    ids.set(ref.name, serviceIdOfResourceRef(ref.resourceRef) ?? "");
+                }
+            }
+        } catch (err) {
+            console.warn(`Could not read ${file}: ${err}`);
+        }
+        break;
+    }
+    return ids;
+}
+
+/** `database:<server>` and `service:<project>/<integration>/<endpoint>` as the marketplace ids the screens use. */
+export function serviceIdOfResourceRef(resourceRef: string | undefined): string | undefined {
+    if (!resourceRef) {
+        return undefined;
+    }
+    if (resourceRef.startsWith("database:")) {
+        return databaseId(resourceRef.slice("database:".length));
+    }
+    if (resourceRef.startsWith("service:")) {
+        const [project, integration, endpoint] = resourceRef.slice("service:".length).split("/");
+        return project && integration && endpoint ? serviceId({ project, integration, endpoint }) : undefined;
+    }
+    return undefined;
 }
