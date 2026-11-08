@@ -306,7 +306,7 @@ public class McpClient {
 
             McpServerInfo serverInfo;
             try {
-                JsonObject response = readJsonRpcResponse(conn);
+                JsonObject response = parseJsonRpcMessage(readBody(conn), conn.getContentType());
                 serverInfo = response == null ? McpServerInfo.empty() : McpServerInfo.fromInitializeResponse(response);
             } catch (RuntimeException e) {
                 // The handshake succeeded; a body the probe cannot read only costs the server's name and icon.
@@ -560,36 +560,6 @@ public class McpClient {
         }
     }
 
-    // Reads one JSON-RPC response, from a plain JSON body or the first data event of an SSE stream.
-    private static JsonObject readJsonRpcResponse(HttpURLConnection conn) throws IOException {
-        String contentType = conn.getContentType();
-        try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
-            String json = null;
-            if (contentType != null && contentType.contains("text/event-stream")) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    if (line.startsWith("data:")) {
-                        json = line.substring(5).strip();
-                        break;
-                    }
-                }
-            } else {
-                StringBuilder fullResponse = new StringBuilder();
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    fullResponse.append(line);
-                }
-                json = fullResponse.toString();
-            }
-            if (json == null || json.isBlank()) {
-                return null;
-            }
-            JsonElement element = JsonParser.parseString(json);
-            return element.isJsonObject() ? element.getAsJsonObject() : null;
-        }
-    }
-
     // Mirrors how the mcp.v2 client decides between the modern protocol and the legacy handshake. Returns the
     // server/discover response of a modern server, or null for a legacy one.
     private static JsonObject discoverModernServer(String serviceUrl, String accessToken, SslConfig sslConfig)
@@ -610,7 +580,7 @@ public class McpClient {
         JsonObject message = response.message();
         if (message != null && message.has("error") && message.get("error").isJsonObject()) {
             JsonObject error = message.getAsJsonObject("error");
-            int errorCode = error.has("code") ? error.get("code").getAsInt() : 0;
+            int errorCode = errorCode(error);
             if (errorCode == HEADER_MISMATCH || errorCode == MISSING_REQUIRED_CLIENT_CAPABILITY) {
                 throw new IOException("Server rejected the protocol discovery request: " + errorMessage(error));
             }
@@ -751,13 +721,19 @@ public class McpClient {
     private record ProtocolResponse(int statusCode, String body, JsonObject message, String wwwAuthenticate) {
     }
 
+    // Reads a response body. An event stream is read only up to the event that carries the JSON-RPC response, as
+    // a server may keep the stream open after it.
     private static String readBody(HttpURLConnection conn) throws IOException {
+        boolean eventStream = isEventStream(conn.getContentType());
         try (BufferedReader reader = new BufferedReader(
                 new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
             StringBuilder body = new StringBuilder();
             String line;
             while ((line = reader.readLine()) != null) {
                 body.append(line).append('\n');
+                if (eventStream && jsonRpcResponseEvent(line) != null) {
+                    break;
+                }
             }
             return body.toString();
         }
@@ -772,15 +748,11 @@ public class McpClient {
             return null;
         }
         try {
-            if (contentType != null && contentType.contains("text/event-stream")) {
+            if (isEventStream(contentType)) {
                 for (String line : body.split("\n")) {
-                    if (!line.startsWith("data:")) {
-                        continue;
-                    }
-                    JsonElement event = JsonParser.parseString(line.substring(5).trim());
-                    if (event.isJsonObject() && (event.getAsJsonObject().has("result")
-                            || event.getAsJsonObject().has("error"))) {
-                        return event.getAsJsonObject();
+                    JsonObject event = jsonRpcResponseEvent(line);
+                    if (event != null) {
+                        return event;
                     }
                 }
                 return null;
@@ -790,6 +762,30 @@ public class McpClient {
         } catch (RuntimeException e) {
             return null;
         }
+    }
+
+    private static boolean isEventStream(String contentType) {
+        return contentType != null && contentType.contains("text/event-stream");
+    }
+
+    // The JSON-RPC response an event-stream line carries, or null for any other line, such as a notification.
+    private static JsonObject jsonRpcResponseEvent(String line) {
+        if (!line.startsWith("data:")) {
+            return null;
+        }
+        try {
+            JsonElement event = JsonParser.parseString(line.substring(5).trim());
+            return event.isJsonObject() && (event.getAsJsonObject().has("result")
+                    || event.getAsJsonObject().has("error")) ? event.getAsJsonObject() : null;
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
+    // The code of a JSON-RPC error, or 0 when it has none that is a number.
+    private static int errorCode(JsonObject error) {
+        JsonElement code = error.get("code");
+        return code != null && code.isJsonPrimitive() && code.getAsJsonPrimitive().isNumber() ? code.getAsInt() : 0;
     }
 
     private static boolean containsVersion(JsonArray versions, List<String> knownVersions) {
