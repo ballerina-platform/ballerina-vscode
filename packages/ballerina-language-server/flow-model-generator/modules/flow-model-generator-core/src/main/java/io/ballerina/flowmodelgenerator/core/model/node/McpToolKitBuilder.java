@@ -557,14 +557,15 @@ public class McpToolKitBuilder extends NodeBuilder {
     private String generateClassSource(SourceBuilder classSourceBuilder, String className, String permittedTools,
                                        Map<String, List<String>> toolScopesMap, boolean includeContext,
                                        boolean mcpV2) {
-        classSourceBuilder.acceptImport(Ai.BALLERINA_ORG, Ai.AI_PACKAGE);
         if (mcpV2) {
+            classSourceBuilder.acceptImport(Ai.BALLERINA_ORG, Ai.AI_PACKAGE);
             String mcpV2Qualifier = classSourceBuilder.referenceQualifier(Ai.BALLERINA_ORG, Ai.MCP_V2_MODULE,
                     MCP_V2_IMPORT_PREFIX);
             return generateMcpV2ToolKitClassSource(className, permittedTools, toolScopesMap, includeContext,
                     mcpV2Qualifier);
         }
         classSourceBuilder.acceptImport(Ai.BALLERINA_ORG, Ai.MCP_PACKAGE);
+        classSourceBuilder.acceptImport(Ai.BALLERINA_ORG, Ai.AI_PACKAGE);
         // OAuth scopes require log (error logging) and http (auth config) in generated code
         if (!toolScopesMap.isEmpty()) {
             classSourceBuilder.acceptImport(Ai.BALLERINA_ORG, Ai.LOG_PACKAGE);
