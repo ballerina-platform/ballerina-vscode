@@ -35,11 +35,11 @@ import { FormField } from "../Form/types";
 import { useFormContext } from "../../context";
 import { Controller } from "react-hook-form";
 import { S } from "./ExpressionEditor";
-import { buildRequiredRule, sanitizeType } from "./utils";
+import { buildRequiredRule, sanitizeType, getPropertyFromFormField } from "./utils";
 import { debounce } from "lodash";
 import styled from "@emotion/styled";
 import ReactMarkdown from "react-markdown";
-import { getFieldTypeLabel, NodeProperties, PropertyModel } from "@wso2/ballerina-core";
+import { NodeProperties, PropertyModel } from "@wso2/ballerina-core";
 import { canOfferTypeCreation } from "./typeCreationGate";
 import { SyntaxToggles } from "./SyntaxToggles";
 import { getGraphQLNonNullInfo } from "./TypeModifierTooltip";
@@ -51,6 +51,7 @@ import {
     TypeModifier
 } from "./typeModifiers";
 
+import { FieldTypeChip } from "./FieldTypeChip";
 const isGraphQLScalarType = (type: string): boolean => {
     const scalarTypes = [
         'string',
@@ -244,7 +245,8 @@ export function ActionTypeEditor(props: ActionTypeEditorProps) {
 
     const cursorPositionRef = useRef<number | undefined>(undefined);
     const [showDefaultCompletion, setShowDefaultCompletion] = useState<boolean>(false);
-    const [focused, setFocused] = useState<boolean>(false);
+    const [isTypeOptional, setIsTypeOptional] = useState<boolean>(false);
+    const [isCodeActionMenuOpen, setIsCodeActionMenuOpen] = useState<boolean>(false);
     const [isGraphqlId, setIsGraphqlId] = useState<boolean>(field.isGraphqlId || false);
     const [showGraphqlCheckbox, setShowGraphqlCheckbox] = useState<boolean>(false);
 
@@ -263,7 +265,6 @@ export function ActionTypeEditor(props: ActionTypeEditorProps) {
     const lastWritten = useRef<string | undefined>(undefined);
 
     const handleFocus = async (value: string) => {
-        setFocused(true);
         // Trigger actions on focus
         await onFocus?.();
         await retrieveVisibleTypes(value, value.length, true, field.types, field.key);
@@ -271,7 +272,6 @@ export function ActionTypeEditor(props: ActionTypeEditorProps) {
     };
 
     const handleBlur = async () => {
-        setFocused(false);
         setDraft(undefined);
         // Trigger actions on blur
         await onBlur?.();
@@ -417,14 +417,7 @@ export function ActionTypeEditor(props: ActionTypeEditorProps) {
                     </S.EditorMdContainer>
 
                 </S.Header>
-                {getFieldTypeLabel(field.types) &&
-                    <S.Type
-                        isVisible={focused}
-                        title={getFieldTypeLabel(field.types)}
-                    >
-                        {sanitizeType(getFieldTypeLabel(field.types))}
-                    </S.Type>
-                }
+                <FieldTypeChip types={field.types} />
             </S.HeaderContainer>
             <Controller
                 control={control}

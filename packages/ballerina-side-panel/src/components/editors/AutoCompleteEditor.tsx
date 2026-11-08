@@ -28,6 +28,7 @@ import { buildValidate } from "../Form/validationRules";
 import { useFieldDiagnostics } from "../Form/useFieldDiagnostics";
 import { dedupeMessages } from "../Form/DiagnosticsStore";
 import { WarningBanner } from "../Form/WarningBanner";
+import { FieldTypeChip } from "./FieldTypeChip";
 
 interface AutoCompleteEditorProps {
     field: FormField;
@@ -75,6 +76,7 @@ export function AutoCompleteEditor(props: AutoCompleteEditorProps) {
                     validate: buildValidate(field)
                 })}
                 label={capitalize(field.label)}
+                labelAdornment={<FieldTypeChip types={field.types} />}
                 items={field.items}
                 allowItemCreate={field.allowItemCreate ?? true}
                 required={!field.optional}

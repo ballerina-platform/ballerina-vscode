@@ -132,7 +132,7 @@ export function ServiceClassConfig(props: ServiceClassConfigProps) {
             const docProperty = model.documentation as PropertyModel;
             fields.push({
                 key: 'documentation',
-                label: docProperty.metadata?.label || 'Documentation',
+                label: docProperty.metadata?.label || 'Description',
                 type: getPrimaryInputType(docProperty?.types)?.fieldType || 'string',
                 optional: docProperty.optional,
                 editable: docProperty.editable,

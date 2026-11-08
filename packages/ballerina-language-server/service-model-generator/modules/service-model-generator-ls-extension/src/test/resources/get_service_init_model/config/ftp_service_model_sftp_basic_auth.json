@@ -971,6 +971,7 @@
                       "types": [
                         {
                           "fieldType": "SINGLE_SELECT",
+                          "ballerinaType": "ftp:Listener",
                           "selected": true
                         }
                       ],

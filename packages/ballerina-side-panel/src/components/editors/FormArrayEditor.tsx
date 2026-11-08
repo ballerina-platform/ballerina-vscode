@@ -27,6 +27,7 @@ import ModeSwitcher from "../ModeSwitcher";
 import { getArrayElementValues, getArraySubFormFieldFromTypes, normalizeDiagnostics, getRepeatableErrorMessages, stringToRawArrayElements, buildStringArray, getRecordTypeFields, mapDiagnosticsServerityToFormSeverity, getPropertyFromFormField } from "./utils";
 import { InputMode } from "./MultiModeExpressionEditor/ChipExpressionEditor/types";
 import { getInputModeFromTypes } from "./MultiModeExpressionEditor/ChipExpressionEditor/utils";
+import { FieldTypeChip } from "./FieldTypeChip";
 
 export const FormArrayEditor = (props: FormFieldEditorProps & {
     onChange: (value: any) => void;
@@ -267,6 +268,7 @@ export const FormArrayEditor = (props: FormFieldEditorProps & {
                             <S.LabelContainer>
                                 <S.Label>{props.field.label}</S.Label>
                                 {!props.field.optional && <RequiredFormInput />}
+                                <FieldTypeChip types={props.field.types} />
                             </S.LabelContainer>
                         </S.HeaderContainer>
                         <S.EditorMdContainer>

@@ -121,8 +121,8 @@
             },
             "documentation": {
               "metadata": {
-                "label": "Documentation",
-                "description": "Variable documentation in Markdown format"
+                "label": "Description",
+                "description": "Description of the variable"
               },
               "types": [
                 {
@@ -258,8 +258,8 @@
             },
             "documentation": {
               "metadata": {
-                "label": "Documentation",
-                "description": "Variable documentation in Markdown format"
+                "label": "Description",
+                "description": "Description of the variable"
               },
               "types": [
                 {
@@ -395,8 +395,8 @@
             },
             "documentation": {
               "metadata": {
-                "label": "Documentation",
-                "description": "Variable documentation in Markdown format"
+                "label": "Description",
+                "description": "Description of the variable"
               },
               "types": [
                 {
@@ -532,8 +532,8 @@
             },
             "documentation": {
               "metadata": {
-                "label": "Documentation",
-                "description": "Variable documentation in Markdown format"
+                "label": "Description",
+                "description": "Description of the variable"
               },
               "types": [
                 {
@@ -661,8 +661,8 @@
             },
             "documentation": {
               "metadata": {
-                "label": "Documentation",
-                "description": "Variable documentation in Markdown format"
+                "label": "Description",
+                "description": "Description of the variable"
               },
               "types": [
                 {
@@ -798,8 +798,8 @@
             },
             "documentation": {
               "metadata": {
-                "label": "Documentation",
-                "description": "Variable documentation in Markdown format"
+                "label": "Description",
+                "description": "Description of the variable"
               },
               "types": [
                 {
@@ -935,8 +935,8 @@
             },
             "documentation": {
               "metadata": {
-                "label": "Documentation",
-                "description": "Variable documentation in Markdown format"
+                "label": "Description",
+                "description": "Description of the variable"
               },
               "types": [
                 {
