@@ -21,6 +21,7 @@
 // `httpConfig` mapping constructor.
 
 const AUTH_KEY = "auth";
+const IDENTIFIER = /^'?[A-Za-z_][A-Za-z0-9_]*$/;
 
 export type HttpConfigAuth =
     // A mapping constructor, or no value; `auth` is the entry's value, or "" when there is none
@@ -29,18 +30,39 @@ export type HttpConfigAuth =
     | { kind: "expression" };
 
 /**
- * Splits the entries of a mapping constructor at its top-level commas, or returns undefined when the value is
- * not a single mapping constructor.
+ * Walks the characters of an expression outside `//` comments and the contents of its string literals, calling
+ * `visit` with the index of each (the quotes of a string included). Returns false when a string is left open.
  */
-function splitEntries(value: string): string[] | undefined {
-    const text = value.trim();
-    if (!text.startsWith("{") || !text.endsWith("}")) {
-        return undefined;
-    }
-    const entries: string[] = [];
-    let depth = 0;
+function scanCode(text: string, visit: (index: number) => void): boolean {
     let quote: string | undefined;
-    let start = 1;
+    for (let index = 0; index < text.length; index++) {
+        const char = text[index];
+        if (quote) {
+            if (char === "\\") {
+                index++;
+            } else if (char === quote) {
+                quote = undefined;
+                visit(index);
+            }
+            continue;
+        }
+        if (char === "/" && text[index + 1] === "/") {
+            const end = text.indexOf("\n", index);
+            index = end < 0 ? text.length : end - 1;
+            continue;
+        }
+        if (char === "\"" || char === "`") {
+            quote = char;
+        }
+        visit(index);
+    }
+    return quote === undefined;
+}
+
+function stripComments(text: string): string {
+    let code = "";
+    let last = 0;
+    let quote: string | undefined;
     for (let index = 0; index < text.length; index++) {
         const char = text[index];
         if (quote) {
@@ -49,36 +71,90 @@ function splitEntries(value: string): string[] | undefined {
             } else if (char === quote) {
                 quote = undefined;
             }
-            continue;
-        }
-        if (char === "\"" || char === "`") {
+        } else if (char === "\"" || char === "`") {
             quote = char;
-        } else if (char === "{" || char === "[" || char === "(") {
+        } else if (char === "/" && text[index + 1] === "/") {
+            code += text.slice(last, index);
+            const end = text.indexOf("\n", index);
+            index = end < 0 ? text.length : end - 1;
+            last = index + 1;
+        }
+    }
+    return (code + text.slice(last)).trim();
+}
+
+/**
+ * Splits the entries of a mapping constructor at its top-level commas, or returns undefined when the value is
+ * not a single mapping constructor. An entry keeps the comments written before it.
+ */
+function splitEntries(value: string): string[] | undefined {
+    const text = value.trim();
+    if (!text.startsWith("{") || !stripComments(text).endsWith("}")) {
+        return undefined;
+    }
+    const closing = text.lastIndexOf("}");
+    const entries: string[] = [];
+    let depth = 0;
+    let start = 1;
+    let single = true;
+    const closed = scanCode(text, (index) => {
+        const char = text[index];
+        if (char === "{" || char === "[" || char === "(") {
             depth++;
         } else if (char === "}" || char === "]" || char === ")") {
             depth--;
-            if (depth === 0 && index !== text.length - 1) {
+            if (depth === 0 && index !== closing) {
                 // The opening brace closed before the end, so this is not one mapping constructor
-                return undefined;
+                single = false;
             }
         } else if (char === "," && depth === 1) {
-            entries.push(text.slice(start, index));
-            start = index + 1;
+            // A comment after the comma, on the same line, belongs to the entry before it
+            const lineEnd = text.indexOf("\n", index);
+            const rest = lineEnd < 0 ? "" : text.slice(index + 1, lineEnd);
+            if (/^\s*\/\//.test(rest)) {
+                entries.push(text.slice(start, index) + rest);
+                start = lineEnd;
+            } else {
+                entries.push(text.slice(start, index));
+                start = index + 1;
+            }
         }
-    }
-    if (depth !== 0 || quote) {
+    });
+    if (!closed || !single || depth !== 0) {
         return undefined;
     }
-    entries.push(text.slice(start, text.length - 1));
-    return entries.map((entry) => entry.trim()).filter((entry) => entry !== "");
+    entries.push(text.slice(start, closing));
+    return entries.map((entry) => entry.trim()).filter((entry) => stripComments(entry) !== "");
+}
+
+// The index of the colon that ends an entry's key, or -1 for an entry without one.
+function keySeparator(entry: string): number {
+    let separator = -1;
+    scanCode(entry, (index) => {
+        if (separator < 0 && entry[index] === ":") {
+            separator = index;
+        }
+    });
+    return separator;
 }
 
 function entryKey(entry: string): string | undefined {
-    const separator = entry.indexOf(":");
-    if (separator < 0 || entry.startsWith("...")) {
+    const code = stripComments(entry);
+    if (code.startsWith("...")) {
         return undefined;
     }
-    return entry.slice(0, separator).trim().replace(/^'/, "").replace(/^"(.*)"$/, "$1");
+    const separator = keySeparator(code);
+    if (separator < 0) {
+        // A field name alone, such as `{auth}`, takes the value of the variable of that name
+        return IDENTIFIER.test(code) ? code.replace(/^'/, "") : undefined;
+    }
+    return code.slice(0, separator).trim().replace(/^'/, "").replace(/^"(.*)"$/, "$1");
+}
+
+function entryValue(entry: string): string {
+    const code = stripComments(entry);
+    const separator = keySeparator(code);
+    return separator < 0 ? code.replace(/^'/, "") : code.slice(separator + 1).trim();
 }
 
 /** Reads the `auth` entry of an `httpConfig` value. */
@@ -91,12 +167,13 @@ export function readHttpConfigAuth(httpConfig: string | undefined): HttpConfigAu
         return { kind: "expression" };
     }
     const authEntry = entries.find((entry) => entryKey(entry) === AUTH_KEY);
-    return { kind: "record", auth: authEntry ? authEntry.slice(authEntry.indexOf(":") + 1).trim() : "" };
+    return { kind: "record", auth: authEntry ? entryValue(authEntry) : "" };
 }
 
 /**
  * Returns the `httpConfig` value with its `auth` entry replaced by `auth`, or removed when `auth` is empty.
- * Returns undefined when the value is not a mapping constructor, so its auth cannot be changed.
+ * Returns undefined when the value is not a mapping constructor, so its auth cannot be changed. A value written
+ * over several lines keeps one entry per line, so the comments in it still end where they did.
  */
 export function writeHttpConfigAuth(httpConfig: string | undefined, auth: string): string | undefined {
     const isEmpty = !httpConfig || httpConfig.trim() === "";
@@ -111,5 +188,23 @@ export function writeHttpConfigAuth(httpConfig: string | undefined, auth: string
     if (otherEntries.length === 0) {
         return isEmpty ? "" : "{}";
     }
-    return `{${otherEntries.join(", ")}}`;
+    const text = isEmpty ? "" : httpConfig.trim();
+    if (!text.includes("\n")) {
+        return `{${otherEntries.join(", ")}}`;
+    }
+    const indent = /\n([ \t]*)\S/.exec(text)?.[1] ?? "    ";
+    const closingIndent = /\n([ \t]*)\}$/.exec(text)?.[1] ?? "";
+    const lines = otherEntries.map((entry, index) => index < otherEntries.length - 1 ? withComma(entry) : entry);
+    return `{\n${indent}${lines.join(`\n${indent}`)}\n${closingIndent}}`;
+}
+
+// Adds the separating comma after an entry's last code character, ahead of a comment that ends the entry.
+function withComma(entry: string): string {
+    let last = entry.length - 1;
+    scanCode(entry, (index) => {
+        if (!/\s/.test(entry[index])) {
+            last = index;
+        }
+    });
+    return `${entry.slice(0, last + 1)},${entry.slice(last + 1)}`;
 }

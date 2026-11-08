@@ -36,6 +36,20 @@ describe("readHttpConfigAuth", () => {
         expect(readHttpConfigAuth(`{proxy: {auth: {}}}`)).toEqual({ kind: "record", auth: "" });
     });
 
+    it("reads a field name given alone as the variable of that name", () => {
+        expect(readHttpConfigAuth(`{timeout: 10, auth}`)).toEqual({ kind: "record", auth: "auth" });
+    });
+
+    it("reads past comments and string keys with colons", () => {
+        const httpConfig = `{
+    timeout: 10, // seconds, not millis: {see docs}
+    // the token below
+    auth: {token: "a//b"},
+    "x:y": 1
+}`;
+        expect(readHttpConfigAuth(httpConfig)).toEqual({ kind: "record", auth: `{token: "a//b"}` });
+    });
+
     it("treats a variable or call as an expression", () => {
         expect(readHttpConfigAuth("myHttpConfig")).toEqual({ kind: "expression" });
         expect(readHttpConfigAuth("getConfig({a: 1})")).toEqual({ kind: "expression" });
@@ -58,6 +72,22 @@ describe("writeHttpConfigAuth", () => {
         expect(writeHttpConfigAuth(`{timeout: 10, auth: {token: "t"}}`, "")).toBe(`{timeout: 10}`);
         expect(writeHttpConfigAuth(`{auth: {token: "t"}}`, "")).toBe("{}");
         expect(writeHttpConfigAuth("", "")).toBe("");
+    });
+
+    it("replaces a field name given alone instead of adding a second auth", () => {
+        expect(writeHttpConfigAuth(`{timeout: 10, auth}`, `{token: "t"}`)).toBe(`{timeout: 10, auth: {token: "t"}}`);
+    });
+
+    it("keeps a value written over several lines, with its comments, on several lines", () => {
+        const httpConfig = `{
+    timeout: 10, // seconds
+    retryConfig: {count: 3} // retries
+}`;
+        expect(writeHttpConfigAuth(httpConfig, `{token: "t"}`)).toBe(`{
+    timeout: 10, // seconds
+    retryConfig: {count: 3}, // retries
+    auth: {token: "t"}
+}`);
     });
 
     it("cannot change a variable", () => {
