@@ -3301,15 +3301,14 @@ public class CodeAnalyzer extends NodeVisitor {
                 functionData);
     }
 
-    // Default values are read from the callee's source: the current package for a local client, its bala otherwise.
+    // Defaults are read from source for a callee in this package or workspace; the builder looks up the rest.
     private Optional<Package> calleePackage(MethodSymbol functionSymbol) {
         if (CommonUtils.isWithinPackage(functionSymbol, moduleInfo)) {
             return Optional.of(project.currentPackage());
         }
         // A sibling workspace package is not on Central, and a missed lookup is not cached.
         return functionSymbol.getModule().map(ModuleSymbol::id)
-                .flatMap(id -> PackageUtil.findWorkspacePackage(project, id.orgName(), id.packageName(), null)
-                        .or(() -> PackageUtil.resolveModulePackage(id.orgName(), id.packageName(), id.version())));
+                .flatMap(id -> PackageUtil.findWorkspacePackage(project, id.orgName(), id.packageName(), null));
     }
 
     private String getDefaultMemoryManagerName(ClassSymbol classSymbol) {
@@ -3414,6 +3413,8 @@ public class CodeAnalyzer extends NodeVisitor {
                 .functionSymbol(functionSymbol)
                 .semanticModel(semanticModel)
                 .userModuleInfo(moduleInfo)
+                .workspaceManager(workspaceManager)
+                .resolvedPackage(calleePackage(functionSymbol).orElse(null))
                 .resourcePath(resourcePathTemplate.resourcePathTemplate())
                 .functionResultKind(FunctionData.Kind.RESOURCE);
         FunctionData functionData = functionDataBuilder.build();
