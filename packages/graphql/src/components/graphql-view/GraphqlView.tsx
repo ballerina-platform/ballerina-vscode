@@ -16,10 +16,16 @@
  * under the License.
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { GraphiQL } from "graphiql";
 import GraphiQLExplorer from "graphiql-explorer";
 import { buildClientSchema, getIntrospectionQuery, GraphQLSchema } from "graphql";
+import {
+    createGetDefaultFieldNames,
+    createServedMetaFieldsRule,
+    getServedMetaFields,
+    ServedMetaFields,
+} from "./introspection";
 import "graphiql/graphiql.css";
 import "./style.css";
 
@@ -41,6 +47,11 @@ interface Request {
     body?: string,
 }
 
+let lastRequestId = 0;
+
+// Each request carries an id that the extension host echoes back, so concurrent requests
+// (e.g. introspection and a query) each settle with their own response, and the listener is
+// removed once it has.
 function fetcher(api: string, body: Object, headers: string | undefined): Promise<any> {
     const request: Request = {
         url: api,
@@ -48,23 +59,23 @@ function fetcher(api: string, body: Object, headers: string | undefined): Promis
         headers: JSON.parse(headers ?? ''),
         body: JSON.stringify(body),
     }
-
-    vscode?.postMessage({
-        command: 'graphqlRequest',
-        req: request
-    });
+    const id = ++lastRequestId;
 
     return new Promise(resolve => {
-        window.addEventListener('message', event => {
+        const onMessage = (event: MessageEvent) => {
             const message = event.data;
-            switch (message.command) {
-                case 'graphqlResponse':
-                    if (!message.res) {
-                        resolve(false);
-                    }
-                    resolve(message.res);
+            if (message?.command !== 'graphqlResponse' || message.id !== id) {
+                return;
             }
-        })
+            window.removeEventListener('message', onMessage);
+            resolve(message.res || false);
+        };
+        window.addEventListener('message', onMessage);
+        vscode?.postMessage({
+            command: 'graphqlRequest',
+            id,
+            req: request
+        });
     });
 }
 
@@ -74,6 +85,7 @@ export const GraphqlView = (props: any) => {
 
     const [query, setQuery] = useState<string | undefined>('');
     const [schema, setSchema] = useState<GraphQLSchema | null>();
+    const [servedMetaFields, setServedMetaFields] = useState<ServedMetaFields>(new Map());
     const [headers, setHeaders] = useState<string | undefined>(JSON.stringify({
         "Content-Type": "application/json",
     }));
@@ -89,9 +101,16 @@ export const GraphqlView = (props: any) => {
     useEffect(() => {
         fetcher(serviceAPI, { query: getIntrospectionQuery() }, headers)
             .then(result => {
+                if (!result?.data?.__schema) {
+                    return;
+                }
+                setServedMetaFields(getServedMetaFields(result.data));
                 setSchema(buildClientSchema(result.data));
             });
     }, []);
+
+    const getDefaultFieldNames = useMemo(() => createGetDefaultFieldNames(servedMetaFields), [servedMetaFields]);
+    const validationRules = useMemo(() => [createServedMetaFieldsRule(servedMetaFields)], [servedMetaFields]);
 
     const _handleEditQuery = (query?: string): void => setQuery(query);
     const _handleEditHeaders = (headers?: string): void => setHeaders(headers);
@@ -140,6 +159,8 @@ export const GraphqlView = (props: any) => {
                 query={query}
                 onEditQuery={_handleEditQuery}
                 onEditHeaders={_handleEditHeaders}
+                getDefaultFieldNames={getDefaultFieldNames}
+                validationRules={validationRules}
                 defaultEditorToolsVisibility={true}
                 forcedTheme={theme}
                 visiblePlugin={"Ballerina Explorer"}

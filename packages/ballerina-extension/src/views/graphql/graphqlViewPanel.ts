@@ -55,6 +55,7 @@ export async function showGraphqlView(serviceAPI: string): Promise<void> {
             await swaggerServer.sendRequest(message.req, true).then((response) => {
                 graphqlViewPanel!.webview.postMessage({
                     command: 'graphqlResponse',
+                    id: message.id,
                     res: response
                 });
             });
