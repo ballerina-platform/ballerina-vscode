@@ -110,6 +110,7 @@ export const GraphqlView = (props: any) => {
         fetcher(serviceAPI, { query: getIntrospectionQuery() }, headers)
             .then(result => {
                 if (!result?.data?.__schema) {
+                    console.warn("GraphQL Try It: introspection returned no schema", result);
                     return;
                 }
                 setServedMetaFields(getServedMetaFields(result.data));
