@@ -51,6 +51,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -106,20 +107,33 @@ public class BallerinaWorkspaceManagerProxyImpl implements BallerinaWorkspaceMan
     }
 
     // Applies the source edits that waited for the copy whenever a holder takes or gives back the lock.
-    private final class ExprCopyLock extends ReentrantLock {
-        ExprCopyLock() {
-            super(true);
-        }
+    private final class ExprCopyLock implements Lock {
+        private final ReentrantLock lock = new ReentrantLock(true);
 
         @Override
         public void lock() {
-            super.lock();
+            lock.lock();
+            applyPendingCopyEdits();
+        }
+
+        @Override
+        public void lockInterruptibly() throws InterruptedException {
+            lock.lockInterruptibly();
             applyPendingCopyEdits();
         }
 
         @Override
         public boolean tryLock() {
-            if (!super.tryLock()) {
+            if (!lock.tryLock()) {
+                return false;
+            }
+            applyPendingCopyEdits();
+            return true;
+        }
+
+        @Override
+        public boolean tryLock(long time, TimeUnit unit) throws InterruptedException {
+            if (!lock.tryLock(time, unit)) {
                 return false;
             }
             applyPendingCopyEdits();
@@ -129,7 +143,16 @@ public class BallerinaWorkspaceManagerProxyImpl implements BallerinaWorkspaceMan
         @Override
         public void unlock() {
             applyPendingCopyEdits();
-            super.unlock();
+            lock.unlock();
+        }
+
+        @Override
+        public Condition newCondition() {
+            return lock.newCondition();
+        }
+
+        int getHoldCount() {
+            return lock.getHoldCount();
         }
     }
 
