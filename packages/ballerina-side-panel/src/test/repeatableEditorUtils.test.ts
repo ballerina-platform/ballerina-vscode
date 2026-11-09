@@ -29,6 +29,7 @@ jest.mock("../components/editors/ExpandedEditor/modes/types", () => ({ EXPANDABL
 import { renderHook } from "@testing-library/react";
 import {
     buildRequiredRepeatableRule,
+    getArrayElementTypes,
     getArrayElementValues,
     getMapEntryValues,
     getRepeatableErrorMessages,
@@ -131,6 +132,33 @@ describe("getArrayElementValues", () => {
 
     it("reads plain strings and treats a missing value as empty", () => {
         expect(getArrayElementValues(["a", { key: "ar-elm-1" }])).toEqual(["a", ""]);
+    });
+});
+
+describe("getArrayElementTypes", () => {
+    // sql:ParameterizedQuery[]: a new element opens in the SQL editor
+    const template = [
+        { fieldType: "SQL_QUERY", ballerinaType: "sql:ParameterizedQuery", selected: true },
+        { fieldType: "EXPRESSION", ballerinaType: "sql:ParameterizedQuery", selected: false },
+    ] as any[];
+
+    it("keeps the modes of an element read back from the source", () => {
+        // `q1` in `batchExecute([q1])` comes back as an expression, not an SQL query that would quote it
+        const element = {
+            value: "q1",
+            types: [
+                { fieldType: "SQL_QUERY", ballerinaType: "sql:ParameterizedQuery", selected: false },
+                { fieldType: "EXPRESSION", ballerinaType: "sql:ParameterizedQuery", selected: true },
+            ],
+        };
+        const types = getArrayElementTypes(element, template);
+        expect(types.find((type) => type.selected)?.fieldType).toBe("EXPRESSION");
+    });
+
+    it("gives a new element the template's modes", () => {
+        expect(getArrayElementTypes("q1", template)).toBe(template);
+        expect(getArrayElementTypes(undefined, template)).toBe(template);
+        expect(getArrayElementTypes({ value: "q1", types: [] }, template)).toBe(template);
     });
 });
 

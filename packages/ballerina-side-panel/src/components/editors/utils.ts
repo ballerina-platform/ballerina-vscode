@@ -111,6 +111,16 @@ export const getArrayElementValues = (elements: unknown[]): string[] => {
 };
 
 /**
+ * The input modes of an element of a repeatable list. An element read back from the source carries its own modes,
+ * with the one that fits its value selected (`q1` as an expression); only a new element takes the list's template,
+ * whose selected mode suits an empty value (an SQL query for `sql:ParameterizedQuery[]`).
+ */
+export const getArrayElementTypes = (element: unknown, templateTypes: InputType[]): InputType[] => {
+    const elementTypes = (element as { types?: unknown })?.types;
+    return Array.isArray(elementTypes) && elementTypes.length > 0 ? elementTypes as InputType[] : templateTypes;
+};
+
+/**
  * Reads the key and value of each entry of a repeatable map held as the entries object the editor emits, so two
  * maps can be compared by what they hold regardless of the keys and diagnostics attached to each entry.
  */

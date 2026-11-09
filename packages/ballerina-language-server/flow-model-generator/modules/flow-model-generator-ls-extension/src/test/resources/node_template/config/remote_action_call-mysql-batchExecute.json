@@ -12,6 +12,7 @@
     "packageName": "mysql",
     "object": "Client",
     "symbol": "batchExecute",
+    "version": "1.19.1",
     "parentSymbol": "mysqlClient",
     "resourcePath": "",
     "id": 0
@@ -30,6 +31,7 @@
       "packageName": "mysql",
       "object": "Client",
       "symbol": "batchExecute",
+      "version": "1.19.1",
       "isNew": true
     },
     "returning": false,

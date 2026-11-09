@@ -11,7 +11,8 @@
     "module": "ai",
     "packageName": "ai",
     "object": "Wso2ModelProvider",
-    "symbol": "chat"
+    "symbol": "chat",
+    "version": "1.16.0"
   },
   "output": {
     "id": "31",
@@ -27,6 +28,7 @@
       "packageName": "ai",
       "object": "Wso2ModelProvider",
       "symbol": "chat",
+      "version": "1.16.0",
       "isNew": true
     },
     "returning": false,

@@ -20,8 +20,13 @@
 // each is a rule asserted over every property of every sampled connector action, so
 // it catches the whole class of bug (#1491 and any future connector), not one
 // case. Grow coverage by adding actions to ACTIONS; the rules stay the same.
-// Requires the sampled connectors to be resolvable (cached or pulled); skips with no
-// locally built LS jar and no Ballerina distribution.
+// Every sampled connector must resolve (cached or pulled); skips with no locally built
+// LS jar and no Ballerina distribution.
+//
+// Not run in CI: no workflow runs `test:ls-integration`. Run it locally after building
+// the LS (`./gradlew build` in packages/ballerina-language-server), so that it checks this
+// repository's LS. Without that jar it falls back to the LS of the installed Ballerina
+// distribution, which lags this repository and can fail for bugs already fixed here.
 
 import * as fs from "fs";
 import * as path from "path";
@@ -42,17 +47,48 @@ const ACTIONS = [
     { org: "ballerinax", module: "mysql", packageName: "mysql", object: "Client", symbol: "execute" },
 ];
 
-// The form shows only the first and the last mode of a property (FieldFactory.tsx), and
-// opens the selected one, else the first.
+/** Splits a union type at its top-level `|`, leaving `|` inside brackets (`(int|string)[]`) alone. */
+function unionMembers(type: string): string[] {
+    const members: string[] = [];
+    let depth = 0;
+    let start = 0;
+    for (let i = 0; i < type.length; i++) {
+        const ch = type[i];
+        if ("([{<".includes(ch)) {
+            depth++;
+        } else if (")]}>".includes(ch)) {
+            depth--;
+        } else if (ch === "|" && depth === 0) {
+            members.push(type.slice(start, i));
+            start = i + 1;
+        }
+    }
+    members.push(type.slice(start));
+    return members.map((member) => member.trim());
+}
+
+/** Whether the type is an array, or a union with an array member (`T[]`, `T[3]`, `T[]?`, `T[]|U`). */
+function isArrayTyped(type: string | undefined): boolean {
+    if (!type) {
+        return false;
+    }
+    // A tuple (`[int, string]`) does not end in `[]` or `[N]`, so it is not taken for an array
+    return unionMembers(type.trim()).some((member) => /\[\s*\d*\s*\]\??$/.test(member));
+}
+
+// The array editor reads the item template from the first mode (FormArrayEditor.tsx), so the
+// array mode has to lead. The form opens the selected mode, else the first.
 function arrayModeViolation(prop: any): string | undefined {
     const types: any[] = prop?.types ?? [];
+    const modes = types.map((t) => `${t?.fieldType}${t?.selected ? "*" : ""}`).join(", ");
     const arrayIndex = types.findIndex((t) => t?.fieldType === "REPEATABLE_LIST");
     if (arrayIndex < 0) {
-        return undefined;
+        // The declared type is on the expression mode; an array type with no array mode is #1491 itself
+        const declaredType = types.find((t) => t?.fieldType === "EXPRESSION")?.ballerinaType;
+        return isArrayTyped(declaredType) ? `${declaredType} has no array mode in [${modes}]` : undefined;
     }
-    const modes = types.map((t) => `${t?.fieldType}${t?.selected ? "*" : ""}`).join(", ");
-    if (arrayIndex !== 0 && arrayIndex !== types.length - 1) {
-        return `array mode is hidden in [${modes}]`;
+    if (arrayIndex !== 0) {
+        return `array mode is not the first in [${modes}]`;
     }
     const selected = types.find((t) => t?.selected);
     if (selected && !["REPEATABLE_LIST", "EXPRESSION"].includes(selected.fieldType)) {
@@ -67,6 +103,7 @@ const describeLs = launch ? describe : describe.skip;
 
 describeLs("node-template form-field type invariants", () => {
     const allProps: Prop[] = [];
+    const unresolved: string[] = [];
     let sampled = 0;
 
     beforeAll(async () => {
@@ -83,9 +120,7 @@ describeLs("node-template form-field type invariants", () => {
             }).catch(() => undefined);
             const props = resp?.flowNode?.properties;
             if (!props) {
-                // eslint-disable-next-line no-console
-                console.warn(`[node-template invariants] ${a.module}.${a.symbol} not resolved: `
-                    + (resp?.errorMsg ?? "no response"));
+                unresolved.push(`${a.module}.${a.symbol}: ${resp?.errorMsg ?? "no response"}`);
                 continue;
             }
             sampled++;
@@ -94,16 +129,17 @@ describeLs("node-template form-field type invariants", () => {
             }
         }
         await ls.shutdown();
-        if (sampled === 0) {
-            // eslint-disable-next-line no-console
-            console.warn("[node-template invariants] no connector actions resolved; assertions no-op.");
-        }
     }, 120_000);
 
-    // INVARIANT: a property that has an array mode must offer it — the form shows that mode,
-    // and no singular editor such as SQL is pre-selected over it (#1491).
-    // Runs in the L3 (ls-integration) job, not the fast PR gate.
-    it("array modes are offered by the form (REPEATABLE_LIST)", () => {
+    // Every sampled action must resolve: an unresolved one (Central lookup, version mismatch)
+    // would leave its properties out of every rule below, and the rules would pass without them.
+    it("every sampled action resolves", () => {
+        expect(unresolved).toEqual([]);
+    });
+
+    // INVARIANT: an array-typed property is offered as an array editor: it has an array mode,
+    // that mode leads, and no singular editor such as SQL is pre-selected over it (#1491).
+    it("array-typed params are offered as array editors (REPEATABLE_LIST)", () => {
         if (sampled === 0) {
             throw new Error("no connector actions resolved — cannot verify");
         }
