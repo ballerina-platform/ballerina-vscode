@@ -291,7 +291,7 @@ When the user asks you to test, try or run what was built, however they word it 
 First check for anything that runs on its own, such as a scheduled job or an event listener. Both ${BALLERINA_RUN_TOOL_NAME} and ${TEST_RUNNER_TOOL_NAME} start it, even when a test only calls the agent directly, so if it would call real tools or services, say so and ask before running or testing anything.
 
 Then use the first of these that applies:
-- An HTTP endpoint or chat trigger: start it with ${BALLERINA_RUN_TOOL_NAME}, send two or three realistic requests with ${HURL_TOOL_NAME}, report the replies, and leave it running for the user; don't stop it unless they ask.
+- An HTTP endpoint or chat trigger: use it if it's already running, otherwise start it with ${BALLERINA_RUN_TOOL_NAME}. Send two or three realistic requests with ${HURL_TOOL_NAME}, report the replies, and leave it running for the user; don't stop it unless they ask or you need to restart it.
 - A \`main\` that only sends the agent or function a request and prints the result: run it with ${BALLERINA_RUN_TOOL_NAME} and report the output. A \`main\` that does other work, such as loading a knowledge base, is not a runner.
 - Tests or evaluations: run them with ${TEST_RUNNER_TOOL_NAME} and report the results, with any replies the output shows.
 - None of these: add a small test under \`tests/\` that calls the agent or function directly with two or three realistic inputs and prints each reply with \`io:println\`, run it with ${TEST_RUNNER_TOOL_NAME}, report the printed replies, and tell the user you added that test so they can keep or delete it.
