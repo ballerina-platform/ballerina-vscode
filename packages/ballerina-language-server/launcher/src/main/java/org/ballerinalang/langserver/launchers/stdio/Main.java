@@ -27,6 +27,7 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.function.IntConsumer;
 import java.util.logging.Level;
 import java.util.logging.LogManager;
 import java.util.logging.Logger;
@@ -36,52 +37,38 @@ import java.util.logging.Logger;
  */
 public final class Main {
 
-    /** Exit status when the client went away or the server was told to stop. */
-    static final int EXIT_OK = 0;
-
-    /** Exit status when the JSON-RPC connection failed or the server was interrupted. */
-    static final int EXIT_FAILURE = 1;
-
     private Main() {
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws InterruptedException, ExecutionException {
         LogManager.getLogManager().reset();
         Logger globalLogger = Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);
         globalLogger.setLevel(Level.OFF);
-        // Terminate the JVM explicitly: see {@link #serve(ServerRun)}.
-        System.exit(serve(() -> startServer(System.in, System.out)));
+        startServer(System.in, System.out, System::exit);
     }
 
     /**
-     * Runs the server until it stops serving and maps the outcome to a process exit status.
-     * <p>
-     * {@link #startServer(InputStream, OutputStream)} returns once the client's end of the stream is gone (lsp4j
-     * stops listening on end-of-input) or the connection failed. Returning from {@code main} is not enough to end
-     * the process at that point: the language server core keeps non-daemon worker threads alive, so a JVM whose
-     * client was killed without a clean {@code shutdown}/{@code exit} exchange (a VS Code window reload, a killed
-     * extension host) would otherwise linger forever, holding its heap. The caller must pass the returned status
-     * to {@link System#exit(int)}.
-     *
-     * @param run the server run to execute
-     * @return {@link #EXIT_OK} when the run completed, {@link #EXIT_FAILURE} when it failed or was interrupted
+     * Starts the server and returns once the input stream closes. Does not exit the JVM, so an embedding host keeps
+     * control of its own process.
      */
-    static int serve(ServerRun run) {
-        try {
-            run.run();
-            return EXIT_OK;
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            // stderr is the diagnostic channel; stdout carries the JSON-RPC frames.
-            e.printStackTrace(System.err);
-            return EXIT_FAILURE;
-        } catch (ExecutionException e) {
-            e.printStackTrace(System.err);
-            return EXIT_FAILURE;
-        }
+    public static void startServer(InputStream in, OutputStream out)
+            throws InterruptedException, ExecutionException {
+        startServer(in, out, status -> { });
     }
 
-    public static void startServer(InputStream in, OutputStream out)
+    /**
+     * Starts the server and calls {@code exit} once the input stream closes, with status 0 if the client sent
+     * {@code shutdown} first and 1 otherwise.
+     * <p>
+     * A client that disconnects without sending the LSP {@code exit} notification only closes the stream. Exiting
+     * explicitly at that point stops a non-daemon thread from keeping the JVM running with no client
+     * (wso2/product-integrator#2854).
+     * <p>
+     * Unlike {@link BallerinaLanguageServer#exit()}, this path does not call the extended services'
+     * {@code shutdown()} and {@code exit(int)}, because the client never sent those messages. A service that must
+     * clean up when the client disappears has to register a JVM shutdown hook.
+     */
+    static void startServer(InputStream in, OutputStream out, IntConsumer exit)
             throws InterruptedException, ExecutionException {
         protectJsonRpcStream();
 
@@ -90,31 +77,22 @@ public final class Main {
                 ExtendedLanguageClient.class, in, out);
         ExtendedLanguageClient client = launcher.getRemoteProxy();
         server.connect(client);
-        exitWhenParentExits();
         Future<?> startListening = launcher.startListening();
-        startListening.get();
-    }
-
-    /**
-     * Ends this process as soon as the process that launched it is gone.
-     * <p>
-     * End-of-input on stdin already covers the common case of a client that dies. This is the second line of
-     * defence for a client that exits while something else still holds the write end of our stdin open, which
-     * would otherwise keep the server listening on a pipe nobody will ever write to again.
-     */
-    static void exitWhenParentExits() {
-        ProcessHandle.current().parent().ifPresent(parent -> onExit(parent, () -> System.exit(EXIT_OK)));
-    }
-
-    /**
-     * Runs {@code action} once {@code process} has exited. Extracted so the wiring can be tested without exiting
-     * the test JVM.
-     *
-     * @param process the process to watch
-     * @param action  what to do when it is gone
-     */
-    static void onExit(ProcessHandle process, Runnable action) {
-        process.onExit().thenRun(action);
+        // Any way out of get() other than a normal return exits with status 1.
+        int status = 1;
+        try {
+            startListening.get();
+            // As for LSP exit: 0 only if the client sent shutdown before closing the stream.
+            status = server.getExitStatus();
+        } catch (ExecutionException e) {
+            // lsp4j logs exceptions from the stream and completes normally; only an Error from the listener gets here.
+            // Print the trace here: with System::exit, the rethrow below never reaches the default handler.
+            System.err.println("Language server listener failed:");
+            e.getCause().printStackTrace(System.err);
+            throw e;
+        } finally {
+            exit.accept(status);
+        }
     }
 
     /**
@@ -129,13 +107,5 @@ public final class Main {
     static void protectJsonRpcStream() {
         System.setProperty("enableOutputStream", "false");
         System.setOut(new PrintStream(System.err, true));
-    }
-
-    /**
-     * A server run that blocks until the server stops serving.
-     */
-    @FunctionalInterface
-    interface ServerRun {
-        void run() throws InterruptedException, ExecutionException;
     }
 }

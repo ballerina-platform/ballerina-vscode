@@ -477,6 +477,8 @@ function AgentDefinitionAgentToolForm(props: AgentDefinitionAgentToolFormProps):
             agentReceiver={`self.${currentAgentName}`}
             agentLabel={currentAgentClassName}
             hostClass={hostClass}
+            // Hosted in AddAgentPopup, which sits above the side panel the "view" add form opens in.
+            approvalPresentation="inline"
             submitText="Add Tool"
             artifactData={{ artifactType: DIRECTORY_MAP.AGENT_DEFINITION }}
             onBeforeSave={async () => {
@@ -1472,7 +1474,7 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
                                     <AddTool
                                         agentNode={agentNode}
                                         onCreateCustomTool={() => { setToolPanelBack(null); setToolPanel("CUSTOM"); }}
-                                        onUseConnection={() => { setToolPanelBack(null); setToolPanel("CONNECTION"); }}
+                                        onUseConnector={() => { setToolPanelBack(null); setToolPanel("CONNECTION"); }}
                                         onUseFunction={() => { setToolPanelBack(null); setToolPanel("FUNCTION"); }}
                                         onUseMcpServer={() => { setToolPanelBack(null); setToolPanel("MCP"); }}
                                         onUseAgent={openAgentToolPopup}

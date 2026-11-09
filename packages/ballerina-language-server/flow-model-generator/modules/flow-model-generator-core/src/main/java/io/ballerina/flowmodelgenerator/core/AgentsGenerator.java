@@ -606,7 +606,7 @@ public class AgentsGenerator {
         if (statements.isEmpty()) {
             return null;
         }
-        CodeAnalyzer codeAnalyzer = new CodeAnalyzer(project, semanticModel, Property.LOCAL_SCOPE, Map.of(), Map.of(),
+        CodeAnalyzer codeAnalyzer = new CodeAnalyzer(project, semanticModel, Property.LOCAL_SCOPE, Map.of(),
                 document.textDocument(), ModuleInfo.from(document.module().descriptor()),
                 false, workspaceManager, filePath);
         StatementNode firstStmt = statements.get(0);

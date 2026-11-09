@@ -324,6 +324,11 @@ export function TypeEditor(props: TypeEditorProps) {
 
                                 setFormDiagnostics([]);
                                 onChange(updatedValue);
+                                // Before the first submit the form does not re-check a field on change, so an
+                                // error shown here (a type "is required") would outlive the type typed into it.
+                                if (error) {
+                                    void form.trigger?.(field.key);
+                                }
                                 debouncedTypeEdit(updatedValue);
                                 field.onValueChange?.(updatedValue);
                                 cursorPositionRef.current = updatedCursorPosition;

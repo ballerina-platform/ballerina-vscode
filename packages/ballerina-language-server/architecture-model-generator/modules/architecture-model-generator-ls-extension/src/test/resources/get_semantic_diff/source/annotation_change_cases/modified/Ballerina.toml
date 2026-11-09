@@ -1,0 +1,8 @@
+[package]
+org = "wso2"
+name = "annotation_change_cases"
+version = "0.1.0"
+title = "annotation change cases"
+
+[build-options]
+sticky = true

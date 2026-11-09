@@ -42,6 +42,7 @@ import org.ballerinalang.langserver.commons.client.ExtendedLanguageClient;
 import org.ballerinalang.langserver.commons.command.CommandArgument;
 import org.ballerinalang.langserver.commons.command.LSCommandExecutorException;
 import org.ballerinalang.langserver.commons.eventsync.exceptions.EventSyncException;
+import org.ballerinalang.langserver.commons.workspace.ProjectLocks;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceDocumentException;
 import org.ballerinalang.langserver.contexts.LanguageServerContextImpl;
 import org.ballerinalang.langserver.extensions.ballerina.document.ExecutorPositionsUtil;
@@ -79,6 +80,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Lock;
 
 import static org.awaitility.Awaitility.await;
 
@@ -177,6 +179,61 @@ public class TestWorkspaceManager {
         Optional<Document> document = workspaceManager.document(filePath);
         Assert.assertNotNull(document.get());
         Assert.assertEquals(document.get().syntaxTree().textDocument().toString(), dummyDidChangeContent);
+    }
+
+    @Test(dataProvider = "fileOpenUpdateTestDataProvider")
+    public void testProjectLockIsShared(Path filePath) throws WorkspaceDocumentException {
+        // Code outside the workspace manager compiles its projects under this lock, so it has to be the one found
+        // for whatever project instance the context holds, before and after an edit.
+        openFile(filePath);
+        assertProjectLockShared(filePath);
+
+        DidChangeTextDocumentParams params = new DidChangeTextDocumentParams();
+        params.setTextDocument(new VersionedTextDocumentIdentifier(filePath.toUri().toString(), 1));
+        params.getContentChanges().add(new TextDocumentContentChangeEvent(dummyDidChangeContent));
+        workspaceManager.didChange(filePath, params);
+        assertProjectLockShared(filePath);
+    }
+
+    @Test(dataProvider = "workspaceReloadTomlDataProvider")
+    public void testProjectLockIsSharedAfterWorkspaceReload(Path changedToml) throws WorkspaceDocumentException {
+        // A workspace reload puts new contexts into the map for every package, while the context that handled the
+        // event keeps the same project instances; the lock has to follow the context the map holds.
+        Path packageFile = RESOURCE_DIRECTORY.resolve("workspace-projects").resolve("simple-workspace")
+                .resolve("package-a").resolve("main.bal").toAbsolutePath();
+        openFile(packageFile);
+        Path packageRoot = workspaceManager.projectRoot(packageFile);
+        BallerinaWorkspaceManager.ProjectContext beforeReload = workspaceManager.sourceRootToProject.get(packageRoot);
+
+        workspaceManager.didChangeWatched(changedToml,
+                new FileEvent(changedToml.toUri().toString(), FileChangeType.Changed));
+
+        // Without a reload every entry stays consistent and the checks below prove nothing.
+        BallerinaWorkspaceManager.ProjectContext afterReload = workspaceManager.sourceRootToProject.get(packageRoot);
+        Assert.assertNotNull(afterReload, "The package dropped out of the map on " + changedToml);
+        Assert.assertNotSame(afterReload, beforeReload, "The change to " + changedToml + " did not reload the package");
+        workspaceManager.sourceRootToProject.forEach((root, projectContext) -> {
+            Optional<Lock> lock = ProjectLocks.of(projectContext.project());
+            Assert.assertTrue(lock.isPresent(), "No lock found for the project at " + root);
+            Assert.assertSame(lock.get(), projectContext.locker(), "Lock drifted for the project at " + root);
+        });
+    }
+
+    @DataProvider
+    public Object[] workspaceReloadTomlDataProvider() {
+        Path workspace = RESOURCE_DIRECTORY.resolve("workspace-projects").resolve("simple-workspace");
+        return new Path[]{
+                workspace.resolve("package-a").resolve(ProjectConstants.BALLERINA_TOML).toAbsolutePath(),
+                workspace.resolve(ProjectConstants.BALLERINA_TOML).toAbsolutePath()
+        };
+    }
+
+    private void assertProjectLockShared(Path filePath) {
+        BallerinaWorkspaceManager.ProjectContext projectContext =
+                workspaceManager.sourceRootToProject.get(workspaceManager.projectRoot(filePath));
+        Optional<Lock> lock = ProjectLocks.of(projectContext.project());
+        Assert.assertTrue(lock.isPresent(), "No lock found for the project of " + filePath);
+        Assert.assertSame(lock.get(), projectContext.locker());
     }
 
     @Test
@@ -680,6 +737,101 @@ public class TestWorkspaceManager {
     }
 
     @Test
+    public void testWSRunProjectReadsConfigToml()
+            throws WorkspaceDocumentException, EventSyncException, LSCommandExecutorException {
+        Path projectPath = RESOURCE_DIRECTORY.resolve("config_toml");
+        Path filePath = projectPath.resolve("main.bal");
+        try {
+            RunResult runResult = executeRunCommand(filePath, 1, 0);
+            Assert.assertTrue(runResult.success());
+            Assert.assertEquals(runResult.programOutput()[0].trim(), "Hello from Config.toml!",
+                    "Fast-run must start the program in the project root so it picks up the project's Config.toml");
+        } finally {
+            executeStopCommand(projectPath);
+        }
+    }
+
+    @Test
+    public void testWSRunSingleFileReadsConfigTomlBesideIt()
+            throws WorkspaceDocumentException, EventSyncException, LSCommandExecutorException {
+        Path filePath = RESOURCE_DIRECTORY.resolve("config_toml_single").resolve("hello.bal").toAbsolutePath();
+        try {
+            RunResult runResult = executeRunCommand(filePath, 1, 0);
+            Assert.assertTrue(runResult.success());
+            Assert.assertEquals(runResult.programOutput()[0].trim(), "Hello from the single file's Config.toml!",
+                    "A single file runs in its folder, as `bal run hello.bal` does from there");
+        } finally {
+            executeStopCommand(filePath);
+        }
+    }
+
+    @Test
+    public void testWSRunWorkspacePackageReadsItsOwnConfigToml()
+            throws WorkspaceDocumentException, EventSyncException, LSCommandExecutorException {
+        Path packagePath = RESOURCE_DIRECTORY.resolve("config_toml_workspace").resolve("greeter").toAbsolutePath();
+        Path filePath = packagePath.resolve("main.bal");
+        try {
+            RunResult runResult = executeRunCommand(filePath, 1, 0);
+            Assert.assertTrue(runResult.success());
+            // The prefix comes from the sibling package, resolved through the workspace by the run's copy; the
+            // greeting from the package's Config.toml, not the one at the workspace root.
+            Assert.assertEquals(runResult.programOutput()[0].trim(), "[words] Hello from the package's Config.toml!",
+                    "A workspace package runs in its own root, as `bal run` does from the package folder");
+        } finally {
+            executeStopCommand(packagePath);
+        }
+    }
+
+    @Test
+    public void testWSRunWorkspacePackageSeesUnsavedSiblingEdit()
+            throws WorkspaceDocumentException, EventSyncException, LSCommandExecutorException, IOException {
+        Path workspacePath = RESOURCE_DIRECTORY.resolve("config_toml_workspace").toAbsolutePath();
+        Path packagePath = workspacePath.resolve("greeter");
+        Path filePath = packagePath.resolve("main.bal");
+        Path siblingFile = workspacePath.resolve("words").resolve("words.bal");
+        workspaceManager.loadProject(filePath);
+        // Edit the sibling in the editor only: on disk it still returns "[words] ".
+        openFile(siblingFile, Files.readString(siblingFile));
+        DidChangeTextDocumentParams params = new DidChangeTextDocumentParams();
+        params.setTextDocument(new VersionedTextDocumentIdentifier(siblingFile.toUri().toString(), 2));
+        params.getContentChanges().add(new TextDocumentContentChangeEvent(
+                "public function prefix() returns string {" + CommonUtil.LINE_SEPARATOR
+                        + "    return \"[unsaved] \";" + CommonUtil.LINE_SEPARATOR + "}"));
+        workspaceManager.didChange(siblingFile, params);
+        try {
+            RunResult runResult = executeRunCommand(filePath, 1, 0);
+            Assert.assertTrue(runResult.success());
+            Assert.assertEquals(runResult.programOutput()[0].trim(), "[unsaved] Hello from the package's Config.toml!",
+                    "The run's copy of the workspace must carry the editor's unsaved edits to sibling packages");
+        } finally {
+            executeStopCommand(packagePath);
+            DidCloseTextDocumentParams closeParams = new DidCloseTextDocumentParams();
+            closeParams.setTextDocument(new TextDocumentIdentifier(siblingFile.toUri().toString()));
+            workspaceManager.didClose(siblingFile, closeParams);
+        }
+    }
+
+    @Test
+    public void testWSRunEnablesNativeAccess()
+            throws WorkspaceDocumentException, EventSyncException, LSCommandExecutorException {
+        Path projectPath = RESOURCE_DIRECTORY.resolve("long_running");
+        Path filePath = projectPath.resolve("main.bal");
+        try {
+            RunResult runResult = executeRunCommand(filePath, 1, 0);
+            Assert.assertTrue(runResult.success());
+            Assert.assertTrue(projectContextOf(filePath).launchCommand().contains("--enable-native-access=ALL-UNNAMED"),
+                    "Fast-run must enable native access like `bal run`, or JDK 24+ warns when a library loads "
+                            + "native code");
+            Assert.assertTrue(projectContextOf(filePath).launchCommand()
+                            .contains("--sun-misc-unsafe-memory-access=allow"),
+                    "Fast-run must allow sun.misc.Unsafe memory access like `bal run`, or JDK 24+ warns when a "
+                            + "library uses it");
+        } finally {
+            executeStopCommand(projectPath);
+        }
+    }
+
+    @Test
     public void testWSRunProjectWithCompilationErrors()
             throws WorkspaceDocumentException, EventSyncException, LSCommandExecutorException {
         Path projectPath = RESOURCE_DIRECTORY.resolve("pkg_with_compilation_errors");
@@ -768,8 +920,12 @@ public class TestWorkspaceManager {
         Mockito.doNothing().when(languageClient).logTrace(logCaptor.capture());
         Mockito.when(execContext.getLanguageClient()).thenReturn(languageClient);
         Boolean didRan = runExecutor.execute(execContext);
+        if (!didRan) {
+            // The diagnostics are logged before execute() returns; waiting for program output would only time out.
+            return new RunResult(false, logsOf(logCaptor, "out"), logsOf(logCaptor, "err"));
+        }
 
-        return new RunResult(didRan, extractLogs(logCaptor, "out", expectedOutLines),
+        return new RunResult(true, extractLogs(logCaptor, "out", expectedOutLines),
                 extractLogs(logCaptor, "err", expectedErrLines));
     }
 
@@ -1210,10 +1366,14 @@ public class TestWorkspaceManager {
     }
 
     private void openFile(Path singleFile) throws WorkspaceDocumentException {
+        openFile(singleFile, dummyContent);
+    }
+
+    private void openFile(Path singleFile, String content) throws WorkspaceDocumentException {
         DidOpenTextDocumentParams params = new DidOpenTextDocumentParams();
         TextDocumentItem textDocumentItem = new TextDocumentItem();
         textDocumentItem.setUri(singleFile.toUri().toString());
-        textDocumentItem.setText(dummyContent);
+        textDocumentItem.setText(content);
         params.setTextDocument(textDocumentItem);
         workspaceManager.didOpen(singleFile, params);
     }

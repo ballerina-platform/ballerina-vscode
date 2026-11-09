@@ -18,6 +18,7 @@
 
 import { MACHINE_VIEW, EVENT_TYPE, VisualizerLocation, PopupVisualizerLocation, AgentMetadata, navigateReviewIndex, reviewModeOpened, reviewModeClosed, ReviewModeData } from '@wso2/ballerina-core';
 import * as path from 'path';
+import type { Checkpoint } from '@wso2/ballerina-core/lib/state-machine-types';
 import { AiPanelWebview } from '../../../views/ai-panel/webview';
 import { chatStateStorage } from '../../../views/ai-panel/chatStateStorage';
 import { sendReviewRestoreDidOpenBatch } from '../utils/project/ls-schema-notifications';
@@ -573,12 +574,17 @@ export class ApprovalViewManager {
         }
 
         const tempProjectPath = review.tempProjectPath ?? projectRootPath;
-        const { restoredCount, skippedCount } = sendReviewRestoreDidOpenBatch(
+        const originals = await readReviewOriginals(projectRootPath, generation.checkpoint, review.modifiedFiles);
+        const isUnavailable = (file: string) => originals.unavailable.has(toPosixPath(file));
+        const batch = sendReviewRestoreDidOpenBatch(
             tempProjectPath,
-            review.modifiedFiles,
+            review.modifiedFiles.filter(file => !isUnavailable(file)),
             undefined,
-            generation.checkpoint?.workspaceSnapshot
+            originals.contents
         );
+        const restoredCount = batch.restoredCount;
+        const skippedCount = batch.skippedCount
+            + review.modifiedFiles.filter(file => isUnavailable(file) && isReviewRestorable(file)).length;
 
         // A skipped file's ai:// baseline could not be re-established (no checkpoint
         // snapshot — disabled or size-capped — or the restore itself failed), so its "old"
@@ -646,6 +652,36 @@ export class ApprovalViewManager {
         this.resetReviewNavigationState();
         this.cachedReviewData = null;
         this.cachedReviewGenerationId = null;
+    }
+}
+
+const toPosixPath = (p: string) => p.split(path.sep).join('/');
+
+const isReviewRestorable = (file: string) => file.endsWith('.bal') || file.endsWith('Ballerina.toml');
+
+async function readReviewOriginals(
+    projectRootPath: string, checkpoint: Checkpoint | undefined, modifiedFiles: string[]
+): Promise<{ contents?: Record<string, string>; unavailable: Set<string> }> {
+    const unavailable = new Set<string>();
+    if (!checkpoint) {
+        return { unavailable };
+    }
+    try {
+        // Dynamic import: the service's restore path imports the visualizer RPC manager, which imports this file.
+        const { getCheckpointService } = await import('../../../views/ai-panel/checkpoint/checkpointService');
+        const originals = await getCheckpointService(projectRootPath).readOriginals(checkpoint, modifiedFiles);
+        const contents: Record<string, string> = {};
+        for (const [file, original] of originals) {
+            if (original.state === 'content') {
+                contents[file] = original.bytes.toString('utf8');
+            } else if (original.state === 'unavailable') {
+                unavailable.add(file);
+            }
+        }
+        return { contents, unavailable };
+    } catch (error) {
+        console.error('[ApprovalViewManager] Cannot read the checkpoint originals for review restore:', error);
+        return { unavailable };
     }
 }
 

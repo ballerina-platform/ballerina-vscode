@@ -41,6 +41,7 @@ export const BI_COMMANDS = {
     ADD_CONNECTIONS: 'BI.project-explorer.add-connection',
     ADD_AGENT: 'BI.project-explorer.add-agent',
     ADD_AGENT_DEFINITION: 'BI.project-explorer.add-agent-definition',
+    ADD_AGENT_TOOL: 'BI.project-explorer.add-agent-tool',
     ADD_MODEL_PROVIDER: 'BI.project-explorer.add-model-provider',
     ADD_CUSTOM_CONNECTOR: 'BI.project-explorer.add-custom-connector',
     DELETE_COMPONENT: 'BI.project-explorer.delete',

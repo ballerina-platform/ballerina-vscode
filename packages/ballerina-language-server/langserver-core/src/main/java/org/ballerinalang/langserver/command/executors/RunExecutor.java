@@ -19,6 +19,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
+import io.ballerina.projects.ProjectException;
 import io.ballerina.tools.diagnostics.Diagnostic;
 import io.ballerina.tools.diagnostics.DiagnosticSeverity;
 import org.ballerinalang.annotation.JavaSPIService;
@@ -99,6 +100,9 @@ public class RunExecutor implements LSCommandExecutor {
             return true;
         } catch (BLangCompilerException e) {
             LogTraceParams error = new LogTraceParams(e.getMessage(), ERROR_CHANNEL);
+            context.getLanguageClient().logTrace(error);
+        } catch (ProjectException e) {
+            LogTraceParams error = new LogTraceParams("error: " + e.getMessage(), ERROR_CHANNEL);
             context.getLanguageClient().logTrace(error);
         } catch (IOException e) {
             LogTraceParams error = new LogTraceParams("Error while running the program in fast-run mode: " +

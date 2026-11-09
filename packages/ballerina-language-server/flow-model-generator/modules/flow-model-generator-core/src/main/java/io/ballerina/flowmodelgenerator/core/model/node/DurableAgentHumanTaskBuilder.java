@@ -239,7 +239,7 @@ public class DurableAgentHumanTaskBuilder extends CallBuilder {
 
     @Override
     public Map<Path, List<TextEdit>> toSource(SourceBuilder sourceBuilder) {
-        // Object model: the human task lives on the declaration's `humanTasks` list.
+        // Object model: the human task lives on the declaration's `humanTasks`, keyed by its name.
         WorkflowUtil.requireDurableAgentObjectTarget(sourceBuilder);
         if (WorkflowUtil.isCapabilityDeleteRequest(sourceBuilder)) {
             return WorkflowUtil.removeAgentCapabilityEntry(sourceBuilder);
@@ -266,27 +266,22 @@ public class DurableAgentHumanTaskBuilder extends CallBuilder {
                 .map(p -> p.value() == null ? "" : p.value().toString().trim()).orElse("");
         String timeout = sourceBuilder.getProperty(TIMEOUT_KEY)
                 .map(p -> p.value() == null ? "" : p.value().toString().trim()).orElse("");
-        StringBuilder entry = new StringBuilder("{name: ").append(WorkflowUtil.constantNameLiteral(name));
+        StringBuilder entry = new StringBuilder();
         for (String field : WorkflowUtil.reviewAudienceFields(sourceBuilder, USER_ROLES_KEY)) {
-            entry.append(", ").append(field);
+            entry.append(entry.isEmpty() ? "" : ", ").append(field);
         }
-        if (!taskInputType.isBlank()) {
-            entry.append(", taskInputType: ").append(taskInputType);
+        appendField(entry, "taskInputType", taskInputType);
+        appendField(entry, "resultType", resultType);
+        appendField(entry, "title", title.isBlank() ? "" : WorkflowUtil.quoteIfPlain(title));
+        appendField(entry, "description", taskDescription.isBlank() ? "" : WorkflowUtil.quoteIfPlain(taskDescription));
+        appendField(entry, "timeout", timeout);
+        return WorkflowUtil.upsertNamedCapabilityEntry(sourceBuilder, "humanTasks", name, entry.toString());
+    }
+
+    private static void appendField(StringBuilder entry, String field, String value) {
+        if (!value.isBlank()) {
+            entry.append(entry.isEmpty() ? "" : ", ").append(field).append(": ").append(value);
         }
-        if (!resultType.isBlank()) {
-            entry.append(", resultType: ").append(resultType);
-        }
-        if (!title.isBlank()) {
-            entry.append(", title: ").append(WorkflowUtil.quoteIfPlain(title));
-        }
-        if (!taskDescription.isBlank()) {
-            entry.append(", description: ").append(WorkflowUtil.quoteIfPlain(taskDescription));
-        }
-        if (!timeout.isBlank()) {
-            entry.append(", timeout: ").append(timeout);
-        }
-        entry.append("}");
-        return WorkflowUtil.upsertAgentCapabilityEntry(sourceBuilder, "humanTasks", entry.toString());
     }
 
 }

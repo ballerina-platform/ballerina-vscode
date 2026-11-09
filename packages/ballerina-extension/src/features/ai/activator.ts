@@ -51,6 +51,7 @@ import { extension } from '../../BalExtensionContext';
 import { notifyMcpServersChanged, notifyMcpLoadErrorsChanged } from '../../RPCLayer';
 import { sendConfigChangeNotification } from './utils/ai-utils';
 import { captureWorkspaceSnapshot, restoreWorkspaceSnapshot } from '../../views/ai-panel/checkpoint/checkpointUtils';
+import { getCheckpointService } from '../../views/ai-panel/checkpoint/checkpointService';
 import { integrateCodeToWorkspace } from './agent/utils';
 import { Checkpoint } from '@wso2/ballerina-core/lib/state-machine-types';
 import { agentStatusManager } from './state/AgentStatusManager';
@@ -177,12 +178,19 @@ export function activateAIFeatures(ballerinaExternalInstance: BallerinaExtension
         // Checkpoint/revert and live-integration test commands (exercise the real, activated
         // extension instance rather than a freshly re-required, unactivated module copy).
         commands.registerCommand('ballerina.test.ai.captureCheckpoint', async (messageId: string): Promise<Checkpoint | null> => {
-            return await captureWorkspaceSnapshot(messageId);
+            return await captureWorkspaceSnapshot(resolveProjectRootPath(), messageId);
         });
 
         commands.registerCommand('ballerina.test.ai.restoreCheckpoint', async (checkpoint: Checkpoint, skipArtifactWait?: boolean): Promise<void> => {
-            await restoreWorkspaceSnapshot(checkpoint, skipArtifactWait);
+            await restoreWorkspaceSnapshot(resolveProjectRootPath(), checkpoint, skipArtifactWait);
         });
+
+        extension.context.subscriptions.push(
+            commands.registerCommand('ballerina.test.ai.readCheckpointOriginals', async (checkpoint: Checkpoint, paths: string[]): Promise<Record<string, string | null>> => {
+                const originals = await getCheckpointService(resolveProjectRootPath()).readOriginals(checkpoint, paths);
+                return Object.fromEntries([...originals].map(([p, o]) => [p, o.state === 'content' ? o.bytes.toString('utf8') : null]));
+            })
+        );
 
         commands.registerCommand('ballerina.test.ai.integrateCodeToWorkspace', async (tempProjectPath: string, modifiedFiles: string[], ctx: ExecutionContext): Promise<void> => {
             return await integrateCodeToWorkspace(tempProjectPath, new Set(modifiedFiles), ctx);

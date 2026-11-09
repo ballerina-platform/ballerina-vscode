@@ -24,6 +24,53 @@
           },
           {
             "metadata": {
+              "label": "Bedrock Embedding Providers",
+              "description": "Embedding Providers available in ballerinax/ai.aws.bedrock",
+              "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.aws.bedrock_1.0.1.png"
+            },
+            "items": [
+              {
+                "metadata": {
+                  "label": "Bedrock Cohere Embedding Provider",
+                  "description": "Cohere Embed text embeddings on AWS Bedrock.",
+                  "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.aws.bedrock_1.0.1.png",
+                  "data": {
+                    "pullRequired": true
+                  }
+                },
+                "codedata": {
+                  "node": "EMBEDDING_PROVIDER",
+                  "org": "ballerinax",
+                  "module": "ai.aws.bedrock",
+                  "packageName": "ai.aws.bedrock",
+                  "object": "CohereEmbeddingProvider",
+                  "symbol": "init"
+                },
+                "enabled": true
+              },
+              {
+                "metadata": {
+                  "label": "Bedrock Titan Embedding Provider",
+                  "description": "Amazon Titan text embeddings on AWS Bedrock.",
+                  "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.aws.bedrock_1.0.1.png",
+                  "data": {
+                    "pullRequired": true
+                  }
+                },
+                "codedata": {
+                  "node": "EMBEDDING_PROVIDER",
+                  "org": "ballerinax",
+                  "module": "ai.aws.bedrock",
+                  "packageName": "ai.aws.bedrock",
+                  "object": "TitanEmbeddingProvider",
+                  "symbol": "init"
+                },
+                "enabled": true
+              }
+            ]
+          },
+          {
+            "metadata": {
               "label": "Azure Embedding Provider",
               "description": "EmbeddingProvider provides an interface for interacting with Azure OpenAI Embedding Models.\n\nThe concrete wire route depends on the shape of the `serviceUrl`: a URL ending with `/v1` targets the Azure OpenAI\n**v1 GA** surface (`POST {serviceUrl}/embeddings`, with the deployment sent as `model` in the body and no\n`api-version` required), while any other URL targets the **legacy** deployment-scoped route\n(`POST {legacyBase}/deployments/{deploymentId}/embeddings?api-version=...`) through the generated\n`ballerinax/azure.openai.embeddings` connector, where `legacyBase` is the `serviceUrl` completed with `/openai`\nwhen it is a bare origin and used verbatim when it already carries a path.",
               "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.azure_1.5.1.png",

@@ -108,7 +108,7 @@ test {
         exceptionFormat "full"
     }
     jacoco {
-        enabled = true
+        // enabled is driven by -PskipCoverage in the root build.gradle; setting it here would override that flag.
         destinationFile = file("${layout.buildDirectory.get().asFile}/coverage-reports/jacoco.exec")
         includeNoLocationClasses = true
         excludes = ['jdk.internal.*']
