@@ -25,6 +25,7 @@ import { StateMachine } from "../../stateMachine";
 import { Uri, WorkspaceEdit, workspace } from "vscode";
 import { OpenAPIDefinition } from "./types";
 import * as yaml from "js-yaml";
+import { readContextDocument } from "@wso2/wso2-cloud-client";
 import { extension } from "../../BalExtensionContext";
 import { PersistOptions, createJSONStorage } from "zustand/middleware";
 import Handlebars from "handlebars";
@@ -347,15 +348,18 @@ export const Templates = {
     },
 };
 
+/**
+ * Whether the repository holding `projectPath` is linked to a cloud project: its `.wso2/context.yaml` has to
+ * be a v2 document with an entry, as the cloud features read it. A v1 or unreadable file links nothing.
+ */
 export const hasContextYaml = (projectPath: string): boolean => {
     try {
         const repoRoot = getRepoRoot(projectPath);
-        if (repoRoot) {
-            if (fs.existsSync(path.join(repoRoot, ".wso2", "context.yaml"))) {
-                return true;
-            }
+        if (!repoRoot) {
+            return false;
         }
-        return false;
+        const content = fs.readFileSync(path.join(repoRoot, ".wso2", "context.yaml"), "utf-8");
+        return readContextDocument(yaml.load(content)).length > 0;
     } catch {
         return false;
     }

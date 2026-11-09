@@ -31,8 +31,7 @@ import { DIRECTORY_MAP } from "@wso2/ballerina-core";
 import {
     DevantConnectionFlow,
     generateInitialConnectionName,
-    getInitialVisibility,
-    getPossibleVisibilities,
+    getInitialAccess,
     isValidDevantConnName,
     serviceUrlConfigName,
 } from "./utils";
@@ -208,7 +207,8 @@ export const DevantBIConnectorCreateForm: FC<Props> = (props) => {
                 ].includes(selectedFlow)
             ) {
                 const isProjectLevel = !!!platformExtState?.selectedIntegration?.integration.id;
-                const visibilities = getPossibleVisibilities(
+                // The same access and schema the popup made the configurables for.
+                const { visibility, schema } = getInitialAccess(
                     selectedMarketplaceItem,
                     platformExtState?.selectedContext?.project,
                 );
@@ -218,9 +218,9 @@ export const DevantBIConnectorCreateForm: FC<Props> = (props) => {
                     orgId: platformExtState?.session?.org.handle,
                     orgUuid: platformExtState?.session?.org.uuid,
                     projectId: platformExtState?.selectedContext?.projectName,
-                    serviceSchemaId: selectedMarketplaceItem.connectionSchemas[0]?.id || "",
+                    serviceSchemaId: schema?.id || "",
                     serviceId: selectedMarketplaceItem.serviceId,
-                    serviceVisibility: getInitialVisibility(selectedMarketplaceItem, visibilities),
+                    serviceVisibility: visibility,
                     componentType: isProjectLevel
                         ? "non-component"
                         : getTypeForDisplayType(platformExtState?.selectedIntegration?.integration.componentType),
@@ -237,7 +237,7 @@ export const DevantBIConnectorCreateForm: FC<Props> = (props) => {
                 await platformRpcClient.createConnectionConfig({
                     marketplaceItem: selectedMarketplaceItem,
                     name: recentIdentifier,
-                    visibility: getInitialVisibility(selectedMarketplaceItem, visibilities),
+                    visibility,
                     componentDir: projectPath,
                 });
             }

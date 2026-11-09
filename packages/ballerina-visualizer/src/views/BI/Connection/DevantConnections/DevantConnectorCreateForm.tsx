@@ -81,7 +81,6 @@ interface CreateConnectionForm {
     name?: string;
     visibility?: string;
     schemaId?: string;
-    isProjectLevel?: boolean;
     envKeys?: string[];
 }
 
@@ -120,7 +119,6 @@ export const DevantConnectorCreateForm: FC<DevantConnectorCreateFormProps> = ({
             ),
             visibility: getInitialVisibility(marketplaceItem, visibilities),
             schemaId: "",
-            isProjectLevel: false,
             envKeys: [],
         },
     });
@@ -134,7 +132,6 @@ export const DevantConnectorCreateForm: FC<DevantConnectorCreateFormProps> = ({
             ),
             visibility: getInitialVisibility(marketplaceItem, visibilities),
             schemaId: "",
-            isProjectLevel: false,
         });
     }, [marketplaceItem]);
 
@@ -145,8 +142,9 @@ export const DevantConnectorCreateForm: FC<DevantConnectorCreateFormProps> = ({
             const schema = marketplaceItem?.connectionSchemas?.find((item) => item.id === data.schemaId);
             const tempDevantConfigs = schema ? await createTempConfigsAsync({ item: marketplaceItem!, schema }) : devantConfigs;
 
+            // WSO2 Cloud connects one integration at a time; it has no project-level connections.
             const createdConnection = await platformRpcClient?.createInternalConnection({
-                componentId: isProjectLevel ? "" : platformExtState?.selectedIntegration?.integration.id,
+                componentId: platformExtState?.selectedIntegration?.integration.id,
                 name: data.name,
                 orgId: platformExtState?.session?.org.handle,
                 orgUuid: platformExtState?.session?.org.uuid,
@@ -154,9 +152,7 @@ export const DevantConnectorCreateForm: FC<DevantConnectorCreateFormProps> = ({
                 serviceSchemaId: marketplaceItem?.connectionSchemas?.find(item=> item.id === data.schemaId)?.id || "",
                 serviceId: marketplaceItem?.serviceId,
                 serviceVisibility: data.visibility || "PUBLIC",
-                componentType: isProjectLevel
-                    ? "non-component"
-                    : getTypeForDisplayType(platformExtState?.selectedIntegration?.integration.componentType),
+                componentType: getTypeForDisplayType(platformExtState?.selectedIntegration?.integration.componentType),
                 componentPath: projectPath,
                 generateCreds: true,
                 configurableName: serviceUrlConfigName(tempDevantConfigs),
@@ -201,7 +197,6 @@ export const DevantConnectorCreateForm: FC<DevantConnectorCreateFormProps> = ({
         }
     }, [schemas]);
 
-    const isProjectLevel = form.watch("isProjectLevel");
     const selectedSchemaId = form.watch("schemaId");
     const selectedKeys = form.watch("envKeys");
     const selectedSchema = schemas?.find((schema) => schema.id === selectedSchemaId);
@@ -250,20 +245,6 @@ export const DevantConnectorCreateForm: FC<DevantConnectorCreateFormProps> = ({
                     required
                     disabled={schemas?.length === 0}
                     errorMsg={form.formState.errors.schemaId?.message}
-                />
-            </FormStyles.Row>,
-        );
-    }
-
-    if (platformExtState?.selectedIntegration) {
-        advancedConfigItems.push(
-            <FormStyles.Row>
-                <CheckBox
-                    label="Connection available to all integrations within your WSO2 Cloud project"
-                    checked={isProjectLevel}
-                    onChange={(checked: boolean) => {
-                        form.setValue("isProjectLevel", checked);
-                    }}
                 />
             </FormStyles.Row>,
         );

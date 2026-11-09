@@ -41,7 +41,6 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import {
     MarketplaceDatabaseListResp,
     DatabaseRequestStatusEnum,
-    ConnectionDetailed,
     MarketplaceItem,
     ConnectionListItem,
     ServiceInfoVisibilityEnum,
@@ -538,6 +537,9 @@ export const DevantDatabaseCredentials: FC<Props> = (props) => {
             if (selectedMarketplaceItem && !importedConnection && !platformExtState?.selectedEnv?.id) {
                 throw new Error("Select an environment to connect in first.");
             }
+            if (selectedMarketplaceItem && !importedConnection && !platformExtState?.selectedIntegration?.integration.id) {
+                throw new Error("Select an integration to connect in first.");
+            }
 
             const activeFieldValues = selectedMarketplaceItem && devantFieldValues ? devantFieldValues : fieldValues;
             const properties = buildDbPropertiesFromFieldValues(connectorCredentials, activeFieldValues);
@@ -638,6 +640,12 @@ export const DevantDatabaseCredentials: FC<Props> = (props) => {
             return;
         }
 
+        // WSO2 Cloud cannot register a third-party database yet, so one given by its credentials stays a
+        // local connection: the persist step already wrote it and its configurables.
+        if (!selectedMarketplaceItem) {
+            return;
+        }
+
         const activeFv = selectedMarketplaceItem && devantFieldValues ? devantFieldValues : fieldValues;
         const configs = fieldValuesToDbConfig(activeFv);
 
@@ -672,72 +680,33 @@ export const DevantDatabaseCredentials: FC<Props> = (props) => {
                 type: "string",
             },
         ];
-        let createdConnection: ConnectionDetailed | undefined = undefined;
-        if (selectedMarketplaceItem) {
-            const envMappingParam: Record<
-                string,
-                {
-                    resourceId: string;
-                    parameterReference: string;
-                }
-            > = {};
-
-            if (!platformExtState?.selectedEnv?.id) {
-                throw new Error("Select an environment to connect in first.");
-            }
-            envMappingParam[platformExtState.selectedEnv.id] = {
+        if (!platformExtState?.selectedEnv?.id) {
+            throw new Error("Select an environment to connect in first.");
+        }
+        const envMappingParam: Record<string, { resourceId: string; parameterReference: string }> = {
+            [platformExtState.selectedEnv.id]: {
                 resourceId: selectedMarketplaceItem.resourceId,
                 parameterReference: selectedUserCredentialId,
-            };
+            },
+        };
 
-            createdConnection = await platformRpcClient.createDatabaseConnection({
-                name: connectionName,
-                orgId: platformExtState?.session?.org.handle || "",
-                orgUuid: platformExtState?.session?.org.uuid || "",
-                projectId: platformExtState?.selectedContext?.projectName || "",
-                componentId: platformExtState?.selectedIntegration?.integration.id || "",
-                serviceId: selectedMarketplaceItem?.resourceId,
-                envMapping: envMappingParam,
-                schemaReference: selectedMarketplaceItem?.connectionSchemas[0]?.id || "",
-            });
+        const createdConnection = await platformRpcClient.createDatabaseConnection({
+            name: connectionName,
+            orgId: platformExtState?.session?.org.handle || "",
+            orgUuid: platformExtState?.session?.org.uuid || "",
+            projectId: platformExtState?.selectedContext?.projectName || "",
+            componentId: platformExtState?.selectedIntegration?.integration.id || "",
+            serviceId: selectedMarketplaceItem?.resourceId,
+            envMapping: envMappingParam,
+            schemaReference: selectedMarketplaceItem?.connectionSchemas[0]?.id || "",
+        });
 
-            await platformRpcClient.createConnectionConfig({
-                marketplaceItem: selectedMarketplaceItem,
-                name: connectionName,
-                visibility: "PUBLIC",
-                componentDir: projectPath,
-            });
-        } else {
-            const marketplaceService = await platformRpcClient.registerDevantMarketplaceService({
-                name: connectionName,
-                configs: newDevantConfigs,
-                idlFilePath: "",
-                idlType: "TCP",
-                serviceType: "REST",
-            });
-            const isProjectLevel = !!!platformExtState?.selectedIntegration?.integration.id;
-
-            createdConnection = await platformRpcClient?.createThirdPartyConnection({
-                componentId: isProjectLevel ? "" : platformExtState?.selectedIntegration?.integration.id,
-                name: connectionName,
-                orgId: platformExtState?.session?.org.handle,
-                orgUuid: platformExtState?.session?.org.uuid,
-                projectId: platformExtState?.selectedContext?.projectName,
-                serviceSchemaId: marketplaceService.connectionSchemas[0]?.id,
-                serviceId: marketplaceService.serviceId,
-                endpointRefs: marketplaceService.endpointRefs,
-                sensitiveKeys: marketplaceService.connectionSchemas[0].entries
-                    ?.filter((item) => item.isSensitive)
-                    .map((item) => item.name),
-            });
-
-            await platformRpcClient.createConnectionConfig({
-                marketplaceItem: marketplaceService,
-                name: connectionName,
-                visibility: "PUBLIC",
-                componentDir: projectPath,
-            });
-        }
+        await platformRpcClient.createConnectionConfig({
+            marketplaceItem: selectedMarketplaceItem,
+            name: connectionName,
+            visibility: "PUBLIC",
+            componentDir: projectPath,
+        });
 
         await platformRpcClient.replaceDevantTempConfigValues({
             configs: newDevantConfigs,

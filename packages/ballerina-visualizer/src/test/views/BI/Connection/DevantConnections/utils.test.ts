@@ -21,6 +21,7 @@ import {
     KB_SERVICE_TAG,
     errorMessageOf,
     filterConnectionMarketplaceItems,
+    getInitialAccess,
     getPossibleSchemas,
     securityTypeOf,
     serviceUrlConfigName,
@@ -107,6 +108,13 @@ describe("WSO2 Cloud service connection schemas", () => {
         expect(getPossibleSchemas(service, "PROJECT").map((s) => s.id)).toEqual(["project-url"]);
         expect(getPossibleSchemas(service, "ORGANIZATION").map((s) => s.id)).toEqual(["api-key"]);
         expect(getPossibleSchemas(service, "PUBLIC").map((s) => s.id)).toEqual(["api-key"]);
+    });
+
+    it("starts a connection with the schema of its initial access", () => {
+        const inProject = { ...service, projectId: "p1", visibility: ["PROJECT", "ORGANIZATION"] } as unknown as MarketplaceItem;
+        expect(getInitialAccess(inProject, { id: "p1" })).toMatchObject({ visibility: "PROJECT", schema: { id: "project-url" } });
+        // From another project, Project access is not offered, so the connection goes through the gateway with a key.
+        expect(getInitialAccess(inProject, { id: "p2" })).toMatchObject({ visibility: "ORGANIZATION", schema: { id: "api-key" } });
     });
 
     it("leaves a database's schemas unfiltered", () => {

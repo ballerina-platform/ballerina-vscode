@@ -49,6 +49,7 @@ import {
     DevantConnectionFlowSubTitles,
     DevantConnectionFlowTitles,
     generateInitialConnectionName,
+    getInitialAccess,
     getKnownAvailableNode,
     ProgressWrap,
     securityTypeOf,
@@ -229,7 +230,15 @@ export function DevantConnectorPopup(props: DevantConnectorPopupProps) {
     useEffect(() => {
         const ignoredFlows = [DevantConnectionFlow.CREATE_INTERNAL_OAS, DevantConnectionFlow.IMPORT_INTERNAL_OAS];
         if (selectedMarketplaceItem && !ignoredFlows.includes(selectedFlow)) {
-            createTempConfigs({ item: selectedMarketplaceItem });
+            // A new service connection is made with its initial access, whose schema decides the configurables.
+            const creatingInternal = [
+                DevantConnectionFlow.CREATE_INTERNAL_OTHER,
+                DevantConnectionFlow.CREATE_INTERNAL_OTHER_SELECT_BI_CONNECTOR,
+            ].includes(selectedFlow);
+            const schema = creatingInternal
+                ? getInitialAccess(selectedMarketplaceItem, platformExtState?.selectedContext?.project).schema
+                : undefined;
+            createTempConfigs({ item: selectedMarketplaceItem, schema });
         }
     }, [selectedMarketplaceItem, selectedFlow]);
 

@@ -38,7 +38,7 @@ import {
     getAuthCredentials
 } from '../../utils/ai/auth';
 import { getBedrockRegionalPrefix } from '../../features/ai/utils/ai-client';
-import { getCloudAccessToken } from '../../utils/cloud-auth';
+import { getCloudAccessToken, inspectPlatformAPI } from '../../utils/cloud-auth';
 import { WICommandIds } from '@wso2/wso2-platform-core';
 import { copilotName } from '../../utils/config';
 
@@ -117,11 +117,16 @@ export const logout = async (_isUserLogout: boolean = true) => {
 
 /**
  * Initiate Devant authentication via the platform extension.
- * Returns true if login was triggered, false if platform extension is not available.
+ * Returns true if login was triggered; throws when WSO2 Integrator is missing or speaks another API version.
  */
 export async function initiateDevantAuth(): Promise<boolean> {
-    if (!isPlatformExtensionAvailable()) {
+    const { installed, api } = await inspectPlatformAPI();
+    if (!installed) {
         throw new Error(`WSO2 Platform extension is not installed. Please install it to use ${copilotName()}.`);
+    }
+    // An incompatible WSO2 Integrator gets no login listener, so its sign-in would never complete here.
+    if (!api) {
+        throw new Error(`Update WSO2 Integrator to sign in to ${copilotName()} with WSO2 Cloud; the installed version is not compatible.`);
     }
 
     // Trigger platform extension login command

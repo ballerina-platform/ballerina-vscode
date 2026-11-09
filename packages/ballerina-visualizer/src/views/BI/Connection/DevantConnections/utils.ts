@@ -439,6 +439,15 @@ export const getPossibleSchemas = (item: MarketplaceItem | undefined, visibility
     return schemas.filter((schema) => (schema.id === PROJECT_URL_SCHEMA_ID) === project);
 };
 
+/**
+ * The access a new connection to a service starts with, and the schema that access takes. Forms with no access
+ * choice use this for both the configurables and the connection, so a gateway connection gets its API key's one.
+ */
+export const getInitialAccess = (item: MarketplaceItem, project?: Pick<Project, "id">) => {
+    const visibility = getInitialVisibility(item, getPossibleVisibilities(item, project));
+    return { visibility, schema: getPossibleSchemas(item, visibility)[0] as MarketplaceItemSchema | undefined };
+};
+
 /** The schema of a WSO2 Cloud service connection through the gateway: the API's URL and an API key. */
 export const API_KEY_SCHEMA_ID = "api-key";
 

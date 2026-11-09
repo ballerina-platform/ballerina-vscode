@@ -224,6 +224,10 @@ export const exchangeStsToCopilotToken = async (stsToken: string): Promise<BIInt
  * Refresh the Copilot token by exchanging the WSO2 Cloud access token
  */
 export const refreshTokenViaStsExchange = async (): Promise<BIIntelSecrets> => {
+    // A refresh runs unasked and often: without an exchange it fails quietly instead of raising the sign-in popup.
+    if (!isCopilotTokenExchangeAvailable()) {
+        throw new CopilotTokenExchangeUnavailableError();
+    }
     const stsToken = await getCloudAccessToken();
     if (!stsToken) {
         throw new Error('Not signed in to WSO2 Cloud');
@@ -411,7 +415,7 @@ export const getRefreshedAccessToken = async (): Promise<string> => {
                 console.log('Refreshing token via STS exchange...');
                 const newSecrets = await refreshTokenViaStsExchange();
 
-                // Update stored credentials, persisting region so warm restarts restore it
+                // Store the fresh token; the deployment in use picks the backend, so nothing else is kept
                 const updatedCredentials = await storeBiIntelCredentials(newSecrets);
                 resolve((updatedCredentials.secrets as BIIntelSecrets).accessToken);
                 return;

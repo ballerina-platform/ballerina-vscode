@@ -232,7 +232,7 @@ import * as toml from "@iarna/toml";
 import { readOrWriteReadmeContent } from "./utils";
 import { registerFormOpen, registerFormClose, setFormDirtyState } from "./form-state";
 import { isAiSourceParseable } from "../diagram-validity";
-import { getRepoRoot } from "../platform-ext/platform-utils";
+import { getRepoRoot, hasContextYaml as hasReadableContextYaml } from "../platform-ext/platform-utils";
 import { notifyOnIdentifierUpdated } from "../../RPCLayer";
 import { openView } from "../../stateMachine";
 
@@ -2345,13 +2345,7 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
         let hasLocalChanges = false;
         try {
             const projectPath = StateMachine.context().projectPath;
-            const repoRoot = getRepoRoot(projectPath);
-            if (repoRoot) {
-                const contextYamlPath = path.join(repoRoot, ".wso2", "context.yaml");
-                if (fs.existsSync(contextYamlPath)) {
-                    hasContextYaml = true;
-                }
-            }
+            hasContextYaml = hasReadableContextYaml(projectPath);
 
             const platformExtAPI = await getCompatiblePlatformAPI();
             if (!platformExtAPI) {
@@ -2400,7 +2394,7 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             const platformExtAPI = await getCompatiblePlatformAPI();
             if (!platformExtAPI) {
                 // Not installed, or speaking another contract version: the context file is all there is to go on.
-                const hasContextYaml = fs.existsSync(path.join(repoRoot, ".wso2", "context.yaml"));
+                const hasContextYaml = hasReadableContextYaml(repoRoot);
                 return {
                     isLoggedIn: false,
                     hasAnyComponent: hasContextYaml,
@@ -2437,11 +2431,8 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             }
 
             // If not logged in, check for context.yaml as fallback
-            if (!isLoggedIn) {
-                const contextYamlPath = path.join(repoRoot, ".wso2", "context.yaml");
-                if (fs.existsSync(contextYamlPath)) {
-                    hasAnyComponent = true;
-                }
+            if (!isLoggedIn && hasReadableContextYaml(repoRoot)) {
+                hasAnyComponent = true;
             }
 
             return {
