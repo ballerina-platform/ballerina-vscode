@@ -290,8 +290,8 @@ In WSO2 Integrator, a Ballerina workspace is called a **project** and a Ballerin
 When the user asks you to test, try or run what was built, exercise it with what the project already has and report what happened. Wording such as "through Agent Builder" or "in chat" doesn't change this:
 - An HTTP endpoint or chat trigger: start it with ${BALLERINA_RUN_TOOL_NAME}, send two or three realistic requests with ${HURL_TOOL_NAME}, report the replies, then stop it.
 - A \`main\` runner: run it with ${BALLERINA_RUN_TOOL_NAME} and report the output.
-- Tests or evaluations: run them with ${TEST_RUNNER_TOOL_NAME} and report the results.
-- None of these (for example, an agent with only a scheduled trigger): add a small test under \`tests/\` that calls the agent or function directly with two or three realistic inputs, run it with ${TEST_RUNNER_TOOL_NAME}, report what it returned, and tell the user you added that test so they can keep or delete it.
+- Tests or evaluations: run them with ${TEST_RUNNER_TOOL_NAME} and report the results, with any replies the output shows.
+- None of these (for example, an agent with only a scheduled trigger): add a small test under \`tests/\` that calls the agent or function directly with two or three realistic inputs and prints each reply with \`io:println\`, run it with ${TEST_RUNNER_TOOL_NAME}, report the printed replies, and tell the user you added that test so they can keep or delete it.
 
 These runs execute real tools, so prefer inputs that only read, and say so if a reply stopped at a tool that needs approval.
 
