@@ -218,7 +218,7 @@ public class McpClient {
     }
 
     /**
-     * Thrown when the server answers {@code initialize} with 401 Unauthorized. It carries the server's
+     * Thrown when the server answers a request with 401 Unauthorized. It carries the server's
      * {@code WWW-Authenticate} challenge, which points at the metadata that still names the server.
      */
     public static class UnauthorizedException extends IOException {
@@ -572,12 +572,11 @@ public class McpClient {
         int statusCode = response.statusCode();
         // An authorization failure or a server error would fail the legacy handshake too
         if (statusCode == HttpURLConnection.HTTP_UNAUTHORIZED) {
-            throw new UnauthorizedException("HTTP " + statusCode + ": " + response.body(),
-                    response.wwwAuthenticate());
+            throw new UnauthorizedException(response.httpError(), response.wwwAuthenticate());
         }
         if (statusCode == HttpURLConnection.HTTP_FORBIDDEN
                 || statusCode >= HttpURLConnection.HTTP_INTERNAL_ERROR) {
-            throw new IOException("HTTP " + statusCode + ": " + response.body());
+            throw new IOException(response.httpError());
         }
 
         JsonObject message = response.message();
@@ -628,7 +627,7 @@ public class McpClient {
                 || statusCode == HttpURLConnection.HTTP_BAD_METHOD) {
             return null;
         }
-        throw new IOException("HTTP " + statusCode + ": " + response.body());
+        throw new IOException(response.httpError());
     }
 
     private static JsonArray sendModernToolsListRequests(String serviceUrl, String accessToken,
@@ -642,13 +641,16 @@ public class McpClient {
             }
             ProtocolResponse response = sendModernRequest(serviceUrl, accessToken, sslConfig,
                     MODERN_DISCOVER_REQUEST_ID + page + 1, TOOLS_LIST_METHOD, params);
+            if (response.statusCode() == HttpURLConnection.HTTP_UNAUTHORIZED) {
+                throw new UnauthorizedException(response.httpError(), response.wwwAuthenticate());
+            }
             JsonObject message = response.message();
             if (message != null && message.has("error") && message.get("error").isJsonObject()) {
                 throw new IOException("Failed to list tools: " + errorMessage(message.getAsJsonObject("error")));
             }
             if (response.statusCode() != HttpURLConnection.HTTP_OK || message == null || !message.has("result")
                     || !message.get("result").isJsonObject()) {
-                throw new IOException("HTTP " + response.statusCode() + ": " + response.body());
+                throw new IOException(response.httpError());
             }
             JsonObject result = message.getAsJsonObject("result");
             if (result.has("tools") && result.get("tools").isJsonArray()) {
@@ -708,8 +710,8 @@ public class McpClient {
             int responseCode = conn.getResponseCode();
             String body = responseCode < HttpURLConnection.HTTP_BAD_REQUEST
                     ? readBody(conn) : readErrorStream(conn);
-            return new ProtocolResponse(responseCode, body, parseJsonRpcMessage(body, conn.getContentType()),
-                    conn.getHeaderField("WWW-Authenticate"));
+            return new ProtocolResponse(responseCode, conn.getResponseMessage(), body,
+                    parseJsonRpcMessage(body, conn.getContentType()), conn.getHeaderField("WWW-Authenticate"));
         } catch (java.net.MalformedURLException e) {
             throw new IOException("Invalid URL: " + e.getMessage(), e);
         } catch (java.net.UnknownHostException e) {
@@ -725,7 +727,13 @@ public class McpClient {
         }
     }
 
-    private record ProtocolResponse(int statusCode, String body, JsonObject message, String wwwAuthenticate) {
+    private record ProtocolResponse(int statusCode, String reasonPhrase, String body, JsonObject message,
+                                    String wwwAuthenticate) {
+
+        // Describes a failed response by its body, or by its reason phrase when it has no body
+        String httpError() {
+            return "HTTP " + statusCode + ": " + (body != null && !body.isBlank() ? body : reasonPhrase);
+        }
     }
 
     // Reads a response body. An event stream is read only up to the event that carries the JSON-RPC response, as

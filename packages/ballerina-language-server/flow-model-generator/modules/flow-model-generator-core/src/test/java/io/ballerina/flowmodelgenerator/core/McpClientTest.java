@@ -176,6 +176,20 @@ public class McpClientTest {
         Assert.assertTrue(e.wwwAuthenticate().contains("resource_metadata"), e.wwwAuthenticate());
     }
 
+    @Test
+    public void reportsAnAuthorizationChallengeToListTools() throws IOException {
+        server = new FakeServer(method -> switch (method) {
+            case "server/discover" -> Reply.json(200, result("{\"supportedVersions\": [\"2026-07-28\"]}"));
+            case "tools/list" -> new Reply(401, null, "", "Bearer scope=\"tools\"", false);
+            default -> Reply.json(400, error(-32600, "unexpected " + method));
+        });
+        McpClient.UnauthorizedException e = Assert.expectThrows(McpClient.UnauthorizedException.class,
+                () -> McpClient.listTools(server.url(), null, null));
+        Assert.assertEquals(e.wwwAuthenticate(), "Bearer scope=\"tools\"");
+        // A reply without a body is described by its reason phrase
+        Assert.assertEquals(e.getMessage(), "HTTP 401: Status");
+    }
+
     @Test(timeOut = 8000)
     public void readsAnEventStreamResponseLeftOpen() throws IOException {
         // Each response is an event stream the server never closes; a reader waiting for its end would time out
