@@ -546,6 +546,8 @@ function serviceItem(
         description: "",
         visibility: [access === "project" ? "PROJECT" : "ORGANIZATION"],
         isThirdParty: false,
+        // The integration's labels (the tags shown in the console), e.g. knowledge-base-as-service.
+        tags: integration.labels ?? [],
     };
 }
 
