@@ -602,6 +602,12 @@ export const processFunctionWithArguments = async (
     return { finalValue: value, cursorAdjustment: value.length };
 };
 
+/** Offset of the cursor inside the empty argument list of an inserted call: `fn(|)`, `${fn(|)}`. */
+export const getEmptyCallCursorOffset = (value: string): number => {
+    const closingParenIndex = value.lastIndexOf(")");
+    return closingParenIndex >= 0 ? closingParenIndex : value.length;
+};
+
 export const normalizeEditorValue = (v: unknown) =>
     typeof v === 'string' ? v.trim() : v;
 

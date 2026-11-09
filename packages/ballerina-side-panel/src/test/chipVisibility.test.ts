@@ -21,6 +21,7 @@
 import { InputMode } from "../components/editors/MultiModeExpressionEditor/ChipExpressionEditor/types";
 import { getEditorConfiguration } from "../components/editors/ExpressionField";
 import { ExpressionModeEditorConfig, RecordPreviewEditorConfig } from "../components/editors/MultiModeExpressionEditor/Configurations";
+import { getEmptyCallCursorOffset } from "../components/editors/MultiModeExpressionEditor/ChipExpressionEditor/utils";
 import { getArrayItemEditorConfiguration } from "../components/editors/MultiModeExpressionEditor/DynamicArrayBuilder/DynamicArrayBuilder";
 
 const ALL_MODES = Object.values(InputMode) as InputMode[];
@@ -50,5 +51,12 @@ describe("chip rendering per input mode", () => {
         const record = '{name: "Anne", age: 30}';
         expect(config.serializeValue(record)).toBe(record);
         expect(config.deserializeValue(record)).toBe(record);
+    });
+
+    it("a function inserted without chips leaves its argument list empty with the cursor inside", () => {
+        // Without chips, $1/$2 placeholders would be plain text in the source.
+        expect(getEmptyCallCursorOffset("getFullName()")).toBe("getFullName(".length);
+        expect(getEmptyCallCursorOffset("${getFullName()}")).toBe("${getFullName(".length);
+        expect(getEmptyCallCursorOffset("name")).toBe("name".length);
     });
 });

@@ -64,7 +64,7 @@ import { listContinuationKeymap } from "../../../ExpandedEditor/utils/templateUt
 import { ChipExpressionEditorDefaultConfiguration } from "../ChipExpressionDefaultConfig";
 import { ChipExpressionEditorConfig } from "../../Configurations";
 import { HELPER_PANE_WIDTH } from "../constants";
-import { processFunctionWithArguments } from "../utils";
+import { getEmptyCallCursorOffset, processFunctionWithArguments } from "../utils";
 import { useHelperPaneClickOutside, useHelperPane } from "../hooks/useHelperPane";
 import { InputMode } from "../types";
 import { NO_WRAP } from "../stringContext";
@@ -301,7 +301,11 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
         // then we can directly handled it without explicitly calling the API
         // and extracting args
         if (newValue.endsWith('()') || newValue.endsWith(')}')) {
-            if (props.extractArgsFromFunction) {
+            if (!configuration.showChips()) {
+                // $1/$2 placeholders are only editable as chips; in plain source they would
+                // land as literal text. Leave the call empty with the cursor inside it.
+                argsCursorOffset = getEmptyCallCursorOffset(newValue);
+            } else if (props.extractArgsFromFunction) {
                 const result = await processFunctionWithArguments(
                     newValue,
                     props.extractArgsFromFunction
