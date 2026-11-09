@@ -75,13 +75,17 @@ export function NewTool(props: NewToolProps): JSX.Element {
         setReady(true);
     };
 
-    const handleAgentToolCreated = async (functionName: string, artifacts?: ProjectStructureArtifactResponse[]) => {
+    const handleAgentToolCreated = async (
+        functionName: string,
+        artifacts?: ProjectStructureArtifactResponse[],
+        imports?: Record<string, string>
+    ) => {
         if (!agentNode) {
             console.error("Agent node not found");
             return;
         }
         try {
-            const updatedAgentNode = await addToolToAgentNode(agentNode, functionName);
+            const updatedAgentNode = await addToolToAgentNode(agentNode, functionName, imports);
             if (!updatedAgentNode) {
                 console.error("Failed to add tool to agent node");
                 return;
@@ -224,6 +228,7 @@ export function NewTool(props: NewToolProps): JSX.Element {
                         projectPath={projectPath.current}
                         onSubmit={handleOnSubmit}
                         mode={mode}
+                        onExistingToolSelect={(toolName, imports) => handleAgentToolCreated(toolName, undefined, imports)}
                         onViewChange={(_view, navigateBack) => {
                             onSetBackOverride?.(navigateBack || null);
                         }}

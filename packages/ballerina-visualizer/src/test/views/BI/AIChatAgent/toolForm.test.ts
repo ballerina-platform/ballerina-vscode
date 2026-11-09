@@ -182,6 +182,11 @@ describe("getExistingToolNames", () => {
         expect(getExistingToolNames(agentNode as any)).toEqual(["sumTool"]);
     });
 
+    it("reads the value of tool properties", () => {
+        const agentNode = { properties: { tools: { value: [{ value: "sumTool" }, { value: "lib:appendTool" }] } } };
+        expect(getExistingToolNames(agentNode as any)).toEqual(["sumTool", "lib:appendTool"]);
+    });
+
     it("handles an empty list and a missing agent", () => {
         expect(getExistingToolNames({ properties: { tools: { value: "[]" } } } as any)).toEqual([]);
         expect(getExistingToolNames(undefined)).toEqual([]);
