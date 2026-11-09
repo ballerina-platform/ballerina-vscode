@@ -27,7 +27,7 @@ import { createRoot, Root } from "react-dom/client";
 import { act } from "react-dom/test-utils";
 import type { BISourceCodeRequest, Property } from "@wso2/ballerina-core";
 import type { FormField, Parameter } from "@wso2/ballerina-side-panel";
-import { handleRepeatableProperty } from "../../../utils/node-property-utils";
+import { handleRepeatableProperty } from "../../../../utils/node-property-utils";
 
 // The core barrel pulls in ESM-only LS transport modules that jest cannot load. Only the
 // values this view reads are needed.
