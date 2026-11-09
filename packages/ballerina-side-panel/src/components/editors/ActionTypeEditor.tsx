@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
     Codicon,
     ErrorBanner,
@@ -37,6 +37,7 @@ import {
 } from "@wso2/ui-toolkit";
 import { FormField } from "../Form/types";
 import { useFormContext } from "../../context";
+import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Controller } from "react-hook-form";
 import { S } from "./ExpressionEditor";
 import { buildRequiredRule, getPropertyFromFormField } from "./utils";
@@ -177,8 +178,9 @@ const getDefaultCompletion = (newType: string) => {
 
 export function ActionTypeEditor(props: ActionTypeEditorProps) {
     const { field, openRecordEditor, handleOnFieldFocus, handleOnTypeChange, autoFocus, handleNewTypeSelected } = props;
-    const { form, expressionEditor } = useFormContext();
-    const { control } = form;
+    const { rpcClient } = useRpcContext();
+    const { form, expressionEditor, targetLineRange, fileName } = useFormContext();
+    const { control, setError, trigger } = form;
     const {
         types,
         referenceTypes,
@@ -190,8 +192,7 @@ export function ActionTypeEditor(props: ActionTypeEditorProps) {
         onBlur,
         onCompletionItemSelect,
         onSave,
-        onCancel,
-        getExpressionEditorDiagnostics
+        onCancel
     } = expressionEditor;
 
     const exprRef = useRef<FormExpressionEditorRef>(null);
@@ -361,6 +362,46 @@ export function ActionTypeEditor(props: ActionTypeEditorProps) {
     };
 
     const debouncedTypeEdit = debounce(handleTypeEdit, 300);
+
+    // Asks the LS directly instead of going through the form's expression diagnostics: GraphQL arguments are
+    // edited in a nested ParamManager form whose keys the host ArtifactForm does not know, so it drops them.
+    const validationInputsRef = useRef({ field, fileName, targetLineRange });
+    validationInputsRef.current = { field, fileName, targetLineRange };
+    const validateType = useMemo(() => debounce(async (value: string) => {
+        const { field, fileName, targetLineRange } = validationInputsRef.current;
+        // Re-running the field's own rules drops a stale type error without hiding a "required" one.
+        if (!value.trim()) {
+            void trigger?.(field.key);
+            return;
+        }
+        try {
+            const response = await rpcClient.getBIDiagramRpcClient().getExpressionDiagnostics({
+                filePath: fileName,
+                context: {
+                    expression: value,
+                    startLine: targetLineRange?.startLine,
+                    offset: 0,
+                    lineOffset: 0,
+                    codedata: field.codedata,
+                    property: getPropertyFromFormField(field),
+                },
+            });
+            if (form.getValues(field.key) !== value) {
+                return;
+            }
+            const firstError = response?.diagnostics?.find((diagnostic) => diagnostic.severity === 1);
+            if (firstError) {
+                setError(field.key, { type: "type_diagnostic", message: firstError.message });
+            } else {
+                void trigger?.(field.key);
+            }
+        } catch (error) {
+            console.error("Failed to fetch type diagnostics:", error);
+            void trigger?.(field.key);
+        }
+    }, 250), [rpcClient, setError, trigger]);
+
+    useEffect(() => () => validateType.cancel(), [validateType]);
 
     const handleChangeTypeHelperState = (isOpen: boolean) => {
         setIsTypeHelperOpen(isOpen);
@@ -640,20 +681,7 @@ export function ActionTypeEditor(props: ActionTypeEditorProps) {
                                     // Set show default completion
                                     const typeExists = referenceTypes.find((type) => type.label === updatedValue);
 
-                                    // disabling expression editor diagnostics for type field 
-                                    // as the expressionEditor/diagnstics API is currently
-                                    // having a limitation on validating the type fields
-                                    
-                                    // if (getExpressionEditorDiagnostics) {
-                                    //     const required = !field.optional;
-
-                                    //     getExpressionEditorDiagnostics(
-                                    //         (required ?? !field.optional) || updatedValue !== '',
-                                    //         updatedValue,
-                                    //         field.key,
-                                    //         getPropertyFromFormField(field)
-                                    //     );
-                                    // }
+                                    validateType(updatedValue);
 
                                     handleNewTypeSelected && handleNewTypeSelected(typeExists ? typeExists : updatedValue)
                                     const validTypeForCreation = updatedValue.match(/^[a-zA-Z_'][a-zA-Z0-9_]*$/);
