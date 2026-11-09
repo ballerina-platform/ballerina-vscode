@@ -1821,6 +1821,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                     return (
                         <g
                             key={index}
+                            data-testid={`agent-tool-${tool.name}`}
                             transform={`translate(0, ${(index + 1) * (NODE_HEIGHT + AGENT_NODE_TOOL_GAP) + AGENT_NODE_TOOL_SECTION_GAP
                                 })`}
                             opacity={toolsReadOnly ? 0.55 : undefined}
