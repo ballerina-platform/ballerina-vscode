@@ -67,6 +67,7 @@ import { HELPER_PANE_WIDTH } from "../constants";
 import { processFunctionWithArguments } from "../utils";
 import { useHelperPaneClickOutside, useHelperPane } from "../hooks/useHelperPane";
 import { InputMode } from "../types";
+import { NO_WRAP } from "../stringContext";
 
 export type ChipExpressionEditorComponentProps = {
     onTokenRemove?: (token: string) => void;
@@ -284,8 +285,15 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
         const selectionIsOnToken = isSelectionOnToken(currentSelection.from, currentSelection.to, view);
         const newValue = selectionIsOnToken ? value : configuration.getHelperValue(value);
 
-        let finalValue = newValue;
-        let cursorPosition = from + newValue.length;
+        // Inside a string literal or template of a raw-source doc, the value needs `${}` or
+        // concatenation to stay an expression rather than become text.
+        const { prefix, suffix } = selectionIsOnToken || options?.replaceFullText
+            ? NO_WRAP
+            : configuration.getHelperInsertionWrap(view.state.doc.toString(), from);
+
+        let insertedValue = newValue;
+        // Set when the cursor should land on a function's arguments rather than after the insert.
+        let argsCursorOffset: number | undefined;
 
         // HACK: this should be handled properly with completion items template
         // current API response sends an incorrect response
@@ -298,10 +306,17 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
                     newValue,
                     props.extractArgsFromFunction
                 );
-                finalValue = result.finalValue;
-                cursorPosition = from + result.cursorAdjustment;
+                if (result.finalValue !== newValue) {
+                    insertedValue = result.finalValue;
+                    argsCursorOffset = result.cursorAdjustment;
+                }
             }
         }
+
+        const finalValue = prefix + insertedValue + suffix;
+        const cursorPosition = argsCursorOffset === undefined
+            ? from + finalValue.length
+            : from + prefix.length + argsCursorOffset;
 
         view.dispatch({
             changes: { from, to, insert: finalValue },

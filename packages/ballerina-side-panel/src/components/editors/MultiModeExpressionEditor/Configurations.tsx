@@ -19,6 +19,7 @@
 import { ChipExpressionEditorDefaultConfiguration, HelperPaneMenuItem } from "./ChipExpressionEditor/ChipExpressionDefaultConfig";
 import { TokenType } from "./ChipExpressionEditor/types";
 import { ParsedToken } from "./ChipExpressionEditor/utils";
+import { getHelperInsertionWrap, HelperInsertionWrap } from "./ChipExpressionEditor/stringContext";
 import { ThemeColors } from "@wso2/ui-toolkit/lib/styles/Theme";
 import { tags } from "@lezer/highlight";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
@@ -242,6 +243,9 @@ export class ChipExpressionEditorConfig extends ChipExpressionEditorDefaultConfi
 export class ExpressionModeEditorConfig extends ChipExpressionEditorDefaultConfiguration {
     showChips(): boolean {
         return false;
+    }
+    getHelperInsertionWrap(doc: string, pos: number): HelperInsertionWrap {
+        return getHelperInsertionWrap(doc, pos);
     }
 }
 

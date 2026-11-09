@@ -18,6 +18,7 @@
 
 import FXButton from "./components/FxButton";
 import { ParsedToken } from "./utils";
+import { HelperInsertionWrap, NO_WRAP } from "./stringContext";
 
 export enum HelperPaneMenuItem {
     VARIABLES = "VARIABLES",
@@ -68,5 +69,11 @@ export class ChipExpressionEditorDefaultConfiguration {
     // fetches the token stream, so every chip behaviour (click-to-edit, guards) stays inert.
     showChips(): boolean {
         return true;
+    }
+
+    // Text placed around a helper-pane value inserted at `pos` in `doc`, for modes whose
+    // document is raw source and so can hold string literals and templates of its own.
+    getHelperInsertionWrap(_doc: string, _pos: number): HelperInsertionWrap {
+        return NO_WRAP;
     }
 }
