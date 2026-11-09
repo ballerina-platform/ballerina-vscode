@@ -36,6 +36,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.KeyStore;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -730,10 +731,11 @@ public class McpClient {
         try (BufferedReader reader = new BufferedReader(
                 new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
             StringBuilder body = new StringBuilder();
+            EventData event = new EventData();
             String line;
             while ((line = reader.readLine()) != null) {
                 body.append(line).append('\n');
-                if (eventStream && jsonRpcResponseEvent(line) != null) {
+                if (eventStream && event.accept(line) != null) {
                     break;
                 }
             }
@@ -751,10 +753,11 @@ public class McpClient {
         }
         try {
             if (isEventStream(contentType)) {
+                EventData event = new EventData();
                 for (String line : body.split("\n")) {
-                    JsonObject event = jsonRpcResponseEvent(line);
-                    if (event != null) {
-                        return event;
+                    JsonObject response = event.accept(line);
+                    if (response != null) {
+                        return response;
                     }
                 }
                 return null;
@@ -770,17 +773,39 @@ public class McpClient {
         return contentType != null && contentType.contains("text/event-stream");
     }
 
-    // The JSON-RPC response an event-stream line carries, or null for any other line, such as a notification.
-    private static JsonObject jsonRpcResponseEvent(String line) {
-        if (!line.startsWith("data:")) {
-            return null;
+    /**
+     * The data of the event-stream event being read. An event may split its data over several {@code data:} lines,
+     * so the lines are joined until they hold a whole JSON-RPC response; a blank line ends the event.
+     */
+    private static final class EventData {
+
+        private final List<String> lines = new ArrayList<>();
+
+        // Takes the next line of the stream, and returns the JSON-RPC response once the event's data holds one
+        JsonObject accept(String line) {
+            String content = line.endsWith("\r") ? line.substring(0, line.length() - 1) : line;
+            if (content.isEmpty()) {
+                lines.clear();
+                return null;
+            }
+            if (!content.startsWith("data:")) {
+                return null;
+            }
+            String value = content.substring(5);
+            lines.add(value.startsWith(" ") ? value.substring(1) : value);
+            return response();
         }
-        try {
-            JsonElement event = JsonParser.parseString(line.substring(5).trim());
-            return event.isJsonObject() && (event.getAsJsonObject().has("result")
-                    || event.getAsJsonObject().has("error")) ? event.getAsJsonObject() : null;
-        } catch (RuntimeException e) {
-            return null;
+
+        // The JSON-RPC response in the data so far, or null while it is incomplete or is not one, such as a
+        // notification
+        private JsonObject response() {
+            try {
+                JsonElement event = JsonParser.parseString(String.join("\n", lines));
+                return event.isJsonObject() && (event.getAsJsonObject().has("result")
+                        || event.getAsJsonObject().has("error")) ? event.getAsJsonObject() : null;
+            } catch (RuntimeException e) {
+                return null;
+            }
         }
     }
 

@@ -167,6 +167,19 @@ public class McpClientTest {
         Assert.assertEquals(McpClient.listTools(server.url(), null, null).tools().size(), 1);
     }
 
+    @Test(timeOut = 8000)
+    public void readsAnEventWhoseDataSpansSeveralLines() throws IOException {
+        // An event may split its data over several data lines, which together make one JSON-RPC response
+        server = new FakeServer(method -> switch (method) {
+            case "server/discover" -> Reply.openStream("{\"jsonrpc\": \"2.0\", \"id\": 1,\ndata: \"result\": "
+                    + "{\"supportedVersions\": [\"2026-07-28\"]}}");
+            case "tools/list" -> Reply.openStream("{\"jsonrpc\": \"2.0\",\ndata: \"id\": 1,\ndata: \"result\": "
+                    + TOOLS + "}");
+            default -> Reply.json(400, error(-32600, "unexpected " + method));
+        });
+        Assert.assertEquals(McpClient.listTools(server.url(), null, null).tools().size(), 1);
+    }
+
     private static String result(String result) {
         return "{\"jsonrpc\": \"2.0\", \"id\": 1, \"result\": " + result + "}";
     }
