@@ -221,19 +221,14 @@ export const ExpressionField: React.FC<ExpressionFieldProps> = (props: Expressio
     if (inputMode === InputMode.RECORD) {
         return (
             <RecordConfigPreviewEditor
-                exprRef={exprRef}
-                anchorRef={anchorRef}
-                name={name}
                 value={value}
+                fileName={fileName}
+                targetLineRange={targetLineRange}
                 autoFocus={autoFocus}
                 ariaLabel={ariaLabel}
                 onChange={onChange}
                 onFocus={onFocus}
                 onBlur={onBlur}
-                onSave={onSave}
-                onCancel={onCancel}
-                onRemove={onRemove}
-                growRange={growRange}
                 placeholder={field.placeholder}
                 onOpenExpandedMode={onOpenExpandedMode}
                 isInExpandedMode={isInExpandedMode}

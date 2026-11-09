@@ -20,7 +20,7 @@
 
 import { InputMode } from "../components/editors/MultiModeExpressionEditor/ChipExpressionEditor/types";
 import { getEditorConfiguration } from "../components/editors/ExpressionField";
-import { ExpressionModeEditorConfig } from "../components/editors/MultiModeExpressionEditor/Configurations";
+import { ExpressionModeEditorConfig, RecordPreviewEditorConfig } from "../components/editors/MultiModeExpressionEditor/Configurations";
 import { getArrayItemEditorConfiguration } from "../components/editors/MultiModeExpressionEditor/DynamicArrayBuilder/DynamicArrayBuilder";
 
 const ALL_MODES = Object.values(InputMode) as InputMode[];
@@ -39,5 +39,16 @@ describe("chip rendering per input mode", () => {
     it("array items: expression items turn chips off, text items keep them", () => {
         expect(getArrayItemEditorConfiguration(false).showChips()).toBe(false);
         expect(getArrayItemEditorConfiguration(true).showChips()).toBe(true);
+    });
+
+    it("the minimized record field shows chips but leaves editing to the record modal", () => {
+        const config = new RecordPreviewEditorConfig();
+        expect(config.showChips()).toBe(true);
+        expect(config.showHelperPane()).toBe(false);
+        expect(config.getIsToggleHelperAvailable()).toBe(false);
+        // An identity round-trip means mounting the editor never rewrites the record value.
+        const record = '{name: "Anne", age: 30}';
+        expect(config.serializeValue(record)).toBe(record);
+        expect(config.deserializeValue(record)).toBe(record);
     });
 });

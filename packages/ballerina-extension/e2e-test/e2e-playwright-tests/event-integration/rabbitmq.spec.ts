@@ -147,14 +147,14 @@ export default function createTests() {
             await domClick(configureBtn);
 
             // 'Service Configuration' (serviceConfig) is a RECORD_MAP_EXPRESSION field — its
-            // preview textarea only lets you pick which fields are included, not edit a
+            // preview editor only lets you pick which fields are included, not edit a
             // required leaf's value (queueName in this case has no in-place value editor
             // at all, confirmed via source: RecordConstructView's CustomType renders just a
             // checkbox/name/type, no input). Toggling an optional boolean field (autoAck)
             // through the "Record Configuration" modal it opens on focus is the one edit
             // this form's guided UI genuinely supports.
-            const serviceConfigTextarea = artifactWebView.locator('vscode-text-area[name="serviceConfig"] textarea');
-            await serviceConfigTextarea.click({ force: true });
+            const serviceConfigEditor = artifactWebView.locator('[data-testid="ex-editor-serviceConfig"] .cm-content');
+            await serviceConfigEditor.click({ force: true });
             const recordConfigOverlay = artifactWebView.locator('.unq-modal-overlay').last();
             const autoAckCheckbox = recordConfigOverlay.locator(
                 'xpath=//p[normalize-space(text())="autoAck"]/preceding-sibling::vscode-checkbox[1]'
@@ -170,8 +170,8 @@ export default function createTests() {
 
             // Verify the edit persisted by reopening Configure and re-checking the field.
             await domClick(configureBtn);
-            const reopenedTextarea = artifactWebView.locator('vscode-text-area[name="serviceConfig"] textarea');
-            await reopenedTextarea.click({ force: true });
+            const reopenedEditor = artifactWebView.locator('[data-testid="ex-editor-serviceConfig"] .cm-content');
+            await reopenedEditor.click({ force: true });
             const reopenedOverlay = artifactWebView.locator('.unq-modal-overlay').last();
             const reopenedAutoAckCheckbox = reopenedOverlay.locator(
                 'xpath=//p[normalize-space(text())="autoAck"]/preceding-sibling::vscode-checkbox[1]'

@@ -16,13 +16,14 @@
  * under the License.
  */
 
-import { FormExpressionEditor } from "@wso2/ui-toolkit";
-import { ExpressionField, ExpressionFieldProps } from "../../ExpressionField";
-import React from "react";
+import { ExpressionFieldProps } from "../../ExpressionField";
+import React, { useMemo } from "react";
 import { getValueForTextModeEditor } from "../../utils";
 import styled from "@emotion/styled";
 import { FloatingToggleButton } from "../ChipExpressionEditor/components/FloatingToggleButton";
 import { ExpandIcon } from "../ChipExpressionEditor/components/FloatingButtonIcons";
+import { ChipExpressionEditorComponent } from "../ChipExpressionEditor/components/ChipExpressionEditor";
+import { RecordPreviewEditorConfig } from "../Configurations";
 
 const EditorContainer = styled.div`
     width: 100%;
@@ -38,26 +39,22 @@ const EditorContainer = styled.div`
     }
 `;
 
-type RecordConfigPreviewEditorProps = Pick<ExpressionFieldProps, 'name' | 'value' | 'autoFocus' | 'ariaLabel' | 'placeholder' | 'onChange' | 'onFocus' | 'onBlur' | 'onSave' | 'onCancel' | 'onRemove' | 'growRange' | 'exprRef' | 'anchorRef' | 'onOpenExpandedMode' | 'isInExpandedMode'>;
+type RecordConfigPreviewEditorProps = Pick<ExpressionFieldProps, 'value' | 'fileName' | 'targetLineRange' | 'autoFocus' | 'ariaLabel' | 'placeholder' | 'onChange' | 'onFocus' | 'onBlur' | 'onOpenExpandedMode' | 'isInExpandedMode'>;
 
 export const RecordConfigPreviewEditor: React.FC<RecordConfigPreviewEditorProps> = ({
-    name,
     value,
+    fileName,
+    targetLineRange,
     autoFocus,
     ariaLabel,
     placeholder,
     onChange,
     onFocus,
     onBlur,
-    onSave,
-    onCancel,
-    onRemove,
-    growRange,
-    exprRef,
-    anchorRef,
     onOpenExpandedMode,
     isInExpandedMode,
 }) => {
+    const configuration = useMemo(() => new RecordPreviewEditorConfig(), []);
 
     const handleOnChange = async (value: string, updatedCursorPosition: number) => {
         const newValue = "\"" + value + "\"";
@@ -65,27 +62,23 @@ export const RecordConfigPreviewEditor: React.FC<RecordConfigPreviewEditorProps>
     }
 
     return (
-        <EditorContainer>
-            <FormExpressionEditor
-                ref={exprRef}
-                anchorRef={anchorRef}
-                name={name}
-                completions={[]}
-                value={getValueForTextModeEditor(value)}
-                autoFocus={autoFocus}
-                startAdornment={<></>}
-                ariaLabel={ariaLabel}
-                onChange={handleOnChange}
-                onFocus={onFocus}
-                onBlur={onBlur}
-                onSave={onSave}
-                onCancel={onCancel}
-                onRemove={onRemove}
-                enableExIcon={false}
-                growRange={growRange}
-                sx={{ paddingInline: '0' }}
-                placeholder={placeholder}
-            />
+        <EditorContainer aria-label={ariaLabel}>
+            {/* Focus bubbles up from the editor, so focusing it still opens the record
+                configuration modal through onFocus. Kept off the expand button. */}
+            <div onFocus={onFocus}>
+                <ChipExpressionEditorComponent
+                    completions={[]}
+                    value={getValueForTextModeEditor(value)}
+                    onChange={handleOnChange}
+                    onBlur={onBlur}
+                    fileName={fileName}
+                    targetLineRange={targetLineRange}
+                    configuration={configuration}
+                    isExpandedVersion={false}
+                    placeholder={placeholder}
+                    onEditorViewReady={autoFocus ? (view) => view.focus() : undefined}
+                />
+            </div>
             {onOpenExpandedMode && !isInExpandedMode && (
                 <div id="text-mode-editor-expand" style={{ position: 'absolute', bottom: '9px', right: '8px' }}>
                     <FloatingToggleButton onClick={onOpenExpandedMode} title="Expand Editor">
