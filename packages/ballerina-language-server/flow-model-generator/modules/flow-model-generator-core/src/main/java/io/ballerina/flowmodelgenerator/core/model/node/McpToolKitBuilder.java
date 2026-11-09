@@ -161,8 +161,16 @@ public class McpToolKitBuilder extends NodeBuilder {
             mcpV2 = supportsMcpV2(aiModuleVersion);
         }
         if (mcpV2) {
-            setMcpV2TemplateData(context, aiModuleVersion);
-            return;
+            String aiVersion = aiModuleVersion != null ? aiModuleVersion
+                    : AiUtils.getNewPackageVersion(Ai.AI_PACKAGE, MINIMUM_MCP_V2_AI_VERSION);
+            Optional<AiTypeSource> aiTypeSource = getAiTypeSource(aiVersion);
+            // A new toolkit in a project without ai gets the mcp (v1) form when no ai that supports mcp.v2 can be
+            // loaded, such as offline with only an older ai cached. A toolkit that needs mcp.v2 still fails.
+            if (aiTypeSource.isPresent() || requestedProtocol != null || aiModuleVersion != null) {
+                setMcpV2TemplateData(context, aiVersion, aiTypeSource.orElseThrow(
+                        () -> new IllegalStateException("Unable to load ballerina/ai:" + aiVersion)));
+                return;
+            }
         }
         ModuleInfo codedataModuleInfo = new ModuleInfo(Ai.BALLERINA_ORG, Ai.AI_PACKAGE, Ai.AI_PACKAGE, aiModuleVersion);
 
@@ -209,10 +217,7 @@ public class McpToolKitBuilder extends NodeBuilder {
      * which no library function declares, so the server URL and the client info are set here and the config fields
      * are read from the ai record.
      */
-    private void setMcpV2TemplateData(TemplateContext context, String aiModuleVersion) {
-        String aiVersion = aiModuleVersion != null ? aiModuleVersion
-                : AiUtils.getNewPackageVersion(Ai.AI_PACKAGE, MINIMUM_MCP_V2_AI_VERSION);
-        AiTypeSource aiTypeSource = getAiTypeSource(aiVersion);
+    private void setMcpV2TemplateData(TemplateContext context, String aiVersion, AiTypeSource aiTypeSource) {
         SemanticModel aiSemanticModel = aiTypeSource.semanticModel();
         TypeDefinitionSymbol configType =
                 getTypeDefinition(aiSemanticModel, Ai.AI_PACKAGE, AI_MCP_V2_CLIENT_CONFIG_TYPE, aiVersion);
@@ -951,14 +956,14 @@ public class McpToolKitBuilder extends NodeBuilder {
     }
 
     // Loaded like the library of a function-based form: the bala of that version from the cache, Central or the
-    // local repository, compiled as a package of its own
-    private static AiTypeSource getAiTypeSource(String aiVersion) {
-        Package aiPackage = PackageUtil.getModulePackage(PackageUtil.getSampleProject(), Ai.BALLERINA_ORG,
-                        Ai.AI_PACKAGE, aiVersion)
-                .orElseThrow(() -> new IllegalStateException("Unable to load ballerina/ai:" + aiVersion));
-        PackageCompilation compilation = PackageUtil.getCompilation(aiPackage);
-        return new AiTypeSource(compilation.getSemanticModel(aiPackage.getDefaultModule().moduleId()), aiPackage,
-                module -> compilation.getSemanticModel(module.moduleId()));
+    // local repository, compiled as a package of its own. Empty when that version cannot be found
+    private static Optional<AiTypeSource> getAiTypeSource(String aiVersion) {
+        return PackageUtil.getModulePackage(PackageUtil.getSampleProject(), Ai.BALLERINA_ORG, Ai.AI_PACKAGE,
+                aiVersion).map(aiPackage -> {
+                    PackageCompilation compilation = PackageUtil.getCompilation(aiPackage);
+                    return new AiTypeSource(compilation.getSemanticModel(aiPackage.getDefaultModule().moduleId()),
+                            aiPackage, module -> compilation.getSemanticModel(module.moduleId()));
+                });
     }
 
     private static TypeDefinitionSymbol getTypeDefinition(SemanticModel semanticModel, String moduleName,
