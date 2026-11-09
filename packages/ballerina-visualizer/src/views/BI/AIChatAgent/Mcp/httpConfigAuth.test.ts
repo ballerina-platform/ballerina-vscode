@@ -90,6 +90,24 @@ describe("writeHttpConfigAuth", () => {
 }`);
     });
 
+    it("keeps a comment on its own last line after the entries", () => {
+        const httpConfig = `{
+    timeout: 10,
+    auth: {token: "old"}
+    // more settings later
+}`;
+        expect(writeHttpConfigAuth(httpConfig, `{token: "new"}`)).toBe(`{
+    timeout: 10,
+    auth: {token: "new"}
+    // more settings later
+}`);
+        expect(writeHttpConfigAuth(httpConfig, "")).toBe(`{
+    timeout: 10
+    // more settings later
+}`);
+        expect(readHttpConfigAuth(httpConfig)).toEqual({ kind: "record", auth: `{token: "old"}` });
+    });
+
     it("cannot change a variable", () => {
         expect(writeHttpConfigAuth("myHttpConfig", `{token: "t"}`)).toBeUndefined();
     });

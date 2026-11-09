@@ -85,7 +85,8 @@ function stripComments(text: string): string {
 
 /**
  * Splits the entries of a mapping constructor at its top-level commas, or returns undefined when the value is
- * not a single mapping constructor. An entry keeps the comments written before it.
+ * not a single mapping constructor. An entry keeps the comments written before it, and comments after the last
+ * entry come as an entry of their own that holds no code.
  */
 function splitEntries(value: string): string[] | undefined {
     const text = value.trim();
@@ -123,8 +124,16 @@ function splitEntries(value: string): string[] | undefined {
     if (!closed || !single || depth !== 0) {
         return undefined;
     }
-    entries.push(text.slice(start, closing));
-    return entries.map((entry) => entry.trim()).filter((entry) => stripComments(entry) !== "");
+    // Comments on the lines after the last entry's code do not belong to that entry
+    const last = text.slice(start, closing);
+    const codeEnd = lastCodeIndex(last);
+    const lineEnd = codeEnd < 0 ? 0 : last.indexOf("\n", codeEnd);
+    entries.push(...(lineEnd < 0 ? [last] : [last.slice(0, lineEnd), last.slice(lineEnd)]));
+    return entries.map((entry) => entry.trim()).filter((entry) => entry !== "");
+}
+
+function isComment(entry: string): boolean {
+    return stripComments(entry) === "";
 }
 
 // The index of the colon that ends an entry's key, or -1 for an entry without one.
@@ -181,11 +190,13 @@ export function writeHttpConfigAuth(httpConfig: string | undefined, auth: string
     if (!entries) {
         return undefined;
     }
-    const otherEntries = entries.filter((entry) => entryKey(entry) !== AUTH_KEY);
+    // Comments after the last entry stay last, after an added auth
+    const comments = entries.filter(isComment);
+    const otherEntries = entries.filter((entry) => !isComment(entry) && entryKey(entry) !== AUTH_KEY);
     if (auth.trim() !== "") {
         otherEntries.push(`${AUTH_KEY}: ${auth.trim()}`);
     }
-    if (otherEntries.length === 0) {
+    if (otherEntries.length === 0 && comments.length === 0) {
         return isEmpty ? "" : "{}";
     }
     const text = isEmpty ? "" : httpConfig.trim();
@@ -194,17 +205,24 @@ export function writeHttpConfigAuth(httpConfig: string | undefined, auth: string
     }
     const indent = /\n([ \t]*)\S/.exec(text)?.[1] ?? "    ";
     const closingIndent = /\n([ \t]*)\}$/.exec(text)?.[1] ?? "";
-    const lines = otherEntries.map((entry, index) => index < otherEntries.length - 1 ? withComma(entry) : entry);
+    const lines = otherEntries.map((entry, index) => index < otherEntries.length - 1 ? withComma(entry) : entry)
+        .concat(comments);
     return `{\n${indent}${lines.join(`\n${indent}`)}\n${closingIndent}}`;
 }
 
-// Adds the separating comma after an entry's last code character, ahead of a comment that ends the entry.
-function withComma(entry: string): string {
-    let last = entry.length - 1;
+// The index of the last character of an entry that is code, not a comment or space, or -1 when it has none.
+function lastCodeIndex(entry: string): number {
+    let last = -1;
     scanCode(entry, (index) => {
         if (!/\s/.test(entry[index])) {
             last = index;
         }
     });
+    return last;
+}
+
+// Adds the separating comma after an entry's last code character, ahead of a comment that ends the entry.
+function withComma(entry: string): string {
+    const last = lastCodeIndex(entry);
     return `${entry.slice(0, last + 1)},${entry.slice(last + 1)}`;
 }
