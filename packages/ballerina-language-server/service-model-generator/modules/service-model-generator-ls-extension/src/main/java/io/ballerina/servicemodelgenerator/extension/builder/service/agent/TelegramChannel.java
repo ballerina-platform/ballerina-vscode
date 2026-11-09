@@ -55,12 +55,12 @@ public class TelegramChannel implements AgentTriggerChannel {
                     if text is () {
                         replyText = "Sorry, I can only handle text messages right now.";
                     } else {
-                        string|error result = {{agentRun}};
+                        {{agentAnswerType}}|error result = {{agentRun}};
                         if result is error {
                             log:printError("Agent run failed", result);
                             replyText = "Sorry, something went wrong. Please try again.";
                         } else {
-                            replyText = result;
+                            replyText = result{{asText}};
                         }
                     }
                     {{alias}}:Message|error sent = self.telegramClient->sendMessage(message.chat.id, replyText);
@@ -91,8 +91,7 @@ public class TelegramChannel implements AgentTriggerChannel {
 
     @Override
     public String serviceBlock(AgentTriggerContext context) {
-        return context.fill(SERVICE_BLOCK)
-                .replace("{{token}}", context.formValue(BOT_TOKEN))
-                .replace("{{agentRun}}", context.agentRun("text", "\"telegram:\" + message.chat.id.toString()"));
+        return context.withAgentRun(context.fill(SERVICE_BLOCK).replace("{{token}}", context.formValue(BOT_TOKEN)),
+                "text", "\"telegram:\" + message.chat.id.toString()");
     }
 }
