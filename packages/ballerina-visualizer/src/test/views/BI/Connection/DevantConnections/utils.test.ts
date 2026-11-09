@@ -23,6 +23,7 @@ import {
     filterConnectionMarketplaceItems,
     getPossibleSchemas,
     securityTypeOf,
+    serviceUrlConfigName,
 } from "../../../../../views/BI/Connection/DevantConnections/utils";
 
 const PAGE_SIZE = 24;
@@ -121,5 +122,13 @@ describe("WSO2 Cloud service connection schemas", () => {
     it("reads the message of an error that arrives as a plain object", () => {
         expect(errorMessageOf({ message: "endpoint is not exposed as an API yet" })).toBe("endpoint is not exposed as an API yet");
         expect(errorMessageOf(new Error("boom"))).toBe("boom");
+    });
+});
+
+describe("serviceUrlConfigName", () => {
+    it("names the configurable made for the URL entry", () => {
+        expect(serviceUrlConfigName([{ id: "ChoreoAPIKey", name: "ChoreoAPIKey" }, { id: "ServiceURL", name: "ServiceURL1" }])).toBe("ServiceURL1");
+        expect(serviceUrlConfigName([])).toBeUndefined();
+        expect(serviceUrlConfigName(undefined)).toBeUndefined();
     });
 });

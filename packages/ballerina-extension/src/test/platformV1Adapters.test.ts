@@ -36,7 +36,14 @@ import {
     serviceId,
     SERVICE_CONNECTION_KEYS,
 } from "../rpc-managers/platform-ext/v1-adapters";
-import { localConnectionServiceIds } from "../rpc-managers/platform-ext/v1-adapters";
+import {
+    configurableId,
+    endpointLinkConnections,
+    linkConnectionId,
+    linkToConnectionDetailed,
+    localConnectionServiceIds,
+    parseLinkConnectionId,
+} from "../rpc-managers/platform-ext/v1-adapters";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
@@ -165,5 +172,57 @@ describe("platform v1 adapters", () => {
         expect(resourceRefOf(dbServerToMarketplaceItem(server, "acme"), "orders-db")).toBe("database:srv-1");
         expect(resourceRefOf({ serviceId: serviceId({ project: "p", integration: "i", endpoint: "e" }) } as never, "x")).toBe("service:p/i/e");
         expect(resourceRefOf(undefined, "custom")).toBe("connection:custom");
+    });
+});
+
+describe("connections inside the project, which are endpoint links", () => {
+    const orders = serviceId({ project: "shop", integration: "orders", endpoint: "api" });
+
+    it("names a root-module configurable as the platform does, and round-trips a link's id", () => {
+        expect(configurableId("acme", "basket", "ServiceURL")).toBe("acme/basket:ServiceURL");
+        const ref = { integration: "basket", configurable: "acme/basket:ServiceURL", name: "orders" };
+        expect(parseLinkConnectionId(linkConnectionId(ref))).toEqual(ref);
+        expect(parseLinkConnectionId(connectionId({ integration: "basket", environment: "dev", name: "orders" }))).toBeUndefined();
+    });
+
+    it("lists each local connection a link stands for, one link each, skipping ones listed as groups", () => {
+        const links = [
+            { configurable: "acme/basket:ServiceURL", component: "orders", endpoint: "api" },
+            { configurable: "acme/basket:ServiceURL1", component: "orders", endpoint: "api" },
+            { configurable: "acme/basket:Other", component: "stock", endpoint: "api" },
+        ];
+        const refs = new Map([
+            ["orders", orders],
+            ["orders-again", orders],
+            ["orders-third", orders],
+            ["as-group", orders],
+            ["elsewhere", serviceId({ project: "other", integration: "orders", endpoint: "api" })],
+        ]);
+        const items = endpointLinkConnections(links, refs, { project: "shop", integration: "basket" }, new Set(["as-group"]));
+        expect(items.map((item) => [item.name, parseLinkConnectionId(item.groupUuid)?.configurable])).toEqual([
+            ["orders", "acme/basket:ServiceURL"],
+            ["orders-again", "acme/basket:ServiceURL1"],
+        ]);
+        expect(items[0].schemaReference).toBe("project-url");
+        expect(items[0].serviceId).toBe(orders);
+    });
+
+    it("gives a link the URL entry the connection screens read", () => {
+        const detailed = linkToConnectionDetailed({ integration: "basket", configurable: "acme/basket:ServiceURL", name: "orders" });
+        expect(Object.values(detailed.configurations)[0].entries.ServiceURL.envVariableName).toBe("ORDERS_SERVICE_URL");
+    });
+
+    it("ids a connection created inside the project by its link", () => {
+        const created = createdConnection({
+            name: "orders",
+            integration: "basket",
+            environments: ["development"],
+            kind: "SERVICE",
+            serviceId: orders,
+            access: "project",
+            configurable: "acme/basket:ServiceURL",
+        });
+        expect(parseLinkConnectionId(created.groupUuid)).toEqual({ integration: "basket", configurable: "acme/basket:ServiceURL", name: "orders" });
+        expect(Object.keys(created.configurations.development.entries)).toEqual(["ServiceURL"]);
     });
 });

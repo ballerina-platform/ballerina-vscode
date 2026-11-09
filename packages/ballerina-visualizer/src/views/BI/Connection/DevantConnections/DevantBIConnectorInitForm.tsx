@@ -34,6 +34,7 @@ import {
     getInitialVisibility,
     getPossibleVisibilities,
     isValidDevantConnName,
+    serviceUrlConfigName,
 } from "./utils";
 
 interface Props extends Omit<ConnectionConfigurationFormProps, "devantConfigs"> {
@@ -225,6 +226,7 @@ export const DevantBIConnectorCreateForm: FC<Props> = (props) => {
                         : getTypeForDisplayType(platformExtState?.selectedIntegration?.integration.componentType),
                     componentPath: projectPath,
                     generateCreds: true,
+                    configurableName: serviceUrlConfigName(devantConfigs),
                 });
 
                 await platformRpcClient.replaceDevantTempConfigValues({

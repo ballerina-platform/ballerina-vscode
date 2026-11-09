@@ -40,6 +40,7 @@ import {
     errorMessageOf,
     getPossibleVisibilities,
     isValidDevantConnName,
+    serviceUrlConfigName,
 } from "./utils";
 
 const Row = styled.div<{}>`
@@ -140,6 +141,10 @@ export const DevantConnectorCreateForm: FC<DevantConnectorCreateFormProps> = ({
     // A failure anywhere in creating the connection is shown here; without it the button just stops spinning.
     const { mutate: createConnection, isPending: isCreatingConnection, error: createError } = useMutation({
         mutationFn: async (data: CreateConnectionForm) => {
+            // The configurables come first: a connection inside the project is the platform filling the URL's one.
+            const schema = marketplaceItem?.connectionSchemas?.find((item) => item.id === data.schemaId);
+            const tempDevantConfigs = schema ? await createTempConfigsAsync({ item: marketplaceItem!, schema }) : devantConfigs;
+
             const createdConnection = await platformRpcClient?.createInternalConnection({
                 componentId: isProjectLevel ? "" : platformExtState?.selectedIntegration?.integration.id,
                 name: data.name,
@@ -154,15 +159,10 @@ export const DevantConnectorCreateForm: FC<DevantConnectorCreateFormProps> = ({
                     : getTypeForDisplayType(platformExtState?.selectedIntegration?.integration.componentType),
                 componentPath: projectPath,
                 generateCreds: true,
+                configurableName: serviceUrlConfigName(tempDevantConfigs),
             });
 
             const securityType = securityTypeOf(createdConnection);
-
-            let tempDevantConfigs = devantConfigs
-            const matchingSchema = marketplaceItem?.connectionSchemas?.find((schema) => schema.id === createdConnection?.schemaReference);
-            if (matchingSchema) {
-                tempDevantConfigs = await createTempConfigsAsync({ item: marketplaceItem!, schema: matchingSchema });
-            }
 
             const initializeResp = await platformRpcClient?.initializeDevantOASConnection({
                 devantConfigs: tempDevantConfigs,

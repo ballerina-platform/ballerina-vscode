@@ -23,6 +23,7 @@ import {
     ConnectionConfigurations,
     ConnectionDetailed,
     ConnectionListItem,
+    CreateComponentConnectionReq,
     MarketplaceItem,
     MarketplaceServiceTypes,
 } from "@wso2/wso2-platform-core";
@@ -40,6 +41,16 @@ export interface GenerateCustomConnectorFromOASReq {
 
 export interface GenerateCustomConnectorFromOASResp {
     connectionNode?: AvailableNode;
+}
+
+/**
+ * A service connection to create. A connection inside the project is the
+ * platform filling one of the integration's configurables with the
+ * endpoint's address, so it names that configurable.
+ */
+export interface CreateInternalConnectionReq extends CreateComponentConnectionReq {
+    /** The configurable the endpoint's URL fills, in the package's root module; required for project visibility. */
+    configurableName?: string;
 }
 
 export interface InitializeDevantOASConnectionReq {

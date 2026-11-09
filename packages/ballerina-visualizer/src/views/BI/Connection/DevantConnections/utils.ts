@@ -405,12 +405,19 @@ export const getInitialVisibility = (item: MarketplaceItem, visibilities: string
     return ServiceInfoVisibilityEnum.Public;
 };
 
-/** The schema of a WSO2 Cloud service connection with Project access: the in-cluster URL, no key. */
+/** The schema of a WSO2 Cloud service connection with Project access: the endpoint's address, which the platform fills, and no key. */
 export const PROJECT_URL_SCHEMA_ID = "project-url";
 
+/** The entry of a service connection that holds its URL. */
+export const SERVICE_URL_ENTRY = "ServiceURL";
+
+/** The configurable made for a connection's URL, by the entry it was made for. */
+export const serviceUrlConfigName = (configs: { id: string; name: string }[] | undefined): string | undefined =>
+    configs?.find((config) => config.id === SERVICE_URL_ENTRY)?.name;
+
 /**
- * The schemas offered for an access mode. A WSO2 Cloud service is reached with its in-cluster URL under
- * Project access and through the gateway with an API key otherwise; a database has one schema.
+ * The schemas offered for an access mode. A WSO2 Cloud service is reached directly under Project access and
+ * through the gateway with an API key otherwise; a database has one schema.
  */
 export const getPossibleSchemas = (item: MarketplaceItem | undefined, visibility: string): MarketplaceItemSchema[] => {
     const schemas = item?.connectionSchemas ?? [];

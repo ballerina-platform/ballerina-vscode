@@ -56,7 +56,6 @@ import {
     DevantScopes,
     CreateLocalConnectionsConfigReq,
     CreateThirdPartyConnectionReq,
-    CreateComponentConnectionReq,
     GetComponentsReq,
     MarketplaceDatabaseListResp,
     DatabaseServer,
@@ -75,6 +74,7 @@ import { log } from "../../utils/logger";
 import {
     AddDevantTempConfigReq,
     AddDevantTempConfigResp,
+    CreateInternalConnectionReq,
     DeleteDevantTempConfigReq,
     GenerateCustomConnectorFromOASReq,
     GenerateCustomConnectorFromOASResp,
@@ -100,7 +100,11 @@ import {
     Templates,
 } from "./platform-utils";
 import {
+    configurableId,
     createdConnection,
+    endpointLinkConnections,
+    linkToConnectionDetailed,
+    parseLinkConnectionId,
     type ServiceConnectionAccess,
     dbCredentialsToAdminCredential,
     dbServerToMarketplaceItem,
@@ -121,6 +125,7 @@ import { promptToAddConstruct } from "../../features/devant/add-construct-prompt
 import { confirmListenerAlongside } from "../../features/devant/integration-type";
 import { updateSourceCode } from "../../utils";
 import { inspectPlatformAPI } from "../../utils/cloud-auth";
+import { getOrgPackageName } from "../../utils/config";
 
 /** Thrown for what WSO2 Cloud has no API for yet; a `NotSupportedError`, so `isCloudError` and the shared handlers know it. */
 export class CloudFeatureUnavailableError extends NotSupportedError {
@@ -590,9 +595,18 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
             // The platform keeps no record of what a group points at, nor which groups are connections
             // rather than plain configuration; the local reference WI wrote for each connection does.
             const localRefs = localConnectionServiceIds(platformExtStore.getState().state.selectedIntegration?.fsPath);
-            return groups
+            const groupConnections = groups
                 .filter((group) => localRefs.has(group.name ?? ""))
                 .map((group) => envGroupToConnectionListItem(group, { integration: params.componentId, environment: envId }, localRefs.get(group.name ?? "")));
+            // A connection inside the project is a link the platform resolves, not a group.
+            const links = await platformExt.connections.listEndpointLinks(params.componentId, projectName);
+            const linkConnections = endpointLinkConnections(
+                links,
+                localRefs,
+                { project: projectName, integration: params.componentId },
+                new Set(groupConnections.map((item) => item.name)),
+            );
+            return [...groupConnections, ...linkConnections];
         } catch (err) {
             log(`Failed to invoke getConnections: ${err}`);
             return [];
@@ -602,6 +616,11 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
     async getConnection(params: GetConnectionItemReq): Promise<ConnectionDetailed> {
         try {
             const platformExt = await this.requirePlatformExt();
+            const link = parseLinkConnectionId(params.connectionGroupId);
+            if (link) {
+                const localRefs = localConnectionServiceIds(platformExtStore.getState().state.selectedIntegration?.fsPath);
+                return linkToConnectionDetailed(link, localRefs.get(link.name));
+            }
             const ref = parseConnectionId(params.connectionGroupId);
             if (!ref) {
                 throw new Error(`Unknown connection ${params.connectionGroupId}`);
@@ -681,7 +700,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
         return { secrets: [] };
     }
 
-    async createInternalConnection(params: CreateComponentConnectionReq): Promise<ConnectionDetailed> {
+    async createInternalConnection(params: CreateInternalConnectionReq): Promise<ConnectionDetailed> {
         try {
             const platformExt = await this.requirePlatformExt();
             const projectName = params.projectId || this.requireProjectName();
@@ -696,12 +715,26 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
             const envId = this.requireEnvId();
             // Project access reaches the endpoint inside the project with no key; Organization and Public go through the gateway.
             const access: ServiceConnectionAccess = params.serviceVisibility === ServiceInfoVisibilityEnum.Project ? "project" : "gateway";
-            await platformExt.connections.createServiceConnection({ integration, target, access, name: params.name, environments: [envId], projectName });
-            return createdConnection({ name: params.name, integration, environments: [envId], kind: "SERVICE", serviceId: params.serviceId, access });
+            // Inside the project the platform fills a configurable with the endpoint's address in every environment.
+            const configurable = access === "project" ? this.rootConfigurableId(params.configurableName) : undefined;
+            await platformExt.connections.createServiceConnection({ integration, target, access, name: params.name, environments: [envId], projectName, configurable });
+            return createdConnection({ name: params.name, integration, environments: [envId], kind: "SERVICE", serviceId: params.serviceId, access, configurable });
         } catch (err) {
             log(`Failed to create WSO2 Cloud connection: ${err}`);
             throw err;
         }
+    }
+
+    /** The platform's id of a configurable in the open package's root module, where the connection screens write configurables. */
+    private rootConfigurableId(name: string | undefined): string {
+        if (!name) {
+            throw new Error("A connection inside the project needs the configurable its URL fills.");
+        }
+        const { orgName, packageName } = getOrgPackageName(StateMachine.context().projectPath);
+        if (!orgName || !packageName) {
+            throw new Error("The package's org and name could not be read from its Ballerina.toml.");
+        }
+        return configurableId(orgName, packageName, name);
     }
 
     setSelectedIntegration(integrationId: string): void {
@@ -950,7 +983,17 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
                         );
                     if (matchingConnListItem) {
                         const ref = parseConnectionId(matchingConnListItem.groupUuid);
-                        if (ref && platformExt) {
+                        const link = parseLinkConnectionId(matchingConnListItem.groupUuid);
+                        if (link && platformExt) {
+                            // Unlinked before the local reference goes: the list shows a link only while a reference names its endpoint.
+                            deletingCloudConnection = true;
+                            await platformExt.connections.unlinkEndpoint({
+                                integration: link.integration,
+                                configurable: link.configurable,
+                                projectName: this.selection().projectName,
+                            });
+                            deletingCloudConnection = false;
+                        } else if (ref && platformExt) {
                             // Every environment it was written to, not only the one selected now. Deleted before the
                             // local reference: the connection list shows only groups that still have one.
                             deletingCloudConnection = true;

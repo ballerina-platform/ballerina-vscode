@@ -17,9 +17,9 @@
  */
 
 import type { Component, Environment } from "@wso2/wso2-cloud-client";
-import { ConnectionDetailed, ConnectionListItem, CreateComponentConnectionReq, CreateDatabaseConnectionReq, CreateLocalConnectionsConfigReq, CreateThirdPartyConnectionReq, DatabaseCredential, DeleteLocalConnectionsConfigReq, GetComponentsReq, GetConnectionItemReq, GetConnectionsReq, GetDatabaseItemReq, GetDatabaseServerReq, GetMarketplaceIdlReq, GetMarketplaceItemReq, GetMarketplaceListReq,GetProjectEnvsReq,MarketplaceDatabaseListResp,MarketplaceIdlResp,MarketplaceItem,MarketplaceListResp, ResolveConnectionSecretsReq, ResolveConnectionSecretsResp } from "@wso2/wso2-platform-core"
+import { ConnectionDetailed, ConnectionListItem, CreateDatabaseConnectionReq, CreateLocalConnectionsConfigReq, CreateThirdPartyConnectionReq, DatabaseCredential, DeleteLocalConnectionsConfigReq, GetComponentsReq, GetConnectionItemReq, GetConnectionsReq, GetDatabaseItemReq, GetDatabaseServerReq, GetMarketplaceIdlReq, GetMarketplaceItemReq, GetMarketplaceListReq,GetProjectEnvsReq,MarketplaceDatabaseListResp,MarketplaceIdlResp,MarketplaceItem,MarketplaceListResp, ResolveConnectionSecretsReq, ResolveConnectionSecretsResp } from "@wso2/wso2-platform-core"
 import { NotificationType, RequestType } from "vscode-messenger-common";
-import { AddDevantTempConfigReq, AddDevantTempConfigResp, DeleteDevantTempConfigReq, GenerateCustomConnectorFromOASReq, GenerateCustomConnectorFromOASResp, InitializeDevantOASConnectionReq, InitializeDevantOASConnectionResp, PlatformExtState, RegisterDevantMarketplaceServiceReq, ReplaceDevantTempConfigValuesReq } from "./interfaces";
+import { AddDevantTempConfigReq, AddDevantTempConfigResp, CreateInternalConnectionReq, DeleteDevantTempConfigReq, GenerateCustomConnectorFromOASReq, GenerateCustomConnectorFromOASResp, InitializeDevantOASConnectionReq, InitializeDevantOASConnectionResp, PlatformExtState, RegisterDevantMarketplaceServiceReq, ReplaceDevantTempConfigValuesReq } from "./interfaces";
 
 const _preFix = "platform-ext";
 // BI ext handlers
@@ -36,7 +36,7 @@ export const setSelectedEnv: RequestType<string,  void> = { method: `${_preFix}/
 // Platform ext proxies
 export const registerDevantMarketplaceService: RequestType<RegisterDevantMarketplaceServiceReq,  MarketplaceItem> = { method: `${_preFix}/registerDevantMarketplaceService` };
 export const createThirdPartyConnection: RequestType<CreateThirdPartyConnectionReq,  ConnectionDetailed> = { method: `${_preFix}/createThirdPartyConnection` };
-export const createInternalConnection: RequestType<CreateComponentConnectionReq,  ConnectionDetailed> = { method: `${_preFix}/createInternalConnection` };
+export const createInternalConnection: RequestType<CreateInternalConnectionReq, ConnectionDetailed> = { method: `${_preFix}/createInternalConnection` };
 export const getMarketplaceItems: RequestType<GetMarketplaceListReq, MarketplaceListResp> = { method: `${_preFix}/getMarketplaceItems` };
 export const getMarketplaceDatabases: RequestType<{ orgId: string }, MarketplaceDatabaseListResp> = { method: `${_preFix}/getMarketplaceDatabases` };
 export const getMarketplaceDatabaseItem: RequestType<GetDatabaseItemReq, MarketplaceItem> = { method: `${_preFix}/getMarketplaceDatabaseItem` };

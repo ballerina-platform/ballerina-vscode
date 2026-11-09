@@ -28,7 +28,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as yaml from "js-yaml";
-import type { Component, DbCredentials, DbServer, EndpointResources, EnvVarGroup } from "@wso2/wso2-cloud-client";
+import type { Component, DbCredentials, DbServer, EndpointLink, EndpointResources, EnvVarGroup } from "@wso2/wso2-cloud-client";
 import { DATABASE_CONNECTION_VARS, SERVICE_CONNECTION_VARS, connectionVarName, connectionVarSuffix } from "@wso2/wso2-cloud-client";
 import type {
     ConnectionDetailed,
@@ -58,6 +58,7 @@ const SENSITIVE_ENTRIES = new Set(["Password", "ChoreoAPIKey"]);
 const SERVICE_ID_PREFIX = "svc:";
 const DATABASE_ID_PREFIX = "db:";
 const CONNECTION_ID_PREFIX = "conn:";
+const LINK_ID_PREFIX = "link:";
 
 export interface ServiceRef {
     project: string;
@@ -109,6 +110,99 @@ export function parseConnectionId(id: string | undefined): ConnectionRef | undef
         return undefined;
     }
     return { integration: parts[0], environment: parts[1], name: parts[2] };
+}
+
+/** A connection inside the project: the configurable the platform fills with an endpoint's address. */
+export interface LinkConnectionRef {
+    integration: string;
+    configurable: string;
+    name: string;
+}
+
+/** The connection id of an endpoint link: `link:<integration>/<configurable>/<connection>`. */
+export function linkConnectionId(ref: LinkConnectionRef): string {
+    return `${LINK_ID_PREFIX}${encodeURIComponent(ref.integration)}/${encodeURIComponent(ref.configurable)}/${encodeURIComponent(ref.name)}`;
+}
+
+export function parseLinkConnectionId(id: string | undefined): LinkConnectionRef | undefined {
+    if (!id?.startsWith(LINK_ID_PREFIX)) {
+        return undefined;
+    }
+    const parts = id.slice(LINK_ID_PREFIX.length).split("/").map(decodeURIComponent);
+    if (parts.length !== 3 || parts.some((part) => !part)) {
+        return undefined;
+    }
+    return { integration: parts[0], configurable: parts[1], name: parts[2] };
+}
+
+/** The id the platform knows a configurable of a package's root module by: `<org>/<package>:<name>`. */
+export function configurableId(org: string, packageName: string, name: string): string {
+    return `${org}/${packageName}:${name}`;
+}
+
+/**
+ * The connections `.wso2/component.yaml` records that an endpoint link of the
+ * integration stands for. The platform keeps no connection name on a link, so
+ * a connection is matched to a link by the endpoint both name, each link to
+ * one connection; `skip` names connections already listed another way.
+ */
+export function endpointLinkConnections(
+    links: EndpointLink[],
+    localRefs: Map<string, string>,
+    ref: { project: string; integration: string },
+    skip: Set<string> = new Set(),
+): ConnectionListItem[] {
+    const unclaimed = [...links];
+    const items: ConnectionListItem[] = [];
+    for (const [name, refServiceId] of localRefs) {
+        const target = parseServiceId(refServiceId);
+        if (skip.has(name) || !target || target.project !== ref.project) {
+            continue;
+        }
+        const index = unclaimed.findIndex((link) => link.component === target.integration && link.endpoint === target.endpoint);
+        if (index < 0) {
+            continue;
+        }
+        const [link] = unclaimed.splice(index, 1);
+        items.push(linkToConnectionListItem({ integration: ref.integration, configurable: link.configurable, name }, refServiceId));
+    }
+    return items;
+}
+
+export function linkToConnectionListItem(ref: LinkConnectionRef, serviceId = ""): ConnectionListItem {
+    return {
+        name: ref.name,
+        description: "",
+        groupUuid: linkConnectionId(ref),
+        serviceName: ref.name,
+        serviceId,
+        schemaName: serviceSchema("project").name,
+        schemaReference: schemaIdFor("SERVICE", "project"),
+        isPartiallyCreated: false,
+        status: {},
+        componentId: ref.integration,
+        dependentComponentId: "",
+        version: "",
+        resourceType: "SERVICE",
+    };
+}
+
+/** An endpoint link as a detailed connection: its one entry is the URL, which the platform fills in every environment. */
+export function linkToConnectionDetailed(ref: LinkConnectionRef, serviceId = ""): ConnectionDetailed {
+    const envVar = connectionVarName(ref.name, SERVICE_CONNECTION_KEYS.ServiceURL);
+    return {
+        ...linkToConnectionListItem(ref, serviceId),
+        configurations: {
+            "": {
+                environmentUuid: "",
+                entries: {
+                    ServiceURL: { key: "ServiceURL", keyUuid: envVar, value: "", isSensitive: false, isFile: false, envVariableName: envVar, valueRef: envVar },
+                },
+            },
+        },
+        envMapping: {},
+        visibilities: [],
+    };
 }
 
 /** What `.wso2/component.yaml` records a connection as pointing at. */
@@ -379,6 +473,8 @@ export function createdConnection(params: {
     serviceId: string;
     /** For a service connection; `gateway` when omitted. */
     access?: ServiceConnectionAccess;
+    /** For a connection inside the project: the configurable (`<org>/<package>:<name>`) the platform fills. */
+    configurable?: string;
 }): ConnectionDetailed {
     const access = params.access ?? "gateway";
     const keys =
@@ -405,7 +501,9 @@ export function createdConnection(params: {
     return {
         name: params.name,
         description: "",
-        groupUuid: connectionId({ integration: params.integration, environment: params.environments[0] ?? "", name: params.name }),
+        groupUuid: params.configurable
+            ? linkConnectionId({ integration: params.integration, configurable: params.configurable, name: params.name })
+            : connectionId({ integration: params.integration, environment: params.environments[0] ?? "", name: params.name }),
         serviceName: params.name,
         serviceId: params.serviceId,
         schemaName: params.kind === "DATABASE" ? "Database Credentials" : serviceSchema(access).name,
