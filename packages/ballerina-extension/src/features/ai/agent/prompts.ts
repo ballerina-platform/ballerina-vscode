@@ -24,7 +24,7 @@ import { CLARIFY_TOOL } from "./tools/clarify";
 import { TEST_RUNNER_TOOL_NAME } from "./tools/test-runner";
 import { getLanglibInstructions } from "../utils/libs/langlibs";
 import { MODULE_INIT_CODING_RULES } from "./module-init-rules";
-import { formatCodebaseStructure, formatCodeContext } from "./utils";
+import { formatCodeContext, getProjectBlock } from "./utils";
 import { GenerateAgentCodeRequest, OperationType, ProjectSource } from "@wso2/ballerina-core";
 import { formatActiveFileReminder } from "./activeFileReminder";
 import { DATA_BINDING_CODING_RULES } from "./data-binding-rules";
@@ -191,7 +191,7 @@ Before starting implementation, use ${CLARIFY_TOOL} to resolve genuine requireme
 Use ${CLARIFY_TOOL} AT MOST ONCE — batch all questions into a single call. In the case of plan mode, you need to call call this tool before first ${TASK_WRITE_TOOL_NAME} call if you have any clarifying questions.
 
 # Exploring the project
-The project listing in the user message shows the Ballerina source and config files, not their contents. In a workspace, only the active package's files are listed (none when no package is active); other packages are one line each, so glob their files.
+The project's files are not in the conversation: the user message only names the package, or a workspace's packages. Find and read what you need.
 - Find files with ${GLOB_TOOL_NAME} (e.g. "**/*.bal", "pkg1/modules/**/*.bal"). Find code with ${GREP_TOOL_NAME}: it returns matching files by default; set output_mode to "content" for matching lines with line numbers.
 - Then read only what you need with ${FILE_READ_TOOL_NAME}, using offset and limit around those lines. Read a whole file only when it is short or you will change most of it.
 - Read the current content of the code you change before editing it. Content from earlier turns may be out of date; the user can edit files between turns.
@@ -223,8 +223,8 @@ When generating Ballerina code strictly follow these syntax and structure guidel
 ${getLanglibInstructions()}
 
 ### Local Connectors
-- If the project listing shows connector modules in generated/moduleName, import using: import packageName.moduleName
-- Generated connector files appear under a \`<generated_files>\` block in the project listing as path-only entries (e.g. \`<file path="generated/moduleName/client.bal"/>\`) — no source content is included. Use the \`${FILE_READ_TOOL_NAME}\` tool with the listed path to fetch the content when needed.
+- Generated connector modules live under generated/moduleName; import one as: import packageName.moduleName
+- Read a generated connector's files (for example \`generated/moduleName/client.bal\`) with \`${FILE_READ_TOOL_NAME}\` when you need its API.
 
 ## Code Structure
 - In WSO2 Integrator, Automation is simply an app with a main method unless user specifically mentions a service. Cron Job kind of requirements are handled in the deployment level for Kubernetes or Integration platform level.
@@ -299,7 +299,7 @@ In WSO2 Integrator, a Ballerina workspace is called a **project** and a Ballerin
 # Running, invoking and tests
 - You should only Run or write tests if the user explicitly asks to do so.
 - Providing values to configurables is a runtime task and should only do it before running or executing the tests.
-- For Config.toml configuration value management, use ${CONFIG_COLLECTOR_TOOL}. The project listing shows <config_files main="present|absent" tests="present|absent"/> per package indicating whether Config.toml files exist.
+- For Config.toml configuration value management, use ${CONFIG_COLLECTOR_TOOL}; its CHECK mode reports whether Config.toml exists and which values it holds.
 - **Before EVERY ${CONFIG_COLLECTOR_TOOL} COLLECT call, check for connector-auth configurables.** For any connector client whose auth is fed by configurables, group those configurables under \`managedConnections\` keyed by the connector's library ("org/package") instead of leaving them in the plain \`variables\` array — even when a credential looks like an ordinary secret (a bearer/bot/access token used by a connector is a connector auth credential, not a plain variable). Tag each group with authType: \`oauth2RefreshToken\` (map clientId, clientSecret, refreshToken, refreshUrl) or \`staticToken\` (map the single token).
 - The auth structure does NOT change this. Some libraries expose the OAuth config via a directly-named type (e.g. \`oauth2:OAuth2RefreshTokenGrantConfig\`); others wrap it inside the connector's own config record (e.g. a \`ConnectionConfig\` whose \`auth\` field carries the credentials). Both are grouped the same way — look at the credential fields, not where they sit.
 - You do NOT decide which (library, shape) combinations are actually managed — the tool verifies each against the managed registry and silently downgrades unsupported ones to manual entry. So emit a group for ANY connector credential that fits one of the two shapes; grouping a candidate that turns out to be unsupported is harmless. That tolerance covers the library and shape only — every mapped name must be a configurable that already exists in source, spelled exactly as declared. Only leave TRULY non-connector secrets (e.g. a database password, or a standalone API key not tied to any connector) in \`variables\`.
@@ -322,12 +322,6 @@ Some tools are deferred: a system message lists them by name only, and a later o
 `;
 }
 
-/**
- * Generates user prompt content array with codebase structure for new threads
- * @param params Generation request parameters containing usecase, plan mode, code context, and file attachments
- * @param tempProjectPath Path to temp project
- * @param projects Project source information
- */
 function getSystemContextBlock(): string {
     const now = new Date();
     return `<system-reminder>
@@ -353,18 +347,9 @@ export function getUserPrompt(
         });
     }
 
-    if (codebase?.omitCodebaseDump) {
-        if (codebase.codebaseMapText) {
-            content.push({
-                type: 'text' as const,
-                text: codebase.codebaseMapText,
-            });
-        }
-    } else {
-        content.push({
-            type: 'text' as const,
-            text: formatCodebaseStructure(projects, tempProjectPath)
-        });
+    const projectBlock = getProjectBlock(projects, codebase);
+    if (projectBlock) {
+        content.push({ type: 'text' as const, text: projectBlock });
     }
 
     const activeFileReminder = formatActiveFileReminder(params.activeFilePath);

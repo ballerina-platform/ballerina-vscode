@@ -23,9 +23,6 @@ import { StateMachine } from "../../../stateMachine";
 import { normalizeToLf, readAndNormalize, restoreEol } from "../utils/eol-utils";
 import { isWorkspaceTempProject } from "./tools/path-utils";
 import { escapeXmlText } from "../migration/project-map-format";
-import { REQ_KEY } from "../../../rpc-managers/ai-panel/constants";
-
-const LISTING_MAX_CHARS = 16_000;
 
 /**
  * Files that require path sanitization (temp paths replaced with workspace paths)
@@ -144,174 +141,32 @@ ${sourceFile.content}
     return codeBlocks.join("\n\n");
 }
 
-/**
- * Collects files from a ProjectSource, split into regular files and generated connector files.
- * Paths are posix, prefixed with the package path when `includePackagePath` is set.
- */
-function collectFilesFromProject(
-    project: ProjectSource,
-    includePackagePath: boolean = false
-): { files: SourceFile[]; generatedFiles: SourceFile[] } {
-    const files: SourceFile[] = [];
-    const generatedFiles: SourceFile[] = [];
-    const packagePath = project.packagePath?.replace(/\\/g, "/");
-    const prefix = includePackagePath && packagePath ? `${packagePath}/` : "";
-
-    for (const sourceFile of project.sourceFiles) {
-        // The requirements entry is not a file; the Natural Programming note carries its text.
-        if (sourceFile.filePath === REQ_KEY) {
-            continue;
-        }
-        files.push({
-            filePath: `${prefix}${sourceFile.filePath}`,
-            content: sourceFile.content,
-        });
+/** No file contents or listing are sent, so this names the package for imports, or a workspace's packages. */
+export function formatProjectLayout(projects: ProjectSource[]): string {
+    const isWorkspace = StateMachine.context().projectInfo?.projectKind === PROJECT_KIND.WORKSPACE_PROJECT;
+    if (!isWorkspace) {
+        const name = projects[0] ? escapeXmlText(projects[0].projectName) : "";
+        return name
+            ? `<project_layout>\nThis is the Ballerina package "${name}". Import one of its modules, such as a generated connector under generated/moduleName, as: import ${name}.moduleName;\n</project_layout>`
+            : "";
     }
-
-    // Collect module files — generated modules go to generatedFiles (paths only)
-    if (project.projectModules) {
-        for (const module of project.projectModules) {
-            for (const sourceFile of module.sourceFiles) {
-                if (module.isGenerated) {
-                    generatedFiles.push({
-                        filePath: `${prefix}generated/${module.moduleName}/${sourceFile.filePath}`,
-                        content: "",
-                    });
-                } else {
-                    // getProjectSource stores module files under their bare name; without the
-                    // prefix the agent is told they sit at the package root.
-                    files.push({
-                        filePath: `${prefix}modules/${module.moduleName}/${sourceFile.filePath}`,
-                        content: sourceFile.content,
-                    });
-                }
-            }
-        }
-    }
-
-    if (project.projectTests) {
-        for (const testFile of project.projectTests) {
-            files.push({
-                filePath: `${prefix}tests/${testFile.filePath.replace(/\\/g, "/")}`,
-                content: testFile.content,
-            });
-        }
-    }
-
-    return { files, generatedFiles };
+    const packages = projects.map(project =>
+        `- ${escapeXmlText(project.packagePath?.replace(/\\/g, "/") || ".")} (package ${escapeXmlText(project.projectName)})${project.isActive ? ", active" : ""}`);
+    return [
+        "<workspace_layout>",
+        "This is a Ballerina workspace with multiple packages. File paths start with the package path (e.g. \"mainpackage/main.bal\"). Its packages:",
+        ...packages,
+        projects.some(project => project.isActive)
+            ? "Prefer edits in the active package."
+            : "No package is active: work in the package the request is about.",
+        "Import another package by its name (e.g. import otherpackage;).",
+        "</workspace_layout>",
+    ].join("\n");
 }
 
-function countLines(content: string): number {
-    // Same count as file_read reports, so a listed line count is a valid offset bound.
-    return content.length === 0 ? 0 : content.split("\n").length;
-}
-
-function formatConfigFiles(tempProjectPath: string | undefined, project: ProjectSource, isWorkspace: boolean): string {
-    if (!tempProjectPath) {
-        return "";
-    }
-    const pkgRoot = isWorkspace && project.packagePath
-        ? path.join(tempProjectPath, project.packagePath)
-        : tempProjectPath;
-    const mainConfig = fs.existsSync(path.join(pkgRoot, "Config.toml")) ? "present" : "absent";
-    const testConfig = fs.existsSync(path.join(pkgRoot, "tests", "Config.toml")) ? "present" : "absent";
-    return `<config_files main="${mainConfig}" tests="${testConfig}"/>`;
-}
-
-export function formatCodebaseStructure(projects: ProjectSource[], tempProjectPath?: string): string {
-    let text = "<codebase_structure>\n";
-    text += "The project's Ballerina source and config files with their line counts. ";
-    text += "Contents are not included, and other files (OpenAPI specs, SQL, JSON) are not listed: ";
-    text += "use glob, grep and file_read.\n\n";
-
-    const context = StateMachine.context();
-    const isWorkspace = context.projectInfo?.projectKind === PROJECT_KIND.WORKSPACE_PROJECT;
-
-    if (isWorkspace && tempProjectPath) {
-        text += formatWorkspaceToml(tempProjectPath);
-    }
-
-    // A workspace opened at its root has no active package.
-    const activeProject = projects.find(project => project.isActive) ?? (isWorkspace ? undefined : projects[0]);
-
-    // Other packages go first and are never dropped from the budget.
-    for (const project of projects) {
-        if (project === activeProject) {
-            continue;
-        }
-        const { files, generatedFiles } = collectFilesFromProject(project, isWorkspace);
-        const packagePath = project.packagePath?.replace(/\\/g, "/") ?? "";
-        text += `<package name="${escapeXmlText(project.projectName)}" path="${escapeXmlText(packagePath)}" files="${files.length + generatedFiles.length}">${formatConfigFiles(tempProjectPath, project, isWorkspace)}</package>\n`;
-    }
-
-    let budget = LISTING_MAX_CHARS - text.length;
-    let unlisted = 0;
-    const listWithinBudget = (entries: string[]): number => {
-        for (let i = 0; i < entries.length; i++) {
-            if (unlisted > 0 || entries[i].length + 1 > budget) {
-                return entries.length - i;
-            }
-            budget -= entries[i].length + 1;
-            text += `${entries[i]}\n`;
-        }
-        return 0;
-    };
-
-    if (activeProject) {
-        const { files, generatedFiles } = collectFilesFromProject(activeProject, isWorkspace);
-        text += `<project name="${escapeXmlText(activeProject.projectName)}" active="true">\n<files>\n`;
-        unlisted += listWithinBudget(files.map(file => `<file path="${escapeXmlText(file.filePath)}" lines="${countLines(file.content)}"/>`));
-        text += "</files>\n";
-        if (generatedFiles.length > 0 && unlisted > 0) {
-            unlisted += generatedFiles.length;
-        } else if (generatedFiles.length > 0) {
-            text += "<generated_files>\n";
-            unlisted += listWithinBudget(generatedFiles.map(file => `<file path="${escapeXmlText(file.filePath)}"/>`));
-            text += "</generated_files>\n";
-        }
-        const configFiles = formatConfigFiles(tempProjectPath, activeProject, isWorkspace);
-        text += configFiles ? `${configFiles}\n` : "";
-        text += "</project>\n";
-    }
-
-    if (unlisted > 0) {
-        text += `… ${unlisted} more files not listed. Use glob to find them.\n`;
-    }
-    text += isWorkspace ? "</codebase_structure>\n" : "</codebase_structure>";
-
-    if (isWorkspace && activeProject) {
-        text += `Note: This is a Ballerina workspace with multiple packages. File paths are prefixed with their package paths (e.g., "mainpackage/main.bal").
-Only the active package's files are listed; each other package is a <package> entry, so use glob to find its files.
-You can import another package by its package name (e.g., import otherpackage;).
-When creating or modifying files, you should always prefer making edits for the current active package. Make sure to include the package path as prefix for the file edits.`;
-    } else if (isWorkspace) {
-        text += `Note: This is a Ballerina workspace with multiple packages. File paths are prefixed with their package paths (e.g., "mainpackage/main.bal").
-No package is active, so each package is a <package> entry: use glob to find its files, and work in the package the request is about.
-You can import another package by its package name (e.g., import otherpackage;).
-Make sure to include the package path as prefix for the file edits.`;
-    }
-
-    return text;
-}
-
-/**
- * Reads the workspace root Ballerina.toml and formats it as XML for the codebase structure.
- * Only applicable for workspace projects (containing [workspace] section).
- * @param tempProjectPath Path to the temporary project directory
- * @returns Formatted XML string with workspace config, or empty string if not found
- */
-function formatWorkspaceToml(tempProjectPath: string): string {
-    const tomlPath = path.join(tempProjectPath, "Ballerina.toml");
-    if (!fs.existsSync(tomlPath)) {
-        return "";
-    }
-    try {
-        const content = fs.readFileSync(tomlPath, "utf-8");
-        return `<workspace_config path="Ballerina.toml">\n${content}\n</workspace_config>\n\n`;
-    } catch (error) {
-        console.warn("[formatWorkspaceToml] Error reading workspace Ballerina.toml:", error);
-        return "";
-    }
+/** The turn's project block: a caller's codebase map (migration), or the layout note. */
+export function getProjectBlock(projects: ProjectSource[], codebase?: { omitCodebaseDump?: boolean; codebaseMapText?: string }): string {
+    return codebase?.omitCodebaseDump ? codebase.codebaseMapText ?? "" : formatProjectLayout(projects);
 }
 
 /**
