@@ -31,12 +31,30 @@ describe("getNodeTitle for an A2A task update", () => {
     );
 });
 
+describe("getNodeTitle for an A2A task update made on a named updater", () => {
+    const onUpdater = (label: string, receiver: string) =>
+        ({
+            codedata: { node: "A2A_TASK_UPDATE" },
+            metadata: { label },
+            properties: { connection: { value: receiver } },
+        } as unknown as FlowNode);
+
+    it("names the updater before the method, as the agent call is titled", () => {
+        expect(getNodeTitle(onUpdater("working", "updater"))).toBe("updater : working");
+        expect(getNodeTitle(onUpdater("addArtifact", "updater"))).toBe("updater : addArtifact");
+    });
+
+    it("keeps the method alone when the updater is not known", () => {
+        expect(getNodeTitle(onUpdater("complete", ""))).toBe("complete");
+    });
+});
+
 describe("getNodeTitle for an A2A task store call", () => {
     const store = (label: string) =>
         ({ codedata: { node: "A2A_TASK_STORE" }, metadata: { label }, properties: {} } as unknown as FlowNode);
 
-    it.each(["get", "list", "put", "remove"])("titles %s by its method name", (method) => {
-        expect(getNodeTitle(store(method))).toBe(method);
+    it.each(["get", "list", "put", "remove"])("titles %s with the task store before the method", (method) => {
+        expect(getNodeTitle(store(method))).toBe(`taskStore : ${method}`);
     });
 
     it("keeps a title that is already complete, as the handler's read-only steps carry", () => {

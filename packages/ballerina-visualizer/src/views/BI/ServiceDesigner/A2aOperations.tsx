@@ -16,7 +16,9 @@
  * under the License.
  */
 
+import React, { useState } from "react";
 import styled from "@emotion/styled";
+import { Button, Codicon, Confirm } from "@wso2/ui-toolkit";
 import { FunctionModel } from "@wso2/ballerina-core";
 import { ResourceAccordion, getColorByMethod } from "./components/ResourceAccordion";
 import { GROUP_ORDER, OTHER, describeA2aOperation } from "./a2aOperationNames";
@@ -45,11 +47,50 @@ const Count = styled.span`
     letter-spacing: 0;
 `;
 
+const DeleteButton = styled(Button)`
+    margin-left: auto;
+    text-transform: none;
+    letter-spacing: 0;
+`;
+
 const Rows = styled.div`
     display: flex;
     flex-direction: column;
     gap: 6px;
 `;
+
+// The operations of a group belong together, so they are deleted together: there is no delete on a single row.
+function GroupDelete(props: { group: string; count: number; onConfirm: () => void }) {
+    const { group, count, onConfirm } = props;
+    const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+
+    return (
+        <>
+            <DeleteButton
+                id={`bi-delete-group-${group}`}
+                appearance="icon"
+                tooltip={`Delete the ${group} operations`}
+                onClick={(e: React.MouseEvent<HTMLElement | SVGSVGElement>) => setAnchor(e.currentTarget as HTMLElement)}
+            >
+                <Codicon name="trash" sx={{ width: "16px" }} />
+            </DeleteButton>
+            <Confirm
+                isOpen={anchor !== null}
+                onConfirm={(confirmed: boolean) => {
+                    setAnchor(null);
+                    if (confirmed) {
+                        onConfirm();
+                    }
+                }}
+                confirmText="Delete"
+                message={`Are you sure you want to delete the "${group}" group (${count} ${count === 1 ? "operation" : "operations"})?`}
+                anchorEl={anchor}
+                anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+                transformOrigin={{ vertical: "top", horizontal: "right" }}
+            />
+        </>
+    );
+}
 
 interface A2aOperationsProps {
     handlers: FunctionModel[];
@@ -68,9 +109,18 @@ export function A2aOperations(props: A2aOperationsProps) {
         <Groups>
             {groups.map(({ group, rows: inGroup }) => (
                 <div key={group}>
-                    <GroupTitle>{group}<Count>{inGroup.length}</Count></GroupTitle>
+                    <GroupTitle>
+                        {group}<Count>{inGroup.length}</Count>
+                        {!inGroup.some((row) => row.core) && (
+                            <GroupDelete
+                                group={group}
+                                count={inGroup.length}
+                                onConfirm={() => onDeleteGroup(inGroup.map((row) => row.model))}
+                            />
+                        )}
+                    </GroupTitle>
                     <Rows>
-                        {inGroup.map(({ model, title, method, path, core }) => (
+                        {inGroup.map(({ model, title, method, path }) => (
                             <ResourceAccordion
                                 key={path + method}
                                 functionModel={model}
@@ -79,10 +129,7 @@ export function A2aOperations(props: A2aOperationsProps) {
                                 title={title}
                                 subtitle={path}
                                 goToSource={() => { }}
-                                deletable
-                                onDeleteResource={core ? undefined : () => onDeleteGroup(inGroup.map((row) => row.model))}
                                 onResourceImplement={onImplement}
-                                deletionTypeLabel={`"${group}" group (${inGroup.length} ${inGroup.length === 1 ? "operation" : "operations"})`}
                             />
                         ))}
                     </Rows>

@@ -452,7 +452,10 @@ export function getNodeTitle(node: FlowNode) {
     };
 
     if (node.codedata?.node === "A2A_TASK_UPDATE") {
-        return node.metadata?.label ?? "update";
+        // Name the updater the call is made on, as the agent call is titled "agent : run": "updater : working".
+        const method = node.metadata?.label ?? "update";
+        const receiver = getPropertyString("connection");
+        return receiver ? `${receiver} : ${method}` : method;
     }
 
     if (node.codedata?.node === "A2A_HANDLER_CALL") {
@@ -461,7 +464,9 @@ export function getNodeTitle(node: FlowNode) {
     }
 
     if (node.codedata?.node === "A2A_TASK_STORE") {
-        return node.metadata?.label ?? "task store";
+        const method = node.metadata?.label ?? "task store";
+        // A title that is already complete, as the handler's read-only steps carry, stays as it is.
+        return method.includes(":") ? method : `taskStore : ${method}`;
     }
 
     if (node.codedata?.node === "WAIT") {

@@ -31,6 +31,12 @@ describe("A2aIcon", () => {
         expect(container.innerHTML).toContain('stroke="currentColor"');
     });
 
+    it("leaves the loop unfilled itself, since a wrapper's `svg { fill }` rule would otherwise fill it", () => {
+        const { container } = render(<A2aIcon size={20} />);
+        const loop = Array.from(container.querySelectorAll("path")).find((path) => path.getAttribute("stroke"));
+        expect(loop?.getAttribute("fill")).toBe("none");
+    });
+
     it("takes the colour it is given", () => {
         const { container } = render(<A2aIcon color="red" />);
         expect(container.querySelector("svg")!.getAttribute("style")).toContain("red");

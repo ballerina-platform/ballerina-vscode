@@ -58,8 +58,6 @@ import {
 import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
 import { NodeNoteChip } from "../../NodeNoteChip";
 
-const A2A_HANDLER_ACCENT_COLOR = "var(--vscode-charts-blue)";
-const A2A_HANDLER_BG_COLOR = `color-mix(in srgb, ${A2A_HANDLER_ACCENT_COLOR} 9%, ${NODE_BG_COLOR})`;
 
 export namespace NodeStyles {
     export type NodeStyleProp = {
@@ -70,7 +68,6 @@ export namespace NodeStyles {
         isActiveBreakpoint?: boolean;
         isSelected?: boolean;
         isWorkflowNode?: boolean;
-        isA2aHandler?: boolean;
     };
     export const Node = styled.div<NodeStyleProp>`
         display: flex;
@@ -85,11 +82,8 @@ export namespace NodeStyles {
                 ? NODE_BG_BREAKPOINT_COLOR
                 : props.hovered && !props.disabled && !props.readOnly
                     ? NODE_BG_HOVER_COLOR
-                    : props.isA2aHandler
-                        ? A2A_HANDLER_BG_COLOR
-                        : NODE_BG_COLOR};
+                    : NODE_BG_COLOR};
         color: ${NODE_TEXT_COLOR};
-        ${(props: NodeStyleProp) => (props.isA2aHandler ? `border-left: 4px solid ${A2A_HANDLER_ACCENT_COLOR} !important;` : "")}
         opacity: ${(props: NodeStyleProp) => (props.disabled ? 0.7 : 1)};
         border: ${(props: NodeStyleProp) =>
             props.disabled
@@ -473,7 +467,6 @@ export function BaseNodeWidget(props: BaseNodeWidgetProps) {
             isActiveBreakpoint={isActiveBreakpoint}
             isSelected={isSelected}
             isWorkflowNode={isWorkflowStyledNode}
-            isA2aHandler={isA2aHandler}
             style={getDiffContainerStyles(model.node)}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => { setIsHovered(false); setIsNoteActive(false); }}

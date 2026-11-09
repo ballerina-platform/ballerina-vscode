@@ -121,7 +121,6 @@ const NODE_COLOR_GROUPS = {
         "AGENT_RUN",
         "AGENT",
         "AGENTS",
-        "A2A_HANDLER_CALL",
         "NP_FUNCTION",
         "NP_FUNCTION_CALL",
         "MODEL_PROVIDER",
@@ -332,9 +331,15 @@ export function DurableAgentIcon(props: { size?: number; color?: string }) {
     );
 }
 
-// The Agent2Agent protocol's mark, from the a2a-java SDK (Apache License 2.0).
+// The Agent2Agent protocol's mark, from the a2a-java SDK (Apache License 2.0). The same shapes, drawn
+// as strokes so that a small copy can be thinner: at node-icon size the full-weight strokes run together
+// and the mark reads as a white blob, so below 40px the strokes and dots are 60% of the original weight.
 export function A2aIcon(props: { size?: number; color?: string }) {
     const { size = 24, color } = props;
+    const weight = size >= 40 ? 1 : 0.6;
+    const bar = (x1: number, x2: number, y: number) => (
+        <line x1={x1} y1={y} x2={x2} y2={y} stroke="currentColor" strokeWidth={52 * weight} strokeLinecap="round" />
+    );
     return (
         <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -346,24 +351,21 @@ export function A2aIcon(props: { size?: number; color?: string }) {
             aria-label="A2A"
             style={{ color: color ?? "currentColor", flexShrink: 0 }}
         >
-            <circle cx="544" cy="307" r="27" fill="currentColor" />
-            <circle cx="154" cy="307" r="27" fill="currentColor" />
-            <circle cx="706" cy="307" r="27" fill="currentColor" />
-            <circle cx="316" cy="307" r="27" fill="currentColor" />
+            {[154, 316, 544, 706].map((cx) => (
+                <circle key={cx} cx={cx} cy="307" r={27 * weight} fill="currentColor" />
+            ))}
             <path
                 d="M336.5 191.003H162C97.6588 191.003 45.5 243.162 45.5 307.503C45.5 371.844 97.6442 424.003 161.985 424.003C206.551 424.003 256.288 424.003 296.5 424.003C487.5 424.003 374 191.005 569 191.001C613.886 191 658.966 191 698.025 191C762.366 191.001 814.5 243.16 814.5 307.501C814.5 371.843 762.34 424.003 697.998 424.003H523.5"
+                fill="none"
                 stroke="currentColor"
-                strokeWidth="48"
+                strokeWidth={48 * weight}
                 strokeLinecap="round"
             />
-            <path
-                d="M256 510.002C270.359 510.002 282 521.643 282 536.002C282 550.361 270.359 562.002 256 562.002H148C133.641 562.002 122 550.361 122 536.002C122 521.643 133.641 510.002 148 510.002H256ZM712 510.002C726.359 510.002 738 521.643 738 536.002C738 550.361 726.359 562.002 712 562.002H360C345.641 562.002 334 550.361 334 536.002C334 521.643 345.641 510.002 360 510.002H712Z"
-                fill="currentColor"
-            />
-            <path
-                d="M444 628.002C458.359 628.002 470 639.643 470 654.002C470 668.361 458.359 680.002 444 680.002H100C85.6406 680.002 74 668.361 74 654.002C74 639.643 85.6406 628.002 100 628.002H444ZM548 628.002C562.359 628.002 574 639.643 574 654.002C574 668.361 562.359 680.002 548 680.002C533.641 680.002 522 668.361 522 654.002C522 639.643 533.641 628.002 548 628.002ZM760 628.002C774.359 628.002 786 639.643 786 654.002C786 668.361 774.359 680.002 760 680.002H652C637.641 680.002 626 668.361 626 654.002C626 639.643 637.641 628.002 652 628.002H760Z"
-                fill="currentColor"
-            />
+            {bar(148, 256, 536)}
+            {bar(360, 712, 536)}
+            {bar(100, 444, 654)}
+            <circle cx="548" cy="654" r={26 * weight} fill="currentColor" />
+            {bar(652, 760, 654)}
         </svg>
     );
 }

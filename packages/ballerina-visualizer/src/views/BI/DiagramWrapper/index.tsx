@@ -597,6 +597,7 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
         if (parentCodedata?.sourceCode.includes("@ai:AgentTool")) return "Agent Tool";
         if ((parentCodedata?.sourceCode.includes("@test:Config")) && parentCodedata?.sourceCode.includes("\"evaluations\"")) return "AI Evaluation";
         if (parentCodedata?.sourceCode.includes("@test:Config")) return "Test";
+        if (isA2aExecuteMethod(parentMetadata)) return "agentExecutor";
         return parentMetadata?.kind || "";
     };
 
