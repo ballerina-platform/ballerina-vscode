@@ -55,6 +55,13 @@ export const ButtonContainer = styled.div<{}>`
     justify-content: flex-end;
 `;
 
+const ErrorText = styled.div`
+    color: var(--vscode-errorForeground);
+    font-size: 12px;
+    padding: 0 0 8px;
+    overflow-wrap: anywhere;
+`;
+
 const BoxGroup = styled.div`
     display: flex;
     width: 100%;
@@ -128,7 +135,8 @@ export const DevantConnectorCreateForm: FC<DevantConnectorCreateFormProps> = ({
         });
     }, [marketplaceItem]);
 
-    const { mutate: createConnection, isPending: isCreatingConnection } = useMutation({
+    // A failure anywhere in creating the connection is shown here; without it the button just stops spinning.
+    const { mutate: createConnection, isPending: isCreatingConnection, error: createError } = useMutation({
         mutationFn: async (data: CreateConnectionForm) => {
             const createdConnection = await platformRpcClient?.createInternalConnection({
                 componentId: isProjectLevel ? "" : platformExtState?.selectedIntegration?.integration.id,
@@ -339,6 +347,11 @@ export const DevantConnectorCreateForm: FC<DevantConnectorCreateFormProps> = ({
                     )}
                 </FormStyles.Container>
             </ConnectorContentContainer>
+            {createError && !isCreatingConnection && (
+                <ErrorText role="alert">
+                    Could not create the connection: {createError instanceof Error ? createError.message : String(createError)}
+                </ErrorText>
+            )}
             <FooterContainer>
                 <ActionButton
                     appearance="primary"
