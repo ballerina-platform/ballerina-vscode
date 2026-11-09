@@ -156,6 +156,39 @@ public class AgentDefinitionConnectionTest extends AbstractLSTest {
     }
 
     @Test
+    public void testClassOwnedMcpToolKitKeepsServerUrlFirst() throws IOException {
+        JsonObject node = mcpToolKitNode();
+        node.getAsJsonObject("properties").add("auth", includedField("auth", "{token: \"t\"}"));
+        String generated = saveMcpToolKit(node);
+        Assert.assertTrue(generated.contains("self.weatherMcp = check new (self.token, auth = {token: \"t\"});"),
+                generated);
+    }
+
+    @Test
+    public void testClassOwnedMcpV2ToolKitKeepsServerUrlFirst() throws IOException {
+        JsonObject node = mcpToolKitNode();
+        JsonObject data = new JsonObject();
+        data.addProperty("mcpProtocol", "v2");
+        node.getAsJsonObject("codedata").add("data", data);
+        node.getAsJsonObject("properties").add("httpConfig",
+                includedField("httpConfig", "{auth: {token: \"t\"}}"));
+        String generated = saveMcpToolKit(node);
+        Assert.assertTrue(
+                generated.contains("self.weatherMcp = check new (self.token, httpConfig = {auth: {token: \"t\"}});"),
+                generated);
+    }
+
+    private String saveMcpToolKit(JsonObject node) throws IOException {
+        Path sourcePath = sourceDir.resolve("agent_definition_connection/agents.bal").toAbsolutePath();
+        SaveClassMemberRequest request = new SaveClassMemberRequest(sourcePath.toString(), node,
+                LineRange.from("agents.bal", LinePosition.from(3, 0), LinePosition.from(15, 1)));
+        JsonObject response = getResponse(request, "flowDesignService/saveClassMember");
+        Map<String, List<TextEdit>> edits = gson.fromJson(response.getAsJsonObject("textEdits"), TEXT_EDITS_TYPE);
+        return edits.values().stream().flatMap(List::stream).map(TextEdit::getNewText)
+                .reduce("", (left, right) -> left + "\n" + right);
+    }
+
+    @Test
     public void testGenericRemoveClassOwnedMcpToolKitCleansWiring() throws IOException {
         String source = "agent_definition_connection/agents_with_mcp_tools.bal";
         Path sourcePath = sourceDir.resolve(source).toAbsolutePath();
@@ -244,6 +277,13 @@ public class AgentDefinitionConnectionTest extends AbstractLSTest {
         JsonObject codedata = new JsonObject();
         codedata.addProperty("kind", kind);
         property.add("codedata", codedata);
+        return property;
+    }
+
+    private JsonObject includedField(String name, String value) {
+        JsonObject property = property(value, "INCLUDED_FIELD");
+        property.getAsJsonObject("codedata").addProperty("originalName", name);
+        property.addProperty("optional", true);
         return property;
     }
 }
