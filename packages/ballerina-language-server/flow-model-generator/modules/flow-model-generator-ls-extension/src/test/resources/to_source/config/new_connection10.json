@@ -82,6 +82,36 @@
     "flags": 1
   },
   "output": {
+    "new_connection8/Config.toml": [
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "localHttpClUrl = \"http://localhost:8080\"\n"
+      }
+    ],
+    "new_connection8/config.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "configurable string localHttpClUrl = ?;"
+      }
+    ],
     "new_connection8/connections.bal": [
       {
         "range": {
@@ -107,7 +137,7 @@
             "character": 20
           }
         },
-        "newText": "final http:Client localHttpCl = check new (\"http://localhost:8080\", {});"
+        "newText": "final http:Client localHttpCl = check new (localHttpClUrl, {});"
       }
     ]
   }

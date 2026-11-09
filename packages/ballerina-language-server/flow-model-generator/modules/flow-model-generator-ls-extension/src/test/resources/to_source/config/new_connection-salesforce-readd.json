@@ -1,0 +1,162 @@
+{
+  "source": "new_connection-salesforce-readd/connections.bal",
+  "description": "Re-adding a connection replaces values in place, in a multiline string and in the [package] table, applied one by one; a same-typed configurable still in use gets a numbered name",
+  "diagram": {
+    "id": "31",
+    "metadata": {
+      "label": "Salesforce"
+    },
+    "codedata": {
+      "node": "NEW_CONNECTION",
+      "org": "ballerinax",
+      "module": "salesforce",
+      "packageName": "salesforce",
+      "object": "Client",
+      "symbol": "init",
+      "version": "8.7.2",
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "config": {
+        "metadata": {
+          "label": "Config"
+        },
+        "valueType": "EXPRESSION",
+        "value": "{baseUrl: \"https://acme.my.salesforce.com\", auth: {tokenUrl: \"https://acme.my.salesforce.com/services/oauth2/token\", clientId: \"acme-client\", clientSecret: \"s3cret\"}}",
+        "optional": false,
+        "editable": true,
+        "codedata": {
+          "kind": "REQUIRED",
+          "originalName": "config"
+        }
+      },
+      "type": {
+        "metadata": {
+          "label": "Variable Type"
+        },
+        "valueType": "TYPE",
+        "value": "salesforce:Client",
+        "optional": false,
+        "editable": false,
+        "imports": {
+          "salesforce": "ballerinax/salesforce"
+        }
+      },
+      "variable": {
+        "metadata": {
+          "label": "Connection Name"
+        },
+        "valueType": "IDENTIFIER",
+        "value": "sfSales",
+        "optional": false,
+        "editable": true
+      },
+      "scope": {
+        "metadata": {
+          "label": "Connection Scope"
+        },
+        "valueType": "ENUM",
+        "value": "Global",
+        "optional": false,
+        "editable": true
+      },
+      "checkError": {
+        "metadata": {
+          "label": "Check Error"
+        },
+        "valueType": "FLAG",
+        "value": true,
+        "optional": false,
+        "editable": false
+      }
+    },
+    "flags": 0
+  },
+  "output": {
+    "new_connection-salesforce-readd/connections.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "import ballerinax/salesforce;"
+      },
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "final salesforce:Client sfSales = check new ({baseUrl: sfSalesBaseUrl, auth: {tokenUrl: sfSalesAuthTokenUrl, clientId: sfSalesAuthClientId1, clientSecret: sfSalesAuthClientSecret}});"
+      }
+    ],
+    "new_connection-salesforce-readd/config.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 2,
+            "character": 44
+          },
+          "end": {
+            "line": 2,
+            "character": 44
+          }
+        },
+        "newText": "\nconfigurable string sfSalesAuthClientId1 = ?;\nconfigurable string sfSalesAuthClientSecret = ?;"
+      }
+    ],
+    "new_connection-salesforce-readd/Config.toml": [
+      {
+        "range": {
+          "start": {
+            "line": 5,
+            "character": 22
+          },
+          "end": {
+            "line": 5,
+            "character": 75
+          }
+        },
+        "newText": "\"https://acme.my.salesforce.com/services/oauth2/token\""
+      },
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 17
+          },
+          "end": {
+            "line": 1,
+            "character": 32
+          }
+        },
+        "newText": "\"https://acme.my.salesforce.com\""
+      },
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "sfSalesAuthClientId1 = \"acme-client\"\nsfSalesAuthClientSecret = \"s3cret\"\n"
+      }
+    ]
+  }
+}

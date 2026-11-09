@@ -365,6 +365,17 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
         console.log(">>> requesting bi source code from ls", params);
         try {
             this.ensureTargetFileExists(params.filePath);
+            if (params?.isConnector) {
+                // The LS computes a connection's Config.toml edits from disk, so unsaved editor text must reach it first.
+                const saved = await Promise.all(workspace.textDocuments
+                    .filter((document) => document.isDirty && path.basename(document.fileName) === "Config.toml")
+                    .map((document) => document.save()));
+                if (saved.includes(false)) {
+                    const errorMessage = "Config.toml has unsaved changes that could not be saved.";
+                    window.showErrorMessage(`Failed to save changes: ${errorMessage}`);
+                    return { artifacts: [], error: errorMessage };
+                }
+            }
             const model = await StateMachine.langClient().getSourceCode(params) as BISourceCodeResponse;
             console.log(">>> bi source code from ls", model);
 
@@ -386,7 +397,16 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             }
 
             if (params?.isConnector) {
-                const artifacts = await updateSourceCode({ textEdits: model.textEdits, description: this.getSourceDescription(params) });
+                // A connection save can also write config.bal and Config.toml; only the connection's own artifact answers it.
+                const artifacts = await updateSourceCode({
+                    textEdits: model.textEdits,
+                    artifactData: {
+                        artifactType: DIRECTORY_MAP.CONNECTION,
+                        identifier: params.flowNode.properties?.variable?.value?.toString()
+                    },
+                    description: this.getSourceDescription(params),
+                    skipUpdateViewOnTomlUpdate: true
+                });
                 return { artifacts };
             }
 

@@ -73,13 +73,28 @@
         "optional": false,
         "editable": true,
         "imports": {
-            "http": "ballerina/http"
+          "http": "ballerina/http"
         }
       }
     },
     "flags": 1
   },
   "output": {
+    "new_connection7/config.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "configurable string localHttpClUrl = ?;"
+      }
+    ],
     "new_connection7/connections.bal": [
       {
         "range": {
@@ -105,7 +120,22 @@
             "character": 0
           }
         },
-        "newText": "final http:Client localHttpCl = check new (\"http://localhost:8080\", {});"
+        "newText": "final http:Client localHttpCl = check new (localHttpClUrl, {});"
+      }
+    ],
+    "new_connection7/Config.toml": [
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "localHttpClUrl = \"http://localhost:8080\"\n"
       }
     ]
   }

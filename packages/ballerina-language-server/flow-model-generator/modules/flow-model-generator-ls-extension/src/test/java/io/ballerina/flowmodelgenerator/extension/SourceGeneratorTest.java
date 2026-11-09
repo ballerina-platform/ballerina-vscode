@@ -23,10 +23,13 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
+import io.ballerina.flowmodelgenerator.extension.request.FlowModelNodeTemplateRequest;
 import io.ballerina.flowmodelgenerator.extension.request.FlowModelSourceGeneratorRequest;
 import io.ballerina.modelgenerator.commons.AbstractLSTest;
 import io.ballerina.modelgenerator.commons.FileSystemUtils;
+import io.ballerina.tools.text.LinePosition;
 import org.ballerinalang.langserver.util.TestUtil;
+import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.TextEdit;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -177,6 +180,26 @@ public class SourceGeneratorTest extends AbstractLSTest {
                 "Diagnostics returned no flow node: " + response);
     }
 
+    @Test
+    public void testNewConnectionSavedAfterItsFormGetsTheSameSource() throws IOException {
+        // The save reads the connector's types from the init the form's template request loaded. That init sits in a
+        // static slot, so other tests' saves may reuse whatever an earlier template request left there; this test
+        // fills it right before its own save.
+        TestConfig testConfig = gson.fromJson(
+                Files.newBufferedReader(configDir.resolve("new_connection-salesforce.json")), TestConfig.class);
+        String filePath = sourceDir.resolve(testConfig.source()).toAbsolutePath().toString();
+        JsonObject diagram = testConfig.diagram().getAsJsonObject();
+        getResponse(new FlowModelNodeTemplateRequest(filePath, LinePosition.from(0, 0),
+                diagram.getAsJsonObject("codedata")), getServiceName() + "/getNodeTemplate");
+        JsonObject textEdits = getResponseAndCloseFile(new FlowModelSourceGeneratorRequest(filePath,
+                diagram.deepCopy()), testConfig.source()).getAsJsonObject("textEdits");
+
+        Map<String, List<TextEdit>> actualTextEdits = gson.fromJson(textEdits, textEditListType);
+        Assert.assertEquals(actualTextEdits.keySet().size(), testConfig.output().size());
+        actualTextEdits.forEach((path, edits) -> Assert.assertTrue(assertArray("text edits", edits,
+                testConfig.output().get(sourceDir.relativize(Paths.get(path)).toString().replace("\\", "/")))));
+    }
+
     private JsonObject requestWithBlankWorkflow(String config, String workflowKey, String api) throws IOException {
         return requestWithBlankWorkflow(config, workflowKey, null, api);
     }
@@ -216,6 +239,74 @@ public class SourceGeneratorTest extends AbstractLSTest {
         JsonObject response = JsonParser.parseString(TestUtil.getResponseString(result)).getAsJsonObject()
                 .getAsJsonObject("result");
         Assert.assertEquals(response.get("errorMsg").getAsString(), expectedMessage);
+    }
+
+    @Test(dataProvider = "refused-connection")
+    public void testConfigurableNameClashIsRefused(String connection, String expectedMessage) throws IOException {
+        // A configurable's name held by any symbol but a configurable of the field's type refuses the connection.
+        TestConfig testConfig = gson.fromJson(
+                Files.newBufferedReader(configDir.resolve("new_connection-salesforce.json")), TestConfig.class);
+        JsonObject diagram = testConfig.diagram().getAsJsonObject().deepCopy();
+        diagram.getAsJsonObject("properties").getAsJsonObject("variable").addProperty("value", connection);
+        FlowModelSourceGeneratorRequest request = new FlowModelSourceGeneratorRequest(
+                sourceDir.resolve("new_connection-salesforce-clash/connections.bal").toAbsolutePath().toString(),
+                diagram);
+        CompletableFuture<?> result = serviceEndpoint.request(getServiceName() + "/" + getApiName(), request);
+        JsonObject response = JsonParser.parseString(TestUtil.getResponseString(result)).getAsJsonObject()
+                .getAsJsonObject("result");
+        Assert.assertEquals(response.get("errorMsg").getAsString(), expectedMessage);
+        Assert.assertFalse(response.has("textEdits"), "A refused connection still has edits: " + response);
+    }
+
+    @DataProvider(name = "refused-connection")
+    private Object[][] refusedConnections() {
+        String message = "'%sBaseUrl' is already used in this module. Choose another connection name.";
+        return new Object[][]{
+                {"sfVar", message.formatted("sfVar")},
+                {"sfConst", message.formatted("sfConst")},
+                {"sfFn", message.formatted("sfFn")},
+                {"sfInt", message.formatted("sfInt")},
+                {"'sfInt", message.formatted("sfInt")}
+        };
+    }
+
+    @Test
+    public void testReAddedConnectionEditsApplyOneByOne() throws IOException {
+        // The extension applies Config.toml's edits one by one, each to the text the one before left.
+        TestConfig testConfig = gson.fromJson(
+                Files.newBufferedReader(configDir.resolve("new_connection-salesforce-readd.json")), TestConfig.class);
+        FlowModelSourceGeneratorRequest request = new FlowModelSourceGeneratorRequest(
+                sourceDir.resolve(testConfig.source()).toAbsolutePath().toString(), testConfig.diagram());
+        Map<String, List<TextEdit>> textEdits = gson.fromJson(
+                getResponseAndCloseFile(request, testConfig.source()).getAsJsonObject("textEdits"), textEditListType);
+        Path configToml = Path.of("new_connection-salesforce-readd", "Config.toml");
+        String text = Files.readString(sourceDir.resolve(configToml));
+        for (TextEdit edit : textEdits.entrySet().stream().filter(entry -> Path.of(entry.getKey()).endsWith(configToml))
+                .findFirst().orElseThrow().getValue()) {
+            text = apply(text, edit);
+        }
+        Assert.assertEquals(text.replace("\r\n", "\n"), """
+                sfSalesAuthClientId1 = "acme-client"
+                sfSalesAuthClientSecret = "s3cret"
+                sfSalesBaseUrl = "https://acme.my.salesforce.com"
+                sfSalesAuthClientId = "old-client"
+
+                [sfdemo]
+                sfSalesAuthTokenUrl = "https://acme.my.salesforce.com/services/oauth2/token"
+                """);
+    }
+
+    private static String apply(String text, TextEdit edit) {
+        return text.substring(0, offset(text, edit.getRange().getStart())) + edit.getNewText()
+                + text.substring(offset(text, edit.getRange().getEnd()));
+    }
+
+    private static int offset(String text, Position position) {
+        int offset = 0;
+        for (int line = 0; line < position.getLine(); line++) {
+            offset = text.indexOf('\n', offset) + 1;
+        }
+        return offset + position.getCharacter();
     }
 
     @DataProvider(name = "refused-capability")
