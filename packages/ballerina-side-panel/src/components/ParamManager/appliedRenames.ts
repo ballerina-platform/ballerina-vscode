@@ -21,8 +21,9 @@ import { FormField, FormValues } from "../Form/types";
 
 /**
  * The identifier values the editor holds that were renamed in place through the LS. Such a
- * field (a read-only identifier with a source range, rendered by IdentifierEditor) changes only
- * when a rename is applied to the source, so its new value stands even if the edit is cancelled.
+ * field (a read-only identifier with a source range, rendered by IdentifierEditor) takes a new
+ * value only after renameIdentifier reports that the LS applied edits to the source, so that
+ * value stands even if the edit is cancelled.
  * Returns the changed values keyed by field, empty when nothing was renamed.
  */
 export function getAppliedRenames(fields: FormField[], values: FormValues, saved: FormValues): FormValues {
