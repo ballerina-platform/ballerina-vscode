@@ -386,7 +386,7 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             }
 
             if (params?.isConnector) {
-                // A new connection also writes config.bal and Config.toml; only its own artifact answers the save.
+                // A connection save can also write config.bal and Config.toml; only the connection's own artifact answers it.
                 const artifacts = await updateSourceCode({
                     textEdits: model.textEdits,
                     artifactData: {
