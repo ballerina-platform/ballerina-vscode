@@ -3,6 +3,8 @@ type Config record {|
     string fooBar?;
     string? password = ();
     int|string size?;
+    float timeout?;
+    decimal rate?;
 |};
 
 type Pool record {|
