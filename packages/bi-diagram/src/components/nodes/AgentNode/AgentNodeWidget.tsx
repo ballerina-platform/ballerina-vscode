@@ -778,6 +778,7 @@ function TraceAccentPulse({ isActive, aiColor, syncPulseAnimation }: {
                 transform-origin: 80px 24px;
                 transform: scale(1.03);
                 animation: ${syncPulseAnimation} 1.5s ease-in-out infinite alternate;
+                animation-play-state: ${isActive ? "running" : "paused"};
             `}
         />
     );
@@ -824,6 +825,7 @@ function TraceAccentLine({ isActive, aiColor, baseStroke, baseDashArray, markerI
                     opacity: ${isActive ? 1 : 0};
                     transition: opacity 0.4s ease-out;
                     animation: ${flowDashAnimation} 1s linear infinite;
+                    animation-play-state: ${isActive ? "running" : "paused"};
                 `}
             />
         </>
@@ -1277,6 +1279,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                     transform-origin: 268px 24px;
                                     transform: scale(1.03);
                                     animation: ${syncPulseAnimation} 1.5s ease-in-out infinite alternate;
+                                    animation-play-state: ${isRowActive ? "running" : "paused"};
                                 `}
                             />
                             <foreignObject
@@ -1348,6 +1351,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                     opacity: ${isRowActive ? 1 : 0};
                                     transition: opacity 0.4s ease-out;
                                     animation: ${flowDashAnimation} 1s linear infinite;
+                                    animation-play-state: ${isRowActive ? "running" : "paused"};
                                 `}
                             />
 
@@ -1493,6 +1497,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                         opacity: ${isAgentNodeActive ? 1 : 0};
                         transition: opacity 0.4s ease-out;
                         animation: ${boxSyncPulseAnimation} 1.5s ease-in-out infinite alternate;
+                        animation-play-state: ${isAgentNodeActive ? "running" : "paused"};
                         pointer-events: none;
                         z-index: 1;
                     `}
