@@ -19,8 +19,9 @@
 // L2: typing an argument value in the Try It explorer. graphiql-explorer focuses an argument input
 // and selects its text when the input mounts, so if the explorer is remounted on every edit, each
 // keystroke selects the value and the next one replaces it. The explorer is rendered for real; only
-// GraphiQL is stubbed (its CodeMirror editors don't run in jsdom) with a stand-in that renders the
-// visible plugin the way GraphiQL does, and feeds the query back the way its editor would.
+// GraphiQL is stubbed (its CodeMirror editors don't run in jsdom) with a stand-in that only renders
+// the visible plugin the way GraphiQL does. The query comes back through the explorer's `onEdit`;
+// GraphiQL's own query editor path is not exercised here.
 
 import React from "react";
 import { createRoot, Root } from "react-dom/client";
