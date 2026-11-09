@@ -65,6 +65,20 @@
   overflow: unset !important;
 }
 
+/*
+ * graphiql-explorer sizes its argument and operation-name inputs inline as `<value length>ch`,
+ * which assumes a content-box input. graphiql's `.graphiql-container * { box-sizing: border-box }`
+ * makes that width also hold the padding and border, so a value like `10` is clipped. Size the
+ * input to its content instead.
+ */
+.graphiql-explorer-root input[type="text"] {
+  box-sizing: content-box;
+  padding: 0 2px;
+  field-sizing: content;
+  width: auto !important;
+  min-width: 1ch;
+}
+
 .graphiql-operation-title-bar {
   display: none;
 }
