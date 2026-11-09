@@ -46,6 +46,7 @@ import io.ballerina.toml.api.Toml;
 import io.ballerina.toml.semantic.ast.TomlValueNode;
 import io.ballerina.tools.text.LinePosition;
 import org.ballerinalang.langserver.LSClientLogger;
+import org.ballerinalang.langserver.commons.BallerinaCompilerApi;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceManager;
 import org.eclipse.lsp4j.TextEdit;
 
@@ -87,8 +88,8 @@ public class NewConnectionBuilder extends CallBuilder {
 
     /**
      * The init of the connector the form was last built for. Saving the connection reads its types from here
-     * rather than loading and compiling the connector a second time. A client generated into the project is not kept:
-     * its types change with the project.
+     * rather than loading and compiling the connector a second time. A client generated into the project, or a
+     * package of the same workspace, is not kept: its types change with the user's edits.
      */
     private static final AtomicReference<ConnectorInit> LAST_CONNECTOR_INIT = new AtomicReference<>();
 
@@ -169,7 +170,8 @@ public class NewConnectionBuilder extends CallBuilder {
         Codedata codedata = sourceBuilder.flowNode.codedata();
         String connector = connectorId(codedata.org(), codedata.resolvePackageName(), codedata.module(),
                 codedata.object(), codedata.version());
-        ConnectorInit lastInit = Boolean.TRUE.equals(codedata.isGenerated()) ? null : LAST_CONNECTOR_INIT.get();
+        ConnectorInit lastInit = changesWithProject(codedata, codedata.org(), codedata.resolvePackageName(),
+                sourceBuilder.workspaceManager, sourceBuilder.filePath) ? null : LAST_CONNECTOR_INIT.get();
         FunctionData init;
         try {
             init = lastInit != null && lastInit.connector().equals(connector) ? lastInit.init()
@@ -281,7 +283,8 @@ public class NewConnectionBuilder extends CallBuilder {
         Codedata codedata = context.codedata();
         FunctionData functionData = connectorInit(codedata, context.workspaceManager(), context.filePath(),
                 context.lsClientLogger());
-        if (!Boolean.TRUE.equals(codedata.isGenerated())) {
+        if (!changesWithProject(codedata, functionData.org(), functionData.packageName(), context.workspaceManager(),
+                context.filePath())) {
             LAST_CONNECTOR_INIT.set(new ConnectorInit(connectorId(functionData.org(), functionData.packageName(),
                     functionData.moduleName(), functionData.name(), functionData.version()), functionData));
         }
@@ -346,6 +349,25 @@ public class NewConnectionBuilder extends CallBuilder {
             functionDataBuilder.semanticModel(semanticModel);
         }
         return functionDataBuilder.build();
+    }
+
+    /**
+     * Whether the connector's types change with the user's edits: a client generated into the project, or a package of
+     * the same workspace.
+     */
+    private static boolean changesWithProject(Codedata codedata, String org, String packageName,
+                                              WorkspaceManager workspaceManager, Path filePath) {
+        if (Boolean.TRUE.equals(codedata.isGenerated())) {
+            return true;
+        }
+        BallerinaCompilerApi compilerApi = BallerinaCompilerApi.getInstance();
+        return workspaceManager.project(filePath)
+                .flatMap(compilerApi::getWorkspaceProject)
+                .map(workspace -> compilerApi.getWorkspaceProjectsInOrder(workspace).stream()
+                        .map(Project::currentPackage)
+                        .anyMatch(pkg -> pkg.packageOrg().value().equals(org)
+                                && pkg.packageName().value().equals(packageName)))
+                .orElse(false);
     }
 
     private static String connectorId(String org, String packageName, String module, String object,
