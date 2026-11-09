@@ -1368,19 +1368,24 @@ public class FormBuilder<T> extends FacetedBuilder<T> {
                     .selected(true)
                     .stepOut()
                 .value(name);
+        parameterNameSource(token);
+        addProperty(Property.VARIABLE_KEY);
 
-        // A name read from source is renamed in place through the LS, which also updates its references
+        return endNestedProperty(Property.ValueType.FIXED_PROPERTY, name, Property.PARAMETER_LABEL,
+                Property.PARAMETER_DOC);
+    }
+
+    /**
+     * A parameter name read from source ({@code token} set) is renamed in place through the LS, which
+     * also updates its references; a new one is typed in.
+     */
+    private void parameterNameSource(Token token) {
         if (token == null) {
             propertyBuilder.editable();
         } else {
             propertyBuilder.codedata()
                     .lineRange(token.lineRange());
         }
-
-        addProperty(Property.VARIABLE_KEY);
-
-        return endNestedProperty(Property.ValueType.FIXED_PROPERTY, name, Property.PARAMETER_LABEL,
-                Property.PARAMETER_DOC);
     }
 
     public FormBuilder<T> parameterWithDescription(String type, String name, Token token, Property.ValueType valueType,
@@ -1406,14 +1411,7 @@ public class FormBuilder<T> extends FacetedBuilder<T> {
                 .stepOut()
                 .type(Property.ValueType.IDENTIFIER)
                 .value(name);
-
-        if (token == null) {
-            propertyBuilder.editable();
-        } else {
-            propertyBuilder.codedata()
-                    .lineRange(token.lineRange());
-        }
-
+        parameterNameSource(token);
         addProperty(Property.VARIABLE_KEY);
 
         propertyBuilder
