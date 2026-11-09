@@ -128,16 +128,39 @@ describe("auto-fill (getDefaultFieldNames)", () => {
         );
     });
 
-    it("leaves every non-meta type at GraphiQL's default", () => {
-        for (const type of Object.values(schema.getTypeMap())) {
-            if (type.name.startsWith("__") || !("getFields" in type)) {
-                continue;
+    // A query per non-meta type that leaves a field of that type without a selection, reached
+    // from a root type through object fields. Root operation types are not a field's type here.
+    const NON_META_QUERIES = (() => {
+        const queries = new Map<string, string>();
+        const roots = { query: schema.getQueryType(), mutation: schema.getMutationType() };
+        const queue = Object.entries(roots).flatMap(([operation, root]) =>
+            root ? [{ type: root, wrap: (s: string) => `${operation} { ${s} }` }] : []
+        );
+        while (queue.length > 0) {
+            const { type, wrap } = queue.shift()!;
+            for (const [fieldName, field] of Object.entries(type.getFields())) {
+                const named = getNamedType(field.type);
+                if (named.name.startsWith("__") || !(named instanceof GraphQLObjectType) || queries.has(named.name)) {
+                    continue;
+                }
+                queries.set(named.name, wrap(fieldName));
+                queue.push({ type: named, wrap: (s: string) => wrap(`${fieldName} { ${s} }`) });
             }
-            const fields = type.getFields();
-            const leafNames = Object.keys(fields).filter((name) => isLeafType(fields[name].type));
-            const expected = fields.id ? ["id"] : fields.edges ? ["edges"] : fields.node ? ["node"] : leafNames;
-            expect(getDefaultFieldNames(type)).toEqual(expected);
         }
+        return queries;
+    })();
+
+    it("reaches every non-root, non-meta object type", () => {
+        const rootNames = [schema.getQueryType(), schema.getMutationType()].map((root) => root?.name);
+        const objectTypes = Object.values(schema.getTypeMap())
+            .filter((type) => type instanceof GraphQLObjectType && !type.name.startsWith("__") && !rootNames.includes(type.name))
+            .map((type) => type.name);
+        expect(objectTypes.length).toBeGreaterThan(0);
+        expect(Array.from(NON_META_QUERIES.keys()).sort()).toEqual(objectTypes.sort());
+    });
+
+    it.each(Array.from(NON_META_QUERIES.entries()))("fills %s exactly as GraphiQL's own default does", (_, query) => {
+        expect(fillLeafs(schema, query, getDefaultFieldNames).result).toEqual(fillLeafs(schema, query).result);
     });
 
     it("does not filter when the server lists no meta types", () => {
