@@ -117,6 +117,26 @@ public class McpClientTest {
     }
 
     @Test
+    public void fallsBackToInitializeForAResultWithoutVersions() throws IOException {
+        // A legacy server that answers every method it does not know with an empty result
+        server = new FakeServer(method -> switch (method) {
+            case "server/discover" -> Reply.json(200, result("{}"));
+            case "initialize" -> Reply.json(200, result("{\"serverInfo\": {\"name\": \"Legacy\"}}"));
+            case "notifications/initialized" -> Reply.accepted();
+            case "tools/list" -> Reply.json(200, result(TOOLS));
+            default -> Reply.json(400, error(-32600, "unexpected " + method));
+        });
+        Assert.assertEquals(McpClient.listTools(server.url(), null, null).serverInfo().name(), "Legacy");
+    }
+
+    @Test
+    public void rejectsAModernServerWithNoKnownProtocolVersion() throws IOException {
+        server = new FakeServer(method -> Reply.json(200, result("{\"supportedVersions\": [\"2030-01-01\"]}")));
+        IOException e = Assert.expectThrows(IOException.class, () -> McpClient.listTools(server.url(), null, null));
+        Assert.assertTrue(e.getMessage().contains("no supported MCP protocol version"), e.getMessage());
+    }
+
+    @Test
     public void rejectsAServerWithNoKnownProtocolVersion() throws IOException {
         server = new FakeServer(method -> Reply.json(400, "{\"jsonrpc\": \"2.0\", \"id\": 1, \"error\": "
                 + "{\"code\": -32022, \"message\": \"Unsupported protocol version\", "

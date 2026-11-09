@@ -609,8 +609,12 @@ public class McpClient {
                 return null;
             }
             JsonObject result = message.getAsJsonObject("result");
-            JsonArray supportedVersions = result.has("supportedVersions") && result.get("supportedVersions")
-                    .isJsonArray() ? result.getAsJsonArray("supportedVersions") : new JsonArray();
+            if (!result.has("supportedVersions") || !result.get("supportedVersions").isJsonArray()) {
+                // A discovery result always lists its versions, so this comes from a legacy server that answers
+                // any method it does not know with an empty result
+                return null;
+            }
+            JsonArray supportedVersions = result.getAsJsonArray("supportedVersions");
             if (containsVersion(supportedVersions, MODERN_PROTOCOL_VERSIONS)) {
                 return message;
             }
