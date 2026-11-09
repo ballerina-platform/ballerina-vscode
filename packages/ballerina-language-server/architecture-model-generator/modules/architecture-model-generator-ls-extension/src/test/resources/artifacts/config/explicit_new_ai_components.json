@@ -4,6 +4,60 @@
   "packageName": ".",
   "output": {
     "Connections": {
+      "chunker": {
+        "id": "chunker",
+        "location": {
+          "fileName": "explicit_new_ai_components.bal",
+          "startLine": {
+            "line": 8,
+            "offset": 0
+          },
+          "endLine": {
+            "line": 8,
+            "offset": 52
+          }
+        },
+        "type": "CONNECTION",
+        "name": "chunker",
+        "scope": "Global",
+        "visibility": "module",
+        "icon": {
+          "url": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png",
+          "source": "ballerina-central"
+        },
+        "module": "ai",
+        "children": {},
+        "metadata": {
+          "connectorType": "chunker"
+        }
+      },
+      "dataLoader": {
+        "id": "dataLoader",
+        "location": {
+          "fileName": "explicit_new_ai_components.bal",
+          "startLine": {
+            "line": 7,
+            "offset": 0
+          },
+          "endLine": {
+            "line": 7,
+            "offset": 73
+          }
+        },
+        "type": "CONNECTION",
+        "name": "dataLoader",
+        "scope": "Global",
+        "visibility": "module",
+        "icon": {
+          "url": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png",
+          "source": "ballerina-central"
+        },
+        "module": "ai",
+        "children": {},
+        "metadata": {
+          "connectorType": "dataLoader"
+        }
+      },
       "embeddingProvider": {
         "id": "embeddingProvider",
         "location": {
@@ -56,6 +110,33 @@
         "children": {},
         "metadata": {
           "connectorType": "knowledgeBase"
+        }
+      },
+      "memoryStore": {
+        "id": "memoryStore",
+        "location": {
+          "fileName": "explicit_new_ai_components.bal",
+          "startLine": {
+            "line": 6,
+            "offset": 0
+          },
+          "endLine": {
+            "line": 6,
+            "offset": 88
+          }
+        },
+        "type": "CONNECTION",
+        "name": "memoryStore",
+        "scope": "Global",
+        "visibility": "module",
+        "icon": {
+          "url": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png",
+          "source": "ballerina-central"
+        },
+        "module": "ai",
+        "children": {},
+        "metadata": {
+          "connectorType": "memoryStore"
         }
       },
       "modelProvider": {

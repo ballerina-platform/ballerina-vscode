@@ -6,6 +6,418 @@
     "nodes": [],
     "connections": [
       {
+        "id": "39732",
+        "metadata": {
+          "label": "Chunker",
+          "description": "Initializes a new instance of the `MarkdownChunker`.\n",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png"
+        },
+        "codedata": {
+          "node": "CHUNKER",
+          "org": "ballerina",
+          "module": "ai",
+          "object": "MarkdownChunker",
+          "symbol": "init",
+          "lineRange": {
+            "fileName": "main.bal",
+            "startLine": {
+              "line": 8,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 8,
+              "offset": 52
+            }
+          },
+          "sourceCode": "final ai:Chunker chunker = new ai:MarkdownChunker();",
+          "data": {
+            "explicitNewType": "ai:MarkdownChunker"
+          }
+        },
+        "returning": false,
+        "properties": {
+          "maxChunkSize": {
+            "metadata": {
+              "label": "Max Chunk Size",
+              "description": "Maximum number of characters allowed per chunk"
+            },
+            "types": [
+              {
+                "fieldType": "NUMBER",
+                "ballerinaType": "int",
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "int",
+                "selected": false
+              }
+            ],
+            "placeholder": "0",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "DEFAULTABLE",
+              "originalName": "maxChunkSize"
+            },
+            "defaultValue": "200"
+          },
+          "maxOverlapSize": {
+            "metadata": {
+              "label": "Max Overlap Size",
+              "description": "Maximum number of characters to reuse from the end of the previous chunk when creating\nthe next one."
+            },
+            "types": [
+              {
+                "fieldType": "NUMBER",
+                "ballerinaType": "int",
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "int",
+                "selected": false
+              }
+            ],
+            "placeholder": "0",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "DEFAULTABLE",
+              "originalName": "maxOverlapSize"
+            },
+            "defaultValue": "40"
+          },
+          "strategy": {
+            "metadata": {
+              "label": "Strategy",
+              "description": "The markdown chunking strategy to use. Defaults to `MARKDOWN_HEADER`"
+            },
+            "types": [
+              {
+                "fieldType": "SINGLE_SELECT",
+                "options": [
+                  {
+                    "label": "MARKDOWN_HEADER",
+                    "value": "\"MARKDOWN_HEADER\""
+                  },
+                  {
+                    "label": "CODE_BLOCK",
+                    "value": "\"CODE_BLOCK\""
+                  },
+                  {
+                    "label": "HORIZONTAL_LINE",
+                    "value": "\"HORIZONTAL_LINE\""
+                  },
+                  {
+                    "label": "PARAGRAPH",
+                    "value": "\"PARAGRAPH\""
+                  },
+                  {
+                    "label": "LINE",
+                    "value": "\"LINE\""
+                  },
+                  {
+                    "label": "SENTENCE",
+                    "value": "\"SENTENCE\""
+                  },
+                  {
+                    "label": "WORD",
+                    "value": "\"WORD\""
+                  },
+                  {
+                    "label": "CHARACTER",
+                    "value": "\"CHARACTER\""
+                  }
+                ],
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "ai:MarkdownChunkStrategy",
+                "selected": false
+              }
+            ],
+            "placeholder": "\"MARKDOWN_HEADER\"",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "DEFAULTABLE",
+              "originalName": "strategy"
+            },
+            "defaultValue": "\"MARKDOWN_HEADER\""
+          },
+          "scope": {
+            "metadata": {
+              "label": "Connection Scope",
+              "description": "Scope of the connection, Global or Local"
+            },
+            "types": [
+              {
+                "fieldType": "ENUM",
+                "selected": true
+              }
+            ],
+            "value": "Global",
+            "optional": false,
+            "editable": true,
+            "advanced": true,
+            "hidden": true
+          },
+          "checkError": {
+            "metadata": {
+              "label": "Check Error",
+              "description": "Terminate on error"
+            },
+            "types": [
+              {
+                "fieldType": "FLAG",
+                "selected": true
+              }
+            ],
+            "value": true,
+            "optional": false,
+            "editable": false,
+            "advanced": true,
+            "hidden": true
+          },
+          "variable": {
+            "metadata": {
+              "label": "Variable Name",
+              "description": "Name of the variable"
+            },
+            "types": [
+              {
+                "fieldType": "IDENTIFIER",
+                "selected": true
+              }
+            ],
+            "value": "chunker",
+            "optional": false,
+            "editable": false,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "lineRange": {
+                "fileName": "main.bal",
+                "startLine": {
+                  "line": 8,
+                  "offset": 17
+                },
+                "endLine": {
+                  "line": 8,
+                  "offset": 24
+                }
+              }
+            }
+          },
+          "type": {
+            "metadata": {
+              "label": "Variable Type",
+              "description": "Type of the variable"
+            },
+            "types": [
+              {
+                "fieldType": "TYPE",
+                "selected": true
+              }
+            ],
+            "value": "ai:Chunker",
+            "placeholder": "var",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {}
+          }
+        },
+        "flags": 0
+      },
+      {
+        "id": "38761",
+        "metadata": {
+          "label": "Data Loader",
+          "description": "Initializes the data loader with the given paths.",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png"
+        },
+        "codedata": {
+          "node": "DATA_LOADER",
+          "org": "ballerina",
+          "module": "ai",
+          "object": "TextDataLoader",
+          "symbol": "init",
+          "lineRange": {
+            "fileName": "main.bal",
+            "startLine": {
+              "line": 7,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 7,
+              "offset": 73
+            }
+          },
+          "sourceCode": "final ai:DataLoader dataLoader = check new ai:TextDataLoader(\"data.txt\");",
+          "data": {
+            "explicitNewType": "ai:TextDataLoader"
+          }
+        },
+        "returning": false,
+        "properties": {
+          "paths": {
+            "metadata": {
+              "label": "paths",
+              "description": "The paths to the files to load"
+            },
+            "types": [
+              {
+                "fieldType": "REPEATABLE_LIST",
+                "ballerinaType": "string",
+                "template": {
+                  "types": [
+                    {
+                      "fieldType": "TEXT",
+                      "ballerinaType": "string",
+                      "selected": false
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "string",
+                      "selected": false
+                    }
+                  ],
+                  "optional": false,
+                  "editable": false,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "selected": true
+              }
+            ],
+            "value": [
+              {
+                "types": [
+                  {
+                    "fieldType": "TEXT",
+                    "ballerinaType": "string",
+                    "selected": false
+                  },
+                  {
+                    "fieldType": "EXPRESSION",
+                    "ballerinaType": "string",
+                    "selected": true
+                  }
+                ],
+                "value": "\"data.txt\"",
+                "optional": false,
+                "editable": false,
+                "advanced": false,
+                "hidden": false
+              }
+            ],
+            "placeholder": "\"\"",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "REST_PARAMETER",
+              "originalName": "paths"
+            }
+          },
+          "checkError": {
+            "metadata": {
+              "label": "Check Error",
+              "description": "Terminate on error"
+            },
+            "types": [
+              {
+                "fieldType": "FLAG",
+                "selected": true
+              }
+            ],
+            "value": true,
+            "optional": false,
+            "editable": false,
+            "advanced": true,
+            "hidden": true
+          },
+          "scope": {
+            "metadata": {
+              "label": "Connection Scope",
+              "description": "Scope of the connection, Global or Local"
+            },
+            "types": [
+              {
+                "fieldType": "ENUM",
+                "selected": true
+              }
+            ],
+            "value": "Global",
+            "optional": false,
+            "editable": true,
+            "advanced": true,
+            "hidden": true
+          },
+          "variable": {
+            "metadata": {
+              "label": "Variable Name",
+              "description": "Name of the variable"
+            },
+            "types": [
+              {
+                "fieldType": "IDENTIFIER",
+                "selected": true
+              }
+            ],
+            "value": "dataLoader",
+            "optional": false,
+            "editable": false,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "lineRange": {
+                "fileName": "main.bal",
+                "startLine": {
+                  "line": 7,
+                  "offset": 20
+                },
+                "endLine": {
+                  "line": 7,
+                  "offset": 30
+                }
+              }
+            }
+          },
+          "type": {
+            "metadata": {
+              "label": "Variable Type",
+              "description": "Type of the variable"
+            },
+            "types": [
+              {
+                "fieldType": "TYPE",
+                "selected": true
+              }
+            ],
+            "value": "ai:DataLoader",
+            "placeholder": "var",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {}
+          }
+        },
+        "flags": 1
+      },
+      {
         "id": "34845",
         "metadata": {
           "label": "Embedding Provider",
@@ -909,6 +1321,151 @@
           }
         },
         "flags": 0
+      },
+      {
+        "id": "37784",
+        "metadata": {
+          "label": "Memory Store",
+          "description": "Initializes a new in-memory store.\n",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png"
+        },
+        "codedata": {
+          "node": "SHORT_TERM_MEMORY_STORE",
+          "org": "ballerina",
+          "module": "ai",
+          "object": "InMemoryShortTermMemoryStore",
+          "symbol": "init",
+          "lineRange": {
+            "fileName": "main.bal",
+            "startLine": {
+              "line": 6,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 6,
+              "offset": 88
+            }
+          },
+          "sourceCode": "final ai:ShortTermMemoryStore memoryStore = check new ai:InMemoryShortTermMemoryStore();",
+          "data": {
+            "explicitNewType": "ai:InMemoryShortTermMemoryStore"
+          }
+        },
+        "returning": false,
+        "properties": {
+          "size": {
+            "metadata": {
+              "label": "Size",
+              "description": "The maximum capacity for stored messages"
+            },
+            "types": [
+              {
+                "fieldType": "NUMBER",
+                "ballerinaType": "int",
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "int",
+                "selected": false
+              }
+            ],
+            "placeholder": "0",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "DEFAULTABLE",
+              "originalName": "size"
+            },
+            "defaultValue": "10"
+          },
+          "checkError": {
+            "metadata": {
+              "label": "Check Error",
+              "description": "Terminate on error"
+            },
+            "types": [
+              {
+                "fieldType": "FLAG",
+                "selected": true
+              }
+            ],
+            "value": true,
+            "optional": false,
+            "editable": false,
+            "advanced": true,
+            "hidden": true
+          },
+          "scope": {
+            "metadata": {
+              "label": "Connection Scope",
+              "description": "Scope of the connection, Global or Local"
+            },
+            "types": [
+              {
+                "fieldType": "ENUM",
+                "selected": true
+              }
+            ],
+            "value": "Global",
+            "optional": false,
+            "editable": true,
+            "advanced": true,
+            "hidden": true
+          },
+          "variable": {
+            "metadata": {
+              "label": "Variable Name",
+              "description": "Name of the variable"
+            },
+            "types": [
+              {
+                "fieldType": "IDENTIFIER",
+                "selected": true
+              }
+            ],
+            "value": "memoryStore",
+            "optional": false,
+            "editable": false,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "lineRange": {
+                "fileName": "main.bal",
+                "startLine": {
+                  "line": 6,
+                  "offset": 30
+                },
+                "endLine": {
+                  "line": 6,
+                  "offset": 41
+                }
+              }
+            }
+          },
+          "type": {
+            "metadata": {
+              "label": "Variable Type",
+              "description": "Type of the variable"
+            },
+            "types": [
+              {
+                "fieldType": "TYPE",
+                "selected": true
+              }
+            ],
+            "value": "ai:ShortTermMemoryStore",
+            "placeholder": "var",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {}
+          }
+        },
+        "flags": 1
       },
       {
         "id": "33835",
