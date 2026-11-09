@@ -27,6 +27,7 @@ import { seedAiBaselines } from '../utils/project/ls-schema-notifications';
 import { mapWithConcurrency } from '../utils/concurrency';
 import { getNPSuffix, getSystemPrompt, getUserPrompt } from './prompts';
 import { getProjectBlock } from './utils';
+import { ReadTracker } from './tools/read-tracker';
 import { isWebSearchEnabled } from './tools/web-search-setting';
 import { shouldFailForMissingCompaction } from './compaction-gate';
 import {
@@ -478,6 +479,13 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
             const chatHistory = this.getChatHistory();
             console.log(`[AgentExecutor] Using ${chatHistory.length} chat history messages`);
             const historyMessages = populateHistoryForAgent(chatHistory);
+            const historyGenerations = this.config.chatStorage
+                ? generationsSinceLastRestart(chatStateStorage.getGenerations(this.chatStoreKey, threadId))
+                : [];
+            // What the agent has seen follows the history it is sent, so only a run that replays history checks it.
+            const reads = this.config.chatStorage && this.config.chatStorage.replayHistory !== false
+                ? ReadTracker.fromHistory(tempProjectPath, historyMessages.length > 0 ? historyGenerations : [])
+                : undefined;
 
             // Accumulator for token usage from tool-internal LLM calls (e.g. Haiku filtering)
             // These are separate API calls NOT included in the main agent loop's totalUsage
@@ -503,6 +511,7 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
                 webSearchEnabled,
                 ctx: this.config.executionContext,
                 specContext: this.buildSpecContext(threadId),
+                reads,
                 // TODO(auto-memory): temporarily disabled for this release.
                 // autoMemoryEnabled: isMemoryEnabled(),
             });
@@ -525,9 +534,6 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
                 npNote: getNPSuffix(turnProjects, params.operationType) || undefined,
                 systemMessages: systemInMessages,
             });
-            const historyGenerations = this.config.chatStorage
-                ? generationsSinceLastRestart(chatStateStorage.getGenerations(this.chatStoreKey, threadId))
-                : [];
             // A run that sends no history (a migration stage replays none) starts a new prefix, whatever
             // earlier generations stored.
             const hasHistory = historyMessages.length > 0;
@@ -726,6 +732,7 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
                                         ...streamContext.turnLead,
                                         ...carriedMessages, ...stepMessages,
                                     ],
+                                    ...(reads && { seenFiles: [...reads.seen] }),
                                 });
                                 updateAndSaveChat(this.config.generationId, Command.Agent, this.config.eventHandler);
                             }
@@ -858,6 +865,7 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
                             throw error;
                         }
                         compactionRestarts++;
+                        reads?.reset();
                         console.log(`[AgentExecutor] Compaction paused the turn; restarting from its summary (${compactionRestarts}/${MAX_COMPACTION_RESTARTS})`);
                         carriedUsage = addUsage(carriedUsage, await totalUsage);
                         // The summary leaves out the turn's context blocks (the compaction prompt says

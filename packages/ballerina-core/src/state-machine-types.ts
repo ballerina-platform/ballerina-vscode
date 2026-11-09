@@ -1035,6 +1035,13 @@ export interface AgentPrefixState {
     reasoningReset?: boolean;
 }
 
+/** A file the agent saw through one file tool call: its project-relative path and a digest of its text. */
+export interface SeenFile {
+    toolCallId: string;
+    path: string;
+    digest: string;
+}
+
 /**
  * Generation represents a single user prompt + complete AI response cycle
  * Contains all data needed to render UI and pass to LLM
@@ -1072,6 +1079,8 @@ export interface Generation {
     restartedFromSummary?: boolean;
     /** What this turn's requests had told the model when it started (see `AgentPrefixState`). Persisted */
     prefixState?: AgentPrefixState;
+    /** Files this turn's file tools read or wrote, for the read-before-edit check. Persisted */
+    seenFiles?: SeenFile[];
     /** Generation metadata */
     metadata: GenerationMetadata;
 }

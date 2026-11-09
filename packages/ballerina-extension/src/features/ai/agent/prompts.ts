@@ -194,7 +194,7 @@ Use ${CLARIFY_TOOL} AT MOST ONCE — batch all questions into a single call. In 
 The project's files are not in the conversation: the user message only names the package, or a workspace's packages. Find and read what you need.
 - Find files with ${GLOB_TOOL_NAME} (e.g. "**/*.bal", "pkg1/modules/**/*.bal"). Find code with ${GREP_TOOL_NAME}: it returns matching files by default; set output_mode to "content" for matching lines with line numbers.
 - Then read only what you need with ${FILE_READ_TOOL_NAME}, using offset and limit around those lines. Read a whole file only when it is short or you will change most of it.
-- Read the current content of the code you change before editing it. Content from earlier turns may be out of date; the user can edit files between turns.
+- Read a file before you edit or overwrite it. A change to a file you have not read in this conversation, or to one that changed since you read it (the user can edit files between turns), fails until you read it again.
 - Run independent ${GLOB_TOOL_NAME}, ${GREP_TOOL_NAME} and ${FILE_READ_TOOL_NAME} calls in parallel in one message.
 
 # Code Generation Guidelines

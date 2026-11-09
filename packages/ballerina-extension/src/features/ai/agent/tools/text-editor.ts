@@ -29,6 +29,7 @@ import { seedNewPackageBaseline } from "../../utils/project/ls-schema-notificati
 import { hasUnsavedChanges, saveIfUnsaved, unsavedChangesError } from "../../utils/project/unsaved-documents";
 import { MAX_LINE_LENGTH, RESTRICTED_READ_FILES, VALID_FILE_EXTENSIONS } from "./path-utils";
 import { isReadableProjectFile, toPosixRelative } from "./project-files";
+import { ReadTracker, staleMessage, unreadMessage } from "./read-tracker";
 
 /**
  * Serializes the read-modify-write cycle per file. Each tool reads from disk and writes back
@@ -113,7 +114,32 @@ function verifyPersisted(
     console.warn(`${logPrefix} ${file_path} differs from the computed content after saving (likely an on-save formatter).`);
   }
 
-  return { valid: true };
+  return { valid: true, content: actual };
+}
+
+/** Refuses a change to content the agent has not seen; undefined when it may go ahead. */
+function refuseUnseen(reads: ReadTracker | undefined, fullPath: string, raw: string, file_path: string, toolName: string, eventHandler: CopilotEventHandler): TextEditorResult | undefined {
+  const status = reads?.status(fullPath, raw);
+  if (!status || status === 'fresh') {
+    return undefined;
+  }
+  const result = status === 'unread'
+    ? { success: false, message: unreadMessage(file_path, FILE_READ_TOOL_NAME), error: `Error: ${ErrorMessages.FILE_NOT_READ}` }
+    : { success: false, message: staleMessage(file_path, FILE_READ_TOOL_NAME), error: `Error: ${ErrorMessages.FILE_CHANGED_SINCE_READ}` };
+  emitFileToolResult(eventHandler, toolName, result, file_path);
+  return result;
+}
+
+/** Records the agent's own write as seen, from the content read back after it (format-on-save included). */
+function observeWrite(reads: ReadTracker | undefined, fullPath: string, readBack: string | undefined, toolCallId: string | undefined): void {
+  if (!reads) {
+    return;
+  }
+  try {
+    reads.observe(fullPath, readBack ?? fs.readFileSync(fullPath, 'utf-8'), toolCallId);
+  } catch {
+    reads.forget(fullPath);
+  }
 }
 
 function liveEditRoot(ctx: ExecutionContext): string {
@@ -237,6 +263,8 @@ function emitFileToolResult(
 interface ValidationResult {
   valid: boolean;
   error?: string;
+  /** The file as read back after the write. */
+  content?: string;
 }
 
 interface TextEditorResult {
@@ -273,6 +301,8 @@ const ErrorMessages = {
   WRITE_FAILED: 'Write operation failed',
   WRITE_NOT_PERSISTED: 'Change was not persisted to disk',
   UNSAVED_CHANGES: 'File has unsaved changes in the editor',
+  FILE_NOT_READ: 'File has not been read',
+  FILE_CHANGED_SINCE_READ: 'File changed since it was read',
 };
 
 /** Writes replace the whole document, so a file with unsaved editor text that won't save must not be touched. */
@@ -414,13 +444,14 @@ export function createWriteExecute(
   tempProjectPath: string,
   modifiedFiles?: string[],
   allModifiedFiles?: Set<string>,
-  ctx?: ExecutionContext
+  ctx?: ExecutionContext,
+  reads?: ReadTracker
 ) {
   return async (args: {
     file_path: string;
     content: string;
     overwrite?: boolean;
-  }): Promise<TextEditorResult> => withFileLock(fileLockKey(tempProjectPath, args.file_path), async () => {
+  }, options?: { toolCallId?: string }): Promise<TextEditorResult> => withFileLock(fileLockKey(tempProjectPath, args.file_path), async () => {
     const { file_path, content, overwrite = false } = args;
 
     // Emit tool_call event
@@ -477,6 +508,12 @@ export function createWriteExecute(
         return result;
       }
     }
+    if (preEditRaw.trim().length > 0) {
+      const unseen = refuseUnseen(reads, fullPath, preEditRaw, file_path, FILE_WRITE_TOOL_NAME, eventHandler);
+      if (unseen) {
+        return unseen;
+      }
+    }
 
     const lineCount = content.split('\n').length;
     const action: 'created' | 'updated' = fileExists ? 'updated' : 'created';
@@ -512,6 +549,7 @@ export function createWriteExecute(
       return result;
     }
 
+    observeWrite(reads, fullPath, verification.content, options?.toolCallId);
     console.log(`[FileWriteTool] Successfully ${action} file: ${file_path} with ${lineCount} lines.`);
     const result = {
       success: true,
@@ -535,14 +573,15 @@ export function createEditExecute(
   tempProjectPath: string,
   modifiedFiles?: string[],
   allModifiedFiles?: Set<string>,
-  ctx?: ExecutionContext
+  ctx?: ExecutionContext,
+  reads?: ReadTracker
 ) {
   return async (args: {
     file_path: string;
     old_string: string;
     new_string: string;
     replace_all?: boolean;
-  }): Promise<TextEditorResult> => withFileLock(fileLockKey(tempProjectPath, args.file_path), async () => {
+  }, options?: { toolCallId?: string }): Promise<TextEditorResult> => withFileLock(fileLockKey(tempProjectPath, args.file_path), async () => {
     const { file_path, old_string, new_string, replace_all = false } = args;
 
     // Emit tool_call event
@@ -599,6 +638,10 @@ export function createEditExecute(
 
     // Read file content and normalize line endings (CRLF → LF)
     const rawContent = fs.readFileSync(fullPath, 'utf-8');
+    const unseen = refuseUnseen(reads, fullPath, rawContent, file_path, FILE_SINGLE_EDIT_TOOL_NAME, eventHandler);
+    if (unseen) {
+      return unseen;
+    }
     const [content, originalEol] = readAndNormalize(rawContent);
 
     // Try exact match first (99% case - no normalization needed)
@@ -674,6 +717,7 @@ export function createEditExecute(
       return result;
     }
 
+    observeWrite(reads, fullPath, verification.content, options?.toolCallId);
     const replacedCount = replace_all ? occurrenceCount : 1;
     console.log(`[FileEditTool] Successfully replaced ${replacedCount} occurrence(s) in file: ${file_path}`);
     const result = {
@@ -697,7 +741,8 @@ export function createMultiEditExecute(
   tempProjectPath: string,
   modifiedFiles?: string[],
   allModifiedFiles?: Set<string>,
-  ctx?: ExecutionContext
+  ctx?: ExecutionContext,
+  reads?: ReadTracker
 ) {
   return async (args: {
     file_path: string;
@@ -706,7 +751,7 @@ export function createMultiEditExecute(
       new_string: string;
       replace_all?: boolean;
     }>;
-  }): Promise<TextEditorResult> => withFileLock(fileLockKey(tempProjectPath, args.file_path), async () => {
+  }, options?: { toolCallId?: string }): Promise<TextEditorResult> => withFileLock(fileLockKey(tempProjectPath, args.file_path), async () => {
     const { file_path, edits } = args;
 
     // Emit tool_call event
@@ -759,6 +804,10 @@ export function createMultiEditExecute(
 
     // Read file content and normalize line endings (CRLF → LF)
     const rawContent = fs.readFileSync(fullPath, 'utf-8');
+    const unseen = refuseUnseen(reads, fullPath, rawContent, file_path, FILE_BATCH_EDIT_TOOL_NAME, eventHandler);
+    if (unseen) {
+      return unseen;
+    }
     const [originalContent, originalEol] = readAndNormalize(rawContent);
 
     // First pass: check if all edits work with exact matching (99% case)
@@ -854,6 +903,7 @@ export function createMultiEditExecute(
       return result;
     }
 
+    observeWrite(reads, fullPath, verification.content, options?.toolCallId);
     console.log(`[FileMultiEditTool] Successfully applied ${edits.length} edits to file: ${file_path}`);
     const result = {
       success: true,
@@ -873,13 +923,14 @@ export function createMultiEditExecute(
 
 export function createReadExecute(
   eventHandler: CopilotEventHandler,
-  tempProjectPath: string
+  tempProjectPath: string,
+  reads?: ReadTracker
 ) {
   return async (args: {
     file_path: string;
     offset?: number;
     limit?: number;
-  }): Promise<TextEditorResult> => {
+  }, options?: { toolCallId?: string }): Promise<TextEditorResult> => {
     const { file_path, offset, limit } = args;
 
     // Validate file path
@@ -913,10 +964,12 @@ export function createReadExecute(
     emitFileToolCall(eventHandler, FILE_READ_TOOL_NAME, file_path);
 
     // Read file content and normalize line endings (CRLF → LF)
-    const content = normalizeToLf(fs.readFileSync(fullPath, 'utf-8'));
+    const raw = fs.readFileSync(fullPath, 'utf-8');
+    const content = normalizeToLf(raw);
 
     // Handle empty file
     if (content.trim().length === 0) {
+      reads?.observe(fullPath, raw, options?.toolCallId);
       console.log(`[FileReadTool] File is empty: ${file_path}`);
       const result = { success: true, message: `File '${file_path}' is empty.${unsavedNote}` };
       emitFileToolResult(eventHandler, FILE_READ_TOOL_NAME, result, file_path);
@@ -947,6 +1000,8 @@ export function createReadExecute(
       ? `\n[Showing lines ${start}-${end} of ${totalLines}. The rest is past the read limit; call ${FILE_READ_TOOL_NAME} with offset=${end + 1}, or grep for what you need.]`
       : '';
 
+    // A partial read counts too: the agent chose what it needed, and an edit still has to match the file exactly.
+    reads?.observe(fullPath, raw, options?.toolCallId);
     console.log(`[FileReadTool] Read lines ${start} to ${end} of ${totalLines} from file: ${file_path}`);
     const header = isWholeFile
       ? `Read entire file '${file_path}' (${totalLines} lines).`
@@ -974,14 +1029,14 @@ type WriteExecute = (args: {
   file_path: string;
   content: string;
   overwrite?: boolean;
-}) => Promise<any>;
+}, options?: { toolCallId?: string }) => Promise<any>;
 
 type EditExecute = (args: {
   file_path: string;
   old_string: string;
   new_string: string;
   replace_all?: boolean;
-}) => Promise<any>;
+}, options?: { toolCallId?: string }) => Promise<any>;
 
 type MultiEditExecute = (args: {
   file_path: string;
@@ -990,13 +1045,13 @@ type MultiEditExecute = (args: {
     new_string: string;
     replace_all?: boolean;
   }>;
-}) => Promise<any>;
+}, options?: { toolCallId?: string }) => Promise<any>;
 
 type ReadExecute = (args: {
   file_path: string;
   offset?: number;
   limit?: number;
-}) => Promise<any>;
+}, options?: { toolCallId?: string }) => Promise<any>;
 
 // 1. Write Tool
 export function createWriteTool(execute: WriteExecute) {
