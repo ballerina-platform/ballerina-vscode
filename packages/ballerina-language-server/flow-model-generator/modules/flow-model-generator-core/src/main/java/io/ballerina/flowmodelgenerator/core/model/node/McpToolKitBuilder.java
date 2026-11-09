@@ -586,7 +586,7 @@ public class McpToolKitBuilder extends NodeBuilder {
      */
     private String generateMcpV2ToolKitClassSource(String className, String permittedTools,
                                                    Map<String, List<String>> toolScopesMap, boolean includeContext,
-                                                   String mcpV2) {
+                                                   String mcpV2Prefix) {
         String permittedToolsDeclaration;
         String toolsArgument;
         String toolFunctions;
@@ -594,7 +594,7 @@ public class McpToolKitBuilder extends NodeBuilder {
             permittedToolsDeclaration = "";
             toolsArgument = "self.callTool";
             toolFunctions = getMcpV2ToolMethodSignature("callTool", toolScopesMap.getOrDefault("callTool", List.of()),
-                    includeContext, mcpV2);
+                    includeContext, mcpV2Prefix);
         } else {
             Map<String, String> toolMapping = generatePermittedToolsMapping(permittedTools);
             String permittedToolsMappingConstructorExp = toolMapping.entrySet().stream()
@@ -607,7 +607,7 @@ public class McpToolKitBuilder extends NodeBuilder {
             toolFunctions = toolMapping.entrySet().stream()
                     .map(e -> getMcpV2ToolMethodSignature(e.getValue(),
                             toolScopesMap.getOrDefault(e.getKey().replaceAll("^\"|\"$", ""), List.of()),
-                            includeContext, mcpV2))
+                            includeContext, mcpV2Prefix))
                     .collect(Collectors.joining(System.lineSeparator()));
         }
 
@@ -615,24 +615,24 @@ public class McpToolKitBuilder extends NodeBuilder {
         // ai:getPermittedMcpToolConfigs instead
         return "isolated class " + className + " {" + NEW_LINE +
                 "    *ai:McpBaseToolKit;" + NEW_LINE +
-                "    private final " + mcpV2 + "StreamableHttpClient mcpClient;" + NEW_LINE +
+                "    private final " + mcpV2Prefix + "StreamableHttpClient mcpClient;" + NEW_LINE +
                 "    private final readonly & ai:ToolConfig[] tools;" + NEW_LINE + NEW_LINE +
                 "    public isolated function init(string serverUrl," +
-                " " + mcpV2 + "Implementation info = " + MCP_V2_DEFAULT_INFO + "," + NEW_LINE +
+                " " + mcpV2Prefix + "Implementation info = " + MCP_V2_DEFAULT_INFO + "," + NEW_LINE +
                 "            *ai:" + AI_MCP_V2_CLIENT_CONFIG_TYPE + " config) returns ai:Error? {" + NEW_LINE +
                 permittedToolsDeclaration +
                 "        do {" + NEW_LINE +
                 "            ai:" + AI_MCP_V2_CLIENT_CONFIG_TYPE + " {httpConfig, ...clientConfig} = config;" +
                 NEW_LINE +
                 "            ai:McpHttpClientConfig {auth, ...httpSettings} = httpConfig;" + NEW_LINE +
-                "            " + mcpV2 + "HttpClientConfig mcpHttpConfig = {...httpSettings};" + NEW_LINE +
+                "            " + mcpV2Prefix + "HttpClientConfig mcpHttpConfig = {...httpSettings};" + NEW_LINE +
                 "            ai:AgentIdAuthConfig? agentIdAuth = ();" + NEW_LINE +
                 "            if auth is ai:AgentIdAuthConfig {" + NEW_LINE +
                 "                agentIdAuth = auth;" + NEW_LINE +
                 "            } else {" + NEW_LINE +
                 "                mcpHttpConfig.auth = auth;" + NEW_LINE +
                 "            }" + NEW_LINE +
-                "            self.mcpClient = check new " + mcpV2 + "StreamableHttpClient(serverUrl, " +
+                "            self.mcpClient = check new " + mcpV2Prefix + "StreamableHttpClient(serverUrl, " +
                 "{...clientConfig, httpConfig: mcpHttpConfig});" + NEW_LINE +
                 "            self.tools = check ai:getPermittedMcpToolConfigs(self.mcpClient, " +
                 "info, " + toolsArgument + ", agentIdAuth).cloneReadOnly();" + NEW_LINE +
@@ -648,7 +648,7 @@ public class McpToolKitBuilder extends NodeBuilder {
 
     // A tool with scopes sends the access token the agent obtained for it, as in the mcp (v1) toolkit
     private String getMcpV2ToolMethodSignature(String toolName, List<String> scopes, boolean includeContext,
-                                               String mcpV2) {
+                                               String mcpV2Prefix) {
         boolean hasScopes = scopes != null && !scopes.isEmpty();
         String annotation = hasScopes
                 ? "    @ai:AgentTool {" + NEW_LINE +
@@ -665,7 +665,7 @@ public class McpToolKitBuilder extends NodeBuilder {
         return annotation +
                 "    public isolated function " + toolName + "(" +
                 (includeContext || hasScopes ? "ai:Context ctx, " : "") +
-                mcpV2 + "CallToolParams params) returns " + mcpV2 + "CallToolResult|error {" + NEW_LINE +
+                mcpV2Prefix + "CallToolParams params) returns " + mcpV2Prefix + "CallToolResult|error {" + NEW_LINE +
                 "        return " + callTool + ";" + NEW_LINE +
                 "    }" + NEW_LINE;
     }
