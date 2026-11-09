@@ -500,10 +500,10 @@ export function requiresSourceFormName(field: Pick<FormField, "sourceFormName" |
  * The value to show in an editable name field: the plain name (`issue-number`) for a name the language server wrote
  * in source form (`issue\-number`). The language server escapes it again when it writes the source. A binding
  * pattern (`[a, b]`) and a name edited in source form (see requiresSourceFormName) are shown as they are. An escaped space or
- * comma (`first\ name`) is part of a name, not a sign of a binding pattern.
+ * comma (`first\ name`) or a numeric escape (`a\u{2D}b`) is part of a name, not a sign of a binding pattern.
  */
 export function toEditableName(value: unknown, sourceForm = false): unknown {
-    if (typeof value !== "string" || sourceForm || !/^(?:\\.|[^\s[\]{},])+$/.test(value)) {
+    if (typeof value !== "string" || sourceForm || !/^(?:\\u\{[0-9a-fA-F]+\}|\\.|[^\s[\]{},])+$/.test(value)) {
         return value;
     }
     return toDisplayName(value);

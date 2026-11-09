@@ -301,6 +301,8 @@ describe("toEditableName", () => {
         ["{a: x\\-y}", "{a: x\\-y}"],
         ["first\\ name", "first name"],
         ["a\\,b", "a,b"],
+        ["a\\u{2D}b", "a-b"],
+        ["[a\\u{2D}b, c]", "[a\\u{2D}b, c]"],
         ["[first\\ name, b]", "[first\\ name, b]"],
     ])("shows %p as %p", (value, expected) => {
         expect(toEditableName(value)).toBe(expected);
