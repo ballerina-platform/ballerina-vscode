@@ -27,6 +27,7 @@ import io.ballerina.compiler.api.symbols.ConstantSymbol;
 import io.ballerina.compiler.api.symbols.FunctionSymbol;
 import io.ballerina.compiler.api.symbols.FunctionTypeSymbol;
 import io.ballerina.compiler.api.symbols.MethodSymbol;
+import io.ballerina.compiler.api.symbols.ModuleSymbol;
 import io.ballerina.compiler.api.symbols.ObjectTypeSymbol;
 import io.ballerina.compiler.api.symbols.ParameterSymbol;
 import io.ballerina.compiler.api.symbols.Qualifier;
@@ -249,7 +250,8 @@ public class CodeAnalyzer extends NodeVisitor {
                 Object icon = resolveArtifactIcon(symbol);
                 Listener listener = new Listener("ANON", sortText,
                         getLocation(serviceDeclarationNode.lineRange()),
-                        explicitNewExpressionNode.typeDescriptor().toSourceCode(), icon,
+                        declaredModuleType(explicitNewExpressionNode.typeDescriptor().toSourceCode(),
+                                symbol.filter(TypeSymbol.class::isInstance).map(TypeSymbol.class::cast)), icon,
                         Listener.Kind.ANON, arguments);
                 serviceModel.anonListeners.add(listener);
                 intermediateModel.listeners.put(listener.getUuid(), listener);
@@ -775,8 +777,22 @@ public class CodeAnalyzer extends NodeVisitor {
         this.intermediateModel.listeners.put(listenerDeclarationNode.variableName().text(),
                 new Listener(listenerDeclarationNode.variableName().text(), sortText,
                         getLocation(listenerDeclarationNode.lineRange()),
-                        typeName,
+                        declaredModuleType(typeName, typeSymbol),
                         icon, Listener.Kind.NAMED, arguments, true));
+    }
+
+    /**
+     * Names a listener type after the module that declares it, so a module imported under another prefix, as in
+     * {@code import ballerina/a2a as a2a2;}, still gives the service type {@code a2a:Service}.
+     */
+    private static String declaredModuleType(String typeName, Optional<TypeSymbol> typeSymbol) {
+        int separator = typeName.indexOf(':');
+        Optional<ModuleSymbol> module = typeSymbol.flatMap(TypeSymbol::getModule);
+        if (separator < 0 || separator != typeName.lastIndexOf(':') || module.isEmpty()) {
+            return typeName;
+        }
+        String moduleName = module.get().id().moduleName();
+        return moduleName.substring(moduleName.lastIndexOf('.') + 1) + typeName.substring(separator);
     }
 
     @Override
