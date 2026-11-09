@@ -44,6 +44,8 @@ jest.mock("@wso2/ballerina-core", () => ({
     DIRECTORY_MAP: jest.requireActual("../../../../../ballerina-core/src/interfaces/bi").DIRECTORY_MAP,
     hasWorkflowArtifacts: jest.requireActual(
         "../../../../../ballerina-core/src/utils/identifier-utils").hasWorkflowArtifacts,
+    // The real check, read by DeploymentPanel to tell MCP services apart.
+    isMcpModule: jest.requireActual("../../../../../ballerina-core/src/utils/identifier-utils").isMcpModule,
     isSamePath: (a: string, b: string) => a === b,
     ProductMode: { INTEGRATOR: "integrator", AGENT_BUILDER: "agent-builder" },
     assistantName: () => "WSO2 Integrator Copilot",
