@@ -83,7 +83,18 @@ describe("platform v1 adapters", () => {
         expect(item.visibility).toEqual(["PROJECT", "ORGANIZATION"]);
         expect(item.projectId).toBe("default-project");
         expect(item.isThirdParty).toBe(false);
-        expect(item.connectionSchemas[0].entries.map((e) => e.name)).toEqual(Object.keys(SERVICE_CONNECTION_KEYS));
+        // Project access takes the in-cluster URL alone; the exposed endpoint also offers the gateway with an API key.
+        expect(item.connectionSchemas.map((s) => s.id)).toEqual(["project-url", "api-key"]);
+        expect(item.connectionSchemas[0].entries.map((e) => e.name)).toEqual(["ServiceURL"]);
+        expect(item.connectionSchemas[1].entries.map((e) => e.name)).toEqual(Object.keys(SERVICE_CONNECTION_KEYS));
+    });
+
+    it("offers only project access for an endpoint that is not exposed through the gateway", () => {
+        const integration = { id: "orders", name: "orders", displayName: "Orders", description: "", createdAt: "2026-01-01T00:00:00Z" } as never;
+        const endpoint = { name: "http", type: "REST", visibility: ["project"], exposure: "none", resources: [] } as never;
+        const item = endpointToMarketplaceItem("default-project", integration, "development", endpoint, "acme");
+        expect(item.visibility).toEqual(["PROJECT"]);
+        expect(item.connectionSchemas.map((s) => s.id)).toEqual(["project-url"]);
     });
 
     it("tells databases from services from plain config by an env group's keys, and never reveals secrets", () => {
@@ -91,7 +102,10 @@ describe("platform v1 adapters", () => {
         const db = envGroupToConnectionListItem({ name: "orders-db", sensitive: true, keys: ["ORDERS_DB_DB_HOST", "ORDERS_DB_DB_PASSWORD", "ORDERS_DB_DB_USER"] }, ref);
         expect(db.resourceType).toBe("DATABASE");
         expect(parseConnectionId(db.groupUuid)).toEqual({ ...ref, name: "orders-db" });
-        expect(envGroupToConnectionListItem({ name: "inv", sensitive: true, keys: ["INV_SERVICE_URL", "INV_API_KEY"] }, ref).resourceType).toBe("SERVICE");
+        const gateway = envGroupToConnectionListItem({ name: "inv", sensitive: true, keys: ["INV_SERVICE_URL", "INV_API_KEY"] }, ref);
+        expect(gateway.resourceType).toBe("SERVICE");
+        expect(gateway.schemaReference).toBe("api-key");
+        expect(envGroupToConnectionListItem({ name: "inv", sensitive: false, keys: ["INV_SERVICE_URL"] }, ref).schemaReference).toBe("project-url");
         expect(envGroupToConnectionListItem({ name: "misc", sensitive: false, keys: ["LOG_LEVEL"] }, ref).resourceType).toBe("CONFIG");
         // Variables without a connection prefix are plain config.
         expect(envGroupToConnectionListItem({ name: "bare", sensitive: true, keys: ["DB_HOST", "DB_PASSWORD"] }, ref).resourceType).toBe("CONFIG");
@@ -114,6 +128,11 @@ describe("platform v1 adapters", () => {
         const svc = createdConnection({ name: "inv", integration: "orders", environments: ["development"], kind: "SERVICE", serviceId: "svc:p/i/e" });
         expect(svc.configurations.development.entries.ChoreoAPIKey.envVariableName).toBe("INV_API_KEY");
         expect(svc.configurations.development.entries.ServiceURL.envVariableName).toBe("INV_SERVICE_URL");
+        expect(svc.schemaReference).toBe("api-key");
+        const inProject = createdConnection({ name: "inv", integration: "orders", environments: ["development"], kind: "SERVICE", serviceId: "svc:p/i/e", access: "project" });
+        expect(Object.keys(inProject.configurations.development.entries)).toEqual(["ServiceURL"]);
+        expect(inProject.schemaReference).toBe("project-url");
+        expect(inProject.schemaName).toBe("Project URL");
         const other = createdConnection({ name: "billing-db", integration: "orders", environments: ["development"], kind: "DATABASE", serviceId: "db:srv-2" });
         expect(other.configurations.development.entries.HostName.envVariableName).not.toBe(created.configurations.development.entries.HostName.envVariableName);
     });

@@ -405,5 +405,35 @@ export const getInitialVisibility = (item: MarketplaceItem, visibilities: string
     return ServiceInfoVisibilityEnum.Public;
 };
 
-/** A WSO2 Cloud service or database offers the same schemas whatever the access mode. */
-export const getPossibleSchemas = (item: MarketplaceItem | undefined): MarketplaceItemSchema[] => item?.connectionSchemas ?? [];
+/** The schema of a WSO2 Cloud service connection with Project access: the in-cluster URL, no key. */
+export const PROJECT_URL_SCHEMA_ID = "project-url";
+
+/**
+ * The schemas offered for an access mode. A WSO2 Cloud service is reached with its in-cluster URL under
+ * Project access and through the gateway with an API key otherwise; a database has one schema.
+ */
+export const getPossibleSchemas = (item: MarketplaceItem | undefined, visibility: string): MarketplaceItemSchema[] => {
+    const schemas = item?.connectionSchemas ?? [];
+    if (item?.resourceType !== "SERVICE" || item.isThirdParty) {
+        return schemas;
+    }
+    const project = visibility === ServiceInfoVisibilityEnum.Project;
+    return schemas.filter((schema) => (schema.id === PROJECT_URL_SCHEMA_ID) === project);
+};
+
+/** The schema of a WSO2 Cloud service connection through the gateway: the API's URL and an API key. */
+export const API_KEY_SCHEMA_ID = "api-key";
+
+/** The security the generated client is created with, from the connection's schema. */
+export const securityTypeOf = (connection: { schemaName?: string; schemaReference?: string } | undefined): "" | "oauth" | "apikey" => {
+    if (connection?.schemaName?.toLowerCase().includes("oauth")) {
+        return "oauth";
+    }
+    return connection?.schemaReference === API_KEY_SCHEMA_ID ? "apikey" : "";
+};
+
+/** An error's message; errors from the extension arrive as plain objects. */
+export const errorMessageOf = (error: unknown): string =>
+    typeof error === "object" && error !== null && typeof (error as { message?: unknown }).message === "string"
+        ? (error as { message: string }).message
+        : String(error);

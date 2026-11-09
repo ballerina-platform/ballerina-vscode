@@ -36,6 +36,8 @@ import {
     generateInitialConnectionName,
     getInitialVisibility,
     getPossibleSchemas,
+    securityTypeOf,
+    errorMessageOf,
     getPossibleVisibilities,
     isValidDevantConnName,
 } from "./utils";
@@ -154,7 +156,7 @@ export const DevantConnectorCreateForm: FC<DevantConnectorCreateFormProps> = ({
                 generateCreds: true,
             });
 
-            const securityType = createdConnection?.schemaName?.toLowerCase()?.includes("oauth") ? "oauth" : "apikey";
+            const securityType = securityTypeOf(createdConnection);
 
             let tempDevantConfigs = devantConfigs
             const matchingSchema = marketplaceItem?.connectionSchemas?.find((schema) => schema.id === createdConnection?.schemaReference);
@@ -191,7 +193,7 @@ export const DevantConnectorCreateForm: FC<DevantConnectorCreateFormProps> = ({
     const createDevantConnection: SubmitHandler<CreateConnectionForm> = (data) => createConnection(data);
 
 
-    const schemas = getPossibleSchemas(marketplaceItem);
+    const schemas = getPossibleSchemas(marketplaceItem, form.watch("visibility"));
 
     useEffect(() => {
         if (!schemas.some((item) => item.id === form.getValues("schemaId")) && schemas.length > 0) {
@@ -348,7 +350,7 @@ export const DevantConnectorCreateForm: FC<DevantConnectorCreateFormProps> = ({
             </ConnectorContentContainer>
             {createError && !isCreatingConnection && (
                 <ErrorText role="alert">
-                    Could not create the connection: {createError instanceof Error ? createError.message : String(createError)}
+                    Could not create the connection: {errorMessageOf(createError)}
                 </ErrorText>
             )}
             <FooterContainer>

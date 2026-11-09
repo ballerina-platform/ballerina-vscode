@@ -51,6 +51,7 @@ import {
     generateInitialConnectionName,
     getKnownAvailableNode,
     ProgressWrap,
+    securityTypeOf,
 } from "./utils";
 import { ModulePart, STKindChecker } from "@wso2/syntax-tree";
 import { URI } from "vscode-uri";
@@ -342,7 +343,7 @@ export function DevantConnectorPopup(props: DevantConnectorPopupProps) {
                 componentDir: projectPath,
             });
 
-            const securityType = connectionDetailed?.schemaName?.toLowerCase()?.includes("oauth") ? "oauth" : "apikey";
+            const securityType = securityTypeOf(connectionDetailed);
             const configurations = connectionDetailed?.configurations;
 
             const resp = await platformRpcClient.initializeDevantOASConnection({

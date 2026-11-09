@@ -17,7 +17,13 @@
  */
 
 import { MarketplaceItem } from "@wso2/wso2-platform-core";
-import { KB_SERVICE_TAG, filterConnectionMarketplaceItems } from "../../../../../views/BI/Connection/DevantConnections/utils";
+import {
+    KB_SERVICE_TAG,
+    errorMessageOf,
+    filterConnectionMarketplaceItems,
+    getPossibleSchemas,
+    securityTypeOf,
+} from "../../../../../views/BI/Connection/DevantConnections/utils";
 
 const PAGE_SIZE = 24;
 
@@ -88,5 +94,32 @@ describe("filterConnectionMarketplaceItems", () => {
         const result = filterConnectionMarketplaceItems(items, "internal-services", undefined, PAGE_SIZE);
 
         expect(names(result)).toEqual(["no-comp-1", "has-comp", "no-comp-2"]);
+    });
+});
+
+describe("WSO2 Cloud service connection schemas", () => {
+    const schema = (id: string) => ({ id, name: id, entries: [] });
+    const service = { resourceType: "SERVICE", isThirdParty: false, connectionSchemas: [schema("project-url"), schema("api-key")] } as unknown as MarketplaceItem;
+
+    it("offers the in-cluster URL for Project access and the gateway's API key otherwise", () => {
+        expect(getPossibleSchemas(service, "PROJECT").map((s) => s.id)).toEqual(["project-url"]);
+        expect(getPossibleSchemas(service, "ORGANIZATION").map((s) => s.id)).toEqual(["api-key"]);
+        expect(getPossibleSchemas(service, "PUBLIC").map((s) => s.id)).toEqual(["api-key"]);
+    });
+
+    it("leaves a database's schemas unfiltered", () => {
+        const database = { resourceType: "DATABASE", connectionSchemas: [schema("database-credentials")] } as unknown as MarketplaceItem;
+        expect(getPossibleSchemas(database, "PROJECT").map((s) => s.id)).toEqual(["database-credentials"]);
+    });
+
+    it("creates the client with an API key only for a gateway connection", () => {
+        expect(securityTypeOf({ schemaName: "API Key", schemaReference: "api-key" })).toBe("apikey");
+        expect(securityTypeOf({ schemaName: "Sensitive", schemaReference: "api-key" })).toBe("apikey");
+        expect(securityTypeOf({ schemaName: "Project URL", schemaReference: "project-url" })).toBe("");
+    });
+
+    it("reads the message of an error that arrives as a plain object", () => {
+        expect(errorMessageOf({ message: "endpoint is not exposed as an API yet" })).toBe("endpoint is not exposed as an API yet");
+        expect(errorMessageOf(new Error("boom"))).toBe("boom");
     });
 });

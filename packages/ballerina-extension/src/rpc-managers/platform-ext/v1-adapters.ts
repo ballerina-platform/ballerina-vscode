@@ -138,19 +138,30 @@ function databaseSchema(): MarketplaceItemSchema {
     };
 }
 
-function serviceSchema(): MarketplaceItemSchema {
+/** How a service connection reaches its target: inside the project with no key, or through the gateway with an API key. */
+export type ServiceConnectionAccess = "project" | "gateway";
+
+/** The schema of a service connection with `access`; the visualizer offers `project` for Project access and `gateway` otherwise. */
+function serviceSchema(access: ServiceConnectionAccess): MarketplaceItemSchema {
+    const project = access === "project";
     return {
-        id: "api-key",
-        name: "API Key",
-        description: "The endpoint's URL and an API key issued for this integration",
+        id: project ? "project-url" : "api-key",
+        name: project ? "Project URL" : "API Key",
+        description: project
+            ? "The endpoint's in-cluster URL, reachable without a key from the same project"
+            : "The URL the gateway serves the endpoint's API at, and an API key issued for this integration",
         isDefault: true,
-        entries: Object.keys(SERVICE_CONNECTION_KEYS).map((name) => ({
+        entries: serviceKeysFor(access).map((name) => ({
             name,
             type: "string",
             isSensitive: SENSITIVE_ENTRIES.has(name),
             isOptional: false,
         })),
     };
+}
+
+function serviceKeysFor(access: ServiceConnectionAccess): string[] {
+    return access === "project" ? ["ServiceURL"] : Object.keys(SERVICE_CONNECTION_KEYS);
 }
 
 const DB_STATUS: Record<DbServer["status"], MarketplaceItem["resourceDetails"]["status"]> = {
@@ -262,7 +273,8 @@ export function endpointToMarketplaceItem(project: string, integration: Componen
         organizationId: orgHandle,
         projectId: project,
         component: { componentId: integration.id, endpointId: endpoint.name, apimId: "" },
-        connectionSchemas: [serviceSchema()],
+        // An API key exists only for an endpoint exposed through the gateway (organization or public visibility).
+        connectionSchemas: visibility.some((v) => v !== "PROJECT") ? [serviceSchema("project"), serviceSchema("gateway")] : [serviceSchema("project")],
         thumbnailUrl: "",
         averageRating: 0,
         totalRatingCount: 0,
@@ -299,7 +311,7 @@ export function envGroupToConnectionListItem(group: EnvVarGroup, ref: Omit<Conne
         serviceId,
         schemaName: group.sensitive ? "Sensitive" : "Plain",
         // The screens find the connection's schema by this id, and only then create its configurables.
-        schemaReference: schemaIdFor(resourceType),
+        schemaReference: schemaIdFor(resourceType, accessOf(group)),
         isPartiallyCreated: false,
         status: {},
         componentId: ref.integration,
@@ -310,8 +322,14 @@ export function envGroupToConnectionListItem(group: EnvVarGroup, ref: Omit<Conne
 }
 
 /** The id of the schema the adapters publish for a kind of connection; none for a plain config group. */
-export function schemaIdFor(resourceType: "DATABASE" | "SERVICE" | "CONFIG"): string {
-    return resourceType === "DATABASE" ? databaseSchema().id : resourceType === "SERVICE" ? serviceSchema().id : "";
+export function schemaIdFor(resourceType: "DATABASE" | "SERVICE" | "CONFIG", access: ServiceConnectionAccess = "gateway"): string {
+    return resourceType === "DATABASE" ? databaseSchema().id : resourceType === "SERVICE" ? serviceSchema(access).id : "";
+}
+
+/** A service connection's group carries an API key only when it goes through the gateway. */
+function accessOf(group: Pick<EnvVarGroup, "keys" | "data">): ServiceConnectionAccess {
+    const keys = group.keys ?? Object.keys(group.data ?? {});
+    return keys.some((key) => connectionVarSuffix(key, SERVICE_SUFFIXES) === SERVICE_CONNECTION_KEYS.ChoreoAPIKey) ? "gateway" : "project";
 }
 
 /**
@@ -359,8 +377,14 @@ export function createdConnection(params: {
     environments: string[];
     kind: "DATABASE" | "SERVICE";
     serviceId: string;
+    /** For a service connection; `gateway` when omitted. */
+    access?: ServiceConnectionAccess;
 }): ConnectionDetailed {
-    const keys = params.kind === "DATABASE" ? DATABASE_CONNECTION_KEYS : SERVICE_CONNECTION_KEYS;
+    const access = params.access ?? "gateway";
+    const keys =
+        params.kind === "DATABASE"
+            ? DATABASE_CONNECTION_KEYS
+            : Object.fromEntries(serviceKeysFor(access).map((entry) => [entry, SERVICE_CONNECTION_KEYS[entry]]));
     const configurations: ConnectionDetailed["configurations"] = {};
     for (const environment of params.environments) {
         const entries: ConnectionDetailed["configurations"][string]["entries"] = {};
@@ -384,8 +408,8 @@ export function createdConnection(params: {
         groupUuid: connectionId({ integration: params.integration, environment: params.environments[0] ?? "", name: params.name }),
         serviceName: params.name,
         serviceId: params.serviceId,
-        schemaName: params.kind === "DATABASE" ? "Database Credentials" : "API Key",
-        schemaReference: schemaIdFor(params.kind),
+        schemaName: params.kind === "DATABASE" ? "Database Credentials" : serviceSchema(access).name,
+        schemaReference: schemaIdFor(params.kind, access),
         isPartiallyCreated: false,
         status: {},
         componentId: params.integration,

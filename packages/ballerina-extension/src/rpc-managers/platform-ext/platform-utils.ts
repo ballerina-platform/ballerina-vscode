@@ -17,7 +17,7 @@
  */
 
 import { isSamePath, SyntaxTree } from "@wso2/ballerina-core";
-import { ModulePart, STKindChecker, CaptureBindingPattern } from "@wso2/syntax-tree";
+import { ModulePart, CaptureBindingPattern } from "@wso2/syntax-tree";
 import * as vscode from "vscode";
 import * as fs from "fs";
 import * as path from "path";
@@ -72,35 +72,6 @@ export const addConfigurable = async (
         textEdits: { [configBalFileUri.toString()]: configBalEdits.get(configBalFileUri) || [] },
         skipPayloadCheck: true,
     });
-};
-
-export const addProxyConfigurable = async (configBalFileUri: Uri) => {
-    const configBalEdits = new WorkspaceEdit();
-
-    const syntaxTree = (await StateMachine.context().langClient.getSyntaxTree({
-        documentIdentifier: { uri: configBalFileUri.toString() },
-    })) as SyntaxTree;
-    if (
-        !(syntaxTree?.syntaxTree as ModulePart)?.imports?.some((item) => item.source?.includes("import ballerina/http"))
-    ) {
-        const importHttpTemplate = Templates.importBalHttp();
-        configBalEdits.insert(configBalFileUri, new vscode.Position(0, 0), importHttpTemplate);
-    }
-
-    if (
-        !(syntaxTree?.syntaxTree as ModulePart)?.members?.find(
-            (member) =>
-                STKindChecker.isModuleVarDecl(member) &&
-                (member.typedBindingPattern?.bindingPattern as CaptureBindingPattern)?.variableName?.value ===
-                    ProxyConfigEnvVars.proxyConfig.varName,
-        )
-    ) {
-        const proxyConfigTemplate = Templates.proxyConfigurable();
-        const newConfigEditLine = (syntaxTree?.syntaxTree?.position?.endLine ?? 0) + 1;
-        configBalEdits.insert(configBalFileUri, new vscode.Position(newConfigEditLine, 0), proxyConfigTemplate);
-    }
-
-    await workspace.applyEdit(configBalEdits);
 };
 
 export const addConnection = async (
@@ -331,21 +302,9 @@ export const Templates = {
         const template = Handlebars.compile(`import ballerina/os;\n`);
         return template({});
     },
-    importBalHttp: () => {
-        const template = Handlebars.compile(`import ballerina/http;\n`);
-        return template({});
-    },
     importConnection: (params: { PACKAGE_NAME: string; MODULE_NAME: string }) => {
         const template = Handlebars.compile(`import {{PACKAGE_NAME}}.{{MODULE_NAME}};\n`);
         return template(params);
-    },
-    proxyConfigurable: () => {
-        const template = Handlebars.compile(`
-configurable string? ${ProxyConfigEnvVars.proxyHost.varName} = ();
-configurable int? ${ProxyConfigEnvVars.proxyPort.varName} = ();
-http:ProxyConfig? ${ProxyConfigEnvVars.proxyConfig.varName} = ${ProxyConfigEnvVars.proxyHost.varName} is string && ${ProxyConfigEnvVars.proxyPort.varName} is int ? { host: <string> ${ProxyConfigEnvVars.proxyHost.varName}, port: <int> ${ProxyConfigEnvVars.proxyPort.varName} } : ();
-\n`);
-        return template({});
     },
     newConnectionNoSecurity: (params: {
         MODULE_NAME: string;

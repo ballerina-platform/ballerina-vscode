@@ -93,7 +93,6 @@ import { VisualizerWebview } from "../../views/visualizer/webview";
 import {
     addConfigurable,
     addConnection,
-    addProxyConfigurable,
     getConfigFileUri,
     hasContextYaml,
     processOpenApiWithApiKeyAuth,
@@ -102,6 +101,7 @@ import {
 } from "./platform-utils";
 import {
     createdConnection,
+    type ServiceConnectionAccess,
     dbCredentialsToAdminCredential,
     dbServerToMarketplaceItem,
     dbServerToV1DatabaseServer,
@@ -694,8 +694,10 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
                 throw new Error(`Unknown service ${params.serviceId}`);
             }
             const envId = this.requireEnvId();
-            await platformExt.connections.createServiceConnection({ integration, target, name: params.name, environments: [envId], projectName });
-            return createdConnection({ name: params.name, integration, environments: [envId], kind: "SERVICE", serviceId: params.serviceId });
+            // Project access reaches the endpoint inside the project with no key; Organization and Public go through the gateway.
+            const access: ServiceConnectionAccess = params.serviceVisibility === ServiceInfoVisibilityEnum.Project ? "project" : "gateway";
+            await platformExt.connections.createServiceConnection({ integration, target, access, name: params.name, environments: [envId], projectName });
+            return createdConnection({ name: params.name, integration, environments: [envId], kind: "SERVICE", serviceId: params.serviceId, access });
         } catch (err) {
             log(`Failed to create WSO2 Cloud connection: ${err}`);
             throw err;
@@ -1044,16 +1046,8 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
                 Object.values(keys).map((item) => ({ configName: item.keyname, configEnvName: item.envName })),
             );
 
-            const requireProxy = [
-                ServiceInfoVisibilityEnum.Organization.toString(),
-                ServiceInfoVisibilityEnum.Project.toString(),
-            ].includes(params.visibility);
-
-            if (requireProxy) {
-                await addProxyConfigurable(configFileUri);
-            }
-
-            const resp = await addConnection(params.name, moduleName, params.securityType, requireProxy, {
+            // WSO2 Cloud has no local proxy to route a connection through: the connection calls its URL directly.
+            const resp = await addConnection(params.name, moduleName, params.securityType, false, {
                 apiKeyVarName: keys?.ChoreoAPIKey?.keyname,
                 svsUrlVarName: keys?.ServiceURL?.keyname,
                 tokenClientIdVarName: keys?.ConsumerKey?.keyname,
