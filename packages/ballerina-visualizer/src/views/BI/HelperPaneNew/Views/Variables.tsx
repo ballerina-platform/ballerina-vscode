@@ -42,7 +42,7 @@ type VariablesPageProps = {
     onChange: (value: string, isRecordConfigureChange: boolean, shouldKeepHelper?: boolean) => void;
     targetLineRange: LineRange;
     anchorRef: React.RefObject<HTMLDivElement>;
-    handleOnFormSubmit?: (updatedNode?: FlowNode, editorConfig?: EditorConfig, options?: FormSubmitOptions, openDMInPopup?: boolean) => void;
+    onSaveNewVariable?: (updatedNode?: FlowNode, editorConfig?: EditorConfig, options?: FormSubmitOptions, openDMInPopup?: boolean) => void;
     selectedType?: ResolvedType;
     filteredCompletions: CompletionItem[];
     currentValue: string;
@@ -96,7 +96,10 @@ export const VariableItem = ({ item, onItemSelect, onMoreIconClick, hideArrow }:
 };
 
 export const Variables = (props: VariablesPageProps) => {
-    const { fileName, targetLineRange, onChange, onClose, handleOnFormSubmit, selectedType, filteredCompletions, currentValue, isInModal, handleRetrieveCompletions, inputMode } = props;
+    const { fileName, targetLineRange, onChange, onClose, onSaveNewVariable, selectedType, filteredCompletions, currentValue, isInModal, handleRetrieveCompletions, inputMode } = props;
+    // A form with nowhere to save a new variable (a connection, AI agent, MCP or function form) offers
+    // no "+ New Variable".
+    const offerNewVariable = Boolean(onSaveNewVariable);
     const [searchValue, setSearchValue] = useState<string>("");
     const { rpcClient } = useRpcContext();
     const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -159,7 +162,7 @@ export const Variables = (props: VariablesPageProps) => {
             ? updatedNode.properties.variable.value
             : "";
         newNodeNameRef.current = varName;
-        handleOnFormSubmit?.(
+        onSaveNewVariable?.(
             updatedNode,
             {
                 view: editorConfig?.view,
@@ -377,7 +380,7 @@ export const Variables = (props: VariablesPageProps) => {
             </ScrollableContainer>
 
             <Divider sx={{ margin: "0px" }} />
-            {!isInModal && (
+            {!isInModal && offerNewVariable && (
                 <div style={{ margin: '4px 0' }}>
                     <FooterButtons onClick={handleAddNewVariable} title="New Variable" />
                 </div>

@@ -182,7 +182,10 @@ interface FlowNodeFormProps {
         description?: string; // Optional description explaining what the action button does
         callback: () => void;
     };
-    handleOnFormSubmit?: (updatedNode?: FlowNode, editorConfig?: EditorConfig, options?: FormSubmitOptions) => void;
+    // Saves the variable a field's "+ New Variable" declares; a form without it offers no "+ New Variable".
+    // It is not the form's own save: a connection form's `onSubmit` would save the variable as the
+    // connection (wso2/product-integrator#1770), so the two stay apart.
+    onSaveNewVariable?: (updatedNode?: FlowNode, editorConfig?: EditorConfig, options?: FormSubmitOptions) => void;
     isInModal?: boolean;
     scopeFieldAddon?: React.ReactNode;
     onChange?: (fieldKey: string, value: any, allValues: FormValues) => void;
@@ -323,7 +326,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         disableSaveButton,
         actionButtonConfig,
         submitText,
-        handleOnFormSubmit,
+        onSaveNewVariable,
         isInModal,
         scopeFieldAddon,
         onChange,
@@ -1573,7 +1576,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             updateImports: handleUpdateImports,
             completions: completions,
             projectPath: projectPath,
-            handleOnFormSubmit: handleOnFormSubmit,
+            onSaveNewVariable: onSaveNewVariable,
             selectedType: selectedType,
             filteredCompletions: filteredCompletions,
             isInModal: isInModal,
