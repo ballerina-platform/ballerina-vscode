@@ -46,14 +46,18 @@ export async function showGraphqlView(serviceAPI: string): Promise<void> {
     };
 
     // Graphql Request
+    // Reply on this panel's own webview: a reopen replaces the module-level panel, and request ids
+    // restart per panel, so a late reply must not reach the new one. Posting to a disposed webview
+    // is a no-op, while reading `.webview` off a disposed panel throws, hence the capture here.
+    const webview = graphqlViewPanel.webview;
     const swaggerServer: SwaggerServer = new SwaggerServer();
-    graphqlViewPanel.webview.onDidReceiveMessage(
+    webview.onDidReceiveMessage(
         async message => {
             if (message.command !== 'graphqlRequest') {
                 return;
             }
             await swaggerServer.sendRequest(message.req, true).then((response) => {
-                graphqlViewPanel!.webview.postMessage({
+                webview.postMessage({
                     command: 'graphqlResponse',
                     id: message.id,
                     res: response
