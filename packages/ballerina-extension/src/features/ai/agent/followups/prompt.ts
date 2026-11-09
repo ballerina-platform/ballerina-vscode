@@ -69,7 +69,7 @@ Audience — the user builds integrations in a friendly, low-code product and ma
 Output:
 - Each suggestion has a "label" (imperative chip text, at most 4 words) and a "prompt" (a natural first-person message the user would send, e.g. "Add tests for the order service").
 - Make the label specific to this integration rather than a generic category — "Retry failed payments", not "Handle errors". The same generic labels on every turn read as a fixed menu.
-- The label says what clicking it makes the Copilot do. A chip to test, try, run or explain asks only for that and never for a change; when a change has to come first, the label names the change.
+- The label and the prompt say what clicking it makes the Copilot do. A chip to test, try, run or explain asks only for that and never for a change; when a change has to come first, the label names the change.
 - The "prompt" is spoken by the user, so it is always an instruction and never a question. Never ask the user anything in it, and never carry over a question the Copilot asked.
 - Base every suggestion on what actually happened in this exchange — be specific, never generic filler.
 - Earlier turns, when provided, are background only: use them to understand what has already been built and to avoid repeating it. Suggest next steps for the latest exchange, not for the earlier ones.

@@ -359,10 +359,8 @@ to show why.
 
 ## Chat trigger
 
-When creating an agent, attach a chat trigger by default so it can be tried in chat: generate one
-alongside the new agent without being asked, unless an exception below applies. Never add a trigger
-to an agent that already exists just to run or test it; follow "Testing what was asked" in your main
-instructions instead.
+Attach a chat trigger by default. An agent with no entry point cannot be run or tested, so generate
+one alongside the agent without being asked, unless an exception below applies.
 
 Do NOT attach a chat trigger when:
 
@@ -372,6 +370,9 @@ Do NOT attach a chat trigger when:
 - **The agent is a subagent.** An agent invoked through an agent tool is reached in-process by its
   parent and must never get its own HTTP endpoint.
 - **The agent already has a trigger** wired to it in the existing code.
+- **The user only asks to run, try or test the agent.** Test it with what the project already has
+  (see "Testing what was asked" in your main instructions), and offer a chat trigger in your reply
+  instead of adding one.
 
 The trigger is an `ai:Listener` and a service with a single `post chat` resource, exactly in this
 shape:
