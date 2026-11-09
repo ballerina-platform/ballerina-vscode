@@ -69,7 +69,8 @@
  * graphiql-explorer sizes its argument and operation-name inputs inline as `<value length>ch`,
  * which assumes a content-box input. graphiql's `.graphiql-container * { box-sizing: border-box }`
  * makes that width also hold the padding and border, so a value like `10` is clipped. Size the
- * input to its content instead.
+ * input to its content instead, keeping the explorer's own 15ch cap so a long value scrolls
+ * inside the input rather than widening the explorer.
  */
 .graphiql-explorer-root input[type="text"] {
   box-sizing: content-box;
@@ -77,6 +78,7 @@
   field-sizing: content;
   width: auto !important;
   min-width: 1ch;
+  max-width: 15ch;
 }
 
 .graphiql-operation-title-bar {
