@@ -144,6 +144,15 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
     const httpConfigValueRef = useRef<string | undefined>();
     const lastSyncedAuthRef = useRef<string | undefined>();
     const lastSyncedHttpConfigRef = useRef<{ value: string | undefined } | null>(null);
+    // Starts the sync over for a form that mounts with the node's values, so the derivations neither wait for the
+    // form to report those values nor compare them with the values of a form shown before
+    const startHttpConfigAuthSync = () => {
+        const properties = mcpToolKitNodeRef.current?.properties as Record<string, { value?: unknown }> | undefined;
+        authValueRef.current = stringValue(properties?.[AUTH_FIELD_KEY]?.value);
+        httpConfigValueRef.current = stringValue(properties?.[HTTP_CONFIG_FIELD_KEY]?.value);
+        lastSyncedAuthRef.current = undefined;
+        lastSyncedHttpConfigRef.current = null;
+    };
 
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [isSaving, setIsSaving] = useState<boolean>(false);
@@ -286,6 +295,7 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
                 : fetchModuleNodes().then(moduleLevelNames, () => new Set<string>());
             mcpToolKitNodeRef.current = template;
         }
+        startHttpConfigAuthSync();
 
         setIsLoading(false);
     }, [agentDefinition, agentNode, editMode, props.existingNode, rpcClient]);
@@ -797,6 +807,7 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
         pickedProxy.current = { proxyId, created: binding.created ?? [], properties: cloneDeep(mcpToolKitNodeRef.current.properties) };
         applyMcpBinding(mcpToolKitNodeRef.current, binding, proxyId);
         setRequiresAuth(!!binding.auth);
+        startHttpConfigAuthSync();
         setFormKey((key) => key + 1);
     }, []);
 
@@ -815,6 +826,7 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
         setServerUrl("");
         setAuth("");
         setRequiresAuth(false);
+        startHttpConfigAuthSync();
         setFormKey((key) => key + 1);
         if (picked.created.length > 0) {
             void rpcClient.getVisualizerLocation().then(({ projectPath }) => rpcClient.getAgentManagerRpcClient()
