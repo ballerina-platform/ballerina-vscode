@@ -57,6 +57,7 @@ import { confirmTriggerDeletion, drawToolEdits, goToAgent, goToAgentDefinitionFr
 import { buildAgentRenderNode, withAgentUsages } from "./agent";
 import {
     agentCallerProtocols,
+    enteringUsageKeys,
     removeAgentTrigger,
     findAgentUsages,
     getAgentTriggerScopes,
@@ -69,12 +70,6 @@ import {
     usageCacheKey,
 } from "./agentUsages";
 
-const sameUsages = (a: AgentUsage[], b: AgentUsage[]) =>
-    a.length === b.length &&
-    a.every((usage, i) =>
-        usage.label === b[i].label &&
-        usage.serviceLabel === b[i].serviceLabel &&
-        usage.documentUri === b[i].documentUri);
 import { AgentPromptDisplay } from "./AgentPromptDisplay";
 
 import {
@@ -367,7 +362,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                 }
                 setModel({
                     ...flow,
-                    nodes: [withAgentUsages(renderNode, usages, !previous || !sameUsages(previous, usages), toolTargets)],
+                    nodes: [withAgentUsages(renderNode, usages, enteringUsageKeys(previous, usages), toolTargets)],
                 });
             } catch (error) {
                 console.error(">>> agent focus: failed to load agent usages", error);
@@ -464,7 +459,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
             const cacheKey = usageCacheKey(projectKey, filePath, String(agentDecl.properties?.variable?.value ?? ""));
             const cachedUsages = kind === "AGENT" ? getCachedUsages(cacheKey) : undefined;
             const renderNode: FlowNode = kind === "AGENT"
-                ? withAgentUsages(buildAgentRenderNode(agentDecl, connections), cachedUsages ?? [], false, getCachedToolTargets(cacheKey))
+                ? withAgentUsages(buildAgentRenderNode(agentDecl, connections), cachedUsages ?? [], [], getCachedToolTargets(cacheKey))
                 : {
                     ...agentDecl,
                     id: agentDecl.id || "agent-type-focus-node",

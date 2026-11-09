@@ -52,6 +52,7 @@ import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
 import {
     AgentToolTarget,
     AgentUsage,
+    agentUsageKey,
     DEFAULT_MODEL_PROVIDER_LABEL,
     isDefaultModelProviderExpr,
     NodeMetadata,
@@ -62,7 +63,7 @@ import {
     VisualizerLocation,
 } from "@wso2/ballerina-core";
 
-import { flowDashAnimation, isToolTraceActive, releaseBoxHover, sanitizeAgentData, sanitizeId, toolEntryMatchesTools, usageRowFadeIn } from "../agentNodeUtils";
+import { flowDashAnimation, isToolTraceActive, releaseBoxHover, sanitizeAgentData, sanitizeId, toolEntryMatchesTools, usageRowFadeIn, usageRowOpacityIn } from "../agentNodeUtils";
 import { MarkdownWithTooltip } from "../AgentMarkdownTooltip";
 import {
     AGENT_USAGE_COLUMN_WIDTH,
@@ -512,9 +513,12 @@ const EDGE_ADD_PLUS_R = 9;
 const EDGE_ADD_LABEL_GAP = 8;
 const EDGE_ADD_HIT_WIDTH = 170;
 
-export const usageFadeIn = (delay: number) => css`
-    animation: ${usageRowFadeIn} 260ms ease-out both;
-    animation-delay: ${delay}ms;
+// A trigger added while the diagram is open slides in; the ones already there stay still.
+export const usageEnter = css`
+    animation: ${usageRowFadeIn} 200ms cubic-bezier(0.23, 1, 0.32, 1) both;
+    @media (prefers-reduced-motion: reduce) {
+        animation-name: ${usageRowOpacityIn};
+    }
 `;
 
 function ToolTargetLink({ target, openView }: { target: AgentToolTarget; openView?: (location: VisualizerLocation) => void }) {
@@ -620,10 +624,10 @@ const EDGE_ADD_ICON_SIZE = 16;
 
 export function EdgeAddButton(props: {
     anchorX: number; y: number; side: "left" | "right"; label: string; title: string; testId: string;
-    animationDelay?: number; onClick: () => void; readOnly?: boolean;
+    onClick: () => void; readOnly?: boolean;
     icon?: React.ReactNode;
 }) {
-    const { anchorX, y, side, label, title, testId, animationDelay, onClick, readOnly, icon } = props;
+    const { anchorX, y, side, label, title, testId, onClick, readOnly, icon } = props;
     const dir = side === "right" ? 1 : -1;
     const plusCx = dir * EDGE_ADD_PLUS_CX;
     const iconX = dir * (EDGE_ADD_PLUS_CX + EDGE_ADD_PLUS_R + EDGE_ADD_LABEL_GAP);
@@ -637,9 +641,6 @@ export function EdgeAddButton(props: {
             onClick={onClick}
             css={css`
                 cursor: ${readOnly ? "not-allowed" : "pointer"};
-                > g {
-                    ${animationDelay === undefined ? "" : usageFadeIn(animationDelay)}
-                }
                 ${readOnly ? "" : css`
                     &:hover .edge-add-stroke {
                         stroke: ${NODE_BORDER_SELECTED_COLOR};
@@ -776,6 +777,7 @@ function TraceAccentPulse({ isActive, aiColor, syncPulseAnimation }: {
                 transform-origin: 80px 24px;
                 transform: scale(1.03);
                 animation: ${syncPulseAnimation} 1.5s ease-in-out infinite alternate;
+                animation-play-state: ${isActive ? "running" : "paused"};
             `}
         />
     );
@@ -822,6 +824,7 @@ function TraceAccentLine({ isActive, aiColor, baseStroke, baseDashArray, markerI
                     opacity: ${isActive ? 1 : 0};
                     transition: opacity 0.4s ease-out;
                     animation: ${flowDashAnimation} 1s linear infinite;
+                    animation-play-state: ${isActive ? "running" : "paused"};
                 `}
             />
         </>
@@ -1158,7 +1161,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
         : modelProviderName;
     const tools = agentInfo?.tools || [];
 
-    const animateUsages = agentInfo?.animateUsages !== false;
+    const enteringUsages = new Set(agentInfo?.enteringUsages);
     const allUsages = getAgentNodeUsages(model.node);
     const usages = getVisibleAgentUsages(model.node);
     const hiddenUsageCount = allUsages.length - usages.length;
@@ -1241,7 +1244,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                         css={css`
                             cursor: pointer;
                             > g {
-                                ${animateUsages ? usageFadeIn(index * 70) : ""}
+                                ${enteringUsages.has(agentUsageKey(usage)) ? usageEnter : ""}
                             }
                             &:hover .usage-square {
                                 stroke: ${NODE_BORDER_SELECTED_COLOR};
@@ -1297,6 +1300,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                     transform-origin: 268px 24px;
                                     transform: scale(1.03);
                                     animation: ${syncPulseAnimation} 1.5s ease-in-out infinite alternate;
+                                    animation-play-state: ${isRowActive ? "running" : "paused"};
                                 `}
                             />
                             <foreignObject
@@ -1368,6 +1372,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                     opacity: ${isRowActive ? 1 : 0};
                                     transition: opacity 0.4s ease-out;
                                     animation: ${flowDashAnimation} 1s linear infinite;
+                                    animation-play-state: ${isRowActive ? "running" : "paused"};
                                 `}
                             />
 
@@ -1413,9 +1418,6 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                         fontSize="12px"
                         fontFamily="GilmerRegular"
                         dominantBaseline="middle"
-                        css={css`
-                            ${animateUsages ? usageFadeIn(usages.length * 70) : ""}
-                        `}
                     >
                         {`+${hiddenUsageCount} more`}
                     </text>
@@ -1460,7 +1462,6 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                         side="left"
                         label="Add Trigger"
                         title="Connect this agent to a chat channel or event source that will call it"
-                        animationDelay={animateUsages ? addTileRow * 70 : undefined}
                         onClick={onAddTriggerClick}
                         readOnly={readOnly}
                     />
@@ -1515,6 +1516,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                         opacity: ${isAgentNodeActive ? 1 : 0};
                         transition: opacity 0.4s ease-out;
                         animation: ${boxSyncPulseAnimation} 1.5s ease-in-out infinite alternate;
+                        animation-play-state: ${isAgentNodeActive ? "running" : "paused"};
                         pointer-events: none;
                         z-index: 1;
                     `}

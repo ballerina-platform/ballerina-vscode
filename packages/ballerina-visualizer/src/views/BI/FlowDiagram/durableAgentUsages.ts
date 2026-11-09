@@ -19,11 +19,11 @@
 import { useEffect, useRef, useState } from "react";
 import { AgentUsage, Flow, FlowNode, LineRange } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { AgentRef, findDurableAgentUsages, getAgentTriggerScopes, getCachedUsages, setCachedUsages, usageCacheKey } from "../FocusFlowDiagram/agentUsages";
+import { AgentRef, enteringUsageKeys, findDurableAgentUsages, getAgentTriggerScopes, getCachedUsages, setCachedUsages, usageCacheKey } from "../FocusFlowDiagram/agentUsages";
 
 const DEFER_MS = 600;
 
-type DurableBoxData = { agentBox?: boolean; agentName?: string; declaration?: LineRange; usages?: AgentUsage[]; animateUsages?: boolean };
+type DurableBoxData = { agentBox?: boolean; agentName?: string; declaration?: LineRange; usages?: AgentUsage[]; enteringUsages?: string[] };
 type Shown = { key: string; usages: AgentUsage[] };
 
 function boxData(node: FlowNode): DurableBoxData {
@@ -47,13 +47,13 @@ export function sameUsages(a: AgentUsage[] | undefined, b: AgentUsage[]): boolea
     return JSON.stringify(a ?? []) === JSON.stringify(b);
 }
 
-export function withDurableUsages(flow: Flow, usages: AgentUsage[], animate = true): Flow {
+export function withDurableUsages(flow: Flow, usages: AgentUsage[], entering: string[] = []): Flow {
     const box = findDurableAgentBox(flow);
     return {
         ...flow,
         nodes: flow.nodes.map((node): FlowNode =>
             node === box
-                ? { ...node, metadata: { ...node.metadata, data: { ...boxData(node), usages, animateUsages: animate } as FlowNode["metadata"]["data"] } }
+                ? { ...node, metadata: { ...node.metadata, data: { ...boxData(node), usages, enteringUsages: entering } as FlowNode["metadata"]["data"] } }
                 : node
         ),
     };
@@ -72,14 +72,14 @@ export function withoutDurableUsage(flow: Flow, projectPath: string, usage: Agen
     const previous = boxData(box).usages ?? [];
     const kept = previous.filter((item) => !sameUsage(item, usage));
     setCachedUsages(key, kept);
-    return { flow: withDurableUsages(flow, kept, false), restore: () => setCachedUsages(key, previous) };
+    return { flow: withDurableUsages(flow, kept), restore: () => setCachedUsages(key, previous) };
 }
 
 // A refreshed model arrives without usages; drawing it with the last known ones avoids a frame without its triggers.
 export function withKnownDurableUsages(flow: Flow, projectPath: string): Flow {
     const box = findDurableAgentBox(flow);
     const known = box && boxData(box).usages === undefined ? getCachedUsages(usageKeyOf(projectPath, flow, box)) : undefined;
-    return known ? withDurableUsages(flow, known, false) : flow;
+    return known ? withDurableUsages(flow, known) : flow;
 }
 
 function usageKeyOf(projectPath: string, flow: Flow, box: FlowNode): string {
@@ -120,7 +120,7 @@ export function useDurableAgentUsages(enabled: boolean, flow: Flow | undefined, 
         const show = (usages: AgentUsage[]) => {
             const previous = shownRef.current?.key === key ? shownRef.current.usages : undefined;
             shownRef.current = { key, usages };
-            setFlow(withDurableUsages(flow, usages, !previous || !sameUsages(previous, usages)));
+            setFlow(withDurableUsages(flow, usages, enteringUsageKeys(previous, usages)));
         };
         const cached = getCachedUsages(key);
         if (cached && (shown === undefined || !sameUsages(shown, cached))) {
