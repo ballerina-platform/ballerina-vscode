@@ -286,6 +286,11 @@ export class RecordConfigExpressionEditorConfig extends ChipExpressionEditorDefa
     getIsToggleHelperAvailable(): boolean {
         return false;
     }
+    // The record editor holds a raw record literal, so a value dropped into one of its
+    // string fields needs the same wrapping as Expression mode.
+    getHelperInsertionWrap(doc: string, pos: number): HelperInsertionWrap {
+        return getHelperInsertionWrap(doc, pos);
+    }
 }
 
 // The minimized record field only displays the value as chips: focusing it opens the record

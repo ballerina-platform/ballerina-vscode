@@ -23,7 +23,7 @@ import {
     getStringContextAt,
     StringContext,
 } from "../components/editors/MultiModeExpressionEditor/ChipExpressionEditor/stringContext";
-import { ExpressionModeEditorConfig } from "../components/editors/MultiModeExpressionEditor/Configurations";
+import { ExpressionModeEditorConfig, RecordConfigExpressionEditorConfig, RecordPreviewEditorConfig } from "../components/editors/MultiModeExpressionEditor/Configurations";
 import { getEditorConfiguration } from "../components/editors/ExpressionField";
 import { InputMode } from "../components/editors/MultiModeExpressionEditor/ChipExpressionEditor/types";
 
@@ -82,6 +82,16 @@ describe("helper insertion in Expression mode", () => {
         const expected = { code: "", template: "${", string: '" + ' };
         for (const [marked, ctx] of CASES) {
             expect(getHelperInsertionWrap(...at(marked)).prefix).toBe(expected[ctx]);
+        }
+    });
+
+    it("the record editor wraps only inside a string field of the record literal", () => {
+        for (const config of [new RecordConfigExpressionEditorConfig(), new RecordPreviewEditorConfig()]) {
+            const wrapAt = (marked: string) => config.getHelperInsertionWrap(...at(marked));
+            expect(wrapAt("{name: |}")).toEqual({ prefix: "", suffix: "" });
+            expect(wrapAt('{name: "Anne", age: |}')).toEqual({ prefix: "", suffix: "" });
+            expect(wrapAt('{name: "Hi |"}')).toEqual({ prefix: '" + ', suffix: ' + "' });
+            expect(wrapAt("{name: string `Hi |`}")).toEqual({ prefix: "${", suffix: "}" });
         }
     });
 
