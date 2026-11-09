@@ -75,21 +75,48 @@ runs:
     # Only a '-SNAPSHOT' extension version is derived from, and only main carries one. Release
     # lines ('5.14.x') and staging branches ('alpha') carry a concrete version that
     # is authored by hand, so a pre-release cut from one of those ships exactly what
-    # the file says — nightly-version.js would (correctly) refuse to derive from it.
+    # the file says — unless that version already has a GitHub Release. Shipping it
+    # again would reuse the tag and overwrite the release's assets, so it moves to the
+    # pre-release channel above it instead (nightly-version.js --after-release).
     - name: Set timestamped version
       shell: bash
       if: ${{ inputs.nightly == 'true' || inputs.isPreRelease == 'true' }}
+      env:
+        GH_TOKEN: ${{ github.token }}
+        REPO: ${{ github.repository }}
       run: |
         set -euo pipefail
         currentVersion=$(node -p "require('./packages/ballerina-extension/package.json').version")
+        deriveFlag=""
         case "${currentVersion}" in
           *-SNAPSHOT) ;;
           *)
-            echo "Extension version ${currentVersion} is not a snapshot; publishing it as authored."
-            exit 0
+            # 404 = no release for this tag. Anything else but 200 is a failed lookup, and
+            # guessing "not released" there is exactly how a release gets overwritten.
+            status=$(curl -sS --connect-timeout 15 --max-time 60 -o release.json -w '%{http_code}' \
+              -H "Accept: application/vnd.github.v3+json" \
+              -H "Authorization:token ${GH_TOKEN}" \
+              "https://api.github.com/repos/${REPO}/releases/tags/v${currentVersion}")
+            released=false
+            case "${status}" in
+              200) released=$(jq -r '(.draft | not) and (.prerelease | not)' release.json) ;;
+              404) ;;
+              *)
+                echo "::error::Could not look up the v${currentVersion} release (HTTP ${status}):" >&2
+                cat release.json >&2
+                exit 1
+                ;;
+            esac
+            rm -f release.json
+            if [ "${released}" != "true" ]; then
+              echo "Extension version ${currentVersion} is not a snapshot; publishing it as authored."
+              exit 0
+            fi
+            echo "::notice::v${currentVersion} is already released; deriving a pre-release version above it."
+            deriveFlag="--after-release"
             ;;
         esac
-        newVersion=$(node common/scripts/nightly-version.js --timestamp "${{ steps.timestamp.outputs.timestamp }}")
+        newVersion=$(node common/scripts/nightly-version.js ${deriveFlag} --timestamp "${{ steps.timestamp.outputs.timestamp }}")
         echo "Timestamped version: $newVersion"
         npm version "$newVersion" --no-git-tag-version --prefix packages/ballerina-extension
 
