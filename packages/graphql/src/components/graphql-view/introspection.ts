@@ -47,7 +47,8 @@ export function getServedMetaFields(introspection: IntrospectionQuery): ServedMe
     return served;
 }
 
-// Mirrors the default in @graphiql/toolkit's `fillLeafs`, which is not exported.
+// Mirrors the default in @graphiql/toolkit's `fillLeafs`, which is not exported. Copied from
+// @graphiql/toolkit 0.11.3, the version graphiql 3.7.0 uses: recheck it when graphiql is bumped.
 function toolkitDefaultFieldNames(type: GraphQLType): string[] {
     if (!("getFields" in type)) {
         return [];
