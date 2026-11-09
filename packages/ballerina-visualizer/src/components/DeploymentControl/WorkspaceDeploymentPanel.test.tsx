@@ -53,11 +53,15 @@ jest.mock("../../hooks/useProductMode", () => ({ __esModule: true, useProductMod
 jest.mock("./AgentManagerSection", () => ({ __esModule: true }));
 jest.mock("./McpPublishSection", () => ({ __esModule: true }));
 jest.mock("./WorkflowSection", () => ({ __esModule: true }));
+let mockDeployablePaths: string[];
 jest.mock("../../views/BI/PackageOverview/utils", () => ({
     __esModule: true,
     getWorkspaceDeploymentState: () => ({
         libraryProjectPaths: new Set(["/ws/lib"]),
-        undeployedProjectScopes: [{ projectPath: "/ws/b", integrationTypes: ["AI_AGENT"] }],
+        deployableProjectPaths: new Set(mockDeployablePaths),
+        undeployedProjectScopes: mockDeployablePaths.includes("/ws/b")
+            ? [{ projectPath: "/ws/b", integrationTypes: ["AI_AGENT"] }]
+            : [],
         hasDeployableIntegration: true,
     }),
 }));
@@ -135,6 +139,7 @@ async function renderPanel() {
 }
 
 beforeEach(() => {
+    mockDeployablePaths = ["/ws/a", "/ws/b", "/ws/lib"];
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -179,4 +184,23 @@ it("offers no deploy action once every integration is deployed", async () => {
 
     await expand("Integration Control Plane");
     expect(button("Disable ICP for All Integrations")).toBeDefined();
+});
+
+it("leaves integrations without an entry point out of the deployed count", async () => {
+    mockRpcClient = makeRpcClient([]);
+    mockDevantMetadata = deployedPaths(["/ws/a"]);
+    mockDeployablePaths = ["/ws/a", "/ws/lib"];
+    await renderPanel();
+
+    expect(container.textContent).toContain("All integrations in this project are deployed on WSO2 Cloud.");
+    expect(button("Deploy Remaining")).toBeUndefined();
+});
+
+it("keeps a deployed integration in the count after it loses its entry point", async () => {
+    mockRpcClient = makeRpcClient([]);
+    mockDevantMetadata = deployedPaths(["/ws/a"]);
+    mockDeployablePaths = ["/ws/b", "/ws/lib"];
+    await renderPanel();
+
+    expect(container.textContent).toContain("1 of 2 integrations are deployed on WSO2 Cloud.");
 });

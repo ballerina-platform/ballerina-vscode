@@ -795,9 +795,10 @@ export function WorkspaceDeploymentPanel({ projectCollection, isInDevant, isICPS
     const itemIn = useDrawerItems({ deploy: "cloud" });
     const item = itemIn("deploy");
 
-    const { libraryProjectPaths, undeployedProjectScopes, hasDeployableIntegration } =
+    const { libraryProjectPaths, deployableProjectPaths, undeployedProjectScopes, hasDeployableIntegration } =
         getWorkspaceDeploymentState(projectCollection, cloud.data);
-    const integrations = (cloud.data?.projectsMetadata ?? []).filter((meta) => !libraryProjectPaths.has(meta.projectPath));
+    const integrations = (cloud.data?.projectsMetadata ?? []).filter((meta) =>
+        !libraryProjectPaths.has(meta.projectPath) && (meta.hasComponent || deployableProjectPaths.has(meta.projectPath)));
     const deployed = integrations.filter((meta) => meta.hasComponent);
     const status = workspaceCloudStatus(deployed.length, integrations.length);
 
