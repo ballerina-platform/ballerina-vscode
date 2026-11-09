@@ -388,31 +388,8 @@ export const dbCredentialsToFieldValues = (
 // Devant "service -> connection params" helpers, shared by the connection form and the KB flow.
 /** Only the project's id is read, so a v2 project (WSO2 Cloud) serves as well as a v1 one. */
 export const getPossibleVisibilities = (marketplaceItem: MarketplaceItem, project?: Pick<Project, "id">) => {
-    const { connectionSchemas = [], visibility: visibilities = [] } = marketplaceItem ?? {};
-    const filteredVisibilities = visibilities.filter((item) => {
-        if (item === ServiceInfoVisibilityEnum.Project) {
-            return !!project?.id && marketplaceItem.projectId === project.id;
-        }
-        return item;
-    });
-    /**
-     * There can be services with multiple visibilities but only with one schema.
-     * [PROJECT, ORGANIZATION] => Default OAuth Connection - Organization
-     *
-     * In this case, the visibilities should be filtered to only include the one that matches the schema.
-     * If the schema is Unsecured, include only Organization and Public;
-     * else include only the visibilities that match the schema name.
-     */
-    if (connectionSchemas.length === 1 && filteredVisibilities.length > 1) {
-        return filteredVisibilities.filter((v) => {
-            const connectionSchemaName = connectionSchemas[0].name.toLowerCase();
-            if (connectionSchemaName.includes("Unsecured".toLowerCase())) {
-                return v === ServiceInfoVisibilityEnum.Organization || v === ServiceInfoVisibilityEnum.Public;
-            }
-            return connectionSchemaName.includes(v.toLowerCase());
-        });
-    }
-    return filteredVisibilities;
+    const { visibility: visibilities = [] } = marketplaceItem ?? {};
+    return visibilities.filter((item) => item !== ServiceInfoVisibilityEnum.Project || (!!project?.id && marketplaceItem.projectId === project.id));
 };
 
 export const getInitialVisibility = (item: MarketplaceItem, visibilities: string[] = []) => {
@@ -428,31 +405,5 @@ export const getInitialVisibility = (item: MarketplaceItem, visibilities: string
     return ServiceInfoVisibilityEnum.Public;
 };
 
-export const getPossibleSchemas = (
-    item: MarketplaceItem,
-    selectedVisibility: string,
-    connectionSchemas: MarketplaceItemSchema[] = [],
-) => {
-    if (!item) {
-        return [];
-    }
-    // If third party, return schemas without filtering
-    if (item.isThirdParty) {
-        return item.connectionSchemas;
-    }
-    // Filter schemas based on the selected visibility:
-    // organization/public can have OAuth2, api key or unauthenticated; project can have only project.
-    const schemasFiltered = connectionSchemas.filter((schema) => {
-        if (
-            selectedVisibility.toLowerCase().includes("organization") ||
-            selectedVisibility.toLowerCase().includes("public")
-        ) {
-            return (
-                schema.name.toLowerCase().includes(selectedVisibility.toLowerCase()) ||
-                schema.name.toLowerCase().includes("unsecured")
-            );
-        }
-        return schema.name.toLowerCase().includes("project");
-    });
-    return schemasFiltered;
-};
+/** A WSO2 Cloud service or database offers the same schemas whatever the access mode. */
+export const getPossibleSchemas = (item: MarketplaceItem | undefined): MarketplaceItemSchema[] => item?.connectionSchemas ?? [];

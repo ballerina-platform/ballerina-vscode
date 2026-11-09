@@ -190,9 +190,8 @@ export const DevantConnectorCreateForm: FC<DevantConnectorCreateFormProps> = ({
 
     const createDevantConnection: SubmitHandler<CreateConnectionForm> = (data) => createConnection(data);
 
-    const selectedVisibility = form.watch("visibility");
 
-    const schemas = getPossibleSchemas(marketplaceItem, selectedVisibility, marketplaceItem?.connectionSchemas);
+    const schemas = getPossibleSchemas(marketplaceItem);
 
     useEffect(() => {
         if (!schemas.some((item) => item.id === form.getValues("schemaId")) && schemas.length > 0) {
@@ -355,7 +354,12 @@ export const DevantConnectorCreateForm: FC<DevantConnectorCreateFormProps> = ({
             <FooterContainer>
                 <ActionButton
                     appearance="primary"
-                    onClick={form.handleSubmit(createDevantConnection)}
+                    onClick={form.handleSubmit(createDevantConnection, (errors) => {
+                        // A field of the collapsed section that fails validation is shown, not left to block the button unseen.
+                        if (errors.visibility || errors.schemaId) {
+                            setShowAdvancedSection(true);
+                        }
+                    })}
                     disabled={isCreatingConnection}
                     buttonSx={{ width: "100%", height: "35px" }}
                 >
