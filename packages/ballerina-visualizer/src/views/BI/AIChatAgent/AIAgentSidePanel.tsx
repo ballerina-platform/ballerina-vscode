@@ -397,7 +397,7 @@ function reorderFunctionCategories(categories: PanelCategory[]): PanelCategory[]
 const getConnectionFieldName = (name: string): string =>
     name.startsWith("self.") ? name.slice("self.".length) : name;
 
-// Tool Name + Description are shared with the "Use Connection"/"Create Custom Tool" flows via
+// Tool Name + Description are shared with the "Use Connector"/"Create Custom Tool" flows via
 // buildAgentToolFields; Requires Approval (createRequiresApprovalField, shared across all three
 // tool-creation paths) is appended here, scoped to this form only.
 const INITIAL_FIELDS: FormField[] = [
@@ -1483,7 +1483,9 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                     target={targetRef.current.startLine}
                     existingConnectionCategories={categories}
                     connectorSet="GROUPED"
-                    description="Pick an existing connection or a connector to browse its actions."
+                    description={categories.some((category) => category.items?.length > 0)
+                        ? "Pick an existing connection or a connector to browse its actions."
+                        : "Pick a connector to browse its actions."}
                     noActionsHint="You can still add it as a connection and create the tool from an action later."
                     onSelect={handleWizardSelect}
                     onStepChange={handleWizardStepChange}
