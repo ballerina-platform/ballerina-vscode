@@ -1087,8 +1087,13 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
             const { node } = metadata as { node: AvailableNode };
             if (onExistingToolSelect && (node.metadata?.data as NodeMetadata)?.isAgentTool) {
                 const { toolName, imports } = toAgentToolReference(node.codedata);
-                await onExistingToolSelect(toolName, imports);
-                return;
+                // The agent rejects two tools with one name, so a clash goes through the tool form to pick another.
+                const clashes = getExistingToolNames(agentNode)
+                    .some((name) => name !== toolName && name.split(":").pop() === node.codedata.symbol);
+                if (!clashes) {
+                    await onExistingToolSelect(toolName, imports);
+                    return;
+                }
             }
             setToolNodeId(nodeId);
             selectedNodeRef.current = node;

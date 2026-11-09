@@ -17,7 +17,7 @@
  */
 
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AgentNodeActions } from "@wso2/bi-diagram";
 import { AgentUsage, EVENT_TYPE, FlowNode, MACHINE_VIEW, NodeMetadata, NodePosition, ProjectStructureArtifactResponse, SearchNodesQuery, ToolData, VisualizerLocation }
     from "@wso2/ballerina-core";
@@ -85,9 +85,14 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
     const [selectedTool, setSelectedTool] = useState<ToolData>();
     const [selectedAgentName, setSelectedAgentName] = useState("");
     const [backOverride, setBackOverride] = useState<(() => void) | null>(null);
-    const [workspaceTools, setWorkspaceTools] = useState<Map<string, VisualizerLocation>>(new Map());
+    // A ref, since the diagram keeps the callbacks it was built with until the flow changes.
+    const workspaceTools = useRef<Map<string, VisualizerLocation>>(new Map());
     useEffect(() => {
-        void getWorkspaceAgentTools(rpcClient).then(setWorkspaceTools);
+        const refresh = () => {
+            void getWorkspaceAgentTools(rpcClient).then((tools) => { workspaceTools.current = tools; });
+        };
+        refresh();
+        return rpcClient.onProjectContentUpdated(refresh);
     }, [rpcClient]);
     const isImportedTool = (tool: ToolData) => tool.name.includes(":");
     const activate = useCallback((node: FlowNode) => {
@@ -221,7 +226,7 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
             return;
         }
         if (isImportedTool(tool)) {
-            const location = workspaceTools.get(tool.name);
+            const location = workspaceTools.current.get(tool.name);
             if (location) {
                 await rpcClient.getVisualizerRpcClient().openView({
                     type: EVENT_TYPE.OPEN_VIEW,
@@ -247,7 +252,7 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
                 view: form ? MACHINE_VIEW.AIAgentToolForm : MACHINE_VIEW.BIDiagram,
             },
         });
-    }, [resolveToolFunction, rpcClient, workspaceTools]);
+    }, [resolveToolFunction, rpcClient]);
 
     const deleteMcpVariableAndClass = useCallback(async (tool: ToolData) => {
         const variableNodes = await rpcClient.getBIDiagramRpcClient().getModuleNodes();
@@ -352,7 +357,7 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
         },
         onDeleteTool: (tool, node) => void deleteTool(tool, resolve(node)),
         goToTool: (tool, node) => void openTool(tool, resolve(node), false),
-        canOpenTool: (tool) => !isImportedTool(tool) || workspaceTools.has(tool.name),
+        canOpenTool: (tool) => !isImportedTool(tool) || workspaceTools.current.has(tool.name),
         onSelectMemoryManager: (node) => void selectMemory(resolve(node)),
         onSelectMemoryStore: (node) => void selectMemoryStore(resolve(node)),
         onDeleteMemoryManager: (node) => void deleteMemory(resolve(node)),
@@ -360,7 +365,7 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
         onAddTrigger: host.onAddTrigger && ((node) => host.onAddTrigger(resolve(node))),
         onDeleteTrigger: host.onDeleteTrigger && ((usage, node) => host.onDeleteTrigger(usage, resolve(node))),
         onTryTrigger: host.onTryTrigger && ((usage, node) => host.onTryTrigger(usage, resolve(node))),
-    }), [activate, deleteMemory, deleteTool, host, openTool, resolve, selectMemory, selectMemoryStore, workspaceTools]);
+    }), [activate, deleteMemory, deleteTool, host, openTool, resolve, selectMemory, selectMemoryStore]);
 
     const setBackHandler = useCallback(
         (handler: (() => void) | null) => setBackOverride(() => handler),

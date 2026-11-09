@@ -991,7 +991,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
     };
 
     const onImplementTool = (tool: ToolData) => {
-        if (readOnly) {
+        if (readOnly || agentNode?.canOpenTool?.(tool) === false) {
             return;
         }
         agentNode?.goToTool && agentNode.goToTool(tool, model.node);
@@ -1839,7 +1839,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                             css={toolsReadOnly ? css`
                                 cursor: not-allowed;
                             ` : css`
-                            cursor: ${readOnly ? "default" : "pointer"};
+                            cursor: ${readOnly || agentNode?.canOpenTool?.(tool) === false ? "default" : "pointer"};
                             transition: opacity 0.4s ease-out;
                             &:hover:not(:has(.tool-target:hover)) circle:first-of-type {
                                 stroke: ${NODE_BORDER_SELECTED_COLOR};

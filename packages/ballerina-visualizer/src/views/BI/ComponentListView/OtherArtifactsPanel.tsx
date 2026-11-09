@@ -27,7 +27,7 @@ import { ARTIFACT_TOOLTIP_MAX_WIDTH, OTHER_ARTIFACT_CARDS, sortAgentBuilderFirst
 import { cardMatchesSearch } from './componentListUtils';
 import { useProductMode } from '../../../hooks/useProductMode';
 
-const AGENT_BUILDER_HIDDEN_CARDS = [DIRECTORY_MAP.CONNECTION, DIRECTORY_MAP.AGENT, DIRECTORY_MAP.CONFIGURABLE];
+const AGENT_BUILDER_HIDDEN_CARDS = [DIRECTORY_MAP.CONNECTION, DIRECTORY_MAP.AGENT];
 const AGENT_BUILDER_ONLY_CARDS = [DIRECTORY_MAP.AGENT_TOOL];
 
 interface OtherArtifactsPanelProps {

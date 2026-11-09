@@ -21,3 +21,13 @@ import ballerina/ai;
 public isolated function getWeather(string city) returns string {
     return string `Sunny in ${city}`;
 }
+
+# Asks the forecaster agent about the weather.
+@ai:AgentTool
+public isolated function askForecaster(string question) returns string|error {
+    ai:Agent forecaster = check new (
+        systemPrompt = {role: "Forecaster", instructions: "Answer forecast questions."},
+        model = check ai:getDefaultModelProvider()
+    );
+    return forecaster.run(question);
+}

@@ -19,7 +19,7 @@ import org/agent_17.tools;
 
 final ai:Agent weatherAgent = check new (
     systemPrompt = {role: "Assistant", instructions: "Answer weather questions."},
-    model = check ai:getDefaultModelProvider(), tools = [tools:getWeather]
+    model = check ai:getDefaultModelProvider(), tools = [tools:getWeather, tools:askForecaster]
 );
 
 public function main() returns error? {

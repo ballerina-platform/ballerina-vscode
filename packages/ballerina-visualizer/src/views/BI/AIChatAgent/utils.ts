@@ -660,13 +660,14 @@ export const resolveAgentDefinitionLocation = async (
     return undefined;
 };
 
-// Keyed by how another package references the tool: `<package>:<tool>`.
+// Keyed like `toAgentToolReference`: `<last segment of the package name>:<tool>`; artifacts come only from default modules.
 export const getWorkspaceAgentTools = async (rpcClient: BallerinaRpcClient): Promise<Map<string, VisualizerLocation>> => {
     const structure = await rpcClient.getBIDiagramRpcClient().getProjectStructure();
     const tools = new Map<string, VisualizerLocation>();
     for (const project of structure?.projects ?? []) {
+        const prefix = project.projectName.split(".").pop();
         for (const tool of project.directoryMap?.[DIRECTORY_MAP.AGENT_TOOL] ?? []) {
-            tools.set(`${project.projectName}:${tool.name}`, {
+            tools.set(`${prefix}:${tool.name}`, {
                 documentUri: tool.path,
                 position: tool.position,
                 projectPath: project.projectPath,

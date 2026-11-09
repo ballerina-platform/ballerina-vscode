@@ -64,6 +64,13 @@
                   "path": "",
                   "description": "Looks up the weather for a city.",
                   "requiresApproval": false
+                },
+                {
+                  "name": "tools:askForecaster",
+                  "path": "",
+                  "description": "Asks the forecaster agent about the weather.",
+                  "type": "Agent",
+                  "requiresApproval": false
                 }
               ]
             }
@@ -110,7 +117,7 @@
                   "offset": 2
                 }
               },
-              "sourceCode": "final ai:Agent weatherAgent = check new (\n    systemPrompt = {role: \"Assistant\", instructions: \"Answer weather questions.\"},\n    model = check ai:getDefaultModelProvider(), tools = [tools:getWeather]\n);",
+              "sourceCode": "final ai:Agent weatherAgent = check new (\n    systemPrompt = {role: \"Assistant\", instructions: \"Answer weather questions.\"},\n    model = check ai:getDefaultModelProvider(), tools = [tools:getWeather, tools:askForecaster]\n);",
               "isNew": false,
               "data": {
                 "scope": "Global"
@@ -282,7 +289,7 @@
                 "selected": false
               }
             ],
-            "value": "[tools:getWeather]",
+            "value": "[tools:getWeather, tools:askForecaster]",
             "placeholder": "[]",
             "optional": true,
             "editable": true,
@@ -739,6 +746,13 @@
                   "path": "",
                   "description": "Looks up the weather for a city.",
                   "requiresApproval": false
+                },
+                {
+                  "name": "tools:askForecaster",
+                  "path": "",
+                  "description": "Asks the forecaster agent about the weather.",
+                  "type": "Agent",
+                  "requiresApproval": false
                 }
               ]
             }
@@ -763,7 +777,7 @@
               "offset": 2
             }
           },
-          "sourceCode": "final ai:Agent weatherAgent = check new (\n    systemPrompt = {role: \"Assistant\", instructions: \"Answer weather questions.\"},\n    model = check ai:getDefaultModelProvider(), tools = [tools:getWeather]\n);"
+          "sourceCode": "final ai:Agent weatherAgent = check new (\n    systemPrompt = {role: \"Assistant\", instructions: \"Answer weather questions.\"},\n    model = check ai:getDefaultModelProvider(), tools = [tools:getWeather, tools:askForecaster]\n);"
         },
         "returning": false,
         "properties": {
@@ -953,6 +967,34 @@
                   }
                 ],
                 "value": "tools:getWeather",
+                "optional": false,
+                "editable": false,
+                "advanced": false,
+                "hidden": false
+              },
+              {
+                "types": [
+                  {
+                    "fieldType": "RECORD_MAP_EXPRESSION",
+                    "ballerinaType": "ai:ToolConfig",
+                    "typeMembers": [
+                      {
+                        "type": "ToolConfig",
+                        "packageInfo": "ballerina:ai:1.16.0",
+                        "packageName": "ai",
+                        "kind": "RECORD_TYPE",
+                        "selected": false
+                      }
+                    ],
+                    "selected": false
+                  },
+                  {
+                    "fieldType": "EXPRESSION",
+                    "ballerinaType": "ai:BaseToolKit|ai:ToolConfig|ai:FunctionTool",
+                    "selected": true
+                  }
+                ],
+                "value": "tools:askForecaster",
                 "optional": false,
                 "editable": false,
                 "advanced": false,
