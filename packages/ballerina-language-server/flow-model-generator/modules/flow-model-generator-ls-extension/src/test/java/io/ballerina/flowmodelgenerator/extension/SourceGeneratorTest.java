@@ -182,7 +182,9 @@ public class SourceGeneratorTest extends AbstractLSTest {
 
     @Test
     public void testNewConnectionSavedAfterItsFormGetsTheSameSource() throws IOException {
-        // The save reads the connector's types from the init the form's template request loaded.
+        // The save reads the connector's types from the init the form's template request loaded. That init sits in a
+        // static slot, so other tests' saves may reuse whatever an earlier template request left there; this test
+        // fills it right before its own save.
         TestConfig testConfig = gson.fromJson(
                 Files.newBufferedReader(configDir.resolve("new_connection-salesforce.json")), TestConfig.class);
         String filePath = sourceDir.resolve(testConfig.source()).toAbsolutePath().toString();
