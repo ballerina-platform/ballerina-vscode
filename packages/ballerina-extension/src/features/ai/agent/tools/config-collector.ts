@@ -903,8 +903,18 @@ async function handleCheckMode(
     }
     await saveConfigOrThrow(configPath, packageBasePath);
 
-    // No file yet is a normal state: nothing is configured, so every name asked about is missing.
     const exists = fs.existsSync(configPath);
+    // A missing file collect mode would not create is a wrong path, not an empty configuration.
+    const collectCreates = [false, true].some(isTest => path.resolve(getConfigPath(packageBasePath, isTest)) === path.resolve(configPath));
+    if (!exists && !collectCreates) {
+        return {
+            success: false,
+            message: `${configFileName} not found.`,
+            error: "FILE_NOT_FOUND",
+            errorCode: "FILE_NOT_FOUND",
+        };
+    }
+    // No file yet is a normal state: nothing is configured, so every name asked about is missing.
     const status: Record<string, "filled" | "missing"> = exists ? getAllConfigStatus(configPath, orgName, packageName) : {};
 
     // When specific names are provided, pad any that are absent from the file as "missing"
