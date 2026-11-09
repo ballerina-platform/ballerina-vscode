@@ -39,6 +39,10 @@ export const usageRowFadeIn = keyframes`
     to { opacity: 1; transform: translateX(0); }
 `;
 
+export const usageRowOpacityIn = keyframes`
+    from { opacity: 0; }
+`;
+
 export function sanitizeId(name: string): string {
     return name.replace(/[^A-Za-z0-9_-]/g, "_");
 }
