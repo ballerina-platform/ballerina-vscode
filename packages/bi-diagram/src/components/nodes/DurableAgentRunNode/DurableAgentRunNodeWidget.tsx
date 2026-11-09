@@ -56,10 +56,10 @@ import { useDiagramContext } from "../../DiagramContext";
 import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
 import { getResultVariableName, nodeHasError } from "../../../utils/node";
 import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
-import { AgentUsage, DEFAULT_MODEL_PROVIDER_LABEL, isDefaultModelProviderExpr, NodeMetadata, triggerScopeNoun } from "@wso2/ballerina-core";
+import { AgentUsage, agentUsageKey, DEFAULT_MODEL_PROVIDER_LABEL, isDefaultModelProviderExpr, NodeMetadata, triggerScopeNoun } from "@wso2/ballerina-core";
 import { MarkdownWithTooltip } from "../AgentMarkdownTooltip";
 import { AgentReferenceRow } from "../AgentWidget/AgentReferenceRow";
-import { EdgeAddButton, MenuBeforeLabels, menuOrigin, USAGE_SERVICE_LABEL_MAX, UsageIcon, usageFadeIn } from "../AgentNode/AgentNodeWidget";
+import { EdgeAddButton, MenuBeforeLabels, menuOrigin, USAGE_SERVICE_LABEL_MAX, UsageIcon, usageEnter } from "../AgentNode/AgentNodeWidget";
 import {
     AGENT_USAGE_ROW_LIMIT,
     AGENT_USAGE_ROW_PITCH,
@@ -415,7 +415,7 @@ type DurableAgentNodeMetadata = NodeMetadata & {
     agentName?: string;
     agentBox?: boolean;
     usages?: AgentUsage[];
-    animateUsages?: boolean;
+    enteringUsages?: string[];
 };
 
 const LEFT_SVG_WIDTH = 300;
@@ -424,12 +424,9 @@ const USAGE_SQUARE_X = 246;
 const USAGE_TEXT_RIGHT_X = 238;
 const USAGE_TEXT_CENTER_Y = 21;
 const USAGE_LINE_GAP = 19;
-const USAGE_ROW_STAGGER_MS = 70;
 
-const fadeIn = (delay: number | undefined) => (delay === undefined ? "" : usageFadeIn(delay));
-
-function animatesUsages(metadata: { animateUsages?: boolean } | undefined): boolean {
-    return metadata?.animateUsages !== false;
+function enteringUsagesOf(metadata: { enteringUsages?: string[] } | undefined): Set<string> {
+    return new Set(metadata?.enteringUsages);
 }
 
 function usageDash(usage: AgentUsage): string | undefined {
@@ -480,12 +477,12 @@ interface UsageRowProps {
     codedata: FlowNode["codedata"];
     markerId: string;
     targetY?: number;
-    animationDelay?: number;
+    entering?: boolean;
     onOpen: (usage: AgentUsage) => void;
     onMenu?: (usage: AgentUsage) => RowMenuOpener;
 }
 
-function UsageRow({ usage, index, boxEdgeX, codedata, markerId, targetY = 25, animationDelay, onOpen, onMenu }: UsageRowProps) {
+function UsageRow({ usage, index, boxEdgeX, codedata, markerId, targetY = 25, entering, onOpen, onMenu }: UsageRowProps) {
     const title = [usage.serviceLabel ?? usage.typeLabel, usage.label].filter(Boolean).join(" — ");
     return (
         <g
@@ -500,7 +497,7 @@ function UsageRow({ usage, index, boxEdgeX, codedata, markerId, targetY = 25, an
             css={css`
                 cursor: pointer;
                 > g {
-                    ${fadeIn(animationDelay)}
+                    ${entering ? usageEnter : ""}
                 }
                 &:hover .usage-square {
                     stroke: ${NODE_BORDER_SELECTED_COLOR};
@@ -543,7 +540,7 @@ interface UsageRowsProps {
     codedata: FlowNode["codedata"];
     markerId: string;
     readOnly: boolean;
-    animate: boolean;
+    entering: Set<string>;
     onOpen: (usage: AgentUsage) => void;
     onAddTrigger: () => void;
     onMenu?: (usage: AgentUsage) => RowMenuOpener;
@@ -583,8 +580,7 @@ function durableEventTriggerHost(
     return { offered, addFor: (item) => (offered ? add(item) : undefined) };
 }
 
-function UsageRows({ column, boxEdgeX, codedata, markerId, readOnly, animate, onOpen, onAddTrigger, onMenu }: UsageRowsProps) {
-    const stagger = (row: number) => (animate ? row * USAGE_ROW_STAGGER_MS : undefined);
+function UsageRows({ column, boxEdgeX, codedata, markerId, readOnly, entering, onOpen, onAddTrigger, onMenu }: UsageRowsProps) {
     return (
         <>
             {column.visible.map((usage: AgentUsage, index: number) => (
@@ -595,13 +591,13 @@ function UsageRows({ column, boxEdgeX, codedata, markerId, readOnly, animate, on
                     boxEdgeX={boxEdgeX}
                     codedata={codedata}
                     markerId={markerId}
-                    animationDelay={stagger(index)}
+                    entering={entering.has(agentUsageKey(usage))}
                     onOpen={onOpen}
                     onMenu={!readOnly && usage.trigger ? onMenu : undefined}
                 />
             ))}
             {column.hidden > 0 && (
-                <text x={USAGE_SQUARE_X + 44} y={column.visible.length * AGENT_USAGE_ROW_PITCH + 24} textAnchor="end" fill={NODE_TEXT_COLOR} opacity={0.7} fontSize="12px" fontFamily="GilmerRegular" dominantBaseline="middle" css={css`${fadeIn(stagger(column.visible.length))}`}>
+                <text x={USAGE_SQUARE_X + 44} y={column.visible.length * AGENT_USAGE_ROW_PITCH + 24} textAnchor="end" fill={NODE_TEXT_COLOR} opacity={0.7} fontSize="12px" fontFamily="GilmerRegular" dominantBaseline="middle">
                     {`+${column.hidden} more`}
                 </text>
             )}
@@ -613,7 +609,6 @@ function UsageRows({ column, boxEdgeX, codedata, markerId, readOnly, animate, on
                     side="left"
                     label="Add Trigger"
                     title="Connect this agent to a chat channel or event source that will run it"
-                    animationDelay={stagger(column.rows)}
                     onClick={onAddTrigger}
                     readOnly={readOnly}
                 />
@@ -629,7 +624,7 @@ interface ChannelSendersProps {
     circleEdgeX: number;
     codedata: FlowNode["codedata"];
     markerId: string;
-    animate: boolean;
+    entering: Set<string>;
     readOnly: boolean;
     onOpen: (usage: AgentUsage) => void;
     onAddTrigger?: () => void;
@@ -668,12 +663,11 @@ const CapabilityLabel = styled.div`
 const SENDER_TRUNK_X = USAGE_SQUARE_X + 57;
 const SENDER_TILE_CENTER_Y = 11;
 
-function ChannelSenders({ channel, senders, circleOffset, circleEdgeX, codedata, markerId, animate, readOnly, onOpen, onAddTrigger, onMenu }: ChannelSendersProps) {
+function ChannelSenders({ channel, senders, circleOffset, circleEdgeX, codedata, markerId, entering, readOnly, onOpen, onAddTrigger, onMenu }: ChannelSendersProps) {
     const visible = senders.slice(0, AGENT_USAGE_ROW_LIMIT);
     const hidden = senders.length - visible.length;
     const rows = visible.length + (hidden > 0 ? 1 : 0);
     const tileY = rows * AGENT_USAGE_ROW_PITCH + (rows > 0 ? SENDER_TILE_CENTER_Y : 24);
-    const stagger = (row: number) => (animate ? row * USAGE_ROW_STAGGER_MS : undefined);
     return (
         <>
             {visible.map((usage: AgentUsage, index: number) => (
@@ -685,13 +679,13 @@ function ChannelSenders({ channel, senders, circleOffset, circleEdgeX, codedata,
                     targetY={circleOffset + 24 - index * AGENT_USAGE_ROW_PITCH}
                     codedata={codedata}
                     markerId={markerId}
-                    animationDelay={stagger(index)}
+                    entering={entering.has(agentUsageKey(usage))}
                     onOpen={onOpen}
                     onMenu={!readOnly && usage.trigger ? onMenu : undefined}
                 />
             ))}
             {hidden > 0 && (
-                <text x={USAGE_SQUARE_X + 44} y={visible.length * AGENT_USAGE_ROW_PITCH + 24} textAnchor="end" fill={NODE_TEXT_COLOR} opacity={0.7} fontSize="12px" fontFamily="GilmerRegular" dominantBaseline="middle" css={css`${fadeIn(stagger(visible.length))}`}>
+                <text x={USAGE_SQUARE_X + 44} y={visible.length * AGENT_USAGE_ROW_PITCH + 24} textAnchor="end" fill={NODE_TEXT_COLOR} opacity={0.7} fontSize="12px" fontFamily="GilmerRegular" dominantBaseline="middle">
                     {`+${hidden} more`}
                 </text>
             )}
@@ -700,7 +694,6 @@ function ChannelSenders({ channel, senders, circleOffset, circleEdgeX, codedata,
                     d={`M ${SENDER_TRUNK_X} ${tileY} V ${circleOffset + 24}`}
                     fill="none"
                     style={{ stroke: NODE_TEXT_COLOR, strokeWidth: 1.5, strokeDasharray: "2 4" }}
-                    css={css`${fadeIn(stagger(rows))}`}
                 />
             )}
             {onAddTrigger && (
@@ -711,7 +704,6 @@ function ChannelSenders({ channel, senders, circleOffset, circleEdgeX, codedata,
                     side="left"
                     label="Add Trigger"
                     title={`Add an endpoint that sends data on ${channel} to a running instance`}
-                    animationDelay={stagger(rows)}
                     onClick={onAddTrigger}
                     readOnly={readOnly}
                 />
@@ -1040,6 +1032,7 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
     const disabled = model.node.suggested;
     const isDraft = model.node.metadata?.draft === true;
     const nodeMetadata = model?.node?.metadata?.data as DurableAgentNodeMetadata | undefined;
+    const enteringUsages = enteringUsagesOf(nodeMetadata);
     // The big agent visualization is rendered only for the synthetic agent-box node
     // (metadata.data.agentBox) or the draft placeholder; the in-chain buildAndRun
     // statement renders as a compact node like the other register statements.
@@ -1380,7 +1373,7 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
                             codedata={model.node.codedata}
                             markerId={`${model.node.id}-arrow-head-usage`}
                             readOnly={readOnly}
-                            animate={animatesUsages(nodeMetadata)}
+                            entering={enteringUsages}
                             onOpen={openUsage}
                             onAddTrigger={triggerHost.onAddTrigger}
                             onMenu={rowTriggerMenu}
@@ -1399,7 +1392,7 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
                                     circleEdgeX={columnShift + LEFT_CIRCLE_EDGE_X}
                                     codedata={model.node.codedata}
                                     markerId={`${model.node.id}-arrow-head-usage`}
-                                    animate={animatesUsages(nodeMetadata)}
+                                    entering={enteringUsages}
                                     readOnly={readOnly}
                                     onOpen={openUsage}
                                     onAddTrigger={eventTriggerHost.addFor(item)}

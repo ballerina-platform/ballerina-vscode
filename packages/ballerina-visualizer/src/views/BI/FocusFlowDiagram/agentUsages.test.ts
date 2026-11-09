@@ -18,6 +18,7 @@
 
 import { AgentUsageTrigger, CDFunction, CDModel, CDResourceFunction } from "@wso2/ballerina-core";
 import {
+    enteringUsageKeys,
     AgentTriggerScopes,
     agentCallerProtocols,
     clearAgentCallFromHandler,
@@ -1254,5 +1255,23 @@ describe("findDurableAgentUsages", () => {
 
     it("ignores a plain agent's model: durable callers live on workflows, not connections", () => {
         expect(findDurableAgentUsages(model, { filePath: AGENTS_BAL, startLine: 3, symbol: "mathTutorAgent" })).toEqual([]);
+    });
+});
+
+describe("enteringUsageKeys", () => {
+    const usage = (label: string) => ({ label, documentUri: "main.bal", position: { startLine: 1, startColumn: 0, endLine: 1, endColumn: 0 } });
+    const chat = usage("POST /chat");
+    const hook = usage("POST /hook");
+
+    it("enters nothing on the first draw", () => {
+        expect(enteringUsageKeys(undefined, [chat, hook])).toEqual([]);
+    });
+
+    it("enters only the usage that was not drawn before", () => {
+        expect(enteringUsageKeys([chat], [chat, hook])).toEqual([JSON.stringify(hook)]);
+    });
+
+    it("enters nothing when a usage is removed", () => {
+        expect(enteringUsageKeys([chat, hook], [chat])).toEqual([]);
     });
 });

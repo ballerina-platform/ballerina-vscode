@@ -62,8 +62,8 @@ describe("durable agent usages on the flow model", () => {
     it("writes the usages onto the box's flat metadata and leaves every other node alone", () => {
         const next = withDurableUsages(flow, [usage]);
         expect(next.nodes[0]).toBe(start);
-        expect((next.nodes[1].metadata.data as { usages?: AgentUsage[]; agentName?: string })).toMatchObject({ agentName: "claimAgent", usages: [usage], animateUsages: true });
-        expect((withDurableUsages(flow, [usage], false).nodes[1].metadata.data as { animateUsages?: boolean }).animateUsages).toBe(false);
+        expect((next.nodes[1].metadata.data as { usages?: AgentUsage[]; agentName?: string })).toMatchObject({ agentName: "claimAgent", usages: [usage], enteringUsages: [] });
+        expect((withDurableUsages(flow, [usage], ["k"]).nodes[1].metadata.data as { enteringUsages?: string[] }).enteringUsages).toEqual(["k"]);
         expect(sameUsages((next.nodes[1].metadata.data as { usages?: AgentUsage[] }).usages, [usage])).toBe(true);
         expect(sameUsages(undefined, [])).toBe(true);
         expect(sameUsages(undefined, [usage])).toBe(false);
