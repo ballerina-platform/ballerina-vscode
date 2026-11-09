@@ -89,6 +89,7 @@ interface AgentToolFormProps {
     targetLineRange?: LineRange;
     editContext?: AgentToolEditContext;
     nestedForm?: boolean;
+    isPublic?: boolean;
     onSave: (toolName: string) => void | Promise<void>;
     onBack?: () => void;
 }
@@ -208,7 +209,7 @@ function findAgentToolAnnotation(model: FunctionModel): {
 }
 
 export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
-    const { filePath, projectPath, hostClass, targetLineRange, editContext, nestedForm, onSave, onBack } = props;
+    const { filePath, projectPath, hostClass, targetLineRange, editContext, nestedForm, isPublic, onSave, onBack } = props;
     const { rpcClient } = useRpcContext();
     const [toolNode, setToolNode] = useState<FlowNode>();
     const [functionModel, setFunctionModel] = useState<FunctionModel>();
@@ -475,6 +476,7 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
                 if (node.properties?.isPublic) {
                     node.properties.isPublic.hidden = true;
                     node.properties.isPublic.editable = false;
+                    node.properties.isPublic.value = String(Boolean(isPublic));
                 }
 
                 const baseFields = convertConfig(node.properties);
