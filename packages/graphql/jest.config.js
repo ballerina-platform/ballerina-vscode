@@ -16,8 +16,9 @@
  * under the License.
  */
 
-// Fast L1 tests for the GraphQL Try It webview (PR-gated as jest.config.js).
+// Fast L1/L2 tests for the GraphQL Try It webview (PR-gated as jest.config.js). jsdom by default,
+// as for any webview package; host-free logic tests opt into `node` with a docblock pragma.
 
 const base = require('@wso2/test-config/jest-preset');
 
-module.exports = { ...base, rootDir: '.', testEnvironment: 'node' };
+module.exports = { ...base, rootDir: '.' };

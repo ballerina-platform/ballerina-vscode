@@ -1,7 +1,4 @@
 /**
- * @jest-environment jsdom
- */
-/**
  * Copyright (c) 2026, WSO2 LLC. (https://www.wso2.com) All Rights Reserved.
  *
  * WSO2 LLC. licenses this file to you under the Apache License,
