@@ -22,6 +22,7 @@ import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Category as PanelCategory, Node as PanelNode } from "@wso2/ballerina-side-panel";
 import { AvailableNode, Category, CodeData, LinePosition } from "@wso2/ballerina-core";
 import { convertBICategoriesToSidePanelCategories, convertKnowledgeBaseCategoriesToSidePanelCategories } from "../../../utils/bi";
+import { knowledgeBaseIconFactory } from "../../../utils/group-icons";
 import { RelativeLoader } from "../../../components/RelativeLoader";
 import { ActionSelection, ConnectorActionList, ConnectorList, WizardStep } from "../Connection/ConnectorBrowser";
 import { AI_COMPONENT_PROGRESS_MESSAGE, AI_COMPONENT_PROGRESS_MESSAGE_TIMEOUT, LOADING_MESSAGE } from "../../../constants";
@@ -189,6 +190,7 @@ export function KnowledgeBaseBrowser(props: KnowledgeBaseBrowserProps) {
                 connector={selectedKnowledgeBase}
                 actions={actions}
                 category={selectedInstanceName ? "Knowledge Base" : "New Knowledge Base"}
+                icon={knowledgeBaseIconFactory(selectedKnowledgeBase?.codedata, selectedKnowledgeBase?.metadata?.icon)}
                 onSelect={(action) => onSelect({
                     action,
                     connector: selectedKnowledgeBase,
