@@ -154,7 +154,7 @@ export function formatProjectLayout(projects: ProjectSource[]): string {
         `- ${escapeXmlText(project.packagePath?.replace(/\\/g, "/") || ".")} (package ${escapeXmlText(project.projectName)})${project.isActive ? ", active" : ""}`);
     return [
         "<workspace_layout>",
-        "This is a Ballerina workspace with multiple packages. File paths start with the package path (e.g. \"mainpackage/main.bal\"). Its packages:",
+        "This is a Ballerina workspace. File paths start with the package path (e.g. \"mainpackage/main.bal\"). Its packages:",
         ...packages,
         projects.some(project => project.isActive)
             ? "Prefer edits in the active package."
