@@ -23,7 +23,7 @@
 
 module.exports = {
     testEnvironment: 'node',
-    roots: ['<rootDir>/src/test-support/ls-integration'],
+    roots: ['<rootDir>/src/test/ls-integration'],
     transform: {
         '^.+\\.ts$': ['ts-jest', {
             isolatedModules: true,

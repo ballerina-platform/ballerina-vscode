@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { Frame, Locator } from '@playwright/test';
+import { expect, Frame, Locator } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
 import { BI_INTEGRATOR_LABEL, getWebview, newProjectPath, page } from '../utils/helpers';
@@ -41,7 +41,8 @@ export async function diagramClick(locator: Locator): Promise<void> {
 
 export async function clickText(frame: Frame, text: string): Promise<void> {
     const target = frame.getByText(text, { exact: true }).last();
-    await target.waitFor({ state: 'attached', timeout: 30000 });
+    // Side panels slide in, and a forced click does not wait for its target to enter the viewport.
+    await expect(target).toBeInViewport({ ratio: 1, timeout: 30000 });
     await target.click({ force: true });
 }
 

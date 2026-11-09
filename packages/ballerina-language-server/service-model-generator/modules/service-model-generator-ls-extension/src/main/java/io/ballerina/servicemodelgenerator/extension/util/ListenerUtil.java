@@ -90,6 +90,7 @@ import static io.ballerina.servicemodelgenerator.extension.util.Constants.GRAPHQ
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.HTTP;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.HTTP_DEFAULT_LISTENER_EXPR;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.HTTP_DEFAULT_LISTENER_ITEM_LABEL;
+import static io.ballerina.servicemodelgenerator.extension.util.Constants.HTTP_DEFAULT_LISTENER_TYPE;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.KAFKA;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.KAFKA_DEFAULT_LISTENER_EXPR;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.MQTT;
@@ -406,7 +407,7 @@ public class ListenerUtil {
     private static Value getHttpDefaultListenerValue() {
         return new Value.ValueBuilder()
                 .metadata("HTTP Default Listener", "The default HTTP listener")
-                .types(List.of(PropertyType.types(Value.FieldType.EXPRESSION)))
+                .types(List.of(PropertyType.types(Value.FieldType.EXPRESSION, HTTP_DEFAULT_LISTENER_TYPE)))
                 .value(HTTP_DEFAULT_LISTENER_EXPR)
                 .enabled(true)
                 .setImports(new HashMap<>())

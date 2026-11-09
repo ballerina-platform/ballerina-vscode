@@ -24,6 +24,7 @@ import styled from "@emotion/styled";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { debounce } from "lodash";
 import { buildRequiredRule, fetchIdentifierDiagnostics, getFriendlyIdentifierMessage, getPropertyFromFormField } from "./utils";
+import { FieldTypeChip } from "./FieldTypeChip";
 
 const EditRow = styled.div`
     display: flex;
@@ -245,6 +246,7 @@ export function IdentifierEditor(props: IdentifierEditorProps) {
                                 value: field.value
                             })}
                             label={field.label}
+                            labelAdornment={<FieldTypeChip types={field.types} />}
                             required={!field.optional}
                             description={field.documentation}
                             placeholder={field.placeholder}
@@ -267,6 +269,7 @@ export function IdentifierEditor(props: IdentifierEditorProps) {
                                 <TextField
                                     id={field.key}
                                     label={field.label}
+                                    labelAdornment={<FieldTypeChip types={field.types} />}
                                     value={tempValue}
                                     onChange={(e) => handleOnChange(e)}
                                     description={field.documentation}

@@ -1158,7 +1158,7 @@ export function PackageOverview(props: PackageOverviewProps) {
         if (isICPSupported) {
             rpcClient
                 .getICPRpcClient()
-                .isIcpEnabled({ projectPath: '' })
+                .isIcpEnabled({ projectPath })
                 .then((res) => {
                     setEnableICP(res.enabled);
                 });
@@ -1328,12 +1328,12 @@ export function PackageOverview(props: PackageOverviewProps) {
         // Update the checkbox state optimistically so it doesn't flicker while the RPC is in flight.
         setEnableICP(icpEnabled);
         if (icpEnabled) {
-            rpcClient.getICPRpcClient().addICP({ projectPath: '' })
-                .then(() => setEnableICP(true))
+            rpcClient.getICPRpcClient().addICP({ projectPath })
+                .then((res) => setEnableICP(!!res.enabled))
                 .catch(() => setEnableICP(false));
         } else {
-            rpcClient.getICPRpcClient().disableICP({ projectPath: '' })
-                .then(() => setEnableICP(false))
+            rpcClient.getICPRpcClient().disableICP({ projectPath })
+                .then((res) => setEnableICP(!!res.enabled))
                 .catch(() => setEnableICP(true));
         }
     };

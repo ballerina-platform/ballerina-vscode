@@ -19,7 +19,6 @@
 import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { FormField } from "../components/Form/types";
-import { InputMode } from "../components/editors/MultiModeExpressionEditor/ChipExpressionEditor/types";
 
 jest.mock(
     "../components/editors/MultiModeExpressionEditor/ChipExpressionEditor/components/ChipExpressionEditor",
@@ -27,7 +26,7 @@ jest.mock(
 );
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const { FieldActionLink, FieldTypePill } = require("../components/editors/ExpressionEditor");
+const { FieldActionLink } = require("../components/editors/ExpressionEditor");
 
 const promptField = (overrides: Partial<FormField> = {}) =>
     ({ key: "instructions", label: "Instructions", type: "PROMPT", ...overrides } as FormField);
@@ -58,20 +57,6 @@ describe("FieldActionLink", () => {
 
     it("renders nothing outside prompt mode without an action", () => {
         const { container } = render(<FieldActionLink field={promptField()} />);
-        expect(container.innerHTML).toBe("");
-    });
-});
-
-describe("FieldTypePill", () => {
-    const types = [{ fieldType: "PROMPT", ballerinaType: "string" }, { fieldType: "EXPRESSION", ballerinaType: "string", selected: true }];
-
-    it("shows the expected type in expression mode", () => {
-        render(<FieldTypePill types={types} inputMode={InputMode.EXP} focused={true} />);
-        expect(screen.getByTitle("string")).toBeDefined();
-    });
-
-    it("stays out of the other modes", () => {
-        const { container } = render(<FieldTypePill types={types} inputMode={InputMode.PROMPT} focused={true} />);
         expect(container.innerHTML).toBe("");
     });
 });

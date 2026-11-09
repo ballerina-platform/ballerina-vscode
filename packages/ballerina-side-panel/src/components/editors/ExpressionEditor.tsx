@@ -30,7 +30,7 @@ import {
     ThemeColors
 } from '@wso2/ui-toolkit';
 import { LinkButton } from "@wso2/ui-toolkit/lib/components/LinkButton/LinkButton";
-import { buildRequiredRule, getPropertyFromFormField, isExpandableMode, sanitizeType, toEditorMode } from './utils';
+import { buildRequiredRule, getPropertyFromFormField, isExpandableMode, toEditorMode } from './utils';
 import { getDefaultHint } from './defaultHint';
 import { buildValidate } from '../Form/validationRules';
 import { useFieldDiagnostics } from '../Form/useFieldDiagnostics';
@@ -41,7 +41,6 @@ import { useFormContext, useFormFieldLoadingContext } from '../../context';
 import {
     ExpressionProperty,
     FormDiagnostics,
-    getFieldTypeLabel,
     getPrimaryInputType,
     InputType,
     LineRange,
@@ -60,6 +59,7 @@ import { getInputModeFromTypes } from './MultiModeExpressionEditor/ChipExpressio
 import { ExpandedEditor } from './ExpandedEditor';
 import { SkeletonBase } from '../Skeletons/styles';
 
+import { FieldTypeChip } from "./FieldTypeChip";
 export type ContextAwareExpressionEditorProps = {
     id?: string;
     fieldKey?: string;
@@ -163,25 +163,6 @@ export namespace S {
         flex: 1,
         minWidth: 0
     });
-
-    export const Type = styled.div<{ isVisible: boolean }>(({ isVisible }) => ({
-        color: ThemeColors.PRIMARY,
-        fontFamily: 'monospace',
-        fontSize: '10px',
-        border: `1px solid ${ThemeColors.PRIMARY}`,
-        borderRadius: '999px',
-        padding: '1px 6px',
-        display: 'inline-block',
-        verticalAlign: 'middle',
-        userSelect: 'none',
-        maxWidth: '120px',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        whiteSpace: 'nowrap',
-        opacity: isVisible ? 1 : 0,
-        // A transition, unlike a fade-out animation, does not play when the editor remounts on a mode switch.
-        transition: 'opacity 0.2s ease'
-    }));
 
     export const Label = styled.label({
         color: 'var(--vscode-editor-foreground)',
@@ -394,16 +375,6 @@ export const FieldActionLink = ({ field, onOpenPromptEditor }: { field: FormFiel
     );
 };
 
-// The expected type matters while writing an expression; the other modes already show the kind of value.
-export const FieldTypePill = ({ types, inputMode, focused }: { types: FormField["types"]; inputMode: InputMode; focused: boolean }) => {
-    const typeLabel = inputMode === InputMode.EXP ? getFieldTypeLabel(types) : undefined;
-    return typeLabel ? (
-        <S.Type style={{ marginLeft: '5px' }} isVisible={focused} title={typeLabel}>
-            {sanitizeType(typeLabel)}
-        </S.Type>
-    ) : null;
-};
-
 export const ExpressionEditor = (props: ExpressionEditorProps) => {
     const {
         autoFocus,
@@ -444,7 +415,6 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
     const key = fieldKey ?? field.key;
     const readOnly = field.editable === false;
     const defaultHint = getDefaultHint(field);
-    const [focused, setFocused] = useState<boolean>(false);
     const [formDiagnostics, setFormDiagnostics] = useState(field.diagnostics);
     const [isExpandedModalOpen, setIsExpandedModalOpen] = useState(false);
 
@@ -559,8 +529,6 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
     }, [fieldValue, targetLineRange]);
 
     const handleFocus = async (controllerOnChange?: (value: string) => void) => {
-        setFocused(true);
-
         // If in guided mode with recordTypeField, open ConfigureRecordPage directly
         if (inputMode === InputMode.RECORD && recordTypeField && onOpenRecordConfigPage) {
             const currentValue = watch(key) || '';
@@ -592,7 +560,6 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
     };
 
     const handleBlur = async () => {
-        setFocused(false);
         await onBlur?.();
     };
 
@@ -707,7 +674,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
                                         </span>
                                         {defaultHint && <S.DefaultValue style={{ marginLeft: '8px' }}>{`(Default: ${defaultHint}) `}</S.DefaultValue>}
                                         {(required ?? !field.optional) && <RequiredFormInput />}
-                                        <FieldTypePill types={field.types} inputMode={inputMode} focused={focused} />
+                                        <FieldTypeChip types={field.types} />
                                     </S.LabelContainer>
                                 )}
                                 {!documentation && modeSwitcherNode}
