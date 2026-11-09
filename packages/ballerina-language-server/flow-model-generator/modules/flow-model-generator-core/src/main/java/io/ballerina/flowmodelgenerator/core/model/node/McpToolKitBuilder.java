@@ -29,6 +29,7 @@ import io.ballerina.compiler.api.symbols.RecordFieldSymbol;
 import io.ballerina.compiler.api.symbols.RecordTypeSymbol;
 import io.ballerina.compiler.api.symbols.Symbol;
 import io.ballerina.compiler.api.symbols.TypeDefinitionSymbol;
+import io.ballerina.compiler.api.symbols.TypeReferenceTypeSymbol;
 import io.ballerina.compiler.api.symbols.TypeSymbol;
 import io.ballerina.compiler.api.symbols.UnionTypeSymbol;
 import io.ballerina.compiler.syntax.tree.SyntaxInfo;
@@ -221,7 +222,7 @@ public class McpToolKitBuilder extends NodeBuilder {
         SemanticModel aiSemanticModel = aiTypeSource.semanticModel();
         TypeDefinitionSymbol configType =
                 getTypeDefinition(aiSemanticModel, Ai.AI_PACKAGE, AI_MCP_V2_CLIENT_CONFIG_TYPE, aiVersion);
-        TypeDefinitionSymbol infoType = getMcpV2TypeDefinition(configType, MCP_V2_IMPLEMENTATION_TYPE, aiVersion);
+        TypeSymbol infoType = getMcpV2TypeReference(configType, MCP_V2_IMPLEMENTATION_TYPE, aiVersion);
 
         metadata().label(Ai.AI_PACKAGE).description(MCP_V2_TOOL_KIT_DESCRIPTION)
                 .icon(generateIcon(Ai.BALLERINA_ORG, Ai.AI_PACKAGE, aiVersion));
@@ -239,7 +240,7 @@ public class McpToolKitBuilder extends NodeBuilder {
                 MCP_V2_IMPORT_PREFIX + ":" + MCP_V2_IMPLEMENTATION_TYPE, MCP_V2_DEFAULT_INFO, MCP_V2_DEFAULT_INFO,
                 Kind.DEFAULTABLE, true, false, false,
                 CommonUtils.getImportStatement(Ai.BALLERINA_ORG, Ai.MCP_PACKAGE, Ai.MCP_V2_MODULE),
-                infoType.typeDescriptor()));
+                infoType));
         parameters.add(getHttpAuthParameter(configType, aiTypeSource, aiVersion));
         parameters.addAll(getConfigFieldParameters(configType, aiTypeSource));
         setParameterProperties(parameters);
@@ -977,11 +978,13 @@ public class McpToolKitBuilder extends NodeBuilder {
     }
 
     /**
-     * Returns a type of the mcp.v2 module. The ai module's semantic model does not resolve types of the modules it
-     * imports by name, so the mcp.v2 module is reached through the config record's fields, which use its types.
+     * Returns a reference to a type of the mcp.v2 module. The ai module's semantic model does not resolve types of the
+     * modules it imports by name, so the mcp.v2 module is reached through the config record's fields, which use its
+     * types. The reference is taken from a record field of that module, since the form offers the record editor only
+     * for a type it can name, which the type's own descriptor is not.
      */
-    private static TypeDefinitionSymbol getMcpV2TypeDefinition(TypeDefinitionSymbol configType, String typeName,
-                                                               String aiVersion) {
+    private static TypeSymbol getMcpV2TypeReference(TypeDefinitionSymbol configType, String typeName,
+                                                    String aiVersion) {
         RecordTypeSymbol recordType = (RecordTypeSymbol) CommonUtils.getRawType(configType.typeDescriptor());
         for (RecordFieldSymbol field : recordType.fieldDescriptors().values()) {
             TypeSymbol fieldType = field.typeDescriptor();
@@ -992,11 +995,16 @@ public class McpToolKitBuilder extends NodeBuilder {
                 if (module.isEmpty() || !Ai.MCP_V2_MODULE.equals(module.get().id().moduleName())) {
                     continue;
                 }
-                Optional<TypeDefinitionSymbol> typeDefinition = module.get().typeDefinitions().stream()
-                        .filter(definition -> definition.getName().filter(typeName::equals).isPresent())
-                        .findFirst();
-                if (typeDefinition.isPresent()) {
-                    return typeDefinition.get();
+                for (TypeDefinitionSymbol definition : module.get().typeDefinitions()) {
+                    if (!(CommonUtils.getRawType(definition.typeDescriptor()) instanceof RecordTypeSymbol record)) {
+                        continue;
+                    }
+                    for (RecordFieldSymbol recordField : record.fieldDescriptors().values()) {
+                        if (recordField.typeDescriptor() instanceof TypeReferenceTypeSymbol reference
+                                && reference.definition().getName().filter(typeName::equals).isPresent()) {
+                            return reference;
+                        }
+                    }
                 }
             }
         }
