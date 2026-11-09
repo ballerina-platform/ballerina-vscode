@@ -73,6 +73,14 @@ describe("shiftRangeForRenames", () => {
         const renamePerson = { fileName: "data_mappings.bal", line: 4, offset: 22, delta: -5 };
         expect(shiftRangeForRenames(addressRange(), [renameFunction, renamePerson])).toEqual(range(33, "address"));
     });
+
+    // Known limit, pinned: `function f(int a, int b = a, string c)` renaming `a` -> `abc` edits
+    // both `a`s (offsets 15 and 26), so `c` moves from 36 to 40. The log holds only the edit at
+    // the identifier, so it places `c` at 38. Update this when the log takes the LS's edits.
+    it("does not see a reference to the renamed identifier earlier on the same line", () => {
+        const renameA = { fileName: "data_mappings.bal", line: 4, offset: 15, delta: 2 };
+        expect(shiftRangeForRenames(range(36, "c"), [renameA])).toEqual(range(38, "c"));
+    });
 });
 
 describe("IdentifierRenameLog", () => {

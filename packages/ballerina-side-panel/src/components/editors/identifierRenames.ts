@@ -37,6 +37,11 @@ const shiftPosition = (position: LinePosition, rename: AppliedRename): LinePosit
  * Moves a range through renames applied after it was read, in the order they were applied. A rename
  * changes only the length of its own line, so it shifts what follows it on that line and nothing
  * else: renaming a function moves its parameters, renaming a parameter moves the ones after it.
+ *
+ * Limit: a rename is logged as one edit at the identifier, but the LS also renames its references.
+ * A reference on the same line (a default such as `f(int a, int b = a, string c)`) moves what
+ * follows it too, which this does not see, so `c` lands short by the change in length per such
+ * reference. Feeding the log the LS's actual edits would remove this.
  */
 export function shiftRangeForRenames(range: LineRange, renames: AppliedRename[]): LineRange {
     return renames.reduce((current, rename) => {
