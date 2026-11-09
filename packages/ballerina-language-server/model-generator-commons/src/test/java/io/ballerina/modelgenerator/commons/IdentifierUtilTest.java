@@ -103,6 +103,31 @@ public class IdentifierUtilTest {
         Assert.assertEquals(IdentifierUtil.escapeIfNeeded(source), source);
     }
 
+    @DataProvider(name = "identifierNames")
+    public Object[][] identifierNames() {
+        return new Object[][]{
+                // input, source form
+                {"name", "name"},
+                {"issue-number", "issue\\-number"},
+                {"type", "'type"},
+                {"1st", "\\1st"},
+                {"first name", "first\\ name"},
+                {"[a, b]", "\\[a\\,\\ b\\]"},
+                // Already valid source is kept as written, not normalised
+                {"issue\\-number", "issue\\-number"},
+                {"'name", "'name"},
+                {"a\\u{2D}b", "a\\u{2D}b"},
+                {"a\\\\b", "a\\\\b"},
+                {"issue\\\\\\-number", "issue\\\\\\-number"},
+        };
+    }
+
+    @Test(dataProvider = "identifierNames")
+    public void testEscapeIdentifierIfNeeded(String input, String source) {
+        Assert.assertEquals(IdentifierUtil.escapeIdentifierIfNeeded(input), source);
+        Assert.assertEquals(IdentifierUtil.escapeIdentifierIfNeeded(source), source);
+    }
+
     @DataProvider(name = "paths")
     public Object[][] paths() {
         return new Object[][]{
@@ -111,7 +136,10 @@ public class IdentifierUtilTest {
                 {".", ".", "."},
                 {"/issues-memox", "/issues\\-memox", "/issues-memox"},
                 {"/issues\\-memox", "/issues\\-memox", "/issues-memox"},
-                {"/issues\\\\\\-memox", "/issues\\-memox", "/issues-memox"},
+                // A segment that is already valid source is kept as written
+                {"/issues\\\\\\-memox", "/issues\\\\\\-memox", "/issues-memox"},
+                {"/a\\u{2D}b", "/a\\u{2D}b", "/a-b"},
+                {"/'name", "/'name", "/name"},
                 {"/a@b", "/a\\@b", "/a@b"},
                 {"/api/v1.0/type", "/api/v1\\.0/'type", "/api/v1.0/type"},
                 {"orders/[int id]/line-items", "orders/[int id]/line\\-items", "orders/[int id]/line-items"},

@@ -486,10 +486,11 @@ export function requiresSourceForm(nodeKind?: string): boolean {
 /**
  * The value to show in an editable name field: the plain name (`issue-number`) for a name the language server wrote
  * in source form (`issue\-number`). The language server escapes it again when it writes the source. A binding
- * pattern (`[a, b]`) and a name of a node kind edited in source form are shown as they are.
+ * pattern (`[a, b]`) and a name of a node kind edited in source form are shown as they are. An escaped space or
+ * comma (`first\ name`) is part of a name, not a sign of a binding pattern.
  */
 export function toEditableName(value: unknown, nodeKind?: string): unknown {
-    if (typeof value !== "string" || requiresSourceForm(nodeKind) || !/^[^\s[\]{},]+$/.test(value)) {
+    if (typeof value !== "string" || requiresSourceForm(nodeKind) || !/^(?:\\.|[^\s[\]{},])+$/.test(value)) {
         return value;
     }
     return toDisplayName(value);

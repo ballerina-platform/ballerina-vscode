@@ -1,6 +1,6 @@
 {
   "filePath": "test_pack1/types.bal",
-  "description": "Create a record type whose field names need escaping: plain, already escaped and over-escaped names all give one escape; a keyword is quoted (wso2/product-integrator#1545)",
+  "description": "Create a record type whose field names need escaping: a plain name is escaped once, a name that is already valid source (escaped or over-escaped) is kept as written, and a keyword is quoted (wso2/product-integrator#1545)",
   "type": {
     "name": "EscapedFields",
     "editable": true,
@@ -160,7 +160,7 @@
             "character": 0
           }
         },
-        "newText": "\npublic type EscapedFields record {|\n\tint issue\\-number;\n\tint order\\-id;\n\tint line\\-items;\n\tstring 'type;\n|};"
+        "newText": "\npublic type EscapedFields record {|\n\tint issue\\-number;\n\tint order\\-id;\n\tint line\\\\\\-items;\n\tstring 'type;\n|};"
       }
     ]
   }

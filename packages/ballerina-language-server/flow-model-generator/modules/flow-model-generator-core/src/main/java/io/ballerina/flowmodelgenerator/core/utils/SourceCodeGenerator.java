@@ -590,7 +590,7 @@ public class SourceCodeGenerator {
         String template = "%s %s%s"; // <type descriptor> <identifier> [= <default value>]
 
         // The name may be plain (typed in the form) or in source form (read back from the source)
-        String fieldName = IdentifierUtil.toSourceIdentifier(member.name());
+        String fieldName = IdentifierUtil.escapeIdentifierIfNeeded(member.name());
         if (member.optional() && fieldName != null) {
             fieldName = fieldName + "?";
         }

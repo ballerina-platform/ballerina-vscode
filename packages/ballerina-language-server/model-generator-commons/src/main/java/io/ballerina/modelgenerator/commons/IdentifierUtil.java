@@ -18,8 +18,10 @@
 
 package io.ballerina.modelgenerator.commons;
 
+import io.ballerina.compiler.syntax.tree.Node;
 import io.ballerina.compiler.syntax.tree.NodeParser;
 import io.ballerina.compiler.syntax.tree.SyntaxInfo;
+import io.ballerina.compiler.syntax.tree.SyntaxKind;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -127,6 +129,24 @@ public final class IdentifierUtil {
     }
 
     /**
+     * Returns the source form of a name that can only be a single identifier, such as a record field name or a path
+     * segment. A name that is already a valid identifier ({@code 'name}, {@code issue\-number}, {@code a\\b}, or a
+     * numeric escape) is returned unchanged, so a name read back from the source is never
+     * rewritten; any other name goes through {@link #toSourceIdentifier(String)}. Unlike
+     * {@link #escapeIfNeeded(String)}, a binding pattern such as {@code [a, b]} is not kept.
+     *
+     * @param name the name as typed, in plain or source form
+     * @return the name in source form, or the input when it is {@code null} or blank
+     */
+    public static String escapeIdentifierIfNeeded(String name) {
+        if (name == null || name.isBlank()) {
+            return name;
+        }
+        String trimmed = name.strip();
+        return isIdentifier(trimmed) ? trimmed : toSourceIdentifier(trimmed);
+    }
+
+    /**
      * Returns the source form of a name typed in a field that also accepts other binding patterns (a variable,
      * function or parameter name). A value that is already valid source ({@code x}, {@code 'type},
      * {@code issue\-number}, {@code [a, b]}) is returned unchanged, so existing source is never rewritten; any other
@@ -161,7 +181,8 @@ public final class IdentifierUtil {
 
     /**
      * Returns the source form of a service base path or a resource path. Each segment between unescaped
-     * {@code /} characters goes through {@link #toSourceIdentifier(String)}; path parameters ({@code [int id]},
+     * {@code /} characters goes through {@link #escapeIdentifierIfNeeded(String)}, so a segment that is already valid
+     * source is kept as written; path parameters ({@code [int id]},
      * {@code [string... rest]}) and the root path ({@code .}) are kept as they are. A string literal base path
      * ({@code "/foo"}) is returned unchanged.
      *
@@ -183,7 +204,7 @@ public final class IdentifierUtil {
             if (stripped.isEmpty() || stripped.startsWith("[") || stripped.equals(ROOT_PATH_SEGMENT)) {
                 sourceSegments.add(stripped);
             } else {
-                sourceSegments.add(toSourceIdentifier(stripped));
+                sourceSegments.add(escapeIdentifierIfNeeded(stripped));
             }
         }
         return String.join(String.valueOf(PATH_SEPARATOR), sourceSegments);
@@ -211,6 +232,11 @@ public final class IdentifierUtil {
             plainSegments.add(stripped.startsWith("[") ? stripped : toPlainName(stripped));
         }
         return String.join(String.valueOf(PATH_SEPARATOR), plainSegments);
+    }
+
+    private static boolean isIdentifier(String text) {
+        Node node = NodeParser.parseBindingPattern(text);
+        return node.kind() == SyntaxKind.CAPTURE_BINDING_PATTERN && !node.hasDiagnostics();
     }
 
     private static String decodeCodePoint(String escape, String hex) {

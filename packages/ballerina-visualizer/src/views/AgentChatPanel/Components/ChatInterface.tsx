@@ -502,7 +502,8 @@ const ClearChatWarningPopup: React.FC<ClearChatWarningPopupProps> = ({ isOpen, o
     );
 };
 
-function toDisplayName(name: string): string {
+/** A readable label for an agent (`ai-chat-agent` → `Ai Chat Agent`); not the core `toDisplayName`. */
+function toAgentLabel(name: string): string {
     return name
         .replace(/\\/g, '')
         .replace(/[-_]/g, ' ')
@@ -1059,7 +1060,7 @@ const ChatInterface: React.FC = () => {
                                 sx={{ width: 14, height: 14, flexShrink: 0 }}
                                 iconSx={{ fontSize: "14px", color: "var(--vscode-terminal-ansiBrightCyan)" }}
                             />
-                            <AgentSelectorName>{toDisplayName(activeAgentName)}</AgentSelectorName>
+                            <AgentSelectorName>{toAgentLabel(activeAgentName)}</AgentSelectorName>
                             <span className="codicon codicon-chevron-down" style={{ fontSize: 10, flexShrink: 0 }} />
                         </AgentSelectorButton>
                         {showAgentDropdown && (
@@ -1080,7 +1081,7 @@ const ChatInterface: React.FC = () => {
                                                     : "var(--vscode-terminal-ansiBrightCyan)"
                                             }}
                                         />
-                                        <AgentItemName>{toDisplayName(agent.name)}</AgentItemName>
+                                        <AgentItemName>{toAgentLabel(agent.name)}</AgentItemName>
                                         <AgentItemPath>{toDisplayPath(agent.basePath)}</AgentItemPath>
                                     </AgentDropdownItem>
                                 ))}

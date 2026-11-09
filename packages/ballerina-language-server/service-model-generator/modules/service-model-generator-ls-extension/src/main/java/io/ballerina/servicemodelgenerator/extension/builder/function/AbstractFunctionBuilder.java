@@ -291,8 +291,10 @@ public abstract class AbstractFunctionBuilder implements NodeBuilder<Function> {
         boolean isRemote = functionKind.equals(KIND_REMOTE) || functionKind.equals(KIND_MUTATION)
                 || functionKind.equals(OBJECT_METHOD);
         String newFunctionName = context.function().getName().getValue();
-        if (isRemote && !functionName.equals(IdentifierUtil.escapeIfNeeded(newFunctionName))) {
-            edits.add(new TextEdit(Utils.toRange(nameRange), IdentifierUtil.escapeIfNeeded(newFunctionName)));
+        // `newFunctionName` stays as typed: the resource branch below writes it as a path, not an identifier
+        String newRemoteName = IdentifierUtil.escapeIfNeeded(newFunctionName);
+        if (isRemote && !functionName.equals(newRemoteName)) {
+            edits.add(new TextEdit(Utils.toRange(nameRange), newRemoteName));
         }
         boolean isDefault = functionKind.equals(KIND_DEFAULT);
 

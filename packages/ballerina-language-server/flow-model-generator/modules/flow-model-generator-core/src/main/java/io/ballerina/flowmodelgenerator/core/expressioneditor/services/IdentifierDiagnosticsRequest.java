@@ -37,9 +37,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 
 /**
  * Handles diagnostic requests for identifier validation in the expression editor.
@@ -84,8 +82,10 @@ public class IdentifierDiagnosticsRequest extends DiagnosticsRequest {
         }
 
         // A plain name (issue-number, type) is accepted: it is escaped when the source is written, so only the
-        // escaped form has to parse. A blank name still reports the missing identifier.
-        return getParsedNodeDiagnostics(IdentifierUtil.escapeIfNeeded(expression));
+        // escaped form has to parse. A blank name still reports the missing identifier. The diagnostics come from
+        // the escaped text, so their ranges point into `issue\-number` rather than into what was typed; that is
+        // fine while they are shown for the whole field.
+        return getSyntaxDiagnostics(IdentifierUtil.escapeIfNeeded(expression));
     }
 
     /**
@@ -95,13 +95,6 @@ public class IdentifierDiagnosticsRequest extends DiagnosticsRequest {
      */
     private static boolean requiresSourceForm(ExpressionEditorContext context) {
         return context.isNodeKind(SOURCE_FORM_NODE_KINDS);
-    }
-
-    private Set<Diagnostic> getParsedNodeDiagnostics(String text) {
-        Node parsedNode = getParsedNode(text);
-        return StreamSupport.stream(parsedNode.diagnostics().spliterator(), false)
-                .map(CommonUtils::transformBallerinaDiagnostic)
-                .collect(Collectors.toSet());
     }
 
     @Override
