@@ -363,7 +363,7 @@ async function configureDurableAgentModelProvider(projectRoot: string): Promise<
     try {
         const configPath = await getConfigFilePath(extension.ballerinaExtInstance, projectRoot);
         if (configPath) {
-            await addConfigFile(configPath, "model", { signOutOnFailure: false });
+            await addConfigFile(configPath, "model", { signOutOnFailure: false, interactive: false });
         }
     } catch (error) {
         console.error("[IntegrationWizard] Failed to configure the default model provider:", error);

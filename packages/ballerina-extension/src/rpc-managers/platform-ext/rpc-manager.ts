@@ -270,7 +270,10 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
         const debouncedEnvListRefresh = debounce((context?: ContextItemEnriched) => this.refreshEnvironments(context), 1000);
 
         platformExt?.subscribeContextState(async (selectedContext) => {
-            platformExtStore.getState().setState({ selectedContext });
+            const previousProject = platformExtStore.getState().state?.selectedContext?.projectName;
+            // Another project's environments go now, so a failed listing for this one cannot leave them in place.
+            const projectChanged = selectedContext?.projectName !== previousProject;
+            platformExtStore.getState().setState(projectChanged ? { selectedContext, envs: [], selectedEnv: undefined } : { selectedContext });
             debouncedEnvListRefresh(selectedContext);
         });
     }
@@ -915,6 +918,8 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
     }
 
     async deleteBiDevantConnection(params: DeleteBiDevantConnectionReq): Promise<void> {
+        // A cloud connection that could not be deleted fails the call, so the caller keeps its code to retry with.
+        let deletingCloudConnection = false;
         try {
             StateMachine.setEditMode();
             const platformExt = await this.getPlatformExt();
@@ -942,19 +947,22 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
                             (connItem) => connItem.name?.replaceAll("-", "_").replaceAll(" ", "_") === connectionName,
                         );
                     if (matchingConnListItem) {
-                        await this.deleteLocalConnectionsConfig({
-                            componentDir: projectPath,
-                            connectionName: matchingConnListItem.name,
-                        });
                         const ref = parseConnectionId(matchingConnListItem.groupUuid);
                         if (ref && platformExt) {
-                            // Every environment it was written to, not only the one selected now.
+                            // Every environment it was written to, not only the one selected now. Deleted before the
+                            // local reference: the connection list shows only groups that still have one.
+                            deletingCloudConnection = true;
                             await platformExt.connections.delete({
                                 integration: ref.integration,
                                 name: ref.name,
                                 projectName: this.selection().projectName,
                             });
+                            deletingCloudConnection = false;
                         }
+                        await this.deleteLocalConnectionsConfig({
+                            componentDir: projectPath,
+                            connectionName: matchingConnListItem.name,
+                        });
                     }
                 }
             }
@@ -965,6 +973,9 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
             StateMachine.setReadyMode();
             window.showErrorMessage(`Failed to delete WSO2 Cloud connection: ${(err as Error).message}`);
             log(`Failed to invoke deleteBiDevantConnection: ${err}`);
+            if (deletingCloudConnection) {
+                throw err;
+            }
         }
     }
 

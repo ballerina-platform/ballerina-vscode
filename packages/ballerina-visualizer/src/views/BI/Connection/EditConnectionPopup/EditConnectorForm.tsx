@@ -308,6 +308,8 @@ export function EditConnectorForm(props: EditConnectorFormProps) {
                 setFieldValues(newFieldValues);
                 if (unresolvedSecrets.length > 0) {
                     // WSO2 Cloud does not hand secret values back; connecting with them blank would only fail.
+                    // The credentials step and its connect action are shown instead, prefilled with the rest.
+                    setIsDevantDb(false);
                     setConnectionError(`WSO2 Cloud does not return secret values. Enter ${unresolvedSecrets.join(", ")} here to connect.`);
                     return;
                 }

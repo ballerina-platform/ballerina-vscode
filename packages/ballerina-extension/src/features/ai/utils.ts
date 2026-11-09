@@ -29,6 +29,8 @@ import {
     getAuthCredentials,
     isPlatformExtensionAvailable,
     isDevantUserLoggedIn,
+    isCopilotTokenExchangeAvailable,
+    CopilotTokenExchangeUnavailableError,
     exchangeStsToCopilotToken,
     NO_AUTH_CREDENTIALS_FOUND,
     storeBiIntelCredentials,
@@ -155,7 +157,12 @@ export async function getConfigFilePath(ballerinaExtInstance: BallerinaExtension
     }
 }
 
-export async function getTokenForDefaultModel() {
+/**
+ * `interactive` is for something the person just did: it asks for access to the WSO2 Cloud session
+ * when this extension has none yet, and reports a deployment with no Copilot token exchange. A
+ * background caller does neither.
+ */
+export async function getTokenForDefaultModel(interactive = true) {
     // Priority 1: Check stored credentials
     const credentials = await getAuthCredentials();
 
@@ -177,10 +184,10 @@ export async function getTokenForDefaultModel() {
     }
 
     // Priority 2: No stored credentials — check Devant Platform extension
-    if (isPlatformExtensionAvailable()) {
+    if (isPlatformExtensionAvailable() && (interactive || isCopilotTokenExchangeAvailable())) {
         const isLoggedIn = await isDevantUserLoggedIn();
         if (isLoggedIn) {
-            const stsToken = await getCloudAccessToken();
+            const stsToken = await getCloudAccessToken(interactive ? { askAccess: true } : { silent: true });
             if (stsToken) {
                 const secrets = await exchangeStsToCopilotToken(stsToken);
                 await storeBiIntelCredentials(secrets);
@@ -298,9 +305,13 @@ function writeDefaultModelConfigToProject(projectPath: string, token: string): b
  * provider as a non-fatal side effect of something else (creating a durable agent, say) must pass
  * `false`: ending the user's AI session because a background write hit a network blip is a much
  * larger consequence than the write it was attached to.
+ *
+ * `interactive` (default `true`) is whether the person asked for this; a background caller passes
+ * `false` so nothing is asked of them or reported (see {@link getTokenForDefaultModel}).
  */
 export interface AddConfigFileOptions {
     signOutOnFailure?: boolean;
+    interactive?: boolean;
 }
 
 export async function addConfigFile(
@@ -317,7 +328,7 @@ export async function addConfigFile(
         },
         async () => {
             try {
-                const token: string | null = await getTokenForDefaultModel();
+                const token: string | null = await getTokenForDefaultModel(options.interactive ?? true);
                 if (token === null) {
                     if (signOutOnFailure) {
                         AIStateMachine.service().send(AIMachineEventType.LOGOUT);
@@ -495,6 +506,11 @@ async function promptToConfigureDefaultProvider(projectPath: string): Promise<bo
         await addConfigFile(projectPath, "model", { signOutOnFailure: false });
         return true;
     } catch (error) {
+        if (error instanceof CopilotTokenExchangeUnavailableError) {
+            // Already reported, and signing in would end the same way: stop the run rather than start it unconfigured.
+            vscode.window.showWarningMessage(RUN_CANCELLED_DEFAULT_PROVIDER_NOT_CONFIGURED);
+            return false;
+        }
         if (!isNotLoggedInError(error)) {
             throw error;
         }

@@ -26,6 +26,7 @@ import { getCloudAccessToken } from '../../utils/cloud-auth';
 import { checkToken, initiateDevantAuth, logout, validateApiKey, validateAwsCredentials, validateVertexAiCredentials, validateAnthropicAwsCredentials } from './utils';
 import {
     isDevantUserLoggedIn,
+    isCopilotTokenExchangeAvailable,
     exchangeStsToCopilotToken,
     getAuthCredentials,
     getPlatformExtensionAPI,
@@ -668,6 +669,8 @@ const setupPlatformExtensionListener = () => {
                     if (!copilotUnauthenticated && !copilotInSsoFlow) { return; }
 
                     if (copilotUnauthenticated) {
+                        // Nobody asked Copilot to sign in here, so a deployment without a token exchange stays quiet.
+                        if (!isCopilotTokenExchangeAvailable()) { return; }
                         // COMPLETE_AUTH is only valid in ssoFlow; drive through LOGIN instead
                         aiStateService.send(AIMachineEventType.LOGIN);
                     } else {

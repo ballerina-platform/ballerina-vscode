@@ -178,15 +178,23 @@ export const isDevantUserLoggedIn = async (): Promise<boolean> => {
 /** Whether this WSO2 Cloud deployment has a Copilot token exchange to sign in through. */
 export const isCopilotTokenExchangeAvailable = (): boolean => !!DEVANT_TOKEN_EXCHANGE_URL;
 
+/** Thrown where this WSO2 Cloud deployment has no Copilot token exchange to sign in through. */
+export class CopilotTokenExchangeUnavailableError extends Error {
+    constructor() {
+        super(`Signing in to ${copilotName()} with WSO2 Cloud is not available for this WSO2 Cloud deployment.`);
+        this.name = "CopilotTokenExchangeUnavailableError";
+    }
+}
+
 /**
  * Exchange the WSO2 Cloud token for a Copilot token via the token exchange endpoint.
  * The Copilot backend has to accept a WSO2 Cloud (ThunderID) subject token for this to succeed.
  */
 export const exchangeStsToCopilotToken = async (stsToken: string): Promise<BIIntelSecrets> => {
     if (!DEVANT_TOKEN_EXCHANGE_URL) {
-        const message = `Signing in to ${copilotName()} with WSO2 Cloud is not available for this WSO2 Cloud deployment.`;
-        vscode.window.showErrorMessage(message);
-        throw new Error(message);
+        const error = new CopilotTokenExchangeUnavailableError();
+        vscode.window.showErrorMessage(error.message);
+        throw error;
     }
     try {
         const response = await axios.post(DEVANT_TOKEN_EXCHANGE_URL, {
