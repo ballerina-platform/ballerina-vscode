@@ -32,6 +32,8 @@ jest.mock("@wso2/ballerina-core", () => ({
     __esModule: true,
     keywords: [] as string[],
     ...jest.requireActual("@wso2/ballerina-core/lib/utils/optionality-utils"),
+    // Field labels are shown in plain form (`issue\-number` as `issue-number`)
+    ...jest.requireActual("@wso2/ballerina-core/lib/utils/source-name-utils"),
 }));
 
 jest.mock("@wso2/ui-toolkit", () => ({
