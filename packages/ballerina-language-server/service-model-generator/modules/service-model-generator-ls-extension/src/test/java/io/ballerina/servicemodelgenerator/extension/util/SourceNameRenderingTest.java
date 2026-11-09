@@ -27,6 +27,8 @@ import org.testng.annotations.Test;
 import java.util.HashMap;
 import java.util.List;
 
+import static io.ballerina.servicemodelgenerator.extension.util.Constants.NEW_LINE;
+
 /**
  * Tests that names typed in plain form are written consistently in the parts of a function that repeat them:
  * the parameter documentation and the HTTP header annotation.
@@ -43,8 +45,9 @@ public class SourceNameRenderingTest {
                         documentedParameter("id")))
                 .build();
 
-        Assert.assertEquals(Utils.getDocumentationEdits(function),
-                "\n# + line\\-item - The parameter\n# + 'type - The parameter\n# + id - The parameter");
+        // Lines are joined with the platform line separator, as the generated source is
+        Assert.assertEquals(Utils.getDocumentationEdits(function), String.join(NEW_LINE, "",
+                "# + line\\-item - The parameter", "# + 'type - The parameter", "# + id - The parameter"));
     }
 
     @Test
