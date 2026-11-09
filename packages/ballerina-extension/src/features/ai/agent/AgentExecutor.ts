@@ -125,8 +125,8 @@ function supportsCompaction(loginMethod: LoginMethod): boolean {
 }
 
 /**
- * Server-side compaction trigger, in input tokens. Higher than MI's 200K because BI re-sends
- * the whole project source each turn; 500K sits well within Claude Sonnet's 1M window.
+ * Server-side compaction trigger, in input tokens. Higher than MI's 200K; 500K sits well within
+ * Claude Sonnet's 1M window.
  */
 export const COMPACT_TRIGGER_TOKENS = 500_000;
 
