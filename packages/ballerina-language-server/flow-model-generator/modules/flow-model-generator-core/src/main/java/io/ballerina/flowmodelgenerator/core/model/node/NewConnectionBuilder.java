@@ -82,6 +82,7 @@ public class NewConnectionBuilder extends CallBuilder {
     private static final String CONNECTIONS_BAL = "connections.bal";
     private static final String CONFIG_BAL = "config.bal";
     private static final String CONFIG_TOML = "Config.toml";
+    private static final String TESTS = "tests";
     private static final Set<ParameterData.Kind> ARGUMENT_KINDS = Set.of(ParameterData.Kind.REQUIRED,
             ParameterData.Kind.DEFAULTABLE, ParameterData.Kind.INCLUDED_FIELD);
     private static final String DRIVER_SUB_PACKAGE = ".driver";
@@ -200,7 +201,8 @@ public class NewConnectionBuilder extends CallBuilder {
 
     /**
      * Declares the new configurables in config.bal, and writes their values to Config.toml, which the project keeps out
-     * of version control.
+     * of version control. A package with tests also gets the values missing from tests/Config.toml, which is what
+     * bal test reads.
      */
     private static void declareConfigurables(SourceBuilder sourceBuilder, List<Configurable> configurables) {
         Path projectRoot = sourceBuilder.workspaceManager.projectRoot(sourceBuilder.filePath);
@@ -216,19 +218,23 @@ public class NewConnectionBuilder extends CallBuilder {
                     .map(Configurable::declaration)
                     .collect(Collectors.joining(System.lineSeparator()))));
         }
-        writeConfigToml(sourceBuilder, projectRoot, configurables);
+        writeConfigToml(sourceBuilder, projectRoot.resolve(CONFIG_TOML), configurables, true);
+        Path tests = projectRoot.resolve(TESTS);
+        if (Files.isDirectory(tests)) {
+            writeConfigToml(sourceBuilder, tests.resolve(CONFIG_TOML), configurables, false);
+        }
     }
 
     /**
-     * Sets each value in Config.toml: in place where the key has one, at the root module's top-level keys otherwise.
-     * The extension applies the edits one by one, so the replacements come last in the file first, then the insertion.
+     * Sets each value in a Config.toml: in place where the key has one (unless told to keep existing values), at the
+     * root module's top-level keys otherwise. The extension applies the edits one by one, so the replacements come
+     * last in the file first, then the insertion.
      */
-    private static void writeConfigToml(SourceBuilder sourceBuilder, Path projectRoot,
-                                        List<Configurable> configurables) {
+    private static void writeConfigToml(SourceBuilder sourceBuilder, Path configToml,
+                                        List<Configurable> configurables, boolean replace) {
         if (configurables.isEmpty()) {
             return;
         }
-        Path configToml = projectRoot.resolve(CONFIG_TOML);
         Optional<Toml> toml = readToml(configToml);
         String packageName = sourceBuilder.workspaceManager.project(sourceBuilder.filePath)
                 .map(project -> project.currentPackage().packageName().value())
@@ -243,6 +249,9 @@ public class NewConnectionBuilder extends CallBuilder {
                     .or(() -> t.getTable(moduleKey).flatMap(table -> table.get(configurable.key())))
                     .or(() -> t.getTable(packageName).flatMap(table -> table.get(configurable.key()))));
             if (value.isPresent()) {
+                if (!replace) {
+                    continue;
+                }
                 replaced.add(new TextEdit(CommonUtils.toRange(value.get().location().lineRange()),
                         configurable.configTomlValue()));
             } else {
