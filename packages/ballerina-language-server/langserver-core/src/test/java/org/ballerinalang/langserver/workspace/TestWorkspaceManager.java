@@ -1582,10 +1582,43 @@ public class TestWorkspaceManager {
         DidChangeTextDocumentParams change = new DidChangeTextDocumentParams(
                 new VersionedTextDocumentIdentifier(fileUri, 2), List.of(new TextDocumentContentChangeEvent(typed)));
         proxy.didChange(change);
+        Assert.assertTrue(request.isAlive(), "The code edit should not wait for the request to finish");
         request.join();
 
         Assert.assertEquals(copy.document(file).orElseThrow().textDocument().toString(), typed,
                 "The copy should keep the code edit made while the request was running");
+    }
+
+    @Test(description = "Test the idle sweep skips an expression copy that a request is using")
+    public void testIdleSweepSkipsCopyInUse() throws Exception {
+        Path file = RESOURCE_DIRECTORY.resolve("myproject").resolve("main.bal").toAbsolutePath();
+        Duration timeout = Duration.ofMinutes(1);
+        BallerinaWorkspaceManagerProxyImpl proxy =
+                new BallerinaWorkspaceManagerProxyImpl(new LanguageServerContextImpl(), timeout);
+        String exprUri = openAndCloseThroughProxy(proxy, file);
+
+        CountDownLatch locked = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        Thread request = new Thread(() -> {
+            proxy.exprCopyLock().lock();
+            try {
+                locked.countDown();
+                release.await(5, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } finally {
+                proxy.exprCopyLock().unlock();
+            }
+        });
+        request.start();
+        Assert.assertTrue(locked.await(5, TimeUnit.SECONDS));
+        proxy.evictIdleExprCopies(System.currentTimeMillis() + 2 * timeout.toMillis());
+        Assert.assertTrue(proxy.get(exprUri).project(file).isPresent(), "A copy in use should not be dropped");
+        release.countDown();
+        request.join();
+
+        proxy.evictIdleExprCopies(System.currentTimeMillis() + 2 * timeout.toMillis());
+        Assert.assertTrue(proxy.get(exprUri).project(file).isEmpty(), "The idle copy should be dropped afterwards");
     }
 
     private static void setText(WorkspaceManager workspaceManager, Path file, String text) {
