@@ -47,6 +47,7 @@ import { isTracingEnabled } from "../../features/tracing/utils";
 import { Trace } from "../../features/tracing/trace-server";
 import { v4 as uuidv4 } from "uuid";
 import { overrideChatEndpoint, updateChatSessionId } from "../../features/tryit/activator";
+import { getPortConflictMessage } from "../../features/tryit/utils";
 import { StateMachine } from "../../stateMachine";
 
 // Longer than the otel batch exporter's default 5s schedule delay.
@@ -133,10 +134,12 @@ export class AgentChatRpcManager implements AgentChatAPI {
                 }
             } catch (error) {
                 // Store error message in history
-                const errorMessage =
+                const errorMessage = await this.withPortConflict(
                     error && typeof error === "object" && "message" in error
                         ? String(error.message)
-                        : "An unknown error occurred";
+                        : "An unknown error occurred",
+                    controller
+                );
 
                 const sessionId = extension.agentChatContext?.chatSessionId;
                 let traceId: string | undefined;
@@ -321,6 +324,17 @@ export class AgentChatRpcManager implements AgentChatAPI {
         } catch (_) {
             return false;
         }
+    }
+
+    private async withPortConflict(errorMessage: string, controller?: AbortController): Promise<string> {
+        const context = extension.agentChatContext;
+        const agent = context?.agents.find(a => a.name === context.activeAgentName);
+        if (!agent || controller?.signal.aborted) {
+            return errorMessage;
+        }
+        const projectPath = agent.endpointKey.split('|')[0];
+        const conflict = await getPortConflictMessage(projectPath, Number(new URL(agent.chatEp).port || 80));
+        return conflict ? `${errorMessage} ${conflict}` : errorMessage;
     }
 
     private async fetchTestData(url: string, payload: Record<string, any>, signal: AbortSignal): Promise<Record<string, any>> {

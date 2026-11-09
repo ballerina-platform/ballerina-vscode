@@ -250,6 +250,29 @@ function getLSOFCommand(platform: string, pid: string): string {
     }
 }
 
+function getPortListenersCommand(platform: string, port: number): string {
+    return platform === 'win32'
+        ? `powershell -command "Get-NetTCPConnection -LocalPort ${port} -State Listen | Select-Object -ExpandProperty OwningProcess"`
+        : `lsof -nP -iTCP:${port} -sTCP:LISTEN -t`;
+}
+
+// macOS lets the agent's IPv6 wildcard socket share a port with another process bound to 127.0.0.1.
+export async function getPortConflictMessage(projectPath: string, port: number): Promise<string | undefined> {
+    try {
+        const ownPids = (await findRunningBallerinaProcesses(projectPath)).map(p => p.pid);
+        const otherPids = new Set(execSync(getPortListenersCommand(platform, port), { encoding: 'utf-8' })
+            .split(/\r?\n/)
+            .map(pid => pid.trim())
+            .filter(pid => pid && !ownPids.includes(pid)));
+        if (otherPids.size > 0) {
+            return `Port ${port} is also in use by another process (PID ${[...otherPids].join(', ')}). Stop that process or change the agent's port.`;
+        }
+    } catch (error) {
+        debug(`Skipped the port conflict check for port ${port}: ${error}`);
+    }
+    return undefined;
+}
+
 export async function waitForBallerinaService(projectDir: string): Promise<void> {
     const maxAttempts = 100; // Try for 10 seconds
     const timeout = 100; // 100ms
