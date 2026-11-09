@@ -1318,7 +1318,7 @@ public class SourceBuilder {
             sb.append(SyntaxKind.HASH_TOKEN.stringValue())
                     .append(WHITE_SPACE);
 
-            appendDescription(description.split(System.lineSeparator()));
+            appendDescription(description);
             sb.append(System.lineSeparator());
             return this;
         }
@@ -1334,7 +1334,7 @@ public class SourceBuilder {
                         .append("-")
                         .append(WHITE_SPACE);
 
-                appendDescription(description.split(System.lineSeparator()));
+                appendDescription(description);
                 sb.append(System.lineSeparator());
             }
             return this;
@@ -1351,13 +1351,15 @@ public class SourceBuilder {
                         .append("-")
                         .append(WHITE_SPACE);
 
-                appendDescription(returnDescription.split(System.lineSeparator()));
+                appendDescription(returnDescription);
                 sb.append(System.lineSeparator());
             }
             return this;
         }
 
-        private void appendDescription(String[] descLines) {
+        private void appendDescription(String description) {
+            // Form text breaks lines with "\n" on every OS, and descriptions read back from source end in one.
+            String[] descLines = description.stripTrailing().split("\\R");
             sb.append(descLines[0]);
             for (int i = 1; i < descLines.length; i++) {
                 sb.append(System.lineSeparator());
