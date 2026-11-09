@@ -323,10 +323,6 @@ public class ConnectionConfigurables {
     }
 
     /**
-     * A Ballerina string literal as a TOML string: the escapes are the same, except a code point,
-     * <code>&#92;u{1F600}</code>, which becomes the character itself. Ballerina reads no TOML code point escape.
-     */
-    /**
      * A name as source writes it, quoted only if a keyword: connection {@code 'client} gets {@code clientHost}.
      */
     private static String sourceName(String name) {
@@ -339,6 +335,10 @@ public class ConnectionConfigurables {
                 .collect(Collectors.joining("", "\"", "\""));
     }
 
+    /**
+     * A Ballerina string literal as a TOML string: the escapes are the same, except a code point,
+     * <code>&#92;u{1F600}</code>, which becomes the character itself. Ballerina reads no TOML code point escape.
+     */
     private static String tomlString(String literal) {
         return STRING_ESCAPE.matcher(literal).replaceAll(escape -> Matcher.quoteReplacement(escape.group(1) == null
                 ? escape.group() : tomlChar(Integer.parseInt(escape.group(1), 16))));
