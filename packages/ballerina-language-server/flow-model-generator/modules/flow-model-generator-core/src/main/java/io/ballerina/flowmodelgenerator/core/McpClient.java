@@ -26,6 +26,7 @@ import com.google.gson.JsonParser;
 import java.io.BufferedReader;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
@@ -38,6 +39,7 @@ import java.security.cert.X509Certificate;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.StringJoiner;
 
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.KeyManagerFactory;
@@ -801,13 +803,17 @@ public class McpClient {
         return error.has("message") ? error.get("message").getAsString() : error.toString();
     }
 
+    // Reads an error body, or returns null when there is none. Lines are kept apart, as an event stream needs them.
     private static String readErrorStream(HttpURLConnection conn) {
-        try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(conn.getErrorStream(), StandardCharsets.UTF_8))) {
-            StringBuilder errorResponse = new StringBuilder();
+        InputStream errorStream = conn.getErrorStream();
+        if (errorStream == null) {
+            return null;
+        }
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(errorStream, StandardCharsets.UTF_8))) {
+            StringJoiner errorResponse = new StringJoiner("\n");
             String line;
             while ((line = reader.readLine()) != null) {
-                errorResponse.append(line);
+                errorResponse.add(line);
             }
             return errorResponse.toString();
         } catch (IOException e) {

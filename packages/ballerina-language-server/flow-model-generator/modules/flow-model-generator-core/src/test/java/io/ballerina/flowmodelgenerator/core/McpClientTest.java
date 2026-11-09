@@ -126,6 +126,28 @@ public class McpClientTest {
     }
 
     @Test
+    public void readsAnErrorSentAsAnEventStream() throws IOException {
+        server = new FakeServer(method -> Reply.eventStream(400, "{\"jsonrpc\": \"2.0\", \"id\": 1, \"error\": "
+                + "{\"code\": -32022, \"message\": \"Unsupported protocol version\", "
+                + "\"data\": {\"supported\": [\"2030-01-01\"]}}}"));
+        IOException e = Assert.expectThrows(IOException.class, () -> McpClient.listTools(server.url(), null, null));
+        Assert.assertTrue(e.getMessage().contains("known MCP protocol version"), e.getMessage());
+        Assert.assertEquals(server.methods(), List.of("server/discover"));
+    }
+
+    @Test
+    public void fallsBackToInitializeWhenDiscoverIsRejectedWithoutABody() throws IOException {
+        server = new FakeServer(method -> switch (method) {
+            case "server/discover" -> new Reply(400, null, "", null, false);
+            case "initialize" -> Reply.json(200, result("{\"serverInfo\": {\"name\": \"Legacy\"}}"));
+            case "notifications/initialized" -> Reply.accepted();
+            case "tools/list" -> Reply.json(200, result(TOOLS));
+            default -> Reply.json(400, error(-32600, "unexpected " + method));
+        });
+        Assert.assertEquals(McpClient.listTools(server.url(), null, null).serverInfo().name(), "Legacy");
+    }
+
+    @Test
     public void reportsAnAuthorizationChallenge() throws IOException {
         server = new FakeServer(method -> new Reply(401, "application/json", "{}",
                 "Bearer resource_metadata=\"http://localhost/.well-known/oauth-protected-resource\"", false));
@@ -171,6 +193,10 @@ public class McpClientTest {
 
         static Reply accepted() {
             return new Reply(202, null, "", null, false);
+        }
+
+        static Reply eventStream(int status, String message) {
+            return new Reply(status, "text/event-stream", "event: message\ndata: " + message + "\n\n", null, false);
         }
 
         static Reply openStream(String message) {
