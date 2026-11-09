@@ -97,11 +97,13 @@ import { ConnectionKind } from "../../../components/ConnectionSelector";
 import AddAgentPopup from "../AIChatAgent/AddAgentPopup";
 import { DiagramSkeleton } from "../../../components/Skeletons";
 import { AI_COMPONENT_PROGRESS_MESSAGE, AI_COMPONENT_PROGRESS_MESSAGE_TIMEOUT, FORM_LOADING_MESSAGE, LOADING_MESSAGE } from "../../../constants";
-import { ConnectionListItem } from "@wso2/wso2-platform-core";
+import { ConnectionListItem, MarketplaceItem } from "@wso2/wso2-platform-core";
 import { usePlatformExtContext } from "../../../providers/platform-ext-ctx-provider";
 import { requestMiniChatOpen } from "../../../components/AgentStatusOrb/shared";
 import { AgentEditorView, useAgentEditorController } from "../AIChatAgent/useAgentEditorController";
 import { CloudKnowledgeBasePage } from "../Connection/DevantConnections/CloudKnowledgeBasePage";
+import { prepareDevantKnowledgeBase } from "../Connection/DevantConnections/devant-kb-utils";
+import { errorMessageOf } from "../Connection/DevantConnections/utils";
 
 const Container = styled.div`
     width: 100%;
@@ -703,6 +705,36 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         } else {
             console.log(">>> KNOWLEDGE_BASE_LIST not found in navigation stack, closing panel");
             closeSidePanelAndFetchUpdatedFlowModel();
+        }
+    };
+
+    // Connects to an existing WSO2 Cloud knowledge base service and opens its pre-filled create form.
+    const handleCreateDevantKnowledgeBase = async (node: AvailableNode, item: MarketplaceItem) => {
+        setShowProgressIndicator(true);
+        pushToNavigationStack(sidePanelView, categories, selectedNodeRef.current, selectedClientName.current);
+        try {
+            const flowNode = await prepareDevantKnowledgeBase({
+                rpcClient,
+                platformRpcClient,
+                platformExtState,
+                item,
+                node,
+                projectPath,
+                target: targetRef.current.startLine,
+                fileName: model?.fileName,
+            });
+            platformRpcClient.refreshConnectionList();
+            selectedNodeRef.current = flowNode;
+            nodeTemplateRef.current = flowNode;
+            showEditForm.current = false;
+            isCreatingNewVectorKnowledgeBase.current = true; // reuse KB post-create navigation
+            setSidePanelView(SidePanelView.FORM);
+            setShowSidePanel(true);
+        } catch (error) {
+            console.error(">>> Error setting up WSO2 Cloud knowledge base", error);
+            showConnectorError(errorMessageOf(error));
+        } finally {
+            setShowProgressIndicator(false);
         }
     };
 
@@ -4352,7 +4384,13 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                         : undefined
                 }
                 wso2CloudKbListSection={
-                    <CloudKnowledgeBasePage onCreateNew={handleCreateNewCloudKnowledgeBase} />
+                    <CloudKnowledgeBasePage
+                        onCreateNew={handleCreateNewCloudKnowledgeBase}
+                        onSelectExisting={(item) =>
+                            cloudKbNodeRef.current &&
+                            handleCreateDevantKnowledgeBase(cloudKbNodeRef.current, item)
+                        }
+                    />
                 }
             />
 

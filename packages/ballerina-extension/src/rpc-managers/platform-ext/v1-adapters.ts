@@ -283,6 +283,8 @@ export function endpointToMarketplaceItem(project: string, integration: Componen
         description: integration.description,
         visibility: visibility.length > 0 ? visibility : ["PROJECT"],
         isThirdParty: false,
+        // The integration's labels (the tags shown in the console), e.g. knowledge-base-as-service.
+        tags: integration.labels ?? [],
     };
 }
 
