@@ -169,7 +169,7 @@ public class ConnectionConfigurables {
         TypeSymbol rawType = CommonUtils.getRawType(type);
         if (value instanceof BasicLiteralNode literal) {
             Optional<TypeDescKind> kind = configurableKind(rawType, literal.literalToken());
-            if (kind.isEmpty()) {
+            if (kind.isEmpty() || isEmptyString(literal.literalToken())) {
                 return;
             }
             String name = prefixes.stream().map(prefix -> prefix + suffix)
@@ -204,6 +204,13 @@ public class ConnectionConfigurables {
                 }
             }));
         }
+    }
+
+    /**
+     * Whether a literal is the form's placeholder for a string field left empty, which stays in source.
+     */
+    private static boolean isEmptyString(Token literal) {
+        return literal.kind() == SyntaxKind.STRING_LITERAL_TOKEN && literal.text().equals("\"\"");
     }
 
     /**
