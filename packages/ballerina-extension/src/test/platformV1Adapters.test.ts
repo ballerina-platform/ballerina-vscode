@@ -90,7 +90,7 @@ describe("platform v1 adapters", () => {
         expect(item.visibility).toEqual(["PROJECT", "ORGANIZATION"]);
         expect(item.projectId).toBe("default-project");
         expect(item.isThirdParty).toBe(false);
-        // Project access takes the in-cluster URL alone; the exposed endpoint also offers the gateway with an API key.
+        // Project access takes the endpoint's address alone; the exposed endpoint also offers the gateway with an API key.
         expect(item.connectionSchemas.map((s) => s.id)).toEqual(["project-url", "api-key"]);
         expect(item.connectionSchemas[0].entries.map((e) => e.name)).toEqual(["ServiceURL"]);
         expect(item.connectionSchemas[1].entries.map((e) => e.name)).toEqual(Object.keys(SERVICE_CONNECTION_KEYS));
@@ -102,6 +102,12 @@ describe("platform v1 adapters", () => {
         const item = endpointToMarketplaceItem("default-project", integration, "development", endpoint, "acme");
         expect(item.visibility).toEqual(["PROJECT"]);
         expect(item.connectionSchemas.map((s) => s.id)).toEqual(["project-url"]);
+    });
+
+    it("names a service by its integration alone when the endpoint is named after a bare path", () => {
+        const integration = { id: "orders", name: "orders", displayName: "Orders", description: "", createdAt: "2026-01-01T00:00:00Z" } as never;
+        const rootPath = { name: "/", displayName: "/", type: "REST", visibility: ["project"], resources: [] } as never;
+        expect(endpointToMarketplaceItem("default-project", integration, "development", rootPath, "acme").name).toBe("Orders");
     });
 
     it("tells databases from services from plain config by an env group's keys, and never reveals secrets", () => {

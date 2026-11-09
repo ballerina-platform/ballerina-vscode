@@ -236,6 +236,17 @@ export enum DevantConnectionType {
  * @param candidateName - The initial name to try
  * @returns A unique name that doesn't conflict with existing names
  */
+/**
+ * A connection name `isValidDevantConnName` accepts, made from a service's name: anything but letters,
+ * digits and underscores becomes one underscore (`Orders / v1` → `Orders_v1`), and a name too short to
+ * keep falls back to `my_connection`.
+ */
+export const toConnectionName = (candidateName: string | undefined): string => {
+    const cleaned = (candidateName ?? "").replace(/[^A-Za-z0-9_]+/g, "_").replace(/_+/g, "_").replace(/^_+|_+$/g, "");
+    const name = /^[0-9]/.test(cleaned) ? `c_${cleaned}` : cleaned;
+    return name.length >= 3 ? name.slice(0, 50) : "my_connection";
+};
+
 export const generateInitialConnectionName = (
     biConnectorNames: string[],
     devantConnectorNames: string[],
@@ -248,7 +259,7 @@ export const generateInitialConnectionName = (
         ...devantConnectorNames.map((name) => name.replaceAll("-", "_")),
     ]);
 
-    const newCandidateName = candidateName?.replaceAll(" ", "_").replaceAll("-", "_") || "my_connection";
+    const newCandidateName = toConnectionName(candidateName);
     let uniqueName = newCandidateName;
     let counter = 1;
 

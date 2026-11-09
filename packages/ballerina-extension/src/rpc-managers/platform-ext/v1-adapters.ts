@@ -353,13 +353,23 @@ const SERVICE_TYPE: Record<string, MarketplaceItem["serviceType"]> = {
     websocket: "ASYNC_API",
 };
 
+/**
+ * What a service is called: its integration, then its endpoint. An endpoint named after a path with no
+ * words in it (`/`, as a Ballerina service on the root path is) adds nothing, so it is left out.
+ */
+function serviceName(integration: Component, endpoint: EndpointResources): string {
+    const integrationName = integration.displayName || integration.name;
+    const endpointName = endpoint.displayName || endpoint.name;
+    return /[A-Za-z0-9]/.test(endpointName ?? "") ? `${integrationName} / ${endpointName}` : integrationName;
+}
+
 /** An endpoint another integration exposes, as a marketplace service. */
 export function endpointToMarketplaceItem(project: string, integration: Component, environment: string, endpoint: EndpointResources, orgHandle: string): MarketplaceItem {
     const visibility = (endpoint.visibility ?? ["project"]).map((v) => VISIBILITY[v]).filter((v): v is MarketplaceItem["visibility"][number] => !!v);
     return {
         serviceId: serviceId({ project, integration: integration.id, endpoint: endpoint.name }),
         resourceId: endpoint.name,
-        name: `${integration.displayName || integration.name} / ${endpoint.displayName || endpoint.name}`,
+        name: serviceName(integration, endpoint),
         version: environment,
         status: "PUBLISHED",
         serviceType: SERVICE_TYPE[(endpoint.type ?? "").toLowerCase()] ?? "REST",

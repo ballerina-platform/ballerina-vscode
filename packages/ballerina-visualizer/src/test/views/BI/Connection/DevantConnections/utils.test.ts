@@ -24,6 +24,7 @@ import {
     getPossibleSchemas,
     securityTypeOf,
     serviceUrlConfigName,
+    toConnectionName,
 } from "../../../../../views/BI/Connection/DevantConnections/utils";
 
 const PAGE_SIZE = 24;
@@ -130,5 +131,16 @@ describe("serviceUrlConfigName", () => {
         expect(serviceUrlConfigName([{ id: "ChoreoAPIKey", name: "ChoreoAPIKey" }, { id: "ServiceURL", name: "ServiceURL1" }])).toBe("ServiceURL1");
         expect(serviceUrlConfigName([])).toBeUndefined();
         expect(serviceUrlConfigName(undefined)).toBeUndefined();
+    });
+});
+
+describe("toConnectionName", () => {
+    it("makes a name the connection form accepts from a service's name", () => {
+        expect(toConnectionName("Untitled5 / /")).toBe("Untitled5");
+        expect(toConnectionName("Hello World Service / Greeting")).toBe("Hello_World_Service_Greeting");
+        expect(toConnectionName("orders-api")).toBe("orders_api");
+        expect(toConnectionName("9lives")).toBe("c_9lives");
+        expect(toConnectionName("/")).toBe("my_connection");
+        expect(toConnectionName(undefined)).toBe("my_connection");
     });
 });
