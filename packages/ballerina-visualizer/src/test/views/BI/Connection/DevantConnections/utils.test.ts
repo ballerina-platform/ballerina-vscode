@@ -21,8 +21,10 @@ import {
     KB_SERVICE_TAG,
     errorMessageOf,
     filterConnectionMarketplaceItems,
+    generateInitialConnectionName,
     getInitialAccess,
     getPossibleSchemas,
+    isValidDevantConnName,
     securityTypeOf,
     serviceUrlConfigName,
     toConnectionName,
@@ -150,5 +152,42 @@ describe("toConnectionName", () => {
         expect(toConnectionName("9lives")).toBe("c_9lives");
         expect(toConnectionName("/")).toBe("my_connection");
         expect(toConnectionName(undefined)).toBe("my_connection");
+    });
+});
+
+describe("toConnectionName limits", () => {
+    it("leaves room for the uniqueness counter under the 50 characters the validator allows", () => {
+        const name = toConnectionName("a".repeat(80));
+        expect(name).toHaveLength(45);
+        const unique = generateInitialConnectionName([], [name], "a".repeat(80));
+        expect(unique).toBe(`${name}1`);
+        expect(isValidDevantConnName(unique, [name], [], false)).toBeUndefined();
+    });
+
+    it("keeps a Ballerina keyword from becoming the connection's name", () => {
+        expect(toConnectionName("error")).toBe("error_conn");
+        expect(toConnectionName("table")).toBe("table_conn");
+        expect(toConnectionName("worker")).toBe("worker_conn");
+        expect(toConnectionName("Error")).toBe("Error");
+        expect(toConnectionName("errors")).toBe("errors");
+    });
+});
+
+describe("WSO2 Cloud connection names clash by the env vars they write", () => {
+    it("skips a name whose env-var prefix an existing cloud connection writes", () => {
+        expect(generateInitialConnectionName([], ["orders"], "Orders")).toBe("Orders1");
+        expect(generateInitialConnectionName([], ["orders-api"], "orders_api")).toBe("orders_api1");
+        expect(generateInitialConnectionName([], ["stock"], "Orders")).toBe("Orders");
+        // BI connection names stay an exact match.
+        expect(generateInitialConnectionName(["orders"], [], "Orders")).toBe("Orders");
+        expect(generateInitialConnectionName(["Orders"], [], "Orders")).toBe("Orders1");
+    });
+
+    it("rejects a name whose env-var prefix an existing cloud connection writes", () => {
+        expect(isValidDevantConnName("Orders", ["orders"], [], false)).toBe("A WSO2 Cloud connection with this name already exists");
+        expect(isValidDevantConnName("orders_api", ["orders-api"], [], false)).toBe("A WSO2 Cloud connection with this name already exists");
+        expect(isValidDevantConnName("Orders", ["orders"], [], true)).toBeUndefined();
+        expect(isValidDevantConnName("Orders", ["stock"], ["orders"], false)).toBeUndefined();
+        expect(isValidDevantConnName("orders", ["stock"], ["orders"], false)).toBe("Duplicate connection name");
     });
 });

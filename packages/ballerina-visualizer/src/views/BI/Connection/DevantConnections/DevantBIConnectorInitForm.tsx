@@ -28,8 +28,10 @@ import { useMutation } from "@tanstack/react-query";
 import { DevantTempConfig } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
 import { ConnectionConfigurationForm, ConnectionConfigurationFormProps } from "../ConnectionConfigurationPopup";
 import { DIRECTORY_MAP } from "@wso2/ballerina-core";
+import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import {
     DevantConnectionFlow,
+    errorMessageOf,
     generateInitialConnectionName,
     getInitialAccess,
     isValidDevantConnName,
@@ -66,6 +68,7 @@ export const DevantBIConnectorCreateForm: FC<Props> = (props) => {
         existingDevantConnNames,
     } = props;
     const { platformExtState, platformRpcClient } = usePlatformExtContext();
+    const { rpcClient } = useRpcContext();
 
     let initialNameCandidate =
         selectedMarketplaceItem?.name?.replaceAll(" ", "_")?.replaceAll("-", "_") || "my_connection";
@@ -244,6 +247,11 @@ export const DevantBIConnectorCreateForm: FC<Props> = (props) => {
         },
         onError: (error) => {
             console.error(">>> Error creating WSO2 Cloud connection", error);
+            // The connection's code is already saved; the user must learn the cloud side was refused
+            // (e.g. "Deploy <integration> to <env> first").
+            rpcClient.getCommonRpcClient().showErrorMessage({
+                message: `Could not create the WSO2 Cloud connection: ${errorMessageOf(error)}`,
+            });
         },
         onSuccess: (_, { recentIdentifier }) => {
             platformRpcClient.refreshConnectionList();

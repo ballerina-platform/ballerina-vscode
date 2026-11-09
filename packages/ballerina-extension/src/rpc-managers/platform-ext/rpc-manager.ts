@@ -34,6 +34,7 @@ import type {
     Component,
     ContextItemEnriched,
     DirectoryIntegration,
+    EndpointLink,
     Environment,
     IWso2PlatformExtensionAPI,
     LocalRuntimeEnv,
@@ -103,6 +104,7 @@ import {
     configurableId,
     createdConnection,
     endpointLinkConnections,
+    endpointLinkReferencedBy,
     linkToConnectionDetailed,
     parseLinkConnectionId,
     type ServiceConnectionAccess,
@@ -598,8 +600,15 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
             const groupConnections = groups
                 .filter((group) => localRefs.has(group.name ?? ""))
                 .map((group) => envGroupToConnectionListItem(group, { integration: params.componentId, environment: envId }, localRefs.get(group.name ?? "")));
-            // A connection inside the project is a link the platform resolves, not a group.
-            const links = await platformExt.connections.listEndpointLinks(params.componentId, projectName);
+            // A connection inside the project is a link the platform resolves, not a group. Links that cannot
+            // be read leave the group connections listed.
+            let links: EndpointLink[];
+            try {
+                links = await platformExt.connections.listEndpointLinks(params.componentId, projectName);
+            } catch (err) {
+                log(`Failed to list the endpoint links of ${params.componentId}: ${err}`);
+                return groupConnections;
+            }
             const linkConnections = endpointLinkConnections(
                 links,
                 localRefs,
@@ -987,10 +996,15 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
                         if (link && platformExt) {
                             // Unlinked before the local reference goes: the list shows a link only while a reference names its endpoint.
                             deletingCloudConnection = true;
+                            const projectName = this.selection().projectName;
+                            // The list pairs links with connections by endpoint alone; with two connections to one
+                            // endpoint, the configurable this connection's code reads is the link that is its own.
+                            const links = await platformExt.connections.listEndpointLinks(link.integration, projectName);
+                            const ownLink = endpointLinkReferencedBy(links, matchingConnection.initializer?.source ?? "");
                             await platformExt.connections.unlinkEndpoint({
                                 integration: link.integration,
-                                configurable: link.configurable,
-                                projectName: this.selection().projectName,
+                                configurable: ownLink?.configurable ?? link.configurable,
+                                projectName,
                             });
                             deletingCloudConnection = false;
                         } else if (ref && platformExt) {

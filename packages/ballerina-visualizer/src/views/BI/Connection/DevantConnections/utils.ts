@@ -18,6 +18,7 @@
 
 import { AvailableNode, Category, IntrospectCredentialsResponse, PropertyModel } from "@wso2/ballerina-core";
 import { MarketplaceItem, MarketplaceItemSchema, Project, ServiceInfoVisibilityEnum } from "@wso2/wso2-platform-core";
+import { connectionVarPrefix } from "@wso2/wso2-cloud-client/contract";
 import styled from "@emotion/styled";
 
 export const ProgressWrap = styled.div`
@@ -227,8 +228,36 @@ export enum DevantConnectionType {
     DATABASE = "DATABASE",
 }
 
+// Ballerina keywords a service could be named after; a connection's variable cannot take one as its name.
+const BALLERINA_RESERVED_WORDS = new Set([
+    "any", "anydata", "as", "boolean", "break", "byte", "check", "checkpanic", "class", "client", "commit",
+    "configurable", "const", "continue", "decimal", "distinct", "do", "else", "enum", "error", "fail", "false",
+    "final", "float", "foreach", "fork", "from", "function", "future", "handle", "if", "import", "in", "int",
+    "is", "isolated", "json", "let", "listener", "lock", "map", "match", "never", "new", "null", "object",
+    "panic", "private", "public", "readonly", "record", "remote", "resource", "retry", "return", "returns",
+    "rollback", "service", "start", "stream", "string", "table", "transaction", "transactional", "trap",
+    "true", "type", "typedesc", "typeof", "var", "wait", "where", "while", "worker", "xml",
+]);
+
 /**
- * Generates a unique name that doesn't exist in either biConnectorNames or devantConnectorNames.
+ * A connection name `isValidDevantConnName` accepts, made from a service's name: anything but letters,
+ * digits and underscores becomes one underscore (`Orders / v1` → `Orders_v1`), and a name too short to
+ * keep falls back to `my_connection`. Capped at 45 characters, leaving room for the counter
+ * `generateInitialConnectionName` adds under the 50 the validator allows.
+ */
+export const toConnectionName = (candidateName: string | undefined): string => {
+    const cleaned = (candidateName ?? "").replace(/[^A-Za-z0-9_]+/g, "_").replace(/_+/g, "_").replace(/^_+|_+$/g, "");
+    const name = /^[0-9]/.test(cleaned) ? `c_${cleaned}` : cleaned;
+    if (name.length < 3) {
+        return "my_connection";
+    }
+    const capped = name.slice(0, 45);
+    return BALLERINA_RESERVED_WORDS.has(capped) ? `${capped}_conn` : capped;
+};
+
+/**
+ * Generates a unique name that doesn't exist in biConnectorNames and doesn't write the env vars of
+ * one in devantConnectorNames.
  * If the candidate name exists, appends a numeric suffix and tries again.
  *
  * @param biConnectorNames - Array of existing BI connector names
@@ -236,35 +265,22 @@ export enum DevantConnectionType {
  * @param candidateName - The initial name to try
  * @returns A unique name that doesn't conflict with existing names
  */
-/**
- * A connection name `isValidDevantConnName` accepts, made from a service's name: anything but letters,
- * digits and underscores becomes one underscore (`Orders / v1` → `Orders_v1`), and a name too short to
- * keep falls back to `my_connection`.
- */
-export const toConnectionName = (candidateName: string | undefined): string => {
-    const cleaned = (candidateName ?? "").replace(/[^A-Za-z0-9_]+/g, "_").replace(/_+/g, "_").replace(/^_+|_+$/g, "");
-    const name = /^[0-9]/.test(cleaned) ? `c_${cleaned}` : cleaned;
-    return name.length >= 3 ? name.slice(0, 50) : "my_connection";
-};
-
 export const generateInitialConnectionName = (
     biConnectorNames: string[],
     devantConnectorNames: string[],
     candidateName: string,
 ): string => {
-    // Create a Set of all existing names (case-insensitive) for O(1) lookup
-    const existingNames = new Set<string>([
-        ...biConnectorNames,
-        ...devantConnectorNames,
-        ...devantConnectorNames.map((name) => name.replaceAll("-", "_")),
-    ]);
+    const biNames = new Set<string>(biConnectorNames);
+    // Cloud connections clash by the env-var prefix they write, not by name: `Orders` and `orders` both write ORDERS_*.
+    const cloudVarPrefixes = new Set<string>(devantConnectorNames.map(connectionVarPrefix));
+    const isTaken = (name: string) => biNames.has(name) || cloudVarPrefixes.has(connectionVarPrefix(name));
 
     const newCandidateName = toConnectionName(candidateName);
     let uniqueName = newCandidateName;
     let counter = 1;
 
     // Keep incrementing counter until we find a unique name
-    while (existingNames.has(uniqueName)) {
+    while (isTaken(uniqueName)) {
         uniqueName = `${newCandidateName}${counter}`;
         counter++;
     }
@@ -294,8 +310,9 @@ export const isValidDevantConnName = (value: string, devantConnNames: string[], 
         return "Connection name can only contain letters, numbers, and underscores";
     }
 
-    // Check for duplicates in Devant connections
-    if (!isImporting && devantConnNames?.some((conn) => conn === value)) {
+    // Check for duplicates in Devant connections, by the env-var prefix each writes (`Orders` and `orders` both write ORDERS_*)
+    const varPrefix = connectionVarPrefix(value);
+    if (!isImporting && devantConnNames?.some((conn) => connectionVarPrefix(conn) === varPrefix)) {
         return "A WSO2 Cloud connection with this name already exists";
     }
 

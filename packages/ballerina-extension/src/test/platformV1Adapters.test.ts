@@ -39,10 +39,12 @@ import {
 import {
     configurableId,
     endpointLinkConnections,
+    endpointLinkReferencedBy,
     linkConnectionId,
     linkToConnectionDetailed,
     localConnectionServiceIds,
     parseLinkConnectionId,
+    serviceIdOfResourceRef,
 } from "../rpc-managers/platform-ext/v1-adapters";
 import * as fs from "fs";
 import * as os from "os";
@@ -230,5 +232,27 @@ describe("connections inside the project, which are endpoint links", () => {
         });
         expect(parseLinkConnectionId(created.groupUuid)).toEqual({ integration: "basket", configurable: "acme/basket:ServiceURL", name: "orders" });
         expect(Object.keys(created.configurations.development.entries)).toEqual(["ServiceURL"]);
+    });
+
+    it("reads a service reference back, a root-path service's endpoint \"/\" included", () => {
+        expect(serviceIdOfResourceRef("service:shop/orders/api")).toBe(orders);
+        const root = serviceId({ project: "shop", integration: "orders", endpoint: "/" });
+        expect(resourceRefOf({ serviceId: root } as never, "x")).toBe("service:shop/orders//");
+        expect(serviceIdOfResourceRef("service:shop/orders//")).toBe(root);
+        expect(parseServiceId(root)).toEqual({ project: "shop", integration: "orders", endpoint: "/" });
+        expect(serviceIdOfResourceRef("service:shop/orders")).toBeUndefined();
+        expect(serviceIdOfResourceRef("service:shop/orders/")).toBeUndefined();
+    });
+
+    it("finds a connection's own link by the configurable its code reads", () => {
+        const links = [
+            { configurable: "acme/basket:ServiceURL", component: "orders", endpoint: "api" },
+            { configurable: "acme/basket:ServiceURL1", component: "orders", endpoint: "api" },
+        ];
+        expect(endpointLinkReferencedBy(links, "new ({}, ServiceURL1)")?.configurable).toBe("acme/basket:ServiceURL1");
+        expect(endpointLinkReferencedBy(links, "check new (serviceUrl = ServiceURL)")?.configurable).toBe("acme/basket:ServiceURL");
+        expect(endpointLinkReferencedBy(links, "new ('ServiceURL)")?.configurable).toBe("acme/basket:ServiceURL");
+        expect(endpointLinkReferencedBy(links, "new (OtherURL)")).toBeUndefined();
+        expect(endpointLinkReferencedBy(links, "new (ServiceURL, ServiceURL1)")).toBeUndefined();
     });
 });

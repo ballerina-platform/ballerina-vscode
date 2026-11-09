@@ -144,7 +144,9 @@ export function configurableId(org: string, packageName: string, name: string): 
  * The connections `.wso2/component.yaml` records that an endpoint link of the
  * integration stands for. The platform keeps no connection name on a link, so
  * a connection is matched to a link by the endpoint both name, each link to
- * one connection; `skip` names connections already listed another way.
+ * one connection; `skip` names connections already listed another way. With
+ * two connections to one endpoint the pairing is arbitrary, which is fine for
+ * display; deleting one finds its link by the configurable its code reads.
  */
 export function endpointLinkConnections(
     links: EndpointLink[],
@@ -167,6 +169,20 @@ export function endpointLinkConnections(
         items.push(linkToConnectionListItem({ integration: ref.integration, configurable: link.configurable, name }, refServiceId));
     }
     return items;
+}
+
+/**
+ * The one link whose configurable `source` (a connection's code) reads by name,
+ * or undefined when none or more than one does.
+ */
+export function endpointLinkReferencedBy(links: EndpointLink[], source: string): EndpointLink | undefined {
+    const referenced = links.filter((link) => {
+        const name = link.configurable.slice(link.configurable.lastIndexOf(":") + 1);
+        const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        // A whole identifier, optionally quoted ('name), not a part of a longer one such as ServiceURL1.
+        return !!name && new RegExp(`(?<![\\w'])'?${escaped}(?![\\w])`).test(source);
+    });
+    return referenced.length === 1 ? referenced[0] : undefined;
 }
 
 export function linkToConnectionListItem(ref: LinkConnectionRef, serviceId = ""): ConnectionListItem {
@@ -566,7 +582,9 @@ export function serviceIdOfResourceRef(resourceRef: string | undefined): string 
         return databaseId(resourceRef.slice("database:".length));
     }
     if (resourceRef.startsWith("service:")) {
-        const [project, integration, endpoint] = resourceRef.slice("service:".length).split("/");
+        // The endpoint is everything after the integration: a root-path service's endpoint is named "/".
+        const [project, integration, ...rest] = resourceRef.slice("service:".length).split("/");
+        const endpoint = rest.join("/");
         return project && integration && endpoint ? serviceId({ project, integration, endpoint }) : undefined;
     }
     return undefined;
