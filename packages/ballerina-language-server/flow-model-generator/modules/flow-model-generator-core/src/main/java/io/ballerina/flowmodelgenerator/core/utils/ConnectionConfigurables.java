@@ -72,6 +72,9 @@ public class ConnectionConfigurables {
             TypeDescKind.DECIMAL, "decimal",
             TypeDescKind.BOOLEAN, "boolean");
     private static final Pattern STRING_ESCAPE = Pattern.compile("\\\\(?:u\\{(\\p{XDigit}{1,6})}|.)");
+    private static final Set<String> UNREADABLE_ESCAPES = Set.of("\\n", "\\r");
+    private static final Pattern TOML_NUMBER = Pattern.compile(
+            "0[xX]\\p{XDigit}+|(0|[1-9]\\d*)(\\.\\d+)?([eE][+-]?\\d+)?");
     private static final Pattern HEX_INTEGER = Pattern.compile("0[xX]\\p{XDigit}+");
     private static final Pattern PLAIN_IDENTIFIER = Pattern.compile("[A-Za-z_][A-Za-z0-9_]*");
     private static final Pattern BARE_TOML_KEY = Pattern.compile("[A-Za-z0-9_-]+");
@@ -168,8 +171,9 @@ public class ConnectionConfigurables {
                          List<Replacement> replacements) {
         TypeSymbol rawType = CommonUtils.getRawType(type);
         if (value instanceof BasicLiteralNode literal) {
-            Optional<TypeDescKind> kind = configurableKind(rawType, literal.literalToken());
-            if (kind.isEmpty() || isEmptyString(literal.literalToken())) {
+            Token token = literal.literalToken();
+            Optional<TypeDescKind> kind = configurableKind(rawType, token);
+            if (kind.isEmpty() || isEmptyString(token) || hasNoTomlForm(token, kind.get())) {
                 return;
             }
             String name = prefixes.stream().map(prefix -> prefix + suffix)
@@ -211,6 +215,23 @@ public class ConnectionConfigurables {
      */
     private static boolean isEmptyString(Token literal) {
         return literal.kind() == SyntaxKind.STRING_LITERAL_TOKEN && literal.text().equals("\"\"");
+    }
+
+    /**
+     * Whether a literal has no Config.toml form Ballerina's config reader accepts, so it stays in source. That's a
+     * number TOML doesn't write as Ballerina does, such as <code>.5</code> or <code>0x1.8p1</code>, or a string with a
+     * line break (<code>&#92;n</code>, <code>&#92;r</code>) or a character only a code point escape can write, such as
+     * <code>&#92;u{7}</code>.
+     */
+    private static boolean hasNoTomlForm(Token literal, TypeDescKind kind) {
+        if (literal.kind() == SyntaxKind.STRING_LITERAL_TOKEN) {
+            return STRING_ESCAPE.matcher(literal.text()).results()
+                    .map(escape -> escape.group(1) == null ? escape.group()
+                            : tomlChar(Integer.parseInt(escape.group(1), 16)))
+                    .anyMatch(escape -> UNREADABLE_ESCAPES.contains(escape) || escape.startsWith("\\U"));
+        }
+        boolean fractional = kind == TypeDescKind.FLOAT || kind == TypeDescKind.DECIMAL;
+        return kind != TypeDescKind.BOOLEAN && !TOML_NUMBER.matcher(tomlValue(literal.text(), fractional)).matches();
     }
 
     /**

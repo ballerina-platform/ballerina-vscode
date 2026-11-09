@@ -80,6 +80,24 @@ public class ConnectionConfigurablesTest {
                 + "'cFooBar'.");
     }
 
+    @Test
+    public void valuesConfigTomlCantHoldStayInSource() {
+        // An empty string is the form's placeholder; Ballerina's config reader rejects the escapes for a bell or a line
+        // break, but reads a tab's, and parses no number TOML doesn't write as Ballerina does.
+        ConnectionConfigurables configurables = new ConnectionConfigurables("c", Map.of(), symbol -> false);
+        Assert.assertEquals(configurables.rewrite("{foo_bar: \"\", fooBar: \"bell\\u{7}\", password: \"tab\\t\"}",
+                "config", config, false), "{foo_bar: \"\", fooBar: \"bell\\u{7}\", password: cPassword}");
+        Assert.assertEquals(configurables.rewrite("{password: \"two\\nlines\"}", "pool", pool, false),
+                "{password: \"two\\nlines\"}");
+        // TOML writes no number as .5 or 0x1.8p1 do; 2.5d and 0x10 have a TOML form.
+        Assert.assertEquals(configurables.rewrite("{timeout: .5, rate: 2.5d, size: 0x10}", "config", config, false),
+                "{timeout: .5, rate: cRate, size: cSize}");
+        Assert.assertEquals(configurables.rewrite("{timeout: 0x1.8p1}", "config", config, false),
+                "{timeout: 0x1.8p1}");
+        Assert.assertEquals(configurables.configurables().stream().map(Configurable::configTomlEntry).toList(),
+                List.of("cPassword = \"tab\\t\"", "cRate = 2.5", "cSize = 0x10"));
+    }
+
     private static RecordTypeSymbol record(SemanticModel model, String name) {
         return model.moduleSymbols().stream()
                 .filter(symbol -> symbol instanceof TypeDefinitionSymbol && symbol.getName().orElseThrow().equals(name))
