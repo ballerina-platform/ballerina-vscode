@@ -2224,7 +2224,7 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
         });
     }
 
-    async renameIdentifier(params: RenameIdentifierRequest): Promise<void> {
+    async renameIdentifier(params: RenameIdentifierRequest): Promise<boolean> {
         const projectPath = StateMachine.context().projectPath;
         const filePath = path.join(projectPath, params.fileName);
         const fileUri = Uri.file(filePath).toString();
@@ -2237,7 +2237,11 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
         };
         try {
             const workspaceEdit = await StateMachine.langClient().rename(request);
-            if (workspaceEdit && 'changes' in workspaceEdit && workspaceEdit.changes) {
+            // Resolves to whether the LS sent edits to apply: a rename at a position with no
+            // identifier comes back empty and leaves the source as it was.
+            const hasEdits = !!workspaceEdit && 'changes' in workspaceEdit && !!workspaceEdit.changes
+                && Object.values(workspaceEdit.changes).some((edits) => edits?.length > 0);
+            if (hasEdits) {
                 const response = await updateSourceCode({ textEdits: workspaceEdit.changes, description: 'Rename for ' + params.newName, isRenameOperation: true });
                 if (response && response.length > 0) {
                     // Find the artifact that is renamed or send all
@@ -2249,6 +2253,7 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                     }
                 }
             }
+            return hasEdits;
         } catch (error) {
             console.error('Error in renameIdentifier:', error);
             throw error;

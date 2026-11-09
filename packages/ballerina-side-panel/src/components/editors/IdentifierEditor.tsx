@@ -175,7 +175,7 @@ export function IdentifierEditor(props: IdentifierEditorProps) {
         // function's name, or a parameter before this one) has since moved the identifier.
         const lineRange = renameLog?.current(field.lineRange) ?? field.lineRange;
         try {
-            await rpcClient.getBIDiagramRpcClient().renameIdentifier({
+            const renamed = await rpcClient.getBIDiagramRpcClient().renameIdentifier({
                 fileName: lineRange?.fileName,
                 position: {
                     line: lineRange?.startLine?.line,
@@ -183,6 +183,13 @@ export function IdentifierEditor(props: IdentifierEditorProps) {
                 },
                 newName: String(tempValue)
             });
+            // The LS found nothing to rename, so the source still has the old name: keep editing
+            // rather than show, log or keep (on cancel) a name the source does not have.
+            if (!renamed) {
+                saveButtonClicked.current = false;
+                setIdentifierErrorMsg(`Could not rename ${field.label ?? "the identifier"}.`);
+                return;
+            }
             if (lineRange?.startLine && typeof field.value === "string") {
                 renameLog?.record({
                     fileName: lineRange.fileName,

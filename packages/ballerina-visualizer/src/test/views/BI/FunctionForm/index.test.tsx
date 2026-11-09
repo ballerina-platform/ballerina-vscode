@@ -514,8 +514,8 @@ describe("FunctionForm save after an in-place rename", () => {
         expect(showErrorMessage).toHaveBeenCalledTimes(1);
     });
 
-    // The form takes the new name whenever renameIdentifier resolves, including when the LS
-    // applied no edit, so the source can still carry the original name.
+    // A guard for a form value the source does not carry, as when a rename was not applied:
+    // the save falls back to reading the definition under its original name.
     it("falls back to the original name when the rename was not applied", async () => {
         getFunctionNode = lookups({ transformPerson: { functionDefinition: dataMapper("transformPerson", LOADED_RANGE) } });
 

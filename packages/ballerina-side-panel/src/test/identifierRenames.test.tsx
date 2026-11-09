@@ -161,7 +161,7 @@ describe("IdentifierEditor in-place renames", () => {
     };
 
     it("renames each identifier where it is now, not where it was read", async () => {
-        const renameIdentifier = jest.fn(async () => undefined);
+        const renameIdentifier = jest.fn(async () => true);
         const rpcClient = {
             getBIDiagramRpcClient: () => ({
                 renameIdentifier,
@@ -196,5 +196,49 @@ describe("IdentifierEditor in-place renames", () => {
             ["p", { line: 4, character: 22 }],
             ["addr", { line: 4, character: 33 }],
         ]);
+    });
+
+    // The LS found nothing to rename, so the source keeps the old name: neither the form nor the
+    // log may take the new one, or the next rename on the line lands on the wrong column.
+    it("keeps the old name and logs nothing when the LS applies no edit", async () => {
+        const renameIdentifier = jest.fn(async () => false);
+        const rpcClient = {
+            getBIDiagramRpcClient: () => ({
+                renameIdentifier,
+                getExpressionDiagnostics: jest.fn(async () => ({ diagnostics: [] })),
+            }),
+        };
+        const field = identifierField("person", "person", personRange());
+        const log = new IdentifierRenameLog();
+        log.trackFields([field]);
+        const address = addressRange();
+        log.track(address);
+
+        const { getForm } = renderWithForm(
+            <TestRpcContext.Provider value={{ rpcClient }}>
+                <IdentifierRenameContext.Provider value={log}>
+                    <IdentifierEditor field={field} />
+                </IdentifierRenameContext.Provider>
+            </TestRpcContext.Provider>,
+            { defaultValues: { person: "person" } }
+        );
+
+        fireEvent.click(document.querySelector('[title="Rename"]')!);
+        const input = await waitFor(() => {
+            const editing = document.querySelector("vscode-text-field#person:not([readonly])");
+            expect(editing).not.toBeNull();
+            return editing!;
+        });
+        (input as HTMLInputElement).value = "p";
+        fireEvent.input(input);
+        await act(async () => {
+            fireEvent.click(screen.getByText("Save"));
+        });
+
+        expect(renameIdentifier).toHaveBeenCalledTimes(1);
+        expect(screen.getByText("Save")).toBeTruthy();
+        expect(getForm().getValues("person")).toBe("person");
+        expect(field.value).toBe("person");
+        expect(log.current(address)).toEqual(address);
     });
 });

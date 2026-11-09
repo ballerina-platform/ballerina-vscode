@@ -184,7 +184,7 @@ export interface BIDiagramAPI {
     getModuleNodes: () => Promise<BIModuleNodesResponse>;
     getReadmeContent: (params: ReadmeContentRequest) => Promise<ReadmeContentResponse>;
     openReadme: (params: OpenReadmeRequest) => void;
-    renameIdentifier: (params: RenameIdentifierRequest) => Promise<void>;
+    renameIdentifier: (params: RenameIdentifierRequest) => Promise<boolean>;
     deployProject: (params: DeploymentRequest) => Promise<DeploymentResponse>;
     deployWorkspace: (params: WorkspaceDeploymentRequest) => Promise<DeploymentResponse>;
     openAIChat: (params: AIChatRequest) => void;
