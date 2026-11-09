@@ -152,14 +152,20 @@ public class NewConnectionBuilder extends CallBuilder {
         Map<String, Property> properties = sourceBuilder.flowNode.properties();
         String connection = properties.get(Property.VARIABLE_KEY).value().toString();
         Optional<SemanticModel> semanticModel = sourceBuilder.workspaceManager.semanticModel(sourceBuilder.filePath);
-        Map<String, Symbol> moduleSymbols = semanticModel
-                .map(model -> model.moduleSymbols().stream()
-                        .filter(symbol -> symbol.getName().isPresent())
-                        .collect(Collectors.toMap(symbol -> symbol.getName().get(), symbol -> symbol,
-                                (first, second) -> first)))
-                .orElse(Map.of());
+        if (semanticModel.isEmpty()) {
+            if (sourceBuilder.lsClientLogger != null) {
+                sourceBuilder.lsClientLogger.logWarning("Connection '%s' keeps its literals; %s has no semantic model"
+                        .formatted(connection, sourceBuilder.filePath));
+            }
+            return List.of();
+        }
+        SemanticModel model = semanticModel.get();
+        Map<String, Symbol> moduleSymbols = model.moduleSymbols().stream()
+                .filter(symbol -> symbol.getName().isPresent())
+                .collect(Collectors.toMap(symbol -> symbol.getName().get(), symbol -> symbol,
+                        (first, second) -> first));
         ConnectionConfigurables configurables = new ConnectionConfigurables(connection, moduleSymbols,
-                symbol -> semanticModel.map(model -> !model.references(symbol, false).isEmpty()).orElse(true));
+                symbol -> !model.references(symbol, false).isEmpty());
         Codedata codedata = sourceBuilder.flowNode.codedata();
         String connector = connectorId(codedata.org(), codedata.resolvePackageName(), codedata.module(),
                 codedata.object(), codedata.version());
