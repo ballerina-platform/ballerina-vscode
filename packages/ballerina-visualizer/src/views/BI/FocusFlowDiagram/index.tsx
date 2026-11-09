@@ -507,9 +507,8 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
             const connections = fetchedFlow?.connections || [];
             const projectKey = location?.projectPath ?? projectPath ?? "";
             const cacheKey = usageCacheKey(projectKey, filePath, String(agentDecl.properties?.variable?.value ?? ""));
-            const cachedUsages = kind === "AGENT" ? getCachedUsages(cacheKey) : undefined;
-            const renderNode: FlowNode = kind === "AGENT"
-                ? withAgentUsages(buildAgentRenderNode(agentDecl, connections), cachedUsages ?? [], false, getCachedToolTargets(cacheKey))
+            const baseNode: FlowNode = kind === "AGENT"
+                ? buildAgentRenderNode(agentDecl, connections)
                 : {
                     ...agentDecl,
                     id: agentDecl.id || "agent-type-focus-node",
@@ -517,11 +516,10 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                     flags: agentDecl.flags ?? 0,
                     returning: true,
                 };
+            const renderNode = withAgentUsages(baseNode, getCachedUsages(cacheKey) ?? [], false, getCachedToolTargets(cacheKey));
             const flow: Flow = { fileName: filePath, nodes: [renderNode], connections };
             setModel(flow);
-            if (kind === "AGENT") {
-                loadAgentUsages(renderNode, flow, pos, projectKey);
-            }
+            loadAgentUsages(renderNode, flow, pos, projectKey);
 
             const breakpointResponse = await rpcClient.getBIDiagramRpcClient().getBreakpointInfo();
             setBreakpointInfo(breakpointResponse);
