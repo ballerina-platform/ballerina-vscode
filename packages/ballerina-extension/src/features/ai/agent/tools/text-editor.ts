@@ -126,7 +126,7 @@ function refuseUnseen(reads: ReadTracker | undefined, fullPath: string, raw: str
   const result = status === 'unread'
     ? { success: false, message: unreadMessage(file_path, FILE_READ_TOOL_NAME), error: `Error: ${ErrorMessages.FILE_NOT_READ}` }
     : { success: false, message: staleMessage(file_path, FILE_READ_TOOL_NAME), error: `Error: ${ErrorMessages.FILE_CHANGED_SINCE_READ}` };
-  emitFileToolResult(eventHandler, toolName, result, file_path);
+  emitFileToolResult(eventHandler, toolName, result, file_path, { readFirst: true });
   return result;
 }
 

@@ -218,10 +218,13 @@ function grepResultDisplay(output: any): ToolCallDisplay {
     return { label: "Searched for:", ...grepWording(output), meta };
 }
 
-// The agent's own slip, which it retries; a thrown error or a stop still shows.
-export function isRetriedSearchSlip(item: { toolName?: string; toolOutput?: any; failed?: boolean }): boolean {
-    return (item.toolName === "glob" || item.toolName === "grep")
-        && !item.failed && item.toolOutput?.success === false && !item.toolOutput?.aborted;
+// The agent's own slip, which it retries: a search it got wrong, or a change refused until it reads the file.
+// A thrown error or a stop still shows.
+export function isRetriedSlip(item: { toolName?: string; toolOutput?: any; failed?: boolean }): boolean {
+    if (item.failed || item.toolOutput?.success !== false || item.toolOutput?.aborted) {
+        return false;
+    }
+    return item.toolName === "glob" || item.toolName === "grep" || item.toolOutput?.readFirst === true;
 }
 
 export function getToolCallDisplay(toolName: string | undefined, toolInput: any): ToolCallDisplay {

@@ -57,7 +57,7 @@ import {
     getToolIcon,
     getToolResultDisplay,
     getToolResultIcon,
-    isRetriedSearchSlip,
+    isRetriedSlip,
     isToolResultInProgress,
 } from "./toolDisplay";
 
@@ -145,7 +145,7 @@ function renderItem(item: StreamItem, idx: number, streamActive: boolean, rpcCli
         }
         case "tool_result": {
             if (item.toolName === "Clarify" && !item.toolOutput?.skipped) return null;
-            if (isRetriedSearchSlip(item)) return null;
+            if (isRetriedSlip(item)) return null;
             if (item.toolName === "hurlRunnerTool") {
                 return <TryItCard key={idx} output={item.toolOutput} rpcClient={rpcClient} />;
             }

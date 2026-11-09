@@ -32,7 +32,7 @@ import {
     getToolResultDisplay,
     getToolResultIcon,
     parseMcpName,
-    isRetriedSearchSlip,
+    isRetriedSlip,
  isToolResultInProgress } from "./toolDisplay";
 
 describe("parseMcpName", () => {
@@ -175,13 +175,20 @@ describe("getToolCallDisplay", () => {
     });
 
     it("hides only the searches the agent got wrong and retries", () => {
-        expect(isRetriedSearchSlip({ toolName: "grep", toolOutput: { success: false, pattern: "(?i)x" } })).toBe(true);
-        expect(isRetriedSearchSlip({ toolName: "glob", toolOutput: { success: false, pattern: "" } })).toBe(true);
-        expect(isRetriedSearchSlip({ toolName: "grep", toolOutput: { success: false, error: "boom" }, failed: true })).toBe(false);
-        expect(isRetriedSearchSlip({ toolName: "grep", toolOutput: { success: false, aborted: true } })).toBe(false);
-        expect(isRetriedSearchSlip({ toolName: "grep", toolOutput: { success: true, pattern: "x", count: 0 } })).toBe(false);
-        expect(isRetriedSearchSlip({ toolName: "web_search", toolOutput: { success: false } })).toBe(false);
+        expect(isRetriedSlip({ toolName: "grep", toolOutput: { success: false, pattern: "(?i)x" } })).toBe(true);
+        expect(isRetriedSlip({ toolName: "glob", toolOutput: { success: false, pattern: "" } })).toBe(true);
+        expect(isRetriedSlip({ toolName: "grep", toolOutput: { success: false, error: "boom" }, failed: true })).toBe(false);
+        expect(isRetriedSlip({ toolName: "grep", toolOutput: { success: false, aborted: true } })).toBe(false);
+        expect(isRetriedSlip({ toolName: "grep", toolOutput: { success: true, pattern: "x", count: 0 } })).toBe(false);
+        expect(isRetriedSlip({ toolName: "web_search", toolOutput: { success: false } })).toBe(false);
         expect(getToolResultDisplay("grep", { success: false, error: "boom" }).label).toBe("Code search failed");
+    });
+
+    it("hides a change refused until the agent reads the file, but not other failed changes", () => {
+        expect(isRetriedSlip({ toolName: "file_edit", toolOutput: { success: false, fileName: "main.bal", readFirst: true } })).toBe(true);
+        expect(isRetriedSlip({ toolName: "file_write", toolOutput: { success: false, fileName: "main.bal", readFirst: true } })).toBe(true);
+        expect(isRetriedSlip({ toolName: "file_edit", toolOutput: { success: false, fileName: "main.bal" } })).toBe(false);
+        expect(isRetriedSlip({ toolName: "file_edit", toolOutput: { success: true, fileName: "main.bal" } })).toBe(false);
     });
 
     it("treats single and batch edits the same", () => {
