@@ -24,7 +24,6 @@ import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Button, Codicon, Icon, ThemeColors } from "@wso2/ui-toolkit";
 import {
     awaitingInputLabel,
-    ACCENT_CORE,
     ACCENT_SPHERE,
     SpinArc,
     frameTriple,
@@ -40,6 +39,7 @@ import {
     useAiPanelOpen,
     useSuppressAgentStatusOrb,
 } from "../../../components/AgentStatusOrb/shared";
+import { BotIcon } from "../../../components/AgentStatusOrb/BotIcon";
 import { openCopilotPanel, submitPromptToCopilot } from "../../../components/AgentStatusOrb/copilotPanel";
 import {
     CopilotPromptBox,
@@ -611,7 +611,6 @@ export function EmptyState({ onCreateFromScratch, onAddMcpService, isLibrary }: 
 
     const orbColors = working ? AGENT_BUILDER_ORB_COLORS[state] : ACCENT_SPHERE;
     const orbGlow = frameTriple(orbColors[0]);
-    const orbHighlight = working ? `color-mix(in srgb, ${orbColors[0]} 70%, transparent)` : ACCENT_CORE;
     const runHeading = state === "awaiting-input" ? awaitingInputLabel() : "Working on it…";
     const runDetail = active ? status?.label : undefined;
     const showOpenCopilot = !aiPanelOpen;
@@ -780,19 +779,11 @@ export function EmptyState({ onCreateFromScratch, onAddMcpService, isLibrary }: 
             >
                 <OrbGlow className={ORB_GLOW_CLASS}>
                     <OrbAura $active={showRun} $colors={orbGlow}>
-                        <Sphere
-                            colors={orbColors}
-                            energy={ORB_ENERGY[state]}
-                            highlightColor={orbHighlight}
-                        />
+                        <Sphere colors={orbColors} energy={ORB_ENERGY[state]} />
                         <IconOverlay>
-                            <Icon
-                                name="bi-ai-chat"
-                                sx={{ width: 26, height: 26 }}
-                                iconSx={{ fontSize: "26px", color: "#ffffff" }}
-                            />
+                            <BotIcon size={26} color="#ffffff" />
                         </IconOverlay>
-                        {(running || (showRun && !working)) && <SpinArc color={orbGlow[1]} />}
+                        {(running || (showRun && !working)) && <SpinArc />}
                     </OrbAura>
                 </OrbGlow>
             </OrbButton>
