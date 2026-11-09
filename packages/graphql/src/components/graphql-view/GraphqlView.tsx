@@ -20,6 +20,7 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from '
 import { GraphiQL } from "graphiql";
 import GraphiQLExplorer from "graphiql-explorer";
 import { buildClientSchema, getIntrospectionQuery, GraphQLSchema } from "graphql";
+import { createFetcher } from "./fetcher";
 import {
     createGetDefaultFieldNames,
     createServedMetaFieldsRule,
@@ -40,44 +41,7 @@ declare const acquireVsCodeApi: () => {
 // Initialize vscode API safely
 const vscode = typeof acquireVsCodeApi === 'function' ? acquireVsCodeApi() : undefined;
 
-interface Request {
-    url: string,
-    headers: any,
-    method: string,
-    body?: string,
-}
-
-let lastRequestId = 0;
-
-// Each request carries an id that the extension host echoes back, so concurrent requests
-// (e.g. introspection and a query) each settle with their own response, and the listener is
-// removed once it has.
-function fetcher(api: string, body: Object, headers: string | undefined): Promise<any> {
-    const request: Request = {
-        url: api,
-        method: "POST",
-        headers: JSON.parse(headers ?? ''),
-        body: JSON.stringify(body),
-    }
-    const id = ++lastRequestId;
-
-    return new Promise(resolve => {
-        const onMessage = (event: MessageEvent) => {
-            const message = event.data;
-            if (message?.command !== 'graphqlResponse' || message.id !== id) {
-                return;
-            }
-            window.removeEventListener('message', onMessage);
-            resolve(message.res || false);
-        };
-        window.addEventListener('message', onMessage);
-        vscode?.postMessage({
-            command: 'graphqlRequest',
-            id,
-            req: request
-        });
-    });
-}
+const fetcher = createFetcher((message) => vscode?.postMessage(message));
 
 interface ExplorerContextValue {
     query: string | undefined;
