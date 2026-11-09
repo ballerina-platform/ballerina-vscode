@@ -21,6 +21,9 @@
 // gate that: it is webview state, so it is gone after a reload and never seen by the extension —
 // while the chat store is what a concurrent run corrupts.
 
+import { runEventStore } from '../../../features/ai/utils/run-event-store';
+import { chatStateStorage } from '../chatStateStorage';
+
 const restoringWorkspaces = new Set<string>();
 
 export function beginRestore(projectRootPath: string): void {
@@ -33,6 +36,11 @@ export function endRestore(projectRootPath: string): void {
 
 export function isRestoreInProgress(projectRootPath: string): boolean {
     return restoringWorkspaces.has(projectRootPath);
+}
+
+/** The execution check covers what never begins a tracked run: the type creator, a turn still saving files. */
+export function isResponseRunning(projectRootPath: string): boolean {
+    return runEventStore.hasActiveRun(projectRootPath) || chatStateStorage.hasActiveExecutionFor(projectRootPath);
 }
 
 /**

@@ -7,7 +7,10 @@
     "id": "65527",
     "metadata": {
       "label": "Function Definition",
-      "description": "Define a function"
+      "description": "Define a function",
+      "data": {
+        "referencedOutsideApprovals": false
+      }
     },
     "codedata": {
       "node": "FUNCTION_DEFINITION",
