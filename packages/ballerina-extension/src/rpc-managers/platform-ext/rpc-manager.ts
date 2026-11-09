@@ -37,9 +37,10 @@ import type {
     EndpointLink,
     Environment,
     IWso2PlatformExtensionAPI,
+    IWso2PlatformExtensionGate,
     LocalRuntimeEnv,
 } from "@wso2/wso2-cloud-client";
-import { NotSupportedError, isCloudError } from "@wso2/wso2-cloud-client";
+import { NotSupportedError, UnauthenticatedError, isCloudError } from "@wso2/wso2-cloud-client";
 import {
     ConnectionListItem,
     DeleteLocalConnectionsConfigReq,
@@ -126,7 +127,7 @@ import { BiDiagramRpcManager } from "../bi-diagram/rpc-manager";
 import { promptToAddConstruct } from "../../features/devant/add-construct-prompt";
 import { confirmListenerAlongside } from "../../features/devant/integration-type";
 import { updateSourceCode } from "../../utils";
-import { inspectPlatformAPI } from "../../utils/cloud-auth";
+import { type CloudSessionOptions, connectPlatformAPI, inspectPlatformAPI, onDidChangeCloudSessions } from "../../utils/cloud-auth";
 import { getOrgPackageName } from "../../utils/config";
 
 /** Thrown for what WSO2 Cloud has no API for yet; a `NotSupportedError`, so `isCloudError` and the shared handlers know it. */
@@ -144,18 +145,21 @@ export class CloudFeatureUnavailableError extends NotSupportedError {
  * `./v1-adapters`.
  */
 export class PlatformExtRpcManager implements PlatformExtAPI {
-    static platformExtAPI: IWso2PlatformExtensionAPI | undefined;
+    static platformGate: IWso2PlatformExtensionGate | undefined;
     /** Set once WSO2 Integrator was found to speak another contract version, so it is not asked again. */
     private static incompatibleVersion: number | undefined | null;
+    /** What the store hears through the API of the current session; that API stops delivering once the key is replaced. */
+    private sessionSubscriptions: (() => void)[] = [];
+    private disposeProjectPathWatcher: (() => void) | undefined;
 
     /**
-     * WSO2 Integrator's cloud API. An installed WSO2 Integrator that speaks
-     * another contract version counts as not installed for the screens (no
-     * cloud actions are offered), is reported once, and is not asked again.
+     * WSO2 Integrator's gate. An installed WSO2 Integrator that speaks another
+     * contract version counts as not installed for the screens (no cloud
+     * actions are offered), is reported once, and is not asked again.
      */
-    private async getPlatformExt(): Promise<IWso2PlatformExtensionAPI | undefined> {
-        if (PlatformExtRpcManager.platformExtAPI) {
-            return PlatformExtRpcManager.platformExtAPI;
+    private async getPlatformGate(): Promise<IWso2PlatformExtensionGate | undefined> {
+        if (PlatformExtRpcManager.platformGate) {
+            return PlatformExtRpcManager.platformGate;
         }
         if (PlatformExtRpcManager.incompatibleVersion !== undefined) {
             return undefined;
@@ -165,26 +169,26 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
             return undefined;
         }
         platformExtStore.getState().setState({
-            isExtInstalled: !!verdict.api,
-            isCompatible: !!verdict.api,
+            isExtInstalled: !!verdict.gate,
+            isCompatible: !!verdict.gate,
             platformApiVersion: verdict.version,
         });
-        if (!verdict.api) {
+        if (!verdict.gate) {
             PlatformExtRpcManager.incompatibleVersion = verdict.version ?? null;
             const message = `WSO2 Integrator exports platform API version ${verdict.version ?? "unknown"}; this extension needs ${SUPPORTED_PLATFORM_API_VERSION}. WSO2 Cloud features are off until both extensions are updated.`;
             log(message);
             void vscode.window.showWarningMessage(message);
             return undefined;
         }
-        await this.waitForExtensionActive(verdict.api);
-        PlatformExtRpcManager.platformExtAPI = verdict.api;
-        return verdict.api;
+        await this.waitForExtensionActive(verdict.gate);
+        PlatformExtRpcManager.platformGate = verdict.gate;
+        return verdict.gate;
     }
 
     // Wait for the cloud features to activate
-    private async waitForExtensionActive(platformExtAPI: IWso2PlatformExtensionAPI, timeoutMs: number = 30000): Promise<void> {
+    private async waitForExtensionActive(gate: IWso2PlatformExtensionGate, timeoutMs: number = 30000): Promise<void> {
         const startTime = Date.now();
-        while (!platformExtAPI?.isActive()) {
+        while (!gate.isActive()) {
             if (Date.now() - startTime > timeoutMs) {
                 log("Timeout: Platform extension failed to activate within 30 seconds");
                 throw new Error("WI extension cloud features activation timeout");
@@ -193,10 +197,26 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
         }
     }
 
+    /**
+     * WSO2 Integrator's API for the current session; undefined without WSO2
+     * Integrator, when nobody is signed in, or when this extension may not
+     * use the session. Read per call: the session can change at any time.
+     */
+    private async getPlatformExt(options: CloudSessionOptions = {}): Promise<IWso2PlatformExtensionAPI | undefined> {
+        if (!(await this.getPlatformGate())) {
+            return undefined;
+        }
+        return connectPlatformAPI(options);
+    }
+
+    /** For calls the person made: asks for access to the session when this extension has none yet. */
     private async requirePlatformExt(): Promise<IWso2PlatformExtensionAPI> {
-        const platformExt = await this.getPlatformExt();
-        if (!platformExt) {
+        if (!(await this.getPlatformGate())) {
             throw new Error("WSO2 Integrator's cloud features are not available. Install or update the WSO2 Integrator extension.");
+        }
+        const platformExt = await connectPlatformAPI({ askAccess: true });
+        if (!platformExt) {
+            throw new UnauthenticatedError("no_session");
         }
         return platformExt;
     }
@@ -232,23 +252,21 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
         // The webview always hears the store, so it can show that cloud features are off.
         await this.initSelfStoreSubscription(messenger);
         // Without WSO2 Integrator the store is not rehydrated.
-        const platformExt = await this.getPlatformExt();
-        if (!platformExt) {
+        if (!(await this.getPlatformGate())) {
             return;
         }
         await platformExtStore.persist.rehydrate();
-        await this.initAuthState();
         let projectPath = StateMachine.context()?.projectPath;
-        let disposeProjectPathWatcher = await this.initProjectPathWatcher(projectPath);
+        await this.initSessionState(projectPath);
         if (projectPath) {
             this.debouncedRefreshConnectionList();
         }
         await this.initFileWatcher();
-        // The watcher's disposer is kept by the debounced call itself: a debounced function hands its
+        // The watcher's disposer is kept on the manager, not returned: a debounced function hands its
         // caller the previous call's result, which would dispose the wrong watcher one switch late.
         const debouncedInitProjectPathWatcher = debounce(async (nextPath: string) => {
-            disposeProjectPathWatcher?.();
-            disposeProjectPathWatcher = await this.initProjectPathWatcher(nextPath);
+            this.disposeProjectPathWatcher?.();
+            this.disposeProjectPathWatcher = await this.initProjectPathWatcher(nextPath);
         }, 250);
         StateMachine.service().subscribe((state) => {
             if (state.context?.projectPath && !isSamePath(state.context?.projectPath, projectPath)) {
@@ -256,7 +274,21 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
                 debouncedInitProjectPathWatcher(projectPath);
             }
         });
+        // Sign-in, sign-out and an organization switch replace the key; the store is subscribed again through the new session.
+        const debouncedSessionChange = debounce(() => {
+            this.initSessionState(projectPath).catch((err) => log(`Failed to follow the WSO2 Cloud session change: ${err}`));
+        }, 250);
+        onDidChangeCloudSessions(debouncedSessionChange);
 
+    }
+
+    /** Fills the store from the current session and subscribes it there, dropping what it heard through an earlier session. */
+    private async initSessionState(projectPath: string) {
+        this.sessionSubscriptions.forEach((unsubscribe) => unsubscribe());
+        this.sessionSubscriptions = [];
+        await this.initAuthState();
+        this.disposeProjectPathWatcher?.();
+        this.disposeProjectPathWatcher = await this.initProjectPathWatcher(projectPath);
     }
 
     private async initAuthState() {
@@ -266,23 +298,26 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
         const selectedContext = platformExt?.getSelectedContext() ?? undefined;
         platformExtStore.getState().setState({ session, isLoggedIn: !!session && authState?.status === "signed-in", selectedContext });
         await this.refreshEnvironments(selectedContext);
+        if (!platformExt) {
+            return;
+        }
 
-        platformExt?.subscribeAuthState((authState) => {
+        this.sessionSubscriptions.push(platformExt.subscribeAuthState((authState) => {
             platformExtStore.getState().setState({
                 session: authState.session,
                 isLoggedIn: !!authState.session && authState.status === "signed-in",
             });
-        });
+        }));
 
         const debouncedEnvListRefresh = debounce((context?: ContextItemEnriched) => this.refreshEnvironments(context), 1000);
 
-        platformExt?.subscribeContextState(async (selectedContext) => {
+        this.sessionSubscriptions.push(platformExt.subscribeContextState(async (selectedContext) => {
             const previousProject = platformExtStore.getState().state?.selectedContext?.projectName;
             // Another project's environments go now, so a failed listing for this one cannot leave them in place.
             const projectChanged = selectedContext?.projectName !== previousProject;
             platformExtStore.getState().setState(projectChanged ? { selectedContext, envs: [], selectedEnv: undefined } : { selectedContext });
             debouncedEnvListRefresh(selectedContext);
-        });
+        }));
     }
 
     /** The project's environments in promotion order; the selection survives a refresh, else the context's default, else the first. */
@@ -313,10 +348,12 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
     }
 
     private async initFileWatcher() {
-        const platformExt = await this.getPlatformExt();
         const debouncedOnFilChange = debounce(async () => {
-            if (StateMachine.context().projectPath) {
-                const hasLocalChanges = await platformExt?.localRepoHasChanges(StateMachine.context().projectPath);
+            const projectPath = StateMachine.context().projectPath;
+            // Read per change: the API the watcher started with stops answering once the session changes.
+            const platformExt = projectPath ? await this.getPlatformExt() : undefined;
+            if (platformExt) {
+                const hasLocalChanges = await platformExt.localRepoHasChanges(projectPath);
                 platformExtStore.getState().setState({ hasLocalChanges });
             }
         }, 1000);
@@ -341,7 +378,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
         if (projectPath) {
             integrations = platformExt?.getDirectoryIntegrations(projectPath) ?? [];
             matchingIntegration = integrations.find((item) => item.integration.id === selectedId());
-            hasLocalChanges = await platformExt?.localRepoHasChanges(projectPath);
+            hasLocalChanges = (await platformExt?.localRepoHasChanges(projectPath)) ?? false;
             hasProjectYaml = hasContextYaml(projectPath);
             await this.debouncedRefreshConnectionList();
         }
@@ -663,8 +700,8 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
 
     async getDevantConsoleUrl(): Promise<string> {
         try {
-            const platformExt = await this.getPlatformExt();
-            return platformExt?.getPlatformConfig().consoleUrl ?? "";
+            const gate = await this.getPlatformGate();
+            return gate?.getPlatformConfig().consoleUrl ?? "";
         } catch (err) {
             log(`Failed to read the console URL: ${err}`);
             return "";
@@ -966,7 +1003,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
         let deletingCloudConnection = false;
         try {
             StateMachine.setEditMode();
-            const platformExt = await this.getPlatformExt();
+            const platformExt = await this.getPlatformExt({ askAccess: true });
             const syntaxTree = (await StateMachine.context().langClient.getSyntaxTree({
                 documentIdentifier: { uri: Uri.file(params.filePath).toString() },
             })) as SyntaxTree;

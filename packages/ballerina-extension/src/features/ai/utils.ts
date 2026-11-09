@@ -17,7 +17,7 @@
  */
 
 import * as fs from 'fs';
-import { getCloudAccessToken, getCloudEnvName } from "../../utils/cloud-auth";
+import { getCloudEnvName } from "../../utils/cloud-auth";
 import path from "path";
 import vscode, { Uri, workspace } from 'vscode';
 import { parse as parseToml } from '@iarna/toml';
@@ -31,7 +31,7 @@ import {
     isDevantUserLoggedIn,
     isCopilotTokenExchangeAvailable,
     CopilotTokenExchangeUnavailableError,
-    exchangeStsToCopilotToken,
+    exchangeForCopilotToken,
     NO_AUTH_CREDENTIALS_FOUND,
     storeBiIntelCredentials,
     getAccessToken,
@@ -53,7 +53,7 @@ const COPILOT_ROOT_URLS = new Map<string, string | undefined>([
     ["stage", process.env.COPILOT_STAGE_ROOT_URL],
     ["dev", process.env.COPILOT_DEV_ROOT_URL],
 ]);
-// The WSO2 Cloud access token is posted to this host, so only the person's own (user) settings may name it; a workspace cannot.
+// WSO2 Integrator exchanges the WSO2 Cloud token at this host, so only the person's own (user) settings may name it; a workspace cannot.
 const rootUrlOverride = config.inspect<string>('rootUrl')?.globalValue;
 const envRootUrl = rootUrlOverride || COPILOT_ROOT_URLS.get(cloudEnv);
 if (!envRootUrl) {
@@ -187,9 +187,8 @@ export async function getTokenForDefaultModel(interactive = true) {
     if (isPlatformExtensionAvailable() && (interactive || isCopilotTokenExchangeAvailable())) {
         const isLoggedIn = await isDevantUserLoggedIn();
         if (isLoggedIn) {
-            const stsToken = await getCloudAccessToken(interactive ? { askAccess: true } : { silent: true });
-            if (stsToken) {
-                const secrets = await exchangeStsToCopilotToken(stsToken);
+            const secrets = await exchangeForCopilotToken(interactive ? { askAccess: true } : { silent: true });
+            if (secrets) {
                 await storeBiIntelCredentials(secrets);
                 return secrets.accessToken;
             }

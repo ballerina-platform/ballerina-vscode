@@ -17,7 +17,7 @@
  * 
  * THIS FILE INCLUDES AUTO GENERATED CODE
  */
-import { getCompatiblePlatformAPI } from "../../utils/cloud-auth";
+import { connectPlatformAPI, getPlatformGate } from "../../utils/cloud-auth";
 import {
     AIChatRequest,
     AddFieldRequest,
@@ -2347,14 +2347,16 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             const projectPath = StateMachine.context().projectPath;
             hasContextYaml = hasReadableContextYaml(projectPath);
 
-            const platformExtAPI = await getCompatiblePlatformAPI();
-            if (!platformExtAPI) {
+            const gate = await getPlatformGate();
+            if (!gate) {
                 // WSO2 Integrator is not installed, or speaks another contract version; cloud features are off.
                 return { hasComponent: hasContextYaml, isLoggedIn: false };
             }
-            hasLocalChanges = await platformExtAPI.localRepoHasChanges(projectPath);
-            isLoggedIn = platformExtAPI.isLoggedIn();
-            if (isLoggedIn) {
+            isLoggedIn = gate.isLoggedIn();
+            // The rest needs the session; where this extension may not use it yet, the context file stands in.
+            const platformExtAPI = isLoggedIn ? await connectPlatformAPI() : undefined;
+            if (platformExtAPI) {
+                hasLocalChanges = await platformExtAPI.localRepoHasChanges(projectPath);
                 const components = platformExtAPI.getDirectoryIntegrations(projectPath);
                 hasComponent = components.length > 0;
                 return { isLoggedIn, hasComponent, hasLocalChanges };
@@ -2390,9 +2392,9 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                 return { isLoggedIn: false, hasAnyComponent: false, hasLocalChanges: false };
             }
 
-            // getCompatiblePlatformAPI activates WSO2 Integrator when it is installed.
-            const platformExtAPI = await getCompatiblePlatformAPI();
-            if (!platformExtAPI) {
+            // getPlatformGate activates WSO2 Integrator when it is installed.
+            const gate = await getPlatformGate();
+            if (!gate) {
                 // Not installed, or speaking another contract version: the context file is all there is to go on.
                 const hasContextYaml = hasReadableContextYaml(repoRoot);
                 return {
@@ -2401,8 +2403,10 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                     hasLocalChanges: false
                 };
             }
-            isLoggedIn = platformExtAPI.isLoggedIn();
-            hasLocalChanges = await platformExtAPI.localRepoHasChanges(repoRoot);
+            isLoggedIn = gate.isLoggedIn();
+            // The rest needs the session; where this extension may not use it yet, the context file stands in.
+            const platformExtAPI = isLoggedIn ? await connectPlatformAPI() : undefined;
+            hasLocalChanges = (await platformExtAPI?.localRepoHasChanges(repoRoot)) ?? false;
 
             // Check each project in the workspace
             for (const project of workspaceStructure.projects) {
@@ -2412,7 +2416,7 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                 let projectHasComponent = false;
                 let projectHasLocalChanges = false;
 
-                if (isLoggedIn) {
+                if (platformExtAPI) {
                     const components = platformExtAPI.getDirectoryIntegrations(projectPath);
                     projectHasComponent = components.length > 0;
                     if (projectHasComponent) {
@@ -2430,8 +2434,8 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                 });
             }
 
-            // If not logged in, check for context.yaml as fallback
-            if (!isLoggedIn && hasReadableContextYaml(repoRoot)) {
+            // Without the session, check for context.yaml as fallback
+            if (!platformExtAPI && hasReadableContextYaml(repoRoot)) {
                 hasAnyComponent = true;
             }
 

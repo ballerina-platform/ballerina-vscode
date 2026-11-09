@@ -18,48 +18,17 @@
 
 // The only place that talks to the managed-token-service.
 //
-// The service is not part of the WSO2 Cloud API (ipaas-service), so it is called
-// directly with the WSO2 Cloud access token from the `wso2-cloud` authentication
-// provider. Its base URL comes from the platform configuration WSO2 Integrator
-// exposes, or from an environment override; without either, managed connections
-// are reported as unavailable rather than guessed at.
+// The service is not part of the WSO2 Cloud API (ipaas-service). WSO2 Integrator
+// calls it on this extension's behalf with its WSO2 Cloud token, and owns where
+// it is (the base URL and the service's path prefix); without WSO2 Integrator
+// managed connections are reported as unavailable rather than guessed at.
 
-import axios, { AxiosRequestConfig } from "axios";
-import { getCloudAccessToken, getCompatiblePlatformAPI } from "../../utils/cloud-auth";
+import { isCloudError } from "@wso2/wso2-cloud-client";
+import { getPlatformGate, withPlatformAPI } from "../../utils/cloud-auth";
 
-// Set this to target a managed-token-service directly (for example a non-production one).
-const API_HOST_OVERRIDE_VAR = "WSO2_CLOUD_MANAGED_TOKENS_URL";
-
-// The service's openapi.yaml paths, behind the gateway's `/managed-tokens/v1.0` prefix.
-const MANAGED_SERVICE_BASE_PATH = "/managed-tokens/v1.0/api/v1";
+// The service's openapi.yaml paths, below the prefix WSO2 Integrator adds.
 const MANAGED_LIBRARIES_PATH = "/managed-libraries";
 const MANAGED_CONNECTIONS_PATH = "/managed-connections";
-
-async function resolveHost(): Promise<string | undefined> {
-    const override = process.env[API_HOST_OVERRIDE_VAR]?.trim();
-    if (override) {
-        console.log(`[managed-connections] using ${API_HOST_OVERRIDE_VAR}='${override}'.`);
-        return override.replace(/\/+$/, "");
-    }
-
-    const api = await getCompatiblePlatformAPI();
-    if (!api) {
-        console.warn("[managed-connections] WSO2 Integrator's cloud API is unavailable — cannot resolve a service host.");
-        return undefined;
-    }
-    const configured = api.getPlatformConfig().managedTokensBaseUrl?.trim();
-    if (!configured) {
-        console.warn(`[managed-connections] the WSO2 Cloud environment lists no managed-token-service; set ${API_HOST_OVERRIDE_VAR} to target one.`);
-        return undefined;
-    }
-    return configured.replace(/\/+$/, "");
-}
-
-const BASE_HEADERS = {
-    "Content-Type": "application/json",
-    Accept: "application/json, text/plain, */*",
-    "User-Agent": "WSO2 Integrator VSCode",
-};
 
 const RETRYABLE_STATUS = new Set([429, 502, 503, 504]);
 const MAX_ATTEMPTS = 3;
@@ -80,8 +49,8 @@ class ManagedConnectionError extends Error {
 const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 /**
- * One authenticated call. The token is read per attempt, never held by the caller: the OAuth
- * flow spans a browser round-trip that can outlive a token, and the session refreshes on read.
+ * One authenticated call. The session is read per attempt, never held by the caller: the OAuth
+ * flow spans a browser round-trip that can outlive it.
  *
  * Retries are GET-only — a POST that timed out may already have created a connection upstream.
  */
@@ -91,33 +60,30 @@ async function request<T>(
     timeoutMs: number,
     body?: unknown
 ): Promise<T> {
-    const host = await resolveHost();
-    if (!host) {
-        throw new ManagedConnectionError("Managed connections are not available on WSO2 Cloud yet.");
-    }
-
-    const url = `${host}${MANAGED_SERVICE_BASE_PATH}${path}`;
     const isIdempotent = method === "GET";
     let lastError: unknown;
 
     for (let attempt = 1; attempt <= (isIdempotent ? MAX_ATTEMPTS : 1); attempt++) {
-        const token = await getAccessTokenOrThrow();
-        const config: AxiosRequestConfig = {
-            headers: { ...BASE_HEADERS, Authorization: `Bearer ${token}` },
-            timeout: timeoutMs,
-        };
-
         try {
-            const response = method === "GET"
-                ? await axios.get<T>(url, config)
-                : await axios.post<T>(url, body ?? {}, config);
-            return response.data;
+            // Managed connections are set up at the person's request: ask for access to the session when needed.
+            return await withPlatformAPI(async (api) => {
+                if (!api) {
+                    throw await notConnectedError();
+                }
+                return api.request<T>({
+                    service: "managed-tokens",
+                    method,
+                    path,
+                    body: isIdempotent ? undefined : body ?? {},
+                    timeoutMs,
+                });
+            }, { askAccess: true });
         } catch (err) {
             lastError = err;
-            const status = (err as any)?.response?.status as number | undefined;
+            const status = isCloudError(err) ? err.details.status : undefined;
 
             if (isIdempotent && attempt < MAX_ATTEMPTS && status && RETRYABLE_STATUS.has(status)) {
-                console.warn(`[managed-connections] ${method} ${url} → ${status}; retrying (${attempt}/${MAX_ATTEMPTS - 1}).`);
+                console.warn(`[managed-connections] ${method} ${path} → ${status}; retrying (${attempt}/${MAX_ATTEMPTS - 1}).`);
                 await delay(RETRY_DELAY_MS);
                 continue;
             }
@@ -125,46 +91,35 @@ async function request<T>(
         }
     }
 
-    throw toManagedConnectionError(lastError, method, url);
+    throw toManagedConnectionError(lastError, method, path);
 }
 
-async function getAccessTokenOrThrow(): Promise<string> {
-    // Managed connections are set up at the person's request: ask for access to the session when needed.
-    const token = await getCloudAccessToken({ askAccess: true });
-    if (!token) {
-        throw new ManagedConnectionError("Not signed in to WSO2 Cloud. Please sign in to use managed connections.");
+async function notConnectedError(): Promise<ManagedConnectionError> {
+    if (!(await getPlatformGate())) {
+        console.warn("[managed-connections] WSO2 Integrator's cloud API is unavailable — cannot reach the service.");
+        return new ManagedConnectionError("Managed connections are not available on WSO2 Cloud yet.");
     }
-    return token;
+    return new ManagedConnectionError("Not signed in to WSO2 Cloud. Please sign in to use managed connections.");
 }
 
-// Logs the status and body, which the bare axios message drops and which identify the failure.
-function toManagedConnectionError(err: unknown, method: string, url: string): ManagedConnectionError {
+// Logs the status and the service's answer, which a bare message drops and which identify the failure.
+function toManagedConnectionError(err: unknown, method: string, path: string): ManagedConnectionError {
     if (err instanceof ManagedConnectionError) {
         return err;
     }
-    const ax = err as any;
-    if (ax?.isAxiosError) {
-        const status = ax.response?.status as number | undefined;
-        const bodyText = ax.response?.data ? safeStringify(ax.response.data) : "none";
+    if (isCloudError(err)) {
+        const status = err.details.status;
         console.error(
-            `[managed-connections] ${method} ${url} FAILED — message='${ax.message}', code='${ax.code}', ` +
-            `httpStatus=${status ?? "none"}, responseBody=${bodyText}`
+            `[managed-connections] ${method} ${path} FAILED — message='${err.message}', code='${err.code}', ` +
+            `httpStatus=${status ?? "none"}, apiError='${err.details.apiError ?? "none"}', apiMessage='${err.details.apiMessage ?? "none"}'`
         );
         return new ManagedConnectionError(
-            status ? `Managed connection request failed with status ${status}.` : ax.message,
+            status ? `Managed connection request failed with status ${status}.` : err.message,
             status
         );
     }
-    console.error(`[managed-connections] ${method} ${url} failed with a non-HTTP error: ${err}`);
+    console.error(`[managed-connections] ${method} ${path} failed with a non-HTTP error: ${err}`);
     return new ManagedConnectionError((err as Error)?.message ?? "Managed connection request failed.");
-}
-
-function safeStringify(value: unknown): string {
-    try {
-        return JSON.stringify(value);
-    } catch {
-        return String(value);
-    }
 }
 
 export type ManagedGrant = "oauth2RefreshToken" | "staticToken";
