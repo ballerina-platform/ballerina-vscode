@@ -39,6 +39,7 @@ import {
     buildStringArray,
     buildStringMap,
     withHeldValue,
+    requiresSourceFormName,
     toEditableName,
 } from "../components/editors/utils";
 
@@ -251,14 +252,16 @@ describe("fetchIdentifierDiagnostics", () => {
 
 describe("fetchIdentifierDiagnostics node kind", () => {
     const property = { metadata: { label: "Name", description: "" }, value: "", optional: false, editable: true };
-    const send = async (nodeKind?: string) => {
+    const sendContext = async (nodeKind?: string, sourceForm?: boolean) => {
         const getExpressionDiagnostics = jest.fn().mockResolvedValue({ diagnostics: [] });
         const rpcClient: any = { getBIDiagramRpcClient: () => ({ getExpressionDiagnostics }) };
         await fetchIdentifierDiagnostics(rpcClient, {
             filePath: "config.bal", startLine: { line: 0, offset: 0 }, value: "issue-number", property, nodeKind,
+            sourceForm,
         });
-        return getExpressionDiagnostics.mock.calls[0][0].context.codedata;
+        return getExpressionDiagnostics.mock.calls[0][0].context;
     };
+    const send = async (nodeKind?: string) => (await sendContext(nodeKind)).codedata;
 
     it("tells the language server a configurable name must be valid source", async () => {
         expect(await send("CONFIG_VARIABLE")).toEqual({ node: "CONFIG_VARIABLE" });
@@ -267,6 +270,25 @@ describe("fetchIdentifierDiagnostics node kind", () => {
     it("sends no node kind for other forms, whose names the language server escapes", async () => {
         expect(await send("VARIABLE")).toBeUndefined();
         expect(await send(undefined)).toBeUndefined();
+    });
+
+    it("marks a name whose writer puts it in the source as given", async () => {
+        expect((await sendContext(undefined, true)).sourceFormName).toBe(true);
+        expect((await sendContext("CONFIG_VARIABLE")).sourceFormName).toBe(true);
+        expect((await sendContext("VARIABLE")).sourceFormName).toBeUndefined();
+    });
+});
+
+describe("requiresSourceFormName", () => {
+    it("is true for a marked field, a listener name and a configurable", () => {
+        expect(requiresSourceFormName({ sourceFormName: true })).toBe(true);
+        expect(requiresSourceFormName({ codedata: { type: "LISTENER_VAR_NAME" } })).toBe(true);
+        expect(requiresSourceFormName({}, "CONFIG_VARIABLE")).toBe(true);
+    });
+
+    it("is false for other names, which the language server escapes", () => {
+        expect(requiresSourceFormName({})).toBe(false);
+        expect(requiresSourceFormName({ codedata: { type: "SERVICE_BASEPATH" } }, "VARIABLE")).toBe(false);
     });
 });
 
@@ -284,7 +306,8 @@ describe("toEditableName", () => {
         expect(toEditableName(value)).toBe(expected);
     });
 
-    it("keeps the source form for a configurable", () => {
-        expect(toEditableName("'type", "CONFIG_VARIABLE")).toBe("'type");
+    it("keeps the source form of a name edited in source form", () => {
+        expect(toEditableName("'type", true)).toBe("'type");
+        expect(toEditableName("issue\\-number", true)).toBe("issue\\-number");
     });
 });

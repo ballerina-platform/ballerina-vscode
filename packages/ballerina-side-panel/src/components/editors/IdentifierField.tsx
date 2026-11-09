@@ -21,7 +21,7 @@ import React, { useState, useCallback, useEffect } from "react";
 import { debounce } from "lodash";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { useFormContext } from "../../context";
-import { buildRequiredRule, capitalize, fetchIdentifierDiagnostics, getFriendlyIdentifierMessage, getPropertyFromFormField, toEditableName } from "./utils";
+import { buildRequiredRule, capitalize, fetchIdentifierDiagnostics, getFriendlyIdentifierMessage, getPropertyFromFormField, requiresSourceFormName, toEditableName } from "./utils";
 import { buildValidate } from "../Form/validationRules";
 import { useFieldDiagnostics } from "../Form/useFieldDiagnostics";
 import { dedupeMessages } from "../Form/DiagnosticsStore";
@@ -47,6 +47,8 @@ export function IdentifierField(props: IdentifierFieldProps) {
         filePath: fileName,
         moduleName: field.codedata?.moduleName,
     });
+    // A name whose writer does not escape it is shown as written and checked strictly
+    const sourceForm = requiresSourceFormName(field, nodeInfo?.kind);
     // Defer validation of a pristine empty field until touched.
     const [isTouched, setIsTouched] = useState(Boolean(field.value));
 
@@ -60,8 +62,8 @@ export function IdentifierField(props: IdentifierFieldProps) {
     // Sync external field value changes to the form (e.g., when a sibling field's onValueChange updates the value)
     // A name in source form (issue\-number) is shown and edited plain (issue-number); it is escaped on save
     useEffect(() => {
-        setValue(field.key, toEditableName(field.value ?? '', nodeInfo?.kind));
-    }, [field.key, field.value, nodeInfo?.kind, setValue]);
+        setValue(field.key, toEditableName(field.value ?? '', sourceForm));
+    }, [field.key, field.value, sourceForm, setValue]);
 
     const validateIdentifierName = useCallback(debounce(async (value: string) => {
         try {
@@ -73,6 +75,7 @@ export function IdentifierField(props: IdentifierFieldProps) {
                 codedata: field.codedata,
                 label: field.label,
                 nodeKind: nodeInfo?.kind,
+                sourceForm,
             });
             if (first) {
                 setFormDiagnostics([first]);
@@ -90,7 +93,7 @@ export function IdentifierField(props: IdentifierFieldProps) {
             setFormDiagnostics([]);
             clearErrors(field.key);
         }
-    }, 250), [rpcClient, field.key, field.codedata, targetLineRange, fileName, nodeInfo?.kind, setError, clearErrors]);
+    }, 250), [rpcClient, field.key, field.codedata, targetLineRange, fileName, nodeInfo?.kind, sourceForm, setError, clearErrors]);
 
     // Validate on value change, but skip a pristine empty value so a freshly opened field
     // doesn't show an error upfront (Save still triggers the required rule).
@@ -113,7 +116,7 @@ export function IdentifierField(props: IdentifierFieldProps) {
 
     const registerField = register(field.key, {
         required: buildRequiredRule({ isRequired: !field.optional, label: field.label }),
-        value: toEditableName(field.value, nodeInfo?.kind),
+        value: toEditableName(field.value, sourceForm),
         validate: buildValidate(field)
     })
     const { onChange } = registerField;

@@ -24,7 +24,7 @@ import styled from "@emotion/styled";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { debounce } from "lodash";
 import { toSourceIdentifier } from "@wso2/ballerina-core";
-import { buildRequiredRule, fetchIdentifierDiagnostics, getFriendlyIdentifierMessage, getPropertyFromFormField, toEditableName } from "./utils";
+import { buildRequiredRule, fetchIdentifierDiagnostics, getFriendlyIdentifierMessage, getPropertyFromFormField, requiresSourceFormName, toEditableName } from "./utils";
 import { buildValidate } from "../Form/validationRules";
 import { FieldTypeChip } from "./FieldTypeChip";
 
@@ -138,8 +138,10 @@ export function IdentifierEditor(props: IdentifierEditorProps) {
     const { rpcClient } = useRpcContext();
     const { register, setValue, getValues } = form;
     const [isEditing, setIsEditing] = useState(false);
+    // A name whose writer does not escape it is shown as written and checked strictly
+    const sourceForm = requiresSourceFormName(field, nodeInfo?.kind);
     // The name is edited plain (issue-number); the form keeps the source form (issue\-number) the source has
-    const [tempValue, setTempValue] = useState(String(toEditableName(String(field.value || ""), nodeInfo?.kind)));
+    const [tempValue, setTempValue] = useState(String(toEditableName(String(field.value || ""), sourceForm)));
     const [identifierErrorMsg, setIdentifierErrorMsg] = useState<string>(field.diagnostics?.map((diagnostic) => getFriendlyIdentifierMessage(diagnostic.message, field.label)).join("\n"));
     const [isIdentifierValid, setIsIdentifierValid] = useState<boolean>(true);
     const [isSaving, setIsSaving] = useState(false);
@@ -149,7 +151,7 @@ export function IdentifierEditor(props: IdentifierEditorProps) {
 
     const startEditing = () => {
         const currentFormValue = getValues(field.key);
-        setTempValue(String(toEditableName(String(currentFormValue || field.value || ""), nodeInfo?.kind)));
+        setTempValue(String(toEditableName(String(currentFormValue || field.value || ""), sourceForm)));
         saveButtonClicked.current = false;
         setIsEditing(true);
         onEditingStateChange?.(true);
@@ -167,7 +169,7 @@ export function IdentifierEditor(props: IdentifierEditorProps) {
 
     const saveEdit = async () => {
         saveButtonClicked.current = true;
-        if (!tempValue || tempValue === toEditableName(String(field.value ?? ""), nodeInfo?.kind)) {
+        if (!tempValue || tempValue === toEditableName(String(field.value ?? ""), sourceForm)) {
             cancelEditing();
             return;
         }
@@ -222,6 +224,7 @@ export function IdentifierEditor(props: IdentifierEditorProps) {
             codedata: field.codedata,
             label: field.label,
             nodeKind: nodeInfo?.kind,
+            sourceForm,
         });
 
         if (first) {
@@ -231,7 +234,7 @@ export function IdentifierEditor(props: IdentifierEditorProps) {
             setIdentifierErrorMsg("");
             setIsIdentifierValid(true);
         }
-    }, 250), [rpcClient, field, isEditing, nodeInfo?.kind]);
+    }, 250), [rpcClient, field, isEditing, nodeInfo?.kind, sourceForm]);
 
     const handleOnBlur = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!saveButtonClicked.current) {
@@ -268,7 +271,7 @@ export function IdentifierEditor(props: IdentifierEditorProps) {
                             placeholder={field.placeholder}
                             errorMsg={errorMsg}
                             readOnly={!field.editable}
-                            value={String(toEditableName(String(getValues(field.key) ?? field.value ?? ""), nodeInfo?.kind))}
+                            value={String(toEditableName(String(getValues(field.key) ?? field.value ?? ""), sourceForm))}
                             onFocus={() => handleOnFieldFocus?.(field.key)}
                             autoFocus={autoFocus}
                         />

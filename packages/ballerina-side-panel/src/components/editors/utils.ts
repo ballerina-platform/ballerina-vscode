@@ -483,14 +483,27 @@ export function requiresSourceForm(nodeKind?: string): boolean {
     return SOURCE_FORM_NODE_KINDS.includes(nodeKind);
 }
 
+/** The property codedata type of a listener's name, which the service writers put in the source as given. */
+const SOURCE_FORM_CODEDATA_TYPES = ["LISTENER_VAR_NAME"];
+
+/**
+ * Whether a name field is edited in source form: shown as written and checked strictly, because its writer puts the
+ * name in the source as given rather than escaping it. That is a field marked with `sourceFormName`, a listener
+ * name, or any name of a node kind in SOURCE_FORM_NODE_KINDS.
+ */
+export function requiresSourceFormName(field: Pick<FormField, "sourceFormName" | "codedata">, nodeKind?: string): boolean {
+    return field?.sourceFormName === true || requiresSourceForm(nodeKind)
+        || SOURCE_FORM_CODEDATA_TYPES.includes(field?.codedata?.type);
+}
+
 /**
  * The value to show in an editable name field: the plain name (`issue-number`) for a name the language server wrote
  * in source form (`issue\-number`). The language server escapes it again when it writes the source. A binding
- * pattern (`[a, b]`) and a name of a node kind edited in source form are shown as they are. An escaped space or
+ * pattern (`[a, b]`) and a name edited in source form (see requiresSourceFormName) are shown as they are. An escaped space or
  * comma (`first\ name`) is part of a name, not a sign of a binding pattern.
  */
-export function toEditableName(value: unknown, nodeKind?: string): unknown {
-    if (typeof value !== "string" || requiresSourceForm(nodeKind) || !/^(?:\\.|[^\s[\]{},])+$/.test(value)) {
+export function toEditableName(value: unknown, sourceForm = false): unknown {
+    if (typeof value !== "string" || sourceForm || !/^(?:\\.|[^\s[\]{},])+$/.test(value)) {
         return value;
     }
     return toDisplayName(value);
@@ -514,10 +527,12 @@ export async function fetchIdentifierDiagnostics(
         label?: string;
         /** The kind of the node the form edits; only the kinds in SOURCE_FORM_NODE_KINDS are sent. */
         nodeKind?: string;
+        /** The name is written to the source as given, so a plain name is reported (see requiresSourceFormName). */
+        sourceForm?: boolean;
     }
 ): Promise<{ first?: IdentifierDiagnostic; firstError?: IdentifierDiagnostic }> {
     // The language server accepts a plain name (issue-number) and escapes it when it writes the source, except for
-    // the node kinds whose names must already be valid source; it can only tell those apart by the node kind.
+    // a name whose writer puts it in the source as given, which it is told about with `sourceFormName`.
     const codedata = requiresSourceForm(request.nodeKind) && !request.codedata?.node
         ? { ...request.codedata, node: request.nodeKind } as CodeData
         : request.codedata;
@@ -530,6 +545,7 @@ export async function fetchIdentifierDiagnostics(
             lineOffset: 0,
             codedata,
             property: request.property,
+            ...((request.sourceForm || requiresSourceForm(request.nodeKind)) && { sourceFormName: true }),
         },
     });
     const diagnostics = response?.diagnostics ?? [];

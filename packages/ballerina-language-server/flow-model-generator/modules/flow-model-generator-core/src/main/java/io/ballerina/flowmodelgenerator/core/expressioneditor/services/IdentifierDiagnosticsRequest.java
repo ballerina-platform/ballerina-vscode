@@ -91,10 +91,11 @@ public class IdentifierDiagnosticsRequest extends DiagnosticsRequest {
     /**
      * Names that are written to the source as typed, without escaping, must already be valid source. Configurable
      * names are used as Config.toml keys, which are written from the source name, so a plain name such as
-     * {@code issue-number} is not accepted for them.
+     * {@code issue-number} is not accepted for them. The other such names (a test function's name, a new
+     * listener's name) are marked by the request, since their forms have no node kind.
      */
     private static boolean requiresSourceForm(ExpressionEditorContext context) {
-        return context.isNodeKind(SOURCE_FORM_NODE_KINDS);
+        return context.isNodeKind(SOURCE_FORM_NODE_KINDS) || context.requiresSourceFormName();
     }
 
     @Override
