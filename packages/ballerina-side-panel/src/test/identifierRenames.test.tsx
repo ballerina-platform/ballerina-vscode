@@ -26,11 +26,7 @@ import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import type { LineRange } from "@wso2/ballerina-core";
 import type { FormField } from "../components/Form/types";
 import { IdentifierEditor } from "../components/editors/IdentifierEditor";
-import {
-    IdentifierRenameContext,
-    IdentifierRenameLog,
-    shiftRangeForRenames,
-} from "../components/editors/identifierRenames";
+import { IdentifierRenameLog, shiftRangeForRenames } from "../components/editors/identifierRenames";
 import { renderWithForm } from "./formHarness";
 import { TestRpcContext } from "./rpcHarness";
 
@@ -186,11 +182,9 @@ describe("IdentifierEditor in-place renames", () => {
 
         renderWithForm(
             <TestRpcContext.Provider value={{ rpcClient }}>
-                <IdentifierRenameContext.Provider value={log}>
-                    {fields.map((field) => <IdentifierEditor key={field.key} field={field} />)}
-                </IdentifierRenameContext.Provider>
+                {fields.map((field) => <IdentifierEditor key={field.key} field={field} />)}
             </TestRpcContext.Provider>,
-            { defaultValues: { functionName: "transformPerson", person: "person", address: "address" } }
+            { defaultValues: { functionName: "transformPerson", person: "person", address: "address" }, renameLog: log }
         );
 
         await renameTo("functionName", 0, "toEmp");
@@ -224,11 +218,9 @@ describe("IdentifierEditor in-place renames", () => {
 
         const { getForm } = renderWithForm(
             <TestRpcContext.Provider value={{ rpcClient }}>
-                <IdentifierRenameContext.Provider value={log}>
-                    <IdentifierEditor field={field} />
-                </IdentifierRenameContext.Provider>
+                <IdentifierEditor field={field} />
             </TestRpcContext.Provider>,
-            { defaultValues: { person: "person" } }
+            { defaultValues: { person: "person" }, renameLog: log }
         );
 
         fireEvent.click(document.querySelector('[title="Rename"]')!);

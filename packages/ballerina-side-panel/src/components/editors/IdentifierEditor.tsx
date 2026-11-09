@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import React, { useCallback, useContext, useState, useRef } from "react";
+import React, { useCallback, useState, useRef } from "react";
 import { FormField } from "../Form/types";
 import { Button, TextField, Typography, Icon, ProgressRing, ThemeColors } from "@wso2/ui-toolkit";
 import { useFormContext } from "../../context";
@@ -24,7 +24,6 @@ import styled from "@emotion/styled";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { debounce } from "lodash";
 import { buildRequiredRule, fetchIdentifierDiagnostics, getFriendlyIdentifierMessage, getPropertyFromFormField } from "./utils";
-import { IdentifierRenameContext } from "./identifierRenames";
 
 const EditRow = styled.div`
     display: flex;
@@ -132,9 +131,8 @@ interface IdentifierEditorProps {
 
 export function IdentifierEditor(props: IdentifierEditorProps) {
     const { field, handleOnFieldFocus, autoFocus, showWarning, onEditingStateChange } = props;
-    const { form } = useFormContext();
+    const { form, renameLog } = useFormContext();
     const { rpcClient } = useRpcContext();
-    const renameLog = useContext(IdentifierRenameContext);
     const { register, setValue, getValues } = form;
     const [isEditing, setIsEditing] = useState(false);
     const [tempValue, setTempValue] = useState(field.value || "");

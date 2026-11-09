@@ -16,7 +16,6 @@
  * under the License.
  */
 
-import { createContext } from "react";
 import { getPrimaryInputType, InputType, LinePosition, LineRange } from "@wso2/ballerina-core";
 import { FormField } from "../Form/types";
 
@@ -103,6 +102,3 @@ export class IdentifierRenameLog {
         return from === undefined ? range : shiftRangeForRenames(range, this.renames.slice(from));
     }
 }
-
-/** The form's rename log. A nested form (a parameter's editor) shares its parent's. */
-export const IdentifierRenameContext = createContext<IdentifierRenameLog | undefined>(undefined);
