@@ -17,8 +17,17 @@
  */
 
 import { createContext } from "react";
-import { LinePosition, LineRange } from "@wso2/ballerina-core";
+import { getPrimaryInputType, InputType, LinePosition, LineRange } from "@wso2/ballerina-core";
 import { FormField } from "../Form/types";
+
+/**
+ * Whether a field is renamed in place through the LS, i.e. rendered by IdentifierEditor: a
+ * read-only identifier with a source range. EditorFactory routes on this and a cancelled parameter
+ * edit keeps such a field's value, so both must agree.
+ */
+export function isRenamedInPlace(field: FormField, inputType: InputType | undefined = getPrimaryInputType(field?.types)): boolean {
+    return inputType?.fieldType === "IDENTIFIER" && !field.editable && !!field.lineRange;
+}
 
 /** A rename applied to the source: the identifier at `line`:`offset` changed length by `delta`. */
 export interface AppliedRename {

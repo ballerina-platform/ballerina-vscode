@@ -16,8 +16,8 @@
  * under the License.
  */
 
-import { getPrimaryInputType } from "@wso2/ballerina-core";
 import { FormField, FormValues } from "../Form/types";
+import { isRenamedInPlace } from "../editors/identifierRenames";
 
 /**
  * The identifier values the editor holds that were renamed in place through the LS. Such a
@@ -29,10 +29,8 @@ import { FormField, FormValues } from "../Form/types";
 export function getAppliedRenames(fields: FormField[], values: FormValues, saved: FormValues): FormValues {
     const renames: FormValues = {};
     for (const field of fields) {
-        const isRenamedInPlace = getPrimaryInputType(field.types)?.fieldType === "IDENTIFIER"
-            && !field.editable && !!field.lineRange;
         const value = values?.[field.key];
-        if (isRenamedInPlace && typeof value === "string" && value && value !== saved?.[field.key]) {
+        if (isRenamedInPlace(field) && typeof value === "string" && value && value !== saved?.[field.key]) {
             renames[field.key] = value;
         }
     }
