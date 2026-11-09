@@ -344,6 +344,12 @@ export const SettingsPanel = (props: SettingsPanelProps) => {
         return `${n} line${n === 1 ? "" : "s"}`;
     })();
 
+    const agentsMdTooltip = (() => {
+        if (!agentsMdInfo) return undefined;
+        if (!agentsMdInfo.hasWorkspace) return "Open a workspace folder to create AGENTS.md";
+        return agentsMdInfo.fileExists ? "Edit AGENTS.md" : "Create AGENTS.md";
+    })();
+
     const handleOpenAgentsMd = () => {
         rpcClient.getAiPanelRpcClient().openOrCreateAgentsMd().catch(() => { /* noop */ });
     };
@@ -369,8 +375,8 @@ export const SettingsPanel = (props: SettingsPanelProps) => {
             icon: <span className="codicon codicon-file" style={{ fontSize: 16 }} />,
             label: "Agent instructions",
             subtitle: agentsMdSubtitle,
-            onEditFile: handleOpenAgentsMd,
-            editFileTitle: agentsMdInfo?.fileExists ? "Edit AGENTS.md" : "Create AGENTS.md",
+            tooltip: agentsMdTooltip,
+            onOpenPanel: handleOpenAgentsMd,
         },
     ];
 

@@ -20,8 +20,10 @@ approval function too.
 | 06 | Remove (detach) | `requiresApproval: true`; `sendEmailApproval` deleted |
 | 07 | Add an approval function while editing | inline add form; `requiresApproval: sendEmailApproval` and the generated function |
 | 08 | Rename the tool | renamed tool keeps `requiresApproval: sendEmailApproval` |
+| 08a | Hand-written approval predicate (spec only: writes the `.bal` file directly) | an inline-function `requiresApproval` survives a description-only save; restored to `sendEmailApproval` afterwards |
 | 09 | Turn Requires Approval off | no `requiresApproval` in the annotation; `sendEmailApproval` deleted |
 | 10 | Delete the tool | after re-adding an approval function, deleting the tool removes both the tool and its approval function |
+| 11 | Use Agent popup in an Agent Definition (spec only) | "+ Add Approval Function" opens inside the popup; `@ai:AgentTool { requiresApproval: agent1Approval }` on `agent1Tool` and the generated `agent1Approval(string query)` |
 
 Gaps (not covered here, covered by L2/L3 tests instead):
 - Tool form mismatch warning and the shared-function warning need the approval

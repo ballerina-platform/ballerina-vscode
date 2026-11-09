@@ -317,6 +317,44 @@ export function existingApprovalConfig(
     return approvalFunction ? { functionName: approvalFunction } : {};
 }
 
+// What a tool's edit form opened with: the "Requires Approval" control's state, and the `requiresApproval` value
+// as written in the annotation (reported by the language server).
+export interface InitialApproval {
+    checked: boolean;
+    functionName: string;
+    source?: string;
+}
+
+export function initialApproval(existing: ExistingApprovalConfig | undefined, source?: string): InitialApproval {
+    return { checked: existing !== undefined, functionName: existing?.functionName ?? "", source };
+}
+
+const isChecked = (value: unknown) => value === true || value === "true";
+
+const submittedFunctionName = (data: FormValues): string =>
+    typeof data[APPROVAL_FUNCTION_KEY] === "string" ? data[APPROVAL_FUNCTION_KEY].trim() : "";
+
+// The `requiresApproval` value the control's submitted state stands for, or undefined when the gate is off.
+export function resolveApprovalSource(data: FormValues): string | undefined {
+    if (!isChecked(data["requiresApproval"])) return undefined;
+    return submittedFunctionName(data) || "true";
+}
+
+// The control only shows `true` or a local function, so a qualified reference (`mod:fn`) or an inline function
+// opens as a ticked box with no function. While the control is left as it opened, the value as written stands.
+function keepsWrittenApproval(data: FormValues, initial?: InitialApproval): initial is InitialApproval & {
+    source: string;
+} {
+    if (initial?.source === undefined) return false;
+    const checked = isChecked(data["requiresApproval"]);
+    return checked === initial.checked && (!checked || submittedFunctionName(data) === initial.functionName);
+}
+
+// The `requiresApproval` value an edit save writes into an annotation it rebuilds, or undefined to leave it out.
+export function approvalSourceForSave(data: FormValues, initial?: InitialApproval): string | undefined {
+    return keepsWrittenApproval(data, initial) ? initial.source : resolveApprovalSource(data);
+}
+
 export interface RequiresApprovalOptions {
     // "view" for the add-tool side panel (the add form opens over it); "inline" for full-page forms.
     presentation?: "view" | "inline";

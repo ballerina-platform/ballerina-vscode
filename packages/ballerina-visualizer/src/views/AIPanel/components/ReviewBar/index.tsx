@@ -21,7 +21,7 @@ import styled from "@emotion/styled";
 import { SemanticDiff, ChangeTypeEnum, NodeKindEnum, MACHINE_VIEW, VisualizerLocation } from "@wso2/ballerina-core";
 import { getNodeKindLabel, getObjectFunctionKind } from "../../../ReviewMode/nodeKindLabels";
 import { getColorByMethod } from "../../../BI/ServiceDesigner/components/ResourceAccordion";
-import { getServiceGroupInfo, ServiceGroupInfo } from "./serviceGroups";
+import { getServiceGroupInfo, qualifyServiceGroups, ServiceGroupInfo } from "./serviceGroups";
 
 const Container = styled.div<{ subtle?: boolean; expanded?: boolean }>`
     display: flex;
@@ -492,6 +492,7 @@ function buildGroupsWithOffset(semanticDiffs: SemanticDiff[], startIndex: number
 
     const groups: DiffGroup[] = [];
 
+    qualifyServiceGroups(Object.values(serviceGroups).map((group) => group.service));
     groups.push(...Object.values(serviceGroups));
     if (functionEntries.length > 0) {
         groups.push({ groupLabel: "functions", entries: functionEntries });
@@ -676,7 +677,12 @@ const CollapsibleGroupList: React.FC<{
                                         {service.serviceType ? `${service.serviceType} service` : "service"}
                                     </span>
                                 )}
-                                <span>{displayLabel}</span>
+                                {displayLabel && <span>{displayLabel}</span>}
+                                {service?.qualifier && (
+                                    <span style={{ color: "var(--vscode-descriptionForeground)", fontWeight: 400 }}>
+                                        {service.qualifier}
+                                    </span>
+                                )}
                                 <CountBadge>{group.entries.length}</CountBadge>
                             </CollapsibleHeader>
                         )}

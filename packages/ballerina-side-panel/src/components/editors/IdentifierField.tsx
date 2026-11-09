@@ -24,6 +24,7 @@ import { useFormContext } from "../../context";
 import { buildRequiredRule, capitalize, fetchIdentifierDiagnostics, getFriendlyIdentifierMessage, getPropertyFromFormField } from "./utils";
 import { buildValidate } from "../Form/validationRules";
 import { FormField } from "../Form/types";
+import { FieldTypeChip } from "./FieldTypeChip";
 export interface IdentifierFieldProps {
     field: FormField;
     handleOnFieldFocus?: (key: string) => void;
@@ -119,6 +120,7 @@ export function IdentifierField(props: IdentifierFieldProps) {
             <TextField
                 id={field.key}
                 label={capitalize(field.label)}
+                labelAdornment={<FieldTypeChip types={field.types} />}
                 {...registerField}
                 onChange={(e) => handleOnChange(e)}
                 required={!field.optional}

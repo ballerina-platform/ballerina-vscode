@@ -264,6 +264,8 @@ interface AnnotationCodeDataHints {
     requiresApproval?: boolean;
     // On an @ai:AgentTool annotation: the local function its requiresApproval field names
     approvalFunction?: string;
+    // On an @ai:AgentTool annotation: its requiresApproval value as written
+    requiresApprovalSource?: string;
 }
 
 /**

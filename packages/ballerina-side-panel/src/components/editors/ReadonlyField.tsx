@@ -21,6 +21,7 @@ import { FormField } from "../Form/types";
 import { Button, Icon, RequiredFormInput, ThemeColors, Tooltip } from "@wso2/ui-toolkit";
 import { capitalize } from "./utils";
 import styled from "@emotion/styled";
+import { FieldTypeChip } from "./FieldTypeChip";
 
 interface ReadonlyFieldProps {
     field: FormField;
@@ -211,6 +212,7 @@ export function ReadonlyField(props: ReadonlyFieldProps) {
                     <label>{capitalize(field.label)}</label>
                 </div>
                 {!field.optional && <RequiredFormInput />}
+                <FieldTypeChip types={field.types} />
             </Label>
             {field.documentation && <Description>{field.documentation}</Description>}
             <InputContainer>

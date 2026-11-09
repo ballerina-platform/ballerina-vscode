@@ -51,11 +51,14 @@ interface UseAgentToolFormProps {
     onSave?: (agentPosition?: NodePosition) => void;
     onToolSaved?: (toolName: string) => void;
     hostClass?: AgentToolHostClass;
+    // How "+ Add Approval Function" opens its form: "view" slides a panel over the side panel; "inline" expands it
+    // in place, for a host the panel would open behind (a popup).
+    approvalPresentation?: "view" | "inline";
 }
 
 export function UseAgentToolForm(props: UseAgentToolFormProps): JSX.Element {
     const { agentNode, agentVarName, agentReceiver, agentLabel = agentVarName, submitText = "Save Tool", onBeforeSave,
-        onSave, onToolSaved, hostClass, artifactData } = props;
+        onSave, onToolSaved, hostClass, artifactData, approvalPresentation = "view" } = props;
     const { rpcClient } = useRpcContext();
 
     const [agentFilePath, setAgentFilePath] = useState<string>("");
@@ -100,7 +103,7 @@ export function UseAgentToolForm(props: UseAgentToolFormProps): JSX.Element {
         ),
         // An agent-call tool always takes `string query`, so its approval function does too.
         createRequiresApprovalField(undefined, {
-            presentation: "view",
+            presentation: approvalPresentation,
             baseName: `${agentVarName}Tool`,
             toolName: `${agentVarName}Tool`,
             getToolParameters: () => [{ type: "string", name: "query" }],
@@ -122,7 +125,7 @@ export function UseAgentToolForm(props: UseAgentToolFormProps): JSX.Element {
             advanced: false,
             enabled: true,
         },
-    ], [agentVarName, agentLabel, approvalActions, oauthFields, defaultReturnType]);
+    ], [agentVarName, agentLabel, approvalActions, approvalPresentation, oauthFields, defaultReturnType]);
 
     const groups = useMemo<FieldGroup[]>(() => buildToolFormGroups(fields), [fields]);
 

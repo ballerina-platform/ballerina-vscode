@@ -84,6 +84,13 @@ public class AgentToolAnnotationTest {
                         "@ai:AgentTool {\n    // requiresApproval: true,\n    requiresApproval: otherApproval\n}"},
                 {"@ai:AgentTool {\n    requiresApproval: true\n}", NO_AUTH, "", "@ai:AgentTool"},
                 {"@ai:AgentTool", NO_AUTH, "true", "@ai:AgentTool {\n    requiresApproval: true\n}"},
+                // A value the tool form can't show is sent back as written and kept whole
+                {"@ai:AgentTool {\n    requiresApproval: isolated function (string a, string b) returns boolean => "
+                        + "a == b\n}", NO_AUTH, "isolated function (string a, string b) returns boolean => a == b",
+                        "@ai:AgentTool {\n    requiresApproval: isolated function (string a, string b) returns "
+                                + "boolean => a == b\n}"},
+                {"@ai:AgentTool {\n    requiresApproval: utils:check\n}", NO_AUTH, "utils:check",
+                        "@ai:AgentTool {\n    requiresApproval: utils:check\n}"},
                 // Other fields and annotations are kept, auth is replaced in place
                 {"@ai:AgentTool {\n    name: \"add\",\n    auth: {\n        scopes: [\"old\"]\n    },\n"
                         + "    requiresApproval: true\n}\n@display {label: \"\", iconPath: \"x.png\"}",

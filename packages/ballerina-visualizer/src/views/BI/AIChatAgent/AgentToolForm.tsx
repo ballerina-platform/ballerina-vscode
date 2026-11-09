@@ -42,6 +42,9 @@ import {
     createRequiresApprovalField,
     ExistingApprovalConfig,
     existingApprovalConfig,
+    InitialApproval,
+    initialApproval,
+    approvalSourceForSave,
 } from "./formUtils";
 import { createApprovalFunctionActions } from "./approvalFunctionActions";
 import {
@@ -173,9 +176,11 @@ function toAuthSource(key: string, value: unknown, isExpression: boolean): strin
 }
 
 // The @ai:AgentTool annotation of a class-method tool. Its codedata carries the approval gate as the language
-// server read it from the annotation: `requiresApproval`, and the local `approvalFunction` it names.
+// server read it from the annotation: `requiresApproval`, the local `approvalFunction` it names, and the value as
+// written (`requiresApprovalSource`).
 function findAgentToolAnnotation(model: FunctionModel): {
-    key: string; value: string; requiresApproval?: boolean; approvalFunction?: string;
+    key: string; value: string;
+    requiresApproval?: boolean; approvalFunction?: string; requiresApprovalSource?: string;
 } | undefined {
     const props = (model?.properties ?? {}) as Record<string, any>;
     for (const [key, prop] of Object.entries(props)) {
@@ -185,6 +190,7 @@ function findAgentToolAnnotation(model: FunctionModel): {
                 value: typeof prop.value === "string" ? prop.value : "",
                 requiresApproval: prop.codedata.requiresApproval,
                 approvalFunction: prop.codedata.approvalFunction,
+                requiresApprovalSource: prop.codedata.requiresApprovalSource,
             };
         }
     }
@@ -205,6 +211,9 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
     // The approval function the tool referenced when the form opened. If the save drops it (Remove, or
     // Requires Approval turned off), it is deleted once no tool uses it.
     const previousApprovalFunctionRef = useRef<string | undefined>(undefined);
+    // The approval control's state and the `requiresApproval` value as written when the form opened. A save that
+    // leaves the control as it was keeps that value, including forms the control can't show (`mod:fn`, inline).
+    const initialApprovalRef = useRef<InitialApproval | undefined>(undefined);
     const deleteDetachedApprovalFunction = async (data: FormValues) => {
         const previous = previousApprovalFunctionRef.current;
         if (previous && buildApprovalToolData(data).requiresApproval !== previous) {
@@ -384,6 +393,8 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
                         toolMetadata?.requiresApproval, toolMetadata?.approvalFunction
                     );
                     previousApprovalFunctionRef.current = existingApproval?.functionName;
+                    initialApprovalRef.current =
+                        initialApproval(existingApproval, toolMetadata?.requiresApprovalSource);
                     const existingConfig = parseAuth(annotationValue, oauthProperties.map(({ key }) => key));
                     const { oauthFields, oauthRecordFields } = buildOAuthFields(oauthProperties, existingConfig);
                     const requiresApprovalField = buildApprovalField(existingApproval, editContext.functionName);
@@ -413,6 +424,8 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
                         agentTool?.requiresApproval, agentTool?.approvalFunction
                     );
                     previousApprovalFunctionRef.current = existingApproval?.functionName;
+                    initialApprovalRef.current =
+                        initialApproval(existingApproval, agentTool?.requiresApprovalSource);
                     const existingConfig = parseAuth(annotationValue, oauthProperties.map(({ key }) => key));
                     const { oauthFields, oauthRecordFields } = buildOAuthFields(oauthProperties, existingConfig);
                     const requiresApprovalField = buildApprovalField(existingApproval, String(model.name.value));
@@ -523,7 +536,7 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
             const annotation = findAgentToolAnnotation(updatedModel);
             if (annotation) {
                 // The language server writes these into the @ai:AgentTool annotation.
-                const approval = buildApprovalToolData(data).requiresApproval;
+                const approval = approvalSourceForSave(data, initialApprovalRef.current);
                 Object.assign((updatedModel.properties as any)[annotation.key].codedata, {
                     auth: buildAuthData(data),
                     requiresApproval: approval !== undefined,
@@ -590,8 +603,8 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
             updatedNode.codedata.data = {
                 ...updatedNode.codedata.data,
                 auth: buildAuthData(data),
-                requiresApproval: "",
                 ...buildApprovalToolData(data),
+                requiresApproval: approvalSourceForSave(data, initialApprovalRef.current) ?? "",
             };
 
             let response;
