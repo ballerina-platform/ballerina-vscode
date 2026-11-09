@@ -46,7 +46,9 @@ jest.mock("@wso2/ballerina-rpc-client", () => {
 
 jest.mock("@wso2/ui-toolkit", () => ({
     __esModule: true,
-    Button: ({ children, onClick }: any) => <button onClick={onClick}>{children}</button>,
+    Button: ({ children, onClick, tooltip, ...rest }: any) => (
+        <button onClick={onClick} title={tooltip} data-testid={rest["data-testid"]}>{children}</button>
+    ),
     Codicon: (): null => null,
     Divider: (): null => null,
     Dropdown: (): null => null,
@@ -65,7 +67,12 @@ jest.mock("@vscode/webview-ui-toolkit/react", () => ({
 
 jest.mock("@wso2/ballerina-side-panel", () => ({
     __esModule: true,
-    PanelContainer: ({ children }: any) => <div>{children}</div>,
+    PanelContainer: ({ children, title }: any) => (
+        <div>
+            <h1 data-testid="panel-title">{title}</h1>
+            {children}
+        </div>
+    ),
 }));
 
 jest.mock("../../../views/GraphQLDiagram/OperationForm", () => ({ __esModule: true, OperationForm: (): null => null }));
@@ -74,10 +81,13 @@ jest.mock("../../../views/GraphQLDiagram/OperationForm", () => ({ __esModule: tr
 // the way the popup's confirm callback does — without awaiting the handler.
 jest.mock("../../../views/GraphQLDiagram/OperationAccordian", () => ({
     __esModule: true,
-    OperationAccordion: ({ functionModel, onDeleteFunction }: any) => (
-        <button data-testid={`delete-${functionModel.name.value}`} onClick={() => onDeleteFunction(functionModel)}>
-            {functionModel.name.value}
-        </button>
+    OperationAccordion: ({ functionModel, onDeleteFunction, onEditFunction }: any) => (
+        <>
+            <button data-testid={`delete-${functionModel.name.value}`} onClick={() => onDeleteFunction(functionModel)}>
+                {functionModel.name.value}
+            </button>
+            <button data-testid={`edit-${functionModel.name.value}`} onClick={() => onEditFunction(functionModel)} />
+        </>
     ),
 }));
 
@@ -88,7 +98,7 @@ jest.mock("../../../utils/utils", () => ({
 }));
 
 import { TestRpcContext } from "../../rpcHarness";
-import { GraphqlServiceEditor } from "../../../views/GraphQLDiagram/GraphqlServiceEditor";
+import { GraphqlServiceEditor, getFieldFormTitle } from "../../../views/GraphQLDiagram/GraphqlServiceEditor";
 
 declare global {
     var IS_REACT_ACT_ENVIRONMENT: boolean;
@@ -105,15 +115,16 @@ const STALE_LINE_RANGE = {
     endLine: { line: 12, offset: 1 },
 };
 
-function serviceWith(fieldNames: string[]) {
+function serviceWith(fieldNames: string[], kind = "QUERY") {
     return {
         name: "GraphQL Service",
         // The attach point, as the language server reports it. The panel sends it back so a refresh
         // cannot be answered with a different service that has come to enclose its range.
         properties: { basePath: { value: SERVICE_NAME } },
         functions: fieldNames.map((name) => ({
-            kind: "QUERY",
+            kind,
             name: { value: name },
+            parameters: [] as unknown[],
             codedata: { lineRange: { startLine: { line: 5, offset: 4 }, endLine: { line: 7, offset: 5 } } },
         })),
     };
@@ -123,7 +134,7 @@ function makeRpc(getServiceModelFromCode: jest.Mock): any {
     const rpcClient: any = {
         getServiceDesignerRpcClient: () => ({
             getServiceModelFromCode,
-            getFunctionModel: async () => ({ function: {} }),
+            getFunctionModel: async () => ({ function: { parameters: [] as unknown[] } }),
         }),
         getVisualizerLocation: async () => ({ projectPath: PROJECT_PATH }),
         getBIDiagramRpcClient: () => ({
@@ -275,5 +286,77 @@ describe("GraphqlServiceEditor delete", () => {
 
         expect(rejections).toEqual([]);
         expect(container.querySelector('[data-testid="delete-we"]')).toBeTruthy();
+    });
+});
+
+describe("GraphqlServiceEditor field form title", () => {
+    // Issue wso2/product-integrator#376: the Query, Mutation and Subscription sections all opened a
+    // form titled "Add Field", so the form gave no hint of which root operation type it was adding to.
+    const KINDS: Array<[string, string, string]> = [
+        ["QUERY", "Query", "graphql-add-query-btn"],
+        ["MUTATION", "Mutation", "graphql-add-mutation-btn"],
+        ["SUBSCRIPTION", "Subscription", "graphql-add-subscription-btn"],
+    ];
+
+    let container: HTMLDivElement;
+    let root: Root;
+
+    beforeEach(() => {
+        container = document.createElement("div");
+        document.body.appendChild(container);
+        root = createRoot(container);
+    });
+
+    afterEach(() => {
+        act(() => root.unmount());
+        container.remove();
+    });
+
+    const render = async (rpcClient: any) => {
+        await act(async () => {
+            root.render(
+                <TestRpcContext.Provider value={{ rpcClient }}>
+                    <GraphqlServiceEditor
+                        serviceIdentifier={SERVICE_NAME}
+                        filePath={FILE_PATH}
+                        lineRange={STALE_LINE_RANGE}
+                        onClose={(): void => undefined}
+                    />
+                </TestRpcContext.Provider>
+            );
+        });
+        for (let i = 0; i < 10; i++) {
+            await act(async () => undefined);
+        }
+    };
+
+    const click = async (testId: string) => {
+        await act(async () => {
+            (container.querySelector(`[data-testid="${testId}"]`) as HTMLElement).click();
+        });
+    };
+
+    const title = () => container.querySelector('[data-testid="panel-title"]')?.textContent;
+
+    it.each(KINDS)("names the %s operation type when adding a field", async (_kind, label, addButton) => {
+        await render(makeRpc(jest.fn(async () => ({ service: serviceWith([]) }))));
+
+        const button = container.querySelector(`[data-testid="${addButton}"]`);
+        expect(button?.getAttribute("title")).toBe(`Add ${label} Field`);
+
+        await click(addButton);
+        expect(title()).toBe(`Add ${label} Field`);
+    });
+
+    it.each(KINDS)("names the %s operation type when editing a field", async (kind, label) => {
+        await render(makeRpc(jest.fn(async () => ({ service: serviceWith(["we"], kind) }))));
+
+        await click("edit-we");
+        expect(title()).toBe(`Edit ${label} Field`);
+    });
+
+    it("falls back to a plain title for a field of no known operation type", () => {
+        expect(getFieldFormTitle(undefined, true)).toBe("Add Field");
+        expect(getFieldFormTitle("RESOURCE", false)).toBe("Edit Field");
     });
 });
