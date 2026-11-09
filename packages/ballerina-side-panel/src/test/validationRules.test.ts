@@ -49,7 +49,7 @@ describe("vscode.validate.resource.path path params", () => {
         expect(run("vscode.validate.resource.path", path)).toBeUndefined();
     });
 
-    it.each(["rooms/[id]", "rooms/[string id", "rooms/[a b c]"])("rejects %s", (path) => {
+    it.each(["rooms/[id]", "rooms/[string id", "rooms/[a b c]", "rooms/[int[ id]", "rooms/[int i[d]"])("rejects %s", (path) => {
         expect(run("vscode.validate.resource.path", path)).toBeDefined();
     });
 });

@@ -354,11 +354,20 @@ export function GraphqlObjectViewer(props: GraphqlObjectViewerProps) {
     };
 
     const editServiceClassName = async () => {
-        saveButtonClicked.current = true;
         if (!tempName || toDisplayName(tempName) === toDisplayName(serviceClassModel.properties["name"].value)) {
+            saveButtonClicked.current = true;
             cancelEditing();
             return;
         }
+
+        // The debounced check may not have run yet, so check the GraphQL name rule again before saving
+        const graphqlError = getGraphqlNameError(tempName);
+        if (graphqlError) {
+            setNameError(graphqlError);
+            setIsTypeNameValid(false);
+            return;
+        }
+        saveButtonClicked.current = true;
 
         try {
             setIsSaving(true);

@@ -186,8 +186,10 @@ export const ADD_HTTP_RESOURCE = "add-http-resource";
  */
 export function matchesResourceSearch(resource: ProjectStructureArtifactResponse, searchValue: string): boolean {
     const search = searchValue.toLowerCase();
-    const name = resource.name?.toLowerCase();
-    const nameMatch = !!name && (name.includes(search) || toDisplayPath(name).includes(search));
+    const name = resource.name;
+    // Decode before lowercasing: an escape (`x\u{41}b`) can decode to a capital letter
+    const nameMatch = !!name
+        && (name.toLowerCase().includes(search) || toDisplayPath(name).toLowerCase().includes(search));
     const iconMatch = !!resource.icon && resource.icon.toLowerCase().includes(search);
     return nameMatch || iconMatch;
 }
@@ -1087,7 +1089,7 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
                                                         <PropertyInline key={prop.label}>
                                                             <PropertyKey>{prop.label}:</PropertyKey>
                                                             <PropertyValue>
-                                                                {Array.isArray(prop.value) ? prop.value.map(toDisplayPath).join(", ") : toDisplayPath(prop.value)}
+                                                                {Array.isArray(prop.value) ? prop.value.join(", ") : toDisplayPath(prop.value)}
                                                             </PropertyValue>
                                                         </PropertyInline>
                                                     ))

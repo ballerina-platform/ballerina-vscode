@@ -81,8 +81,11 @@ const BALLERINA_RESERVED_WORDS = new Set(keywords);
 
 const IDENTIFIER_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 
-/** A path param: a type, an optional `...` and one name in brackets (`[int id]`, `[string... rest]`). */
-const PATH_PARAM_PATTERN = /^\[\s*[^\s\]]+(?:\s*\.\.\.)?\s+[^\s\]]+\s*\]$/;
+/**
+ * A path param: a type, an optional `...` and one name in brackets (`[int id]`, `[string... rest]`). Neither the
+ * type nor the name may hold a bracket, since path param types are simple (`int`, `string`, `int|string`).
+ */
+const PATH_PARAM_PATTERN = /^\[\s*[^\s[\]]+(?:\s*\.\.\.)?\s+[^\s[\]]+\s*\]$/;
 
 /** Quoted identifiers (`'foo`, and by extension `'service`) bypass the reserved-word check. */
 const isQuotedIdentifier = (value: string): boolean => value.startsWith("'");

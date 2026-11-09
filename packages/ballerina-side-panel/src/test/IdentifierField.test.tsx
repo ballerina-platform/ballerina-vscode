@@ -56,13 +56,13 @@ import { IdentifierField } from "../components/editors/IdentifierField";
 
 const KEY = "name";
 
-const graphqlNameField = (): FormField =>
+const graphqlNameField = (value = ""): FormField =>
     ({
         key: KEY,
         label: "Field Name",
         type: "IDENTIFIER",
         types: [{ fieldType: "IDENTIFIER", selected: true, validations: [{ rule: GRAPHQL_NAME_RULE, severity: "ERROR" }] }],
-        value: "",
+        value,
         optional: false,
         editable: true,
         enabled: true,
@@ -107,5 +107,16 @@ describe("IdentifierField live rule errors", () => {
             fireEvent.change(getByTestId("identifier-input"), { target: { value: "issueNumber" } });
         });
         expect(mockTextField.props.errorMsg).toBe("");
+    });
+
+    it("shows a name read back from the source in plain form", async () => {
+        const { getByTestId } = render(
+            <SubmitModeHarness>
+                <IdentifierField field={graphqlNameField("issue\\-number")} />
+            </SubmitModeHarness>
+        );
+
+        await act(async () => undefined);
+        expect((getByTestId("identifier-input") as HTMLInputElement).value).toBe("issue-number");
     });
 });
