@@ -5777,7 +5777,7 @@ public class CodeAnalyzer extends NodeVisitor {
                 .orElse("");
         boolean requiresApproval = function.isPresent() && AiUtils.readRequiresApproval(function.get(), project);
         String type = function.isPresent() && isAgentDelegationTool(function.get()) ? AGENT_TOOL_TYPE : null;
-        return new ToolData(toolRef.toSourceCode().trim(), "", description, type, requiresApproval, null);
+        return new ToolData(toolRef.toSourceCode().trim(), "", description, type, requiresApproval, null, null);
     }
 
     private String getToolDescription(String toolName) {
