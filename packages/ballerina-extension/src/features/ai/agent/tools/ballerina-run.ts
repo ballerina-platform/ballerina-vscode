@@ -149,7 +149,7 @@ export async function executeRun(
             status: "started",
             taskId,
             output: readyResult.logs,
-            message: `Service is running. Use ${BALLERINA_GET_LOGS_TOOL_NAME} to check further output. Leave it running unless the user asks you to stop it or you need to restart it.`,
+            message: `Service is running. Use ${BALLERINA_GET_LOGS_TOOL_NAME} to check further output, ${BALLERINA_STOP_TOOL_NAME} to stop it.`,
         };
     }
 
