@@ -24,7 +24,7 @@
 // managed connections are reported as unavailable rather than guessed at.
 
 import { isCloudError } from "@wso2/wso2-cloud-client";
-import { getPlatformGate, withPlatformAPI } from "../../utils/cloud-auth";
+import { describeCloudAccess, getPlatformGate, readCloudAccess, withPlatformAPI } from "../../utils/cloud-auth";
 
 // The service's openapi.yaml paths, below the prefix WSO2 Integrator adds.
 const MANAGED_LIBRARIES_PATH = "/managed-libraries";
@@ -99,7 +99,8 @@ async function notConnectedError(): Promise<ManagedConnectionError> {
         console.warn("[managed-connections] WSO2 Integrator's cloud API is unavailable — cannot reach the service.");
         return new ManagedConnectionError("Managed connections are not available on WSO2 Cloud yet.");
     }
-    return new ManagedConnectionError("Not signed in to WSO2 Cloud. Please sign in to use managed connections.");
+    // Signed in but not allowed to use the sign-in is told apart from signed out.
+    return new ManagedConnectionError(`${describeCloudAccess(await readCloudAccess())} Managed connections need WSO2 Cloud.`);
 }
 
 // Logs the status and the service's answer, which a bare message drops and which identify the failure.
