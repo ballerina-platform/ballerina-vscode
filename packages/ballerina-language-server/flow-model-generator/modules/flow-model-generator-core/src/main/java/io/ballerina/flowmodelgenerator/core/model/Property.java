@@ -211,8 +211,8 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
     public static final String COLLECTION_KEY = "collection";
     public static final String COLLECTION_LABEL = "Collection";
     public static final String COLLECTION_DOC = "Collection to iterate";
-    public static final String FOREACH_VARIABLE_DOC = "Name of the variable that holds the current item";
-    public static final String FOREACH_TYPE_DOC = "Type of each item in the collection";
+    public static final String FOREACH_VARIABLE_DOC = "Name of the variable that holds the current item.";
+    public static final String FOREACH_TYPE_DOC = "Type of each item in the collection.";
 
     public static final String CHECK_ERROR_KEY = "checkError";
     public static final String CHECK_ERROR_LABEL = "Check Error";
