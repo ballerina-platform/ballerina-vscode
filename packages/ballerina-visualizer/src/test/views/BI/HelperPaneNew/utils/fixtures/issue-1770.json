@@ -1,0 +1,83 @@
+{
+    "templates": [
+        {
+            "id": "31",
+            "metadata": {
+                "label": "Declare Variable",
+                "description": "Create a new variable"
+            },
+            "codedata": {
+                "node": "VARIABLE",
+                "isNew": true
+            },
+            "returning": false,
+            "properties": {
+                "variable": {
+                    "metadata": {
+                        "label": "Name",
+                        "description": "Name of the variable"
+                    },
+                    "types": [
+                        {
+                            "fieldType": "IDENTIFIER",
+                            "selected": true
+                        }
+                    ],
+                    "value": "var2",
+                    "optional": false,
+                    "editable": true,
+                    "advanced": false,
+                    "hidden": false
+                },
+                "type": {
+                    "metadata": {
+                        "label": "Type",
+                        "description": "Type of the variable"
+                    },
+                    "types": [
+                        {
+                            "fieldType": "TYPE",
+                            "selected": true
+                        }
+                    ],
+                    "value": "",
+                    "placeholder": "var",
+                    "optional": false,
+                    "editable": true,
+                    "advanced": false,
+                    "hidden": false,
+                    "codedata": {}
+                },
+                "expression": {
+                    "metadata": {
+                        "label": "Expression",
+                        "description": "Initialize with value"
+                    },
+                    "types": [
+                        {
+                            "fieldType": "ACTION_OR_EXPRESSION",
+                            "selected": true
+                        }
+                    ],
+                    "value": "",
+                    "optional": true,
+                    "editable": true,
+                    "advanced": false,
+                    "hidden": false
+                }
+            },
+            "flags": 0
+        }
+    ],
+    "fieldTypes": [
+        "string",
+        "int|error",
+        null
+    ],
+    "ownNames": [
+        [],
+        ["greeting"],
+        ["var2"],
+        ["greeting", "var2"]
+    ]
+}

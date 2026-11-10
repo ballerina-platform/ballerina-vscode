@@ -19,7 +19,7 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { act } from "react-dom/test-utils";
-import type { Category } from "@wso2/ballerina-core";
+import type { Category, FlowNode } from "@wso2/ballerina-core";
 import type { CompletionItem } from "@wso2/ui-toolkit";
 import type { HelperPaneFunctionCategory } from "@wso2/ballerina-side-panel";
 
@@ -67,8 +67,12 @@ jest.mock("@wso2/ui-toolkit", () => {
 });
 
 
+// What the form a pane is opened from holds, by field.
+const mockOuterFormValues: Record<string, unknown> = {};
 jest.mock("@wso2/ballerina-side-panel", () => ({
     useFieldContext: (): { field: object; triggerCharacters: string[] } => ({ field: {}, triggerCharacters: [] }),
+    useFormContext: (): { form: { getValues: (key: string) => unknown } } =>
+        ({ form: { getValues: (key) => mockOuterFormValues[key] } }),
     getPropertyFromFormField: () => ({}),
 }));
 jest.mock("../../../../../views/BI/Forms/FlowNodeForm", () => ({
@@ -82,9 +86,11 @@ jest.mock("../../../../../utils/useFunctionPagination", () => ({
 }));
 import { TestRpcContext } from "../../../../rpcHarness";
 import { Variables } from "../../../../../views/BI/HelperPaneNew/Views/Variables";
+import { TEMPLATE_TIMEOUT_MS } from "../../../../../views/BI/HelperPaneNew/utils/newVariable";
 import { FunctionsPage } from "../../../../../views/BI/HelperPaneNew/Views/Functions";
 import { Configurables } from "../../../../../views/BI/HelperPaneNew/Views/Configurables";
 import fixture from "./fixtures/issue-1770.json";
+import templates from "../utils/fixtures/issue-1770.json";
 
 Object.assign(globalThis, { React, IS_REACT_ACT_ENVIRONMENT: true });
 
@@ -141,4 +147,136 @@ test.each([true, false])("helper panes of a form that can save a new variable = 
         container.remove();
         jest.useRealTimers();
     }
+});
+
+// L2: "+ New Variable" opens its form on the language server's Declare Variable template at the field,
+// whatever the pane happens to list: inside a record it lists the record's fields, and before its
+// completions arrive it lists nothing (issue-1770: `var1` was suggested while `var1` existed). Every
+// click that is not already waiting on a template opens exactly one form: on a local template that
+// names nothing when the language server gives none or does not answer in time, rather than nothing at
+// all. A pane that closed while it waited opens none: the user has moved on. The template cannot see
+// the variable the form it is opened from declares itself, so one named after it is left unnamed.
+describe("New Variable", () => {
+    const TEMPLATE = templates.templates[0] as unknown as FlowNode;
+    const FILE = "/workspace/main.bal";
+    const TARGET = { startLine: { line: 12, offset: 4 }, endLine: { line: 12, offset: 30 } };
+    const formNode = (call: number): FlowNode =>
+        (mockAddModal.mock.calls[call][0] as React.ReactElement<{ node: FlowNode }>).props.node;
+
+    // Clicks "+ New Variable" `clicks` times, then lets `respond` answer any template request still open,
+    // after the pane has closed if `paneClosesFirst`.
+    async function clickNewVariable(
+        getNodeTemplate: jest.Mock, clicks = 1, respond?: () => void, paneClosesFirst = false
+    ): Promise<void> {
+        jest.useFakeTimers();
+        mockAddModal.mockClear();
+        const container = document.createElement("div");
+        document.body.appendChild(container);
+        const root = createRoot(container);
+        const client = {
+            getVisualizerLocation: async () => ({ projectPath: "/workspace" }),
+            getBIDiagramRpcClient: () => ({ getNodeTemplate }),
+        };
+        let paneOpen = true;
+        const closePane = (): void => {
+            if (paneOpen) {
+                paneOpen = false;
+                act(() => root.unmount());
+            }
+        };
+        try {
+            await act(async () => root.render(
+                <TestRpcContext.Provider value={{ rpcClient: client }}>
+                    <Variables anchorRef={React.createRef<HTMLDivElement>()} fileName={FILE} targetLineRange={TARGET}
+                        onClose={jest.fn()} onChange={jest.fn()} filteredCompletions={[]} currentValue=""
+                        handleRetrieveCompletions={async () => undefined} selectedType={{ name: "string", value: "string" }}
+                        onSaveNewVariable={jest.fn()} />
+                </TestRpcContext.Provider>
+            ));
+            // The footer row around the button: it takes clicks too, until the button is disabled.
+            const newVariable = Array.from(container.querySelectorAll("button"))
+                .find(button => button.textContent === "New Variable")!.parentElement!;
+            for (let i = 0; i < clicks; i++) {
+                await act(async () => { newVariable.click(); });
+            }
+            if (paneClosesFirst) {
+                closePane();
+            }
+            await act(async () => { respond?.(); });
+            await act(async () => { jest.advanceTimersByTime(1000); });
+        } finally {
+            closePane();
+            container.remove();
+            jest.useRealTimers();
+        }
+    }
+
+    test("asks the language server for the variable at the field, and declares it with the field's type", async () => {
+        const getNodeTemplate = jest.fn().mockResolvedValue({ flowNode: TEMPLATE });
+        await clickNewVariable(getNodeTemplate);
+        expect(getNodeTemplate).toHaveBeenCalledWith({ position: TARGET.startLine, filePath: FILE, id: { node: "VARIABLE" } });
+        expect(mockAddModal).toHaveBeenCalledTimes(1);
+        expect(formNode(0).properties.variable.value).toBe(TEMPLATE.properties.variable.value);
+        expect(formNode(0).properties.type.value).toBe("string");
+    });
+
+    test.each([
+        ["fails", () => jest.fn().mockRejectedValue(new Error("no language server"))],
+        ["has no template", () => jest.fn().mockResolvedValue({})],
+        ["answers nothing", () => jest.fn().mockResolvedValue(undefined)],
+        // What the extension does with a request the language server fails: it leaves it unanswered.
+        ["does not answer in time", () => jest.fn(() => new Promise(() => undefined))],
+    ])("opens the form on a local template that names nothing when the language server %s", async (_case, getNodeTemplate) => {
+        const consoleError = jest.spyOn(console, "error").mockImplementation(() => undefined);
+        try {
+            await clickNewVariable(getNodeTemplate(), 1, () => jest.advanceTimersByTime(TEMPLATE_TIMEOUT_MS));
+            expect(mockAddModal).toHaveBeenCalledTimes(1);
+            const node = formNode(0);
+            expect(node.codedata).toEqual({ node: "VARIABLE", isNew: true });
+            expect(node.properties.variable.value).toBe("");
+            expect(node.properties.type.value).toBe("string");
+            expect(node.properties.expression.optional).toBe(false);
+        } finally {
+            consoleError.mockRestore();
+        }
+    });
+
+    test("opens one form for clicks made while the template is on its way", async () => {
+        let answer: (response: { flowNode: FlowNode }) => void = () => undefined;
+        const getNodeTemplate = jest.fn(() => new Promise((resolve) => { answer = resolve; }));
+        await clickNewVariable(getNodeTemplate, 3, () => answer({ flowNode: TEMPLATE }));
+        expect(getNodeTemplate).toHaveBeenCalledTimes(1);
+        expect(mockAddModal).toHaveBeenCalledTimes(1);
+    });
+
+    test("opens no form when the pane closed while the template was on its way", async () => {
+        let answer: (response: { flowNode: FlowNode }) => void = () => undefined;
+        const getNodeTemplate = jest.fn(() => new Promise((resolve) => { answer = resolve; }));
+        await clickNewVariable(getNodeTemplate, 1, () => answer({ flowNode: TEMPLATE }), true);
+        expect(getNodeTemplate).toHaveBeenCalledTimes(1);
+        expect(mockAddModal).not.toHaveBeenCalled();
+    });
+
+    test("leaves the variable unnamed when the template names the one its form declares", async () => {
+        mockOuterFormValues.variable = TEMPLATE.properties.variable.value;
+        try {
+            await clickNewVariable(jest.fn().mockResolvedValue({ flowNode: TEMPLATE }));
+            expect(mockAddModal).toHaveBeenCalledTimes(1);
+            expect(formNode(0).properties.variable.value).toBe("");
+        } finally {
+            delete mockOuterFormValues.variable;
+        }
+    });
+
+    test("asks again on a click after a request failed", async () => {
+        const consoleError = jest.spyOn(console, "error").mockImplementation(() => undefined);
+        try {
+            const getNodeTemplate = jest.fn().mockRejectedValue(new Error("no language server"));
+            await clickNewVariable(getNodeTemplate, 2);
+            expect(getNodeTemplate).toHaveBeenCalledTimes(2);
+            expect(mockAddModal).toHaveBeenCalledTimes(2);
+        } finally {
+            consoleError.mockRestore();
+        }
+    });
 });

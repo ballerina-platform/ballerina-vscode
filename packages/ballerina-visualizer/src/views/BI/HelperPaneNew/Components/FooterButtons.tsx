@@ -62,11 +62,17 @@ type FooterButtonProps = {
 }
 
 const FooterButtons = (props: FooterButtonProps) => {
-    const { onClick, startIcon, title, sx } = props;
+    const { onClick, startIcon, title, sx, disabled } = props;
+    // The row around the button takes clicks too, so it has to be disabled with it.
     return (
-        <FooterContainer style={sx} onClick={onClick}>
-            <InvisibleButton 
-            disabled={props.disabled}
+        <FooterContainer
+            style={disabled ? { ...sx, cursor: "default" } : sx}
+            aria-disabled={disabled || undefined}
+            onClick={disabled ? undefined : onClick}
+        >
+            <InvisibleButton
+            disabled={disabled}
+            style={disabled ? { cursor: "default" } : undefined}
             onClick={(e) => {
                 e.stopPropagation();
                 onClick?.();
