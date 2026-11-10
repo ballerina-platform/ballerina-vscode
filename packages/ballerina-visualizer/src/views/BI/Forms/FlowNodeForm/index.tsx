@@ -620,7 +620,8 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     };
 
     const initForm = (node: FlowNode) => {
-        setFormDiagnostics(node.diagnostics?.diagnostics ?? []);
+        // Forms that skip validation never refresh the banner, so it is not seeded with diagnostics it could not clear
+        setFormDiagnostics(skipFormValidation ? [] : node.diagnostics?.diagnostics ?? []);
         const formProperties = getFormProperties(node);
         let enrichedNodeProperties;
         if (nodeFormTemplate) {
@@ -903,8 +904,9 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             const updatedNode = mergeFormDataWithFlowNode(validationData, targetLineRange, dirtyFields);
             const requestId = ++diagnosticsRequestRef.current;
             const nodeWithDiagnostics = await getFormWithDiagnostics(updatedNode);
-            if (requestId === diagnosticsRequestRef.current) {
-                setDiagnosticsToFields(data, nodeWithDiagnostics!);
+            // No LS verdict: keep the diagnostics already shown rather than clearing them
+            if (nodeWithDiagnostics && requestId === diagnosticsRequestRef.current) {
+                setDiagnosticsToFields(data, nodeWithDiagnostics);
             }
         }
     };
@@ -1388,8 +1390,9 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             const updatedNode = mergeFormDataWithFlowNode(validationData, targetLineRange, dirtyFields);
             const requestId = ++diagnosticsRequestRef.current;
             const nodeWithDiagnostics = await getFormWithDiagnostics(updatedNode);
-            if (requestId === diagnosticsRequestRef.current) {
-                setDiagnosticsToFields(data, nodeWithDiagnostics!);
+            // No LS verdict: keep the diagnostics already shown rather than clearing them
+            if (nodeWithDiagnostics && requestId === diagnosticsRequestRef.current) {
+                setDiagnosticsToFields(data, nodeWithDiagnostics);
             }
 
             // HACK: Ignore top-level hasDiagnostics when LS does not send property-level diagnostic messages.
