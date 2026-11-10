@@ -386,7 +386,8 @@ export function ActionTypeEditor(props: ActionTypeEditorProps) {
                     property: getPropertyFromFormField(field),
                 },
             });
-            if (form.getValues(field.key) !== value) {
+            // Drop the response if this editor now serves another field or the value moved on.
+            if (validationInputsRef.current.field.key !== field.key || form.getValues(field.key) !== value) {
                 return;
             }
             const firstError = response?.diagnostics?.find((diagnostic) => diagnostic.severity === 1);
