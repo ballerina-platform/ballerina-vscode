@@ -40,6 +40,7 @@ import {
     errorMessageOf,
     getPossibleVisibilities,
     isValidDevantConnName,
+    apiKeyConfigName,
     serviceUrlConfigName,
 } from "./utils";
 
@@ -156,6 +157,7 @@ export const DevantConnectorCreateForm: FC<DevantConnectorCreateFormProps> = ({
                 componentPath: projectPath,
                 generateCreds: true,
                 configurableName: serviceUrlConfigName(tempDevantConfigs),
+                apiKeyConfigurableName: apiKeyConfigName(tempDevantConfigs),
             });
 
             const securityType = securityTypeOf(createdConnection);

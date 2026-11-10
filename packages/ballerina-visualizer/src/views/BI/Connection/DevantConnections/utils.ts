@@ -443,9 +443,16 @@ export const SERVICE_URL_ENTRY = "ServiceURL";
 export const serviceUrlConfigName = (configs: { id: string; name: string }[] | undefined): string | undefined =>
     configs?.find((config) => config.id === SERVICE_URL_ENTRY)?.name;
 
+/** The entry of a service connection that holds its API key, for a service of another project. */
+export const API_KEY_ENTRY = "ChoreoAPIKey";
+
+/** The configurable made for a connection's API key, by the entry it was made for. */
+export const apiKeyConfigName = (configs: { id: string; name: string }[] | undefined): string | undefined =>
+    configs?.find((config) => config.id === API_KEY_ENTRY)?.name;
+
 /**
- * The schemas offered for an access mode. A WSO2 Cloud service is reached directly under Project access and
- * through the gateway with an API key otherwise; a database has one schema.
+ * The schemas offered for an access mode. A WSO2 Cloud service of the project is reached directly under Project
+ * access, and one of another project through the gateway, with an API key; a database has one schema.
  */
 export const getPossibleSchemas = (item: MarketplaceItem | undefined, visibility: string): MarketplaceItemSchema[] => {
     const schemas = item?.connectionSchemas ?? [];

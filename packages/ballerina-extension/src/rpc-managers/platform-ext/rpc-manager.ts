@@ -104,11 +104,12 @@ import {
 import {
     configurableId,
     createdConnection,
+    accessTo,
+    connectableToMarketplaceItem,
     endpointLinkConnections,
-    endpointLinkReferencedBy,
+    endpointLinksReferencedBy,
     linkToConnectionDetailed,
     parseLinkConnectionId,
-    type ServiceConnectionAccess,
     dbCredentialsToAdminCredential,
     dbServerToMarketplaceItem,
     dbServerToV1DatabaseServer,
@@ -522,32 +523,31 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
         });
     }
 
-    // ---- the catalog: what other integrations of the project expose ----
+    // ---- the catalog: the endpoints of the organization the selected integration may connect to ----
 
     async getMarketplaceItems(params: GetMarketplaceListReq): Promise<MarketplaceListResp> {
+        const empty: MarketplaceListResp = { count: 0, pagination: { limit: 0, offset: 0, total: 0 }, data: [] };
         try {
             if (params?.request?.isThirdParty) {
                 // WSO2 Cloud has no third-party marketplace; the tab is empty rather than full of internal services.
-                return { count: 0, pagination: { limit: 0, offset: 0, total: 0 }, data: [] };
+                return empty;
             }
             const platformExt = await this.requirePlatformExt();
-            const { orgHandle = "" } = this.selection();
+            const { orgHandle = "", integration } = this.selection();
             const projectName = this.requireProjectName();
             const envId = this.requireEnvId();
-            const integrations = await platformExt.integrations.list(projectName);
-            const perIntegration = await Promise.all(
-                integrations.map(async (integration) => {
-                    try {
-                        const endpoints = await platformExt.endpoints.listForEnvironment(integration.id, envId, projectName);
-                        return endpoints.map((endpoint) => endpointToMarketplaceItem(projectName, integration, envId, endpoint, orgHandle));
-                    } catch (err) {
-                        log(`No endpoints for ${integration.id} in ${envId}: ${err}`);
-                        return [];
-                    }
-                }),
-            );
+            if (!integration) {
+                // The platform says what an integration may connect to; a connection is made for one, too.
+                log("No WSO2 Cloud integration is selected: there is nothing to list services to connect to for.");
+                return empty;
+            }
+            // Every project's endpoints the platform lets the integration reach, each where it runs in the environment.
+            const endpoints = await platformExt.connections.listConnectable(integration.id, projectName);
             const query = params?.request?.query?.toLowerCase();
-            const data = perIntegration.flat().filter((item) => !query || item.name.toLowerCase().includes(query));
+            const data = endpoints
+                .filter((endpoint) => endpoint.environments.some((env) => env.name === envId && env.connectable))
+                .map((endpoint) => connectableToMarketplaceItem(endpoint, envId, orgHandle))
+                .filter((item) => !query || item.name.toLowerCase().includes(query));
             const offset = params?.request?.offset ?? 0;
             const limit = params?.request?.limit ?? data.length;
             return { count: data.length, pagination: { limit, offset, total: data.length }, data: data.slice(offset, offset + limit) };
@@ -680,7 +680,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
             if (!endpoint) {
                 throw new Error(`${ref.integration} exposes no endpoint ${ref.endpoint} in ${envId}.`);
             }
-            return endpointToMarketplaceItem(ref.project, integration, envId, endpoint, orgHandle);
+            return endpointToMarketplaceItem(ref.project, integration, envId, endpoint, orgHandle, this.requireProjectName());
         } catch (err) {
             log(`Failed to invoke getMarketplaceItem: ${err}`);
             throw err;
@@ -749,7 +749,18 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
             const link = parseLinkConnectionId(params.connectionGroupId);
             if (link) {
                 const localRefs = localConnectionServiceIds(platformExtStore.getState().state.selectedIntegration?.fsPath);
-                return linkToConnectionDetailed(link, localRefs.get(link.name));
+                const linkedServiceId = localRefs.get(link.name);
+                const target = parseServiceId(linkedServiceId);
+                const projectName = this.requireProjectName();
+                const access = target ? accessTo(target.project, projectName) : "project";
+                // Across projects the API key is a link of its own, there only when the endpoint's API takes a key.
+                const apiKey =
+                    !!target &&
+                    access === "organization" &&
+                    (await platformExt.connections.listEndpointLinks(link.integration, projectName)).some(
+                        (item) => item.key === "apiKey" && item.project === target.project && item.component === target.integration && item.endpoint === target.endpoint,
+                    );
+                return linkToConnectionDetailed(link, linkedServiceId, access, apiKey);
             }
             const ref = parseConnectionId(params.connectionGroupId);
             if (!ref) {
@@ -843,22 +854,50 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
                 throw new Error(`Unknown service ${params.serviceId}`);
             }
             const envId = this.requireEnvId();
-            // Project access reaches the endpoint inside the project with no key; Organization and Public go through the gateway.
-            const access: ServiceConnectionAccess = params.serviceVisibility === ServiceInfoVisibilityEnum.Project ? "project" : "gateway";
-            // Inside the project the platform fills a configurable with the endpoint's address in every environment.
-            const configurable = access === "project" ? this.rootConfigurableId(params.configurableName) : undefined;
-            await platformExt.connections.createServiceConnection({ integration, target, access, name: params.name, environments: [envId], projectName, configurable });
-            return createdConnection({ name: params.name, integration, environments: [envId], kind: "SERVICE", serviceId: params.serviceId, access, configurable });
+            // Inside the project the endpoint is reached directly; another project's through the gateway.
+            const access = accessTo(target.project, projectName);
+            const url = this.rootConfigurableId(params.configurableName);
+            // Across projects the API key goes in the header the endpoint's API takes, when it takes one.
+            const apiKeyHeader = access === "organization" ? await this.apiKeyHeaderOf(params.serviceId) : undefined;
+            const apiKey = apiKeyHeader ? this.rootConfigurableId(params.apiKeyConfigurableName) : undefined;
+            await platformExt.connections.createServiceConnection({ integration, target, access, configurables: { url, apiKey }, projectName });
+            return createdConnection({
+                name: params.name,
+                integration,
+                environments: [envId],
+                kind: "SERVICE",
+                serviceId: params.serviceId,
+                access,
+                apiKey: !!apiKey,
+                configurable: url,
+            });
         } catch (err) {
             log(`Failed to create WSO2 Cloud connection: ${err}`);
             throw err;
         }
     }
 
+    /**
+     * The header the API of another project's endpoint takes its API key in, in the selected environment;
+     * undefined when the API takes none. An API taking only OAuth2 tokens can't be connected to with a key.
+     */
+    private async apiKeyHeaderOf(id: string): Promise<string | undefined> {
+        const target = parseServiceId(id);
+        if (!target) {
+            throw new Error(`Unknown service ${id}`);
+        }
+        const platformExt = await this.requirePlatformExt();
+        const security = await platformExt.endpoints.getSecurity(target.integration, this.requireEnvId(), target.endpoint, target.project);
+        if (security.mode === "jwt") {
+            throw new Error(`${target.integration} takes only OAuth2 tokens; a connection from another project needs an API that takes an API key or no auth.`);
+        }
+        return security.mode === "api-key" ? security.apiKey?.header || "X-API-Key" : undefined;
+    }
+
     /** The platform's id of a configurable in the open package's root module, where the connection screens write configurables. */
     private rootConfigurableId(name: string | undefined): string {
         if (!name) {
-            throw new Error("A connection inside the project needs the configurable its URL fills.");
+            throw new Error("A WSO2 Cloud connection needs the configurables the platform fills.");
         }
         const { orgName, packageName } = getOrgPackageName(StateMachine.context().projectPath);
         if (!orgName || !packageName) {
@@ -1119,14 +1158,15 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
                             deletingCloudConnection = true;
                             const projectName = this.selection().projectName;
                             // The list pairs links with connections by endpoint alone; with two connections to one
-                            // endpoint, the configurable this connection's code reads is the link that is its own.
+                            // endpoint, the configurables this connection's code reads are the links that are its own:
+                            // its URL's and, across projects, its API key's.
                             const links = await platformExt.connections.listEndpointLinks(link.integration, projectName);
-                            const ownLink = endpointLinkReferencedBy(links, matchingConnection.initializer?.source ?? "");
-                            await platformExt.connections.unlinkEndpoint({
-                                integration: link.integration,
-                                configurable: ownLink?.configurable ?? link.configurable,
-                                projectName,
-                            });
+                            const urlLink = links.find((item) => item.configurable === link.configurable);
+                            const ownLinks = urlLink ? endpointLinksReferencedBy(links, urlLink, matchingConnection.initializer?.source ?? "") : [];
+                            const configurables = ownLinks.length > 0 ? ownLinks.map((item) => item.configurable) : [link.configurable];
+                            for (const configurable of configurables) {
+                                await platformExt.connections.unlinkEndpoint({ integration: link.integration, configurable, projectName });
+                            }
                             deletingCloudConnection = false;
                         } else if (ref && platformExt) {
                             // Every environment it was written to, not only the one selected now. Deleted before the
@@ -1262,7 +1302,9 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
             const filePath = path.join(choreoDir, `${moduleName}-spec.yaml`);
 
             if (serviceIdl?.idlType === "OpenAPI" && serviceIdl.content) {
-                const updatedDef = processOpenApiWithApiKeyAuth(serviceIdl.content, params.securityType);
+                // The key goes in the header the endpoint's API takes it in.
+                const apiKeyHeader = params.securityType === "apikey" ? await this.apiKeyHeaderOf(params.marketplaceItem.serviceId) : undefined;
+                const updatedDef = processOpenApiWithApiKeyAuth(serviceIdl.content, params.securityType, apiKeyHeader);
                 fs.writeFileSync(filePath, updatedDef, "utf8");
             }
 

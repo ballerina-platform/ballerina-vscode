@@ -49,8 +49,10 @@ export interface GenerateCustomConnectorFromOASResp {
  * endpoint's address, so it names that configurable.
  */
 export interface CreateInternalConnectionReq extends CreateComponentConnectionReq {
-    /** The configurable the endpoint's URL fills, in the package's root module; required for project visibility. */
+    /** The configurable the endpoint's URL fills, in the package's root module. */
     configurableName?: string;
+    /** For a service of another project whose API takes an API key: the configurable the key fills, in the root module. */
+    apiKeyConfigurableName?: string;
 }
 
 export interface InitializeDevantOASConnectionReq {

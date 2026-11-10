@@ -35,6 +35,7 @@ import {
     generateInitialConnectionName,
     getInitialAccess,
     isValidDevantConnName,
+    apiKeyConfigName,
     serviceUrlConfigName,
 } from "./utils";
 
@@ -230,6 +231,7 @@ export const DevantBIConnectorCreateForm: FC<Props> = (props) => {
                     componentPath: projectPath,
                     generateCreds: true,
                     configurableName: serviceUrlConfigName(devantConfigs),
+                    apiKeyConfigurableName: apiKeyConfigName(devantConfigs),
                 });
 
                 await platformRpcClient.replaceDevantTempConfigValues({

@@ -20,6 +20,7 @@
 // databases, endpoints and env-var groups.
 
 import {
+    connectableToMarketplaceItem,
     connectionId,
     createdConnection,
     DATABASE_CONNECTION_KEYS,
@@ -39,7 +40,7 @@ import {
 import {
     configurableId,
     endpointLinkConnections,
-    endpointLinkReferencedBy,
+    endpointLinksReferencedBy,
     linkConnectionId,
     linkToConnectionDetailed,
     localConnectionServiceIds,
@@ -83,44 +84,65 @@ describe("platform v1 adapters", () => {
         expect(dbCredentialsToAdminCredential(credentials)).toEqual({ name: "app", password: "s3cret" });
     });
 
-    it("presents an exposed endpoint as a service of the project with its visibility", () => {
+    it("presents an endpoint of the project as a service reached directly, whatever else it is exposed to", () => {
         const integration = { id: "orders", name: "orders", displayName: "Orders", description: "", createdAt: "2026-01-01T00:00:00Z" } as never;
         const endpoint = { name: "http", displayName: "HTTP API", type: "REST", basePath: "/orders", visibility: ["project", "organization"], resources: [] } as never;
-        const item = endpointToMarketplaceItem("default-project", integration, "development", endpoint, "acme");
+        const item = endpointToMarketplaceItem("default-project", integration, "development", endpoint, "acme", "default-project");
         expect(item.serviceId).toBe(serviceId({ project: "default-project", integration: "orders", endpoint: "http" }));
         expect(item.name).toBe("Orders / HTTP API");
-        expect(item.visibility).toEqual(["PROJECT", "ORGANIZATION"]);
+        expect(item.visibility).toEqual(["PROJECT"]);
         expect(item.projectId).toBe("default-project");
+        expect(item.summary).toBe("/orders");
         expect(item.isThirdParty).toBe(false);
-        // Project access takes the endpoint's address alone; the exposed endpoint also offers the gateway with an API key.
-        expect(item.connectionSchemas.map((s) => s.id)).toEqual(["project-url", "api-key"]);
+        expect(item.connectionSchemas.map((s) => s.id)).toEqual(["project-url"]);
         expect(item.connectionSchemas[0].entries.map((e) => e.name)).toEqual(["ServiceURL"]);
-        expect(item.connectionSchemas[1].entries.map((e) => e.name)).toEqual(Object.keys(SERVICE_CONNECTION_KEYS));
     });
 
-    it("offers only project access for an endpoint that is not exposed through the gateway", () => {
-        const integration = { id: "orders", name: "orders", displayName: "Orders", description: "", createdAt: "2026-01-01T00:00:00Z" } as never;
-        const endpoint = { name: "http", type: "REST", visibility: ["project"], exposure: "none", resources: [] } as never;
-        const item = endpointToMarketplaceItem("default-project", integration, "development", endpoint, "acme");
-        expect(item.visibility).toEqual(["PROJECT"]);
-        expect(item.connectionSchemas.map((s) => s.id)).toEqual(["project-url"]);
+    it("presents another project's endpoint as reached through the gateway, with an API key", () => {
+        const integration = { id: "billing", name: "billing", displayName: "Billing", description: "", createdAt: "2026-01-01T00:00:00Z" } as never;
+        const endpoint = { name: "api", type: "REST", visibility: ["organization"], resources: [] } as never;
+        const item = endpointToMarketplaceItem("finance", integration, "development", endpoint, "acme", "shop");
+        expect(item.visibility).toEqual(["ORGANIZATION"]);
+        expect(item.connectionSchemas.map((s) => s.id)).toEqual(["api-key"]);
+        expect(item.connectionSchemas[0].entries.map((e) => e.name)).toEqual(Object.keys(SERVICE_CONNECTION_KEYS));
+    });
+
+    it("presents the platform's connectable endpoints by their scope", () => {
+        const environments = [{ name: "development", connectable: true }];
+        const billing = connectableToMarketplaceItem(
+            { project: "finance", component: "billing", endpoint: "api", displayName: "Billing", scope: "organization", environments },
+            "development",
+            "acme",
+        );
+        expect(billing.serviceId).toBe(serviceId({ project: "finance", integration: "billing", endpoint: "api" }));
+        expect(billing.name).toBe("Billing / api");
+        expect(billing.projectId).toBe("finance");
+        expect(billing.visibility).toEqual(["ORGANIZATION"]);
+        expect(billing.connectionSchemas.map((s) => s.id)).toEqual(["api-key"]);
+        const cart = connectableToMarketplaceItem(
+            { project: "shop", component: "cart", endpoint: "/", displayName: "Cart", scope: "project", environments },
+            "development",
+            "acme",
+        );
+        expect(cart.name).toBe("Cart");
+        expect(cart.visibility).toEqual(["PROJECT"]);
+        expect(cart.connectionSchemas.map((s) => s.id)).toEqual(["project-url"]);
     });
 
     it("names a service by its integration alone when the endpoint is named after a bare path", () => {
         const integration = { id: "orders", name: "orders", displayName: "Orders", description: "", createdAt: "2026-01-01T00:00:00Z" } as never;
         const rootPath = { name: "/", displayName: "/", type: "REST", visibility: ["project"], resources: [] } as never;
-        expect(endpointToMarketplaceItem("default-project", integration, "development", rootPath, "acme").name).toBe("Orders");
+        expect(endpointToMarketplaceItem("default-project", integration, "development", rootPath, "acme", "default-project").name).toBe("Orders");
     });
 
-    it("tells databases from services from plain config by an env group's keys, and never reveals secrets", () => {
+    it("tells databases from plain config by an env group's keys, and never reveals secrets", () => {
         const ref = { integration: "orders", environment: "development" };
         const db = envGroupToConnectionListItem({ name: "orders-db", sensitive: true, keys: ["ORDERS_DB_DB_HOST", "ORDERS_DB_DB_PASSWORD", "ORDERS_DB_DB_USER"] }, ref);
         expect(db.resourceType).toBe("DATABASE");
         expect(parseConnectionId(db.groupUuid)).toEqual({ ...ref, name: "orders-db" });
-        const gateway = envGroupToConnectionListItem({ name: "inv", sensitive: true, keys: ["INV_SERVICE_URL", "INV_API_KEY"] }, ref);
-        expect(gateway.resourceType).toBe("SERVICE");
-        expect(gateway.schemaReference).toBe("api-key");
-        expect(envGroupToConnectionListItem({ name: "inv", sensitive: false, keys: ["INV_SERVICE_URL"] }, ref).schemaReference).toBe("project-url");
+        expect(db.schemaReference).toBe("database-credentials");
+        // A service connection is links, never a group.
+        expect(envGroupToConnectionListItem({ name: "inv", sensitive: true, keys: ["INV_SERVICE_URL", "INV_API_KEY"] }, ref).resourceType).toBe("CONFIG");
         expect(envGroupToConnectionListItem({ name: "misc", sensitive: false, keys: ["LOG_LEVEL"] }, ref).resourceType).toBe("CONFIG");
         // Variables without a connection prefix are plain config.
         expect(envGroupToConnectionListItem({ name: "bare", sensitive: true, keys: ["DB_HOST", "DB_PASSWORD"] }, ref).resourceType).toBe("CONFIG");
@@ -140,7 +162,7 @@ describe("platform v1 adapters", () => {
         expect(Object.keys(created.configurations)).toEqual(["development", "staging"]);
         expect(created.configurations.staging.entries.Username.envVariableName).toBe("ORDERS_DB_DB_USER");
         expect(created.configurations.development.entries.Password.isSensitive).toBe(true);
-        const svc = createdConnection({ name: "inv", integration: "orders", environments: ["development"], kind: "SERVICE", serviceId: "svc:p/i/e" });
+        const svc = createdConnection({ name: "inv", integration: "orders", environments: ["development"], kind: "SERVICE", serviceId: "svc:p/i/e", access: "organization", apiKey: true });
         expect(svc.configurations.development.entries.ChoreoAPIKey.envVariableName).toBe("INV_API_KEY");
         expect(svc.configurations.development.entries.ServiceURL.envVariableName).toBe("INV_SERVICE_URL");
         expect(svc.schemaReference).toBe("api-key");
@@ -183,7 +205,7 @@ describe("platform v1 adapters", () => {
     });
 });
 
-describe("connections inside the project, which are endpoint links", () => {
+describe("service connections, which are endpoint links", () => {
     const orders = serviceId({ project: "shop", integration: "orders", endpoint: "api" });
 
     it("names a root-module configurable as the platform does, and round-trips a link's id", () => {
@@ -194,30 +216,44 @@ describe("connections inside the project, which are endpoint links", () => {
     });
 
     it("lists each local connection a link stands for, one link each, skipping ones listed as groups", () => {
+        const billing = serviceId({ project: "finance", integration: "billing", endpoint: "api" });
         const links = [
-            { configurable: "acme/basket:ServiceURL", component: "orders", endpoint: "api" },
-            { configurable: "acme/basket:ServiceURL1", component: "orders", endpoint: "api" },
-            { configurable: "acme/basket:Other", component: "stock", endpoint: "api" },
+            { configurable: "acme/basket:ServiceURL", project: "shop", component: "orders", endpoint: "api" },
+            { configurable: "acme/basket:ServiceURL1", project: "shop", component: "orders", endpoint: "api" },
+            { configurable: "acme/basket:Other", project: "shop", component: "stock", endpoint: "api" },
+            { configurable: "acme/basket:BillingURL", project: "finance", component: "billing", endpoint: "api", key: "url" },
+            { configurable: "acme/basket:BillingKey", project: "finance", component: "billing", endpoint: "api", key: "apiKey" },
         ];
         const refs = new Map([
             ["orders", orders],
             ["orders-again", orders],
             ["orders-third", orders],
             ["as-group", orders],
+            ["billing", billing],
             ["elsewhere", serviceId({ project: "other", integration: "orders", endpoint: "api" })],
         ]);
         const items = endpointLinkConnections(links, refs, { project: "shop", integration: "basket" }, new Set(["as-group"]));
         expect(items.map((item) => [item.name, parseLinkConnectionId(item.groupUuid)?.configurable])).toEqual([
             ["orders", "acme/basket:ServiceURL"],
             ["orders-again", "acme/basket:ServiceURL1"],
+            ["billing", "acme/basket:BillingURL"],
         ]);
         expect(items[0].schemaReference).toBe("project-url");
         expect(items[0].serviceId).toBe(orders);
+        // Another project's connection is listed by its URL's link, with the API key its own link carries.
+        expect(items[2].schemaReference).toBe("api-key");
     });
 
-    it("gives a link the URL entry the connection screens read", () => {
-        const detailed = linkToConnectionDetailed({ integration: "basket", configurable: "acme/basket:ServiceURL", name: "orders" });
-        expect(Object.values(detailed.configurations)[0].entries.ServiceURL.envVariableName).toBe("ORDERS_SERVICE_URL");
+    it("gives a link the entries the connection screens read", () => {
+        const ref = { integration: "basket", configurable: "acme/basket:ServiceURL", name: "orders" };
+        const inProject = linkToConnectionDetailed(ref);
+        expect(Object.values(inProject.configurations)[0].entries.ServiceURL.envVariableName).toBe("ORDERS_SERVICE_URL");
+        expect(Object.keys(Object.values(inProject.configurations)[0].entries)).toEqual(["ServiceURL"]);
+        const withKey = linkToConnectionDetailed(ref, "", "organization", true);
+        expect(Object.keys(Object.values(withKey.configurations)[0].entries)).toEqual(["ServiceURL", "ChoreoAPIKey"]);
+        expect(Object.values(withKey.configurations)[0].entries.ChoreoAPIKey.isSensitive).toBe(true);
+        expect(withKey.schemaReference).toBe("api-key");
+        expect(linkToConnectionDetailed(ref, "", "organization", false).schemaReference).toBe("gateway-url");
     });
 
     it("ids a connection created inside the project by its link", () => {
@@ -234,6 +270,18 @@ describe("connections inside the project, which are endpoint links", () => {
         expect(Object.keys(created.configurations.development.entries)).toEqual(["ServiceURL"]);
     });
 
+    it("gives a connection to another project's endpoint its API key's entry only when the API takes a key", () => {
+        const billing = serviceId({ project: "finance", integration: "billing", endpoint: "api" });
+        const base = { name: "billing", integration: "basket", environments: ["development"], kind: "SERVICE" as const, serviceId: billing, access: "organization" as const, configurable: "acme/basket:BillingURL" };
+        const withKey = createdConnection({ ...base, apiKey: true });
+        expect(Object.keys(withKey.configurations.development.entries)).toEqual(["ServiceURL", "ChoreoAPIKey"]);
+        expect(withKey.schemaReference).toBe("api-key");
+        expect(parseLinkConnectionId(withKey.groupUuid)?.configurable).toBe("acme/basket:BillingURL");
+        const open = createdConnection({ ...base, apiKey: false });
+        expect(Object.keys(open.configurations.development.entries)).toEqual(["ServiceURL"]);
+        expect(open.schemaReference).toBe("gateway-url");
+    });
+
     it("reads a service reference back, a root-path service's endpoint \"/\" included", () => {
         expect(serviceIdOfResourceRef("service:shop/orders/api")).toBe(orders);
         const root = serviceId({ project: "shop", integration: "orders", endpoint: "/" });
@@ -244,15 +292,22 @@ describe("connections inside the project, which are endpoint links", () => {
         expect(serviceIdOfResourceRef("service:shop/orders/")).toBeUndefined();
     });
 
-    it("finds a connection's own link by the configurable its code reads", () => {
+    it("finds a connection's own links of an endpoint by the configurables its code reads", () => {
+        const orders = { project: "shop", component: "orders", endpoint: "api" };
+        const billing = { project: "finance", component: "billing", endpoint: "api" };
         const links = [
-            { configurable: "acme/basket:ServiceURL", component: "orders", endpoint: "api" },
-            { configurable: "acme/basket:ServiceURL1", component: "orders", endpoint: "api" },
+            { configurable: "acme/basket:ServiceURL", ...orders },
+            { configurable: "acme/basket:ServiceURL1", ...orders },
+            { configurable: "acme/basket:BillingURL", ...billing, key: "url" },
+            { configurable: "acme/basket:BillingKey", ...billing, key: "apiKey" },
         ];
-        expect(endpointLinkReferencedBy(links, "new ({}, ServiceURL1)")?.configurable).toBe("acme/basket:ServiceURL1");
-        expect(endpointLinkReferencedBy(links, "check new (serviceUrl = ServiceURL)")?.configurable).toBe("acme/basket:ServiceURL");
-        expect(endpointLinkReferencedBy(links, "new ('ServiceURL)")?.configurable).toBe("acme/basket:ServiceURL");
-        expect(endpointLinkReferencedBy(links, "new (OtherURL)")).toBeUndefined();
-        expect(endpointLinkReferencedBy(links, "new (ServiceURL, ServiceURL1)")).toBeUndefined();
+        const configurablesOf = (endpoint: typeof orders, source: string) => endpointLinksReferencedBy(links, endpoint, source).map((link) => link.configurable);
+        expect(configurablesOf(orders, "new ({}, ServiceURL1)")).toEqual(["acme/basket:ServiceURL1"]);
+        expect(configurablesOf(orders, "check new (serviceUrl = ServiceURL)")).toEqual(["acme/basket:ServiceURL"]);
+        expect(configurablesOf(orders, "new ('ServiceURL)")).toEqual(["acme/basket:ServiceURL"]);
+        expect(configurablesOf(orders, "new (OtherURL)")).toEqual([]);
+        // Another endpoint's links are never this one's, whatever the code reads.
+        expect(configurablesOf(orders, "new ({choreoAPIKey: BillingKey}, BillingURL)")).toEqual([]);
+        expect(configurablesOf(billing, "check new ({choreoAPIKey: BillingKey}, BillingURL)")).toEqual(["acme/basket:BillingURL", "acme/basket:BillingKey"]);
     });
 });
