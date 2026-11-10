@@ -177,7 +177,8 @@ export function DevantConnectorList(props: DevantConnectorListProps) {
                 request: getMarketPlaceParams,
             }),
         enabled:
-            filterType !== "databases" && hasCloudProject(platformExtState),
+            // The list is for the selected environment, which is read once the project is linked.
+            filterType !== "databases" && hasCloudProject(platformExtState) && !!platformExtState?.selectedEnv,
         select: (data) => ({
             ...data,
             data: filterConnectionMarketplaceItems(
@@ -199,7 +200,9 @@ export function DevantConnectorList(props: DevantConnectorListProps) {
             ["databases", "all"].includes(filterType) && hasCloudProject(platformExtState),
     });
 
-    const isLoading = isLoadingMarketplace || isLoadingDbs;
+    // A just-linked project's environments are still being read: the services follow them.
+    const isWaitingForEnv = filterType !== "databases" && !platformExtState?.selectedEnv;
+    const isLoading = isLoadingMarketplace || isLoadingDbs || isWaitingForEnv;
 
     const items: MarketplaceItem[] = [];
     if (filterType === "databases") {
@@ -216,6 +219,8 @@ export function DevantConnectorList(props: DevantConnectorListProps) {
     } else {
         items.push(...(marketplaceServices?.data || []));
     }
+
+    const showServicesError = !!marketplaceError && filterType !== "databases" && !isLoading;
 
     let emptyText = "No resources in WSO2 Cloud";
     if (filterType === INTERNAL_SERVICES) {
@@ -262,34 +267,37 @@ export function DevantConnectorList(props: DevantConnectorListProps) {
                         </FilterButton>
                     </FilterButtons>
                 </SectionHeader>
-                {marketplaceError && filterType !== "databases" && (
+                {showServicesError && (
                     <BodyTinyInfo style={{ paddingBottom: "10px" }}>
                         Couldn't list the services in WSO2 Cloud: {errorMessage(marketplaceError)}
                     </BodyTinyInfo>
                 )}
-                <ConnectionSection
-                    emptyText={emptyText}
-                    loading={isLoading}
-                    data={items}
-                    searchText={searchText}
-                    renderItem={(item) => {
-                        // A service the integration can't connect to now is shown with the reason, not hidden.
-                        const unavailable = item.properties?.[MARKETPLACE_ITEM_UNAVAILABLE];
-                        return (
-                            <div style={unavailable ? { opacity: 0.6 } : undefined}>
-                                <ButtonCard
-                                    id={`connector-${item.resourceId}`}
-                                    title={item.name}
-                                    description={item.description}
-                                    icon={<Codicon name="package" />}
-                                    onClick={() => handleMarketplaceItemClick(item)}
-                                    disabled={loadingBalOrgConnectors || !!unavailable}
-                                    tooltip={unavailable}
-                                />
-                            </div>
-                        );
-                    }}
-                />
+                {/* After a failed listing, "no resources" would say something nobody knows. */}
+                {!(showServicesError && items.length === 0) && (
+                    <ConnectionSection
+                        emptyText={emptyText}
+                        loading={isLoading}
+                        data={items}
+                        searchText={searchText}
+                        renderItem={(item) => {
+                            // A service the integration can't connect to now is shown with the reason, not hidden.
+                            const unavailable = item.properties?.[MARKETPLACE_ITEM_UNAVAILABLE];
+                            return (
+                                <div style={unavailable ? { opacity: 0.6 } : undefined}>
+                                    <ButtonCard
+                                        id={`connector-${item.resourceId}`}
+                                        title={item.name}
+                                        description={item.description}
+                                        icon={<Codicon name="package" />}
+                                        onClick={() => handleMarketplaceItemClick(item)}
+                                        disabled={loadingBalOrgConnectors || !!unavailable}
+                                        tooltip={unavailable}
+                                    />
+                                </div>
+                            );
+                        }}
+                    />
+                )}
             </Section>
         </>
     );
@@ -338,7 +346,11 @@ const ConnectionSection = <T,>({ emptyText, loading, data, searchText, renderIte
 };
 
 function errorMessage(error: unknown): string {
-    const message = error instanceof Error ? error.message : String(error);
+    // Errors cross the RPC boundary as plain objects, not Error instances.
+    const message =
+        typeof error === "object" && error !== null && "message" in error
+            ? String((error as { message: unknown }).message)
+            : String(error);
     // The RPC layer prefixes the extension's message; the reader wants only the reason.
     return message.replace(/^Error:\s*/, "");
 }

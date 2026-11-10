@@ -269,52 +269,6 @@ export function AddConnectionPopupContent(props: Props) {
 
     return (
         <>
-            {!selectionOnly && platformExtState?.isExtInstalled && !platformExtState?.isLoggedIn && (
-                <>
-                    {isCloudAccessMissing(platformExtState?.cloudAccess) ? (
-                        <CloudAccessNotice purpose="to connect with cloud dependencies" />
-                    ) : !platformExtState?.hasPossibleComponent ? (
-                        <IntroText>
-                            <VSCodeLink onClick={() => platformRpcClient.deployIntegrationInDevant()}>
-                                Deploy integration
-                            </VSCodeLink>{" "}
-                            or{" "}
-                            <VSCodeLink onClick={handleLinkWorkspace}>
-                                associate workspace
-                            </VSCodeLink>{" "}
-                            with a WSO2 Cloud project in order to connect with cloud dependencies
-                        </IntroText>
-                    ) : <IntroText>
-                        <VSCodeLink onClick={loginToDevant}>
-                            Login
-                        </VSCodeLink>{" "}
-                        to WSO2 Cloud in order to connect with cloud dependencies
-                    </IntroText>
-                    }
-                </>
-            )}
-            {!selectionOnly && platformExtState?.isExtInstalled && platformExtState?.isLoggedIn && !hasCloudProject(platformExtState) && (
-                // Signed in, but nothing says which project the cloud connections belong to.
-                <IntroText>
-                    {platformExtState?.selectedContext?.foreignOrg ? (
-                        <>
-                            This workspace is linked to the WSO2 Cloud organization{" "}
-                            {platformExtState.selectedContext.orgHandle}. Sign in to that organization, or{" "}
-                            <VSCodeLink onClick={handleLinkWorkspace}>associate workspace</VSCodeLink> with a project of
-                            yours, in order to connect with cloud dependencies
-                        </>
-                    ) : (
-                        <>
-                            <VSCodeLink onClick={() => platformRpcClient.deployIntegrationInDevant()}>
-                                Deploy integration
-                            </VSCodeLink>{" "}
-                            or{" "}
-                            <VSCodeLink onClick={handleLinkWorkspace}>associate workspace</VSCodeLink> with a WSO2 Cloud
-                            project in order to connect with cloud dependencies
-                        </>
-                    )}
-                </IntroText>
-            )}
             {!selectionOnly && (hasCloudProject(platformExtState) ? (
                 <IntroText>
                     To establish your connection, first define a connector. You may create a custom connector using an
@@ -402,7 +356,40 @@ export function AddConnectionPopupContent(props: Props) {
                 </Section>
             )}
 
-            {!selectionOnly && DevantServicesSection && <DevantServicesSection searchText={searchText} />}
+            {!selectionOnly &&
+                (DevantServicesSection ? (
+                    <DevantServicesSection searchText={searchText} />
+                ) : (
+                    platformExtState?.isExtInstalled && (
+                        // Where the cloud resources will be listed, what it takes to list them.
+                        <Section>
+                            <SectionTitle variant="h4">WSO2 Cloud Resources</SectionTitle>
+                            {isCloudAccessMissing(platformExtState?.cloudAccess) ? (
+                                <CloudAccessNotice purpose="to connect with cloud dependencies" />
+                            ) : !platformExtState?.isLoggedIn && platformExtState?.hasPossibleComponent ? (
+                                <IntroText>
+                                    <VSCodeLink onClick={loginToDevant}>Sign in</VSCodeLink> to WSO2 Cloud to connect
+                                    to services and databases running there.
+                                </IntroText>
+                            ) : platformExtState?.selectedContext?.foreignOrg ? (
+                                <IntroText>
+                                    This workspace is linked to the WSO2 Cloud organization{" "}
+                                    {platformExtState.selectedContext.orgHandle}. Sign in to that organization, or{" "}
+                                    <VSCodeLink onClick={handleLinkWorkspace}>associate the workspace</VSCodeLink> with a
+                                    project of yours, to connect to services and databases running there.
+                                </IntroText>
+                            ) : (
+                                <IntroText>
+                                    <VSCodeLink onClick={() => platformRpcClient.deployIntegrationInDevant()}>
+                                        Deploy the integration
+                                    </VSCodeLink>{" "}
+                                    or <VSCodeLink onClick={handleLinkWorkspace}>associate the workspace</VSCodeLink>{" "}
+                                    with a WSO2 Cloud project to connect to services and databases running there.
+                                </IntroText>
+                            )}
+                        </Section>
+                    )
+                ))}
 
             <Section>
                 <SectionHeader>
