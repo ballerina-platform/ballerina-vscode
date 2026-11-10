@@ -137,7 +137,9 @@ export default function createTests() {
             await popup.locator('[data-testid="type-create-save"]').last().click({ force: true });
 
             logStep('Verifying the new type was auto-assigned to the field');
-            const fieldTypeInput = artifactWebView.getByRole('textbox', { name: 'Text field' }).last();
+            // The type field's modifier toggles sit inside it and give it their text as its accessible name, so the
+            // input is found through the field itself
+            const fieldTypeInput = typeField.locator('input');
             await expect(fieldTypeInput).toHaveValue(addressName, { timeout: 15000 });
 
             logStep('Reopening the helper panel and selecting the created type');

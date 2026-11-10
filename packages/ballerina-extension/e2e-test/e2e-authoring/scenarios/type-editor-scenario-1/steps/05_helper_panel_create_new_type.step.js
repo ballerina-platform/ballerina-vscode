@@ -35,7 +35,7 @@
 
   // The popup closes and the new type is auto-assigned to the field
   await frame.locator('.unq-modal-overlay').first().waitFor({ state: 'detached', timeout: 15000 }).catch(() => {});
-  const fieldValue = await frame.getByRole('textbox', { name: 'Text field' }).last().evaluate((el) => el.value);
+  const fieldValue = await typeField.locator('input').evaluate((el) => el.value);
   if (fieldValue !== 'Address') throw new Error(`expected field type "Address", got "${fieldValue}"`);
   console.log('field type auto-assigned: Address');
 
@@ -52,7 +52,7 @@
   const commitDeadline = Date.now() + 15000;
   let committed = '';
   while (Date.now() < commitDeadline) {
-    committed = await frame.getByRole('textbox', { name: 'Text field' }).last().evaluate((el) => el.value);
+    committed = await typeField.locator('input').evaluate((el) => el.value);
     if (committed === 'Address') break;
     await window.waitForTimeout(500);
   }
