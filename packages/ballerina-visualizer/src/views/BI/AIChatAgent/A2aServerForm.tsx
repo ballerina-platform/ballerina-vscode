@@ -16,12 +16,13 @@
  * under the License.
  */
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { AgentKind } from "@wso2/ballerina-core";
 import { Banner } from "@wso2/ui-toolkit";
 import { RelativeLoader } from "../../../components/RelativeLoader";
 import { ServiceCreationView } from "../ServiceDesigner/ServiceCreationView";
+import { GenerateSkillsLink } from "./GenerateSkillsLink";
 
 export interface A2aServerFormProps {
     projectPath: string;
@@ -65,6 +66,11 @@ export function A2aServerForm(props: A2aServerFormProps) {
         };
     }, [agentName, agentOrgName, agentKind]);
 
+    const addons = useMemo(
+        () => ({ skills: <GenerateSkillsLink projectPath={projectPath} agentName={agentName} /> }),
+        [projectPath, agentName]
+    );
+
     if (!checked) {
         return <RelativeLoader />;
     }
@@ -83,6 +89,7 @@ export function A2aServerForm(props: A2aServerFormProps) {
             agentName={agentName}
             agentOrgName={agentOrgName}
             agentKind={agentKind}
+            fieldAddons={addons}
         />
     );
 }

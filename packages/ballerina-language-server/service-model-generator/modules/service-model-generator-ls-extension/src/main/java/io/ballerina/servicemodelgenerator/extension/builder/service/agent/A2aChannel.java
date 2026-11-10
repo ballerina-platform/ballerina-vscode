@@ -56,7 +56,6 @@ public class A2aChannel implements AgentTriggerChannel {
     static final String PROVIDER = "providerOrganization";
     static final String PROVIDER_URL = "providerUrl";
     static final String PROVIDER_EMAIL = "providerEmail";
-    static final String SKILLS_SUMMARY = "skillsSummary";
     static final String OUTPUT_MODES = "outputModes";
     static final String TEXT_MODE = "text";
     static final String DOCUMENTATION_URL = "documentationUrl";
@@ -217,10 +216,8 @@ public class A2aChannel implements AgentTriggerChannel {
         model.addProperty(CARD_DESCRIPTION, text("Description",
                 "Calling agents read this to decide whether to delegate.", defaults.description()));
         model.addProperty(CARD_VERSION, text("Version", "The version of this agent.", A2aAgentCard.DEFAULT_VERSION));
-        model.addProperty(SKILLS, hidden("Skills", A2aAgentCard.skillsToJson(defaults.skills())));
-        model.addProperty(SKILLS_SUMMARY, readOnly("Skills", "What the card advertises, generated from the agent. "
-                + "Change the skills in the generated card.", Value.FieldType.DOC_TEXT,
-                skillsSummary(defaults.skills())));
+        model.addProperty(SKILLS, textSet("Skills", "What callers can ask this agent for, one per entry as "
+                + "'Name: description'. The card advertises them; leave it empty to advertise none."));
         model.addProperty(INPUT_MODES, select("Input Modes", "What callers may send to the agent.",
                 List.of(TEXT_MODE)));
         model.addProperty(OUTPUT_MODES, select("Output Modes", "What the agent replies with.",
@@ -304,7 +301,7 @@ public class A2aChannel implements AgentTriggerChannel {
         String card = A2aAgentCard.cardLiteral(name.isBlank() ? A2aAgentCard.humanize(agent) : name,
                 context.formValue(CARD_DESCRIPTION),
                 valueOr(context.formValue(CARD_VERSION), A2aAgentCard.DEFAULT_VERSION),
-                A2aAgentCard.skillsFromJson(context.formValue(SKILLS)), extras(context), "    ");
+                A2aAgentCard.skillsFromLines(context.formList(SKILLS)), extras(context), "    ");
         boolean streaming = enabled(context.formValue(STREAMING));
         boolean push = enabled(context.formValue(PUSH_NOTIFICATIONS));
         String resources = SEND + (streaming ? STREAM : "") + TASKS + (push ? PUSH : "");
@@ -372,22 +369,17 @@ public class A2aChannel implements AgentTriggerChannel {
                 .build();
     }
 
-    private static Value readOnly(String label, String description, Value.FieldType type, String value) {
+    private static Value textSet(String label, String description) {
         List<PropertyType> types = new ArrayList<>();
-        types.add(PropertyType.types(type, "string"));
+        types.add(PropertyType.types(Value.FieldType.TEXT_SET, "string"));
         return new Value.ValueBuilder()
                 .metadata(label, description)
                 .types(types)
                 .enabled(true)
-                .editable(false)
+                .editable(true)
                 .optional(true)
-                .value(value)
+                .setValues(new ArrayList<Object>())
                 .build();
-    }
-
-    private static String skillsSummary(List<A2aAgentCard.Skill> skills) {
-        return skills.stream().map(skill -> skill.name() + ": " + skill.description())
-                .reduce((first, second) -> first + "\n" + second).orElse("");
     }
 
     private static Value flag(String label, String description, String value) {

@@ -18,6 +18,7 @@
 
 package io.ballerina.servicemodelgenerator.extension.builder.service;
 
+import com.google.gson.JsonArray;
 import io.ballerina.compiler.syntax.tree.CaptureBindingPatternNode;
 import io.ballerina.compiler.syntax.tree.CheckExpressionNode;
 import io.ballerina.compiler.syntax.tree.ExplicitNewExpressionNode;
@@ -442,6 +443,13 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
             String value = field.getValue();
             if (value != null && !value.isBlank()) {
                 flat.putIfAbsent(entry.getKey(), value);
+            }
+            List<String> listed = field.getValues();
+            if (listed != null && !listed.isEmpty()) {
+                // A list is also kept whole, since joining it into `value` loses where one item ends.
+                JsonArray items = new JsonArray();
+                listed.forEach(items::add);
+                flat.putIfAbsent(entry.getKey() + AgentTriggerContext.LIST_SUFFIX, items.toString());
             }
             collect(selectedBranch(field), flat);
             List<Value> choices = field.getChoices();

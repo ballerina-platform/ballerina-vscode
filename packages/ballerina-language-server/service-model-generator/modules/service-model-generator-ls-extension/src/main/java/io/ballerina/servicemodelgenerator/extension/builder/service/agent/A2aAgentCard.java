@@ -18,10 +18,6 @@
 
 package io.ballerina.servicemodelgenerator.extension.builder.service.agent;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import io.ballerina.projects.DocumentId;
 import io.ballerina.projects.Module;
 import io.ballerina.projects.Project;
@@ -51,11 +47,14 @@ final class A2aAgentCard {
             Pattern.compile("listener\\s+[\\w:]+\\s+\\w+\\s*=\\s*new\\s*\\(\\s*(?:listenOn\\s*=\\s*)?(\\d{2,5})");
     private static final Pattern PORT_IN_CONFIGURABLE =
             Pattern.compile("configurable\\s+int\\s+\\w+\\s*=\\s*(\\d{2,5})");
+    private static final Pattern STRING_TEMPLATE = Pattern.compile("^string\\s*`(.*)`$", Pattern.DOTALL);
+    private static final Pattern RAW_TEMPLATE = Pattern.compile("^`(.*)`$", Pattern.DOTALL);
+    private static final Pattern STRING_LITERAL = Pattern.compile("^\"(.*)\"$", Pattern.DOTALL);
 
     record Skill(String id, String name, String description, List<String> tags, List<String> examples) {
     }
 
-    record Defaults(String name, String description, List<Skill> skills) {
+    record Defaults(String name, String description) {
     }
 
     private A2aAgentCard() {
@@ -84,8 +83,7 @@ final class A2aAgentCard {
         String lead = instructions != null && !instructions.isBlank() ? firstSentence(instructions)
                 : "An agent that works as " + base + ".";
 
-        List<Skill> skills = List.of(new Skill(kebab(base), base, lead, List.of(), List.of()));
-        return new Defaults(name, lead, skills);
+        return new Defaults(name, lead);
     }
 
     static String findAgentArguments(String agentVar, List<String> sources) {
@@ -192,51 +190,52 @@ final class A2aAgentCard {
     }
 
 
-    static String skillsToJson(List<Skill> skills) {
-        JsonArray array = new JsonArray();
-        for (Skill s : skills) {
-            JsonObject o = new JsonObject();
-            o.addProperty("id", s.id());
-            o.addProperty("name", s.name());
-            o.addProperty("description", s.description());
-            o.add("tags", strings(s.tags()));
-            o.add("examples", strings(s.examples()));
-            array.add(o);
-        }
-        return array.toString();
-    }
-
-    static List<Skill> skillsFromJson(String json) {
+    /**
+     * Reads the skills a user wrote, one per line as {@code Name: description}. The id is the name in kebab case.
+     * A line without a colon is a name alone, and its description is the name; blank lines are skipped.
+     *
+     * @param lines the entries of the Skills field
+     * @return the skills, in the order written
+     */
+    static List<Skill> skillsFromLines(List<String> lines) {
         List<Skill> skills = new ArrayList<>();
-        if (json == null || json.isBlank()) {
-            return skills;
-        }
-        for (JsonElement e : JsonParser.parseString(json).getAsJsonArray()) {
-            JsonObject o = e.getAsJsonObject();
-            skills.add(new Skill(text(o, "id"), text(o, "name"), text(o, "description"),
-                    list(o, "tags"), list(o, "examples")));
+        for (String line : lines) {
+            String entry = line == null ? "" : plainText(line);
+            if (entry.isEmpty()) {
+                continue;
+            }
+            int colon = entry.indexOf(':');
+            String name = (colon < 0 ? entry : entry.substring(0, colon)).strip();
+            String description = colon < 0 ? "" : entry.substring(colon + 1).strip();
+            if (name.isEmpty()) {
+                continue;
+            }
+            skills.add(new Skill(kebab(name), name, description.isEmpty() ? name : description,
+                    List.of(), List.of()));
         }
         return skills;
     }
 
-    private static JsonArray strings(List<String> values) {
-        JsonArray a = new JsonArray();
-        values.forEach(a::add);
-        return a;
-    }
-
-    private static String text(JsonObject o, String key) {
-        return o.has(key) && !o.get(key).isJsonNull() ? o.get(key).getAsString() : "";
-    }
-
-    private static List<String> list(JsonObject o, String key) {
-        List<String> values = new ArrayList<>();
-        if (o.has(key) && o.get(key).isJsonArray()) {
-            o.getAsJsonArray(key).forEach(v -> values.add(v.getAsString()));
+    /**
+     * The text the user typed. The form keeps each entry of a list as a Ballerina expression: a string template, as
+     * {@code string `text`}, a raw template or a quoted string. A bare entry is taken as it is.
+     */
+    static String plainText(String entry) {
+        String text = entry.strip();
+        Matcher template = STRING_TEMPLATE.matcher(text);
+        if (template.matches()) {
+            return template.group(1).replace("${\"${\"}", "${").replace("${\"`\"}", "`").strip();
         }
-        return values;
+        Matcher raw = RAW_TEMPLATE.matcher(text);
+        if (raw.matches()) {
+            return raw.group(1).strip();
+        }
+        Matcher literal = STRING_LITERAL.matcher(text);
+        if (literal.matches()) {
+            return literal.group(1).replace("\\\"", "\"").replace("\\\\", "\\").strip();
+        }
+        return text;
     }
-
 
     static String quote(String value) {
         StringBuilder out = new StringBuilder("\"");

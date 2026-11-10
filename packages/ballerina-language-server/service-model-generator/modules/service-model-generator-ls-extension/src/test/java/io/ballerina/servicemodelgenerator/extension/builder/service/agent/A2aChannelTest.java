@@ -95,7 +95,10 @@ public class A2aChannelTest {
                 Value.FieldType.FLAG);
         Assert.assertEquals(properties.get(A2aChannel.PORT).getTypes().getFirst().fieldType(),
                 Value.FieldType.NUMBER);
-        Assert.assertTrue(properties.get(A2aChannel.SKILLS).isHidden());
+        Value skills = properties.get(A2aChannel.SKILLS);
+        Assert.assertEquals(skills.getTypes().getFirst().fieldType(), Value.FieldType.TEXT_SET);
+        Assert.assertTrue(skills.isEditable());
+        Assert.assertFalse(skills.isHidden());
         for (String key : List.of(A2aChannel.PROVIDER, A2aChannel.PROVIDER_URL, A2aChannel.PROVIDER_EMAIL,
                 A2aChannel.DOCUMENTATION_URL, A2aChannel.ICON_URL, A2aChannel.PUBLIC_URL)) {
             Assert.assertTrue(properties.get(key).isAdvanced(), key + " is an advanced option");
@@ -105,11 +108,53 @@ public class A2aChannelTest {
     }
 
     @Test
-    public void testTheFormShowsWhatItGeneratesWithoutAskingForIt() {
-        Map<String, Value> properties = form("tripPlanner", List.of(AGENTS)).getProperties();
-        Value summary = properties.get(A2aChannel.SKILLS_SUMMARY);
-        Assert.assertFalse(summary.isEditable());
-        Assert.assertTrue(summary.getValue().startsWith("Trip Planner: Plan a short"), summary.getValue());
+    public void testTheSkillsStartEmptyBecauseTheyCannotBeReadFromTheAgent() {
+        Value skills = form("tripPlanner", List.of(AGENTS)).getProperties().get(A2aChannel.SKILLS);
+        Assert.assertTrue(skills.getValuesAsObjects().isEmpty());
+        String code = generate(form("tripPlanner", List.of(AGENTS)), "import ballerina/ai;\n");
+        Assert.assertTrue(code.contains("skills: []"), code);
+    }
+
+    @Test
+    public void testTheSkillsTheUserWroteGoOnTheCard() {
+        ServiceInitModel model = form("tripPlanner", List.of(AGENTS));
+        model.getProperties().get(A2aChannel.SKILLS).setValues(List.of(
+                "Trip planning: Plans a one-day itinerary, with meals, for a city you name",
+                "  ",
+                "Weather check"));
+        String code = generate(model, "import ballerina/ai;\n");
+        Assert.assertTrue(code.contains("id: \"trip-planning\""), code);
+        Assert.assertTrue(code.contains("name: \"Trip planning\""), code);
+        Assert.assertTrue(code.contains(
+                "description: \"Plans a one-day itinerary, with meals, for a city you name\""), code);
+        Assert.assertTrue(code.contains("id: \"weather-check\""), code);
+        Assert.assertEquals(code.split("id: \"").length - 1, 2, "the blank entry is skipped: " + code);
+    }
+
+    @Test
+    public void testTheSkillsAreReadFromTheExpressionsTheFormKeeps() {
+        List<A2aAgentCard.Skill> skills = A2aAgentCard.skillsFromLines(List.of(
+                "string `Weekend planning: Plans a weekend`",
+                "`Weather: Forecasts for a city`",
+                "\"Greeting: Says \\\"hi\\\"\"",
+                "string `Quotes: Handles ${\"`\"}ticks${\"`\"}`"));
+        Assert.assertEquals(skills.size(), 4);
+        Assert.assertEquals(skills.get(0).name(), "Weekend planning");
+        Assert.assertEquals(skills.get(0).description(), "Plans a weekend");
+        Assert.assertEquals(skills.get(1).name(), "Weather");
+        Assert.assertEquals(skills.get(2).description(), "Says \"hi\"");
+        Assert.assertEquals(skills.get(3).description(), "Handles `ticks`");
+    }
+
+    @Test
+    public void testASkillLineIsNameThenDescriptionAtTheFirstColon() {
+        List<A2aAgentCard.Skill> skills = A2aAgentCard.skillsFromLines(List.of(
+                "Currency: converts: USD to EUR, at today's rate", "Greeting", ": no name", ""));
+        Assert.assertEquals(skills.size(), 2);
+        Assert.assertEquals(skills.get(0).name(), "Currency");
+        Assert.assertEquals(skills.get(0).description(), "converts: USD to EUR, at today's rate");
+        Assert.assertEquals(skills.get(1).name(), "Greeting");
+        Assert.assertEquals(skills.get(1).description(), "Greeting");
     }
 
     @Test
@@ -145,15 +190,12 @@ public class A2aChannelTest {
         A2aAgentCard.Defaults defaults = A2aAgentCard.derive("tripPlanner", List.of(AGENTS));
         Assert.assertEquals(defaults.name(), "Trip Planner Agent");
         Assert.assertEquals(defaults.description(), "Plan a short, one-day itinerary for the city the user names.");
-        Assert.assertEquals(defaults.skills().size(), 1);
-        Assert.assertEquals(defaults.skills().get(0).id(), "trip-planner");
     }
 
     @Test
     public void testAnAgentWeCannotReadStillGetsACard() {
         A2aAgentCard.Defaults defaults = A2aAgentCard.derive("assistantAgent", List.of());
         Assert.assertEquals(defaults.name(), "Assistant Agent");
-        Assert.assertEquals(defaults.skills().size(), 1);
     }
 
     @Test
