@@ -19,14 +19,18 @@
 // L1: managed connections go to the managed-token-service through WSO2 Integrator's
 // API; only GETs are retried, and failures carry the service's HTTP status.
 
+import type { CloudAccess } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
 import { CloudError, ServerError } from "@wso2/wso2-cloud-client";
 import { exchangeManagedConnection, getManagedLibraries } from "../rpc-managers/platform-ext/managed-connections";
 
 const request = jest.fn();
 let connected = true;
+let access: CloudAccess = "connected";
 
 jest.mock("../utils/cloud-auth", () => ({
+    describeCloudAccess: jest.requireActual("../utils/cloud-auth").describeCloudAccess,
     getPlatformGate: async () => ({}),
+    readCloudAccess: async () => access,
     withPlatformAPI: async (call: (api: unknown) => Promise<unknown>) => call(connected ? { request } : undefined),
 }));
 
@@ -35,6 +39,7 @@ describe("managed connections", () => {
         jest.useFakeTimers();
         request.mockReset();
         connected = true;
+        access = "connected";
         jest.spyOn(console, "warn").mockImplementation(() => undefined);
         jest.spyOn(console, "error").mockImplementation(() => undefined);
     });
@@ -80,7 +85,15 @@ describe("managed connections", () => {
 
     it("says to sign in when there is no session", async () => {
         connected = false;
-        await expect(getManagedLibraries()).rejects.toThrow("Not signed in to WSO2 Cloud. Please sign in to use managed connections.");
+        access = "signed-out";
+        await expect(getManagedLibraries()).rejects.toThrow("Not signed in to WSO2 Cloud. Sign in to continue. Managed connections need WSO2 Cloud.");
+        expect(request).not.toHaveBeenCalled();
+    });
+
+    it("says Ballerina is not allowed when signed in without access", async () => {
+        connected = false;
+        access = "no-access";
+        await expect(getManagedLibraries()).rejects.toThrow("Ballerina is not allowed to use that sign-in yet.");
         expect(request).not.toHaveBeenCalled();
     });
 });
