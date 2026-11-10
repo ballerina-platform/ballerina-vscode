@@ -960,7 +960,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
 
     const handleFormChange = useCallback(
         (fieldKey: string, value: any, allValues: FormValues) => {
-            setFormDiagnostics(prev => prev.length > 0 ? [] : prev);
+            // Not cleared here: editors report normalized values on mount; blur and save validation refresh the banner
             void retypeDependentFields(fieldKey, value);
             onChange?.(fieldKey, value, allValues);
         },
@@ -1336,7 +1336,8 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             if (response.flowNode) {
                 return response.flowNode as FlowNode;
             }
-            return node;
+            // No LS verdict: the node passed in still carries the diagnostics it opened with
+            return null;
         } catch (error) {
             console.error(">>> Error getting form diagnostics", error);
             return null;
