@@ -20,6 +20,7 @@ import * as path from 'path';
 import { parse, stringify } from '@iarna/toml';
 import { TracingProvider } from '@wso2/ballerina-core';
 import { OTLP_PORT } from './constants';
+import { detectEol } from '../ai/utils/eol-utils';
 
 // Tracing provider bundled with the Ballerina runtime from 2201.14.0 onwards; no import is needed.
 const TRACING_PROVIDER = 'otel';
@@ -178,7 +179,7 @@ export async function setTracingConfig(workspaceDir: string, provider: TracingPr
 
     // Ensure file ends with newline
     if (!updatedContent.endsWith('\n')) {
-        updatedContent += '\n';
+        updatedContent += detectEol(updatedContent);
     }
 
     // Write the updated content to Config.toml
@@ -210,7 +211,7 @@ export async function setTracingConfig(workspaceDir: string, provider: TracingPr
     
     // Ensure file ends with newline
     if (!ballerinaTomlContent.endsWith('\n')) {
-        ballerinaTomlContent += '\n';
+        ballerinaTomlContent += detectEol(ballerinaTomlContent);
     }
     
     // Write the updated content to Ballerina.toml
@@ -242,7 +243,8 @@ export function updateOrAddSection(
     content: string, sectionName: string, values: Record<string, any>, saveReplaced = false
 ): string {
     const sectionHeader = `[${sectionName}]`;
-    const lines = content.split('\n');
+    const eol = detectEol(content);
+    const lines = content.split(/\r?\n/);
     const sectionStartIndex = lines.findIndex(line => line.trim() === sectionHeader);
 
     // Build formatted key=value lines for the new values
@@ -313,7 +315,7 @@ export function updateOrAddSection(
             sectionHeader,
             ...updatedLines,
             ...lines.slice(sectionEndIndex),
-        ].join('\n');
+        ].join(eol);
     }
 
     // Section doesn't exist - strip trailing blank lines and append new section
@@ -328,7 +330,7 @@ export function updateOrAddSection(
         lines.push(formatEntry(key, value));
     }
 
-    return lines.join('\n');
+    return lines.join(eol);
 }
 
 /**
@@ -414,7 +416,7 @@ export async function removeTracingConfig(workspaceDir: string): Promise<void> {
     // Clean up trailing newlines but ensure file ends with one
     updatedContent = updatedContent.trimEnd();
     if (updatedContent.length > 0 && !updatedContent.endsWith('\n')) {
-        updatedContent += '\n';
+        updatedContent += detectEol(updatedContent);
     }
     
     // Write the updated content to Config.toml
@@ -447,7 +449,7 @@ export async function removeTracingConfig(workspaceDir: string): Promise<void> {
     // Clean up trailing newlines but ensure file ends with one
     ballerinaTomlContent = ballerinaTomlContent.trimEnd();
     if (ballerinaTomlContent.length > 0 && !ballerinaTomlContent.endsWith('\n')) {
-        ballerinaTomlContent += '\n';
+        ballerinaTomlContent += detectEol(ballerinaTomlContent);
     }
     
     // Write the updated content to Ballerina.toml

@@ -327,7 +327,7 @@ export const stripCodeFences = (text: string): string => text.replace(CODE_FENCE
 
 // Same, for fields that must stay on a single line (tool descriptions are written into source).
 export const stripCodeFencesInline = (text: string): string =>
-    text.replace(CODE_FENCE_REGEX, "").replace(/\n/g, " ").trim();
+    text.replace(CODE_FENCE_REGEX, "").replace(/\r?\n/g, " ").trim();
 
 // Form keys of the "Requires Approval" control. The checkbox is the field itself; these two are
 // registered by the side-panel ApprovalEditor.

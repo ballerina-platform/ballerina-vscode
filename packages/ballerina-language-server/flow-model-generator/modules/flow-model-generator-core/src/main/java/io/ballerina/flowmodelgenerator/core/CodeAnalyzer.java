@@ -958,6 +958,8 @@ public class CodeAnalyzer extends NodeVisitor {
                         toolsData.add(new ToolData(toolName, getIcon(toolName), getToolDescription(toolName), type,
                                 requiresApproval, null));
                     }
+                } else if (element instanceof QualifiedNameReferenceNode qualifiedRef) {
+                    toolsData.add(importedToolData(qualifiedRef));
                 }
             }
             agentInfo.put(AiUtils.AGENT_TOOLS_KEY, toolsData);
@@ -5764,6 +5766,18 @@ public class CodeAnalyzer extends NodeVisitor {
         return Optional.empty();
     }
 
+    private ToolData importedToolData(QualifiedNameReferenceNode toolRef) {
+        Optional<FunctionSymbol> function = semanticModel.symbol(toolRef)
+                .filter(FunctionSymbol.class::isInstance)
+                .map(FunctionSymbol.class::cast);
+        String description = function.flatMap(FunctionSymbol::documentation)
+                .flatMap(Documentation::description)
+                .orElse("");
+        boolean requiresApproval = function.isPresent() && AiUtils.readRequiresApproval(function.get(), project);
+        String type = function.isPresent() && isAgentDelegationTool(function.get()) ? AGENT_TOOL_TYPE : null;
+        return new ToolData(toolRef.toSourceCode().trim(), "", description, type, requiresApproval, null);
+    }
+
     private String getToolDescription(String toolName) {
         for (Symbol symbol : semanticModel.moduleSymbols()) {
             if (symbol.kind() != SymbolKind.FUNCTION) {
@@ -5789,35 +5803,47 @@ public class CodeAnalyzer extends NodeVisitor {
 
     private boolean isAgentDelegationTool(FunctionSymbol functionSymbol) {
         Optional<Location> location = functionSymbol.getLocation();
-        if (location.isEmpty()) {
+        Optional<ModuleID> module = functionSymbol.getModule().map(ModuleSymbol::id);
+        if (location.isEmpty() || module.isEmpty()) {
             return false;
         }
-        Document document = CommonUtils.getDocument(project, location.get());
+        // An imported tool's location only resolves in the package and module that declare it.
+        Project owner = isCurrentPackage(module.get()) ? project
+                : AiUtils.findWorkspacePackage(module.get(), project).orElse(null);
+        Document document = owner == null ? null : CommonUtils.getDocument(owner, location.get());
         if (document == null) {
             return false;
         }
+        SemanticModel model =
+                PackageUtil.getCompilation(owner.currentPackage()).getSemanticModel(document.module().moduleId());
         NonTerminalNode node = ((ModulePartNode) document.syntaxTree().rootNode())
                 .findNode(location.get().textRange());
         while (node != null && !(node instanceof FunctionDefinitionNode)) {
             node = node.parent();
         }
-        return node != null && delegatesToAgentRun(((FunctionDefinitionNode) node).functionBody());
+        return node != null && delegatesToAgentRun(((FunctionDefinitionNode) node).functionBody(), model);
     }
 
-    private boolean delegatesToAgentRun(Node node) {
+    private boolean isCurrentPackage(ModuleID module) {
+        Package currentPackage = project.currentPackage();
+        return module.orgName().equals(currentPackage.packageOrg().value())
+                && module.packageName().equals(currentPackage.packageName().value());
+    }
+
+    private boolean delegatesToAgentRun(Node node, SemanticModel model) {
         if (!(node instanceof NonTerminalNode nonTerminal)) {
             return false;
         }
         if (node instanceof MethodCallExpressionNode methodCall
                 && methodCall.methodName().toString().trim().equals(RUN_METHOD)) {
-            Optional<TypeSymbol> receiverType = semanticModel.typeOf(methodCall.expression());
+            Optional<TypeSymbol> receiverType = model.typeOf(methodCall.expression());
             if (receiverType.isPresent() && CommonUtils.getRawType(receiverType.get()) instanceof ClassSymbol cls
                     && (isAgentClass(cls) || AiUtils.isTypedAgent(cls))) {
                 return true;
             }
         }
         for (Node child : nonTerminal.children()) {
-            if (delegatesToAgentRun(child)) {
+            if (delegatesToAgentRun(child, model)) {
                 return true;
             }
         }

@@ -1474,7 +1474,7 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
                                     <AddTool
                                         agentNode={agentNode}
                                         onCreateCustomTool={() => { setToolPanelBack(null); setToolPanel("CUSTOM"); }}
-                                        onUseConnection={() => { setToolPanelBack(null); setToolPanel("CONNECTION"); }}
+                                        onUseConnector={() => { setToolPanelBack(null); setToolPanel("CONNECTION"); }}
                                         onUseFunction={() => { setToolPanelBack(null); setToolPanel("FUNCTION"); }}
                                         onUseMcpServer={() => { setToolPanelBack(null); setToolPanel("MCP"); }}
                                         onUseAgent={openAgentToolPopup}

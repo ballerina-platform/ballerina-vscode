@@ -21,5 +21,9 @@ package io.ballerina.servicemodelgenerator.extension.model.request;
 import io.ballerina.servicemodelgenerator.extension.model.Codedata;
 import io.ballerina.servicemodelgenerator.extension.model.Function;
 
-public record FunctionSourceRequest(String filePath, Function function, Codedata codedata) {
+public record FunctionSourceRequest(String filePath, Function function, Codedata codedata, boolean formatted) {
+
+    public FunctionSourceRequest(String filePath, Function function, Codedata codedata) {
+        this(filePath, function, codedata, false);
+    }
 }

@@ -28,6 +28,7 @@ export interface AgentNodeActions {
     onSelectMcpToolkit?: (tool: ToolData, node: FlowNode) => void;
     onDeleteTool?: (tool: ToolData, node: FlowNode) => void;
     goToTool?: (tool: ToolData, node: FlowNode) => void;
+    canOpenTool?: (tool: ToolData) => boolean;
     onSelectMemoryManager?: (node: FlowNode) => void;
     onSelectMemoryStore?: (node: FlowNode) => void;
     onDeleteMemoryManager?: (node: FlowNode) => void;
