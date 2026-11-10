@@ -52,7 +52,7 @@ import { ArtifactsUpdated, ArtifactNotificationHandler } from './utils/project-a
 import { registerMigrateIntegrationRpcHandlers } from './rpc-managers/migrate-integration/rpc-handler';
 import { registerPlatformExtRpcHandlers } from './rpc-managers/platform-ext/rpc-handler';
 import { MigrationPanelWebview } from './views/migration-panel/webview';
-import { isRecording, recordRpc } from './test-support/fixtureRecorder';
+import { isRecording, recordRpc } from './utils/fixtureRecorder';
 import { chatStateStorage } from './views/ai-panel/chatStateStorage';
 import { shouldSuppressDisruptiveTransition } from './utils/state-machine-utils';
 

@@ -61,7 +61,8 @@ import { RelativeLoader } from "../../../components/RelativeLoader";
 import styled from "@emotion/styled";
 import { URI, Utils } from "vscode-uri";
 import { cloneDeep } from "lodash";
-import { buildAgentToolFields, buildApprovalToolData, buildRequiresApprovalField, collectLocalFunctionNames, createDefaultParameterValue, createRequiresApprovalField, createToolInputFields, createToolParameters, extractRecordTypeFields, extractRecordTypeFieldsFromEntries, prepareToolInputFields, stripCodeFences, stripCodeFencesInline } from "./formUtils";
+import { buildAgentToolFields, buildApprovalToolData, createDefaultParameterValue, createRequiresApprovalField, createToolInputFields, createToolParameters, extractRecordTypeFields, extractRecordTypeFieldsFromEntries, prepareToolInputFields, stripCodeFences, stripCodeFencesInline } from "./formUtils";
+import { createApprovalFunctionActions } from "./approvalFunctionActions";
 import { ImplementationBadge } from "../../../components/ImplementationBadge";
 import { FUNCTION_CALL, METHOD_CALL, REMOTE_ACTION_CALL, RESOURCE_ACTION_CALL } from "../../../constants";
 import { NewToolSelectionMode } from "./NewTool";
@@ -493,10 +494,11 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
     const parameterFieldsRef = useRef<ToolParameterItem[]>([]);
     const oauthConfigPropertiesRef = useRef<{ key: string; property: Property }[]>([]);
     const isSelectingNodeRef = useRef<boolean>(false);
-    // Names of existing module functions offered in the approval-predicate picker. Source of truth
-    // for the pick-vs-create decision at submit: a name in here is referenced as-is; a name NOT in
-    // here (free-typed) signals the LS to scaffold a new correctly-signed predicate.
-    const compatibleApprovalFunctionsRef = useRef<string[]>([]);
+    const approvalActions = useMemo(() => createApprovalFunctionActions(rpcClient), [rpcClient]);
+    // "Requires Approval" for the side panel: the add form opens over the panel, and the approval
+    // function mirrors the Tool Inputs (`parameters`).
+    const buildApprovalField = (baseName?: string, toolName?: string): FormField =>
+        createRequiresApprovalField(undefined, { presentation: "view", baseName, toolName, ...approvalActions });
 
     const handleCreateNode = useCreateNode(
         agentFilePath.current,
@@ -834,41 +836,6 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
             advanced: false,
         }));
 
-    // Fetch the project's own module-level functions (excluding the tool's own function, when it is
-    // one — connection-based tools have no local function to exclude) as approval-predicate
-    // candidates. Reuses the FUNCTION search with an empty queryMap, which returns the current
-    // module's functions; stdlib/imported/agent-tool categories are filtered out by the collector.
-    // Shared by both the "Use Function" and "Use Connection" tool-creation paths. Return-type/
-    // signature compatibility is verified by the compiler after generation.
-    // Returns `null` (rather than `[]`) when the fetch itself fails, so callers can tell "search
-    // failed" apart from "this project has no eligible functions" and fall back to the plain
-    // checkbox instead of silently offering a picker backed by an empty list. See
-    // formUtils.buildRequiresApprovalField for why that distinction matters.
-    const fetchCompatibleApprovalFunctions = async (toolFunctionSymbol?: string): Promise<string[] | null> => {
-        try {
-            const request: BISearchRequest = {
-                position: {
-                    startLine: targetRef.current.startLine,
-                    endLine: targetRef.current.endLine,
-                },
-                filePath: agentFilePath.current,
-                // Only local functions are collected, so the library sources are skipped.
-                queryMap: { q: "", limit: 0, offset: 0 },
-                searchKind: "FUNCTION",
-            };
-            const response = await rpcClient.getBIDiagramRpcClient().search(request);
-            const names = new Set<string>();
-            collectLocalFunctionNames((response?.categories ?? []) as (Category | AvailableNode)[], names);
-            if (toolFunctionSymbol) {
-                names.delete(toolFunctionSymbol);
-            }
-            return Array.from(names);
-        } catch (error) {
-            console.error(">>> Error fetching compatible approval functions", error);
-            return null;
-        }
-    };
-
     // getFunctionNode only searches the file it is given, and a project function can live in any file.
     const resolveFunctionFilePath = async (node: AvailableNode): Promise<string> => {
         if (node.codedata?.data?.moduleRelation !== "CURRENT_MODULE") {
@@ -952,12 +919,6 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
             const oauthRecordTypeFields = extractRecordTypeFieldsFromEntries(oauthProperties);
             setRecordTypeFields([...nodeRecordTypeFields, ...oauthRecordTypeFields]);
 
-            // Build the approval-predicate picker: fetch the project's module-level functions and keep
-            // the boolean-returning ones as candidates. Injected into the "Requires Approval" control's
-            // "On" branch so the picker sits under the checkbox; free-typed names drive the create path.
-            const approvalCandidates = await fetchCompatibleApprovalFunctions(node.codedata?.symbol);
-            compatibleApprovalFunctionsRef.current = approvalCandidates ?? [];
-
             setFields((prevFields) => [
                 ...prevFields.map((field) => {
                     if (field.key === "description") {
@@ -967,7 +928,7 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                         return { ...field, value: options.suggestedToolName };
                     }
                     if (field.key === "requiresApproval") {
-                        return buildRequiresApprovalField(field, approvalCandidates);
+                        return buildApprovalField(node.codedata?.symbol, options?.suggestedToolName);
                     }
                     return field;
                 }),
@@ -1046,10 +1007,6 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
 
             const groupedInputFields = buildGroupedInputFields(toolInputFields, nodeParameterFields);
 
-            // Same approval-predicate picker as the function-call path: fetch the project's
-            // module-level functions and inject them into the "Requires Approval" control.
-            const approvalCandidates = await fetchCompatibleApprovalFunctions();
-            compatibleApprovalFunctionsRef.current = approvalCandidates ?? [];
 
             setFields((prevFields) => {
                 const baseFields = prevFields.map((field) => {
@@ -1060,7 +1017,7 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                         return { ...field, value: options.suggestedToolName };
                     }
                     if (field.key === "requiresApproval") {
-                        return buildRequiresApprovalField(field, approvalCandidates);
+                        return buildApprovalField(options?.suggestedToolName, options?.suggestedToolName);
                     }
                     return field;
                 });
@@ -1476,11 +1433,10 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
         // Mark the tool as requiring human-in-the-loop approval. This rides along in codedata.data
         // (like `auth` above) and is rendered into the @ai:AgentTool annotation by the language
         // server. The gate is the checkbox itself, not the function field — unchecking it yields an
-        // empty object, so a function picked earlier and left registered can't leak (buildApprovalToolData
-        // reads the checkbox first), which matters since CheckBoxConditionalEditor doesn't clear the
-        // "on"-state sub-field on uncheck.
+        // empty object, so a function added earlier and left registered can't leak (buildApprovalToolData
+        // reads the checkbox first).
+        const approvalData = buildApprovalToolData(data);
         if (targetNode) {
-            const approvalData = buildApprovalToolData(data, compatibleApprovalFunctionsRef.current);
             if (Object.keys(approvalData).length > 0) {
                 targetNode.codedata.data = {
                     ...targetNode.codedata.data,

@@ -45,6 +45,7 @@ import { CompletionItem } from "@wso2/ui-toolkit";
 import { CustomDropdownEditor } from "./CustomDropdownEditor";
 import { SliderEditor } from "./SliderEditor";
 import { CheckBoxConditionalEditor } from "./CheckBoxConditionalEditor";
+import { ApprovalEditor } from "./ApprovalEditor";
 import { ActionTypeEditor } from "./ActionTypeEditor";
 import { AutoCompleteEditor } from "./AutoCompleteEditor";
 import { FormArrayEditorWrapper } from "./FormArrayEditorWrapper";
@@ -242,6 +243,8 @@ export const EditorFactory = (props: FormFieldEditorProps) => {
     } else if (fieldInputType.fieldType === "SERVICE_PATH" || fieldInputType.fieldType === "ACTION_PATH"
         || fieldInputType.fieldType === "RESOURCE_PATH" || fieldInputType.fieldType === "STRING_LITERAL") {
         return <PathEditor field={field} handleOnFieldFocus={handleOnFieldFocus} autoFocus={autoFocus} />;
+    } else if (fieldInputType.fieldType === "AGENT_TOOL_APPROVAL" && field.approvalConfig) {
+        return <ApprovalEditor field={field} />;
     } else if (fieldInputType.fieldType === "CONDITIONAL_FIELDS" && field.editable) {
         // Conditional fields is a group of fields which are conditionally shown based on a checkbox field
         return (

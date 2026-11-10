@@ -23,6 +23,7 @@ import { CodeData, EVENT_TYPE, FlowNode, MACHINE_VIEW, NodeMetadata, NodePositio
     from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { findFunctionByName } from "../FlowDiagram/utils";
+import { createApprovalFunctionActions } from "./approvalFunctionActions";
 import {
     findAgentScopedNode as findAgentScopedNodeAt,
     refreshAgentNodeLineRange,
@@ -72,6 +73,7 @@ const memoryStoreNameOf = (node?: FlowNode): string | undefined =>
 
 export function useAgentEditorController(host: AgentEditorHost): AgentEditorController {
     const { rpcClient } = useRpcContext();
+    const approvalActions = useMemo(() => createApprovalFunctionActions(rpcClient), [rpcClient]);
     const [view, setView] = useState<AgentEditorView>("NONE");
     const [agentNode, setAgentNode] = useState<FlowNode>();
     const [memoryNode, setMemoryNode] = useState<FlowNode>();
@@ -278,6 +280,21 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
                 await deleteMcpVariableAndClass(tool);
                 return;
             }
+            // Read the tool's approval function before the tool's annotation goes away with it.
+            const approvalFunction = await approvalActions.approvalFunctionOfTool(
+                tool.name, node.codedata?.lineRange?.fileName || "agents.bal", host.projectPath
+            );
+            // Deleting the tool also deletes its approval function, and any logic written in it, so ask first.
+            if (approvalFunction) {
+                const answer = await rpcClient.getCommonRpcClient().showInformationModal({
+                    message: `Delete ${tool.name}?`,
+                    detail: `Its approval function ${approvalFunction} is deleted too, unless another tool uses it.`,
+                    items: ["Delete"],
+                });
+                if (answer !== "Delete") {
+                    return;
+                }
+            }
             const updated = await removeToolFromAgentNode(node, tool.name);
             if (updated) {
                 await refreshAgentNodeLineRange(updated, rpcClient);
@@ -298,6 +315,10 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
                     },
                 });
             }
+            // The approval function exists for this tool; delete it too unless another tool still uses it.
+            if (approvalFunction) {
+                await approvalActions.deleteIfUnused(approvalFunction);
+            }
             nextPosition = await resolveAgentNodePosition(node, rpcClient);
         } catch (error) {
             console.error("Failed to delete tool", error);
@@ -308,7 +329,7 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
             setLoading(false);
             close(nextPosition);
         }
-    }, [activate, close, deleteMcpVariableAndClass, resolveToolComponent, rpcClient]);
+    }, [activate, approvalActions, close, deleteMcpVariableAndClass, host.projectPath, resolveToolComponent, rpcClient]);
 
     const resolve = useCallback(
         (node: FlowNode) => (host.resolveAgentNode ? host.resolveAgentNode(node) : node),

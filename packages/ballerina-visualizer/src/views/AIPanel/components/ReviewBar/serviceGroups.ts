@@ -16,13 +16,17 @@
  * under the License.
  */
 
-import { NodeKindEnum, SemanticDiff } from "@wso2/ballerina-core";
+import { NodeKindEnum, ObjectFunctionMetadata, SemanticDiff } from "@wso2/ballerina-core";
 
 export interface ServiceGroupInfo {
     key: string;
     /** e.g. "http"; absent when the LS couldn't tell or is too old to send it. */
     serviceType?: string;
     displayPath: string;
+    /** e.g. "orderListener"; absent for an inline listener or an older LS. */
+    listeners?: string;
+    /** Set by {@link qualifyServiceGroups} when the header alone is ambiguous. */
+    qualifier?: string;
 }
 
 /**
@@ -33,12 +37,53 @@ export function getServiceGroupInfo(diff: SemanticDiff): ServiceGroupInfo | unde
     if (diff.nodeKind !== NodeKindEnum.OBJECT_FUNCTION) {
         return undefined;
     }
-    const m = diff.metadata as { servicePath?: string; serviceType?: string } | undefined;
+    const m = diff.metadata as ObjectFunctionMetadata | undefined;
     if (m?.servicePath === undefined) {
         return undefined;
     }
     const serviceType = m.serviceType || undefined;
-    // Untyped, "/" keeps the header from being just "service"; typed, a path-less one reads "solace service".
-    const displayPath = m.servicePath || (serviceType ? "" : "/");
-    return { key: `${serviceType ?? ""} ${m.servicePath}`, serviceType, displayPath };
+    const listeners = m.serviceListeners || undefined;
+    // Without a type or a listener name, "/" keeps the header from being a bare "service"
+    const displayPath = m.servicePath || (serviceType || listeners ? "" : "/");
+    // An older LS sends no serviceId
+    const key = m.serviceId || `${serviceType ?? ""} ${m.servicePath}`;
+    return { key, serviceType, displayPath, listeners };
+}
+
+export function getServiceGroupTitle(service: ServiceGroupInfo): string {
+    return [service.serviceType ? `${service.serviceType} service` : "service", service.displayPath, service.qualifier]
+        .filter(Boolean)
+        .join(" ");
+}
+
+/**
+ * Qualifies headers that are shared, or a bare "service": first with the listeners, then with a number.
+ */
+export function qualifyServiceGroups(services: ServiceGroupInfo[]): void {
+    const shared = titlesSharedBy(services);
+    for (const service of services) {
+        const ambiguous = shared.has(getServiceGroupTitle(service)) || (!service.serviceType && !service.displayPath);
+        if (ambiguous && service.listeners) {
+            service.qualifier = `on ${service.listeners}`;
+        }
+    }
+    const stillShared = titlesSharedBy(services);
+    const seen = new Map<string, number>();
+    for (const service of services) {
+        const title = getServiceGroupTitle(service);
+        if (stillShared.has(title)) {
+            const n = (seen.get(title) ?? 0) + 1;
+            seen.set(title, n);
+            service.qualifier = [service.qualifier, `(${n})`].filter(Boolean).join(" ");
+        }
+    }
+}
+
+function titlesSharedBy(services: ServiceGroupInfo[]): Set<string> {
+    const counts = new Map<string, number>();
+    for (const service of services) {
+        const title = getServiceGroupTitle(service);
+        counts.set(title, (counts.get(title) ?? 0) + 1);
+    }
+    return new Set([...counts].filter(([, count]) => count > 1).map(([title]) => title));
 }

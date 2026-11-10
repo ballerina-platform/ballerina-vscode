@@ -19,7 +19,8 @@
 import { useRef } from "react";
 import { startCase } from "lodash";
 import { FormField } from "../Form/types";
-import { ExpressionProperty, getPrimaryInputType, InputType, RecordTypeField } from "@wso2/ballerina-core";
+import { CodeData, ExpressionProperty, getPrimaryInputType, InputType, LinePosition, RecordTypeField } from "@wso2/ballerina-core";
+import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
 import { InputMode } from "../..";
 import { EditorMode } from "./ExpandedEditor";
 import { EXPANDABLE_MODES } from "./ExpandedEditor/modes/types";
@@ -107,6 +108,28 @@ export const buildRequiredRepeatableRule = ({ isRequired, label }: RequiredRuleO
  */
 export const getArrayElementValues = (elements: unknown[]): string[] => {
     return elements.map((element: any) => (typeof element === "string" ? element : String(element?.value ?? "")));
+};
+
+/**
+ * The input modes of an element of a repeatable list.
+ * - An element the language server sent carries its own modes, with the one that fits its value selected. They are
+ *   kept.
+ * - An element read back from text, such as the value of the expression mode, has a value but no modes. It opens as
+ *   an expression, as the language server opens an element of a list in the source. The template's selected mode
+ *   could change its meaning: the SQL mode would save `q1` as the query `` `q1` ``.
+ * - A new, empty element takes the list's template, whose selected mode suits an empty value (an SQL query for
+ *   `sql:ParameterizedQuery[]`).
+ */
+export const getArrayElementTypes = (element: unknown, value: string, templateTypes: InputType[]): InputType[] => {
+    const elementTypes = (element as { types?: unknown })?.types;
+    if (Array.isArray(elementTypes) && elementTypes.length > 0) {
+        return elementTypes as InputType[];
+    }
+    const expressionIndex = templateTypes.findIndex((type) => type.fieldType === "EXPRESSION");
+    if (!value?.trim() || expressionIndex < 0) {
+        return templateTypes;
+    }
+    return templateTypes.map((type, index) => ({ ...type, selected: index === expressionIndex }));
 };
 
 /**
@@ -468,5 +491,46 @@ export const mapDiagnosticsServerityToFormSeverity = (severity: 1 | 2 | 3 | 4) =
             return "WARNING";
         default:
             return "INFO";
-    }       
-}    
+    }
+}
+
+export type IdentifierDiagnostic = { message: string; severity: ReturnType<typeof mapDiagnosticsServerityToFormSeverity> };
+
+/**
+ * Asks the language server whether a name is valid for an identifier property: a Ballerina identifier, not a
+ * reserved keyword, and, for the property's scope, not already declared. Returns the first diagnostic and the
+ * first error, both reworded by {@link getFriendlyIdentifierMessage}; empty when the name is valid.
+ */
+export async function fetchIdentifierDiagnostics(
+    rpcClient: BallerinaRpcClient,
+    request: {
+        filePath: string;
+        startLine: LinePosition;
+        value: string;
+        property: ExpressionProperty;
+        codedata?: CodeData;
+        label?: string;
+    }
+): Promise<{ first?: IdentifierDiagnostic; firstError?: IdentifierDiagnostic }> {
+    const response = await rpcClient.getBIDiagramRpcClient().getExpressionDiagnostics({
+        filePath: request.filePath,
+        context: {
+            expression: request.value,
+            startLine: request.startLine,
+            offset: 0,
+            lineOffset: 0,
+            codedata: request.codedata,
+            property: request.property,
+        },
+    });
+    const diagnostics = response?.diagnostics ?? [];
+    const toDiagnostic = (diagnostic?: (typeof diagnostics)[number]): IdentifierDiagnostic | undefined =>
+        diagnostic && {
+            message: getFriendlyIdentifierMessage(diagnostic.message, request.label),
+            severity: mapDiagnosticsServerityToFormSeverity(diagnostic.severity),
+        };
+    return {
+        first: toDiagnostic(diagnostics[0]),
+        firstError: toDiagnostic(diagnostics.find((diagnostic) => diagnostic.severity === 1)),
+    };
+}

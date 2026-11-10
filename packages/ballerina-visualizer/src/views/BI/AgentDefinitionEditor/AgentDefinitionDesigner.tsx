@@ -477,6 +477,8 @@ function AgentDefinitionAgentToolForm(props: AgentDefinitionAgentToolFormProps):
             agentReceiver={`self.${currentAgentName}`}
             agentLabel={currentAgentClassName}
             hostClass={hostClass}
+            // Hosted in AddAgentPopup, which sits above the side panel the "view" add form opens in.
+            approvalPresentation="inline"
             submitText="Add Tool"
             artifactData={{ artifactType: DIRECTORY_MAP.AGENT_DEFINITION }}
             onBeforeSave={async () => {
