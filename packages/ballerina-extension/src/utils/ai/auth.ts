@@ -21,7 +21,7 @@ import { extension } from "../../BalExtensionContext";
 import { DEVANT_TOKEN_EXCHANGE_URL } from '../../features/ai/utils';
 import { AuthCredentials, BIIntelSecrets, LoginMethod, AnthropicAwsSecrets } from '@wso2/ballerina-core';
 import type { TokenExchangeRequest } from '@wso2/wso2-cloud-client';
-import { type CloudSessionOptions, getPlatformGate, withPlatformAPI } from '../cloud-auth';
+import { type CloudSessionOptions, describeCloudAccess, getPlatformGate, readCloudAccess, withPlatformAPI } from '../cloud-auth';
 import { jwtDecode, JwtPayload } from 'jwt-decode';
 import { copilotName, WI_EXTENSION_ID } from '../config';
 
@@ -210,7 +210,8 @@ export const refreshCopilotToken = async (): Promise<BIIntelSecrets> => {
     }
     const secrets = await exchangeForCopilotToken();
     if (!secrets) {
-        throw new Error('Not signed in to WSO2 Cloud');
+        // Signed in but not allowed to use the sign-in is told apart from signed out.
+        throw new Error(describeCloudAccess(await readCloudAccess()));
     }
     return secrets;
 };

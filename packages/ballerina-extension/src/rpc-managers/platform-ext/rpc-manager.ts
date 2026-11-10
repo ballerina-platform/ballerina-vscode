@@ -127,7 +127,17 @@ import { BiDiagramRpcManager } from "../bi-diagram/rpc-manager";
 import { promptToAddConstruct } from "../../features/devant/add-construct-prompt";
 import { confirmListenerAlongside } from "../../features/devant/integration-type";
 import { updateSourceCode } from "../../utils";
-import { type CloudSessionOptions, connectPlatformAPI, inspectPlatformAPI, onDidChangeCloudSessions } from "../../utils/cloud-auth";
+import {
+    type CloudSessionOptions,
+    cloudAccessOf,
+    connectPlatformAPI,
+    describeCloudAccess,
+    inspectPlatformAPI,
+    onDidChangeCloudSessions,
+    readCloudAccess,
+    requestCloudAccess,
+} from "../../utils/cloud-auth";
+import type { CloudAccess } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
 import { getOrgPackageName } from "../../utils/config";
 
 /** Thrown for what WSO2 Cloud has no API for yet; a `NotSupportedError`, so `isCloudError` and the shared handlers know it. */
@@ -144,6 +154,32 @@ export class CloudFeatureUnavailableError extends NotSupportedError {
  * the connection screens' marketplace vocabulary is served through
  * `./v1-adapters`.
  */
+let missingAccessNoticeShown = false;
+
+/**
+ * Tells the person, once per window, that WSO2 Integrator is signed in but this
+ * extension may not use the sign-in. VS Code itself only adds a badge to the
+ * Accounts menu, which is easy to miss, and the cloud views would otherwise
+ * look signed out.
+ */
+function noticeMissingCloudAccess(access: CloudAccess | undefined, allow: () => Promise<unknown>): void {
+    if (access !== "no-access" || missingAccessNoticeShown) {
+        return;
+    }
+    missingAccessNoticeShown = true;
+    const allowAccess = "Allow Access";
+    void Promise.resolve(
+        vscode.window.showInformationMessage(
+            `${describeCloudAccess(access)} Allow it to use WSO2 Cloud connections and deployments here.`,
+            allowAccess
+        )
+    ).then((choice) => {
+        if (choice === allowAccess) {
+            return allow();
+        }
+    }).catch((error) => log(`Failed to ask for access to the WSO2 Cloud session: ${error}`));
+}
+
 export class PlatformExtRpcManager implements PlatformExtAPI {
     static platformGate: IWso2PlatformExtensionGate | undefined;
     /** Set once WSO2 Integrator was found to speak another contract version, so it is not asked again. */
@@ -216,9 +252,38 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
         }
         const platformExt = await connectPlatformAPI({ askAccess: true });
         if (!platformExt) {
-            throw new UnauthenticatedError("no_session");
+            // Signed in but not allowed is not "signed out": say which, and show it in the views.
+            const access = await readCloudAccess();
+            void this.refreshCloudAccess();
+            throw new UnauthenticatedError("no_session", describeCloudAccess(access));
         }
         return platformExt;
+    }
+
+    /** Signs in, or asks VS Code to let this extension use the session WSO2 Integrator holds, then follows the result. */
+    async requestCloudAccess(): Promise<CloudAccess> {
+        await requestCloudAccess();
+        await this.initSessionState(StateMachine.context()?.projectPath);
+        if (platformExtStore.getState().state?.cloudAccess === "connected") {
+            this.debouncedRefreshConnectionList();
+        }
+        return platformExtStore.getState().state?.cloudAccess ?? "signed-out";
+    }
+
+    /**
+     * Reads the session again without asking. VS Code announces no change when
+     * the person allows this extension from the Accounts menu, so the views ask
+     * for this when they open.
+     */
+    async refreshCloudAccess(): Promise<CloudAccess> {
+        const access = await readCloudAccess();
+        if (access && access !== platformExtStore.getState().state?.cloudAccess) {
+            await this.initSessionState(StateMachine.context()?.projectPath);
+            if (access === "connected") {
+                this.debouncedRefreshConnectionList();
+            }
+        }
+        return access ?? "signed-out";
     }
 
     /** What the store currently points at: the org handle, the project name, the integration and the environment. */
@@ -292,20 +357,37 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
     }
 
     private async initAuthState() {
-        const platformExt = await this.getPlatformExt();
-        const authState = platformExt?.getAuthState();
+        const gate = await this.getPlatformGate();
+        let platformExt: IWso2PlatformExtensionAPI | undefined;
+        let authState: ReturnType<IWso2PlatformExtensionAPI["getAuthState"]> | undefined;
+        let selectedContext: ContextItemEnriched | undefined;
+        try {
+            platformExt = await this.getPlatformExt();
+            authState = platformExt?.getAuthState();
+            selectedContext = platformExt?.getSelectedContext() ?? undefined;
+        } catch (error) {
+            // A key replaced while this ran: the session change that replaced it runs this again.
+            log(`Failed to read the WSO2 Cloud session from WSO2 Integrator: ${error}`);
+            platformExt = undefined;
+            authState = undefined;
+            selectedContext = undefined;
+        }
         const session = authState?.session ?? null;
-        const selectedContext = platformExt?.getSelectedContext() ?? undefined;
-        platformExtStore.getState().setState({ session, isLoggedIn: !!session && authState?.status === "signed-in", selectedContext });
+        const isLoggedIn = !!session && authState?.status === "signed-in";
+        const cloudAccess = gate ? cloudAccessOf(gate, isLoggedIn) : undefined;
+        platformExtStore.getState().setState({ session, isLoggedIn, cloudAccess, selectedContext });
+        noticeMissingCloudAccess(cloudAccess, () => this.requestCloudAccess());
         await this.refreshEnvironments(selectedContext);
         if (!platformExt) {
             return;
         }
 
         this.sessionSubscriptions.push(platformExt.subscribeAuthState((authState) => {
+            const isLoggedIn = !!authState.session && authState.status === "signed-in";
             platformExtStore.getState().setState({
                 session: authState.session,
-                isLoggedIn: !!authState.session && authState.status === "signed-in",
+                isLoggedIn,
+                cloudAccess: isLoggedIn ? "connected" : "signed-out",
             });
         }));
 

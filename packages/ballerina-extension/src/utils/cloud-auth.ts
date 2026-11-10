@@ -38,6 +38,7 @@ import {
     PLATFORM_EXTENSION_API_VERSION,
     isCloudError,
 } from "@wso2/wso2-cloud-client";
+import type { CloudAccess } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
 import { WSO2_CLOUD_AUTH_PROVIDER_ID, readCloudEnvName, scopeForEnv } from "@wso2/wso2-cloud-client/vscode";
 
 /** `publisher.name` of the WSO2 Integrator extension, which hosts the cloud features. */
@@ -121,6 +122,14 @@ export async function getCloudApiKey(options: CloudSessionOptions = {}): Promise
     return gate ? readApiKey(gate, options) : undefined;
 }
 
+/**
+ * Whether the person declined this extension's request for the session in
+ * this window. VS Code keeps no record of a declined request, so it is kept
+ * here, to tell the person why WSO2 Cloud is off rather than show them as
+ * signed out.
+ */
+let accessDeclined = false;
+
 async function readApiKey(gate: IWso2PlatformExtensionGate, options: CloudSessionOptions): Promise<string | undefined> {
     try {
         const scopes = cloudSessionScopes();
@@ -128,15 +137,87 @@ async function readApiKey(gate: IWso2PlatformExtensionGate, options: CloudSessio
             silent: options.askAccess || options.silent ? true : undefined,
         });
         if (granted || !options.askAccess || !gate.isLoggedIn()) {
+            if (granted) {
+                accessDeclined = false;
+            }
             return granted?.accessToken;
         }
         // Signed in through WSO2 Integrator, but this extension may not use the session yet.
         const allowed = await vscode.authentication.getSession(WSO2_CLOUD_AUTH_PROVIDER_ID, scopes, { createIfNone: true });
+        accessDeclined = false;
         return allowed?.accessToken;
     } catch (error) {
         // Declining access lands here too.
+        if (options.askAccess && gate.isLoggedIn()) {
+            accessDeclined = true;
+        }
         console.error("Failed to read the WSO2 Cloud session:", error);
         return undefined;
+    }
+}
+
+/** Where this extension stands with the session WSO2 Integrator holds, given whether it has a connected API. */
+export function cloudAccessOf(gate: IWso2PlatformExtensionGate, hasConnectedAPI: boolean): CloudAccess {
+    if (hasConnectedAPI) {
+        return "connected";
+    }
+    if (!gate.isLoggedIn()) {
+        return "signed-out";
+    }
+    return accessDeclined ? "declined" : "no-access";
+}
+
+/**
+ * Where this extension stands now, read without asking the person: undefined
+ * when WSO2 Integrator offers no cloud API this extension can speak to.
+ */
+export async function readCloudAccess(): Promise<CloudAccess | undefined> {
+    const gate = await getPlatformGate().catch(() => undefined);
+    if (!gate) {
+        return undefined;
+    }
+    const api = await connectPlatformAPI({ silent: true }).catch(() => undefined);
+    return cloudAccessOf(gate, !!api);
+}
+
+/**
+ * For the person choosing to use WSO2 Cloud here. When nobody is signed in,
+ * this signs in through WSO2 Integrator, and VS Code lets this extension use
+ * the new session; when someone is, VS Code asks the person to let this
+ * extension use it. Answers whether this extension can use the session now.
+ */
+export async function requestCloudAccess(): Promise<boolean> {
+    const gate = await getPlatformGate().catch(() => undefined);
+    if (!gate) {
+        return false;
+    }
+    try {
+        const session = await vscode.authentication.getSession(WSO2_CLOUD_AUTH_PROVIDER_ID, cloudSessionScopes(), { createIfNone: true });
+        accessDeclined = false;
+        return !!session;
+    } catch (error) {
+        // A sign-in the person cancelled leaves them signed out; a request refused while signed in is a decline.
+        if (gate.isLoggedIn()) {
+            accessDeclined = true;
+        }
+        console.error("Failed to get access to the WSO2 Cloud session:", error);
+        return false;
+    }
+}
+
+/** What to tell the person when something needs WSO2 Cloud and this extension cannot use it. */
+export function describeCloudAccess(access: CloudAccess | undefined): string {
+    switch (access) {
+        case "no-access":
+            return "You are signed in to WSO2 Cloud in WSO2 Integrator, but Ballerina is not allowed to use that sign-in yet.";
+        case "declined":
+            return "Ballerina was not allowed to use your WSO2 Cloud sign-in. Try again and choose Allow when VS Code asks.";
+        case "signed-out":
+            return "Not signed in to WSO2 Cloud. Sign in to continue.";
+        case "connected":
+            return "";
+        default:
+            return "WSO2 Integrator's cloud features are not available. Install or update the WSO2 Integrator extension.";
     }
 }
 

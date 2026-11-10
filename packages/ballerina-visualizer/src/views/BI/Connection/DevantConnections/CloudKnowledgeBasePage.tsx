@@ -22,6 +22,7 @@ import ButtonCard from "../../../../components/ButtonCard";
 import { BodyTinyInfo } from "../../../styles";
 import { usePlatformExtContext } from "../../../../providers/platform-ext-ctx-provider";
 import { ConnectorsGrid, Section, SectionHeader, SectionTitle } from "../AddConnectionPopup/styles";
+import { CloudAccessNotice } from "./CloudAccessNotice";
 
 interface CloudKnowledgeBasePageProps {
     // Opens a blank CloudKnowledgeBase create form (manual entry, no Devant service pre-selected).
@@ -53,6 +54,8 @@ export function CloudKnowledgeBasePage(props: CloudKnowledgeBasePageProps) {
             </Section>
 
             <div style={{ height: 16 }} />
+
+            <CloudAccessNotice purpose="to use WSO2 Cloud knowledge bases" />
 
             {isSignedIn && (
                 <Section>
