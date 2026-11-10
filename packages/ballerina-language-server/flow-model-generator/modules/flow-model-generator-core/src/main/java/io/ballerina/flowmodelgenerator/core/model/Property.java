@@ -1318,7 +1318,7 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
 
             // Check for SQL query types first
             if (SQL_PARAMETERIZED_QUERY.equals(ballerinaType) || SQL_CALL_QUERY.equals(ballerinaType)) {
-                type().fieldType(ValueType.SQL_QUERY).ballerinaType(ballerinaType).selected(true).stepOut();
+                builder.type().fieldType(ValueType.SQL_QUERY).ballerinaType(ballerinaType).selected(true).stepOut();
                 return true;
             }
 
@@ -1369,18 +1369,20 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
         public Property buildRepeatableTemplates(TypeSymbol tSymbol, SemanticModel semanticModel,
                                                   ModuleInfo moduleInfo) {
             Builder<Object> builder = new Builder<>(null);
+            // The template is built by its own builder, so that a helper which writes to `this` rather than to the
+            // given builder still writes to the template and not to the property that holds it (#1491)
 
             TypeSymbol rawType = CommonUtil.getRawType(tSymbol);
             if (rawType.typeKind() == TypeDescKind.ARRAY) {
                 ArrayTypeSymbol arrayTypeSymbol = (ArrayTypeSymbol) rawType;
                 TypeSymbol memberTypeSymbol = arrayTypeSymbol.memberTypeDescriptor();
-                typeWithExpression(memberTypeSymbol, moduleInfo, null, semanticModel, builder);
+                builder.typeWithExpression(memberTypeSymbol, moduleInfo, null, semanticModel, builder);
             } else if (rawType.typeKind() == TypeDescKind.MAP) {
                 MapTypeSymbol mapTypeSymbol = (MapTypeSymbol) rawType;
                 TypeSymbol constrainedTypeSymbol = mapTypeSymbol.typeParam();
-                typeWithExpression(constrainedTypeSymbol, moduleInfo, null, semanticModel, builder);
+                builder.typeWithExpression(constrainedTypeSymbol, moduleInfo, null, semanticModel, builder);
             } else {
-                typeWithExpression(tSymbol, moduleInfo, null, semanticModel, builder);
+                builder.typeWithExpression(tSymbol, moduleInfo, null, semanticModel, builder);
             }
 
             return builder.build();

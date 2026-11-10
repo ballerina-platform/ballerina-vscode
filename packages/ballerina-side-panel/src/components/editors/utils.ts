@@ -111,6 +111,28 @@ export const getArrayElementValues = (elements: unknown[]): string[] => {
 };
 
 /**
+ * The input modes of an element of a repeatable list.
+ * - An element the language server sent carries its own modes, with the one that fits its value selected. They are
+ *   kept.
+ * - An element read back from text, such as the value of the expression mode, has a value but no modes. It opens as
+ *   an expression, as the language server opens an element of a list in the source. The template's selected mode
+ *   could change its meaning: the SQL mode would save `q1` as the query `` `q1` ``.
+ * - A new, empty element takes the list's template, whose selected mode suits an empty value (an SQL query for
+ *   `sql:ParameterizedQuery[]`).
+ */
+export const getArrayElementTypes = (element: unknown, value: string, templateTypes: InputType[]): InputType[] => {
+    const elementTypes = (element as { types?: unknown })?.types;
+    if (Array.isArray(elementTypes) && elementTypes.length > 0) {
+        return elementTypes as InputType[];
+    }
+    const expressionIndex = templateTypes.findIndex((type) => type.fieldType === "EXPRESSION");
+    if (!value?.trim() || expressionIndex < 0) {
+        return templateTypes;
+    }
+    return templateTypes.map((type, index) => ({ ...type, selected: index === expressionIndex }));
+};
+
+/**
  * Reads the key and value of each entry of a repeatable map held as the entries object the editor emits, so two
  * maps can be compared by what they hold regardless of the keys and diagnostics attached to each entry.
  */
