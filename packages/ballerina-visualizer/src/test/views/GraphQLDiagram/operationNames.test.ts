@@ -22,7 +22,7 @@
 // name (wso2/product-integrator#355).
 
 import { FunctionModel, InputType } from "@wso2/ballerina-core";
-import { getTakenOperationNames, withTakenNamesRule } from "./operationNames";
+import { getTakenOperationNames, withTakenNamesRule } from "../../../views/GraphQLDiagram/operationNames";
 
 const operation = (kind: FunctionModel["kind"], name: string, line?: number, accessor?: string): FunctionModel => ({
     kind,
