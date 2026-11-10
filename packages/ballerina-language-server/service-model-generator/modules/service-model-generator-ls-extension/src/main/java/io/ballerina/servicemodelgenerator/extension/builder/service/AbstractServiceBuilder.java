@@ -250,7 +250,7 @@ public abstract class AbstractServiceBuilder implements ServiceNodeBuilder {
             if (function.isEnabled()) {
                 String functionNode = TAB;
                 functionNode += generateFunctionDefSource(function, new ArrayList<>(), context, FUNCTION_ADD, imports)
-                        .replace(NEW_LINE, NEW_LINE_WITH_TAB);
+                        .replaceAll("\\R", NEW_LINE_WITH_TAB);
                 functions.add(functionNode);
             }
         });

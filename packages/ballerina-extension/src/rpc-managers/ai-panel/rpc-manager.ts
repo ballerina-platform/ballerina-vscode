@@ -176,6 +176,7 @@ import {
     assertNoRestoreInProgress,
     beginRestore,
     endRestore,
+    isResponseRunning,
     isRestoreInProgress
 } from '../../views/ai-panel/checkpoint/restore-state';
 import { runningServicesManager } from '../../features/ai/agent/tools/running-service-manager';
@@ -234,7 +235,7 @@ const KEYED_THREAD_MAX_AGE_MS = 24 * 60 * 60 * 1000;
  * races the turn starting.
  */
 function refuseWhileBusy(projectRootPath: string, action: string): boolean {
-    if (runEventStore.hasActiveRun(projectRootPath) || chatStateStorage.hasActiveExecutionFor(projectRootPath)) {
+    if (isResponseRunning(projectRootPath)) {
         console.warn(`[RPC] Refused ${action} — a response is still running for: ${projectRootPath}`);
         return true;
     }
@@ -576,6 +577,12 @@ export class AiPanelRpcManager implements AIPanelAPI {
     async revertGeneration(params: RevertGenerationRequest): Promise<void> {
         const projectRootPath = resolveProjectRootPath();
         assertNoRestoreInProgress(projectRootPath, 'revertGeneration');
+        // A turn that is still saving files before it starts is about to accept this generation.
+        if (isResponseRunning(projectRootPath)) {
+            const reason = 'A response is still running. Please wait for it to finish, then revert.';
+            window.showWarningMessage(`Could not revert the Copilot changes: ${reason}`);
+            throw new Error(reason);
+        }
         beginRestore(projectRootPath);
         try {
             // Resolve the thread from the generation the bar names, not the active-thread pointer:
@@ -825,11 +832,8 @@ User reverted the last made changes. The files have been restored to the state b
         // Get project root path and thread identifiers
         const projectRootPath = resolveProjectRootPath();
         assertNoRestoreInProgress(projectRootPath, 'restoreCheckpoint');
-        if (runEventStore.hasActiveRun(projectRootPath) || chatStateStorage.hasActiveExecutionFor(projectRootPath)) {
-            // Anything still writing would land its edits on top of the restored ones, and its own
-            // generation is what the truncation is about to drop. The execution check is the one
-            // that covers executors which never begin a tracked run, the type creator among them.
-            // revertGeneration needs neither: a running generation is never `done`, so never revertible.
+        // A running response's own generation is also what the truncation is about to drop.
+        if (isResponseRunning(projectRootPath)) {
             throw new Error('A response is still running. Please wait for it to finish before restoring.');
         }
         beginRestore(projectRootPath);

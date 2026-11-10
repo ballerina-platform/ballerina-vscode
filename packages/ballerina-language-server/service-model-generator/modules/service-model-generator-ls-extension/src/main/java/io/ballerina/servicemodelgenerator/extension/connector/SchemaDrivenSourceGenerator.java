@@ -711,7 +711,7 @@ public final class SchemaDrivenSourceGenerator {
         for (TriggerUISchemaModel.FunctionModel function : present) {
             if (function.enabled() && !Boolean.TRUE.equals(function.optional())) {
                 functions.add(TAB + buildFunctionSource(function, qualifiers)
-                        .replace(NEW_LINE, NEW_LINE_WITH_TAB));
+                        .replaceAll("\\R", NEW_LINE_WITH_TAB));
             }
         }
         return functions;

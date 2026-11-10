@@ -1,19 +1,19 @@
 {
   "start": {
-    "line": 81,
+    "line": 24,
     "offset": 0
   },
   "end": {
-    "line": 83,
+    "line": 26,
     "offset": 1
   },
   "source": "agent_17/agents.bal",
-  "description": "Tests that an agent's MCP toolkit tools carry the server name and icon from the toolkit class's @display",
+  "description": "Tests an agent whose tool is imported from another module",
   "diagram": {
     "fileName": "agents.bal",
     "nodes": [
       {
-        "id": "113337",
+        "id": "56793",
         "metadata": {
           "label": "Start",
           "data": {
@@ -28,21 +28,21 @@
           "lineRange": {
             "fileName": "agents.bal",
             "startLine": {
-              "line": 81,
+              "line": 24,
               "offset": 38
             },
             "endLine": {
-              "line": 83,
+              "line": 26,
               "offset": 1
             }
           },
-          "sourceCode": "public function main() returns error? {\n    string result = check chatAgent.run(\"What does wso2/ballerina-vscode do?\");\n}"
+          "sourceCode": "public function main() returns error? {\n    string result = check weatherAgent.run(\"What's the weather in London?\");\n}"
         },
         "returning": false,
         "flags": 0
       },
       {
-        "id": "113291",
+        "id": "56744",
         "metadata": {
           "label": "run",
           "description": "Executes the agent for a given user query.",
@@ -50,7 +50,7 @@
           "data": {
             "agentInfo": {
               "systemPrompt": {
-                "instructions": "Answer questions about repositories.",
+                "instructions": "\"Answer weather questions.\"",
                 "role": "\"Assistant\""
               },
               "modelProvider": {
@@ -60,21 +60,17 @@
               },
               "tools": [
                 {
-                  "name": "deepWiki",
-                  "path": "https://example.com/deepwiki.svg",
-                  "description": "",
-                  "type": "MCP Server",
-                  "requiresApproval": false,
-                  "className": "agent_17:DeepWikiToolKit",
-                  "label": "DeepWiki"
+                  "name": "tools:getWeather",
+                  "path": "",
+                  "description": "Looks up the weather for a city.",
+                  "requiresApproval": false
                 },
                 {
-                  "name": "mcpToolKit",
-                  "path": "https://bcentral-packageicons.azureedge.net/images/ballerina_mcp_0.4.2.png",
-                  "description": "",
-                  "type": "MCP Server",
-                  "requiresApproval": false,
-                  "className": "agent_17:McpToolKit"
+                  "name": "tools:askForecaster",
+                  "path": "",
+                  "description": "Asks the forecaster agent about the weather.",
+                  "type": "Agent",
+                  "requiresApproval": false
                 }
               ]
             }
@@ -91,15 +87,15 @@
           "lineRange": {
             "fileName": "agents.bal",
             "startLine": {
-              "line": 82,
+              "line": 25,
               "offset": 4
             },
             "endLine": {
-              "line": 82,
-              "offset": 79
+              "line": 25,
+              "offset": 76
             }
           },
-          "sourceCode": "string result = check chatAgent.run(\"What does wso2/ballerina-vscode do?\");",
+          "sourceCode": "string result = check weatherAgent.run(\"What's the weather in London?\");",
           "inferredReturnType": "td",
           "data": {
             "agentCodedata": {
@@ -113,15 +109,15 @@
               "lineRange": {
                 "fileName": "agents.bal",
                 "startLine": {
-                  "line": 22,
+                  "line": 19,
                   "offset": 0
                 },
                 "endLine": {
-                  "line": 26,
-                  "offset": 3
+                  "line": 22,
+                  "offset": 2
                 }
               },
-              "sourceCode": "final ai:Agent chatAgent = check new ({\n    systemPrompt: {role: \"Assistant\", instructions: string `Answer questions about repositories.`},\n    model: check ai:getDefaultModelProvider(),\n    tools: [deepWiki, mcpToolKit]\n});",
+              "sourceCode": "final ai:Agent weatherAgent = check new (\n    systemPrompt = {role: \"Assistant\", instructions: \"Answer weather questions.\"},\n    model = check ai:getDefaultModelProvider(), tools = [tools:getWeather, tools:askForecaster]\n);",
               "isNew": false,
               "data": {
                 "scope": "Global"
@@ -168,15 +164,15 @@
               {
                 "fieldType": "PROMPT",
                 "ballerinaType": "string",
-                "selected": true
+                "selected": false
               },
               {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string",
-                "selected": false
+                "selected": true
               }
             ],
-            "value": "Answer questions about repositories.",
+            "value": "\"Answer weather questions.\"",
             "placeholder": "e.g., You are a friendly assistant. Your goal is to...",
             "optional": true,
             "editable": true,
@@ -213,7 +209,7 @@
                 "selected": false
               }
             ],
-            "value": "{role: \"Assistant\", instructions: string `Answer questions about repositories.`}",
+            "value": "{role: \"Assistant\", instructions: \"Answer weather questions.\"}",
             "placeholder": "{role: \"\", instructions: \"\"}",
             "optional": false,
             "editable": true,
@@ -293,7 +289,7 @@
                 "selected": false
               }
             ],
-            "value": "[deepWiki, mcpToolKit]",
+            "value": "[tools:getWeather, tools:askForecaster]",
             "placeholder": "[]",
             "optional": true,
             "editable": true,
@@ -535,11 +531,11 @@
               "lineRange": {
                 "fileName": "agents.bal",
                 "startLine": {
-                  "line": 82,
+                  "line": 25,
                   "offset": 11
                 },
                 "endLine": {
-                  "line": 82,
+                  "line": 25,
                   "offset": 17
                 }
               }
@@ -590,7 +586,7 @@
                 "selected": true
               }
             ],
-            "value": "chatAgent",
+            "value": "weatherAgent",
             "optional": false,
             "editable": false,
             "advanced": false,
@@ -660,7 +656,7 @@
                 "selected": false
               }
             ],
-            "value": "\"What does wso2/ballerina-vscode do?\"",
+            "value": "\"What's the weather in London?\"",
             "placeholder": "{}",
             "optional": false,
             "editable": true,
@@ -728,7 +724,7 @@
     ],
     "connections": [
       {
-        "id": "53695",
+        "id": "50687",
         "metadata": {
           "label": "Agent",
           "description": "Represents an agent.",
@@ -736,7 +732,7 @@
           "data": {
             "agentInfo": {
               "systemPrompt": {
-                "instructions": "Answer questions about repositories.",
+                "instructions": "\"Answer weather questions.\"",
                 "role": "\"Assistant\""
               },
               "modelProvider": {
@@ -746,21 +742,17 @@
               },
               "tools": [
                 {
-                  "name": "deepWiki",
-                  "path": "https://example.com/deepwiki.svg",
-                  "description": "",
-                  "type": "MCP Server",
-                  "requiresApproval": false,
-                  "className": "agent_17:DeepWikiToolKit",
-                  "label": "DeepWiki"
+                  "name": "tools:getWeather",
+                  "path": "",
+                  "description": "Looks up the weather for a city.",
+                  "requiresApproval": false
                 },
                 {
-                  "name": "mcpToolKit",
-                  "path": "https://bcentral-packageicons.azureedge.net/images/ballerina_mcp_0.4.2.png",
-                  "description": "",
-                  "type": "MCP Server",
-                  "requiresApproval": false,
-                  "className": "agent_17:McpToolKit"
+                  "name": "tools:askForecaster",
+                  "path": "",
+                  "description": "Asks the forecaster agent about the weather.",
+                  "type": "Agent",
+                  "requiresApproval": false
                 }
               ]
             }
@@ -777,15 +769,15 @@
           "lineRange": {
             "fileName": "agents.bal",
             "startLine": {
-              "line": 22,
+              "line": 19,
               "offset": 0
             },
             "endLine": {
-              "line": 26,
-              "offset": 3
+              "line": 22,
+              "offset": 2
             }
           },
-          "sourceCode": "final ai:Agent chatAgent = check new ({\n    systemPrompt: {role: \"Assistant\", instructions: string `Answer questions about repositories.`},\n    model: check ai:getDefaultModelProvider(),\n    tools: [deepWiki, mcpToolKit]\n});"
+          "sourceCode": "final ai:Agent weatherAgent = check new (\n    systemPrompt = {role: \"Assistant\", instructions: \"Answer weather questions.\"},\n    model = check ai:getDefaultModelProvider(), tools = [tools:getWeather, tools:askForecaster]\n);"
         },
         "returning": false,
         "properties": {
@@ -826,15 +818,15 @@
               {
                 "fieldType": "PROMPT",
                 "ballerinaType": "string",
-                "selected": true
+                "selected": false
               },
               {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string",
-                "selected": false
+                "selected": true
               }
             ],
-            "value": "Answer questions about repositories.",
+            "value": "\"Answer weather questions.\"",
             "placeholder": "e.g., You are a friendly assistant. Your goal is to...",
             "optional": false,
             "editable": true,
@@ -871,7 +863,7 @@
                 "selected": false
               }
             ],
-            "value": "{role: \"Assistant\", instructions: string `Answer questions about repositories.`}",
+            "value": "{role: \"Assistant\", instructions: \"Answer weather questions.\"}",
             "placeholder": "{role: \"\", instructions: \"\"}",
             "optional": false,
             "editable": true,
@@ -880,6 +872,30 @@
             "codedata": {
               "kind": "INCLUDED_FIELD",
               "originalName": "systemPrompt"
+            },
+            "defaultValue": ""
+          },
+          "model": {
+            "metadata": {
+              "label": "Model",
+              "description": "The model used by the agent"
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "ai:ModelProvider",
+                "selected": true
+              }
+            ],
+            "value": "check ai:getDefaultModelProvider()",
+            "placeholder": "object {}",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "INCLUDED_FIELD",
+              "originalName": "model"
             },
             "defaultValue": ""
           },
@@ -950,7 +966,7 @@
                     "selected": true
                   }
                 ],
-                "value": "deepWiki",
+                "value": "tools:getWeather",
                 "optional": false,
                 "editable": false,
                 "advanced": false,
@@ -978,7 +994,7 @@
                     "selected": true
                   }
                 ],
-                "value": "mcpToolKit",
+                "value": "tools:askForecaster",
                 "optional": false,
                 "editable": false,
                 "advanced": false,
@@ -995,30 +1011,6 @@
               "originalName": "tools"
             },
             "defaultValue": "[]"
-          },
-          "model": {
-            "metadata": {
-              "label": "Model",
-              "description": "The model used by the agent"
-            },
-            "types": [
-              {
-                "fieldType": "EXPRESSION",
-                "ballerinaType": "ai:ModelProvider",
-                "selected": true
-              }
-            ],
-            "value": "check ai:getDefaultModelProvider()",
-            "placeholder": "object {}",
-            "optional": false,
-            "editable": true,
-            "advanced": false,
-            "hidden": false,
-            "codedata": {
-              "kind": "INCLUDED_FIELD",
-              "originalName": "model"
-            },
-            "defaultValue": ""
           },
           "maxIter": {
             "metadata": {
@@ -1256,7 +1248,7 @@
                 "selected": true
               }
             ],
-            "value": "chatAgent",
+            "value": "weatherAgent",
             "optional": false,
             "editable": false,
             "advanced": false,
@@ -1265,12 +1257,12 @@
               "lineRange": {
                 "fileName": "agents.bal",
                 "startLine": {
-                  "line": 22,
+                  "line": 19,
                   "offset": 15
                 },
                 "endLine": {
-                  "line": 22,
-                  "offset": 24
+                  "line": 19,
+                  "offset": 27
                 }
               }
             }

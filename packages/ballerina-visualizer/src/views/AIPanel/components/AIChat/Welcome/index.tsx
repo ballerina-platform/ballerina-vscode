@@ -23,13 +23,12 @@ import React from "react";
 import { CopilotOrb } from "../../../../../components/AgentStatusOrb/CopilotOrb";
 import { useOrbColors } from "../../../../../components/AgentStatusOrb/orbTheme";
 import {
-    ACCENT_CORE,
-    ACCENT_FRAME,
     AGENT_BUILDER_ORB_COLORS,
     IconOverlay,
     ORB_ENERGY,
     Sphere,
 } from "../../../../../components/AgentStatusOrb/shared";
+import { BotIcon } from "../../../../../components/AgentStatusOrb/BotIcon";
 import { useAssistantName, useProductMode } from "../../../../../hooks/useProductMode";
 import { ProductMode } from "@wso2/ballerina-core";
 
@@ -77,7 +76,7 @@ const WelcomeOrbHalo = styled.div<{ accent?: boolean }>`
         border-radius: 50%;
         background: ${(props: { accent?: boolean }) =>
         props.accent
-            ? `radial-gradient(circle, color-mix(in srgb, ${ACCENT_FRAME[1]} 30%, transparent), color-mix(in srgb, ${ACCENT_FRAME[0]} 12%, transparent) 42%, transparent 70%)`
+            ? "none"
             : "radial-gradient(circle, color-mix(in srgb, var(--vscode-button-background) 28%, transparent), transparent 70%)"};
         filter: blur(8px);
         pointer-events: none;
@@ -145,13 +144,9 @@ const WelcomeMessage: React.FC<WelcomeMessageProps> = ({ isOnboarding = false })
                     <WelcomeOrb role="img" aria-label={assistantName}>
                         {agentBuilder ? (
                             <>
-                                <Sphere colors={AGENT_BUILDER_ORB_COLORS.idle} energy={ORB_ENERGY.idle} highlightColor={ACCENT_CORE} />
+                                <Sphere colors={AGENT_BUILDER_ORB_COLORS.idle} energy={ORB_ENERGY.idle} />
                                 <IconOverlay>
-                                    <Icon
-                                        name="bi-ai-chat"
-                                        sx={{ width: 24, height: 24 }}
-                                        iconSx={{ fontSize: "24px", color: "var(--vscode-button-foreground)", cursor: "default" }}
-                                    />
+                                    <BotIcon size={24} color="var(--vscode-button-foreground)" />
                                 </IconOverlay>
                             </>
                         ) : (

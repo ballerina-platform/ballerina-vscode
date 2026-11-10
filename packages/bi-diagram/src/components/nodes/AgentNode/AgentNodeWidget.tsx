@@ -726,6 +726,8 @@ export function EdgeAddButton(props: {
     );
 }
 
+const TOOL_ICON_SX = { width: "24px", height: "24px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px" };
+
 function getAgentNodePresentation(variant: "agent" | "typedAgent", agentInfo?: NodeMetadata["agentInfo"]): AgentNodePresentation {
     const isTypeDefinition = variant === "typedAgent";
     const agentWidgetType = isTypeDefinition ? NodeTypes.TYPED_AGENT_NODE : NodeTypes.AGENT_NODE;
@@ -990,7 +992,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
     };
 
     const onImplementTool = (tool: ToolData) => {
-        if (readOnly) {
+        if (readOnly || agentNode?.canOpenTool?.(tool) === false) {
             return;
         }
         agentNode?.goToTool && agentNode.goToTool(tool, model.node);
@@ -1086,23 +1088,26 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
         ...(!isTypeDefinition ? [{ id: "delete", label: "Delete", onClick: () => deleteNode() }] : []),
     ];
 
-    const toolMenuItems = (tool: ToolData): Item[] => [
-        ...(agentNode?.onSelectTool || agentNode?.onSelectMcpToolkit ? [{
-            id: "edit",
-            label: "Edit",
-            onClick: () => onToolClick(tool),
-        }] : []),
-        ...(agentNode?.goToTool ? [{
-            id: "view",
-            label: "View",
-            onClick: () => onImplementTool(tool),
-        }] : []),
-        ...(agentNode?.onDeleteTool ? [{
-            id: "delete",
-            label: "Delete",
-            onClick: () => onDeleteTool(tool),
-        }] : []),
-    ];
+    const toolMenuItems = (tool: ToolData): Item[] => {
+        const canOpen = agentNode?.canOpenTool?.(tool) ?? true;
+        return [
+            ...(canOpen && (agentNode?.onSelectTool || agentNode?.onSelectMcpToolkit) ? [{
+                id: "edit",
+                label: "Edit",
+                onClick: () => onToolClick(tool),
+            }] : []),
+            ...(canOpen && agentNode?.goToTool ? [{
+                id: "view",
+                label: "View",
+                onClick: () => onImplementTool(tool),
+            }] : []),
+            ...(agentNode?.onDeleteTool ? [{
+                id: "delete",
+                label: "Delete",
+                onClick: () => onDeleteTool(tool),
+            }] : []),
+        ];
+    };
 
     const memoryMenuItems: Item[] = [
         {
@@ -1822,6 +1827,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                     return (
                         <g
                             key={index}
+                            data-testid={`agent-tool-${tool.name}`}
                             transform={`translate(0, ${(index + 1) * (NODE_HEIGHT + AGENT_NODE_TOOL_GAP) + AGENT_NODE_TOOL_SECTION_GAP
                                 })`}
                             opacity={toolsReadOnly ? 0.55 : undefined}
@@ -1835,7 +1841,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                             css={toolsReadOnly ? css`
                                 cursor: not-allowed;
                             ` : css`
-                            cursor: ${readOnly ? "default" : "pointer"};
+                            cursor: ${readOnly || agentNode?.canOpenTool?.(tool) === false ? "default" : "pointer"};
                             transition: opacity 0.4s ease-out;
                             &:hover:not(:has(.tool-target:hover)) circle:first-of-type {
                                 stroke: ${NODE_BORDER_SELECTED_COLOR};
@@ -1900,11 +1906,11 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                         <ConnectorIcon
                                             url={tool.path}
                                             style={{ width: 24, height: 24, fontSize: 24 }}
-                                            fallbackIcon={<Icon name="bi-function" sx={{ fontSize: "24px" }} />}
+                                            fallbackIcon={<Icon name="bi-wrench" sx={TOOL_ICON_SX} iconSx={{ display: "flex" }} />}
                                             codedata={model.node?.codedata}
                                         />
                                     ) : (
-                                        <Icon name="bi-function" sx={{ fontSize: "24px" }} />
+                                        <Icon name="bi-wrench" sx={TOOL_ICON_SX} iconSx={{ display: "flex" }} />
                                     )}
                                 </div>
                             </foreignObject>

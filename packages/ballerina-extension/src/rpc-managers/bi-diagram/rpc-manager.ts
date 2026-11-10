@@ -239,6 +239,7 @@ import { getRepoRoot } from "../platform-ext/platform-utils";
 import { WI_EXTENSION_ID } from "../../utils";
 import { notifyOnIdentifierUpdated } from "../../RPCLayer";
 import { openView } from "../../stateMachine";
+import { detectEol } from "../../features/ai/utils/eol-utils";
 
 function ensureGitignoreEntry(projectRoot: string): void {
     const gitignorePath = path.join(projectRoot, '.gitignore');
@@ -250,8 +251,9 @@ function ensureGitignoreEntry(projectRoot: string): void {
             content = fs.readFileSync(gitignorePath, 'utf8');
         }
         if (!content.split('\n').some(line => line.trim() === entry)) {
-            const newline = content.endsWith('\n') || content === '' ? '' : '\n';
-            fs.appendFileSync(gitignorePath, `${newline}${entry}\n`);
+            const eol = detectEol(content);
+            const newline = content.endsWith('\n') || content === '' ? '' : eol;
+            fs.appendFileSync(gitignorePath, `${newline}${entry}${eol}`);
         }
     } catch (e) {
         console.warn('[agent-chat] Failed to update .gitignore:', e);

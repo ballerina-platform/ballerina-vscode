@@ -20,6 +20,7 @@
 import { exec } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
+import { detectEol } from '../features/ai/utils/eol-utils';
 
 export interface GitState {
     commitSha: string | null;
@@ -184,7 +185,8 @@ export async function ensureEvalReportsGitignored(projectPath: string): Promise<
             return;
         }
 
-        const suffix = content.endsWith('\n') ? '' : '\n';
-        fs.appendFileSync(gitignorePath, `${suffix}${pattern}\n`);
+        const eol = detectEol(content);
+        const suffix = content.endsWith('\n') ? '' : eol;
+        fs.appendFileSync(gitignorePath, `${suffix}${pattern}${eol}`);
     } catch { /* fail silently */ }
 }

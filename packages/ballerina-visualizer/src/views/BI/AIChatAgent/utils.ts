@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { AgentEventChannel, AgentKind, AgentToolData, AvailableNode, BISearchRequest, BISearchResponse, CodeData, ConfigVariable, DIRECTORY_MAP, ELineRange, EVENT_TYPE, FlowNode, GET_DEFAULT_MODEL_PROVIDER, isAgentDeclarationNode, LinePosition, LineRange, MACHINE_VIEW, NodeKind, NodePosition, ProjectStructureArtifactResponse, Property, SearchKind, SearchNodesQuery, ToolData, ToolParameters, VisualizerLocation } from "@wso2/ballerina-core";
+import { AgentEventChannel, AgentKind, AgentToolData, AvailableNode, BISearchRequest, BISearchResponse, Category, CodeData, ConfigVariable, DIRECTORY_MAP, ELineRange, EVENT_TYPE, FlowNode, GET_DEFAULT_MODEL_PROVIDER, isAgentDeclarationNode, LinePosition, LineRange, MACHINE_VIEW, NodeKind, NodePosition, ProjectStructureArtifactResponse, Property, SearchKind, SearchNodesQuery, ToolData, ToolParameters, VisualizerLocation } from "@wso2/ballerina-core";
 import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
 import { FormField } from "@wso2/ballerina-side-panel";
 import { cloneDeep } from "lodash";
@@ -660,6 +660,24 @@ export const resolveAgentDefinitionLocation = async (
     return undefined;
 };
 
+// Keyed like `toAgentToolReference`: `<last segment of the package name>:<tool>`; artifacts come only from default modules.
+export const getWorkspaceAgentTools = async (rpcClient: BallerinaRpcClient): Promise<Map<string, VisualizerLocation>> => {
+    const structure = await rpcClient.getBIDiagramRpcClient().getProjectStructure();
+    const tools = new Map<string, VisualizerLocation>();
+    for (const project of structure?.projects ?? []) {
+        const prefix = project.projectName.split(".").pop();
+        for (const tool of project.directoryMap?.[DIRECTORY_MAP.AGENT_TOOL] ?? []) {
+            tools.set(`${prefix}:${tool.name}`, {
+                documentUri: tool.path,
+                position: tool.position,
+                projectPath: project.projectPath,
+                identifier: tool.name,
+            });
+        }
+    }
+    return tools;
+};
+
 export const goToAgentDefinitionFromInstance = async (instanceNode: FlowNode, rpcClient: BallerinaRpcClient) => {
     const location = await resolveAgentDefinitionLocation(instanceNode, rpcClient);
     if (!location) return;
@@ -718,7 +736,26 @@ export const removeMcpServerFromAgentNode = (agentNode: FlowNode, toolkitNameToR
     return updatedAgentNode;
 };
 
-export const addToolToAgentNode = async (agentNode: FlowNode, toolName: string) => {
+export const toAgentToolReference = (codedata: CodeData): { toolName: string; imports?: Record<string, string> } => {
+    if (codedata.data?.moduleRelation === "CURRENT_MODULE") {
+        return { toolName: codedata.symbol };
+    }
+    const prefix = codedata.module.split(".").pop();
+    return { toolName: `${prefix}:${codedata.symbol}`, imports: { [prefix]: `${codedata.org}/${codedata.module}` } };
+};
+
+// Agent tools show the tool icon; empty packages and the "(Current Integration)" suffix, which adds "Create Function", are dropped.
+export const toAgentToolsCategory = (category: Category): Category => ({
+    ...category,
+    metadata: { ...category.metadata, label: category.metadata.label.replace(/ \(Current Integration\)$/i, "") },
+    items: category.items
+        .map((item) => "codedata" in item
+            ? { ...item, metadata: { ...item.metadata, icon: "bi-wrench" } }
+            : toAgentToolsCategory(item as Category))
+        .filter((item) => "codedata" in item || (item as Category).items.length > 0),
+});
+
+export const addToolToAgentNode = async (agentNode: FlowNode, toolName: string, imports?: Record<string, string>) => {
     if (!agentNode || agentNode.codedata?.node !== "AGENT") return null;
     // clone the node to avoid modifying the original
     const updatedAgentNode = cloneDeep(agentNode);
@@ -757,6 +794,9 @@ export const addToolToAgentNode = async (agentNode: FlowNode, toolName: string) 
         return agentNode;
     }
     updatedAgentNode.properties.tools.value = toolsValue;
+    if (imports) {
+        updatedAgentNode.properties.tools.imports = { ...updatedAgentNode.properties.tools.imports, ...imports };
+    }
     updatedAgentNode.codedata.isNew = false;
     return updatedAgentNode;
 };

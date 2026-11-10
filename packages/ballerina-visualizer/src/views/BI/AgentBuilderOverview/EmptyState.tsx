@@ -24,7 +24,6 @@ import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Button, Codicon, Icon, ThemeColors } from "@wso2/ui-toolkit";
 import {
     awaitingInputLabel,
-    ACCENT_CORE,
     ACCENT_SPHERE,
     SpinArc,
     frameTriple,
@@ -40,6 +39,7 @@ import {
     useAiPanelOpen,
     useSuppressAgentStatusOrb,
 } from "../../../components/AgentStatusOrb/shared";
+import { BotIcon } from "../../../components/AgentStatusOrb/BotIcon";
 import { openCopilotPanel, submitPromptToCopilot } from "../../../components/AgentStatusOrb/copilotPanel";
 import {
     CopilotPromptBox,
@@ -144,14 +144,14 @@ const LIBRARY_EXAMPLES: Example[] = [
         description: "An agent other integrations can run",
         icon: "bi-ai-agent",
         prompt:
-            "Create a reusable agent definition for a customer support agent that answers product questions from Markdown documentation files, so other integrations in this project can run it.",
+            "Create a reusable agent definition for a support triage agent that reads a customer message and returns its category, urgency and a short suggested reply, so other integrations in this project can run it.",
     },
     {
         name: "Shared Tools",
         description: "Agent tools any agent can call",
-        icon: "bi-function",
+        icon: "bi-wrench",
         prompt:
-            "Add reusable agent tools that look up an account and its open opportunities in Salesforce, so agents in other packages can call them.",
+            "Add reusable agent tools that get the current weather and a three-day forecast for a city from the Open-Meteo API, so agents in other integrations in this project can call them.",
     },
     {
         name: "Shared Types",
@@ -161,11 +161,11 @@ const LIBRARY_EXAMPLES: Example[] = [
             "Define shared record types for a support ticket and a customer profile, and a data mapper that turns a support ticket into a short summary record.",
     },
     {
-        name: "Shared Connection",
-        description: "One configured client, reused",
-        icon: "bi-connection",
+        name: "Shared Functions",
+        description: "Helpers every integration reuses",
+        icon: "bi-function",
         prompt:
-            "Add a shared Salesforce connection that reads its credentials from configurable variables, so every agent in this project connects the same way.",
+            "Add public helper functions that validate and normalize email addresses and phone numbers, so every integration in this project applies the same rules.",
     },
 ];
 
@@ -190,7 +190,8 @@ const LIBRARY_COPY: EmptyStateCopy = {
     hiddenContext:
         "The target package is a Ballerina library. It has no runnable entry point, so do not add listeners, " +
         "chat triggers or services to it. Build reusable, publicly visible artifacts instead — agent definitions, " +
-        "agent tools, types and data mappers — for other packages in the project to import.",
+        "agent tools, types, data mappers and functions — for other packages in the project to import. " +
+        "Follow the agent-library skill.",
 };
 
 const Wrap = styled.div`
@@ -547,10 +548,13 @@ interface EmptyStateProps {
     onCreateFromScratch: () => void;
     onAddMcpService?: () => void;
     isLibrary?: boolean;
+    packageName?: string;
 }
 
-export function EmptyState({ onCreateFromScratch, onAddMcpService, isLibrary }: EmptyStateProps) {
+export function EmptyState({ onCreateFromScratch, onAddMcpService, isLibrary, packageName }: EmptyStateProps) {
     const copy = isLibrary ? LIBRARY_COPY : AGENT_COPY;
+    // Without the name the model picks whichever workspace package sounds right.
+    const hiddenContext = packageName ? `Write into the ${packageName} package. ${copy.hiddenContext}` : copy.hiddenContext;
     const assistantName = useAssistantName();
     const { rpcClient } = useRpcContext();
     const [status, setStatus] = useState<AgentRunStatus | null>(null);
@@ -611,7 +615,6 @@ export function EmptyState({ onCreateFromScratch, onAddMcpService, isLibrary }: 
 
     const orbColors = working ? AGENT_BUILDER_ORB_COLORS[state] : ACCENT_SPHERE;
     const orbGlow = frameTriple(orbColors[0]);
-    const orbHighlight = working ? `color-mix(in srgb, ${orbColors[0]} 70%, transparent)` : ACCENT_CORE;
     const runHeading = state === "awaiting-input" ? awaitingInputLabel() : "Working on it…";
     const runDetail = active ? status?.label : undefined;
     const showOpenCopilot = !aiPanelOpen;
@@ -628,7 +631,7 @@ export function EmptyState({ onCreateFromScratch, onAddMcpService, isLibrary }: 
         const accepted = await submitPromptToCopilot(rpcClient, prompt, {
             ...options,
             newThread: true,
-            hiddenContext: copy.hiddenContext,
+            hiddenContext,
         });
         if (accepted) {
             setText("");
@@ -640,14 +643,14 @@ export function EmptyState({ onCreateFromScratch, onAddMcpService, isLibrary }: 
 
     const fillExample = (prompt: string) =>
         compact
-            ? void submitPromptToCopilot(rpcClient, prompt, { autoSubmit: false, hiddenContext: copy.hiddenContext })
+            ? void submitPromptToCopilot(rpcClient, prompt, { autoSubmit: false, hiddenContext })
             : promptRef.current?.fill(prompt);
 
     const fillChat = async (prompt: string, options: PromptSubmitOptions) => {
         const taken = await submitPromptToCopilot(rpcClient, prompt, {
             ...options,
             autoSubmit: false,
-            hiddenContext: copy.hiddenContext,
+            hiddenContext,
         });
         if (taken) {
             setText("");
@@ -780,19 +783,11 @@ export function EmptyState({ onCreateFromScratch, onAddMcpService, isLibrary }: 
             >
                 <OrbGlow className={ORB_GLOW_CLASS}>
                     <OrbAura $active={showRun} $colors={orbGlow}>
-                        <Sphere
-                            colors={orbColors}
-                            energy={ORB_ENERGY[state]}
-                            highlightColor={orbHighlight}
-                        />
+                        <Sphere colors={orbColors} energy={ORB_ENERGY[state]} />
                         <IconOverlay>
-                            <Icon
-                                name="bi-ai-chat"
-                                sx={{ width: 26, height: 26 }}
-                                iconSx={{ fontSize: "26px", color: "#ffffff" }}
-                            />
+                            <BotIcon size={26} color="#ffffff" />
                         </IconOverlay>
-                        {(running || (showRun && !working)) && <SpinArc color={orbGlow[1]} />}
+                        {(running || (showRun && !working)) && <SpinArc />}
                     </OrbAura>
                 </OrbGlow>
             </OrbButton>

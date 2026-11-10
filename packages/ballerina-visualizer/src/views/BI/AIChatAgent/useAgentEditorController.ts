@@ -17,14 +17,16 @@
  */
 
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AgentNodeActions } from "@wso2/bi-diagram";
-import { AgentUsage, EVENT_TYPE, FlowNode, MACHINE_VIEW, NodeMetadata, NodePosition, ProjectStructureArtifactResponse, SearchNodesQuery, ToolData }
+import { AgentUsage, EVENT_TYPE, FlowNode, MACHINE_VIEW, NodeMetadata, NodePosition, ProjectStructureArtifactResponse, SearchNodesQuery, ToolData, VisualizerLocation }
     from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { findClassByName, findFunctionByName } from "../FlowDiagram/utils";
+import { createApprovalFunctionActions } from "./approvalFunctionActions";
 import {
     findAgentScopedNode as findAgentScopedNodeAt,
+    getWorkspaceAgentTools,
     refreshAgentNodeLineRange,
     removeMcpServerFromAgentNode,
     removeToolFromAgentNode,
@@ -77,6 +79,7 @@ const memoryStoreNameOf = (node?: FlowNode): string | undefined =>
 
 export function useAgentEditorController(host: AgentEditorHost): AgentEditorController {
     const { rpcClient } = useRpcContext();
+    const approvalActions = useMemo(() => createApprovalFunctionActions(rpcClient), [rpcClient]);
     const [view, setView] = useState<AgentEditorView>("NONE");
     const [agentNode, setAgentNode] = useState<FlowNode>();
     const [memoryNode, setMemoryNode] = useState<FlowNode>();
@@ -84,6 +87,16 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
     const [selectedTool, setSelectedTool] = useState<ToolData>();
     const [selectedAgentName, setSelectedAgentName] = useState("");
     const [backOverride, setBackOverride] = useState<(() => void) | null>(null);
+    // A ref, since the diagram keeps the callbacks it was built with until the flow changes.
+    const workspaceTools = useRef<Map<string, VisualizerLocation>>(new Map());
+    useEffect(() => {
+        const refresh = () => {
+            void getWorkspaceAgentTools(rpcClient).then((tools) => { workspaceTools.current = tools; });
+        };
+        refresh();
+        return rpcClient.onProjectContentUpdated(refresh);
+    }, [rpcClient]);
+    const isImportedTool = (tool: ToolData) => tool.name.includes(":");
     const activate = useCallback((node: FlowNode) => {
         setAgentNode(node);
         host.onSelectionChange?.(node);
@@ -214,6 +227,16 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
         if (!tool?.name) {
             return;
         }
+        if (isImportedTool(tool)) {
+            const location = workspaceTools.current.get(tool.name);
+            if (location) {
+                await rpcClient.getVisualizerRpcClient().openView({
+                    type: EVENT_TYPE.OPEN_VIEW,
+                    location: { ...location, view: form ? MACHINE_VIEW.AIAgentToolForm : MACHINE_VIEW.BIDiagram },
+                });
+            }
+            return;
+        }
         const resolved = await resolveToolFunction(tool.name, node);
         if (!resolved) {
             return;
@@ -288,6 +311,21 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
                 await deleteMcpVariableAndClass(tool);
                 return;
             }
+            // Read the tool's approval function before the tool's annotation goes away with it.
+            const approvalFunction = await approvalActions.approvalFunctionOfTool(
+                tool.name, node.codedata?.lineRange?.fileName || "agents.bal", host.projectPath
+            );
+            // Deleting the tool also deletes its approval function, and any logic written in it, so ask first.
+            if (approvalFunction) {
+                const answer = await rpcClient.getCommonRpcClient().showInformationModal({
+                    message: `Delete ${tool.name}?`,
+                    detail: `Its approval function ${approvalFunction} is deleted too, unless another tool uses it.`,
+                    items: ["Delete"],
+                });
+                if (answer !== "Delete") {
+                    return;
+                }
+            }
             const updated = await removeToolFromAgentNode(node, tool.name);
             if (updated) {
                 await refreshAgentNodeLineRange(updated, rpcClient);
@@ -308,6 +346,10 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
                     },
                 });
             }
+            // The approval function exists for this tool; delete it too unless another tool still uses it.
+            if (approvalFunction) {
+                await approvalActions.deleteIfUnused(approvalFunction);
+            }
             nextPosition = await resolveAgentNodePosition(node, rpcClient);
         } catch (error) {
             console.error("Failed to delete tool", error);
@@ -318,7 +360,7 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
             setLoading(false);
             close(nextPosition);
         }
-    }, [activate, close, deleteMcpVariableAndClass, resolveToolComponent, rpcClient]);
+    }, [activate, approvalActions, close, deleteMcpVariableAndClass, host.projectPath, resolveToolComponent, rpcClient]);
 
     const resolve = useCallback(
         (node: FlowNode) => (host.resolveAgentNode ? host.resolveAgentNode(node) : node),
@@ -336,6 +378,7 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
         },
         onDeleteTool: (tool, node) => void deleteTool(tool, resolve(node)),
         goToTool: (tool, node) => void openTool(tool, resolve(node), false),
+        canOpenTool: (tool) => !isImportedTool(tool) || workspaceTools.current.has(tool.name),
         onSelectMemoryManager: (node) => void selectMemory(resolve(node)),
         onSelectMemoryStore: (node) => void selectMemoryStore(resolve(node)),
         onDeleteMemoryManager: (node) => void deleteMemory(resolve(node)),
