@@ -46,7 +46,7 @@ const PopupFormBox = styled.div<{ width?: number; height?: number }>`
   flex-direction: column;
   overflow: hidden;
   border-radius: 10px;
-  background-color: ${ThemeColors.SURFACE_DIM};
+  background-color: var(--vscode-editorWidget-background);
   box-shadow: 0 3px 8px rgb(0 0 0 / 0.2);
   z-index: 2100;
 `;
