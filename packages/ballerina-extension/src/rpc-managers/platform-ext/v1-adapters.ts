@@ -434,7 +434,6 @@ export function connectableToMarketplaceItem(
     const access: ServiceConnectionAccess = endpoint.scope === "project" ? "project" : "organization";
     const item: MarketplaceItem = { ...serviceItem(endpoint, name, environment, orgHandle, access), summary: endpoint.project };
     if (unavailable) {
-        item.description = unavailable;
         item.properties = { [MARKETPLACE_ITEM_UNAVAILABLE]: unavailable };
     }
     return item;

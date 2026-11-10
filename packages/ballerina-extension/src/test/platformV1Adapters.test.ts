@@ -150,7 +150,7 @@ describe("platform v1 adapters", () => {
         expect(unavailableIn(endpoint, "staging")).toBe("Not available in staging.");
         const item = connectableToMarketplaceItem(endpoint, "development", "acme");
         expect(item.properties?.[MARKETPLACE_ITEM_UNAVAILABLE]).toBe(reason);
-        expect(item.description).toBe(reason);
+        expect(item.description).toBe("");
         const notDeployed = connectableToMarketplaceItem(endpoint, "development", "acme", "Deploy this integration first.");
         expect(notDeployed.properties?.[MARKETPLACE_ITEM_UNAVAILABLE]).toBe("Deploy this integration first.");
     });

@@ -287,7 +287,7 @@ export function DevantConnectorList(props: DevantConnectorListProps) {
                                     <ButtonCard
                                         id={`connector-${item.resourceId}`}
                                         title={item.name}
-                                        description={item.description}
+                                        description={cardSubtitle(item, unavailable)}
                                         icon={<Codicon name="package" />}
                                         onClick={() => handleMarketplaceItemClick(item)}
                                         disabled={loadingBalOrgConnectors || !!unavailable}
@@ -344,6 +344,20 @@ const ConnectionSection = <T,>({ emptyText, loading, data, searchText, renderIte
         </>
     );
 };
+
+/**
+ * One line under every card, so cards of a row are the same height: why the service can't be
+ * connected to, else where the resource lives.
+ */
+function cardSubtitle(item: MarketplaceItem, unavailable?: string): string {
+    if (unavailable) {
+        return unavailable;
+    }
+    if (item.resourceType === "DATABASE") {
+        return item.version ? `PostgreSQL ${item.version}` : "PostgreSQL";
+    }
+    return item.projectId ? `Project: ${item.projectId}` : item.summary || "";
+}
 
 function errorMessage(error: unknown): string {
     // Errors cross the RPC boundary as plain objects, not Error instances.
