@@ -109,6 +109,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
@@ -166,8 +167,11 @@ public class AiUtils {
     // Tracks which categories have been fully built for each AI version
     private static final Map<String, Set<NodeKind>> completedCategories = new HashMap<>();
 
-    // Whether dynamic resolution from Ballerina Central has been attempted
+    // Whether dynamic resolution from Ballerina Central has succeeded
     private static volatile boolean dependentModulesResolved = false;
+    // A failed resolution is retried after this long, so an offline catalog does not wait on Central each time.
+    private static final long CENTRAL_RETRY_AFTER_MILLIS = TimeUnit.MINUTES.toMillis(5);
+    private static long dependentModulesFailedAt = 0;
 
     // Still resolvable for existing projects, but hidden from the AI component pickers.
     private static final Set<String> DEPRECATED_AI_PACKAGES = Set.of("ai.devant");
@@ -695,16 +699,17 @@ public class AiUtils {
     }
 
     private static synchronized void ensureDependentModulesResolved() {
-        if (dependentModulesResolved) {
+        if (dependentModulesResolved
+                || System.currentTimeMillis() - dependentModulesFailedAt < CENTRAL_RETRY_AFTER_MILLIS) {
             return;
         }
         try {
             loadDependentModulesFromCentral();
+            dependentModulesResolved = true;
         } catch (RuntimeException e) {
+            dependentModulesFailedAt = System.currentTimeMillis();
             LOGGER.log(Level.WARNING,
                     "Failed to resolve dependent modules from Ballerina Central, using hardcoded fallback", e);
-        } finally {
-            dependentModulesResolved = true;
         }
     }
 
@@ -1039,9 +1044,13 @@ public class AiUtils {
         String aiModuleVersion = resolveAiModuleVersion(project);
         List<Module> modules = pinUserDeclaredVersions(project, getLatestCompatibleModules(aiModuleVersion));
         ensureKeywordsLoaded(modules);
+        getCategoryCache(category).remove(cacheKey);
         mergeIntoCache(getCategoryCache(category), cacheKey,
                 collectComponents(project, category, aiModuleVersion, modules, true));
-        completed.add(category);
+        // A list built from the fallback catalog is built again once Central answers.
+        if (dependentModulesResolved) {
+            completed.add(category);
+        }
     }
 
     // An unscanned or unscannable module falls back to its bundled version, so cached and refreshed lists agree.
