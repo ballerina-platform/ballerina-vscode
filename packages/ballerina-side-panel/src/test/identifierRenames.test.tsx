@@ -200,10 +200,15 @@ describe("IdentifierEditor in-place renames", () => {
         ]);
     });
 
-    // The LS found nothing to rename, so the source keeps the old name: neither the form nor the
-    // log may take the new one, or the next rename on the line lands on the wrong column.
-    it("keeps the old name and logs nothing when the LS applies no edit", async () => {
-        const renameIdentifier = jest.fn(async () => false);
+    // The LS found nothing to rename, or the request failed, so the source keeps the old name:
+    // neither the form nor the log may take the new one, or the next rename on the line lands on
+    // the wrong column. The editor stays open and says so.
+    it.each([
+        ["the LS applies no edit", async () => false],
+        ["the rename request fails", async (): Promise<boolean> => { throw new Error("LS unavailable"); }],
+    ])("keeps the old name and logs nothing when %s", async (_case, rename) => {
+        const renameIdentifier = jest.fn(rename);
+        const consoleError = jest.spyOn(console, "error").mockImplementation(() => undefined);
         const rpcClient = {
             getBIDiagramRpcClient: () => ({
                 renameIdentifier,
@@ -240,5 +245,7 @@ describe("IdentifierEditor in-place renames", () => {
         expect(getForm().getValues("person")).toBe("person");
         expect(field.value).toBe("person");
         expect(log.current(address)).toEqual(address);
+        expect(await screen.findByText(/Could not rename/)).toBeTruthy();
+        consoleError.mockRestore();
     });
 });

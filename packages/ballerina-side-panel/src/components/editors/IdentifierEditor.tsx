@@ -172,6 +172,12 @@ export function IdentifierEditor(props: IdentifierEditorProps) {
         // The range was read when the form loaded; an earlier rename on the same line (the
         // function's name, or a parameter before this one) has since moved the identifier.
         const lineRange = renameLog?.current(field.lineRange) ?? field.lineRange;
+        // The source still has the old name: keep editing rather than show, log or keep (on
+        // cancel) a name the source does not have.
+        const failRename = () => {
+            saveButtonClicked.current = false;
+            setIdentifierErrorMsg(`Could not rename ${field.label ?? "the identifier"}.`);
+        };
         try {
             const renamed = await rpcClient.getBIDiagramRpcClient().renameIdentifier({
                 fileName: lineRange?.fileName,
@@ -181,11 +187,9 @@ export function IdentifierEditor(props: IdentifierEditorProps) {
                 },
                 newName: String(tempValue)
             });
-            // The LS found nothing to rename, so the source still has the old name: keep editing
-            // rather than show, log or keep (on cancel) a name the source does not have.
+            // The LS found nothing to rename.
             if (!renamed) {
-                saveButtonClicked.current = false;
-                setIdentifierErrorMsg(`Could not rename ${field.label ?? "the identifier"}.`);
+                failRename();
                 return;
             }
             if (lineRange?.startLine && typeof field.value === "string") {
@@ -203,6 +207,7 @@ export function IdentifierEditor(props: IdentifierEditorProps) {
             onEditingStateChange?.(false);
         } catch (error) {
             console.error('Error renaming identifier:', error);
+            failRename();
         } finally {
             setIsSaving(false);
         }
