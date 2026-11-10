@@ -1,0 +1,36 @@
+{
+    "packages": ["integration", "billing"],
+    "sharedCopies": [
+        {
+            "name": "a New Variable form on the file of the flow node form it opened from",
+            "files": ["integration/automation.bal", "integration/automation.bal"]
+        },
+        {
+            "name": "a New Function form on functions.bal, opened from a flow node form on another file",
+            "files": ["integration/automation.bal", "integration/functions.bal"]
+        },
+        {
+            "name": "forms on a module file and a test file of one package",
+            "files": ["integration/modules/db/db.bal", "integration/tests/main_test.bal"]
+        }
+    ],
+    "separateCopies": [
+        {
+            "name": "forms on files of two packages",
+            "files": ["integration/main.bal", "billing/main.bal"]
+        },
+        {
+            "name": "forms on two files outside any package",
+            "files": ["scripts/one.bal", "scripts/two.bal"]
+        }
+    ],
+    "sameCopySpellings": [
+        {
+            "name": "forms on one file, its drive letter in either case",
+            "paths": ["C:\\work\\scripts\\one.bal", "c:\\work\\scripts\\one.bal"]
+        }
+    ],
+    "files": {
+        "outer": "integration/automation.bal"
+    }
+}

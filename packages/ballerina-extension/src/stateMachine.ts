@@ -57,6 +57,7 @@ import { checkAndPromptConnectorUpgrades } from './features/project/connector-up
 import { checkDependencyCompatibility } from './features/project/dependency-compatibility';
 import { createDependencyCheckTransitions, getVisualizerCheckRoot, needsDependencyCheck } from './features/project/dependency-check-transitions';
 import { closeOrphanWebviewTabs } from './views/closeOrphanWebviewTabs';
+import { clearFormState } from './rpc-managers/bi-diagram/form-state';
 import { getEnclosingProjectStatus } from './utils/bi';
 
 export interface ProjectMetadata {
@@ -962,6 +963,9 @@ async function createVisualizerPanel(context: MachineContext): Promise<void> {
     const webviewReadyDisposable = RPCLayer._messenger.onNotification(webviewReady, () => {
         history = new History();
         undoRedoManager = new UndoRedoManager();
+        // A page that has just loaded holds no forms. Any still counted went with the page before it
+        // (a webview reload), without unmounting, so they never reported closing.
+        clearFormState();
         const webview = VisualizerWebview.currentPanel?.getWebview();
         if (webview && (context.isBI || context.view === MACHINE_VIEW.BIWelcome)) {
             const biExtension = isInWI() || extensions.getExtension('wso2.ballerina-integrator');

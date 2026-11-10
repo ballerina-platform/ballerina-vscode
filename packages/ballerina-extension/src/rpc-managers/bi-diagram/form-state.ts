@@ -16,41 +16,88 @@
  * under the License.
  */
 
-const openFormFilePaths = new Set<string>();
-const dirtyFormFilePaths = new Set<string>();
+import { normalizeProjectPath } from '@wso2/ballerina-core';
+import { findPackageRoot } from '../../features/project/dependency-lock';
 
-export function registerFormOpen(filePath: string): void {
-    openFormFilePaths.add(filePath);
-    dirtyFormFilePaths.delete(filePath);
+// How many open forms check their expressions against each expr:// copy. The language server copies
+// a whole package when a form on any of its files opens, and drops that copy when a form on any of its
+// files closes. A form can open another on the same package (a flow node form's "+ New Variable" on
+// its own file, its "+ New Function" on functions.bal), so the copy is shared, and has to outlive the
+// inner form.
+const openFormCounts = new Map<string, number>();
+// The expr:// copy each file with unsaved edits checks against, by file. Edits are taken from any file
+// on an open package, so they go with the package: as its first form opens and its last one closes.
+const dirtyFiles = new Map<string, string>();
+
+/** Returns whether no other form is open on the file's package, so its expr:// copy must be opened. */
+export function registerFormOpen(filePath: string): boolean {
+    const copy = exprCopyOf(filePath);
+    const count = openFormCounts.get(copy) ?? 0;
+    openFormCounts.set(copy, count + 1);
+    if (count === 0) {
+        clearDirtyFiles(copy);
+    }
+    dirtyFiles.delete(filePath);
+    return count === 0;
 }
 
-export function registerFormClose(filePath: string): void {
-    openFormFilePaths.delete(filePath);
-    dirtyFormFilePaths.delete(filePath);
+/** Returns whether no form is left open on the file's package, so its expr:// copy can be closed. */
+export function registerFormClose(filePath: string): boolean {
+    dirtyFiles.delete(filePath);
+    const copy = exprCopyOf(filePath);
+    const count = openFormCounts.get(copy) ?? 0;
+    if (count > 1) {
+        openFormCounts.set(copy, count - 1);
+        return false;
+    }
+    openFormCounts.delete(copy);
+    clearDirtyFiles(copy);
+    return true;
 }
 
-/** Tracks dirty state for an already-open form (see formDidOpen). Ignored if the path is not open. */
+/** Tracks dirty state for a form on an already-open package (see formDidOpen). Ignored if the package is not open. */
 export function setFormDirtyState(filePath: string, isDirty: boolean): void {
-    if (!openFormFilePaths.has(filePath)) {
+    if (!isDirty) {
+        dirtyFiles.delete(filePath);
         return;
     }
-    if (isDirty) {
-        dirtyFormFilePaths.add(filePath);
-    } else {
-        dirtyFormFilePaths.delete(filePath);
+    const copy = exprCopyOf(filePath);
+    if (openFormCounts.has(copy)) {
+        dirtyFiles.set(filePath, copy);
     }
 }
 
 export function hasOpenForm(): boolean {
-    return openFormFilePaths.size > 0;
+    return openFormCounts.size > 0;
 }
 
 export function hasDirtyOpenForm(): boolean {
-    return dirtyFormFilePaths.size > 0;
+    return dirtyFiles.size > 0;
 }
 
 /** Clears form state when navigating away (e.g., user chose "Discard and Navigate"). */
 export function clearFormState(): void {
-    openFormFilePaths.clear();
-    dirtyFormFilePaths.clear();
+    openFormCounts.clear();
+    dirtyFiles.clear();
+}
+
+// The language server keeps one expr:// copy per package, and one per file outside a package. Forms
+// get their file paths from different sources (the flow model, VS Code's fsPath), which can spell one
+// package differently, so the path is normalized.
+//
+// In a workspace the language server copies every package when a form opens on one, and drops only
+// that form's package when it closes. Packages are still counted apart here: counting the workspace
+// as one copy would leave open the copies of packages whose forms have all closed. A form opening on
+// a second package therefore copies the first one again, which loses nothing: every request against
+// a copy carries the text it checks.
+function exprCopyOf(filePath: string): string {
+    return normalizeProjectPath(findPackageRoot(filePath) ?? filePath);
+}
+
+function clearDirtyFiles(copy: string): void {
+    for (const [filePath, dirtyCopy] of dirtyFiles) {
+        if (dirtyCopy === copy) {
+            dirtyFiles.delete(filePath);
+        }
+    }
 }
