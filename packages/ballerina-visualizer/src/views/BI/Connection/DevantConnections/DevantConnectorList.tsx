@@ -27,6 +27,7 @@ import { BodyTinyInfo } from "../../../styles";
 import { usePlatformExtContext } from "../../../../providers/platform-ext-ctx-provider";
 import { hasCloudProject } from "../../../../providers/cloud-project";
 import { useQuery } from "@tanstack/react-query";
+import { VSCodeLink } from "@vscode/webview-ui-toolkit/react";
 import { GetMarketplaceItemsParams, MarketplaceItem } from "@wso2/wso2-platform-core";
 import {
     ConnectorsGrid,
@@ -43,6 +44,8 @@ import {
     getKnownAvailableNode,
     INTERNAL_SERVICES,
     ProgressWrap,
+    cardSubtitle,
+    errorMessage,
 } from "./utils";
 
 // Number of connections rendered in the list.
@@ -201,7 +204,9 @@ export function DevantConnectorList(props: DevantConnectorListProps) {
     });
 
     // A just-linked project's environments are still being read: the services follow them.
-    const isWaitingForEnv = filterType !== "databases" && !platformExtState?.selectedEnv;
+    // Why there is no environment, once that is known; the services wait for one until then.
+    const envsError = platformExtState?.selectedEnv ? undefined : platformExtState?.envsError;
+    const isWaitingForEnv = filterType !== "databases" && !platformExtState?.selectedEnv && !envsError;
     const isLoading = isLoadingMarketplace || isLoadingDbs || isWaitingForEnv;
 
     const items: MarketplaceItem[] = [];
@@ -220,7 +225,11 @@ export function DevantConnectorList(props: DevantConnectorListProps) {
         items.push(...(marketplaceServices?.data || []));
     }
 
-    const showServicesError = !!marketplaceError && filterType !== "databases" && !isLoading;
+    const servicesError = envsError ?? (marketplaceError ? errorMessage(marketplaceError) : undefined);
+    const showServicesError = !!servicesError && filterType !== "databases" && !isLoading;
+    // Connections are made for a deployed integration: before that the services are listed, not offered.
+    const notDeployed = !platformExtState?.selectedIntegration;
+    const showNotDeployed = notDeployed && !showServicesError && filterType !== "databases";
 
     let emptyText = "No resources in WSO2 Cloud";
     if (filterType === INTERNAL_SERVICES) {
@@ -269,7 +278,15 @@ export function DevantConnectorList(props: DevantConnectorListProps) {
                 </SectionHeader>
                 {showServicesError && (
                     <BodyTinyInfo style={{ paddingBottom: "10px" }}>
-                        Couldn't list the services in WSO2 Cloud: {errorMessage(marketplaceError)}
+                        Couldn't list the services in WSO2 Cloud: {servicesError}
+                    </BodyTinyInfo>
+                )}
+                {showNotDeployed && (
+                    <BodyTinyInfo style={{ paddingBottom: "10px" }}>
+                        <VSCodeLink onClick={() => platformRpcClient?.deployIntegrationInDevant()}>
+                            Deploy this integration
+                        </VSCodeLink>{" "}
+                        to WSO2 Cloud to connect it to these services.
                     </BodyTinyInfo>
                 )}
                 {/* After a failed listing, "no resources" would say something nobody knows. */}
@@ -282,16 +299,17 @@ export function DevantConnectorList(props: DevantConnectorListProps) {
                         renderItem={(item) => {
                             // A service the integration can't connect to now is shown with the reason, not hidden.
                             const unavailable = item.properties?.[MARKETPLACE_ITEM_UNAVAILABLE];
+                            const blocked = !!unavailable || (notDeployed && item.resourceType === "SERVICE");
                             return (
-                                <div style={unavailable ? { opacity: 0.6 } : undefined}>
+                                <div style={blocked ? { opacity: 0.6 } : undefined}>
                                     <ButtonCard
                                         id={`connector-${item.resourceId}`}
                                         title={item.name}
                                         description={cardSubtitle(item, unavailable)}
                                         icon={<Codicon name="package" />}
                                         onClick={() => handleMarketplaceItemClick(item)}
-                                        disabled={loadingBalOrgConnectors || !!unavailable}
-                                        tooltip={unavailable}
+                                        disabled={loadingBalOrgConnectors || blocked}
+                                        tooltip={unavailable ?? (blocked ? "Deploy this integration to WSO2 Cloud first." : undefined)}
                                     />
                                 </div>
                             );
@@ -344,27 +362,3 @@ const ConnectionSection = <T,>({ emptyText, loading, data, searchText, renderIte
         </>
     );
 };
-
-/**
- * One line under every card, so cards of a row are the same height: why the service can't be
- * connected to, else where the resource lives.
- */
-function cardSubtitle(item: MarketplaceItem, unavailable?: string): string {
-    if (unavailable) {
-        return unavailable;
-    }
-    if (item.resourceType === "DATABASE") {
-        return item.version ? `PostgreSQL ${item.version}` : "PostgreSQL";
-    }
-    return item.projectId ? `Project: ${item.projectId}` : item.summary || "";
-}
-
-function errorMessage(error: unknown): string {
-    // Errors cross the RPC boundary as plain objects, not Error instances.
-    const message =
-        typeof error === "object" && error !== null && "message" in error
-            ? String((error as { message: unknown }).message)
-            : String(error);
-    // The RPC layer prefixes the extension's message; the reader wants only the reason.
-    return message.replace(/^Error:\s*/, "");
-}

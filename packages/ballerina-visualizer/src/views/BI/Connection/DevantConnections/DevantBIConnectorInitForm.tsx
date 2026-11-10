@@ -214,7 +214,7 @@ export const DevantBIConnectorCreateForm: FC<Props> = (props) => {
                 // The same access and schema the popup made the configurables for.
                 const { visibility, schema } = getInitialAccess(
                     selectedMarketplaceItem,
-                    platformExtState?.selectedContext?.project,
+                    platformExtState?.selectedContext?.projectName,
                 );
                 const createdConnection = await platformRpcClient?.createInternalConnection({
                     componentId: isProjectLevel ? "" : platformExtState?.selectedIntegration?.integration.id,

@@ -17,7 +17,7 @@
  */
 
 import { AvailableNode, Category, IntrospectCredentialsResponse, PropertyModel } from "@wso2/ballerina-core";
-import { MarketplaceItem, MarketplaceItemSchema, Project, ServiceInfoVisibilityEnum } from "@wso2/wso2-platform-core";
+import { MarketplaceItem, MarketplaceItemSchema, ServiceInfoVisibilityEnum } from "@wso2/wso2-platform-core";
 import { connectionVarPrefix } from "@wso2/wso2-cloud-client/contract";
 import styled from "@emotion/styled";
 
@@ -414,10 +414,10 @@ export const dbCredentialsToFieldValues = (
 }
 
 // Devant "service -> connection params" helpers, shared by the connection form and the KB flow.
-/** Only the project's id is read, so a v2 project (WSO2 Cloud) serves as well as a v1 one. */
-export const getPossibleVisibilities = (marketplaceItem: MarketplaceItem, project?: Pick<Project, "id">) => {
+/** Taken by the linked project's name, which is known before the project's details are read. */
+export const getPossibleVisibilities = (marketplaceItem: MarketplaceItem, projectName?: string) => {
     const { visibility: visibilities = [] } = marketplaceItem ?? {};
-    return visibilities.filter((item) => item !== ServiceInfoVisibilityEnum.Project || (!!project?.id && marketplaceItem.projectId === project.id));
+    return visibilities.filter((item) => item !== ServiceInfoVisibilityEnum.Project || (!!projectName && marketplaceItem.projectId === projectName));
 };
 
 export const getInitialVisibility = (item: MarketplaceItem, visibilities: string[] = []) => {
@@ -444,7 +444,7 @@ export const serviceUrlConfigName = (configs: { id: string; name: string }[] | u
     configs?.find((config) => config.id === SERVICE_URL_ENTRY)?.name;
 
 /** The entry of a service connection that holds its API key, for a service of another project. */
-export const API_KEY_ENTRY = "ChoreoAPIKey";
+export const API_KEY_ENTRY = "APIKey";
 
 /** The configurable made for a connection's API key, by the entry it was made for. */
 export const apiKeyConfigName = (configs: { id: string; name: string }[] | undefined): string | undefined =>
@@ -467,8 +467,8 @@ export const getPossibleSchemas = (item: MarketplaceItem | undefined, visibility
  * The access a new connection to a service starts with, and the schema that access takes. Forms with no access
  * choice use this for both the configurables and the connection, so a gateway connection gets its API key's one.
  */
-export const getInitialAccess = (item: MarketplaceItem, project?: Pick<Project, "id">) => {
-    const visibility = getInitialVisibility(item, getPossibleVisibilities(item, project));
+export const getInitialAccess = (item: MarketplaceItem, projectName?: string) => {
+    const visibility = getInitialVisibility(item, getPossibleVisibilities(item, projectName));
     return { visibility, schema: getPossibleSchemas(item, visibility)[0] as MarketplaceItemSchema | undefined };
 };
 
@@ -488,3 +488,27 @@ export const errorMessageOf = (error: unknown): string =>
     typeof error === "object" && error !== null && typeof (error as { message?: unknown }).message === "string"
         ? (error as { message: string }).message
         : String(error);
+
+/**
+ * One line under every card, so cards of a row are the same height: why the service can't be
+ * connected to, else where the resource lives.
+ */
+export function cardSubtitle(item: MarketplaceItem, unavailable?: string): string {
+    if (unavailable) {
+        return unavailable;
+    }
+    if (item.resourceType === "DATABASE") {
+        return item.version ? `PostgreSQL ${item.version}` : "PostgreSQL";
+    }
+    return item.projectId ? `Project: ${item.projectId}` : item.summary || "";
+}
+
+export function errorMessage(error: unknown): string {
+    // Errors cross the RPC boundary as plain objects, not Error instances.
+    const message =
+        typeof error === "object" && error !== null && "message" in error
+            ? String((error as { message: unknown }).message)
+            : String(error);
+    // The RPC layer prefixes the extension's message; the reader wants only the reason.
+    return message.replace(/^Error:\s*/, "");
+}

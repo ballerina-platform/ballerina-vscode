@@ -222,7 +222,7 @@ export const processOpenApiWithApiKeyAuth = (yamlString: string, securityType: "
                 type: "apiKey",
                 in: "header",
                 name: apiKeyHeader,
-                "x-ballerina-name": "choreoAPIKey",
+                "x-ballerina-name": "apiKey",
             };
         }
 
@@ -328,7 +328,7 @@ export const Templates = {
     }) => {
         return `final ${params.MODULE_NAME}:Client ${
             params.CONNECTION_NAME
-        } = check new (apiKeyConfig = { choreoAPIKey: ${params.API_KEY_VAR_NAME} }, config = { ${
+        } = check new (apiKeyConfig = { apiKey: ${params.API_KEY_VAR_NAME} }, config = { ${
             params.requireProxy ? `proxy: ${ProxyConfigEnvVars.proxyConfig.varName}, ` : ""
         }timeout: 60 }, serviceUrl = ${params.SERVICE_URL_VAR_NAME});\n`;
     },

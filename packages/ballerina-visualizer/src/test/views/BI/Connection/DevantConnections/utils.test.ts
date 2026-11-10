@@ -20,9 +20,12 @@ import { MarketplaceItem } from "@wso2/wso2-platform-core";
 import {
     KB_SERVICE_TAG,
     errorMessageOf,
+    cardSubtitle,
+    errorMessage,
     filterConnectionMarketplaceItems,
     generateInitialConnectionName,
     getInitialAccess,
+    getPossibleVisibilities,
     getPossibleSchemas,
     isValidDevantConnName,
     securityTypeOf,
@@ -114,9 +117,9 @@ describe("WSO2 Cloud service connection schemas", () => {
 
     it("starts a connection with the schema of its initial access", () => {
         const inProject = { ...service, projectId: "p1", visibility: ["PROJECT", "ORGANIZATION"] } as unknown as MarketplaceItem;
-        expect(getInitialAccess(inProject, { id: "p1" })).toMatchObject({ visibility: "PROJECT", schema: { id: "project-url" } });
+        expect(getInitialAccess(inProject, "p1")).toMatchObject({ visibility: "PROJECT", schema: { id: "project-url" } });
         // From another project, Project access is not offered, so the connection goes through the gateway with a key.
-        expect(getInitialAccess(inProject, { id: "p2" })).toMatchObject({ visibility: "ORGANIZATION", schema: { id: "api-key" } });
+        expect(getInitialAccess(inProject, "p2")).toMatchObject({ visibility: "ORGANIZATION", schema: { id: "api-key" } });
     });
 
     it("leaves a database's schemas unfiltered", () => {
@@ -138,7 +141,7 @@ describe("WSO2 Cloud service connection schemas", () => {
 
 describe("serviceUrlConfigName", () => {
     it("names the configurable made for the URL entry", () => {
-        expect(serviceUrlConfigName([{ id: "ChoreoAPIKey", name: "ChoreoAPIKey" }, { id: "ServiceURL", name: "ServiceURL1" }])).toBe("ServiceURL1");
+        expect(serviceUrlConfigName([{ id: "APIKey", name: "APIKey" }, { id: "ServiceURL", name: "ServiceURL1" }])).toBe("ServiceURL1");
         expect(serviceUrlConfigName([])).toBeUndefined();
         expect(serviceUrlConfigName(undefined)).toBeUndefined();
     });
@@ -189,5 +192,28 @@ describe("WSO2 Cloud connection names clash by the env vars they write", () => {
         expect(isValidDevantConnName("Orders", ["orders"], [], true)).toBeUndefined();
         expect(isValidDevantConnName("Orders", ["stock"], ["orders"], false)).toBeUndefined();
         expect(isValidDevantConnName("orders", ["stock"], ["orders"], false)).toBe("Duplicate connection name");
+    });
+});
+
+describe("WSO2 Cloud resource cards", () => {
+    it("gives every card one line: why it can't be connected to, else where it lives", () => {
+        const service = { resourceType: "SERVICE", projectId: "finance" } as unknown as MarketplaceItem;
+        const database = { resourceType: "DATABASE", version: "16" } as unknown as MarketplaceItem;
+        expect(cardSubtitle(service, "Not available in production.")).toBe("Not available in production.");
+        expect(cardSubtitle(service)).toBe("Project: finance");
+        expect(cardSubtitle(database)).toBe("PostgreSQL 16");
+        expect(cardSubtitle({ resourceType: "DATABASE" } as unknown as MarketplaceItem)).toBe("PostgreSQL");
+    });
+
+    it("reads the message of an error that crossed the RPC boundary as a plain object", () => {
+        expect(errorMessage({ message: "The project has no environment to connect to." })).toBe("The project has no environment to connect to.");
+        expect(errorMessage(new Error("Error: refused"))).toBe("refused");
+        expect(errorMessage("plain")).toBe("plain");
+    });
+
+    it("offers Project access by the linked project's name, before its details are read", () => {
+        const service = { resourceType: "SERVICE", projectId: "shop", visibility: ["PROJECT", "ORGANIZATION"] } as unknown as MarketplaceItem;
+        expect(getPossibleVisibilities(service, "shop")).toEqual(["PROJECT", "ORGANIZATION"]);
+        expect(getPossibleVisibilities(service, undefined)).toEqual(["ORGANIZATION"]);
     });
 });

@@ -108,7 +108,7 @@ export const DevantConnectorCreateForm: FC<DevantConnectorCreateFormProps> = ({
     const { platformExtState, platformRpcClient } = usePlatformExtContext();
     const [showAdvancedSection, setShowAdvancedSection] = useState(false);
 
-    const visibilities = getPossibleVisibilities(marketplaceItem, platformExtState?.selectedContext?.project);
+    const visibilities = getPossibleVisibilities(marketplaceItem, platformExtState?.selectedContext?.projectName);
 
     const form = useForm<CreateConnectionForm>({
         mode: "all",

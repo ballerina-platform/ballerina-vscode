@@ -51,7 +51,6 @@ import {
     MarketplaceIdlResp,
     MarketplaceItem,
     MarketplaceListResp,
-    ServiceInfoVisibilityEnum,
     GetConnectionItemReq,
     StartProxyServerResp,
     ConnectionDetailed,
@@ -107,9 +106,9 @@ import {
     createdConnection,
     accessTo,
     connectableToMarketplaceItem,
-    unavailableIn,
     endpointLinkConnections,
-    endpointLinksReferencedBy,
+    API_KEY_ENTRY,
+    connectionLinksOf,
     linkToConnectionDetailed,
     parseLinkConnectionId,
     dbCredentialsToAdminCredential,
@@ -411,9 +410,10 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
     private async refreshEnvironments(context?: ContextItemEnriched) {
         const platformExt = await this.getPlatformExt();
         if (!platformExt || !context?.projectName || context.foreignOrg || context.local) {
-            platformExtStore.getState().setState({ envs: [], selectedEnv: undefined });
+            platformExtStore.getState().setState({ envs: [], selectedEnv: undefined, envsError: undefined });
             return;
         }
+        platformExtStore.getState().setState({ envsError: undefined });
         // A list that comes back after the selection moved to another project is dropped.
         const stillSelected = () => platformExtStore.getState().state?.selectedContext?.projectName === context.projectName;
         try {
@@ -426,10 +426,15 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
                 envs.find((env) => env.id === previous) ||
                 envs.find((env) => env.id === context.defaultEnv || env.name === context.defaultEnv) ||
                 envs[0];
-            platformExtStore.getState().setState({ envs, selectedEnv });
+            // Said, so what waits for an environment stops waiting.
+            const envsError = selectedEnv ? undefined : `The project ${context.projectName} has no environments.`;
+            platformExtStore.getState().setState({ envs, selectedEnv, envsError });
         } catch (err) {
             if (stillSelected()) {
                 log(`Failed to list the environments of ${context.projectName}: ${err}`);
+                platformExtStore.getState().setState({
+                    envsError: `Couldn't read the environments of ${context.projectName}: ${err instanceof Error ? err.message : String(err)}`,
+                });
             }
         }
     }
@@ -543,16 +548,15 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
             const projectPath = StateMachine.context()?.projectPath;
             const integrationName = integration?.id ?? (projectPath ? getOrgPackageName(projectPath).packageName : "");
             if (!integrationName) {
-                log("The package's name could not be read from its Ballerina.toml: there is nothing to list services for.");
-                return empty;
+                throw new Error("Open a Ballerina package: the services are listed for the package's integration, and its name is read from Ballerina.toml.");
             }
             // Every project's endpoints the integration may reach. The ones it can't connect to in the
             // environment are listed too, with the platform's reason, so a service never just goes missing.
+            // Before the integration is deployed none can be connected to yet; the screen says so once.
             const endpoints = await platformExt.connections.listConnectable(integrationName, projectName);
-            const notDeployed = integration ? undefined : "Deploy this integration to WSO2 Cloud to connect it to services.";
             const query = params?.request?.query?.toLowerCase();
             const data = endpoints
-                .map((endpoint) => connectableToMarketplaceItem(endpoint, envId, orgHandle, notDeployed ?? unavailableIn(endpoint, envId)))
+                .map((endpoint) => connectableToMarketplaceItem(endpoint, envId, orgHandle))
                 .filter((item) => !query || item.name.toLowerCase().includes(query))
                 .sort((a, b) => Number(!!a.properties?.[MARKETPLACE_ITEM_UNAVAILABLE]) - Number(!!b.properties?.[MARKETPLACE_ITEM_UNAVAILABLE]));
             const offset = params?.request?.offset ?? 0;
@@ -729,7 +733,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
             const groupConnections = groups
                 .filter((group) => localRefs.has(group.name ?? ""))
                 .map((group) => envGroupToConnectionListItem(group, { integration: params.componentId, environment: envId }, localRefs.get(group.name ?? "")));
-            // A connection inside the project is a link the platform resolves, not a group. Links that cannot
+            // A service connection is a link the platform resolves, not a group. Links that cannot
             // be read leave the group connections listed.
             let links: EndpointLink[];
             try {
@@ -1169,9 +1173,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
                             // endpoint, the configurables this connection's code reads are the links that are its own:
                             // its URL's and, across projects, its API key's.
                             const links = await platformExt.connections.listEndpointLinks(link.integration, projectName);
-                            const urlLink = links.find((item) => item.configurable === link.configurable);
-                            const ownLinks = urlLink ? endpointLinksReferencedBy(links, urlLink, matchingConnection.initializer?.source ?? "") : [];
-                            const configurables = ownLinks.length > 0 ? ownLinks.map((item) => item.configurable) : [link.configurable];
+                            const configurables = connectionLinksOf(links, link.configurable, matchingConnection.initializer?.source ?? "");
                             for (const configurable of configurables) {
                                 await platformExt.connections.unlinkEndpoint({ integration: link.integration, configurable, projectName });
                             }
@@ -1229,7 +1231,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
                 envName: string;
             }
             interface Ikeys {
-                ChoreoAPIKey?: IkeyVal;
+                APIKey?: IkeyVal;
                 ServiceURL?: IkeyVal;
                 TokenURL?: IkeyVal;
                 ConsumerKey?: IkeyVal;
@@ -1274,7 +1276,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
 
             // WSO2 Cloud has no local proxy to route a connection through: the connection calls its URL directly.
             const resp = await addConnection(params.name, moduleName, params.securityType, false, {
-                apiKeyVarName: keys?.ChoreoAPIKey?.keyname,
+                apiKeyVarName: keys?.APIKey?.keyname,
                 svsUrlVarName: keys?.ServiceURL?.keyname,
                 tokenClientIdVarName: keys?.ConsumerKey?.keyname,
                 tokenClientSecretVarName: keys?.ConsumerSecret?.keyname,
@@ -1447,7 +1449,18 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
                             (member.typedBindingPattern?.bindingPattern as CaptureBindingPattern)?.variableName?.value === config.name,
                     ) as ModuleVarDecl;
                 }
-                if (matchingConfigEntry && matchingNode) {
+                if (!matchingConfigEntry && matchingNode && config.id === API_KEY_ENTRY) {
+                    // An API that takes no key: its key's configurable is left empty, not required with nothing to fill it.
+                    hasUpdatedConfig = true;
+                    configBalEdits.replace(
+                        getConfigFileUri(),
+                        new vscode.Range(
+                            new vscode.Position(matchingNode.initializer.position.startLine, matchingNode.initializer.position.startColumn),
+                            new vscode.Position(matchingNode.initializer.position.endLine, matchingNode.initializer.position.endColumn),
+                        ),
+                        '""',
+                    );
+                } else if (matchingConfigEntry && matchingNode) {
                     let value = `os:getEnv("${matchingConfigEntry.envVariableName}")`;
                     if (config.type === "int") {
                         value = `check int:fromString(os:getEnv("${matchingConfigEntry.envVariableName}"))`;

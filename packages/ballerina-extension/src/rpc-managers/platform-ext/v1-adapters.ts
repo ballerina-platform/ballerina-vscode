@@ -53,7 +53,10 @@ export const SERVICE_CONNECTION_KEYS: Record<string, string> = SERVICE_CONNECTIO
 
 const DATABASE_SUFFIXES = Object.values(DATABASE_CONNECTION_KEYS);
 
-const SENSITIVE_ENTRIES = new Set(["Password", "ChoreoAPIKey"]);
+/** The entry of a service connection's API key, in the schemas and in the forms' temporary configurables. */
+export const API_KEY_ENTRY: keyof typeof SERVICE_CONNECTION_VARS = "APIKey";
+
+const SENSITIVE_ENTRIES = new Set(["Password", API_KEY_ENTRY]);
 
 const SERVICE_ID_PREFIX = "svc:";
 const DATABASE_ID_PREFIX = "db:";
@@ -156,6 +159,9 @@ export function endpointLinkConnections(
     skip: Set<string> = new Set(),
 ): ConnectionListItem[] {
     const unclaimed = links.filter((link) => link.key === undefined || link.key === "url");
+    // Without each connection's code, a key link is told apart only by its endpoint: each URL link claims one,
+    // so a second connection to the endpoint made without a key isn't shown with one.
+    const unclaimedKeys = links.filter((link) => link.key === "apiKey");
     const items: ConnectionListItem[] = [];
     for (const [name, refServiceId] of localRefs) {
         const target = parseServiceId(refServiceId);
@@ -170,9 +176,11 @@ export function endpointLinkConnections(
         }
         const [link] = unclaimed.splice(index, 1);
         const access = accessTo(target.project, ref.project);
-        const apiKey = links.some(
-            (other) => other.key === "apiKey" && other.project === link.project && other.component === link.component && other.endpoint === link.endpoint,
-        );
+        const keyIndex = unclaimedKeys.findIndex((other) => sameEndpoint(other, link));
+        const apiKey = keyIndex >= 0;
+        if (apiKey) {
+            unclaimedKeys.splice(keyIndex, 1);
+        }
         items.push(linkToConnectionListItem({ integration: ref.integration, configurable: link.configurable, name }, refServiceId, access, apiKey));
     }
     return items;
@@ -187,6 +195,29 @@ export function accessTo(targetProject: string, consumerProject: string): Servic
  * The links of one endpoint whose configurables `source` (a connection's code)
  * reads by name: the URL's and, across projects, the API key's.
  */
+function sameEndpoint(a: Pick<EndpointLink, "project" | "component" | "endpoint">, b: Pick<EndpointLink, "project" | "component" | "endpoint">): boolean {
+    return a.project === b.project && a.component === b.component && a.endpoint === b.endpoint;
+}
+
+/**
+ * The configurables a connection fills, to unlink with it: by the configurables its code (`source`) reads,
+ * its URL's and, across projects, its API key's. Code that reads them some other way names none; then the
+ * URL alone, unless it is the only connection to its endpoint, whose links are then all its own.
+ */
+export function connectionLinksOf(links: EndpointLink[], urlConfigurable: string, source: string): string[] {
+    const urlLink = links.find((link) => link.configurable === urlConfigurable);
+    if (!urlLink) {
+        return [urlConfigurable];
+    }
+    const referenced = endpointLinksReferencedBy(links, urlLink, source);
+    if (referenced.length > 0) {
+        return referenced.map((link) => link.configurable);
+    }
+    const toEndpoint = links.filter((link) => sameEndpoint(link, urlLink));
+    const urlLinks = toEndpoint.filter((link) => link.key === undefined || link.key === "url");
+    return urlLinks.length === 1 ? toEndpoint.map((link) => link.configurable) : [urlConfigurable];
+}
+
 export function endpointLinksReferencedBy(links: EndpointLink[], endpoint: Pick<EndpointLink, "project" | "component" | "endpoint">, source: string): EndpointLink[] {
     return links.filter((link) => {
         if (link.project !== endpoint.project || link.component !== endpoint.component || link.endpoint !== endpoint.endpoint) {
@@ -382,12 +413,6 @@ export function dbCredentialsToAdminCredential(credentials: DbCredentials): Data
     return { name: credentials.username, password: credentials.password };
 }
 
-const VISIBILITY: Record<string, MarketplaceItem["visibility"][number]> = {
-    project: "PROJECT",
-    organization: "ORGANIZATION",
-    public: "PUBLIC",
-};
-
 const SERVICE_TYPE: Record<string, MarketplaceItem["serviceType"]> = {
     graphql: "GRAPHQL",
     grpc: "GRPC",
@@ -469,6 +494,7 @@ function serviceItem(
         name,
         version: environment,
         status: "PUBLISHED",
+        // The platform's connectable endpoints carry no type yet, so every one is offered as a REST API.
         serviceType: "REST",
         resourceType: "SERVICE",
         organizationId: orgHandle,

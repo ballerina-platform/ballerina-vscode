@@ -41,6 +41,7 @@ import {
 import { MARKETPLACE_ITEM_UNAVAILABLE } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
 import {
     configurableId,
+    connectionLinksOf,
     endpointLinkConnections,
     endpointLinksReferencedBy,
     linkConnectionId,
@@ -189,7 +190,7 @@ describe("platform v1 adapters", () => {
         expect(created.configurations.staging.entries.Username.envVariableName).toBe("ORDERS_DB_DB_USER");
         expect(created.configurations.development.entries.Password.isSensitive).toBe(true);
         const svc = createdConnection({ name: "inv", integration: "orders", environments: ["development"], kind: "SERVICE", serviceId: "svc:p/i/e", access: "organization", apiKey: true });
-        expect(svc.configurations.development.entries.ChoreoAPIKey.envVariableName).toBe("INV_API_KEY");
+        expect(svc.configurations.development.entries.APIKey.envVariableName).toBe("INV_API_KEY");
         expect(svc.configurations.development.entries.ServiceURL.envVariableName).toBe("INV_SERVICE_URL");
         expect(svc.schemaReference).toBe("api-key");
         const inProject = createdConnection({ name: "inv", integration: "orders", environments: ["development"], kind: "SERVICE", serviceId: "svc:p/i/e", access: "project" });
@@ -270,14 +271,40 @@ describe("service connections, which are endpoint links", () => {
         expect(items[2].schemaReference).toBe("api-key");
     });
 
+    it("shows a key only for as many connections to an endpoint as it has key links", () => {
+        const billing = serviceId({ project: "finance", integration: "billing", endpoint: "api" });
+        const links = [
+            { configurable: "acme/basket:BillingURL", project: "finance", component: "billing", endpoint: "api", key: "url" },
+            { configurable: "acme/basket:BillingKey", project: "finance", component: "billing", endpoint: "api", key: "apiKey" },
+            { configurable: "acme/basket:BillingURL2", project: "finance", component: "billing", endpoint: "api", key: "url" },
+        ];
+        const items = endpointLinkConnections(links, new Map([["billing", billing], ["billing-open", billing]]), { project: "shop", integration: "basket" });
+        expect(items.map((item) => item.schemaReference)).toEqual(["api-key", "gateway-url"]);
+    });
+
+    it("unlinks with a connection the configurables it fills", () => {
+        const url = { configurable: "acme/basket:BillingURL", project: "finance", component: "billing", endpoint: "api", key: "url" };
+        const key = { configurable: "acme/basket:BillingKey", project: "finance", component: "billing", endpoint: "api", key: "apiKey" };
+        const other = { configurable: "acme/basket:OrdersURL", project: "shop", component: "orders", endpoint: "api" };
+        // By what its code reads.
+        expect(connectionLinksOf([url, key, other], url.configurable, "check new ({apiKey: BillingKey}, BillingURL)")).toEqual([url.configurable, key.configurable]);
+        // Code that names neither: the only connection to the endpoint takes all of the endpoint's links.
+        expect(connectionLinksOf([url, key, other], url.configurable, "check new (config)")).toEqual([url.configurable, key.configurable]);
+        // With a second connection to the endpoint, which key is whose isn't known: the URL alone.
+        const url2 = { ...url, configurable: "acme/basket:BillingURL2" };
+        expect(connectionLinksOf([url, key, url2], url.configurable, "check new (config)")).toEqual([url.configurable]);
+        // A link the list no longer has.
+        expect(connectionLinksOf([other], url.configurable, "")).toEqual([url.configurable]);
+    });
+
     it("gives a link the entries the connection screens read", () => {
         const ref = { integration: "basket", configurable: "acme/basket:ServiceURL", name: "orders" };
         const inProject = linkToConnectionDetailed(ref);
         expect(Object.values(inProject.configurations)[0].entries.ServiceURL.envVariableName).toBe("ORDERS_SERVICE_URL");
         expect(Object.keys(Object.values(inProject.configurations)[0].entries)).toEqual(["ServiceURL"]);
         const withKey = linkToConnectionDetailed(ref, "", "organization", true);
-        expect(Object.keys(Object.values(withKey.configurations)[0].entries)).toEqual(["ServiceURL", "ChoreoAPIKey"]);
-        expect(Object.values(withKey.configurations)[0].entries.ChoreoAPIKey.isSensitive).toBe(true);
+        expect(Object.keys(Object.values(withKey.configurations)[0].entries)).toEqual(["ServiceURL", "APIKey"]);
+        expect(Object.values(withKey.configurations)[0].entries.APIKey.isSensitive).toBe(true);
         expect(withKey.schemaReference).toBe("api-key");
         expect(linkToConnectionDetailed(ref, "", "organization", false).schemaReference).toBe("gateway-url");
     });
@@ -300,7 +327,7 @@ describe("service connections, which are endpoint links", () => {
         const billing = serviceId({ project: "finance", integration: "billing", endpoint: "api" });
         const base = { name: "billing", integration: "basket", environments: ["development"], kind: "SERVICE" as const, serviceId: billing, access: "organization" as const, configurable: "acme/basket:BillingURL" };
         const withKey = createdConnection({ ...base, apiKey: true });
-        expect(Object.keys(withKey.configurations.development.entries)).toEqual(["ServiceURL", "ChoreoAPIKey"]);
+        expect(Object.keys(withKey.configurations.development.entries)).toEqual(["ServiceURL", "APIKey"]);
         expect(withKey.schemaReference).toBe("api-key");
         expect(parseLinkConnectionId(withKey.groupUuid)?.configurable).toBe("acme/basket:BillingURL");
         const open = createdConnection({ ...base, apiKey: false });
@@ -333,7 +360,7 @@ describe("service connections, which are endpoint links", () => {
         expect(configurablesOf(orders, "new ('ServiceURL)")).toEqual(["acme/basket:ServiceURL"]);
         expect(configurablesOf(orders, "new (OtherURL)")).toEqual([]);
         // Another endpoint's links are never this one's, whatever the code reads.
-        expect(configurablesOf(orders, "new ({choreoAPIKey: BillingKey}, BillingURL)")).toEqual([]);
-        expect(configurablesOf(billing, "check new ({choreoAPIKey: BillingKey}, BillingURL)")).toEqual(["acme/basket:BillingURL", "acme/basket:BillingKey"]);
+        expect(configurablesOf(orders, "new ({apiKey: BillingKey}, BillingURL)")).toEqual([]);
+        expect(configurablesOf(billing, "check new ({apiKey: BillingKey}, BillingURL)")).toEqual(["acme/basket:BillingURL", "acme/basket:BillingKey"]);
     });
 });

@@ -142,6 +142,8 @@ export interface PlatformExtState {
     /** The project's environments, in promotion order. */
     envs?: Environment[];
     selectedEnv?: Environment;
+    /** Why the project's environments could not be read, or that it has none; unset while they load and once they have. */
+    envsError?: string;
     devantConns?: PlatformExtConnectionState;
 }
 
