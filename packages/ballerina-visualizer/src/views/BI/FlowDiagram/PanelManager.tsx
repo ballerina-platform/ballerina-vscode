@@ -53,6 +53,7 @@ const Container = styled.div`
     height: 100%;
 `;
 
+
 export enum SidePanelView {
     NODE_LIST = "NODE_LIST",
     FORM = "FORM",

@@ -1,5 +1,5 @@
 {
-  "description": "Design model of an agent published over A2A: the executor class run by the service handler links the service to the agent; the executor runs the agent inline in execute",
+  "description": "Design model of an agent published over A2A: the executor class run by the service handler links the service to the agent; the executor runs the agent in execute",
   "projectPath": "project_25",
   "output": {
     "designModel": {

@@ -790,7 +790,8 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
                                 onBack={() => setA2aHandlerMethod(undefined)}
                             />
                         )}
-                        <div style={showHandlerFlow ? { height: 0, overflow: "hidden" } : undefined}>
+                        {/* Kept mounted behind the handler view. `display: contents` leaves the layout of every other flow as it was. */}
+                        <div style={showHandlerFlow ? { height: 0, overflow: "hidden" } : { display: "contents" }}>
                             <BIFlowDiagram
                                 syntaxTree={syntaxTree}
                                 breakpointState={breakpointState}

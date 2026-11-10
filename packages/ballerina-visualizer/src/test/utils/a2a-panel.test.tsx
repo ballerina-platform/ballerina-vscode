@@ -16,19 +16,25 @@
  * under the License.
  */
 
-jest.mock("@wso2/bi-diagram", () => ({ NodeIcon: (props: any) => ({ type: "NodeIcon", props }) }), { virtual: true });
+jest.mock("@wso2/bi-diagram", () => ({ NodeIcon: (props: unknown) => ({ type: "NodeIcon", props }) }), { virtual: true });
 jest.mock("@wso2/ballerina-core", () => ({}), { virtual: true });
 jest.mock("@wso2/ballerina-side-panel", () => ({}), { virtual: true });
 
-import { A2A_OBJECT_NODE, convertA2aCategoryToSidePanelCategory, isA2aCategory } from "./a2a-panel";
-
-const row = (item: any) => ({ id: item.codedata.node, label: item.metadata.label, enabled: item.enabled } as any);
+import type { Category } from "@wso2/ballerina-core";
+import type { Node as PanelNode } from "@wso2/ballerina-side-panel";
+import { A2A_OBJECT_NODE, convertA2aCategoryToSidePanelCategory, isA2aCategory } from "../../utils/a2a-panel";
 
 const method = (node: string, object: string, parentSymbol: string, symbol: string, label: string) => ({
     metadata: { label, description: `${label} description` },
     codedata: { node, object, parentSymbol, symbol },
     enabled: true,
 });
+
+// The parts of the language server's category that the panel reads.
+const row = (item: unknown): PanelNode => {
+    const { codedata, metadata, enabled } = item as ReturnType<typeof method>;
+    return { id: codedata.node, label: metadata.label, enabled } as unknown as PanelNode;
+};
 
 const a2a = {
     metadata: { label: "A2A", description: "Blocks for the execute method of an A2A agent" },
@@ -48,29 +54,36 @@ const a2a = {
     ],
 };
 
+// The add-node page the section opens: one card per object, each with a row per call.
+type Page = {
+    title: string;
+    items: { title: string; description: string; items: { id: string; label: string; icon: { props: { type: string } } }[] }[];
+};
+const pageOf = (node: PanelNode) => (node as unknown as { metadata: { a2aPage: Page } }).metadata.a2aPage;
+
 describe("the A2A section of the add-node panel", () => {
-    const section = convertA2aCategoryToSidePanelCategory(a2a as any, row);
+    const section = convertA2aCategoryToSidePanelCategory(a2a as unknown as Category, row);
+    const nodes = section.items as PanelNode[];
 
     it("lists the task updater and the task store as two blocks, like Model Provider", () => {
         expect(section.title).toBe("A2A");
-        expect(section.items.map((i: any) => [i.id, i.label])).toEqual([
+        expect(nodes.map((i) => [i.id, i.label])).toEqual([
             [A2A_OBJECT_NODE, "Task Updater"],
             [A2A_OBJECT_NODE, "Task Store"],
         ]);
     });
 
     it("opens a titled page with one dropdown card, named after the variable, holding the calls", () => {
-        const updater: any = section.items[0];
-        const page = updater.metadata.a2aPage;
+        const page = pageOf(nodes[0]);
         expect(page.title).toBe("Task Updater");
         expect(page.items).toHaveLength(1);
         expect(page.items[0].title).toBe("updater");
-        expect(page.items[0].items.map((r: any) => r.label)).toEqual(["working", "addArtifact", "getTaskId"]);
-        expect(page.items[0].items.map((r: any) => r.id)).toEqual(["A2A_TASK_UPDATE", "A2A_TASK_UPDATE", "METHOD_CALL"]);
+        expect(page.items[0].items.map((r) => r.label)).toEqual(["working", "addArtifact", "getTaskId"]);
+        expect(page.items[0].items.map((r) => r.id)).toEqual(["A2A_TASK_UPDATE", "A2A_TASK_UPDATE", "METHOD_CALL"]);
     });
 
     it("lists the calls with the call glyph and no extra line, as the model provider page does", () => {
-        const card = (section.items[0] as any).metadata.a2aPage.items[0];
+        const card = pageOf(nodes[0]).items[0];
         expect(card.description).toBe("");
         for (const r of card.items) {
             expect(r.icon.props.type).toBe("REMOTE_ACTION_CALL");
@@ -78,18 +91,17 @@ describe("the A2A section of the add-node panel", () => {
     });
 
     it("names the store's card after the task store variable in scope", () => {
-        const store: any = section.items[1];
-        expect(store.metadata.a2aPage.items[0].title).toBe("taskStore");
+        expect(pageOf(nodes[1]).items[0].title).toBe("taskStore");
     });
 });
 
 describe("telling the A2A section from any other category", () => {
     it("recognises it by its label and its two sub-categories", () => {
-        expect(isA2aCategory(a2a as any)).toBe(true);
+        expect(isA2aCategory(a2a as unknown as Category)).toBe(true);
     });
 
     it("leaves other categories alone", () => {
-        expect(isA2aCategory({ metadata: { label: "AI" }, items: a2a.items } as any)).toBe(false);
-        expect(isA2aCategory({ metadata: { label: "A2A" }, items: [method("X", "o", "p", "s", "l")] } as any)).toBe(false);
+        expect(isA2aCategory({ metadata: { label: "AI" }, items: a2a.items } as unknown as Category)).toBe(false);
+        expect(isA2aCategory({ metadata: { label: "A2A" }, items: [method("X", "o", "p", "s", "l")] } as unknown as Category)).toBe(false);
     });
 });

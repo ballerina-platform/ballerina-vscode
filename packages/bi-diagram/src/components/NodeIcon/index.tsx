@@ -167,7 +167,7 @@ const NODE_COLOR_GROUPS = {
 
     // Reading back what a durable agent produced - orange. The send and the read are the two halves
     // of one turn, so they are deliberately not the same colour: green hands work over, orange
-    // collects the answer.
+    // collects the answer. An A2A executor's task updates report on its task the same way.
     ORANGE_GROUP: ["DURABLE_AGENT_RESULT", "DURABLE_AGENT_DATA_RESULT", "A2A_TASK_UPDATE"],
 };
 
@@ -331,9 +331,8 @@ export function DurableAgentIcon(props: { size?: number; color?: string }) {
     );
 }
 
-// The Agent2Agent protocol's mark, from the a2a-java SDK (Apache License 2.0). The same shapes, drawn
-// as strokes so that a small copy can be thinner: at node-icon size the full-weight strokes run together
-// and the mark reads as a white blob, so below 40px the strokes and dots are 60% of the original weight.
+// The Agent2Agent protocol's mark, drawn as strokes so that a small copy can be thinner: below 40px the strokes
+// and dots are 60% of full weight, which keeps the mark an outline at node-icon size.
 export function A2aIcon(props: { size?: number; color?: string }) {
     const { size = 24, color } = props;
     const weight = size >= 40 ? 1 : 0.6;

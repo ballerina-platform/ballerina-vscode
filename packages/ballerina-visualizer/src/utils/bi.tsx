@@ -206,6 +206,7 @@ function convertDiagramCategoryToSidePanelCategory(category: Category, functionT
 
     const icon = category.items.at(0)?.metadata.icon;
     const codedata = (category.items.at(0) as AvailableNode)?.codedata;
+
     return {
         title: category.metadata.label,
         description: category.metadata.description,

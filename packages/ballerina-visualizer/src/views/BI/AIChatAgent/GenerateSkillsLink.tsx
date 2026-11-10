@@ -26,7 +26,7 @@ import { toQueryExpression } from "../AIEvaluationForm/templateUtils";
 
 const SKILLS_KEY = "skills";
 
-// Under the Skills field, on the right, as the evaluation form puts its Generate link.
+// Under the Skills field, on the right.
 const Action = styled.div`
     display: flex;
     justify-content: flex-end;

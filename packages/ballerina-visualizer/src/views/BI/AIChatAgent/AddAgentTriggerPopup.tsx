@@ -126,6 +126,7 @@ const pinRank = (channel: ServiceModel) => {
 
 const byPinThenName = (a: ServiceModel, b: ServiceModel) =>
     pinRank(a) - pinRank(b) || a.name.localeCompare(b.name);
+
 const isA2aChannel = (channel: ServiceModel | null) =>
     channel?.orgName === "ballerina" && channel?.moduleName === "a2a";
 

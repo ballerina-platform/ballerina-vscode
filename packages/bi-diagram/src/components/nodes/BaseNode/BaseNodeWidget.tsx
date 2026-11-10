@@ -58,7 +58,6 @@ import {
 import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
 import { NodeNoteChip } from "../../NodeNoteChip";
 
-
 export namespace NodeStyles {
     export type NodeStyleProp = {
         disabled: boolean;
@@ -78,11 +77,7 @@ export namespace NodeStyles {
         min-height: ${NODE_HEIGHT}px;
         padding: 0 ${NODE_PADDING}px;
         background-color: ${(props: NodeStyleProp) =>
-            props?.isActiveBreakpoint
-                ? NODE_BG_BREAKPOINT_COLOR
-                : props.hovered && !props.disabled && !props.readOnly
-                    ? NODE_BG_HOVER_COLOR
-                    : NODE_BG_COLOR};
+            props?.isActiveBreakpoint ? NODE_BG_BREAKPOINT_COLOR : props.hovered && !props.disabled && !props.readOnly ? NODE_BG_HOVER_COLOR : NODE_BG_COLOR};
         color: ${NODE_TEXT_COLOR};
         opacity: ${(props: NodeStyleProp) => (props.disabled ? 0.7 : 1)};
         border: ${(props: NodeStyleProp) =>

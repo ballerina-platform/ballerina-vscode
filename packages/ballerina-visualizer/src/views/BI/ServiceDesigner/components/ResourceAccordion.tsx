@@ -23,6 +23,7 @@ import { FunctionModel } from '@wso2/ballerina-core';
 import { ResourceAccordionSkeleton } from '../../../../components/Skeletons';
 import { canDataBind } from '../utils';
 
+
 type ContainerProps = {
     borderColor?: string;
     haveErrors?: boolean;
@@ -144,19 +145,19 @@ export interface ResourceAccordionProps {
     deletionTypeLabel?: string;
     /** Grays out the edit button even when the resource is otherwise editable (nothing to configure). */
     editDisabled?: boolean;
-    deletable?: boolean;
     badgeColor?: string;
     title?: string;
     subtitle?: string;
 }
 
 export function ResourceAccordion(params: ResourceAccordionProps) {
-    const { functionModel, method, goToSource, onEditResource, onDeleteResource, onResourceImplement, deletionTypeLabel, editDisabled, deletable, badgeColor, title, subtitle } = params;
+    const { functionModel, method, goToSource, onEditResource, onDeleteResource, onResourceImplement, deletionTypeLabel, editDisabled, badgeColor, title, subtitle } = params;
 
     const [isOpen, setIsOpen] = useState(false);
     const [isConfirmOpen, setConfirmOpen] = useState(false);
     const [confirmEl, setConfirmEl] = React.useState(null);
     const [isDeleting, setIsDeleting] = useState(false);
+
 
     const toggleAccordion = () => {
         setIsOpen(!isOpen);
@@ -235,12 +236,12 @@ export function ResourceAccordion(params: ResourceAccordionProps) {
                                 </ActionButton >
                             )}
                             {onDeleteResource && (
-                                <ActionButton id="bi-delete" appearance="secondary" onClick={handleDeleteResource} disabled={!(deletable ?? functionModel.optional)}>
+                                <ActionButton id="bi-delete" appearance="secondary" onClick={handleDeleteResource} disabled={!functionModel.optional}>
                                     <Codicon
                                         name="trash"
                                         sx={{
-                                            cursor: !(deletable ?? functionModel.optional) ? "not-allowed" : "pointer",
-                                            opacity: !(deletable ?? functionModel.optional) ? 0.5 : 1,
+                                            cursor: !functionModel.optional ? "not-allowed" : "pointer",
+                                            opacity: !functionModel.optional ? 0.5 : 1,
                                             width: "16px",
                                         }}
                                     />

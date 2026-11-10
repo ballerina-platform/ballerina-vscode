@@ -1103,6 +1103,7 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
                                 </ServiceMetadataContainer>
                             )}
 
+
                             {resources.filter((resource) => resource.type === DIRECTORY_MAP.FUNCTION && resource.name === "init").length > 0 && (
                                 <>
                                     <SectionHeader
@@ -1129,6 +1130,7 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
 
                                 </>
                             )}
+
 
                             {/* Listing Resources in HTTP (and, read-only for adding, a chat agent's fixed chat/decision pair) */}
                             {(isHttpService || isAiService) && (
@@ -1278,6 +1280,7 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
                                     )}
                                 </>
                             )}
+
 
                             {resources.filter((resource) => resource.type === DIRECTORY_MAP.FUNCTION && resource.name !== "init").length > 0 && (
                                 <>

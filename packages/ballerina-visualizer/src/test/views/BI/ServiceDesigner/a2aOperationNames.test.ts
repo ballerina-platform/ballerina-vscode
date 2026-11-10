@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { a2aPathOf, describeA2aOperation } from "./a2aOperationNames";
+import { a2aPathOf, describeA2aOperation } from "../../../../views/BI/ServiceDesigner/a2aOperationNames";
 
 describe("A2A operations", () => {
     it("writes path parameters as {name} and drops escapes", () => {

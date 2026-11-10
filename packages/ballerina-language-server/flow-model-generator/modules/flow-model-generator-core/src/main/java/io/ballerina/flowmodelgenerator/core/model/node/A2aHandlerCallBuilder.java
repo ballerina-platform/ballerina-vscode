@@ -23,7 +23,7 @@ import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 /**
  * Represents the call an A2A service's resource makes on its {@code a2a:DefaultHandler}.
  *
- * @since 1.0.0
+ * @since 1.9.0
  */
 public class A2aHandlerCallBuilder extends MethodCall {
 

@@ -76,6 +76,7 @@ export interface RunExternalCommandResponse {
     message: string
 }
 
+
 export interface CommandsResponse {
     data: string;
 }

@@ -108,7 +108,7 @@ public class A2aChannelTest {
     }
 
     @Test
-    public void testTheSkillsStartEmptyBecauseTheyCannotBeReadFromTheAgent() {
+    public void testTheSkillsStartEmpty() {
         Value skills = form("tripPlanner", List.of(AGENTS)).getProperties().get(A2aChannel.SKILLS);
         Assert.assertTrue(skills.getValuesAsObjects().isEmpty());
         String code = generate(form("tripPlanner", List.of(AGENTS)), "import ballerina/ai;\n");
@@ -186,10 +186,27 @@ public class A2aChannelTest {
     }
 
     @Test
-    public void testTheCardIsDerivedFromTheAgent() {
+    public void testTheCardIsDerivedFromTheAgentsRoleNotItsInstructions() {
         A2aAgentCard.Defaults defaults = A2aAgentCard.derive("tripPlanner", List.of(AGENTS));
         Assert.assertEquals(defaults.name(), "Trip Planner Agent");
-        Assert.assertEquals(defaults.description(), "Plan a short, one-day itinerary for the city the user names.");
+        Assert.assertEquals(defaults.description(), "An agent that works as Trip Planner.");
+        Assert.assertFalse(defaults.description().contains("itinerary"),
+                "the card is public: " + defaults.description());
+    }
+
+    @Test
+    public void testAgentsThatDifferOnlyInCaseOrUnderscoresGetTheirOwnExecutor() {
+        Assert.assertEquals(A2aAgentCard.classBase("tripPlanner"), "TripPlanner");
+        Assert.assertEquals(A2aAgentCard.classBase("trip_planner"), "Trip_planner");
+        Assert.assertNotEquals(A2aAgentCard.classBase("trip_planner"), A2aAgentCard.classBase("tripPlanner"));
+    }
+
+    @Test
+    public void testPlaceholdersInTheUsersCardTextAreKept() {
+        ServiceInitModel model = form("tripPlanner", List.of(AGENTS));
+        set(model, A2aChannel.CARD_DESCRIPTION, "Plans trips; {{alias}} and {{agent}} stay as typed");
+        String code = generate(model, "import ballerina/ai;\n");
+        Assert.assertTrue(code.contains("Plans trips; {{alias}} and {{agent}} stay as typed"), code);
     }
 
     @Test
@@ -206,14 +223,14 @@ public class A2aChannelTest {
     }
 
     @Test
-    public void testTheGeneratedServerHasTheVerifiedShape() {
+    public void testTheGeneratedServerShape() {
         String code = generate(form("tripPlanner", List.of(AGENTS)), "import ballerina/ai;\n");
         Assert.assertTrue(code.contains("import ballerina/a2a;"), code);
         Assert.assertTrue(code.contains("configurable int tripPlannerA2aPort = 9096;"), code);
         Assert.assertTrue(code.contains(
                 "listener a2a:RestListener tripPlannerA2aListener = new (tripPlannerA2aPort);"), code);
         Assert.assertTrue(code.contains("isolated class TripPlannerA2aExecutor {"), code);
-        Assert.assertFalse(code.contains("A2aRun"), "no separate run function: " + code);
+        Assert.assertFalse(code.contains("A2aRun"), "the executor runs the agent itself: " + code);
         Assert.assertTrue(code.contains("check updater.working();"), code);
         Assert.assertTrue(code.contains("tripPlanner.run(query, sessionId = updater.getContextId())"), code);
         Assert.assertTrue(code.contains("check updater.addArtifact([{text: reply}]);"), code);

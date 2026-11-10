@@ -395,6 +395,7 @@ export class CommonRpcManager implements CommonRPCAPI {
         return await findWorkspaceTypeFromWorkspaceFolders();
     }
 
+
     async downloadSelectedSampleFromGithub(params: SampleDownloadRequest): Promise<boolean> {
         const repoUrl = 'https://devant-cdn.wso2.com/bi-samples/v1/';
         const rawFileLink = repoUrl + params.zipFileName + '.zip';
@@ -758,6 +759,7 @@ export class CommonRpcManager implements CommonRPCAPI {
         }
     }
 
+
     private async updateProjectPackageInfo(projectPath: string, details: PublishPackageInfo): Promise<boolean> {
         try {
             await this.updatePackageToml(projectPath, (content) => this.updatePackageDetails(content, details));
@@ -811,6 +813,7 @@ export class CommonRpcManager implements CommonRPCAPI {
             ? `${section}\n${fieldLine}\n`
             : section.slice(0, headerEnd + 1) + `${fieldLine}\n` + section.slice(headerEnd + 1);
     }
+
 
     private async packAndPushToCentral(projectPath: string): Promise<PublishToCentralResponse> {
         const result: PublishToCentralResponse = { success: false, message: '' };

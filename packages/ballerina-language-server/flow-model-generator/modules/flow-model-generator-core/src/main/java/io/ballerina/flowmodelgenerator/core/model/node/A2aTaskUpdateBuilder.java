@@ -23,7 +23,7 @@ import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 /**
  * Represents a call on an {@code a2a:TaskUpdater}, which an A2A executor uses to report a task's progress.
  *
- * @since 1.0.0
+ * @since 1.9.0
  */
 public class A2aTaskUpdateBuilder extends MethodCall {
 

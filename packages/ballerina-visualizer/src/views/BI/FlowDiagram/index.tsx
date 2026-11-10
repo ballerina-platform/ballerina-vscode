@@ -186,6 +186,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     const { projectPath, breakpointState, syntaxTree, onUpdate, onReady, onSave, hideAgentConfiguration, onA2aHandlerCall, onFlowSaved } = props;
     const { rpcClient } = useRpcContext();
 
+
     const [model, setModel] = useState<Flow>();
     const [suggestedModel, setSuggestedModel] = useState<Flow>();
     const [showSidePanel, setShowSidePanel] = useState(false);
@@ -499,6 +500,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             return updated as PanelCategory[];
         });
     };
+
 
     const changeTargetRange = (range: LineRange) => {
         targetRef.current = range;
@@ -1134,6 +1136,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
 
         return searchNodes(flowModel.nodes);
     };
+
 
     const findNodeWithName = (node: FlowNode, name: string) => {
         return node?.properties?.variable?.value === name;
@@ -2768,6 +2771,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             });
     };
 
+
     function getArtifactData(editorConfig?: EditorConfig) {
         const currentArtifactType = visualizerLocationRef.current?.artifactType;
         if (
@@ -3314,6 +3318,8 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 setShowProgressIndicator(false);
             });
     };
+
+
 
     const handleOnAddNPFunction = () => {
         rpcClient.getVisualizerRpcClient().openView({
@@ -4067,16 +4073,16 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         [flowModel, agentOnlyView]
     );
 
-    // No RHS side panel in the agent-only view: node clicks (the Start pill) are inert;
-    // the agent box hosts its own affordances. While a side panel is already open,
-    // selecting a different node is disabled, matching the other flow diagrams — the
-    // panel would otherwise keep showing the previous node's context.
     // The diagram props are memoised without the handlers, so the page's callbacks are read through refs.
     const onA2aHandlerCallRef = useRef(onA2aHandlerCall);
     onA2aHandlerCallRef.current = onA2aHandlerCall;
     const onFlowSavedRef = useRef(onFlowSaved);
     onFlowSavedRef.current = onFlowSaved;
 
+    // No RHS side panel in the agent-only view: node clicks (the Start pill) are inert;
+    // the agent box hosts its own affordances. While a side panel is already open,
+    // selecting a different node is disabled, matching the other flow diagrams — the
+    // panel would otherwise keep showing the previous node's context.
     const handleOnEditNodeGuarded = (node: FlowNode) => {
         if (showSidePanel) {
             return;

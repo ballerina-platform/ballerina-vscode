@@ -18,15 +18,25 @@
 
 // The model, the login and the language server are out of reach here; this covers what the model is asked and how
 // its answer is turned into entries of the Skills field.
-jest.mock("../features/ai/utils/ai-client", () => ({ ANTHROPIC_SONNET: "sonnet", getAnthropicClient: jest.fn() }));
-jest.mock("../features/ai/service/prompt-enhancement/promptEnhancement", () => ({ toAIRequestError: jest.fn() }));
+jest.mock("ai", () => ({ generateObject: jest.fn() }));
+jest.mock("../features/ai/utils/ai-client", () => ({
+    ANTHROPIC_SONNET: "sonnet",
+    getAnthropicClient: jest.fn(),
+    getProviderModelOptions: jest.fn(),
+}));
+jest.mock("../features/ai/service/prompt-enhancement/promptEnhancement", () => ({ toAIRequestError: (error: unknown) => error }));
 jest.mock("../features/ai/service/evaluation-queries/evaluationQueries", () => ({ getAgentInfo: jest.fn() }));
 // The real module pulls in a websocket library that jest cannot load; only this helper is used here.
 jest.mock("@wso2/ballerina-core", () => ({
     unwrapBallerinaString: (value?: string) => (value ?? "").trim().replace(/^string\s*`|`$/g, ""),
 }));
 
-import { SYSTEM_PROMPT, buildUserPrompt, toSkillLines } from "../features/ai/service/agent-skills/agentSkills";
+import { generateObject } from "ai";
+import { getProviderModelOptions } from "../features/ai/utils/ai-client";
+import { getAgentInfo } from "../features/ai/service/evaluation-queries/evaluationQueries";
+import {
+    SYSTEM_PROMPT, buildUserPrompt, generateAgentSkills, toSkillLines
+} from "../features/ai/service/agent-skills/agentSkills";
 
 const agent = {
     description: "Plans weekends",
@@ -96,5 +106,31 @@ describe("the skills the model returns", () => {
     it("skip an entry with no name or no description, and stop at five", () => {
         const many = Array.from({ length: 8 }, (_, i) => ({ name: `Skill ${i}`, description: "Does it" }));
         expect(toSkillLines([{ name: "", description: "x" }, { name: "y", description: " " }, ...many])).toHaveLength(5);
+    });
+});
+
+describe("asking the model for skills", () => {
+    const request = { projectPath: "/p", agentName: "weekendPlanner", existingSkills: [] as string[] };
+
+    beforeEach(() => jest.clearAllMocks());
+
+    it("does not call the model for an agent it cannot find", async () => {
+        (getAgentInfo as jest.Mock).mockResolvedValue(undefined);
+        await expect(generateAgentSkills(request)).rejects.toThrow("was not found");
+        expect(generateObject).not.toHaveBeenCalled();
+    });
+
+    it("asks with the provider options and returns the skills as Name: description lines", async () => {
+        const providerOptions = { anthropic: { thinking: { type: "disabled" } } };
+        (getAgentInfo as jest.Mock).mockResolvedValue(agent);
+        (getProviderModelOptions as jest.Mock).mockResolvedValue(providerOptions);
+        (generateObject as jest.Mock).mockResolvedValue({
+            object: { skills: [{ name: "Weekend planning", description: "Plans a relaxed weekend" }] },
+        });
+
+        await expect(generateAgentSkills(request)).resolves.toEqual({
+            skills: ["Weekend planning: Plans a relaxed weekend"],
+        });
+        expect(generateObject).toHaveBeenCalledWith(expect.objectContaining({ providerOptions, temperature: 0.3 }));
     });
 });

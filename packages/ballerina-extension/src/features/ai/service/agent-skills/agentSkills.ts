@@ -19,7 +19,7 @@ import { z } from "zod";
 import {
     AgentNodeInfo, GenerateAgentSkillsRequest, GenerateAgentSkillsResponse, ToolData, unwrapBallerinaString
 } from "@wso2/ballerina-core";
-import { ANTHROPIC_SONNET, getAnthropicClient } from "../../utils/ai-client";
+import { ANTHROPIC_SONNET, getAnthropicClient, getProviderModelOptions } from "../../utils/ai-client";
 import { toAIRequestError } from "../prompt-enhancement/promptEnhancement";
 import { getAgentInfo } from "../evaluation-queries/evaluationQueries";
 
@@ -50,11 +50,17 @@ export async function generateAgentSkills(
 ): Promise<GenerateAgentSkillsResponse> {
     try {
         const agent = await getAgentInfo(params.projectPath, params.agentName);
+        if (!agent) {
+            // Without the agent the model would write skills for an agent it knows nothing about.
+            throw new Error(`The agent ${params.agentName} was not found.`);
+        }
         const delegates = await getDelegates(params.projectPath, agent);
         const { object } = await generateObject({
             model: await getAnthropicClient(ANTHROPIC_SONNET),
             maxOutputTokens: 2000,
             temperature: 0.3,
+            // Sonnet 5 reasons by default and the reasoning shares maxOutputTokens, which can cut the answer short.
+            providerOptions: await getProviderModelOptions(),
             schema: skillsSchema,
             messages: [
                 { role: "system", content: SYSTEM_PROMPT },
@@ -70,18 +76,15 @@ export async function generateAgentSkills(
 }
 
 /** For each tool that is another agent, what that agent is, so the model knows what the tool can do. */
-async function getDelegates(projectPath: string, agent?: AgentNodeInfo): Promise<Map<string, AgentNodeInfo>> {
+async function getDelegates(projectPath: string, agent: AgentNodeInfo): Promise<Map<string, AgentNodeInfo>> {
+    const delegating = (agent.tools ?? []).filter(tool => tool.targetAgent?.name);
+    const infos = await Promise.all(delegating.map(tool => getAgentInfo(projectPath, tool.targetAgent.name)));
     const delegates = new Map<string, AgentNodeInfo>();
-    for (const tool of agent?.tools ?? []) {
-        const target = tool.targetAgent?.name;
-        if (!target || delegates.has(tool.name)) {
-            continue;
+    delegating.forEach((tool, index) => {
+        if (infos[index]) {
+            delegates.set(tool.name, infos[index]);
         }
-        const info = await getAgentInfo(projectPath, target);
-        if (info) {
-            delegates.set(tool.name, info);
-        }
-    }
+    });
     return delegates;
 }
 

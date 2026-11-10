@@ -42,7 +42,6 @@ final class A2aAgentCard {
     static final int FIRST_PORT = 9096;
     static final String DEFAULT_VERSION = "1.0.0";
 
-    private static final int DESCRIPTION_LIMIT = 160;
     private static final Pattern PORT_IN_LISTENER =
             Pattern.compile("listener\\s+[\\w:]+\\s+\\w+\\s*=\\s*new\\s*\\(\\s*(?:listenOn\\s*=\\s*)?(\\d{2,5})");
     private static final Pattern PORT_IN_CONFIGURABLE =
@@ -76,14 +75,11 @@ final class A2aAgentCard {
     static Defaults derive(String agentVar, List<String> sources) {
         String args = findAgentArguments(agentVar, sources);
         String role = args == null ? null : firstText(args, "role");
-        String instructions = args == null ? null : firstText(args, "instructions");
 
         String base = role != null && !role.isBlank() ? role.trim() : humanize(agentVar);
         String name = base.toLowerCase(Locale.ROOT).endsWith("agent") ? base : base + " Agent";
-        String lead = instructions != null && !instructions.isBlank() ? firstSentence(instructions)
-                : "An agent that works as " + base + ".";
-
-        return new Defaults(name, lead);
+        // The card is public, so its default text comes from the role, never from the instructions.
+        return new Defaults(name, "An agent that works as " + base + ".");
     }
 
     static String findAgentArguments(String agentVar, List<String> sources) {
@@ -176,17 +172,18 @@ final class A2aAgentCard {
         return k.isEmpty() ? "skill" : k;
     }
 
-    static String pascal(String identifier) {
-        return humanize(identifier).replace(" ", "");
-    }
-
-    private static String firstSentence(String text) {
-        String t = text.replaceAll("\\s+", " ").trim();
-        int end = t.indexOf(". ");
-        if (end > 0) {
-            t = t.substring(0, end + 1);
+    /**
+     * The identifier with its first letter in upper case, for naming a class after it. Unlike a humanized name, two
+     * identifiers that differ only in case or underscores stay different.
+     *
+     * @param identifier the agent variable
+     * @return the identifier as the start of a class name
+     */
+    static String classBase(String identifier) {
+        if (identifier.isEmpty()) {
+            return identifier;
         }
-        return t.length() > DESCRIPTION_LIMIT ? t.substring(0, DESCRIPTION_LIMIT).trim() : t;
+        return Character.toUpperCase(identifier.charAt(0)) + identifier.substring(1);
     }
 
 
@@ -260,8 +257,6 @@ final class A2aAgentCard {
 
     record Extras(String providerOrganization, String providerUrl, String documentationUrl, String iconUrl,
                   String inputModes, String providerEmail, String outputModes) {
-
-        static final Extras NONE = new Extras("", "", "", "", "text", "", "text");
 
         Extras {
             providerOrganization = providerOrganization == null ? "" : providerOrganization.strip();

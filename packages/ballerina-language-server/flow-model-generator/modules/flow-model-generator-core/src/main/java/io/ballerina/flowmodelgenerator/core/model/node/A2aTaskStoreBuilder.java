@@ -30,15 +30,18 @@ import org.ballerinalang.langserver.commons.workspace.WorkspaceDocumentException
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Represents a call on the task store of an A2A agent. Inside an executor's {@code execute} method the owner and the
  * task id are filled in from the request context and the updater.
  *
- * @since 1.0.0
+ * @since 1.9.0
  */
 public class A2aTaskStoreBuilder extends MethodCall {
 
+    private static final Logger LOGGER = Logger.getLogger(A2aTaskStoreBuilder.class.getName());
     private static final String GET = "get";
     private static final String ID = "id";
     private static final String OWNER = "owner";
@@ -66,9 +69,9 @@ public class A2aTaskStoreBuilder extends MethodCall {
                     context.filePath());
             Document document = FileSystemUtils.getDocument(context.workspaceManager(), context.filePath());
             return A2aUtil.findExecutorScope(semanticModel, document, context.position());
-        } catch (WorkspaceDocumentException e) {
-            return Optional.empty();
-        } catch (EventSyncException e) {
+        } catch (WorkspaceDocumentException | EventSyncException e) {
+            // Without the executor's scope the owner and id are simply not prefilled.
+            LOGGER.log(Level.FINE, "Could not find the executor scope of the task store call", e);
             return Optional.empty();
         }
     }

@@ -239,7 +239,7 @@ public class A2aChannel implements AgentTriggerChannel {
         model.addProperty(ICON_URL, advancedText("Icon URL", "A link to an icon for the agent."));
         model.addProperty(PUBLIC_URL, advancedText("Public URL",
                 "Set when callers reach the agent through a gateway or proxy."));
-        String executorClass = A2aAgentCard.pascal(agent) + "A2aExecutor";
+        String executorClass = A2aAgentCard.classBase(agent) + "A2aExecutor";
         model.addProperty(EXISTING_EXECUTOR, hidden("Existing executor", String.valueOf(
                 sources.stream().anyMatch(source -> Pattern.compile("\\bclass\\s+" + executorClass + "\\b")
                         .matcher(source).find()))));
@@ -312,10 +312,10 @@ public class A2aChannel implements AgentTriggerChannel {
                 .replace("{{executorClass}}", executorClass)
                 .replace("{{store}}", storeVar(agent))
                 .replace("{{resources}}", resources)
-                .replace("{{executor}}", A2aAgentCard.pascal(agent) + "A2aExecutor")
+                .replace("{{executor}}", A2aAgentCard.classBase(agent) + "A2aExecutor")
                 .replace("{{agent}}", agent)
-                .replace("{{card}}", card)
-                .replace("{{alias}}", context.emitAlias());
+                .replace("{{alias}}", context.emitAlias())
+                .replace("{{card}}", card);
     }
 
     private static boolean enabled(String value) {

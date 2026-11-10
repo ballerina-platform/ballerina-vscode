@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { A2A_EXECUTE_CHANGED_WARNING, isA2aExecuteMethod, handlerFlow, handlerSummary } from "./a2aHandlerSteps";
+import { A2A_EXECUTE_CHANGED_WARNING, isA2aExecuteMethod, handlerFlow, handlerSummary } from "../../../../views/BI/DiagramWrapper/a2aHandlerSteps";
 
 const kinds = (method: string) => handlerFlow(method, "get", "tasks/[string id]")!.nodes.map((n) => n.codedata.node);
 
@@ -24,7 +24,7 @@ describe("the default handler's steps as a flow", () => {
     it("starts every operation with an event start and draws the resource's accessor and path", () => {
         const flow = handlerFlow("handleGetTask", "get", "tasks/[string id]")!;
         expect(flow.nodes[0].codedata.node).toBe("EVENT_START");
-        expect((flow.nodes[0].metadata as any).data).toMatchObject({ accessor: "get", label: "tasks/[string id]" });
+        expect((flow.nodes[0].metadata as { data?: unknown }).data).toMatchObject({ accessor: "get", label: "tasks/[string id]" });
     });
 
     it("get task: owner, store read, not-found branch, return", () => {
@@ -50,7 +50,7 @@ describe("the default handler's steps as a flow", () => {
             "handleGetExtendedAgentCard"]) {
             const flow = handlerFlow(method, "get", "x")!;
             for (const n of flow.nodes.filter((node) => node.codedata.node === "IF")) {
-                const returned = n.branches![0].children.map((c) => (c.properties as any).expression.value);
+                const returned = n.branches![0].children.map((c) => (c.properties as { expression: { value: string } }).expression.value);
                 expect(returned).toHaveLength(1);
                 expect(known).toContain(returned[0]);
             }

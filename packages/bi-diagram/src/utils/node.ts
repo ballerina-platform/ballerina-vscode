@@ -452,7 +452,7 @@ export function getNodeTitle(node: FlowNode) {
     };
 
     if (node.codedata?.node === "A2A_TASK_UPDATE") {
-        // Name the updater the call is made on, as the agent call is titled "agent : run": "updater : working".
+        // The object the call is made on comes first, as in the agent box: "updater : working".
         const method = node.metadata?.label ?? "update";
         const receiver = getPropertyString("connection");
         return receiver ? `${receiver} : ${method}` : method;
@@ -465,7 +465,7 @@ export function getNodeTitle(node: FlowNode) {
 
     if (node.codedata?.node === "A2A_TASK_STORE") {
         const method = node.metadata?.label ?? "task store";
-        // A title that is already complete, as the handler's read-only steps carry, stays as it is.
+        // A label that already has its object in front of it, as the default handler's read-only steps do, is kept.
         return method.includes(":") ? method : `taskStore : ${method}`;
     }
 
