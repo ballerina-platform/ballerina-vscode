@@ -63,6 +63,11 @@ public interface InitializationOptions {
     String KEY_ENABLE_MEMORY_USAGE_MONITOR = "enableMemoryUsageMonitor";
 
     /**
+     * The product the client runs as: {@code ballerina}, {@code integrator} or {@code agent-builder}.
+     */
+    String KEY_PRODUCT_MODE = "productMode";
+
+    /**
      * Return if the client support bala URI scheme.
      *
      * @return True if bala URi scheme is supported.
@@ -109,6 +114,13 @@ public interface InitializationOptions {
      * @return True if supported, false otherwise
      */
     boolean isEnableIndexPackages();
+
+    /**
+     * Returns if the client runs as the Agent Builder.
+     *
+     * @return True if the product mode is {@code agent-builder}, false otherwise
+     */
+    boolean isAgentBuilderMode();
 
     /**
      * Returns if the client supports memory usage monitor.

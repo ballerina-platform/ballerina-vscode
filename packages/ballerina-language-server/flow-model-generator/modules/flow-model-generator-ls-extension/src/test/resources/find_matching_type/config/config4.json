@@ -991,7 +991,6 @@
                         "version": "2.13.0"
                       },
                       "defaultable": false,
-                      "documentation": "",
                       "isRestType": false,
                       "selected": false
                     },

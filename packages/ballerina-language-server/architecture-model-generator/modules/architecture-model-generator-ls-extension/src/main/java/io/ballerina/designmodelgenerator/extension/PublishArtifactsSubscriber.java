@@ -63,8 +63,8 @@ public class PublishArtifactsSubscriber implements EventSubscriber {
         // 1. If the event occurred in the cloned project
         // 2. During the loading of the project
         String operationName = context.operation().getName();
-        if (context.fileUri().startsWith(AI_URI) ||
-                context.fileUri().startsWith(EXPR_URI) || LOAD_PROJECT.equals(operationName)) {
+        if (context.fileUri().startsWith(AI_URI) || context.fileUri().startsWith(EXPR_URI)
+                || LOAD_PROJECT.equals(operationName)) {
             return;
         }
 
@@ -79,6 +79,8 @@ public class PublishArtifactsSubscriber implements EventSubscriber {
             } catch (WorkspaceDocumentException | EventSyncException e) {
                 return;
             }
+            // Compiled under the workspace lock this event's other subscribers take, so the task below reuses it.
+            context.workspace().waitAndGetPackageCompilation(context.filePath());
 
             // Use the debouncer to schedule the full project artifact generation
             ArtifactGenerationDebouncer.getInstance().debounceProject(projectKey, () -> {
