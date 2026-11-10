@@ -89,7 +89,7 @@
           "label": "Auth"
         },
         "valueType": "EXPRESSION",
-        "valueTypeConstraint": "http:ClientAuthConfig|mcpv2:OAuth2DiscoveryConfig|ai:AgentIdAuthConfig",
+        "valueTypeConstraint": "http:ClientAuthConfig|mcpv2:OAuth2DiscoveryConfig",
         "value": "",
         "placeholder": "",
         "optional": true,
@@ -125,7 +125,7 @@
           "label": "HTTP Config"
         },
         "valueType": "EXPRESSION",
-        "valueTypeConstraint": "ai:McpHttpClientConfig",
+        "valueTypeConstraint": "mcpv2:HttpClientConfig",
         "value": "",
         "placeholder": "",
         "optional": true,
@@ -380,7 +380,7 @@
               "character": 1
             }
           },
-          "newText": "isolated class McpToolKit2 {\n    *ai:McpBaseToolKit;\n    private final mcpv2:StreamableHttpClient mcpClient;\n    private final readonly & ai:ToolConfig[] tools;\n\n    public isolated function init(string serverUrl, mcpv2:Implementation info = {name: \"MCP\", version: \"1.0.0\"},\n            *ai:McpStreamableHttpClientConfig config) returns ai:Error? {\n        final map<ai:FunctionTool> permittedTools = {\n                \"ask_question\" : self.ask_question\n        };\n\n        do {\n            ai:McpStreamableHttpClientConfig {httpConfig, ...clientConfig} = config;\n            ai:McpHttpClientConfig {auth, ...httpSettings} = httpConfig;\n            mcpv2:HttpClientConfig mcpHttpConfig = {...httpSettings};\n            ai:AgentIdAuthConfig? agentIdAuth = ();\n            if auth is ai:AgentIdAuthConfig {\n                agentIdAuth = auth;\n            } else {\n                mcpHttpConfig.auth = auth;\n            }\n            self.mcpClient = check new mcpv2:StreamableHttpClient(serverUrl, {...clientConfig, httpConfig: mcpHttpConfig});\n            self.tools = check ai:getPermittedMcpToolConfigs(self.mcpClient, info, permittedTools, agentIdAuth).cloneReadOnly();\n        } on fail error e {\n            return error ai:Error(\"Failed to initialize MCP toolkit\", e);\n        }\n    }\n\n    public isolated function getTools() returns ai:ToolConfig[] => self.tools;\n\n    @ai:AgentTool\n    public isolated function ask_question(ai:Context ctx, mcpv2:CallToolParams params) returns mcpv2:CallToolResult|error {\n        return self.mcpClient->callTool(params);\n    }\n}\n"
+          "newText": "isolated class McpToolKit2 {\n    *ai:McpBaseToolKit;\n    private final mcpv2:StreamableHttpClient mcpClient;\n    private final readonly & ai:ToolConfig[] tools;\n\n    public isolated function init(string serverUrl, mcpv2:Implementation info = {name: \"MCP\", version: \"1.0.0\"},\n            *mcpv2:StreamableHttpClientConfig config) returns ai:Error? {\n        final map<ai:FunctionTool> permittedTools = {\n                \"ask_question\" : self.ask_question\n        };\n\n        do {\n            self.mcpClient = check new mcpv2:StreamableHttpClient(serverUrl, config);\n            self.tools = check ai:getPermittedMcpToolConfigs(self.mcpClient, info, permittedTools).cloneReadOnly();\n        } on fail error e {\n            return error ai:Error(\"Failed to initialize MCP toolkit\", e);\n        }\n    }\n\n    public isolated function getTools() returns ai:ToolConfig[] => self.tools;\n\n    @ai:AgentTool\n    public isolated function ask_question(ai:Context ctx, mcpv2:CallToolParams params) returns mcpv2:CallToolResult|error {\n        return self.mcpClient->callTool(params);\n    }\n}\n"
         }
       ]
     }
