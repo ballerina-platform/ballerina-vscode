@@ -17,7 +17,6 @@
  */
 
 import React, { useEffect, useRef, useState } from "react";
-import { STNode } from "@wso2/syntax-tree";
 import { Button, Icon, Switch, View, ThemeColors, Tooltip } from "@wso2/ui-toolkit";
 import { BIFlowDiagram } from "../FlowDiagram";
 import { BISequenceDiagram } from "../SequenceDiagram";
@@ -119,11 +118,10 @@ export interface DiagramWrapperProps {
     artifactType?: DIRECTORY_MAP;
     view?: FocusFlowDiagramView;
     breakpointState?: number;
-    syntaxTree?: STNode;
 }
 
 export function DiagramWrapper(param: DiagramWrapperProps) {
-    const { projectPath, filePath, artifactType, view, breakpointState, syntaxTree } = param;
+    const { projectPath, filePath, artifactType, view, breakpointState } = param;
     const { rpcClient } = useRpcContext();
 
     const [showSequenceDiagram, setShowSequenceDiagram] = useState(false);
@@ -763,7 +761,6 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
                     />
                 ) : (
                     <BIFlowDiagram
-                        syntaxTree={syntaxTree}
                         breakpointState={breakpointState}
                         projectPath={projectPath}
                         onUpdate={handleUpdateDiagram}

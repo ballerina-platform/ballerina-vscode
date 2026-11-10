@@ -16,6 +16,7 @@
  * under the License.
  */
 
+import { useEffect, useState } from "react";
 import styled from "@emotion/styled";
 import { NodePosition } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
@@ -33,8 +34,8 @@ const FormContainer = styled.div`
 
 interface AgentToolFormViewProps {
     projectPath: string;
-    documentUri: string;
-    functionName: string;
+    documentUri?: string;
+    functionName?: string;
     position?: NodePosition;
     inClass: boolean;
 }
@@ -42,6 +43,14 @@ interface AgentToolFormViewProps {
 export function AgentToolFormView(props: AgentToolFormViewProps) {
     const { projectPath, documentUri, functionName, position, inClass } = props;
     const { rpcClient } = useRpcContext();
+    const [filePath, setFilePath] = useState(documentUri);
+
+    useEffect(() => {
+        if (!documentUri) {
+            rpcClient.getVisualizerRpcClient().joinProjectPath({ segments: ["agents.bal"] })
+                .then(({ filePath }) => setFilePath(filePath));
+        }
+    }, [documentUri, rpcClient]);
 
     const lineRange = position
         ? {
@@ -61,14 +70,15 @@ export function AgentToolFormView(props: AgentToolFormViewProps) {
             <TitleBar title="Agent Tool" subtitle="Build a tool that can be used by AI agents" />
             <ViewContent padding>
                 <FormContainer>
-                    <AgentToolForm
-                        filePath={documentUri}
+                    {filePath && <AgentToolForm
+                        filePath={filePath}
                         projectPath={projectPath}
-                        editContext={{ functionName, inClass, lineRange: lineRange as any }}
+                        editContext={functionName ? { functionName, inClass, lineRange: lineRange as any } : undefined}
+                        isPublic={!functionName}
                         nestedForm
                         onSave={goBack}
                         onBack={goBack}
-                    />
+                    />}
                 </FormContainer>
             </ViewContent>
         </View>

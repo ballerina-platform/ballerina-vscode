@@ -239,6 +239,7 @@ import { getRepoRoot } from "../platform-ext/platform-utils";
 import { WI_EXTENSION_ID } from "../../utils";
 import { notifyOnIdentifierUpdated } from "../../RPCLayer";
 import { openView } from "../../stateMachine";
+import { detectEol } from "../../features/ai/utils/eol-utils";
 
 function ensureGitignoreEntry(projectRoot: string): void {
     const gitignorePath = path.join(projectRoot, '.gitignore');
@@ -250,8 +251,9 @@ function ensureGitignoreEntry(projectRoot: string): void {
             content = fs.readFileSync(gitignorePath, 'utf8');
         }
         if (!content.split('\n').some(line => line.trim() === entry)) {
-            const newline = content.endsWith('\n') || content === '' ? '' : '\n';
-            fs.appendFileSync(gitignorePath, `${newline}${entry}\n`);
+            const eol = detectEol(content);
+            const newline = content.endsWith('\n') || content === '' ? '' : eol;
+            fs.appendFileSync(gitignorePath, `${newline}${entry}${eol}`);
         }
     } catch (e) {
         console.warn('[agent-chat] Failed to update .gitignore:', e);
@@ -367,7 +369,9 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
         console.log(">>> requesting bi source code from ls", params);
         try {
             this.ensureTargetFileExists(params.filePath);
-            const model = await StateMachine.langClient().getSourceCode(params) as BISourceCodeResponse;
+            const model = await StateMachine.langClient().getSourceCode(
+                { ...params, formatted: true }
+            );
             console.log(">>> bi source code from ls", model);
 
             if (model?.errorMsg) {
@@ -388,7 +392,9 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             }
 
             if (params?.isConnector) {
-                const artifacts = await updateSourceCode({ textEdits: model.textEdits, description: this.getSourceDescription(params) });
+                const artifacts = await updateSourceCode({
+                    textEdits: model.textEdits, description: this.getSourceDescription(params), preformatted: model.formatted
+                });
                 return { artifacts };
             }
 
@@ -397,9 +403,12 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             // Read off the edits the LS actually produced, before they are applied. Whether the
             // default provider was declared is the LS's decision, so reporting what it emitted is
             // the only answer that cannot drift from it — see UpdatedArtifactsResponse.
-            const declaredDefaultModelProvider = declaresDefaultModelProvider(model.textEdits);
+            const declaredDefaultModelProvider = declaresDefaultModelProvider(model.sourceEdits ?? model.textEdits);
             const artifacts = await updateSourceCode(
-                { textEdits: model.textEdits, artifactData, description: this.getSourceDescription(params) },
+                {
+                    textEdits: model.textEdits, artifactData, description: this.getSourceDescription(params),
+                    preformatted: model.formatted
+                },
                 params.isHelperPaneChange
             );
             if (typeof nodeKind === "string" && nodeKind.startsWith("DURABLE_AGENT")) {
@@ -789,9 +798,7 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                 })
                 .catch((error) => {
                     console.log(">>> error fetching node template from ls", error);
-                    return new Promise((resolve) => {
-                        resolve(undefined);
-                    });
+                    resolve(undefined);
                 });
         });
     }
@@ -1070,10 +1077,13 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
 
         return new Promise((resolve) => {
             StateMachine.langClient()
-                .deleteFlowNode(params)
-                .then(async (model) => {
+                .deleteFlowNode({ ...params, formatted: true })
+                .then(async (model: BISourceCodeResponse) => {
                     console.log(">>> bi delete node from ls", model);
-                    const artifacts = await updateSourceCode({ textEdits: model.textEdits, description: 'Flow Node Deletion - ' + params.flowNode.metadata.label, skipPayloadCheck: true });
+                    const artifacts = await updateSourceCode({
+                        textEdits: model.textEdits, description: 'Flow Node Deletion - ' + params.flowNode.metadata.label,
+                        skipPayloadCheck: true, preformatted: model.formatted
+                    });
                     resolve({ artifacts });
                 })
                 .catch((error) => {
@@ -1169,9 +1179,7 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                 })
                 .catch((error) => {
                     console.log(">>> error fetching node template from ls", error);
-                    return new Promise((resolve) => {
-                        resolve(undefined);
-                    });
+                    resolve(undefined);
                 });
         });
     }
@@ -1682,15 +1690,15 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
         const performDelete = async (): Promise<any> => {
             return new Promise((resolve, reject) => {
                 StateMachine.langClient()
-                    .deleteByComponentInfo(params)
-                    .then(async (model) => {
+                    .deleteByComponentInfo({ ...params, formatted: true })
+                    .then(async (model: BISourceCodeResponse) => {
                         console.log(">>> bi delete node from ls by componentInfo", model);
                         let description = 'Component Deletion';
                         if (componentView?.location?.artifactType && componentView?.location?.identifier) {
                             description = `${this.capitalizeFirstLetter(componentView.location.artifactType)} Deletion - ${componentView.location.identifier}`;
                         }
-                        await updateSourceCode({ textEdits: model.textEdits, description: description, skipPayloadCheck: true }); // Skip payload check because the component is deleted
-                        resolve(model);
+                        const artifacts = await updateSourceCode({ textEdits: model.textEdits, description: params.description ?? description, skipPayloadCheck: true, preformatted: model.formatted }); // Skip payload check because the component is deleted
+                        resolve({ ...model, artifacts });
                     })
                     .catch((error) => {
                         console.log(">>> error fetching delete node from ls by componentInfo", error);
@@ -2688,6 +2696,9 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                         }
                     }]);
                 }
+                const editedFiles = [...Object.keys(res.deleteData.textEditsMap), ...res.deleteData.filesToDelete];
+                await StateMachine.langClient().flushArtifacts(editedFiles.map((file) => Uri.file(file).toString()))
+                    .catch(() => undefined);
                 updateView();
                 resolve(res);
             }).catch((error) => {

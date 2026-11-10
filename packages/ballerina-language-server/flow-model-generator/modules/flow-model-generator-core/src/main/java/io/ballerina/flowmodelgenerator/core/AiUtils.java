@@ -1867,6 +1867,13 @@ public class AiUtils {
                         && packageName.equals(p.currentPackage().packageName().value()));
     }
 
+    static Optional<Project> findWorkspacePackage(ModuleID module, Project project) {
+        return getProjectsForModule(module.orgName(), module.packageName(), project).stream()
+                .filter(p -> module.orgName().equals(p.currentPackage().packageOrg().value())
+                        && module.packageName().equals(p.currentPackage().packageName().value()))
+                .findFirst();
+    }
+
     private static List<Project> getProjectsForModule(String org, String packageName, Project project) {
         List<Project> projects = new ArrayList<>();
         projects.add(project);

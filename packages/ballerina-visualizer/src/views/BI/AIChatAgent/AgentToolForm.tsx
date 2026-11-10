@@ -29,6 +29,7 @@ import {
     RecordTypeField,
     getPrimaryInputType,
     isTemplateType,
+    ProjectStructureArtifactResponse
 } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { FormField, FormImports, FormValues } from "@wso2/ballerina-side-panel";
@@ -89,7 +90,8 @@ interface AgentToolFormProps {
     targetLineRange?: LineRange;
     editContext?: AgentToolEditContext;
     nestedForm?: boolean;
-    onSave: (toolName: string) => void | Promise<void>;
+    isPublic?: boolean;
+    onSave: (toolName: string, artifacts?: ProjectStructureArtifactResponse[]) => void | Promise<void>;
     onBack?: () => void;
 }
 
@@ -208,7 +210,7 @@ function findAgentToolAnnotation(model: FunctionModel): {
 }
 
 export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
-    const { filePath, projectPath, hostClass, targetLineRange, editContext, nestedForm, onSave, onBack } = props;
+    const { filePath, projectPath, hostClass, targetLineRange, editContext, nestedForm, isPublic, onSave, onBack } = props;
     const { rpcClient } = useRpcContext();
     const [toolNode, setToolNode] = useState<FlowNode>();
     const [functionModel, setFunctionModel] = useState<FunctionModel>();
@@ -475,6 +477,7 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
                 if (node.properties?.isPublic) {
                     node.properties.isPublic.hidden = true;
                     node.properties.isPublic.editable = false;
+                    node.properties.isPublic.value = String(Boolean(isPublic));
                 }
 
                 const baseFields = convertConfig(node.properties);
@@ -679,7 +682,7 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
             }
             await rpcClient.getAIAgentRpcClient().fixMissingImports();
             await deleteDetachedApprovalFunction(data);
-            await onSave(String(properties.functionName.value));
+            await onSave(String(properties.functionName.value), response.artifacts);
         } catch {
             await rpcClient.getCommonRpcClient().showErrorMessage({
                 message: `Failed to ${isEdit ? "update" : "create"} the agent tool.`,

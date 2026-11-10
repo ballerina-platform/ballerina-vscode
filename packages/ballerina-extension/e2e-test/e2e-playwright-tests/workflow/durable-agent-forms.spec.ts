@@ -85,18 +85,17 @@ async function fillExpression(webview: Frame, key: string, value: string): Promi
 // and the canvas is read-only while the side panel is open: after a capability save the panel keeps its
 // loader up until the refreshed model has rendered, so a click that follows a save too soon finds nothing.
 async function clickAffordance(webview: Frame, kind: 'event' | 'humanTask'): Promise<void> {
-    const panel = webview.getByTestId('side-panel');
-    await panel.waitFor({ state: 'hidden', timeout: 60000 }).catch(() => undefined);
+    const sidePanel = webview.getByTestId('side-panel');
+    await sidePanel.waitFor({ state: 'hidden', timeout: 60000 }).catch(() => undefined);
     const affordance = webview.getByTestId(`durable-agent-add-${kind}`).first();
-    // The canvas is read-only while it refreshes after a save (up to 8 seconds), and drops a click then.
-    for (let attempt = 0; attempt < 6; attempt++) {
-        await affordance.waitFor({ state: 'visible', timeout: 60000 });
-        await affordance.click({ force: true });
-        if (await panel.waitFor({ state: 'visible', timeout: 5000 }).then(() => true, () => false)) {
-            return;
+    await affordance.waitFor({ state: 'visible', timeout: 60000 });
+    // The canvas ignores clicks while it refreshes after a save, so click again until the form opens.
+    await expect(async () => {
+        if (!await sidePanel.isVisible()) {
+            await affordance.click({ force: true });
         }
-    }
-    throw new Error(`The ${kind} form did not open`);
+        await sidePanel.waitFor({ state: 'visible', timeout: 5000 });
+    }).toPass({ timeout: 60000 });
 }
 
 // Opens the AI section's Model Provider list and picks a declared provider. The list is fetched after the

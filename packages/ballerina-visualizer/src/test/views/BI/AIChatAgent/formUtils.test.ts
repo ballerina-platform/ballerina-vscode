@@ -32,6 +32,7 @@ import {
     existingApprovalConfig,
     initialApproval,
     readToolParameters,
+    stripCodeFencesInline,
     upsertApprovalField,
 } from "../../../../views/BI/AIChatAgent/formUtils";
 
@@ -200,5 +201,12 @@ describe("edit save of requiresApproval", () => {
         expect(upsertApprovalField("@ai:AgentTool", data, initial))
             .toBe("@ai:AgentTool {\n    requiresApproval: true\n}");
         expect(approvalSourceForSave({ requiresApproval: false }, initial)).toBeUndefined();
+    });
+});
+
+describe("stripCodeFencesInline", () => {
+    it.each([["LF", "\n"], ["CRLF", "\r\n"]])("joins %s lines into one line", (_, eol) => {
+        const text = `Sends a message.${eol}Returns the reply.${eol}\`\`\`ballerina${eol}check send();${eol}\`\`\``;
+        expect(stripCodeFencesInline(text)).toBe("Sends a message. Returns the reply.");
     });
 });
