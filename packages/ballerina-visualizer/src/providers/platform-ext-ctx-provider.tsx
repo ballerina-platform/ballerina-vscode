@@ -39,7 +39,7 @@ const defaultPlatformExtContext: {
         setConnection: (item?: ConnectionListItem) => void;
     };
 } = {
-    platformExtState: { components: [], isLoggedIn: false, userInfo: null },
+    platformExtState: { integrations: [], isLoggedIn: false, session: null },
     onLinkDevantProject: () => {},
     loginToDevant: () => {},
     handleLinkWorkspace: async () => {},
@@ -133,8 +133,8 @@ export const PlatformExtContextProvider: FC<{ children: ReactNode }> = ({ childr
                 platformExtState: {
                     ...platformExtState,
                     selectedContext: platformExtState?.isLoggedIn ? platformExtState.selectedContext : undefined,
-                    selectedComponent: platformExtState?.isLoggedIn ? platformExtState.selectedComponent : undefined,
-                    components: platformExtState?.isLoggedIn ? platformExtState.components : [],
+                    selectedIntegration: platformExtState?.isLoggedIn ? platformExtState.selectedIntegration : undefined,
+                    integrations: platformExtState?.isLoggedIn ? platformExtState.integrations : [],
                     devantConns: platformExtState?.isLoggedIn ? platformExtState.devantConns : {},
                 },
                 loginToDevant,

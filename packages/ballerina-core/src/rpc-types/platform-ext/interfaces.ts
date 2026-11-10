@@ -16,20 +16,22 @@
  * under the License.
  */
 
+import type { ContextItemEnriched, DirectoryIntegration, Environment, PlatformSession } from "@wso2/wso2-cloud-client";
+// The browser-safe entry: this module reaches the webviews, and the package root pulls in Node modules.
+import { PLATFORM_EXTENSION_API_VERSION } from "@wso2/wso2-cloud-client/contract";
 import {
-    ComponentKind,
     ConnectionConfigurations,
     ConnectionDetailed,
     ConnectionListItem,
-    ContextItemEnriched,
-    Environment,
-    MarketplaceIdlTypes,
+    CreateComponentConnectionReq,
     MarketplaceItem,
     MarketplaceServiceTypes,
-    UserInfo,
 } from "@wso2/wso2-platform-core";
 import { AvailableNode } from "../../interfaces/bi";
 import { ModuleVarDecl } from "@wso2/syntax-tree/lib/syntax-tree-interfaces";
+
+/** The platform extension contract this extension was written against; an older or newer WSO2 Integrator disables cloud features. */
+export const SUPPORTED_PLATFORM_API_VERSION: number = PLATFORM_EXTENSION_API_VERSION;
 
 export interface GenerateCustomConnectorFromOASReq {
     connectionName: string;
@@ -39,6 +41,16 @@ export interface GenerateCustomConnectorFromOASReq {
 
 export interface GenerateCustomConnectorFromOASResp {
     connectionNode?: AvailableNode;
+}
+
+/**
+ * A service connection to create. A connection inside the project is the
+ * platform filling one of the integration's configurables with the
+ * endpoint's address, so it names that configurable.
+ */
+export interface CreateInternalConnectionReq extends CreateComponentConnectionReq {
+    /** The configurable the endpoint's URL fills, in the package's root module; required for project visibility. */
+    configurableName?: string;
 }
 
 export interface InitializeDevantOASConnectionReq {
@@ -54,9 +66,11 @@ export interface InitializeDevantOASConnectionResp {
     connectionName?: string;
 }
 
+/** Kept for the third-party flows, which WSO2 Cloud does not offer yet; the request is refused with a clear message. */
 export interface RegisterDevantMarketplaceServiceReq {
     name: string;
-    idlType: MarketplaceIdlTypes;
+    /** "OpenAPI", "TCP", or another IDL kind the service names. */
+    idlType: string;
     serviceType: MarketplaceServiceTypes;
     idlFilePath?: string;
 
@@ -83,19 +97,30 @@ export interface ReplaceDevantTempConfigValuesReq {
 
 export interface PlatformExtConnectionState {
     loading?: boolean;
+    /**
+     * The integration's environment-variable groups in the selected environment,
+     * in the connection vocabulary the connection screens were written against.
+     */
     list?: ConnectionListItem[];
     connectedToDevant?: boolean;
 }
 
+/** What the visualizer sees of WSO2 Integrator's cloud state. */
 export interface PlatformExtState {
     isExtInstalled?: boolean;
+    /** The `apiVersion` WSO2 Integrator exports; cloud features are on only when it is the supported one. */
+    platformApiVersion?: number;
+    /** False when WSO2 Integrator is installed but speaks another contract version. */
+    isCompatible?: boolean;
     isLoggedIn: boolean;
-    userInfo: UserInfo | null;
+    session: PlatformSession | null;
     hasPossibleComponent?: boolean;
     hasLocalChanges?: boolean;
-    components: ComponentKind[];
-    selectedComponent?: ComponentKind;
+    /** The integrations found in the open directory. */
+    integrations: DirectoryIntegration[];
+    selectedIntegration?: DirectoryIntegration;
     selectedContext?: ContextItemEnriched;
+    /** The project's environments, in promotion order. */
     envs?: Environment[];
     selectedEnv?: Environment;
     devantConns?: PlatformExtConnectionState;
