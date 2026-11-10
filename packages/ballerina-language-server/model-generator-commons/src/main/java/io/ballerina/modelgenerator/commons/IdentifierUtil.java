@@ -161,7 +161,7 @@ public final class IdentifierUtil {
         }
         String trimmed = name.strip();
         if (!NodeParser.parseBindingPattern(trimmed).hasDiagnostics()) {
-            return name;
+            return trimmed;
         }
         if (trimmed.startsWith(SELF_PREFIX) && trimmed.length() > SELF_PREFIX.length()) {
             return SELF_PREFIX + escapeIfNeeded(trimmed.substring(SELF_PREFIX.length()));

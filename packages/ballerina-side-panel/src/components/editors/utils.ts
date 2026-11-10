@@ -483,6 +483,9 @@ export function requiresSourceForm(nodeKind?: string): boolean {
     return SOURCE_FORM_NODE_KINDS.includes(nodeKind);
 }
 
+/** An escaped backslash (`\\`) or a numeric escape for one (`\u{5C}`): the name holds a literal backslash. */
+const LITERAL_BACKSLASH = /\\\\|\\u\{0*5[cC]\}/;
+
 /** The property codedata type of a listener's name, which the service writers put in the source as given. */
 const SOURCE_FORM_CODEDATA_TYPES = ["LISTENER_VAR_NAME"];
 
@@ -501,9 +504,12 @@ export function requiresSourceFormName(field: Pick<FormField, "sourceFormName" |
  * in source form (`issue\-number`). The language server escapes it again when it writes the source. A binding
  * pattern (`[a, b]`) and a name edited in source form (see requiresSourceFormName) are shown as they are. An escaped space or
  * comma (`first\ name`) or a numeric escape (`a\u{2D}b`) is part of a name, not a sign of a binding pattern.
+ * A name with a literal backslash (`a\\b`, `a\u{5C}b`) is also shown as it is: its plain form (`ab`, `a\b`) is
+ * valid source for a different name, so saving it unchanged would rename it.
  */
 export function toEditableName(value: unknown, sourceForm = false): unknown {
-    if (typeof value !== "string" || sourceForm || !/^(?:\\u\{[0-9a-fA-F]+\}|\\.|[^\s[\]{},])+$/.test(value)) {
+    if (typeof value !== "string" || sourceForm || LITERAL_BACKSLASH.test(value)
+        || !/^(?:\\u\{[0-9a-fA-F]+\}|\\.|[^\s[\]{},])+$/.test(value)) {
         return value;
     }
     return toDisplayName(value);

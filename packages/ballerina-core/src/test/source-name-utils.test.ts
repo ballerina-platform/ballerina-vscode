@@ -43,6 +43,9 @@ describe("toSourceIdentifier / toDisplayName", () => {
         ["a\\u{5C}b", "a\\u{5C}b", "a\\b"],
         ["_x", "_x", "_x"],
         ["été", "été", "été"],
+        // Only decimal digits are kept unescaped, as Java's `Character.isLetterOrDigit` does
+        ["x٣", "x٣", "x٣"],
+        ["x²", "x\\²", "x²"],
     ];
 
     it.each(vectors)("%s", (input, source, plain) => {

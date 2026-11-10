@@ -377,7 +377,11 @@ public class SourceBuilder {
                     changed = true;
                 }
             } else {
-                escapeNestedNames(property.value());
+                Object nested = withNestedSourceNames(property.value());
+                if (nested != property.value()) {
+                    updated.put(entry.getKey(), Property.Builder.copyFrom(property).value(nested).build());
+                    changed = true;
+                }
             }
         }
         if (!changed) {
@@ -395,25 +399,48 @@ public class SourceBuilder {
     }
 
     /**
-     * Nested properties (e.g. function parameters) arrive as plain JSON maps, so they are updated in place.
+     * Nested properties (e.g. function parameters) arrive as plain JSON maps and lists. Returns the value with their
+     * names in source form, copying only the maps and lists on the path to a changed name, so the caller's value is
+     * never modified (it may also be immutable). Returns the same instance when nothing changes.
      */
-    @SuppressWarnings("unchecked")
-    private static void escapeNestedNames(Object value) {
+    private static Object withNestedSourceNames(Object value) {
         if (value instanceof List<?> list) {
-            list.forEach(SourceBuilder::escapeNestedNames);
-            return;
+            List<Object> copy = null;
+            for (int i = 0; i < list.size(); i++) {
+                Object item = list.get(i);
+                Object escaped = withNestedSourceNames(item);
+                if (copy == null && escaped != item) {
+                    copy = new ArrayList<>(list.subList(0, i));
+                }
+                if (copy != null) {
+                    copy.add(escaped);
+                }
+            }
+            return copy == null ? list : copy;
         }
         if (!(value instanceof Map<?, ?> map)) {
-            return;
+            return value;
         }
         if (map.get("value") instanceof String name && isTypedName(map)) {
             String sourceName = IdentifierUtil.escapeIfNeeded(name);
-            if (!name.equals(sourceName)) {
-                ((Map<String, Object>) map).put("value", sourceName);
+            if (name.equals(sourceName)) {
+                return map;
             }
-            return;
+            Map<Object, Object> copy = new LinkedHashMap<>(map);
+            copy.put("value", sourceName);
+            return copy;
         }
-        map.values().forEach(SourceBuilder::escapeNestedNames);
+        Map<Object, Object> copy = null;
+        for (Map.Entry<?, ?> entry : map.entrySet()) {
+            Object escaped = withNestedSourceNames(entry.getValue());
+            if (escaped != entry.getValue()) {
+                if (copy == null) {
+                    copy = new LinkedHashMap<>(map);
+                }
+                copy.put(entry.getKey(), escaped);
+            }
+        }
+        return copy == null ? map : copy;
     }
 
     private static boolean isTypedName(Map<?, ?> property) {

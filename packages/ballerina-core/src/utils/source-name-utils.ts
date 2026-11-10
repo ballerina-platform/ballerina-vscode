@@ -29,7 +29,8 @@ import { keywords } from "./keywords";
  */
 
 const NUMERIC_ESCAPE = /\\+u\{([0-9a-fA-F]{1,6})\}/g;
-const LETTER_OR_DIGIT = new RegExp("[\\p{L}\\p{N}]", "u");
+// Letters and decimal digits only, as Java's `Character.isLetterOrDigit`: `²` is escaped on both sides
+const LETTER_OR_DIGIT = new RegExp("[\\p{L}\\p{Nd}]", "u");
 // Stands in for a backslash decoded from a numeric escape while the written escapes are dropped
 const DECODED_BACKSLASH = "";
 const QUOTABLE_KEYWORDS = new Set(keywords);

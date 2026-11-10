@@ -157,7 +157,7 @@ public class SourceCodeGenerator {
 
         return template.formatted(
                 isReadonlyFlagOn(typeData.properties()) ? "readonly " : "",
-                IdentifierUtil.escapeIfNeeded(typeData.name()),
+                IdentifierUtil.escapeIdentifierIfNeeded(typeData.name()),
                 fieldBuilder.toString(),
                 resourceFunctions.toString()
         );
@@ -182,7 +182,7 @@ public class SourceCodeGenerator {
         StringBuilder enumValues = new StringBuilder();
         for (int i = 0; i < typeData.members().size(); i++) {
             Member member = typeData.members().get(i);
-            enumValues.append(LS).append("\t").append(IdentifierUtil.escapeIfNeeded(member.name()));
+            enumValues.append(LS).append("\t").append(IdentifierUtil.escapeIdentifierIfNeeded(member.name()));
             if (member.defaultValue() != null && !member.defaultValue().isEmpty()) {
                 enumValues.append(" = ").append(member.defaultValue());
             }
@@ -196,7 +196,7 @@ public class SourceCodeGenerator {
 
         String template = "%s%senum %s {%s%n}%n";
 
-        return template.formatted(docs, publicQualifier, IdentifierUtil.escapeIfNeeded(typeData.name()),
+        return template.formatted(docs, publicQualifier, IdentifierUtil.escapeIdentifierIfNeeded(typeData.name()),
                 enumValues.toString());
     }
 
@@ -231,8 +231,8 @@ public class SourceCodeGenerator {
 
         String template = "%s%s%stype %s %s;";
 
-        return template.formatted(docs, annots, publicQualifier, IdentifierUtil.escapeIfNeeded(typeData.name()),
-                typeDescriptor);
+        return template.formatted(docs, annots, publicQualifier,
+                IdentifierUtil.escapeIdentifierIfNeeded(typeData.name()), typeDescriptor);
     }
 
     private String generateAnnotatedTypeDescriptor(Object typeData,
@@ -542,7 +542,7 @@ public class SourceCodeGenerator {
             String annotatedTypeDesc = generateAnnotatedTypeDescriptor(member.type(), copyOfAnnotAttachments);
 
             // Param name
-            String paramName = IdentifierUtil.escapeIfNeeded(member.name());
+            String paramName = IdentifierUtil.escapeIdentifierIfNeeded(member.name());
             if (member.optional()) {
                 paramName = paramName + "?";
             }

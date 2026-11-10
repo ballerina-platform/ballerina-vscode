@@ -312,4 +312,9 @@ describe("toEditableName", () => {
         expect(toEditableName("'type", true)).toBe("'type");
         expect(toEditableName("issue\\-number", true)).toBe("issue\\-number");
     });
+
+    // The plain form (`ab`, `a\b`) is valid source for another name, so an unchanged save would rename it
+    it.each(["a\\\\b", "a\\u{5C}b", "a\\u{005c}b", "issue\\\\\\-number"])("keeps %p, which holds a literal backslash", (value) => {
+        expect(toEditableName(value)).toBe(value);
+    });
 });

@@ -55,6 +55,9 @@ public class IdentifierUtilTest {
                 {"a\\u{5C}b", "a\\u{5C}b", "a\\b"},
                 {"_x", "_x", "_x"},
                 {"été", "été", "été"},
+                // Only decimal digits are kept unescaped, as `Character.isLetterOrDigit` does
+                {"x٣", "x٣", "x٣"},
+                {"x²", "x\\²", "x²"},
                 {"  padded  ", "padded", "  padded  "},
         };
     }
@@ -94,6 +97,9 @@ public class IdentifierUtilTest {
                 {"_", "_"},
                 {"self.conn", "self.conn"},
                 {"self.my-conn", "self.my\\-conn"},
+                // Valid source is kept, without the surrounding spaces
+                {"  x  ", "x"},
+                {" [a, b] ", "[a, b]"},
         };
     }
 

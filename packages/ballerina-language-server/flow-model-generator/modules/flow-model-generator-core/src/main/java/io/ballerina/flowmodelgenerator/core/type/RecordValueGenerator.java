@@ -274,10 +274,11 @@ public class RecordValueGenerator {
 
     /**
      * The field name in the model is the plain name for a field copied in by a type inclusion (the compiler drops
-     * the quote from {@code 'type}), and the source name otherwise. Both are written as the same source key.
+     * the quote from {@code 'type}), and the source name otherwise. A name that is already valid source
+     * ({@code issue\\\-number}) is kept as written, so the key matches the declared field; any other name is escaped.
      */
     private static String toFieldKey(String fieldName) {
-        return fieldName.startsWith("\"") ? fieldName : IdentifierUtil.toSourceIdentifier(fieldName);
+        return fieldName.startsWith("\"") ? fieldName : IdentifierUtil.escapeIdentifierIfNeeded(fieldName);
     }
 
     private static void generateDefaultValue(JsonObject jsonObject, StringBuilder builder, int indentLevel) {
