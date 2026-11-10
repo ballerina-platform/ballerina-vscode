@@ -85,6 +85,7 @@ import {
     RegisterDevantMarketplaceServiceReq,
     ReplaceDevantTempConfigValuesReq,
     SUPPORTED_PLATFORM_API_VERSION,
+    MARKETPLACE_ITEM_UNAVAILABLE,
 } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
 import { StateMachine } from "../../stateMachine";
 import { CaptureBindingPattern, ModulePart, ModuleVarDecl, STKindChecker } from "@wso2/syntax-tree";
@@ -106,6 +107,7 @@ import {
     createdConnection,
     accessTo,
     connectableToMarketplaceItem,
+    unavailableIn,
     endpointLinkConnections,
     endpointLinksReferencedBy,
     linkToConnectionDetailed,
@@ -523,7 +525,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
         });
     }
 
-    // ---- the catalog: the endpoints of the organization the selected integration may connect to ----
+    // ---- the catalog: the endpoints of the organization the integration may connect to ----
 
     async getMarketplaceItems(params: GetMarketplaceListReq): Promise<MarketplaceListResp> {
         const empty: MarketplaceListResp = { count: 0, pagination: { limit: 0, offset: 0, total: 0 }, data: [] };
@@ -536,23 +538,29 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
             const { orgHandle = "", integration } = this.selection();
             const projectName = this.requireProjectName();
             const envId = this.requireEnvId();
-            if (!integration) {
-                // The platform says what an integration may connect to; a connection is made for one, too.
-                log("No WSO2 Cloud integration is selected: there is nothing to list services to connect to for.");
+            // Before it is deployed the integration goes by its package's name; the platform only uses the
+            // name to leave the integration's own endpoints out.
+            const projectPath = StateMachine.context()?.projectPath;
+            const integrationName = integration?.id ?? (projectPath ? getOrgPackageName(projectPath).packageName : "");
+            if (!integrationName) {
+                log("The package's name could not be read from its Ballerina.toml: there is nothing to list services for.");
                 return empty;
             }
-            // Every project's endpoints the platform lets the integration reach, each where it runs in the environment.
-            const endpoints = await platformExt.connections.listConnectable(integration.id, projectName);
+            // Every project's endpoints the integration may reach. The ones it can't connect to in the
+            // environment are listed too, with the platform's reason, so a service never just goes missing.
+            const endpoints = await platformExt.connections.listConnectable(integrationName, projectName);
+            const notDeployed = integration ? undefined : "Deploy this integration to WSO2 Cloud to connect it to services.";
             const query = params?.request?.query?.toLowerCase();
             const data = endpoints
-                .filter((endpoint) => endpoint.environments.some((env) => env.name === envId && env.connectable))
-                .map((endpoint) => connectableToMarketplaceItem(endpoint, envId, orgHandle))
-                .filter((item) => !query || item.name.toLowerCase().includes(query));
+                .map((endpoint) => connectableToMarketplaceItem(endpoint, envId, orgHandle, notDeployed ?? unavailableIn(endpoint, envId)))
+                .filter((item) => !query || item.name.toLowerCase().includes(query))
+                .sort((a, b) => Number(!!a.properties?.[MARKETPLACE_ITEM_UNAVAILABLE]) - Number(!!b.properties?.[MARKETPLACE_ITEM_UNAVAILABLE]));
             const offset = params?.request?.offset ?? 0;
             const limit = params?.request?.limit ?? data.length;
             return { count: data.length, pagination: { limit, offset, total: data.length }, data: data.slice(offset, offset + limit) };
         } catch (err) {
             log(`Failed to invoke getMarketplaceItems: ${err}`);
+            throw err;
         }
     }
 
@@ -847,7 +855,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
             const projectName = params.projectId || this.requireProjectName();
             const integration = params.componentId || this.selection().integration?.id;
             if (!integration) {
-                throw new CloudFeatureUnavailableError("A project-level service connection");
+                throw new Error("Deploy this integration to WSO2 Cloud first: a connection is made for a deployed integration.");
             }
             const target = parseServiceId(params.serviceId);
             if (!target) {

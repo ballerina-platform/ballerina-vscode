@@ -30,6 +30,7 @@ import * as path from "path";
 import * as yaml from "js-yaml";
 import type { Component, ConnectableEndpoint, DbCredentials, DbServer, EndpointLink, EndpointResources, EnvVarGroup } from "@wso2/wso2-cloud-client";
 import { DATABASE_CONNECTION_VARS, SERVICE_CONNECTION_VARS, connectionVarName, connectionVarSuffix } from "@wso2/wso2-cloud-client";
+import { MARKETPLACE_ITEM_UNAVAILABLE } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
 import type {
     ConnectionDetailed,
     ConnectionListItem,
@@ -423,10 +424,33 @@ export function endpointToMarketplaceItem(
 }
 
 /** An endpoint the integration may connect to, as a marketplace service. */
-export function connectableToMarketplaceItem(endpoint: ConnectableEndpoint, environment: string, orgHandle: string): MarketplaceItem {
+export function connectableToMarketplaceItem(
+    endpoint: ConnectableEndpoint,
+    environment: string,
+    orgHandle: string,
+    unavailable = unavailableIn(endpoint, environment),
+): MarketplaceItem {
     const name = /[A-Za-z0-9]/.test(endpoint.endpoint) ? `${endpoint.displayName} / ${endpoint.endpoint}` : endpoint.displayName;
     const access: ServiceConnectionAccess = endpoint.scope === "project" ? "project" : "organization";
-    return { ...serviceItem(endpoint, name, environment, orgHandle, access), summary: endpoint.project };
+    const item: MarketplaceItem = { ...serviceItem(endpoint, name, environment, orgHandle, access), summary: endpoint.project };
+    if (unavailable) {
+        item.description = unavailable;
+        item.properties = { [MARKETPLACE_ITEM_UNAVAILABLE]: unavailable };
+    }
+    return item;
+}
+
+/** Why the endpoint can't be connected to in the environment, in the platform's words; undefined when it can. */
+export function unavailableIn(endpoint: ConnectableEndpoint, environment: string): string | undefined {
+    const env = endpoint.environments.find((item) => item.name === environment);
+    if (env?.connectable) {
+        return undefined;
+    }
+    const detail = env?.detail?.trim();
+    if (!detail) {
+        return `Not available in ${environment}.`;
+    }
+    return `${detail.charAt(0).toUpperCase()}${detail.slice(1)}${/[.!?]$/.test(detail) ? "" : "."}`;
 }
 
 /**

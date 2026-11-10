@@ -33,6 +33,9 @@ import { ModuleVarDecl } from "@wso2/syntax-tree/lib/syntax-tree-interfaces";
 /** The platform extension contract this extension was written against; an older or newer WSO2 Integrator disables cloud features. */
 export const SUPPORTED_PLATFORM_API_VERSION: number = PLATFORM_EXTENSION_API_VERSION;
 
+/** The marketplace item property saying why a service can't be connected to now; absent when it can. */
+export const MARKETPLACE_ITEM_UNAVAILABLE = "unavailable";
+
 export interface GenerateCustomConnectorFromOASReq {
     connectionName: string;
     marketplaceItem: MarketplaceItem;

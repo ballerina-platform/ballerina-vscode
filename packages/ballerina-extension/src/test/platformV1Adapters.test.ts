@@ -35,8 +35,10 @@ import {
     parseServiceId,
     resourceRefOf,
     serviceId,
+    unavailableIn,
     SERVICE_CONNECTION_KEYS,
 } from "../rpc-managers/platform-ext/v1-adapters";
+import { MARKETPLACE_ITEM_UNAVAILABLE } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
 import {
     configurableId,
     endpointLinkConnections,
@@ -127,6 +129,30 @@ describe("platform v1 adapters", () => {
         expect(cart.name).toBe("Cart");
         expect(cart.visibility).toEqual(["PROJECT"]);
         expect(cart.connectionSchemas.map((s) => s.id)).toEqual(["project-url"]);
+        expect(cart.properties).toBeUndefined();
+    });
+
+    it("keeps an endpoint that can't be connected to in the environment, with the platform's reason", () => {
+        const endpoint = {
+            project: "finance",
+            component: "billing",
+            endpoint: "api",
+            displayName: "Billing",
+            scope: "organization" as const,
+            environments: [
+                { name: "development", connectable: false, reason: "EndpointNotInternal", detail: "endpoint api of billing is not visible to the organization in development" },
+                { name: "production", connectable: false },
+            ],
+        };
+        const reason = "Endpoint api of billing is not visible to the organization in development.";
+        expect(unavailableIn(endpoint, "development")).toBe(reason);
+        expect(unavailableIn(endpoint, "production")).toBe("Not available in production.");
+        expect(unavailableIn(endpoint, "staging")).toBe("Not available in staging.");
+        const item = connectableToMarketplaceItem(endpoint, "development", "acme");
+        expect(item.properties?.[MARKETPLACE_ITEM_UNAVAILABLE]).toBe(reason);
+        expect(item.description).toBe(reason);
+        const notDeployed = connectableToMarketplaceItem(endpoint, "development", "acme", "Deploy this integration first.");
+        expect(notDeployed.properties?.[MARKETPLACE_ITEM_UNAVAILABLE]).toBe("Deploy this integration first.");
     });
 
     it("names a service by its integration alone when the endpoint is named after a bare path", () => {

@@ -18,6 +18,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { AvailableNode, LinePosition } from "@wso2/ballerina-core";
+import { MARKETPLACE_ITEM_UNAVAILABLE } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Codicon, ProgressRing } from "@wso2/ui-toolkit";
 import { debounce } from "lodash";
@@ -145,6 +146,8 @@ export function DevantConnectorList(props: DevantConnectorListProps) {
         debouncedSearch: debouncedSearchText,
         isLoggedIn: platformExtState.isLoggedIn,
         component: platformExtState?.selectedIntegration?.integration.id,
+        // whether a service can be connected to is per environment
+        env: platformExtState?.selectedEnv?.id,
     };
 
     const getMarketPlaceParams: GetMarketplaceItemsParams = {
@@ -165,7 +168,7 @@ export function DevantConnectorList(props: DevantConnectorListProps) {
         getMarketPlaceParams.networkVisibilityFilter = "org,project,public";
     }
 
-    const { data: marketplaceServices, isLoading: isLoadingMarketplace } = useQuery({
+    const { data: marketplaceServices, isLoading: isLoadingMarketplace, error: marketplaceError } = useQuery({
         queryKey: ["marketplace-services", filterType, reactQueryKey],
         queryFn: () =>
             platformRpcClient?.getMarketplaceItems({
@@ -260,21 +263,33 @@ export function DevantConnectorList(props: DevantConnectorListProps) {
                         </FilterButton>
                     </FilterButtons>
                 </SectionHeader>
+                {marketplaceError && filterType !== "databases" && (
+                    <BodyTinyInfo style={{ paddingBottom: "10px" }}>
+                        Couldn't list the services in WSO2 Cloud: {errorMessage(marketplaceError)}
+                    </BodyTinyInfo>
+                )}
                 <ConnectionSection
                     emptyText={emptyText}
                     loading={isLoading}
                     data={items}
                     searchText={searchText}
-                    renderItem={(item) => (
-                        <ButtonCard
-                            id={`connector-${item.resourceId}`}
-                            title={item.name}
-                            description={item.description}
-                            icon={<Codicon name="package" />}
-                            onClick={() => handleMarketplaceItemClick(item)}
-                            disabled={loadingBalOrgConnectors}
-                        />
-                    )}
+                    renderItem={(item) => {
+                        // A service the integration can't connect to now is shown with the reason, not hidden.
+                        const unavailable = item.properties?.[MARKETPLACE_ITEM_UNAVAILABLE];
+                        return (
+                            <div style={unavailable ? { opacity: 0.6 } : undefined}>
+                                <ButtonCard
+                                    id={`connector-${item.resourceId}`}
+                                    title={item.name}
+                                    description={item.description}
+                                    icon={<Codicon name="package" />}
+                                    onClick={() => handleMarketplaceItemClick(item)}
+                                    disabled={loadingBalOrgConnectors || !!unavailable}
+                                    tooltip={unavailable}
+                                />
+                            </div>
+                        );
+                    }}
                 />
             </Section>
         </>
@@ -322,3 +337,9 @@ const ConnectionSection = <T,>({ emptyText, loading, data, searchText, renderIte
         </>
     );
 };
+
+function errorMessage(error: unknown): string {
+    const message = error instanceof Error ? error.message : String(error);
+    // The RPC layer prefixes the extension's message; the reader wants only the reason.
+    return message.replace(/^Error:\s*/, "");
+}
