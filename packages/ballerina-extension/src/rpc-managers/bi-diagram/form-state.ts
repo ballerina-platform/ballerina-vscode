@@ -25,25 +25,24 @@ import { findPackageRoot } from '../../features/project/dependency-lock';
 // its own file, its "+ New Function" on functions.bal), so the copy is shared, and has to outlive the
 // inner form.
 const openFormCounts = new Map<string, number>();
-// The expr:// copy each file with unsaved edits checks against, by file. Edits are taken from any file
-// on an open package, so they go with the package: as its first form opens and its last one closes.
-const dirtyFiles = new Map<string, string>();
+// The expr:// copy each form with unsaved edits checks against, by form id. Kept per form: a form
+// opened inside another reports itself clean when it opens and takes its own edits with it when it
+// closes, and neither may change what the outer form reports. Kept whatever happens to the copy, too:
+// a flow node form opens its copy on first focus, after its first edit may have been reported, and
+// closes it as any save through it starts, a "+ New Variable" form's included, which leaves the
+// outer form open with its edits.
+const dirtyForms = new Map<string, string>();
 
 /** Returns whether no other form is open on the file's package, so its expr:// copy must be opened. */
 export function registerFormOpen(filePath: string): boolean {
     const copy = exprCopyOf(filePath);
     const count = openFormCounts.get(copy) ?? 0;
     openFormCounts.set(copy, count + 1);
-    if (count === 0) {
-        clearDirtyFiles(copy);
-    }
-    dirtyFiles.delete(filePath);
     return count === 0;
 }
 
 /** Returns whether no form is left open on the file's package, so its expr:// copy can be closed. */
 export function registerFormClose(filePath: string): boolean {
-    dirtyFiles.delete(filePath);
     const copy = exprCopyOf(filePath);
     const count = openFormCounts.get(copy) ?? 0;
     if (count > 1) {
@@ -51,19 +50,15 @@ export function registerFormClose(filePath: string): boolean {
         return false;
     }
     openFormCounts.delete(copy);
-    clearDirtyFiles(copy);
     return true;
 }
 
-/** Tracks dirty state for a form on an already-open package (see formDidOpen). Ignored if the package is not open. */
-export function setFormDirtyState(filePath: string, isDirty: boolean): void {
-    if (!isDirty) {
-        dirtyFiles.delete(filePath);
-        return;
-    }
-    const copy = exprCopyOf(filePath);
-    if (openFormCounts.has(copy)) {
-        dirtyFiles.set(filePath, copy);
+/** Tracks a form's unsaved edits, until the form reports them gone. See hasDirtyOpenForm for when they count. */
+export function setFormDirtyState(filePath: string, formId: string, isDirty: boolean): void {
+    if (isDirty) {
+        dirtyForms.set(formId, exprCopyOf(filePath));
+    } else {
+        dirtyForms.delete(formId);
     }
 }
 
@@ -71,14 +66,24 @@ export function hasOpenForm(): boolean {
     return openFormCounts.size > 0;
 }
 
+/**
+ * Whether a form with unsaved edits is on a package a form is open on (see formDidOpen). Edits on a
+ * package with no form open do not count: its forms either never opened an expr:// copy, or closed
+ * it as their save started, and a save often navigates.
+ */
 export function hasDirtyOpenForm(): boolean {
-    return dirtyFiles.size > 0;
+    for (const copy of dirtyForms.values()) {
+        if (openFormCounts.has(copy)) {
+            return true;
+        }
+    }
+    return false;
 }
 
 /** Clears form state when navigating away (e.g., user chose "Discard and Navigate"). */
 export function clearFormState(): void {
     openFormCounts.clear();
-    dirtyFiles.clear();
+    dirtyForms.clear();
 }
 
 // The language server keeps one expr:// copy per package, and one per file outside a package. Forms
@@ -92,12 +97,4 @@ export function clearFormState(): void {
 // a copy carries the text it checks.
 function exprCopyOf(filePath: string): string {
     return normalizeProjectPath(findPackageRoot(filePath) ?? filePath);
-}
-
-function clearDirtyFiles(copy: string): void {
-    for (const [filePath, dirtyCopy] of dirtyFiles) {
-        if (dirtyCopy === copy) {
-            dirtyFiles.delete(filePath);
-        }
-    }
 }

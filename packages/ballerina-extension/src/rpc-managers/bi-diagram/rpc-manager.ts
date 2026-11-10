@@ -1850,7 +1850,7 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
     }
 
     formDirtyDidChange(params: FormDirtyDidChangeParams): void {
-        setFormDirtyState(params.filePath, params.isDirty);
+        setFormDirtyState(params.filePath, params.formId, params.isDirty);
     }
 
     async formDidClose(params: FormDidCloseParams): Promise<void> {

@@ -31,6 +31,101 @@
         }
     ],
     "files": {
-        "outer": "integration/automation.bal"
-    }
+        "outer": "integration/automation.bal",
+        "inner": "integration/automation.bal",
+        "function": "integration/functions.bal",
+        "other": "billing/main.bal"
+    },
+    "scenarios": [
+        {
+            "name": "an edited form, with a New Variable form opened inside it and cancelled untouched",
+            "steps": ["edit outer", "mount inner", "focus inner", "unmount inner"],
+            "unsaved": true,
+            "open": true
+        },
+        {
+            "name": "an edited form, with a New Variable form edited inside it and cancelled",
+            "steps": ["edit outer", "mount inner", "edit inner", "unmount inner"],
+            "unsaved": true,
+            "open": true
+        },
+        {
+            "name": "an unedited form, with a New Variable form edited inside it and cancelled",
+            "steps": ["focus outer", "mount inner", "edit inner", "unmount inner"],
+            "unsaved": false,
+            "open": true
+        },
+        {
+            "name": "an unedited form, with a New Variable form being edited inside it",
+            "steps": ["focus outer", "mount inner", "edit inner"],
+            "unsaved": true,
+            "open": true
+        },
+        {
+            "name": "an edited form, with a New Function form on another file edited inside it and cancelled",
+            "steps": ["edit outer", "mount function", "edit function", "unmount function"],
+            "unsaved": true,
+            "open": true
+        },
+        {
+            "name": "an unedited form, with a New Function form on another file edited inside it and cancelled",
+            "steps": ["focus outer", "mount function", "edit function", "unmount function"],
+            "unsaved": false,
+            "open": true
+        },
+        {
+            "name": "an edited form, saved",
+            "steps": ["edit outer", "save outer"],
+            "unsaved": false,
+            "open": false
+        },
+        {
+            "name": "an edited form, saved after a New Variable form inside it was saved",
+            "steps": ["edit outer", "mount inner", "edit inner", "helper-save inner outer", "focus outer", "save outer"],
+            "unsaved": false,
+            "open": false
+        },
+        {
+            "name": "an edited form, focused again after a New Variable form inside it was saved",
+            "steps": ["edit outer", "mount inner", "edit inner", "helper-save inner outer", "focus outer"],
+            "unsaved": true,
+            "open": true
+        },
+        {
+            "name": "an edited form left open by its save, focused again",
+            "steps": ["edit outer", "save outer", "focus outer"],
+            "unsaved": true,
+            "open": true
+        },
+        {
+            "name": "a form edited before its first focus",
+            "steps": ["mount outer", "report outer dirty", "focus outer"],
+            "unsaved": true,
+            "open": true
+        },
+        {
+            "name": "an edited form on another package, while an unedited form is saved",
+            "steps": ["edit other", "focus outer", "save outer"],
+            "unsaved": true,
+            "open": true
+        },
+        {
+            "name": "edits on a file no form opened",
+            "steps": ["mount outer", "report outer dirty"],
+            "unsaved": false,
+            "open": false
+        },
+        {
+            "name": "an edited form whose edits were undone",
+            "steps": ["edit outer", "report outer clean"],
+            "unsaved": false,
+            "open": true
+        },
+        {
+            "name": "edited forms discarded on navigation, then closed",
+            "steps": ["edit outer", "mount inner", "edit inner", "discard", "unmount inner", "unmount outer"],
+            "unsaved": false,
+            "open": false
+        }
+    ]
 }
