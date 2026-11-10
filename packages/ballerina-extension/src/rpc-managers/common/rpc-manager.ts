@@ -17,6 +17,7 @@
  * 
  * THIS FILE INCLUDES AUTO GENERATED CODE
  */
+import { readContextDocument } from '@wso2/wso2-cloud-client';
 import {
     AgentRunStatus,
     BallerinaDiagnosticsRequest,
@@ -540,17 +541,14 @@ export class CommonRpcManager implements CommonRPCAPI {
             const projectPath = StateMachine.context()?.workspacePath;
 
             if (projectPath) {
-                // Check .wso2/context.yaml then .choreo/context.yaml
-                for (const contextDir of ['.wso2', '.choreo']) {
-                    try {
-                        const contextYamlPath = path.join(projectPath, contextDir, "context.yaml");
-                        const content = await fs.promises.readFile(contextYamlPath, "utf-8");
-                        const parsed = loadYaml(content);
-                        if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0].org === "string" && parsed[0].org) {
-                            return { orgName: parsed[0].org, isLocked: true };
-                        }
-                    } catch { /* file missing or unreadable — try next */ }
-                }
+                // The organization a linked repository's .wso2/context.yaml names
+                try {
+                    const content = await fs.promises.readFile(path.join(projectPath, ".wso2", "context.yaml"), "utf-8");
+                    const org = readContextDocument(loadYaml(content))[0]?.org;
+                    if (org) {
+                        return { orgName: org, isLocked: true };
+                    }
+                } catch { /* file missing or unreadable */ }
 
                 // Check existing packages listed in the workspace Ballerina.toml
                 const workspaceToml = await getWorkspaceTomlValues(projectPath);
