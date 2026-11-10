@@ -48,7 +48,7 @@ import { URI, Utils } from "vscode-uri";
 import { CONNECTIONS_FILE } from "./constants";
 import { ErrorBoundary, ProgressIndicator, ThemeColors, Typography } from "@wso2/ui-toolkit";
 import { prefetchAfterView } from "./utils/viewPrefetch";
-import { PanelType, useModalStack, useVisualizerContext } from "./Context";
+import { PanelType, useVisualizerContext } from "./Context";
 import { VSCodeProgressRing } from "@vscode/webview-ui-toolkit/react";
 import { ModalStack } from "./components/Popup/ModalStack";
 
@@ -195,7 +195,6 @@ const ConditionalPanelFallback = (): null => null;
 const MainPanel = () => {
     const { rpcClient } = useRpcContext();
     const { sidePanel, setSidePanel, popupMessage, setPopupMessage, activePanel, showOverlay, setShowOverlay } = useVisualizerContext();
-    const { modalStack } = useModalStack()
     const errorBoundaryRef = createRef<any>();
     const [viewComponent, setViewComponent] = useState<React.ReactNode>();
     const [viewError, setViewError] = useState<string>();
@@ -1067,7 +1066,7 @@ const MainPanel = () => {
                 <ErrorBoundary goHome={handleNavigateToOverview} errorMsg="An error occurred in the visualizer" issueUrl={PRODUCT_INTEGRATOR_ISSUES_URL} ref={errorBoundaryRef} resetKeys={[viewComponent]}>
                     {/* {navActive && <NavigationBar showHome={showHome} />} */}
                     {showNavProgress && <ProgressIndicator id="visualizer-nav-progress" />}
-                    {(showOverlay || modalStack.length > 0) && <Overlay />}
+                    {showOverlay && <Overlay />}
                     {viewError && (
                         <ComponentViewWrapper>
                             <WebviewErrorState
