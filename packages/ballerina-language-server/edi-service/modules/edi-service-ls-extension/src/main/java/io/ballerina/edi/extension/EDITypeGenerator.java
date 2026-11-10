@@ -288,7 +288,7 @@ public class EDITypeGenerator {
      * @return GeneratedContent containing separated imports, types, and functions
      */
     private GeneratedContent parseGeneratedContent(String generatedCode) {
-        String[] lines = generatedCode.split(LS);
+        String[] lines = generatedCode.split("\\R");
         StringBuilder imports = new StringBuilder();
         StringBuilder types = new StringBuilder();
         StringBuilder functions = new StringBuilder();

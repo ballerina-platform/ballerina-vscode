@@ -35,6 +35,7 @@ const skillCreatorMd = loadSkillMd(() => require('./skill-creator/SKILL.md'), 's
 const agentBuilderMd = loadSkillMd(() => require('./agent-builder/SKILL.md'), 'agent-builder');
 const workflowBuilderMd = loadSkillMd(() => require('./workflow-builder/SKILL.md'), 'workflow-builder');
 const agentEvalsMd = loadSkillMd(() => require('./agent-evals/SKILL.md'), 'agent-evals');
+const agentLibraryMd = loadSkillMd(() => require('./agent-library/SKILL.md'), 'agent-library');
 
 const isAgentBuilderMode = getProductMode() === ProductMode.AGENT_BUILDER;
 
@@ -103,6 +104,20 @@ export const agentBuilderSkill: Skill = {
     default: true,
 };
 
+// agent-library skill
+const agentLibrary = parseSkillMd(agentLibraryMd);
+if (!agentLibrary.name || !agentLibrary.description) {
+    throw new Error(`[agent-library] SKILL.md is missing required frontmatter fields (name="${agentLibrary.name}", description="${agentLibrary.description}")`);
+}
+
+export const agentLibrarySkill: Skill = {
+    name: agentLibrary.name,
+    trigger: agentLibrary.description,
+    content: agentLibrary.body,
+    optional: !isAgentBuilderMode,
+    default: true,
+};
+
 // agent-evals skill
 const agentEvals = parseSkillMd(agentEvalsMd);
 if (!agentEvals.name || !agentEvals.description) {
@@ -139,6 +154,7 @@ export const REGISTERED_SKILLS: Skill[] = [
     dataMapSkill,
     skillCreatorSkill,
     agentBuilderSkill,
+    agentLibrarySkill,
     agentEvalsSkill,
     workflowBuilderSkill,
 ];

@@ -1,0 +1,8 @@
+[package]
+org = "wso2"
+name = "duplicate_service_cases"
+version = "0.1.0"
+title = "duplicate service cases"
+
+[build-options]
+sticky = true

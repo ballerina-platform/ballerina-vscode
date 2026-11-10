@@ -16,12 +16,14 @@
  * under the License.
  */
 
-import React from "react";
+import React, { ReactNode, useEffect, useState } from "react";
 import { Icon } from "@wso2/ui-toolkit";
 import { ConnectorIcon } from "@wso2/bi-diagram";
 import { AvailableNode } from "@wso2/ballerina-core";
+import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import ButtonCard from "../../../../components/ButtonCard";
 import { RelativeLoader } from "../../../../components/RelativeLoader";
+import { toAgents } from "./PrebuiltAgentsView";
 import {
     AgentsGrid,
     EmptyState,
@@ -32,16 +34,63 @@ import {
 } from "./styles";
 
 interface PackageAgentsViewProps {
+    projectPath: string;
     packageNode: AvailableNode;
-    agents: AvailableNode[];
-    isLoading: boolean;
+    isAgentHidden?: (agent: AvailableNode) => boolean;
     onSelect: (agent: AvailableNode) => void;
+    renderForm?: (agent: AvailableNode) => ReactNode;
 }
 
-/** Picks one definition out of a package that declares several. */
+/** Loads a package's definitions; one opens its form in place, several are listed to pick from. */
 export function PackageAgentsView(props: PackageAgentsViewProps) {
-    const { packageNode, agents, isLoading, onSelect } = props;
+    const { projectPath, packageNode, isAgentHidden, onSelect, renderForm } = props;
+    const { rpcClient } = useRpcContext();
+    const [agents, setAgents] = useState<AvailableNode[]>();
     const { org, module, version } = packageNode.codedata;
+
+    useEffect(() => {
+        let cancelled = false;
+        rpcClient
+            .getBIDiagramRpcClient()
+            .search({
+                filePath: projectPath,
+                queryMap: { package: `${org}/${module}:${version}` },
+                searchKind: "AGENT",
+            })
+            .then((model) => toAgents(model).filter((agent) => !isAgentHidden?.(agent)))
+            .catch((error): AvailableNode[] => {
+                console.error("Error expanding agent package:", error);
+                rpcClient.getCommonRpcClient().showErrorMessage({
+                    message: "Failed to load the agent package. Please try again.",
+                });
+                return [];
+            })
+            .then((found) => {
+                if (cancelled) {
+                    return;
+                }
+                setAgents(found);
+                if (found.length === 1 && !renderForm) {
+                    onSelect(found[0]);
+                }
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    // Same loader as the form, so a single-definition package reads as one load.
+    if (!agents) {
+        return (
+            <LoaderWrapper>
+                <RelativeLoader />
+            </LoaderWrapper>
+        );
+    }
+
+    if (agents.length === 1 && renderForm) {
+        return <>{renderForm(agents[0])}</>;
+    }
 
     return (
         <PopupContent>
@@ -50,11 +99,8 @@ export function PackageAgentsView(props: PackageAgentsViewProps) {
             </IntroText>
 
             <ResultsSection>
-                {isLoading && <LoaderWrapper><RelativeLoader /></LoaderWrapper>}
-                {!isLoading && agents.length === 0 && (
-                    <EmptyState>No agent definitions found in this package.</EmptyState>
-                )}
-                {!isLoading && agents.length > 0 && (
+                {agents.length === 0 && <EmptyState>No agent definitions found in this package.</EmptyState>}
+                {agents.length > 0 && (
                     <AgentsGrid>
                         {agents.map((agent) => (
                             <ButtonCard

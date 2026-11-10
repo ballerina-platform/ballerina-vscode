@@ -15,70 +15,13 @@
 // under the License.
 
 import ballerina/ai;
-import ballerina/mcp;
+import org/agent_17.tools;
 
-final DeepWikiToolKit deepWiki = check new ("https://mcp.deepwiki.com/mcp");
-final McpToolKit mcpToolKit = check new ("http://localhost:9090/mcp");
-
-final ai:Agent chatAgent = check new ({
-    systemPrompt: {role: "Assistant", instructions: string `Answer questions about repositories.`},
-    model: check ai:getDefaultModelProvider(),
-    tools: [deepWiki, mcpToolKit]
-});
-
-@display {label: "DeepWiki", iconPath: "https://example.com/deepwiki.svg"}
-isolated class DeepWikiToolKit {
-    *ai:McpBaseToolKit;
-    private final mcp:StreamableHttpClient mcpClient;
-    private final readonly & ai:ToolConfig[] tools;
-
-    public isolated function init(string serverUrl, mcp:Implementation info = {name: "MCP", version: "1.0.0"},
-            *mcp:StreamableHttpClientTransportConfig config) returns ai:Error? {
-        final map<ai:FunctionTool> permittedTools = {
-            "ask_question": self.askQuestion
-        };
-        do {
-            self.mcpClient = check new mcp:StreamableHttpClient(serverUrl, config);
-            self.tools = check ai:getPermittedMcpToolConfigs(self.mcpClient, info, permittedTools).cloneReadOnly();
-        } on fail error e {
-            return error ai:Error("Failed to initialize MCP toolkit", e);
-        }
-    }
-
-    public isolated function getTools() returns ai:ToolConfig[] => self.tools;
-
-    @ai:AgentTool
-    public isolated function askQuestion(mcp:CallToolParams params) returns mcp:CallToolResult|error {
-        return self.mcpClient->callTool(params);
-    }
-}
-
-isolated class McpToolKit {
-    *ai:McpBaseToolKit;
-    private final mcp:StreamableHttpClient mcpClient;
-    private final readonly & ai:ToolConfig[] tools;
-
-    public isolated function init(string serverUrl, mcp:Implementation info = {name: "MCP", version: "1.0.0"},
-            *mcp:StreamableHttpClientTransportConfig config) returns ai:Error? {
-        final map<ai:FunctionTool> permittedTools = {
-            "ask_question": self.askQuestion
-        };
-        do {
-            self.mcpClient = check new mcp:StreamableHttpClient(serverUrl, config);
-            self.tools = check ai:getPermittedMcpToolConfigs(self.mcpClient, info, permittedTools).cloneReadOnly();
-        } on fail error e {
-            return error ai:Error("Failed to initialize MCP toolkit", e);
-        }
-    }
-
-    public isolated function getTools() returns ai:ToolConfig[] => self.tools;
-
-    @ai:AgentTool
-    public isolated function askQuestion(mcp:CallToolParams params) returns mcp:CallToolResult|error {
-        return self.mcpClient->callTool(params);
-    }
-}
+final ai:Agent weatherAgent = check new (
+    systemPrompt = {role: "Assistant", instructions: "Answer weather questions."},
+    model = check ai:getDefaultModelProvider(), tools = [tools:getWeather, tools:askForecaster]
+);
 
 public function main() returns error? {
-    string result = check chatAgent.run("What does wso2/ballerina-vscode do?");
+    string result = check weatherAgent.run("What's the weather in London?");
 }

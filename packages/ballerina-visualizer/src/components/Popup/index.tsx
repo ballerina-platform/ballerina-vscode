@@ -26,6 +26,7 @@ export type PopupProps = {
     width?: number;
     height?: number;
     title: string;
+    subtitle?: string;
     onBack?: () => void;
     breadcrumbs?: PopupFormBreadcrumb[];
     transitionKey?: string;
@@ -52,6 +53,7 @@ const Popup: React.FC<PopupProps> = ({
     width,
     height,
     title,
+    subtitle,
     onBack,
     breadcrumbs,
     transitionKey,
@@ -64,6 +66,7 @@ const Popup: React.FC<PopupProps> = ({
                 height={height}
                 width={width}
                 title={title}
+                subtitle={subtitle}
                 onBack={onBack}
                 breadcrumbs={breadcrumbs}
                 transitionKey={transitionKey}

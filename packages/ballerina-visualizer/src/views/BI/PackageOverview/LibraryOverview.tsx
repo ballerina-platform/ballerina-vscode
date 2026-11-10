@@ -24,10 +24,13 @@ import {
     EVENT_TYPE,
     MACHINE_VIEW,
     ProjectStructure,
+    ProductMode,
     ProjectStructureArtifactResponse,
     VISIBILITY,
 } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
+import { useProductMode } from "../../../hooks/useProductMode";
+import { sortAgentBuilderFirst } from "../components/artifactCards";
 import { Button, Codicon, Icon, ThemeColors, Typography } from "@wso2/ui-toolkit";
 import styled from "@emotion/styled";
 
@@ -464,6 +467,7 @@ interface SectionConfig {
     addLabel: string;
     addTooltip: string;
     npOnly?: boolean;
+    agentBuilderOnly?: boolean;
 }
 
 const SECTIONS: SectionConfig[] = [
@@ -516,6 +520,15 @@ const SECTIONS: SectionConfig[] = [
         description: "Reusable agent definitions in your library.",
         addLabel: "Add an Agent Definition",
         addTooltip: "Add New Agent Definition",
+    },
+    {
+        key: DIRECTORY_MAP.AGENT_TOOL,
+        title: "Agent Tools",
+        icon: "bi-wrench",
+        description: "Tools that agents in other integrations can use.",
+        addLabel: "Add an Agent Tool",
+        addTooltip: "Add New Agent Tool",
+        agentBuilderOnly: true,
     },
     {
         key: DIRECTORY_MAP.CONFIGURABLE,
@@ -643,6 +656,7 @@ export function LibraryOverview({ projectStructure, isNPSupported, projectPath, 
     }, [rpcClient, fetchReadme]);
 
     const showNaturalFunctions = isNPSupported && experimentalEnabled;
+    const isAgentBuilder = useProductMode() === ProductMode.AGENT_BUILDER;
 
     const isOverviewSearching = overviewSearch.trim().length > 0;
     const overviewQuery = overviewSearch.trim().toLowerCase();
@@ -652,8 +666,11 @@ export function LibraryOverview({ projectStructure, isNPSupported, projectPath, 
     const dirMap = projectStructure.directoryMap as Record<string, ProjectStructureArtifactResponse[]>;
 
     const visibleSections = useMemo(
-        () => SECTIONS.filter((s) => !s.npOnly || showNaturalFunctions),
-        [showNaturalFunctions]
+        () => {
+            const sections = SECTIONS.filter((s) => (!s.npOnly || showNaturalFunctions) && (!s.agentBuilderOnly || isAgentBuilder));
+            return isAgentBuilder ? sortAgentBuilderFirst(sections, (s) => s.key) : sections;
+        },
+        [showNaturalFunctions, isAgentBuilder]
     );
 
     const sectionsWithItems = useMemo(() => {
@@ -707,6 +724,11 @@ export function LibraryOverview({ projectStructure, isNPSupported, projectPath, 
             rpcClient.getVisualizerRpcClient().openView({
                 type: EVENT_TYPE.OPEN_VIEW,
                 location: { view: MACHINE_VIEW.AddAgentDefinition },
+            });
+        } else if (key === DIRECTORY_MAP.AGENT_TOOL) {
+            rpcClient.getVisualizerRpcClient().openView({
+                type: EVENT_TYPE.OPEN_VIEW,
+                location: { view: MACHINE_VIEW.AIAgentToolForm },
             });
         } else if (key === DIRECTORY_MAP.TYPE) {
             rpcClient.getVisualizerRpcClient().openView({
