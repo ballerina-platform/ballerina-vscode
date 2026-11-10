@@ -26,6 +26,7 @@ import com.google.gson.JsonParser;
 import java.io.BufferedReader;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
@@ -35,9 +36,11 @@ import java.nio.charset.StandardCharsets;
 import java.security.KeyStore;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.StringJoiner;
 
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.KeyManagerFactory;
@@ -55,6 +58,19 @@ public class McpClient {
 
     private static final Integer CONNECTION_TIMEOUT_MS = 10000; // 10 seconds
     private static final Integer READ_TIMEOUT_MS = 10000; // 10 seconds
+
+    // Protocol revisions known to the mcp.v2 client, newest first
+    private static final List<String> MODERN_PROTOCOL_VERSIONS = List.of("2026-07-28");
+    private static final List<String> LEGACY_PROTOCOL_VERSIONS =
+            List.of("2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05", "2024-10-07");
+    private static final String SERVER_DISCOVER_METHOD = "server/discover";
+    private static final String TOOLS_LIST_METHOD = "tools/list";
+    private static final int MODERN_DISCOVER_REQUEST_ID = 1;
+    // Bounds the pages read from a server that keeps offering a next cursor
+    private static final int MAX_TOOL_LIST_PAGES = 100;
+    private static final int HEADER_MISMATCH = -32020;
+    private static final int MISSING_REQUIRED_CLIENT_CAPABILITY = -32021;
+    private static final int UNSUPPORTED_PROTOCOL_VERSION = -32022;
 
     /**
      * Secure socket configuration for SSL/TLS connections.
@@ -202,7 +218,7 @@ public class McpClient {
     }
 
     /**
-     * Thrown when the server answers {@code initialize} with 401 Unauthorized. It carries the server's
+     * Thrown when the server answers a request with 401 Unauthorized. It carries the server's
      * {@code WWW-Authenticate} challenge, which points at the metadata that still names the server.
      */
     public static class UnauthorizedException extends IOException {
@@ -293,7 +309,7 @@ public class McpClient {
 
             McpServerInfo serverInfo;
             try {
-                JsonObject response = readJsonRpcResponse(conn);
+                JsonObject response = parseJsonRpcMessage(readBody(conn), conn.getContentType());
                 serverInfo = response == null ? McpServerInfo.empty() : McpServerInfo.fromInitializeResponse(response);
             } catch (RuntimeException e) {
                 // The handshake succeeded; a body the probe cannot read only costs the server's name and icon.
@@ -392,6 +408,23 @@ public class McpClient {
 
     public static JsonArray sendToolsListRequest(String serviceUrl, String sessionId, String accessToken,
                                                  SslConfig sslConfig) throws IOException {
+        JsonArray tools = new JsonArray();
+        String cursor = null;
+        for (int page = 0; page < MAX_TOOL_LIST_PAGES; page++) {
+            JsonObject result = sendToolsListPageRequest(serviceUrl, sessionId, accessToken, sslConfig, cursor);
+            if (result.has("tools") && result.get("tools").isJsonArray()) {
+                tools.addAll(result.getAsJsonArray("tools"));
+            }
+            if (!result.has("nextCursor") || !result.get("nextCursor").isJsonPrimitive()) {
+                return tools;
+            }
+            cursor = result.get("nextCursor").getAsString();
+        }
+        return tools;
+    }
+
+    private static JsonObject sendToolsListPageRequest(String serviceUrl, String sessionId, String accessToken,
+                                                       SslConfig sslConfig, String cursor) throws IOException {
         HttpURLConnection conn = null;
         try {
             URL url = URI.create(serviceUrl).toURL();
@@ -417,16 +450,18 @@ public class McpClient {
 
             conn.setDoOutput(true);
 
-            String body = """
-                    {
-                      "jsonrpc":"2.0",
-                      "id":2,
-                      "method":"tools/list"
-                    }
-                    """;
+            JsonObject request = new JsonObject();
+            request.addProperty("jsonrpc", "2.0");
+            request.addProperty("id", 2);
+            request.addProperty("method", TOOLS_LIST_METHOD);
+            if (cursor != null) {
+                JsonObject params = new JsonObject();
+                params.addProperty("cursor", cursor);
+                request.add("params", params);
+            }
 
             try (OutputStream os = conn.getOutputStream()) {
-                os.write(body.getBytes(StandardCharsets.UTF_8));
+                os.write(request.toString().getBytes(StandardCharsets.UTF_8));
             }
 
             int responseCode = conn.getResponseCode();
@@ -436,7 +471,12 @@ public class McpClient {
                         (errorMessage != null ? errorMessage : conn.getResponseMessage()));
             }
 
-            return extractToolsArrayFromResponse(conn);
+            JsonObject message = parseJsonRpcMessage(readBody(conn), conn.getContentType());
+            if (message != null && message.has("error") && message.get("error").isJsonObject()) {
+                throw new IOException("Failed to list tools: " + errorMessage(message.getAsJsonObject("error")));
+            }
+            return message != null && message.has("result") && message.get("result").isJsonObject()
+                    ? message.getAsJsonObject("result") : new JsonObject();
         } catch (java.net.MalformedURLException e) {
             throw new IOException("Invalid URL: " + e.getMessage(), e);
         } catch (java.net.UnknownHostException e) {
@@ -452,28 +492,38 @@ public class McpClient {
         }
     }
 
-    private static JsonArray extractToolsArrayFromResponse(HttpURLConnection conn) throws IOException {
-        String contentType = conn.getContentType();
-        try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
-
-            if (contentType != null && contentType.contains("text/event-stream")) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    if (line.startsWith("data: ")) {
-                        return parseToolsFromJson(line.substring(6));
-                    }
-                }
-            } else {
-                StringBuilder fullResponse = new StringBuilder();
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    fullResponse.append(line);
-                }
-                return parseToolsFromJson(fullResponse.toString());
-            }
+    /**
+     * Lists the tools of an MCP server of either protocol. Like the auto mode of the mcp.v2 client, the server is
+     * probed with {@code server/discover} first, and the legacy {@code initialize} handshake is used only when the
+     * probe shows that the server does not support the modern protocol.
+     *
+     * @param serviceUrl  URL of the MCP server
+     * @param accessToken Bearer token to send, or null
+     * @param sslConfig   Secure socket configuration, or null
+     * @return The tools of the server, and its name and icon from the discovery or {@code initialize} result
+     * @throws UnauthorizedException If the server requires authorization the request did not carry
+     * @throws IOException           If the server cannot be reached or rejects the requests
+     */
+    public static ToolList listTools(String serviceUrl, String accessToken, SslConfig sslConfig)
+            throws IOException {
+        JsonObject discovery = discoverModernServer(serviceUrl, accessToken, sslConfig);
+        if (discovery != null) {
+            return new ToolList(sendModernToolsListRequests(serviceUrl, accessToken, sslConfig),
+                    McpServerInfo.fromDiscoverResponse(discovery));
         }
-        return new JsonArray();
+        InitializeResult initialized = initialize(serviceUrl, accessToken, sslConfig);
+        sendInitializedNotification(serviceUrl, initialized.sessionId(), accessToken, sslConfig);
+        return new ToolList(sendToolsListRequest(serviceUrl, initialized.sessionId(), accessToken, sslConfig),
+                initialized.serverInfo());
+    }
+
+    /**
+     * The tools of an MCP server and how the server presents itself.
+     *
+     * @param tools      the tools the server lists
+     * @param serverInfo the server's name and icon
+     */
+    public record ToolList(JsonArray tools, McpServerInfo serverInfo) {
     }
 
     /**
@@ -513,54 +563,294 @@ public class McpClient {
         }
     }
 
-    // Reads one JSON-RPC response, from a plain JSON body or the first data event of an SSE stream.
-    private static JsonObject readJsonRpcResponse(HttpURLConnection conn) throws IOException {
-        String contentType = conn.getContentType();
-        try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
-            String json = null;
-            if (contentType != null && contentType.contains("text/event-stream")) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    if (line.startsWith("data:")) {
-                        json = line.substring(5).strip();
-                        break;
-                    }
-                }
-            } else {
-                StringBuilder fullResponse = new StringBuilder();
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    fullResponse.append(line);
-                }
-                json = fullResponse.toString();
+    // Mirrors how the mcp.v2 client decides between the modern protocol and the legacy handshake. Returns the
+    // server/discover response of a modern server, or null for a legacy one.
+    private static JsonObject discoverModernServer(String serviceUrl, String accessToken, SslConfig sslConfig)
+            throws IOException {
+        ProtocolResponse response = sendModernRequest(serviceUrl, accessToken, sslConfig, MODERN_DISCOVER_REQUEST_ID,
+                SERVER_DISCOVER_METHOD, new JsonObject());
+        int statusCode = response.statusCode();
+        // An authorization failure or a server error would fail the legacy handshake too
+        if (statusCode == HttpURLConnection.HTTP_UNAUTHORIZED) {
+            throw new UnauthorizedException(response.httpError(), response.wwwAuthenticate());
+        }
+        if (statusCode == HttpURLConnection.HTTP_FORBIDDEN
+                || statusCode >= HttpURLConnection.HTTP_INTERNAL_ERROR) {
+            throw new IOException(response.httpError());
+        }
+
+        JsonObject message = response.message();
+        if (message != null && message.has("error") && message.get("error").isJsonObject()) {
+            JsonObject error = message.getAsJsonObject("error");
+            int errorCode = errorCode(error);
+            if (errorCode == HEADER_MISMATCH || errorCode == MISSING_REQUIRED_CLIENT_CAPABILITY) {
+                throw new IOException("Server rejected the protocol discovery request: " + errorMessage(error));
             }
-            if (json == null || json.isBlank()) {
+            if (errorCode == UNSUPPORTED_PROTOCOL_VERSION) {
+                JsonArray supportedVersions = error.has("data") && error.get("data").isJsonObject()
+                        && error.getAsJsonObject("data").has("supported")
+                        && error.getAsJsonObject("data").get("supported").isJsonArray()
+                        ? error.getAsJsonObject("data").getAsJsonArray("supported") : null;
+                if (supportedVersions != null && !containsVersion(supportedVersions, MODERN_PROTOCOL_VERSIONS)
+                        && containsVersion(supportedVersions, LEGACY_PROTOCOL_VERSIONS)) {
+                    return null;
+                }
+                throw new IOException("Server does not support a known MCP protocol version: "
+                        + errorMessage(error));
+            }
+            // Any other JSON-RPC error, such as an unknown method, comes from a legacy server
+            return null;
+        }
+
+        if (statusCode >= HttpURLConnection.HTTP_OK && statusCode < HttpURLConnection.HTTP_MULT_CHOICE) {
+            if (message == null || !message.has("result") || !message.get("result").isJsonObject()) {
+                // A response that is not a discovery result comes from a legacy server
                 return null;
             }
-            JsonElement element = JsonParser.parseString(json);
-            return element.isJsonObject() ? element.getAsJsonObject() : null;
+            JsonObject result = message.getAsJsonObject("result");
+            if (!result.has("supportedVersions") || !result.get("supportedVersions").isJsonArray()) {
+                // A discovery result always lists its versions, so this comes from a legacy server that answers
+                // any method it does not know with an empty result
+                return null;
+            }
+            JsonArray supportedVersions = result.getAsJsonArray("supportedVersions");
+            if (containsVersion(supportedVersions, MODERN_PROTOCOL_VERSIONS)) {
+                return message;
+            }
+            if (containsVersion(supportedVersions, LEGACY_PROTOCOL_VERSIONS)) {
+                return null;
+            }
+            throw new IOException("Server lists no supported MCP protocol version");
         }
+
+        if (statusCode == HttpURLConnection.HTTP_BAD_REQUEST || statusCode == HttpURLConnection.HTTP_NOT_FOUND
+                || statusCode == HttpURLConnection.HTTP_BAD_METHOD) {
+            return null;
+        }
+        throw new IOException(response.httpError());
     }
 
-    private static JsonArray parseToolsFromJson(String json) {
-        JsonObject response = JsonParser.parseString(json).getAsJsonObject();
-        if (response.has("result")) {
-            JsonObject result = response.getAsJsonObject("result");
+    private static JsonArray sendModernToolsListRequests(String serviceUrl, String accessToken,
+                                                         SslConfig sslConfig) throws IOException {
+        JsonArray tools = new JsonArray();
+        String cursor = null;
+        for (int page = 0; page < MAX_TOOL_LIST_PAGES; page++) {
+            JsonObject params = new JsonObject();
+            if (cursor != null) {
+                params.addProperty("cursor", cursor);
+            }
+            ProtocolResponse response = sendModernRequest(serviceUrl, accessToken, sslConfig,
+                    MODERN_DISCOVER_REQUEST_ID + page + 1, TOOLS_LIST_METHOD, params);
+            if (response.statusCode() == HttpURLConnection.HTTP_UNAUTHORIZED) {
+                throw new UnauthorizedException(response.httpError(), response.wwwAuthenticate());
+            }
+            JsonObject message = response.message();
+            if (message != null && message.has("error") && message.get("error").isJsonObject()) {
+                throw new IOException("Failed to list tools: " + errorMessage(message.getAsJsonObject("error")));
+            }
+            if (response.statusCode() != HttpURLConnection.HTTP_OK || message == null || !message.has("result")
+                    || !message.get("result").isJsonObject()) {
+                throw new IOException(response.httpError());
+            }
+            JsonObject result = message.getAsJsonObject("result");
             if (result.has("tools") && result.get("tools").isJsonArray()) {
-                return result.getAsJsonArray("tools");
+                tools.addAll(result.getAsJsonArray("tools"));
+            }
+            if (!result.has("nextCursor") || !result.get("nextCursor").isJsonPrimitive()) {
+                return tools;
+            }
+            cursor = result.get("nextCursor").getAsString();
+        }
+        return tools;
+    }
+
+    /**
+     * Sends a modern protocol request, which carries the protocol version, client info and client capabilities in
+     * its {@code _meta}, and repeats the protocol version and the method in its headers.
+     */
+    private static ProtocolResponse sendModernRequest(String serviceUrl, String accessToken, SslConfig sslConfig,
+                                                      int requestId, String method, JsonObject params)
+            throws IOException {
+        HttpURLConnection conn = null;
+        try {
+            URL url = URI.create(serviceUrl).toURL();
+            conn = (HttpURLConnection) url.openConnection();
+            applySslConfig(conn, sslConfig);
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setRequestProperty("Accept", "application/json, text/event-stream");
+            conn.setRequestProperty("MCP-Protocol-Version", MODERN_PROTOCOL_VERSIONS.getFirst());
+            conn.setRequestProperty("Mcp-Method", method);
+            if (accessToken != null && !accessToken.trim().isEmpty()) {
+                conn.setRequestProperty("Authorization", "Bearer " + accessToken);
+            }
+            conn.setDoOutput(true);
+            conn.setConnectTimeout(CONNECTION_TIMEOUT_MS);
+            conn.setReadTimeout(READ_TIMEOUT_MS);
+
+            JsonObject clientInfo = new JsonObject();
+            clientInfo.addProperty("name", "MCP Client");
+            clientInfo.addProperty("version", "");
+            JsonObject meta = new JsonObject();
+            meta.addProperty("io.modelcontextprotocol/protocolVersion", MODERN_PROTOCOL_VERSIONS.getFirst());
+            meta.add("io.modelcontextprotocol/clientInfo", clientInfo);
+            meta.add("io.modelcontextprotocol/clientCapabilities", new JsonObject());
+            JsonObject requestParams = params.deepCopy();
+            requestParams.add("_meta", meta);
+            JsonObject request = new JsonObject();
+            request.addProperty("jsonrpc", "2.0");
+            request.addProperty("id", requestId);
+            request.addProperty("method", method);
+            request.add("params", requestParams);
+
+            try (OutputStream os = conn.getOutputStream()) {
+                os.write(request.toString().getBytes(StandardCharsets.UTF_8));
+            }
+
+            int responseCode = conn.getResponseCode();
+            String body = responseCode < HttpURLConnection.HTTP_BAD_REQUEST
+                    ? readBody(conn) : readErrorStream(conn);
+            return new ProtocolResponse(responseCode, conn.getResponseMessage(), body,
+                    parseJsonRpcMessage(body, conn.getContentType()), conn.getHeaderField("WWW-Authenticate"));
+        } catch (java.net.MalformedURLException e) {
+            throw new IOException("Invalid URL: " + e.getMessage(), e);
+        } catch (java.net.UnknownHostException e) {
+            throw new IOException("Unknown host: " + e.getMessage(), e);
+        } catch (java.net.ConnectException e) {
+            throw new IOException("Connection refused: Unable to connect to " + serviceUrl, e);
+        } catch (java.net.SocketTimeoutException e) {
+            throw new IOException("Connection timeout: Server did not respond in time", e);
+        } finally {
+            if (conn != null) {
+                conn.disconnect();
             }
         }
-        return new JsonArray();
     }
 
-    private static String readErrorStream(HttpURLConnection conn) {
+    private record ProtocolResponse(int statusCode, String reasonPhrase, String body, JsonObject message,
+                                    String wwwAuthenticate) {
+
+        // Describes a failed response by its body, or by its reason phrase when it has no body
+        String httpError() {
+            return "HTTP " + statusCode + ": " + (body != null && !body.isBlank() ? body : reasonPhrase);
+        }
+    }
+
+    // Reads a response body. An event stream is read only up to the event that carries the JSON-RPC response, as
+    // a server may keep the stream open after it.
+    private static String readBody(HttpURLConnection conn) throws IOException {
+        boolean eventStream = isEventStream(conn.getContentType());
         try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(conn.getErrorStream(), StandardCharsets.UTF_8))) {
-            StringBuilder errorResponse = new StringBuilder();
+                new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
+            StringBuilder body = new StringBuilder();
+            EventData event = new EventData();
             String line;
             while ((line = reader.readLine()) != null) {
-                errorResponse.append(line);
+                body.append(line).append('\n');
+                if (eventStream && event.accept(line) != null) {
+                    break;
+                }
+            }
+            return body.toString();
+        }
+    }
+
+    /**
+     * Parses the JSON-RPC response in a body, which is either a JSON object or an event stream whose events carry
+     * one. Returns null when the body holds no JSON-RPC response.
+     */
+    private static JsonObject parseJsonRpcMessage(String body, String contentType) {
+        if (body == null || body.isBlank()) {
+            return null;
+        }
+        try {
+            if (isEventStream(contentType)) {
+                EventData event = new EventData();
+                for (String line : body.split("\n")) {
+                    JsonObject response = event.accept(line);
+                    if (response != null) {
+                        return response;
+                    }
+                }
+                return null;
+            }
+            JsonElement message = JsonParser.parseString(body);
+            return message.isJsonObject() ? message.getAsJsonObject() : null;
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
+    private static boolean isEventStream(String contentType) {
+        return contentType != null && contentType.contains("text/event-stream");
+    }
+
+    /**
+     * The data of the event-stream event being read. An event may split its data over several {@code data:} lines,
+     * so the lines are joined until they hold a whole JSON-RPC response; a blank line ends the event.
+     */
+    private static final class EventData {
+
+        private final List<String> lines = new ArrayList<>();
+
+        // Takes the next line of the stream, and returns the JSON-RPC response once the event's data holds one
+        JsonObject accept(String line) {
+            String content = line.endsWith("\r") ? line.substring(0, line.length() - 1) : line;
+            if (content.isEmpty()) {
+                lines.clear();
+                return null;
+            }
+            if (!content.startsWith("data:")) {
+                return null;
+            }
+            String value = content.substring(5);
+            lines.add(value.startsWith(" ") ? value.substring(1) : value);
+            return response();
+        }
+
+        // The JSON-RPC response in the data so far, or null while it is incomplete or is not one, such as a
+        // notification
+        private JsonObject response() {
+            try {
+                JsonElement event = JsonParser.parseString(String.join("\n", lines));
+                return event.isJsonObject() && (event.getAsJsonObject().has("result")
+                        || event.getAsJsonObject().has("error")) ? event.getAsJsonObject() : null;
+            } catch (RuntimeException e) {
+                return null;
+            }
+        }
+    }
+
+    // The code of a JSON-RPC error, or 0 when it has none that is a number.
+    private static int errorCode(JsonObject error) {
+        JsonElement code = error.get("code");
+        return code != null && code.isJsonPrimitive() && code.getAsJsonPrimitive().isNumber() ? code.getAsInt() : 0;
+    }
+
+    private static boolean containsVersion(JsonArray versions, List<String> knownVersions) {
+        for (JsonElement version : versions) {
+            if (version.isJsonPrimitive() && knownVersions.contains(version.getAsString())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static String errorMessage(JsonObject error) {
+        return error.has("message") ? error.get("message").getAsString() : error.toString();
+    }
+
+    // Reads an error body, or returns null when there is none. Lines are kept apart, as an event stream needs them.
+    private static String readErrorStream(HttpURLConnection conn) {
+        InputStream errorStream = conn.getErrorStream();
+        if (errorStream == null) {
+            return null;
+        }
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(errorStream, StandardCharsets.UTF_8))) {
+            StringJoiner errorResponse = new StringJoiner("\n");
+            String line;
+            while ((line = reader.readLine()) != null) {
+                errorResponse.add(line);
             }
             return errorResponse.toString();
         } catch (IOException e) {

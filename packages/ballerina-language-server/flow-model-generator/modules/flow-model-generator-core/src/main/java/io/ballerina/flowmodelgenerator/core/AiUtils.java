@@ -86,7 +86,12 @@ import io.ballerina.projects.DependenciesToml;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.Package;
 import io.ballerina.projects.PackageCompilation;
+import io.ballerina.projects.PackageDescriptor;
+import io.ballerina.projects.PackageManifest;
+import io.ballerina.projects.PackageResolution;
 import io.ballerina.projects.Project;
+import io.ballerina.projects.ResolvedPackageDependency;
+import io.ballerina.projects.SemanticVersion;
 import io.ballerina.projects.TomlDocument;
 import io.ballerina.tools.diagnostics.Location;
 import org.ballerinalang.langserver.common.utils.CommonUtil;
@@ -668,12 +673,91 @@ public class AiUtils {
     }
 
     public static String getBallerinaAiModuleVersion(Project project) {
+        return getBallerinaPackageVersion(project, AI);
+    }
+
+    /**
+     * Returns the version of a {@code ballerina/<packageName>} package recorded in the project's Dependencies.toml,
+     * or null when the project does not depend on it yet.
+     */
+    public static String getBallerinaPackageVersion(Project project, String packageName) {
         return project.currentPackage().dependenciesToml().map(DependenciesToml::tomlDocument).map(TomlDocument::toml)
                 .map(toml -> toml.getTables(PACKAGE)).orElse(List.of()).stream()
                 .filter(pkg -> BALLERINA.equals(pkg.get(ORG).map(Object::toString).orElse(""))
-                        && AI.equals(pkg.get(NAME).map(Object::toString).orElse("")))
-                .findFirst().flatMap(aiPackage -> aiPackage.get(VERSION).map(Objects::toString))
+                        && packageName.equals(pkg.get(NAME).map(Object::toString).orElse("")))
+                .findFirst().flatMap(matchedPackage -> matchedPackage.get(VERSION).map(Objects::toString))
                 .orElse(null);
+    }
+
+    /**
+     * Returns the version of {@code ballerina/<packageName>} the project resolves, or null when it does not depend
+     * on it. Checked like the service model's {@code ConnectorVersionResolver}: the locked Dependencies.toml entry,
+     * then the explicit Ballerina.toml pin, then the resolved dependency graph, which also covers a package the
+     * project depends on only transitively and a project that has not been built yet.
+     */
+    public static String getProjectPackageVersion(Project project, String packageName) {
+        String locked = getBallerinaPackageVersion(project, packageName);
+        if (locked != null) {
+            return locked;
+        }
+        try {
+            Package currentPackage = project.currentPackage();
+            PackageManifest manifest = currentPackage.manifest();
+            if (manifest != null && manifest.dependencies() != null) {
+                for (PackageManifest.Dependency dependency : manifest.dependencies()) {
+                    if (BALLERINA.equals(dependency.org().value()) && packageName.equals(dependency.name().value())
+                            && dependency.version() != null) {
+                        return dependency.version().value().toString();
+                    }
+                }
+            }
+            PackageResolution resolution = currentPackage.getResolution();
+            if (resolution == null || resolution.dependencyGraph() == null) {
+                return null;
+            }
+            for (ResolvedPackageDependency dependency : resolution.dependencyGraph().getNodes()) {
+                PackageDescriptor descriptor = dependency.packageInstance().descriptor();
+                if (BALLERINA.equals(descriptor.org().value()) && packageName.equals(descriptor.name().value())) {
+                    return descriptor.version().value().toString();
+                }
+            }
+        } catch (RuntimeException e) {
+            // Fall through: the project's resolution is unavailable
+        }
+        return null;
+    }
+
+    /**
+     * Returns the version of {@code ballerina/<packageName>} to load for a project that does not depend on it yet.
+     * Mirrors the service model's {@code ConnectorVersionResolver} for a new dependency: the latest version on
+     * Central, else the newest cached version, provided it is at least {@code minimumVersion}, and otherwise
+     * {@code minimumVersion} itself. An older cached version is never picked, and a minimum not yet on Central is
+     * loaded from the local repository.
+     */
+    public static String getNewPackageVersion(String packageName, String minimumVersion) {
+        if (!PackageUtil.isOffline()) {
+            try {
+                String centralLatest = RemoteCentral.getInstance().latestPackageVersion(BALLERINA, packageName);
+                if (isAtLeast(centralLatest, minimumVersion)) {
+                    return centralLatest;
+                }
+            } catch (RuntimeException e) {
+                // Fall back to the cache when Central cannot be reached
+            }
+        }
+        String cached = PackageUtil.cachedVersion(BALLERINA, packageName);
+        return isAtLeast(cached, minimumVersion) ? cached : minimumVersion;
+    }
+
+    private static boolean isAtLeast(String version, String minimumVersion) {
+        if (version == null || version.isBlank()) {
+            return false;
+        }
+        try {
+            return !SemanticVersion.from(version).lessThan(SemanticVersion.from(minimumVersion));
+        } catch (RuntimeException e) {
+            return false;
+        }
     }
 
     /**

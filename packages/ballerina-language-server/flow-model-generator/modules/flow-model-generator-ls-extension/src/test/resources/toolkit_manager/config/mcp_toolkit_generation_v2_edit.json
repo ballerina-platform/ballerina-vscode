@@ -1,0 +1,388 @@
+{
+  "source": "ai_with_version",
+  "flowNode": {
+    "id": "34799",
+    "metadata": {
+      "label": "ai",
+      "description": "",
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_0.1.0.png"
+    },
+    "codedata": {
+      "node": "MCP_TOOL_KIT",
+      "org": "ballerina",
+      "module": "ai",
+      "object": "McpToolKit",
+      "symbol": "init",
+      "lineRange": {
+        "fileName": "connections.bal",
+        "startLine": {
+          "line": 3,
+          "offset": 0
+        },
+        "endLine": {
+          "line": 3,
+          "offset": 79
+        }
+      },
+      "sourceCode": "final McpToolKit aiMcpbasetoolkit = check new (\"https://mcp.deepwiki.com/mcp\");",
+      "data": {
+        "mcpClassDefinition": {
+          "lineRange": {
+            "fileName": "agents.bal",
+            "startLine": {
+              "line": 7,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 43,
+              "offset": 1
+            }
+          }
+        },
+        "mcpProtocol": "v2"
+      }
+    },
+    "returning": false,
+    "properties": {
+      "serverUrl": {
+        "metadata": {
+          "label": "Server URL"
+        },
+        "valueType": "EXPRESSION",
+        "valueTypeConstraint": "string",
+        "value": "\"https://mcp.deepwiki.com/mcp\"",
+        "placeholder": "\"\"",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED",
+          "originalName": "serverUrl"
+        },
+        "modified": false
+      },
+      "info": {
+        "metadata": {
+          "label": "Client Info"
+        },
+        "valueType": "EXPRESSION",
+        "valueTypeConstraint": "mcpv2:Implementation",
+        "value": "",
+        "placeholder": "{name: \"MCP\", version: \"1.0.0\"}",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false,
+        "codedata": {
+          "kind": "DEFAULTABLE",
+          "originalName": "info"
+        },
+        "imports": {
+          "v2": "ballerina/mcp.v2"
+        },
+        "defaultValue": "{name: \"MCP\", version: \"1.0.0\"}",
+        "modified": false
+      },
+      "auth": {
+        "metadata": {
+          "label": "Auth"
+        },
+        "valueType": "EXPRESSION",
+        "valueTypeConstraint": "http:ClientAuthConfig|mcpv2:OAuth2DiscoveryConfig|ai:AgentIdAuthConfig",
+        "value": "",
+        "placeholder": "",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false,
+        "codedata": {
+          "kind": "INCLUDED_FIELD",
+          "originalName": "auth"
+        },
+        "modified": false
+      },
+      "protocolMode": {
+        "metadata": {
+          "label": "Protocol Mode"
+        },
+        "valueType": "EXPRESSION",
+        "valueTypeConstraint": "mcpv2:ProtocolMode",
+        "value": "",
+        "placeholder": "",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false,
+        "codedata": {
+          "kind": "INCLUDED_FIELD",
+          "originalName": "protocolMode"
+        },
+        "modified": false
+      },
+      "httpConfig": {
+        "metadata": {
+          "label": "HTTP Config"
+        },
+        "valueType": "EXPRESSION",
+        "valueTypeConstraint": "ai:McpHttpClientConfig",
+        "value": "",
+        "placeholder": "",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false,
+        "codedata": {
+          "kind": "INCLUDED_FIELD",
+          "originalName": "httpConfig"
+        },
+        "modified": false,
+        "imports": {
+          "ai": "ballerina/ai"
+        }
+      },
+      "resultCache": {
+        "metadata": {
+          "label": "Result Cache"
+        },
+        "valueType": "EXPRESSION",
+        "valueTypeConstraint": "mcpv2:ResultCacheConfig?",
+        "value": "",
+        "placeholder": "",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false,
+        "codedata": {
+          "kind": "INCLUDED_FIELD",
+          "originalName": "resultCache"
+        },
+        "modified": false
+      },
+      "maxInputRounds": {
+        "metadata": {
+          "label": "Max Input Rounds"
+        },
+        "valueType": "EXPRESSION",
+        "valueTypeConstraint": "int",
+        "value": "",
+        "placeholder": "",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false,
+        "codedata": {
+          "kind": "INCLUDED_FIELD",
+          "originalName": "maxInputRounds"
+        },
+        "modified": false
+      },
+      "sessionId": {
+        "metadata": {
+          "label": "Session ID"
+        },
+        "valueType": "EXPRESSION",
+        "valueTypeConstraint": "string",
+        "value": "",
+        "placeholder": "",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false,
+        "codedata": {
+          "kind": "INCLUDED_FIELD",
+          "originalName": "sessionId"
+        },
+        "modified": false
+      },
+      "permittedTools": {
+        "value": "[\"ask_question\"]",
+        "placeholder": "()",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": true,
+        "codedata": {
+          "kind": "INCLUDED_FIELD",
+          "originalName": "permittedTools"
+        },
+        "modified": false
+      },
+      "includeContext": {
+        "value": true,
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": true,
+        "codedata": {
+          "kind": "INCLUDED_FIELD",
+          "originalName": "includeContext"
+        },
+        "modified": false
+      },
+      "toolKitName": {
+        "metadata": {
+          "label": "MCP Toolkit Name"
+        },
+        "valueType": "IDENTIFIER",
+        "valueTypeConstraint": "Global",
+        "value": "McpToolKit2",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "modified": true
+      },
+      "type": {
+        "metadata": {
+          "label": "Variable Type"
+        },
+        "valueType": "TYPE",
+        "value": "ai:McpBaseToolKit",
+        "optional": false,
+        "editable": false,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {},
+        "modified": false
+      },
+      "variable": {
+        "metadata": {
+          "label": "Variable Name",
+          "description": "Name of the variable"
+        },
+        "valueType": "IDENTIFIER",
+        "value": "aiMcpbasetoolkit",
+        "optional": false,
+        "editable": false,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "lineRange": {
+            "fileName": "connections.bal",
+            "startLine": {
+              "line": 3,
+              "offset": 17
+            },
+            "endLine": {
+              "line": 3,
+              "offset": 33
+            }
+          }
+        },
+        "modified": false
+      },
+      "scope": {
+        "metadata": {
+          "label": "Connection Scope",
+          "description": "Scope of the connection, Global or Local"
+        },
+        "valueType": "ENUM",
+        "value": "Global",
+        "optional": false,
+        "editable": true,
+        "advanced": true,
+        "hidden": true
+      },
+      "checkError": {
+        "metadata": {
+          "label": "Check Error",
+          "description": "Terminate on error"
+        },
+        "valueType": "FLAG",
+        "value": true,
+        "optional": false,
+        "editable": false,
+        "advanced": true,
+        "hidden": true
+      }
+    },
+    "flags": 1
+  },
+  "expectedResponse": {
+    "textEdits": {
+      "connections.bal": [
+        {
+          "range": {
+            "start": {
+              "line": 0,
+              "character": 0
+            },
+            "end": {
+              "line": 0,
+              "character": 0
+            }
+          },
+          "newText": "import ballerina/ai;"
+        },
+        {
+          "range": {
+            "start": {
+              "line": 0,
+              "character": 0
+            },
+            "end": {
+              "line": 0,
+              "character": 0
+            }
+          },
+          "newText": "import ballerina/mcp.v2;"
+        },
+        {
+          "range": {
+            "start": {
+              "line": 3,
+              "character": 0
+            },
+            "end": {
+              "line": 3,
+              "character": 79
+            }
+          },
+          "newText": "final McpToolKit2 aiMcpbasetoolkit = check new (\"https://mcp.deepwiki.com/mcp\");"
+        }
+      ],
+      "agents.bal": [
+        {
+          "range": {
+            "start": {
+              "line": 0,
+              "character": 0
+            },
+            "end": {
+              "line": 0,
+              "character": 0
+            }
+          },
+          "newText": "import ballerina/mcp.v2 as mcpv2;"
+        },
+        {
+          "range": {
+            "start": {
+              "line": 0,
+              "character": 0
+            },
+            "end": {
+              "line": 0,
+              "character": 0
+            }
+          },
+          "newText": "import ballerina/ai;"
+        },
+        {
+          "range": {
+            "start": {
+              "line": 7,
+              "character": 0
+            },
+            "end": {
+              "line": 43,
+              "character": 1
+            }
+          },
+          "newText": "isolated class McpToolKit2 {\n    *ai:McpBaseToolKit;\n    private final mcpv2:StreamableHttpClient mcpClient;\n    private final readonly & ai:ToolConfig[] tools;\n\n    public isolated function init(string serverUrl, mcpv2:Implementation info = {name: \"MCP\", version: \"1.0.0\"},\n            *ai:McpStreamableHttpClientConfig config) returns ai:Error? {\n        final map<ai:FunctionTool> permittedTools = {\n                \"ask_question\" : self.ask_question\n        };\n\n        do {\n            ai:McpStreamableHttpClientConfig {httpConfig, ...clientConfig} = config;\n            ai:McpHttpClientConfig {auth, ...httpSettings} = httpConfig;\n            mcpv2:HttpClientConfig mcpHttpConfig = {...httpSettings};\n            ai:AgentIdAuthConfig? agentIdAuth = ();\n            if auth is ai:AgentIdAuthConfig {\n                agentIdAuth = auth;\n            } else {\n                mcpHttpConfig.auth = auth;\n            }\n            self.mcpClient = check new mcpv2:StreamableHttpClient(serverUrl, {...clientConfig, httpConfig: mcpHttpConfig});\n            self.tools = check ai:getPermittedMcpToolConfigs(self.mcpClient, info, permittedTools, agentIdAuth).cloneReadOnly();\n        } on fail error e {\n            return error ai:Error(\"Failed to initialize MCP toolkit\", e);\n        }\n    }\n\n    public isolated function getTools() returns ai:ToolConfig[] => self.tools;\n\n    @ai:AgentTool\n    public isolated function ask_question(ai:Context ctx, mcpv2:CallToolParams params) returns mcpv2:CallToolResult|error {\n        return self.mcpClient->callTool(params);\n    }\n}\n"
+        }
+      ]
+    }
+  }
+}

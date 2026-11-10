@@ -32,10 +32,12 @@ import java.util.regex.Pattern;
 /**
  * How an MCP server presents itself: the name and icon a client can show for it.
  * <p>
- * The name comes from the {@code initialize} result's {@code serverInfo} (its {@code title}, else its
- * {@code name}). A server that requires authorization rejects {@code initialize} without a token, so its
- * OAuth protected resource metadata (RFC 9728) supplies {@code resource_name} instead. The icon comes only
- * from {@code serverInfo.icons}; servers that send none get the client's generic MCP icon.
+ * The name comes from the {@code initialize} result's {@code serverInfo}, or the
+ * {@code io.modelcontextprotocol/serverInfo} entry of a {@code server/discover} result's {@code _meta}
+ * (its {@code title}, else its {@code name}). A server that requires authorization rejects {@code initialize}
+ * without a token, so its OAuth protected resource metadata (RFC 9728) supplies {@code resource_name} instead.
+ * The icon comes only from that {@code serverInfo}'s {@code icons}; servers that send none get the client's
+ * generic MCP icon.
  *
  * @param name a display name for the server, or {@code null} when it states none
  * @param icon an http(s) URL of the server's icon, or {@code null} when it states none
@@ -46,6 +48,7 @@ public record McpServerInfo(String name, String icon) {
     private static final McpServerInfo EMPTY = new McpServerInfo(null, null);
     private static final Pattern RESOURCE_METADATA = Pattern.compile("resource_metadata=\"([^\"]+)\"");
     private static final String WELL_KNOWN_RESOURCE_METADATA = "/.well-known/oauth-protected-resource";
+    private static final String DISCOVER_SERVER_INFO = "io.modelcontextprotocol/serverInfo";
 
     public static McpServerInfo empty() {
         return EMPTY;
@@ -59,7 +62,18 @@ public record McpServerInfo(String name, String icon) {
      * Reads the server's name and icon from a JSON-RPC {@code initialize} response.
      */
     public static McpServerInfo fromInitializeResponse(JsonObject response) {
-        JsonObject serverInfo = object(object(response, "result"), "serverInfo");
+        return fromServerInfo(object(object(response, "result"), "serverInfo"));
+    }
+
+    /**
+     * Reads the server's name and icon from a JSON-RPC {@code server/discover} response, whose result carries
+     * them in its {@code _meta}.
+     */
+    public static McpServerInfo fromDiscoverResponse(JsonObject response) {
+        return fromServerInfo(object(object(object(response, "result"), "_meta"), DISCOVER_SERVER_INFO));
+    }
+
+    private static McpServerInfo fromServerInfo(JsonObject serverInfo) {
         if (serverInfo == null) {
             return EMPTY;
         }

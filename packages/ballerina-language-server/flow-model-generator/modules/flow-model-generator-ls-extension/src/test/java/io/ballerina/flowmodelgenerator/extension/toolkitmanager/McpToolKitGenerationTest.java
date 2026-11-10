@@ -54,7 +54,10 @@ public class McpToolKitGenerationTest extends AbstractLSTest {
                 {Path.of("mcp_toolkit_generation_edit_with_scopes.json")},
                 {Path.of("mcp_toolkit_generation_edit_without_class.json")},
                 {Path.of("mcp_toolkit_generation_empty_permitted_tools.json")},
-                {Path.of("mcp_toolkit_generation_with_special_tool_names.json")}
+                {Path.of("mcp_toolkit_generation_with_special_tool_names.json")},
+                {Path.of("mcp_toolkit_generation_v2_with_class.json")},
+                {Path.of("mcp_toolkit_generation_v2_with_scopes.json")},
+                {Path.of("mcp_toolkit_generation_v2_edit.json")}
         };
     }
 
