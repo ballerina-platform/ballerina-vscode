@@ -57,6 +57,10 @@ const services: [string, TypeFunctionModel[]][] = [
         operation("RESOURCE", "get", "book", "Book"),
         operation("RESOURCE", "subscribe", "author", "Author"),
     ]],
+    ["a query and a subscription sharing a name", [
+        operation("RESOURCE", "get", "item", "Book"),
+        operation("RESOURCE", "subscribe", "item", "Author"),
+    ]],
 ];
 
 describe("GraphQL operation ports", () => {
