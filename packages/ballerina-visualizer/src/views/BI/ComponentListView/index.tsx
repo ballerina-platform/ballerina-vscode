@@ -70,6 +70,9 @@ export function ComponentListView(props: ComponentListViewProps) {
     const { cacheTriggers, setCacheTriggers } = useVisualizerContext();
     const [isNPSupported, setIsNPSupported] = useState<boolean>(false);
     const [isLibrary, setIsLibrary] = useState<boolean>(false);
+    // Unknown until the location resolves; cloud-only gating treats unknown as "in the cloud
+    // editor" so a hidden card never flashes in and out.
+    const [isInDevant, setIsInDevant] = useState<boolean | undefined>(undefined);
     const [activeCategory, setActiveCategory] = useState<CategoryChipKey>(ALL_CATEGORY);
     // Page-level gallery search: filters every section's cards in place and, while active, adds a
     // "More on Ballerina Central" section — results there can belong to any category, which is why
@@ -80,6 +83,10 @@ export function ComponentListView(props: ComponentListViewProps) {
 
     useEffect(() => {
         getTriggers();
+
+        rpcClient.getVisualizerLocation().then((location) => {
+            setIsInDevant(!!location.isInDevant);
+        });
 
         rpcClient.getCommonRpcClient().isNPSupported().then((supported) => {
             setIsNPSupported(supported);
@@ -116,7 +123,7 @@ export function ComponentListView(props: ComponentListViewProps) {
     // whether anything actually rendered into the panel container.
     useLayoutEffect(() => {
         setNoResults(!!addPanelRef.current && addPanelRef.current.childElementCount === 0);
-    }, [searchQuery, activeCategory, triggers, isLoadingTriggers, isNPSupported, isLibrary, scope]);
+    }, [searchQuery, activeCategory, triggers, isLoadingTriggers, isNPSupported, isLibrary, isInDevant, scope]);
 
     const title = isLibrary ? "Library Artifacts" : "Artifacts";
     const subtitle = isLibrary
@@ -166,7 +173,7 @@ export function ComponentListView(props: ComponentListViewProps) {
                             <>
                                 {showCategory("automation") && <AutomationPanel scope={scope} searchQuery={q} />}
                                 {showCategory("workflow") && <WorkflowPanel searchQuery={q} />}
-                                {showCategory("ai-integration") && <AIAgentPanel scope={scope} triggers={triggers} searchQuery={q} />}
+                                {showCategory("ai-integration") && <AIAgentPanel scope={scope} triggers={triggers} searchQuery={q} isInDevant={isInDevant !== false} />}
                                 {showCategory("integration-as-api") && <IntegrationAPIPanel scope={scope} searchQuery={q} />}
                                 {showCategory("event-integration") && <EventIntegrationPanel triggers={triggers} isLoadingTriggers={isLoadingTriggers} scope={scope} searchQuery={q} />}
                                 {showCategory("file-integration") && <FileIntegrationPanel triggers={triggers} isLoadingTriggers={isLoadingTriggers} scope={scope} searchQuery={q} />}
