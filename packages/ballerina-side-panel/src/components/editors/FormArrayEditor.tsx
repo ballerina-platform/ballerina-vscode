@@ -240,12 +240,12 @@ export const FormArrayEditor = (props: FormFieldEditorProps & {
             }
             keyArray.length = initialValues.length;
         }
-        const templateTypes = (props.field.types[0] as any).template.types as InputType[];
+        const templateTypes = ((props.field.types[0] as any)?.template?.types ?? []) as InputType[];
         const initialFields = initialValues.map((val, index) => {
             const key = keyArray[index];
             const element = Array.isArray(props.value) ? props.value[index] : undefined;
             return {
-                ...getArraySubFormFieldFromTypes(key, getArrayElementTypes(element, templateTypes)),
+                ...getArraySubFormFieldFromTypes(key, getArrayElementTypes(element, val, templateTypes)),
                 value: val
             }
         });

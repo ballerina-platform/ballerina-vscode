@@ -27,6 +27,7 @@ jest.mock("../components/editors/ExpandedEditor", () => ({}));
 jest.mock("../components/editors/ExpandedEditor/modes/types", () => ({ EXPANDABLE_MODES: [] }));
 
 import { renderHook } from "@testing-library/react";
+import type { InputType } from "@wso2/ballerina-core";
 import {
     buildRequiredRepeatableRule,
     getArrayElementTypes,
@@ -137,12 +138,13 @@ describe("getArrayElementValues", () => {
 
 describe("getArrayElementTypes", () => {
     // sql:ParameterizedQuery[]: a new element opens in the SQL editor
-    const template = [
+    const template: InputType[] = [
         { fieldType: "SQL_QUERY", ballerinaType: "sql:ParameterizedQuery", selected: true },
         { fieldType: "EXPRESSION", ballerinaType: "sql:ParameterizedQuery", selected: false },
-    ] as any[];
+    ];
+    const selectedMode = (types: InputType[]) => types.find((type) => type.selected)?.fieldType;
 
-    it("keeps the modes of an element read back from the source", () => {
+    it("keeps the modes of an element the language server sent", () => {
         // `q1` in `batchExecute([q1])` comes back as an expression, not an SQL query that would quote it
         const element = {
             value: "q1",
@@ -151,14 +153,28 @@ describe("getArrayElementTypes", () => {
                 { fieldType: "EXPRESSION", ballerinaType: "sql:ParameterizedQuery", selected: true },
             ],
         };
-        const types = getArrayElementTypes(element, template);
-        expect(types.find((type) => type.selected)?.fieldType).toBe("EXPRESSION");
+        expect(selectedMode(getArrayElementTypes(element, "q1", template))).toBe("EXPRESSION");
+    });
+
+    it("opens an element read back from text as an expression", () => {
+        // `[q1, q2]` from the expression mode: `q1` must not be saved as the query `q1`
+        const types = getArrayElementTypes(undefined, "q1", template);
+        expect(selectedMode(types)).toBe("EXPRESSION");
+        expect(types.map((type) => type.fieldType)).toEqual(["SQL_QUERY", "EXPRESSION"]);
+        expect(getArrayElementTypes("q1", "q1", template).filter((type) => type.selected)).toHaveLength(1);
+        expect(selectedMode(getArrayElementTypes({ value: "q1", types: [] }, "q1", template))).toBe("EXPRESSION");
+        // The template is left as it is for the elements added later
+        expect(selectedMode(template)).toBe("SQL_QUERY");
     });
 
     it("gives a new element the template's modes", () => {
-        expect(getArrayElementTypes("q1", template)).toBe(template);
-        expect(getArrayElementTypes(undefined, template)).toBe(template);
-        expect(getArrayElementTypes({ value: "q1", types: [] }, template)).toBe(template);
+        expect(getArrayElementTypes(undefined, "", template)).toBe(template);
+        expect(getArrayElementTypes(undefined, "  ", template)).toBe(template);
+    });
+
+    it("keeps the template when it has no expression mode", () => {
+        const sqlOnly: InputType[] = [{ fieldType: "SQL_QUERY", ballerinaType: "sql:ParameterizedQuery", selected: true }];
+        expect(getArrayElementTypes(undefined, "q1", sqlOnly)).toBe(sqlOnly);
     });
 });
 

@@ -23,9 +23,11 @@
 // Every sampled connector must resolve (cached or pulled); skips with no locally built
 // LS jar and no Ballerina distribution.
 //
-// Not run in CI: no workflow runs `test:ls-integration`. Run it locally after building
-// the LS (`./gradlew build` in packages/ballerina-language-server), so that it checks this
-// repository's LS. Without that jar it falls back to the LS of the installed Ballerina
+// Not run in CI: no workflow runs `test:ls-integration`. Run it locally after packing the
+// LS (`./gradlew build pack -x test` in packages/ballerina-language-server): `pack` writes
+// build/ballerina-language-server-<version>.jar, the jar this suite runs, so that it checks
+// this repository's LS. `build` alone does not, and leaves any older jar in place to be
+// tested instead. Without that jar it falls back to the LS of the installed Ballerina
 // distribution, which lags this repository and can fail for bugs already fixed here.
 
 import * as fs from "fs";
@@ -47,8 +49,8 @@ const ACTIONS = [
     { org: "ballerinax", module: "mysql", packageName: "mysql", object: "Client", symbol: "execute" },
 ];
 
-/** Splits a union type at its top-level `|`, leaving `|` inside brackets (`(int|string)[]`) alone. */
-function unionMembers(type: string): string[] {
+/** Splits a type at its top-level `separator`, leaving any inside brackets (`(int|string)[]`) alone. */
+function splitTopLevel(type: string, separator: "|" | "&"): string[] {
     const members: string[] = [];
     let depth = 0;
     let start = 0;
@@ -58,7 +60,7 @@ function unionMembers(type: string): string[] {
             depth++;
         } else if (")]}>".includes(ch)) {
             depth--;
-        } else if (ch === "|" && depth === 0) {
+        } else if (ch === separator && depth === 0) {
             members.push(type.slice(start, i));
             start = i + 1;
         }
@@ -67,17 +69,52 @@ function unionMembers(type: string): string[] {
     return members.map((member) => member.trim());
 }
 
-/** Whether the type is an array, or a union with an array member (`T[]`, `T[3]`, `T[]?`, `T[]|U`). */
-function isArrayTyped(type: string | undefined): boolean {
-    if (!type) {
+/** Whether the type is wrapped in one pair of parentheses: `(T[])`, but not `(A)|(B)`. */
+function isParenthesized(type: string): boolean {
+    if (!type.startsWith("(") || !type.endsWith(")")) {
         return false;
     }
-    // A tuple (`[int, string]`) does not end in `[]` or `[N]`, so it is not taken for an array
-    return unionMembers(type.trim()).some((member) => /\[\s*\d*\s*\]\??$/.test(member));
+    let depth = 0;
+    for (let i = 0; i < type.length - 1; i++) {
+        depth += type[i] === "(" ? 1 : type[i] === ")" ? -1 : 0;
+        if (depth === 0) {
+            return false;
+        }
+    }
+    return true;
 }
 
+/**
+ * Whether the type is an array, or holds one as a union or intersection member: `T[]`, `T[3]`,
+ * `T[]?`, `(T[])?`, `T[]|U`, `readonly & T[]`.
+ */
+function isArrayTyped(type: string | undefined): boolean {
+    let t = type?.trim();
+    if (!t) {
+        return false;
+    }
+    if (t.endsWith("?")) {
+        t = t.slice(0, -1).trim();
+    }
+    if (isParenthesized(t)) {
+        return isArrayTyped(t.slice(1, -1));
+    }
+    for (const separator of ["|", "&"] as const) {
+        const members = splitTopLevel(t, separator);
+        if (members.length > 1) {
+            return members.some(isArrayTyped);
+        }
+    }
+    // A tuple (`[int, string]`) does not end in `[]` or `[N]`, so it is not taken for an array
+    return /\[\s*\d*\s*\]$/.test(t);
+}
+
+// The LS offers an SQL editor for these types (Property.handlePrimitiveType)
+const SQL_QUERY_TYPES = ["sql:ParameterizedQuery", "sql:ParameterizedCallQuery"];
+
 // The array editor reads the item template from the first mode (FormArrayEditor.tsx), so the
-// array mode has to lead. The form opens the selected mode, else the first.
+// array mode has to lead. The form opens the selected mode, else the first. Returns why the
+// property breaks the rule, or undefined when it keeps it.
 function arrayModeViolation(prop: any): string | undefined {
     const types: any[] = prop?.types ?? [];
     const modes = types.map((t) => `${t?.fieldType}${t?.selected ? "*" : ""}`).join(", ");
@@ -93,6 +130,15 @@ function arrayModeViolation(prop: any): string | undefined {
     const selected = types.find((t) => t?.selected);
     if (selected && !["REPEATABLE_LIST", "EXPRESSION"].includes(selected.fieldType)) {
         return `${selected.fieldType} is selected over the array mode in [${modes}]`;
+    }
+    // A new item of an array of SQL queries opens in the SQL editor: the item template, which
+    // the array editor builds each new item from, leads with a selected SQL mode (#1491)
+    const itemTypes: any[] = types[0]?.template?.types ?? [];
+    const itemType = itemTypes.find((t) => t?.fieldType === "EXPRESSION")?.ballerinaType;
+    if (SQL_QUERY_TYPES.includes(itemType)
+        && !itemTypes.some((t) => t?.fieldType === "SQL_QUERY" && t?.selected)) {
+        const itemModes = itemTypes.map((t) => `${t?.fieldType}${t?.selected ? "*" : ""}`).join(", ");
+        return `an item of ${itemType} has no selected SQL mode in [${itemModes}]`;
     }
     return undefined;
 }
@@ -138,7 +184,8 @@ describeLs("node-template form-field type invariants", () => {
     });
 
     // INVARIANT: an array-typed property is offered as an array editor: it has an array mode,
-    // that mode leads, and no singular editor such as SQL is pre-selected over it (#1491).
+    // that mode leads, no singular editor such as SQL is pre-selected over it, and each new item
+    // of an array of SQL queries opens in the SQL editor (#1491).
     it("array-typed params are offered as array editors (REPEATABLE_LIST)", () => {
         if (sampled === 0) {
             throw new Error("no connector actions resolved — cannot verify");
