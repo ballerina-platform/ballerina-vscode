@@ -384,6 +384,9 @@ public class PackageUtil {
      *                     template resolves
      */
     public static void prewarmAgentLibrary(Project project, boolean latestIfNone) {
+        if (isOffline()) {
+            return;
+        }
         Optional<String> version = project.currentPackage().getResolution()
                 .dependencyGraph().getNodes().stream()
                 .map(ResolvedPackageDependency::packageInstance)
