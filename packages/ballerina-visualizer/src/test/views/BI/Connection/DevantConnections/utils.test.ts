@@ -103,7 +103,7 @@ describe("filterConnectionMarketplaceItems", () => {
 });
 
 describe("WSO2 Cloud service connection schemas", () => {
-    const schema = (id: string) => ({ id, name: id, entries: [] });
+    const schema = (id: string) => ({ id, name: id, entries: [] as unknown[] });
     const service = { resourceType: "SERVICE", isThirdParty: false, connectionSchemas: [schema("project-url"), schema("api-key")] } as unknown as MarketplaceItem;
 
     it("offers the in-cluster URL for Project access and the gateway's API key otherwise", () => {
