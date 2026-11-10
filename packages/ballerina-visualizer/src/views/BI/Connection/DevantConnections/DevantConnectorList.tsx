@@ -140,18 +140,18 @@ export function DevantConnectorList(props: DevantConnectorListProps) {
     };
 
     const reactQueryKey = {
-        org: platformExtState?.selectedContext?.org?.uuid,
-        project: platformExtState?.selectedContext?.project?.id,
+        org: platformExtState?.session?.org.uuid,
+        project: platformExtState?.selectedContext?.projectName,
         debouncedSearch: debouncedSearchText,
         isLoggedIn: platformExtState.isLoggedIn,
-        component: platformExtState?.selectedComponent?.metadata?.id,
+        component: platformExtState?.selectedIntegration?.integration.id,
     };
 
     const getMarketPlaceParams: GetMarketplaceItemsParams = {
         limit: MARKETPLACE_OVERFETCH_LIMIT,
         offset: 0,
         networkVisibilityFilter: "all",
-        networkVisibilityprojectId: platformExtState?.selectedContext?.project?.id,
+        networkVisibilityprojectId: platformExtState?.selectedContext?.projectName,
         sortBy: "createdTime",
         query: debouncedSearchText || undefined,
         searchContent: false,
@@ -169,7 +169,7 @@ export function DevantConnectorList(props: DevantConnectorListProps) {
         queryKey: ["marketplace-services", filterType, reactQueryKey],
         queryFn: () =>
             platformRpcClient?.getMarketplaceItems({
-                orgId: platformExtState?.selectedContext?.org?.id?.toString(),
+                orgId: platformExtState?.session?.org.handle,
                 request: getMarketPlaceParams,
             }),
         enabled:
@@ -179,7 +179,7 @@ export function DevantConnectorList(props: DevantConnectorListProps) {
             data: filterConnectionMarketplaceItems(
                 data.data,
                 filterType,
-                platformExtState?.selectedComponent?.metadata?.id,
+                platformExtState?.selectedIntegration?.integration.id,
                 CONNECTIONS_PAGE_SIZE,
             ),
         }),
@@ -189,7 +189,7 @@ export function DevantConnectorList(props: DevantConnectorListProps) {
         queryKey: ["marketplace-dbs", platformExtState?.selectedContext?.project],
         queryFn: () =>
             platformRpcClient?.getMarketplaceDatabases({
-                orgId: platformExtState?.selectedContext?.org?.id?.toString(),
+                orgId: platformExtState?.session?.org.handle,
             }),
         enabled:
             ["databases", "all"].includes(filterType) &&

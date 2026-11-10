@@ -1,0 +1,280 @@
+{
+  "source": "empty.bal",
+  "position": {
+    "line": 14,
+    "offset": 0
+  },
+  "description": "A union of an array and a record is offered with the array editor first",
+  "codedata": {
+    "node": "REMOTE_ACTION_CALL",
+    "org": "ballerina",
+    "module": "ai",
+    "packageName": "ai",
+    "object": "Wso2ModelProvider",
+    "symbol": "chat",
+    "version": "1.16.0"
+  },
+  "output": {
+    "id": "31",
+    "metadata": {
+      "label": "chat",
+      "description": "Sends a chat request to the model with the given messages and tools.\n",
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.16.0.png"
+    },
+    "codedata": {
+      "node": "REMOTE_ACTION_CALL",
+      "org": "ballerina",
+      "module": "ai",
+      "packageName": "ai",
+      "object": "Wso2ModelProvider",
+      "symbol": "chat",
+      "version": "1.16.0",
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "connection": {
+        "metadata": {
+          "label": "Connection",
+          "description": "Connection to use"
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "ai:Wso2ModelProvider",
+            "selected": false
+          }
+        ],
+        "optional": false,
+        "editable": false,
+        "advanced": false,
+        "hidden": true
+      },
+      "messages": {
+        "metadata": {
+          "label": "Messages",
+          "description": "List of chat messages or a user message"
+        },
+        "types": [
+          {
+            "fieldType": "REPEATABLE_LIST",
+            "ballerinaType": "ai:ChatMessage[]",
+            "template": {
+              "types": [
+                {
+                  "fieldType": "RECORD_MAP_EXPRESSION",
+                  "ballerinaType": "ai:ChatUserMessage|ai:ChatSystemMessage|ai:ChatAssistantMessage|ai:ChatFunctionMessage",
+                  "typeMembers": [
+                    {
+                      "type": "ChatUserMessage",
+                      "packageInfo": "ballerina:ai:1.16.0",
+                      "packageName": "ai",
+                      "kind": "RECORD_TYPE",
+                      "selected": false
+                    },
+                    {
+                      "type": "ChatSystemMessage",
+                      "packageInfo": "ballerina:ai:1.16.0",
+                      "packageName": "ai",
+                      "kind": "RECORD_TYPE",
+                      "selected": false
+                    },
+                    {
+                      "type": "ChatAssistantMessage",
+                      "packageInfo": "ballerina:ai:1.16.0",
+                      "packageName": "ai",
+                      "kind": "RECORD_TYPE",
+                      "selected": false
+                    },
+                    {
+                      "type": "ChatFunctionMessage",
+                      "packageInfo": "ballerina:ai:1.16.0",
+                      "packageName": "ai",
+                      "kind": "RECORD_TYPE",
+                      "selected": false
+                    }
+                  ],
+                  "selected": false
+                },
+                {
+                  "fieldType": "EXPRESSION",
+                  "ballerinaType": "ai:ChatMessage",
+                  "selected": false
+                }
+              ],
+              "optional": false,
+              "editable": false,
+              "advanced": false,
+              "hidden": false
+            },
+            "selected": false
+          },
+          {
+            "fieldType": "RECORD_MAP_EXPRESSION",
+            "ballerinaType": "ai:ChatUserMessage",
+            "typeMembers": [
+              {
+                "type": "ChatUserMessage",
+                "packageInfo": "ballerina:ai:1.16.0",
+                "packageName": "ai",
+                "kind": "RECORD_TYPE",
+                "selected": false
+              }
+            ],
+            "selected": false
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "ai:ChatMessage[]|ai:ChatUserMessage",
+            "selected": false
+          }
+        ],
+        "placeholder": "[]",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED",
+          "originalName": "messages"
+        }
+      },
+      "tools": {
+        "metadata": {
+          "label": "Tools",
+          "description": "Tool definitions to be used for the tool call"
+        },
+        "types": [
+          {
+            "fieldType": "REPEATABLE_LIST",
+            "ballerinaType": "ai:ChatCompletionFunctions[]",
+            "template": {
+              "types": [
+                {
+                  "fieldType": "RECORD_MAP_EXPRESSION",
+                  "ballerinaType": "ai:ChatCompletionFunctions",
+                  "typeMembers": [
+                    {
+                      "type": "ChatCompletionFunctions",
+                      "packageInfo": "ballerina:ai:1.16.0",
+                      "packageName": "ai",
+                      "kind": "RECORD_TYPE",
+                      "selected": false
+                    }
+                  ],
+                  "selected": false
+                },
+                {
+                  "fieldType": "EXPRESSION",
+                  "ballerinaType": "ai:ChatCompletionFunctions",
+                  "selected": false
+                }
+              ],
+              "optional": false,
+              "editable": false,
+              "advanced": false,
+              "hidden": false
+            },
+            "selected": false
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "ai:ChatCompletionFunctions[]",
+            "selected": false
+          }
+        ],
+        "placeholder": "[]",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED",
+          "originalName": "tools"
+        }
+      },
+      "stop": {
+        "metadata": {
+          "label": "Stop",
+          "description": "Stop sequence to stop the completion"
+        },
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "ballerinaType": "string",
+            "selected": false
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string?",
+            "selected": false
+          }
+        ],
+        "placeholder": "()",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "DEFAULTABLE",
+          "originalName": "stop"
+        },
+        "defaultValue": "()"
+      },
+      "type": {
+        "metadata": {
+          "label": "Result Type",
+          "description": "Type of the variable"
+        },
+        "types": [
+          {
+            "fieldType": "TYPE",
+            "selected": true
+          }
+        ],
+        "value": "ai:ChatAssistantMessage",
+        "placeholder": "var",
+        "optional": false,
+        "editable": false,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {}
+      },
+      "variable": {
+        "metadata": {
+          "label": "Result",
+          "description": "Name of the result variable"
+        },
+        "types": [
+          {
+            "fieldType": "IDENTIFIER",
+            "selected": true
+          }
+        ],
+        "value": "aiChatassistantmessage",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "checkError": {
+        "metadata": {
+          "label": "Check Error",
+          "description": "Trigger error flow"
+        },
+        "types": [
+          {
+            "fieldType": "FLAG",
+            "selected": true
+          }
+        ],
+        "value": true,
+        "optional": false,
+        "editable": true,
+        "advanced": true,
+        "hidden": true
+      }
+    },
+    "flags": 0
+  }
+}

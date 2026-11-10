@@ -17,7 +17,7 @@
  */
 
 import { isSamePath, SyntaxTree } from "@wso2/ballerina-core";
-import { ModulePart, STKindChecker, CaptureBindingPattern } from "@wso2/syntax-tree";
+import { ModulePart, CaptureBindingPattern } from "@wso2/syntax-tree";
 import * as vscode from "vscode";
 import * as fs from "fs";
 import * as path from "path";
@@ -25,7 +25,7 @@ import { StateMachine } from "../../stateMachine";
 import { Uri, WorkspaceEdit, workspace } from "vscode";
 import { OpenAPIDefinition } from "./types";
 import * as yaml from "js-yaml";
-import { MarketplaceItem } from "@wso2/wso2-platform-core";
+import { readContextDocument } from "@wso2/wso2-cloud-client";
 import { extension } from "../../BalExtensionContext";
 import { PersistOptions, createJSONStorage } from "zustand/middleware";
 import Handlebars from "handlebars";
@@ -73,35 +73,6 @@ export const addConfigurable = async (
         textEdits: { [configBalFileUri.toString()]: configBalEdits.get(configBalFileUri) || [] },
         skipPayloadCheck: true,
     });
-};
-
-export const addProxyConfigurable = async (configBalFileUri: Uri) => {
-    const configBalEdits = new WorkspaceEdit();
-
-    const syntaxTree = (await StateMachine.context().langClient.getSyntaxTree({
-        documentIdentifier: { uri: configBalFileUri.toString() },
-    })) as SyntaxTree;
-    if (
-        !(syntaxTree?.syntaxTree as ModulePart)?.imports?.some((item) => item.source?.includes("import ballerina/http"))
-    ) {
-        const importHttpTemplate = Templates.importBalHttp();
-        configBalEdits.insert(configBalFileUri, new vscode.Position(0, 0), importHttpTemplate);
-    }
-
-    if (
-        !(syntaxTree?.syntaxTree as ModulePart)?.members?.find(
-            (member) =>
-                STKindChecker.isModuleVarDecl(member) &&
-                (member.typedBindingPattern?.bindingPattern as CaptureBindingPattern)?.variableName?.value ===
-                    ProxyConfigEnvVars.proxyConfig.varName,
-        )
-    ) {
-        const proxyConfigTemplate = Templates.proxyConfigurable();
-        const newConfigEditLine = (syntaxTree?.syntaxTree?.position?.endLine ?? 0) + 1;
-        configBalEdits.insert(configBalFileUri, new vscode.Position(newConfigEditLine, 0), proxyConfigTemplate);
-    }
-
-    await workspace.applyEdit(configBalEdits);
 };
 
 export const addConnection = async (
@@ -294,8 +265,11 @@ export const processOpenApiWithApiKeyAuth = (yamlString: string, securityType: "
     }
 };
 
+/** Persisted-store version; bumped from v1 to v2 when the state moved to the platform's shapes (session, integrations, environments). */
+const PLATFORM_STORE_VERSION = "v2";
+
 export const getWorkspaceStateStore = (storeName: string): PersistOptions<any, any> => {
-    const version = "v1";
+    const version = PLATFORM_STORE_VERSION;
     return {
         name: `${storeName}-${version}`,
         storage: createJSONStorage(() => ({
@@ -329,21 +303,9 @@ export const Templates = {
         const template = Handlebars.compile(`import ballerina/os;\n`);
         return template({});
     },
-    importBalHttp: () => {
-        const template = Handlebars.compile(`import ballerina/http;\n`);
-        return template({});
-    },
     importConnection: (params: { PACKAGE_NAME: string; MODULE_NAME: string }) => {
         const template = Handlebars.compile(`import {{PACKAGE_NAME}}.{{MODULE_NAME}};\n`);
         return template(params);
-    },
-    proxyConfigurable: () => {
-        const template = Handlebars.compile(`
-configurable string? ${ProxyConfigEnvVars.proxyHost.varName} = ();
-configurable int? ${ProxyConfigEnvVars.proxyPort.varName} = ();
-http:ProxyConfig? ${ProxyConfigEnvVars.proxyConfig.varName} = ${ProxyConfigEnvVars.proxyHost.varName} is string && ${ProxyConfigEnvVars.proxyPort.varName} is int ? { host: <string> ${ProxyConfigEnvVars.proxyHost.varName}, port: <int> ${ProxyConfigEnvVars.proxyPort.varName} } : ();
-\n`);
-        return template({});
     },
     newConnectionNoSecurity: (params: {
         MODULE_NAME: string;
@@ -386,18 +348,18 @@ http:ProxyConfig? ${ProxyConfigEnvVars.proxyConfig.varName} = ${ProxyConfigEnvVa
     },
 };
 
+/**
+ * Whether the repository holding `projectPath` is linked to a cloud project: its `.wso2/context.yaml` has to
+ * be a v2 document with an entry, as the cloud features read it. A v1 or unreadable file links nothing.
+ */
 export const hasContextYaml = (projectPath: string): boolean => {
     try {
         const repoRoot = getRepoRoot(projectPath);
-        if (repoRoot) {
-            const contextYamlPath = path.join(repoRoot, ".wso2", "context.yaml");
-            // leaving .choreo/context.yaml check for backward compatibility, can remove after some time
-            const choreoContextYamlPath = path.join(repoRoot, ".choreo", "context.yaml");
-            if (fs.existsSync(contextYamlPath) || fs.existsSync(choreoContextYamlPath)) {
-                return true;
-            }
+        if (!repoRoot) {
+            return false;
         }
-        return false;
+        const content = fs.readFileSync(path.join(repoRoot, ".wso2", "context.yaml"), "utf-8");
+        return readContextDocument(yaml.load(content)).length > 0;
     } catch {
         return false;
     }
@@ -426,18 +388,18 @@ export function getDomain(rawURL: string): string {
 }
 
 /**
- * Finds a unique connection name by checking against existing marketplace items.
+ * Finds a unique connection name by checking against the existing names.
  * If the base name exists, appends a numeric counter until a unique name is found.
  * If the initial name is shorter than 3 characters, appends '-connection' to it.
  */
-export const findUniqueConnectionName = (name: string, existingMarketplaceItems: MarketplaceItem[]): string => {
+export const findUniqueConnectionName = (name: string, existing: { name: string }[]): string => {
     // If name is too short, append '-connection'
     let baseName = name;
     if (baseName.length < 3) {
         baseName = `${baseName}-connection`;
     }
 
-    const existingNames = new Set(existingMarketplaceItems.map((item) => item.name.toLowerCase()));
+    const existingNames = new Set(existing.map((item) => item.name.toLowerCase()));
 
     // Check if the base name exists
     let uniqueName = baseName;

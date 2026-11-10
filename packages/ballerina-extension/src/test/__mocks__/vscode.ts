@@ -158,6 +158,20 @@ export const extensions = {
     getExtension: (id: string) => (extensions.installed.has(id) ? { id, isActive: true } : undefined),
 };
 
+type SessionsChangeEvent = { provider: { id: string; label?: string } };
+const sessionListeners = new Set<(event: SessionsChangeEvent) => unknown>();
+
+/** Authentication; tests assign `getSession` and call `fireSessionsChange` to stand in for a provider. */
+export const authentication = {
+    getSession: (_providerId: string, _scopes: readonly string[], _options?: unknown): Promise<{ accessToken: string } | undefined> =>
+        Promise.resolve(undefined),
+    onDidChangeSessions: (listener: (event: SessionsChangeEvent) => unknown) => {
+        sessionListeners.add(listener);
+        return { dispose: () => sessionListeners.delete(listener) };
+    },
+    fireSessionsChange: (providerId: string) => sessionListeners.forEach((listener) => listener({ provider: { id: providerId } })),
+};
+
 // Tests assign `appRoot` to stand in for the running editor's install location.
 export const env = { appRoot: "", openExternal: () => Promise.resolve(true) };
 
