@@ -35,7 +35,7 @@ export function IdentifierField(props: IdentifierFieldProps) {
     const { field, handleOnFieldFocus, autoFocus, onBlur } = props;
     const { rpcClient } = useRpcContext();
     const { form, targetLineRange, fileName } = useFormContext();
-    const { watch, formState, register, setValue, setError, clearErrors } = form;
+    const { watch, formState, register, setValue, setError, clearErrors, trigger } = form;
     const { errors } = formState;
     const [formDiagnostics, setFormDiagnostics] = useState(field.diagnostics);
     // Defer validation of a pristine empty field until touched.
@@ -55,26 +55,11 @@ export function IdentifierField(props: IdentifierFieldProps) {
 
     // The field's client rules (e.g. a name already in use) would otherwise only show their message on
     // Save, while the form's background validity check already keeps Save disabled without saying why.
-    // Read through a ref so a new field object doesn't recreate the debounced check below.
-    const fieldRef = useRef(field);
-    fieldRef.current = field;
-    // The required rule is registered separately, so it is checked here too; clearing the error below
-    // would otherwise drop its message from a field the user has just emptied.
-    const showClientRuleError = useCallback((value: string) => {
-        const required = buildRequiredRule({ isRequired: !fieldRef.current.optional, label: fieldRef.current.label });
-        if (required && value === "") {
-            setError(field.key, { type: "required", message: required.message });
-            return;
-        }
-        const failure = Object.values(buildValidate(fieldRef.current))
-            .map((validate) => validate(value))
-            .find((result): result is string => typeof result === "string");
-        if (failure) {
-            setError(field.key, { type: "validate", message: failure });
-        } else {
-            clearErrors(field.key);
-        }
-    }, [field.key, setError, clearErrors]);
+    // Re-running the registered rules (required and validate) shows the failing one's message.
+    const showClientRuleError = useCallback(() => {
+        clearErrors(field.key);
+        trigger?.(field.key);
+    }, [field.key, clearErrors, trigger]);
 
     // A slower response for an older value must not overwrite the result for the latest one.
     const latestRequestRef = useRef(0);
@@ -98,11 +83,11 @@ export function IdentifierField(props: IdentifierFieldProps) {
                 if (firstError) {
                     setError(field.key, { type: "identifier_diagnostic", message: firstError.message });
                 } else {
-                    showClientRuleError(value);
+                    showClientRuleError();
                 }
             } else {
                 setFormDiagnostics([]);
-                showClientRuleError(value);
+                showClientRuleError();
             }
         } catch (error) {
             if (isStale()) {
@@ -110,7 +95,7 @@ export function IdentifierField(props: IdentifierFieldProps) {
             }
             console.error('Failed to fetch expression diagnostics:', error);
             setFormDiagnostics([]);
-            showClientRuleError(value);
+            showClientRuleError();
         }
     }, 250), [rpcClient, field.key, field.codedata, targetLineRange, fileName, setError, showClientRuleError]);
 
