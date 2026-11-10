@@ -145,7 +145,7 @@ public class BallerinaWorkspaceService implements WorkspaceService {
             }
             String uri = deleted ? manifest.toUri().toString() : change.getUri();
             DocumentServiceContext context = ContextBuilder.buildDocumentServiceContext(uri,
-                    this.workspaceManagerProxy.get(), LSContextOperation.RELOAD_PROJECT, this.serverContext);
+                    this.workspaceManagerProxy.get(), LSContextOperation.WS_WF_CHANGED, this.serverContext);
             try {
                 EventSyncPubSubHolder.getInstance(this.serverContext)
                         .getPublisher(EventKind.PROJECT_UPDATE)
