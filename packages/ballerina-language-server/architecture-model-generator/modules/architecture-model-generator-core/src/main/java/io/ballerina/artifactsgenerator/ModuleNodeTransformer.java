@@ -47,7 +47,7 @@ import io.ballerina.compiler.syntax.tree.TypeDescriptorNode;
 import io.ballerina.flowmodelgenerator.core.AiUtils;
 import io.ballerina.flowmodelgenerator.core.utils.WorkflowUtil;
 import io.ballerina.modelgenerator.commons.CommonUtils;
-import io.ballerina.modelgenerator.commons.TcpConnectionServiceResolver;
+import io.ballerina.modelgenerator.commons.service.TcpConnectionServiceResolver;
 import org.ballerinalang.langserver.commons.BallerinaCompilerApi;
 
 import java.util.Optional;

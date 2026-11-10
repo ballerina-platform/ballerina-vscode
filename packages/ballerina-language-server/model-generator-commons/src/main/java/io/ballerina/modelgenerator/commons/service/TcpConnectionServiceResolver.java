@@ -16,7 +16,7 @@
  *  under the License.
  */
 
-package io.ballerina.modelgenerator.commons;
+package io.ballerina.modelgenerator.commons.service;
 
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.api.symbols.ClassSymbol;
@@ -34,6 +34,8 @@ import io.ballerina.compiler.syntax.tree.NewExpressionNode;
 import io.ballerina.compiler.syntax.tree.NodeVisitor;
 import io.ballerina.compiler.syntax.tree.ServiceDeclarationNode;
 import io.ballerina.compiler.syntax.tree.SyntaxTree;
+import io.ballerina.modelgenerator.commons.CommonUtils;
+import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.tools.diagnostics.Location;
 
 import java.util.ArrayList;

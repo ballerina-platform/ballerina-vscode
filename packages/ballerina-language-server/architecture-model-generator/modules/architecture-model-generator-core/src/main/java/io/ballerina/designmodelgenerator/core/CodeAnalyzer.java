@@ -97,7 +97,7 @@ import io.ballerina.designmodelgenerator.core.model.Workflow;
 import io.ballerina.flowmodelgenerator.core.Constants;
 import io.ballerina.flowmodelgenerator.core.utils.WorkflowUtil;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
-import io.ballerina.modelgenerator.commons.TcpConnectionServiceResolver;
+import io.ballerina.modelgenerator.commons.service.TcpConnectionServiceResolver;
 import io.ballerina.modelgenerator.commons.trigger.LibraryMetadataReader;
 import io.ballerina.modelgenerator.commons.trigger.models.ArtifactIcon;
 import io.ballerina.tools.text.LineRange;
