@@ -241,4 +241,13 @@ describe("cloud-auth", () => {
         expect(calls).toEqual([]);
         expect(describeCloudAccess(undefined)).toMatch(/WSO2 Integrator/);
     });
+
+    it("reads access again when the key is replaced while it connects", async () => {
+        const key = { value: "new" };
+        install(fakeGate(key).gate);
+        const reads = ["old", "new"];
+        authentication.getSession = async () => ({ accessToken: reads.shift() ?? "new" });
+        expect(await readCloudAccess()).toBe("connected");
+        expect(describeCloudAccess("connected")).not.toBe("");
+    });
 });

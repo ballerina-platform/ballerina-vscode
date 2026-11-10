@@ -27,7 +27,7 @@ import { BodyTinyInfo } from "../../../styles";
 import { ArrowIcon, ConnectorOptionButtons, ConnectorOptionCard, ConnectorOptionContent, ConnectorOptionDescription, ConnectorOptionIcon, ConnectorOptionTitle, ConnectorOptionTitleContainer, ConnectorsGrid, ConnectorTypeLabel, CreateConnectorOptions, FilterButton, FilterButtons, IntroText, SearchContainer, Section, SectionHeader, SectionTitle, StyledSearchBox } from "./styles";
 import { AddConnectionPopupProps } from "./index";
 import { usePlatformExtContext } from "../../../../providers/platform-ext-ctx-provider";
-import { CloudAccessNotice, isCloudAccessMissing } from "../DevantConnections/CloudAccessNotice";
+import { CloudAccessNotice, isCloudAccessMissing, useCloudAccessRefresh } from "../DevantConnections/CloudAccessNotice";
 import { VSCodeLink } from "@vscode/webview-ui-toolkit/react";
 
 interface Props extends AddConnectionPopupProps {
@@ -44,13 +44,7 @@ export function AddConnectionPopupContent(props: Props) {
     const { platformExtState, loginToDevant, handleLinkWorkspace, platformRpcClient } = usePlatformExtContext();
 
     // Access allowed from the Accounts menu is not announced by VS Code: read the sign-in again on open.
-    useEffect(() => {
-        if (platformExtState?.isExtInstalled && !platformExtState?.isLoggedIn) {
-            platformRpcClient?.refreshCloudAccess().catch((error: unknown) => {
-                console.error("Failed to read the WSO2 Cloud sign-in again:", error);
-            });
-        }
-    }, []);
+    useCloudAccessRefresh();
 
     const [searchText, setSearchText] = useState<string>("");
     const [connectors, setConnectors] = useState<Category[]>([]);

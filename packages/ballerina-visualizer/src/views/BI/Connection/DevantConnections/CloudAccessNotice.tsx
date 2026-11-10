@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { VSCodeLink } from "@vscode/webview-ui-toolkit/react";
 import type { CloudAccess } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
 import { usePlatformExtContext } from "../../../../providers/platform-ext-ctx-provider";
@@ -25,6 +25,29 @@ import { IntroText } from "../AddConnectionPopup/styles";
 /** Whether WSO2 Integrator is signed in to WSO2 Cloud but this extension may not use the sign-in. */
 export function isCloudAccessMissing(access?: CloudAccess): access is "no-access" | "declined" {
     return access === "no-access" || access === "declined";
+}
+
+/**
+ * Reads the WSO2 Cloud sign-in again once, when a view opens and the state
+ * says it cannot be used. VS Code announces nothing when the person allows
+ * access from the Accounts menu, so a view would otherwise stay stale. The
+ * state may arrive after the view mounts; the read waits for it, and runs
+ * only once per view.
+ */
+export function useCloudAccessRefresh(): void {
+    const { platformExtState, platformRpcClient } = usePlatformExtContext();
+    const refreshed = useRef(false);
+    const isExtInstalled = !!platformExtState?.isExtInstalled;
+    const isLoggedIn = !!platformExtState?.isLoggedIn;
+    useEffect(() => {
+        if (refreshed.current || !isExtInstalled || isLoggedIn) {
+            return;
+        }
+        refreshed.current = true;
+        platformRpcClient?.refreshCloudAccess().catch((error: unknown) => {
+            console.error("Failed to read the WSO2 Cloud sign-in again:", error);
+        });
+    }, [isExtInstalled, isLoggedIn]);
 }
 
 interface CloudAccessNoticeProps {

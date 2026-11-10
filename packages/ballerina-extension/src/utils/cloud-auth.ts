@@ -176,7 +176,15 @@ export async function readCloudAccess(): Promise<CloudAccess | undefined> {
     if (!gate) {
         return undefined;
     }
-    const api = await connectPlatformAPI({ silent: true }).catch(() => undefined);
+    // A key replaced between reading and connecting says nothing about access: read it once more.
+    const connect = () => connectPlatformAPI({ silent: true });
+    const api = await connect().catch((error) => {
+        if (!isApiKeyInvalid(error)) {
+            console.error("Failed to connect to WSO2 Integrator's cloud API:", error);
+            return undefined;
+        }
+        return connect().catch(() => undefined);
+    });
     return cloudAccessOf(gate, !!api);
 }
 
@@ -215,7 +223,8 @@ export function describeCloudAccess(access: CloudAccess | undefined): string {
         case "signed-out":
             return "Not signed in to WSO2 Cloud. Sign in to continue.";
         case "connected":
-            return "";
+            // Access was there when this was read: the call failed for another reason.
+            return "Could not reach WSO2 Cloud through WSO2 Integrator. Try again.";
         default:
             return "WSO2 Integrator's cloud features are not available. Install or update the WSO2 Integrator extension.";
     }

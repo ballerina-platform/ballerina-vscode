@@ -142,10 +142,12 @@ export class PlatformExtRpcClient implements PlatformExtAPI {
         return this._messenger.sendRequest(refreshConnectionList, HOST_EXTENSION, undefined);
     }
 
+    /** Signs in, or asks VS Code to let Ballerina use the WSO2 Cloud sign-in; answers where that left it. */
     requestCloudAccess(): Promise<CloudAccess> {
         return this._messenger.sendRequest(requestCloudAccess, HOST_EXTENSION, undefined);
     }
 
+    /** Reads the WSO2 Cloud sign-in again without asking. */
     refreshCloudAccess(): Promise<CloudAccess> {
         return this._messenger.sendRequest(refreshCloudAccess, HOST_EXTENSION, undefined);
     }

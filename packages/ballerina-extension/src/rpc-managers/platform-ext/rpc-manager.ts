@@ -356,6 +356,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
         this.disposeProjectPathWatcher = await this.initProjectPathWatcher(projectPath);
     }
 
+    /** Fills the store's sign-in state from WSO2 Integrator and follows its changes through the connected API. */
     private async initAuthState() {
         const gate = await this.getPlatformGate();
         let platformExt: IWso2PlatformExtensionAPI | undefined;
@@ -382,6 +383,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
             return;
         }
 
+        // Subscribed only through a connected API, so signed in here means this extension may use the session.
         this.sessionSubscriptions.push(platformExt.subscribeAuthState((authState) => {
             const isLoggedIn = !!authState.session && authState.status === "signed-in";
             platformExtStore.getState().setState({

@@ -200,6 +200,14 @@ export const exchangeForCopilotToken = async (options: CloudSessionOptions = {})
     }
 };
 
+/** The WSO2 Cloud session cannot be used for a Copilot token: signed out, or Ballerina is not allowed to use it. */
+export class CloudSessionUnavailableError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = "CloudSessionUnavailableError";
+    }
+}
+
 /**
  * Refresh the Copilot token by exchanging the WSO2 Cloud session again
  */
@@ -211,7 +219,7 @@ export const refreshCopilotToken = async (): Promise<BIIntelSecrets> => {
     const secrets = await exchangeForCopilotToken();
     if (!secrets) {
         // Signed in but not allowed to use the sign-in is told apart from signed out.
-        throw new Error(describeCloudAccess(await readCloudAccess()));
+        throw new CloudSessionUnavailableError(describeCloudAccess(await readCloudAccess()));
     }
     return secrets;
 };
@@ -402,8 +410,10 @@ export const getRefreshedAccessToken = async (): Promise<string> => {
                 return;
             } catch (exchangeError) {
                 console.error('Copilot token exchange failed:', exchangeError);
-                // If the exchange fails, we can't refresh - reject
-                reject(new Error('Token refresh failed. Please login again.'));
+                // If the exchange fails, we can't refresh - reject, saying why when the session cannot be used
+                reject(new Error(exchangeError instanceof CloudSessionUnavailableError
+                    ? exchangeError.message
+                    : 'Token refresh failed. Please login again.'));
             }
         } catch (error: any) {
             reject(error);
